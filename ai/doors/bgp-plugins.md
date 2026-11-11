@@ -51,10 +51,21 @@ talks to the engine is in `ai/digests/plugin-transport.md`.
   it changes the subprocess's own copy and nothing else (`./le plugin boundary
   check`). A plugin never imports another plugin's implementation (`./le arch
   tier check`).
-- **A plugin declares twice, and both must agree.** `registry.Registration` is
-  read by anything that links the composition root. The `sdk.Registration`
-  passed to `p.Run` is what a running daemon receives at Stage 1
-  (`plugin-system.md`, "The process boundary", and `./le plugin declarations check`).
+- **A plugin declares its commands twice, and both must agree.**
+  `registry.Registration` is read by anything that links the composition root.
+  The `sdk.Registration` passed to `p.Run` is what a running daemon receives at
+  Stage 1. `./le plugin declarations check` compares the two `Commands` and
+  `Pipes` lists in both directions (`plugin-system.md`, "The process boundary").
+- **A doctor check takes one route, never both.** A check over the config tree
+  or the host is a `registry.DoctorCheckDef` at a config phase, and runs in
+  whichever process answers. A check over the plugin's live state is declared
+  in the Stage 1 `sdk.Registration` `DoctorChecks` and answered by
+  `OnDoctorCheck`, which reaches a forked plugin too
+  (`internal/plugins/ddos/detect/doctor.go`). The registry refuses a
+  `runtime`-phase `registry.DoctorCheckDef` (`validateDoctorCheckDef`), and
+  Stage 1 refuses a check name the registry row already holds
+  (`refuseDoctorCheckDeclaredTwice`)
+  (`docs/architecture/doctor-and-health-checks.md`, "The runtime phase").
 - **Some hooks exist only in-process.** Know which before you rely on one for
   a feature a third party must also reach:
 
@@ -127,7 +138,7 @@ talks to the engine is in `ai/digests/plugin-transport.md`.
 | Command | It judges |
 |---------|-----------|
 | `./le plugin boundary check` | No unguarded in-process call that breaks when the plugin runs external |
-| `./le plugin declarations check` | The two declarations agree |
+| `./le plugin declarations check` | The two command and pipe declarations agree |
 | `./le plugin imports check`, `./le arch tier check` | The composition root is current. No plugin imports another's implementation |
 | `./le arch enumeration check` | No literal in the change restates what a registry holds |
 | `./le mock plugin-external` | A registered engine plugin run as an external process, refusing or warning where it must |

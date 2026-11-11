@@ -7,10 +7,10 @@
 | Priority | P1 |
 | Release reason | 57 errors in the BGP engine (reactor, `ze bgp decode --plugin`, the BGP server) are caught and logged only below WARN: a next hop that fails to resolve drops a static route, a failed collision handoff or teardown write leaves no trace at the default level |
 | RFC gaps | - |
-| Depends | - |
+| Depends | `plan/release/validation/spec-doctor-coverage-6-bgp-engine.md`, its Data Flow "Class to code map": every answer-2 WARN this spec adds is a problem site the doctor-coverage gate judges, and `./le commit create` refuses an added Warn whose `code` attribute no doctor check declares (`docs/architecture/doctor-and-health-checks.md`, "Every problem site names a doctor code"), so each WARN carries the class code that map assigns; where that spec has not yet registered the code, the WARN lands with it (that spec's R-3) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -31,7 +31,7 @@ Each instance is resolved by exactly one answer, judged in this order
 | Order | When | Answer |
 |-------|------|--------|
 | 1 | Going on is wrong: the caller would act on the failure | Return the error, or fix the behavior the drop hid |
-| 2 | Going on is right and an operator can act | WARN with what, why and the fix (`ai/rules/user-facing-errors.md`); on a per-route or per-message path, count it in the reactor's existing metrics and WARN once per condition |
+| 2 | Going on is right and an operator can act | WARN with what, why and the fix (`ai/rules/user-facing-errors.md`) and a `code` attribute naming the class code of `spec-doctor-coverage-6-bgp-engine`'s map (Depends); on a per-route or per-message path, count it in the reactor's existing metrics and WARN once per condition |
 | 3 | Going on is right and nobody can act (a close at teardown, a write to a connection already lost) | `// refuse-by-default: guards <Symbol> -- <why>` on the line above |
 
 Known overlaps, resolved where they are owned:
@@ -128,7 +128,7 @@ Known overlaps, resolved where they are owned:
 |----------|--------|
 | What breaks if this is wrong? | Log noise, or a session torn down by a newly returned error |
 | How is it reverted? | Single commit revert |
-| Who else touches this path? | `spec-bgp-one-off-defects`, `spec-command-surface-parity` (overlaps above) |
+| Who else touches this path? | `spec-bgp-one-off-defects`, `spec-command-surface-parity` (overlaps above), `plan/release/validation/spec-doctor-coverage-6-bgp-engine.md` (the same log lines: their codes, its R-3) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -143,7 +143,7 @@ Known overlaps, resolved where they are owned:
 |-------|-------------------|-------------------|
 | AC-1 | `./le arch refuse-by-default report '|' json`, filtered to this child's paths | No `findings` entry with rule `error-dropped-below-warn` |
 | AC-2 | Each instance resolved by answer 1 | A unit test where the caller observes the error |
-| AC-3 | Each file with an answer-2 WARN | A unit test captures one WARN line at the default level and asserts it names what failed, why it matters and the fix |
+| AC-3 | Each file with an answer-2 WARN | A unit test captures one WARN line at the default level and asserts it names what failed, why it matters and the fix, and carries the `code` its class has in `spec-doctor-coverage-6-bgp-engine`'s map; `./le arch doctor-coverage check` refuses none of the added lines |
 | AC-4 | Each annotation | Names a guard the file can see; the report's `annotated` list holds it |
 | AC-5 | BGP package and functional suites the change reaches | Green |
 
@@ -165,6 +165,7 @@ Known overlaps, resolved where they are owned:
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | The `test/plugin`, `test/decode` and `test/encode` `.ci` that reach changed files | `test/` | Unchanged behavior, plus the WARN where a `.ci` drives the failure | |
+| `capability-llgr` | `test/decode/capability-llgr.ci` | `ze bgp decode --plugin bgp-gr --open` still answers through `decode_plugin.go`, the path whose dropped errors answer 1 returns | |
 
 ## Files to Modify
 - `internal/component/bgp/cli/decode_plugin.go` - 14: `invokePluginDecodeRequest` 243,246; `invokePluginPath` 349,352,362,369; `invokePluginSubprocess` 427,430; `invokePluginInternal.func` 497,502,505; `invokePluginInternal` 515,520,526

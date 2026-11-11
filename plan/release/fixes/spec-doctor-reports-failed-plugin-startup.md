@@ -7,10 +7,10 @@
 | Priority | P1 |
 | Release reason | A configured plugin whose startup failed can leave ze running without it while `ze doctor` reports nothing, and a failed explicit-plugin phase leaves ze running with the later startup phases undone. |
 | RFC gaps | - |
-| Depends | - |
+| Depends | `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` AC-1 (phase P0a), which registers the code `doctor-plugin-startup-phase-failed` with its metadata; this spec's startup check declares and reports it |
 | Phase | Defects found and traced at the producer (read, not run); design owed |
 | Handoff | - |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-11 |
 
 ## Task
 
@@ -52,6 +52,16 @@ survivable. Running phases 3 to 5 after a phase-2 failure is therefore not the
 fix. The design chooses between stopping ze as phase 1 does, and reporting the
 failed plugin and the phases not run through doctor, against that ruling and
 the failure policy in `failure_policy.go`.
+
+**Codes (main-session decision, 2026-11-11, from the owner rule that `ze
+doctor` reports every problem an operator can hit with its cause and fix,
+and one fault one row).** Both classes here are five-stage startup failures,
+an SDK run failing before ready included, and report
+`doctor-plugin-startup-phase-failed`, registered by
+`plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` AC-1.
+`doctor-plugin-setup-failed` is not this spec's: it is a plugin's `init()`
+registration or setup failure, recorded through `registry.RecordSetup` and
+reported by that spec's AC-45 check over `registry.SetupResults`.
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -108,8 +118,8 @@ the failure policy in `failure_policy.go`.
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | A configured non-fatal plugin fails startup and ze keeps running | `ze doctor` reports a warning naming the plugin, the stage, the cause and the fix | None |
-| AC-2 | The explicit-plugin phase fails | ze stops as for a phase-1 failure, or `ze doctor` names the phases not run; which one is the design decision above | None |
+| AC-1 | A configured non-fatal plugin fails startup and ze keeps running | `ze doctor` reports a warning `doctor-plugin-startup-phase-failed` naming the plugin, the stage, the cause and the fix | None |
+| AC-2 | The explicit-plugin phase fails | ze stops as for a phase-1 failure, or `ze doctor` names the phases not run under `doctor-plugin-startup-phase-failed`; which one is the design decision above. If ze stops, no daemon answers the runtime route, so the finding answers on the local route: the stop is written before it to the last-stop record of `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` AC-8 (a zefs key written on a plugin-caused boot refusal), and a config-phase check reads that record on the next `ze doctor` run, as that spec's AC-11 does for a fatal stop, and reports the plugin, the phase and the phases not run. Which check reads the record for this class, this spec's or child 12's AC-11 widened, is open in Design Work Owed | None |
 
 ## 🧪 TDD Test Plan
 
@@ -138,7 +148,8 @@ the failure policy in `failure_policy.go`.
 - Decide phase 2 against the fail-closed ruling: stop ze, or report.
 - Choose the doctor surface: a daemon doctor check over the failure record, or
   a phase of the plugin walk.
-- Set the diagnostic code in `internal/core/diagnostic/codes.go`.
+- The code is `doctor-plugin-startup-phase-failed`, registered by child 12 AC-1; this spec's check declares it.
+- If AC-2 chooses "ze stops": decide which local check reads child 12's AC-8 last-stop record for this class (a check of this spec, or child 12 AC-11 widened to boot refusals), so `ze doctor` still reports the stop when no daemon runs.
 
 ## Owned journal rows
 

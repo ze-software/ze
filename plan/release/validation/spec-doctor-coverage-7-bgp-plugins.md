@@ -50,7 +50,7 @@ Every runtime check here reads the plugin's own state inside the plugin's own pr
 - [ ] `ai/doors/core.md` - core registries
   → Constraint: a registry is the only list; each new code is declared once in `internal/core/diagnostic/codes.go` and named by the declaring check's `Codes`
 - [ ] `ai/doors/bgp-engine.md` - the engine the plugins extend
-  → Constraint: "Never name a plugin package from the reactor": the grant predicate shared by the reactor and the route-server check (AC-16) lives where both may import it, not in `reactor`
+  → Constraint: "Never name a plugin package from the reactor": the route-server grant check is child 6's (its AC-25, in `bgp/config`, which already imports `reactor`), so no plugin package reads the reactor's grant predicate and none moves (AC-16)
 - [ ] `ai/doors/system-plugins.md` - the model plugin `ddos-detect`
   → Constraint: "A plugin owns its whole surface": its doctor checks live in its folder
 - [ ] `ai/doors/le-tooling.md` - the doctor-coverage gate and the test runner
@@ -126,7 +126,7 @@ The A6 and A7 slice rows (`tmp/session/2026-11-09-223019/scratch/audit/A6-bgp-pl
 | Plugin-to-engine RPC table | `internal/component/plugin/server/dispatch_registry.go` `engineOps`; `internal/core/ipc/yang/ze-plugin-engine.yang`; precedent `metrics-publish` | One entry per plugin-to-engine RPC; JSON, direct and typed paths derived from it | uses: child 12 phase P0b adds the one coded-event raise entry; this spec adds none and calls it |
 | Diagnostic code registry | `internal/core/diagnostic/codes.go`; `ze show diagnostic <code>` | Explains each code | extends: each new code below is registered once there, so `ze show diagnostic` explains it and `doctor-recent-events` keeps it as the row code |
 | Health registry | `internal/core/health` | Degraded rows | does not apply: no package in this area registers a health row (both slices) |
-| Reactor relay grant report | `internal/component/bgp/reactor/peer_forward_facts.go` `reportRSRelayGrants`, `rsRelaySendGranted`, `rsRelayReceiveGranted` | Warns once per snapshot when the fast-path grants are missing | extends: AC-16's local check reads the same predicate, moved to a package both the reactor and the route-server plugin may import; the reactor's Warn line is the bgp-engine child's site |
+| Reactor relay grant report | `internal/component/bgp/reactor/peer_forward_facts.go` `reportRSRelayGrants`, `rsRelaySendGranted`, `rsRelayReceiveGranted` | Warns once per snapshot when the fast-path grants are missing | does not apply here: the route-server half of AC-16 is child 6's AC-25 check over these predicates, and the reactor's Warn line is child 6's site |
 | IRR refresh facts | `filter_irr/config.go` `peersMissingRouteRefresh`, `peersMissingRefreshGrant` | Computed at config time, logged | extends: AC-36's check calls them; no second walk |
 | Role config verify | `role/register.go` `InProcessConfigVerifier: verifyRoleConfig` | Parses role config at commit | extends: AC-66 makes it refuse the invalid forms it now logs |
 | Plugin live state | `role/metrics.go` `metricRouteRejects`, `metricRouteSuppressions`; `bmp` `BMPPlugin` listeners, sessions and `peerUps`; `rpki` `ROACache`, `aSPACache`; `filter_irr` per-ASN state | Metrics and live state inside each plugin | extends: the runtime checks read them in the plugin's process |
@@ -149,7 +149,6 @@ The A6 and A7 slice rows (`tmp/session/2026-11-09-223019/scratch/audit/A6-bgp-pl
 |----------|-----|----------|
 | Daemon to plugin (runtime checks) | `ze-plugin-callback:doctor-check`, existing | Yes: `collectDoctorChecksFrom` read; used by `ddos-detect` |
 | Plugin to daemon (event raise) | new `ze-plugin-engine:` RPC, one `engineOps` entry | No: added by child 12 phase P0b |
-| Reactor and route-server plugin (grant predicate) | one exported predicate in a package both import | No: home chosen in P3 under `./le arch tier check` |
 
 ### Changed-Wire Census
 
@@ -174,8 +173,8 @@ The A6 and A7 slice rows (`tmp/session/2026-11-09-223019/scratch/audit/A6-bgp-pl
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes | runtime state is read by the owning plugin over the doctor callback; events reach the bus through one engine op |
-| No unintended coupling (components stay isolated) | Yes | no doctor or engine package names a BGP plugin; the grant predicate moves out of `reactor` rather than being imported from it |
-| No duplicated functionality (extends existing, does not recreate) | Yes | Existing Mechanisms table; B9 reuses the IRR functions, AC-16 the reactor predicate |
+| No unintended coupling (components stay isolated) | Yes | no doctor or engine package names a BGP plugin; no plugin reads the reactor's grant predicate |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Existing Mechanisms table; B9 reuses the IRR functions; AC-16's route-server half is child 6's one check, not a second |
 | Zero-copy preserved where applicable (refs, not copies) | Yes | no hot-path change; failure records are written only on the failure branch |
 | Registration over hardcoding, outbound | Yes | each check registers from its plugin; each code in the code registry |
 | Registration over hardcoding, inbound | Yes | the doctor runner, the gate and `doctor-recent-events` read the registries; searched `internal/component/doctor/` and `internal/le/arch/doctorcoverage/` for plugin or code names of this area: none, and none is added |
@@ -199,6 +198,7 @@ The A6 and A7 slice rows (`tmp/session/2026-11-09-223019/scratch/audit/A6-bgp-pl
 | R-3 | A runtime check blocks on a lock the hot path holds | `show doctor` slow under load | each check reads a snapshot or an atomic; the per-check timeout in `show.go` bounds it |
 | R-4 | A failure record grows without bound (one entry per peer or prefix) | memory per peer | each record is keyed by peer, collector, probe or cache, holds last failure, count and time, and is removed when its key leaves the config |
 | R-5 | Seventy checks slow review | review rounds | phases are cut by plugin, each with its own tests |
+| R-6 | AC-16's reflector half has no owning check or code: the route-server half is child 6 AC-25 (2026-11-11 main-session decision, one fault one row), and child 7's `doctor-bgp-relay-grant-missing` is dropped, but `bgp-rr` does not declare `registry.RelaysOnRSFastPath`, so child 6's predicate never judges a reflector attach block | a reflector peer missing `send [ update ]` reported by nothing | open, main-session decision: widen child 6 AC-25's check to every plugin whose forward or replay needs the grants (one check, one code, a registration field rather than a plugin name), or give the reflector fault its own code here; the obligation stays in AC-16 until then |
 
 ## Blast Radius
 
@@ -206,7 +206,7 @@ The A6 and A7 slice rows (`tmp/session/2026-11-09-223019/scratch/audit/A6-bgp-pl
 |----------|--------|
 | What breaks if this is wrong? | a doctor row missing or false; a verify refusal on a config that used to be accepted (AC-34, AC-57, AC-66). No route handling changes |
 | How is it reverted? | single commit revert per phase |
-| Who else touches this path? | `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` (P0a shared codes and transient-code registration, P0b raise route, P4 in-process field), the bgp-engine child `spec-doctor-coverage-6-bgp-engine` (grant predicate, OPEN refusals; its AC-25 plans a local check `doctor-bgp-route-server-not-attached` for the same fast-path grant condition as AC-16 here, inventory A5 C27 beside the A6 grants row), `spec-doctor-coverage-11-hub-engine` (route field, `config-plugin-verify`), `spec-doctor-coverage-15-system` (filter_irr stale row), `spec-bmp-route-action-redistribute-acts-as-monitor` |
+| Who else touches this path? | `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` (P0a shared codes and transient-code registration, P0b raise route, P4 in-process field), the bgp-engine child `spec-doctor-coverage-6-bgp-engine` (OPEN refusals; its AC-25 owns the one check and code `doctor-bgp-route-server-not-attached` for the route-server fast-path grant fault, inventory A5 C27, which covers the route-server half of the A6 grants row, AC-16 here), `spec-doctor-coverage-11-hub-engine` (route field), `spec-doctor-coverage-15-system` (filter_irr stale row), `spec-bmp-route-action-redistribute-acts-as-monitor` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -254,7 +254,7 @@ Each row names what doctor reports (finding, severity, code, fix), the state it 
 |-------|-------------------|-------------------|-----------------------------|
 | AC-14 | `request bgp adj-rib-in claim-replay` refused or not answered (`rr/rr.go`, `rs/server_handlers.go`) | `doctor-bgp-replay-unclaimed`, warning: peer-up routes may be announced twice; runtime from the kept claim result | none |
 | AC-15 | `bgp-rs` configured and the plugin registry has no `bgp-adj-rib-in` | `doctor-bgp-rs-replay-store-absent`, warning: a new client gets no existing routes, only FlowSpec; local | none |
-| AC-16 | A peer attaches the route-server or reflector process without `receive [ update-received ]` or `send [ update ]`, after implicit grants are applied | `doctor-bgp-relay-grant-missing`, warning, naming peer, process and the missing grant; fix is the `attach process` line `reportRSRelayGrants` already prints; local, through the same predicate the reactor uses | none |
+| AC-16 | A peer attaches the route-server or reflector process without `receive [ update-received ]` or `send [ update ]`, after implicit grants are applied | route server: covered by `plan/release/validation/spec-doctor-coverage-6-bgp-engine.md` AC-25, the one check for this fault (`bgp-route-server-attach`, code `doctor-bgp-route-server-not-attached`, over the reactor's `rsRelaySendGranted`/`rsRelayReceiveGranted`); this spec adds no check and no code for it, and its `rs` grant lines carry `doctor-bgp-route-server-not-attached`. Reflector: the reactor predicates answer only for a plugin declaring `registry.RelaysOnRSFastPath`, which only `bgp-rs` sets (`rs/register.go`), so `bgp-rr`'s own grant need (`rr/rr.go`, the replay owner a destination must grant `send [ update ]`) is not that fault; it stays owed here, open in R-6 | none |
 | AC-17 | A peer-up replay failed or ended incomplete (relay error, catch-up gave up at the cut, delta or FlowSpec replay failed; `adj_rib_in/rib.go`, `rr/rr.go`, `rr/validation.go`, `rs/server_handlers.go`, `rs/server_validation.go`) | `doctor-bgp-peer-up-replay-incomplete`, warning, naming peer and reason, kept per peer until that peer resets, and raised as a recent event; fix names the peer reset command | none |
 | AC-18 | A session-ready report not delivered, or no peer-up receipt (`rr/rr.go`, `rs/server_handlers.go`, `adj_rib_in/rib.go`, `rib/rib_replay.go`, `watchdog/watchdog.go`) | `doctor-bgp-session-ready-failed` (canonical), warning: the peer's live forwards stay fenced behind the replay; recent event, and the runtime check answers peers whose report is still owed | none: per the door the report is timing only and never holds End-of-RIB, so the row says delayed, not refused |
 | AC-19 | The engine refused `update-route` or `dispatch peer-action` (`rr/rr.go`, `rib/rib.go`) | recent event `doctor-bgp-forward-refused` naming destination peer and the engine's reason | none |
@@ -295,8 +295,8 @@ Each row names what doctor reports (finding, severity, code, fix), the state it 
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-42 | B10: an ASN with no IRR list or a failed lookup (`st.lastErr`, `st.list` nil, `st.lastOK`; `filter_irr/filter_irr.go`) | `doctor-bgp-irr-list-missing`, error: the ASN's prefixes are rejected (fail closed); names ASN, last error and last success; runtime; fix names `show bgp irr` | an ASN within its first lookup attempt is not reported |
-| AC-43 | B11: `readmitter.full` set (`filter_irr/readmit.go`) | `doctor-bgp-irr-readmit-full`, warning, with held count against `heldPrefixMax`; runtime | none |
+| AC-42 | B10: an ASN with no IRR list or a failed lookup (`st.lastErr`, `st.list` nil, `st.lastOK`; `filter_irr/filter_irr.go`) | `doctor-bgp-irr-list-missing`, error: the ASN's prefixes are rejected (fail closed); names ASN, last error and last success; runtime, declared in the `filter_irr` runner's `sdk.Registration` `DoctorChecks` and answered by its `OnDoctorCheck`: one runtime check shared with AC-43 and with `plan/release/validation/spec-doctor-coverage-15-system.md` AC-19 (`doctor-bgp-irr-stale-data`); fix names `show bgp irr` | an ASN within its first lookup attempt is not reported |
+| AC-43 | B11: `readmitter.full` set (`filter_irr/readmit.go`) | `doctor-bgp-irr-readmit-full`, warning, with held count against `heldPrefixMax`; runtime, from the same `filter_irr` runtime check as AC-42 (Stage 1 declaration, `OnDoctorCheck`) | none |
 | AC-44 | B12: a modify filter with `del { med; }` referenced from an export chain (`filter_modify/filter_modify.go`) | `doctor-bgp-modify-med-ignored`, warning, naming filter and chain: the deletion is not applied on export (RFC 4271 Section 5.1.4); local | none |
 | AC-45 | B13: blackhole-tagged routes reach a destination that did not agree to the BLACKHOLE community (`filter_community/community_filter.go`) | `doctor-bgp-blackhole-withheld`, warning, naming the destination and the agreement leaf as the fix; local | none: withholding is RFC 7999 behavior, and the row explains it |
 
@@ -364,7 +364,7 @@ Each row names what doctor reports (finding, severity, code, fix), the state it 
 | AC-73 | A6 engine-to-plugin event refused, 50 sites (`adj_rib_in/rib.go`, `adj_rib_in/rib_gate_events.go`, `rib/rib.go`, `rib/rib_structured.go`, `rib/rib_validation.go`, `rib/rib_event_sdk.go`, `rr/rr.go`, `rs/server.go`, `rs/server_handlers.go`) | each line carries `doctor-internal-defect` and raises it as a recent event | none |
 | AC-74 | A6 self-reported defects, 11 sites (`adj_rib_in/rib_eligibility.go`, `rib/rib_bestchange.go`, `rib/rib_event_sdk.go`, `rib/rib_inject.go`, `rib/rib_pipeline_best.go`, `rib/rib_sent_lifecycle.go`, `rr/withdrawal.go`, `rs/worker.go`) | `doctor-internal-defect`, raised as a recent event | none |
 | AC-75 | A6 registration failures at init, 5 sites (`adj_rib_in/register.go`, `bmp/register.go`, `rib/rib_commands_community.go`, `rib/rib_inject.go`) | `doctor-plugin-setup-failed` | the three `os.Exit` sites reach stderr only, before any doctor runs: they carry the code for the gate and raise nothing |
-| AC-76 | Config refusals answered to the committer: 4 A6 sites (`bmp/bmp.go`) and 1 A7 site (`watchdog/config_tx.go`) | each line carries `config-plugin-verify` as its `code`, the code of a plugin's config verify refusal that `spec-doctor-coverage-11-hub-engine`'s `hub-runtime` check declares (its AC-34) | none |
+| AC-76 | Config refusals answered to the committer: 4 A6 sites (`bmp/bmp.go`) and 1 A7 site (`watchdog/config_tx.go`) | each line carries `config-plugin-verify` as its `code`, the code of a plugin's config verify refusal, which the `config-semantics` check already declares (`semanticsDoctorCheck`, `internal/component/config/doctor.go`) | none |
 | AC-77 | A6 shutdown race, 2 sites (`rs/server.go`) | `doctor-internal-defect` | none |
 | AC-78 | A6 benign notes, 2 sites (`rib/rib_replay.go` duplicate replay suppressed, `adj_rib_in/rib_validation.go` early verdict expired) | logged at Info: nothing is wrong and no operator action changes them | none: `doctor-bgp-rib-note` (CODES.md) is not registered, because a code for a non-problem would put a healthy box in doctor |
 | AC-79 | A7 registration failures, 27 sites (every `register.go` line, `gr/register.go`, `rpki/register.go`, `nlri/flowspec/register.go`, `nlri/srpolicy/register.go`); every plugin's SDK-run failure line (`rr/rr.go`, `aigp/aigp.go`, `gr/gr.go`, `rpki/rpki.go`, `epe/epe_plugin.go`, `ls_export/export_plugin.go`, `bmp/bmp.go`, `rib/rib.go`, `adj_rib_in/rib.go` and the rest of B1); the `route-action redistribute` line in `bmp/receiver.go` | the 23 plugin registrations carry `doctor-plugin-missing` (declared by the existing plugin-infra check, `internal/component/plugin/doctor/register.go`), the 4 auxiliary ones `doctor-plugin-setup-failed`, the run-failure lines `doctor-plugin-stopped`; the redistribute line is deleted by `spec-bmp-route-action-redistribute-acts-as-monitor` (A-5), so this spec gives it no code | none |
@@ -396,7 +396,6 @@ Each row names what doctor reports (finding, severity, code, fix), the state it 
 | `TestBGPPluginRuntimeChecksAnswerBothTransports` | the `doctor_test.go` of each plugin with a runtime check | A-1, AC-71 | |
 | `TestDoctorRIB*`, `TestDoctorAdjRIBIn*` (one per AC) | `rib/doctor_test.go`, `adj_rib_in/doctor_test.go` | AC-4 to AC-13 | |
 | `TestDoctorRouteServer*`, `TestDoctorReflector*` | `rs/doctor_test.go`, `rr/doctor_test.go` | AC-14 to AC-24 | |
-| `TestRelayGrantPredicateSharedWithReactor` | the package chosen in P3 | AC-16 uses the reactor's predicate | |
 | `TestDoctorBMP*` | `bmp/doctor_test.go` | AC-25 to AC-33 | |
 | `TestBMPStatisticsTimeoutDescription` | `bmp/yang_test.go` | AC-69: the description names the report it sends | |
 | `TestDoctorAnnounce*`, `TestDoctorCommitOpen`, `TestDoctorEPE*`, `TestDoctorLSExport*`, `TestDoctorFilterFamily*` | the owning packages' `doctor_test.go` | AC-35, AC-37 to AC-41 | |
@@ -435,7 +434,6 @@ Each row names what doctor reports (finding, severity, code, fix), the state it 
 - `internal/core/diagnostic/codes.go` - every new code (P0, extended per phase)
 - `internal/component/bgp/plugins/rib/`, `adj_rib_in/` - failure records, checks, codes (P2)
 - `internal/component/bgp/plugins/rs/`, `rr/` - failure records, checks, codes; `rs/server.go` `RunRouteServer` message (P3)
-- `internal/component/bgp/reactor/peer_forward_facts.go` - the grant predicate moves to the shared home (P3)
 - `internal/component/bgp/plugins/bmp/` - listener and collector records, checks; `yang/ze-bmp-conf.yang` description (P4)
 - `internal/component/bgp/plugins/cmd/announce/`, `cmd/commit/`, `internal/component/bgp/transaction/`, `epe/`, `ls_export/`, `filter_family/` (P5)
 - `internal/component/bgp/plugins/filter_irr/`, `filter_modify/`, `filter_community/` (P6)
@@ -499,7 +497,7 @@ Phases are cut for one agent of about 60 tool calls each. Child 12 phases P0a an
    - Files: the runners of rib, adj_rib_in, rs, rr, bmp, cmd/commit, ls_export, filter_family, filter_irr, gr, healthcheck, role, rpki
    - Verify: each plugin's Stage 1 registration accepted (no `validateDoctorCheckDecls` or `refuseDoctorCheckDeclaredTwice` refusal: every runtime check name differs from the names in the plugin's registry row); each check reachable internal and forked. `./le plugin declarations check` judges commands and pipe aliases only, so it proves nothing about doctor checks
 3. **Phase P2: RIB and Adj-RIB-In** -- AC-4 to AC-13, the per-peer split and promotion records
-4. **Phase P3: route server and reflector** -- AC-14 to AC-24, the per-peer replay record, the shared grant predicate, AC-68
+4. **Phase P3: route server and reflector** -- AC-14 to AC-24 (AC-16's route-server half is child 6 AC-25; its reflector half waits on R-6), the per-peer replay record, AC-68
 5. **Phase P4: BMP** -- AC-25 to AC-33, listener and collector records, AC-69
 6. **Phase P5: announce, commit, EPE, BGP-LS export, filter-family** -- AC-35, AC-37 to AC-41 (AC-38 once child 12 phase P4's in-process field, its AC-24, exists)
 7. **Phase P6: IRR, modify, community filters** -- AC-34, AC-36, AC-42 to AC-45. `filter_irr` carries two checks: a config check (AC-34, AC-36) and a runtime check (AC-42, AC-43) that `spec-doctor-coverage-15-system` AC-19 joins with `doctor-bgp-irr-stale-data`; whichever spec lands first creates the runtime check
@@ -518,9 +516,9 @@ Each of P2 to P9 follows the same order: write the check's unit test against a f
 | Correctness | a runtime check reads only its own process's state; no check reads `ctx.Tree` at the runtime phase |
 | Correctness | a transient raise happens once per failure, never per route |
 | Naming | every code starts `doctor-`, kebab-case, registered once |
-| Data flow | no daemon package names a BGP plugin; the grant predicate is imported by the reactor, not from it |
+| Data flow | no daemon package names a BGP plugin; no plugin reads the reactor's grant predicate |
 | Rule: user-facing-errors | every message gives problem, why, fix on its own line |
-| Rule: no-layering | one raise route, one grant predicate |
+| Rule: no-layering | one raise route; one check and one code for the route-server grant fault (child 6 AC-25) |
 
 ### Deliverables Checklist
 

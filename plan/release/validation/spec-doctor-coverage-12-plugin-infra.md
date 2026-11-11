@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md`, "Goal and scope": `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of `spec-doctor-coverage-1-audit-and-gate` makes every area child release work |
 | RFC gaps | - |
-| Depends | `spec-doctor-coverage-1-audit-and-gate`: the `runtime` doctor phase, `Diagnostic.Fix`, the `recent-events` check (code `doctor-recent-events`, `internal/component/doctor/checks_recent_events.go`) and the doctor-coverage gate, landed in commits ce58dddf53 and fc96556110; commit 149497ce12 then made a plugin's runtime check run only through its Stage 1 callback (`validateDoctorCheckDef` refuses a `registry.DoctorCheckDef` at `runtime`, `refuseDoctorCheckDeclaredTwice` refuses a check declared on both routes), so every runtime check here registers through `diagnostic.RegisterDoctorCheck`. `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` owns the two startup-failure classes (see Task); this spec registers their codes. This spec relies on no sibling area child. Every other area child depends on this spec's phases P0a (shared codes, event-code registration, fix convention) and P0b (plugin report route), and cites them by this spec's path: children 3 to 11 and 13 to 15 (`plan/release/validation/spec-doctor-coverage-3-access-security.md` to `spec-doctor-coverage-11-hub-engine.md`, `spec-doctor-coverage-13-routing-protocols.md`, `spec-doctor-coverage-14-system-plugins.md`, `spec-doctor-coverage-15-system.md`) |
+| Depends | `spec-doctor-coverage-1-audit-and-gate`: the `runtime` doctor phase, `Diagnostic.Fix`, the `recent-events` check (code `doctor-recent-events`, `internal/component/doctor/checks_recent_events.go`) and the doctor-coverage gate, landed in commits ce58dddf53 and fc96556110; commit 149497ce12 then made a plugin's runtime check run only through its Stage 1 callback (`validateDoctorCheckDef` refuses a `registry.DoctorCheckDef` at `runtime`, `refuseDoctorCheckDeclaredTwice` refuses a check declared on both routes), so every runtime check here registers through `diagnostic.RegisterDoctorCheck`. `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` owns the five-stage startup-failure classes (`doctor-plugin-startup-phase-failed`, see Task); this spec registers their code and owns the `init()` setup-failure class (`doctor-plugin-setup-failed`, AC-45). This spec relies on no sibling area child for its checks; AC-40 waits on child 11 AC-34 for `doctor-config-reload-refused` (A-5). Every other area child depends on this spec's phase P0a (shared codes, event-code registration, fix convention) and cites it by this spec's path: children 3 to 11 and 13 to 15 (`plan/release/validation/spec-doctor-coverage-3-access-security.md` to `spec-doctor-coverage-11-hub-engine.md`, `spec-doctor-coverage-13-routing-protocols.md`, `spec-doctor-coverage-14-system-plugins.md`, `spec-doctor-coverage-15-system.md`). Phase P0b (plugin report route) is needed only by a child whose producers run inside a plugin that can be forked; children 4, 8 and 11 need only P0a, because their producers run in the daemon process and raise through `internal/core/report` directly |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-11 |
@@ -41,8 +41,10 @@ Rows not re-specified here:
 
 | Class | Owner | Reason |
 |-------|-------|--------|
-| A plugin failed its five-stage startup (`doctor-plugin-setup-failed`) | `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` AC-1 | that spec was written first for the same class; this spec registers the code (AC-1) |
+| A plugin failed its five-stage startup (`doctor-plugin-startup-phase-failed`) | `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` AC-1 | that spec was written first for the same class; this spec registers the code (AC-1) |
 | Boot left a later plugin phase failed (`doctor-plugin-startup-phase-failed`) | the same spec, AC-2, and its journal row `plan/journal/one-failure-skips-independent-startup-work.md` (2026-11-10) | same; the code is registered here (AC-1) |
+
+`doctor-plugin-setup-failed` is not a startup class: it is a plugin's `init()` registration or setup failure, the outcome `registry.RecordSetup` records and `registry.SetupResults` replays (`internal/component/plugin/registry/setup.go`). This spec owns its check (AC-45, R-6).
 | AC-9 rows (checks reading daemon state outside runtime) | none in this area | the three plugin checks (`plugin-binaries`, `plugin-shell`, `hub-managed-listener`) read the config tree, PATH and the host shell only; core registers only `internal/core/probe`, at `pre-config` |
 
 ## Required Reading
@@ -76,7 +78,8 @@ Rows not re-specified here:
 - Two report-bus codes are raised today and declared by no doctor check: `plugin-crash` and `plugin-down` (`ProcessManager.ReportCrash`, `ProcessManager.Respawn`, `internal/component/plugin/process/manager.go`). `plugin-down` is raised only on the two respawn-limit paths.
 - `deliveryDisagreements` and `unbackedClaims` already compute two classes; the checks call them.
 - No runtime check can reach the plugin `Server` today: `DoctorCheckContext` (`internal/core/diagnostic/doctor_registry.go`) carries the tree, the config dir, the plugins config, the store and the platform, `RunRuntimeChecks` fills only the platform, and no process-wide handle to the running server exists.
-- A setup-outcome registry already exists: `registry.RecordSetup`, `SetupResults`, `HardSetupFailures` (`internal/component/plugin/registry/setup.go`), read by `show plugin list` and by the boot gate `cmd/ze/hub/startup_gate.go`; only `memlock` records into it today.
+- A setup-outcome registry already exists: `registry.RecordSetup`, `SetupResults`, `HardSetupFailures` (`internal/component/plugin/registry/setup.go`), read by `show plugin list` (`internal/component/plugin/register.go`, `declarations.go`) and by the boot gate `cmd/ze/hub/startup_gate.go` (`hardSetupFailure`); only `memlock` records into it today (`internal/plugins/memlock/register_lock.go`), and no doctor check reads it. It is filled in `init()`, before `main()`, so the local `ze doctor` process holds the same records as a daemon built from the same binary.
+- A `registry.DoctorCheckDef` code must carry the `doctor-` prefix (`validateDoctorCheckDef`); a `diagnostic.DoctorCheck` code need only be lower kebab case, and two checks may declare one code (the gate's `Covered` set lists every declaring check per code).
 - `config-plugin-verify` is already declared, by the `config-semantics` check (`internal/component/config/doctor.go`).
 - No data-plane warning exists: `appendDataPlaneWriter` returns an operator error that refuses the whole boot or reload selection when a `NeedsDataPlane` producer has no writer (and an `UnloadedDependencyError` when the writer is compiled out); static's `static-fib-writer` reports the same condition at severity error.
 
@@ -147,7 +150,7 @@ Rows not re-specified here:
 | Plugin-to-engine RPC table | `internal/component/plugin/server/dispatch_registry.go` `engineOps`; precedent `opMetricsPublish` (`dispatch_metrics.go`), `rpc.MethodMetricsPublish`, `ze-plugin-engine.yang` `rpc metrics-publish`, `sdk.Plugin.FlushMetrics` | One entry per RPC, both transports derived | extends: one entry for report raise and clear (AC-4) |
 | Plugin-declared doctor checks | `internal/component/plugin/server/server.go` `DoctorCheckPlugins`, read by `collectDoctorChecksFrom` (`internal/component/doctor/cmd/show.go`); `refuseDoctorCheckDeclaredTwice` (`startup.go`) | Bridges each running plugin's own Stage 1 checks through its doctor callback | does not apply: it lists checks of running plugins only, so it cannot report a plugin that is not running; the new checks read the server instead |
 | Process registry read by a runtime check | `internal/component/config/system/doctor_dns_source.go` `checkDNSSourceSelections` over `ProcessResolvers` (`resolv.go`); core-leaf shape `internal/core/ipsecinventory` | A registry filled in the daemon, read at runtime | extends the shape: the plugin server publishes a value-type snapshot the runtime checks read (AC-5) |
-| Plugin setup-outcome registry | `internal/component/plugin/registry/setup.go` `RecordSetup`, `SetupResults`, `HardSetupFailures`; boot gate `cmd/ze/hub/startup_gate.go` | Records each plugin's `init()` setup outcome; `show plugin list` replays it; a hard failure refuses boot | not extended here; it is the state an init-time setup failure is recorded in (see R-6) |
+| Plugin setup-outcome registry | `internal/component/plugin/registry/setup.go` `RecordSetup`, `SetupResults`, `HardSetupFailures`; boot gate `cmd/ze/hub/startup_gate.go` | Records each plugin's `init()` setup outcome; `show plugin list` replays it; a hard failure refuses boot | extends: a `pre-config` check over `SetupResults` declares and reports `doctor-plugin-setup-failed` (AC-45, R-6); every site carrying that code records its outcome through `RecordSetup` |
 | Process manager state | `internal/component/plugin/process/manager.go` `disabled`, `GetProcess`, `configs`, `ze_plugin_status` gauge | Knows configured, running and disabled plugins | extends: the snapshot of AC-5 derives from it |
 | Existing producers of two classes | `Server.deliveryDisagreements` (`delivery_reconcile.go`), `Server.unbackedClaims` (`startup_claims.go`) | Compute the finding, only logged | extends: the checks call them (AC-15, AC-16) |
 | Removal recovery record | `startup_removal.go` `pluginRemoval.recoveryErr` | Kept until retry | extends: read by AC-28 |
@@ -219,7 +222,7 @@ Rows not re-specified here:
 | A-2 | No command restarts one plugin today | grep of every YANG for a plugin restart RPC finds none | the AC-9 fix line names the existing command instead of adding one | grep in P2 | unvalidated |
 | A-3 | `static-fib-writer` and the boot and reload refusal in `appendDataPlaneWriter` judge one operator problem (no writer for the selected data plane) | `internal/plugins/static/doctor.go`, `startup_autoload.go` `appendDataPlaneWriter` | keep static's check and add only epe's through the same registration | read static's check function in P5 | unvalidated |
 | A-4 | The command audit is written only through `audit.Log.Record` | `internal/component/plugin/server/command.go` | AC-33 covers each writer | grep `Record(` callers in P5 | unvalidated |
-| A-5 | The hub-engine area child registers `doctor-config-reload-refused`, and `config-plugin-verify` has a declaring check | inventory "Canonical codes" assigns it to hub-engine | AC-40 waits on that child; this spec registers neither | read child 11 and `internal/component/config/doctor.go` (2026-11-11) | confirmed: `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` AC-34 registers `doctor-config-reload-refused`, declared by `hub-runtime`; `config-plugin-verify` is already declared today by `config-semantics` (`semanticsDoctorCheck`), so only `doctor-config-reload-refused` waits on child 11 |
+| A-5 | The hub-engine area child registers `doctor-config-reload-refused`, and `config-plugin-verify` has a declaring check | inventory "Canonical codes" assigns it to hub-engine | AC-40 waits on that child; this spec registers neither | read child 11 and `internal/component/config/doctor.go` (2026-11-11) | confirmed: `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` AC-34 registers `doctor-config-reload-refused`, declared by `hub-runtime`; `config-plugin-verify` is already declared today by `config-semantics` (`semanticsDoctorCheck`, whose `Codes` holds `diagnostic.CodeConfigPluginVerify`; re-read 2026-11-11), so only `doctor-config-reload-refused` waits on child 11 |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -227,10 +230,10 @@ Rows not re-specified here:
 | R-1 | Two raise routes for forked plugins (child 7 planned its own P0) | a second `engineOps` entry for raises | P0b here is the one route (`ai/rules/no-layering.md`); resolved: child 7's own P0 is removed and `plan/release/validation/spec-doctor-coverage-7-bgp-plugins.md` and `spec-doctor-coverage-13-routing-protocols.md` use P0b |
 | R-2 | A plugin floods the daemon bus through the route | bus at cap | the bus bounds apply per raise; AC-7 reports a full bus; the route refuses past a per-plugin rate |
 | R-3 | Renaming `plugin-down` leaves a filter reading the old name | `plugins` row green while the check reports down | rename and filter in one commit, a test asserts the row reads down (AC-6) |
-| R-4 | The startup-failure spec uses other code names | that spec's check emits a different code | AC-1 registers the names; that spec's design cites them (as of 2026-11-11 its skeleton names neither code nor this spec, so its design owes the citation) |
+| R-4 | The startup-failure spec uses other code names | that spec's check emits a different code | resolved (2026-11-11): `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` names `doctor-plugin-startup-phase-failed` for both of its classes and cites AC-1 here for the registration |
 | R-5 | The persisted last-stop record survives and reports a stale reason | doctor reports a fatal stop after a clean restart | cleared on a clean start (AC-8) |
-| R-6 | `doctor-plugin-setup-failed` carries two meanings across the children | children 7 (AC-75, AC-79) and 10 (AC-2, AC-104) put it on `init()` registration-failure lines, children 6 (AC-52) and 14 (AC-85) on an SDK run failing before ready, while its declaring check is the five-stage startup check of `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` AC-1 | open, owner or design decision: either the code's metadata (AC-1) covers both and a check reading `registry.SetupResults` declares it beside the startup check, or the `init()` lines take another code; until then an `init()` line is counted covered by a check that never reports it |
-| R-7 | The not-problem codes have no declaring check | AC-36 to AC-39 and AC-42 put `doctor-internal-defect`, `doctor-plugin-request-refused`, `doctor-plugin-answer-undelivered` and `doctor-plugin-drain-incomplete` on log lines, and AC-1 needs each declared by a check or by the AC-2 event-code registration; a log-only line never reaches the bus, so declaring it through `recent-events` is the false declaration the first Key Design Decision refuses | open, owner or design decision: what honestly declares a code whose site is a log line only (for example the line also raising on the bus, or a declared "logged only" class the gate counts). AC-44's zero-uncovered result depends on the answer |
+| R-6 | `doctor-plugin-setup-failed` carries two meanings across the children | children 7 (AC-75, AC-79) and 10 (AC-2, AC-104) put it on `init()` registration-failure lines, children 6 (AC-52) and 14 (AC-85) on an SDK run failing before ready | resolved (2026-11-11, main session, from the owner rule that `ze doctor` reports every problem an operator can hit with its cause and fix, and one fault one row): `doctor-plugin-setup-failed` means a plugin's `init()` registration or setup failure, the outcome `registry.RecordSetup` records, declared and reported by AC-45's check over `SetupResults`. A five-stage startup failure, an SDK run failing before ready included, is `doctor-plugin-startup-phase-failed`, declared by the startup check of `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md`. Child 6 AC-52 and child 14 AC-85 take `doctor-plugin-startup-phase-failed`; children 7 (AC-75, AC-79) and 10 (AC-2, AC-104) keep `doctor-plugin-setup-failed` |
+| R-7 | The not-problem codes have no declaring check | AC-36 to AC-39 and AC-42 put `doctor-internal-defect`, `doctor-plugin-request-refused`, `doctor-plugin-answer-undelivered` and `doctor-plugin-drain-incomplete` on log lines, and AC-1 needs each declared by a check or by the AC-2 event-code registration; a log-only line never reaches the bus, so declaring it through `recent-events` is the false declaration the first Key Design Decision refuses | resolved (2026-11-11, main session, same owner rule): a code whose only sites are log lines is not reported by doctor, so every such site also raises an error event on the report bus under the same code, where `recent-events` renders it, and the code is declared through the AC-2 event-code registration. AC-36 to AC-39 and AC-42 say so, and AC-44 counts those sites covered |
 
 ## Blast Radius
 
@@ -276,6 +279,7 @@ Every row: severity, code, the fix line, the state read, and the route. "Event" 
 | AC-10 | a plugin process ended unasked, restarted or not | event `doctor-plugin-crashed` naming the plugin, its exit status and the policy applied; fix `show errors` | none |
 | AC-11 | ze stopped itself because a `fatal` plugin failed | local error `doctor-plugin-fatal-stop` on the next run, from the AC-8 record, naming plugin, reason and time; fix names the plugin's log and the config change | none |
 | AC-12 | config auto-load dependencies do not resolve in this build | local error `doctor-plugin-autoload-unresolved` from `registry.ResolveDependencies` over the config's auto-load set, naming plugin, dependency and build tag, the same text as the boot refusal | none |
+| AC-45 | a plugin's `init()` registration or setup failed, recorded through `registry.RecordSetup` as `SetupFailedHard` or `SetupFailedSoft` | a `pre-config` check (`diagnostic.DoctorCheck` registered from `internal/component/plugin/doctor`) over `registry.SetupResults` reports `doctor-plugin-setup-failed` per failed plugin, error for a hard failure (the one the boot gate `hardSetupFailure` refuses) and warning for a soft one, naming the plugin and the recorded reason, with the fix the reason names; it runs on both routes, because the records are written before `main()` in every process of the binary; every site that carries `doctor-plugin-setup-failed` (here and in children 7 and 10) records its outcome through `RecordSetup`, so the check reports what the line logs | a plugin recorded `SetupSucceeded` or `SetupUnknown` is not reported, because nothing failed or nothing was recorded; a startup failure after `init()` is `doctor-plugin-startup-phase-failed`, owned by `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` |
 
 ### Registration and delivery (P3)
 
@@ -324,14 +328,14 @@ Every row: severity, code, the fix line, the state read, and the route. "Event" 
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-36 | config-tx payload faults (24), engine faults (13), init registration faults (3) in `internal/component/plugin/server` | each line carries `doctor-internal-defect` | none |
-| AC-37 | a plugin's request refused (4) | each line carries `doctor-plugin-request-refused` | none |
-| AC-38 | an answer not delivered (6) | each line carries `doctor-plugin-answer-undelivered` | none |
-| AC-39 | a drain incomplete (5) | each line carries `doctor-plugin-drain-incomplete` | none |
+| AC-36 | config-tx payload faults (24), engine faults (13), init registration faults (3) in `internal/component/plugin/server` | each line carries `doctor-internal-defect`, and each site also raises an error event on the report bus under that code (R-7), so `recent-events` reports it; the code is declared through the AC-2 event-code registration | none |
+| AC-37 | a plugin's request refused (4) | each line carries `doctor-plugin-request-refused` and raises an error event under it, declared the same way (R-7) | none |
+| AC-38 | an answer not delivered (6) | each line carries `doctor-plugin-answer-undelivered` and raises an error event under it, declared the same way (R-7) | none |
+| AC-39 | a drain incomplete (5) | each line carries `doctor-plugin-drain-incomplete` and raises an error event under it, declared the same way (R-7) | none |
 | AC-40 | a reload refused and rolled back (5) | each line carries `config-plugin-verify` where a verifier refused, else `doctor-config-reload-refused` (A-5) | none |
 | AC-41 | the operator's goroutine dump (`request quit`) | logged at Info | none: it is the operator's own action |
-| AC-42 | core typed-event payload mismatch drops and the report cap clamp | carry `doctor-internal-defect` and `doctor-env-invalid-value` | none |
-| AC-44 | `./le arch doctor-coverage report` after P7 | zero uncovered sites in `internal/component/plugin`, `plugin/ipc`, `plugin/process`, `plugin/server`, and the `plugins` health row covered | the startup.go sites owned by `spec-doctor-reports-failed-plugin-startup` until it lands |
+| AC-42 | core typed-event payload mismatch drops and the report cap clamp | the drops carry `doctor-internal-defect` and raise an error event under it (R-7); the clamp carries `doctor-env-invalid-value`, which AC-35's runtime check declares and reports | none |
+| AC-44 | `./le arch doctor-coverage report` after P7 | zero uncovered sites in `internal/component/plugin`, `plugin/ipc`, `plugin/process`, `plugin/server`, and the `plugins` health row covered; every not-problem site is covered by a code doctor reports (R-7) | the startup.go sites owned by `spec-doctor-reports-failed-plugin-startup` until it lands |
 
 ### Gate (P8)
 
@@ -353,6 +357,7 @@ Every row: severity, code, the fix line, the state read, and the route. "Event" 
 | `TestEvictionDegradesProbe`, `TestReportBusFullRow` | `internal/core/report/report_test.go`, plugin doctor test | AC-7 | |
 | `TestLastStopRecordWrittenAndCleared` | `internal/component/plugin/server/last_stop_test.go` | AC-8 | |
 | `TestPluginStoppedEveryDownPath` | `internal/component/plugin/doctor/checks_runtime_test.go` | AC-9 | |
+| `TestPluginSetupFailedReportsRecordedOutcome` | `internal/component/plugin/doctor/check_setup_test.go` | AC-45 | |
 | `TestDoctorClassChecks` (one subtest per AC-10 to AC-34) | same | AC-10 to AC-34 | |
 | `TestExternalPluginNameRefusedAtCommit` | `internal/component/plugin/ipc/tls_test.go` + config test | AC-23 | |
 | `TestEnvInvalidValueRecorded` | `internal/core/env/env_test.go` | AC-35 | |
@@ -400,6 +405,7 @@ N-A: no protocol peer; the plugin protocol's outside party is a plugin, proven b
 - `internal/component/plugin/server/dispatch_report.go` (+ test) - the report entry
 - `internal/component/plugin/server/doctor_snapshot.go` (+ test) - the published snapshot (AC-5)
 - `internal/component/plugin/doctor/checks_runtime.go` (+ test) - the runtime class checks
+- `internal/component/plugin/doctor/check_setup.go` (+ test) - the setup-outcome check over `registry.SetupResults` (AC-45)
 - `internal/component/plugin/server/last_stop.go` (+ test) - AC-8
 - the `.ci` files in the Functional Tests table
 
@@ -451,7 +457,7 @@ Sized for one agent of about 60 tool calls each. P0a and P0b are cited by other 
 | **P0a shared codes** | codes in `codes.go`, the event-code registration and its gate count, the report fix convention and its rendering | AC-1, AC-2, AC-3 | child 1 | ∥ P8 |
 | **P0b plugin report route** | SDK raise and clear, `rpc` types, YANG RPC, one `engineOps` entry mirroring `metrics-publish`, external `.ci` | AC-4 | P0a (fix field) | after P0a |
 | P1 snapshot and bus | server snapshot, renames and health filter, bus capacity, last-stop record | AC-5 to AC-8 | P0a | - |
-| P2 lifecycle | plugin-stopped (every down path), crashed, fatal-stop, autoload-unresolved; restart command if A-2 | AC-9 to AC-12 | P1 | - |
+| P2 lifecycle | plugin-stopped (every down path), crashed, fatal-stop, autoload-unresolved, the setup-outcome check; restart command if A-2 | AC-9 to AC-12, AC-45 | P1 | - |
 | P3 registration and delivery | the per-plugin records and checks | AC-13 to AC-22 | P1 | ∥ P4 |
 | P4 external and fleet | name refusal, in-process field and check, managed rows | AC-23 to AC-27 | P0a, P1 | ∥ P3 |
 | P5 reload, commands, stop, audit, data plane | the records and checks | AC-28 to AC-34 | P1 | - |
@@ -540,7 +546,7 @@ Each phase: failing test, implement, pass, page edit in the same phase, commit.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-44 all demonstrated
+- [ ] AC-1..AC-45 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass, run in the main checkout: `./le job run label plugin command go test -race ./internal/component/plugin/... ./pkg/plugin/...`, the scoped `internal/core/report`, `internal/core/env`, `internal/core/diagnostic`, `internal/component/doctor` and `internal/le/arch/doctorcoverage` packages, and the named `.ci` files through `./le test functional plugin` and `./le test functional parse` filtered to them. No agent runs any `./le verify` command

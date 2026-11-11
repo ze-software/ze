@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md`, "Goal and scope": `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of `spec-doctor-coverage-1-audit-and-gate` makes every area child release work |
 | RFC gaps | - |
-| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the `recent-events` check and the gate, landed in ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a, which registers the cross-cutting codes `doctor-internal-defect`, `doctor-plugin-setup-failed`, `doctor-plugin-stopped`, `doctor-plugin-request-refused` and `doctor-plugin-stop-cleanup-late`, the transient-code registration that `doctor-recent-events` reads, and the convention that a report-bus raise carries its own fix (the `Issue` fix field and its `recent-events` rendering, its AC-3), which phase P1 here needs first; `plan/release/validation/spec-doctor-coverage-11-hub-engine.md`, the route field on `DoctorCheckContext` (its AC-1, A-2), for R-6 |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the `recent-events` check and the gate, landed in ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a, which registers the cross-cutting codes `doctor-internal-defect`, `doctor-plugin-startup-phase-failed` (declared by the startup check of `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md`), `doctor-plugin-stopped`, `doctor-plugin-request-refused` and `doctor-plugin-stop-cleanup-late`, the transient-code registration that `doctor-recent-events` reads, and the convention that a report-bus raise carries its own fix (the `Issue` fix field and its `recent-events` rendering, its AC-3), which phase P1 here needs first; `plan/release/validation/spec-doctor-coverage-11-hub-engine.md`, the route field on `DoctorCheckContext` (its AC-1, A-2), for R-6 |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-11 |
@@ -56,7 +56,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 - [ ] `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` - sibling child
   → Constraint: it owns no BGP engine row (it names BGP only as one IPsec own-traffic flow); nothing here respecs it
 - [ ] `plan/release/fixes/spec-dropped-error-1-bgp-engine.md` - raises 57 Debug-dropped BGP engine errors to Warn
-  → Constraint: every line it raises to Warn becomes a problem site the gate judges, and `./le commit create` refuses an added Warn site whose `code` no check declares. That spec names no doctor code today; the code of each such line is the class code this spec assigns (Data Flow map), carried by whichever spec lands second (R-3)
+  → Constraint: every line it raises to Warn becomes a problem site the gate judges, and `./le commit create` refuses an added Warn site whose `code` no check declares. That spec names no code of its own: its Depends row cites this spec's Data Flow map, so the code of each such line is the class code this spec assigns, carried by whichever spec lands second (R-3)
 - [ ] `ai/rules/user-facing-errors.md`
   → Constraint: problem first, why, then the fixing command on a line of its own; JSON carries no color
 
@@ -192,7 +192,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 | C47 | `doctor-bgp-capture-directory` (kept) and `doctor-bgp-capture-stopped` | local and runtime | `bgp-capture-directory` and `bgp-runtime` |
 | C48 | `doctor-bgp-recovery-owner-missing` | runtime | `bgp-runtime` |
 | C49 | `doctor-bgp-plugin-events-undelivered` | runtime | `bgp-runtime` |
-| C50 | `doctor-plugin-setup-failed`, `doctor-plugin-stopped` | runtime | plugin-infra |
+| C50 | `doctor-plugin-startup-phase-failed`, `doctor-plugin-stopped` | runtime | the startup check of `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` (startup phase; code registered by plugin-infra P0a) and plugin-infra (stopped) |
 | C18, C20a | `doctor-bgp-md5`, `doctor-bgp-bfd-strict-without-engine` (kept) | local | existing checks |
 
 ### Boundaries Crossed
@@ -240,7 +240,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The reactor runs in the daemon process, so a `runtime` check registered from the reactor package through `diagnostic.RegisterDoctorCheck` reads the live reactor | `ai/doors/system.md`: BGP is a subsystem whose reactor `internal/component/bgp/plugin/register.go` builds in the daemon (`runBGPEngine` calls `coord.AttachReactor` and `registry.GetPluginServer`, both in-process); the parent spec's A-3 for in-process owners. The plugin-registry route is closed to it: `validateDoctorCheckDef` refuses a `runtime` `registry.DoctorCheckDef` (149497ce12) | the check reads an empty copy | `TestBGPRuntimeCheckReadsPublishedReactor` | unvalidated |
-| A-2 | With no reactor published, the BGP engine is either not configured or reported by plugin-infra's `doctor-plugin-setup-failed`/`doctor-plugin-stopped` (C50) | the audit's cross-cutting codes, owned by plugin-infra; the slice left the overlap with `checks_plugin_registry.go` untraced | a configured BGP that never started reads healthy | `TestBGPRuntimeCheckNoReactorAnswersNothing` with child 12's (`spec-doctor-coverage-12-plugin-infra.md`) test over a failed `bgp` engine | unvalidated |
+| A-2 | With no reactor published, the BGP engine is either not configured or reported under `doctor-plugin-startup-phase-failed` (the startup check of `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md`) or plugin-infra's `doctor-plugin-stopped` (C50) | the audit's cross-cutting codes, owned by plugin-infra; the slice left the overlap with `checks_plugin_registry.go` untraced | a configured BGP that never started reads healthy | `TestBGPRuntimeCheckNoReactorAnswersNothing` with child 12's (`spec-doctor-coverage-12-plugin-infra.md`) test over a failed `bgp` engine | unvalidated |
 | A-3 | `writeGRMarker`'s seam can return its error to the restart command's caller | `infra.SetGRMarkerWriter(writeGRMarker)` in `internal/component/bgp/config/register.go`; the seam returns nothing today | the write failure reaches only the log | reading the seam's callers at P5 | unvalidated |
 | A-4 | Renaming the eleven bus codes breaks no consumer outside the repository that must keep working | `ai/META-DECISIONS.md`: pre-release, no consumer of `main` | none to migrate | census | validated by the owner rule |
 | A-5 | The C10 Warn lines are unreachable from configuration, because `parseFamiliesFromTree` refuses an unknown family before the limits are parsed | `internal/component/bgp/reactor/config.go` `parseFamiliesFromTree` | a config path reaches them, and C10 is an operator class | `TestPrefixLimitUnknownFamilyRefusedAtParse` | unvalidated |
@@ -262,7 +262,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 |----------|--------|
 | What breaks if this is wrong? | `show warnings`/`show errors` codes change spelling; a doctor row missing or wrong; a hot-path counter cost. No wire change to peers or plugins |
 | How is it reverted? | one commit revert per phase |
-| Who else touches this path? | `spec-dropped-error-1-bgp-engine` (same log lines), `spec-bgp-one-off-defects` (owns the `op-queue-full` never-cleared row), `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` (P0a cross-cutting codes, the raise fix), `plan/release/validation/spec-doctor-coverage-7-bgp-plugins.md` (its AC-16 plans a local check `doctor-bgp-relay-grant-missing` over the same route-server fast-path grant condition as AC-25 here, the A6 grants row beside A5 C27, and moves the reactor's grant predicate to a shared package), `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` (the route field, R-6) |
+| Who else touches this path? | `spec-dropped-error-1-bgp-engine` (same log lines), `spec-bgp-one-off-defects` (owns the `op-queue-full` never-cleared row), `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` (P0a cross-cutting codes, the raise fix), `plan/release/validation/spec-doctor-coverage-7-bgp-plugins.md` (its AC-16, the A6 grants row beside A5 C27, is covered by AC-25 here: one check and one code, `doctor-bgp-route-server-not-attached`, for the route-server fast-path grant fault; child 7 adds no check and no code for it and moves no predicate), `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` (the route field, R-6) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -317,7 +317,7 @@ Every finding below is a `Diagnostic` with code, severity, a message that names 
 | AC-22 | C21: BFD on an EBGP peer with no authentication | local row `doctor-bgp-bfd-ebgp-no-auth` (warning) naming peer and profile; fix the BFD profile authentication command | an IBGP peer is not reported: RFC 5882 Section 10.2 names EBGP |
 | AC-23 | C22: an EBGP peer or group with no import or export policy | local row `doctor-bgp-rfc8212-no-policy` (warning) per absence from `RFC8212Absences`, message and fix from that one value; runtime row for a dynamic member whose OPEN decided EBGP | a dynamic group with no remote AS is judged at runtime only (`policyAbsencesFromTree` rule) |
 | AC-24 | C25: default-originate whose filter is raw, a bad `plugin:filter` reference or does not compile; runtime refusal per peer and family | local row `doctor-bgp-default-originate-not-sent` (error) for the config shape; runtime row naming peer, family and refusal; fix names the filter reference to set | none |
-| AC-25 | C27: a route-server process whose attach block lacks `receive` or `send [ update ]` on a peer | local row `doctor-bgp-route-server-not-attached` (warning) naming peer and process; fix the `set bgp peer <name> process <name> ...` command | none |
+| AC-25 | C27: a route-server process whose attach block lacks `receive [ update-received ]` or `send [ update ]` on a peer, after implicit grants are applied | local row `doctor-bgp-route-server-not-attached` (warning) naming peer, process and the missing grant; fix the `set bgp peer <name> process <name> ...` command, the same grant `reportRSRelayGrants` prints. This is the one check for the fault: it reads the reactor's own predicates `rsRelaySendGranted` and `rsRelayReceiveGranted` (`internal/component/bgp/reactor/peer_forward_facts.go`), exported for `bgp/config`, which already imports `reactor` (`bfd_strict_doctor.go`), so no predicate moves. `registry.RelaysOnRSFastPath` resolves a process alias only through the plugin server's `runtimeRegistryNames` seam, which the local process lacks, so the local check resolves an alias (`internal rs { use bgp-rs }`) from the config's plugin block. `reportRSRelayGrants`' Warn line and the route-server sites of `plan/release/validation/spec-doctor-coverage-7-bgp-plugins.md` AC-16 carry this code | none |
 
 ### Listeners, watches and kernel state (C15, C16, C17, C19, C20b)
 
@@ -354,7 +354,7 @@ Every finding below is a `Diagnostic` with code, severity, a message that names 
 | AC-49 | C47: capture not running for a configured peer | runtime row `doctor-bgp-capture-stopped` naming peer and error | the directory stays `doctor-bgp-capture-directory` |
 | AC-50 | C48: no recovery owner, or the owner not attached to the source peer | runtime row `doctor-bgp-recovery-owner-missing` naming peer; fix the attach command | none |
 | AC-51 | C49: a plugin does not receive BGP events | runtime row `doctor-bgp-plugin-events-undelivered` naming process and count | none |
-| AC-52 | C50: the bgp plugin's SDK run failed | the Error line carries `doctor-plugin-setup-failed`; plugin-infra's check reports it | none |
+| AC-52 | C50: the bgp plugin's SDK run failed before ready | the Error line carries `doctor-plugin-startup-phase-failed`, a five-stage startup failure (child 12 R-6), reported by the startup check of `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` | none |
 
 ### Not problem classes, and coverage
 
