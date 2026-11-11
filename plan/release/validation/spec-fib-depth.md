@@ -6,7 +6,7 @@
 | Priority | P2 |
 | Release reason | Rich-route implementation remains subject to functional, interop, cost-change and backend-parity proof. |
 | Depends | - |
-| Phase | 8/12 |
+| Phase | 8/13 |
 | Updated | 2026-11-11 |
 
 Set aside 2026-10-09 (owner: "fib depth can be picked when we are back to two specs in dev"): pick it up when only two specs are in development. Depends no longer names `spec-vrf-0-umbrella.md`, because the 2026-10-08 owner decision moved AC-4, AC-8, AC-9 and the TableID producer to `plan/post-release/features/spec-fib-nexthop-objects-vpp-metric.md` and no remaining AC needs a VRF table. Next: the functional and interop evidence for AC-1, AC-2, AC-3, AC-5, AC-6, AC-7 and AC-10 to AC-15, notably AC-13 cost-change reselection and AC-15 kernel/VPP backend parity.
@@ -106,6 +106,13 @@ and backend parity under AC-15.
   → Constraint: ECMP selection happens post-ADD-PATH receive, not before
 - [ ] `rfc/short/rfc8277.md` -- MPLS label encoding in BGP
   → Constraint: Label stack in BestChangeEntry must preserve order
+- [ ] `rfc/full/rfc3031.txt` Section 3.10 (NHLFE) and Section 3.13 (Label Swapping) -- Phase 13
+  → Constraint: Section 3.10 names the NHLFE operations "replace the label at the top of the label stack with a specified new label" and "pop the label stack"; Section 3.13: "It uses the ILM to map this label to an NHLFE." The next hop comes from the NHLFE, never from an IP lookup of the payload
+- [ ] `rfc/full/rfc3032.txt` Sections 2.1, 2.2, 2.4.2, 2.4.3 -- Phase 13
+  → Constraint: Section 2.1, the S bit: "This bit is set to one for the last entry in the label stack (i.e., for the bottom of the stack), and zero for all other label stack entries." One incoming label is met both at the bottom of the stack and above it, and VPP keys its MPLS FIB on (label, S), so one ze entry is two VPP entries
+  → Constraint: Section 2.2: "The LSR which pops the last label off the stack must therefore be able to identify the packet's network layer protocol."
+  → Constraint: Section 2.1, label 3: "When an LSR would otherwise replace the label at the top of the stack with a new label, but the new label is "Implicit NULL", the LSR will pop the stack instead of doing the replacement."
+  → Constraint: Section 2.4.2: "When a labeled packet is forwarded, the TTL field of the label stack entry at the top of the label stack MUST be set to the outgoing TTL value." Section 2.4.3: "When an IP packet is first labeled, the TTL field of the label stack entry MUST BE set to the value of the IP TTL field."
 
 **Key insights:**
 - IGP cost comparison (step 6) needs a next-hop resolution table (NH -> IGP metric)
@@ -125,6 +132,23 @@ and backend parity under AC-15.
 - [ ] `internal/plugins/fib/vpp/srv6.go` -- `processSRv6Change` programs and removes SRv6 steering
 - [ ] `docs/architecture/fib/fib-depth-4-srv6.md` -- the recorded SRv6 implementation and Prefix-SID input path
 
+**Source files read for Phase 13 (label-switching entries on VPP), 2026-11-11:**
+- [ ] `internal/core/mplsfib/events.go` -- `Entry` (Action, Op, InLabel, FEC, TableID, OutLabels, NextHop, PathMTU, Source), `EntryBatch` with an in-process `Acknowledge` callback (`json:"-"`); `Apply` returns `errNoOwnerAcknowledgement` when no subscriber called it; `RemoveLabelSource`
+  → Constraint: the acknowledgement is an in-process callback, so a label writer must run in the daemon's process; both FIB writers do (fib-vpp holds a `*vppcomp.Connector`)
+- [ ] `internal/plugins/fib/kernel/mplsentry.go` -- `handleMPLSEntry` acks every batch, refuses a nonzero TableID on swap/pop and a private table outside the bypass namespace, validates the 20-bit in-label and the out stack, keeps `mplsSwaps` (in-label to Source) and refuses another source's label with EEXIST; `delMPLSSourceLocked` retires one source's labels; `fibkernel.go` `run` subscribes it beside the best-change handler
+- [ ] `internal/plugins/fib/kernel/mplsentry_linux.go` `addMPLSSwap` -- a swap carries `NewDst` with the whole out stack and a pop carries none; a valid next hop is `RTA_VIA` in the next hop's own family; a pop without a next hop goes out loopback, which re-injects the payload into IP lookup
+- [ ] `internal/plugins/fib/vpp/mpls.go` -- `govppMPLSBackend` already calls `IPRouteAddDel` (push), `MplsRouteAddDel` (`addMPLSSwap`, `delMPLSSwap`) and `SwInterfaceSetMplsEnable` (`enableMPLS`, `disableMPLS`); only the push has a caller. `addMPLSSwap` takes ONE out-label, programs only the S=1 entry (`MrEos` 1), sets no `MrEosProto`, uses `fib.vpp.table-id` as the MPLS table, and imposes TTL 64 in pipe mode (`IsUniform` 0); `addMPLSRoute` (push) imposes the same fixed TTL. Nothing calls `MplsTableAddDel`
+- [ ] `internal/plugins/fib/vpp/register.go` -- `ProgramsFIB` true, `DataPlane` "vpp"; `subscribeFibVPP` subscribes best changes only; `restart` opens a writer at start and on `vpp connected` / `vpp reconnected`, and holds none while VPP is unreachable
+- [ ] `internal/plugins/fib/vpp/fibvpp.go` `processMPLSChange` -- the labeled best-change (push) path, the only MPLS path fib-vpp runs today
+- [ ] `internal/plugins/fib/vpp/apply_test.go` `testChannel` -- the fake `api.Channel` seam: it records the last request and sets `Retval` only on an `IPRouteAddDelReply`
+- [ ] `internal/plugins/ldp/register.go`, `internal/plugins/rsvpte/register.go` -- `Dependencies` name "fib-kernel" (LDP line 201, RSVP-TE line 465) and so do their doctor checks (`ldp-port` line 217, `rsvp-te-rawsock` line 481). `DoctorCheckDef.Dependencies` is validated non-empty (`internal/component/plugin/registry/doctor.go` `validateDoctorCheckDef`) and read nowhere else
+- [ ] `internal/plugins/ldp/fib.go` -- `emit` publishes with `EntryChange.Emit` and no acknowledgement, so a refused or unconsumed entry is lost without a log line; `OnStarted` programs an egress pop with no next hop for every local FEC before any session exists
+- [ ] `internal/plugins/rsvpte/fib.go` -- `busFIB.emit` uses `mplsfib.Apply`; a swap carries one label, `programBackup` a stack; a push may carry a private `TableID` (`bypassTableID`, facility-backup control contexts)
+- [ ] `internal/component/plugin/server/startup_autoload.go` `appendDataPlaneWriter`, `fibPluginChosen`; `internal/component/plugin/registry/registry.go` `ProgramsFIB`, `DataPlane`, `NeedsDataPlane`, `PluginForDataPlane`
+- [ ] `internal/component/iface/config_sysctl.go` -- `mpls { enable }` becomes only `net.mpls.conf.<os-name>.input`; `internal/component/iface/backend.go` `ReplaceIPv4RPF` is the whole-set precedent for a leaf a data plane outside the kernel enforces itself (`internal/plugins/iface/vpp/rpf.go`, `internal/plugins/iface/netlink/rpf_linux.go`)
+- [ ] `internal/core/replay/replay.go` -- the shared replay token vocabulary: 0 incremental, `Broadcast`, or a targeted token the emitter maps back to one consumer
+- [ ] `internal/le/test/deployment/vppevidencerun.go` `runFIB` -- the `mpls-fib` scenario checks a labeled IP route in `show ip fib`; nothing reads `show mpls fib`
+
 **Behavior to preserve:**
 - Single-path route installation still works (ECMP is additive)
 - Existing BestChangeEntry JSON format (add new fields with omitempty)
@@ -137,6 +161,7 @@ and backend parity under AC-15.
 **Behavior to change:**
 - TableID production, AC-4 (Linux nexthop objects), AC-8 (VPP metric) and AC-9 (table install) moved to `plan/post-release/features/spec-fib-nexthop-objects-vpp-metric.md` (owner, 2026-10-08).
 - Establish the remaining AC evidence against the implemented resolver, cost comparison, ECMP and backend paths, especially AC-13 cost-change reselection.
+- Phase 13 (AC-16 to AC-29): label-switching entries reach the writer of the selected data plane. fib-vpp consumes `(mpls-fib, entry)`, LDP and RSVP-TE stop naming fib-kernel and declare `NeedsDataPlane`, `mpls { enable }` is enforced in VPP, and VPP label routes and pushes carry uniform TTL. fib-kernel's label behaviour is preserved, except that it ignores a replay batch addressed to another writer.
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -146,8 +171,15 @@ and backend parity under AC-15.
 | Recursive next-hop and IGP cost | `internal/component/sysrib/nhresolver.go` `Resolve`, `IGPMetric`; `internal/component/bgp/plugins/rib/bestpath.go` `lookupIGPCost` | Resolves over the Loc-RIB and feeds the comparator's IGP cost step | extends: AC evidence is gathered against it |
 | Kernel rich route | `internal/plugins/fib/kernel/nexthop_linux.go` `buildRichRoute`, `backend_linux.go` | Programs type, metric, table, multipath, MPLS push and SEG6 encap | extends: the kernel half of backend parity |
 | VPP rich route and SRv6 | `internal/plugins/fib/vpp/backend.go` `richRouteAddDel`, `srv6.go` `processSRv6Change`, `fibvpp.go` `processMPLSChange` | Programs weighted paths, a supplied table, SRv6 steering and labeled (push) routes from best changes | extends: the VPP half of backend parity |
-| MPLS label-switching entries | `internal/core/mplsfib/events.go`, consumed by `internal/plugins/fib/kernel/mplsentry.go` only | LDP and RSVP-TE swap and pop entries reach fib-kernel; fib-vpp subscribes only to best changes (`subscribeFibVPP`, `register.go`) | extends: backend parity owes fib-vpp the same consumer (owned row `guard-added-to-one-half-of-a-pair.md`, 2026-11-11) |
-| One writer per data plane | `internal/component/plugin/registry/registry.go` `ProgramsFIB`, `DataPlane`; `startup_autoload.go` `appendDataPlaneWriter` | Loads the writer for the configured data plane | does not apply: this spec adds no writer |
+| MPLS label-switching entries | `internal/core/mplsfib/events.go`, consumed by `internal/plugins/fib/kernel/mplsentry.go` only | LDP and RSVP-TE swap and pop entries reach fib-kernel; fib-vpp subscribes only to best changes (`subscribeFibVPP`, `register.go`) | extends (Phase 13): fib-vpp subscribes the same `EntryChange` handle and acknowledges through the same callback; no second event, no VPP-specific payload (owned row `guard-added-to-one-half-of-a-pair.md`, 2026-11-11) |
+| Owner acknowledgement | `internal/core/mplsfib/events.go` `Apply`, `errNoOwnerAcknowledgement`; `mplsentry.go` `handleMPLSEntry` | Apply fails when no in-process owner acknowledged; every running owner acks and `errors.Join` keeps any refusal | extends: fib-vpp acks every batch, with an error while it holds no writer, so a producer never advertises a label VPP does not hold. LDP moves from a bare `Emit` to `Apply` so a refusal is logged rather than lost |
+| Kernel label consumer semantics | `mplsentry.go`, `mplsentry_linux.go`, `mplscontext*.go`, `internal/core/mplsfib/pathmtu.go` | Validation, source-owned in-label map, swap stack, pop via next hop or loopback, private push contexts, transit MTU by probe | extends: fib-vpp matches each rule (Data Flow, Phase 13); the private push context is kernel-only and is refused by fib-vpp (Work Not Done) |
+| VPP MPLS backend | `internal/plugins/fib/vpp/mpls.go` `govppMPLSBackend` | Push wired; swap, pop and interface enable written but unwired, swap single-label and S=1 only | extends: the swap and pop methods are reshaped (out stack, both S entries, payload protocol, MPLS table 0, uniform TTL) and wired; nothing is added beside them |
+| One writer per data plane | `internal/component/plugin/registry/registry.go` `ProgramsFIB`, `DataPlane`, `NeedsDataPlane`; `startup_autoload.go` `appendDataPlaneWriter` | Loads the writer for the configured data plane for a producer that declares `NeedsDataPlane` (static, EPE) | extends: LDP and RSVP-TE declare `NeedsDataPlane` and drop "fib-kernel" from `Dependencies`; the writer of the data plane owns all of its forwarding state, labels included, so no second declaration is added |
+| Late-join replay | `internal/core/replay/replay.go`; `sysribevents.ReplayRequest`; the redistribute orchestrator's targeted tokens | A FIB writer that starts late asks sysrib to replay; a targeted token routes the answer to one consumer | extends: `mplsfib` gains its own replay-request handle bound to `*replay.Request`; a label writer that opens asks with a targeted token and the producers re-apply their wanted entries tagged with it |
+| Data-plane enforcement of an iface leaf | `internal/component/iface/backend.go` `ReplaceIPv4RPF`; `iface/vpp/rpf.go`; `iface/netlink/rpf_linux.go` | Whole-set call per apply; netlink accepts and installs nothing because the sysctl covers it, VPP enforces itself | extends: the same shape carries `mpls { enable }` (VPP `sw_interface_set_mpls_enable`); the sysctl write stays for the kernel |
+| VPP deployment proof | `internal/le/test/deployment/vppevidencerun.go` `runFIB`, scenario `mpls-fib` | Real VPP in Docker; asserts a labeled IP route | extends: a new scenario beside it, same harness |
+| Doctor label-writer check | `plan/release/validation/spec-doctor-coverage-10-forwarding.md` AC-108 (`doctor-fib-mpls-no-writer`), AC-83 | Planned, not built | does not apply here: that child builds the check; this phase makes its fix command true (edit owed there, Work Not Done) |
 
 ## Data Flow (MANDATORY)
 
@@ -186,6 +218,49 @@ and backend parity under AC-15.
 - [ ] No duplicated functionality (ECMP grouping in sysrib only, not per-backend)
 - [ ] Zero-copy preserved where applicable (BestChangeEntry is value-typed)
 
+### Phase 13: label-switching entries reach the selected data plane
+
+**Entry points.** An operator config holding `ldp { }` or `rsvp-te { }` with `interface { backend vpp; }` and no `fib { }` block. A labeled frame arriving on a VPP interface whose `mpls { enable true; }` is set.
+
+**Selection, and how no plugin is named.** LDP and RSVP-TE declare `Registration.NeedsDataPlane` and drop "fib-kernel" from `Dependencies` (keeping "sysctl", and "interface" for RSVP-TE). `appendDataPlaneWriter` then asks `registry.PluginForDataPlane` for the writer of the data plane `interface { backend }` names, exactly as it does for static routes. The writer DECLARES its data plane (`DataPlane` "netlink" or "vpp"); the producer declares only that it needs one; the engine reads both declarations and names neither plugin. No code, test helper or doc table adds a list of FIB writers, and `fib-vpp` and `fib-kernel` never name LDP or RSVP-TE: they consume a core event any producer may emit. The doctor checks `ldp-port` and `rsvp-te-rawsock` name their own plugin in `DoctorCheckDef.Dependencies` instead of "fib-kernel". Reusing `NeedsDataPlane` rather than declaring a second need is deliberate: the writer of a data plane owns all of its forwarding state, labels included (`docs/architecture/mpls/mpls-kernel.md`), so a label producer's need and a route producer's need resolve to the same plugin. A chosen writer that reaches no data plane (`fib { p4 { } }`) consumes no label entry, so `Apply` fails with `errNoOwnerAcknowledgement` and RSVP-TE refuses its LSP as it does today.
+
+**Transformation path, one entry.**
+1. The producer builds an `mplsfib.Entry` and calls `mplsfib.Apply`. LDP stops using a bare `EntryChange.Emit` and logs a refused batch with the entry and the cause.
+2. Every in-process subscriber of `(mpls-fib, entry)` receives the batch. fib-vpp's subscription is plugin-lifetime, made in `OnStarted` beside the best-change one, and routes the batch under the lifecycle lock to the current writer.
+3. With no writer (VPP unreachable, channel refused) fib-vpp acknowledges with an error that names the cause and `ze doctor`, so `Apply` fails and the producer advertises nothing it does not forward.
+4. The writer validates the entry with the same rules as fib-kernel: 20-bit in-label, out stack of 1 to `mplsfib.MaxLabelStack` labels for a swap, empty for a pop, swap/pop at table zero, an in-label another source owns refused with EEXIST. The two copies of the label validation (`fib/kernel/mpls.go`, `fib/vpp/mpls.go` `validateLabels`) become one function in `internal/core/mplsfib`, so the rule is declared once.
+5. The writer programs VPP MPLS table 0, the label space every MPLS-enabled interface looks up, never `fib.vpp.table-id` (which is an IP table). Before its first label entry on a connection it creates table 0 with `MplsTableAddDel`; it never deletes it.
+6. One entry becomes two VPP routes, one per value of the S bit (RFC 3032 Section 2.1), each with one path toward the entry's next hop, with the next-hop protocol of the next hop's family:
+
+| Entry | VPP route, S=1 (`MrEos` 1) | VPP route, S=0 (`MrEos` 0) |
+|-------|-----------------------------|-----------------------------|
+| Swap, out stack L1..Ln, next hop N | payload protocol: N's family; path via N imposing L1..Ln | payload protocol MPLS; path via N imposing L1..Ln |
+| Pop, next hop N (penultimate hop, Implicit NULL downstream) | payload protocol: N's family; path via N with the single label Implicit NULL (3), which VPP treats as a pop | payload protocol MPLS; path via N with Implicit NULL, so the remaining stack leaves as MPLS |
+| Pop, no next hop (egress disposition) | payload protocol: the FEC's family; path is a lookup in the IP table `fib.vpp.table-id` of that family, with Implicit NULL | payload protocol MPLS; path is a lookup in MPLS table 0, with Implicit NULL |
+| Pop, no next hop and no FEC | refused: RFC 3032 Section 2.2, the LSR that pops the last label must identify the network layer protocol, and the entry names none | refused with it |
+
+→ Constraint: three VPP behaviours this table relies on are read in VPP's source at the release the lab runs (upstream v26.06) before the code is written, and the function is named in the implementing comment (`ai/META-DECISIONS.md`, read the peer's source): that the route handler `vl_api_mpls_route_add_del_t_handler` (`src/vnet/mpls/mpls_api.c`) takes `mr_eos_proto` as the payload protocol of an S=1 route and MPLS for S=0; that a path label of Implicit NULL imposes nothing and pops (`fib_path_ext`, `src/vnet/fib/fib_path_ext.c`), with `is_uniform` selecting the uniform disposition; and that `sw_interface_set_mpls_enable` and a route in table 0 fail until `mpls_table_add_del` has created table 0. If one of them reads otherwise, the table is corrected in this spec before code, never approximated.
+→ Constraint: an egress pop must name its payload family. LDP already sets `FEC` on its pops. RSVP-TE's egress pop (`engine.go`, `programPop(label, netip.Addr{}, ...)`) sets `FEC` to the session's tunnel endpoint host prefix, the IPv4 FEC its LSP carries. The `Entry.FEC` comment in `mplsfib/events.go` changes from "Unused for swap/pop" to name this use; fib-kernel keeps ignoring it.
+
+7. Every label the writer imposes or uses for a pop is uniform mode (`IsUniform` 1), never a fixed TTL, so the top entry carries the outgoing TTL (RFC 3032 Section 2.4.2) and a popped IP packet gets it back. This matches Linux, whose `net.mpls.ip_ttl_propagate` default is on. The existing labeled best-change push (`addMPLSRoute`) moves from fixed TTL 64 to uniform for the same reason (Section 2.4.3).
+8. `PathMTU` has no per-route form in VPP. The writer installs the entry without it and logs once, as a warning, that labeled frames are bounded by the interface MTU alone: the behaviour fib-kernel already has on a kernel without the MTU patch (`mpls-kernel.md`, "On a kernel without the patch").
+9. A push with a nonzero `TableID` (an RSVP-TE facility-backup control context selected by packet mark) has no VPP form: the writer refuses it with an error naming the context and the reason (Work Not Done). A push at table zero takes the existing `addMPLSRoute` path, an empty stack the plain-route path, as fib-kernel does.
+10. On success the writer records in-label to source, acknowledges nil, and counts the install. Remove deletes both VPP routes; `ActionRemoveLabelSource` deletes every label the source owns and keeps each failed deletion owned for the next call, as fib-kernel does. Flush on stop removes the label routes the writer installed.
+
+**Late join and VPP restart.** A writer that opens after the producers started (VPP connects after LDP's `OnStarted`, which programs its egress pops immediately) or after a VPP restart (VPP lost its FIB) holds none of the entries. `mplsfib` gains a `(mpls-fib, replay-request)` handle bound to `*replay.Request` and a `ReplayID` on `EntryBatch` (`json:"-"`), the same vocabulary sysrib's replay uses. The writer, once its subscription exists and table 0 is created, emits a replay request with a fresh targeted token (`mplsfib` hands out tokens from one process-wide counter starting at 1, the redistribute orchestrator's pattern). LDP and RSVP-TE answer by re-applying every entry they currently want installed, tagged with that token. A batch carrying a nonzero token is consumed and acknowledged only by the writer that holds it; every other writer, fib-kernel included, ignores it without acknowledging, so a kernel writer running beside the VPP one never re-installs what it already holds. A producer that has to wait for a writer that is not yet there gets the error of step 3 and retries through its own existing path.
+
+**Boundaries crossed.**
+
+| Boundary | How | Verified |
+|----------|-----|----------|
+| LDP / RSVP-TE to the writer | `(mpls-fib, entry)` typed handle, in-process acknowledgement | [ ] |
+| Writer to producers | `(mpls-fib, replay-request)` typed handle, targeted token | [ ] |
+| Engine to writer selection | `NeedsDataPlane` and `DataPlane` declarations, `appendDataPlaneWriter` | [ ] |
+| fib-vpp to VPP | GoVPP `MplsTableAddDel`, `MplsRouteAddDel`, `IPRouteAddDel` | [ ] |
+| iface component to VPP | `iface.Backend` whole-set MPLS input call, GoVPP `SwInterfaceSetMplsEnable` | [ ] |
+
+**MPLS input on a VPP interface.** `mpls { enable }` reaches the kernel only as a sysctl, which judges nothing VPP forwards, the same gap `ReplaceIPv4RPF` closed for `rp-filter`. `iface.Backend` gains a whole-set call carrying every interface whose `mpls { enable }` is true, passed on every apply, never a delta. The netlink backend accepts it and installs nothing, because the sysctl already enables the kernel. The VPP backend creates MPLS table 0 if absent, enables each named interface through the shared name resolver, reads back the enabled set (`MplsInterfaceDump`) and disables every interface the set no longer names. The non-Linux stub refuses a non-empty set. The sysctl write stays.
+
 ## Wiring Test (MANDATORY)
 
 | Entry Point | → | Feature Code | Test |
@@ -196,6 +271,10 @@ and backend parity under AC-15.
 | BestChangeEntry with ECMPPaths | → | kernel backend nexthop group | `TestKernelECMPGroup` |
 | BestChangeEntry with ECMPPaths | → | VPP backend multi-path | `TestVPPMultiPath` |
 | BestChangeEntry with Labels | → | kernel backend MPLS push | `TestKernelMPLSPush` |
+| `ldp { }` with `interface { backend vpp }`, no `fib { }` | → | `appendDataPlaneWriter` loads fib-vpp; LDP egress pops reach `MplsRouteAddDel` | `test/vpp/vpp-mpls-ldp-pop.ci` (stub), `./le test deployment vpp` scenario `mpls-label-pop` (real VPP) |
+| `(mpls-fib, entry)` swap from RSVP-TE | → | fib-vpp label consumer, both S entries | `TestFibVPPLabelSwapProgramsBothStackPositions` |
+| VPP reconnect | → | targeted `(mpls-fib, replay-request)`, producers re-apply | `TestFibVPPLabelReplayOnWriterOpen`, `TestLDPReplayReappliesWantedEntries`, `TestRSVPTEReplayReappliesInstalledEntries` |
+| `mpls { enable true }` under `backend vpp` | → | iface VPP backend `SwInterfaceSetMplsEnable` | `TestVPPReplaceMPLSInput` |
 
 ## Acceptance Criteria
 
@@ -213,6 +292,20 @@ and backend parity under AC-15.
 | AC-13 | NH cost changes | Best-path re-evaluated for all prefixes using that NH |
 | AC-14 | ECMP member fails (NH unreachable) | Nexthop group updated (member removed), not full withdrawal |
 | AC-15 | Kernel/VPP produce identical forwarding for same input | Functional test with both backends shows same reachability |
+| AC-16 | `ldp { }` or `rsvp-te { }` with `interface { backend vpp }` and no `fib { }` block | fib-vpp is auto-loaded and fib-kernel is not; with `backend netlink` fib-kernel is loaded. LDP and RSVP-TE `Dependencies` name no plugin whose registration declares `ProgramsFIB`, and both declare `NeedsDataPlane`. No engine, registry or producer source names `fib-kernel` or `fib-vpp` to bring this about |
+| AC-17 | An RSVP-TE transit swap entry (one out-label, and the facility-backup stack of `programBackup`) reaches fib-vpp | Two `MplsRouteAddDel` adds in MPLS table 0 for the in-label, S=1 with payload protocol of the next hop's family and S=0 with payload protocol MPLS, each one path via the next hop imposing the whole out stack in order; `Apply` returns nil |
+| AC-18 | A penultimate-hop pop (next hop set, no out-label) reaches fib-vpp | Two routes as AC-17 whose path carries the single label Implicit NULL (3) in uniform mode, so VPP pops (RFC 3032 Section 2.1) |
+| AC-19 | An egress pop with no next hop (LDP local FEC, RSVP-TE egress) reaches fib-vpp | S=1 route whose path is a lookup in IP table `fib.vpp.table-id` of the FEC's family; S=0 route whose path is a lookup in MPLS table 0; an egress pop with neither next hop nor FEC is refused with an error naming RFC 3032 Section 2.2. RSVP-TE's egress pop carries its session endpoint as `FEC` |
+| AC-20 | fib-vpp configured with `table-id 5` receives a swap | The MPLS routes go in MPLS table 0; table 0 is created with `MplsTableAddDel` before the first label route of a connection and is never deleted |
+| AC-21 | A swap, pop, or labeled best-change push is programmed into VPP | Every imposed and pop label carries `IsUniform` 1 and no fixed TTL (RFC 3032 Sections 2.4.2, 2.4.3); the existing push path no longer imposes TTL 64 |
+| AC-22 | An entry arrives while fib-vpp holds no writer, or VPP answers a nonzero `Retval` | fib-vpp acknowledges with an error naming the cause (and `ze doctor` when VPP is unreachable); `Apply` returns it; no in-label is recorded as owned. LDP logs the refused entry and its cause instead of dropping it |
+| AC-23 | Validation and ownership | fib-vpp refuses an in-label above 2^20-1, an empty swap stack, a stack deeper than `mplsfib.MaxLabelStack`, a swap or pop at nonzero `TableID`, and another source's in-label (EEXIST), with the same rules as fib-kernel, from one validation function in `internal/core/mplsfib`. Remove deletes both S routes. `RemoveLabelSource` deletes only that source's labels and keeps a failed deletion owned for the next call |
+| AC-24 | A push entry with a nonzero `TableID` (RSVP-TE facility-backup control context) reaches fib-vpp | Refused with an error that names the private table and that VPP has no packet-mark context; nothing is programmed |
+| AC-25 | fib-vpp opens a writer after LDP and RSVP-TE started, or after VPP reconnects | fib-vpp emits one `(mpls-fib, replay-request)` with a fresh targeted token after its subscription exists and table 0 is created; LDP and RSVP-TE re-apply every entry they want installed tagged with it; only that writer consumes and acknowledges the batch; fib-kernel ignores a batch carrying a token it does not hold and does not acknowledge it |
+| AC-26 | An entry carries a nonzero `PathMTU` | fib-vpp installs it without an MTU and logs once, as a warning, that labeled frames are bounded by the interface MTU alone |
+| AC-27 | `mpls { enable true }` on an interface under `backend vpp` | VPP reports the interface MPLS-enabled (`SwInterfaceSetMplsEnable`), after table 0 exists; removing the leaf disables it on the next apply, including for an interface enabled while ze was down; the netlink backend accepts the set and installs nothing, and the sysctl write is unchanged |
+| AC-28 | Real VPP in Docker, `ldp { }` on a VPP interface with `mpls { enable true }`, no peer (`./le test deployment vpp`, scenario `mpls-label-pop`) | `show mpls fib` lists the LDP local label of the LSR-ID FEC as both `eos` and `neos` with the disposition paths of AC-19; a packet-generator frame carrying that label is traced through `mpls-lookup` to IP lookup, and the control frame with an unprogrammed label is dropped at `mpls-lookup`; removing `ldp { }` by reload removes both entries. Reverting the fib-vpp subscription turns the scenario red (recorded) |
+| AC-29 | fib-vpp stops with flush | The label routes it installed are removed with the IP routes |
 
 AC-4 and AC-8 moved verbatim to `plan/post-release/features/spec-fib-nexthop-objects-vpp-metric.md` (owner, 2026-10-08), together with the `BestChangeEntry.TableID` producer.
 
@@ -234,6 +327,29 @@ AC-9 (BestChangeEntry with TableID != 0: route installed in table N on both back
 | `TestVPPMultiPath` | `internal/plugins/fib/vpp/fibvpp_test.go` | NPaths > 1 with correct FibPaths | |
 | `TestVPPRouteType` | `internal/plugins/fib/vpp/fibvpp_test.go` | Drop/unreach adjacency | |
 | `TestBestChangeEntryJSON` | `internal/plugins/sysrib/events/events_test.go` | New fields serialize with omitempty | |
+| `TestFibVPPLabelSwapProgramsBothStackPositions` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-17: one-label swap and a two-label backup stack give S=1 (payload IP4) and S=0 (payload MPLS) routes in table 0, stack order kept | |
+| `TestFibVPPLabelPenultimatePop` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-18: Implicit NULL uniform path via the next hop, both S routes | |
+| `TestFibVPPLabelEgressPopLooksUp` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-19: IPv4 and IPv6 FEC select the IP lookup table and payload; S=0 looks up MPLS table 0; no FEC and no next hop refused | |
+| `TestFibVPPLabelUsesMPLSTableZero` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-20: `table-id 5` still programs table 0; `MplsTableAddDel` precedes the first route once per connection | |
+| `TestFibVPPLabelTTLUniform` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-21: swap, pop and labeled push labels carry `IsUniform` 1 | |
+| `TestFibVPPLabelAckWithoutWriter` | `internal/plugins/fib/vpp/register_test.go` | AC-22: with no writer, `mplsfib.Apply` through a real bus returns the cause | |
+| `TestFibVPPLabelAckVPPRefusal` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-22: nonzero `Retval` and a transport error reach the producer; no ownership recorded | |
+| `TestFibVPPLabelValidationAndOwnership` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-23: each refusal, EEXIST for a foreign source, remove of both routes, `RemoveLabelSource` keeps a failed deletion | |
+| `TestFibVPPLabelPrivateTableRefused` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-24 | |
+| `TestFibVPPLabelReplayOnWriterOpen` | `internal/plugins/fib/vpp/register_test.go` | AC-25: one targeted request per writer open; foreign-token batch neither consumed nor acknowledged | |
+| `TestFibVPPLabelPathMTUWarnsOnce` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-26 | |
+| `TestFibVPPFlushRemovesLabelEntries` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-29 | |
+| `TestApplyReplayTargetsOneWriter`, `TestReplayTokensAreDistinct`, `TestValidateOutLabels` | `internal/core/mplsfib/events_test.go` | AC-23, AC-25: targeted acknowledgement, token counter, the one validator | |
+| `TestHandleMPLSEntryIgnoresForeignReplay` | `internal/plugins/fib/kernel/mplsapply_test.go` | AC-25: fib-kernel neither programs nor acknowledges a foreign-token batch | |
+| `TestLDPRegistrationNeedsDataPlane`, `TestRSVPTERegistrationNeedsDataPlane` | `internal/plugins/ldp/register_test.go`, `internal/plugins/rsvpte/register_test.go` | AC-16: `NeedsDataPlane` set, no `Dependencies` entry whose registration declares `ProgramsFIB` (asked of the registry, not a name) | |
+| `TestLDPEmitLogsRefusal`, `TestLDPReplayReappliesWantedEntries` | `internal/plugins/ldp/fib_test.go` | AC-22, AC-25 | |
+| `TestRSVPTEReplayReappliesInstalledEntries`, `TestRSVPTEEgressPopCarriesFEC` | `internal/plugins/rsvpte/fib_test.go` | AC-25, AC-19 | |
+| `TestNoRegistrationDependsOnAFIBWriter` | `internal/component/plugin/all/all_test.go` | AC-16: across the composition root, no `Registration.Dependencies` names a plugin that declares `ProgramsFIB` (red until OSPF and IS-IS convert, see Work Not Done) | |
+| `TestDesiredMPLSInput` | `internal/component/iface/mplsinput_test.go` | AC-27: the whole set from the `mpls { enable }` leaves | |
+| `TestVPPReplaceMPLSInput` | `internal/plugins/iface/vpp/mplsinput_test.go` | AC-27: table 0 first, enable named, disable stale read back from `MplsInterfaceDump` | |
+| `TestNetlinkReplaceMPLSInputInstallsNothing` | `internal/plugins/iface/netlink/mplsinput_linux_test.go` | AC-27 | |
+
+The fib-vpp tests drive the label consumer through its subscription callback with the fake `api.Channel` (`testChannel`, `apply_test.go`). That seam records only the last request and fills `Retval` only for `IPRouteAddDelReply`; it gains a recorded request list and replies for `MplsRouteAddDelReply`, `MplsTableAddDelReply` and `SwInterfaceSetMplsEnableReply`, which changes no existing assertion. The RFC-quoting tests (`rfc3032_*` naming, as `internal/plugins/fib/kernel/rfc3032_mplsentry_test.go` does for the kernel) carry `RFC requirement:` tags for RFC 3032 Sections 2.1, 2.2 and 2.4.2 and owe a discrimination record each (`./le rfc record`).
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -249,6 +365,10 @@ AC-9 (BestChangeEntry with TableID != 0: route installed in table N on both back
 | `test-fib-recursive` | `test/bgp/fib-recursive.ci` | iBGP with recursive NH, route installed with resolved NH | |
 | `test-fib-blackhole` | `test/bgp/fib-blackhole.ci` | Blackhole route programmed correctly | |
 | `test-fib-mpls-kernel` | `test/bgp/fib-mpls-kernel.ci` | MPLS encap route in Linux kernel | |
+| `vpp-mpls-ldp-pop` | `test/vpp/vpp-mpls-ldp-pop.ci` | AC-16, AC-19, AC-20, AC-27: `ldp { }` with `backend vpp` and no `fib { }` against the VPP stub (`internal/test/cli/cmd_vpp_stub.go`, which already logs `mpls_route_add_del` and `sw_interface_set_mpls_enable`); the stub log holds `mpls_table_add_del` table 0, then two `mpls_route_add_del` for LDP's local label (eos 1 and 0, table 0), and the daemon log names fib-vpp as the auto-loaded writer | |
+| `mpls-label-pop` | `./le test deployment vpp` scenario, `internal/le/test/deployment/vppevidencerun.go`, `vppevidencescenarios.go` | AC-28, against real VPP: `show mpls fib`, `show mpls interface`, a packet-generator frame traced through `mpls-lookup` (the pattern of `vpp_srv6_pg_integration_linux_test.go`), the unprogrammed-label control, and removal on reload | |
+
+Swap needs a signaling peer on both sides, which the single-container harness does not hold; swap and the facility-backup stack are proven by the unit tests through the subscription and by the stub `.ci` form of AC-17 only if a scripted RSVP-TE peer exists. No such peer exists in the tree (`docs/architecture/rsvpte/mpls-rsvp-te.md`, "Interop evidence"), so real-VPP swap forwarding is Work Not Done.
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -268,6 +388,18 @@ AC-9 (BestChangeEntry with TableID != 0: route installed in table N on both back
 - `internal/plugins/fib/kernel/backend_linux.go` -- route types, MPLS (nexthop objects, table and metric moved with AC-4, AC-8 and AC-9 to `spec-fib-nexthop-objects-vpp-metric.md`)
 - `internal/plugins/fib/vpp/fibvpp.go` -- multi-path processing, route types
 - `internal/plugins/fib/vpp/backend.go` -- multi-path FibPath (table override moved with AC-9 to `spec-fib-nexthop-objects-vpp-metric.md`)
+- Phase 13: `internal/core/mplsfib/events.go` -- replay-request handle, `EntryBatch.ReplayID`, the targeted apply, the token counter, the `FEC` comment for egress pops, the package comment (fib-kernel is no longer the only owner)
+- Phase 13: `internal/plugins/fib/vpp/mpls.go` -- swap/pop reshaped (stack, both S routes, payload protocol, table 0, uniform), table 0 creation; push to uniform; `validateLabels` replaced by the core validator
+- Phase 13: `internal/plugins/fib/vpp/register.go` -- plugin-lifetime `EntryChange` subscription, ack without a writer, replay request on writer open
+- Phase 13: `internal/plugins/fib/vpp/fibvpp.go` -- label ownership map, flush of label routes
+- Phase 13: `internal/plugins/fib/vpp/apply_test.go` -- `testChannel` records every request and answers the MPLS replies
+- Phase 13: `internal/plugins/fib/kernel/mplsentry.go`, `mpls.go` -- ignore a foreign replay token; validation from the core function
+- Phase 13: `internal/plugins/ldp/register.go`, `fib.go` -- `NeedsDataPlane`, no "fib-kernel", doctor check dependency; `Apply` with a logged refusal; wanted-entry set and replay answer
+- Phase 13: `internal/plugins/rsvpte/register.go`, `fib.go`, `engine.go` -- `NeedsDataPlane`, no "fib-kernel", doctor check dependency; replay answer; egress pop `FEC`
+- Phase 13: `internal/component/iface/backend.go` and the iface apply that calls `ReplaceIPv4RPF` -- the whole-set MPLS input call; its implementations in `internal/plugins/iface/vpp/`, `internal/plugins/iface/netlink/` (beside `rpf_linux.go`) and the stub in `internal/plugins/iface/netlink/backend_other.go`
+- Phase 13: `internal/test/cli/cmd_vpp_stub.go` -- answer and log `mpls_table_add_del` beside the existing `mpls_route_add_del` and `sw_interface_set_mpls_enable` arms
+- Phase 13: `internal/le/test/deployment/vppevidencerun.go`, `vppevidencescenarios.go`, `vppevidencereport.go` -- the `mpls-label-pop` scenario
+- Phase 13: `internal/component/plugin/all/all_test.go` -- `TestNoRegistrationDependsOnAFIBWriter`
 
 ### Files to Create
 - `internal/plugins/sysrib/nhresolver.go` -- recursive NH resolution and tracking
@@ -278,6 +410,13 @@ AC-9 (BestChangeEntry with TableID != 0: route installed in table N on both back
 - `test/bgp/fib-recursive.ci` -- functional test
 - `test/bgp/fib-blackhole.ci` -- functional test
 - `test/bgp/fib-mpls-kernel.ci` -- functional test
+- `internal/plugins/fib/vpp/mplsentry_test.go` -- Phase 13 unit tests
+- `internal/core/mplsfib/events_test.go` -- Phase 13 unit tests
+- `internal/component/iface/mplsinput_test.go` -- Phase 13 unit tests
+- `internal/plugins/iface/vpp/mplsinput_test.go` -- Phase 13 unit tests
+- `internal/plugins/iface/netlink/mplsinput_linux_test.go` -- Phase 13 unit tests
+- `test/vpp/vpp-mpls-ldp-pop.ci` -- Phase 13: functional test against the VPP stub
+- Phase 13 source: the fib-vpp label consumer (dispatch, validation, ownership, ack) is a new file in `internal/plugins/fib/vpp/` beside `mpls.go`; the desired MPLS input set is a new file in `internal/component/iface/` beside `rpf4.go`; its VPP and netlink implementations are new files in `internal/plugins/iface/vpp/` beside `rpf.go` and in `internal/plugins/iface/netlink/` beside `rpf_linux.go`. Each carries its `// Design:` line to the page it implements
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -304,6 +443,8 @@ AC-9 (BestChangeEntry with TableID != 0: route installed in table N on both back
 | 10 | Test infrastructure changed? | [ ] | N/A |
 | 11 | Affects daemon comparison? | [x] | `docs/comparison.md` -- ECMP, recursive NH |
 | 12 | Internal architecture changed? | [x] | `docs/architecture/core-design.md` -- NH resolution layer |
+| 13 | Phase 13: label entries no longer kernel-only | [x] | `docs/architecture/mpls/mpls-kernel.md` (owner statement, "Operator surface" MPLS input), `docs/architecture/rsvpte/mpls-rsvp-te.md` "Dataplane", `docs/architecture/ldp/mpls-ldp.md`, `docs/guide/vpp.md` (vpp-3 row: swap/pop now dispatched; "Enabling FIB programming"), `docs/guide/mpls.md`, `ai/doors/forwarding.md` and `ai/doors/routing-protocols.md` Boundaries ("fib-kernel is the only code that programs them") and Traps (LDP's `Dependencies`), `ai/digests/mpls-signaling.md`, `ai/digests/fib-programming.md` |
+| 14 | Phase 13: plugin registration changed? | [x] | `docs/architecture/plugin/plugin-system.md` or the page that documents `NeedsDataPlane`, naming label producers among its users |
 
 ## Implementation Steps
 
@@ -341,6 +482,7 @@ Its numbers are not a current completion fraction.
 | 6, VPP depth | Multipath, route types, supplied table overrides and SRv6 steering exist; AC-8 metric mapping and AC-9 table install moved to `plan/post-release/features/spec-fib-nexthop-objects-vpp-metric.md` |
 | 7, NH cascade | `cascadeRecompute` exists; retain AC-12/14 failure-transition evidence |
 | 8 through 12 | Functional and interop evidence, RFC review, final verification and closure remain required; this reconciliation supplies none of those results |
+| 13, label entries on VPP | Designed 2026-11-11 (AC-16 to AC-29): fib-vpp consumes `(mpls-fib, entry)`, LDP and RSVP-TE declare `NeedsDataPlane`, iface enforces `mpls { enable }` in VPP. Not implemented. It is part of AC-15 backend parity and closes owned row `guard-added-to-one-half-of-a-pair.md` (2026-11-11) |
 
 The separately recorded SRv6 closure covers AC-11's implementation. The
 September 7 weight amendment above is also satisfied in source. Neither
@@ -388,6 +530,17 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 10. **RFC refs** -- `// RFC 4271 Section 9.1.2.2 Step 6` comments
 11. **Full verification** -- `./le verify current mode full`
 12. **Complete spec** -- learned summary, delete spec
+
+13. **Phase: label-switching entries reach the selected data plane** (AC-16 to AC-29; Data Flow, "Phase 13")
+   - Order, each step its own commit once its package tests pass:
+     1. `internal/core/mplsfib`: the one out-stack validator, the replay-request handle, `EntryBatch.ReplayID`, the targeted apply and the token counter; fib-kernel ignores a foreign token and uses the core validator. Tests: `TestApplyReplayTargetsOneWriter`, `TestReplayTokensAreDistinct`, `TestValidateOutLabels`, `TestHandleMPLSEntryIgnoresForeignReplay`
+     2. `fib-vpp`: the reshaped swap/pop backend, table 0, uniform TTL (push included), the plugin-lifetime subscription, ack without a writer, ownership, flush, replay request on writer open. Tests: every `TestFibVPPLabel*` row and `TestFibVPPFlushRemovesLabelEntries`
+     3. Producers: LDP `Apply` with a logged refusal and the replay answer, RSVP-TE replay answer and egress-pop `FEC`; then both registrations switch to `NeedsDataPlane` and drop "fib-kernel" from `Dependencies` and their doctor checks. Tests: the LDP and RSVP-TE rows, `TestNoRegistrationDependsOnAFIBWriter`
+     4. iface: the whole-set MPLS input call and its three implementations. Tests: `TestDesiredMPLSInput`, `TestVPPReplaceMPLSInput`, `TestNetlinkReplaceMPLSInputInstallsNothing`
+     5. The stub `.ci` and the real-VPP `mpls-label-pop` scenario, with its recorded red (fib-vpp subscription reverted, image rebuilt)
+     6. The pages in the Documentation Update Checklist rows marked Phase 13, in the same commit as the behaviour each describes
+   - RFC comments: each implementing function quotes the RFC 3031 / RFC 3032 sentence it performs (Required Reading, Phase 13 constraints), and each caller names the section
+   - Scoped evidence the main thread runs (agents do not run tests): `./le test unit pkg path ./internal/core/mplsfib/`, `./internal/plugins/fib/vpp/`, `./internal/plugins/fib/kernel/`, `./internal/plugins/ldp/`, `./internal/plugins/rsvpte/`, `./internal/component/iface/`, `./internal/plugins/iface/vpp/`, `./internal/plugins/iface/netlink/`, `./internal/component/plugin/server/`, `./internal/component/plugin/all/` (the launcher supplies `ze_vpp`, `ze_ldp`, `ze_rsvpte`); `./le test vpp` for `vpp-mpls-ldp-pop.ci` and the existing `vpp-mpls-push.ci`; `./le test ldp` and `./le test rsvpte` for the producers' unchanged `.ci` behaviour; `./le test deployment vpp` where Docker VPP is available; `./le rfc check` for the new tags. `./le repo changed scope print` names the full set from the diff once code exists
 
 ### Critical Review Checklist (/implement stage 6)
 
@@ -447,6 +600,15 @@ except AC-4, AC-8 and AC-9, which moved to
 | `spec-fib-depth-2-ecmp` | ECMP grouping + nexthop groups (AC-3, AC-4, AC-5, AC-14) | sub-1 |
 | `spec-fib-depth-3-richroute` | Route type, metric, table, MPLS kernel (AC-6-10, AC-15) | sub-1 |
 | `spec-fib-depth-4-srv6` | SRv6 encap (AC-11) | sub-3 + bgp-nlri-srv6 |
+
+## Work Not Done
+
+| Item | Why not here | Destination |
+|------|--------------|-------------|
+| RSVP-TE facility-backup control contexts (push with a nonzero `TableID`) on a VPP data plane | They are packet-mark tables in the kernel with no VPP form; Phase 13 refuses them (AC-24) and the design of where Ze's own RSVP traffic is routed on a VPP box is its own question | `plan/release/fixes/spec-rsvpte-vpp-dataplane.md` |
+| Real-VPP transit swap forwarding proof | The single-container harness holds no RSVP-TE or LDP peer on both sides; Phase 13 proves swap through the subscription with a fake channel and pop on real VPP (AC-28) | `plan/release/fixes/spec-rsvpte-vpp-dataplane.md` |
+| OSPF and IS-IS name "fib-kernel" in `Dependencies` | The same defect for route producers, already owned (rows `plugin-list-hardcoded.md` 2026-09-07 and 2026-10-20). `TestNoRegistrationDependsOnAFIBWriter` stays red until it lands | `plan/release/fixes/spec-one-owner-per-domain-fact.md` AC-9 (its LDP part is met by Phase 13 AC-16) |
+| `doctor-fib-mpls-no-writer` and the label install check | Doctor coverage is its own child; Phase 13 makes its fix command true | `plan/release/validation/spec-doctor-coverage-10-forwarding.md` AC-108, AC-83 |
 
 ## Mistake Log
 
