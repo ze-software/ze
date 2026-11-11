@@ -1183,6 +1183,21 @@ because a local le binary linked them. `TestGatedRowsKeepTheCommittedManifest`
 proves a dirty manifest cannot change the gate attached to a committed plugin.
 <!-- source: internal/le/plugin/gatedtable/gatedtable.go -- Derive, rowsOf -->
 
+The same committed inventory retains `Registration.DataPlane`. The generated
+table maps each gated forwarding backend to its declared writer, so startup
+can identify a provider absent from the live registry without guessing a plugin
+name from the backend name. Two gated writers claiming the same backend refuse
+generation. The writer's build requirements still come from `GatedPluginTags`;
+the backend map does not carry another copy of those tags.
+Startup and reload consult `GatedDataPlaneWriter` only after the live writer
+lookup misses. A known gated writer returns the existing
+`MissingDependencyError`, including the requesting plugin and build tags. An
+unknown backend refuses without inventing a writer or a build tag.
+<!-- source: internal/le/repo/inventory/registrations.go -- registrations.field, metadataField -->
+<!-- source: internal/le/plugin/gatedtable/gatedtable.go -- renderDataPlanes -->
+<!-- source: internal/component/plugin/registry/gated_plugins.go -- GatedDataPlaneWriter -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriter -->
+
 ### Refusing a root whose plugin is compiled out
 
 The generator gates a plugin's package and its `yang/` package together, so a

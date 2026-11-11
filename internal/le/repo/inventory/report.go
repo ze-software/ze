@@ -49,6 +49,7 @@ type Plugin struct {
 	ConfigRoots []string `json:"config-roots,omitempty"`
 	RFCs        []string `json:"rfcs,omitempty"`
 	Features    string   `json:"features,omitempty"`
+	DataPlane   string   `json:"data-plane,omitempty"`
 	// SourceDir is the repository-relative package directory this plugin
 	// registers from, and YANGFiles are the repository-relative paths of every
 	// YANG file beside it. plugins.go derives both from the registration; a

@@ -418,7 +418,7 @@ func (r *registrations) refuseMutation(name *ast.Ident, function initializationS
 
 func metadataField(name string) bool {
 	switch name {
-	case "Name", "Description", "Families", "CapabilityCodes", "Dependencies", "OptionalDependencies", "StartAfter", "ConfigRoots", "RFCs", "Features", "YANG", "RunEngine", "InProcessNLRIDecoder", "InProcessNLRIEncoder", "InProcessRouteEncoder", "InProcessConfigNLRIBuilder":
+	case "Name", "Description", "Families", "CapabilityCodes", "Dependencies", "OptionalDependencies", "StartAfter", "ConfigRoots", "RFCs", "Features", "DataPlane", "YANG", "RunEngine", "InProcessNLRIDecoder", "InProcessNLRIEncoder", "InProcessRouteEncoder", "InProcessConfigNLRIBuilder":
 		return true
 	}
 	return false
@@ -474,6 +474,8 @@ func (r *registrations) field(registration *registeredPlugin, field string, sour
 		p.Description, err = r.eval.text(source)
 	case "Features":
 		p.Features, err = r.eval.text(source)
+	case "DataPlane":
+		p.DataPlane, err = r.eval.text(source)
 	case "YANG":
 		registration.yang, err = r.eval.text(source)
 	case "Families":

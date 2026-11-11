@@ -125,3 +125,9 @@ var gatedConfigRoots = map[string][]string{
 	"vpn":                      {"ike"},
 	"vpp":                      {"vpp"},
 }
+
+// gatedDataPlaneWriters maps a forwarding backend to the gated plugin that
+// declares it in Registration.DataPlane, including in builds without it.
+var gatedDataPlaneWriters = map[string]string{
+	"vpp": "fib-vpp",
+}

@@ -15,6 +15,7 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // encoderJSON is the wire encoder every auto-loaded internal plugin speaks.
@@ -120,7 +121,10 @@ func (s *Server) getConfigPathPlugins() ([]plugin.PluginConfig, error) {
 		return nil, nil
 	}
 
-	needed = s.appendDataPlaneWriter(needed, s.config.DataPlane)
+	needed, err := s.appendDataPlaneWriter(needed, s.config.DataPlane)
+	if err != nil {
+		return nil, err
+	}
 
 	// nil: hasConfiguredPlugin above excluded every configured name, so nothing
 	// here was declared by an `external` block.
@@ -165,27 +169,33 @@ func (s *Server) getConfigPathPlugins() ([]plugin.PluginConfig, error) {
 //
 // An explicit `fib { ... }` block wins by arriving first: its plugin is a
 // config path, so it is already in needed and fibPluginChosen finds it.
-// An unresolvable data plane adds nothing, and the producer's own doctor check
-// is what tells the operator (checkFIBWriter in internal/plugins/static).
-func (s *Server) appendDataPlaneWriter(needed []string, dataPlane string) []string {
-	if !slices.ContainsFunc(needed, registry.NeedsDataPlane) {
-		return needed
+// An unresolvable data plane refuses the entire selection before any route
+// producer starts. Both boot and reload MUST propagate that refusal.
+func (s *Server) appendDataPlaneWriter(needed []string, dataPlane string) ([]string, error) {
+	producerIndex := slices.IndexFunc(needed, registry.NeedsDataPlane)
+	if producerIndex < 0 {
+		return needed, nil
 	}
 	if s.fibPluginChosen(needed) {
-		return needed
+		return needed, nil
 	}
 	writer, ok := registry.PluginForDataPlane(dataPlane)
 	if !ok {
-		logger().Warn("no FIB plugin programs the configured data plane, routes will reach the system RIB and stop there",
-			"data-plane", dataPlane)
-		return needed
+		if gatedWriter, gated := registry.GatedDataPlaneWriter(dataPlane); gated {
+			return nil, fmt.Errorf("data plane %q: %w", dataPlane,
+				registry.UnloadedDependencyError(needed[producerIndex], gatedWriter))
+		}
+		return nil, opererr.New(
+			"no forwarding plugin programs data plane \""+dataPlane+"\"",
+			"the requested routes cannot reach forwarding; startup or reload is refused before their plugins start",
+			"remove the configuration that loads \""+needed[producerIndex]+"\", or select an interface backend with a forwarding plugin")
 	}
 	// No second "is it already loaded" check: writer declares a data plane, so
 	// it declares ProgramsFIB, so fibPluginChosen above has already answered for
 	// it.
 	logger().Info("auto-loading the FIB plugin for the configured data plane",
 		"plugin", writer, "data-plane", dataPlane)
-	return append(needed, writer)
+	return append(needed, writer), nil
 }
 
 // fibPluginChosen reports whether a plugin that programs the FIB is configured,
@@ -263,7 +273,10 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 		logger().Info("config reload: auto-loading plugin for new config path", "plugin", pluginName)
 	}
 
-	needed = s.appendDataPlaneWriter(needed, iface.BackendNameFromTree(newTree))
+	needed, err := s.appendDataPlaneWriter(needed, iface.BackendNameFromTree(newTree))
+	if err != nil {
+		return nil, err
+	}
 	// The new tree decides the optional providers: a need it now holds pulls
 	// its provider, including for an owner that was already running. A nil
 	// answer adds nothing here and is refused by ResolveDependencies below

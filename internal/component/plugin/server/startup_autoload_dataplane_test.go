@@ -98,15 +98,29 @@ func TestExplicitFIBBlockIsNotOverriddenByTheAutoLoad(t *testing.T) {
 }
 
 // TestNoWriterForTheSelectedDataPlaneLoadsNoFIBPlugin proves the resolution
-// fails closed. A data plane no plugin programs adds nothing, so the engine
-// never starts a writer that would program the wrong data plane.
+// fails closed. A data plane no plugin programs refuses the producer too,
+// so neither an unwritten route nor a writer for the wrong data plane starts.
 func TestNoWriterForTheSelectedDataPlaneLoadsNoFIBPlugin(t *testing.T) {
 	_, ok := registry.PluginForDataPlane("p4-runtime")
 	require.False(t, ok, "p4-runtime must declare no writer for this test to mean anything")
 
-	names := autoLoadNames(t, []string{"static"}, "p4-runtime")
-
-	assert.Contains(t, names, "static")
+	s := &Server{
+		config: &ServerConfig{
+			ConfigNeedHolds: holdsForEmptyConfig,
+			ConfiguredPaths: []string{"static"},
+			DataPlane:       "p4-runtime",
+		},
+		registry:      plugin.NewPluginRegistry(),
+		loadedPlugins: make(map[string]bool),
+	}
+	got, err := s.getConfigPathPlugins()
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "p4-runtime")
+	assert.Empty(t, got)
+	var names []string
+	for _, p := range got {
+		names = append(names, p.Name)
+	}
 	for _, writer := range dataPlaneWriterNames() {
 		assert.NotContains(t, names, writer,
 			"no FIB plugin may load for a data plane none of them programs")

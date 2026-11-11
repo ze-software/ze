@@ -104,9 +104,11 @@ plane, so `fib { p4 { } }` is still the operator's choice and the plugin is neve
 the ANSWER to a producer that needs one: its P4Runtime client is not written, so
 it would answer with silence.
 
-What is left for the `static-fib-writer` doctor check to report is the state
-auto-loading cannot repair: no plugin programs the data plane the config selects.
-The routes then reach arbitration and stop there, so it stays an error.
+If no plugin programs the selected data plane, auto-loading refuses the whole
+selection before starting a route producer. Boot and reload both propagate the
+refusal. A configuration that needs no data-plane writer remains valid, and an
+explicit FIB plugin remains the operator's choice. The `static-fib-writer`
+doctor check still diagnoses a missing writer in a running system.
 
 The static plugin declares `rib` as a dependency, so the system RIB itself always
 runs.

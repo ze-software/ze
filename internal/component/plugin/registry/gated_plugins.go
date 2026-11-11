@@ -29,6 +29,15 @@ func GatedPluginTags(name string) (tags []string, gated bool) {
 	return slices.Clone(tags), gated
 }
 
+// GatedDataPlaneWriter names the gated plugin whose committed registration
+// declares dataPlane. Unlike PluginForDataPlane, it also answers in a build
+// without that plugin. Callers MUST check the live registry first and MUST NOT
+// infer a plugin name or build tag when this table has no declaration.
+func GatedDataPlaneWriter(dataPlane string) (string, bool) {
+	writer, exists := gatedDataPlaneWriters[dataPlane]
+	return writer, exists
+}
+
 // GatedConfigRootRequirements answers, for a config root some gated plugin
 // owns (Registration.ConfigRoots), each set of build tags that would carry an
 // owner of that root, and whether any gated plugin owns it at all.
