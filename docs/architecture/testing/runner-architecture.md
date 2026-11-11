@@ -602,7 +602,7 @@ against the peer address has two values to compare.
 | `login` | `user` + `password` | Submit the real login form once and wait for a loaded authenticated page before continuing |
 | `back` | none | The browser's own back button. The only way to prove what a pushed URL does when the operator returns to it: htmx 2 restores its own history cache, htmx 4 keeps none and the browser navigates for real |
 | `forward` | none | The browser's own forward button. htmx 4 traverses the Navigation API, which holds entries on both sides of the current one, and the entry AHEAD is reached by a second traversal that `back` cannot make |
-| `screenshot` | `file` | Save a screenshot only after two render frames, loaded fonts, finite animations and fetch/XHR work settle under the case deadline |
+| `screenshot` | `file` | Save a screenshot only after two render frames, loaded fonts, finite animations and fetch/XHR/HTMX work settle under the case deadline |
 
 <!-- source: internal/component/web/testing/runner.go -- executeAction: open/click/fill/hover/press/wait/wait-until/wait-html/login/back/forward/screenshot -->
 <!-- source: internal/component/web/testing/runner.go -- waitHTML, waitHTMLState -->
@@ -652,6 +652,19 @@ and finite counter/timestamp values are required: absent observation is not idle
 and capture refuses within its deadline before taking a screenshot. The
 callback borrows the owned browser's CDP endpoint before normal owned cleanup,
 including capture failure.
+Generic fetch observation ends at response headers; XHR observation ends at
+`loadend`. Bundled HTMX also owns its finite request through response-body
+processing and the awaited swap. Document capture listeners pair its actual
+`htmx:before:request` and `htmx:finally:request` events by request-context
+identity, held in a `WeakSet`. Each matched context increments once and is
+removed before its one decrement; an unmatched or repeated final event cannot
+discharge another request. The capture phase sees cancellation by later
+application listeners and completion rehomed to the document after source
+removal. No response body is cloned or drained by observation. HTMX awaits the
+hx-sse extension's promise before `htmx:finally:request`: by default an element
+with `hx-sse:connect` releases it at once, so its stream stays excluded with the
+persistent EventSource connections, while any other `text/event-stream`
+response counts as finite work until it ends.
 Failure diagnostics preserve the original command/deadline cause alongside the
 last completed structured readiness observation: request instrumentation and
 types/finite values, quiet time, document/font/visibility state, finite animation

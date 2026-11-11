@@ -92,7 +92,8 @@ func (b *Browser) runAgentEnsureDaemon(args ...string) error {
 	return nil
 }
 
-// waitLoad waits for in-flight fetch/XHR requests to drain. The finder UI
+// waitLoad waits for in-flight fetch/XHR requests and HTMX request work to
+// drain. The finder UI
 // keeps a persistent EventSource(/events) open, so `wait --load networkidle`
 // never settles and burns a fixed ~1.44s on every call. Instead we poll an
 // in-flight counter registered through the native SDK before navigation, with
@@ -700,16 +701,36 @@ func (b *Browser) runAgentOutput(args ...string) (string, error) {
 	return string(out), nil
 }
 
-// inflightInitJS instruments fetch and XHR with an in-flight counter, registered
-// through the native daemon's addinitscript action before navigation. EventSource
-// is deliberately left alone. Fetch settles when Response headers arrive, so a
-// streamed response body does not keep the finite-request counter occupied.
+// inflightInitJS instruments fetch, XHR and finite HTMX request lifetimes before
+// navigation through the native daemon's addinitscript action. EventSource is
+// deliberately left alone. Generic fetch settles when Response headers arrive;
+// HTMX retains its body processing and awaited swap until finally:request, so
+// the counter pairs htmx:before:request with htmx:finally:request. HTMX awaits
+// the hx-sse extension's promise before finally:request: by default hx-sse
+// releases it at once for an element with hx-sse:connect, so that stream
+// releases at once, and holds other text/event-stream responses until they
+// end, so those count as finite work until they end.
 const inflightInitJS = `(function () {
   if (window.__zeWaitInstalled) return;
   window.__zeWaitInstalled = true;
   window.__zeInflight = 0;
   window.__zeLastChange = performance.now();
   function mark() { window.__zeLastChange = performance.now(); }
+  // Capture sees cancellation in a later application listener and completion
+  // rehomed to document when the source element has been disconnected.
+  var htmxRequests = new WeakSet();
+  document.addEventListener('htmx:before:request', function (event) {
+    var ctx = event.detail && event.detail.ctx;
+    if (!ctx || typeof ctx !== 'object' || htmxRequests.has(ctx)) return;
+    htmxRequests.add(ctx);
+    window.__zeInflight++; mark();
+  }, true);
+  document.addEventListener('htmx:finally:request', function (event) {
+    var ctx = event.detail && event.detail.ctx;
+    if (!ctx || typeof ctx !== 'object' || !htmxRequests.has(ctx)) return;
+    htmxRequests.delete(ctx);
+    window.__zeInflight--; mark();
+  }, true);
   var origFetch = window.fetch;
   if (origFetch) {
     window.fetch = function () {
@@ -726,7 +747,7 @@ const inflightInitJS = `(function () {
 })();
 `
 
-// inflightIdleExpr is the predicate waitLoad polls: no in-flight fetch/XHR
+// inflightIdleExpr is the predicate waitLoad polls: no finite fetch/XHR/HTMX work
 // and quiet for a short debounce. The debounce bridges chained requests --
 // cli.js issues fetch(/cli) -> htmx refresh -> fetch(/config/changes) in
 // sequence, so the counter dips to zero for a microtask between them.
