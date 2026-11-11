@@ -8,7 +8,7 @@ No foreign source was changed. MAIN owns all execution, serialized.
 
 The controlling requirements are the corrected P-4/P-14/P-20/P-21/P-37 rows,
 their concrete carrier rows, and Phase 12 at
-`plan/post-release/engineering/spec-tooling-one-off-defects.md:1303`.
+spec-tooling-one-off-defects (closed in `98c73556b9`), line 1303.
 The older direct-observation table is historical: its statement that runSlug
 has no bound is no longer the current implementation.
 

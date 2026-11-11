@@ -1,7 +1,7 @@
 # Phase 6 current source and proof queue
 
 Source-only audit on November 6, 2026, for MAIN. Scope: P-7, P-10,
-P-18 and P-36 of `plan/post-release/engineering/spec-tooling-one-off-defects.md`.
+P-18 and P-36 of spec-tooling-one-off-defects (closed in `98c73556b9`).
 No build, test, formatter, Go/gopls, interpreter, Docker, QEMU, network or runtime
 command was run. Only repository source, documentation and the exact current
 state/evidence pages were read. No production, test or documentation source was
