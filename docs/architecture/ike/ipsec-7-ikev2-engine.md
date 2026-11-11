@@ -27,9 +27,11 @@ and, in the final response only, the Child SA. The first request carries
 MULTIPLE_AUTH_SUPPORTED, SA, TSi and TSr; ANOTHER_AUTH_FOLLOWS rides only on a
 message with AUTH. `settleAnotherAuth` refuses an unconfigured, a missing and a
 third round, so the IKE SA establishes once, on the final response, after every
-configured round verified. A second-exchange message that fails to decrypt is
-dropped and the SA kept. Hash-and-URL stays with round 1: the round-2 chain
-always goes out inline.
+configured round verified. A second-exchange message that fails its integrity
+check is dropped and counted under `handshake-unauthenticated` (`openProtected`),
+and the SA kept. An authenticated one whose Padding or Pad Length is wrong also
+keeps the SA; one whose inner chain does not parse ends it. Hash-and-URL stays
+with round 1: the round-2 chain always goes out inline.
 
 <!-- source: internal/component/ike/engine/multiple_auth.go -- localAuth, remoteAuth, settleAnotherAuth, verifySecondExchangeRound, continueInitiatorAuth -->
 <!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse -->

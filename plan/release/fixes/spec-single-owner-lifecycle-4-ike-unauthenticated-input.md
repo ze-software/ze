@@ -2,17 +2,18 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | A shipped-daemon defect an operator meets in production: one datagram built from an observed IKE header ends an initiator's handshake, against a MUST NOT of an RFC Ze implements. |
 | RFC gaps | RFC7296-2.4-3 |
 | Depends | - |
-| Phase | - |
+| Phase | 1/6 |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
 | Updated | 2026-11-11 |
+| WIP cap | Claimed above the cap (17/17) on Thomas's order for this spec, 2026-11-11: "ignore the cap" |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -269,7 +270,7 @@ shell or standalone Python file reads it.
 | A-2 | `eapMessageDiscarded` matches an error wrapped with `errInnerParse` | Read: it uses `errors.Is`, and `handleResponderEAP` already relies on it over `decryptAndParse` | An EAP Length discard on the initiator would end the SA | `TestEAPLengthDiscardKeepsInitiatorSA` (existing behaviour, new route) | confirmed by reading; test owed |
 | A-3 | No caller needs the unauthenticated error value itself | Read: all twelve rows of Current Behavior; each only tests nil, or `errInnerParse`, or logs the error | The entry's "no error value" shape would lose something a caller uses | The compile, once `decryptAndParse` is deleted | confirmed by reading |
 | A-4 | An AEAD message has no authenticated-malformed decrypt failure of its own | Read: `OpenIKEAEAD` returns `ErrDecryptionFailed` only for a short input or a failed tag, and `decryptSKPayload` returns its plaintext as is | An authenticated AEAD message could be dropped as a forgery | `TestDecryptMarksAuthenticatedPaddingFailureAsInner` (existing) stays green; a reviewer re-reads `decryptSKPayload`'s AEAD arm | confirmed by reading |
-| A-5 | Taking the first SK payload instead of the last changes nothing | `handleAuthResponse` and `handleEAPResponse` keep the last SK payload of the chain, `decryptAndParse` the first. Whether `Message.ReadFrom` admits two is not read | A response carrying two Encrypted payloads would be opened differently | Read `wire.Message.ReadFrom`; if it admits two, add a unit test that pins the first | unvalidated |
+| A-5 | Taking the first SK payload instead of the last changes nothing | `handleAuthResponse` and `handleEAPResponse` keep the last SK payload of the chain, `decryptAndParse` the first. Whether `Message.ReadFrom` admits two is not read | A response carrying two Encrypted payloads would be opened differently | Read `wire.Message.ReadFrom`; if it admits two, add a unit test that pins the first | broken: `wire.Message.ReadFrom` (`ike/wire/message.go`) admits two. It does not stop at an Encrypted payload: it takes the SK payload's Next Payload (the first inner type) as the next outer type and keeps walking while `off < end`, so a message whose Length runs past the first SK payload, with that Next Payload 46, parses a second `*wire.PayloadSK`. Nothing enforces RFC 7296 Section 3.14, "The Encrypted payload, if present in a message, MUST be the last payload in the message." The first and the last SK payload are therefore different payloads in such a message. Owed in phase 2: the unit test that pins the entry to the first |
 | A-6 | strongSwan with `encap = yes` makes Ze, as initiator, send IKE_AUTH on UDP 4500, so a port match separates IKE_SA_INIT from IKE_AUTH | Not read at the producer on either side. Ze floats in `handleSAInitResponse` on a NAT verdict; strongSwan's forced encapsulation is in `ike_natd.c`, not fetched | The hold rule of the interop scenario cannot be written by port | Read `ike_natd.c` at the lab's strongSwan version and Ze's `floatToNATTPort` caller before writing the checker. Fallback: match the IKE exchange type octet with an iptables `u32` rule, after confirming the lab kernel carries the match | unvalidated |
 | A-7 | strongSwan answers a retransmitted IKE_AUTH request from its cache after it established the SA | Read: `process_message` (`task_manager_v2.c`), the branch that calls `send_packets` on `responding.packets` | After the hold lifts, Ze's retransmission would draw nothing | The interop scenario's green run | confirmed by reading; run owed |
 | A-8 | The interop lab runs the strongSwan line whose source was read (6.1.0) | Owner rule: labs run the latest stable release. The digest still names 5.9.14 | A quoted function may differ at the lab's version | Read the version the lab image builds, and re-read `parse_message` there if it differs | unvalidated |

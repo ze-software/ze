@@ -226,14 +226,23 @@ ended the IKE SA.
 **An unprotected IKE_AUTH response is dropped, and the half-open SA lives.**
 RFC 7296 Section 2.21.4 states: "A peer receiving such an unprotected Notify
 payload MUST NOT respond and MUST NOT change the state of any existing SAs."
-`handleAuthResponse` and `handleEAPResponse` drop an IKE_AUTH response that
-carries no SK payload, such as the INVALID_IKE_SPI a node that lost the SPIs
-sends, and send nothing. The SA keeps its state and its retransmission
-schedule. Until 2026-10-11 both set `StateDead`, so one forged datagram carrying
-the two SPIs ended an initiator's handshake. `TestErrUnprotectedNotifyLeavesHalfOpenSA`
-delivers the bytes `sendInvalidIKESPI` writes through `routeInbound`.
+`handleAuthResponse` and `handleEAPResponse` open every IKE_AUTH response through
+`openProtected`, which drops one that carries no SK payload, such as the
+INVALID_IKE_SPI a node that lost the SPIs sends, and one whose integrity check or
+AEAD tag fails, sends nothing, and counts it under
+`ze_ipsec_error_notify_suppressed_total{reason="handshake-unauthenticated"}`. RFC
+7296 Section 2.4 covers the second kind: an endpoint "MUST NOT conclude that the
+other endpoint has failed based on ... IKE messages that arrive without
+cryptographic protection". The SA keeps its state and its retransmission schedule
+in the first exchange, the RFC 4739 second exchange and each EAP round. Until
+2026-10-11 a response with no SK payload set `StateDead`, and until 2026-11-11 so
+did one whose checksum failed, so one forged datagram carrying the two SPIs ended
+an initiator's handshake. `TestErrUnprotectedNotifyLeavesHalfOpenSA` delivers the
+bytes `sendInvalidIKESPI` writes through `routeInbound`, and
+`rfc7296_unprotected_response_test.go` delivers forged responses in each state.
 
 <!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse, handleEAPResponse -->
+<!-- source: internal/component/ike/engine/protected_input.go -- openProtected -->
 <!-- source: internal/component/ike/engine/eap_auth.go -- eapMessageDiscarded -->
 <!-- source: internal/component/ike/wire/payload_eap.go -- ErrEAPLengthExceedsData -->
 

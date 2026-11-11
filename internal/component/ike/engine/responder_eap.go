@@ -295,15 +295,15 @@ func (ps *PeerSession) startResponderEAP(sa *SA, msgID uint32, remoteSAi2 *wire.
 // handleResponderEAP drives one EAP round (or the concluding AUTH-from-MSK) on an
 // inbound IKE_AUTH while StateEAPInProgress. RFC 7296 Section 2.16.
 func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
-	inner, err := decryptAndParse(sa, msg, rawMsg)
+	// RFC 7296 Section 2.4: an EAP round that does not decrypt ends nothing, so the
+	// peer's next genuine round still finds the exchange where it left it.
+	inner, dropped, err := openProtected(sa, msg, rawMsg, suppressedUnauthenticatedHandshake, log)
+	if dropped {
+		return
+	}
 	// RFC 3748 Section 4: the EAP Response is discarded and the exchange waits.
 	if eapMessageDiscarded(err) {
 		log.Warn("ike: EAP packet discarded", "peer", sa.PeerName, "error", err)
-		return
-	}
-	// RFC 7296 Section 2.4: an EAP round that does not decrypt ends nothing, so the
-	// peer's next genuine round still finds the exchange where it left it.
-	if err != nil && discardUnauthenticatedHandshakeRequest(sa, err, log) {
 		return
 	}
 	if err != nil {

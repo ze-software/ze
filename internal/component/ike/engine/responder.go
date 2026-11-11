@@ -551,9 +551,9 @@ func sendCookieChallenge(
 // decrypt, verify the initiator's AUTH (PSK/X.509) or begin EAP, install the first
 // Child SA, and send the IKE_AUTH response, establishing the SA. RFC 7296 Section 1.2.
 func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
-	inner, err := decryptAndParse(sa, msg, rawMsg)
 	// RFC 7296 Section 2.4: an IKE_AUTH that does not decrypt ends nothing.
-	if err != nil && discardUnauthenticatedHandshakeRequest(sa, err, log) {
+	inner, dropped, err := openProtected(sa, msg, rawMsg, suppressedUnauthenticatedHandshake, log)
+	if dropped {
 		return
 	}
 	if err != nil {

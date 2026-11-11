@@ -504,9 +504,9 @@ func (ps *PeerSession) handleResponderAuthRound(sa *SA, msg *wire.Message, rawMs
 			"peer", sa.PeerName, "msgid", msg.Header.MessageID, "expected", sa.ExpectedMsgID)
 		return
 	}
-	inner, err := decryptAndParse(sa, msg, rawMsg)
 	// RFC 7296 Section 2.4: a second IKE_AUTH request that does not decrypt ends nothing.
-	if err != nil && discardUnauthenticatedHandshakeRequest(sa, err, log) {
+	inner, dropped, err := openProtected(sa, msg, rawMsg, suppressedUnauthenticatedHandshake, log)
+	if dropped {
 		return
 	}
 	if err != nil {

@@ -71,10 +71,10 @@
     "unit": "internal/component/ike/engine/rfc7296_unprotected_handshake_test.go::TestResponderAuthSurvivesUnprotectedIKEAuth",
     "unit-sha": "c3512e9ef16c3063",
     "claim-sha": "9767763748da31a8",
-    "route": "revert",
-    "producer": "internal/component/ike/engine/responder_unauthenticated.go::discardUnauthenticatedHandshakeRequest",
-    "producer-sha": "fb5a937e1e637b43",
-    "break": "body of discardUnauthenticatedHandshakeRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "line 97: \"return nil, true, nil\" -\u003e \"return nil, false, err\""
   },
   {
     "rid": "RFC7296-2.4-3",
@@ -82,10 +82,10 @@
     "unit": "internal/component/ike/engine/rfc7296_unprotected_handshake_test.go::TestResponderEAPEndsOnAuthenticatedMalformedRound",
     "unit-sha": "90cba96731f756ba",
     "claim-sha": "ca8d12cac281d9c1",
-    "route": "revert",
-    "producer": "internal/component/ike/engine/responder_unauthenticated.go::discardUnauthenticatedHandshakeRequest",
-    "producer-sha": "fb5a937e1e637b43",
-    "break": "body of discardUnauthenticatedHandshakeRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "line 101: \"return nil, false, fmt.Errorf(\\\"%w: %w\\\", errInnerChain, err)\" -\u003e \"return nil, true, nil\""
   },
   {
     "rid": "RFC7296-2.4-3",
@@ -93,9 +93,42 @@
     "unit": "internal/component/ike/engine/rfc7296_unprotected_handshake_test.go::TestResponderEAPSurvivesUnprotectedIKEAuth",
     "unit-sha": "6b333314679b017d",
     "claim-sha": "962323f061bfc14d",
-    "route": "revert",
-    "producer": "internal/component/ike/engine/responder_unauthenticated.go::discardUnauthenticatedHandshakeRequest",
-    "producer-sha": "fb5a937e1e637b43",
-    "break": "body of discardUnauthenticatedHandshakeRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "line 97: \"return nil, true, nil\" -\u003e \"return nil, false, err\""
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorAuthEndsOnAuthenticatedMalformedResponse",
+    "unit-sha": "b81054fccbf8f1bd",
+    "claim-sha": "8e92ccebbd893adb",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "line 101: \"return nil, false, fmt.Errorf(\\\"%w: %w\\\", errInnerChain, err)\" -\u003e \"return nil, true, nil\""
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorAuthSurvivesUnprotectedIKEAuthResponse",
+    "unit-sha": "a147842679471517",
+    "claim-sha": "f7fc9baf770a05ca",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "line 97: \"return nil, true, nil\" -\u003e \"return nil, false, err\""
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorEAPSurvivesUnprotectedIKEAuthResponse",
+    "unit-sha": "5c52c8430482b73d",
+    "claim-sha": "ebc140c9e6a8a3c0",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "line 97: \"return nil, true, nil\" -\u003e \"return nil, false, err\""
   }
 ]

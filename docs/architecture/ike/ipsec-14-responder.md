@@ -400,18 +400,33 @@ operator's log, against RFC 7296 Section 2.4: "Since IKE is designed to operate 
 spite of DoS attacks from the network, an endpoint MUST NOT conclude that the other
 endpoint has failed based on any routing information (e.g., ICMP messages) or IKE
 messages that arrive without cryptographic protection (e.g., Notify messages
-complaining about unknown SPIs)." All three now call
-`discardUnauthenticatedHandshakeRequest`, which drops a request that has no SK
-payload or fails its integrity check or AEAD tag, counts it under
-`ze_ipsec_error_notify_suppressed_total{reason="handshake-unauthenticated"}`, logs
-it at debug, sends nothing, and leaves the SA untouched, so the peer's next genuine
-request finds the exchange where it was.
+complaining about unknown SPIs)." The initiator had the same defect:
+`handleAuthResponse` (the first IKE_AUTH response and each response of the RFC
+4739 second exchange) and `handleEAPResponse` (each EAP round) ended the handshake
+on a response that did not decrypt, so `runInitiator` returned `errSADead` into a
+reconnect backoff. All five handlers now open the message through `openProtected`
+(`protected_input.go`). It takes the first Encrypted payload (RFC 7296 Section 3.14
+makes it the last payload, and `wire.Message.ReadFrom` does not enforce that). A
+message that has no Encrypted payload, or fails its integrity check or AEAD tag, is
+dropped there: counted under
+`ze_ipsec_error_notify_suppressed_total{reason="handshake-unauthenticated"}` in
+either role, logged at debug as `ike: unauthenticated message dropped, SA kept`,
+nothing sent, and the SA untouched, so the peer's next genuine message finds the
+exchange where it was. On the initiator that includes the retransmit schedule:
+`runInitiator` resends the same request at the time it already had, and gives up
+with `errTimeout` after the usual count when only forgeries arrive.
 
-A failure after the integrity check passed is the peer's own message and still
-ends the handshake: an inner payload chain that does not parse, and, for a CBC
-cipher, a Padding, Pad Length or block alignment that is wrong, since the checksum
-covers them (RFC 7296 Section 3.14). `decryptSKPayload` and `decryptAndParse` mark
-both with `errInnerParse`, the one decrypt failure that is evidence about the peer.
+A failure after the integrity check passed is the peer's own message and keeps the
+reaction each handler had: an inner payload chain that does not parse, and, for a
+CBC cipher, a Padding, Pad Length or block alignment that is wrong, since the
+checksum covers them (RFC 7296 Section 3.14). `decryptSKPayload` marks the second
+kind with `errInnerParse`, and `openProtected` marks the first with `errInnerChain`,
+which wraps `errInnerParse`: the one decrypt failure that is evidence about the
+peer. The responder's three handlers, the first IKE_AUTH response and each EAP
+round end the handshake on either. The RFC 4739 second exchange on the initiator
+keeps the SA on a padding failure and ends it on a chain that does not parse, as it
+did before the opener moved. The established-SA sites still open through
+`decryptAndParse` (`inbound.go`), which sets the same mark.
 On an established SA the same mark is what lets `respondInnerParseError` answer
 with INVALID_SYNTAX. During IKE_AUTH the handshake ends with no answer, an open
 gap against RFC 7296 Section 2.21.2
@@ -423,7 +438,8 @@ ends a handshake that only forgeries keep busy, and the inbound token bucket in
 "Implementations MUST limit the rate at which they take actions based on
 unprotected messages.").
 
-<!-- source: internal/component/ike/engine/responder_unauthenticated.go -- discardUnauthenticatedHandshakeRequest -->
+<!-- source: internal/component/ike/engine/protected_input.go -- openProtected, protectedPayload, dropUnauthenticated -->
+<!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse, handleEAPResponse -->
 <!-- source: internal/component/ike/engine/multiple_auth.go -- handleResponderAuthRound -->
 <!-- source: internal/component/ike/engine/auth.go -- decryptSKPayload -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- handleResponderEAP -->

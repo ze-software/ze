@@ -889,49 +889,38 @@ func handleSAInitResponse(
 // is requesting EAP authentication. The initiator verifies the server's AUTH first,
 // then enters the EAP exchange loop.
 func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr *transport.UDPTransport, log *slog.Logger) {
-	var skPayload *wire.PayloadSK
-	for _, pe := range msg.Payloads {
-		if sk, ok := pe.Payload.(*wire.PayloadSK); ok {
-			skPayload = sk
-		}
-	}
-	// An IKE_AUTH response with no SK payload is unprotected, so nothing ties it to
-	// the peer. One carrying the SPIs is what a node that lost them answers with, and
-	// what anyone who saw the SPIs can forge. It is dropped, and the SA keeps its
-	// state and its retransmission, as handleOwnedInbound does for an established SA.
-	// RFC 7296 Section 2.21.4: "A peer receiving such an unprotected Notify payload
-	// MUST NOT respond and MUST NOT change the state of any existing SAs."
-	if skPayload == nil {
-		log.Debug("ike: AUTH response has no SK payload, dropped", "peer", sa.PeerName)
-		return
-	}
 	// In the RFC 4739 second exchange only the answer to the request outstanding counts.
 	// A late copy of the first response, drawn by a retransmission of the first
-	// request, would otherwise be read as the answer to the second.
+	// request, would otherwise be read as the answer to the second. It is dropped before
+	// any decrypt and not counted: it is a known message, not a forgery.
 	if sa.secondAuthExchange && msg.Header.MessageID != sa.NextMsgID {
 		log.Debug("ike: IKE_AUTH response at an unexpected message id, dropped",
 			"peer", sa.PeerName, "msgid", msg.Header.MessageID, "expected", sa.NextMsgID)
 		return
 	}
 
-	plaintext, err := decryptSKPayload(sa, rawMsg, skPayload)
-	if err != nil {
-		log.Warn("ike: AUTH response decryption failed", "peer", sa.PeerName, "error", err)
-		// The second exchange keeps the SA: RFC 7296 Section 2.21.4 lets no message that
-		// fails its integrity check change an SA's state, and the retransmission of the
-		// second request draws the real answer again.
-		if sa.secondAuthExchange {
-			return
-		}
-		sa.State = StateDead
+	// RFC 7296 Section 2.4: a response that does not decrypt ends nothing. The SA keeps
+	// its state and its retransmission, which draws the peer's real answer again.
+	innerPayloads, dropped, err := openProtected(sa, msg, rawMsg, suppressedUnauthenticatedHandshake, log)
+	if dropped {
 		return
 	}
-
-	innerPayloads, err := wire.ParsePayloadChain(plaintext, skPayload.InnerNextPayload)
 	// RFC 3748 Section 4: the first EAP Request is discarded, so the SA stays in
 	// StateAuthSent and its IKE_AUTH retransmission draws the response again.
 	if eapMessageDiscarded(err) {
 		log.Warn("ike: EAP packet discarded", "peer", sa.PeerName, "error", err)
+		return
+	}
+	// An authenticated response whose Padding, Pad Length or block alignment is wrong.
+	// The second exchange keeps the SA on it and lets the retransmission of the second
+	// request draw the answer again; the first exchange ends. No RFC sentence decides
+	// between the two, and both are kept as they were.
+	if err != nil && !errors.Is(err, errInnerChain) {
+		log.Warn("ike: AUTH response decryption failed", "peer", sa.PeerName, "error", err)
+		if sa.secondAuthExchange {
+			return
+		}
+		sa.State = StateDead
 		return
 	}
 	if err != nil {
@@ -1264,37 +1253,20 @@ func startEAPExchange(sa *SA, eapPayload *wire.PayloadEAP, tr *transport.UDPTran
 
 // handleEAPResponse processes an IKE_AUTH response during an active EAP exchange.
 func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.UDPTransport, log *slog.Logger) {
-	var skPayload *wire.PayloadSK
-	for _, pe := range msg.Payloads {
-		if sk, ok := pe.Payload.(*wire.PayloadSK); ok {
-			skPayload = sk
-		}
-	}
-	// An IKE_AUTH response with no SK payload is unprotected, so nothing ties it to
-	// the peer. One carrying the SPIs is what a node that lost them answers with, and
-	// what anyone who saw the SPIs can forge. It is dropped, and the SA keeps its
-	// state and its retransmission, as handleOwnedInbound does for an established SA.
-	// RFC 7296 Section 2.21.4: "A peer receiving such an unprotected Notify payload
-	// MUST NOT respond and MUST NOT change the state of any existing SAs."
-	if skPayload == nil {
-		log.Debug("ike: EAP response has no SK payload, dropped", "peer", sa.PeerName)
+	// RFC 7296 Section 2.4: an EAP round that does not decrypt ends nothing, so the
+	// authenticator's genuine round still finds the exchange where it left it.
+	innerPayloads, dropped, err := openProtected(sa, msg, rawMsg, suppressedUnauthenticatedHandshake, log)
+	if dropped {
 		return
 	}
-
-	plaintext, err := decryptSKPayload(sa, rawMsg, skPayload)
-	if err != nil {
-		log.Warn("ike: EAP response decryption failed", "peer", sa.PeerName, "error", err)
-		sa.State = StateDead
-		return
-	}
-
-	innerPayloads, err := wire.ParsePayloadChain(plaintext, skPayload.InnerNextPayload)
 	// RFC 3748 Section 4: the EAP Request is discarded, so the SA stays in
 	// StateEAPInProgress and waits for the authenticator's next packet.
 	if eapMessageDiscarded(err) {
 		log.Warn("ike: EAP packet discarded", "peer", sa.PeerName, "error", err)
 		return
 	}
+	// Authenticated, so the payloads are the peer's own and the handshake ends, on a
+	// wrong Padding or Pad Length as on a chain that does not parse.
 	if err != nil {
 		log.Warn("ike: EAP response inner parse failed", "peer", sa.PeerName, "error", err)
 		sa.State = StateDead

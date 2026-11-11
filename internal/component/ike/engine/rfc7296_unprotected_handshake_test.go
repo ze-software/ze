@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-14-responder.md -- unauthenticated input during the responder handshake
-// Related: responder_unauthenticated.go -- discardUnauthenticatedHandshakeRequest, the producer these tests hold
+// Related: protected_input.go -- openProtected, the producer these tests hold
 // Related: rfc3748_eap_length_test.go -- eaplenExchange, the real EAP-MSCHAPv2 handshake these tests drive
 // Related: rfc4739_rounds_test.go -- maSAInitPair, the RFC 4739 two-round handshake the second-exchange tests drive
 // Related: rfc7296_encrypt_test.go -- cbcSKPair, buildCBCSKWithIVAndPad and forgePadLength
@@ -317,7 +317,7 @@ func unprotSecondExchange(t *testing.T) (p *maPair, req2 []byte) {
 //
 // PREVENTS: handleResponderAuthRound logging a WARN for every decrypt error and counting
 // nothing, which let an off-path sender write one line to the operator's log per forged
-// datagram, the defect discardUnauthenticatedHandshakeRequest exists to refuse.
+// datagram, the defect openProtected exists to refuse.
 func TestResponderSecondAuthRoundDropsUnprotectedRequestQuietly(t *testing.T) {
 	p, req2 := unprotSecondExchange(t)
 	expected := p.resp.ExpectedMsgID
@@ -395,7 +395,7 @@ func TestResponderSecondAuthRoundEndsOnAuthenticatedMalformedRequest(t *testing.
 // checksum's last octet flipped. Both go through decryptAndParse on the receiving SA.
 //
 // PREVENTS: a post-checksum failure of decryptSKPayload returning unmarked, which made
-// discardUnauthenticatedHandshakeRequest drop and count as a forgery a message only the
+// openProtected drop and count as a forgery a message only the
 // peer could have sealed, and kept the established path from answering it.
 func TestDecryptMarksAuthenticatedPaddingFailureAsInner(t *testing.T) {
 	sa, peer := cbcSKPair(t)

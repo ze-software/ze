@@ -94,9 +94,14 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
    AES-GCM (`buildSKMessageAEADWithMsgID`, `auth.go`) or AES-CBC+HMAC
    (`buildSKMessageCBCWithMsgID`, `auth.go`) depending on the negotiated cipher;
    `sa.State = StateAuthSent` (`fsm.go`).
-9. **IKE_AUTH response.** `handleAuthResponse` (`fsm.go`) decrypts the SK payload
-   (`decryptSKPayload`, `fsm.go`, `auth.go`), walks the inner chain
-   (`wire.ParsePayloadChain`, `fsm.go`, `chain.go`), verifies the remote AUTH
+9. **IKE_AUTH response.** `handleAuthResponse` (`fsm.go`) opens the message through
+   `openProtected` (`protected_input.go`), which decrypts the first SK payload
+   (`decryptSKPayload`, `auth.go`) and walks the inner chain
+   (`wire.ParsePayloadChain`, `chain.go`). A message with no SK payload, or one that
+   fails its integrity check, is dropped there and counted under
+   `handshake-unauthenticated` with the SA and its retransmission untouched (RFC 7296
+   §2.4); the responder's three handshake handlers open through the same function.
+   It then verifies the remote AUTH
    (`verifyRemoteAuth`, `fsm.go`, `auth.go`, PSK via
    `subtle.ConstantTimeCompare` `auth.go`, X.509 digital signature, RFC 4754
    ECDSA r || s via `verifyECDSAAuth` `auth_ecdsa.go`, or legacy RSA), and
@@ -117,7 +122,8 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
     `startEAPExchange` (`fsm.go`, `fsm.go`) is entered only after the
     server's AUTH is already verified; it drives `eap.PeerSession` (MSCHAPv2 or
     TLS, `eap/peer.go`, `eap/peer.go`, `eap/peer.go`) round-trips through
-    `handleEAPResponse` (`fsm.go`), each response re-encrypted via
+    `handleEAPResponse` (`fsm.go`, which opens each round through `openProtected`,
+    so a forged round is dropped and the exchange kept), each response re-encrypted via
     `buildEAPResponse` (`auth.go`) and sent through `sendEAPResponsePacket`
     (`fsm.go`). On `result.Done`, AUTH is keyed by the secret RFC 7296 §2.16
     names for the method that ran: the EAP MSK when the method derives one, and
