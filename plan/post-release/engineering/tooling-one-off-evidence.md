@@ -4273,3 +4273,45 @@ unwalked and unrecorded too.
 
 Each walk overlaid the producer, and the carrier passed again on the restored
 bytes. Every cut the P-18 generator names now has an attributed red.
+
+## Review Gate round 4: the P-18 cuts re-walked, the P-36 URG and CHLD walks (2026-11-11)
+
+An independent reviewer, who wrote neither the carriers nor the walks above,
+checked each generator cut (`tmp/mac-port/logs/10/p18-causal-overlays-generator/main.go`,
+thirteen cuts) against today's source: every `Before` anchor still stands in
+the function it names. The reviewer re-walked the five detached-context cuts
+whose earlier red names no retained log, through `./le test redwalk check`.
+Each break is the generator's own one-line `After` edit (patches and logs in
+the parent session's scratch, `r4/<name>.patch` and `r4/<name>.log`). Each
+clean run passed and each broken run failed:
+
+| Cut | Carrier | Red |
+| --- | --- | --- |
+| `scale-simulator` | `TestScaleSimulatorCancellationJoinsActualDescendants` | "canceled simulator waited on a surviving descendant" |
+| `dockerlab-command-startup` | `TestDockerLabStartupCancellationStopsOnlyOwnedVM`, `/command` red, `/lab` green | "own-system startup lost cancellation: context deadline exceeded ..." |
+| `dockerlab-lab-startup` | same, `/lab` red, `/command` green | "readiness detached from the canceled root" |
+| `native-host-build` | `TestNativeHostBuildCancellationJoinsDescendants` | "native build waited on surviving descendant" |
+| `dockerlab-build-admission` | `TestDockerLabBuildCancellationLeavesOccupiedAdmission` | "Docker-lab admission ignored cancellation: ..." |
+
+The installer's recorded overlay (`pw/p18-installer-second-signal-src/dockerkernel.go`)
+differs from HEAD at `cancelInstallOnSignal` only by the removed
+`signal.Stop(signals)`, which is the generator's `installer-first-stop` edit.
+Its other differences are later HEAD changes to the kernel-release check, a
+different function. Its logs show both subtests red with "second interrupt was
+suppressed while the owned step ignored TERM", and the restored run green.
+
+P-36: the walks behind `cd124f850c` are retained in the parent session's
+scratch (`walks-p36.json`, `walks-p36-logs/`). Each one adds a signal to
+`reportBusy` (`registry.go`) after its occupancy report. The carrier is
+`TestAForeignQuietHolderIsNeverSignalled`:
+
+| Break | Red |
+| --- | --- |
+| SIGTERM | recorded "TERM\nTERM\nUSR2\n"; "sent the foreign quiet holder [TERM TERM]" |
+| SIGSTOP | "the foreign quiet holder was stopped: ps state \"T\"" |
+| SIGSTOP then SIGCONT | recorded "CONT\nCONT\nUSR2\n"; "[CONT CONT]" |
+| SIGURG | recorded "URG\nURG\nUSR2\n"; "[URG URG]" |
+| SIGCHLD | recorded "CHLD\nCHLD\nUSR2\n"; "[CHLD CHLD]" |
+
+Each restored run passed. `./le test weakened check base ebb5d8e173` is clean,
+with 5 changed test files examined.
