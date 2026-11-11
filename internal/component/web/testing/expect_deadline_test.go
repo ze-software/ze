@@ -346,7 +346,7 @@ func (f *browserExpectationRendezvous) ServeHTTP(w http.ResponseWriter, r *http.
 	f.commands = append(f.commands, command)
 	body := ""
 	switch {
-	case command == "open http://owned.invalid/owned", command == "close":
+	case command == "open about:blank", command == "open http://owned.invalid/owned", command == "close":
 	case command == "eval "+inflightIdleExpr:
 		body = "true\n"
 	case command == "get url":
@@ -388,7 +388,14 @@ func installExpectationAgentBrowser(t *testing.T, endpoint string) {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	script := "#!/bin/sh\nexport GORACE=atexit_sleep_ms=0\nexec " + strconv.Quote(binary) +
+	// Browser.Open registers the render observer before it navigates: it opens
+	// the owned blank page, then evaluates and registers inflightInitJS through
+	// the native SDK socket. The shared fake observer answers that socket and
+	// refuses an application open that precedes registration, as it does for
+	// the other runner fixtures. Its bootstrap helper exits before the exec, so
+	// the exec'd fixture still owns the command's output descriptors.
+	bootstrap := installFakeObserver(t, filepath.Join(dir, "observer.log"))
+	script := "#!/bin/sh\nexport GORACE=atexit_sleep_ms=0\n" + bootstrap + "exec " + strconv.Quote(binary) +
 		" -test.run=^TestBrowserExpectationFixture$ -browser-expectation-fixture=" + strconv.Quote(endpoint) + " -- \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(dir, agentBrowserBin), []byte(script), 0o700); err != nil {
 		t.Fatal(err)
