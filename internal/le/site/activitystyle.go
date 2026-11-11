@@ -78,7 +78,7 @@ const activityStyle = `        <style>
             align-items: center;
             gap: 0.45rem;
             margin-bottom: 0;
-            color: var(--grape-deep);
+            color: var(--sky-deep);
             font-size: 0.7rem;
             font-weight: 900;
             letter-spacing: 0.16em;
@@ -98,7 +98,7 @@ const activityStyle = `        <style>
             padding-right: 0;
             margin: 0;
             color: var(--text);
-            background: linear-gradient(90deg, var(--grape-deep), var(--sky-deep) 54%, var(--teal-deep));
+            background: linear-gradient(90deg, var(--sky-deep), var(--sky-deep) 54%, var(--teal-deep));
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -375,7 +375,7 @@ const activityStyle = `        <style>
         }
         .activity-widget .go-bucket h3 {
             margin: 0;
-            color: var(--grape-deep);
+            color: var(--sky-deep);
             font-size: 0.78rem;
             font-weight: 900;
             letter-spacing: 0.08em;
