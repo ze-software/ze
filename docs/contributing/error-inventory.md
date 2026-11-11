@@ -11,7 +11,7 @@ package's own writers ("The check and the commit gate").
 
 | Action | What it answers |
 |--------|-----------------|
-| `report` | Every message site in the tree, one row each, then one count line per surface: `surface=<name> sites=<n> typed=<n> plain-names-command=<n> plain=<n>` |
+| `report` | Every message site the three sources below find in the tree, one row each, then one count line per surface: `surface=<name> sites=<n> typed=<n> plain-names-command=<n> plain=<n>` |
 | `check` | Refuses a change that adds a plain message at a surface writer no other gate judges |
 
 A row carries the surface, the file and line, the owner package, the door
@@ -113,10 +113,12 @@ else in the package changes. The row says:
 | Field | What it holds |
 |-------|---------------|
 | `surface` | the surface the message reaches; a new surface is a new `Surface` value and its count line |
-| `shape` | how the writer is called: a function (`shapeCall`), an unexported method (`shapeMethod`: any call of that method name inside the package at `path`, on any receiver expression, because the syntax cannot name the receiver's type; `receiver` only names the row in the report), a print to `os.Stderr` (`shapeStderrPrint`, `shapeStderrMethod`), a composite literal of a type (`shapeLiteral`), or a composite literal of an `./le` struct type whose name ends in `Finding` (`shapeFinding`) |
+| `shape` | how the writer is called: a function (`shapeCall`), an unexported method (`shapeMethod`: any call of that method name inside the package at `path`, on any receiver expression, because the syntax cannot name the receiver's type; `receiver` only names the row in the report), a print to `os.Stderr` (`shapeStderrPrint`, `shapeStderrMethod`), a composite literal of a type (`shapeLiteral`), or a composite literal of an `./le` struct type whose name ends in `Finding` that sets a message field (`shapeFinding`). The message fields are the one list `findingMessageFields` beside it: the fields whose text the report prints as the finding (`Message`, `Detail`, `Reason`, `Fix` and the rest), never its place, subject or category. A literal that sets none of them, such as the key `Finding{Path, Package, Name}` or a zero `Finding{}`, is no message site; a positional literal sets every field and counts. Every `string` or `[]string` field of a finding type is named by exactly one of `findingMessageFields` and `findingIdentityFields`, and `TestEveryFindingTextFieldIsClassified` reads the tree to hold that, so a new text field is red until it is classified. A finding type that declares no message field is worded by its report's renderer instead, and is named with that renderer in `rendererWordedFindings`: today `compoundguard.Finding` (`CheckReport.Text`), `unreadleaves.Finding` and `citation.DanglingFinding` (each package's `Report.Text`), and `citation.AnchorFinding` (`AnchorReport.Text`). Their literals are no message site, and no writer row reads a renderer, so the inventory does not judge those four reports' wording. The same test refuses a finding type that declares no message field and is not in that list |
 | `path`, `ident` | the import path and name the call or type resolves to; an unexported helper is matched in its own package |
 | `message` | the span of arguments or literal elements that carry the message: from `first` up to but excluding `last`, `last` 0 meaning through the end |
 | `within` | optional: limit the row to these directories, placed before a broader row of the same writer |
+<!-- source: internal/le/arch/errorinventory/writers.go -- findingMessageFields, findingIdentityFields, rendererWordedFindings, carriesMessage -->
+<!-- source: internal/le/arch/errorinventory/scan.go -- literalRows, rowsUnder -->
 
 The row for `./le` action refusals reads `{surface: SurfaceTooling, shape:
 shapeCall, path: leactionPath, ident: "ReportError", message: span{0, 1}}`.

@@ -106,56 +106,75 @@ func writerRows(root string, overlay map[string]overlayFile) ([]Row, error) {
 // write) is part of the outer row, never a row of its own.
 func (index *treeIndex) rowsOf(file *sourceFile) ([]Row, error) {
 	var rows []Row
-	var failed error
 	for _, decl := range file.ast.Decls {
 		fn, _ := decl.(*ast.FuncDecl)
 		sc := scope{index: index, file: file, fn: fn}
-		ast.Inspect(decl, func(node ast.Node) bool {
-			if failed != nil {
-				return false
-			}
-			switch expression := node.(type) {
-			case *ast.CallExpr:
-				w, isWriter := callWriter(file, expression)
-				if !isWriter {
-					return true
-				}
-				row, err := sc.row(w, w.label(), expression, w.message.of(expression.Args))
-				if err != nil {
-					failed = err
-					return false
-				}
-				rows = append(rows, row)
-				return false
-			case *ast.CompositeLit:
-				found, matched, err := sc.literalRows(expression)
-				if err != nil {
-					failed = err
-					return false
-				}
-				rows = append(rows, found...)
-				return !matched
-			}
-			return true
-		})
+		found, err := sc.rowsUnder(decl)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, found...)
 	}
+	return rows, nil
+}
+
+// rowsUnder answers the writer rows of root and everything under it, in
+// position order. The recursion through literalRows follows the syntax tree
+// of one source file, so its depth is bounded by that file's nesting.
+func (sc scope) rowsUnder(root ast.Node) ([]Row, error) {
+	var rows []Row
+	var failed error
+	ast.Inspect(root, func(node ast.Node) bool {
+		if failed != nil {
+			return false
+		}
+		switch expression := node.(type) {
+		case *ast.CallExpr:
+			w, isWriter := callWriter(sc.file, expression)
+			if !isWriter {
+				return true
+			}
+			row, err := sc.row(w, w.label(), expression, w.message.of(expression.Args))
+			if err != nil {
+				failed = err
+				return false
+			}
+			rows = append(rows, row)
+			return false
+		case *ast.CompositeLit:
+			found, matched, err := sc.literalRows(expression)
+			if err != nil {
+				failed = err
+				return false
+			}
+			rows = append(rows, found...)
+			return !matched
+		}
+		return true
+	})
 	return rows, failed
 }
 
 // literalRows answers the rows of a composite literal: the literal itself
-// when its type is a writer's, or each element whose type a slice, array or
-// map literal of a writer's type elides. matched says whether the literal
-// was a writer's, so its elements are not walked again.
+// when its type is a writer's and it carries a message, or each element
+// that does whose type a slice, array or map literal of a writer's type
+// elides. matched says whether the literal was a writer's row, so its
+// elements are not walked again; a writer-typed literal that carries no
+// message, whole or elided, is walked, so a writer nested in its elements
+// is still found.
 func (sc scope) literalRows(lit *ast.CompositeLit) ([]Row, bool, error) {
 	if lit.Type == nil {
 		return nil, false, nil
 	}
 	if w, label, isWriter := sc.index.literalWriter(sc.file, lit.Type); isWriter {
-		row, err := sc.row(w, label, lit, w.message.of(literalValues(lit)))
-		if err != nil {
-			return nil, true, err
+		if w.carriesMessage(lit) {
+			row, err := sc.row(w, label, lit, w.message.of(literalValues(lit)))
+			if err != nil {
+				return nil, true, err
+			}
+			return []Row{row}, true, nil
 		}
-		return []Row{row}, true, nil
+		return nil, false, nil
 	}
 	element := elementType(lit.Type)
 	if element == nil {
@@ -172,6 +191,16 @@ func (sc scope) literalRows(lit *ast.CompositeLit) ([]Row, bool, error) {
 			continue
 		}
 		if inner.Type != nil {
+			continue
+		}
+		if !w.carriesMessage(inner) {
+			// No row of its own, but walked as an unelided one is, so a
+			// writer nested in its elements is still found.
+			nested, err := sc.rowsUnder(inner)
+			if err != nil {
+				return nil, true, err
+			}
+			rows = append(rows, nested...)
 			continue
 		}
 		row, err := sc.row(w, label, inner, w.message.of(literalValues(inner)))

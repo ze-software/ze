@@ -15,6 +15,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"slices"
 	"strings"
 )
 
@@ -67,10 +68,90 @@ const (
 	// at path.
 	shapeLiteral
 	// shapeFinding is a composite literal of a struct type an ./le package
-	// declares whose name ends in findingSuffix: the record each ./le report
-	// prints one finding from.
+	// declares whose name ends in findingSuffix, the record each ./le report
+	// prints one finding from, that sets one of findingMessageFields
+	// (carriesMessage).
 	shapeFinding
 )
+
+// findingMessageFields names every field of an ./le finding type whose value
+// is text the report prints as the finding, rather than where it is (File,
+// Line, Path), what it is about (Package, Name, Fn) or its category (Kind,
+// Severity). It is the one list of them: a shapeFinding literal is a message
+// site only when it sets one, so Finding{Path, Package, Name}, the key the
+// weakening gate looks a finding up by, is no message. A finding type that
+// prints the text of a field this list does not name escapes the inventory,
+// which is why every text field must be classified (findingIdentityFields).
+var findingMessageFields = []string{
+	"Code",
+	"Detail",
+	"Details",
+	"Excerpt",
+	"Fix",
+	"Issue",
+	"Message",
+	"Msg",
+	"Reason",
+	"Segment",
+	"SourceToken",
+	"Text",
+}
+
+// findingIdentityFields names every text field of an ./le finding type that
+// says where the finding is, what it is about or which kind it is, and so is
+// no message. Every string or []string field of a finding type is in exactly
+// one of the two lists, and TestEveryFindingTextFieldIsClassified reads the
+// tree to hold that, so a new text field cannot escape findingMessageFields
+// unclassified.
+var findingIdentityFields = []string{
+	"Carrier",
+	"Check",
+	"Command",
+	"Corpus",
+	"Declared",
+	"Document",
+	"Emitter",
+	"File",
+	"Fn",
+	"Guard",
+	"Habit",
+	"Keys",
+	"Kind",
+	"Leaf",
+	"Level",
+	"Module",
+	"Name",
+	"Names",
+	"OriginFile",
+	"OriginFn",
+	"Package",
+	"Path",
+	"Pkg",
+	"RID",
+	"Rule",
+	"Section",
+	"Severity",
+	"Sources",
+	"Surface",
+	"Symbol",
+	"Target",
+	"Test",
+	"Where",
+}
+
+// rendererWordedFindings names every ./le finding type that declares no
+// field of findingMessageFields, keyed by its directory and type name, with
+// the function or method of the same package that words it. Such a type's
+// literals are locators and no message site; its wording lives in that
+// renderer, which no writer row reads. TestEveryFindingTextFieldIsClassified
+// holds every finding type to a message field or an entry here, and each
+// entry to a type with no message field and a renderer that exists.
+var rendererWordedFindings = map[string]string{
+	"internal/le/arch/compoundguard.Finding":    "CheckReport.Text",
+	"internal/le/config/unreadleaves.Finding":   "Report.Text",
+	"internal/le/spec/citation.AnchorFinding":   "AnchorReport.Text",
+	"internal/le/spec/citation.DanglingFinding": "Report.Text",
+}
 
 // span is the arguments, or literal elements, that carry the message: from
 // first up to but excluding last, where last 0 means through the end.
@@ -253,6 +334,38 @@ func (index *treeIndex) literalWriter(file *sourceFile, typ ast.Expr) (*writer, 
 		}
 	}
 	return nil, "", false
+}
+
+// carriesMessage reports whether lit, a composite literal of the writer's
+// type, hands the writer a message. A shapeFinding literal does only when it
+// sets a field findingMessageFields names, or sets its fields by position,
+// which sets every field its type declares; one that sets nothing, or only
+// identity fields, is a key or a zero value, never a message. Every other
+// shape carries its message in the elements its span names.
+func (w *writer) carriesMessage(lit *ast.CompositeLit) bool {
+	if w.shape != shapeFinding {
+		return true
+	}
+	for _, element := range lit.Elts {
+		switch node := element.(type) {
+		case *ast.KeyValueExpr:
+			if isFindingMessageField(node.Key) {
+				return true
+			}
+		default:
+			// A positional element: Go forbids mixing keyed and positional
+			// elements, so this literal sets every field of its type.
+			return true
+		}
+	}
+	return false
+}
+
+// isFindingMessageField reports whether key, the key of a struct literal's
+// element, is a field findingMessageFields names.
+func isFindingMessageField(key ast.Expr) bool {
+	ident, isIdent := key.(*ast.Ident)
+	return isIdent && slices.Contains(findingMessageFields, ident.Name)
 }
 
 // isFindingType reports whether typ names a struct type an ./le package
