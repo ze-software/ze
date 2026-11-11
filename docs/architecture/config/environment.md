@@ -209,7 +209,42 @@ product setting.
 
 ## Boolean Values
 
-Accepted: `true`/`false`, `yes`/`no`, `on`/`off`, `enable`/`disable`, `1`/`0`.
+Accepted: `true`/`false`, `yes`/`no`, `on`/`off`, `enable`/`disable`,
+`enabled`/`disabled`, `1`/`0`, in any case. Any other value is an invalid
+value (below).
+<!-- source: internal/core/env/env.go -- parseBool -->
+
+---
+
+## Values ze could not use
+
+A typed getter (`GetInt`, `GetInt64`, `GetDuration`, `GetBool`, `IsEnabled`)
+that reads a value its type cannot parse answers its caller's default, so ze
+keeps running, and records the key, the value, the type and the default it
+used. A reader that replaces a value outside the range it accepts records that
+too, with `env.RecordOutOfRange(key, minimum, maximum, used)`: the report bus
+does it for `ze.report.warnings.max` and `ze.report.errors.max`, whether it
+clamps a cap above 10000 or answers a cap of 0 or less with the default, and
+each start-up log line carries the code `doctor-env-invalid-value`.
+`env.InvalidValues()` answers those records, and also judges every registered
+entry against its declared `Type` (`env.TypeInt`, `TypeInt64`, `TypeDuration`,
+`TypeBool`; `TypeString` takes any text), so a value no reader has read yet is
+listed with the entry's registered default. These constants are the one
+declaration of the type vocabulary: the config package's YANG
+`ValueType.String` and its env registrations use them too. A read record is
+answered only while the key still holds the value it judged: after `Set` or a
+rebuilt cache gives the key another value, that value is judged instead, so a
+corrected key reads clean. Judging never clears a secret from the OS
+environment, and a `Secret` key's record carries no value.
+
+The `env-values` doctor check (runtime phase, `internal/component/doctor`)
+reports each record as a `doctor-env-invalid-value` warning in `show doctor`,
+its fix the export that corrects it (`export ZE_METRICS_INTERVAL=10s`; the message says
+to restart ze). It runs only in the daemon, because the daemon's environment is
+the one that matters, and the local `ze doctor` process never saw it.
+<!-- source: internal/core/env/invalid.go -- InvalidValues, RecordOutOfRange, recordUnparsable, newInvalidValue, peek -->
+<!-- source: internal/component/doctor/checks_env_values.go -- envValuesCheck, envValueDiagnostic -->
+<!-- test: internal/core/env/env_test.go TestEnvInvalidValueRecorded -->
 
 ---
 

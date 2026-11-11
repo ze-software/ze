@@ -29,6 +29,10 @@ func TestMain(m *testing.M) {
 	MustRegister(EnvEntry{Key: "ze.test.hyphen-key", Type: "string", Description: "key holding a hyphen"})
 	MustRegister(EnvEntry{Key: "exabgp.test.shell", Type: "string", Description: "registered key outside the ze namespace"})
 	MustRegister(EnvEntry{Key: "ze.test.shell.upper-alias", Type: "string", Description: "key with an upper-case alias outside the ze namespace", Aliases: []string{"TEST_SHELL_UPPER"}})
+	MustRegister(EnvEntry{Key: "ze.test.judged.dur", Type: TypeDuration, Default: "5s", Description: "duration key no test reads"})
+	MustRegister(EnvEntry{Key: "ze.test.judged.nodefault", Type: TypeInt, Description: "int key with no registered default"})
+	MustRegister(EnvEntry{Key: "ze.test.secret.int", Type: TypeInt, Description: "secret int key", Secret: true})
+	MustRegister(EnvEntry{Key: "ze.test.capped.int", Type: TypeInt, Default: "100", Description: "int key with a maximum"})
 	os.Exit(m.Run())
 }
 
@@ -653,4 +657,208 @@ func TestNormalizeIsTheReadingGetUses(t *testing.T) {
 	if got := Normalize(key + ".more"); got == want {
 		t.Errorf("Normalize(%q) = %q, the reading of %s itself", key+".more", got, key)
 	}
+}
+
+// invalidFor answers the record InvalidValues holds for key, and whether it
+// holds one.
+func invalidFor(key string) (InvalidValue, bool) {
+	for _, v := range InvalidValues() {
+		if v.Key == key {
+			return v, true
+		}
+	}
+	return InvalidValue{}, false
+}
+
+// TestEnvInvalidValueRecorded proves a value its type cannot parse is recorded
+// with the key, the value, the type and what ze used instead, both at a read
+// that fell back to the default and, for a key nobody read, by the judgement
+// of every registered entry against its Type.
+//
+// VALIDATES: AC-35: GetInt, GetInt64, GetDuration, GetBool and IsEnabled record
+// an unparsable value; InvalidValues judges unread entries against their Type
+// and registered Default; a secret key's value never leaves the package; a
+// valid or empty value is not recorded.
+// PREVENTS: the silent default of plan/journal/zero-value-as-valid-answer.md,
+// where a mistyped export ran ze on the default with no record anywhere.
+func TestEnvInvalidValueRecorded(t *testing.T) {
+	reads := []struct {
+		name string
+		key  string
+		typ  string
+		read func() any
+		want any
+		used string
+	}{
+		{"int", "ze.test.int.val", TypeInt, func() any { return GetInt("ze.test.int.val", 7) }, 7, "7"},
+		{"int64", "ze.test.i64.val", TypeInt64, func() any { return GetInt64("ze.test.i64.val", 9) }, int64(9), "9"},
+		{"duration", "ze.test.dur.val", TypeDuration, func() any { return GetDuration("ze.test.dur.val", 3*time.Second) }, 3 * time.Second, "3s"},
+		{"bool", "ze.test.bool.val", TypeBool, func() any { return GetBool("ze.test.bool.val", true) }, true, "true"},
+		{"enabled", "ze.test.enabled.val", TypeBool, func() any { return IsEnabled("ze.test.enabled.val") }, false, "false"},
+	}
+	for _, tt := range reads {
+		t.Run("read_"+tt.name, func(t *testing.T) {
+			unsetAll(t, tt.key)
+			defer unsetAll(t, tt.key)
+			require.NoError(t, os.Setenv(tt.key, "nope"))
+
+			assert.Equal(t, tt.want, tt.read())
+			got, ok := invalidFor(tt.key)
+			require.True(t, ok, "an unparsable %s read left no record", tt.typ)
+			assert.Equal(t, InvalidValue{
+				Key: tt.key, Type: tt.typ, Value: "nope",
+				Kind: InvalidUnparsable, Used: tt.used, Example: tt.used, Read: true,
+			}, got)
+		})
+	}
+
+	t.Run("valid_and_empty_not_recorded", func(t *testing.T) {
+		unsetAll(t, "ze.test.int.val")
+		defer unsetAll(t, "ze.test.int.val")
+		assert.Equal(t, 5, GetInt("ze.test.int.val", 5))
+		require.NoError(t, os.Setenv("ze.test.int.val", "12"))
+		ResetCache()
+		assert.Equal(t, 12, GetInt("ze.test.int.val", 5))
+		_, ok := invalidFor("ze.test.int.val")
+		assert.False(t, ok, "a valid or empty value was recorded as invalid")
+	})
+
+	t.Run("unread_entry_judged_against_type", func(t *testing.T) {
+		unsetAll(t, "ze.test.judged.dur")
+		defer unsetAll(t, "ze.test.judged.dur")
+		require.NoError(t, os.Setenv("ZE_TEST_JUDGED_DUR", "10 seconds"))
+		ResetCache()
+
+		got, ok := invalidFor("ze.test.judged.dur")
+		require.True(t, ok, "an unread entry holding an unparsable duration was not judged")
+		assert.Equal(t, InvalidValue{
+			Key: "ze.test.judged.dur", Type: TypeDuration, Value: "10 seconds",
+			Kind: InvalidUnparsable, Used: "5s", Example: "5s", Read: false,
+		}, got)
+	})
+
+	t.Run("unread_entry_without_default", func(t *testing.T) {
+		unsetAll(t, "ze.test.judged.nodefault")
+		defer unsetAll(t, "ze.test.judged.nodefault")
+		require.NoError(t, os.Setenv("ze.test.judged.nodefault", "ten"))
+		ResetCache()
+
+		got, ok := invalidFor("ze.test.judged.nodefault")
+		require.True(t, ok)
+		assert.Empty(t, got.Used, "no reader ran and no default is registered, so nothing is known to be used")
+		assert.False(t, got.Read)
+		assert.NotEmpty(t, got.Example, "the fix needs a value the type accepts")
+		assert.Equal(t, 10, GetInt("ze.test.judged.nodefault", 10))
+		got, ok = invalidFor("ze.test.judged.nodefault")
+		require.True(t, ok)
+		assert.Equal(t, "10", got.Used, "after a read, the default the reader used is the answer")
+		assert.True(t, got.Read)
+	})
+
+	t.Run("secret_value_not_echoed", func(t *testing.T) {
+		const key = "ze.test.secret.int"
+		unsetAll(t, key)
+		defer unsetAll(t, key)
+		require.NoError(t, os.Setenv(key, "hunter2"))
+		ResetCache()
+
+		judged, ok := invalidFor(key)
+		require.True(t, ok)
+		assert.True(t, judged.Secret)
+		assert.Empty(t, judged.Value, "a secret value left the package through the judgement")
+		_, inOS := os.LookupEnv(key)
+		assert.True(t, inOS, "judging a secret key cleared it from the OS environment, which only Get does")
+
+		assert.Equal(t, 4, GetInt(key, 4))
+		read, ok := invalidFor(key)
+		require.True(t, ok)
+		assert.True(t, read.Secret)
+		assert.Empty(t, read.Value, "a secret value left the package through the read record")
+		assert.Equal(t, "4", read.Used)
+	})
+}
+
+// TestEnvAboveMaximumRecorded proves a caller that clamps a value records the
+// clamp, and that a clamp of a value the environment does not hold is not.
+//
+// VALIDATES: AC-42 env half: RecordOutOfRange lists the key with the value,
+// its type, the range and the maximum ze used; it judges the environment's own value.
+// PREVENTS: a clamp reported only on a log line no doctor row reads.
+func TestEnvAboveMaximumRecorded(t *testing.T) {
+	const key = "ze.test.capped.int"
+	unsetAll(t, key)
+	defer unsetAll(t, key)
+
+	RecordOutOfRange(key, 1, 50, 50)
+	_, ok := invalidFor(key)
+	assert.False(t, ok, "a clamp of a value the environment does not hold was recorded")
+
+	require.NoError(t, os.Setenv(key, "500"))
+	ResetCache()
+	RecordOutOfRange(key, 1, 1000, 1000)
+	_, ok = invalidFor(key)
+	assert.False(t, ok, "a value within its maximum was recorded as clamped")
+
+	RecordOutOfRange(key, 1, 50, 50)
+	got, ok := invalidFor(key)
+	require.True(t, ok)
+	assert.Equal(t, InvalidValue{
+		Key: key, Type: TypeInt, Value: "500",
+		Kind: InvalidOutOfRange, Used: "50", Range: "1 to 50", Example: "50", Read: true,
+	}, got)
+}
+
+// TestEnvBelowMinimumRecorded proves a value below the reader's range, which
+// the reader answers with its default, is recorded with the range and the
+// default used.
+//
+// VALIDATES: the zero-default row of plan/journal/zero-value-as-valid-answer.md:
+// RecordOutOfRange records a 0 the reader replaced with its default.
+// PREVENTS: a cap of 0 answered with the default and no record at all.
+func TestEnvBelowMinimumRecorded(t *testing.T) {
+	const key = "ze.test.capped.int"
+	unsetAll(t, key)
+	defer unsetAll(t, key)
+	require.NoError(t, os.Setenv(key, "0"))
+	ResetCache()
+
+	RecordOutOfRange(key, 1, 50, 100)
+	got, ok := invalidFor(key)
+	require.True(t, ok, "a value below the range was not recorded")
+	assert.Equal(t, InvalidValue{
+		Key: key, Type: TypeInt, Value: "0",
+		Kind: InvalidOutOfRange, Used: "100", Range: "1 to 50", Example: "100", Read: true,
+	}, got)
+}
+
+// TestEnvInvalidRecordFollowsCurrentValue proves a read record is reported
+// only while the key still holds the value it judged.
+//
+// VALIDATES: a Set to another unparsable value is judged afresh (not read,
+// registered default); a Set that makes the key valid clears the row; an
+// unchanged key keeps its read record.
+// PREVENTS: show doctor naming a value the operator already corrected.
+func TestEnvInvalidRecordFollowsCurrentValue(t *testing.T) {
+	const key = "ze.test.judged.dur"
+	unsetAll(t, key)
+	defer unsetAll(t, key)
+	require.NoError(t, os.Setenv(key, "soon"))
+	ResetCache()
+
+	assert.Equal(t, 2*time.Second, GetDuration(key, 2*time.Second))
+	got, ok := invalidFor(key)
+	require.True(t, ok)
+	assert.True(t, got.Read)
+	assert.Equal(t, "soon", got.Value)
+
+	require.NoError(t, Set(key, "later"))
+	got, ok = invalidFor(key)
+	require.True(t, ok, "a key set to another unparsable value was not judged")
+	assert.False(t, got.Read, "the read record outlived the value it judged")
+	assert.Equal(t, "later", got.Value)
+	assert.Equal(t, "5s", got.Used)
+
+	require.NoError(t, Set(key, "7s"))
+	_, ok = invalidFor(key)
+	assert.False(t, ok, "a key corrected by Set is still reported")
 }

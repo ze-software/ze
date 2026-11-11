@@ -406,9 +406,12 @@ func ResetCache() {
 	deprecatedWarnedMu.Lock()
 	deprecatedWarned = make(map[string]bool)
 	deprecatedWarnedMu.Unlock()
+
+	resetInvalidReads()
 }
 
 // GetInt returns an integer env var value, or defaultVal if unset or invalid.
+// An invalid value is recorded with the default used (InvalidValues).
 func GetInt(key string, defaultVal int) int {
 	s := Get(key)
 	if s == "" {
@@ -416,12 +419,14 @@ func GetInt(key string, defaultVal int) int {
 	}
 	v, err := strconv.Atoi(s)
 	if err != nil {
+		recordUnparsable(key, TypeInt, s, strconv.Itoa(defaultVal))
 		return defaultVal
 	}
 	return v
 }
 
 // GetInt64 returns an int64 env var value, or defaultVal if unset or invalid.
+// An invalid value is recorded with the default used (InvalidValues).
 func GetInt64(key string, defaultVal int64) int64 {
 	s := Get(key)
 	if s == "" {
@@ -429,44 +434,63 @@ func GetInt64(key string, defaultVal int64) int64 {
 	}
 	v, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
+		var tb textbuf.Buffer
+		recordUnparsable(key, TypeInt64, s, tb.Int(defaultVal).String())
 		return defaultVal
 	}
 	return v
 }
 
-// GetBool returns a boolean env var value.
-// True values: "true", "1", "yes", "on", "enable", "enabled" (case-insensitive).
-// False values: "false", "0", "no", "off", "disable", "disabled" (case-insensitive).
-// Returns defaultVal if unset, empty, or not one of the recognized values above.
-// Unrecognized non-empty values are logged to stderr as a diagnostic since the env
-// package cannot import slog (circular dependency).
+// parseBool reads a boolean spelling, case-insensitive. True spellings:
+// "true", "1", "yes", "on", "enable", "enabled". False spellings: "false",
+// "0", "no", "off", "disable", "disabled". recognized is false for any other
+// text, and value is then false and means nothing.
+func parseBool(s string) (value, recognized bool) {
+	switch strings.ToLower(s) {
+	case "true", "1", "yes", "on", "enable", "enabled":
+		return true, true
+	case "false", "0", "no", "off", "disable", "disabled":
+		return false, true
+	}
+	return false, false
+}
+
+// GetBool returns a boolean env var value, read by parseBool.
+// Returns defaultVal if unset, empty, or not a recognized spelling; an
+// unrecognized value is recorded with the default used (InvalidValues), where
+// the doctor check doctor-env-invalid-value reports it.
 func GetBool(key string, defaultVal bool) bool {
 	s := Get(key)
 	if s == "" {
 		return defaultVal
 	}
-	v := strings.ToLower(s)
-	if v == "true" || v == "1" || v == "yes" || v == "on" || v == "enable" || v == "enabled" {
-		return true
+	v, recognized := parseBool(s)
+	if !recognized {
+		recordUnparsable(key, TypeBool, s, strconv.FormatBool(defaultVal))
+		return defaultVal
 	}
-	if v == "false" || v == "0" || v == "no" || v == "off" || v == "disable" || v == "disabled" {
-		return false
-	}
-	// Unrecognized value: warn and fall back to default.
-	var tb textbuf.Buffer
-	tb.Str("WARNING: env var ").Str(key).Str(" has unrecognized boolean value ").Str(s).Str(", using default\n").StdErr() //nolint:errcheck // pre-exit diagnostic
-	return defaultVal
+	return v
 }
 
 // IsEnabled returns true if the env var is set to an enabling value:
 // "1", "true", "yes", "on", "enable", "enabled" (case-insensitive).
-// Returns false if unset, empty, or any other value.
+// Returns false if unset, empty, or any other value; a value that is not a
+// boolean spelling is recorded with false as the value used (InvalidValues).
 func IsEnabled(key string) bool {
-	v := strings.ToLower(Get(key))
-	return v == "1" || v == "true" || v == "yes" || v == "on" || v == "enable" || v == "enabled"
+	s := Get(key)
+	if s == "" {
+		return false
+	}
+	v, recognized := parseBool(s)
+	if !recognized {
+		recordUnparsable(key, TypeBool, s, strconv.FormatBool(false))
+		return false
+	}
+	return v
 }
 
 // GetDuration returns a duration env var value, or defaultVal if unset or invalid.
+// An invalid value is recorded with the default used (InvalidValues).
 func GetDuration(key string, defaultVal time.Duration) time.Duration {
 	s := Get(key)
 	if s == "" {
@@ -474,6 +498,7 @@ func GetDuration(key string, defaultVal time.Duration) time.Duration {
 	}
 	d, err := time.ParseDuration(s)
 	if err != nil {
+		recordUnparsable(key, TypeDuration, s, defaultVal.String())
 		return defaultVal
 	}
 	return d

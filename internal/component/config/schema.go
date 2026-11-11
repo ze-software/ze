@@ -21,6 +21,7 @@ import (
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -57,9 +58,9 @@ const (
 func (t ValueType) String() string {
 	switch t {
 	case TypeString:
-		return valueTypeString
+		return env.TypeString
 	case TypeBool:
-		return valueTypeBool
+		return env.TypeBool
 	case TypeUint16:
 		return "uint16"
 	case TypeUint32:
@@ -73,9 +74,9 @@ func (t ValueType) String() string {
 	case TypePrefix:
 		return "prefix"
 	case TypeDuration:
-		return valueTypeDuration
+		return env.TypeDuration
 	case TypeInt:
-		return valueTypeInt
+		return env.TypeInt
 	case TypeEmpty:
 		return valueTypeEmpty
 	case TypeASN:

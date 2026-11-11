@@ -10,10 +10,20 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// The types an EnvEntry declares. InvalidValues judges a set value against
+// every type but TypeString, which any text satisfies.
+const (
+	TypeBool     = "bool"
+	TypeDuration = "duration"
+	TypeInt      = "int"
+	TypeInt64    = "int64"
+	TypeString   = "string"
+)
+
 // EnvEntry describes a Ze environment variable for documentation/help output.
 type EnvEntry struct {
 	Key         string   // Canonical dot-notation key (e.g. "ze.plugin.hub.host")
-	Type        string   // "string", "int", "bool", "duration"
+	Type        string   // TypeString, TypeInt, TypeInt64, TypeBool or TypeDuration
 	Default     string   // Default value ("" if required or no default)
 	Description string   // One-line description
 	Private     bool     // If true, hidden from "ze env list" and autocomplete

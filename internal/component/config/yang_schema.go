@@ -19,6 +19,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // sortedKeys returns the keys of a map[string]*gyang.Entry in sorted order.
@@ -550,7 +551,7 @@ func getKeyTypeExtension(entry *gyang.Entry) ValueType {
 	for _, ext := range entry.Exts {
 		if ext.Keyword == "ze:key-type" || strings.HasSuffix(ext.Keyword, ":key-type") {
 			switch ext.Argument {
-			case valueTypeString:
+			case env.TypeString:
 				return TypeString
 			case "prefix":
 				return TypePrefix

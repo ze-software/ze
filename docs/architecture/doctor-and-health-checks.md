@@ -811,6 +811,24 @@ a registered event code raises it.
 <!-- test: internal/component/doctor/checks_recent_events_test.go TestEventCodeRegistrationDeclared -->
 <!-- test: internal/component/doctor/checks_recent_events_test.go TestRecentEventsRendersRaiseFix -->
 
+## Environment values ze could not use
+
+An env getter that cannot parse a value answers its caller's default, and the
+report bus replaces a cap set outside its range: either way the daemon runs on a
+value the operator did not export. `internal/core/env` records each case and
+judges every registered entry against its type (`env.InvalidValues`,
+`docs/architecture/config/environment.md`, "Values ze could not use"). The
+`env-values` check, owned by `internal/component/doctor` because env is core
+and has no component, turns each record into one `doctor-env-invalid-value`
+warning naming the key, the value (withheld for a `Secret` key), the type and
+what ze uses instead. Its fix is the export that corrects it, the name in its
+shell spelling. It runs in the `runtime` phase: the daemon's environment is the
+one the daemon runs on.
+<!-- source: internal/component/doctor/checks_env_values.go -- envValuesCheck, checkEnvValues, envValueDiagnostic -->
+<!-- source: internal/core/env/invalid.go -- InvalidValues -->
+<!-- test: internal/component/doctor/checks_env_values_test.go TestEnvValuesCheckReportsUnusableValue -->
+<!-- test: internal/component/doctor/checks_env_values_test.go TestEnvValueDiagnosticWithholdsSecret -->
+
 ## Which check a new dependency needs
 
 | New dependency | Doctor check |

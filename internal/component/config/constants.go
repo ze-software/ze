@@ -10,14 +10,10 @@ const (
 	configEnable  = "enable"  // Config value for enabled state
 	configDisable = "disable" // Config value for disabled state
 
-	// The type keywords a YANG leaf declares and an env.EnvEntry names. One
-	// vocabulary, so ValueType.String and the registrations in environment.go
-	// cannot drift apart.
-	valueTypeString   = "string"
-	valueTypeBool     = "bool"
-	valueTypeInt      = "int"
-	valueTypeInt64    = "int64"
-	valueTypeDuration = "duration"
+	// The type keywords a YANG leaf declares and an env.EnvEntry names are
+	// one vocabulary, declared once in internal/core/env (env.TypeString,
+	// TypeBool, TypeInt, TypeInt64, TypeDuration): ValueType.String and the
+	// registrations in environment.go both use those.
 
 	// valueTypeEmpty is the YANG keyword for TypeEmpty leaves (presence flags).
 	valueTypeEmpty = "empty"

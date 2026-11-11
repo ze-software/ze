@@ -33,5 +33,10 @@ func init() {
 	if err := diagnostic.RegisterDoctorCheck(recentEventsCheck); err != nil {
 		panic("BUG: recent-events doctor check registration refused: " + err.Error())
 	}
+	// The env package is core too, so the check that reports the values it
+	// could not use lives here as well (checks_env_values.go).
+	if err := diagnostic.RegisterDoctorCheck(envValuesCheck); err != nil {
+		panic("BUG: env-values doctor check registration refused: " + err.Error())
+	}
 	diagnostic.RegisterDoctorProvider(runChecks)
 }

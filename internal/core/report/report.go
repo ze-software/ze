@@ -206,21 +206,34 @@ func newStoreFromEnv() *store {
 func newStore(warningCap, errorCap int) *store {
 	logger := slogutil.Logger("report")
 
+	// The code is diagnostic.CodeDoctorEnvInvalidValue, spelled here because
+	// core report does not import diagnostic; the env record is what the
+	// doctor check reads (internal/component/doctor, checks_env_values.go).
+	// A cap outside 1 to its maximum came from an export the operator wrote,
+	// so each correction is recorded, never only logged.
 	if warningCap <= 0 {
+		logger.Warn("warning cap below 1, using the default", "code", "doctor-env-invalid-value",
+			"key", envWarningCap, "requested", warningCap, "default", defaultWarningCap)
+		env.RecordOutOfRange(envWarningCap, 1, maxWarningCap, defaultWarningCap)
 		warningCap = defaultWarningCap
 	}
 	if warningCap > maxWarningCap {
-		logger.Warn("warning cap clamped to maximum",
-			"requested", warningCap, "max", maxWarningCap)
+		logger.Warn("warning cap clamped to maximum", "code", "doctor-env-invalid-value",
+			"key", envWarningCap, "requested", warningCap, "max", maxWarningCap)
+		env.RecordOutOfRange(envWarningCap, 1, maxWarningCap, maxWarningCap)
 		warningCap = maxWarningCap
 	}
 
 	if errorCap <= 0 {
+		logger.Warn("error cap below 1, using the default", "code", "doctor-env-invalid-value",
+			"key", envErrorCap, "requested", errorCap, "default", defaultErrorCap)
+		env.RecordOutOfRange(envErrorCap, 1, maxErrorCap, defaultErrorCap)
 		errorCap = defaultErrorCap
 	}
 	if errorCap > maxErrorCap {
-		logger.Warn("error cap clamped to maximum",
-			"requested", errorCap, "max", maxErrorCap)
+		logger.Warn("error cap clamped to maximum", "code", "doctor-env-invalid-value",
+			"key", envErrorCap, "requested", errorCap, "max", maxErrorCap)
+		env.RecordOutOfRange(envErrorCap, 1, maxErrorCap, maxErrorCap)
 		errorCap = maxErrorCap
 	}
 
