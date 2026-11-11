@@ -29,15 +29,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4.39.1
-        with:
-          languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
-          config: |
-            paths-ignore:
-              - gokrazy/modcache
-
       # ze compiles only against Ze's patched crypto/tls, so every later go
       # command in this job runs under the patched GOROOT the generator answers
       # (docs/contributing/patching-the-standard-library.md). The tree comes
@@ -46,14 +37,33 @@ jobs:
       # real cache/ aside. A generator run before le made cache/ a real
       # directory, so the next step's ./le moved the exported GOROOT away and
       # go fell back to downloading a toolchain (CodeQL run 42915194844).
+      # CodeQL initializes after this step, against the selected Go, so its
+      # Go-path capture and tracing wrapper see the patched toolchain.
       - name: Select the patched Go standard library
         if: matrix.build-mode == 'manual'
         shell: bash
         run: |
-          tree="$(./le go stdpatch goroot)"
+          tree="$(CGO_ENABLED=0 ./le go stdpatch goroot)"
           echo "GOROOT=$tree" >> "$GITHUB_ENV"
           echo "GOTOOLCHAIN=local" >> "$GITHUB_ENV"
           echo "$tree/bin" >> "$GITHUB_PATH"
+
+      - name: Prepare Go extraction evidence
+        if: matrix.build-mode == 'manual'
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/codeql-extraction-proof"
+          CGO_ENABLED=0 ./le repo codeql prepare file "$RUNNER_TEMP/codeql-extraction-proof/manifest.json" tags 'ze_setup'
+
+      - name: Initialize CodeQL
+        id: init
+        uses: github/codeql-action/init@v4.39.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          config: |
+            paths-ignore:
+              - gokrazy/modcache
 
       # A bare build excludes the feature-gated daemon and appliance surface.
       # These shipped combinations are generated from feature-gates.txt by
@@ -86,6 +96,29 @@ jobs:
           codeql_build CGO_ENABLED=0 go build -tags 'ze_setup'
 
       - name: Perform CodeQL Analysis
+        id: analyze
         uses: github/codeql-action/analyze@v4.39.1
         with:
           category: "/language:${{ matrix.language }}"
+
+      - name: Check Go extraction evidence
+        if: matrix.build-mode == 'manual'
+        shell: bash
+        env:
+          CODEQL_EXECUTABLE: ${{ steps.init.outputs.codeql-path }}
+          CODEQL_DATABASE: ${{ fromJSON(steps.analyze.outputs.db-locations).go }}
+        run: |
+          CGO_ENABLED=0 ./le repo codeql check file "$RUNNER_TEMP/codeql-extraction-proof/manifest.json" database "$CODEQL_DATABASE" executable "$CODEQL_EXECUTABLE"
+
+      - name: Retain Go extraction evidence
+        if: always() && matrix.build-mode == 'manual'
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: codeql-go-extraction-proof
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/codeql-extraction-proof/manifest.json
+            ${{ runner.temp }}/codeql-extraction-proof/codeql-proof-*/extracted-go-files.ql
+            ${{ runner.temp }}/codeql-extraction-proof/codeql-proof-*/qlpack.yml
+            ${{ runner.temp }}/codeql-extraction-proof/codeql-proof-*/extracted-go-files.csv
+            ${{ runner.temp }}/codeql-extraction-proof/codeql-proof-*/report.json

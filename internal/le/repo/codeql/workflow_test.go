@@ -172,6 +172,27 @@ func fixtureEnvironment(t *testing.T, root string) []string {
 
 func workflowBuildBody(t *testing.T) string {
 	t.Helper()
+	return workflowStepBody(t, "Build Go shipped feature combinations")
+}
+
+func workflowStepBody(t *testing.T, name string) string {
+	t.Helper()
+	for _, step := range workflowSteps(t) {
+		if step.Name == name {
+			return step.Run
+		}
+	}
+	t.Fatalf("CodeQL workflow has no %q step", name)
+	return ""
+}
+
+type workflowStep struct {
+	Name string `yaml:"name"`
+	Run  string `yaml:"run"`
+}
+
+func workflowSteps(t *testing.T) []workflowStep {
+	t.Helper()
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("locate the workflow fixture source")
@@ -183,20 +204,11 @@ func workflowBuildBody(t *testing.T) string {
 	}
 	var workflow struct {
 		Jobs map[string]struct {
-			Steps []struct {
-				Name string `yaml:"name"`
-				Run  string `yaml:"run"`
-			} `yaml:"steps"`
+			Steps []workflowStep `yaml:"steps"`
 		} `yaml:"jobs"`
 	}
 	if err := yaml.Unmarshal(source, &workflow); err != nil {
 		t.Fatal(err)
 	}
-	for _, step := range workflow.Jobs["analyze"].Steps {
-		if step.Name == "Build Go shipped feature combinations" {
-			return step.Run
-		}
-	}
-	t.Fatal("CodeQL workflow has no shipped feature build step")
-	return ""
+	return workflow.Jobs["analyze"].Steps
 }

@@ -10,9 +10,11 @@ import (
 const area = "repo codeql"
 
 func init() {
-	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
-		Description: "Derive tracked CodeQL package roots and refuse canonical cache dependencies before a traced build.",
-		ShortHelp:   "select CodeQL's tracked Go population",
+	// The database proof is the purpose; selection and preparation serve it.
+	// It therefore reaches rung 2 of the maintained command-purpose ladder.
+	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
+		Description: "Admit tracked Go build roots and prove authored inclusion and cache exclusion from CodeQL's database.",
+		ShortHelp:   "admit and prove CodeQL's Go population",
 		Mode:        "offline",
 		Section:     registry.SectionTest,
 		SubsFunc:    Subs,

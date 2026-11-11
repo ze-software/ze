@@ -287,6 +287,12 @@ type cacheBoundary struct {
 	canonical string
 }
 
+// cachePathError distinguishes a proved cache source from a path whose
+// canonical identity could not be read. Both refuse admission.
+type cachePathError struct{ cause error }
+
+func (err cachePathError) Error() string { return err.cause.Error() }
+
 func newCacheBoundary(root string) (*cacheBoundary, error) {
 	canonical, err := filepath.EvalSymlinks(root)
 	if err != nil {
@@ -313,17 +319,17 @@ func (boundary *cacheBoundary) check(file string) error {
 		return fmt.Errorf("resolve CodeQL path %s: %w", file, err)
 	}
 	if insideDirectory(boundary.lexical, full) {
-		return fmt.Errorf("CodeQL refuses %s path %s", cacheDirectory, file)
+		return cachePathError{fmt.Errorf("CodeQL refuses %s path %s", cacheDirectory, file)}
 	}
 	canonical, err := filepath.EvalSymlinks(full)
 	if err != nil {
 		return fmt.Errorf("canonicalize CodeQL path %s: %w", file, err)
 	}
 	if insideDirectory(boundary.lexical, canonical) {
-		return fmt.Errorf("CodeQL refuses canonical %s path %s -> %s", cacheDirectory, file, canonical)
+		return cachePathError{fmt.Errorf("CodeQL refuses canonical %s path %s -> %s", cacheDirectory, file, canonical)}
 	}
 	if insideDirectory(boundary.canonical, canonical) {
-		return fmt.Errorf("CodeQL refuses canonical %s path %s -> %s", cacheDirectory, file, canonical)
+		return cachePathError{fmt.Errorf("CodeQL refuses canonical %s path %s -> %s", cacheDirectory, file, canonical)}
 	}
 	return nil
 }

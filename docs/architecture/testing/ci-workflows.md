@@ -46,7 +46,13 @@ than from the bootstrap generator because the build step runs `./le` too: the
 generator run first made `cache/` a real directory, the launcher moved it aside
 to link `cache/` to `~/.cache/ze`, and the exported GOROOT went with it (run
 42915194844). Started first, le makes `cache/` the link before the tree is
-written behind it. Each build passes its actual tag argument to
+written behind it. CodeQL initializes after that step, against the Go
+executable the traced builds use, so its Go-path capture and tracing wrapper
+see the patched toolchain.
+<!-- source: .github/workflows/codeql.yml -- Select the patched Go standard library, Initialize CodeQL -->
+<!-- source: le -- ensure_cache_link, build_le -->
+
+Each build passes its actual tag argument to
 `./le repo codeql packages tags '<tags>'`; no second tag list or authored-root
 list supplies the population. The native selector derives package directories
 from tracked Go files in that complete Go build context. Vendor, the
@@ -61,13 +67,45 @@ symlink resolving into `gokrazy/modcache`, refuses before the traced build.
 The workflow checks the selector's exit status and refuses an empty answer;
 there is no `./...` fallback. `paths-ignore` is not extraction evidence.
 
-Local fixture builds prove selection and admission boundaries, not CodeQL
-extraction. A future CI extraction must still show an authored sentinel included,
-a cache sentinel excluded and an explicit cache extraction refused. No local
-selector result discharges that CI evidence debt.
+Before initialization, `./le repo codeql prepare file <manifest> tags ze_setup`
+reserves a new manifest, identifies the tracked
+`test/codeql/authored_sentinel.go` and creates one tiny sentinel in its own
+`gokrazy/modcache/codeql-extraction-*` directory. It calls the same `Guard` with
+that exact cache package and saves the actual refusal, source paths, hashes and
+tag context. An occupied manifest refuses before any cache input is created.
+The authored package is independent of the launcher bootstrap; only the normal
+tracked build population selects it.
+
+After the normal security analysis and upload,
+`./le repo codeql check file <manifest> database <database> executable <codeql>`
+uses the database and executable reported by the pinned CodeQL actions. It
+checks manifest confinement and both source hashes before invoking CodeQL, then
+queries every extracted `GoFile` for relative and absolute paths. Files without
+a repository-relative path remain in the absolute-path check. The CSV decoder
+checks every row through the existing canonical cache boundary, including older
+cache files and aliases, before requiring the exact authored sentinel. Empty,
+malformed and unresolved answers refuse rather than certify exclusion. The
+source hashes are checked again before a successful report is saved.
+
+The query and its tiny QL pack live in a new task-owned directory beside the
+manifest. The pack resolves the Go library already in the selected CodeQL
+bundle; the checker installs or downloads nothing and a missing library fails
+the query. Compilation caches and intermediate BQRS are removed when the check
+ends. The workflow retains only the manifest, query, pack, decoded CSV and
+report in `codeql-go-extraction-proof`, with a 14-day artifact lifetime.
+
+Local fixture builds and synthetic CodeQL-process answers prove these native
+admission and checking boundaries. Actual extraction remains proved only by a
+successful CI Go database check on the named commit; no local selector result
+or synthetic CSV discharges that evidence debt. A manual run keeps its manifest,
+owned cache sentinel and small proof directory until that run's evidence is
+reviewed, then removes those exact task-owned paths. It never removes another
+cache entry or copies the full database as a proof artifact.
 <!-- source: internal/le/repo/codeql/population.go -- Select, Guard -->
+<!-- source: internal/le/repo/codeql/extraction_prepare.go -- PrepareExtraction -->
+<!-- source: internal/le/repo/codeql/extraction_check.go -- CheckExtraction -->
 <!-- source: .github/workflows/codeql.yml -- Build Go shipped feature combinations -->
-<!-- source: .github/workflows/codeql.yml -- Select the patched Go standard library -->
+<!-- source: .github/workflows/codeql.yml -- Prepare Go extraction evidence, Check Go extraction evidence, Retain Go extraction evidence -->
 
 ## What every verify shard prepares
 
