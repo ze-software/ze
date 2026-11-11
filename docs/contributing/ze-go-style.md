@@ -92,8 +92,11 @@ shapes on the lines your unpushed commits and working tree changed:
 
 A branch that records what it met before it answers (a field or element write,
 a counter step, the error handed to an outer variable) or whose answer carries
-the error is not refused, and neither is a parse's own "no" (`strconv.Atoi`,
-`netip.ParseAddr`): the miss then reaches a reader. A `false` beside the nil
+the error is not refused. A direct `plugin.OperatorErrorResponse(...)` beside
+a nil Go error carries the refusal in its response; the check resolves the
+canonical package's import path and alias, including local shadowing. A parse's
+own "no" (`strconv.Atoi`, `netip.ParseAddr`) is also accepted: the miss then
+reaches a reader. A `false` beside the nil
 error hands the miss on, and a bool function literal (an `ast.Inspect`
 visitor, a yield, a poll predicate) steers its caller's loop, so neither is
 refused either. A log line is no record: a WARN beside a default is still the

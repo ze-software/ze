@@ -44,7 +44,7 @@ func (s *fileScan) droppedError(ifStmt *ast.IfStmt, fnResults results, fn string
 			return
 		}
 		if index == len(body.List)-1 {
-			if !drops(stmt, fnResults) {
+			if !s.drops(stmt, fnResults) {
 				return
 			}
 			continue
@@ -147,9 +147,12 @@ func belowWarn(call *ast.CallExpr) bool {
 // A return of a non-nil error refuses rather than drops, a bare return in a
 // function with an error result answers whatever the named results hold,
 // and a panic stops; none of those is this shape.
-func drops(stmt ast.Stmt, fnResults results) bool {
+func (s *fileScan) drops(stmt ast.Stmt, fnResults results) bool {
 	switch typed := stmt.(type) {
 	case *ast.ReturnStmt:
+		if s.operatorErrorResponse(typed) {
+			return false
+		}
 		if !fnResults.errorLast {
 			return true
 		}

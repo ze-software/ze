@@ -6,7 +6,7 @@
 // value where it has no answer. The caller cannot tell that value from a real
 // one, so the defect surfaces far from its cause and reads as data
 // (ai/rules/principles.md, first directive). Four shapes produced the family
-// plan/release/fixes/spec-refuse-instead-of-defaulting.md owns, and a fifth
+// spec-refuse-instead-of-defaulting owns, and a fifth
 // (dropped.go) came from the MOBIKE route-source failure:
 //
 //   - a switch whose unmatched value answers a nil error: a `default:` arm that
@@ -87,14 +87,16 @@ const packageScope = "(package scope)"
 // gate that skips what it cannot read reports a clean tree for it. A generated
 // file answers nothing, because its author is a generator.
 func ScanFile(fset *token.FileSet, path string) ([]Hit, []Annotation, error) {
-	file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution|parser.ParseComments)
+	// Local object resolution distinguishes an imported package from a local
+	// with the same name when a typed response carries the refusal.
+	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 	if err != nil {
 		return nil, nil, err
 	}
 	if ast.IsGenerated(file) {
 		return nil, nil, nil
 	}
-	scan := &fileScan{fset: fset, packageVars: packageVars(file)}
+	scan := &fileScan{fset: fset, packageVars: packageVars(file), operatorImports: operatorResponseImports(file)}
 	scan.stateAssignments(file)
 	for _, decl := range file.Decls {
 		funcDecl, isFunc := decl.(*ast.FuncDecl)
@@ -120,7 +122,9 @@ func ScanFile(fset *token.FileSet, path string) ([]Hit, []Annotation, error) {
 type fileScan struct {
 	fset        *token.FileSet
 	packageVars map[string]bool
-	hits        []Hit
+	// operatorImports holds aliases of the canonical response package only.
+	operatorImports map[string]bool
+	hits            []Hit
 }
 
 // line answers the line of a position.
@@ -363,6 +367,9 @@ func (s *fileScan) defaultArm(body *ast.BlockStmt, fnResults results, fn string)
 		if !answersNilError(ret, fnResults) {
 			continue
 		}
+		if s.operatorErrorResponse(ret) {
+			continue
+		}
 		if recordsMiss(clause.Body, "") {
 			continue
 		}
@@ -387,6 +394,9 @@ func (s *fileScan) fallOff(list []ast.Stmt, fnResults results, fn string) {
 			continue
 		}
 		if !answersNilError(ret, fnResults) {
+			continue
+		}
+		if s.operatorErrorResponse(ret) {
 			continue
 		}
 		s.addHeader(RuleSwitchNilError, fn, "the return after the switch answers a nil error for a value no case recognized", header, body.Lbrace, ret)
@@ -468,6 +478,9 @@ func (s *fileScan) missBranch(ifStmt *ast.IfStmt, fnResults results, local bindi
 		return false
 	}
 	if !answersPlausibly(ret, fnResults, readError) {
+		return false
+	}
+	if s.operatorErrorResponse(ret) {
 		return false
 	}
 	if mentions(ret, name) {
