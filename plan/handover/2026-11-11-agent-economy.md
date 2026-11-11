@@ -1,12 +1,12 @@
 # Handover: agent-economy (cut token and wall-time waste in the development system)
 
-Written 2026-11-11 by the session that measured the waste, wrote the spec set
-and landed its first pieces. Thomas's orders in that session: "Can you resolve
-all those 8 issues?", "I would be fine to have one spec using agents to run
-other specs", "I default to Opus for development", "Make sure the wording is
-not anthropic specific", "Can you work on one and three? as you indicated it
-should be the strongest model editing them." Nothing is pushed; a push needs
-his order.
+Written 2026-11-11 by the session that measured the waste and wrote the spec
+set, then rewritten the same day by the session that ran children 1 and 2.
+Thomas's orders: "Can you resolve all those 8 issues?", "I would be fine to
+have one spec using agents to run other specs", "I default to Opus for
+development", "Make sure the wording is not anthropic specific", "Can you work
+on one and three? as you indicated it should be the strongest model editing
+them." Nothing is pushed; a push needs his order.
 
 The umbrella holds the measurement, the owner's decisions, the WIP cap
 exception and the model tier per child:
@@ -17,67 +17,57 @@ first. This page says only where each child stands and what to do next.
 
 | # | Work | State | First action |
 |---|------|-------|--------------|
-| 1 | Child 1, `spec-agent-economy-1-call-shape.md`, phase 1 (a subagent types its identity line; the Bash hook checks it and never rewrites a command) | Code, tests and pages written by an agent, reviewed whole by the strongest tier, one hardening applied. Red observed with the check unregistered, green with it registered, over `internal/le/hookruntime`, `internal/le/ai/rules` and `internal/le/le/path`. Four old tests that asserted the rewrite were changed with the test judge's recorded approvals (`hookruntime.<TestName>`, in `tmp/commit-weakening-approved-7d3dd3bf.md`). Rendered rules regenerated | If `git log` shows no commit whose subject starts `hooks: a subagent types its identity line`, land it: the file set is the row below. Then run the live probe |
-| 2 | Child 1, the live probe (assumptions A-1, A-2, A-4 of the spec) | Not run: it needs the phase 1 commit, because the shared `le` follows HEAD | Spawn one `ze-read` agent after the commit. Ask it whether its start text holds the full identity line, to run three reader commands and one `./le spec current` with the line, and to report any "no verdict" or identity refusal. Record the answers in the spec |
-| 3 | Child 1, phases 2 to 4 (guards judge commands through the one line splitter; refusal messages, test deletion and the budget; hook fixture seal) | Not started. Phase 1 already built the splitter (`lineCommands`, `internal/le/hookruntime/shellline.go`), so phase 2 only points the guards at it | One `ze-work` agent per phase, development tier, through `/ze-implement`. `./le ai hooks unit` is red on `hook-source-drift` until phase 4 re-derives the seal: expected |
-| 4 | Child 2, `spec-agent-economy-2-scoped-test.md` (`./le test unit pkg path <p>...`, the wait record, nearest-name answer, commit body) | `ready`, committed. Designed by an agent, reviewed twice by an independent agent | Phases 1 to 5 touch no Go file child 1 owns and may start now, one `ze-work` agent per phase. Phase 6 waits for child 1's phases 3 and 4 |
-| 5 | Child 3, `spec-agent-economy-3-preamble.md` (phase agents start without the instruction files; the decisions file in two parts; the core shows always-on points; the style page split) | `ready`, committed. Designed by the strongest tier | Phase 1 is the probe and needs a session started after `./le ai sync update`, because agent definitions load at session start. Its review, and the review of the decisions-file move, are strongest-tier work |
-| 6 | Child 4, `spec-agent-economy-4-supervision.md` | `skeleton` with the research. Depends on child 1 (same hook file) | Design it (development tier). Two of its three probes are answered by the harness documentation quoted in child 3's Design Insights: a pre or post tool hook can return additional context that reaches the model, and SubagentStart carries the agent id and type |
-| 7 | Child 5, `spec-agent-economy-5-scoped-gates.md` | `skeleton` with the research | Last, by design: it changes what two gates prove, and waits for child 2's wait record. Its design is strongest-tier work |
-| 8 | The umbrella's acceptance criteria | Not measurable until the children land | Child 4 owns a kept measure (`./le ai tokens`); repeat the baseline with it |
+| 1 | Child 1, spec-agent-economy-1-call-shape | Closed. 18f0f40a19 (identity line), 614ce4ebea (guards keep HEAD's verdict; a modelled reader line lifts it; repairs the identity exemption), 48a98fb9d4 (refusal messages, a refused call costs nothing, test-deletion narrowing), 70f70633b3 (fixtures, parity, seal), accde6836c and 391cc12bc6 (closure). Live probe passed on 18f0f40a19's build: 0 of 5 calls voided | None |
+| 2 | Child 2, `spec-agent-economy-2-scoped-test.md` | Phases 1 to 6 committed: 75907fdffc, 7e072d42d3, db7126e71e, bcb429469e, 7e66c69bdd, ae3022e659. Phase 6 also carries AC-13 (`./le commit create ... body-file <path>`) and child 1's transferred findings I1, N1 to N5 | Phase 7 (pages and the rule point), one `ze-work` agent, then `/ze-close` |
+| 3 | Child 3, `spec-agent-economy-3-preamble.md` | `ready`, not started | Phase 1 is the probe and needs a session started after `./le ai sync update`, because agent definitions load at session start. Its review, and the review of the decisions-file move, are strongest-tier work |
+| 4 | Child 4, `spec-agent-economy-4-supervision.md` | `skeleton` with the research; its Depends row is cleared | Design it (development tier) |
+| 5 | Child 5, `spec-agent-economy-5-scoped-gates.md` | `skeleton` | Last, by design: it changes what two gates prove. Child 2's wait record now exists (db7126e71e). Its design is strongest-tier work |
+| 6 | The umbrella's acceptance criteria | AC-6 met (one six-word command answers one line on green) and AC-7 met (wait recorded) by child 2; the others need children 3 and 4 and the two-week window | Child 4 owns a kept measure (`./le ai tokens`); repeat the baseline with it |
 
-## Phase 1 file set (row 1)
+## What every brief must say now
 
-Commit these together, under the child spec's claim so the commit carries its
-`Spec-work:` line. The implementing agent holds that claim; a main session
-that commits it instead claims the child spec first
-(`ZE_SPEC_WIP_CAP=<in-progress count + 1> ./le spec claim ...`, the owner's
-cap exception recorded in the umbrella).
+- A subagent's Bash command made only of readers in modelled syntax runs as
+  typed; any other command starts with the identity line the agent's start
+  text prints. The hook judges the command, not the files it runs: the check
+  catches an agent that forgets or mistypes its identity and is not a sandbox.
+- A subagent writes commit bodies with `body-file <path>` (the file written
+  with the Write tool). Inline prose holding `).`, an apostrophe, an
+  environment-changing word or a heavy-command quote is refused by the hook.
+- One test package: `./le test unit pkg path <dir>/ [run <regex>] [vet]`.
+- `ZE_SPEC_WIP_CAP` is the in-progress count plus one, never more.
+- Running a refused command from a script file to get past the hook is not a
+  route agents take, even when the refusal is false: report it instead.
 
-| Kind | Files |
-|------|-------|
-| Code | `internal/le/hookruntime/session.go`, `shellline.go` (new), `bash.go`, `runtime.go`, `lifecycle.go`, `internal/le/le/path/commitsession.go` |
-| Tests | `internal/le/hookruntime/session_identity_test.go` (new), `lifecycle_test.go`, `runtime_test.go`, `budget_test.go`, `one_off_proof_test.go` |
-| Pages and rules | `docs/contributing/running-commands.md`, `.claude/hooks/README.md`, `plan/learned/HOOK-FRICTION.md`, `ai/rules/points/planning/directives/brief-every-subagent-with-its-spec-phase-and-rules.md`, `ai/rules/planning.md` (rendered) |
-| Spec | spec-agent-economy-1-call-shape (closed) |
+## Observations not yet verified (check at the producer before recording)
 
-The commit body names the one known red: `./le ai hooks unit` fails
-`hook-source-drift` until phase 4 re-derives the seal. The scoped lint
-(`./le go lint run scope "./internal/le/hookruntime/..."`) was started by the
-writing session; if its result is not in the commit body, run it once.
+| Observation | Source |
+|-------------|--------|
+| The spec-edit gate's producer-read check was satisfied by a 3-line Read of each producer, so it may prove little about reading | Reported by a child 2 agent, not read at the gate's code |
+| Only one of four judged Weakening-approved lines was appended to ae3022e659; the gate may append only tests its detector flags | Not read at `./le commit create`'s gate |
 
-Other sessions hold uncommitted work in the tree. Name only these files.
-
-## What changes for every agent once row 1 lands
-
-A subagent's Bash command made only of readers (grep, sed, cat, a git read
-verb, the list in `readerCommands`) runs as typed. Any other command must
-start with the identity line the agent's start text prints, and is refused
-with that exact line when it is missing. Every brief written after the commit
-should say so in one sentence; the start text and the refusal carry the line.
-
-## Decisions taken in the writing session (do not put them to Thomas)
+## Decisions taken (do not put them to Thomas)
 
 | Point | Decision | Why |
 |-------|----------|-----|
-| How the command rewrite is replaced | The agent types its identity line and the hook checks it | A rewritten call is one auto mode holds no verdict for; the harness documents that |
-| List form of the short test action | Repeated keyword `path`, no comma list, no parser change | The existing list pattern; the parser already refuses a dash-leading value |
+| How the command rewrite is replaced | The agent types its identity line and the hook checks it | A rewritten call is one auto mode holds no verdict for |
+| Guard verdicts after phase 2 | Every guard keeps HEAD's text verdict or a stricter one; only a line the syntax allow-list models, made of readers whose allow-list judges accept them, lifts it | Seven independent reviews found fail-open holes in every looser design |
+| Phase 2 review loop | Ended under the stated threat model (mistakes, not an adversary) | Further findings needed deliberate obfuscation the hook cannot stop |
+| List form of the short test action | Repeated keyword `path` | The existing list pattern |
 | Race detector on the short action | Always on | A package tested without it is not tested the way the gate tests it |
-| `changed` widening to the whole tree, `./...`, a path spanning groups | Refused before admission | An agent starts no whole-tree check |
-| A test filter that matches nothing | The action answers failure | A run that tested nothing must not read as a pass |
-| The decisions file split (D-1) | One file, two parts, wording unchanged | One home every harness loads; no citation moves |
+| The decisions file split (D-1) | One file, two parts, wording unchanged | One home every harness loads |
 | The style gate (D-3) | The page is split; the gate's code is untouched | "Read in full" stays literally true |
 
 ## Open with Thomas
 
 | Question | State |
 |----------|-------|
-| Two model fields in the spec template (design tier, implementation tier), review never weaker than the stronger | Recommended to him; he has not said yes. The tiers per child are recorded in the umbrella meanwhile. Do not change the template without his word |
+| Two model fields in the spec template (design tier, implementation tier) | Recommended; not answered. Do not change the template without his word |
 | Whether "one spec's agents run other specs" is a standing rule | Recorded as a permission for this umbrella only |
+| A vendored bash parser (`mvdan.cc/sh`) in place of the syntax allow-list | Offered; not answered. The allow-list stands meanwhile |
+| Strongest-tier review of child 1's identity-exemption change | Offered; not answered. It ran on the development tier |
 
 ## Strongest-tier work that remains
 
-Everything else is development-tier. These three want the strongest model the
-harness offers, by the umbrella's tier table: the design of child 5; the
-review of child 3's implementation, above all the bullet-by-bullet move of
-`ai/META-DECISIONS.md`; the review of child 4's skill-body trimming.
+The design of child 5; the review of child 3's implementation, above all the
+bullet-by-bullet move of `ai/META-DECISIONS.md`; the review of child 4's
+skill-body trimming.
