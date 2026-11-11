@@ -64,7 +64,11 @@ supplies proof.
 
 All four corpus fixtures passed their named draft runs, were promoted, and
 landed in `e7a77d6e73`. The shared CPE renderer's focused race proof remains
-green. The full corpus has not yet run after those promotions.
+green. Main's native `test unit pkg path ./internal/component/config/cli/ run
+'^TestRepositoryConfigsValidate$'` now exits zero after those promotions, with
+package `ok` in `job-unit-pkg-edd5d381.log` in the session scratch directory.
+Main observed the exact selected test in the running process; default package
+output contains no individual PASS names. The corpus obligation is complete.
 
 The owned pipeline parse-error defect is now repaired: `showPipeline` and
 `bestPipeline` return `pipelineRefusal` through `refusePipelineArgs`, preserving
@@ -74,14 +78,16 @@ payloads, then pass with six companion tests under race. Evidence is
 `tmp/session/2026-11-11-014000/scratch/job-refusal-pipeline-ntp-red-0f4a55fa.log`
 and `job-refusal-pipeline-green-191dfb31.log` in that directory. Independent
 source review is clean; five existing test migrations and the functional
-fixture change have independent judge approval. The attempted named functional
-run stopped at the launcher registration panic, before any fixture ran.
+fixture change have independent judge approval. The first attempted named
+functional run stopped at the launcher registration panic before any fixture
+ran. Main then rebuilt the daemon and ran `test bgp plugin rib-filter-show`:
+the actual fixture passes 1/1 in
+`job-refusal-rib-filter-functional-c6d5829a.log` in the session scratch
+directory. This completes the pipeline repair's daemon-boundary proof.
 
 Resume with these commands, through the current named launcher and in the main
 thread:
 
-- Run `./le test bgp plugin rib-filter-show` through the rebuilt named launcher.
-- Run `TestRepositoryConfigsValidate` under the full feature tags and race.
 - `INTEROP_SCENARIO=addpath-zero-id-frr ./le test integration interop` for the
   baseline, the zero-ID omission overlay, and the clean rebuild in that order.
   Preserve effective Go flags when adding the overlay. The overlay and its
@@ -112,8 +118,14 @@ covers the NTP repair, not the remaining acceptance criteria; the spec stays ope
 
 The first draft reload attempt used `test reload`, which printed a namespace
 error. No fixture ran. The correct registered route is `test bgp reload`.
-No ADD-PATH or LDP verdict is claimed by this continuation. Neither a stale
-image nor a no-build bypass is evidence for these owed runs.
+The current-source ADD-PATH baseline failed during daemon startup: the first
+`bgp-rs` stage waited five seconds for capability initialization, then the
+startup barrier aborted. No zero-ID assertion ran; negative and clean controls
+remain pending. The complete error and Ze/FRR logs are retained in
+`scratch/interop-recordings/bgp/addpath-zero-id-frr-GLEEENUKK5KX3YMO2VEZ3ROJRD.jsonl`
+under this session, in its verdict error. Main is investigating the startup
+failure. No LDP verdict is claimed; a stale image or no-build bypass is not
+evidence for either owed scenario.
 
 ## Retained row evidence audit, 2026-11-11
 
@@ -133,7 +145,7 @@ stay visible rather than being silently removed from the population.
 | 1 | `Server.appendDataPlaneWriter` starts with no FIB writer | `TestConfigPathAutoLoadRefusesMissingDataPlaneWriter` in `internal/component/plugin/server/startup_writer_refusal_test.go`; `TestReloadAutoLoadRefusesMissingDataPlaneWriter` in `internal/component/plugin/server/startup_writer_refusal_test.go` | R; exact main-thread red/green and controls above |
 | 2 | `sendPostStartupTo` failure logged at DEBUG | `TestPostStartupFailureWarnsWhileRunning` in `internal/component/plugin/server/poststartup_report_test.go` | H; representative-input regression retained |
 | 3 | `LIB.allocateLabelLocked` returns a bound label | `TestLDPLabelExhaustionRefusesSecondBinding` in `internal/plugins/ldp/rfc3031_label_test.go` | H; representative-input regression retained |
-| 4 | gNMI `Server.Get` ignores `encoding` | `TestGetRefusesUnadvertisedEncoding` in `internal/component/gnmi/get_test.go`; `TestGetAnswersEachJSONEncoding` in `internal/component/gnmi/get_test.go` | H; changed `TestGnmicInterop` Docker proof pending |
+| 4 | gNMI `Server.Get` ignores `encoding` | `TestGetRefusesUnadvertisedEncoding` in `internal/component/gnmi/get_test.go`; `TestGetAnswersEachJSONEncoding` in `internal/component/gnmi/get_test.go` | H; current `TestGnmicInterop` and all nine subtests pass against same-host Docker |
 | 5 | `verifyResponseMessageAuthenticator` true when absent | `TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator` in `internal/component/radius/rfc3579_client_test.go` | H; representative-input regression retained |
 | 6 | `BGPConsumer.InjectRoute` warning read as announced=0 | `TestBGPConsumerAnnounceReachingNoPeerWarns` in `internal/component/bgp/redistribute/consumer_test.go` | H; representative-input regression retained |
 | 7 | `cos.Resolve` nil maps with no resolver | `TestResolveAbsentProviderRefusesUnitProfile` in `internal/core/cos/resolve_absent_test.go` | R; exact main-thread red/green and controls above |
@@ -149,7 +161,7 @@ stay visible rather than being silently removed from the population.
 | 17 | text `AppendOpen` writes the OPEN's own AS as `remote as` | `TestTextOpenRemoteASNamesThePeer` in `internal/component/bgp/format/text_open_remote_as_test.go`; `TestFormatNonUpdateRoutesToDedicatedFormatters` in `internal/component/bgp/format/text_test.go` | H; representative-input regression retained |
 | 18 | `appendNLRIJSONValue` writes a placeholder route on decode failure | `TestUndecodableNLRIIsNeverWrittenAsARoute` in `internal/component/bgp/format/nlri_decode_failure_json_test.go`; `TestUnclaimedOpaqueNLRIIsNeverWrittenAsARoute` in `internal/component/bgp/format/nlri_decode_failure_json_test.go` | H; representative-input regression retained |
 | 19 | `interfaceExists` any error reads as absent | `TestInterfaceExistsReadErrorIsNotAbsence` in `internal/component/iface/config_apply_test.go` | H; representative-input regression retained |
-| 20 | DHCPv6 `dadUnreported` on VPP | `TestDHCPv6AddressesWithoutDADOutcomeNotReadAsUnique` in `internal/plugins/iface/dhcp/dhcp_v6_dad_read_linux_test.go` | H; Linux DAD-outcome focused run pending |
+| 20 | DHCPv6 `dadUnreported` on VPP | `TestDHCPv6AddressesWithoutDADOutcomeNotReadAsUnique` in `internal/plugins/iface/dhcp/dhcp_v6_dad_read_linux_test.go` | H; named Linux DAD-outcome regression passes under race |
 | 21 | VPP `detailsToInfo` empty addresses | `TestVPPGetInterfaceReportsAddresses` in `internal/plugins/iface/vpp/query_addresses_test.go`; `TestVPPListInterfacesReportsAddresses` in `internal/plugins/iface/vpp/query_addresses_test.go` | H; representative-input regression retained |
 | 22 | LG `routes/protocol/{name}` 0 routes for a name | `TestAPIProtocolNameSelectsItsSession` in `internal/component/lg/handler_api_dispatch_test.go` | H; representative-input regression retained |
 | 23 | `serializeRouteItem` path ID compared with zero | `TestAddPathIdentifierZeroIsAnIdentifier` in `internal/component/bgp/plugins/rib/ribout_native_test.go` | H; ADD-PATH baseline/negative/clean lab pending |
@@ -157,7 +169,7 @@ stay visible rather than being silently removed from the population.
 | 25 | ddos `emitCleared` zero target never closes | `TestClearedCarriesTheDetectedVictim` in `internal/plugins/ddos/detect/characterize_test.go` | H; representative-input regression retained |
 | 26 | `NewINET` path ID 0 as absent | `TestAddPathIdentifierZeroIsAnIdentifier` in `internal/component/bgp/rib/route_test.go` | H; ADD-PATH baseline/negative/clean lab pending |
 | 27 | gr egress nil state read as nothing stale | `TestLLGREgressFilter_NilStateWithdrawsEBGP` in `internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go`; `TestLLGREgressFilter_NilStateDepreferencesIBGP` in `internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go` | H; representative-input regression retained |
-| 28 | `readOneHwmon` drops a 0.0 reading | `TestDetectThermal_ZeroReadingIsAReading` in `internal/component/host/thermal_linux_test.go` | H; Linux zero-reading focused run pending |
+| 28 | `readOneHwmon` drops a 0.0 reading | `TestDetectThermal_ZeroReadingIsAReading` in `internal/component/host/thermal_linux_test.go` | H; named Linux zero-reading regression passes under race |
 | 29 | resolve `DefaultConfig` read failure as missing | `TestDefaultConfigReadFailureIsNotMissing` in `internal/core/resolve/resolve_test.go` | H; representative-input regression retained |
 | 30 | `buildParamMeta` error becomes nil | `TestBuildParamMetaRefusesAnUnpublishableSchema` in `cmd/ze/hub/command_meta_test.go` | H; representative-input regression retained |
 | 31 | web interface detail swaps config for live on error | `TestInterfaceDetailReadErrorIsNotConfiguredState` in `internal/component/web/page_interfaces_test.go` | H; representative-input regression retained |
@@ -171,7 +183,7 @@ stay visible rather than being silently removed from the population.
 | 39 | LG `transformRoutes` `primary` from an absent key | `TestShowRIBRowsSayWhichPathWon` in `internal/component/bgp/plugins/rib/rib_pipeline_bestfact_test.go`; `TestShowRIBBestFactUnderElectionAndPeerDown` in `internal/component/bgp/plugins/rib/rib_pipeline_bestfact_test.go` | H; representative-input regression retained |
 | 40 | BMP Loc-RIB ORIGIN literal IGP | `TestLocRIBRouteMonitoringCarriesTheBestPathAttributes` in `internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go`; `TestLocRIBAnnounceWithoutAttributesIsRefused` in `internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go` | H; `bgp-addpath-best-path-pmacct` pending |
 | 41 | bgp-rib `sameBest` ignores an attribute-only change of the winner | `TestRIBBestChangeOnAttributeOnlyChange` in `internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go` | H; representative-input regression retained |
-| 42 | trafficusage `ebpfSupported` constant nil | `TestTrafficUsageReadinessCanFail` in `internal/plugins/trafficusage/doctor_test.go`; `TestNewAttacherLinux` in `internal/plugins/trafficusage/attach_linux_test.go` | H; Linux classifier and actual probe as non-root/root pending |
+| 42 | trafficusage `ebpfSupported` constant nil | `TestTrafficUsageReadinessCanFail` in `internal/plugins/trafficusage/doctor_test.go`; `TestNewAttacherLinux` in `internal/plugins/trafficusage/attach_linux_test.go` | H; ordinary classifier/constructor pair passes under race; explicit root/non-root actual-kernel probe passes in `5fa5efe3d2`'s `TestTCXProbeRuntimeReadiness` |
 | 43 | l2tp `checkHealth` cannot fail | `TestL2TPHealthReadsDataPlane` in `internal/component/l2tp/health_test.go`; `TestL2TPHealthHealthyOnlyWithDataPlane` in `internal/component/l2tp/health_test.go` | H; both named health tests also pass in later 2026-11-01 product job |
 | 44 | `getConfigPathPlugins` starts plugins after `ErrMissingDependency` | `TestBootAutoLoadRefusesMissingHardDependency` in `internal/component/plugin/server/startup_autoload_test.go` | Dependency spec owns this census row; implemented in `30422ebe30`, closed in `a81034e794` |
 | 45 | MRT table dump and `show system` NTP block skipped when not built | `TestSystemDateRefusesAbsentNTPProvider` in `internal/component/cmd/show/system_ntp_test.go` | R for NTP; MRT belongs to closed dependency spec and shares `ze_bgp` |
@@ -182,7 +194,7 @@ stay visible rather than being silently removed from the population.
 | 50 | `answering.answered` read failure answered as not answered | `TestAnsweredNamesACommitItCouldNotRead` in `internal/le/commit/owed_trailers_unread_test.go` | H; representative-input regression retained |
 | 51 | rs `extractWireNLRIRecords` unknown encoding context answered as no wire UPDATE | `TestExtractWireNLRIRecordsRefusesAnUnknownContext` in `internal/component/bgp/plugins/rs/server_inventory_unknown_context_test.go` | H; representative-input regression retained |
 | 52 | `checkVPPHealth` healthy when the VPP socket is absent | `TestVPPHealthCheckSocketMissing` in `internal/plugins/iface/vpp/register_test.go`; `TestVPPHealthCheckComponentNotRunning` in `internal/plugins/iface/vpp/health_test.go` | H; representative-input regression retained |
-| 53 | rib `showPipeline`, `bestPipeline` parse error answered as an `{"error":...}` payload with status done | `TestPipelineParseErrorsReachCommandVerdict` in `internal/component/bgp/plugins/rib/rib_pipeline_refusal_test.go` | R; full RIB package and `rib-filter-show` daemon run pending |
+| 53 | rib `showPipeline`, `bestPipeline` parse error answered as an `{"error":...}` payload with status done | `TestPipelineParseErrorsReachCommandVerdict` in `internal/component/bgp/plugins/rib/rib_pipeline_refusal_test.go` | R; full native RIB package and rebuilt `rib-filter-show` daemon fixture pass |
 | 54 | `commandRegistrars` does not classify `RegisterTextRenderer` / `MustRegisterTextRenderer`, added by this spec's 238bdb62e9; `TestEveryCommandRegistrarIsMatched` red | `TestEveryCommandRegistrarIsMatched` in `internal/le/plugin/imports/pluginimports_roots_test.go` | Historical red in `238bdb62e9`; source repair and passing plugin/imports tests retained in `a6f93cea5d` |
 
 The first two regressions are shown when a row names several; the journal Fix
@@ -198,18 +210,29 @@ cases in `internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go` and
   registration is pinned by `TestVerifyStagesIncludeRefuseByDefault` in
   `internal/le/verify/engine/stages_refusebydefault_test.go`. No `le verify` run
   is owed here.
-- AC-7: run the current native `arch refuse-by-default report`, preferably its
-  JSON form, and compare both `findings` and `annotated` by `file` and `fn`
-  with every census producer. `runReport` returns zero even with findings; its
-  exit status alone cannot satisfy this criterion. No current report is claimed.
+- AC-7: main's current native `arch refuse-by-default report` lists 2155 refused
+  and 72 annotated shapes in 7000 Go files. Both populations were compared with
+  the retained 54-row producer ledger. Strict AC-7 remains open: two refused
+  rows in `Reactor.notifyOneMessage` in
+  `internal/component/bgp/reactor/reactor_notify.go` retain `parseErr` in `msg.ParseError` but
+  still have redundant Debug-only branches; one annotated malformed-layout
+  zero in `buildWithdrawalPayload` in
+  `internal/component/bgp/reactor/forward_build.go` is consumed by `fwdWithdrawal.of`. No
+  criterion or symbol is changed to hide those matches. The separate genuine
+  Debug-only send failure in `BMPPlugin.handleBestChange` in
+  `internal/component/bgp/plugins/bmp/bmp_locrib.go` is assigned for repair;
+  census40's actual ORIGIN producer, `buildLocRIBUpdateBody`, has no hit.
+  Actual report: `job-refusal-current-report-fcb16ac0.log` in session scratch.
+  Exact row/source classification: session state `refusal-ac7-census.md`.
 - AC-8: retained unit/command evidence includes the recent absent-CoS and writer
-  repairs. The full RIB package now passes after the fixture cleanup; updated
-  daemon pipeline proof remains pending.
-- AC-9: LDP Ze-kernel scenario and the changed gnmic default/PROTO contract
-  remain pending; existing RADIUS interop evidence is retained.
-- AC-10: ADD-PATH baseline, omitted-zero negative, clean rebuild remain pending.
-- AC-11: thermal zero-reading Linux run remains pending; existing LLGR, DDoS
-  and dynamic-AS producer-red evidence is retained.
+  repairs. The full RIB package passes after fixture cleanup, and the rebuilt
+  daemon's `rib-filter-show` fixture passes 1/1.
+- AC-9: LDP Ze-kernel scenario remains pending. Changed gnmic default/PROTO
+  contract passes with all nine interop subtests; RADIUS evidence is retained.
+- AC-10: ADD-PATH baseline failed at startup before any zero-ID assertion;
+  baseline recovery, omitted-zero negative and clean rebuild remain pending.
+- AC-11: thermal zero-reading Linux regression passes under race; existing
+  LLGR, DDoS and dynamic-AS producer-red evidence is retained.
 - AC-12: TCX actual-kernel root/non-root proof passes with the explicit
   expectation test below. BMP/pmacct remains pending. The later L2TP and VPP
   stats passes below supersede their old unrun labels.
@@ -261,6 +284,20 @@ alone as proof.
   `tmp/qemu/docker-lab-console-181362749.log` and
   `tmp/qemu/docker-lab-console-3659063372.log`. Expectations were selected
   before the real probe; the assertions require the original kernel errno.
+- Linux controls: `TestDetectThermal_ZeroReadingIsAReading`,
+  `TestDHCPv6AddressesWithoutDADOutcomeNotReadAsUnique`,
+  `TestTrafficUsageReadinessCanFail` and `TestNewAttacherLinux` all have explicit
+  PASS lines in `job-refusal-linux-controls-384752ff.log` in session scratch.
+  Main selected the host, DHCP and trafficusage package tests under native
+  feature tags and race; no named control skipped.
+- gNMI: `TestGnmicInterop` in
+  `internal/component/gnmi/gnmic_docker_test.go` and all nine subtests pass in
+  `job-refusal-gnmic-interop-608dd3c8.log` in session scratch, with no skip.
+  Main used admitted `go test` with full feature tags plus `docker`, race and
+  `ZE_REQUIRE_DOCKER=1` against the local same-host Docker daemon. The proof
+  includes advertised JSON/JSON_IETF, explicit and default encoding Get,
+  absent-path NotFound, unadvertised encoding Unimplemented, Subscribe sync,
+  Set commit, and missing/wrong-token Unauthenticated controls.
 
 ### Scoped execution queue
 
@@ -269,36 +306,14 @@ after the foreign dependency addition is coherent. The new registered
 `test unit pkg` route supplies the checkout's feature tags, timeout and race
 detector; its `run` keyword takes a regex. It accepts no arbitrary Go flags.
 
-1. `test bgp plugin rib-filter-show`. The full native RIB package and focused
-   pipeline regressions already passed and are not separately repeated.
-2. `test unit pkg path ./internal/component/config/cli/ run '^TestRepositoryConfigsValidate$'`
-   once after the four promoted fixtures and shared CPE renderer repair.
-3. ADD-PATH baseline, the recorded zero-ID omission overlay, then the clean
+1. ADD-PATH baseline, the recorded zero-ID omission overlay, then the clean
    rebuild/run; LDP unknown-TLV scenario follows. Preserve effective `GOFLAGS`
    when adding the overlay. Also run `bgp-addpath-best-path-pmacct`, whose BMP
    attribute payload is an older owed surface of this change.
-4. Obtain the actual AC-7 report and examine both refused and annotated
-   producer matches. The historical check/stage phase-green and the registrar
-   repair's retained passing tests do not require timestamp-refresh runs.
-5. `test unit pkg path ./internal/component/host/ run '^TestDetectThermal_ZeroReadingIsAReading$'`
-   and `test unit pkg path ./internal/plugins/iface/dhcp/ run '^TestDHCPv6AddressesWithoutDADOutcomeNotReadAsUnique$'`.
-   Both use fixtures or scripted backends; these Linux tests need no host
-   network capability or QEMU. The DHCP test's existing producer-red claim
-   remains retained; no new mutation is required to refresh it.
-6. `test unit pkg path ./internal/plugins/trafficusage/ run '^(TestTrafficUsageReadinessCanFail|TestNewAttacherLinux)$'`
-   as the ordinary Linux user. The former checks classifier/doctor verdicts;
-   the latter really asks the kernel and accepts a measured ready, absent or
-   unknown answer. The actual root/non-root probe obligation is now complete
-   through the explicit expectation test above; no repetition is owed.
-7. For gnmic, use the documented direct `job run` recipe because the test needs
-   the additional `docker` tag: full feature tags plus `docker`, `-race`,
-   `-run '^TestGnmicInterop$'`, package `./internal/component/gnmi/`, and
-   `ZE_REQUIRE_DOCKER=1`. Current `gnmic_docker_test.go` pins gnmic 0.49.1 by
-   digest and checks JSON/JSON_IETF advertisement, explicit and default Get,
-   PROTO refusal, Subscribe, Set and authentication. `labtest.Run` requires
-   Docker on the test server's own network host: the server listens on
-   loopback and the client uses host networking. A forwarded guest Docker
-   socket cannot stand in for that network identity.
+2. Repair the exact AC-7 residuals above and the assigned BMP send failure,
+   retaining negative/positive proof and independent review. The historical
+   check/stage phase-green and registrar repair's retained passing tests do
+   not require timestamp-refresh runs.
 
 The handover's unqualified netlink `GetStats` item lacked a direct-method
 regression. `netlinkBackend.GetStats` refuses missing links, read errors
@@ -341,11 +356,23 @@ clean control are complete; the full refusal spec stays open.
 This is not a kernel-capability finding or a reason to repeat the already-passing
 VPP test.
 
-The 38 `RFC-approval-owed` trailers in `238bdb62e9` and the historical stale
-verdict list remain to reconcile with current native RFC debt/audit metadata.
-No blanket reseal, missing-log re-record or foreign audit edit is implied by
-this ledger. Scoped lint, documentation checks and independent closure review
-remain after the execution evidence; no whole-tree verification is added.
+The 38 `RFC-approval-owed` trailers in `238bdb62e9` are historical: `origin/main`
+already contains that commit. Current `readPersonActs` in
+`internal/le/commit/owed_trailers.go` reads only the selected target's commits
+outside upstream, so those published trailers are not current push debt.
+Recent native checkpoint preparations reported `debt=nothing owed`; main still
+checks `commit debt-status commit HEAD` for later commits. The historical stale
+RFC verdict list remains a separate audit-metadata obligation. Main's current
+native `rfc check` exits one with 64 violations in
+`job-refusal-rfc-current-check-a3c28c29.log` in session scratch. These are not
+all attributed to this spec. Its helper-only `1aa91d030b` change leaves a
+SHIFTED ASPA audit verdict for unchanged
+`TestASPARetentionReceiveRecovery` and `TestASPARetentionReplacementWithdrawal`;
+main owes that scoped mechanical reseal. Ownership of the other current
+violations remains unclassified in this checkpoint. No blanket
+reseal, missing-log re-record or foreign audit edit is implied by this ledger.
+Scoped lint, documentation checks and independent closure review remain after
+the execution evidence; no whole-tree verification is added.
 
 
 ## Prior blocker and completed corpus repair

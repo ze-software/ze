@@ -1,12 +1,59 @@
 # Handover: closing near-done specs (2026-11-10)
 
-**Current status (2026-11-11):** eight specs closed; four handed back blocked;
-access remains claimed by another session. All four handback claims are released.
+**Current status (2026-11-11):** nine specs closed; refusal verification is active;
+lint-tooling and access remain owned by other sessions, and route-policy still
+owes matched Mac measurements. Reload's claim is released after closure.
 **Branch:** main. No push was performed by this session; Thomas controls pushes.
 **Goal:** close the open specs whose implementation is already committed. The
 owner asked that locked or blocked specs not stop progress on the others.
 
 ## Active refusal evidence continuation, 2026-11-11
+
+### Latest completed proofs and reload closure
+
+Reload closed in `ce66c7971b` (final evidence and canonical operator news) and
+`4bfe6f2ab3` (spec removal). Main's final scoped lint over plugin/server and
+le/test/deployment passed Linux, integration, Darwin and capability configurations,
+exit zero. The owner-recorded sixth CLEAN review passed all 29 code hashes;
+static-BFD guest and live VPP proofs were already complete. No push was run.
+
+Refusal checkpoint `741c850345` records direct netlink statistics negative/clean
+proof (`3a66d9d5cd`), strict TCX root-ready/ENODEV and ordinary-unknown/EPERM proof
+on the same Ze kernel (`5fa5efe3d2`), and the full native RIB package pass after
+fixture cleanup `1aa91d030b`. The deterministic full-package log was overwritten
+by its passing retry; separate pair and regression reds remain retained. The
+actual rebuilt daemon `rib-filter-show` subsequently passed 1/1 in
+`job-refusal-rib-filter-functional-c6d5829a.log`. The full config corpus's exact
+selected `TestRepositoryConfigsValidate` also exits zero in
+`job-unit-pkg-edd5d381.log`; default output reports package `ok`, not individual
+test names. Four named Linux controls (thermal zero, DHCP DAD outcome, TCX
+classifier and constructor) pass under race in
+`job-refusal-linux-controls-384752ff.log`. `TestGnmicInterop` and all nine
+subtests pass without skip in `job-refusal-gnmic-interop-608dd3c8.log`, including
+default JSON_IETF Get and PROTO refusal, through local same-host Docker.
+
+The current native refusal report covers both populations: 2155 refused and
+72 annotated shapes across 7000 Go files. Exact comparison with all 54 owned
+census rows leaves strict AC7 open: `Reactor.notifyOneMessage` has two reported
+Debug-only parse-error branches even though it propagates `msg.ParseError`,
+and `buildWithdrawalPayload` retains a guarded malformed-layout zero. A distinct
+BMP best-change send error is logged only at Debug and is assigned for repair.
+The exact source/report rows and other coarse-name exclusions are in session
+state `refusal-ac7-census.md`. ADD-PATH's current-source baseline failed during
+the capability/startup barrier before any zero-ID assertion; full error and
+Ze/FRR logs are retained in the session's
+`scratch/interop-recordings/bgp/addpath-zero-id-frr-GLEEENUKK5KX3YMO2VEZ3ROJRD.jsonl`.
+Its negative/clean controls and LDP/BMP proofs remain open. Native `rfc check`
+exits one with 64 violations, not all attributed to refusal. The helper-only
+`1aa91d030b` change caused an owned ASPA SHIFTED verdict for two unchanged tagged
+tests; its scoped reseal is owed in main. Other current RFC ownership remains
+unclassified here. All execution remains in main; no criterion was weakened to
+claim closure.
+
+The dependency addition belongs to another session. Thomas explicitly directed
+us to let that session finish; its modules/vendor are preserved. The host and
+local Docker daemon currently both report kernel `7.2.9-ze`, with Docker at the
+local Unix socket, permitting gnmic's same-host network proof.
 
 The refusal spec is claimed and in-progress again. Its new retained-evidence
 ledger maps all 54 census rows to canonical regression definitions, recent
@@ -241,6 +288,7 @@ documentation gate, or verification ran; the evidence is the scoped runs above.
 | spec-lint-backlog-5-hub-and-policy | `0fa6d5f922`, `b1065c830f` |
 | spec-lint-backlog-6-access-and-appliance | `7eb86b64a2` (interim), `1b98435bc8`, `84b796f5e3` |
 | spec-rfc-verdict-fix-ike-eap | `03447bf159`, `44797abe31` |
+| spec-plugin-reload-applies-or-refuses | `ce66c7971b`, `4bfe6f2ab3` |
 
 IKE/EAP closed independently after `e62246b71e` refreshed 65 proof covers in
 30 JSON files. The postcommit RFC check has no owned-stem violations; 63 unrelated
