@@ -39,6 +39,21 @@ type readerJudge func(arguments []string, expands []bool) bool
 // on such a host each nil entry is owed a judge, read from that host's
 // manual, before it is trusted.
 //
+// The name a line uses is not always the program it reaches. The Bash tool
+// runs the command with bash, read by eval after a shell snapshot (recorded
+// on Linux, bash 5.2: spec-agent-economy-6-shell-parser, A-3), and that
+// snapshot defines grep and find as shell functions over other programs.
+// Its grep runs ugrep and hands GNU grep only the arguments it routes there
+// (the ugrep-only filter, pager, view, config and null options, among
+// others), which GNU grep refuses; the ugrep options it does not route
+// either start an interactive query (-Q, --query), which stops at once with
+// no terminal because the tool's stdin is not one, or read index files only
+// (--index). So grep's nil judge holds there because of that routing and the
+// missing terminal, not because the program is GNU grep, and a change to the
+// snapshot's function is a change to what this entry admits. Its find runs
+// bfs, and findReads is an allow-list of primaries, so bfs receives no action
+// the judge did not list. egrep and fgrep are not shadowed and reach GNU grep.
+//
 // A reader's own options write no file, and the shell's redirections are
 // judged beside the table: a command that redirects its output into a file
 // (shellLine.writesFile) is no reader, whatever its judge says.
