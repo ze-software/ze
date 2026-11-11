@@ -2,16 +2,90 @@
 
 | Field | Value |
 |-------|-------|
-| Status | verification |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped producers answer a default, a zero or a constant where they cannot answer, so operators and peers act on values Ze never measured; several rows are RFC defects in implemented capabilities (RADIUS, LDP, IS-IS, ADD-PATH, LLGR) |
 | Depends | spec-plugin-optional-dependency-refusal (closed; its refusal is `config.refuseAbsentOptionalProviders` and `registry.MissingDependencyError`, documented in `docs/architecture/plugin/feature-gates.md`; it owned the "not built reads as not configured" rows of the 2026-10-20 dependency census; this spec reuses its refusal for the two build-gated rows it owns) |
 | Phase | 7/7 |
 | Handoff | verify |
-| Updated | 2026-10-24 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+The 2026-11-11 main-thread attempt to run `addpath-zero-id-frr` stopped in
+shared interop staging before any scenario executed: `0 passed, 0 failed`.
+`StageBinaries` (`internal/le/interoplab/zebuild.go`) could not compile the
+required `test/interop/le-linux`. The current `Snapshot` and `sourcePackage`
+definitions in `internal/le/repo/inventory/source.go` lack fields used by:
+
+- `assemblyheaders.go:76`: `Snapshot.assemblyPredefines`;
+- `assemblyheaders.go:120`: `Snapshot.headerPresence`;
+- `assemblylinkage.go:52`: `sourcePackage.assembly`;
+- `assemblylocalinclude.go:42`: `Snapshot.localHeaders`.
+
+The failing inventory work belongs to
+`plan/post-release/engineering/spec-inventory-fast-registry-checks.md`, claimed
+by session `03d43e18-c488-4511-8040-2650b2986bb3`; its claim file is
+`tmp/session/.session-03d43e18-c488-4511-8040-2650b2986bb3`. The setup failure
+is recorded in `tmp/session/2026-11-10-224742/scratch/refusal-addpath-interop.log`.
+The same common staging prerequisite blocks the owed `ldp-init-unknown-tlv-frr`
+lab; that scenario was not separately run. This is a compile blocker, not a
+kernel-capability finding or a failed protocol assertion. No stale image or
+`NoBuild` bypass was used.
+
+Resume when the owning inventory session repairs the producer/consumer mismatch
+and the current interop binaries compile. Run the ADD-PATH baseline, its negative
+control, and a clean rebuild/run; then run the LDP scenario. The prepared
+`tmp/session/2026-11-10-224742/scratch/refusal-addpath-zero-overlay.json` changes
+only `nlri.WriteNLRI` to omit the four identifier octets when `PathID() == 0`.
+Pass it through `GOFLAGS=-overlay=<absolute path>` for the negative run, preserving
+other effective flags; remove that overlay for the clean rebuild. Neither the
+mutation nor a baseline scenario completed in this session. The full spec still
+needs its remaining evidence and independent review; this handback does not
+declare its older phases or acceptance criteria complete.
+
+### Completed repair evidence, 2026-11-11
+
+- `a6c70ec923`: `cos.Resolve` refuses a named profile without a resolver,
+  preserving no-profile and explicit opt-out controls. Main observed red then
+  race green in `tmp/session/2026-11-10-235802/scratch/job-refusal-metadata-red-cos-green-3504c0bf.log`.
+- `2b90f8864b`: boot and reload refuse a missing forwarding writer. Declared
+  `Registration.DataPlane` metadata supplies the absent writer and its existing
+  typed build-tag provenance. The two new inventory tests were carried by
+  concurrent commit `12720abe4c`; the remaining source and tests landed together.
+  Main metadata/writer green: `tmp/session/2026-11-11-000258/scratch/job-refusal-reload-repairs-green-98a0e2b7.log`;
+  typed provenance and existing selection controls:
+  `tmp/session/2026-11-11-001540/scratch/job-refusal-final-vpp-parser-05244d6d.log`.
+- `528fdc8fdc`: inline VLAN maps belong to the interface schema on exactly
+  Ethernet, dummy, veth and bridge units; profile references stay gated by CoS.
+  Missing-provider guidance removes those references without requiring absent
+  schema. An actual `ze_core` daemon passes profile refusal and inline acceptance,
+  and the resolved schema retains exactly the four prior interface kinds.
+  Main race evidence, including affected resolver/interface consumers:
+  `tmp/session/2026-11-11-004105/scratch/job-cos-absent-integration-green-3454b9a9.log`.
+  Independent review approved the source and preserved test assertions.
+- `4a66448ad9`: the two repaired silent-fall-through journal rows record their
+  producer, fix commits and observed evidence, without taking foreign rows.
+- All eight existing full-feature parser cases passed in
+  `tmp/session/2026-11-10-224742/scratch/refusal-parser-consumers.log`:
+  `cos-profile`, `cos-profile-dummy`, `cos-profile-conflict`, `cos-profile-invalid`,
+  `cos-profile-not-found`, `iface-vlan-qos-parse`, `iface-vlan-qos-invalid`, and
+  `iface-vpp-rejects-nonidentity-qos`.
+- Full-feature race `TestResolveCoSForUnit` and `TestCoSProfileParse*` passed in
+  `tmp/session/2026-11-11-005101/scratch/job-cos-schema-consumers-39925504.log`.
+  The same job's `TestRepositoryConfigsValidate` is **red** after validating
+  3,090 Ze and 241 ExaBGP inputs: eight errors across five fixtures, none in CoS.
+  The remaining fixtures are `test/interop-topology/cpe/ze-cpe.conf` (four
+  placeholder CA/WireGuard errors), `test/reload/dns-source-reload.ci` (second
+  config lacks mode), `test/reload/reload-parse-error-single-prefix.ci` (intentional
+  `zzqqxx` input), `test/ui/config-compiled-out-feature-names-tag.ci` (`vppqx`
+  typo fixture), and `test/ui/doctor-procfs-netlink.ci` (reserved table 3001).
+  No fixture expectation was weakened, and no full-corpus green is claimed.
+  These findings also need disposition before claiming the required corpus
+  evidence complete; the interop staging compile blocker remains decisive.
 
 ## Task
 
@@ -94,6 +168,15 @@ named as one").
 
 **Behavior to change:** every owned row's producer answers a refusal (typed error, a discard with a counted reason, or an explicit "unknown" state) instead of the plausible value. The row table below names each.
 
+## Existing Mechanisms
+
+| Mechanism | Location | Current behavior and use |
+|-----------|----------|--------------------------|
+| Optional provider refusal | `config.refuseAbsentOptionalProviders`, `registry.MissingDependencyError` | Refuses a configured need whose provider is unavailable; reuse the existing dependency contract where the remaining startup refusal fits it. |
+| CoS resolver registration | `internal/core/cos/cos.go`, `Resolve` | Delegates candidate profile resolution to the registered plugin; extend the missing-provider branch to refuse a requested profile while preserving configurations that request none. |
+| Data-plane writer discovery | `server.appendDataPlaneWriter`, `registry.PluginForDataPlane` | Derives the writer from registration; extend its missing-writer result into a startup refusal without inventing a second provider list. |
+| Compiled-out plugin provenance | `repoinventory.Plugin`, `gatedtable.rowsOf`, `registry.GatedPluginTags` | Derives gate requirements from committed registrations and the manifest; preserve `Registration.DataPlane` in this existing route so a missing forwarding provider retains its identity and build tags. |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -154,7 +237,7 @@ named as one").
 | `./le arch refuse-by-default check` over a change set holding a fixture of each rule | → | `refusebydefault.Check` | `TestRefuseByDefaultRefusesEachRuleFixture` |
 | `./le verify current` stage list | → | `stages.go` stage `arch refuse-by-default` | `TestVerifyStagesIncludeRefuseByDefault` |
 | RADIUS Access-Accept with EAP-Message and no Message-Authenticator on the socket | → | `dispatchResponse` | `TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator` |
-| config naming a cos profile in a build without the cos plugin | → | iface verify through `cos.Resolve` | `test/parse/cos-profile-not-built-refused.ci` |
+| config naming a cos profile in a build without the cos plugin | → | actual `ze config validate` in a `ze_core && !ze_cos` build, with resolver defense checked separately | `internal/test/cosabsent/cos_absent_integration_test.go` (`TestConfigValidateWithoutCoSRefusesProfile`, `TestConfigValidateWithoutCoSAcceptsInlineMaps`, `TestInlineQoSSchemaKeepsItsFourInterfaceKindsWithoutCoS`); `cos.TestResolveNoResolverRefusesProfile` |
 | LDP FEC allocation with the label space full | → | `EnsureLocal` through `allocateLabelLocked` | `TestLDPLabelExhaustionRefusesSecondBinding` |
 
 ## Acceptance Criteria
@@ -209,7 +292,7 @@ named as one").
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `cos-profile-not-built-refused` | `test/parse/` | operator loads a cos reference on a build without cos and is refused with the tag | |
+| `TestConfigValidateWithoutCoSRefusesProfile`, `TestConfigValidateWithoutCoSAcceptsInlineMaps` | `internal/test/cosabsent/` | actual daemon built without CoS refuses the unavailable profile setting and still accepts inline VLAN maps | green under race, main-thread log `tmp/session/2026-11-11-004105/scratch/job-cos-absent-integration-green-3454b9a9.log`; binary build tags are checked before execution; schema exposure retains the original four interface kinds |
 | `show-bgp-peer-bare-list` | `test/plugin/` | web or SSH `show bgp peer` with no key lists entries or names the path | |
 | `addpath-identifier-zero-forwarded` | `test/plugin/` | route with identifier 0 under ADD-PATH reaches the peer with four identifier octets | |
 
@@ -232,7 +315,7 @@ named as one").
 
 ## Files to Create
 - `internal/le/arch/refusebydefault/` - `register.go`, `refusebydefault.go`, `actions.go`, tests and testdata
-- `test/parse/cos-profile-not-built-refused.ci`, `test/plugin/show-bgp-peer-bare-list.ci`, `test/plugin/addpath-identifier-zero-forwarded.ci`
+- `internal/test/cosabsent/cos_absent_integration_test.go` (actual absent-CoS binary, replacing the proposed `.ci` whose runner enables all feature gates), `test/plugin/show-bgp-peer-bare-list.ci`, `test/plugin/addpath-identifier-zero-forwarded.ci`
 - `test/interop/scenarios/addpath-zero-id-frr/`
 
 ### Integration Checklist
