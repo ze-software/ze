@@ -1,0 +1,159 @@
+# Functional test: an IKE_AUTH response that fails its integrity check does not end
+# the initiator's handshake. Spec: plan/release/fixes/spec-single-owner-lifecycle-4-ike-unauthenticated-input.md
+# (Functional Tests, Wiring Test row 3).
+#
+# RFC requirement: RFC7296-2.4-3 negative -- two daemons negotiate through a relay
+# that sends three copies of each first IKE_AUTH response, with the last octet
+# changed, ahead of the genuine one. The initiator logs that it dropped an
+# unauthenticated message and kept the SA, the tunnel establishes (sa-up, then
+# aes-cbc in `show vpn ipsec sa | json`), and no handshake-abandoned or reconnect
+# line appears.
+#
+# THE ONE QUESTION. Does a Ze initiator, on its real IKE sockets, keep its handshake
+# when forged IKE_AUTH responses carrying the live SPIs and Message ID arrive before
+# the genuine one, and establish the same SA? A unit test drives handleInbound with a
+# hand-built SA; only two daemons over real sockets, floated to NAT-T, prove the
+# dispatch path (dispatchNATTInbound, handleInbound, the one SK entry) reaches it.
+#
+# VALIDATES: RFC 7296 Section 2.4: "an endpoint MUST NOT conclude that the other
+# endpoint has failed based on any routing information (e.g., ICMP messages) or IKE
+# messages that arrive without cryptographic protection". The initiator drops each
+# damaged copy (one debug line each), keeps retransmitting on its schedule, and the
+# genuine response establishes the tunnel.
+#
+# PREVENTS: handleAuthResponse setting StateDead on a failed integrity check, so
+# runInitiator returned errSADead ("ike: handshake abandoned") and the tunnel waited
+# out a reconnect backoff. With that bug every cycle meets three damaged copies first,
+# so the tunnel never establishes and the drop line never appears.
+#
+# HOW. The compiled relay ipsec/auth-corrupt-response
+# (internal/test/fixture/tunnel_fixture_ipsec_corrupt_response.go) binds 127.0.0.3 on
+# $PORT2 and on the NAT-T port after it (nattAddr, ike/engine/testport.go). Both
+# daemons name 127.0.0.3 as remote-address. Ze hashes the CONFIGURED addresses into
+# NAT_DETECTION (cycle_addr.go), so each side sees a NAT and floats to the NAT-T
+# port. Before forwarding each first IKE_AUTH response to the initiator, the relay
+# sends three copies with the last octet (the last ICV octet) changed.
+#
+# CONTROL. The relay's `passthrough` argument forwards every datagram unchanged. The
+# same file run with it establishes the tunnel, so the relay alone does not break the
+# handshake: a red here is the damaged copies, never the relay.
+#
+# Both daemons use the noop dataplane: the claim is about IKE state, and the
+# unprivileged host cannot program XFRM.
+
+option=env:var=ze_test_ike_port:value=$PORT2
+option=env:var=ze_test_ike_dataplane:value=noop
+# The drop line is a debug line (the spec's Data Flow, outcome "Dropped").
+option=env:var=ze.log.ike:value=debug
+option=timeout:value=60s
+
+# ── Responder daemon (background): binds 127.0.0.2, its peer is the relay ──
+stdin=responder:terminator=EOF_RESPONDER
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.3
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (foreground) with the engine-steps executor: binds 127.0.0.1 ──
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "le mock engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.3
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+# The relay binds before either daemon sends, so no IKE_SA_INIT meets a closed port.
+cmd=background:seq=1:exec=le test fixture ipsec/auth-corrupt-response $PORT2:name=relay:timeout=58s:ready=RELAY: listening on
+# The relay saw an IKE_AUTH response and sent the damaged copies ahead of it.
+expect=stdout:contains=RELAY-CORRUPTED: sent 3 copies
+cmd=background:seq=2:exec=ze -:stdin=responder
+cmd=foreground:seq=3:exec=ze -:stdin=config:timeout=55s
+
+# ── Establishment: the gate the other ipsec tests use (ipsec-sa-installed.ci) ──
+expect=event:namespace=vpn-ipsec:name=sa-up:timeout=30
+command=show vpn ipsec sa
+expect=output:contains=peer-1:timeout=20
+# The negotiated ESP algorithm appears only once IKE_AUTH completed, so it is the
+# establishment proof; "established" alone false-matches "established-at".
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=20
+expect=output:contains=sha256:timeout=5
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+
+# ── The initiator dropped a damaged copy: its production debug line ──
+# openProtected (internal/component/ike/engine/protected_input.go) writes it once per dropped copy.
+expect=stderr:contains=ike: unauthenticated message dropped, SA kept
+
+# ── The SA-dead exit is absent (runInitiator errSADead, fsm.go; the reconnect line, reconcile.go) ──
+reject=stderr:pattern=ike: handshake abandoned
+reject=stderr:pattern=peer session ended, reconnecting
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

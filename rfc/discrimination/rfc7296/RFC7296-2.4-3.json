@@ -130,5 +130,17 @@
     "producer": "internal/component/ike/engine/protected_input.go::openProtected",
     "producer-sha": "95bc07c8d939f760",
     "break": "line 97: \"return nil, true, nil\" -\u003e \"return nil, false, err\""
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "test/ipsec/ike-auth-corrupt-response.ci",
+    "unit-sha": "2235681e7a24471f",
+    "claim-sha": "9c7fd9ae03b15dfd",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "line 112: \"return nil, true, nil\" -\u003e \"return nil, false, err\"",
+    "citation": "reject=stderr:pattern=ike: handshake abandoned"
   }
 ]
