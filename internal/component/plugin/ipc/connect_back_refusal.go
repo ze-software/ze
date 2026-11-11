@@ -41,6 +41,11 @@ const (
 	// secret, so an unknown name is refused under this cause too when the
 	// caller has a shared secret.
 	AuthRefusedToken
+	// AuthRefusedNoSecret means no secret is bound to the claimed name and the
+	// caller has no shared secret to fall back to: the managed config server
+	// refuses a name it has no client entry for under this cause. An empty
+	// expected token never authenticates.
+	AuthRefusedNoSecret
 )
 
 // AuthRefusal is a refused auth request that named a plugin. It carries the
@@ -59,19 +64,30 @@ func (r *AuthRefusal) Error() string {
 		tb.Str("auth failed: invalid plugin name ").Quoted(shownClaim(r.Claimed))
 	case AuthRefusedToken:
 		tb.Str("auth failed: invalid token for plugin ").Quoted(shownClaim(r.Claimed))
+	case AuthRefusedNoSecret:
+		tb.Str("auth failed: no secret is bound to the name ").Quoted(shownClaim(r.Claimed))
 	case AuthRefusedUnspecified:
 		tb.Str("auth failed: refusal with no cause for plugin ").Quoted(shownClaim(r.Claimed))
 	}
 	return tb.String()
 }
 
-// Unwrap answers errAuthFailedInvalidToken for a token refusal, so a caller
-// that matched the sentinel still does.
+// Unwrap answers errAuthFailedInvalidToken for a token refusal and for a name
+// with no secret, so a caller that matched the sentinel still does.
 func (r *AuthRefusal) Unwrap() error {
 	if r.Cause == AuthRefusedToken {
 		return errAuthFailedInvalidToken
 	}
+	if r.Cause == AuthRefusedNoSecret {
+		return errAuthFailedInvalidToken
+	}
 	return nil
+}
+
+// ShownClaim is the claimed name bounded for display: an event, a log line or
+// a doctor record keeps no more of it than the name form allows.
+func (r *AuthRefusal) ShownClaim() string {
+	return shownClaim(r.Claimed)
 }
 
 // shownClaim bounds a claimed name for display.
@@ -106,6 +122,11 @@ func reportConnectBackRefused(remote string, err error) {
 		message.Str("the claimed name ").Quoted(subject).Str(" is not ").Str(PluginNameForm).
 			Str(", so the plugin never attaches and its start waits for its timeout")
 		fix.Str("rename the plugin external block to a name of ").Str(PluginNameForm).Str(", then ze config validate")
+	case refusal.Cause == AuthRefusedNoSecret:
+		subject = shownClaim(refusal.Claimed)
+		message.Str("no secret is bound to plugin ").Quoted(subject).
+			Str(", so the process is not one ze started under that name")
+		fix.Str("ze show plugin list")
 	default:
 		subject = shownClaim(refusal.Claimed)
 		message.Str("the token is not the one ze issued for plugin ").Quoted(subject).

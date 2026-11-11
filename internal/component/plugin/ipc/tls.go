@@ -154,6 +154,8 @@ func Authenticate(ctx context.Context, conn net.Conn, expectedToken string) (str
 // secrets where each managed client has its own token.
 //
 // Falls back to sharedSecret if lookup returns false (plugin connections use shared secret).
+// An empty expected token never authenticates: a name the lookup does not know,
+// when sharedSecret is empty, is refused with AuthRefusedNoSecret.
 func AuthenticateWithLookup(ctx context.Context, conn net.Conn, sharedSecret string, lookup func(name string) (string, bool)) (string, error) {
 	if deadline, ok := ctx.Deadline(); ok {
 		if err := conn.SetReadDeadline(deadline); err != nil {
@@ -205,6 +207,17 @@ func AuthenticateWithLookup(ctx context.Context, conn net.Conn, sharedSecret str
 		if clientSecret, found := lookup(params.Name); found {
 			expectedToken = clientSecret
 		}
+	}
+
+	// An empty expected token never authenticates. A caller with no shared
+	// secret (the managed config server takes per-client secrets only) leaves
+	// expectedToken empty for every name its lookup does not know, and an empty
+	// token hashes equal to it: without this refusal any claimed name would
+	// connect by sending no token at all.
+	if expectedToken == "" {
+		writeErrorRaw(conn, id, "auth failed")
+		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
+		return "", &AuthRefusal{Claimed: params.Name, Cause: AuthRefusedNoSecret}
 	}
 
 	got := sha256.Sum256([]byte(params.Token))

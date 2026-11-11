@@ -47,7 +47,9 @@ func checkManagedListenerUnbound(_ diagnostic.DoctorCheckContext) []diagnostic.D
 
 // checkManagedClientRejected answers one warning per managed client whose last
 // exchange with the hub was a refusal: a second session under a name already
-// connected, or a config the client refused to apply.
+// connected, a config the client refused to apply, a token that is not the
+// client's secret, or a name the hub has no client entry for (the most recent
+// of those are kept, never the token).
 func checkManagedClientRejected(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	record, err := server.ManagedDoctorSnapshot()
 	if errors.Is(err, server.ErrManagedNotServing) {
@@ -74,6 +76,15 @@ func managedRejectedRow(rejection server.ManagedClientRejection) diagnostic.Diag
 		message.Str(" refused to apply the config the hub serves it: ").Str(rejection.Detail)
 		fix.Str("correct the hub's client-").Str(rejection.Client).
 			Str(".conf until ze config validate accepts it on the client, then write it again")
+	case server.ManagedRejectUnknownName:
+		message.Str(" is not a client the hub serves, so its connection was refused: ").Str(rejection.Detail)
+		fix.Str("add client ").Str(rejection.Client).
+			Str(" { secret ...; } to the hub server block, or correct the name the managed client connects as")
+	case server.ManagedRejectBadToken:
+		message.Str(" sent a token that is not its client secret, so its connection was refused: ").
+			Str(rejection.Detail)
+		fix.Str("set the managed client's secret to the one in client ").Str(rejection.Client).
+			Str(" { secret ...; } of the hub server block")
 	case server.ManagedRejectUnspecified:
 		message.Str(" was refused for an unrecorded cause: ").Str(rejection.Detail)
 		fix.Str("ze show warnings")

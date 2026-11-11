@@ -636,6 +636,64 @@ func TestPerClientSecretUnknownName(t *testing.T) {
 	assert.Equal(t, "bgp-rib", result.Name)
 }
 
+// TestEmptyExpectedTokenNeverAuthenticates proves the guard in
+// AuthenticateWithLookup: with no shared secret, a name the lookup does not
+// know, and a name the lookup binds to an empty secret, are both refused when
+// the client sends an empty token, with AuthRefusedNoSecret and the claimed
+// name. Before the guard both compared equal (sha256 of "" against sha256 of
+// "") and authenticated, so any name reached the managed config server.
+//
+// VALIDATES: an empty expected token never authenticates.
+// PREVENTS: an unknown managed client name connecting with no token.
+func TestEmptyExpectedTokenNeverAuthenticates(t *testing.T) {
+	t.Parallel()
+
+	lookup := func(name string) (string, bool) {
+		if name == "empty-secret" {
+			return "", true
+		}
+		return "", false
+	}
+
+	for _, claimed := range []string{"intruder", "empty-secret"} {
+		t.Run(claimed, func(t *testing.T) {
+			t.Parallel()
+			serverTLS, clientTLS := selfSignedTLSConfig(t)
+			ln := startTestListener(t, serverTLS)
+			defer ln.Close() //nolint:errcheck // test cleanup
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			resultCh := make(chan authResult, 1)
+			go func() {
+				conn, acceptErr := ln.Accept()
+				if acceptErr != nil {
+					resultCh <- authResult{Err: acceptErr}
+					return
+				}
+				name, authErr := AuthenticateWithLookup(ctx, conn, "", lookup)
+				resultCh <- authResult{Name: name, Conn: conn, Err: authErr}
+			}()
+
+			conn, err := (&tls.Dialer{Config: clientTLS}).DialContext(ctx, "tcp", ln.Addr().String())
+			require.NoError(t, err)
+			defer conn.Close() //nolint:errcheck // test cleanup
+
+			require.NoError(t, SendAuth(ctx, conn, "", claimed))
+
+			result := <-resultCh
+			require.Error(t, result.Err, "an empty token against an empty expected token must not authenticate")
+			assert.Empty(t, result.Name)
+			refusal, ok := errors.AsType[*AuthRefusal](result.Err)
+			require.True(t, ok, "refusal %v is not an AuthRefusal", result.Err)
+			assert.Equal(t, AuthRefusedNoSecret, refusal.Cause)
+			assert.Equal(t, claimed, refusal.Claimed)
+			assert.ErrorIs(t, result.Err, errAuthFailedInvalidToken)
+		})
+	}
+}
+
 // --- Per-Plugin Token and Name Binding Tests ---
 
 // TestPerPluginTokenNameBinding verifies that the correct token with the wrong name

@@ -952,14 +952,25 @@ and no client was served.
 <!-- source: internal/component/plugin/doctor/register_external.go -- init -->
 <!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalPluginNames, checkExternalInProcess -->
 <!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected -->
-<!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedDoctorSnapshot, managedDoctorState -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedDoctorSnapshot, managedDoctorState, authRefused -->
 
 | Check | Phase | Code | Reports | Fix |
 |-------|-------|------|---------|-----|
 | `plugin-external-name` | parsed-config | `doctor-plugin-connect-back-refused` (error) | each external block whose name is not of the plugin name form | rename the block, then `ze config validate` |
 | `plugin-external-in-process` | post-config | `doctor-plugin-external-unsupported` (error) | each external block that runs a plugin declared in-process only | the `internal` block that runs it |
 | `managed-listener-unbound` | runtime | `doctor-managed-listener-unbound` (error) | each managed listen address that did not bind, with the kernel's error; a collision with the plugin acceptor is `hub-managed-listener`'s | free the address or give the server block another ip and port, then restart ze |
-| `managed-client-rejected` | runtime | `doctor-managed-client-rejected` (warning) | each client whose last exchange was a refusal: a second session under a connected name, or a config it refused to apply | the cause's own fix |
+| `managed-client-rejected` | runtime | `doctor-managed-client-rejected` (warning) | each client whose last exchange was a refusal: a second session under a connected name, a config it refused to apply, a token that is not its secret, or a name the hub has no client entry for | the cause's own fix |
+
+The managed server authenticates with per-client secrets and no shared
+secret. `AuthenticateWithLookup` refuses an empty expected token, so a name
+with no client entry is refused whatever token it sends; before that guard, an
+unknown name that sent an empty token authenticated. The refusal is recorded
+under the claimed name, bounded to 64 characters, and never with the token. A
+configured name is recorded beside the other refusals of that client; an
+unknown name is chosen by whoever connects, so only the 16 most recent are
+kept.
+<!-- source: internal/component/plugin/ipc/tls.go -- AuthenticateWithLookup -->
+<!-- test: internal/component/plugin/server/managed_auth_refused_test.go TestManagedUnknownNameEmptyTokenRefused -->
 
 A refused plugin connect-back is an event, not a state: the acceptor logs it
 at WARN and raises `doctor-plugin-connect-back-refused` on the report bus,

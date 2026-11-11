@@ -2584,8 +2584,9 @@ For external plugins (Python, Rust, etc.) -- runs as separate process:
 The engine answers a refused `#0 auth` with an error line and closes the
 connection. It refuses a claimed name that is not 1 to 64 letters, digits and
 hyphens, the first a letter or a digit (the form the commit also requires of a
-`plugin external` name), and a token that is not the one bound to the claimed
-name. The acceptor logs each
+`plugin external` name), a token that is not the one bound to the claimed
+name, and any request when no token is bound to the name and no shared secret
+exists: an empty expected token never authenticates. The acceptor logs each
 refusal at WARN and raises `doctor-plugin-connect-back-refused` on the report
 bus, where `show doctor` lists it. The event names the claimed name, bounded
 to 64 characters, or the remote address when the request named none; it never

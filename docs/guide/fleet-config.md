@@ -125,16 +125,20 @@ The hub refuses `client <name>` when it has no `client <name>` entry under
 
 ## When a Client Cannot Connect
 
-`show doctor` on the hub lists under `doctor-managed-client-rejected` a second
-ze connecting under a name already connected, and a client that refused to
-apply the config the hub serves it.
+The hub admits only the names it has a `client` entry for, each with its own
+secret. A client that connects under any other name is refused whatever token
+it sends, and so is a configured name with the wrong secret. `show doctor` on
+the hub lists each refusal under `doctor-managed-client-rejected` with the
+name the client claimed and the fix; it never shows the token. The same check
+reports a second ze connecting under a name already connected, and a client
+that refused to apply the config the hub serves it.
 
 `show doctor` also reports a managed listen address the hub could not bind
 (`doctor-managed-listener-unbound`), and a `config-changed` the hub could not
 deliver (`doctor-managed-client-notify-dropped`): that client runs its
 previous config until it fetches again, which it does each time it connects.
 <!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, managedRejectedRow, checkManagedListenerUnbound -->
-<!-- source: internal/component/plugin/server/managed_doctor.go -- notifyDropped -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
 
 ## Resilience
 

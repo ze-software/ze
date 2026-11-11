@@ -96,6 +96,7 @@ func TestManagedChecksAnswerNotServing(t *testing.T) {
 func TestManagedClientRejectedRow(t *testing.T) {
 	causes := []server.ManagedRejectCause{
 		server.ManagedRejectNameConnected, server.ManagedRejectConfigRejected,
+		server.ManagedRejectUnknownName, server.ManagedRejectBadToken,
 	}
 	for _, cause := range causes {
 		row := managedRejectedRow(server.ManagedClientRejection{Client: "edge-1", Cause: cause, Detail: "the detail"})

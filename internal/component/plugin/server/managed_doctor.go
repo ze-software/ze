@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -37,6 +38,29 @@ func notifyDropped(client, cause string) {
 		"code", diagnostic.CodeDoctorManagedClientNotifyDropped, "name", client, "cause", cause)
 	report.RaiseErrorFix(managedReportSource, diagnostic.CodeDoctorManagedClientNotifyDropped, client,
 		message.String(), fix.String())
+}
+
+// authRefused records and logs a managed connection whose auth was refused,
+// so `show doctor` names the name it claimed (never the token it sent). A
+// claimed configured client is recorded under its name with
+// ManagedRejectBadToken; any other claim goes to the bounded unknown record.
+// A connection that failed before it named a client is logged only: there is
+// no name to report it under.
+func (s *ManagedServer) authRefused(remote string, err error) {
+	refusal, named := errors.AsType[*pluginipc.AuthRefusal](err)
+	if !named {
+		managedLogger().Warn("managed connection refused before it named a client",
+			"code", diagnostic.CodeDoctorManagedClientRejected, "remote", remote, "error", err)
+		return
+	}
+	claimed := refusal.ShownClaim()
+	if _, known := s.lookup(refusal.Claimed); known {
+		s.doctor.recordRejected(claimed, ManagedRejectBadToken, refusal.Error())
+	} else {
+		s.doctor.recordUnknown(claimed, refusal.Error())
+	}
+	managedLogger().Warn("managed client rejected", "code", diagnostic.CodeDoctorManagedClientRejected,
+		"name", claimed, "remote", remote, "error", err)
 }
 
 // ErrManagedNotServing is the answer when no managed config server was started
@@ -69,7 +93,19 @@ const (
 	// ManagedRejectConfigRejected means the client acknowledged the pushed or
 	// fetched config with an error: it refused to apply it.
 	ManagedRejectConfigRejected
+	// ManagedRejectUnknownName means a connection claimed a name the hub has
+	// no client entry for, so no secret could authenticate it.
+	ManagedRejectUnknownName
+	// ManagedRejectBadToken means a connection claimed a configured client's
+	// name and sent a token that is not that client's secret.
+	ManagedRejectBadToken
 )
+
+// managedUnknownMax bounds the unknown names the record keeps. A name reaches
+// the rejection map only once it is a configured client, which bounds that
+// map; an unknown name is chosen by whoever connects, so only the most recent
+// managedUnknownMax of them are kept and the oldest is forgotten first.
+const managedUnknownMax = 16
 
 // ManagedClientRejection is the last refusal recorded for one client.
 type ManagedClientRejection struct {
@@ -104,11 +140,40 @@ func ManagedDoctorSnapshot() (ManagedDoctorRecord, error) {
 
 // managedDoctorState is the record one ManagedServer keeps. The unbound list
 // is bounded by the configured addresses, the rejection map by the configured
-// client names. Safe for concurrent use.
+// client names (a name reaches it only when the lookup knows it), and the
+// unknown map by managedUnknownMax. Safe for concurrent use.
 type managedDoctorState struct {
 	mu       sync.Mutex
 	unbound  []ManagedListenerUnbound
 	rejected map[string]ManagedClientRejection
+	unknown  map[string]ManagedClientRejection
+}
+
+// recordUnknown records a connection that claimed a name the hub has no
+// client entry for. When managedUnknownMax names are already kept and this
+// one is new, the oldest is forgotten.
+func (d *managedDoctorState) recordUnknown(claimed, detail string) {
+	if len(detail) > managedDetailMax {
+		detail = detail[:managedDetailMax]
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.unknown == nil {
+		d.unknown = make(map[string]ManagedClientRejection)
+	}
+	if _, kept := d.unknown[claimed]; !kept && len(d.unknown) >= managedUnknownMax {
+		oldest := ""
+		var oldestTime time.Time
+		for name, rejection := range d.unknown {
+			if oldest == "" || rejection.Time.Before(oldestTime) {
+				oldest, oldestTime = name, rejection.Time
+			}
+		}
+		delete(d.unknown, oldest)
+	}
+	d.unknown[claimed] = ManagedClientRejection{
+		Client: claimed, Cause: ManagedRejectUnknownName, Detail: detail, Time: time.Now(),
+	}
 }
 
 // recordUnbound records one address Start could not bind.
@@ -145,6 +210,9 @@ func (d *managedDoctorState) snapshot() ManagedDoctorRecord {
 	defer d.mu.Unlock()
 	record := ManagedDoctorRecord{Unbound: slices.Clone(d.unbound)}
 	for _, rejection := range d.rejected {
+		record.Rejected = append(record.Rejected, rejection)
+	}
+	for _, rejection := range d.unknown {
 		record.Rejected = append(record.Rejected, rejection)
 	}
 	slices.SortFunc(record.Rejected, func(a, b ManagedClientRejection) int { return strings.Compare(a.Client, b.Client) })

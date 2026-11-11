@@ -391,11 +391,13 @@ func (s *ManagedServer) handleConn(conn net.Conn) {
 	defer cancel()
 
 	// Per-client secret only: no shared-secret fallback (empty sharedSecret), so an
-	// unknown name cannot connect. The name is taken ONLY from the authenticated
-	// session, never from a later request payload (config isolation: a client can
-	// only fetch its own config).
+	// unknown name cannot connect: AuthenticateWithLookup refuses an empty
+	// expected token. The name is taken ONLY from the authenticated session,
+	// never from a later request payload (config isolation: a client can only
+	// fetch its own config).
 	name, err := pluginipc.AuthenticateWithLookup(authCtx, conn, "", s.lookup)
 	if err != nil {
+		s.authRefused(conn.RemoteAddr().String(), err)
 		return // AuthenticateWithLookup already closed conn on failure.
 	}
 

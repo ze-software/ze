@@ -150,6 +150,15 @@ At `#0 auth`, the hub looks up the token against the `client` entries nested und
 | `server central { client edge-01 { secret "abc"; } }` | `client edge-01 { secret "xyz"; }` | Mismatch, rejected |
 | No `client edge-01` in any server | Any | Rejected: unknown client |
 
+The managed listener authenticates with the per-client secrets alone and no
+shared secret, so a name with no `client` entry has no expected token.
+`AuthenticateWithLookup` refuses an empty expected token whatever the client
+sends: an empty token would otherwise compare equal to it, and any name would
+connect. Every refusal is logged at WARN under `doctor-managed-client-rejected`
+and recorded for doctor (below) under the claimed name, never with the token.
+<!-- source: internal/component/plugin/ipc/tls.go -- AuthenticateWithLookup -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused -->
+
 ### What doctor reads from the managed listener
 
 `startManagedServer` hands the managed server the plugin acceptor's address
@@ -168,6 +177,8 @@ checks report nothing.
 | A listen address the plugin acceptor already holds | not recorded; logged at ERROR, and the local `hub-managed-listener` check reports it from the config | `doctor-hub-managed-collision` |
 | A second session under a name already connected | that client's last refusal | `doctor-managed-client-rejected` (warning) |
 | A `config-ack` with an error | that client's last refusal, cleared by the next successful ack | `doctor-managed-client-rejected` (warning) |
+| A configured name with a token that is not its secret | that client's last refusal | `doctor-managed-client-rejected` (warning) |
+| A name with no `client` entry | the 16 most recent such names, the oldest forgotten first | `doctor-managed-client-rejected` (warning) |
 | A `config-changed` not delivered (queue full, build or push failure) | an event on the report bus naming the client and the cause | `doctor-managed-client-notify-dropped` |
 
 ### Config Storage (Hub Side)
