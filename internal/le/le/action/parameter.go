@@ -470,21 +470,22 @@ func keywordValue(keyword, slot string, args []string, position int) (string, er
 // <path> --help` is a keyword, its value, and a word standing where the next
 // keyword would.
 //
-// Two things make a word data, and both are required. Its SPELLING must be one
-// an operator can mean as text, which the bare word is and an option is not.
-// Its POSITION must be a value slot: the positional slot, one a declared
-// keyword opened, or a word of a forwarded argv (trailingPlaceOf).
+// A keyword-forwarded argv keeps every word for its child, options included.
+// Other data needs both a value position and a spelling that is not an option:
+// a positional slot, or one a declared keyword opened (trailingPlaceOf).
 func trailingIsValue(parameters []Parameter, args []string) bool {
 	if len(args) == 0 {
 		return false
 	}
-	// An option is never data, whatever it spells. `ai/rules/cli.md` bans a flag
-	// from being grammar or a value, so no value slot holds a dash-leading word
-	// (IsOption).
+	place := trailingPlaceOf(parameters, args)
+	if place == placeForwardedArgv {
+		return true
+	}
+	// Outside a child's argv, `ai/rules/cli.md` forbids a dash-leading word in
+	// an ordinary value slot (IsOption).
 	if IsOption(args[len(args)-1]) {
 		return false
 	}
-	place := trailingPlaceOf(parameters, args)
 	return place == placeValue || place == placeArgv
 }
 
@@ -501,9 +502,9 @@ func trailingIsValue(parameters []Parameter, args []string) bool {
 // that refusal, never a page whose 0 reads as an answer. `-help` is the cluster
 // `-h -e -l -p` there, not `--help` (D-P3-dash, spec-le-cli-usability).
 //
-// After an argv keyword the words are the program's, so the bare word is the
-// program's too, and an option there is le's question: running the child with
-// it would start work on a probe.
+// An argv keyword gives every following word to the child, its help options
+// included. A lone positional argv has no child boundary: its action still
+// owns a trailing help option, as `commit push --help` requires.
 func trailingAsksForHelp(parameters []Parameter, args []string) bool {
 	if len(args) == 0 {
 		return false
@@ -514,6 +515,8 @@ func trailingAsksForHelp(parameters []Parameter, args []string) bool {
 	}
 	switch trailingPlaceOf(parameters, args) {
 	case placeValue:
+		return false
+	case placeForwardedArgv:
 		return false
 	case placeArgv:
 		return IsOption(word)
@@ -538,8 +541,10 @@ const (
 	// placeValue is a slot a declared keyword opened, or the positional slot
 	// holding a word that is not an option.
 	placeValue
-	// placeArgv is a word after an argv keyword (KindArgv).
+	// placeArgv is a word in a lone positional argv, whose action owns help.
 	placeArgv
+	// placeForwardedArgv is a child word after an argv keyword (KindArgv).
+	placeForwardedArgv
 )
 
 // trailingPlaceOf walks one action's grammar over the words after its verb and
@@ -548,10 +553,10 @@ const (
 // parseArguments refuses the invocation. Deciding more after that point would
 // be a guess about a line the parser will not accept.
 //
-// An option in the positional slot stands in grammar position. That slot is
-// shared with the keywords (parsePositional reads a keyword there as the
-// keyword), so `claim --help` is the help question typed straight after the
-// verb, never a value the slot was waiting for.
+// An option in an ordinary positional value slot stands in grammar position.
+// That slot is shared with keywords (parsePositional reads a keyword there as
+// the keyword), so `claim --help` asks the action for help rather than supplying
+// the positional value. A lone positional argv is classified separately.
 func trailingPlaceOf(parameters []Parameter, args []string) trailingPlace {
 	last := len(args) - 1
 	if last < 0 {
@@ -587,7 +592,7 @@ func trailingPlaceOf(parameters []Parameter, args []string) trailingPlace {
 			continue
 		}
 		if parameter.Kind == KindArgv {
-			return placeArgv
+			return placeForwardedArgv
 		}
 		width := len(valueSlots(parameter))
 		if last <= index+width {

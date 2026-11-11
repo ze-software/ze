@@ -1835,10 +1835,12 @@ child's merged output to the job log.
 Everything after the `command` keyword is the child's argv, and `job` passes it
 through unchanged (its kind is `argv`, `KindArgv` in
 `internal/le/le/action/kind.go`; `Admission.Run`,
-`internal/le/job/job.go`). The DISPATCHER reads the line first. It answers a
-trailing `help`, `--help`, `-h` or `-help` with a usage page, and it does not
-run the child (`asksForUsage`, `internal/le/le/root/dispatch.go`). Every other
-option travels on, so `command echo -html=cover.out` reaches the child.
+`internal/le/job/job.go`). This includes a trailing `help`, `--help`, `-h` or
+`-help`: after `command` those words reach the child, which owns their meaning.
+The job action's own `./le job run --help` still prints its usage without
+admitting work (`asksForUsage`, `internal/le/le/root/dispatch.go`). Other child
+options retain the same boundary, so `command echo -html=cover.out` reaches
+the child unchanged.
 
 The command adds no build tags, no `-race`, no
 package pattern and no timeout of its own, so write each of them yourself. The

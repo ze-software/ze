@@ -71,15 +71,18 @@ func TestArgvWithNoProgramIsRefused(t *testing.T) {
 	}
 }
 
-// TestArgvLastWordIsDataUnlessItIsAnOption proves a bare trailing `help` after
-// an argv keyword is the program's word, and `--help` is the question.
-func TestArgvLastWordIsDataUnlessItIsAnOption(t *testing.T) {
+// TestArgvKeywordKeepsEveryHelpWord proves every help spelling after an argv
+// keyword belongs to the child rather than asking the forwarding action.
+func TestArgvKeywordKeepsEveryHelpWord(t *testing.T) {
 	parameters := argvArea(new(Arguments)).actions[0].Parameters
-	if !trailingIsValue(parameters, []string{"label", "unit", "command", "git", "help"}) {
-		t.Error("a bare help inside the argv was read as a question")
-	}
-	if trailingIsValue(parameters, []string{"label", "unit", "command", "git", "--help"}) {
-		t.Error("--help after the argv was read as data")
+	for _, word := range []string{"help", "--help", "-h", "-help"} {
+		line := []string{"label", "unit", "command", "git", word}
+		if !trailingIsValue(parameters, line) {
+			t.Errorf("%q inside child argv was not retained as data", word)
+		}
+		if trailingAsksForHelp(parameters, line) {
+			t.Errorf("%q inside child argv asked the forwarding action for help", word)
+		}
 	}
 }
 
@@ -108,7 +111,7 @@ func TestArgvDeclarationsAreRefusedAtNew(t *testing.T) {
 // `commit push "<owner authorisation>"`: an action whose only parameter is a
 // positional argv reads every word after the verb as typed, one beginning with
 // a dash or spelled like a keyword included, and a trailing option still asks
-// for help, as it does after an argv keyword.
+// for the positional action's help.
 // VALIDATES: D-P23-push-argv. PREVENTS: the owner's words refused as an option.
 func TestALonePositionalArgvIsTheWholeLine(t *testing.T) {
 	var got Arguments

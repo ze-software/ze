@@ -357,6 +357,10 @@ dash-leading help spelling in that same value slot is an option where a value
 is expected, so the table refuses it by name and answers 2: `le test
 stress-repro run suite -help` starts nothing. A help word standing where the
 next keyword would asks the question, and the registry answers it.
+An argv keyword ends the action's grammar: every later word belongs to the
+child, so `le job run label unit-pkg command go test --help` invokes Go with
+`--help`. A lone positional argv retains the action's own help option:
+`le commit push --help` asks for commit help.
 <!-- source: internal/le/le/action/parameter.go -- trailingAsksForHelp -->
 
 
