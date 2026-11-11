@@ -20,9 +20,9 @@ The owner keeps this spec open until it closes on Linux (2026-10-15). All six ph
 | Step | Action | Command |
 |------|--------|---------|
 | 1 | MET: real VPP 26.06 lifecycle proof, empty-egress no-op mutation red, then final clean normal run. Harness 844f42a7d5; alias a82960a6e8 and monitor e4e5f8da3a repairs. Do not repeat completed proof without new changes. | `./le test deployment vpp-iface` (Docker server with required kernel features and devices) |
-| 2 | Current static-BFD diagnostic fixture needs guest proof: native run skipped because this process lacks CAP_NET_ADMIN. Earlier guest-suite history remains below; this skip is not a pass. | `./le test qemu ci test test/reload/static-bfd-profile-reload-deleted.ci` |
+| 2 | MET: current-source static-BFD guest fixture passed 1/1, 2.5s, one phase ran and none skipped, command/check/lab exit 0 on Linux 7.3.0-ze. Console `tmp/qemu/docker-lab-console-2884467513.log`. | `./le test qemu ci test test/reload/static-bfd-profile-reload-deleted.ci` |
 | 3 | Main-thread scoped proof of changed packages and affected functional fixtures, then scoped lint and closure prechecks. Whole-tree verification belongs to pushed CI and is not an agent closure gate. | Named race tests, affected reload fixtures, `./le test deployment vpp-iface`, scoped `./le go lint run` |
-| 4 | Round 5 found an unsupported liveness claim after a refused restart. Its separate diagnostic repair needs an independent sixth review, which requires the owner's authorization. No CLEAN verdict or sixth-round authorization is recorded. | `/ze-review`, after the owner authorizes round 6 |
+| 4 | Round 6 independently reviewed diagnostic repair `1cddf638d8`: source CLEAN, 0 BLOCKER/0 ISSUE/1 NOTE. Owner explicitly answered "Authorize sixth review". Native artifact recording refuses agent stdin/stdout; owner terminal recording remains owed. | Owner runs the native record command returned by `spec review record`, then main checks the artifact |
 | 5 | Close: append `plan/templates/TEMPLATE-CLOSURE.md`, commit A (code, tests, docs, spec), commit B (`remove` the spec) in one `./le commit create` script | `/ze-close` |
 
 ## Task
@@ -672,6 +672,7 @@ Artifact: `tmp/review/plugin-reload-applies-or-refuses-3be8cd06-0062-4950-8b30-0
 | 3 | 0 | 2 | 1 | findings: not clean |
 | 4 | 0 | 3 | 5 | findings: not clean |
 | 5 | 0 | 1 | 0 | findings: refused restart does not prove liveness |
+| 6 | 0 | 0 | 1 | source CLEAN; native recording blocked on owner terminal |
 
 Round 5 scope (2026-11-11): the round-4 repair `5966274823`, operation-registry
 fixture isolation `82abdd598d`, SDK rollback recovery `f768ab3ca7`, VPP alias
@@ -691,6 +692,38 @@ snapshot whose liveness can change before the answer is read [workaround].
 State only what the refusal proves and direct the operator to current status
 and logs [source]. The implementation is in a separate context; this review
 does not review its own repair or authorize a sixth round.
+
+| Field | Value |
+|-------|-------|
+| Current artifact | Not created: native owner-terminal authorization recording refused agent stdin/stdout |
+| `./le spec review check` | Not run without the artifact; main thread owns execution |
+| Rounds | 6; round5 found false liveness in a real refused-restart path |
+| Owner authorization | Explicit reply: "Authorize sixth review" |
+| Reviewer lenses used | accumulated round5 recovery/resource ownership and test discrimination; round6 diagnostic correctness, direct wiring, sibling outcomes, security/edge cases and style |
+| Exact native population | exact Spec-work population,39 paths (29 code) including the lint cleanup, `scratch/reload-native-review-population.txt` |
+
+Round 6 scope (2026-11-11): `1cddf638d8`, its eight source/test/doc
+paths and direct refusal, rollback-renderer and status-command callers. Owner
+permission: "Authorize sixth review". The independent review confirms
+`brokenRollbackLine` preserves each restart outcome and removes only the
+unsupported liveness inference. `Respawn` refuses before stopping, including
+an already exited process. `handleShowSystemSubsystemList` reads actual
+`Process.Running`; its command is registered and present in YANG. New tests
+separately pin the diagnostic and actual exited-process classification; the
+existing mixed-outcome assertions and live-process controls remain. The style,
+security, resource and removed-behavior passes found no blocking issue: no
+production lifecycle, branch, allocation or protocol behavior changed.
+
+NOTE R6-1: the status command remains inline in a participant's `Rollback:`
+line, unlike the newer command-alone error convention. The existing aggregate
+contract uses one prefixed line per participant. The command is exact and
+usable; this is a presentation observation, not a product defect or a reason
+for a seventh round. No formatter layer was added.
+
+Native `spec review record` refused exit 2 because `owner-authorised` requires
+interactive owner stdin/stdout and explicitly says an agent cannot issue it.
+No TTY bypass was attempted. The owner script pins the 39-path native closure population accumulated across rounds 5 and 6 plus mechanical lint cleanup (29 Go files; other paths are ignored by `IsReviewCode`) and cites the false-liveness product defect as `rounds-reason`. Round 6 itself remains scoped to the eight final-fix files.
+The historical round-1 artifact is absent locally; its prose evidence is retained. The native closure population is reconstructed from exact `Spec-work: plugin-reload-applies-or-refuses` trailer commits, as `commit.specWorkPopulation` does: eight commits and 39 paths, saved in `tmp/session/2026-11-11-014000/scratch/reload-native-review-population.txt`. Pre-trailer historical changes do not enter that native set. The broad interleaved range is not used.
 
 Round 4 scope: the round-3 fixes, 6d2e8b22b9 and 28ca61484a. Findings (2026-10-15), in full in `tmp/session/2026-10-14-3be8cd06-0062-4950-8b30-09ebec04cbaf/scratch/review-r4-findings.md`:
 
@@ -921,27 +954,214 @@ Five active scenarios passed; LCP was explicitly skipped because this image
 lacks its plugin. Harness commit `844f42a7d5` closes AC-18b runtime proof.
 
 
+### Remaining-check scope (2026-11-11)
+
+Diagnostic repair and blocked handback `1cddf638d8` preserve the restart
+classification and change only its unsupported liveness assertion. Its public
+claims are documented by `docs/guide/config-reload.md` (Plugin config changed)
+and `docs/architecture/config/transaction-protocol.md` (rollback outcomes),
+with anchors to `brokenRollbackLine`, `respawnRefused`, and the existing
+`handleShowSystemSubsystemList` status producer. The repair adds no config
+syntax, command, API/RPC field, wire behavior or runtime dependency; no
+inventory, RFC or doctor regeneration follows from it. This documentation
+scope accounting is not a sixth source review.
+
+The first scoped lint found two mechanical issues: `qosOnlyMap` narrowed a
+ParseUint32 result in its comparison, and the unused production
+`autoStopForRemovedConfigPaths` wrapper always received a nil tree from its
+five test calls. Commit `ea8001c256` widens the expected value, removes that wrapper,
+and inlines its exact collector/stop composition at those calls; assertions
+and real candidate-tree production paths are unchanged. Two comments now
+name `stopCollectedProcesses`. Main passed five server units and
+`TestVLANQoSRequiresTheOnlyMap` under race in
+`tmp/session/2026-11-11-014000/scratch/job-reload-lint-repair-controls-38d67305.log`.
+Independent mechanical review confirmed no behavior or proof loss. These
+lint-only repairs do not add a product review round. Refreshed scoped lint exited 2 while planning after linux-arm64: `internal/le/job/quiet.go` changed during planning, so no immutable plan was produced. This foreign concurrent edit prevents a verified final lint result; the run is not repeated while that source is moving.
+
+The remaining lint population is `internal/component/config/transaction`,
+`pkg/plugin/sdk`, `internal/component/plugin/server`, the `dhcpserver`,
+`imageserver`, `tftpserver`, `geodns` and `as112` plugins, and
+`internal/le/test/deployment`. Previously passing race and VPP proof runs are
+retained rather than repeated without a new change.
+
+The generic skill prechecks have no path selector: `doc/check/actions.go`
+accepts no action values, `repo/actions.go` accepts only the whole-tree
+`tree` and `generated` selections, and `test/weakened/actions.go` accepts a
+base revision but still includes the working tree. They are not run as
+whole-tree closure gates under the scoped-only instruction. The diagnostic
+expectation change has its independent `Weakening-approved` trailer in
+`1cddf638d8`; no unapproved expectation change is introduced here.
+
+
 ## Blocker
 
-The old write-permission and inventory compile blockers are cleared. On
-2026-11-11 main created and removed a temporary file in
-`/home/thomas/.cache/ze-tmp/main/qemu`, then built the current named launcher.
-The new static-BFD attempt built the runtime kernel and image but stopped
-before the test while a concurrent CPE renderer extraction left an unresolved
-`cpeIKEName` caller in `internal/le/interoplab/topology/check_vpn.go`. That
-extraction belongs to the refusal spec's corpus repair. Its corrected shared
-identity landed in `dd6864599a` and the focused build has since passed; the guest test itself has not. The failed guest attempt is in the main tool transcript, without a retained log file.
-Run `./le test qemu ci test test/reload/static-bfd-profile-reload-deleted.ci`.
-The earlier host skip for missing CAP_NET_ADMIN is still not guest proof.
+Static-BFD guest proof is now complete: main passed
+`./le test qemu ci test test/reload/static-bfd-profile-reload-deleted.ci`,
+1/1, 2.5s, one phase ran and none skipped; command/check/lab exit 0.
+Console: `tmp/qemu/docker-lab-console-2884467513.log`.
+Kernel: `7.3.0-ze`, SHA256
+`1305faf7734c0c309b0b1d97d37951df625f71e548bbdc04f7ff456f27d4c5e0`.
+The prior compile failure is repaired by `dd6864599a`; QEMU write access and
+inventory compilation are no longer blockers.
 
-Round 5 exposed a product diagnostic defect: `brokenRollbackLine` in
-`internal/component/config/transaction/orchestrator.go` inferred that a plugin
-still ran from a pre-stop refusal. The real stopped-plugin control and failing
-renderer assertion are recorded under R5-1. The repair in this handback preserves the refusal sentinel, removes the liveness claim, and directs operators to `ze show system subsystem list` and logs. Main passed all five named tests under race: `TestRollbackOutcomeNamesEachUnrepairedPlugin`, `TestRefusedRestartDoesNotClaimPluginLiveness`, `TestRestartRefusalCanFollowPluginExit`, `TestRestartPluginSaysWhenTheRespawnWasRefused`, and `TestRestartPluginFailedHandshakeIsNotARefusal`. Evidence: `tmp/session/2026-11-11-014000/scratch/job-reload-refusal-green-0bb88bcd.log`. The expected-prose change has independent native test-judge approval. This repair must receive
-an independent source review, which would be round 6. The owner must authorize
-that round under `ai/rules/planning.md`; a test-judge approval of the corrected
-expected text does not supply that authorization or the source review.
+Round 6 source review is CLEAN after explicit owner authorization. The native
+review artifact remains blocked because the command requires the owner to
+record authorization from their own interactive terminal. Run the exact
+owner-terminal command returned by `spec review record`, then check the
+artifact against the exact native population reconstructed from Spec-work trailers. The owner-only script is `tmp/session/2026-11-11-014000/scratch/reload-owner-review-record.sh`; it records the full native 39-path population, preserving the round-5 reviewed paths alongside the round-6 repair.
+Final scoped lint is unverified: its refreshed two-package run exited 2 after linux-arm64 because foreign `internal/le/job/quiet.go` changed during planning. No plan was produced. Once that source is stable, main must rerun the outstanding scoped lint; do not edit or revert the foreign work. The two reported findings were repaired in `ea8001c256` and six race controls passed. Closure tables are populated with accumulated evidence, but native artifact completion and final lint still prevent closure.
 
-Final scoped lint and closure prechecks remain owed. Preserve the completed
-VPP runtime proof and the recorded historical review population, plus the
-current repair commits. No CLEAN verdict or spec closure is claimed.
+
+## Implementation Summary
+
+### What Was Implemented
+
+The six phases install per-plugin verify/apply/rollback handling, retain an
+explicit declaration for config-free participants, and refuse an undeclared
+SDK apply. Candidate parsing and rollback are separate; listener install
+failure is reported rather than accepted. QoS replacement removes omitted
+entries on both backends. Continuation repairs restore test registry lifetime,
+SDK failed-undo recovery, VPP alias lookup and monitor shutdown, and truthful
+restart-refusal diagnostics.
+
+### Bugs Found/Fixed
+
+| Bug | Fix | Discriminating evidence |
+|-----|-----|-------------------------|
+| Persistent operation fixtures retained a finished testing.T | `82abdd598d` | nine fixture race runs and snapshot regression passed; prior panic reproduced |
+| VPP alias query missed the existing VLAN | `a82960a6e8` | alias regression red/green and real VPP lifecycle |
+| Monitor closed a channel already closed by GoVPP | `e4e5f8da3a` | deterministic subscription-close red; full package race and final live run green |
+| Restart refusal falsely asserted process liveness | `1cddf638d8` | diagnostic red; exited-process control; five focused race tests green |
+
+### Documentation Updates
+
+`config-reload.md` and `transaction-protocol.md` now describe restart refusal
+without inferring liveness and cite the actual status producer. VPP guide and
+transaction architecture updates remain in their repair commits. The earlier
+per-category Documentation Update Checklist records the phase-level pages.
+Whole-tree `doc check all` was not run under the scoped-only instruction; its
+lack of a path selector is established above.
+
+### Deviations from Plan
+
+Capability publication follows the current BGP OPEN lifecycle rather than the
+historical blanket capability-refusal design; the boundary at the top of this
+spec records ownership. Real VPP proof exposed and repaired alias and shutdown
+bugs. The sixth review was explicitly authorized after the fifth found a real
+diagnostic defect. Historical whole-tree verification instructions are
+superseded by scoped evidence and pushed CI.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | Pre-stop refusal was treated as proof of a live plugin | A process can exit before refusal | real exited-plugin control and diagnostic red | preserve refusal classification and remove liveness claim, `1cddf638d8` |
+| assumption | VPP raw VLAN names matched registered aliases | alias identity requires index lookup | live reduced-map reload failed | `a82960a6e8` |
+| approach | Monitor closed GoVPP-owned notification channel | Unsubscribe already closes it | real shutdown panic and deterministic red | own a separate stop signal, `e4e5f8da3a` |
+
+## Implementation Audit
+
+This is the accumulated evidence inventory, not a new full-suite claim.
+Final native review recording and scoped lint still prevent closure.
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Per-plugin changes apply or refuse | Implemented | population and per-plugin decision tables above | six phases retain their recorded unit and functional proofs |
+| SDK cannot silently accept missing apply handling | Implemented | `pkg/plugin/sdk/sdk_callbacks.go`, `configVerifyCallback`, `refuseWithoutApply`, `refuseConfigApply` | phase5 commit `23104ccc4b`; missing-handler red/green recorded |
+| VPP full replacement and clearing | Proven | `internal/le/test/deployment/vppifaceqos.go` | final real VPP green after no-op mutation red |
+| Static-BFD deleted profile refusal | Proven | `test/reload/static-bfd-profile-reload-deleted.ci` | current guest PASS 1/1 with no skipped phase |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1..5 | Historical proof retained | per-plugin transaction TDD and functional rows above | registry contamination repaired and main reran affected fixtures |
+| AC-6 | Historical proof retained | `TestRIBReselectOnRuleChange` and Loc-RIB mutation rows | rules reselect stored routes |
+| AC-7 | Current functional proof retained | original role-export fixture PASS5.1s | U2/U3 wire and single-session assertions unchanged |
+| AC-8..9 | Historical proof retained | `TestBridgeVerifyRefusesRunningChange`, bridge refusal fixture | non-capability refusal boundary retained |
+| AC-10..12 | Historical proof retained | `TestConfigApplyWithoutHandlerIsRefused`, `plugin-without-apply-refused` | explicit capability-only declarations preserved |
+| AC-13..15 | Historical proof retained | CoS verifier, apply/rollback and candidate-profile tests above | verify does not mutate installed profiles |
+| AC-16, AC-16b | Historical proof retained | healthcheck blocking-dispatch and predecessor tests above | negative overlays recorded |
+| AC-17 | Historical proof retained | role rollback/commit/roleless-peer tests above | learned roles pruned only after successful removal |
+| AC-18 | Historical proof retained | `TestIfaceApplyUpdatesQoSMapOfExistingVLAN` rows | replacement and undo recorded |
+| AC-18b | Current runtime proof retained | VPP positive/negative/final clean logs above; historical netlink kernel proof | no repeat without new changes |
+| AC-19 | Historical proof retained | `TestIfaceDecomposeAddsProfileAndUnitInOneCommit`, `TestIfaceVerifyRefusesProfileOnUnitWithoutVLANID` | red overlays recorded |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Original per-plugin unit and functional rows | Evidence retained | Unit Tests, Boundary Tests and Functional Tests tables above | individual historical red/green records remain the source of truth |
+| Restart refusal diagnostic and real exited process | Main PASS | `job-reload-refusal-green-0bb88bcd.log` | five named tests under race; red recorded separately |
+| Static-BFD guest | Main PASS | `tmp/qemu/docker-lab-console-2884467513.log` | 1/1,2.5s,no skipped phase |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| Six-phase file population | Implemented, historical evidence retained | current continuation source review covers the exact repair populations listed under rounds5/6 |
+| Native closure population | Reconstructed | exact Spec-work population,39 paths including the lint cleanup; no interleaved unrelated commit population |
+
+### Audit Summary
+
+All six implementation phases and the two previously missing runtime proofs
+are recorded. Native owner review recording and final scoped lint remain
+open. No scope reduction or skipped deliverable is approved or claimed.
+
+## Goal Validation
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An edited plugin config takes effect or is refused | functional and unit | per-plugin red/green rows; original IRR, role-export, BFD and PKI fixtures passed; static-BFD guest now PASS1/1 |
+| Missing SDK handler cannot accept reload | negative functional | `plugin-without-apply-refused` green normally, red with old default; `TestConfigApplyWithoutHandlerIsRefused` |
+| Live QoS map replacement removes omitted entries and clears empty config | live backend with negative control | real VPP final-clean exit0; empty-egress no-op mutation retains mark and fails |
+| Failed rollback reports actual recovery outcome | unit and real process control | five named race tests green; false liveness diagnostic reproduced before fix |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Final native closure recording and scoped lint | blocked by foreign lint-planning input change and native owner-terminal authorization recording | this spec remains open and owns both; no deferral |
+| Stored-route re-import and export re-advertisement | explicit scope boundary established before implementation | `spec-bgp-filtered-route-storage` and `spec-bgp-export-policy-reload-readvertise` |
+
+## Pre-Commit Verification
+
+### Files Exist
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| Exact native39-path repair population | Yes | current source reads and git path census saved as `scratch/reload-native-review-population.txt` |
+| Static-BFD fixture | Yes | current QEMU execution reached and passed it |
+
+### AC Verified
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-18b | VPP replacement and clearing on the same live VLAN | retained final live exit0 and no-op mutation red; no new VPP change |
+| AC-4 | Refused restart does not imply process liveness | main five-test race green after diagnostic red; round6 source review |
+| Refusal fixture obligation | deleted static-BFD profile is rejected in guest | current guest PASS1/1,2.5s,zero skip |
+
+### Wiring Verified
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Config reload with deleted static BFD profile | `test/reload/static-bfd-profile-reload-deleted.ci` | main current guest PASS |
+| Listener apply refusal and rollback answer | `test/reload/geodns-reload-unbindable-listener-refused.ci` | existing daemon path asserts rollback line; precise refusal outcome has real-process and renderer regressions |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1..3,A-5,A-7..9 | confirmed | individual producer and discriminating test evidence in Risks and Assumptions table |
+| A-4 | confirmed by owner decision Q6 | no-config participants keep WantsConfig and declare their no-op explicitly |
+| A-6 | confirmed | restart routes named by shared SDK helper; signal restart alone is not prescribed |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Refusal establishes no liveness | `Respawn`, `respawnRefused`, `brokenRollbackLine` | yes, round6 |
+| Status command reads actual process state | `handleShowSystemSubsystemList` and YANG/command registration | yes, round6 |
+| New config/API/wire/dependency from diagnostic fix | diff contains prose replacement and comments only in production | none; no regeneration owed |
