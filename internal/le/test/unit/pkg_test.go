@@ -898,6 +898,22 @@ func TestSurfaceLinesAreJudgedByEveryRule(t *testing.T) {
 		{name: "bin/le in a Go string", text: "\tnote := \"run bin/le test bgp\"", goSource: true, fault: faultBinLe},
 		{name: "bin/le in a triple-backtick inline span", text: "```bin/le test bgp```", fault: faultBinLe},
 		{name: "long form on a fence line", text: "```command go test ./internal/x/", fault: faultLongFormTagless},
+		// A -tags that is not the feature set (featureTagged).
+		{name: "go test with a tag that is not the feature set", text: "Run `go test -tags integration ./internal/x/` once.", fault: faultGoTagless},
+		{name: "long form with a tag that is not the feature set", text: "./le job run label unit-pkg quiet command go test -tags integration ./internal/x/", fault: faultLongFormTagless},
+		{name: "go test with the tags variable single-quoted", text: "```\ngo test -tags '$tags' ./internal/x/\n```", fault: faultGoTagless},
+		{name: "go test with a longer variable than tags", text: "```\ngo test -tags \"$tagset\" ./internal/x/\n```", fault: faultGoTagless},
+		// An indented code block is code (indentedBlock).
+		{name: "go test in an indented block", text: "Run it:\n\n    go test ./internal/x/\n", fault: faultGoTagless},
+		{name: "go test in an indented block at the start", text: "    go test ./internal/x/", fault: faultGoTagless},
+		{name: "go test on a tab-indented block line", text: "Run it:\n\n\tgo test ./internal/x/", fault: faultGoTagless},
+		{name: "go test on an indented block's second line", text: "Run it:\n\n    true\n    go test ./internal/x/", fault: faultGoTagless},
+		{name: "go test in an indented block after a heading", text: "## Run\n    go test ./internal/x/", fault: faultGoTagless},
+		{name: "go test in an indented block after a list closed", text: "- item\n\nA paragraph.\n\n    go test ./internal/x/", fault: faultGoTagless},
+		{name: "bin/le in an indented block", text: "The script ends:\n\n    exec bin/le test bgp", fault: faultBinLe},
+		// A shell variable names a package (isPackageWord).
+		{name: "go test of a shell variable", text: "```\ngo test -race \"$pkg\"\n```", fault: faultGoTagless},
+		{name: "go vet of a braced shell variable", text: "Then `go vet ${pkg}` it.", fault: faultGoTagless},
 		// Lines the six surfaces hold, which name rather than run.
 		{name: "the installed copy named in a span", text: "`./le` is a dispatcher, and `bin/le` is an identical copy of it that `./le`"},
 		{name: "a named build's path", text: "yourself. The build lands in `bin/le-<name>/le`, which `bin/` already keeps out"},
@@ -910,6 +926,13 @@ func TestSurfaceLinesAreJudgedByEveryRule(t *testing.T) {
 		{name: "the long form with tags", text: "```\n./le job run label unit-pkg quiet command go test -race -tags \"$tags integration\" ./internal/exabgp/bridge/\n```"},
 		{name: "an inline span opening a line leaves the next line prose", text: "```bin/le-<name>/le``` is a named build.\nSeveral sessions run go test ./internal/x/ by hand."},
 		{name: "the short action in a Go string", text: "\tnote := \"next: ./le test unit pkg path ./internal/core/textbuf/\"", goSource: true},
+		{name: "the rule point's long form", text: "- **A package run the short action does not express (`-v`, `-count`, a benchmark, a tag the feature set lacks) MUST go through `./le job run label unit-pkg quiet command go test -race -tags \"$tags\" <package>`, with the tags written out.** The `$tags` recipe is in `docs/contributing/running-commands.md`, \"A bare `go test` is not `./le test unit`\". Everything after `command` is the child's argv unchanged, so the `PKG=` spelling belongs to `./le test fuzz` and `go test` refuses it as an import path."},
+		{name: "the long form with a single test and a quoted filter", text: "`./le job run label unit-pkg quiet command go test -v -count=1 -race -tags \"$tags\" -run '^TestName$' ./internal/core/routewatch`,"},
+		{name: "the fenced long form with a test filter", text: "```\n./le job run label unit-pkg quiet command go test -v -count=1 -race -tags \"$tags\" -run TestEAPTLS ./internal/component/ike/...\n```"},
+		{name: "the tags variable braced after an equals sign", text: "```\ngo test -tags=\"${tags}\" ./internal/x/\n```"},
+		{name: "an indented paragraph of a list item is prose", text: "- item\n\n    Several sessions run go test ./internal/x/ by hand."},
+		{name: "an indented line continuing a paragraph is prose", text: "Several sessions\n    run go test ./internal/x/ by hand."},
+		{name: "a fenced test log keeps its indented line", text: "```\n--- FAIL: TestParseOrigin (0.00s)\n    origin_test.go:42: expected 0, got 1\n```"},
 	} {
 		faults := surfaceFaults(row.text, row.goSource)
 		if row.fault == "" {
@@ -933,23 +956,36 @@ const (
 
 // surfaceFaults judges every line of one surface and answers one entry per
 // faulty line, "<line number>: <fault>: <line>". goSource judges every line as
-// code, because a Go surface prints its examples from string literals.
+// code, because a Go surface prints its examples from string literals. A
+// Markdown line of an indented code block (indentedBlock) is judged as code as
+// well as by its prose judgement, so the block adds refusals and its prose
+// span and fence state stay what they were before it was recognized.
 func surfaceFaults(text string, goSource bool) []string {
 	var faults []string
 	inFence, spanOpen := false, false
+	var indented indentedBlock
 	for number, line := range strings.Split(text, "\n") {
 		trimmed := strings.TrimSpace(line)
 		var fault string
+		indentedCode := false
 		if fenceLine(trimmed) && !goSource {
 			// A fence line is judged too, as prose with no span open: its info
 			// string is text a reader sees, so no line escapes the judgement.
 			fault, _ = lineFault(line, false, false)
+			indentedCode = !inFence && indented.next(line)
+			indented.leaveBlock()
 			inFence, spanOpen = !inFence, false
 		} else {
 			if trimmed == "" {
 				spanOpen = false
 			}
+			if !goSource && !inFence {
+				indentedCode = indented.next(line)
+			}
 			fault, spanOpen = lineFault(line, goSource || inFence, spanOpen)
+		}
+		if fault == "" && indentedCode {
+			fault, _ = lineFault(line, true, false)
 		}
 		if fault != "" {
 			faults = append(faults, strconv.Itoa(number+1)+": "+fault+": "+line)
@@ -979,7 +1015,7 @@ func fenceLine(trimmed string) bool {
 func lineFault(line string, inCode, spanOpen bool) (string, bool) {
 	code, open := codeSegments(line, inCode, spanOpen)
 	longForm := strings.Contains(line, "command go test") || strings.Contains(line, "command go vet")
-	if longForm && !strings.Contains(line, "-tags") {
+	if longForm && !featureTagged(strings.Fields(line)) {
 		return faultLongFormTagless, open
 	}
 	for _, segment := range code {
@@ -1016,9 +1052,185 @@ func codeSegments(line string, inCode, spanOpen bool) ([]string, bool) {
 	return code, open
 }
 
+// indentedBlock follows the indented code blocks of one Markdown surface, one
+// line at a time, under a simplified CommonMark rule: a line indented by four
+// columns or more (a tab counts to the next multiple of four) opens a block
+// when it follows a blank line, an ATX heading or the start of the text, and
+// no list is open; the block goes on over blank lines and indented lines, and
+// a line indented less ends it. A list opens at a line that starts with a list
+// marker and closes at an ATX heading or at an unindented line after a blank
+// one, so an indented paragraph of a list item stays prose. Blocks nested in a
+// list item are not recognized. The zero value is the start of a text.
+type indentedBlock struct {
+	afterText bool // the line before was neither blank, a heading, nor the start
+	inBlock   bool
+	inList    bool
+}
+
+// next answers whether line belongs to an indented code block, and records it.
+func (b *indentedBlock) next(line string) bool {
+	trimmed := strings.TrimLeft(line, " \t")
+	if trimmed == "" {
+		b.afterText = false
+		return b.inBlock
+	}
+	indent := indentColumns(line)
+	if indent >= 4 {
+		opens := !b.afterText && !b.inList
+		b.afterText = true
+		b.inBlock = b.inBlock || opens
+		return b.inBlock
+	}
+	b.inBlock = false
+	heading := atxHeading(trimmed)
+	switch {
+	case heading:
+		b.inList = false
+	case listMarker(trimmed):
+		b.inList = true
+	case indent == 0 && !b.afterText:
+		b.inList = false
+	}
+	b.afterText = !heading
+	return false
+}
+
+// atxHeading reports whether a line, its indent removed, is an ATX heading:
+// one to six # then a space, a tab or the end of the line.
+func atxHeading(trimmed string) bool {
+	hashes := len(trimmed) - len(strings.TrimLeft(trimmed, "#"))
+	if hashes < 1 || hashes > 6 {
+		return false
+	}
+	rest := trimmed[hashes:]
+	return rest == "" || rest[0] == ' ' || rest[0] == '\t'
+}
+
+// leaveBlock records a fence line: it ends an indented block, and the line
+// after it follows text.
+func (b *indentedBlock) leaveBlock() {
+	b.inBlock = false
+	b.afterText = true
+}
+
+// indentColumns answers the columns of a line's leading spaces and tabs, a tab
+// moving to the next multiple of four.
+func indentColumns(line string) int {
+	columns := 0
+	for _, char := range line {
+		switch char {
+		case ' ':
+			columns++
+		case '\t':
+			columns += 4 - columns%4
+		default:
+			return columns
+		}
+	}
+	return columns
+}
+
+// listMarker reports whether a line, its indent removed, opens a list item: a
+// bullet (-, *, +) or one to nine digits and a . or ), then a space, a tab or
+// the end of the line.
+func listMarker(trimmed string) bool {
+	rest, bullet := strings.CutPrefix(trimmed, "-")
+	if !bullet {
+		rest, bullet = strings.CutPrefix(trimmed, "*")
+	}
+	if !bullet {
+		rest, bullet = strings.CutPrefix(trimmed, "+")
+	}
+	if !bullet {
+		digits := len(trimmed) - len(strings.TrimLeft(trimmed, "0123456789"))
+		if digits < 1 || digits > 9 {
+			return false
+		}
+		rest = trimmed[digits:]
+		if !strings.HasPrefix(rest, ".") && !strings.HasPrefix(rest, ")") {
+			return false
+		}
+		rest = rest[1:]
+	}
+	return rest == "" || rest[0] == ' ' || rest[0] == '\t'
+}
+
+// featureTagged reports whether go arguments pass the feature tags: a -tags
+// flag whose value carries the shell variable $tags, which the recipe in
+// docs/contributing/running-commands.md ("A bare `go test` is not `./le test
+// unit`") fills from feature-gates.txt. A -tags with any other value names a
+// tag set the feature set is not, and a value in single quotes reaches go as
+// the literal text $tags. A page that wrote the feature list out would hold a
+// second copy of feature-gates.txt, so a written-out list is not accepted.
+func featureTagged(args []string) bool {
+	for index, word := range args {
+		value, flag := strings.CutPrefix(strings.TrimLeft(word, "`(\""), "-tags")
+		if !flag {
+			continue
+		}
+		if value == "" && index+1 < len(args) {
+			value = args[index+1]
+		} else {
+			value = strings.TrimPrefix(value, "=")
+		}
+		if carriesTagsVariable(value) {
+			return true
+		}
+	}
+	return false
+}
+
+// carriesTagsVariable reports whether a -tags value expands the shell variable
+// tags: $tags ending at a non-name character or at the end, or ${tags}, in a
+// value that is not single-quoted.
+func carriesTagsVariable(value string) bool {
+	value = strings.TrimLeft(value, "`")
+	if strings.HasPrefix(value, "'") {
+		return false
+	}
+	if strings.Contains(value, "${tags}") {
+		return true
+	}
+	for from := 0; ; {
+		at := strings.Index(value[from:], "$tags")
+		if at < 0 {
+			return false
+		}
+		end := from + at + len("$tags")
+		if end == len(value) || !isNameByte(value[end]) {
+			return true
+		}
+		from = end
+	}
+}
+
+// shellNameStart reports whether the byte after a $ starts a named shell
+// variable: a { or a name byte that is not a digit. A digit is a positional
+// parameter, which names no package a page could mean.
+func shellNameStart(char byte) bool {
+	if char == '{' {
+		return true
+	}
+	if char >= '0' && char <= '9' {
+		return false
+	}
+	return isNameByte(char)
+}
+
+// isNameByte reports whether a byte continues a shell variable name.
+func isNameByte(char byte) bool {
+	if char == '_' {
+		return true
+	}
+	if char >= '0' && char <= '9' {
+		return true
+	}
+	return (char|0x20) >= 'a' && (char|0x20) <= 'z'
+}
+
 // goWithoutTags reports whether a code segment runs go test or go vet over a
-// package with no -tags after the verb. A form that names only flags
-// (`go test -run`) or no argument names the verb, not a run.
+// package without the feature tags after the verb (featureTagged). A form that
+// names only flags (`go test -run`) or no argument names the verb, not a run.
 func goWithoutTags(segment string) bool {
 	words := strings.Fields(segment)
 	for index := 0; index+1 < len(words); index++ {
@@ -1030,8 +1242,7 @@ func goWithoutTags(segment string) bool {
 			continue
 		}
 		rest := words[index+2:]
-		tagged := slices.ContainsFunc(rest, func(word string) bool { return strings.HasPrefix(word, "-tags") })
-		if !tagged && slices.ContainsFunc(rest, isPackageWord) {
+		if !featureTagged(rest) && slices.ContainsFunc(rest, isPackageWord) {
 			return true
 		}
 	}
@@ -1039,8 +1250,9 @@ func goWithoutTags(segment string) bool {
 }
 
 // isPackageWord reports whether a go argument names packages: a relative
-// directory, an import path, a pattern, or a placeholder such as <package>.
-// A flag and a quoted flag value name none.
+// directory, an import path, a pattern, a shell variable such as $pkg or
+// ${pkg}, or a placeholder such as <package>. A flag and a single-quoted flag
+// value name none.
 func isPackageWord(word string) bool {
 	if strings.HasPrefix(word, "-") {
 		return false
@@ -1054,6 +1266,9 @@ func isPackageWord(word string) bool {
 	}
 	if strings.Contains(word, "/") {
 		return true
+	}
+	if variable, ok := strings.CutPrefix(word, "$"); ok && variable != "" {
+		return shellNameStart(variable[0])
 	}
 	return strings.HasPrefix(word, "<") && strings.HasSuffix(word, ">")
 }
