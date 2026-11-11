@@ -593,6 +593,28 @@
 {"line":"cd /srv/checkout && git log --oneline -3; sed -n 1,5p notes.md 2>&1 | wc -l","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"cd x && rm -f scratch && grep x internal/a_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
 {"line":"cd x && rm -f scratch && grep x internal/a_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"cmp $f b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cmp $f b","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cmp --frobnicate a b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cmp --frobnicate a b","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cmp --frobnicate tmp/x internal/a_test.go; rm tmp/x","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"cmp --frobnicate tmp/x internal/a_test.go; rm tmp/x","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"cmp --print a b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cmp --print a b","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cmp --quiet --bytes 5 --ignore-initial=4 - b 3 4","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cmp --quiet --bytes 5 --ignore-initial=4 - b 3 4","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cmp -s a b && cmp -bl -i 10:20 -n 1K a b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cmp -s a b && cmp -bl -i 10:20 -n 1K a b","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cmp -s tmp/x internal/a_test.go && rm -f tmp/x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cmp -s tmp/x internal/a_test.go && rm -f tmp/x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cmp -x a b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cmp -x a b","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cmp a b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cmp a b","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cmp tmp/x internal/a_test.go; rm tmp/x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cmp tmp/x internal/a_test.go; rm tmp/x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cmp x internal/a_test.go; rm internal/a_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"cmp x internal/a_test.go; rm internal/a_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"coproc cat a","caller":"main","refused-by":[],"reader-line":false}
 {"line":"coproc cat a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"coproc cat x","caller":"main","refused-by":[],"reader-line":false}
@@ -732,8 +754,28 @@
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; . x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec current","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le test weakened approve unit hookruntime.TestX reason \"keeps a -> b ^ c ~ d\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le test weakened approve unit hookruntime.TestX reason \"keeps a -> b ^ c ~ d\"","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le test weakened approve unit static.TestX reason \"Old expectation SwIfIndex==0 was wrong against VPP's fib_path_create, where 'else if (~0 != rpath->frp_sw_if_index)' makes index 0 (local0) an attached path; the new assertion ==NoInterface (^uint32(0)) is as strict.\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le test weakened approve unit static.TestX reason \"Old expectation SwIfIndex==0 was wrong against VPP's fib_path_create, where 'else if (~0 != rpath->frp_sw_if_index)' makes index 0 (local0) an attached path; the new assertion ==NoInterface (^uint32(0)) is as strict.\"","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x \"$(env -i ./le y)\"","caller":"main","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x \"$(env -i ./le y)\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"$(export ZE_AGENT_ID=y)\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"$(export ZE_AGENT_ID=y)\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"a != b $(export A=1)\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"a != b $(export A=1)\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"a != b\" \"$(( n = 1 ))\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"a != b\" \"$(( n = 1 ))\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"a != b\"; env -i ./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"a != b\"; env -i ./le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"a -> b ^ c ~ d\" && export A=1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"a -> b ^ c ~ d\" && export A=1","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"names ZE_AGENT_ID\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"names ZE_AGENT_ID\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"set -a; export A=1 | env -i\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason \"set -a; export A=1 | env -i\"","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason 'a != b; env -i ./le y'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le x reason 'a != b; env -i ./le y'","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; /usr/bin/env -i ./le x","caller":"main","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; /usr/bin/env -i ./le x","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; /usr/bin/time -f x env -i ./le x","caller":"main","refused-by":[],"reader-line":false}
@@ -786,6 +828,12 @@
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cat a > ZE_AGENT_ID; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cat x{#}; ZE_AGENT_ID=agent-2 ./le spec current","caller":"main","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cat x{#}; ZE_AGENT_ID=agent-2 ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cd /srv/checkout && ./le test weakened approve unit x reason \"a (~0 != b) c\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cd /srv/checkout && ./le test weakened approve unit x reason \"a (~0 != b) c\"","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cd internal && ./le test weakened approve unit x reason \"a -> b\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cd internal && ./le test weakened approve unit x reason \"a -> b\"","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cd internal && ./le x reason \"a -> b\"; unset A","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cd internal && ./le x reason \"a -> b\"; unset A","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cd x && ./le x","caller":"main","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cd x && ./le x","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; command . x","caller":"main","refused-by":[],"reader-line":false}

@@ -180,6 +180,17 @@ var fixtureSites = [...]fixtureSite{
 	{category: categorySessionID, name: "pretool-bash-subagent-command-needs-its-identity-line", expectedExit: 2},
 	{category: categorySessionID, name: "pretool-bash-subagent-command-carrying-its-identity-line-passes", expectedExit: 0},
 	{category: categorySessionID, name: "pretool-bash-subagent-other-identity-refused", expectedExit: 2},
+	// 2026-11-11, spec-agent-economy-6-shell-parser phase 5: each BASH_GOLDEN
+	// row the parse tree loosened runs through the whole pretool-bash action as
+	// agent-1 of parent-17, with no identity line, and passes. The identity
+	// exemption and the guards' lift ask the same reader-line predicate
+	// (judgeReaderLine), so passing here is the reader proof
+	// (TestLooserBashRowsPassAsASubagentWithoutTheIdentityLine).
+	{category: categorySessionID, name: "pretool-bash-subagent-reader-row-loop-quoted-go-vet-passes", expectedExit: 0},
+	{category: categorySessionID, name: "pretool-bash-subagent-reader-row-while-quoted-go-test-passes", expectedExit: 0},
+	{category: categorySessionID, name: "pretool-bash-subagent-reader-row-loop-quoted-piped-go-test-passes", expectedExit: 0},
+	{category: categorySessionID, name: "pretool-bash-subagent-reader-row-loop-quoted-go-build-passes", expectedExit: 0},
+	{category: categorySessionID, name: "pretool-bash-subagent-reader-row-loop-quoted-system-tmp-passes", expectedExit: 0},
 	{category: categorySessionID, generator: fixtureNameGenerator{prefix: "pretool-bash-leaves-", suffix: "-id-unchanged", labels: []string{labelTrailingNewline, "encoded-nul", labelDot, labelDotDot}}, expectedExit: 0},
 	{category: categorySessionID, name: "pretool-bash-identity-line-keeps-three-scratch-calls-stable", expectedExit: 0},
 	{category: categorySessionID, name: "pretool-bash-identity-line-reaches-make", expectedExit: -1},

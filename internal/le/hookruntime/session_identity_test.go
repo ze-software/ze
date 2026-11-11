@@ -670,6 +670,58 @@ func TestSubagentNamingAnIdentityVariableAfterItsLineIsRefused(t *testing.T) {
 	}
 }
 
+// VALIDATES: the journal row of 2026-11-11 in
+// plan/journal/hook-existing-patterns-false-positive.md (`bashAgentIdentity`
+// on a quoted reason). Through Run, after the agent's own identity line, a
+// `./le` whose quoted argument holds `!=`, `->`, `^`, `~`, parentheses or a
+// single quote passes, with or without a `cd` in front: the after-line walk
+// reads the quoted argument as one word of the parse, so its characters
+// change no verdict. The siblings hold the same quoted text and still change
+// the environment: a declaration inside a substitution the quotes hold, an
+// environment tool or a declaration in a later statement, arithmetic, and a
+// mention of an identity variable outside a reader, which the mention rule
+// reads in the source text by design.
+// PREVENTS: the defect the row records. At 9f61ac6f47 a `!` inside the
+// double-quoted reason put the line outside the splitter's modeled syntax
+// (unmodeledSyntax, syntaxBang), so the remainder was judged by its text
+// (textChangesEnvironment), which splits at `!` and `(` whatever the quotes:
+// the piece after the `!` of `!=` began with the word `=`, read as an
+// assignment to a name that is not plain, and the approval was refused as
+// taking another identity.
+func TestQuotedArgumentAfterTheLineChangesNoVerdict(t *testing.T) {
+	for _, rest := range []string{
+		`./le test weakened approve unit hookruntime.TestX reason "keeps a -> b ^ c ~ d"`,
+		`cd internal && ./le test weakened approve unit x reason "a -> b"`,
+		// The refused reason of the row, its characters kept.
+		`./le test weakened approve unit static.TestX reason "Old expectation SwIfIndex==0 was wrong against VPP's fib_path_create, where 'else if (~0 != rpath->frp_sw_if_index)' makes index 0 (local0) an attached path; the new assertion ==NoInterface (^uint32(0)) is as strict."`,
+		`cd /srv/checkout && ./le test weakened approve unit x reason "a (~0 != b) c"`,
+		`./le x reason 'a != b; env -i ./le y'`,
+		`./le x reason "set -a; export A=1 | env -i"`,
+	} {
+		code, output, message := runSubagentBash(t, identityLineOfAgent+rest)
+		if code != 0 || output != "" {
+			t.Errorf("%q: code=%d output=%q message=%s, want exit 0 and no output", rest, code, output, message)
+		}
+	}
+	for _, rest := range []string{
+		`./le x reason "$(export ZE_AGENT_ID=y)"`,
+		`./le x reason "a != b $(export A=1)"`,
+		`./le x reason "a != b"; env -i ./le x`,
+		`./le x reason "a -> b ^ c ~ d" && export A=1`,
+		`cd internal && ./le x reason "a -> b"; unset A`,
+		`./le x reason "a != b" "$(( n = 1 ))"`,
+		`./le x reason "names ZE_AGENT_ID"`,
+	} {
+		code, output, message := runSubagentBash(t, identityLineOfAgent+rest)
+		if code != 2 || output != "" {
+			t.Errorf("%q: code=%d output=%q, want exit 2 and no output", rest, code, output)
+		}
+		if !strings.Contains(message, "another identity") {
+			t.Errorf("%q: message does not say the command takes another identity: %s", rest, message)
+		}
+	}
+}
+
 // TestEnvironmentToolIsFoundBehindEveryWrapper is AC-26 of
 // spec-agent-economy-6-shell-parser.
 //

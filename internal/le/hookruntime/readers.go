@@ -32,7 +32,11 @@ type readerJudge func(arguments []string, expands []bool) bool
 // refused when the shell expands them, because no value an expansion yields
 // turns one into a run or a write, and refusing them would put the identity
 // line on every `cat "$dir/x.log"`; only its command word must be text.
-// diff carries a judge because its -l pipes the output through pr.
+// diff carries a judge because its -l pipes the output through pr. cmp
+// carries one although no option of GNU cmp 3.10 runs a program or writes a
+// file (cmp(1)): its allow-list (cmpOptions) refuses an option that manual
+// does not give, so an option a later cmp adds needs the identity line until
+// it is read.
 //
 // The nil judges assume the GNU option sets of grep and coreutils, which no
 // code here checks. A host whose grep or coreutils carry another option set
@@ -73,6 +77,7 @@ var readerCommands = map[string]readerJudge{
 	"basename":  nil,
 	catCommand:  nil,
 	"cd":        nil,
+	"cmp":       cmpOptions.reads,
 	"cut":       nil,
 	"diff":      diffOptions.reads,
 	"dirname":   nil,
@@ -225,6 +230,20 @@ func longOptions(names ...string) map[string]bool {
 		set[name] = true
 	}
 	return set
+}
+
+// cmpOptions is GNU cmp's option set, from cmp(1) of diffutils 3.10: -b and
+// --print-bytes, -l and --verbose, -s, --quiet and --silent, -v and
+// --version, --help, and the two that take a value, -i or --ignore-initial
+// (SKIP or SKIP1:SKIP2) and -n or --bytes (LIMIT). Every operand is read:
+// FILE1, FILE2 and the two byte counts SKIP1 and SKIP2, and `-` is the
+// standard input. No option runs a program or writes a file, so the set is
+// the whole manual.
+var cmpOptions = readerOptions{
+	short:      "blsv",
+	shortValue: "in",
+	long: longOptions("--bytes", "--help", "--ignore-initial", "--print-bytes", "--quiet", "--silent",
+		"--verbose", "--version"),
 }
 
 // diffOptions is GNU diff's option set without -l and --paginate, which pipe

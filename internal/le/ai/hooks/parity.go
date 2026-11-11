@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	bashRowsExpected          = 83
+	bashRowsExpected          = 92
 	writeEditRowsExpected     = 92
 	weakeningRowsExpected     = 10
 	postWriteEditRowsExpected = 24
@@ -46,11 +46,16 @@ const (
 // Re-sealed 2026-11-11 for spec-agent-economy-2-scoped-test phase 6 (AC-7):
 // three bash rows join for go vet, a refused raw one, a reader naming one and
 // an admitted raw one. 80 rows are 83.
+// Re-derived 2026-11-11 for spec-agent-economy-6-shell-parser (phases 2-5).
+// Phase 5: nine bash rows join, five reader loops whose quoted pattern names a
+// guarded command (0, looser) and four heavy or piped expensive commands
+// inside a construct (2, stricter); AC-36 (02692d2ed8) had already moved two
+// rows on a judge's approval. 83 rows are 92.
 var parityCatalogDigest = [sha256.Size]byte{
-	0x60, 0x96, 0x0d, 0x64, 0x47, 0xba, 0x0f, 0xcf,
-	0xbd, 0xf4, 0xd5, 0x68, 0x4a, 0x7b, 0x85, 0x8b,
-	0x57, 0x1d, 0x36, 0xa3, 0x34, 0x7c, 0x45, 0x9a,
-	0x9c, 0x91, 0x74, 0x3d, 0x96, 0x2f, 0x10, 0x45,
+	0x96, 0x06, 0xcf, 0x4c, 0x0a, 0x8b, 0x74, 0xcd,
+	0x70, 0x62, 0x7a, 0xef, 0x9b, 0x7d, 0x31, 0x91,
+	0xef, 0x1a, 0x07, 0x06, 0xd5, 0x2d, 0x35, 0x07,
+	0xf2, 0x05, 0x0e, 0x37, 0x8c, 0xff, 0x57, 0xcd,
 }
 
 // bashGoldenProject is the placeholder a bash row writes for the checkout

@@ -7,7 +7,7 @@ package aihooks
 // the former producer and is part of the structured answer contract.
 var parityCatalog = [...]parityTable{
 	{
-		key: "BASH_GOLDEN", name: "bash-dispatcher-golden", expected: 83, judge: bashHookVerdict,
+		key: "BASH_GOLDEN", name: "bash-dispatcher-golden", expected: 92, judge: bashHookVerdict,
 		fixtures: []parityFixture{
 			{name: "cat /tmp/x", expectedCode: 2},
 			{name: "cat tmp/x", expectedCode: 0},
@@ -100,6 +100,21 @@ var parityCatalog = [...]parityTable{
 			{name: "ZE_ADMIT_RAW=\"one vet of a fixture\" go vet ./internal/core/env", expectedCode: 0},
 			// AC-16: a tmp directory under a literal parent is not /tmp.
 			{name: "cat foo/tmp/x", expectedCode: 0},
+			// spec-agent-economy-6-shell-parser, the parity golden rows: a loop
+			// of readers is a reader line, so a guarded name inside a quoted
+			// pattern of its body is text (AC-5, AC-6), and a heavy job or a
+			// piped expensive command inside a construct is refused (AC-9,
+			// AC-10). Each looser row is also run as a subagent with no
+			// identity line (TestLooserBashRowsPassAsASubagentWithoutTheIdentityLine).
+			{name: "for f in a b; do grep -n \"x\\|go vet ./y\" \"$f\"; done", expectedCode: 0},
+			{name: "while read -r f; do grep -c 'x;go test ./y' \"$f\"; done < list", expectedCode: 0},
+			{name: "for f in a b; do grep -c 'x; go test ./y | tail -1' \"$f\"; done", expectedCode: 0},
+			{name: "for f in a b; do grep -n 'go build ./cmd/ze' \"$f\"; done", expectedCode: 0},
+			{name: "for f in a b; do grep -n 'cat /tmp/x' \"$f\"; done", expectedCode: 0},
+			{name: "for p in a b; do go test ./internal/$p; done", expectedCode: 2},
+			{name: "if true; then go vet ./internal/x; fi", expectedCode: 2},
+			{name: "( go test ./internal/x )", expectedCode: 2},
+			{name: "for p in a b; do ./le test unit all | tail -3; done", expectedCode: 2},
 		},
 	},
 	{

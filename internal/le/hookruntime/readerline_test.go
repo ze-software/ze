@@ -75,6 +75,11 @@ func TestReaderLineReachesThroughConstructs(t *testing.T) {
 		{"cat <<EOF\nx $(echo y)\nEOF", []string{"cat", "echo"}},
 		{"cat <<'EOF'\n$(go test ./x)\nEOF", []string{"cat"}},
 		{`diff <(sort a) <(sort b)`, []string{"diff", "sort", "sort"}},
+		// GNU cmp, every option of cmp(1) 3.10 (journal row of 2026-11-11,
+		// `bashTestDeletion` line-wide words).
+		{`cmp a b`, []string{"cmp"}},
+		{`cmp -s a b && cmp -bl -i 10:20 -n 1K a b`, []string{"cmp", "cmp"}},
+		{`cmp --quiet --bytes 5 --ignore-initial=4 - b 3 4`, []string{"cmp"}},
 		{`n=3; echo "$n" "${n:-0}" "${n#x}" "${n,,}" "${#n}" "${n/a/b}"`, []string{"echo"}},
 		// AC-7: what the byte allow-list or the splitter refused.
 		{`grep -n '^##' f`, []string{"grep"}},
@@ -256,6 +261,12 @@ func TestReaderLineRefusesWhatCanRunAnythingElse(t *testing.T) {
 		{`$(echo go) test ./x`, "outside the reader set"},
 		{`eval cat x`, "`eval`, which is outside the reader set"},
 		{`bash -c 'cat x'`, "`bash`, which is outside the reader set"},
+		// cmp's judge is an allow-list: an option cmp(1) does not give, an
+		// abbreviation getopt would expand, and a word the shell expands.
+		{`cmp -x a b`, "only with the options its judge lists"},
+		{`cmp --frobnicate a b`, "only with the options its judge lists"},
+		{`cmp --print a b`, "only with the options its judge lists"},
+		{`cmp $f b`, "only with the options its judge lists"},
 		{strings.Repeat("{ ", 70) + "cat x" + strings.Repeat("; }", 70), "nested deeper"},
 	} {
 		_, outside := readerLineCommands(row.command, "")
@@ -452,6 +463,13 @@ func TestTestDeletionReadsThePlainRmFromTheTree(t *testing.T) {
 		{"deletion", bashTestDeletion, "bash <<EOF\n(rm internal/a_test.go)\nEOF", true},
 		{"deletion", bashTestDeletion, `rm a_test.go 'oops`, true},
 		{"deletion", bashTestDeletion, `find . -name a_test.go -delete; fi`, true},
+		// The journal row of 2026-11-11: cmp is a reader, so a test path it
+		// compares beside an rm of a scratch file is no rm argument, and an rm
+		// of the test path it compared is still refused.
+		{"deletion", bashTestDeletion, `cmp tmp/x internal/a_test.go; rm tmp/x`, false},
+		{"deletion", bashTestDeletion, `cmp -s tmp/x internal/a_test.go && rm -f tmp/x`, false},
+		{"deletion", bashTestDeletion, `cmp x internal/a_test.go; rm internal/a_test.go`, true},
+		{"deletion", bashTestDeletion, `cmp --frobnicate tmp/x internal/a_test.go; rm tmp/x`, true},
 	})
 }
 

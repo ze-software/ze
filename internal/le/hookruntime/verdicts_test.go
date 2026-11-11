@@ -217,6 +217,7 @@ var corpusSourceTests = []func(*testing.T){
 	TestSubagentChangingTheEnvironmentAfterItsLineIsRefused,
 	TestSubagentNamingAnIdentityVariableAfterItsLineIsRefused,
 	TestEnvironmentToolIsFoundBehindEveryWrapper,
+	TestQuotedArgumentAfterTheLineChangesNoVerdict,
 }
 
 // readerLineProofs are the tests a reader-line row may name as its proof,
@@ -244,7 +245,7 @@ var readerLineProofs = []func(*testing.T){
 // table holding fewer rows lost recorded refusals: deleting the file and
 // re-running -update records again from the tree in hand, which keeps no
 // refusal HEAD gave. Raise it when an update appends rows; never lower it.
-const verdictsTableRowsMin = 1701
+const verdictsTableRowsMin = 1749
 
 // readerSetJudgment is the one function that judges whether a command is a
 // reader (readers.go). A check whose code reaches it can pass a line because
