@@ -255,7 +255,7 @@ func locRIBBatch(n int, replayed bool) *ribevents.BestChangeBatch {
 	for i := range n {
 		b.Changes = append(b.Changes, ribevents.BestChangeEntry{
 			Action:     ribevents.BestChangeAdd,
-			Attributes: locRIBOriginIGP,
+			Attributes: locRIBPathAttrs(65001),
 			Prefix:     netip.MustParsePrefix("10.20." + string(rune('0'+i%10)) + ".0/24"),
 			NextHop:    netip.MustParseAddr("192.0.2.1"),
 			ASPath:     []uint32{65001},

@@ -564,8 +564,13 @@ other looking glass frontends.
 
 - **Loc-RIB Route Monitoring** (RFC 9069) carries the best path's own stored
   attributes (ORIGIN, LOCAL_PREF, MED, communities and the rest), which
-  bgp-rib publishes on each best change, with the AS_PATH in four-octet form
-  and the resolved next hop. A best change that arrives without its attribute
-  set is not sent: a Warn log names the prefix, rather than a route with an
-  invented ORIGIN. A change of attributes alone, with the same winning path,
-  next hop and metrics, publishes no best change and so sends no update.
+  bgp-rib publishes on each best change. AS_PATH retains its stored segment
+  types and four-octet ASNs, including an explicitly present empty path for
+  a locally sourced route. The flattened display path never replaces it.
+  The next hop is the resolved one. An announce without that next hop, its
+  attribute set, ORIGIN or AS_PATH is refused and logged with the prefix and
+  cause. A stored attribute change publishes a best change even when the
+  selected peer, next hop and metrics remain the same.
+
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- buildLocRIBUpdateBody, handleBestChange -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- RIBManager.checkRouteBestChange -->

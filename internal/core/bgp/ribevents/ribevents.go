@@ -113,10 +113,12 @@ type BestChangeEntry struct {
 	RouteType routetype.Type `json:"route-type,omitempty"`
 	Labels    []uint32       `json:"labels,omitempty"`
 	SRv6SID   netip.Addr     `json:"srv6-sid,omitzero"`
-	// OriginAS is the last ASN in the best path's AS_PATH (the route's origin);
-	// ASPath is the full path. Both are populated on add/update from the winning
-	// candidate, and are empty on withdraw and on full-table replay. Consumers
-	// such as flow-export enrichment use them for bgpSource/DestinationAsNumber.
+	// OriginAS is the final ASN in the flattened ASPath summary. Both fields
+	// are populated from the winning candidate on live and replayed add/update,
+	// and are empty on withdraw. Consumers such as flow-export enrichment use
+	// them for bgpSource/DestinationAsNumber. ASPath flattens segment types for
+	// identity and display; Attributes carries the authoritative AS_PATH segments
+	// for a consumer that writes the selected path back to the wire.
 	OriginAS uint32   `json:"origin-as,omitempty"`
 	ASPath   []uint32 `json:"as-path,omitempty"`
 	// Attributes is the winning path's attribute set as the RIB stores it, in

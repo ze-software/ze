@@ -125,7 +125,7 @@ func TestBuildLocRIBUpdateBody_IPv4Announce(t *testing.T) {
 	nh := netip.MustParseAddr("192.0.2.1")
 	e := ribevents.BestChangeEntry{
 		Action:     ribevents.BestChangeAdd,
-		Attributes: locRIBOriginIGP,
+		Attributes: locRIBPathAttrs(65001, 65002),
 		Prefix:     netip.MustParsePrefix("10.20.30.0/24"),
 		NextHop:    nh,
 		ASPath:     []uint32{65001, 65002},
@@ -240,10 +240,11 @@ const (
 )
 
 // locRIBFourOctetAggregatorAttrs is a stored set carrying ORIGIN IGP, a
-// four-octet AGGREGATOR (AS 4200000001, 192.0.2.7), and the AS4_PATH and
+// four-octet AS_PATH and AGGREGATOR (AS 4200000001, 192.0.2.7), and the AS4_PATH and
 // AS4_AGGREGATOR a four-octet set never needs, in type-code order.
 var locRIBFourOctetAggregatorAttrs = []byte{
 	0x40, attrORIGIN, 1, 0,
+	0x40, attrASPATH, 10, 2, 2, 0xfa, 0x56, 0xea, 0x01, 0, 0, 0xfd, 0xea,
 	0xc0, attrAGGREGATOR, 8, 0xfa, 0x56, 0xea, 0x01, 192, 0, 2, 7,
 	0xc0, attrAS4PATH, 6, 2, 1, 0xfa, 0x56, 0xea, 0x01,
 	0xc0, attrAS4AGGREGATOR, 8, 0xfa, 0x56, 0xea, 0x01, 192, 0, 2, 7,
@@ -280,7 +281,7 @@ func TestBuildLocRIBUpdateBody_IPv6Announce(t *testing.T) {
 	// next-hop in MP_REACH_NLRI, with an empty legacy NLRI section.
 	e := ribevents.BestChangeEntry{
 		Action:     ribevents.BestChangeAdd,
-		Attributes: locRIBOriginIGP,
+		Attributes: locRIBPathAttrs(65010),
 		Prefix:     netip.MustParsePrefix("2001:db8::/32"),
 		NextHop:    netip.MustParseAddr("2001:db8::1"),
 		ASPath:     []uint32{65010},
@@ -443,7 +444,7 @@ func TestHandleBestChangeEmitsPeerUpThenRM(t *testing.T) {
 		ReplayID: 1, // replay batch
 		Changes: []ribevents.BestChangeEntry{{
 			Action:     ribevents.BestChangeAdd,
-			Attributes: locRIBOriginIGP,
+			Attributes: locRIBPathAttrs(65001),
 			Prefix:     netip.MustParsePrefix("10.20.30.0/24"),
 			NextHop:    netip.MustParseAddr("192.0.2.1"),
 			ASPath:     []uint32{65001},
@@ -561,7 +562,7 @@ func TestLocRIBSinglePeerUpPerInstance(t *testing.T) {
 		ReplayID: 1,
 		Changes: []ribevents.BestChangeEntry{{
 			Action:     ribevents.BestChangeAdd,
-			Attributes: locRIBOriginIGP,
+			Attributes: locRIBPathAttrs(65001),
 			Prefix:     netip.MustParsePrefix("10.20.30.0/24"),
 			NextHop:    netip.MustParseAddr("192.0.2.1"),
 			ASPath:     []uint32{65001},
@@ -573,7 +574,7 @@ func TestLocRIBSinglePeerUpPerInstance(t *testing.T) {
 		ReplayID: 1,
 		Changes: []ribevents.BestChangeEntry{{
 			Action:     ribevents.BestChangeAdd,
-			Attributes: locRIBOriginIGP,
+			Attributes: locRIBPathAttrs(65002),
 			Prefix:     netip.MustParsePrefix("10.40.50.0/24"),
 			NextHop:    netip.MustParseAddr("192.0.2.2"),
 			ASPath:     []uint32{65002},
@@ -772,7 +773,7 @@ func TestMixedFamilyDumpClosesTheSilentFamily(t *testing.T) {
 			ReplayID: replay.Broadcast,
 			Changes: []ribevents.BestChangeEntry{{
 				Action:     ribevents.BestChangeAdd,
-				Attributes: locRIBOriginIGP,
+				Attributes: locRIBPathAttrs(65001),
 				Prefix:     netip.MustParsePrefix("2001:db8::/32"),
 				NextHop:    netip.MustParseAddr("2001:db8::1"),
 				ASPath:     []uint32{65001},
@@ -852,7 +853,7 @@ func TestForeignReplayIsNotClaimedAsOurDump(t *testing.T) {
 			ReplayID: replay.Broadcast, // sysrib's token, not ours
 			Changes: []ribevents.BestChangeEntry{{
 				Action:     ribevents.BestChangeAdd,
-				Attributes: locRIBOriginIGP,
+				Attributes: locRIBPathAttrs(65009),
 				Prefix:     netip.MustParsePrefix("10.99.0.0/24"),
 				NextHop:    netip.MustParseAddr("192.0.2.9"),
 				ASPath:     []uint32{65009},
@@ -867,7 +868,7 @@ func TestForeignReplayIsNotClaimedAsOurDump(t *testing.T) {
 			ReplayID: req.ReplayID, // echoed, as the real RIB does
 			Changes: []ribevents.BestChangeEntry{{
 				Action:     ribevents.BestChangeAdd,
-				Attributes: locRIBOriginIGP,
+				Attributes: locRIBPathAttrs(65001),
 				Prefix:     netip.MustParsePrefix("2001:db8::/32"),
 				NextHop:    netip.MustParseAddr("2001:db8::1"),
 				ASPath:     []uint32{65001},
@@ -934,10 +935,6 @@ func TestForeignReplayIsNotClaimedAsOurDump(t *testing.T) {
 			"and the foreign batch closes nothing)", eorsA)
 	}
 }
-
-// locRIBOriginIGP is the smallest attribute set a stored best path carries:
-// ORIGIN IGP alone, as bgp-rib publishes it for a route that has no other.
-var locRIBOriginIGP = []byte{0x40, attrORIGIN, 1, 0}
 
 // locRIBWinnerAttrs is a stored winner's attribute set as bgp-rib publishes it
 // on a best change: ORIGIN INCOMPLETE, a four-octet AS_PATH, NEXT_HOP 10.0.0.9,

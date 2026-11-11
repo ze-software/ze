@@ -48,7 +48,7 @@ func oneBestChange(replayID uint64) *ribevents.BestChangeBatch {
 		ReplayID: replayID,
 		Changes: []ribevents.BestChangeEntry{{
 			Action:     ribevents.BestChangeAdd,
-			Attributes: locRIBOriginIGP,
+			Attributes: locRIBPathAttrs(65001),
 			Prefix:     netip.MustParsePrefix("10.20.30.0/24"),
 			NextHop:    netip.MustParseAddr("192.0.2.1"),
 			ASPath:     []uint32{65001},

@@ -145,7 +145,7 @@ func TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses(t *te
 func TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop(t *testing.T) {
 	body := mustLocRIBBody(t, family.IPv4Unicast, &ribevents.BestChangeEntry{
 		Action:     routeaction.Add,
-		Attributes: locRIBOriginIGP,
+		Attributes: locRIBPathAttrs(),
 		Prefix:     netip.MustParsePrefix("192.0.2.0/24"),
 		NextHop:    netip.MustParseAddr("2001:db8::1"),
 	})
@@ -261,6 +261,7 @@ func TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType(t *testing.T) {
 	bp, conn := locRIBTestPlugin(t)
 	local := oneBestChange(0)
 	local.Changes[0].ASPath = nil
+	local.Changes[0].Attributes = locRIBPathAttrs()
 	bp.handleBestChange(local)
 	up, mon := readLocRIBPeerUpThenRM(t, conn)
 	if up.Peer.PeerType != PeerTypeLocRIB {
@@ -289,6 +290,7 @@ func TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer(t *testing.T) {
 	bp, conn := locRIBTestPlugin(t)
 	local := oneBestChange(0)
 	local.Changes[0].ASPath = nil
+	local.Changes[0].Attributes = locRIBPathAttrs()
 	local.Changes[0].NextHop = netip.MustParseAddr("10.0.0.1") // the monitored peer in bp.openCache
 	bp.handleBestChange(local)
 	up, mon := readLocRIBPeerUpThenRM(t, conn)

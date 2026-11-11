@@ -549,7 +549,7 @@ func TestSenderReconnectReplaysInitiationPeerUpAndDump(t *testing.T) {
 			ReplayID: replay.Broadcast,
 			Changes: []ribevents.BestChangeEntry{{
 				Action:     ribevents.BestChangeAdd,
-				Attributes: locRIBOriginIGP,
+				Attributes: locRIBPathAttrs(65001),
 				Prefix:     dumped,
 				NextHop:    netip.MustParseAddr("192.0.2.1"),
 				ASPath:     []uint32{65001},
