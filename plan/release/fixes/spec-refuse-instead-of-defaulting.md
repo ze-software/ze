@@ -15,117 +15,117 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Remaining verification
 
-The full native RIB package ran and exposed a shared fixture leak: an enabled
-Adj-RIB-In owner correctly leaves a refusing lookup on exit, but
-`startValidationReceiver` left it registered for later tests. The redist replay
-test passed alone and failed after ASPA retention; the new untagged
-`TestValidationReceiverRestoresUngatedSelection` then failed both teardown
-assertions. Commit `1aa91d030b` makes the fixture unregister only after joining
-its owner. Main's
-native `test unit pkg path ./internal/component/bgp/plugins/rib/ run` selection
-covering the new regression, all six existing
-fixture callers and `TestRedistReplayEmitsUnderEmitLock` passes under the native
-feature tags and race. Logs are `job-unit-pkg-77fea4ce.log` (isolation),
-`job-unit-pkg-f0677e7f.log` (pair red), `job-unit-pkg-cf1bde44.log` (new red) and
-`job-unit-pkg-59779559.log` (focused green) in the session scratch directory.
-Independent test judgment and source review are clean. Existing caller inputs
-and assertions, and the production fail-closed teardown, remain unchanged.
-Main's full native `test unit pkg path ./internal/component/bgp/plugins/rib/`
-retry also passes in `job-unit-pkg-f5c56d84.log`. That deterministic log path
-was reused: its current contents are the passing retry, not retained evidence
-of the initial 152 failures. The separate pair and new-regression red logs
-above retain the fixture leak's observed failures.
+Phase 7 remains open. The 54-row regression ledger and the completed native
+runs below cover the implemented repairs. The retained AC-7 report exposed
+three owned shapes; their explicit-error/ParseError-recording implementation is
+now stable, while main formatting and green proof remain pending. AC-7 is
+unchanged, and this implementation needs no waiver if its proof meets the
+original criterion. The
+AC-4 direct-state-assignment and forward package-alias repair is committed as
+`06a4a22cbc`; the full race retry passes in `job-unit-pkg-ef92ffff.log`. This
+reused path now holds the run after the forward-alias fix, superseding its
+previous contents. Focused state/naming controls pass in
+`job-refusal-state-and-rfc-green-f471a48b.log`. The package coverage run reports
+86.5% in `job-refusal-state-coverage-2e5fed92.log`; its retained profile,
+`refusal-state-coverage.out`, still has eight uncovered blocks. No 100% coverage
+claim is made. Literal AC-7 remains open until main proves the stable
+implementation described below; no waiver or owner answer is required if it
+meets the original criterion.
+The expanded carrier census still awaits main's final source verification.
 
-Earlier checkpoint history: the dependency addition was coherent enough for the named
-netlink scoped package proof to pass and its negative overlay to run. The later
-verbose clean control could not start: foreign in-progress hook-runtime edits
-left callers in `lossypipe.go` and `rawheavy.go` passing three arguments to
-`admittedCommand`, whose current signature takes two. Preserve that owner's
-work; this is a shared launcher build refusal, not a netlink test failure.
+The current execution evidence supersedes the earlier blocked attempts retained
+under Prior blocker and completed corpus repair. Every run below was executed
+by main against the main checkout. No whole-tree verification is owed here.
 
-At the final NTP phase boundary, the repair is committed as `cb44713011` with
-the scoped race tests and actual daemon functional test passing, as recorded
-below. Independent source/docs review is clean. The final combined scoped lint
-run could not produce a plan: foreign `setup/setup.go` changed after its wasip1
-stage. No lint success is claimed. Resume with stable inputs for that scoped
-check, then finish the already-recorded functional,
-corpus, ADD-PATH/LDP and AC-7 report obligations. NTP is fixed; the full refusal
-spec remains open while main finishes its scoped verification.
+| Completed surface | Canonical source and observed evidence |
+|-------------------|----------------------------------------|
+| Full RIB package and fixture isolation | `startValidationReceiver` now unregisters after joining its owner (`1aa91d030b`). `TestValidationReceiverRestoresUngatedSelection` first failed both teardown assertions; focused native race selection then passed, followed by the full native `test unit pkg path ./internal/component/bgp/plugins/rib/` run in `job-unit-pkg-f5c56d84.log`. This reused path now contains the passing retry; retained reds are `job-unit-pkg-f0677e7f.log` (ASPA-retention/redist pair) and `job-unit-pkg-cf1bde44.log` (new regression). |
+| Pipeline refusal | `showPipeline` and `bestPipeline` return `pipelineRefusal` through `refusePipelineArgs` (`820476c6ee`). `TestPipelineParseErrorsReachCommandVerdict` failed on successful error payloads, then passed with six controls under race (`job-refusal-pipeline-ntp-red-0f4a55fa.log`, `job-refusal-pipeline-green-191dfb31.log`). The rebuilt daemon's `test bgp plugin rib-filter-show` passes 1/1 in `job-refusal-rib-filter-functional-c6d5829a.log`. |
+| NTP absent-provider refusal | Owner instruction (Thomas, 2026-11-11): "fix NTP". `handleShowSystemDate` refuses an absent NTP state provider, and preserves a registered inactive provider's date-only answer (`cb44713011`). Absent/inactive/measured controls pass under race in `job-ntp-provider-green-8e407612.log`; three actual `ze_core` NTP-absent hub tests pass in `job-ntp-provider-absent-fe550150.log`; actual daemon `system-date-show` passes 1/1 in `job-ntp-system-date-functional-a1dd9b1c.log`. |
+| Config corpus | All four fixture drafts passed, were promoted and committed in `e7a77d6e73`; shared CPE rendering is `dd6864599a`. Native `test unit pkg path ./internal/component/config/cli/ run '^TestRepositoryConfigsValidate$'` exits zero with package `ok` in `job-unit-pkg-edd5d381.log`. Main observed the selected running test; default output carries no individual PASS name. |
+| ADD-PATH, LDP, BMP and platform controls | The later evidence subsection records the completed ADD-PATH matched baseline/omitted-zero negative/unmodified clean, LDP/FRR, BMP/pmacct, gnmic, Linux controls, direct netlink negative/clean and actual-kernel root/non-root TCX proof. These runs supersede the old pending labels. |
 
-The earlier launcher attempt panicked during command registration before dispatch because
-`internal/le/test/unit/pkg.go` supplies Help strings longer than the 60-character
-limit (the first reported string is 83 characters at line 86). This file is
-foreign dirty work owned by `spec-agent-economy-2-scoped-test`, session
-`f4d858bd` and agent `a438d3331bd8f1e98`. The owning session must shorten its
-Help strings before a current-source launcher could dispatch. That registration
-blocker was subsequently cleared and the named launcher rebuilt for the NTP
-proof below. The other commands listed here remain owed; no stale binary
-supplies proof.
-
-All four corpus fixtures passed their named draft runs, were promoted, and
-landed in `e7a77d6e73`. The shared CPE renderer's focused race proof remains
-green. Main's native `test unit pkg path ./internal/component/config/cli/ run
-'^TestRepositoryConfigsValidate$'` now exits zero after those promotions, with
-package `ok` in `job-unit-pkg-edd5d381.log` in the session scratch directory.
-Main observed the exact selected test in the running process; default package
-output contains no individual PASS names. The corpus obligation is complete.
-
-The owned pipeline parse-error defect is now repaired: `showPipeline` and
-`bestPipeline` return `pipelineRefusal` through `refusePipelineArgs`, preserving
-the parser diagnostic and adding the corrected count command. Main observed
-`TestPipelineParseErrorsReachCommandVerdict` fail on the old successful error
-payloads, then pass with six companion tests under race. Evidence is
-`tmp/session/2026-11-11-014000/scratch/job-refusal-pipeline-ntp-red-0f4a55fa.log`
-and `job-refusal-pipeline-green-191dfb31.log` in that directory. Independent
-source review is clean; five existing test migrations and the functional
-fixture change have independent judge approval. The first attempted named
-functional run stopped at the launcher registration panic before any fixture
-ran. Main then rebuilt the daemon and ran `test bgp plugin rib-filter-show`:
-the actual fixture passes 1/1 in
-`job-refusal-rib-filter-functional-c6d5829a.log` in the session scratch
-directory. This completes the pipeline repair's daemon-boundary proof.
-
-Resume with these commands, through the current named launcher and in the main
-thread:
-
-- `INTEROP_SCENARIO=addpath-zero-id-frr ./le test integration interop` for the
-  baseline, the zero-ID omission overlay, and the clean rebuild in that order.
-  Preserve effective Go flags when adding the overlay. The overlay and its
-  single changed producer are recorded below.
-- `INTEROP_SCENARIO=ldp-init-unknown-tlv-frr ./le test integration interop`.
-- Complete the remaining scoped checks and independent closure review.
-
-The ledger below now attributes all 54 rows to canonical regressions, retained
-history or the dependency spec. Full AC-1 through AC-13 execution and independent
-closure review remain incomplete. The older
-handover also names Linux, gnmic and BMP evidence to reconcile. The NTP audit
-found an absent-provider path. Owner instruction (Thomas, 2026-11-11):
-"fix NTP". This spec now owns that repair: an absent NTP state provider must
-refuse `show system date`, while a registered inactive provider remains a valid
-date-only answer. The prior exclusion below no longer applies to NTP. The
-regression was observed red, with inactive and measured-state controls passing,
-in `tmp/session/2026-11-11-014000/scratch/job-refusal-pipeline-ntp-red-0f4a55fa.log`.
-The repair and independent source/docs review are complete. Main-thread race
-proof passes the absent, inactive and measured-state command cases, the existing
-date assertions, registry snapshot restoration and NTP-present build test in
-`tmp/session/2026-11-11-014000/scratch/job-ntp-provider-green-8e407612.log`.
-All three NTP-absent hub tests pass under `ze_core` without `ze_ntp` in
-`tmp/session/2026-11-11-014000/scratch/job-ntp-provider-absent-fe550150.log`.
-The actual daemon functional `system-date-show` passes 1/1 in
-`tmp/session/2026-11-11-014000/scratch/job-ntp-system-date-functional-a1dd9b1c.log`.
-The scoped lint run is still pending at this repair checkpoint. This evidence
-covers the NTP repair, not the remaining acceptance criteria; the spec stays open.
-
-The first draft reload attempt used `test reload`, which printed a namespace
-error. No fixture ran. The correct registered route is `test bgp reload`.
-The current-source ADD-PATH baseline failed during daemon startup: the first
-`bgp-rs` stage waited five seconds for capability initialization, then the
-startup barrier aborted. No zero-ID assertion ran; negative and clean controls
-remain pending. The complete error and Ze/FRR logs are retained in
+All log basenames in this section are under
+`tmp/session/2026-11-11-014000/scratch/`. The earlier launcher Help-length panic,
+foreign hook-runtime build mismatch, inventory staging failure and startup
+barrier failure were attempted runs that reached no assertions; later current-source
+runs completed the affected proofs. They are retained as history, rather than
+current blockers. The RIB isolation and focused green logs remain
+`job-unit-pkg-77fea4ce.log` and `job-unit-pkg-59779559.log`; independent test
+judgment and source review approved that fixture repair. The earlier ADD-PATH
+startup-barrier failure reached no zero-ID assertion; its full verdict is in
 `scratch/interop-recordings/bgp/addpath-zero-id-frr-GLEEENUKK5KX3YMO2VEZ3ROJRD.jsonl`
-under this session, in its verdict error. Main is investigating the startup
-failure. No LDP verdict is claimed; a stale image or no-build bypass is not
-evidence for either owed scenario.
+under this session. The later passing and negative runs below supersede it.
+
+The independent RFC4271-5.1.5-2 audit found a weak negative enrollment. The new
+`TestLocalPrefExternalWireViolationRefused` in
+`internal/le/interoplab/bgp/check_local_pref_negative_test.go` accepts the
+stripped capture and refuses leaked LOCAL_PREF values 200 and 0 at the wire
+semantic assertion. The native recorder first observed all three clean
+subcases pass. Its per-run semantic break then made both leaked-attribute
+subcases fail while the stripped control passed; the discrimination is recorded
+in `rfc/discrimination/rfc4271/RFC4271-5.1.5-2.json`. This describes the recorder's
+baseline-then-break order, with no post-break clean rerun claimed. The native
+recorder's classification of interop Go unit tests was repaired at `CarrierFor`;
+`TestInteropCatalogUnitCarrier` and its two existing carrier controls pass in
+`job-refusal-rfc-carrier-green-8f9cce4b.log`. These checker fixtures do not claim
+a new daemon interop run. The full RFC package failed in
+`job-unit-pkg-d25f06c4.log`: the naming rule still included excluded development
+tool tests, and the package reached its 20-minute timeout. Maintenance in
+`internal/le/rfc/names.go` (`testFileNameVerdicts`) and
+`render_ledger_test.go` has independent source review and test-judge approval;
+Focused naming controls now pass in
+`job-refusal-state-and-rfc-green-f471a48b.log`; the full RFC retry remains owed.
+The LOCAL_PREF final audit stamp completed on 2026-11-11. All four owned SHIFT
+reseals are complete against the source head: RFC5549-4-1, RFC5549-4-4,
+RFC7911-2-2 and RFC8950-4-1. LOCAL_PREF and ASPA audit changes and these reseals
+remain dirty and uncommitted. The new AC-7 signature migration owes 16 native
+unit/polarity renewals across RFC7311-3.4.3-1 through RFC7311-3.4.3-6, plus
+independent rejudgment for requirements 2, 4 and 6. These pending renewals prevent
+any claim that the whole expanded 43-ID scope is fresh. Scoped lint,
+documentation checks and final source/review gates remain owed; native closure
+review has not started.
+
+The expanded carrier audit found two more peer-AS readers. Monitor repair
+`796dbf1f9d` and RPKI repair `84b2e6b526` are committed. Monitor
+`formatMonitorLine` now decodes `rpc.RemoteAS`, renders a pre-negotiation peer
+as AS unknown and retains the raw event on malformed identity. RPKI
+`handleEvent` now asks `GetPeerASN` and `ASN` before validating a JSON UPDATE,
+and counts unknown or malformed identity under the registered
+`ze_rpki_updates_refused_total` reason labels. State-down cleanup still runs
+without an AS. The RPKI regression first failed in
+`job-refusal-rpki-as-red-9a5d152b.log`; selected monitor/RPKI race tests now pass
+in `job-refusal-identity-green-5de424dd.log`, including known-AS validation,
+tracking, publication and ASN-free cleanup controls. The full monitor package
+also passes. The full RPKI package initially failed in
+`job-unit-pkg-9fb6ac6b.log` because the preceding reload fixture left its stopped
+Adj-RIB owner's intentional refusing lookup registered. The new
+`TestRPKIReloadReceiverRestoresUngatedSelection` in
+`rpki_reload_fixture_test.go` failed both after-join assertions in
+`job-refusal-rpki-fixture-red-1577efe7.log`. `startRPKIReloadReceiver` now
+unregisters only after joining that owner, preserving production's fail-closed
+exit. The full RPKI retry passes in `job-unit-pkg-a7417a90.log`. Independent
+review is clean for the source, fixture cleanup and new forked functional test.
+
+The malformed/unknown RPKI UPDATE regression uses the handler seam because
+`Session.processMessage` rejects pre-Established UPDATEs,
+`validateOpenPeerAS` refuses AS zero, and `appendPeerJSON` emits a typed known AS
+for established updates. Native traffic cannot produce that malformed JSON
+through this normal producer path. The complementary actual
+`test/plugin/rpki-event-valid-forked.ci` proves a known-AS UPDATE crosses the
+forked plugin's JSON transport and publishes its valid prefix event.
+
+Both that fixture and `test/plugin/monitor-remote-as-stream.ci` are promoted and
+pass 2/2 in `job-refusal-identity-promoted-aafe844f.log`. Before promotion, native
+stress ran 80 invocations with both exact selectors. It reported "not reproduced
+in 80 invocation(s)" in `job-refusal-identity-stress-d339f917.log`; exit 1 is the
+stress reproducer's expected result when no failure is reproduced. Full capture
+is `tmp/stress-repro/plugin-draft-monitor-remote-as-stream-rpki-event-valid-forked-a58588da4cc09570f70d38bc6e41fcfe21cc3832e694d6d9848134dc08f30a0f-20261111-160316-2630899211.log`.
+Main also observed the actual monitor baseline pass 1/1, an unknown-AS-only
+formatter overlay fail before the peer OPEN with AS0 in the PTY transcript,
+then an unmodified clean rebuild pass 2/2. Those baseline/negative tool outputs
+have no retained full scratch log; the promoted clean and stress logs above are
+the durable files. No path is invented for the missing full output.
 
 ## Retained row evidence audit, 2026-11-11
 
@@ -164,10 +164,10 @@ stay visible rather than being silently removed from the population.
 | 20 | DHCPv6 `dadUnreported` on VPP | `TestDHCPv6AddressesWithoutDADOutcomeNotReadAsUnique` in `internal/plugins/iface/dhcp/dhcp_v6_dad_read_linux_test.go` | H; named Linux DAD-outcome regression passes under race |
 | 21 | VPP `detailsToInfo` empty addresses | `TestVPPGetInterfaceReportsAddresses` in `internal/plugins/iface/vpp/query_addresses_test.go`; `TestVPPListInterfacesReportsAddresses` in `internal/plugins/iface/vpp/query_addresses_test.go` | H; representative-input regression retained |
 | 22 | LG `routes/protocol/{name}` 0 routes for a name | `TestAPIProtocolNameSelectsItsSession` in `internal/component/lg/handler_api_dispatch_test.go` | H; representative-input regression retained |
-| 23 | `serializeRouteItem` path ID compared with zero | `TestAddPathIdentifierZeroIsAnIdentifier` in `internal/component/bgp/plugins/rib/ribout_native_test.go` | H; ADD-PATH baseline/negative/clean lab pending |
-| 24 | `vpnToJSON`, `LabeledUnicast.String` path ID compared with zero | `TestAddPathIdentifierZeroIsAnIdentifier` in `internal/component/bgp/format/text_test.go` | H; ADD-PATH baseline/negative/clean lab pending |
+| 23 | `serializeRouteItem` path ID compared with zero | `TestAddPathIdentifierZeroIsAnIdentifier` in `internal/component/bgp/plugins/rib/ribout_native_test.go` | H; ADD-PATH matched baseline/negative/clean now complete; exact logs below |
+| 24 | `vpnToJSON`, `LabeledUnicast.String` path ID compared with zero | `TestAddPathIdentifierZeroIsAnIdentifier` in `internal/component/bgp/format/text_test.go` | H; ADD-PATH matched baseline/negative/clean now complete; exact logs below |
 | 25 | ddos `emitCleared` zero target never closes | `TestClearedCarriesTheDetectedVictim` in `internal/plugins/ddos/detect/characterize_test.go` | H; representative-input regression retained |
-| 26 | `NewINET` path ID 0 as absent | `TestAddPathIdentifierZeroIsAnIdentifier` in `internal/component/bgp/rib/route_test.go` | H; ADD-PATH baseline/negative/clean lab pending |
+| 26 | `NewINET` path ID 0 as absent | `TestAddPathIdentifierZeroIsAnIdentifier` in `internal/component/bgp/rib/route_test.go` | H; ADD-PATH matched baseline/negative/clean now complete; exact logs below |
 | 27 | gr egress nil state read as nothing stale | `TestLLGREgressFilter_NilStateWithdrawsEBGP` in `internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go`; `TestLLGREgressFilter_NilStateDepreferencesIBGP` in `internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go` | H; representative-input regression retained |
 | 28 | `readOneHwmon` drops a 0.0 reading | `TestDetectThermal_ZeroReadingIsAReading` in `internal/component/host/thermal_linux_test.go` | H; named Linux zero-reading regression passes under race |
 | 29 | resolve `DefaultConfig` read failure as missing | `TestDefaultConfigReadFailureIsNotMissing` in `internal/core/resolve/resolve_test.go` | H; representative-input regression retained |
@@ -181,7 +181,7 @@ stay visible rather than being silently removed from the population.
 | 37 | `buildWithdrawalPayload` returns nothing for two families | `TestMixedFamilyUpdateRefusedIsWithdrawnPerFamily` in `internal/component/bgp/reactor/forward_withhold_mixed_test.go` | H; representative-input regression retained |
 | 38 | `prefixListFromIRR` cut and counted success | `TestPrefixListFromIRRRefusesOversizedList` in `internal/component/bgp/plugins/filter_irr/filter_irr_test.go` | H; representative-input regression retained |
 | 39 | LG `transformRoutes` `primary` from an absent key | `TestShowRIBRowsSayWhichPathWon` in `internal/component/bgp/plugins/rib/rib_pipeline_bestfact_test.go`; `TestShowRIBBestFactUnderElectionAndPeerDown` in `internal/component/bgp/plugins/rib/rib_pipeline_bestfact_test.go` | H; representative-input regression retained |
-| 40 | BMP Loc-RIB ORIGIN literal IGP | `TestLocRIBRouteMonitoringCarriesTheBestPathAttributes` in `internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go`; `TestLocRIBAnnounceWithoutAttributesIsRefused` in `internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go` | H; `bgp-addpath-best-path-pmacct` pending |
+| 40 | BMP Loc-RIB ORIGIN literal IGP | `TestLocRIBRouteMonitoringCarriesTheBestPathAttributes` in `internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go`; `TestLocRIBAnnounceWithoutAttributesIsRefused` in `internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go` | H; native `bgp-addpath-best-path-pmacct` passes 1/1; exact log below |
 | 41 | bgp-rib `sameBest` ignores an attribute-only change of the winner | `TestRIBBestChangeOnAttributeOnlyChange` in `internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go` | H; representative-input regression retained |
 | 42 | trafficusage `ebpfSupported` constant nil | `TestTrafficUsageReadinessCanFail` in `internal/plugins/trafficusage/doctor_test.go`; `TestNewAttacherLinux` in `internal/plugins/trafficusage/attach_linux_test.go` | H; ordinary classifier/constructor pair passes under race; explicit root/non-root actual-kernel probe passes in `5fa5efe3d2`'s `TestTCXProbeRuntimeReadiness` |
 | 43 | l2tp `checkHealth` cannot fail | `TestL2TPHealthReadsDataPlane` in `internal/component/l2tp/health_test.go`; `TestL2TPHealthHealthyOnlyWithDataPlane` in `internal/component/l2tp/health_test.go` | H; both named health tests also pass in later 2026-11-01 product job |
@@ -210,43 +210,41 @@ cases in `internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go` and
   registration is pinned by `TestVerifyStagesIncludeRefuseByDefault` in
   `internal/le/verify/engine/stages_refusebydefault_test.go`. No `le verify` run
   is owed here.
-- AC-7: main's current native `arch refuse-by-default report` lists 2155 refused
-  and 72 annotated shapes in 7000 Go files. Both populations were compared with
-  the retained 54-row producer ledger. Strict AC-7 remains open: two refused
-  rows in `Reactor.notifyOneMessage` in
-  `internal/component/bgp/reactor/reactor_notify.go` retain `parseErr` in `msg.ParseError` but
-  still have redundant Debug-only branches; one annotated malformed-layout
-  zero in `buildWithdrawalPayload` in
-  `internal/component/bgp/reactor/forward_build.go` is consumed by `fwdWithdrawal.of`. No
-  criterion or symbol is changed to hide those matches. The separate genuine
-  Debug-only send failure in `BMPPlugin.handleBestChange` in
-  `internal/component/bgp/plugins/bmp/bmp_locrib.go` now has a warning and
-  report-bus error event under the existing runtime recent-events check.
-  `TestLocRIBSendFailureWarnsAndKeepsHealthyCollector` in
-  `internal/component/bgp/plugins/bmp/locrib_send_failure_test.go` failed on
-  the hidden warning in main's `job-refusal-bmp-send-red-b40bb382.log`, after
-  proving the healthy collector received its route. Main's
-  `job-refusal-bmp-send-green-96338873.log` passes that regression and five
-  existing BMP controls plus `TestDoctorRecentEventsRowsFromReportRing` under
-  race with the native feature tags. Independent source, style and docs review
-  is clean. Scoped lint and the final BMP functional scenario remain owed;
-  census40's actual ORIGIN producer, `buildLocRIBUpdateBody`, has no hit.
-  Actual report: `job-refusal-current-report-fcb16ac0.log` in session scratch.
-  Exact row/source classification: session state `refusal-ac7-census.md`.
+  Direct-assignment and forward package-alias repairs are committed in
+  `06a4a22cbc`; the full race retry in reused `job-unit-pkg-ef92ffff.log` now
+  covers both. Focused state/naming green and the bounded 86.5% coverage result
+  are recorded above.
+- AC-7: the retained report listed 2155 refused and 72 annotated shapes in
+  7000 Go files. Comparison with all 54 producers found two notify parse-error
+  branches and the withdrawal builder's guarded zero. Main's new regression
+  observed exactly those two notify hits and one builder hit in retained run
+  `f0b4a2f9`; four callback controls passed. The stable patch makes
+  `buildWithdrawalPayload` return a length and an explicit error with static
+  failure classes; `fwdWithdrawal.of` releases its borrowed buffer on error.
+  `Reactor.notifyOneMessage` records parse failure visibly and clears a stale
+  record when the modified wire parses. Independent actual-patch generic/style
+  review by `refusal_signature_judge` is CLEAN. Main formatting, focused green
+  and the actual report comparison remain pending. Literal AC-7 is unchanged;
+  proving this implementation meets it needs no owner waiver. The separate BMP
+  send defect is committed and proved, including the actual BMP/pmacct pass.
+  The retained source/report census is `refusal-ac7-census.md`; its three old
+  matches describe the red baseline, not a verdict on the unproved new patch.
 - AC-8: retained unit/command evidence includes the recent absent-CoS and writer
-  repairs. The full RIB package passes after fixture cleanup, and the rebuilt
+  repairs. JSON RPKI admission and monitor race controls, full RPKI after
+  fixture isolation, and both promoted identity functional tests pass.
+  The full RIB package passes after fixture cleanup, and the rebuilt
   daemon's `rib-filter-show` fixture passes 1/1.
-- AC-9: LDP Ze-kernel scenario remains pending. Changed gnmic default/PROTO
+- AC-9: the LDP Ze-kernel scenario passes 1/1. The changed gnmic default/PROTO
   contract passes with all nine interop subtests; RADIUS evidence is retained.
-- AC-10: ADD-PATH baseline failed at startup before any zero-ID assertion;
-  baseline recovery, omitted-zero negative and clean rebuild remain pending.
+- AC-10: ADD-PATH matched logging-only baseline passes, the omitted-zero overlay
+  fails with RX 1 surviving and RX 0 missing, and the unmodified clean run passes.
 - AC-11: thermal zero-reading Linux regression passes under race; existing
   LLGR, DDoS and dynamic-AS producer-red evidence is retained.
 - AC-12: TCX actual-kernel root/non-root proof passes with the explicit
-  expectation test below. BMP/pmacct remains pending. The later L2TP and VPP
+  expectation test below. Native BMP/pmacct passes 1/1. The later L2TP and VPP
   stats passes below supersede their old unrun labels.
-- AC-13: the ledger preserves all rows and regression attribution; platform
-  runs above and independent final audit are still owed. The netlink stats
+- AC-13: the ledger preserves all rows and regression attribution; the named
+  platform runs are complete, while independent final audit remains owed. The netlink stats
   regression's observed negative and committed-source clean pass are recorded below.
   Rows 44, 46 and 47, plus MRT in row 45, are the dependency spec’s work by the
   existing Known Limitations and handover 24. NTP is explicitly brought back
@@ -308,21 +306,55 @@ alone as proof.
   absent-path NotFound, unadvertised encoding Unimplemented, Subscribe sync,
   Set commit, and missing/wrong-token Unauthenticated controls.
 
+### Completed native interop evidence
+
+Main ran each named scenario through the current-source `test integration
+interop` route with `INTEROP_SCENARIO` selecting the row. The matched ADD-PATH
+baseline and negative both included the same logging-only `prepare.go` overlay;
+the negative additionally changed only `nlri.WriteNLRI` to omit the four
+identifier octets for identifier zero. This holds the diagnostic instrumentation
+constant while testing the zero-ID writer. The final clean rebuilt the
+unmodified source with neither overlay.
+
+| Scenario and control | Actual result and retained log in session scratch |
+|----------------------|--------------------------------------------------|
+| `addpath-zero-id-frr`, logging-only baseline | 1 passed, 0 failed; `job-refusal-addpath-startup-debug-632ff3c0.log` |
+| Same scenario, omitted-zero negative | 0 passed, 1 failed at assertion 4: FRR had one path, `AddPath ID: RX 1`, and no RX 0 path; `job-refusal-addpath-zero-negative-632ff3c0.log`. The failure first names the missing two-path count; it is not relabeled as a direct RX-0 string assertion. |
+| Same scenario, unmodified clean | 1 passed, 0 failed; `job-refusal-addpath-clean-632ff3c0.log` |
+| `ldp-init-unknown-tlv-frr` | 1 passed, 0 failed; `job-refusal-ldp-interop-632ff3c0.log` |
+| `bgp-addpath-best-path-pmacct` | 1 passed, 0 failed; `job-refusal-bmp-best-path-interop-632ff3c0.log` |
+
+The canonical ADD-PATH catalog rows are `scenarioAddPathZeroIDFRR` in
+`internal/le/interoplab/bgp/checkers.go` and `check_extras.go`; they read
+FRR's session, route count and RX identifiers. The LDP checker is
+`checkLDPInitUnknownTLV`; the BMP/pmacct scenario uses `checkMEDWholeSet` in
+`check_med_pmacct.go`. Scenario configs remain in
+`test/interop/scenarios/`. The source census below accounts for the changed
+producer and the independent peer readers; the logs record execution.
+
 ### Scoped execution queue
 
-All commands run in the main thread through a current-source named launcher,
-after the foreign dependency addition is coherent. The new registered
-`test unit pkg` route supplies the checkout's feature tags, timeout and race
-detector; its `run` keyword takes a regex. It accepts no arbitrary Go flags.
+Execution stays in the main thread against current source in the main checkout.
+The named native `test unit pkg` route supplies the checkout's feature tags,
+timeout and race detector; its `run` keyword takes a regex.
 
-1. ADD-PATH baseline, the recorded zero-ID omission overlay, then the clean
-   rebuild/run; LDP unknown-TLV scenario follows. Preserve effective `GOFLAGS`
-   when adding the overlay. Also run `bgp-addpath-best-path-pmacct`, whose BMP
-   attribute payload is an older owed surface of this change.
-2. Repair the exact AC-7 residuals above and the assigned BMP send failure,
-   retaining negative/positive proof and independent review. The historical
-   check/stage phase-green and registrar repair's retained passing tests do
-   not require timestamp-refresh runs.
+1. Main formats and proves the stable AC-7 patch, then compares the actual
+   report with owned producers under the unchanged criterion. The observed red
+   and independent patch review are complete; no green is claimed yet.
+2. Complete the 16 native unit/polarity renewals for RFC7311-3.4.3-1 through -6
+   and the assigned audit rejudgments for -2, -4 and -6. Mechanical caller
+   migrations of `TestRFC7311DirectLinkCostNeverWrapsOrDisappears` and
+   `TestAIGPForwardedMetricsReachFinalWire` have independent test-judge approval.
+   Complete the full RFC retry and commit the completed LOCAL_PREF, ASPA and
+   four owned SHIFT audit changes through the native route. Do not claim the
+   expanded 43-ID scope fresh before its pending renewals are recorded.
+3. Resolve the four scoped-lint modernize findings for embedded composite
+   literals in this spec's `internal/plugins/iface/netlink/stats_linux_test.go`,
+   then finish bounded lint, documentation checks, final source audits and
+   independent review. The lint run has no passing verdict yet. Completed AC-4,
+   full RPKI and promoted identity functional/stress proofs need no timestamp
+   refresh. Closure and its formal Review Gate follow only when the remaining
+   obligations are complete.
 
 The handover's unqualified netlink `GetStats` item lacked a direct-method
 regression. `netlinkBackend.GetStats` refuses missing links, read errors
@@ -371,25 +403,33 @@ already contains that commit. Current `readPersonActs` in
 outside upstream, so those published trailers are not current push debt.
 Recent native checkpoint preparations reported `debt=nothing owed`; main still
 checks `commit debt-status commit HEAD` for later commits. The historical stale
-RFC verdict list remains a separate audit-metadata obligation. Main's current
-native `rfc check` exits one with 64 violations in
+RFC verdict list remains a separate audit-metadata obligation. Main's earlier
+native `rfc check` exited one with 64 violations in
 `job-refusal-rfc-current-check-a3c28c29.log` in session scratch. These are not
-all attributed to this spec. Its helper-only `1aa91d030b` change leaves a
-SHIFTED ASPA audit verdict for unchanged
+all attributed to this spec. The helper-only `1aa91d030b` change shifted the ASPA audit verdict for unchanged
 `TestASPARetentionReceiveRecovery` and `TestASPARetentionReplacementWithdrawal`;
-main owes that scoped mechanical reseal. Ownership of the other current
-violations remains unclassified in this checkpoint. No blanket
-reseal, missing-log re-record or foreign audit edit is implied by this ledger.
+its scoped mechanical reseal is prepared and awaits commit. The owned closure
+population is the exact 37 requirement IDs derived in
+`scratch/refusal-rfc-closure-scope.md` under this session. The LOCAL_PREF negative
+enrollment, final LOCAL_PREF audit stamp and unit-carrier repair are recorded
+above. All four owned SHIFT IDs, RFC5549-4-1, RFC5549-4-4, RFC7911-2-2 and
+RFC8950-4-1, are resealed against the source head and await commit. The AC-7
+caller migration adds the 16 RFC7311 renewals and three rejudgments recorded in
+the current queue; the expanded 43-ID scope is not declared fresh. No blanket reseal, missing-log re-record or foreign
+audit edit is implied by this ledger.
 Scoped lint, documentation checks and independent closure review remain after
 the execution evidence; no whole-tree verification is added.
 
 
 ## Prior blocker and completed corpus repair
 
+The following attempted-run history is superseded by the completed evidence
+above. It preserves the causes and the original commands; none of its older
+pending statements is a current execution queue.
+
 The continuation built the named launcher from the current checkout on
-2026-11-11. The missing inventory fields below are a historical build failure,
-not a current refusal to attempt the labs. ADD-PATH baseline, negative control,
-clean rebuild and LDP execution remain owed.
+2026-11-11. The missing inventory fields below are a historical build failure. The later
+ADD-PATH baseline/negative/clean and LDP runs completed.
 
 The config corpus repair shares the topology lab's CPE renderer with config
 validation. `internal/test/labconfig/homecpe/render.go` owns `Render`, PKI
@@ -402,8 +442,7 @@ refuses. Main-thread race tests passed for the shared renderer, its topology
 callers, and `TestSweepRendersHomeCPE`, including the renderer-bypass negative
 control. Evidence: `tmp/session/2026-11-11-014000/scratch/job-refusal-cpe-focused-c8e0a05a.log`.
 Independent source review is clean, and the test judge approved all moved and
-mechanically updated tests. The four fixture drafts still await execution and
-promotion. Concurrent commit `ab4a67d631` carried the shared-rendering paragraph
+mechanically updated tests. The four fixture drafts subsequently passed and were promoted in `e7a77d6e73`. Concurrent commit `ab4a67d631` carried the shared-rendering paragraph
 and source anchors in `docs/architecture/testing/interop.md`.
 
 The 2026-11-11 main-thread attempt to run `addpath-zero-id-frr` stopped in
@@ -605,6 +644,87 @@ named as one").
 | Registration over hardcoding, outbound | Yes | the check registers through `leroot.Register`; no switch learns its name |
 | Registration over hardcoding, inbound | Yes | the check's rule set is read from AST shapes, not from a list of package names; searched `stages.go` (one stage line is the declared population, as for every arch stage) |
 
+## Changed-carrier census for design admission
+
+This census follows the formats changed by `238bdb62e9`, then compares their
+current writers and readers. It is separate from the 54-row defect ledger:
+one format crosses several producers, transports and consumers, and an unchanged
+reader still needs a preservation decision. Main's source verification of this
+record remains owed; the table itself supplies no native proof or approval.
+
+The search population was non-test Go under `cmd`, `internal` and `pkg`, plus
+non-Go sources and embedded scripts under those roots, `test` and `examples`.
+The original commit's path list and relevant hunks identified the format changes,
+then current-source searches followed `PeerAS`, `RemoteASOf`, `GetPeerASN`,
+`remote.as`, `remote as`, `HasPathID`, `HasAddPath`, `NewINET`, `path-id`,
+`path-information`, `RawJSON`, `pipelineRefusal`, `graph`, `best` and `primary`.
+The non-Go pass included extensionless `*.run` Python programs, `*.py`, `*.sh`,
+`*.pl` and fixture `*.ci` bodies, including scripts embedded in Go string
+literals. Generated web assets and vendored code did not define the population.
+Positive controls were `appendPeerJSON` for the native JSON writer,
+`parseTextOpen` for its text reader, `WriteNLRI` for wire framing,
+`API._record` in the compatibility Python helper for a non-Go reader, and the
+old-4.2 `api-attributes-path.run` for a non-Go command writer. Each was found
+by the corresponding terms before the carrier was classified.
+
+Paths below use these local prefixes: BGP is `internal/component/bgp/`, NLRI is
+`internal/core/bgp/nlri/`, and bridge is `internal/exabgp/bridge/`. A preserved
+site keeps its existing carrier and reads the explicit presence or negotiated
+flag; it does not gain a value-based absence test.
+
+| Carrier / AC | Writers and carriers found in source | Readers and migration or preservation decision |
+|--------------|--------------------------------------|------------------------------------------------|
+| Peer-AS identity, AC-11 | `pkg/plugin/rpc/remote_as.go`: `RemoteASOf`, `ASN`, `MarshalJSON`, `UnmarshalJSON`, `String`, `LogValue`, `IsZero`; `internal/component/plugin/types_bgp.go`: `PeerInfo.PeerAS` | The typed unknown survives an unfilled value and reflective JSON/text/log rendering. `TestRemoteASRendersThroughReflectiveConsumers` and `TestRemoteASDecodesWhatItEncodes` in `pkg/plugin/rpc/remote_as_test.go` distinguish known AS, omitted/null unknown and invalid AS zero. |
+| Peer-AS event producers, AC-11 | BGP `reactor/reactor_notify.go`: `notifyPeerNegotiated`, `emitCongestionEvent`, `notifyOneMessage`; `reactor/peer_fsm_events.go`: `fsmEventPeerInfo`; `reactor/peer_run.go`: `runOnce`; `reactor/reactor_api.go`: `establishedPeerInfo`, `apiStateObserver.OnPeerClosed`, `reactorAPIAdapter.Peers`; `reactor/peer_removal.go`: `removalLocked`; `reactor/session_wire.go`: `dispatchObservedWire` | All construct or refresh `PeerInfo` through `RemoteASOf`; negotiation supplies the known value, while pre-negotiation events retain unknown. `TestKeepaliveNamesTheNegotiatedASOfADynamicPeer` and `TestPreNegotiationEventsDoNotNameAS0` in `reactor/reactor_notify_test.go` cover both states. |
+| Typed event transport, AC-11 | BGP `server/events.go`: `getStructuredEvent`, `getStructuredStateEvent` copy the typed peer AS to `pkg/plugin/rpc/bridge.go` `StructuredEvent`; `PutStructuredEvent` clears it to typed unknown | DirectBridge readers retain the same distinction as JSON readers. BGP `plugins/rib/rib_structured.go` `handleReceivedStructured` and `plugins/rpki/rpki.go` `handleStructuredUpdate` refuse UPDATEs with no known AS. `plugins/rr/rr.go` `handleStructuredState` retains the last learned AS, and `plugins/rs/server.go` `parseStructuredState` sets an AS only when known. `plugins/bmp/bmp_events.go` `peerHeaderFromEvent` refuses a header with unknown AS. |
+| Native JSON peer object, AC-11 | BGP `format/text.go` `appendPeerJSON` and `format/json.go` `peerMap` write `remote.as` only when `ASN` is known; event encoders reuse them | BGP `event.go` `GetPeerASN` parses the remote object into typed known/unknown and returns unreadable-object errors. `plugins/rib/rib.go` `handleReceived` refuses unknown UPDATE identity; `plugins/adj_rib_in/rib_validation_config.go` `validationPeerFromEvent` carries typed identity. `TestReceivedUpdateWithUnknownPeerASIsRefusedOnBothRails` in `plugins/rib/rib_unknown_peer_as_test.go` preserves known-AS route storage on both JSON and structured paths. |
+| Native text peer header and OPEN, AC-11 | BGP `format/session_events.go` `appendRemoteASText`, `appendPeerTextPrefix`, `AppendConnected`, `AppendFSM`, `AppendSignal`; `format/text.go` `AppendOpen`, `AppendNotification`, `AppendKeepalive`, `AppendRouteRefresh`, `AppendEOR`, `AppendCongestion`; `format/text_human.go` `appendFilterResultText` / `appendStateChangeText` | Unknown is spelled `remote as unknown`; `AppendOpen` writes the OPEN's own ASN separately. BGP `plugins/rs/server_text.go` `parseTextOpen` reads the OPEN ASN even when the remote header is unknown; `parseTextState` keeps its state header parsing. `TestTextOpenRemoteASNamesThePeer` and the dynamic-OPEN cases in `plugins/rs/server_test.go` cover the split. |
+| Native monitor reader, AC-11 | BGP JSON event writers feed `plugins/cmd/monitor/format.go` `formatMonitorLine`; `monitorEvent` now uses `rpc.RemoteAS` | Unknown and null identity render AS unknown; known identity keeps its AS, and invalid AS values preserve the full raw event. `format_remote_as_test.go` covers producer-generated OPEN/state/notification events, null and malformed input. Selected race controls, the full monitor package and actual SSH PTY/BGP `internal/test/fixture/monitor_remote_as_stream.go` `monitorRemoteASStream` pass. Its promoted fixture and paired forked RPKI fixture pass 2/2 after 80 native stress invocations; main also observed the actual unknown-AS-to-AS0 negative fail before peer OPEN. |
+| JSON RPKI admission reader, AC-8/11 | BGP `plugins/rpki/rpki.go` `handleEvent` reads `GetPeerASN` and `ASN` before JSON projection; `SetMetricsRegistry` registers `ze_rpki_updates_refused_total` | Unknown and malformed UPDATE identity is counted by reason and reaches no validation, tracker or emitted event. A known AS 100 still produces valid origin/ASPA decisions, tracker entries and a validation event. State-down cleanup precedes UPDATE admission and remains ASN-free. `peer_as_admission_test.go` `TestJSONUpdateRequiresPeerAS` / `TestJSONPeerDownWithoutASClearsTrackedRoutes` pass in selected race proof. The full RPKI package passes after the independently reviewed after-join fixture cleanup, and `test/plugin/rpki-event-valid-forked.ci` passes the actual known-AS JSON transport path. Session admission and native JSON encoding justify the malformed-identity handler seam, as recorded above. |
+| EPE state reader, AC-11 | BGP `plugins/epe/epe_source.go` `Source.State` reads `PeerInfoJSON` for an up event | Preserve the existing local/remote AS-zero refusal before storing a session or publishing its link-state identity. A valid up identity still populates the session; a non-up event removes its session before requiring AS fields. This site already has the needed admission guard and is retained as a permitted source-based survivor; no new EPE execution is claimed. |
+| Peer-AS command consumers, AC-8/11 | BGP `plugins/cmd/peer/peer.go` `setRemoteAS`, `filterPeersBySelectorValue`; `health.go` `handleShowBGPHealth`; `prefix_update.go` `handleBgpPeerPrefixUpdate`; `plugins/cmd/policy/handler.go` `filterPeersByPolicySelector`; `config/loader.go` `peerLabel`; `internal/component/plugin/server/command.go` `selectorMatchesPeer` | Each asks `ASN` before using a number. Unknown identity remains unavailable to numeric-AS selection and prefix-update lookup; rows and labels do not publish AS zero as a learned identity. This preserves address/name selection and ordinary known-AS answers. |
+| MRT peer-AS boundary, AC-11 | `internal/plugins/mrt/dump.go` `peerInfoToHeader` reads typed AS; BGP reactor wire observers retain raw BGP messages | Preserve MRT's existing undefined-AS zero marker at this format boundary; it is not fed back as a negotiated peer identity. `rfc6396_component_test.go` and the BGP `reactor/rfc6396_wire_capture_test.go` consumers retain the MRT contract. |
+| ExaBGP JSON/text bridge, AC-10/11 | Bridge `bridge_event.go` `ReadEvent`, `Event.exabgpPeerASN`, `exabgpNLRIObject`, `exabgpPathInformation`; `bridge_event_json.go`, `bridge_event_text.go`, `bridge_event_state.go`, `bridge_event_fsm.go`; `bridge_wire_json.go` `WireUpdateToExabgpJSON` constructs typed identity from session facts | Preserve ExaBGP's peer-AS auto value zero when native Ze omits an unknown AS; known AS remains numeric. Native `path-id` becomes the ExaBGP `path-information` spelling, including zero. `TestUnknownPeerASIsExabgpAuto` in `bridge_event_fsm_test.go` checks both unknown and known encodings; existing bridge NLRI tests preserve the compatibility shape. |
+| Unchanged Python readers, AC-10/11 | Bridge line encoders remain the writers seen by `test/exabgp-compat/etc/run/exabgp_api.py`, its `old-5.0` counterpart and `exabgp_packets.py` | `API.read_line` and `API._record` consume newline-framed ExaBGP `neighbor`/`message` objects; packet helpers compare ExaBGP JSON. Current and old `*.run` programs read those lines, and `stderr-1.py` / `syslog-1.py` forward them as text. Preserve that envelope and peer-AS auto zero through the bridge; these scripts do not migrate to native `RemoteAS` or the native Ze peer object. |
+| Unchanged Python command writers and fixture readers, AC-10 | `test/exabgp-compat/{etc,old-5.0/etc,old-4.2/etc}/run/*.run`, including `api-attributes-path.run`, emit `path-information` commands; `test/plugin/addpath-identifier-zero-forwarded.ci` carries explicit zero-ID octets | Bridge command translation continues to feed the registered update grammar. BGP `plugins/cmd/update/update_text.go` `parsePathInfoFlat` records keyword presence in `HasPathID`; `plugins/cmd/update/update_text_nlri.go` `parseINETSection`, `parseINETNLRI`, `parseVPNNLRI`, `parseLabeledNLRI` and registry section parsers carry it. The functional fixture's receiver checks the four zero-ID octets; no Python or shell consumer is changed to infer presence from the value. |
+| ADD-PATH presence authority, AC-3/10 | NLRI `base.go` `prefixNLRI.HasAddPath`; `inet.go` `NewINET`, `ParseINET`; `wire.go` `WireNLRI.HasAddPath`; `nlri.go` `HasPathID`, `SplitPathID` | BGP `rib/route.go` `Route.Index` asks `HasPathID`. BGP `route.go` `RouteKey` takes the presence flag, and `Route.AddPath` distinguishes a zero identifier from none. `TestAddPathIdentifierZeroIsAnIdentifier` in `rib/route_test.go` covers zero, maximum and absent identity. |
+| BGP NLRI wire writers, AC-10 | NLRI `nlri.go` `WriteNLRI`, `LenWithContext`; BGP `reactor/reactor_api_batch.go` `writeBatchNLRI`; `message/update_build.go` `BuildUnicast`, `buildMPReach`; `message/update_build_grouped.go` `BuildGroupedUnicast`; `message/update_build_vpn.go` `buildVPNNLRIBytes`; `message/update_build_labeled.go` `BuildLabeledUnicastNLRIBytes` | Preserve destination-negotiated framing, independent of identifier value. `reactor/reactor_wire.go` `writeAnnounceUpdate` / `writeWithdrawUpdate` and `cli/encode.go` `encodeUnicastRoute` keep passing the negotiated flag to `WriteNLRI`; their locally constructed INET payloads carry no source identifier. The actual FRR checker independently reads RX 0/RX 1; its observed omitted-zero negative and clean are recorded above. |
+| Other local INET constructors, AC-10 | BGP `plugins/cmd/announce/announce.go` `handleAnnounceUnicast` / `handleAnnounceBlackhole`, `plugins/cmd/commit/commit.go` `handleNamedCommitWithdraw`, `internal/perf/sender.go` `buildInlineBatch`, `buildMPBatch`, `buildWithdrawBatch`, `buildForceMPRoute` | Explicit false means the local payload has no source Path Identifier. Preserve the destination writer's independent negotiated framing; a local numeric zero does not suppress destination ADD-PATH. |
+| RIB storage, show and replay, AC-10 | BGP `plugins/adj_rib_in/rib.go` structured/JSON installers and `rib_complex.go` `installComplexNLRIs` store `RawRoute.HasPathID`; `rib_commands.go` `show` uses it for keys. `plugins/rib/rib.go` `handleSent` / `sentNLRIHasPathID` recover JSON member presence; `rib_structured.go` sent/received handlers retain the session flag | `plugins/rib/rib_pipeline.go` `serializeRouteItem`, `rib_replay.go` `collectGroupedRibOutRoutesFiltered` / `formatCursorCommands`, and BGP `format.go` `FormatAnnounceCommand`, `FormatWithdrawCommand`, `RouteNLRIHex`, `writeNLRIModifiers` use `Route.AddPath`. `ribout_entry.go` `reconstructRoute` retains it. The canonical zero-ID tests in `plugins/rib/ribout_native_test.go`, `plugins/adj_rib_in/complex_key_test.go` and BGP `format_test.go` cover those consumers. |
+| ADD-PATH event renderers, AC-10 | BGP `format/text_json.go` `appendNLRIJSONValue`, `appendNLRIJSON`, `appendUndecodedNLRIJSON` use `HasPathID`; `format/text_update.go` raw IPv4/full UPDATE writers use the encoding context | BGP `event.go` `parseRawFields` / `parseFamilyOps` retain family flags; `nlri.go` `ParseNLRIValue` extracts the value while callers retain presence separately. `policychain/external_intents.go` `announcedPrefixValue` uses a pointer for an optional `path-id`. The bridge reader above preserves zero; the fixture reader `internal/test/fixture/plugin_fixture_02_events.go` checks member presence. `format/text_test.go` covers zero, maximum and no-ADD-PATH rendering. |
+| VPN, labeled and EVPN renderers, AC-10 | BGP `plugins/nlri/vpn/types.go` `VPN.HasAddPath`, `vpn.go` `vpnToJSON` / `formatVPNTextSingle`; `plugins/nlri/labeled/types.go` `LabeledUnicast.HasAddPath` / `String`, `json.go` `AppendJSON`; `plugins/nlri/evpn/types.go` concrete `HasAddPath` methods and `plugin.go` `evpnToJSON` | Parse-time flags decide presence; VPN/labeled text and JSON retain identifier zero. Canonical cases are in `vpn/rfc4659_vpn_test.go`, `labeled/types_test.go` (`TestLabeledUnicastStringKeepsAPathIdentifierOfZero`) and `format/text_test.go`. Payload `WriteTo` still excludes the outer identifier, which `WriteNLRI` supplies. |
+| Other registered NLRI decoders, AC-10 | BGP `plugins/nlri/{flowspec,ls,mup,mvpn,rtc,srpolicy,vpls}` decoder entry points receive `addPath`; MVPN `sectionJSON` keeps the outer identifier beside its decoded NLRI. Core `flowspec` / `bgpls` and plugin MUP/MVPN/RTC/SRPolicy/VPLS `HasAddPath` methods retain their payload-level answer | Preserve the distinction between the decoded family payload and its outer framing. `DecodeNLRIHex`, `decodeBGPLSNLRI` and MVPN section walkers publish `path-id` from the supplied flag, including zero, even where the payload object itself carries none. No family is newly promised ADD-PATH support by adding the accessor. BGP `server/codec.go` registry decoder handlers continue forwarding the encoding flag. |
+| Existing forwarding/validation readers, AC-10 | BGP `plugins/rs/server_inventory.go` `extractWireNLRIRecords`, `appendParsedRecords`, `appendOpaqueRecords`; `plugins/rr/withdrawal.go` wire/parsed walkers; `plugins/bmp/bmp_replay.go` `cacheAdjNLRIs`; `plugins/rpki/rpki.go` validation/tracker walkers | Preserve source-context and parsed-object framing rather than migrating these readers to identifier tests. Current `policyview.View.AddPath`, policychain section walkers, reactor forwarding/provenance/validation walkers, relay/recovery and sent-owner paths continue using explicit context or stored framing flags. The changed accessor does not replace the negotiated destination writer. Unknown source context is an explicit refusal in the RS regression named by ledger row 51. |
+| Malformed NLRI / withdrawal action, AC-9/10 | BGP `format/text_json.go` `appendUndecodedNLRIJSON` publishes raw/error information instead of a placeholder route; `reactor/forward_build.go` `buildWithdrawalPayloads` splits the two-family withdrawal | Preserve decodable sibling routes and withdraw each refused family through its proper field. `TestUndecodableNLRIIsNeverWrittenAsARoute` and `TestMixedFamilyUpdateRefusedIsWithdrawnPerFamily` cover these paths. The stable AC-7 patch gives `buildWithdrawalPayload` an explicit error result, and `fwdWithdrawal.of` releases the borrowed buffer on error; main green/report proof remains pending. |
+| Raw command payload and RPC refusal, AC-8 | `internal/component/plugin/types.go` `RawJSON.MarshalJSON`; `dispatch.go` `builtDocument`, `WriteAnswer`, `writeUnbuiltAnswer`; `server/dispatch.go` `responseToDispatchOutput` | Objects, arrays and the no-data null form survive; invalid JSON and top-level scalars produce an error answer. `server/command.go` `routeToProcess` reads `pluginipc.ExecuteCommandValue` and preserves its error verdict. `TestRawJSONRefusesNonJSON`, `TestRawJSONRefusesAScalar` and `TestWriteAnswerRefusedPayloadStillAnswers` cover construction and the real terminator, so a refused scalar does not strand the caller. |
+| RIB pipeline / graph answer, AC-8 | BGP `plugins/rib/rib_pipeline.go` `showPipeline`, `rib_pipeline_best.go` `bestPipeline`, `rib_topology.go` `refusePipelineArgs`, `commandAnswer`, `graphTerminal.drain` | Invalid arguments become an error verdict through `commandAnswer`. Valid graph output is a structured graph document; `plugins/rib/register.go` registers `renderGraphText`, and `internal/component/command/text_renderer.go` `applyRegisteredText` renders its key for text while JSON keeps the structure. `TestPipelineParseErrorsReachCommandVerdict`, `rib-filter-show.ci` and the owner-approved graph fixtures preserve useful answers. |
+| LG measured winner and session names, AC-8/12 | BGP `plugins/rib/rib_pipeline_bestfact.go` `bestFactOf`, `writeBestFact`; `rib_pipeline.go` `serializeRouteItem` writes the recorded received-route best fact | `internal/component/lg/handler_api.go` `transformRoutes` maps `best` to birdwatcher `primary`; `protocolSession` resolves listed names or addresses before route/count/export queries. `TestShowRIBRowsSayWhichPathWon` and `TestAPIProtocolNameSelectsItsSession` keep the useful winner and listed-session answers. An unmatched session is 404; a known losing route remains primary false. |
+| BMP Loc-RIB payload, AC-12 | BGP `plugins/rib/rib_bestchange.go` best-change publication carries attributes in `internal/core/bgp/ribevents/ribevents.go`; `plugins/bmp/bmp_locrib.go` `buildLocRIBUpdateBody`, `handleBestChange` encode and fan out the UPDATE | pmacct reads the best path's actual attributes. Missing announce attributes refuse; valid announces and withdrawals remain sent. `TestLocRIBRouteMonitoringCarriesTheBestPathAttributes`, `TestLocRIBAnnounceWithoutAttributesIsRefused`, the new send-failure control and native BMP/pmacct run cover the producer and peer. |
+| Health/date answers, AC-8/12 | `internal/core/health/registry.go` `RegisterWhen` / `invokeCheck`, L2TP `checkHealth`, VPP `checkVPPHealth`, trafficusage `probeTCX` / `trafficUsageDiagnostic`; `internal/component/cmd/show/system.go` `handleShowSystemDate`, registry `GetNTPSyncInfo` | Preserve measured healthy/zero answers and omit inapplicable checks; failed measurement reports its cause. An absent NTP provider refuses, while registered inactive NTP contributes no metadata to the still-valid date. Canonical health, TCX and NTP controls are in the retained ledger and completed proof sections. No new native JSON health status is introduced here. |
+| Protocol refusals with preserved encodings, AC-9/12 | RADIUS `dispatchResponse` / `verifyResponseMessageAuthenticator`, LDP `EnsureLocal` / `allocateLabelLocked` / `DecodeInit` and session unknown-TLV handling, IS-IS `handleIIH`, RSVP `handlePath` / `rroProtectionFlags`, BFD `pluginService.EnsureSession` | These change admission, notification, counting or measured flags through existing protocol encoders. FreeRADIUS/FRR and the unsigned relay, LDP nft rewrite and named regressions retain valid traffic controls; their wire layouts do not acquire a new field from this spec. The permitted input cases below state what continues to pass. |
+
+## Permitted survivors and useful outcomes
+
+These rows supplement the unchanged ACs. Each names the useful outcome and the
+reason the surviving value or input is permitted; the linked canonical tests
+supply assertions rather than an absence-only success.
+
+| AC | Useful outcome and permitted survivors | Source contract and canonical control |
+|----|---------------------------------------|---------------------------------------|
+| AC-1 | A recognized switch case continues to answer its value. An unmatched nil-error result has no permission to pretend recognition; an intentional sentinel needs the named guard of AC-5. | `fileScan.defaultArm` / `fallOff`, `testdata/switch.go`, `TestRefuseByDefaultRefusesEachRuleFixture`. |
+| AC-2 | A miss explicitly handed to the caller as a flag or error remains usable; a guessed hit does not. An observed absence remains distinct from an unreadable resource. | `answersPlausibly` / `recordsMiss`, `testdata/miss.go`; `TestInterfaceExistsReadErrorIsNotAbsence` and direct netlink missing-link versus read-error controls. |
+| AC-3 | All carried identifier values, including zero and maximum uint32, remain usable through negotiated presence. No value-zero comparison is permitted as an absence decision because the field reserves no absent value. | `HasPathID` and `WriteNLRI`; `testdata/pathid.go` and the canonical zero-ID tests under AC-10. RFC 7911 Section 2: "A BGP speaker that receives a route should not assume that the identifier carries any particular semantics." |
+| AC-4 | A healthy answer supported by a measured read remains permitted. A state boolean derived from measured data remains an answer; a literal needs a valid guard rather than pretending measurement. The full race retry after the forward package-alias fix passes; package statement coverage is 86.5%, with eight uncovered profile blocks retained. | `fileScan.function` / `expression`, `testdata/state.go` measured-health control; `TestL2TPHealthHealthyOnlyWithDataPlane`, `TestTrafficUsageReadinessCanFail`. |
+| AC-5 | A guarded zero remains valid when its annotation names the visible guard the consumer actually uses. | `annotations` / `parseGuard` / `annotationFor`; `TestRefuseByDefaultAnnotationNeedsGuard` and `TestRefuseByDefaultGuardInSiblingFile`. |
+| AC-6 | No unnamed guard survives, because the reviewer cannot identify the consumer that distinguishes the sentinel from an answer. | `RuleAnnotationNoGuard`, `TestRefuseByDefaultAnnotationNeedsGuard`. |
+| AC-7 | The tree report continues listing unrelated refused and annotated shapes so their owners can judge them. Its exit zero is a reporting convention, not acceptance. The three retained red-baseline rows now have a stable explicit-error/visible-recording patch; main must prove its actual report meets the original criterion. No waiver is needed if that proof passes. | `Report` / `runReport`, `TestRefuseByDefaultReportListsTree`, and the exact producer/consumer census recorded above. |
+| AC-8 | Successful reads, typed not-found, no requested CoS profile, a valid pipeline and an inactive registered NTP provider remain usable. These are real outcomes, unlike failed measurement or an absent provider. Valid command objects/arrays and no-data answers also survive scalar refusal. | `TestResolveAbsentProviderPermitsNoProfile`, `TestNetlinkGetStatsZeroCounters` / `MeasuredCounters`, `TestSystemDateAcceptsInactiveNTPProvider` / `CarriesMeasuredNTPState`, valid pipeline/count controls, and `RawJSON` controls above. |
+| AC-9 | JSON/JSON_IETF gNMI Gets, valid debug syntax, an LDP unknown U=1 TLV, a free last label, a valid IS-IS state, complete RSVP PATH and IPv6 BFD with bind-v6 remain admitted. A non-EAP unsigned RADIUS answer survives only the existing explicit unsigned-response policy; it does not exempt unsigned EAP. | `TestGetAnswersEachJSONEncoding`, gnmic interop; LDP U=1 controls and `TestLDPLabelExhaustionRefusesSecondBinding`; IS-IS/RSVP controls; `TestIPv6SessionAcceptedWithBindV6`, `TestIPv4MappedPeerNeedsNoBindV6`; unsigned non-EAP control in `TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator`. RFC 5036 Section 3.3 permits U=1 processing while requiring U=0 notification and message rejection. |
+| AC-10 | Under ADD-PATH, zero and maximum are identities; without it the prefix stays free of an identifier regardless of the stored number. Re-advertisement retains negotiated framing and Ze's destination identifier. | `TestAddPathIdentifierZeroIsAnIdentifier` in each canonical consumer, `TestLabeledUnicastStringKeepsAPathIdentifierOfZero`, `addpath-identifier-zero-forwarded.ci`, and the actual FRR baseline/negative/clean. RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE message, the NLRI encoding MUST be extended by prepending the Path Identifier field, which is of four octets." |
+| AC-11 | Fresh LLGR routes survive missing stale state; thermal 0.0 is measured data; a clear names the resolved victim; a known peer AS stays numeric and a pre-negotiation event stays unknown. ExaBGP peers retain their documented auto-AS zero spelling at the compatibility boundary. Monitor preserves unknown as text and malformed input as raw data; RPKI still validates known-AS UPDATEs and removes routes on ASN-free state-down. EPE preserves its existing AS-zero up-event refusal while admitting valid identity and cleaning up non-up sessions. | `TestLLGREgressFilter_NilStateDoesNotSuppressFreshRoute`, thermal/DDoS/dynamic-AS tests in the ledger, `TestUnknownPeerASIsExabgpAuto`, monitor `TestFormatMonitorLineRemoteAS`, `TestFormatMonitorLineRemoteASNull` and `TestFormatMonitorLineRemoteASInvalid`, RPKI `TestJSONUpdateRequiresPeerAS` / `TestJSONPeerDownWithoutASClearsTrackedRoutes`, and EPE `Source.State`. These zeros have distinct explicit contracts, and none supplies a fabricated learned peer AS. |
+| AC-12 | Measured readiness, actual addresses, the recorded best/losing route, the best path's own BMP attributes and established-bypass RRO flags remain reportable. An inapplicable health check has no row; failed measurement keeps its reason. A real all-zero counter record remains valid. | L2TP healthy/data-plane controls, root/non-root TCX probe, VPP address tests, `TestShowRIBRowsSayWhichPathWon`, BMP attribute and healthy-collector controls, `TestRFC4090FlagsSetOnceBypassEstablished`, direct netlink zero/measured controls. |
+| AC-13 | Each owned row's normal input continues to produce the useful outcome its canonical regression names; each representative defect input must still discriminate against its producer break. Dependency-owned rows retain their separate owner and proof. | The 54-row ledger names each producer and regression. Historical reds remain attributed to `238bdb62e9`; later repairs retain their exact observed negative/clean evidence. This does not convert pending literal AC-7 or remaining final audit work into completion. |
+
 ## Risks & Assumptions
 
 ### Assumptions
@@ -662,10 +782,10 @@ named as one").
 | `TestRefuseByDefaultRefusesEachRuleFixture` | `internal/le/arch/refusebydefault/refusebydefault_test.go` | AC-1 to AC-4, one testdata fixture per rule | |
 | `TestRefuseByDefaultAnnotationNeedsGuard` | same | AC-5, AC-6 | |
 | `TestRefuseByDefaultReportListsTree` | same | AC-7 | |
-| `TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator` | `internal/component/radius/client_test.go` | AC-9, RFC 3579 Section 3.1 | |
-| `TestLDPLabelExhaustionRefusesSecondBinding` | `internal/plugins/ldp/lib_test.go` | AC-9, RFC 3031 Section 3.14 | |
-| `TestLDPInitUnknownTLVUClearNotifies` | `internal/plugins/ldp/wire_test.go` | AC-9, RFC 5036 Section 3.3 | |
-| `TestISISHelloInvalidThreeWayStateDiscarded` | `internal/plugins/isis/rfc5303_invalid_state_wiring_test.go` | AC-9, RFC 5303 Section 3.2: `handleIIH` counts the discarded Hello | |
+| `TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator` | `internal/component/radius/rfc3579_client_test.go` | AC-9, RFC 3579 Section 3.1 | |
+| `TestLDPLabelExhaustionRefusesSecondBinding` | `internal/plugins/ldp/rfc3031_label_test.go` | AC-9, RFC 3031 Section 3.14 | |
+| `TestLDPInitUnknownTLVUClearNotifies` | `internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go` | AC-9, RFC 5036 Section 3.3 | |
+| `TestISISHelloInvalidThreeWayStateDiscarded` | `internal/plugins/isis/hello_invalid_state_drop_test.go` | AC-9, RFC 5303 Section 3.2: `handleIIH` counts the discarded Hello | |
 | `TestRFC5303InvalidStateLeavesAdjacencyUntouched` (existing, RFC5303-3.2-7) | `internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go` | AC-9, RFC 5303 Section 3.2: the FSM discards before mutation | |
 | `TestRFC2205PathWithoutSenderTSpecRefused` (existing, tagged), `TestRFC2205PathWithoutSenderTSpecDropped` (existing) | `internal/plugins/rsvpte/rfc2205_path_test.go`, `repairs_rfc2205_test.go` | AC-9, RFC 2205 Section 3.1.3 | |
 | `TestRadiusUnsignedEAPDiscardCounted` | `internal/component/radius/metrics_test.go` | AC-9: the discard reaches the `ze_radius_unsigned_eap_discards_total` series | |
@@ -690,15 +810,21 @@ named as one").
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `TestConfigValidateWithoutCoSRefusesProfile`, `TestConfigValidateWithoutCoSAcceptsInlineMaps` | `internal/test/cosabsent/` | actual daemon built without CoS refuses the unavailable profile setting and still accepts inline VLAN maps | green under race, main-thread log `tmp/session/2026-11-11-004105/scratch/job-cos-absent-integration-green-3454b9a9.log`; binary build tags are checked before execution; schema exposure retains the original four interface kinds |
-| `show-bgp-peer-bare-list` | `test/plugin/` | web or SSH `show bgp peer` with no key lists entries or names the path | |
 | `addpath-identifier-zero-forwarded` | `test/plugin/` | route with identifier 0 under ADD-PATH reaches the peer with four identifier octets | |
+
+The proposed `test/plugin/show-bgp-peer-bare-list.ci` belongs to
+`plan/release/fixes/spec-web-cli-config-one-off-defects.md` AC-20, as recorded in
+`plan/handover/24-refuse-by-default-implemented-awaiting-closure.md`, Closure
+checklist. That existing ownership removes the duplicate deliverable here; it
+does not claim that the absent fixture was created or run by this spec.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `addpath-zero-id-frr` | `test/interop/scenarios/`, checkers in `internal/le/interoplab/bgp/` (`scenarioAddPathZeroIDFRR`) | FRR | identifier 0 round trip under ADD-PATH | written, NOT RUN: the Docker lab must run Ze's kernel (macOS `ze` Colima profile or the Ze-kernel QEMU guest). Run: `INTEROP_SCENARIO=addpath-zero-id-frr ./le test integration interop`. It proves acceptance only (vacuity trap 4): Ze's identifier octets come from the session flag in `nlri.WriteNLRI` (reached from `reactor_api_batch.go` `writeBatchNLRI`), which this spec did not change, so reverting the spec's diff cannot redden it. Red phase owed: in `internal/core/bgp/nlri/nlri.go` `WriteNLRI`, change `if addPath && n.SupportsAddPath()` to `if addPath && n.SupportsAddPath() && n.PathID() != 0`, rerun the same command (the harness rebuilds the image from the tree), confirm the checker fails on FRR's missing `AddPath ID: RX 0,` path, restore, confirm green, and record the red |
+| `addpath-zero-id-frr` | `test/interop/scenarios/`, checkers in `internal/le/interoplab/bgp/` (`scenarioAddPathZeroIDFRR`) | FRR | identifier 0 round trip under ADD-PATH | matched logging-only baseline 1/1; omitted-zero writer negative fails with RX 1 surviving and RX 0 absent; unmodified-source clean 1/1, all on 2026-11-11. Exact commands, limits and logs are in Completed native interop evidence. |
 | `radius-admin-eap-unsigned-freeradius` | `test/interop-radius/scenarios/`, checker `internal/le/interoplab/radius/check_unsigned_eap.go` | FreeRADIUS 3.2.10, through `test/interop-radius/unsigned-relay.pl` in its container (FreeRADIUS's `rad_encode` always signs over UDP) | EAP answer without Message-Authenticator is discarded, logged and counted; the same login with the signature kept completes | green 2026-10-23 (with the four other radius scenarios) |
-| `ldp-init-unknown-tlv-frr` | `test/interop/scenarios/`, checker `internal/le/interoplab/bgp/check_ldp_init_unknown_tlv.go` | FRR ldpd; an nft rule in ze's container rewrites one TLV type in FRR's real Init (FRR cannot send an unknown TLV) | unknown U=0 TLV in Init draws an Unknown TLV notification FRR receives, and the Init is ignored (no OPERATIONAL until the rewrite is removed) | |
+| `ldp-init-unknown-tlv-frr` | `test/interop/scenarios/`, checker `internal/le/interoplab/bgp/check_ldp_init_unknown_tlv.go` | FRR ldpd; an nft rule in ze's container rewrites one TLV type in FRR's real Init (FRR cannot send an unknown TLV) | unknown U=0 TLV in Init draws an Unknown TLV notification FRR receives, and the Init is ignored (no OPERATIONAL until the rewrite is removed) | green 2026-11-11, 1/1; `job-refusal-ldp-interop-632ff3c0.log` |
+| `bgp-addpath-best-path-pmacct` | `test/interop/scenarios/`, registered checker under `internal/le/interoplab/bgp/` | pmacct with the catalog's BGP peers | BMP collector receives the best-path Route Monitoring payload | green 2026-11-11, 1/1; `job-refusal-bmp-best-path-interop-632ff3c0.log` |
 
 ## Files to Modify
 - `internal/component/radius/client.go`, `packet.go` - discard EAP answer without Message-Authenticator
@@ -712,7 +838,7 @@ named as one").
 
 ## Files to Create
 - `internal/le/arch/refusebydefault/` - `register.go`, `refusebydefault.go`, `actions.go`, tests and testdata
-- `internal/test/cosabsent/cos_absent_integration_test.go` (actual absent-CoS binary, replacing the proposed `.ci` whose runner enables all feature gates), `test/plugin/show-bgp-peer-bare-list.ci`, `test/plugin/addpath-identifier-zero-forwarded.ci`
+- `internal/test/cosabsent/cos_absent_integration_test.go` (actual absent-CoS binary, replacing the proposed `.ci` whose runner enables all feature gates), `test/plugin/addpath-identifier-zero-forwarded.ci`
 - `test/interop/scenarios/addpath-zero-id-frr/`
 
 ### Integration Checklist
@@ -747,7 +873,7 @@ named as one").
 | 11 | Affects daemon comparison? | No | |
 | 12 | Internal architecture changed? | Yes | `docs/contributing/ze-go-style.md`: refusal over default, the annotation |
 | 13 | Route metadata keys added/changed? | No | |
-| 14 | Prometheus counters added/changed? | Yes | the subsystem telemetry pages of any counter added |
+| 14 | Prometheus counters added/changed? | Yes | the subsystem telemetry pages of any counter added; `docs/guide/rpki.md` for `ze_rpki_updates_refused_total` and its `unknown-peer-as` / `malformed-peer-as` reason labels |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | declared by the files named here and affected: `docs/architecture/ldp/mpls-ldp.md` (label exhaustion refusal, U=0 TLV notification), `docs/architecture/route-types.md` (ADD-PATH identifier 0 presence), `docs/architecture/traffic/cos-plugin.md` (refusal with no resolver), `docs/features/interfaces.md` (link read error no longer reads as absent), `docs/research/l2tpv2-ze-integration.md` (health reads the data plane; research page, re-read to confirm it states no current behaviour). Re-run `./le spec citation anchors spec plan/release/fixes/spec-refuse-instead-of-defaulting.md` per phase |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | verify `show bgp peer` examples on the web terminal page |

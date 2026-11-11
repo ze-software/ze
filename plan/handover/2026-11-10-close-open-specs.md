@@ -9,81 +9,134 @@ owner asked that locked or blocked specs not stop progress on the others.
 
 ## Active refusal evidence continuation, 2026-11-11
 
-### Latest completed proofs and reload closure
+Refusal remains claimed and in progress. Its spec carries the retained 54-row
+regression ledger, the separate changed-carrier census and the exact completed
+proofs. All execution stays in main. No push or whole-tree verification was
+performed.
 
-Reload closed in `ce66c7971b` (final evidence and canonical operator news) and
-`4bfe6f2ab3` (spec removal). Main's final scoped lint over plugin/server and
-le/test/deployment passed Linux, integration, Darwin and capability configurations,
-exit zero. The owner-recorded sixth CLEAN review passed all 29 code hashes;
-static-BFD guest and live VPP proofs were already complete. No push was run.
+### Completed evidence
 
-Refusal checkpoint `741c850345` records direct netlink statistics negative/clean
-proof (`3a66d9d5cd`), strict TCX root-ready/ENODEV and ordinary-unknown/EPERM proof
-on the same Ze kernel (`5fa5efe3d2`), and the full native RIB package pass after
-fixture cleanup `1aa91d030b`. The deterministic full-package log was overwritten
-by its passing retry; separate pair and regression reds remain retained. The
-actual rebuilt daemon `rib-filter-show` subsequently passed 1/1 in
-`job-refusal-rib-filter-functional-c6d5829a.log`. The full config corpus's exact
-selected `TestRepositoryConfigsValidate` also exits zero in
-`job-unit-pkg-edd5d381.log`; default output reports package `ok`, not individual
-test names. Four named Linux controls (thermal zero, DHCP DAD outcome, TCX
-classifier and constructor) pass under race in
-`job-refusal-linux-controls-384752ff.log`. `TestGnmicInterop` and all nine
-subtests pass without skip in `job-refusal-gnmic-interop-608dd3c8.log`, including
-default JSON_IETF Get and PROTO refusal, through local same-host Docker.
+- `eb3efdecee` repairs BMP Loc-RIB collector send failures: the regression first
+  failed after confirming healthy delivery, then seven focused race controls
+  passed with independent source/style/docs review. The producer warns and
+  records the cause while continuing healthy fan-out. Actual BMP/pmacct
+  `bgp-addpath-best-path-pmacct` passes 1/1 in
+  `job-refusal-bmp-best-path-interop-632ff3c0.log`.
+- ADD-PATH's logging-only baseline passes 1/1; the matching omitted-zero
+  `WriteNLRI` overlay fails assertion 4 with RX 1 surviving, one path and no
+  RX 0 path; the unmodified clean rebuild passes 1/1. Logs are
+  `job-refusal-addpath-startup-debug-632ff3c0.log`,
+  `job-refusal-addpath-zero-negative-632ff3c0.log`, and
+  `job-refusal-addpath-clean-632ff3c0.log`. The earlier startup stall remains
+  historical, with no product startup fix claimed from the diagnostic rerun.
+- LDP/FRR passes 1/1 in `job-refusal-ldp-interop-632ff3c0.log`; gnmic's parent
+  and all nine subtests pass in `job-refusal-gnmic-interop-608dd3c8.log`.
+  Four Linux thermal/DAD/TCX classifier/constructor controls pass under race in
+  `job-refusal-linux-controls-384752ff.log`. The full config corpus passes in
+  `job-unit-pkg-edd5d381.log`, and the rebuilt daemon pipeline fixture passes
+  1/1 in `job-refusal-rib-filter-functional-c6d5829a.log`.
+- Checkpoint `741c850345` retains direct netlink negative/clean proof
+  (`3a66d9d5cd`), actual Ze-kernel root-ready/ENODEV and ordinary-unknown/EPERM
+  TCX proof (`5fa5efe3d2`), and full RIB green after fixture cleanup
+  (`1aa91d030b`). Its reused package log now holds the passing retry; separate
+  pair and regression reds retain the initial failure. Later named PASS lines
+  resolve old PKI/L2TP/VPP unrun labels without repeating those tests.
+- `cb44713011` repairs absent NTP provider refusal while preserving registered
+  inactive and measured false/zero controls. Its race, absent-build and actual
+  daemon proofs pass, as recorded in the spec.
+- LOCAL_PREF negative discrimination is recorded: the native baseline first
+  passed all three cases, then the hand-written per-run semantic break made
+  leaked 200 and zero fail while stripped survived. No checkout mutation or
+  post-break clean rerun is claimed. `CarrierFor` now selects the existing
+  unit carrier for known lab Go tests; its observed red and three-control green
+  are retained. Real checker tiers, unknown-lab refusal and unrelated tool-test
+  exclusions remain intact. The final LOCAL_PREF stamp completed on 2026-11-11;
+  remaining owned RFC reconciliation is listed below.
 
-The current native refusal report covers both populations: 2155 refused and
-72 annotated shapes across 7000 Go files. Exact comparison with all 54 owned
-census rows leaves strict AC7 open: `Reactor.notifyOneMessage` has two reported
-Debug-only parse-error branches even though it propagates `msg.ParseError`,
-and `buildWithdrawalPayload` retains a guarded malformed-layout zero. A distinct
-BMP best-change send error is logged only at Debug and is assigned for repair.
-The exact source/report rows and other coarse-name exclusions are in session
-state `refusal-ac7-census.md`. ADD-PATH's current-source baseline failed during
-the capability/startup barrier before any zero-ID assertion; full error and
-Ze/FRR logs are retained in the session's
-`scratch/interop-recordings/bgp/addpath-zero-id-frr-GLEEENUKK5KX3YMO2VEZ3ROJRD.jsonl`.
-Its negative/clean controls and LDP/BMP proofs remain open. Native `rfc check`
-exits one with 64 violations, not all attributed to refusal. The helper-only
-`1aa91d030b` change caused an owned ASPA SHIFTED verdict for two unchanged tagged
-tests; its scoped reseal is owed in main. Other current RFC ownership remains
-unclassified here. All execution remains in main; no criterion was weakened to
-claim closure.
+### Current repair and proof obligations
 
-The dependency addition belongs to another session. Thomas explicitly directed
-us to let that session finish; its modules/vendor are preserved. The host and
-local Docker daemon currently both report kernel `7.2.9-ze`, with Docker at the
-local Unix socket, permitting gnmic's same-host network proof.
+AC-4's direct-assignment and forward package-alias repair is committed in
+`06a4a22cbc`. Main's full race retry passes in `job-unit-pkg-ef92ffff.log`; this
+reused path now contains the run after the forward fix. Focused state/naming
+controls pass in `job-refusal-state-and-rfc-green-f471a48b.log`. The coverage run
+reports 86.5% in `job-refusal-state-coverage-2e5fed92.log`; the retained profile
+has eight uncovered blocks, so no 100% claim is made.
 
-The refusal spec is claimed and in-progress again. Its new retained-evidence
-ledger maps all 54 census rows to canonical regression definitions, recent
-red/green repairs or the closed dependency spec. Three stale dependency-census
-journal Fix cells now cite `30422ebe30`, `a81034e794` and `82c2cb97a7`; the
-text-renderer registrar row cites its repair and passing tests in `a6f93cea5d`.
-These are record corrections, not new executions.
+Monitor `796dbf1f9d` and RPKI `84b2e6b526` are committed and retain the
+known/unknown distinction. Selected
+race controls pass in `job-refusal-identity-green-5de424dd.log`, and the full
+monitor package passes. RPKI's initial full-package red in
+`job-unit-pkg-9fb6ac6b.log` exposed the reload fixture leaving a stopped
+Adj-RIB owner's refusing lookup behind. The new lifecycle regression failed
+both after-join assertions in `job-refusal-rpki-fixture-red-1577efe7.log`.
+`startRPKIReloadReceiver` now unregisters only after joining the owner, with
+production's exit refusal preserved. The full RPKI retry passes in
+`job-unit-pkg-a7417a90.log`; independent source/fixture/forked-CI review is clean.
 
-Later actual PASS lines resolve the old unrun labels for the three PKI fixtures,
-both L2TP health regressions and VPP stats read refusal. The spec retains their
-canonical sources and exact logs. Their historical labels do not require fresh
-runs. AC-7 still needs a current actual report compared by file and function
-against owned producers, including annotated findings; report exit zero alone
-does not prove that condition.
+The malformed RPKI UPDATE negative belongs at the handler seam: normal session
+admission rejects pre-Established UPDATEs and AS zero, and native JSON writes
+typed known identity for established UPDATEs. The actual forked RPKI functional
+fixture separately proves the useful known-AS JSON delivery and prefix-event
+path. Both it and the actual monitor SSH PTY/BGP fixture are promoted and pass
+2/2 in `job-refusal-identity-promoted-aafe844f.log`. Native stress first ran 80
+invocations with both selectors in each argv. Its report is "not reproduced in
+80 invocation(s)" in `job-refusal-identity-stress-d339f917.log`; exit 1 is the
+native reproducer's expected no-reproduction result. The complete capture is
+`tmp/stress-repro/plugin-draft-monitor-remote-as-stream-rpki-event-valid-forked-a58588da4cc09570f70d38bc6e41fcfe21cc3832e694d6d9848134dc08f30a0f-20261111-160316-2630899211.log`.
+Main also observed monitor baseline 1/1, an unknown-AS-only formatter overlay
+fail before peer OPEN with AS0 in the PTY transcript, then an unmodified clean
+rebuild pass 2/2. The baseline/negative tool output has no retained full scratch
+file; the promoted clean and stress paths above are the retained logs.
 
-The latest shared build refusal came from another session's in-progress
-patternmatcher dependency addition. Its owner now reports the explicit vendor
-entry and files complete; preserve that work. Main has formatted the focused
-netlink stats seam and five new direct-method regressions and is attempting the
-current-source named test. No result is claimed before the runner answers.
-The new units cover missing links, other read errors, missing counters, valid
-all-zero counters and preservation of all measured counter fields.
+The earlier full RFC package failed in `job-unit-pkg-d25f06c4.log` on naming
+exclusion and at the 20-minute timeout. Approved naming/ledger maintenance has
+focused green; the full retry remains owed. LOCAL_PREF final audit stamping is
+complete as of 2026-11-11. The ASPA fixture reseal and all four owned SHIFT
+reseals are complete against source: RFC5549-4-1, RFC5549-4-4, RFC7911-2-2 and
+RFC8950-4-1. Those audit changes remain dirty and uncommitted.
 
-The remaining scoped queue is in the refusal spec: full RIB and updated daemon
-fixture, corpus once, ADD-PATH baseline/overlay-negative/clean rebuild, LDP,
-BMP/pmacct, actual AC-7 report, thermal and scripted DHCP DAD tests, TCX probe
-in ordinary/root contexts, gnmic's changed encoding contract, and native RFC
-debt reconciliation. Independent closure review remains owed. Main executes
-every test, build, lint, formatter and proof; agents continue source/prose work.
-No whole-tree verification or push is added by this continuation.
+The AC-7 explicit-error/ParseError-recording patch is stable. Main's new red
+in retained run `f0b4a2f9` found exactly two notify hits and one builder hit;
+four callback controls passed. `buildWithdrawalPayload` now returns a length
+and explicit static-class error; `fwdWithdrawal.of` releases its buffer on that
+error. `notifyOneMessage` records parse failure visibly and clears a stale
+record after successful modified-wire parsing. `refusal_signature_judge` found
+the actual patch generic/style CLEAN. Main formatting and green/report proof
+remain pending. Literal AC-7 is unchanged; meeting it by implementation needs
+no waiver or answer to the earlier owner question.
+
+The two RFC7311 tagged caller migrations have independent judge approval:
+`TestRFC7311DirectLinkCostNeverWrapsOrDisappears` and
+`TestAIGPForwardedMetricsReachFinalWire`. Main still owes 16 native unit/polarity
+renewals for RFC7311-3.4.3-1 through -6 and assigned audit rejudgments for -2,
+-4 and -6. The expanded 43-ID scope is not declared fresh. The earlier native
+check's 64 violations are not all attributed to refusal.
+
+The expanded carrier census records monitor/RPKI readers and EPE `Source.State`'s
+existing AS-zero admission guard, plus useful known identity and ASN-free
+cleanup outcomes. Main's final source verification remains owed.
+
+The next work is main formatting and green/report proof for the stable AC-7
+patch, the RFC7311 renewals/rejudgments and the full RFC retry. All completed
+LOCAL_PREF/ASPA/SHIFT audit changes still need their native commit. Current
+bounded lint found four modernize embedded-literal findings in this spec's
+`internal/plugins/iface/netlink/stats_linux_test.go`; main will fix them after
+the current run, and no lint pass is claimed. Final source audits, documentation
+checks and independent review remain owed. Formal native closure review has not
+started. Completed AC-4, full RPKI and identity functional/stress proofs need no
+timestamp refresh. Agents run source/prose work only; main runs every build,
+test, formatter, lint and proof.
+
+Reload closed in `ce66c7971b` and `4bfe6f2ab3`. Final scoped lint passed Linux,
+integration, Darwin and capability configurations, and the owner-recorded
+sixth CLEAN review passed all 29 code hashes. Static-BFD guest and live VPP
+proofs were already complete. Its released claim is not a remaining queue.
+
+## Earlier checkpoints (historical)
+
+The sections below preserve earlier handbacks and their original decisions,
+failures and queues. The active continuation above supplies current status;
+older pending or blocked labels below must not restart completed work.
 
 ## NTP follow-up completed, 2026-11-11
 
