@@ -69,8 +69,8 @@
       {
         "id": "AC-2",
         "condition": "Run three independent inputs: nil []Route, a non-nil empty []Route, and []Route{{Prefix: \"198.51.100.0/24\", Installed: false}}.",
-        "expected-behavior": "PublishRoutes returns success and writes exactly {\"routes\":[]} for every input. The routes value decodes as an iterable array with zero elements. reader.sh exits 0 with zero stdout bytes; reader.py exits 0 with exactly one newline, and its installed_prefixes function returns an empty list.",
-        "permitted-survivors": "The routes array and both existing reader entry points remain usable when the requested filter leaves no installed route. No Route value survives these three inputs because none is installed. The Python CLI's existing final newline remains permitted because this change preserves that reader's print behavior."
+        "expected-behavior": "PublishRoutes returns success for every input. For non-nil empty and entirely uninstalled input it writes exactly {\"routes\":[]}, whose routes value is an iterable array with zero elements; reader.sh exits 0 with zero stdout bytes, reader.py exits 0 with exactly one newline and installed_prefixes returns an empty list. For nil input it preserves exactly {\"routes\":null}; both unchanged CLI readers retain their null-iteration failures with nonzero exits and zero stdout bytes, and installed_prefixes raises TypeError.",
+        "permitted-survivors": "For the two non-nil inputs, the empty routes array and existing successful reader behavior remain permitted because the requested filter removes uninstalled routes without changing those readers. For nil input, JSON null and the existing reader failure behavior remain because the Task permits no unrelated behavior change. No Route value survives any of these three inputs because none is installed. The Python CLI's existing final newline remains permitted for non-nil empty input because its print behavior is preserved."
       }
     ],
     "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
@@ -78,22 +78,22 @@
       {
         "approach": "Filter in PublishRoutes before the existing JSON marshal.",
         "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
-        "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
-        "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+        "operation": "Start with var selected []Route. Only when routes is non-nil, allocate selected = make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. This preserves nil input as JSON null and preserves a non-nil empty result as an array. Keep the caller's slice and Route values unchanged.",
+        "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names, error path and nil-input serialization. Non-nil empty or entirely uninstalled input produces an iterable empty array, while nil input retains its original null and reader failures.",
         "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
         "recommended": true
       },
       {
         "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
         "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
-        "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+        "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper, preserving whether that slice is nil. Its MarshalJSON starts with var selected []Route, allocates selected only when its receiver slice is non-nil, appends Installed values in input order and returns json.Marshal(selected). Thus nil remains null, a non-nil empty result remains an array, and it does not recursively marshal its own type.",
         "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
         "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
         "recommended": false
       }
     ],
     "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
-    "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+    "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Start with var selected []Route and allocate a non-nil empty selected slice only if routes != nil. Copy only Installed values into it, then marshal the existing struct with Routes: selected. Nil input must retain exactly {\"routes\":null}, including the existing readers' null-iteration failures; supporting null is outside the Task's filtering change. Non-nil inputs with no installed route must produce exactly {\"routes\":[]}. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
     "preservation-list": [
       "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
       "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
@@ -110,7 +110,7 @@
       {
         "boundary": "PublishRoutes to the published snapshot",
         "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
-        "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+        "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path. Nil input retains routes:null and the existing reader failures; a non-nil input with no surviving installed route retains an iterable routes:[] array.",
         "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
       },
       {
@@ -147,9 +147,9 @@
       },
       {
         "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
-        "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+        "feature-code": "writer.go nil-preserving selected []Route to the unchanged JSON readers",
         "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-        "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+        "observation": "For non-nil empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes and the Python entry exits 0 with exactly one newline. For nil input, require unchanged exact snapshot bytes {\"routes\":null}; both CLI entries retain their null-iteration failures, nonzero exits and zero stdout bytes, and installed_prefixes retains its TypeError."
       }
     ],
     "tdd-test-plan": [
@@ -166,12 +166,12 @@
       {
         "stage": "Empty population boundary",
         "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-        "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+        "method": "Retain all three inputs: nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. For the two non-nil cases, require an array of length zero and exact compact bytes {\"routes\":[]}; run both existing CLI readers and retain shell stdout of zero bytes versus Python stdout of exactly one newline. A bounded Python child loading the unchanged reader under a non-__main__ module name must observe installed_prefixes(snapshotPath) == []. For nil input, require the existing exact {\"routes\":null}, then run those same unchanged CLI readers against that verified file and require their existing null-iteration failures with nonzero exits and zero stdout; a bounded Python child must observe TypeError from installed_prefixes. Retain the existing reader source bytes and successful non-nil wiring controls, so an unrelated missing executable, script error or missing snapshot cannot satisfy the nil boundary."
       },
       {
         "stage": "Fault discrimination and regression",
         "test": "All four named Go tests",
-        "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+        "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently omit the allocation for non-nil input to make the empty-array boundary fail; restore it and rerun. Separately allocate selected unconditionally to change nil input from null to [], require the nil-preservation boundary to fail, restore the conditional allocation and rerun. Keep all source reader bytes and the three original boundary inputs unchanged. These are planned tests and cuts, not executed results."
       }
     ],
     "files-to-create": [
@@ -296,22 +296,22 @@
           {
             "approach": "Filter in PublishRoutes before the existing JSON marshal.",
             "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
-            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
-            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "operation": "Start with var selected []Route. Only when routes is non-nil, allocate selected = make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. This preserves nil input as JSON null and preserves a non-nil empty result as an array. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names, error path and nil-input serialization. Non-nil empty or entirely uninstalled input produces an iterable empty array, while nil input retains its original null and reader failures.",
             "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
             "recommended": true
           },
           {
             "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
             "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
-            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper, preserving whether that slice is nil. Its MarshalJSON starts with var selected []Route, allocates selected only when its receiver slice is non-nil, appends Installed values in input order and returns json.Marshal(selected). Thus nil remains null, a non-nil empty result remains an array, and it does not recursively marshal its own type.",
             "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
             "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
             "recommended": false
           }
         ],
         "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
-        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Start with var selected []Route and allocate a non-nil empty selected slice only if routes != nil. Copy only Installed values into it, then marshal the existing struct with Routes: selected. Nil input must retain exactly {\"routes\":null}, including the existing readers' null-iteration failures; supporting null is outside the Task's filtering change. Non-nil inputs with no installed route must produce exactly {\"routes\":[]}. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
         "preservation-list": [
           "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
           "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
@@ -328,7 +328,7 @@
           {
             "boundary": "PublishRoutes to the published snapshot",
             "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
-            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path. Nil input retains routes:null and the existing reader failures; a non-nil input with no surviving installed route retains an iterable routes:[] array.",
             "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
           },
           {
@@ -365,9 +365,9 @@
           },
           {
             "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
-            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "feature-code": "writer.go nil-preserving selected []Route to the unchanged JSON readers",
             "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+            "observation": "For non-nil empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes and the Python entry exits 0 with exactly one newline. For nil input, require unchanged exact snapshot bytes {\"routes\":null}; both CLI entries retain their null-iteration failures, nonzero exits and zero stdout bytes, and installed_prefixes retains its TypeError."
           }
         ],
         "tdd-test-plan": [
@@ -384,12 +384,12 @@
           {
             "stage": "Empty population boundary",
             "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+            "method": "Retain all three inputs: nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. For the two non-nil cases, require an array of length zero and exact compact bytes {\"routes\":[]}; run both existing CLI readers and retain shell stdout of zero bytes versus Python stdout of exactly one newline. A bounded Python child loading the unchanged reader under a non-__main__ module name must observe installed_prefixes(snapshotPath) == []. For nil input, require the existing exact {\"routes\":null}, then run those same unchanged CLI readers against that verified file and require their existing null-iteration failures with nonzero exits and zero stdout; a bounded Python child must observe TypeError from installed_prefixes. Retain the existing reader source bytes and successful non-nil wiring controls, so an unrelated missing executable, script error or missing snapshot cannot satisfy the nil boundary."
           },
           {
             "stage": "Fault discrimination and regression",
             "test": "All four named Go tests",
-            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently omit the allocation for non-nil input to make the empty-array boundary fail; restore it and rerun. Separately allocate selected unconditionally to change nil input from null to [], require the nil-preservation boundary to fail, restore the conditional allocation and rerun. Keep all source reader bytes and the three original boundary inputs unchanged. These are planned tests and cuts, not executed results."
           }
         ],
         "files-to-create": [
@@ -491,22 +491,22 @@
           {
             "approach": "Filter in PublishRoutes before the existing JSON marshal.",
             "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
-            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
-            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "operation": "Start with var selected []Route. Only when routes is non-nil, allocate selected = make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. This preserves nil input as JSON null and preserves a non-nil empty result as an array. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names, error path and nil-input serialization. Non-nil empty or entirely uninstalled input produces an iterable empty array, while nil input retains its original null and reader failures.",
             "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
             "recommended": true
           },
           {
             "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
             "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
-            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper, preserving whether that slice is nil. Its MarshalJSON starts with var selected []Route, allocates selected only when its receiver slice is non-nil, appends Installed values in input order and returns json.Marshal(selected). Thus nil remains null, a non-nil empty result remains an array, and it does not recursively marshal its own type.",
             "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
             "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
             "recommended": false
           }
         ],
         "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
-        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Start with var selected []Route and allocate a non-nil empty selected slice only if routes != nil. Copy only Installed values into it, then marshal the existing struct with Routes: selected. Nil input must retain exactly {\"routes\":null}, including the existing readers' null-iteration failures; supporting null is outside the Task's filtering change. Non-nil inputs with no installed route must produce exactly {\"routes\":[]}. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
         "boundaries-crossed": [
           {
             "boundary": "Caller to writer.go PublishRoutes",
@@ -517,7 +517,7 @@
           {
             "boundary": "PublishRoutes to the published snapshot",
             "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
-            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path. Nil input retains routes:null and the existing reader failures; a non-nil input with no surviving installed route retains an iterable routes:[] array.",
             "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
           },
           {
@@ -554,9 +554,9 @@
           },
           {
             "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
-            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "feature-code": "writer.go nil-preserving selected []Route to the unchanged JSON readers",
             "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+            "observation": "For non-nil empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes and the Python entry exits 0 with exactly one newline. For nil input, require unchanged exact snapshot bytes {\"routes\":null}; both CLI entries retain their null-iteration failures, nonzero exits and zero stdout bytes, and installed_prefixes retains its TypeError."
           }
         ],
         "tdd-test-plan": [
@@ -573,12 +573,12 @@
           {
             "stage": "Empty population boundary",
             "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+            "method": "Retain all three inputs: nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. For the two non-nil cases, require an array of length zero and exact compact bytes {\"routes\":[]}; run both existing CLI readers and retain shell stdout of zero bytes versus Python stdout of exactly one newline. A bounded Python child loading the unchanged reader under a non-__main__ module name must observe installed_prefixes(snapshotPath) == []. For nil input, require the existing exact {\"routes\":null}, then run those same unchanged CLI readers against that verified file and require their existing null-iteration failures with nonzero exits and zero stdout; a bounded Python child must observe TypeError from installed_prefixes. Retain the existing reader source bytes and successful non-nil wiring controls, so an unrelated missing executable, script error or missing snapshot cannot satisfy the nil boundary."
           },
           {
             "stage": "Fault discrimination and regression",
             "test": "All four named Go tests",
-            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently omit the allocation for non-nil input to make the empty-array boundary fail; restore it and rerun. Separately allocate selected unconditionally to change nil input from null to [], require the nil-preservation boundary to fail, restore the conditional allocation and rerun. Keep all source reader bytes and the three original boundary inputs unchanged. These are planned tests and cuts, not executed results."
           }
         ],
         "files-to-create": [
@@ -672,8 +672,8 @@
           {
             "id": "AC-2",
             "condition": "Run three independent inputs: nil []Route, a non-nil empty []Route, and []Route{{Prefix: \"198.51.100.0/24\", Installed: false}}.",
-            "expected-behavior": "PublishRoutes returns success and writes exactly {\"routes\":[]} for every input. The routes value decodes as an iterable array with zero elements. reader.sh exits 0 with zero stdout bytes; reader.py exits 0 with exactly one newline, and its installed_prefixes function returns an empty list.",
-            "permitted-survivors": "The routes array and both existing reader entry points remain usable when the requested filter leaves no installed route. No Route value survives these three inputs because none is installed. The Python CLI's existing final newline remains permitted because this change preserves that reader's print behavior."
+            "expected-behavior": "PublishRoutes returns success for every input. For non-nil empty and entirely uninstalled input it writes exactly {\"routes\":[]}, whose routes value is an iterable array with zero elements; reader.sh exits 0 with zero stdout bytes, reader.py exits 0 with exactly one newline and installed_prefixes returns an empty list. For nil input it preserves exactly {\"routes\":null}; both unchanged CLI readers retain their null-iteration failures with nonzero exits and zero stdout bytes, and installed_prefixes raises TypeError.",
+            "permitted-survivors": "For the two non-nil inputs, the empty routes array and existing successful reader behavior remain permitted because the requested filter removes uninstalled routes without changing those readers. For nil input, JSON null and the existing reader failure behavior remain because the Task permits no unrelated behavior change. No Route value survives any of these three inputs because none is installed. The Python CLI's existing final newline remains permitted for non-nil empty input because its print behavior is preserved."
           }
         ],
         "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
@@ -681,22 +681,22 @@
           {
             "approach": "Filter in PublishRoutes before the existing JSON marshal.",
             "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
-            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
-            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "operation": "Start with var selected []Route. Only when routes is non-nil, allocate selected = make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. This preserves nil input as JSON null and preserves a non-nil empty result as an array. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names, error path and nil-input serialization. Non-nil empty or entirely uninstalled input produces an iterable empty array, while nil input retains its original null and reader failures.",
             "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
             "recommended": true
           },
           {
             "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
             "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
-            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper, preserving whether that slice is nil. Its MarshalJSON starts with var selected []Route, allocates selected only when its receiver slice is non-nil, appends Installed values in input order and returns json.Marshal(selected). Thus nil remains null, a non-nil empty result remains an array, and it does not recursively marshal its own type.",
             "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
             "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
             "recommended": false
           }
         ],
         "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
-        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Start with var selected []Route and allocate a non-nil empty selected slice only if routes != nil. Copy only Installed values into it, then marshal the existing struct with Routes: selected. Nil input must retain exactly {\"routes\":null}, including the existing readers' null-iteration failures; supporting null is outside the Task's filtering change. Non-nil inputs with no installed route must produce exactly {\"routes\":[]}. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
         "preservation-list": [
           "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
           "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
@@ -713,7 +713,7 @@
           {
             "boundary": "PublishRoutes to the published snapshot",
             "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
-            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path. Nil input retains routes:null and the existing reader failures; a non-nil input with no surviving installed route retains an iterable routes:[] array.",
             "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
           },
           {
@@ -750,9 +750,9 @@
           },
           {
             "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
-            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "feature-code": "writer.go nil-preserving selected []Route to the unchanged JSON readers",
             "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+            "observation": "For non-nil empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes and the Python entry exits 0 with exactly one newline. For nil input, require unchanged exact snapshot bytes {\"routes\":null}; both CLI entries retain their null-iteration failures, nonzero exits and zero stdout bytes, and installed_prefixes retains its TypeError."
           }
         ],
         "tdd-test-plan": [
@@ -769,12 +769,12 @@
           {
             "stage": "Empty population boundary",
             "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+            "method": "Retain all three inputs: nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. For the two non-nil cases, require an array of length zero and exact compact bytes {\"routes\":[]}; run both existing CLI readers and retain shell stdout of zero bytes versus Python stdout of exactly one newline. A bounded Python child loading the unchanged reader under a non-__main__ module name must observe installed_prefixes(snapshotPath) == []. For nil input, require the existing exact {\"routes\":null}, then run those same unchanged CLI readers against that verified file and require their existing null-iteration failures with nonzero exits and zero stdout; a bounded Python child must observe TypeError from installed_prefixes. Retain the existing reader source bytes and successful non-nil wiring controls, so an unrelated missing executable, script error or missing snapshot cannot satisfy the nil boundary."
           },
           {
             "stage": "Fault discrimination and regression",
             "test": "All four named Go tests",
-            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently omit the allocation for non-nil input to make the empty-array boundary fail; restore it and rerun. Separately allocate selected unconditionally to change nil input from null to [], require the nil-preservation boundary to fail, restore the conditional allocation and rerun. Keep all source reader bytes and the three original boundary inputs unchanged. These are planned tests and cuts, not executed results."
           }
         ],
         "files-to-create": [
@@ -868,8 +868,8 @@
           {
             "id": "AC-2",
             "condition": "Run three independent inputs: nil []Route, a non-nil empty []Route, and []Route{{Prefix: \"198.51.100.0/24\", Installed: false}}.",
-            "expected-behavior": "PublishRoutes returns success and writes exactly {\"routes\":[]} for every input. The routes value decodes as an iterable array with zero elements. reader.sh exits 0 with zero stdout bytes; reader.py exits 0 with exactly one newline, and its installed_prefixes function returns an empty list.",
-            "permitted-survivors": "The routes array and both existing reader entry points remain usable when the requested filter leaves no installed route. No Route value survives these three inputs because none is installed. The Python CLI's existing final newline remains permitted because this change preserves that reader's print behavior."
+            "expected-behavior": "PublishRoutes returns success for every input. For non-nil empty and entirely uninstalled input it writes exactly {\"routes\":[]}, whose routes value is an iterable array with zero elements; reader.sh exits 0 with zero stdout bytes, reader.py exits 0 with exactly one newline and installed_prefixes returns an empty list. For nil input it preserves exactly {\"routes\":null}; both unchanged CLI readers retain their null-iteration failures with nonzero exits and zero stdout bytes, and installed_prefixes raises TypeError.",
+            "permitted-survivors": "For the two non-nil inputs, the empty routes array and existing successful reader behavior remain permitted because the requested filter removes uninstalled routes without changing those readers. For nil input, JSON null and the existing reader failure behavior remain because the Task permits no unrelated behavior change. No Route value survives any of these three inputs because none is installed. The Python CLI's existing final newline remains permitted for non-nil empty input because its print behavior is preserved."
           }
         ],
         "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
@@ -877,22 +877,22 @@
           {
             "approach": "Filter in PublishRoutes before the existing JSON marshal.",
             "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
-            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
-            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "operation": "Start with var selected []Route. Only when routes is non-nil, allocate selected = make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. This preserves nil input as JSON null and preserves a non-nil empty result as an array. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names, error path and nil-input serialization. Non-nil empty or entirely uninstalled input produces an iterable empty array, while nil input retains its original null and reader failures.",
             "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
             "recommended": true
           },
           {
             "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
             "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
-            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper, preserving whether that slice is nil. Its MarshalJSON starts with var selected []Route, allocates selected only when its receiver slice is non-nil, appends Installed values in input order and returns json.Marshal(selected). Thus nil remains null, a non-nil empty result remains an array, and it does not recursively marshal its own type.",
             "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
             "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
             "recommended": false
           }
         ],
         "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
-        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Start with var selected []Route and allocate a non-nil empty selected slice only if routes != nil. Copy only Installed values into it, then marshal the existing struct with Routes: selected. Nil input must retain exactly {\"routes\":null}, including the existing readers' null-iteration failures; supporting null is outside the Task's filtering change. Non-nil inputs with no installed route must produce exactly {\"routes\":[]}. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
         "preservation-list": [
           "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
           "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
@@ -909,7 +909,7 @@
           {
             "boundary": "PublishRoutes to the published snapshot",
             "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
-            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path. Nil input retains routes:null and the existing reader failures; a non-nil input with no surviving installed route retains an iterable routes:[] array.",
             "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
           },
           {
@@ -946,9 +946,9 @@
           },
           {
             "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
-            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "feature-code": "writer.go nil-preserving selected []Route to the unchanged JSON readers",
             "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+            "observation": "For non-nil empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes and the Python entry exits 0 with exactly one newline. For nil input, require unchanged exact snapshot bytes {\"routes\":null}; both CLI entries retain their null-iteration failures, nonzero exits and zero stdout bytes, and installed_prefixes retains its TypeError."
           }
         ],
         "tdd-test-plan": [
@@ -965,12 +965,12 @@
           {
             "stage": "Empty population boundary",
             "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+            "method": "Retain all three inputs: nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. For the two non-nil cases, require an array of length zero and exact compact bytes {\"routes\":[]}; run both existing CLI readers and retain shell stdout of zero bytes versus Python stdout of exactly one newline. A bounded Python child loading the unchanged reader under a non-__main__ module name must observe installed_prefixes(snapshotPath) == []. For nil input, require the existing exact {\"routes\":null}, then run those same unchanged CLI readers against that verified file and require their existing null-iteration failures with nonzero exits and zero stdout; a bounded Python child must observe TypeError from installed_prefixes. Retain the existing reader source bytes and successful non-nil wiring controls, so an unrelated missing executable, script error or missing snapshot cannot satisfy the nil boundary."
           },
           {
             "stage": "Fault discrimination and regression",
             "test": "All four named Go tests",
-            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently omit the allocation for non-nil input to make the empty-array boundary fail; restore it and rerun. Separately allocate selected unconditionally to change nil input from null to [], require the nil-preservation boundary to fail, restore the conditional allocation and rerun. Keep all source reader bytes and the three original boundary inputs unchanged. These are planned tests and cuts, not executed results."
           }
         ],
         "files-to-create": [
@@ -1064,8 +1064,8 @@
           {
             "id": "AC-2",
             "condition": "Run three independent inputs: nil []Route, a non-nil empty []Route, and []Route{{Prefix: \"198.51.100.0/24\", Installed: false}}.",
-            "expected-behavior": "PublishRoutes returns success and writes exactly {\"routes\":[]} for every input. The routes value decodes as an iterable array with zero elements. reader.sh exits 0 with zero stdout bytes; reader.py exits 0 with exactly one newline, and its installed_prefixes function returns an empty list.",
-            "permitted-survivors": "The routes array and both existing reader entry points remain usable when the requested filter leaves no installed route. No Route value survives these three inputs because none is installed. The Python CLI's existing final newline remains permitted because this change preserves that reader's print behavior."
+            "expected-behavior": "PublishRoutes returns success for every input. For non-nil empty and entirely uninstalled input it writes exactly {\"routes\":[]}, whose routes value is an iterable array with zero elements; reader.sh exits 0 with zero stdout bytes, reader.py exits 0 with exactly one newline and installed_prefixes returns an empty list. For nil input it preserves exactly {\"routes\":null}; both unchanged CLI readers retain their null-iteration failures with nonzero exits and zero stdout bytes, and installed_prefixes raises TypeError.",
+            "permitted-survivors": "For the two non-nil inputs, the empty routes array and existing successful reader behavior remain permitted because the requested filter removes uninstalled routes without changing those readers. For nil input, JSON null and the existing reader failure behavior remain because the Task permits no unrelated behavior change. No Route value survives any of these three inputs because none is installed. The Python CLI's existing final newline remains permitted for non-nil empty input because its print behavior is preserved."
           }
         ],
         "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
@@ -1073,22 +1073,22 @@
           {
             "approach": "Filter in PublishRoutes before the existing JSON marshal.",
             "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
-            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
-            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "operation": "Start with var selected []Route. Only when routes is non-nil, allocate selected = make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. This preserves nil input as JSON null and preserves a non-nil empty result as an array. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names, error path and nil-input serialization. Non-nil empty or entirely uninstalled input produces an iterable empty array, while nil input retains its original null and reader failures.",
             "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
             "recommended": true
           },
           {
             "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
             "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
-            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper, preserving whether that slice is nil. Its MarshalJSON starts with var selected []Route, allocates selected only when its receiver slice is non-nil, appends Installed values in input order and returns json.Marshal(selected). Thus nil remains null, a non-nil empty result remains an array, and it does not recursively marshal its own type.",
             "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
             "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
             "recommended": false
           }
         ],
         "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
-        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Start with var selected []Route and allocate a non-nil empty selected slice only if routes != nil. Copy only Installed values into it, then marshal the existing struct with Routes: selected. Nil input must retain exactly {\"routes\":null}, including the existing readers' null-iteration failures; supporting null is outside the Task's filtering change. Non-nil inputs with no installed route must produce exactly {\"routes\":[]}. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
         "preservation-list": [
           "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
           "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
@@ -1105,7 +1105,7 @@
           {
             "boundary": "PublishRoutes to the published snapshot",
             "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
-            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path. Nil input retains routes:null and the existing reader failures; a non-nil input with no surviving installed route retains an iterable routes:[] array.",
             "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
           },
           {
@@ -1142,9 +1142,9 @@
           },
           {
             "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
-            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "feature-code": "writer.go nil-preserving selected []Route to the unchanged JSON readers",
             "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+            "observation": "For non-nil empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes and the Python entry exits 0 with exactly one newline. For nil input, require unchanged exact snapshot bytes {\"routes\":null}; both CLI entries retain their null-iteration failures, nonzero exits and zero stdout bytes, and installed_prefixes retains its TypeError."
           }
         ],
         "tdd-test-plan": [
@@ -1161,12 +1161,12 @@
           {
             "stage": "Empty population boundary",
             "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+            "method": "Retain all three inputs: nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. For the two non-nil cases, require an array of length zero and exact compact bytes {\"routes\":[]}; run both existing CLI readers and retain shell stdout of zero bytes versus Python stdout of exactly one newline. A bounded Python child loading the unchanged reader under a non-__main__ module name must observe installed_prefixes(snapshotPath) == []. For nil input, require the existing exact {\"routes\":null}, then run those same unchanged CLI readers against that verified file and require their existing null-iteration failures with nonzero exits and zero stdout; a bounded Python child must observe TypeError from installed_prefixes. Retain the existing reader source bytes and successful non-nil wiring controls, so an unrelated missing executable, script error or missing snapshot cannot satisfy the nil boundary."
           },
           {
             "stage": "Fault discrimination and regression",
             "test": "All four named Go tests",
-            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently omit the allocation for non-nil input to make the empty-array boundary fail; restore it and rerun. Separately allocate selected unconditionally to change nil input from null to [], require the nil-preservation boundary to fail, restore the conditional allocation and rerun. Keep all source reader bytes and the three original boundary inputs unchanged. These are planned tests and cuts, not executed results."
           }
         ],
         "files-to-create": [
@@ -1266,8 +1266,8 @@
           {
             "id": "AC-2",
             "condition": "Run three independent inputs: nil []Route, a non-nil empty []Route, and []Route{{Prefix: \"198.51.100.0/24\", Installed: false}}.",
-            "expected-behavior": "PublishRoutes returns success and writes exactly {\"routes\":[]} for every input. The routes value decodes as an iterable array with zero elements. reader.sh exits 0 with zero stdout bytes; reader.py exits 0 with exactly one newline, and its installed_prefixes function returns an empty list.",
-            "permitted-survivors": "The routes array and both existing reader entry points remain usable when the requested filter leaves no installed route. No Route value survives these three inputs because none is installed. The Python CLI's existing final newline remains permitted because this change preserves that reader's print behavior."
+            "expected-behavior": "PublishRoutes returns success for every input. For non-nil empty and entirely uninstalled input it writes exactly {\"routes\":[]}, whose routes value is an iterable array with zero elements; reader.sh exits 0 with zero stdout bytes, reader.py exits 0 with exactly one newline and installed_prefixes returns an empty list. For nil input it preserves exactly {\"routes\":null}; both unchanged CLI readers retain their null-iteration failures with nonzero exits and zero stdout bytes, and installed_prefixes raises TypeError.",
+            "permitted-survivors": "For the two non-nil inputs, the empty routes array and existing successful reader behavior remain permitted because the requested filter removes uninstalled routes without changing those readers. For nil input, JSON null and the existing reader failure behavior remain because the Task permits no unrelated behavior change. No Route value survives any of these three inputs because none is installed. The Python CLI's existing final newline remains permitted for non-nil empty input because its print behavior is preserved."
           }
         ],
         "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
@@ -1275,22 +1275,22 @@
           {
             "approach": "Filter in PublishRoutes before the existing JSON marshal.",
             "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
-            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
-            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "operation": "Start with var selected []Route. Only when routes is non-nil, allocate selected = make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. This preserves nil input as JSON null and preserves a non-nil empty result as an array. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names, error path and nil-input serialization. Non-nil empty or entirely uninstalled input produces an iterable empty array, while nil input retains its original null and reader failures.",
             "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
             "recommended": true
           },
           {
             "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
             "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
-            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper, preserving whether that slice is nil. Its MarshalJSON starts with var selected []Route, allocates selected only when its receiver slice is non-nil, appends Installed values in input order and returns json.Marshal(selected). Thus nil remains null, a non-nil empty result remains an array, and it does not recursively marshal its own type.",
             "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
             "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
             "recommended": false
           }
         ],
         "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
-        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Start with var selected []Route and allocate a non-nil empty selected slice only if routes != nil. Copy only Installed values into it, then marshal the existing struct with Routes: selected. Nil input must retain exactly {\"routes\":null}, including the existing readers' null-iteration failures; supporting null is outside the Task's filtering change. Non-nil inputs with no installed route must produce exactly {\"routes\":[]}. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
         "preservation-list": [
           "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
           "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
@@ -1307,7 +1307,7 @@
           {
             "boundary": "PublishRoutes to the published snapshot",
             "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
-            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path. Nil input retains routes:null and the existing reader failures; a non-nil input with no surviving installed route retains an iterable routes:[] array.",
             "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
           },
           {
@@ -1344,9 +1344,9 @@
           },
           {
             "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
-            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "feature-code": "writer.go nil-preserving selected []Route to the unchanged JSON readers",
             "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+            "observation": "For non-nil empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes and the Python entry exits 0 with exactly one newline. For nil input, require unchanged exact snapshot bytes {\"routes\":null}; both CLI entries retain their null-iteration failures, nonzero exits and zero stdout bytes, and installed_prefixes retains its TypeError."
           }
         ],
         "tdd-test-plan": [
@@ -1363,12 +1363,12 @@
           {
             "stage": "Empty population boundary",
             "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+            "method": "Retain all three inputs: nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. For the two non-nil cases, require an array of length zero and exact compact bytes {\"routes\":[]}; run both existing CLI readers and retain shell stdout of zero bytes versus Python stdout of exactly one newline. A bounded Python child loading the unchanged reader under a non-__main__ module name must observe installed_prefixes(snapshotPath) == []. For nil input, require the existing exact {\"routes\":null}, then run those same unchanged CLI readers against that verified file and require their existing null-iteration failures with nonzero exits and zero stdout; a bounded Python child must observe TypeError from installed_prefixes. Retain the existing reader source bytes and successful non-nil wiring controls, so an unrelated missing executable, script error or missing snapshot cannot satisfy the nil boundary."
           },
           {
             "stage": "Fault discrimination and regression",
             "test": "All four named Go tests",
-            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently omit the allocation for non-nil input to make the empty-array boundary fail; restore it and rerun. Separately allocate selected unconditionally to change nil input from null to [], require the nil-preservation boundary to fail, restore the conditional allocation and rerun. Keep all source reader bytes and the three original boundary inputs unchanged. These are planned tests and cuts, not executed results."
           }
         ],
         "files-to-create": [
@@ -1468,8 +1468,8 @@
           {
             "id": "AC-2",
             "condition": "Run three independent inputs: nil []Route, a non-nil empty []Route, and []Route{{Prefix: \"198.51.100.0/24\", Installed: false}}.",
-            "expected-behavior": "PublishRoutes returns success and writes exactly {\"routes\":[]} for every input. The routes value decodes as an iterable array with zero elements. reader.sh exits 0 with zero stdout bytes; reader.py exits 0 with exactly one newline, and its installed_prefixes function returns an empty list.",
-            "permitted-survivors": "The routes array and both existing reader entry points remain usable when the requested filter leaves no installed route. No Route value survives these three inputs because none is installed. The Python CLI's existing final newline remains permitted because this change preserves that reader's print behavior."
+            "expected-behavior": "PublishRoutes returns success for every input. For non-nil empty and entirely uninstalled input it writes exactly {\"routes\":[]}, whose routes value is an iterable array with zero elements; reader.sh exits 0 with zero stdout bytes, reader.py exits 0 with exactly one newline and installed_prefixes returns an empty list. For nil input it preserves exactly {\"routes\":null}; both unchanged CLI readers retain their null-iteration failures with nonzero exits and zero stdout bytes, and installed_prefixes raises TypeError.",
+            "permitted-survivors": "For the two non-nil inputs, the empty routes array and existing successful reader behavior remain permitted because the requested filter removes uninstalled routes without changing those readers. For nil input, JSON null and the existing reader failure behavior remain because the Task permits no unrelated behavior change. No Route value survives any of these three inputs because none is installed. The Python CLI's existing final newline remains permitted for non-nil empty input because its print behavior is preserved."
           }
         ],
         "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
@@ -1477,22 +1477,22 @@
           {
             "approach": "Filter in PublishRoutes before the existing JSON marshal.",
             "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
-            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
-            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "operation": "Start with var selected []Route. Only when routes is non-nil, allocate selected = make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. This preserves nil input as JSON null and preserves a non-nil empty result as an array. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names, error path and nil-input serialization. Non-nil empty or entirely uninstalled input produces an iterable empty array, while nil input retains its original null and reader failures.",
             "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
             "recommended": true
           },
           {
             "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
             "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
-            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper, preserving whether that slice is nil. Its MarshalJSON starts with var selected []Route, allocates selected only when its receiver slice is non-nil, appends Installed values in input order and returns json.Marshal(selected). Thus nil remains null, a non-nil empty result remains an array, and it does not recursively marshal its own type.",
             "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
             "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
             "recommended": false
           }
         ],
         "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
-        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Start with var selected []Route and allocate a non-nil empty selected slice only if routes != nil. Copy only Installed values into it, then marshal the existing struct with Routes: selected. Nil input must retain exactly {\"routes\":null}, including the existing readers' null-iteration failures; supporting null is outside the Task's filtering change. Non-nil inputs with no installed route must produce exactly {\"routes\":[]}. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
         "preservation-list": [
           "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
           "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
@@ -1509,7 +1509,7 @@
           {
             "boundary": "PublishRoutes to the published snapshot",
             "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
-            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path. Nil input retains routes:null and the existing reader failures; a non-nil input with no surviving installed route retains an iterable routes:[] array.",
             "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
           },
           {
@@ -1546,9 +1546,9 @@
           },
           {
             "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
-            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "feature-code": "writer.go nil-preserving selected []Route to the unchanged JSON readers",
             "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+            "observation": "For non-nil empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes and the Python entry exits 0 with exactly one newline. For nil input, require unchanged exact snapshot bytes {\"routes\":null}; both CLI entries retain their null-iteration failures, nonzero exits and zero stdout bytes, and installed_prefixes retains its TypeError."
           }
         ],
         "tdd-test-plan": [
@@ -1565,12 +1565,12 @@
           {
             "stage": "Empty population boundary",
             "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
-            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+            "method": "Retain all three inputs: nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. For the two non-nil cases, require an array of length zero and exact compact bytes {\"routes\":[]}; run both existing CLI readers and retain shell stdout of zero bytes versus Python stdout of exactly one newline. A bounded Python child loading the unchanged reader under a non-__main__ module name must observe installed_prefixes(snapshotPath) == []. For nil input, require the existing exact {\"routes\":null}, then run those same unchanged CLI readers against that verified file and require their existing null-iteration failures with nonzero exits and zero stdout; a bounded Python child must observe TypeError from installed_prefixes. Retain the existing reader source bytes and successful non-nil wiring controls, so an unrelated missing executable, script error or missing snapshot cannot satisfy the nil boundary."
           },
           {
             "stage": "Fault discrimination and regression",
             "test": "All four named Go tests",
-            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently omit the allocation for non-nil input to make the empty-array boundary fail; restore it and rerun. Separately allocate selected unconditionally to change nil input from null to [], require the nil-preservation boundary to fail, restore the conditional allocation and rerun. Keep all source reader bytes and the three original boundary inputs unchanged. These are planned tests and cuts, not executed results."
           }
         ],
         "files-to-create": [
