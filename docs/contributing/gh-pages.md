@@ -534,12 +534,12 @@ published surfaces".
 <!-- source: internal/le/site/datapages.go -- loadFeatureData -->
 
 The Milestones page groups `website/data/milestones.json` into one card per
-month, oldest first, with landmarks and reports in first-arrival order.
+month, newest first, with landmarks and reports also newest first.
 Landmark titles form the short key points; long blurbs remain in the source
 data. A compact header introduces the landmark timeline, followed by a
 two-column card grid on desktop and one column on mobile. Related navigation
 follows the timeline instead of occupying a sidebar column. The Latest month
-link restores every category before jumping to the final month.
+link restores every category before jumping to the first month.
 Each card's footer links every report whose
 `covers:` starts in that month, read from `website/changes/posts/`. A report
 that spans months appears only under its starting month. Report-only months

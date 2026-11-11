@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	xhtml "golang.org/x/net/html"
+
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // dataPagePaths lays out one source tree carrying the named data fixtures, plus
@@ -450,12 +452,12 @@ func TestFeaturesWithNoShippedSectionAreRefused(t *testing.T) {
 	}
 }
 
-// VALIDATES: the timeline sorts oldest first and groups all of a month's
+// VALIDATES: the timeline sorts newest first and groups all of a month's
 // milestones in one card.
 //
-// The method reads the rendered page: month dates must never fall, each month
+// The method reads the rendered page: month dates must never rise, each month
 // appears once, and every fixture landmark remains present.
-func TestTheTimelineSortsOldestFirstAndGroupsByMonth(t *testing.T) {
+func TestTheTimelineSortsNewestFirstAndGroupsByMonth(t *testing.T) {
 	paths := milestonesPaths(t)
 
 	if _, err := renderMilestones(paths); err != nil {
@@ -483,13 +485,13 @@ func TestTheTimelineSortsOldestFirstAndGroupsByMonth(t *testing.T) {
 		seen[date] = true
 	}
 	for index := 1; index < len(dates); index++ {
-		if dates[index] < dates[index-1] {
-			t.Errorf("month %d is dated %s, after the newer %s", index, dates[index], dates[index-1])
+		if dates[index] > dates[index-1] {
+			t.Errorf("month %d is dated %s, after the older %s", index, dates[index], dates[index-1])
 		}
 	}
-	latest := `href="#month-` + dates[len(dates)-1] + `" data-latest-month`
+	latest := `href="#month-` + dates[0] + `" data-latest-month`
 	if !strings.Contains(page, latest) {
-		t.Errorf("the latest-month link does not target the final monthly card: %s", latest)
+		t.Errorf("the latest-month link does not target the first monthly card: %s", latest)
 	}
 	if points := strings.Count(page, `class="tl-title"`); points != len(data.Milestones) {
 		t.Errorf("the cards carry %d key points, want all %d landmarks", points, len(data.Milestones))
@@ -512,7 +514,7 @@ func TestTwoMilestonesOnOneDateKeepTheFilesOrder(t *testing.T) {
 	page := readArtifact(t, paths.Output, milestonesDest)
 
 	titles := betweenAll(page, `<span class="tl-title">`, `</span>`)
-	want := []string{"Older", "Earlier in March", "First of March", "Second of March"}
+	want := []string{"First of March", "Second of March", "Earlier in March", "Older"}
 	if len(titles) != len(want) {
 		t.Fatalf("the page lists %v, want %v", titles, want)
 	}
@@ -563,14 +565,14 @@ func TestMonthlyMilestonesCombineKeyPointsAndAllReports(t *testing.T) {
 		}
 	}
 	previous := -1
-	for _, slug := range []string{"2026-05-04", "2026-05-11", "2026-05-25"} {
+	for _, slug := range []string{"2026-05-25", "2026-05-11", "2026-05-04"} {
 		link := `href="../changes/` + slug + `/"`
 		if count := strings.Count(card[footer:], link); count != 1 {
 			t.Errorf("May footer carries %d links to %s, want one", count, slug)
 		}
 		at := strings.Index(card[footer:], link)
 		if at <= previous {
-			t.Errorf("May report %s is out of first-arrival order", slug)
+			t.Errorf("May report %s is out of newest-first order", slug)
 		}
 		previous = at
 	}
@@ -1037,7 +1039,12 @@ func declaredRepository(t *testing.T, declarations map[string]string) string {
 // so cards naming real feature ids derive their real state.
 func copyDeclarations(t *testing.T, target string) {
 	t.Helper()
-	matches, err := filepath.Glob(filepath.Join(repositoryRoot(t), "features", "*.md"))
+	// Feature declarations are source inputs, independent of derived ledgers.
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	matches, err := filepath.Glob(filepath.Join(root, "features", "*.md"))
 	if err != nil {
 		t.Fatal(err)
 	}

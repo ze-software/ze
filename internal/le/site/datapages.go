@@ -9,7 +9,6 @@ import (
 	"html"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -774,24 +773,12 @@ func renderMilestones(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	// The full history reads oldest first; the shared grouping remains newest
-	// first for consumers that summarize recent landmarks.
-	slices.Reverse(months)
-	for index := range months {
-		month := &months[index]
-		sort.SliceStable(month.Items, func(left, right int) bool {
-			return month.Items[left].Date < month.Items[right].Date
-		})
-		sort.SliceStable(month.Reports, func(left, right int) bool {
-			return month.Reports[left].CoverageStart < month.Reports[right].CoverageStart
-		})
-	}
 	links, err := loadPageLinks(paths.Source)
 	if err != nil {
 		return nil, err
 	}
 
-	description := "Landmark features in Ze's development, oldest to newest, with links to every update report."
+	description := "Landmark features in Ze's development, newest to oldest, with links to every update report."
 	shell := pageShell{
 		Title:       "Milestones - Ze",
 		Description: description,
@@ -815,7 +802,7 @@ func renderMilestones(paths Paths) ([]string, error) {
 }
 
 // milestonesBody renders the page under <main>: the hero and its filter legend,
-// then one card per month, oldest first.
+// then one card per month, newest first.
 func milestonesBody(data milestoneData, months []milestoneMonth) (string, error) {
 	var body textbuf.Buffer
 	body.Str("            <section class=\"tl-overview\" aria-labelledby=\"milestones-title\">\n")
@@ -826,8 +813,8 @@ func milestonesBody(data milestoneData, months []milestoneMonth) (string, error)
 	body.Str("                <div class=\"tl-toolbar\"><span>").Int(int64(len(data.Milestones))).
 		Str(" milestones</span><p>Select again to clear.</p>\n")
 	if len(months) > 0 {
-		body.Str("                    <a href=\"#month-").Str(months[len(months)-1].Date).
-			Str("\" data-latest-month>Latest month &darr;</a>\n")
+		body.Str("                    <a href=\"#month-").Str(months[0].Date).
+			Str("\" data-latest-month>Latest month &uarr;</a>\n")
 	}
 	body.Str("                </div>\n")
 	body.Str("                <div class=\"legend reveal\" role=\"group\" aria-label=\"Filter milestones by category\">\n")

@@ -799,7 +799,7 @@ build trims `changes/fragments/` from the artifact it deploys.
    `data/milestones.json`. Use the source report's `covers:` start for `date`
    and `blog`, so the entry links to its report under `changes/`.
 
-   Present one main card per month, oldest months first. Use a compact
+   Present one main card per month, newest months first. Use a compact
    Milestones header and a two-column desktop grid that becomes one column
    on mobile. Put related navigation below the timeline. Each card's short
    Key Points use the milestone titles. Put the month's report links at the
@@ -810,7 +810,7 @@ build trims `changes/fragments/` from the artifact it deploys.
    Report the added titles and linked report dates outside the public post.
    If none qualifies, state that result and its reason. After generation,
    inspect `../gh-pages/project/milestones/index.html` and `index.md` for the
-   monthly grouping, oldest-first order, Key Points, categories and complete
+   monthly grouping, newest-first order, Key Points, categories and complete
    report links. Also inspect the HTML's compact header, responsive grid and
    related navigation below the timeline. A build or site check without this
    review leaves website work pending.
