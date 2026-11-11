@@ -7,7 +7,7 @@
     "claim-sha": "ea166aed1ccb77c4",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-    "producer-sha": "6b399e321aa1429d",
+    "producer-sha": "03f697302d2acf83",
     "break": "line 582: \"!facts.rsClient\" -\u003e \"false\""
   },
   {
@@ -18,12 +18,12 @@
     "claim-sha": "9b39e1d37eae1219",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-    "producer-sha": "6b399e321aa1429d",
+    "producer-sha": "03f697302d2acf83",
     "break": "line 582: \"!facts.rsClient\" -\u003e \"true\"",
     "paired": [
       {
         "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-        "producer-sha": "6b399e321aa1429d",
+        "producer-sha": "03f697302d2acf83",
         "break": "line 594: \"facts.rsClient \u0026\u0026 communityPolicy != nil\" -\u003e \"false\""
       }
     ],
@@ -31,13 +31,13 @@
       {
         "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
         "break": "line 582: \"!facts.rsClient\" -\u003e \"true\"",
-        "seconds": 27,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.045s"
+        "seconds": 36,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.061s"
       },
       {
         "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
         "break": "line 594: \"facts.rsClient \u0026\u0026 communityPolicy != nil\" -\u003e \"false\"",
-        "seconds": 27,
+        "seconds": 44,
         "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.049s"
       }
     ]
