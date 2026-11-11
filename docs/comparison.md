@@ -732,7 +732,7 @@ selection with AIGP. Has BMP, MRT dumps, BFD, and SSH CLI access. Actively devel
 with 4000+ functional test cases. No programmatic API (CLI-only), no YANG model, no structured
 logging. The own-stack design means Docker integration requires a raw socket bridge (rawInt.bin)
 between the container interface and freeRtr's virtual network layer.
-<!-- source: https://codeberg.org/m36/freeRtr -- upstream project -->
+<!-- source: https://codeberg.org/mc36/freeRtr -- upstream project -->
 
 ## BNG Capabilities
 
