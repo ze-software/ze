@@ -19,7 +19,7 @@ fib {
 }
 EOF_FIB_VPP
 
-tmpfs=fib-typo.conf:terminator=EOF_FIB_TYPO
+tmpfs=fib-typo.conf:refused=config-parse:terminator=EOF_FIB_TYPO
 fib {
     vppqx {
     }

@@ -40,7 +40,7 @@ system {
 }
 EOF_CONF
 
-tmpfs=config2.conf:terminator=EOF_CONF2
+tmpfs=config2.conf:refused=config-validator-unavailable:terminator=EOF_CONF2
 plugin {
 	external live-stages {
 		run "le test fixture reload/live-stages stages.script"
