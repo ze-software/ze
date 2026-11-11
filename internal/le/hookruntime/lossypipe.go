@@ -64,46 +64,36 @@ func lossyPipeRefusal(identity, filter, segment string) *verdict {
 // advisedSegment answers the command text the piped-command refusal shows.
 // The guard's verdict reads a quote-blind split, which keeps HEAD's text
 // verdict, but that split cuts `go test -run 'TestA|TestB' ./x | tail` at
-// the quoted bar and would advise a different command. On a line the hook's
-// splitter models, the advice is the first expensive command, quotes intact,
-// of the first pipeline where a lossy filter follows it, so an expensive
-// command of another statement is never advised in its place (review I2);
-// any other line keeps the text segment.
-func advisedSegment(command, textSegment string) string {
-	if !modeledSyntax(command) {
+// the quoted bar and would advise a different command. On a line that parses
+// (parse, the call's one parse), the advice is the first expensive command of
+// the tree that a lossy filter follows in the same pipeline, written from its
+// parsed words (parsedCommand.segment), so an expensive command of another
+// statement is never advised in its place (review I2) and a redirection is
+// never one of its words (AC-15). A line that does not parse keeps the text
+// segment: there is nothing else to read.
+func advisedSegment(command string, parse commandParse, textSegment string) string {
+	if !parse.parsed() {
 		return textSegment
 	}
-	line, parsed := lineCommands(command)
-	if !parsed {
-		return textSegment
-	}
-	start := 0
-	for end := range line.commands {
-		if oneOf(line.separators[end], "|", "|&") {
+	commands := everyCommand(command, parse.file.Stmts)
+	for index, candidate := range commands {
+		segment := candidate.segment()
+		if !commandExpensive(segment) {
 			continue
 		}
-		if segment, found := pipelineExpensive(line, start, end); found {
-			return segment
-		}
-		start = end + 1
-	}
-	return textSegment
-}
-
-// pipelineExpensive answers the first expensive command of the pipeline
-// line.commands[start..end] that a lossy filter follows in the same pipeline.
-func pipelineExpensive(line shellLine, start, end int) (string, bool) {
-	for index := start; index < end; index++ {
-		if !commandExpensive(line.segments[index]) {
-			continue
-		}
-		for filter := index + 1; filter <= end; filter++ {
-			if lossyFilter(line.commands[filter][0]) {
-				return line.segments[index], true
+		for _, later := range commands[index+1:] {
+			if later.pipeline != candidate.pipeline {
+				continue
+			}
+			if later.stage <= candidate.stage {
+				continue
+			}
+			if len(later.words) != 0 && lossyFilter(later.words[0]) {
+				return segment
 			}
 		}
 	}
-	return "", false
+	return textSegment
 }
 
 // lossyFilter reports a program that drops lines of what it reads: the

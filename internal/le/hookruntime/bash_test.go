@@ -1071,7 +1071,7 @@ func TestGuardsIgnoreCommandNamesInsideQuotes(t *testing.T) {
 }
 
 // TestGuardsJudgeAnUnparsableLineByItsText drives each changed guard with a
-// line lineCommands cannot read whole, an unclosed quote or a command
+// line the bash parse cannot read, an unclosed quote, or a command
 // substitution, and with a string handed to another shell.
 //
 // VALIDATES: AC-8. Such a line is never a reader line, so each guard judges it
@@ -1693,18 +1693,18 @@ func TestRootBuildBoundsTheDirectoriesAPatternWalks(t *testing.T) {
 	}
 }
 
-// TestGuardsKeepTheTextVerdictOutsideTheModeledSyntax drives every guard with
-// the lines of unmodeledSyntaxLines (session_identity_test.go), each made to
+// TestGuardsKeepTheTextVerdictOutsideTheReaderLine drives every guard with
+// the lines of splitterFaultLines (session_identity_test.go), each made to
 // carry the command that guard refuses by its text in place of `le x`, or
 // after it.
 //
 // VALIDATES: a guard lifts its text verdict only on a line inside the shell
-// syntax the hook models (modeledSyntax), so each such line keeps the text
-// verdict, while reader lines inside the syntax still lift it.
+// reader line the bash parse proves (judgeReaderLine), so each line that is no
+// reader line keeps the text verdict, while reader lines still lift it.
 // PREVENTS: `cat x{#}; go build ./cmd/z` cleared because the splitter read
 // `#}; go build ./cmd/z` as a comment, and every other construct the
 // splitter reads differently from bash.
-func TestGuardsKeepTheTextVerdictOutsideTheModeledSyntax(t *testing.T) {
+func TestGuardsKeepTheTextVerdictOutsideTheReaderLine(t *testing.T) {
 	root := goBuildTree(t)
 	guards := []guardRow{
 		{"build", bashRootBuild, "go build ./cmd/z", true},
@@ -1712,9 +1712,9 @@ func TestGuardsKeepTheTextVerdictOutsideTheModeledSyntax(t *testing.T) {
 		{"raw", bashRawHeavy, "go test ./x", true},
 		{"tmp", bashSystemTmp, "echo x > /tmp/y", true},
 	}
-	rows := make([]guardRow, 0, 4*len(unmodeledSyntaxLines)+16)
+	rows := make([]guardRow, 0, 4*len(splitterFaultLines)+16)
 	for _, guard := range guards {
-		for _, line := range unmodeledSyntaxLines {
+		for _, line := range splitterFaultLines {
 			command := line + "\n" + guard.command
 			if strings.Contains(line, "le x") {
 				command = strings.ReplaceAll(line, "le x", guard.command)
@@ -1767,20 +1767,23 @@ func TestRootBuildJudgesAnExpandedWordByItsText(t *testing.T) {
 	judgeGuardRows(t, root, rows)
 }
 
-// VALIDATES: a guard keeps its text verdict on a line whose split could hand
-// it other words than bash runs: a redirection before a command's words, an
-// empty quoted word, and a double-quoted backslash bash keeps in a build's
-// -o path, while a redirection after the words still lifts the verdict.
+// VALIDATES: a guard judges the words bash runs on a line whose split could
+// hand it other words: a redirection before a command's words keeps the text
+// verdict, and so does a double-quoted backslash bash keeps in a build's -o
+// path; an empty quoted word is kept by the parse as grep's pattern, so
+// `grep -e ” 'go build ./cmd/z'` is a reader line and lifts the verdict; a
+// redirection after the words lifts it too.
 // PREVENTS: `<<<cat go build -o /tmp/x ./cmd/z` cleared as the reader cat
-// with no build; `grep -e ” 'go build ./cmd/z'` cleared as a grep for the
-// pattern `go build ./cmd/z`, while bash greps for the empty pattern; and
-// `go build -o "\bin/z" ./cmd/z` cleared as a build into bin/, while bash
-// writes `\bin/z` in the checkout.
+// with no build, and `go build -o "\bin/z" ./cmd/z` cleared as a build into
+// bin/, while bash writes `\bin/z` in the checkout.
 func TestGuardsKeepTheTextVerdictWhereTheSplitMovesAWord(t *testing.T) {
 	root := goBuildTree(t)
 	rows := []guardRow{
 		{"build", bashRootBuild, `<<<cat go build -o /tmp/x ./cmd/z`, true},
-		{"build", bashRootBuild, `grep -e '' 'go build ./cmd/z'`, true},
+		// The parse keeps the empty quoted word as grep's pattern, so the
+		// line is a reader line: the quoted build is a file name grep reads
+		// (spec-agent-economy-6-shell-parser AC-7).
+		{"build", bashRootBuild, `grep -e '' 'go build ./cmd/z'`, false},
 		{"build", bashRootBuild, `go build -o "\bin/z" ./cmd/z`, true},
 		{"build", bashRootBuild, `grep 'go build' f 2>/dev/null`, false},
 		{"build", bashRootBuild, `grep 'go build' f > /dev/null`, false},

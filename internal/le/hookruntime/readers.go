@@ -1,12 +1,14 @@
 // Design: docs/architecture/core-design.md -- native Bash hook policy
 // Related: session.go -- the identity check that lets a line of readers run without the identity line
-// Related: shellline.go -- readerLine, the line on which a guard may lift its text refusal
+// Related: readerline.go -- judgeReaderLine, the line on which a guard may lift its text refusal
 package hookruntime
 
 import "strings"
 
 // readerJudge admits one reader command by its arguments, quotes removed,
-// and by whether the shell expands each of them (shellLine.expands).
+// and by whether the shell expands each of them (wordValue.expands). An
+// argument is never a redirection's operator or target: the parse holds a
+// redirection as a node of its statement (readerWalk.redirect).
 type readerJudge func(arguments []string, expands []bool) bool
 
 // readerCommands is the declared set of commands that run nothing they are
@@ -14,7 +16,7 @@ type readerJudge func(arguments []string, expands []bool) bool
 // identity variable and starts no le, test binary, script or other program.
 // Two decisions rest on it. The identity check (bashAgentIdentity) lets a
 // subagent's line made only of these run without its identity line, and a
-// guard lifts its text refusal only on such a line (readerLine), where a
+// guard lifts its text refusal only on such a line (judgeReaderLine), where a
 // quoted `go build` in a grep pattern is text.
 //
 // A judge is an allow-list. It admits the options and argument shapes it
@@ -56,7 +58,7 @@ type readerJudge func(arguments []string, expands []bool) bool
 //
 // A reader's own options write no file, and the shell's redirections are
 // judged beside the table: a command that redirects its output into a file
-// (shellLine.writesFile) is no reader, whatever its judge says.
+// (readerWalk.redirect) is no reader, whatever its judge says.
 //
 // A command absent from the table needs the identity line and keeps every
 // guard's text judgment, so the table is wrong only in the safe direction.
@@ -64,8 +66,9 @@ type readerJudge func(arguments []string, expands []bool) bool
 // program, a ripgrep config file named by the environment, and the go tool
 // gopls starts, which reads neither identity variable.
 var readerCommands = map[string]readerJudge{
-	// `[` is the test builtin. A `!` lies outside the syntax the hook models
-	// (modeledSyntax), so a negated `[ ! -f x ]` needs the line.
+	// `[` is the test builtin. Its `!` is a word that does not start with
+	// `-`, which testReads admits as it admits any operand, so a negated
+	// `[ ! -f x ]` is a reader.
 	"[":         bracketReads,
 	"basename":  nil,
 	catCommand:  nil,
@@ -84,6 +87,7 @@ var readerCommands = map[string]readerJudge{
 	"ls":        nil,
 	"printf":    printfReads,
 	"pwd":       nil,
+	"read":      readReads,
 	"rg":        ripgrepOptions.reads,
 	"sed":       sedReads,
 	"sort":      sortOptions.reads,
@@ -94,6 +98,29 @@ var readerCommands = map[string]readerJudge{
 	"true":      nil,
 	"uniq":      uniqReads,
 	"wc":        nil,
+}
+
+// readReads is the judge of the `read` builtin: only `-r`, and one or more
+// names the bare-assignment rule admits (plainLowerName), none of them a word
+// the shell expands. Every other option is outside: `-a` assigns an array,
+// `-e` reads with readline, `-u` and `-t` change where and how long it reads,
+// `-n` and `-d` change what it stops at, and `-p` prompts. With no name read
+// sets REPLY, which a reader line does not need.
+func readReads(arguments []string, expands []bool) bool {
+	names := 0
+	for index, argument := range arguments {
+		if expands[index] {
+			return false
+		}
+		if argument == "-r" {
+			continue
+		}
+		if plainLowerName(argument) != "" {
+			return false
+		}
+		names++
+	}
+	return names != 0
 }
 
 // readerCommand reports whether one command of a line is a reader its judge

@@ -88,21 +88,25 @@ check's row cannot survive it.
 | `bashDocumentRead` | `go-standards.md`, `architecture.md` | Never refuses. A command that prints the whole of a gated document (`docs/contributing/ze-go-style.md`, or a page under `ai/doors/`) with `cat`, `bat` (no line range), `nl`, `less` or `more`, and has no pipe, redirection or substitution, writes that document's read marker, which `writeStyleGuideRead`, `writeDesignDoorsRead` and `writeSpecDoorsRead` read. `head`, `tail` and `sed` print a range and record nothing, and an unexpanded glob names no document. It runs before the command, so a command that then fails still leaves the marker. |
 
 The text judgment is each guard's default verdict, unchanged from before the
-build, piped-command, raw-job and `/tmp` guards judged commands; `readerLine`
-and the build guard's reader+build line may only lift it. A reader line is
-one inside the shell syntax the hook models (`modeledSyntax`, the allow-list
-`docs/contributing/running-commands.md` states under the identity check: no
-`#`, no backslash outside quotes, no here-document, `$'...'`, brace, `!`,
-parenthesis, `[[`, background `&` or non-ASCII byte, no redirection before
-or between a command's words, since `<<<cat go build ...` would read as the
-reader cat, and no empty quoted word, since the splitter drops `''` where
-bash passes it, among the rest), since
-`lineCommands` splits only that syntax into the words bash runs, and one
-`lineCommands` then parses whole, with no command substitution, whose every
-command is in the reader set `bashAgentIdentity` uses with the arguments its
-judge admits, and redirects its output into no file (`> f`, `>> f`, `>| f`,
-`&> f`, `2> f`; `/dev/null`, `2>&1` and an input `<` pass), since a reader
-could otherwise write the git or shell configuration a later reader runs.
+build, piped-command, raw-job, `/tmp` and deletion guards judged commands;
+the reader line (`judgeReaderLine`) and the build guard's reader+build line
+may only lift it. A reader line is one that parses as bash, read once per
+call with the `mvdan.cc/sh` parser, whose every node is one the node table in
+`docs/contributing/running-commands.md` admits under the identity check
+(pipelines and lists, groups, subshells, `!`, `time`, `if`, `while`,
+`until`, `for name in`, `case`, `[[` file and string tests, `$( )` and `<( )`
+of readers, the plain parameter expansions, here-documents and redirections
+onto `/dev/null` or a descriptor, wherever they are written), whose every
+simple command is in the reader set `bashAgentIdentity` uses with the
+arguments its judge admits and no assignment in front, and that redirects
+into no file (`> f`, `>> f`, `>| f`, `&> f`, `2> f`), since a reader could
+otherwise write the git or shell configuration a later reader runs. A line
+that does not parse, or holds a carriage return or a NUL byte, is never one.
+The agent's own exact identity line in front of a reader line leaves it one.
+On a reader line the `/tmp` guard judges every word of the tree (loop lists,
+case words, assignment values, redirection targets), a here-document body and
+a here-string being data, and the deletion guard reads a plain `rm` line from
+the tree and every word of any other line, here-document bodies included.
 Each judge is an allow-list of the options and argument shapes
 it names (`readers.go`), so an abbreviated long option a program would
 expand (`git grep --open=bash`, `sort --co=sh`) is refused; `printf`, `test`
@@ -130,10 +134,10 @@ it never saw, such as the command string after a shell's `-c`
 (`bash -c 'go test ./x'`, which the text judgment reads as one word) or a raw
 `go test` inside a double-quoted `$(...)`, it does not see there either.
 
-<!-- source: internal/le/hookruntime/shellline.go -- readerLine, lineCommands -->
-<!-- source: internal/le/hookruntime/shellsyntax.go -- modeledSyntax, unmodeledSyntax -->
+<!-- source: internal/le/hookruntime/readerline.go -- judgeReaderLine, ctxReaderLine, readerWalk, persists -->
+<!-- source: internal/le/hookruntime/shellparse.go -- parseCommandLine, readWord -->
 <!-- source: internal/le/hookruntime/readers.go -- readerCommands, readerCommand -->
-<!-- source: internal/le/hookruntime/gobuild.go -- goBuildLine, judgeGoBuild, cdFollowed, physicalPath -->
+<!-- source: internal/le/hookruntime/gobuild.go -- goBuildLine, judgeGoBuild, physicalPath -->
 <!-- source: internal/le/hookruntime/gobuild.go -- goBuildText, goBuildToolchainFlag -->
 <!-- source: internal/le/hookruntime/rawheavy.go -- launcherValueOptions, launcherArguments -->
 <!-- source: internal/le/hookruntime/systemtmp.go -- namesSystemTmp -->
@@ -202,13 +206,16 @@ judgment are unchanged.
 
 ## PreToolUse: Bash, a subagent's identity (`internal/le/hookruntime/session.go`)
 
-<!-- source: internal/le/hookruntime/session.go -- bashAgentIdentity, identityLine, commandOutsideReaders, takesAnotherIdentity -->
+<!-- source: internal/le/hookruntime/session.go -- bashAgentIdentity, identityLine, commandOutsideReaders -->
 <!-- source: internal/le/hookruntime/readers.go -- readerCommands, readerCommand -->
-<!-- source: internal/le/hookruntime/shellline.go -- lineCommands -->
+<!-- source: internal/le/hookruntime/session.go -- textChangesEnvironment, changesEnvironment -->
+<!-- source: internal/le/hookruntime/afterline.go -- takesAnotherIdentity, treeTakesAnotherIdentity, identityWrappers, commandWordAt, toolChangesEnvironment, startupVariable -->
+<!-- source: internal/le/hookruntime/readerline.go -- judgeReaderLine, afterIdentityLine -->
+<!-- source: internal/le/hookruntime/shellparse.go -- parseCommandLine -->
 
 | Check | Enforces | What it refuses |
 |---|---|---|
-| `bashAgentIdentity` | `planning.md` | A subagent's Bash command that could start `le` without the agent's own identity. A command whose every command is in the reader set (`readerCommands`) with the arguments its allow-list judge admits, holds no word the shell expands where a judge reads one, and redirects its output into no file but `/dev/null` or another descriptor, passes as typed, and so does one that starts with the agent's exact identity line, `export ZE_AGENT_ID=<agent>; export CLAUDE_CODE_SESSION_ID=<parent>; ` (the session part alone for a fork subagent), and names neither variable again after it outside a reader its judge admits (`grep ZE_AGENT_ID f` and `echo $ZE_AGENT_ID` pass; any other command naming one, in whatever form it sets it, is refused as taking another identity), and runs no command that changes the environment by its form: `export`, `declare`, `typeset`, `readonly`, `local`, `unset`, `env`, `exec`, `sudo`, `eval`, `source`, `.` or `set` as the command word (past a reserved word or a wrapper such as `time` or `nice`), or an assignment in front of a command to a name that is not plain (`ZE_AGENT_""ID=x`), judged by its text on a line outside the modeled syntax; `FOO=bar ./le x` and `cd x && ./le x` pass. The check catches an agent that forgets or mistypes its identity. It is not a sandbox: it judges the command, not the files the command runs, so a script the agent writes can set either variable and run `./le` (`bash ./s.sh`). Refused: any other command, a line outside the shell syntax the hook models (`modeledSyntax`), a command substitution, a line the splitter cannot parse, a line bash's grammar does not accept (`parseCommandLine`, `internal/le/hookruntime/shellparse.go`: one parse per hook call, and a parser panic reads as a line that does not parse), an identity line naming another agent or session, and every call of an agent whose id or session id cannot name a file. The refusal prints the line to type. The check never changes the command, and the main thread is never judged. |
+| `bashAgentIdentity` | `planning.md` | A subagent's Bash command that could start `le` without the agent's own identity. A reader line passes as typed: `commandOutsideReaders` asks `judgeReaderLine` whether the line parses as bash, every node of its tree is one the reader-line walk admits (the node table in `docs/contributing/running-commands.md`), every simple command is in the reader set (`readerCommands`) with the arguments its judge admits and no assignment in front, and no redirection writes a file but `/dev/null` or another descriptor. A command that starts with the agent's exact identity line, `export ZE_AGENT_ID=<agent>; export CLAUDE_CODE_SESSION_ID=<parent>; ` (the session part alone for a fork subagent), passes when what follows it takes no other identity (`takesAnotherIdentity`). On a line that parses, the after-line walk judges what follows from the tree, statement by statement at every depth. An admitted reader is skipped, and the identity variables it names count as read, so `grep ZE_AGENT_ID f` and `echo $ZE_AGENT_ID` pass; any other command that names either variable is refused. Refused by its form: a declaration (`export`, `declare`, `typeset`, `readonly`, `local`), a function definition, an arithmetic command or expansion, `let`, a coprocess, an assigning default (`${n:=x}`), a `{name}>` redirection, an assignment to an array element or to `BASH_ENV`, `ENV`, `SHELLOPTS`, `BASHOPTS`, `PROMPT_COMMAND` or a `BASH_FUNC_*` name, in front of a command or bare, a command word that holds `=`, and a command word the shell expands. Past the wrappers (`identityWrappers`: `builtin`, `command`, `flock`, `ltrace`, `nice`, `nohup`, `setsid`, `stdbuf`, `strace`, `time`, `timeout`, `xargs`), each with its value-taking options, counts and operands, the command word is matched by its base name, so `/usr/bin/env -i ./le x` and `timeout -s KILL 60 env -i ./le x` are read as `env`. A count or duration holds a digit, so `time . ./env.sh` is read as `.`. A wrapper option that sets the command's environment or user (`strace -E`, `strace -u`, `ltrace -u`) is refused. The command word is refused when it is `unset`, `env`, `exec`, `sudo`, `eval`, `source`, `.`, a declaration, `read`, `mapfile`, `readarray`, `getopts`, `trap`, `enable`, `let`, or `printf -v`; `set` passes only with `-e`, `-u`, `-x` and `-o pipefail`, `errexit`, `nounset` or `xtrace`, in their `-` and `+` forms. A substitution inside a statement that is not a reader is judged as commands of its own. A remainder that does not parse is judged by its text (`textChangesEnvironment`, the same wrapper table): every `set` and every mention of either variable is refused. `FOO=bar ./le x` and `cd x && ./le x` pass. The check catches an agent that forgets or mistypes its identity. It is not a sandbox: it judges the command, not the files the command runs, so a script the agent writes can set either variable and run `./le` (`bash ./s.sh`). Refused: any other command, including a line that does not parse as bash or holds a carriage return or a NUL byte (`parseCommandLine`, `internal/le/hookruntime/shellparse.go`: one parse per hook call, and a parser panic reads as a line that does not parse), an identity line naming another agent or session, an identity line the parse does not read as the agent's own exports (`afterIdentityLine`), and every call of an agent whose id or session id cannot name a file. The refusal names the first construct or command outside the reader line and prints the line to type. The check never changes the command, and the main thread is never judged. |
 
 The check replaced a rewrite: the hook used to prepend the identity line and
 return the command as changed input, and auto mode then voided the call

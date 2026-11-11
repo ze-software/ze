@@ -6,6 +6,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -72,48 +73,18 @@ func identityLine(agent, session string) string {
 }
 
 // commandOutsideReaders names what makes a line need the identity line: the
-// shell syntax the hook does not model (unmodeledSyntax, shellsyntax.go), on
-// which the splitter's commands need not be the ones bash runs, the first
-// command that is not a reader or redirects its output into a file, a
-// command substitution, or a line the splitter cannot parse. It answers ""
-// only when the line lies inside the modeled syntax and every command of the
-// line is a reader its judge admits
-// (readerCommand, readers.go) and writes no file (shellLine.writesFile), so
-// a line the hook cannot see whole is never a reader line, and a reader
-// cannot write the git or shell configuration a later reader would run.
-//
-// A line bash's grammar does not accept (parse, the call's one parse,
-// shellparse.go) is never a reader line either: the splitter reads
-// `cat a |` as the reader cat, while bash refuses the line, so what the
-// splitter answered is not what bash runs. That reason is asked last, so a
-// line that is outside the readers for a reason named above keeps the
-// reason it had before the parse existed.
+// first construct or command of the call's one parse (shellparse.go) that
+// lies outside the reader line (judgeReaderLine, readerline.go), or the
+// reason the line did not parse. It answers "" only when the line parses as
+// bash and every node of its tree is one the walk admits, every simple
+// command is a reader its judge admits (readerCommand, readers.go) and no
+// redirection writes a file, so a line the hook cannot read whole is never a
+// reader line, and a reader cannot write the git or shell configuration a
+// later reader would run. The main thread's caller passes no identity line:
+// a subagent's line that carries one is judged by bashAgentIdentity first.
 func commandOutsideReaders(command string, parse commandParse) string {
-	if construct := unmodeledSyntax(command); construct != "" {
-		return construct + ", shell syntax the hook does not model, so it cannot tell which commands the line runs"
-	}
-	line, parsed := lineCommands(command)
-	if !parsed {
-		return "a line that ends inside a quote or after a backslash, which the hook cannot split into commands"
-	}
-	if line.substitutes {
-		return "a command substitution (a backtick or `$(`), whose inner command the hook does not judge"
-	}
-	for index, words := range line.commands {
-		if _, reader := readerCommands[words[0]]; !reader {
-			return "`" + words[0] + "`, which is outside the reader set"
-		}
-		if !readerCommand(words, line.expands[index]) {
-			return "`" + strings.Join(words, " ") + "`, which the reader set admits only with the options its judge lists and no word the shell expands"
-		}
-		if line.writesFile(index) {
-			return "`" + line.segments[index] + "`, which redirects its output into a file"
-		}
-	}
-	if !parse.parsed() {
-		return "a line that does not parse as bash (" + parse.failure + "), so the hook cannot tell which commands it runs"
-	}
-	return ""
+	_, outside := judgeReaderLine(command, parse, "")
+	return outside
 }
 
 // identityMentions counts the identity variables' names in a text.
@@ -137,24 +108,28 @@ const (
 	timeoutCommand = "timeout"
 )
 
-// transparentWords run the word after them as the command: the shell's
-// reserved words and the wrappers that take a command, whose options and
-// numeric arguments are skipped too.
-var transparentWords = map[string]bool{
+// textReservedWords are the shell's reserved words that run the word after
+// them as a command. Only the text route reads them (changesEnvironment): a
+// remainder that does not parse has no tree to carry them as structure.
+var textReservedWords = map[string]bool{
 	"if": true, "then": true, "elif": true, "else": true, "do": true, "while": true, "until": true,
-	"time": true, "command": true, "builtin": true, niceCommand: true, "nohup": true, timeoutCommand: true,
-	"xargs": true, "stdbuf": true,
 }
 
-// changesEnvironment reports whether one command, given as its words as
-// typed (raw) and with quotes removed (words, parallel to raw), may change
-// the environment the agent's identity lives in: an assignment in front of
-// the command word whose name is not a plain name (a quote, a backslash, an
-// expansion or a subscript in it), or a command word, past any reserved word
-// or wrapper, among environmentTools. A plain `FOO=bar ./le x` passes.
+// changesEnvironment judges one command of a remainder that does not parse,
+// given as its words as typed (raw) and with quotes removed (words, parallel
+// to raw): whether it may change the environment the agent's identity lives
+// in. An assignment in front of the command word whose name is not a plain
+// name (a quote, a backslash, an expansion or a subscript in it) or that
+// makes bash run code (startupVariable) is refused. Past the reserved words
+// and the wrappers, each wrapper with its declared value options, counts and
+// operands (identityWrappers), the command word is judged by its base name
+// (toolChangesEnvironment), and `set` is refused with any option, because no
+// tree shows what follows it. A plain `FOO=bar ./le x` passes.
 func changesEnvironment(raw, words []string) bool {
-	afterWrapper := false
-	for index, word := range words {
+	var wrapper identityWrapper
+	wrapped, operands := false, 0
+	for index := 0; index < len(words); index++ {
+		word := words[index]
 		typed := word
 		if index < len(raw) {
 			typed = raw[index]
@@ -163,18 +138,59 @@ func changesEnvironment(raw, words []string) bool {
 			if !plainAssignment(typed) {
 				return true
 			}
+			name, _, _ := strings.Cut(typed, "=")
+			if startupVariable(strings.TrimSuffix(name, "+")) {
+				return true
+			}
 			continue
 		}
-		if transparentWords[word] {
-			afterWrapper = true
+		if !wrapped && textReservedWords[word] {
 			continue
 		}
-		if afterWrapper && (strings.HasPrefix(word, "-") || wrapperNumber(word)) {
+		if next, isWrapper := identityWrappers[path.Base(word)]; isWrapper {
+			wrapper, wrapped, operands = next, true, next.operands
 			continue
 		}
-		return environmentTools[word]
+		if wrapped && strings.HasPrefix(word, "-") && word != "-" {
+			next, changes := wrapperOption(wrapper, word)
+			if changes {
+				return true
+			}
+			if next {
+				index++
+			}
+			continue
+		}
+		if wrapped && wrapper.counts && wrapperNumber(word) {
+			continue
+		}
+		if wrapped && operands > 0 {
+			operands--
+			continue
+		}
+		return textToolChangesEnvironment(path.Base(word), words[index+1:])
 	}
 	return false
+}
+
+// textToolChangesEnvironment judges the command word of a remainder that
+// does not parse: every `set` is refused, a `test` or `[` as the tree route
+// judges it with every word holding `$` or a backtick taken as an expansion
+// the shell may split (testEvaluatesSubscript), and every other tool as the
+// tree route judges it (toolChangesEnvironment).
+func textToolChangesEnvironment(tool string, words []string) bool {
+	if tool == setBuiltin {
+		return true
+	}
+	test := oneOf(tool, "test", "[")
+	arguments := make([]wordValue, 0, len(words))
+	for _, word := range words {
+		arguments = append(arguments, wordValue{text: word, expands: test && strings.ContainsAny(word, "$`")})
+	}
+	if test {
+		return testEvaluatesSubscript(arguments, true)
+	}
+	return toolChangesEnvironment(tool, arguments)
 }
 
 // wrapperNumber reports whether a word after a wrapper is a count or a
@@ -202,42 +218,30 @@ func plainAssignment(typed string) bool {
 	return nameEnd(name, 0) == len(name)
 }
 
-// rawWords splits one command's text at whitespace outside quotes, keeping
-// the quotes and backslashes as typed.
-func rawWords(text string) []string {
-	words := make([]string, 0, 8)
-	start, quote := -1, byte(0)
-	for index := range len(text) {
-		character := text[index]
-		switch {
-		case quote != 0:
-			if character == quote {
-				quote = 0
-			}
-		case character == ' ' || character == '\t':
-			if start >= 0 {
-				words = append(words, text[start:index])
-				start = -1
-			}
-			continue
-		case character == '\'' || character == '"':
-			quote = character
-		}
-		if start < 0 {
-			start = index
-		}
-	}
-	if start >= 0 {
-		words = append(words, text[start:])
-	}
-	return words
+// nameStart reports whether a byte can start a shell variable name.
+func nameStart(character byte) bool {
+	return character == '_' || ('A' <= character && character <= 'Z') || ('a' <= character && character <= 'z')
 }
 
-// textChangesEnvironment judges a remainder the splitter cannot be trusted
-// on by its text: each piece between `;`, `&`, `|`, a newline, a bracket, a
-// brace, `!` or a backtick is a command whose whitespace fields, with quotes
-// and backslashes removed, changesEnvironment judges. It fails closed: a
-// split the shell does not make only adds commands to judge.
+// nameEnd answers the offset after the variable-name bytes that start at
+// index.
+func nameEnd(line string, index int) int {
+	for index < len(line) {
+		character := line[index]
+		if nameStart(character) || ('0' <= character && character <= '9') {
+			index++
+			continue
+		}
+		break
+	}
+	return index
+}
+
+// textChangesEnvironment judges a remainder that does not parse by its text:
+// each piece between `;`, `&`, `|`, a newline, a bracket, a brace, `!` or a
+// backtick is a command whose whitespace fields, with quotes and backslashes
+// removed, changesEnvironment judges. It fails closed: a split the shell does
+// not make only adds commands to judge.
 func textChangesEnvironment(rest string) bool {
 	pieces := strings.FieldsFunc(rest, func(character rune) bool {
 		return strings.ContainsRune(";&|\n(){}!`", character)
@@ -255,79 +259,6 @@ func textChangesEnvironment(rest string) bool {
 	return false
 }
 
-// remainderChangesEnvironment applies changesEnvironment to every command of
-// what follows the agent's identity line that is not a reader its judge
-// admits writing no file: by the splitter's words on a line inside the
-// modeled syntax, and by its text (textChangesEnvironment) on any other.
-func remainderChangesEnvironment(rest string) bool {
-	if !modeledSyntax(rest) {
-		return textChangesEnvironment(rest)
-	}
-	line, parsed := lineCommands(rest)
-	if !parsed {
-		return textChangesEnvironment(rest)
-	}
-	if line.substitutes {
-		return textChangesEnvironment(rest)
-	}
-	for index, words := range line.commands {
-		if readerCommand(words, line.expands[index]) && !line.writesFile(index) {
-			continue
-		}
-		if changesEnvironment(rawWords(line.segments[index]), words) {
-			return true
-		}
-	}
-	return false
-}
-
-// takesAnotherIdentity reports whether what follows the agent's identity line
-// may set, unset or drop an identity variable. It catches an agent that
-// forgets or mistypes its identity, and it fails closed in two ways. First,
-// any command that is not an admitted reader and that changes the
-// environment by its form (changesEnvironment: export, env, exec, sudo, set
-// and the rest, or an assignment to a name that is not plain) is refused
-// whatever names it carries, by its words on a line inside the modeled
-// syntax and by its text on any other. Second, bash sets a variable in more
-// forms than a list holds (`+=`, `read`, `printf -v`, `for`), so any command
-// whose text names either variable is refused, unless it is a reader its
-// judge admits (readerCommand) that writes no file, which reads the name as
-// text (`grep ZE_AGENT_ID f`, `echo $ZE_AGENT_ID`). Every mention must lie
-// inside such a reader, so a remainder outside the shell syntax the hook
-// models (modeledSyntax), one the splitter cannot parse, or one with a
-// command substitution, is refused whenever it names either variable. It is
-// not a sandbox: it judges the command, not the files the command runs.
-func takesAnotherIdentity(rest string) bool {
-	if remainderChangesEnvironment(rest) {
-		return true
-	}
-	named := identityMentions(rest)
-	if named == 0 {
-		return false
-	}
-	if !modeledSyntax(rest) {
-		return true
-	}
-	line, parsed := lineCommands(rest)
-	if !parsed {
-		return true
-	}
-	if line.substitutes {
-		return true
-	}
-	read := 0
-	for index, words := range line.commands {
-		if !readerCommand(words, line.expands[index]) {
-			continue
-		}
-		if line.writesFile(index) {
-			continue
-		}
-		read += identityMentions(line.segments[index])
-	}
-	return read < named
-}
-
 // ze point: planning/directives/brief-every-subagent-with-its-spec-phase-and-rules
 // bashAgentIdentity keeps a subagent's command under the identity the harness
 // gave the agent: the parent's session id, which keeps the session's directory
@@ -340,11 +271,11 @@ func takesAnotherIdentity(rest string) bool {
 // The check never changes the command: a changed command is one auto mode
 // holds no verdict for, so the harness voids it and the calls sent with it.
 // The agent types its identity line (identityLine) and the check compares.
-// A command made only of readers its judges admit (readerCommands,
-// readers.go) passes without the line. A
-// command that starts with the agent's exact line passes unless a command
-// after it other than a reader names an identity variable
-// (takesAnotherIdentity). Every other command of a subagent is refused with
+// A reader line (commandOutsideReaders: every command of the parsed line a
+// reader its judge admits, readers.go) passes without the line. A command
+// that starts with the agent's exact line passes unless what follows it
+// changes the environment or names an identity variable outside a reader
+// (takesAnotherIdentity, afterline.go). Every other command of a subagent is refused with
 // the line to type. The line is built from the payload's ids and never taken
 // from the command, so a line naming another agent or session is refused.
 //
@@ -381,8 +312,8 @@ func bashAgentIdentity(ctx context) *verdict {
 	own := identityLine(agent, session)
 	// Leading whitespace runs nothing, so the agent's own exact line after it
 	// is the agent's line (review N4); every other check reads it as typed.
-	if rest, carries := strings.CutPrefix(strings.TrimLeft(command, " \t\n"), own); carries {
-		if takesAnotherIdentity(rest) {
+	if strings.HasPrefix(strings.TrimLeft(command, " \t\n"), own) {
+		if takesAnotherIdentity(command, ctx.commandParse(), own) {
 			return anotherIdentityVerdict(own, "After its identity line a command changes the environment (export, env, exec, sudo, set and the like, or an assignment to a name that is not plain),"+
 				" or a command other than a reader names "+agentVariable+" or "+sessionVariable+", which can set, unset or drop the identity.")
 		}

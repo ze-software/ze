@@ -806,50 +806,78 @@ The check has three outcomes:
 
 | The subagent's command | Outcome |
 |------------------------|---------|
-| The line lies inside the shell syntax the hook models (below), every command of it is in the reader set (`readerCommands`: `grep`, `sed`, `cat`, `head`, `gopls`, `git` followed directly by a read verb, and the rest of that table) with the arguments its judge admits, and no command redirects its output into a file (`/dev/null`, `2>&1` and an input `<` are fine) | Passes as typed. A reader reads neither variable and starts no `le` |
-| It starts with the agent's exact identity line, and no command after it but an admitted reader names either variable | Passes as typed |
-| Anything else: syntax the hook does not model, a command outside the reader set, a reader carrying an option or a word its judge does not admit, a command substitution (a backtick or `$(`), a line that ends inside a quote, a line bash's grammar does not accept (`cat a |`: the hook reads each command line once with the `mvdan.cc/sh` bash parser, and a parser that fails or panics counts as a line that does not parse), or an identity line naming another agent or session | Refused (hook exit 2). The message prints the line to type |
+| The line is a reader line (below): it parses as bash, every node of its tree is one the table below admits, every simple command is in the reader set (`readerCommands`: `grep`, `sed`, `cat`, `head`, `gopls`, `read -r`, `git` followed directly by a read verb, and the rest of that table) with the arguments its judge admits, and no redirection writes a file (`/dev/null`, `2>&1` and an input `<` are fine) | Passes as typed. A reader reads neither variable and starts no `le` |
+| It starts with the agent's exact identity line, and nothing after it changes the environment or names either variable outside an admitted reader | Passes as typed |
+| Anything else: a construct outside the table, a command outside the reader set, a reader carrying an option or a word its judge does not admit, a line bash's grammar does not accept (`cat a |`, an unclosed quote; a parser that fails or panics counts as a line that does not parse), a carriage return or a NUL byte, a line that ends in a backslash, or an identity line naming another agent or session | Refused (hook exit 2). The message names the construct or command and prints the line to type |
 
-The hook splits a line into commands with its own splitter (`lineCommands`),
-which reads only part of bash's syntax, so it trusts that split only on a line
-inside an allow-list of syntax (`modeledSyntax`): printable ASCII with spaces,
-tabs and newlines; unquoted words, globs and `~`; a single-quoted string on one
-line; a double-quoted string on one line holding no backtick, `$(` or `!`,
-whose backslash precedes no `$`, backtick, `"` or `\`; `$NAME` and the plain
-special parameters (`$_`, `$?`, `$@`, `$1`), and `${NAME}` inside double
-quotes; the separators `;`, `&&`, `||`, `|` and a newline; and the
-redirections `<`, `>`, `>>`, `>|`, `&>`, `2>`, `2>>`, `<<<` with a word after
-them, and `>&N`, each only after the last word of its command. A `#`
-anywhere, a backslash outside quotes, a redirection before or between a
-command's words (`<<<cat ./le x` reads as the reader cat, `sed -e <<<p 'w
-out' f` as `sed -e p`), an empty quoted word (`''`, `""`, which the splitter
-drops and bash passes as an argument), a here-document
-(`<<`), `$'...'`, `$"..."`, a brace, `!`, a parenthesis, `[[`, a background
-`&`, `|&`, a carriage return and any other byte need the line, whatever the
-commands are. Each of these is a construct the splitter could read
-differently from bash: `cat x{#}; ./le x` ended at the brace, read `#` as a
-comment and lost the `./le`.
+The hook reads each command line once with the `mvdan.cc/sh` bash parser, and
+a line is a reader line when every node of the tree is one of these:
 
-After the agent's own identity line, any command whose text names
-`ZE_AGENT_ID` or `CLAUDE_CODE_SESSION_ID` is refused as taking another
-identity, unless it is a reader its judge admits that writes no file: `grep
-ZE_AGENT_ID f` and `echo $ZE_AGENT_ID` pass. Bash sets a variable in more
-forms than a list holds (`+=`, `read`, `printf -v`, `for`, `time` or `exec
-env` in front), so the check judges the name, not the form. On a line
-outside the allow-list every mention refuses. A name can also be built from
-pieces (`ZE_AGENT_""ID`, `"${n}_ID"`), so a command that changes the
-environment by its form is refused whatever names it carries: `export`,
-`declare`, `typeset`, `readonly`, `local`, `unset`, `env`, `exec`, `sudo`,
-`eval`, `source`, `.` or `set` as the command word, past a reserved word or a
-wrapper such as `time` or `nice`. After a wrapper the walk skips each word
-that starts with `-` and each count or duration, which holds a digit, so
-`time . ./env.sh` is judged as `.`. It does not yet skip the value an option
-takes: a value with no digit is read as the command word, so `timeout -s KILL
-60 env -i ./le x` passes, its command word taken to be `KILL`. The check also refuses an
-assignment in front of a command to
-a name that is not plain. On a line outside the allow-list the first words
-of each command are judged by their text. `FOO=bar ./le x` and `cd x &&
-./le x` pass.
+| Node | Admitted when |
+|------|---------------|
+| Simple command | Its command word is text the shell does not expand, a member of `readerCommands`, and its judge admits its arguments; no assignment stands in front of it |
+| Bare assignment `name=value` | The name is lower-case letters, digits and `_`, and the hook's environment holds no variable of that name, so `PATH`, `IFS` and every exported name stay outside |
+| `\|`, `\|&`, `&&`, `\|\|`, `;`, newline | Both sides are admitted |
+| `!`, `time`, `{ }`, `( )`, `if`, `while`, `until`, `case` | Everything they hold is admitted |
+| `for name in words` | The name passes the bare-assignment rule, and the body is admitted |
+| `[[ ]]` | File and string tests, `=`, `==`, `!=`, `=~`, `<`, `>`, `!`, `&&`, `\|\|` and parentheses; the arithmetic comparisons, `-v`, `-R` and `-o` are outside |
+| `$( )`, backticks, `<( )` | Every statement inside is admitted; a word that is one whole `<( )` is a path operand |
+| Parameter expansion | `$name`, `${name}`, the special parameters, and a default, an alternative, a prefix or suffix removal, a case change, a replacement or a length; an index, a slice, an assigning or error default, an indirection and an `@` operator are outside |
+| Redirection | Input from a file, a here-string or a here-document; output onto `/dev/null` or another descriptor, wherever it is written |
+
+Everything else is outside, and the refusal names it: a function definition,
+`export`, `declare`, `local`, `readonly`, `typeset`, `let` and arithmetic, a
+C-style `for`, `select`, a coprocess, a background `&`, an assignment in front
+of a command, `+=`, an extended glob (the Bash tool runs with extglob off), an
+output process substitution, a `{name}>` redirection, which assigns the
+descriptor to a variable, and an ANSI-C or locale quoted string, whose value
+is not read. A here-document stays on a reader line only when its delimiter
+is plain text (one literal, one `'...'` or one `"..."` of literals), a body
+the shell expands holds no backslash-newline, and no body line ends with the
+delimiter after other text (`${x}EOF`): bash and the parser then end the body
+on the same line. Two shapes put the whole line outside, because the parser's
+tree names fewer commands than bash runs (`treeMisreadsLine`): a comment
+that ends in a backslash, where the parser joins the next line into the
+comment's statement and bash runs it, and a `$` followed by a
+backslash-newline, which bash joins into `$(`, `${` or `$name` and the parser
+reads as text. The guards and the identity check judge such a line by its
+text. A judge receives each argument as bash passes it, quotes
+removed (`readWord`), and never a redirection's target. The agent's own exact
+identity line in front of a reader line leaves it a reader line for every
+guard.
+
+After the agent's own identity line, what follows is judged command by
+command from the tree, at every depth, and an admitted reader is skipped. A
+declaration (`export`, `declare`, `typeset`, `readonly`, `local`), a function
+definition, arithmetic and `let` are refused whatever they name, and so are
+an index or a slice in an expansion (`${a[$n=7]}`), a `[[` operator outside
+the reader set (`-eq`, `-v`), and `test` or `[` with `-v`, `-R` or an
+expanded word that may stand for one: each evaluates an operand as
+arithmetic, which can assign a variable whose name a value builds. Past the
+wrappers (`command`, `builtin`, `nice -n`, `nohup`, `timeout -s -k` and its
+one duration, spelled any way, `xargs` and its value options, `stdbuf -i -o
+-e`, `time -f -o` as a program, `setsid`, `flock` with its lock file and `-w
+-E -c`, `strace` and `ltrace` with their short and long value options), each
+value option taking one value, a short cluster read letter by letter as
+getopt does (`-0n 1`, `-fo out`), and a `nice` count holding a digit, the
+command word is matched by its base name, so
+`/usr/bin/env` is `env`: `unset`, `env`, `exec`, `sudo`, `eval`, `source`,
+`.`, `read`, `mapfile`, `readarray`, `getopts`, `trap`, `enable`, `let` and
+`printf -v` are refused, and so is `strace -E` or `-u` and `ltrace -u`. A
+command word the shell expands (`c=env; $c -i`) is refused, and so is a
+substitution that runs one of these, and an assignment in front of a command
+to `BASH_ENV`, `ENV`, `SHELLOPTS`, `BASHOPTS`, `PROMPT_COMMAND`, a
+`BASH_FUNC_` name or either identity variable. `set` passes only with `-e`, `-u`, `-x` and `-o`
+`pipefail`, `errexit`, `nounset` or `xtrace`, in their `-` and `+` forms
+(`set -euo pipefail`); `-a`, `-k` and operands are refused. Any command
+naming `ZE_AGENT_ID` or `CLAUDE_CODE_SESSION_ID` outside an admitted reader
+is refused, because bash sets a variable in more forms than a list holds:
+`grep ZE_AGENT_ID f` and `echo $ZE_AGENT_ID` pass. A reader's mentions are
+counted from its own words, here-strings and here-document bodies, never from
+the text after its here-document operator on the same line. A remainder that does not
+parse is judged by its text with the same wrappers and base names, every
+`set` is refused there, and any mention of either variable refuses.
+`FOO=bar ./le x` and `cd x && ./le x` pass.
 
 The check catches an agent that forgets or mistypes its identity. It is not
 a sandbox: it judges the command, not the files the command runs, so a
@@ -910,10 +938,10 @@ a name of your own.
 <!-- source: internal/le/le/path/session.go -- SpecClaimMarker, MarkerOwnedBy -->
 <!-- source: internal/core/sessiondir/sessiondir.go -- Resolve, Find, Owner -->
 <!-- source: internal/le/session/reap.go -- candidateSID -->
-<!-- source: internal/le/hookruntime/session.go -- bashAgentIdentity, identityLine, commandOutsideReaders, takesAnotherIdentity -->
-<!-- source: internal/le/hookruntime/readers.go -- readerCommands, readerCommand -->
-<!-- source: internal/le/hookruntime/shellline.go -- lineCommands -->
-<!-- source: internal/le/hookruntime/shellsyntax.go -- modeledSyntax, unmodeledSyntax -->
+<!-- source: internal/le/hookruntime/session.go -- bashAgentIdentity, identityLine, commandOutsideReaders, changesEnvironment -->
+<!-- source: internal/le/hookruntime/readers.go -- readerCommands, readerCommand, readReads -->
+<!-- source: internal/le/hookruntime/readerline.go -- judgeReaderLine, readerWalk, afterIdentityLine -->
+<!-- source: internal/le/hookruntime/afterline.go -- takesAnotherIdentity, identityWrappers, toolChangesEnvironment, setChangesNothing -->
 <!-- source: internal/le/hookruntime/shellparse.go -- parseCommandLine, commandParse -->
 <!-- source: internal/le/hookruntime/lifecycle.go -- hookSubagentContext -->
 <!-- source: internal/le/test/weakened/approve.go -- ApprovalPath, approveAnswer -->

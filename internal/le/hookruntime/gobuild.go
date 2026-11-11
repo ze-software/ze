@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- native Bash hook policy
 // Related: bash.go -- bashRootBuild, the guard that renders this judgment
-// Related: shellline.go -- lineCommands, the commands, separators and expansions this judges
+// Related: readerline.go -- readerWalk, the walk of the parsed line whose builds this judges
 // Related: readers.go -- readerCommand, the readers a judged build line may hold
 package hookruntime
 
@@ -648,66 +648,91 @@ func modulePath(root string) string {
 
 // goBuildLine judges every `go build` a line runs. Its text judgment
 // (goBuildText) is the verdict, and the words are read instead only on a
-// reader+build line: one whose every command is a reader its judge admits
-// (readerCommand) or a build, so nothing but the builds can run a build, and
-// each one is judged by its arguments. A build is a command whose words,
-// after any GOFLAGS assignments, open with `go build`. The text judgment
-// stays the verdict for every other line: one outside the shell syntax the
-// hook models (modeledSyntax), whose commands the splitter need not see as
-// bash runs them; one holding a shell, a launcher (`time`, `env`, `xargs`),
+// reader+build line: one that parses (parse, the call's one parse), whose
+// every node the reader-line walk admits (readerWalk), and whose every simple
+// command is a reader its judge admits (readerAdmit) or a build at the top
+// level of the line, so nothing but the builds can run a build, and each one
+// is judged by its arguments. A build is a command whose assignments are only
+// GOFLAGS (goBuildAt) and whose words open with `go build`; its arguments are
+// the parsed words, so a redirection, wherever it is written, is never one of
+// them. The text judgment stays the verdict for every other line: one that
+// does not parse; one holding a shell, a launcher (`time`, `env`, `xargs`),
 // an interpreter or any command the reader set does not hold, which may run
-// a build its quotes hide; a build behind another assignment (goBuildAt),
-// with a word the shell expands, or with a -toolexec, -overlay or -modfile
-// flag (goBuildArgs), which the text judgment then refuses when the line's
-// text names it; and
-// a line with a redirection that writes a file, with or without a build,
+// a build its quotes hide; a build inside a construct, behind another
+// assignment, with a word the shell expands, or with a -toolexec, -overlay or
+// -modfile flag (goBuildArgs), which the text judgment then refuses when the
+// line's text names it; and a line with a redirection that writes a file,
 // because a reader could write the package the hook reads before the build
-// compiles it, or the configuration a later reader runs. A
-// literal cd earlier on the line moves the directory relative packages and
-// outputs resolve from, when cdFollowed shows it runs before the build in the
-// same shell.
-func goBuildLine(root, command string) (goBuildOutcome, string) {
-	if !modeledSyntax(command) {
-		return goBuildText(command)
-	}
-	line, parsed := lineCommands(command)
-	if !parsed {
-		return goBuildText(command)
-	}
-	if line.substitutes {
-		return goBuildText(command)
-	}
-	builds, writes := 0, false
-	for index, words := range line.commands {
-		segment := shellWords(line.segments[index])
-		writes = writes || !writesOnlyDevNull(segment)
-		if readerCommand(words, line.expands[index]) {
-			continue
+// compiles it, or the configuration a later reader runs. A literal cd moves
+// the directory relative packages and outputs resolve from when it holds for
+// what follows (lineCommand.persists); any other cd leaves it unknown.
+// identity is the caller's own identity line, which the line may start with
+// (AC-14). A panic inside the walk answers the text judgment (review I4);
+// readGoBuildLine is the walk without the recover.
+func goBuildLine(root, command string, parse commandParse, identity string) (outcome goBuildOutcome, refusal string) {
+	defer func() {
+		if recover() != nil {
+			outcome, refusal = goBuildText(command)
 		}
-		if _, found := goBuildAt(beforeRedirection(segment)); found {
-			// A word the shell expands (`$_`, `GOFLAGS=$X`, a glob) is not the
-			// text the hook reads: it may carry a -toolexec flag or another
-			// package, so the build is judged by its text.
-			// An -o value the shell expands can leave bin/ (`bin/$X` with X
-			// holding `../`), and the text judgment would allow it for its
-			// `-o bin/` spelling, so it is refused here, stricter than HEAD.
-			if outputExpands(words, line.expands[index]) {
-				return goBuildBinary, strings.TrimSuffix(adviceLine("The -o path holds a word the shell expands, so the hook cannot tell whether the binary lands under bin/.")+
-					adviceLine("Use: go build -o bin/<name> ./cmd/<name>, with a literal name"), "\n")
-			}
-			if slices.Contains(line.expands[index], true) {
-				return goBuildText(command)
-			}
+	}()
+	return readGoBuildLine(root, command, parse, identity)
+}
+
+// readGoBuildLine is goBuildLine without its recover.
+func readGoBuildLine(root, command string, parse commandParse, identity string) (goBuildOutcome, string) {
+	if !deletionLineReadable(command, parse) {
+		return goBuildText(command)
+	}
+	statements, outside := afterIdentityLine(command, parse.file.Stmts, identity)
+	if outside != "" {
+		return goBuildText(command)
+	}
+	// expandedOutput marks a build whose -o value the shell expands, which
+	// stops the walk where the build stands, as the loop over the commands
+	// did before the parse: a command outside the readers before it keeps
+	// the text verdict, and a file write is judged after the builds.
+	expandedOutput := false
+	admit := func(candidate lineCommand) string {
+		if readerAdmit(candidate) == "" {
+			return ""
+		}
+		if candidate.nested {
+			return "a command inside a construct"
+		}
+		words, expands := buildWords(candidate)
+		if _, found := goBuildAt(words); !found {
+			return "a command outside the reader set"
+		}
+		// A word the shell expands (`$_`, `GOFLAGS=$X`, a glob) is not the
+		// text the hook reads: it may carry a -toolexec flag or another
+		// package, so the build is judged by its text. An -o value the shell
+		// expands can leave bin/ (`bin/$X` with X holding `../`), and the text
+		// judgment would allow it for its `-o bin/` spelling, so it is refused.
+		if outputExpands(words, expands) {
+			expandedOutput = true
+			return "an -o value the shell expands"
+		}
+		if slices.Contains(expands, true) {
+			return "a build word the shell expands"
+		}
+		return ""
+	}
+	walk := readerWalk{source: command, admit: admit, recordWrites: true}
+	if outside := walk.statements(statements, readerPlace{leftmost: true}); outside != "" {
+		if expandedOutput {
+			return goBuildBinary, strings.TrimSuffix(adviceLine("The -o path holds a word the shell expands, so the hook cannot tell whether the binary lands under bin/.")+
+				adviceLine("Use: go build -o bin/<name> ./cmd/<name>, with a literal name"), "\n")
+		}
+		return goBuildText(command)
+	}
+	if walk.wrote {
+		return goBuildText(command)
+	}
+	builds := 0
+	for _, candidate := range walk.line.commands {
+		if readerAdmit(candidate) != "" {
 			builds++
-			continue
 		}
-		return goBuildText(command)
-	}
-	// A line that writes a file is no reader line, whether or not it builds:
-	// a reader could write the package the hook reads, or the configuration a
-	// later reader runs.
-	if writes {
-		return goBuildText(command)
 	}
 	if builds == 0 {
 		return goBuildAllowed, ""
@@ -718,26 +743,26 @@ func goBuildLine(root, command string) (goBuildOutcome, string) {
 			adviceLine("Use: go build -o bin/<name> ./cmd/<name>, from the checkout root"), "\n")
 	}
 	checkout := buildCheckout{root: root, physical: physicalRoot, module: modulePath(root)}
-	// A group or a subshell can undo a cd before the build runs, so on a line
-	// holding one no cd is followed.
-	grouped := strings.ContainsAny(command, "(){}")
 	cwd, physical, moved := filepath.Clean(root), physicalRoot, false
-	for index, words := range line.commands {
-		if words[0] == "cd" {
+	for _, candidate := range walk.line.commands {
+		if candidate.words[0] == "cd" {
 			moved = true
-			if grouped || !cdFollowed(line.separators, index) {
+			if !candidate.persists {
 				cwd, physical = "", ""
 				continue
 			}
-			cwd, physical = cdTarget(cwd, words[1:], line.expands[index][1:])
+			cwd, physical = cdTarget(cwd, candidate.words[1:], candidate.expands[1:])
 			continue
 		}
-		segment := beforeRedirection(shellWords(line.segments[index]))
-		at, found := goBuildAt(segment)
+		if readerAdmit(candidate) == "" {
+			continue
+		}
+		words, _ := buildWords(candidate)
+		at, found := goBuildAt(words)
 		if !found {
 			continue
 		}
-		args := parseGoBuild(append(goFlags(segment[:at]), segment[at+2:]...))
+		args := parseGoBuild(append(goFlags(words[:at]), words[at+2:]...))
 		if args.textJudged {
 			return goBuildText(command)
 		}
@@ -748,6 +773,15 @@ func goBuildLine(root, command string) (goBuildOutcome, string) {
 		}
 	}
 	return goBuildAllowed, ""
+}
+
+// buildWords answers a command's assignments in front, each as `NAME=value`
+// with its value read by readWord, then its words, with whether the shell
+// expands each, parallel: the words goBuildAt and parseGoBuild read.
+func buildWords(command lineCommand) ([]string, []bool) {
+	words := slices.Concat(command.assigns, command.words)
+	expands := slices.Concat(command.assignsExpand, command.expands)
+	return words, expands
 }
 
 // outputExpands reports whether a build command's -o value, given as the next
@@ -772,44 +806,6 @@ func outputExpands(words []string, expands []bool) bool {
 		}
 	}
 	return false
-}
-
-// writesOnlyDevNull reports whether a command's redirections write nothing
-// but /dev/null or another descriptor: `2>&1`, `>&2`, `>/dev/null`,
-// `2> /dev/null`, `&>/dev/null`. `>& file` writes the file. The words are
-// shellWords of the command's text, where a redirection keeps its `>`.
-func writesOnlyDevNull(words []string) bool {
-	for index := 0; index < len(words); index++ {
-		at := strings.IndexByte(words[index], '>')
-		if at < 0 {
-			continue
-		}
-		target := strings.TrimLeft(words[index][at:], ">|")
-		if target == "" || target == "&" {
-			index++
-			if index == len(words) {
-				return false
-			}
-			target += words[index]
-		}
-		if target == "/dev/null" {
-			continue
-		}
-		if target == "&/dev/null" {
-			continue
-		}
-		descriptor, dup := strings.CutPrefix(target, "&")
-		if !dup {
-			return false
-		}
-		if descriptor == "" {
-			return false
-		}
-		if strings.Trim(descriptor, "0123456789-") != "" {
-			return false
-		}
-	}
-	return true
 }
 
 // goBuildAt answers where `go build` opens a command's words, after any
@@ -853,18 +849,6 @@ func shellAssignment(word string) bool {
 		return false
 	}
 	return true
-}
-
-// cdFollowed reports whether the cd at index certainly runs, in the shell
-// that runs the commands after it: it starts the line or follows `;` or a
-// newline, and `;`, `&&` or a newline ends it. A cd after `&&` or `||` may
-// not run; one before `||` leaves the next command where the shell was when
-// it succeeds; and one in a pipeline or behind `&` runs in a subshell.
-func cdFollowed(separators []string, index int) bool {
-	if index > 0 && !oneOf(separators[index-1], ";", "\n") {
-		return false
-	}
-	return oneOf(separators[index], ";", "&&", "\n")
 }
 
 // searchPermission is the access(2) mode bit that asks whether a directory

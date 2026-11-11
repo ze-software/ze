@@ -28,21 +28,20 @@ type rawRefusal struct {
 // rawAdvice answers the refusal the raw-job block shows. The guard's verdict
 // reads a quote-blind split, which keeps HEAD's text verdict, but that split
 // cuts `go test -run 'TestA|TestB' ./x` at the quoted bar and would advise a
-// different command. On a line the hook's splitter models, the first heavy
-// command it finds is the one the shell runs, quotes intact, with the
-// directory changes before it; any other line keeps the text refusal
-// (review I1, as advisedSegment does for the piped-command refusal).
-func rawAdvice(command, root string, text rawRefusal) rawRefusal {
-	if !modeledSyntax(command) {
-		return text
-	}
-	line, parsed := lineCommands(command)
-	if !parsed {
+// different command. On a line that parses (parse, the call's one parse),
+// the first heavy command of the tree is the one the shell runs, written from
+// its parsed words (parsedCommand.segment), with the directory changes before
+// it, so a redirection is never read as one of its words (AC-15); a line that
+// does not parse keeps the text refusal (review I1, as advisedSegment does
+// for the piped-command refusal).
+func rawAdvice(command string, parse commandParse, root string, text rawRefusal) rawRefusal {
+	if !parse.parsed() {
 		return text
 	}
 	var moves []string
-	for index, segment := range line.segments {
-		if oneOf(line.commands[index][0], "cd", "pushd") {
+	for _, parsed := range everyCommand(command, parse.file.Stmts) {
+		segment := parsed.segment()
+		if len(parsed.words) != 0 && oneOf(parsed.words[0], "cd", "pushd") {
 			moves = append(moves, segment)
 			continue
 		}
@@ -394,7 +393,7 @@ var launcherValueOptions = map[string]map[string]bool{
 }
 
 // The launchers launcherValueOptions names that other tables of the package
-// name too (environmentTools, transparentWords).
+// name too (environmentTools, identityWrappers).
 const (
 	sudoCommand = "sudo"
 	timeCommand = "time"

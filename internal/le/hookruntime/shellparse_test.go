@@ -346,6 +346,10 @@ func analyseBashLine(file *syntax.File) bashLine {
 			refuse("a coprocess")
 		case *syntax.LetClause:
 			refuse("let")
+		case *syntax.ExtGlob:
+			// The Bash tool runs bash with extglob off (A-3), so bash refuses
+			// the line the parser reads; judgeReaderLine puts it outside.
+			refuse("an extended glob, which bash refuses with extglob off")
 		case *syntax.IfClause, *syntax.WhileClause, *syntax.ForClause, *syntax.CaseClause,
 			*syntax.ProcSubst, *syntax.TestClause, *syntax.ArithmCmd, *syntax.ArithmExp:
 			line.straight = false
@@ -354,6 +358,12 @@ func analyseBashLine(file *syntax.File) bashLine {
 				line.straight = false
 			}
 		case *syntax.ParamExp:
+			// An indirection names its target by a variable's value, so
+			// bash refuses it when that variable is unset, as it is here;
+			// judgeReaderLine puts it outside.
+			if node.Excl {
+				refuse("an indirect expansion, which bash refuses for an unset name")
+			}
 			// A default, an alternative or a replacement expands its word
 			// only when the parameter's value calls for it.
 			if node.Exp != nil {
@@ -905,7 +915,9 @@ func TestParsedCommandsMatchBash(t *testing.T) {
 // the raw one except on a line holding a carriage return, which it refuses,
 // and readWord answers every word of a tree with a value or a
 // wordNotRead. Phase 3 adds the predicate's property: it never answers
-// "reader line" for a line holding a command outside the reader set.
+// "reader line" for a line holding a command outside the reader set; and no
+// walk of the line (the reader line with and without the identity line, the
+// after-line identity walk, the deletion guard's two readings) panics.
 func FuzzShellParse(f *testing.F) {
 	for _, line := range bashCorpusLines(f) {
 		f.Add(line)
@@ -916,6 +928,16 @@ func FuzzShellParse(f *testing.F) {
 		if parse.parsed() == (parse.failure != "") {
 			t.Fatalf("%q: the parse answered tree=%v and failure %q, want exactly one", line, parse.parsed(), parse.failure)
 		}
+		// Review I4: the walks are called without the recover their
+		// callers put around them, so a panic in any of them fails the
+		// target instead of being answered on the refusing side.
+		readReaderLine(line, parse, "")
+		readPlainRmArguments(line, parse)
+		readDeletionWords(line, parse)
+		owned := identityLineOfAgent + line
+		ownedParse := parseCommandLine(owned)
+		readReaderLine(owned, ownedParse, identityLineOfAgent)
+		readAnotherIdentity(owned, ownedParse, identityLineOfAgent)
 		if strings.ContainsRune(line, '\r') {
 			// The raw parser reads a carriage return as bash does not, so
 			// the contained parse refuses every such line.
@@ -939,6 +961,31 @@ func FuzzShellParse(f *testing.F) {
 				if _, isNotRead := errors.AsType[wordNotRead](err); !isNotRead {
 					t.Fatalf("%q: readWord answered %v, not a wordNotRead", line, err)
 				}
+			}
+			return true
+		})
+		// Phase 3: the predicate never answers reader line for a line that
+		// holds, at any depth, a command outside the reader set.
+		if _, outside := judgeReaderLine(line, parse, ""); outside != "" {
+			return
+		}
+		syntax.Walk(parse.file, func(node syntax.Node) bool {
+			call, ok := node.(*syntax.CallExpr)
+			if !ok {
+				return true
+			}
+			if len(call.Args) == 0 {
+				return true
+			}
+			value, err := readWord(call.Args[0])
+			if err != nil {
+				t.Fatalf("%q: a reader line whose command word is not read (%v)", line, err)
+			}
+			if value.expands {
+				t.Fatalf("%q: a reader line whose command word the shell expands", line)
+			}
+			if _, reader := readerCommands[value.text]; !reader {
+				t.Fatalf("%q: a reader line holding %q, which is outside the reader set", line, value.text)
 			}
 			return true
 		})

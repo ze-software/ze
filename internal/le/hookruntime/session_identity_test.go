@@ -3,6 +3,7 @@
 package hookruntime
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -38,11 +39,16 @@ func runForkBash(t *testing.T, command string) (code int, output, message string
 
 // VALIDATES: AC-1. A subagent's command made only of reader commands passes
 // with exit 0 and an empty standard output, so the harness receives no changed
-// input and the command runs exactly as typed.
+// input and the command runs exactly as typed. A loop whose body is readers
+// (AC-5) and a here-document fed to a reader (AC-6) are reader lines too: the
+// here-document's body is data the reader reads, so a `./le` written in it
+// runs nothing.
 // PREVENTS: the hook rewriting a command, which makes auto mode void the call
 // and every other call of the same message.
 func TestSubagentReaderCommandPassesUnchanged(t *testing.T) {
 	for _, command := range []string{
+		`for f in a b; do cat "$f"; done`,
+		`cat <<EOF` + "\n./le spec current\nEOF",
 		`grep -n "a\|b" internal/x.go | head -5`,
 		`cd /srv/checkout && git log --oneline -3; sed -n 1,5p notes.md 2>&1 | wc -l`,
 		`gopls symbols internal/le/hookruntime/session.go`,
@@ -89,10 +95,10 @@ func TestSubagentCommandOutsideTheReaderSetNeedsTheIdentityLine(t *testing.T) {
 		`git -C /srv/checkout log --oneline`,
 		`git stash list`,
 		`cat list.txt | xargs ./le doc check`,
-		`for f in a b; do cat "$f"; done`,
+		`for f in a b; do ./le doc check "$f"; done`,
 		`rg --pre ./le x notes.md`,
 		`sort --compress-program=./le notes.md`,
-		`cat <<EOF` + "\n./le spec current\nEOF",
+		`./le spec current <<EOF` + "\nx\nEOF",
 	} {
 		code, output, message := runSubagentBash(t, command)
 		if code != 2 || output != "" {
@@ -261,8 +267,9 @@ func TestSubagentReaderOutsideItsJudgeNeedsTheIdentityLine(t *testing.T) {
 		`echo "x>"|sh`,
 		`uniq -c ~/notes.md`,
 		`sort -k1 X=~/notes.md`,
-		// NOTE: bash brace-expands this to `find . -exec sh x`; a brace lies
-		// outside the syntax the hook models (modeledSyntax).
+		// NOTE: bash brace-expands this to `find . -exec sh x`; the word
+		// reading marks the brace expansion expanded (readWord), and find's
+		// judge refuses a word the shell expands.
 		`find . {-exec,sh} x`,
 	} {
 		code, output, message := runSubagentBash(t, command)
@@ -300,12 +307,13 @@ func TestSubagentReaderOutsideItsJudgeNeedsTheIdentityLine(t *testing.T) {
 	}
 }
 
-// unmodeledSyntaxLines are lines on which the splitter's commands are not the
-// ones bash runs, or might not be: each one hides `le x` from a splitter that
-// does not model its construct, or holds a construct the allow-list leaves
-// out. The guard tests drive the same constructs with a build in place of
-// `le x`.
-var unmodeledSyntaxLines = []string{
+// splitterFaultLines are lines the hand splitter read differently from bash,
+// or that the byte allow-list refused: each one hid `le x` from the
+// splitter, or holds a construct the allow-list left out. The guard tests
+// drive the same constructs with a build in place of `le x`. Read from the
+// bash parse, the lines splitterReaderLines names are reader lines, and every
+// other one still holds a command or a construct outside the reader line.
+var splitterFaultLines = []string{
 	// A brace or a `!` inside a word ended the command, and the `#` after it
 	// then read as a comment that hid `le x`.
 	`cat x{#}; le x`,
@@ -339,16 +347,30 @@ var unmodeledSyntaxLines = []string{
 	"cat 'a\nb'",
 }
 
-// VALIDATES: the identity exemption trusts the splitter only on the shell
-// syntax it models (modeledSyntax): every line in unmodeledSyntaxLines needs
-// the identity line, while the common reader shapes inside the syntax (a
+// splitterReaderLines are the lines of splitterFaultLines whose every command
+// is a reader its judge admits, read from the bash parse
+// (spec-agent-economy-6-shell-parser AC-6, AC-7).
+var splitterReaderLines = []string{
+	"cat <<EOF\nx\nEOF", `cat x\ y`, `cat a{b}`, `cat a#b`, `cat '#'`, `echo "a\"b"`,
+	"cat caf\xc3\xa9", "cat x\x01", `cat a |& cat b`, `cat <(cat a)`, `cat ${x:-a}`,
+	`cat "${x:-a}"`, `cat ${x}`, `[[ -f a ]]`, "cat 'a\nb'",
+}
+
+// VALIDATES: the identity exemption reads each line the splitter misread from
+// the bash parse: every line of splitterFaultLines that holds a command or a
+// construct outside the reader line needs the identity line, the ones
+// splitterReaderLines names pass as typed, and the common reader shapes (a
 // quoted parameter, a quoted `|`, a descriptor redirection, a quoted
 // backslash bash keeps, a here-string) still run without it.
-// PREVENTS: `cat x{#}; le x` passing as a reader line because the splitter
-// read `#}; le x` as a comment, and every other construct the hand-written
-// splitter reads differently from bash.
-func TestSubagentLineOutsideTheModeledSyntaxNeedsTheIdentityLine(t *testing.T) {
-	for _, command := range unmodeledSyntaxLines {
+// PREVENTS: `cat x{#}; le x` passing as a reader line because a reader read
+// `#}; le x` as a comment, and every other construct a hand-written splitter
+// reads differently from bash.
+func TestSubagentSplitterFaultLinesAreJudgedFromTheParse(t *testing.T) {
+	for _, command := range splitterFaultLines {
+		if slices.Contains(splitterReaderLines, command) {
+			expectPasses(t, []string{command})
+			continue
+		}
 		code, output, message := runSubagentBash(t, command)
 		if code != 2 || output != "" {
 			t.Errorf("%q: code=%d output=%q, want exit 2 and no output", command, code, output)
@@ -374,7 +396,7 @@ func TestSubagentLineOutsideTheModeledSyntaxNeedsTheIdentityLine(t *testing.T) {
 		}
 	}
 	// The splitter read `#}; ZE_AGENT_ID=...` as a comment, so the second
-	// identity was not seen after the agent's own line.
+	// identity was not seen after the agent's own line; the parse sees it.
 	for _, rest := range []string{
 		`cat x{#}; ZE_AGENT_ID=agent-2 ./le spec current`,
 		"cat <<cat\ngrep '\ncat\nCLAUDE_CODE_SESSION_ID=parent-18 ./le x\ncat <<cat\n'\ncat",
@@ -389,45 +411,45 @@ func TestSubagentLineOutsideTheModeledSyntaxNeedsTheIdentityLine(t *testing.T) {
 	}
 }
 
-// VALIDATES: the allow-list itself, row by row: unmodeledSyntax names a
-// construct for every line in unmodeledSyntaxLines and for each construct it
-// lists, and names none for the syntax lineCommands models.
-// PREVENTS: a construct reaching the splitter because the allow-list
-// accepted a byte it does not model.
-func TestUnmodeledSyntaxNamesEveryConstructOutsideTheAllowList(t *testing.T) {
-	for _, line := range append(unmodeledSyntaxLines,
+// VALIDATES: the reader-line predicate over the lines the allow-list judged
+// by bytes: each line that holds a construct outside the reader line, or
+// that does not parse, is outside it; each line the splitter read as readers
+// that the parse reads as readers too is a reader line.
+// PREVENTS: a construct the allow-list refused being admitted by the
+// predicate without a reason the tree gives.
+func TestReaderLineNamesEveryConstructOutsideIt(t *testing.T) {
+	for _, line := range []string{
 		"cat a;; cat b", "cat (a)", "cat a)", "echo `id`", `cat "$(id)"`, `cat $((1))`,
-		`cat a<>b`, `cat a >>> b`, `cat a >`, `cat $`, `cat "$"`, `cat "${x"`, `cat $!`,
-		`cat "a!b"`, `cat "a#b"`, `cat "a`+"`"+`b"`, `cat 'a`, `cat "a`, "cat a\\\nb",
-	) {
-		if construct := unmodeledSyntax(line); construct == "" {
-			t.Errorf("%q: unmodeledSyntax names no construct, want one", line)
+		`cat a<>b`, `cat a >>> b`, `cat a >`, `cat "${x"`, `cat "a` + "`" + `b"`, `cat 'a`, `cat "a`,
+		`cat a > f`, `cat a >> f`, `cat a >| f`, `cat a &> f`, `cat a 2> f`, `cat a 2>> f`, `X=1 cat a`,
+	} {
+		if _, outside := judgeReaderLine(line, parseCommandLine(line), ""); outside == "" {
+			t.Errorf("%q: admitted as a reader line, want it outside", line)
 		}
 	}
 	for _, line := range []string{
-		``, `cat a`, "cat a\tb\ncat c", `cat 'a b' "c d"`, `cat "$x" $y $_ $? $1 "$@"`,
-		`cat "${NAME_1}"`, `a && b || c | d; e`, `cat a > f`, `cat a >> f`, `cat a >| f`,
-		`cat a &> f`, `cat a 2> f`, `cat a 2>> f`, `cat a 2>&1 >&2`, `cat < a`,
-		`cat <<< 'x'`, `ls *.go a?b [ab]c ~/x`, `[ -f a ] && test -n x`, `X=1 cat a`,
-		`printf '%s\n' x`, `grep 'a(b){c}!d' f`, `grep "a\|b" f`,
+		`cat a`, "cat a\tb\ncat c", `cat 'a b' "c d"`, `cat "$x" $y $_ $? $1 "$@"`,
+		`cat "${NAME_1}"`, `cat a 2>&1 >&2`, `cat < a`, `cat <<< 'x'`, `ls *.go a?b [ab]c ~/x`,
+		`[ -f a ] && test -n x`, `printf '%s\n' x`, `grep 'a(b){c}!d' f`, `grep "a\|b" f`,
+		`cat $`, `cat "$"`, `cat $!`, `cat "a!b"`, `cat "a#b"`, "cat a\\\nb",
 	} {
-		if construct := unmodeledSyntax(line); construct != "" {
-			t.Errorf("%q: unmodeledSyntax names %q, want none", line, construct)
+		if _, outside := judgeReaderLine(line, parseCommandLine(line), ""); outside != "" {
+			t.Errorf("%q: outside the reader line (%s), want a reader line", line, outside)
 		}
 	}
 }
 
-// VALIDATES: inside double quotes the splitter keeps a backslash that bash
-// keeps (before any character but `$`, a backtick, `"`, `\` and a newline),
-// so the word a judge reads is the word bash passes on.
+// VALIDATES: inside double quotes the word reading keeps a backslash that
+// bash keeps (before any character but `$`, a backtick, `"`, `\` and a
+// newline), so the word a judge reads is the word bash passes on.
 // PREVENTS: a judge admitting `\x` read as `x` while the command receives
 // `\x`.
-func TestLineCommandsKeepsABackslashBashKeepsInDoubleQuotes(t *testing.T) {
-	line, parsed := lineCommands(`grep "a\|b\$c" f`)
-	if !parsed {
-		t.Fatal("lineCommands could not parse the line")
+func TestReaderLineKeepsABackslashBashKeepsInDoubleQuotes(t *testing.T) {
+	line, outside := judgeReaderLine(`grep "a\|b\$c" f`, parseCommandLine(`grep "a\|b\$c" f`), "")
+	if outside != "" {
+		t.Fatalf("the line is no reader line: %s", outside)
 	}
-	if got := strings.Join(line.commands[0], " "); got != `grep a\|b$c f` {
+	if got := strings.Join(line.commands[0].words, " "); got != `grep a\|b$c f` {
 		t.Errorf("words = %q, want %q", got, `grep a\|b$c f`)
 	}
 }
@@ -459,12 +481,14 @@ func expectPasses(t *testing.T, commands []string) {
 	}
 }
 
-// VALIDATES: a redirection may follow only the last word of its command
-// (syntaxCommand), so a line with one before or between the words needs the
-// identity line, while a redirection after the words still passes.
-// PREVENTS: `<<<cat ./le commit create x` passing as the reader cat, because
-// the splitter drops the operator and keeps its target as the first word,
-// and `sed -e <<<p 'w out' f` passing as `sed -e p`, which writes out.
+// VALIDATES: a redirection is a node of its statement wherever it is written
+// (readerWalk.redirect, readerline.go), and its target is never a word of the
+// command: a line whose command, read without the redirection, lies outside
+// the reader set needs the identity line, and a reader with a redirection
+// before, between or after its words passes.
+// PREVENTS: `<<<cat ./le commit create x` passing as the reader cat, when its
+// command is `./le`, and `sed -e <<<p 'w out' f` passing as `sed -e p`, when
+// sed runs the script `w out`, which writes out.
 func TestSubagentRedirectionBeforeAWordNeedsTheIdentityLine(t *testing.T) {
 	expectNeedsIdentityLine(t, []string{
 		`<<<cat ./le commit create x`,
@@ -472,11 +496,11 @@ func TestSubagentRedirectionBeforeAWordNeedsTheIdentityLine(t *testing.T) {
 		`sed -e <<<p 'w out' f`,
 		`printf <<<x -v 'a[$(touch /tmp/p)]' y`,
 	})
-	for _, line := range []string{`<<<cat a`, `2>/dev/null cat a`, `cat <f a`, `cat a >/dev/null b`} {
-		if unmodeledSyntax(line) != syntaxRedirectFirst && unmodeledSyntax(line) != syntaxRedirectWord {
-			t.Errorf("%q: unmodeledSyntax names %q, want a redirection out of place", line, unmodeledSyntax(line))
-		}
-	}
+	// A redirection is a node of its statement wherever it is written, so
+	// `<<<cat a` runs the command `a`, outside the reader set, while a
+	// redirection before or between a reader's words leaves it a reader.
+	expectNeedsIdentityLine(t, []string{`<<<cat a`})
+	expectPasses(t, []string{`2>/dev/null cat a`, `cat <f a`, `cat a >/dev/null b`})
 	expectPasses(t, []string{
 		`cat "$dir/x.log"`,
 		`grep -n 'a|b' f`,
@@ -487,27 +511,26 @@ func TestSubagentRedirectionBeforeAWordNeedsTheIdentityLine(t *testing.T) {
 	})
 }
 
-// VALIDATES: an empty quoted word lies outside the modeled syntax, so a line
-// holding one needs the identity line.
+// VALIDATES: the parse keeps an empty quoted word as a word whose value is
+// empty, so a reader's judge reads it as the value of the option before it:
+// `diff -L ” -l a b` runs diff -l, which the judge refuses, and needs the
+// identity line, while a reader that takes the empty word as an operand
+// passes.
 // PREVENTS: diff -L with an empty quoted value before -l passing as
-// `diff -L -l a b`: the splitter
-// drops the empty word, while bash passes it as -L's value and runs diff -l,
-// which pipes its output through pr.
+// `diff -L -l a b`, which drops the empty word, while bash passes it as -L's
+// value and runs diff -l, which pipes its output through pr.
 func TestSubagentEmptyQuotedWordNeedsTheIdentityLine(t *testing.T) {
 	expectNeedsIdentityLine(t, []string{
 		`diff -L '' -l a b`,
 		`diff -L "" -l a b`,
-		`cat '' a`,
 	})
-	if construct := unmodeledSyntax(`cat a''b ''""`); construct != syntaxEmptyWord {
-		t.Errorf("unmodeledSyntax names %q, want the empty quoted word", construct)
+	// The parse keeps an empty quoted word as a word whose value is empty,
+	// so diff's judge sees -L take it and refuses the -l after it, and a
+	// reader with no such option passes.
+	if _, outside := judgeReaderLine(`diff -L '' -l a b`, parseCommandLine(`diff -L '' -l a b`), ""); !strings.Contains(outside, "`diff -L '' -l a b`") {
+		t.Errorf("diff -L '' -l: outside = %q, want diff's judge to refuse the whole command", outside)
 	}
-	if construct := unmodeledSyntax(`cat a''b '' x`); construct != syntaxEmptyWord {
-		t.Errorf("unmodeledSyntax names %q, want the empty quoted word", construct)
-	}
-	if construct := unmodeledSyntax(`cat a''b "'"`); construct != "" {
-		t.Errorf("unmodeledSyntax names %q for words with text, want none", construct)
-	}
+	expectPasses(t, []string{`cat '' a`, `cat a''b ''""`, `cat a''b '' x`, `cat a''b "'"`})
 }
 
 // VALIDATES: a backslash bash keeps inside double quotes is kept by
@@ -592,7 +615,8 @@ func TestSubagentChangingTheEnvironmentAfterItsLineIsRefused(t *testing.T) {
 	} {
 		// The identity check alone: a raw go test is the raw-job guard's to
 		// refuse, not this one's.
-		if takesAnotherIdentity(rest) {
+		command := identityLineOfAgent + rest
+		if takesAnotherIdentity(command, parseCommandLine(command), identityLineOfAgent) {
 			t.Errorf("%q: read as taking another identity, want the plain form to pass", rest)
 		}
 	}
@@ -666,6 +690,41 @@ func TestEnvironmentToolIsFoundBehindEveryWrapper(t *testing.T) {
 		`command . x; ./le spec current`,
 		`builtin . x; ./le spec current`,
 		`{ time . ./env.sh; }; ./le spec current`,
+		// AC-29: a value option takes one value, and a tool is matched by
+		// its base name.
+		`timeout -s KILL 60 env -i ./le x`,
+		`/usr/bin/env -i ./le x`,
+		`nice -n 5 /usr/bin/sudo le x`,
+		`stdbuf -o L env -i le x`,
+		// One row per value option of each wrapper (R-9), and H-1: `time`
+		// as the external program behind a wrapper.
+		`timeout -k 5 60 env -i ./le x`,
+		`timeout --signal KILL 60 env -i ./le x`,
+		`nice --adjustment 5 env -i ./le x`,
+		`stdbuf -i L env -i ./le x`,
+		`stdbuf -e L env -i ./le x`,
+		`xargs -I x env -i ./le x`,
+		`xargs -n 1 env -i ./le x`,
+		`xargs -d , env -i ./le x`,
+		`command time env -i ./le x`,
+		`nice time env -i ./le x`,
+		`command time -o t env -i ./le x`,
+		`/usr/bin/time -f x env -i ./le x`,
+		// H-6: setsid, flock with its lock file and value options, strace
+		// and ltrace with theirs, and the options that set the command's
+		// environment or user.
+		`setsid env -i ./le x`,
+		`setsid -f env -i ./le x`,
+		`flock l.lock env -i ./le x`,
+		`flock -w 5 l.lock env -i ./le x`,
+		`flock -E 3 l.lock env -i ./le x`,
+		`strace -o out env -i ./le x`,
+		`strace -s 64 env -i ./le x`,
+		`strace -E A=1 ./le x`,
+		`strace --env=A=1 ./le x`,
+		`strace -u nobody ./le x`,
+		`ltrace -o out env -i ./le x`,
+		`ltrace -u nobody ./le x`,
 	} {
 		code, output, message := runSubagentBash(t, identityLineOfAgent+rest)
 		if code != 2 || output != "" {
@@ -679,6 +738,11 @@ func TestEnvironmentToolIsFoundBehindEveryWrapper(t *testing.T) {
 		`timeout 5 ./le spec current`,
 		`timeout 1.5s ./le spec current`,
 		`nice -n 5 ./le spec current`,
+		// AC-29's survivor and the H-6 wrappers in front of `./le`.
+		`timeout -s KILL 60 ./le x`,
+		`setsid ./le x`,
+		`flock l.lock ./le x`,
+		`strace -o out ./le x`,
 	} {
 		code, output, message := runSubagentBash(t, identityLineOfAgent+rest)
 		if code != 0 || output != "" {

@@ -61,11 +61,79 @@ var parseBashLine = parseBash
 
 // parseBash reads a line with the bash grammar of mvdan.cc/sh, the parser
 // behind shfmt. Every option is passed here rather than left to the library's
-// default: the bash variant, because the Bash tool runs bash, and no comments
-// in the tree, because a comment runs nothing.
+// default: the bash variant, because the Bash tool runs bash, and the
+// comments kept in the tree, because a comment that ends in a backslash is
+// one the parser reads otherwise than bash (treeMisreadsLine). A comment runs
+// nothing, and no walk of the hook reads a Comment node as a command.
 func parseBash(line string) (*syntax.File, error) {
-	parser := syntax.NewParser(syntax.Variant(syntax.LangBash), syntax.KeepComments(false))
+	parser := syntax.NewParser(syntax.Variant(syntax.LangBash), syntax.KeepComments(true))
 	return parser.Parse(strings.NewReader(line), "")
+}
+
+// The two shapes of a parsed line whose tree names fewer commands than bash
+// runs. Each completes "It holds ...", as the reader-line constructs do.
+const (
+	outsideCommentJoin = "a comment that ends in a backslash: the parser joins the next line into the comment's statement, while bash ends the comment there and runs that line"
+	outsideDollarJoin  = "a `$` followed by a backslash-newline: bash joins the lines and reads the expansion or substitution that follows, while the parser reads the `$` as text"
+)
+
+// treeMisreadsLine answers why bash runs a parsed line otherwise than its
+// tree shows, and "" when the hook knows no such reason. A line it names is
+// read by no walk of the tree: the reader-line predicate puts it outside,
+// and the guards and the identity check judge it by its text.
+//
+// Both shapes come from the lexer (vendor/mvdan.cc/sh/v3/syntax/lexer.go):
+// it joins a backslash-newline before it ends a comment, so the next line
+// becomes words of the commented statement, and after a `$` it looks at the
+// next byte as typed, so `$` then a backslash-newline is a literal `$`
+// where bash, which removes the backslash-newline first, reads `$(`, `${` or
+// `$name`. The `$` test is on the text and so also fires inside single
+// quotes, where bash keeps it literal, which is the refusing side.
+func treeMisreadsLine(command string, parse commandParse) string {
+	if strings.Contains(command, "$\\\n") {
+		return outsideDollarJoin
+	}
+	if !parse.parsed() {
+		return ""
+	}
+	joined := false
+	syntax.Walk(parse.file, func(node syntax.Node) bool {
+		comment, ok := node.(*syntax.Comment)
+		if !ok {
+			return !joined
+		}
+		if commentJoins(command, comment) {
+			joined = true
+		}
+		return !joined
+	})
+	if joined {
+		return outsideCommentJoin
+	}
+	return ""
+}
+
+// commentJoins reports whether a comment's line, as typed, ends in a
+// backslash, or its text holds a newline: either way the lexer read the
+// newline as joined, and bash ends a comment at every newline.
+func commentJoins(command string, comment *syntax.Comment) bool {
+	if strings.ContainsRune(comment.Text, '\n') {
+		return true
+	}
+	start := comment.Hash.Offset()
+	if start >= uint(len(command)) {
+		// An offset outside the line is a comment the hook cannot place,
+		// answered on the refusing side.
+		return true
+	}
+	rest := command[start:]
+	end := strings.IndexByte(rest, '\n')
+	if end < 1 {
+		// The comment ends the line, where a trailing backslash is
+		// refused on its own (trailingBackslash).
+		return false
+	}
+	return rest[end-1] == '\\'
 }
 
 // parseCommandLine reads one command line as bash. The parser is third-party

@@ -1890,6 +1890,49 @@ sent in parallel were voided with "no verdict". The entry is retired.
 what the permission layer judged. Any hook that repairs a command in place
 has this cost under auto mode. Refuse with the exact text to type instead.
 
+## The Bash hook read a command line with its own splitter, which read it differently from bash (2026-11-11)
+
+**Hook:** `lineCommands`, the hand splitter of the pre-tool Bash hook, and
+`modeledSyntax`, the byte allow-list that bounded where its split was trusted
+(`internal/le/hookruntime/shellline.go`, `shellsyntax.go`). Read by
+`bashAgentIdentity` and by the build, piped-command, raw-job, `/tmp` and
+deletion guards. Replaced by one bash parse per hook call (`mvdan.cc/sh`) and
+the reader-line walk (`readerline.go`).
+
+**Trigger.** Every Bash call of a subagent, and every guard that lifts its
+text refusal on a reader line. The splitter walked the line character by
+character and knew only part of bash, so six review rounds of child 1
+(`spec-agent-economy-1-call-shape`) found the same class each time: a line the
+splitter cut where bash does not.
+
+**The faults.** `cat x{#}; ./le x` ended at the brace, read `#` as a comment
+and lost the `./le`. `<<<cat ./le x` read as the reader `cat`, because a
+redirection before the words was taken as one of them; `sed -e <<<p 'w out' f`
+read as `sed -e p`. The splitter dropped an empty quoted word (`''`, `""`),
+which bash passes as an argument. Both example lines stood on
+`docs/contributing/running-commands.md` and `.claude/hooks/README.md` to
+explain the allow-list, and both pages dropped them with it.
+
+**What it cost.** The allow-list closed the class by refusing most of bash, so
+a harmless line paid for it: a quoted `#` in a grep pattern, a brace, a `!`, a
+here-document, `[[`, a parenthesis, a backslash outside quotes, a UTF-8
+pattern, an empty quoted word and a redirection before the words each needed
+the identity line and kept every guard's text verdict. A loop or a conditional
+made only of readers was no reader line, and a heavy job behind a keyword
+(`for p in a b; do go test ./$p; done`) was read as the command `do`.
+
+**What removed it.** `spec-agent-economy-6-shell-parser`, phase 3: the
+splitter and the allow-list are deleted, and a line is a reader line only when
+the parse proves every node of its tree is one the walk admits
+(`judgeReaderLine`). A line the parse cannot read whole (one that does not
+parse, a carriage return, a NUL byte, a word whose value is not read) is never
+a reader line.
+
+**The general trap.** A hook that splits a shell line by hand answers a
+different question from the shell. Bounding the split with an allow-list makes
+it safe and expensive. Read the line with the shell's own grammar instead, and
+refuse what that reading cannot give.
+
 ---
 
 ## The post-Bash gofmt check blocks a read-only command for another session's file (2026-11-11)

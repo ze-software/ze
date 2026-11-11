@@ -234,7 +234,7 @@ func bashBranchMove(ctx context) *verdict {
 // (goBuildLine, gobuild.go).
 func bashRootBuild(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
-	outcome, advice := goBuildLine(ctx.root, command)
+	outcome, advice := goBuildLine(ctx.root, command, ctx.commandParse(), commandIdentityPrefix(ctx))
 	switch outcome {
 	case goBuildAllowed:
 		return nil
@@ -254,8 +254,8 @@ func bashRootBuild(ctx context) *verdict {
 // shellWords splits one command's text at whitespace into words with their
 // quotes removed, keeping a redirection such as `2>&1` one word. A backslash
 // outside single quotes escapes the next character, except inside double
-// quotes, where bash, and lineCommands, keep a backslash before any character
-// but `$`, a backtick, `"`, `\` and a newline.
+// quotes, where bash keeps a backslash before any character but `$`, a
+// backtick, `"`, `\` and a newline.
 func shellWords(text string) []string {
 	words := make([]string, 0, 16)
 	var word textbuf.Buffer
@@ -275,7 +275,7 @@ func shellWords(text string) []string {
 		}
 		if character == '\\' && quote == '"' && strings.IndexByte("$`\"\\\n", byteAt(text, index+1)) < 0 {
 			// Inside double quotes bash keeps a backslash that precedes any
-			// other character, as lineCommands does, so `"\/dev/null"` is not
+			// other character, as readWord does, so `"\/dev/null"` is not
 			// /dev/null and `-o "\bin/ze"` does not name bin/.
 			word.WriteRune(character)
 			continue
@@ -304,6 +304,14 @@ func shellWords(text string) []string {
 	}
 	flush()
 	return words
+}
+
+// byteAt answers the byte at index, and 0 past the end of the text.
+func byteAt(text string, index int) byte {
+	if index < len(text) {
+		return text[index]
+	}
+	return 0
 }
 
 func commandExpensive(segment string) bool {
@@ -421,12 +429,12 @@ func heavyArea(words []string) bool {
 // bashLossyPipe refuses piping an expensive command through a filter that drops
 // output. The truncated text is what the caller would judge the run by, and the
 // part a filter removes is usually the part that says why the run failed. Its
-// text judgment is its verdict, and only a line readerLine admits lifts it: no
-// reader is an expensive command, so `grep -n 'ok | go test ./x | head'`
-// pipes nothing.
+// text judgment is its verdict, and only a reader line (ctxReaderLine) lifts
+// it: no reader is an expensive command, so `grep -n 'ok | go test ./x |
+// head'` pipes nothing.
 func bashLossyPipe(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
-	if _, reader := readerLine(command); reader {
+	if _, outside := ctxReaderLine(ctx); outside == "" {
 		return nil
 	}
 	flat := strings.ReplaceAll(command, "\\\n", " ")
@@ -450,7 +458,7 @@ func bashLossyPipe(ctx context) *verdict {
 			if len(fields) == 0 || !lossyFilter(fields[0]) {
 				continue
 			}
-			return lossyPipeRefusal(commandIdentityPrefix(ctx), fields[0], advisedSegment(command, expensive))
+			return lossyPipeRefusal(commandIdentityPrefix(ctx), fields[0], advisedSegment(command, ctx.commandParse(), expensive))
 		}
 	}
 	return nil
@@ -458,7 +466,7 @@ func bashLossyPipe(ctx context) *verdict {
 
 // commandSegments splits a line into command texts at every separator, inside
 // quotes included, which is the text judgment a guard keeps for any line
-// readerLine does not admit.
+// that is not a reader line (ctxReaderLine).
 func commandSegments(command string) []string {
 	parts := regexp.MustCompile(`&&|\|\||;|\n|\|&?|&`).Split(command, -1)
 	out := parts[:0]
@@ -498,12 +506,12 @@ func quotedWord(value string) string {
 
 // ze point: commands/directives/heavy-jobs-are-admitted-by-native-actions-never-typed-raw
 // bashRawHeavy refuses a heavy job typed raw, outside job admission. One machine
-// carries several sessions, and an unadmitted job oversubscribes it. A line
-// readerLine admits runs no heavy job, so a grep pattern naming one passes;
-// every other line is judged by its text.
+// carries several sessions, and an unadmitted job oversubscribes it. A reader
+// line (ctxReaderLine) runs no heavy job, so a grep pattern naming one
+// passes; every other line is judged by its text.
 func bashRawHeavy(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
-	if _, reader := readerLine(command); reader {
+	if _, outside := ctxReaderLine(ctx); outside == "" {
 		return nil
 	}
 	var moves []string
@@ -517,8 +525,8 @@ func bashRawHeavy(ctx context) *verdict {
 			continue
 		}
 		// The text split decides the verdict; the advice comes from the
-		// modeled line, quotes intact (rawAdvice).
-		refusal := rawAdvice(command, ctx.root, text)
+		// parsed words of the line (rawAdvice).
+		refusal := rawAdvice(command, ctx.commandParse(), ctx.root, text)
 		short := ""
 		if refusal.short != "" && refusal.vet {
 			short = "  -- The short form vets a package with its feature tags,\n" +
@@ -593,15 +601,15 @@ func bashPollLoop(ctx context) *verdict {
 // ze point: testing/temporary-files/use-project-tmp-for-scratch-files
 // bashSystemTmp refuses the system temporary directory. Session scratch belongs
 // under the per-session directory, which is isolated and reaped with the session.
-// Its text judgment (systemTmp) is its verdict, and only a line readerLine
-// admits lifts it, judged by its words instead (systemTmpWord), so a grep
-// pattern holding a /tmp path passes there.
+// Its text judgment (systemTmp) is its verdict, and only a reader line lifts
+// it, judged by its words instead (namesSystemTmp), so a grep pattern
+// holding a /tmp path passes there.
 func bashSystemTmp(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	if command == "" {
 		return nil
 	}
-	if !namesSystemTmp(command) {
+	if !namesSystemTmp(ctx) {
 		return nil
 	}
 	return &verdict{2, "❌ Blocked: /tmp access is forbidden\nUse this session's own scratch dir instead:\n  " +
@@ -632,71 +640,6 @@ func bashScratch(ctx context) *verdict {
 		"  -- ai/rules/commands.md, 'Write Ad-Hoc Scratch Under Your Per-Session Dir'"}
 }
 
-// runsDeletion reports whether a line runs a delete: a word that is `rm` or
-// ends in `/rm`, which also covers `git rm`, or find's `-delete`. It does not
-// ask WHICH command runs it, so an rm reached through eval, a loop, a brace
-// group or xargs still counts.
-func runsDeletion(words []string) bool {
-	for _, word := range words {
-		if word == "rm" {
-			return true
-		}
-		if strings.HasSuffix(word, "/rm") {
-			return true
-		}
-		if word == "-delete" {
-			return true
-		}
-	}
-	return false
-}
-
-// testPath reports whether a word names content the testing rule guards: a
-// `*_test.go`, `.ci` or `.et` file, a `test` or `testdata` directory and
-// anything under one, or, inside internal/ or test/, any path element whose
-// name contains "test", such as internal/component/cli/testing or a glob like
-// internal/foo/*test*. Outside those trees a name that only contains "test",
-// such as docs/architecture/testing or bin/le-latest, is not a test path.
-// test/draft holds unfinished tests, which carry no coverage yet, so it is not
-// guarded.
-func testPath(path string) bool {
-	clean := filepath.ToSlash(filepath.Clean(path))
-	if clean == "test/draft" {
-		return false
-	}
-	if strings.HasPrefix(clean, "test/draft/") {
-		return false
-	}
-	for _, suffix := range []string{"_test.go", ".ci", ".et"} {
-		if strings.HasSuffix(clean, suffix) {
-			return true
-		}
-	}
-	if clean == testdataDir {
-		return true
-	}
-	// A bare `test` is judged on the whole line, where it is far more often
-	// `go test` or the test builtin than the directory, so the element counts
-	// only inside a path.
-	if !strings.Contains(path, "/") {
-		return false
-	}
-	anchored := "/" + clean + "/"
-	testTree := strings.Contains(anchored, "/internal/") || strings.Contains(anchored, "/test/")
-	for element := range strings.SplitSeq(clean, "/") {
-		if element == testElement {
-			return true
-		}
-		if element == testdataDir {
-			return true
-		}
-		if testTree && strings.Contains(element, testElement) {
-			return true
-		}
-	}
-	return false
-}
-
 // testElement is the path element, or the part of one, that marks a test tree.
 const testElement = "test"
 
@@ -709,8 +652,9 @@ const testElement = "test"
 // reads closer is a line of plain rm commands and readers (plainRmArguments),
 // where only the rm arguments are judged, so `rm -f <scratch> && grep x
 // internal/a_test.go` passes. Only the path test is exact, so a test path is a
-// path the rule guards and not any path spelling "test". A line that cannot be
-// split into words, and that runs rm, is refused.
+// path the rule guards and not any path spelling "test". The words come from
+// the call's one parse (deletionWords); a line that does not parse, and that
+// runs rm, is refused.
 func bashTestDeletion(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	errors := make([]string, 0, 2)
@@ -718,13 +662,13 @@ func bashTestDeletion(ctx context) *verdict {
 	// git checkout that discards test changes: the fix differs for the two.
 	deleted := make([]string, 0, 2)
 	discarded := false
-	words, parsed := lineWords(command)
+	words, parsed := deletionWords(command, ctx.commandParse())
 	if !parsed && rmWord.MatchString(command) {
-		errors = append(errors, "Cannot split the command into words (an unclosed quote or a trailing backslash), so what its rm deletes is unknown: "+command)
+		errors = append(errors, "The command does not parse as bash, so what its rm deletes is unknown: "+command)
 	}
 	if runsDeletion(words) {
 		judged := words
-		if arguments, plain := plainRmArguments(command); plain {
+		if arguments, plain := plainRmArguments(command, ctx.commandParse()); plain {
 			judged = arguments
 		}
 		for _, word := range judged {

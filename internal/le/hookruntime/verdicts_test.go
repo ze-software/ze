@@ -60,6 +60,59 @@ type verdictRow struct {
 	// readers. Such a row may lose a recorded refusal; no other row may.
 	ReaderLine bool   `json:"reader-line"`
 	Proof      string `json:"proof,omitempty"`
+	// Waives names, on a reader-line row only, each recorded refusal the row
+	// may lose: a check of RefusedBy that a reader line lifts
+	// (readerLiftableChecks). A recorded refusal it does not name still
+	// holds, so a row that is a reader line for one check alone (the
+	// identity check) keeps every other guard's refusal.
+	Waives []string `json:"waives,omitempty"`
+}
+
+// refusalProofs are tests of readerLineProofs that assert a refusal: judging
+// a line there proves nothing about it being a reader line, so no reader-line
+// row may name one as its proof.
+//
+//nolint:gochecknoglobals // the declared refusal tests
+var refusalProofs = map[string]bool{
+	"TestReaderLineRefusesWhatCanRunAnythingElse": true,
+	"TestAnotherIdentityIsJudgedByTheNode":        true,
+	"TestRefusalAdvisesTheParsedCommand":          true,
+	"TestSetOptionsThatChangeNoVariablePass":      true,
+}
+
+// rowIdentity is the identity line a row's caller types in front of its
+// command: the agent's own for a subagent row, none for the main thread and
+// for a fork, which carries no agent id.
+func rowIdentity(row verdictRow) string {
+	if row.Caller == callerSubagent {
+		return identityLineOfAgent
+	}
+	return ""
+}
+
+// readerRowFaults judges a reader-line row's own claims: it waives at least
+// one check, each a recorded refusal a reader line lifts; its proof is no
+// test that asserts a refusal; and the predicate answers reader line for it
+// now, with the identity its caller types.
+func readerRowFaults(t verdictReporter, row verdictRow, liftable map[string]bool) {
+	t.Helper()
+	if len(row.Waives) == 0 {
+		t.Errorf("%q (%s) is marked a reader line and waives no check: name each recorded refusal it loses", row.Line, row.Caller)
+	}
+	for _, check := range row.Waives {
+		if !liftable[check] {
+			t.Errorf("%q (%s) waives %s, which no reader line lifts", row.Line, row.Caller, check)
+		}
+		if !slices.Contains(row.RefusedBy, check) {
+			t.Errorf("%q (%s) waives %s, which it never recorded", row.Line, row.Caller, check)
+		}
+	}
+	if refusalProofs[row.Proof] {
+		t.Errorf("%q (%s) names the proof %q, which asserts a refusal and proves no reader line", row.Line, row.Caller, row.Proof)
+	}
+	if _, outside := judgeReaderLine(row.Line, parseCommandLine(row.Line), rowIdentity(row)); outside != "" {
+		t.Errorf("%q (%s) is marked a reader line and is no reader line now: it holds %s", row.Line, row.Caller, outside)
+	}
 }
 
 type verdictKey struct {
@@ -145,7 +198,7 @@ var corpusSourceTests = []func(*testing.T){
 	TestGuardsKeepTheTextVerdictOfHead,
 	TestGuardsKeepTheTextVerdictBesideAReaderItsJudgeRefuses,
 	TestGuardsJudgeALineThatCanRunAStringByItsText,
-	TestGuardsKeepTheTextVerdictOutsideTheModeledSyntax,
+	TestGuardsKeepTheTextVerdictOutsideTheReaderLine,
 	TestGuardsKeepTheTextVerdictWhereTheSplitMovesAWord,
 	TestGuardsSeeACommandHandedToAShell,
 	TestSubagentReaderCommandPassesUnchanged,
@@ -155,9 +208,9 @@ var corpusSourceTests = []func(*testing.T){
 	TestMainThreadCommandNeedsNoIdentityLine,
 	TestSubagentUnparsableCommandNeedsTheIdentityLine,
 	TestSubagentReaderOutsideItsJudgeNeedsTheIdentityLine,
-	TestSubagentLineOutsideTheModeledSyntaxNeedsTheIdentityLine,
-	TestUnmodeledSyntaxNamesEveryConstructOutsideTheAllowList,
-	TestLineCommandsKeepsABackslashBashKeepsInDoubleQuotes,
+	TestSubagentSplitterFaultLinesAreJudgedFromTheParse,
+	TestReaderLineNamesEveryConstructOutsideIt,
+	TestReaderLineKeepsABackslashBashKeepsInDoubleQuotes,
 	TestSubagentRedirectionBeforeAWordNeedsTheIdentityLine,
 	TestSubagentEmptyQuotedWordNeedsTheIdentityLine,
 	TestSubagentQuotedBackslashTargetIsAFile,
@@ -173,13 +226,24 @@ var corpusSourceTests = []func(*testing.T){
 // each test it names in a reader-line row here; none exists before it.
 //
 //nolint:gochecknoglobals // the declared reader-line proofs
-var readerLineProofs = []func(*testing.T){}
+var readerLineProofs = []func(*testing.T){
+	TestReaderLineReachesThroughConstructs,
+	TestReaderLineRefusesWhatCanRunAnythingElse,
+	TestIdentityLineBeforeAReaderLineStillLifts,
+	TestSubagentReaderLoopPassesUnchanged,
+	TestRefusalAdvisesTheParsedCommand,
+	TestRootBuildReadsTheBuildFromTheTree,
+	TestSystemTmpJudgesEveryWordOfAReaderLine,
+	TestTestDeletionReadsThePlainRmFromTheTree,
+	TestAnotherIdentityIsJudgedByTheNode,
+	TestSetOptionsThatChangeNoVariablePass,
+}
 
 // verdictsTableRowsMin is the row count of the table after its last update. A
 // table holding fewer rows lost recorded refusals: deleting the file and
 // re-running -update records again from the tree in hand, which keeps no
 // refusal HEAD gave. Raise it when an update appends rows; never lower it.
-const verdictsTableRowsMin = 1345
+const verdictsTableRowsMin = 1691
 
 // readerSetJudgment is the one function that judges whether a command is a
 // reader (readers.go). A check whose code reaches it can pass a line because
@@ -331,6 +395,37 @@ var specConstructLines = []string{
 	`ls ${HOME}/tmp`,
 	`cat x/tmp/y`,
 	`cat tmp/x`,
+	// Phase 3's stricter rules (spec, phase 3 Decisions H-1 to H-6).
+	identityLineOfAgent + `command time env -i ./le x`,
+	identityLineOfAgent + `nice time env -i ./le x`,
+	`cat foo$D/tmp/x`,
+	"bash <<EOF\nrm a_test.go\nEOF",
+	identityLineOfAgent + `n=x; read -r "$n" <<< y; ./le x`,
+	identityLineOfAgent + `printf -v "$n" x; ./le x`,
+	identityLineOfAgent + `mapfile a <<< x; ./le x`,
+	identityLineOfAgent + `readarray a <<< x; ./le x`,
+	identityLineOfAgent + `getopts a b; ./le x`,
+	identityLineOfAgent + `trap 'x' EXIT; ./le x`,
+	identityLineOfAgent + `enable -f lib.so x; ./le x`,
+	identityLineOfAgent + `let a=1; ./le x`,
+	identityLineOfAgent + `(( a = 1 )); ./le x`,
+	identityLineOfAgent + `c=env; $c -i ./le x`,
+	identityLineOfAgent + `setsid env -i ./le x`,
+	identityLineOfAgent + `flock l.lock env -i ./le x`,
+	identityLineOfAgent + `strace -o out env -i ./le x`,
+	identityLineOfAgent + `ltrace -o out env -i ./le x`,
+	identityLineOfAgent + `BASH_ENV=./x.sh ./le x`,
+	identityLineOfAgent + `ENV=./x.sh ./le x`,
+	identityLineOfAgent + `SHELLOPTS=x ./le x`,
+	identityLineOfAgent + `BASHOPTS=x ./le x`,
+	identityLineOfAgent + `PROMPT_COMMAND=x ./le x`,
+	identityLineOfAgent + `BASH_FUNC_f=x ./le x`,
+	`cat @(a|b)`,
+	`a+=x`,
+	`echo "${a?x}"`,
+	`[[ -o posix ]]`,
+	"cat x\x00y",
+	`cat notes.md \`,
 }
 
 // TestGuardVerdictsOfHeadStand holds the pre-tool Bash hook to the verdicts
@@ -418,10 +513,12 @@ func TestVerdictTableUpdateKeepsEveryRecordedRow(t *testing.T) {
 // reports.
 //
 // VALIDATES: a reader-line row keeps every recorded refusal of a check that
-// never asks the reader set (the git branch guard refuses `git merge main`
-// still); it waives a recorded refusal of a check a reader line lifts
-// (bashRawHeavy over `cat a`), and the same row unmarked does not; a proof
-// that judged another line, or none, is refused.
+// never asks the reader set, and a waiver of one is reported; it waives a
+// recorded refusal of a check a reader line lifts only when its Waives names
+// it (bashRawHeavy over `cat a`), so a liftable refusal it does not name
+// still holds, and the same row unmarked waives nothing; a mark that waives
+// nothing, a mark on a line the predicate puts outside, a proof that asserts
+// a refusal, and a proof that judged another line, or none, are refused.
 // PREVENTS: a reader-line mark that clears a git, poll, scratch or governed
 // write refusal, and a proof that names any test of the package.
 func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
@@ -438,26 +535,56 @@ func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
 		return map[string]map[string]bool{line: {proof: true}}
 	}
 
-	// The hook refuses `git merge main` by bashBranchMove today, so the row
-	// holds; the same mark on a line the branch guard passes (the shape a
-	// parser change that lost the refusal would leave) is reported.
-	merge := verdictRow{Line: "git merge main", Caller: callerMain, RefusedBy: []string{"bashBranchMove"}, ReaderLine: true, Proof: proof}
-	if faults := judge(merge, judged(merge.Line)); len(faults) != 0 {
-		t.Errorf("a reader-line mark on %q, which bashBranchMove refuses: faults %q, want none", merge.Line, faults)
+	holds := func(faults verdictFaults, part string) bool {
+		return slices.ContainsFunc(faults, func(fault string) bool { return strings.Contains(fault, part) })
+	}
+
+	// A mark on `git merge main`, which bashBranchMove refuses, waives a
+	// check no reader line lifts and marks a line that is no reader line:
+	// both are reported, and the refusal itself still holds.
+	merge := verdictRow{Line: "git merge main", Caller: callerMain, RefusedBy: []string{"bashBranchMove"}, ReaderLine: true, Proof: proof, Waives: []string{"bashBranchMove"}}
+	if faults := judge(merge, judged(merge.Line)); !holds(faults, "which no reader line lifts") || !holds(faults, "no reader line now") {
+		t.Errorf("a reader-line mark on %q: faults %q, want the waiver and the mark refused", merge.Line, faults)
 	}
 	for _, check := range []string{"bashBranchMove", "bashDestructiveGit", "bashPollLoop", "bashScratch", "bashGovernedWrite"} {
-		lost := verdictRow{Line: "cat a", Caller: callerMain, RefusedBy: []string{check}, ReaderLine: true, Proof: proof}
-		if faults := judge(lost, judged(lost.Line)); len(faults) != 1 || !strings.Contains(faults[0], check+" refused") {
+		lost := verdictRow{Line: "cat a", Caller: callerMain, RefusedBy: []string{check}, ReaderLine: true, Proof: proof, Waives: []string{check}}
+		if faults := judge(lost, judged(lost.Line)); !holds(faults, check+" refused") {
 			t.Errorf("a reader-line row whose %s refusal the hook no longer gives: faults %q, want that refusal held", check, faults)
 		}
 	}
 
-	lifted := verdictRow{Line: "cat a", Caller: callerMain, RefusedBy: []string{"bashRawHeavy"}, ReaderLine: true, Proof: proof}
+	lifted := verdictRow{Line: "cat a", Caller: callerMain, RefusedBy: []string{"bashRawHeavy"}, ReaderLine: true, Proof: proof, Waives: []string{"bashRawHeavy"}}
 	if faults := judge(lifted, judged(lifted.Line)); len(faults) != 0 {
 		t.Errorf("a reader-line row losing a bashRawHeavy refusal: faults %q, want none", faults)
 	}
+
+	// The waiver is per check: a liftable refusal the row does not name
+	// still holds, and a mark that names none is reported.
+	partial := verdictRow{Line: "cat a", Caller: callerMain, RefusedBy: []string{"bashRawHeavy", "bashSystemTmp"}, ReaderLine: true, Proof: proof, Waives: []string{"bashRawHeavy"}}
+	if faults := judge(partial, judged(partial.Line)); len(faults) != 1 || !strings.Contains(faults[0], "bashSystemTmp refused") {
+		t.Errorf("a reader-line row waiving bashRawHeavy alone: faults %q, want the bashSystemTmp refusal held", faults)
+	}
+	bare := lifted
+	bare.Waives = nil
+	if faults := judge(bare, judged(bare.Line)); !holds(faults, "waives no check") || !holds(faults, "bashRawHeavy refused") {
+		t.Errorf("a reader-line row with no waives: faults %q, want the mark refused and the refusal held", faults)
+	}
+
+	// A proof that asserts a refusal, and a mark on a line the predicate
+	// puts outside, are reported.
+	const refusing = "TestReaderLineRefusesWhatCanRunAnythingElse"
+	cited := lifted
+	cited.Proof = refusing
+	if faults := judge(cited, map[string]map[string]bool{cited.Line: {refusing: true}}); !holds(faults, "asserts a refusal") {
+		t.Errorf("a reader-line row citing %s: faults %q, want the proof refused", refusing, faults)
+	}
+	outside := verdictRow{Line: "./le x", Caller: callerMain, RefusedBy: []string{"bashRawHeavy"}, ReaderLine: true, Proof: proof, Waives: []string{"bashRawHeavy"}}
+	if faults := judge(outside, judged(outside.Line)); !holds(faults, "no reader line now") {
+		t.Errorf("a reader-line mark on %q: faults %q, want the mark refused", outside.Line, faults)
+	}
+
 	unmarked := lifted
-	unmarked.ReaderLine, unmarked.Proof = false, ""
+	unmarked.ReaderLine, unmarked.Proof, unmarked.Waives = false, "", nil
 	if faults := judge(unmarked, judged(unmarked.Line)); len(faults) != 1 || !strings.Contains(faults[0], "bashRawHeavy refused") {
 		t.Errorf("the same row unmarked: faults %q, want the bashRawHeavy refusal held", faults)
 	}
@@ -474,14 +601,17 @@ func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
 //
 // VALIDATES: the guards that ask the reader set are in it (the identity
 // exemption, the lifts of the raw-job, lossy-pipe and /tmp guards, the build
-// guard's reader+build line, the plain-rm narrowing); the guards the spec
-// says never lift are not (the git guards, bashGovernedWrite, bashPollLoop,
-// bashScratch).
-// PREVENTS: a derivation that follows a shared helper into a git guard and
-// lets a reader-line mark waive its refusal.
+// guard's reader+build line, the plain-rm narrowing), and every other
+// pretool-bash check is not: the git guards, bashGovernedWrite, bashPollLoop
+// and bashScratch, which the spec says never lift, and the checks that never
+// read the reader judgment (bashDocumentRead judges its text alone).
+// PREVENTS: a derivation that follows a shared helper, or a local whose name
+// a method shares, into a git guard and lets a reader-line mark waive its
+// refusal.
 func TestReaderLiftableChecksAreTheReaderGuards(t *testing.T) {
 	liftable := readerLiftableChecks(t)
-	for _, name := range []string{"bashAgentIdentity", "bashRawHeavy", "bashLossyPipe", "bashSystemTmp", "bashRootBuild", "bashTestDeletion"} {
+	readers := []string{"bashAgentIdentity", "bashRawHeavy", "bashLossyPipe", "bashSystemTmp", "bashRootBuild", "bashTestDeletion"}
+	for _, name := range readers {
 		if !liftable[name] {
 			t.Errorf("%s asks the reader set and is not in the liftable set %v", name, liftable)
 		}
@@ -489,6 +619,12 @@ func TestReaderLiftableChecksAreTheReaderGuards(t *testing.T) {
 	for _, name := range []string{"bashWorktreeCopy", "bashDestructiveGit", "bashBranchMove", "bashGovernedWrite", "bashPollLoop", "bashScratch"} {
 		if liftable[name] {
 			t.Errorf("%s never lifts on a reader line and is in the liftable set %v", name, liftable)
+		}
+	}
+	for _, check := range nativeHookActions["pretool-bash"].checks {
+		name := checkName(check)
+		if liftable[name] && !slices.Contains(readers, name) {
+			t.Errorf("%s does not ask the reader set and is in the liftable set %v", name, liftable)
 		}
 	}
 }
@@ -666,9 +802,11 @@ func (faults *verdictFaults) Errorf(format string, args ...any) {
 // run's after it wrote. It reports to t, and asks the checks through run.
 // A reader-line row is held to two rules more than its mark: its proof is a
 // test of corpusSourceTests or readerLineProofs that judged that exact line
-// and passed (judgedBy, from collectCorpus), and it waives only the recorded
-// refusals of checks a reader line can lift (readerLiftableChecks). Every
-// other check it recorded still refuses it.
+// and passed (judgedBy, from collectCorpus) and asserts no refusal
+// (refusalProofs); the predicate answers reader line for it now
+// (readerRowFaults); and it waives only the recorded refusals its Waives
+// names, each of a check a reader line can lift (readerLiftableChecks).
+// Every other check it recorded still refuses it.
 func checkVerdictTable(t verdictReporter, run *testing.T, root string, recorded []verdictRow, corpus map[verdictKey]bool, judgedBy map[string]map[string]bool) {
 	t.Helper()
 	proofs := packageTestNames(run)
@@ -689,6 +827,12 @@ func checkVerdictTable(t verdictReporter, run *testing.T, root string, recorded 
 		if !row.ReaderLine && row.Proof != "" {
 			t.Errorf("%q (%s) names the proof %q but is not marked a reader line", row.Line, row.Caller, row.Proof)
 		}
+		if !row.ReaderLine && len(row.Waives) != 0 {
+			t.Errorf("%q (%s) waives %v but is not marked a reader line", row.Line, row.Caller, row.Waives)
+		}
+		if row.ReaderLine {
+			readerRowFaults(t, row, liftable)
+		}
 	}
 	missing := 0
 	for _, key := range sortedVerdictKeys(corpus) {
@@ -703,7 +847,7 @@ func checkVerdictTable(t verdictReporter, run *testing.T, root string, recorded 
 	for _, row := range recorded {
 		now := refusingChecks(run, root, row.key())
 		for _, check := range row.RefusedBy {
-			if row.ReaderLine && liftable[check] {
+			if row.ReaderLine && liftable[check] && slices.Contains(row.Waives, check) {
 				continue
 			}
 			if !slices.Contains(now, check) {
@@ -733,72 +877,175 @@ func packageTestNames(t *testing.T) map[string]bool {
 }
 
 // readerLiftableChecks answers the pretool-bash checks whose code reaches
-// readerSetJudgment, read from this package's non-test source: a function's
-// body is followed through every package function or method name it mentions,
-// called or not, so the set can only be too wide. TestReaderLiftableChecks
-// holds it apart from the guards the spec says never lift.
+// readerSetJudgment, read from this package's non-test source
+// (packageSource.reaches). TestReaderLiftableChecksAreTheReaderGuards holds
+// it apart from the guards the spec says never lift.
 func readerLiftableChecks(t *testing.T) map[string]bool {
 	t.Helper()
-	paths, err := filepath.Glob("*.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	bodies := map[string][]*ast.BlockStmt{}
-	for _, path := range paths {
-		if strings.HasSuffix(path, "_test.go") {
-			continue
-		}
-		for _, decl := range parseGoFile(t, path).Decls {
-			if function, ok := decl.(*ast.FuncDecl); ok && function.Body != nil {
-				bodies[function.Name.Name] = append(bodies[function.Name.Name], function.Body)
-			}
-		}
-	}
-	if bodies[readerSetJudgment] == nil {
+	source := readPackageSource(t)
+	if source.functions[readerSetJudgment] == nil {
 		t.Fatalf("the package declares no function %s: readerSetJudgment names the function that judges whether a command is a reader", readerSetJudgment)
 	}
 	liftable := map[string]bool{}
 	for _, check := range nativeHookActions["pretool-bash"].checks {
 		name := checkName(check)
-		if bodies[name] == nil {
+		if source.functions[name] == nil {
 			t.Fatalf("the pretool-bash check %s has no body in this package's source", name)
 		}
-		if reachesFunction(bodies, name, readerSetJudgment) {
+		if source.reaches(name, readerSetJudgment) {
 			liftable[name] = true
 		}
 	}
 	return liftable
 }
 
-// reachesFunction answers whether target is start, or is named in the body of
-// a function start reaches through the names its body mentions.
-func reachesFunction(bodies map[string][]*ast.BlockStmt, start, target string) bool {
-	seen := map[string]bool{start: true}
-	queue := []string{start}
-	for len(queue) > 0 {
-		name := queue[0]
-		queue = queue[1:]
-		if name == target {
-			return true
+// packageSource is this package's non-test source as the liftable
+// derivation reads it: the bodies of its functions and of its methods by
+// name, the field names its struct types declare, and the names its files
+// import packages under.
+type packageSource struct {
+	functions map[string][]*ast.BlockStmt
+	methods   map[string][]*ast.BlockStmt
+	fields    map[string]bool
+	imports   map[string]bool
+}
+
+// readPackageSource parses every non-test Go file of the package.
+func readPackageSource(t *testing.T) packageSource {
+	t.Helper()
+	paths, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := packageSource{
+		functions: map[string][]*ast.BlockStmt{},
+		methods:   map[string][]*ast.BlockStmt{},
+		fields:    map[string]bool{},
+		imports:   map[string]bool{},
+	}
+	for _, path := range paths {
+		if strings.HasSuffix(path, "_test.go") {
+			continue
 		}
-		for _, body := range bodies[name] {
-			ast.Inspect(body, func(node ast.Node) bool {
-				ident, isIdent := node.(*ast.Ident)
-				if !isIdent {
-					return true
+		file := parseGoFile(t, path)
+		for _, spec := range file.Imports {
+			source.imports[importedName(spec)] = true
+		}
+		ast.Inspect(file, func(node ast.Node) bool {
+			if structure, ok := node.(*ast.StructType); ok {
+				for _, field := range structure.Fields.List {
+					for _, name := range field.Names {
+						source.fields[name.Name] = true
+					}
 				}
-				if bodies[ident.Name] == nil {
-					return true
-				}
-				if !seen[ident.Name] {
-					seen[ident.Name] = true
-					queue = append(queue, ident.Name)
-				}
-				return true
-			})
+			}
+			return true
+		})
+		for _, decl := range file.Decls {
+			function, ok := decl.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+			if function.Body == nil {
+				continue
+			}
+			if function.Recv == nil {
+				source.functions[function.Name.Name] = append(source.functions[function.Name.Name], function.Body)
+				continue
+			}
+			source.methods[function.Name.Name] = append(source.methods[function.Name.Name], function.Body)
 		}
 	}
-	return false
+	return source
+}
+
+// importedName is the name a file uses for one import: its alias, or the
+// last element of its path, skipping a major-version element (`v3`).
+func importedName(spec *ast.ImportSpec) string {
+	if spec.Name != nil {
+		return spec.Name.Name
+	}
+	importPath, err := strconv.Unquote(spec.Path.Value)
+	if err != nil {
+		return spec.Path.Value
+	}
+	elements := strings.Split(importPath, "/")
+	last := elements[len(elements)-1]
+	if len(elements) > 1 && len(last) > 1 && last[0] == 'v' && strings.Trim(last[1:], "0123456789") == "" {
+		return elements[len(elements)-2]
+	}
+	return last
+}
+
+// reaches answers whether target, a package function, is start or is named
+// in a body start reaches. Without types, a name is resolved as far as the
+// syntax shows what it is, and every doubt resolves toward reaching, so the
+// set can only be too wide:
+//   - a bare name is a package function, and a local that shadows one is
+//     followed into it too;
+//   - a selector's name is a method of every receiver that declares one, when
+//     the selector is called or when no struct field carries the name, so
+//     `ctx.call.parse` reads the field and `walk.call(c, p)` the method;
+//   - a selector on an imported package (`strings.Join`) and the field key of
+//     a composite literal name nothing of this package.
+//
+// Matching a name against every declaration whatever its place sends a
+// guard's local `command` into the walks' command methods, which reach the
+// reader judgment (identityWalk.statement names readerAdmit), and so puts
+// every guard, the git guards included, in the set.
+func (source packageSource) reaches(start, target string) bool {
+	if start == target {
+		return true
+	}
+	seen := map[string]bool{"function " + start: true}
+	queue := slices.Clone(source.functions[start])
+	found := false
+	follow := func(kind, name string, bodies map[string][]*ast.BlockStmt) {
+		if bodies[name] == nil {
+			return
+		}
+		if seen[kind+" "+name] {
+			return
+		}
+		seen[kind+" "+name] = true
+		if kind == "function" && name == target {
+			found = true
+		}
+		queue = append(queue, bodies[name]...)
+	}
+	called := map[*ast.SelectorExpr]bool{}
+	var visit func(node ast.Node) bool
+	visit = func(node ast.Node) bool {
+		switch node := node.(type) {
+		case *ast.CallExpr:
+			if selector, ok := node.Fun.(*ast.SelectorExpr); ok {
+				called[selector] = true
+			}
+		case *ast.KeyValueExpr:
+			if _, field := node.Key.(*ast.Ident); field {
+				ast.Inspect(node.Value, visit)
+				return false
+			}
+		case *ast.SelectorExpr:
+			if qualifier, ok := node.X.(*ast.Ident); ok && source.imports[qualifier.Name] {
+				return false
+			}
+			if called[node] || !source.fields[node.Sel.Name] {
+				follow("method", node.Sel.Name, source.methods)
+			}
+			ast.Inspect(node.X, visit)
+			return false
+		case *ast.Ident:
+			follow("function", node.Name, source.functions)
+		}
+		return true
+	}
+	for len(queue) > 0 && !found {
+		body := queue[0]
+		queue = queue[1:]
+		ast.Inspect(body, visit)
+	}
+	return found
 }
 
 // mergeVerdictRows answers every recorded row unchanged, plus each fresh row

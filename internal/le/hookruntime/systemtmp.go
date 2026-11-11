@@ -1,25 +1,32 @@
 // Design: docs/architecture/core-design.md -- native Bash hook policy
 // Related: bash.go -- bashSystemTmp, the guard that renders this judgment
-// Related: shellline.go -- readerLine, the line judged by its words
+// Related: readerline.go -- ctxReaderLine, the line judged by its words
 package hookruntime
 
-import (
-	"slices"
-	"strings"
-)
+import "strings"
 
-// namesSystemTmp reports whether a line reaches the system temporary
-// directory, by its words on a reader line and by its text otherwise. The
-// text pattern (systemTmp) takes `}` as a boundary before /tmp, because a
-// braced parameter the shell expands to nothing (`${v}/tmp`) leaves /tmp
-// itself (spec-agent-economy-6-shell-parser AC-35).
-func namesSystemTmp(command string) bool {
-	line, reader := readerLine(command)
-	if !reader {
+// namesSystemTmp reports whether the call's command reaches the system
+// temporary directory, by its words on a reader line (ctxReaderLine) and by
+// its text otherwise. On a reader line every word the walk judged counts:
+// arguments, loop lists, case words, assignment values, `[[` operands and
+// redirection targets, while a here-document body and a here-string are data
+// (AC-17). A word the shell expands is judged by its value and by its source
+// with the quotes removed, because the value drops each expansion
+// (`foo$D/tmp/x` reads `foo/tmp/x`, a literal parent) while the shell may
+// expand it to nothing. The text pattern (systemTmp) takes `}` as a boundary
+// before /tmp, because a braced parameter the shell expands to nothing
+// (`${v}/tmp`) leaves /tmp itself (spec-agent-economy-6-shell-parser AC-35).
+func namesSystemTmp(ctx context) bool {
+	command := stringInput(ctx.input, "command")
+	line, outside := ctxReaderLine(ctx)
+	if outside != "" {
 		return systemTmp.MatchString(command)
 	}
-	for _, words := range line.commands {
-		if slices.ContainsFunc(words, systemTmpWord) {
+	for _, word := range line.words {
+		if systemTmpWord(word.value.text) {
+			return true
+		}
+		if word.value.expands && systemTmpWord(withoutQuotes(word.source)) {
 			return true
 		}
 	}
