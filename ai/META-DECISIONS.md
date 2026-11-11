@@ -109,6 +109,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   local route stays for when the daemon is unreachable. A command whose result
   lives on the caller's side gets a daemon form designed for it, never an
   exclusion.
+- Ze's MCP server speaks only the current MCP revision. A client that still
+  speaks an earlier revision cannot connect until it updates; that is recorded
+  as the client's state, never treated as a Ze defect, and Ze adds no
+  compatibility path for the earlier revision.
 - `ze doctor` reports every problem an operator can hit, so it can be used to
   find any problem on the box: each one with its cause and the command that
   fixes it. A problem class found in code, a lab or a test that doctor does not
@@ -389,8 +393,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   website's free text. It also says that most of the site's information is
   generated from the code, so the data reflects the software's real state.
 - Building the website renders data; it never runs a check. A proof over
-  the code (the plugin inventory's external-effect proof, a coverage or
-  conformance gate) is a check like a unit test: it runs in CI and at
+  the code (the comparison of the built `ze`'s plugin registry with the
+  declared list, a coverage or conformance gate) is a check like a unit test: it runs in CI and at
   release, never as a step of `./le site build`. A fact the site publishes
   from the code is read from its declaration or from a committed data file,
   so a page edit publishes in minutes.
