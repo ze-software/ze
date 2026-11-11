@@ -141,6 +141,9 @@ const activityStyle = `        <style>
             gap: 0.85rem;
             align-items: stretch;
         }
+        .activity-widget .stats:where(:has(.activity-tabs:not([hidden]))) {
+            grid-template-columns: auto repeat(4, minmax(0, 1fr)) minmax(11rem, auto);
+        }
         .activity-widget .stat {
             position: relative;
             overflow: hidden;
@@ -173,6 +176,13 @@ const activityStyle = `        <style>
             font-size: clamp(1.2rem, 2.1vw, 1.7rem);
             font-weight: 900;
             letter-spacing: -0.04em;
+        }
+        .activity-widget .stats .stat {
+            container-type: inline-size;
+            padding: 0.6rem 0.4rem;
+        }
+        .activity-widget .stats .stat strong {
+            font-size: clamp(0.9rem, 22cqw, 1.7rem);
         }
         .activity-widget .metric-control {
             display: grid;

@@ -160,11 +160,10 @@ func activityWidgetHTML(window *reporewrite.ActivityWindow, surface activitySurf
 
 	var out textbuf.Buffer
 	out.Reset().Str(`                <div class="`).Str(class).Str(`" aria-label="Activity heatmap">`).Byte('\n')
+	out.Str(activitySummaryHTML(activityLineMetric(window), activityRangeText(window), activityDaysShown(window), surface))
 	if surface == activitySurfacePage {
-		out.Str(activityTabsHTML)
 		out.Str(`<div class="activity-view" id="activity-calendar" role="tabpanel" aria-labelledby="activity-tab-calendar">`).Byte('\n')
 	}
-	out.Str(activitySummaryHTML(activityLineMetric(window), activityRangeText(window), activityDaysShown(window)))
 	out.Str(`                    <div class="dashboard-grid">`).Byte('\n')
 	out.Str(`                        <div class="left-stack">`).Byte('\n')
 	out.Str(activityChartHTML(window))
@@ -230,14 +229,18 @@ func activityDaysShown(window *reporewrite.ActivityWindow) int {
 	return int(window.End.Sub(window.Start)/day) + 1
 }
 
-// activitySummaryHTML renders the four cards and the metric switch.
+// activitySummaryHTML renders the four cards and the metric switch, with the
+// representation tabs at the left on the published page.
 //
 // The cards carry the ids the script writes into, and they open on the values
 // of the added-line metric, so a reader with no JavaScript still reads a
 // complete summary of the grid the page draws.
-func activitySummaryHTML(lines activityMetric, rangeText string, days int) string {
+func activitySummaryHTML(lines activityMetric, rangeText string, days int, surface activitySurface) string {
 	var out textbuf.Buffer
 	out.Reset().Str(`<section class="stats" aria-label="Summary">`).Byte('\n')
+	if surface == activitySurfacePage {
+		out.Str(activityTabsHTML)
+	}
 	out.Str(activityStatHTML("total", lines.TotalLabel, lines.TotalValue))
 	out.Str(activityStatHTML("active", lines.ActiveLabel, lines.ActiveValue))
 	out.Str(activityStatHTML("peak", lines.PeakLabel, lines.PeakValue))
