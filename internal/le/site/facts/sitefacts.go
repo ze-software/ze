@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/gitenv"
+	reporewrite "github.com/ze-software/ze/internal/le/repo/rewrite"
 )
 
 // factsFile is the committed file, relative to the checkout root. It sits
@@ -213,8 +214,22 @@ func derive(root string) (facts, error) {
 		return facts{}, err
 	}
 	interop := countInterop(interopPaths)
+	inventory, err := reporewrite.MeasureGoInventory(root)
+	if err != nil {
+		return facts{}, fmt.Errorf("measure Go line inventory: %w", err)
+	}
 
 	return facts{Live: liveFacts(), Facts: map[string]fact{
+		GoSourceLinesKey: {
+			Category: categoryCommitted,
+			Value:    inventory.Code.TotalLines,
+			Source:   "activity Go inventory: tracked first-party non-test Go files, including tooling, comments and blank lines; excluding dependencies",
+		},
+		GoTestLinesKey: {
+			Category: categoryCommitted,
+			Value:    inventory.Tests.TotalLines,
+			Source:   "activity Go inventory: tracked first-party _test.go files, including comments and blank lines; excluding dependencies",
+		},
 		"repo.design_comments": {
 			Category: categoryCommitted,
 			Value:    counts.design,

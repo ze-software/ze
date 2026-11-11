@@ -184,16 +184,16 @@ func compare(committed, derived facts) []Difference {
 		got, held := committed.Facts[name]
 		switch {
 		case !held:
-			stale = append(stale, Difference{Fact: name, Committed: "absent", Derived: describe(want)})
-		case render(got.Value) != render(want.Value):
-			stale = append(stale, Difference{Fact: name, Committed: describe(got), Derived: describe(want)})
+			stale = append(stale, Difference{Fact: name, Committed: "absent", Derived: describe(name, want)})
+		case displayedFact(name, got.Value) != displayedFact(name, want.Value):
+			stale = append(stale, Difference{Fact: name, Committed: describe(name, got), Derived: describe(name, want)})
 		case got.Category != want.Category || got.Source != want.Source:
 			stale = append(stale, Difference{Fact: name, Committed: provenance(got.Category, got.Source), Derived: provenance(want.Category, want.Source)})
 		}
 	}
 	for _, name := range slices.Sorted(maps.Keys(committed.Facts)) {
 		if _, derives := derived.Facts[name]; !derives {
-			stale = append(stale, Difference{Fact: name, Committed: describe(committed.Facts[name]), Derived: "nothing derives this fact"})
+			stale = append(stale, Difference{Fact: name, Committed: describe(name, committed.Facts[name]), Derived: "nothing derives this fact"})
 		}
 	}
 
@@ -220,8 +220,8 @@ func compare(committed, derived facts) []Difference {
 // describe says what a fact publishes, and what it counted when the two are not
 // the same string. The exact value is what a person regenerating compares; the
 // published one is what the gate judged.
-func describe(held fact) string {
-	shown := render(held.Value)
+func describe(name string, held fact) string {
+	shown := displayedFact(name, held.Value)
 	if !strings.HasSuffix(shown, roundedMark) {
 		return shown
 	}

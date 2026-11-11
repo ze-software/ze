@@ -77,6 +77,10 @@ func homeFixtureWeeks() []string {
 // that build gated across its 171 enrolled RFCs. not_walked_display is a
 // fixture value: that build published no count of unwalked RFCs.
 const publishedFactsSnapshot = `{
+  "cli_commands": 499,
+  "plugin_registrations": 96,
+  "repo": {"go_source_lines": 1567454, "go_source_lines_display": "1.57M",
+           "go_test_lines": 1839367, "go_test_lines_display": "1.84M"},
   "features": {"categories": {"automate": 7, "observe": 9, "operate": 6, "platform": 6,
                "routing": 9, "secure": 6, "services": 9}},
   "interop": {"target_display": "9"},

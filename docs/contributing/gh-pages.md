@@ -331,6 +331,17 @@ See `website/AI.md` for the full reference: structure, tools, and how to add a t
 
 ## README thumbnail and terminal playback
 
+The homepage introduces project size with four linked figures: Go source lines,
+Go test lines, plugins and CLI commands. The line totals are recorded through
+`./le site facts update`; the build reads those committed values and publishes
+compact display strings in its facts snapshot. Counts include comments and
+blank lines and exclude dependencies. Activity retains the detailed inventory,
+and the plugin and CLI references explain the other figures. The hero keeps
+Why Ze exists and Discord as text links alongside the existing demo and search
+paths; its release notice and testing evidence remain separate.
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
+<!-- source: internal/le/site/facts.go -- factsFromRepositoryFile -->
+
 The homepage and README select the continuous recording through `HeroDemo`.
 The site replays its `.cast` terminal events with the vendored asciinema player.
 The README uses `docs/demos/showcase.webp`, linked to the continuous showcase's

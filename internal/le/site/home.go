@@ -26,7 +26,7 @@ const (
 	// homeRoot is empty because the homepage IS the site root, so every link
 	// it carries is already relative to itself.
 	homeRoot = ""
-	// homeTourDemo is the demonstration the hero's "Watch a demo" action opens.
+	// homeTourDemo is the demonstration the browser showcase link opens.
 	homeTourDemo = homeWebDemo
 	// homeWebDemo supplies the browser configuration screenshot and transcript.
 	homeWebDemo = "web-config"

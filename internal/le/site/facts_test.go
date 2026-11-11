@@ -40,7 +40,9 @@ func factsFixture(t *testing.T) Paths {
 	    "interop.targets": {"category":"committed-data","value":9,"source":"git ls-files test/interop/Dockerfile.*"},
 	    "repo.design_comments": {"category":"committed-data","value":4299,"source":"git ls-files '*.go'"},
 	    "repo.detail_comments": {"category":"committed-data","value":3281,"source":"git ls-files '*.go'"},
-	    "repo.go_packages": {"category":"committed-data","value":755,"source":"go list ./..."}
+	    "repo.go_packages": {"category":"committed-data","value":755,"source":"go list ./..."},
+	    "repo.go_source_lines": {"category":"committed-data","value":2345678,"source":"activity Go inventory"},
+	    "repo.go_test_lines": {"category":"committed-data","value":3456789,"source":"activity Go inventory"}
 	  },
 	  "live": {}
 	}`)

@@ -13,7 +13,7 @@ package site
 //	{hero_demo}                    the recorded terminal the homepage replays
 //	{hero_demo_file} {hero_demo_title}
 //	{hero_demo_transcript}         its file name, manifest title and transcript link
-//	{tour_demo_href}               the demonstration "Watch a demo" opens
+//	{tour_demo_href}               the browser showcase's demonstration link
 //	{web_demo_poster} {web_demo_transcript}
 //	                              verified browser screenshot and transcript
 //	{whats_new}                    the newest article, the newest week, the note
@@ -43,6 +43,7 @@ const homeTemplate = `        <div class="site-home">
                                     <span>ExaBGP compatible</span>
                                 </p>
                                 <p class="hero-intro">Route traffic and manage your network with one configuration. Extend Ze with plugins for automation and services of your own.</p>
+                                <p class="hero-project-intro"><a href="project/why-ze/">Why Ze exists →</a> · Ask questions and follow development on <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>.</p>
                                 <div class="hero-capabilities" aria-label="Networking and management capabilities">
                                     <dl>
                                         <div>
@@ -140,33 +141,27 @@ const homeTemplate = `        <div class="site-home">
                             </div>
                         </div>
                         <div class="hero-action-row">
-                            <nav class="hero-primary-actions" aria-label="Start with Ze">
-                                <a class="hero-start-action" href="project/why-ze/">
-                                    <strong>Why Ze exists</strong>
-                                    <small>Learn how Ze came to be.</small>
-                                </a>
-                                <a class="hero-start-action" href="{tour_demo_href}">
-                                    <strong>Watch a demo</strong>
-                                    <small>Discover the web interface.</small>
-                                </a>
-                                <a
-                                    class="hero-start-action search-trigger"
-                                    href="search/"
-                                    aria-expanded="false"
-                                    ><strong>Search the site</strong
-                                    ><small>Docs and commands. <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>or</span><kbd>⌘/</kbd></span></small
-                                    ></a
-                                >
-                                <a
-                                    class="hero-start-action"
-                                    href="https://discord.gg/T8s7CjPDne"
-                                    target="_blank"
-                                    rel="noopener"
-                                    ><strong>Join Discord</strong
-                                    ><small>Ask questions, get help.</small
-                                    ></a
-                                >
-                            </nav>
+                            <div class="hero-project-metrics" aria-label="Project size and scope">
+                                <div class="hero-metrics-grid">
+                                    <a class="hero-project-metric" href="project/activity/">
+                                        <strong>{{ze:repo.go_source_lines_display}}</strong>
+                                        <span>Go source lines</span>
+                                    </a>
+                                    <a class="hero-project-metric" href="project/activity/">
+                                        <strong>{{ze:repo.go_test_lines_display}}</strong>
+                                        <span>Go test lines</span>
+                                    </a>
+                                    <a class="hero-project-metric" href="reference/plugins/">
+                                        <strong>{{ze:plugin_registrations}}</strong>
+                                        <span>Plugins</span>
+                                    </a>
+                                    <a class="hero-project-metric" href="reference/cli/">
+                                        <strong>{{ze:cli_commands}}</strong>
+                                        <span>CLI commands</span>
+                                    </a>
+                                </div>
+                                <p class="hero-metrics-note">Includes comments and blank lines; excludes third-party dependencies. <a href="project/activity/">Development activity →</a></p>
+                            </div>
                             <div class="hero-release-callout">
                                 <a
                                     class="hero-release-speaker"

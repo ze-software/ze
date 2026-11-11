@@ -402,7 +402,7 @@ same typed input. Hand-authored HTML pages derive their mirror from the
 published main content, and the homepage is one of them: its copy lives in the
 build's own template, so a hand-written mirror would state that copy twice.
 The homepage demonstration replays the recording `terminaldemo.HeroDemo` names,
-and its "Watch a demo" action opens the one `homeTourDemo` names
+and its browser showcase link opens the one `homeTourDemo` names
 (`internal/le/site/home.go`). The filename in the recording's frame, its
 caption, its player label and both links come from those ids' entries in
 `demos/terminal/manifest.json`: the caption is the entry's `title`, and each
@@ -412,6 +412,19 @@ recording for `homeTemplate`'s `data-cast-poster`.
 <!-- source: internal/le/site/home.go -- homeHeroSlots -->
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
+
+The hero's project-size band replaces its repeated navigation tiles. It shows
+Go source lines, Go test lines, plugins and CLI commands through marked
+`data/site-facts.json` values. The line figures include comments and blank lines,
+exclude third-party dependencies, and count development tooling as source.
+They come from the recorded repository facts, using the activity page's Go
+inventory definition; the activity page itself still measures the current
+checkout. Each line figure links to activity, while plugins and commands link
+to their reference pages. Why Ze exists remains an introductory text link, and
+Discord is linked in a sentence. Search and demonstrations retain their existing
+header and player paths. The release notice and testing proof section remain.
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
+<!-- source: internal/le/site/facts.go -- factsFromRepositoryFile -->
 
 ### Site design and content rules
 

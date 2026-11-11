@@ -2,12 +2,12 @@
   "facts": {
     "interop.scenario_dirs_raw": {
       "category": "committed-data",
-      "value": 225,
+      "value": 234,
       "source": "git ls-files test/interop/scenarios/, counting the directories git holds a file under"
     },
     "interop.scenarios": {
       "category": "committed-data",
-      "value": 225,
+      "value": 234,
       "source": "git ls-files test/interop/scenarios/, counting the directories git holds a file under"
     },
     "interop.targets": {
@@ -17,18 +17,28 @@
     },
     "repo.design_comments": {
       "category": "committed-data",
-      "value": 7751,
+      "value": 9198,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.detail_comments": {
       "category": "committed-data",
-      "value": 7990,
+      "value": 9467,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.go_packages": {
       "category": "committed-data",
-      "value": 951,
+      "value": 1001,
       "source": "go list ./..., keeping the packages git holds a file for"
+    },
+    "repo.go_source_lines": {
+      "category": "committed-data",
+      "value": 1567103,
+      "source": "activity Go inventory: tracked first-party non-test Go files, including tooling, comments and blank lines; excluding dependencies"
+    },
+    "repo.go_test_lines": {
+      "category": "committed-data",
+      "value": 1841038,
+      "source": "activity Go inventory: tracked first-party _test.go files, including comments and blank lines; excluding dependencies"
     }
   },
   "live": {

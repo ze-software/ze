@@ -41,6 +41,15 @@ The commands are `./le site facts update` and `./le site facts check`. The pair
 is the shape `./le test health update` and `./le test health check` already had,
 and the pair is the point: a generated file nobody gates goes stale in silence.
 
+The homepage's Go line figures follow that same route. `repo.go_source_lines`
+counts tracked first-party Go files other than `_test.go`; `repo.go_test_lines`
+counts those test files. Both include comments and blank lines, exclude vendor
+dependencies and share the activity collector's exclusions. Source includes
+development tooling, so it is a repository-size figure rather than shipped
+product code alone. The activity page reads a live checkout inventory; a
+homepage figure is the inventory recorded by the facts update action.
+<!-- source: internal/le/site/facts/sitefacts.go -- derive -->
+
 ## Not every fact can be committed
 
 A published fact belongs to one of six categories, and the file records the
@@ -85,6 +94,17 @@ before the files are staged cannot count what that same commit adds, and a gate
 demanding exact equality would go red on the commit that fixed it. `render`
 (`staleness.go`) is that formatter, and it MUST move whenever the site's own
 display rule moves.
+
+### Go line display precision
+
+Go line totals use a compact display with two decimal places in thousands or
+millions. Their staleness comparison uses that same formatter, so a visible
+change is reported even when it falls inside an older count's rounding bucket.
+Other repository counts keep their existing display precision. The published
+snapshot carries raw line totals and their `_display` strings; every homepage
+figure is marked so browser refresh uses the published value directly.
+<!-- source: internal/le/site/facts/golines.go -- FormatGoLines, displayedFact -->
+<!-- source: internal/le/site/facts.go -- factsFromRepositoryFile -->
 
 ## The dirty-tree warning
 

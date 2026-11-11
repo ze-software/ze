@@ -16,17 +16,18 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/rfc"
+	sitefacts "github.com/ze-software/ze/internal/le/site/facts"
 )
 
 // repositoryFactsFile is the committed file `./le site facts update` writes.
 //
-// The six numbers it states are counted over the tree a person is about to
+// The numbers it states are counted over the tree a person is about to
 // commit rather than over whatever a build found on disk, so the site build
 // reads them here instead of walking the tree for them. That is the whole
 // reason internal/le/site/facts exists.
 const repositoryFactsFile = "repo-facts.json"
 
-// repositoryFactKeys are the six facts the committed file owes this snapshot,
+// repositoryFactKeys are the facts the committed file owes this snapshot,
 // named by the path each one takes in the published file.
 //
 // The names are the same on both sides, so nothing is renamed on the way
@@ -39,6 +40,8 @@ var repositoryFactKeys = []string{
 	"repo.design_comments",
 	"repo.detail_comments",
 	"repo.go_packages",
+	sitefacts.GoSourceLinesKey,
+	sitefacts.GoTestLinesKey,
 }
 
 // The one network reach a site build makes, and its bounds.
@@ -174,8 +177,8 @@ type factsInterop struct {
 	Targets          int    `json:"targets"`
 }
 
-// factsRepo counts what the Go tree holds: the packages, and the file headers
-// that explain themselves.
+// factsRepo counts what the Go tree holds: packages, source and test lines,
+// and the file headers that explain themselves.
 type factsRepo struct {
 	DesignComments        int    `json:"design_comments"`
 	DesignCommentsDisplay string `json:"design_comments_display"`
@@ -183,6 +186,10 @@ type factsRepo struct {
 	DetailCommentsDisplay string `json:"detail_comments_display"`
 	GoPackages            int    `json:"go_packages"`
 	GoPackagesDisplay     string `json:"go_packages_display"`
+	GoSourceLines         int    `json:"go_source_lines"`
+	GoSourceLinesDisplay  string `json:"go_source_lines_display"`
+	GoTestLines           int    `json:"go_test_lines"`
+	GoTestLinesDisplay    string `json:"go_test_lines_display"`
 }
 
 // factsRFC counts the RFC requirement ledger: every requirement, the summaries
@@ -378,7 +385,7 @@ func deriveSiteFacts(paths Paths) (siteFacts, error) {
 	return facts, nil
 }
 
-// factsFromRepositoryFile reads the six numbers the committed repository facts
+// factsFromRepositoryFile reads the numbers the committed repository facts
 // state, and refuses one the file does not carry.
 //
 // The refusal names `./le site facts update` because that action is the fix: a
@@ -391,14 +398,37 @@ func factsFromRepositoryFile(source string, facts *siteFacts) error {
 			Source string `json:"source"`
 		} `json:"facts"`
 	}
-	if err := readSourceJSON(source, repositoryFactsFile, &committed); err != nil {
+	var content json.RawMessage
+	if err := readSourceJSON(source, repositoryFactsFile, &content); err != nil {
 		return err
+	}
+	if err := json.Unmarshal(content, &committed); err != nil {
+		return fmt.Errorf("read website/data/%s: %w", repositoryFactsFile, err)
 	}
 	for _, key := range repositoryFactKeys {
 		if _, stated := committed.Facts[key]; !stated {
 			return fmt.Errorf("website/data/%s states no %s; run `./le site facts update`", repositoryFactsFile, key)
 		}
 		facts.Sources[key] = "website/data/" + repositoryFactsFile + ": " + committed.Facts[key].Source
+	}
+	// Check the new measurements through pointers so a missing or null value
+	// cannot masquerade as a measured zero. Existing facts retain their decoder
+	// semantics; both views use the same bytes from one filesystem read.
+	var measurements struct {
+		Facts map[string]struct {
+			Value *int `json:"value"`
+		} `json:"facts"`
+	}
+	if err := json.Unmarshal(content, &measurements); err != nil {
+		return fmt.Errorf("read website/data/%s measurements: %w", repositoryFactsFile, err)
+	}
+	for _, key := range []string{sitefacts.GoSourceLinesKey, sitefacts.GoTestLinesKey} {
+		if measurements.Facts[key].Value == nil {
+			return fmt.Errorf("website/data/%s states no numeric value for %s; run `./le site facts update`", repositoryFactsFile, key)
+		}
+		if *measurements.Facts[key].Value < 0 {
+			return fmt.Errorf("website/data/%s states negative %s; run `./le site facts update`", repositoryFactsFile, key)
+		}
 	}
 
 	facts.Interop.ScenarioDirsRaw = committed.Facts["interop.scenario_dirs_raw"].Value
@@ -413,6 +443,10 @@ func factsFromRepositoryFile(source string, facts *siteFacts) error {
 	facts.Repo.DetailCommentsDisplay = displayCount(facts.Repo.DetailComments)
 	facts.Repo.GoPackages = committed.Facts["repo.go_packages"].Value
 	facts.Repo.GoPackagesDisplay = displayCount(facts.Repo.GoPackages)
+	facts.Repo.GoSourceLines = committed.Facts[sitefacts.GoSourceLinesKey].Value
+	facts.Repo.GoSourceLinesDisplay = sitefacts.FormatGoLines(facts.Repo.GoSourceLines)
+	facts.Repo.GoTestLines = committed.Facts[sitefacts.GoTestLinesKey].Value
+	facts.Repo.GoTestLinesDisplay = sitefacts.FormatGoLines(facts.Repo.GoTestLines)
 	return nil
 }
 
