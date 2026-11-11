@@ -88,6 +88,11 @@ whatever the span (`ai/META-DECISIONS.md`, "Reports and messages").
    headed by the update's `release-from`..`release-to` range whatever its
    length. The table measures whether fragments carry the facts. It is never
    published.
+10. Complete the independent Milestones review in `website/AI.md`, `Update
+    Report Checklist`, before showing the post for approval. Include any
+    missed reports since the timeline's newest linked update. Keep the
+    proposed entries, or the reason no new capability qualifies, outside the
+    public post. Apply the result in Phase 4 when website updates are authorized.
 
 ### Collect release progress
 
@@ -261,7 +266,9 @@ during site generation, sending, resuming, or archive handling.
    - no sentence past about 30 words.
 8. Show Thomas the exact dry-run messages and wait for approval before posting.
 
-If Thomas asks only for a draft, stop after the draft. Do not post, archive, or regenerate the site unless asked.
+If Thomas asks only for a draft, stop after the draft and the proposed milestone
+result. Do not post, archive, edit site data, or regenerate the site unless
+asked. Report any remaining website work as pending.
 
 ## Phase 3: Publish after approval
 
@@ -304,24 +311,30 @@ Never answer a partial send by running the command again without `resume-from`. 
 In `website/`, apply the checklist from `AI.md`:
 
 1. Confirm the post has valid `tags:` front matter.
-2. Check `data/features.json` and `data/milestones.json` for drift.
-3. Check `docs/comparison.md` and `website/compare/bgp.md` for comparison drift (`website/compare/comparison.md` is a dispatch page, not the mirror).
-4. Check whether a new lab page or `data/nav.json` Labs entry is needed.
-5. Check whether `performance/index.html` needs fresh headline benchmark stats.
-6. Run:
+2. Check `data/features.json` for drift.
+3. Apply the Milestones review from Phase 1, using the separate checklist
+   step in `website/AI.md`. Account for milestones even when feature cards
+   need no changes.
+4. Check `docs/comparison.md` and `website/compare/bgp.md` for comparison drift (`website/compare/comparison.md` is a dispatch page, not the mirror).
+5. Check whether a new lab page or `data/nav.json` Labs entry is needed.
+6. Check whether `performance/index.html` needs fresh headline benchmark stats.
+7. Run:
 
 ```sh
 ./le site build
 ./le site check
 ```
 
-7. Verify these outputs exist and reference the new week:
+8. Verify these outputs exist and reference the new week:
    - `changes/<covers-start>/index.html`,
    - `changes/index.html`,
    - `changes/feed.xml`,
    - `index.html` homepage `Latest updates` cards, when the new week is within the rendered latest set.
-8. Do not assume the homepage card count. Read `website/data/whats-new.json` and the staged `../gh-pages/index.html` before claiming the homepage is correct.
-9. Use `./le site check` for the native artifact and page-mirror checks.
+9. Verify the generated Milestones page and Markdown mirror as the checklist
+   requires: one card per month, short Key Points, and report links at the
+   bottom. A successful build alone does not account for the milestone review.
+10. Do not assume the homepage card count. Read `website/data/whats-new.json` and the staged `../gh-pages/index.html` before claiming the homepage is correct.
+11. Use `./le site check` for the native artifact and page-mirror checks.
 
 ## Phase 5: Report
 
@@ -332,13 +345,19 @@ Report only grounded facts:
 - the Discord archive path,
 - whether `ze-news` was posted,
 - which site files or data files changed,
+- the Milestones review result: added titles and linked report dates, or the
+  reason no new capability qualifies, plus the generated monthly cards and mirror check,
 - the `./le site build` and `./le site check` results,
 - the pinned `release-from` and `release-to`, and any authorized UTC cutoff,
 - the measure table appended to `plan/records/weekly-fragment-measure.md`,
 - any intentionally skipped drift item, with the reason.
 
-Do not say the update is done unless the Discord post, archive, generated site, homepage card, feed, native site checks and the fragment measure are all accounted for.
+Do not say the update is done unless the Discord post, archive, generated site,
+homepage card, feed, Milestones review, native site checks and fragment measure
+are all accounted for. An unperformed Milestones review remains pending website work.
 
 ## Done when
 
-Done when the Phase 5 report accounts for the Discord post, the archive, the generated site, the homepage card, the feed, the fragment measure, and the `./le site build` and `./le site check` results.
+Done when the Phase 5 report accounts for the Discord post, archive, generated
+site, homepage card, feed, Milestones review, fragment measure, and the
+`./le site build` and `./le site check` results.

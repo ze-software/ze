@@ -116,6 +116,7 @@ var docsManifest = []docsManifestRow{
 	{Source: "guide/command-reference.md", Category: categoryOperate},
 	{Source: "guide/config-editor.md", Category: categoryOperate},
 	{Source: "guide/ddos-mitigation.md", Category: categorySecure},
+	{Source: "guide/docker.md", Category: categoryPlatform},
 	{Source: "guide/flowspec-protected-router.md", Category: categorySecure},
 	{Source: "guide/flowspec-route-reflector.md", Category: categoryRouting},
 	{Source: "guide/firewall.md", Category: categoryServices},

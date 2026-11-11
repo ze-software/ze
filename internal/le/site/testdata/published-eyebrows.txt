@@ -68,6 +68,7 @@ guides/config-editor/index.html	Guide
 guides/configuration-model/index.html	Guide
 guides/ddos-mitigation/index.html	Guide
 guides/debugging-tools/index.html	Guide
+guides/docker/index.html	Guide
 guides/environment-variables/index.html	Guide
 guides/firewall/index.html	Guide
 guides/fleet-config/index.html	Guide

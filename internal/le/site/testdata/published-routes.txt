@@ -79,6 +79,7 @@
 /guides/configuration-model/
 /guides/ddos-mitigation/
 /guides/debugging-tools/
+/guides/docker/
 /guides/environment-variables/
 /guides/firewall/
 /guides/fleet-config/

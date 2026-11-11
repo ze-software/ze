@@ -68,15 +68,15 @@ website/
     features.json                         -- feature cards: category, the features/*.md ids
                                               they describe, chips, bullets; no status, the
                                               build derives shipped or experimental from the ids
-    milestones.json                       -- every node on milestones/index.html: date, title,
-                                              category, blurb, and the blog week it links to
+    milestones.json                       -- landmarks grouped into monthly cards: date, title,
+                                              category, blurb, and the source report
     topics.json                           -- controlled tag vocabulary for Changes chips
     audience.json                         -- homepage audience cards
     whats-new.json                        -- homepage editorial note
     dependencies.json                     -- direct Go dependency explanations
     command-equivalents.json              -- curated vendor equivalents keyed by Ze CLI paths
     page-links.json                       -- page navigation and external project links
-    repo-facts.json                       -- the six committed counts about this repository
+    repo-facts.json                       -- committed repository counts, including Go source and test lines
                                               (`./le site facts update` writes it; the build
                                               reads it rather than walking the tree)
     github-releases.json                  -- the published releases the forge states
@@ -703,7 +703,9 @@ uses them, then regenerates the standalone bundle.
 Trigger: a new `changes/posts/<start-date>.md` lands (the Discord
 `ze-news` update -- this is the development changelog source; the `blog/` section
 is now for occasional editorial articles, not the update report). Work through
-this before considering the update done.
+this before considering the update done. Complete the Milestones review during
+research, before presenting the post for approval. A draft-only request includes
+proposed milestone entries and leaves site data and generation unchanged.
 
 The starting material is `changes/fragments/`: one file per change, written by
 the agent that closed a spec or fixed a defect operators see
@@ -765,31 +767,52 @@ build trims `changes/fragments/` from the artifact it deploys.
    supported, so a level change is made in the declaration, never in the
    card (`docs/contributing/feature-maturity.md`); `./le feature report`
    lists each declaration's level and what the next level lacks. The intro paragraph's
-   count is computed from the data at render time, nothing to hand-update. If the week is a
-   genuine landmark (a whole protocol or subsystem's first appearance, not a
-   routine improvement), also add one node to `data/milestones.json` so the
-   Milestones timeline stays current -- keep it coarse, one node per
-   capability class, dated to the week's `covers` start so it links to the
-   right update page under `changes/`.
-2. **Check Compare for drift.** Did the week close one of the
+   count is computed from the data at render time, nothing to hand-update.
+2. **Review Milestones independently.** Read `data/milestones.json`, the report
+   linked by its newest entry, and every later report through this update.
+   Review each report's full `covers:` range and pinned revisions, including
+   ranges that cross months. Feature cards needing no changes does not skip
+   this review.
+
+   Identify each whole protocol or subsystem's first appearance and verify it
+   at the producing source in the report's revision range. Keep one entry per
+   capability class in the data. Routine fixes and improvements to existing
+   capabilities do not earn another entry, and a month with no landmark needs
+   no new milestone data.
+   During the authorized site update, add each missing landmark to
+   `data/milestones.json`. Use the source report's `covers:` start for `date`
+   and `blog`, so the entry links to its report under `changes/`.
+
+   Present one main card per month, newest months first. Its short Key Points
+   use the milestone titles. Put the month's report links at the bottom of
+   that card. Derive those links from `changes/posts/`, including every report
+   whose `covers:` start falls in the month. Show each report link once and
+   keep this list generated.
+
+   Report the added titles and linked report dates outside the public post.
+   If none qualifies, state that result and its reason. After generation,
+   inspect `../gh-pages/project/milestones/index.html` and `index.md` for the
+   monthly grouping, Key Points, categories and complete report links. A build
+   or site check without this review leaves website work pending.
+3. **Check Compare for drift.** Did the week close one of the
    "Where Ze is behind today" gaps, or change a Yes/No/Partial cell? Edit
    `../docs/comparison.md` first (the source of truth), then copy the
    change into `compare/bgp.md` here (`compare/comparison.md` is a dispatch
    page between the BGP and NOS comparisons, not a mirror). Bump the
    `Last updated:` date in main's file when real content changes -- never
    let the mirror carry content main doesn't also have.
-3. **Check Labs for drift.** Did the week add new interop/QEMU evidence
+4. **Check Labs for drift.** Did the week add new interop/QEMU evidence
    substantial enough for its own lab page (see `labs/bgp-interop/` as the
    template)? A new lab also needs an entry in `data/nav.json`'s Labs
    dropdown.
-4. **Check Performance for drift.** Did `../docs/performance.md` get a
+5. **Check Performance for drift.** Did `../docs/performance.md` get a
    fresh benchmark run this week? If so, update the headline stat-row on
    `performance/index.html` (Convergence/Throughput/Withdrawal) to match.
-5. **Run `./le site build`.** One command regenerates the website artifact,
+6. **Run `./le site build`.** One command regenerates the website artifact,
    including native page surfaces, assets, presentation activity, and
    standalone talk bundles. It stages the result in `../gh-pages` and removes
    source-only inputs before returning.
-6. **Check the artifact before calling it done.** Run `./le site check` to
+7. **Check the artifact before calling it done.** Run `./le site check` to
    verify the deployment boundary and Markdown mirrors in `../gh-pages`.
-7. **Never edit `talks/<slug>/` content** as part of this checklist. Those decks
+8. **Never edit `talks/<slug>/` content** as part of this checklist. Those decks
    are historic snapshots frozen at the time they were given.

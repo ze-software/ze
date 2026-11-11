@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BGP Protocol Interop - Ze</title>
-        <meta name="description" content="Ze's BGP engine against real FRR, BIRD, and GoBGP in Docker, across 151 protocol scenarios." />
+        <meta name="description" content="Ze's BGP engine tested against real FRR, BIRD, and GoBGP in Docker, with scenarios covering protocol behavior." />
         <meta property="og:title" content="BGP Protocol Interop - Ze" />
-        <meta property="og:description" content="Ze's BGP engine against real FRR, BIRD, and GoBGP in Docker, across 151 protocol scenarios." />
+        <meta property="og:description" content="Ze's BGP engine tested against real FRR, BIRD, and GoBGP in Docker, with scenarios covering protocol behavior." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -66,13 +66,13 @@
                                 >
                             </h3>
                             <p>
-                                The harness has 151 scenarios, of which 142 run
-                                an FRR, BIRD, or GoBGP daemon. It
-                                starts only the required daemons and checks
+                                The harness has {{ze:interop.scenarios_display}}
+                                scenarios. External-peer scenarios start only
+                                the required FRR, BIRD, or GoBGP daemons and check
                                 behavior through each peer's own CLI.
                             </p>
                             <div class="chips">
-                                <span class="chip">151 scenarios</span>
+                                <span class="chip">{{ze:interop.scenarios_display}} scenarios</span>
                                 <span class="chip concept-software">FRR</span>
                                 <span class="chip concept-software">BIRD</span>
                                 <span class="chip concept-software">GoBGP</span>
@@ -122,7 +122,7 @@
                             only spins up what it needs.
                         </p>
                         <p>
-                            151 scenarios: eBGP/iBGP, 4-byte ASN, IPv6, Add-Path,
+                            {{ze:interop.scenarios_display}} scenarios: eBGP/iBGP, 4-byte ASN, IPv6, Add-Path,
                             Route Refresh, Graceful Restart, Route Server,
                             standard and extended communities, MD5 auth, BGP
                             Roles, EVPN, VPN, FlowSpec, multihop, BFD and BFD
@@ -142,7 +142,7 @@
                         </div>
                         <div class="status-row">
                             <strong>Requires</strong>
-                            <span>Docker and ~1.5 GB disk for daemon images</span>
+                            <span>Docker on a kernel with Ze's required features; see the kernel setup in the interop guide</span>
                         </div>
                         <div class="status-row">
                             <strong>Source</strong>
@@ -161,17 +161,22 @@
                             <span class="terminal-title">bgp-interop</span>
                         </div>
                         <div class="terminal-body">
-                            <pre><span class="term-comment"># all 151 scenarios</span>
-<span class="term-prompt">$</span> <span class="term-cmd">./le</span> integration interop
+                            <pre><span class="term-comment"># all BGP interop scenarios</span>
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> test integration interop
 
 <span class="term-comment"># single scenario, verbose</span>
-<span class="term-prompt">$</span> INTEROP_SCENARIO=bgp-ebgp-ipv4-frr <span class="term-cmd">./le</span> integration interop</pre>
+<span class="term-prompt">$</span> INTEROP_SCENARIO=bgp-ebgp-ipv4-frr <span class="term-cmd">./le</span> test integration interop</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
                         <span class="tag">Prerequisites</span>
                         <p>
-                            Docker only, no QEMU path. Set <code>FRR_IMAGE</code>
+                            Docker runs the peer containers. On Linux, the harness
+                            checks the daemon kernel before starting Ze. On macOS,
+                            it uses Ze's Colima profile. The
+                            <a href="../../architecture/testing/interop/">interop guide</a>
+                            explains these prerequisites and the QEMU Docker guest.
+                            Set <code>FRR_IMAGE</code>
                             to pin a different FRR version, or
                             <code>NO_BUILD=1</code> to skip rebuilding images
                             on repeat runs.

@@ -167,21 +167,23 @@ func TestEveryPageTakesTheEyebrowThePublishedPageCarries(t *testing.T) {
 	}
 }
 
-// readSource answers one page source of the checkout these tests read.
+// readSource answers the same source the docs producer reads, including a
+// derived page whose registered producer replaces a generated file.
 func readSource(t *testing.T, source string) []byte {
 	t.Helper()
-	content, err := os.ReadFile(filepath.Join(repositoryRoot(t), filepath.FromSlash(source)))
+	content, err := docsSourceText(repositoryRoot(t), source)
 	if err != nil {
 		t.Fatalf("read %s: %v", source, err)
 	}
 	return content
 }
 
-// publishedEyebrows answers the eyebrow each of this producer's 150 pages
+// publishedEyebrows answers the eyebrow each of this producer's 151 pages
 // carried at gh-pages 2fa8fa2ad, the last commit the retired renderers made.
-// legal/ and project/ai-development/ are the pages added since; each line is
-// the eyebrow the first local build that rendered it carried, so it guards
-// against drift rather than answering from a published page.
+// legal/, project/ai-development/ and guides/docker/ are the pages added
+// since; each line is the eyebrow the first local build that rendered it
+// carried, so it guards against drift rather than answering from a published
+// page.
 //
 // It is committed rather than read from the sibling worktree so the answer key
 // is the PUBLISHED page rather than whatever a later build left there.
@@ -195,8 +197,8 @@ func publishedEyebrows(t *testing.T) map[string]string {
 		}
 		labels[destination] = label
 	}
-	if len(labels) != 150 {
-		t.Fatalf("the eyebrow fixture names %d pages, want the producer's 150", len(labels))
+	if len(labels) != 151 {
+		t.Fatalf("the eyebrow fixture names %d pages, want the 148 recovered pages plus legal/, project/ai-development/ and guides/docker/", len(labels))
 	}
 	return labels
 }

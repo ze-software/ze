@@ -74,9 +74,9 @@ func TestDocsManifestNamesEachSourceOnce(t *testing.T) {
 		}
 		seen[row.Source] = true
 	}
-	// 115 recovered rows, plus ai-development.md, added after the recovery.
-	if len(docsManifest) != 116 {
-		t.Errorf("the manifest holds %d rows, want the 115 the retired registry named once plus ai-development.md", len(docsManifest))
+	// 115 recovered rows, plus ai-development.md and the Docker deployment guide.
+	if len(docsManifest) != 117 {
+		t.Errorf("the manifest holds %d rows, want the 115 recovered rows plus ai-development.md and Docker", len(docsManifest))
 	}
 }
 
@@ -94,9 +94,9 @@ func TestEveryDocsProducerSourceExists(t *testing.T) {
 		t.Fatalf("pages: %v", err)
 	}
 	// 148 recovered pages, less project/roadmap/, which the roadmap producer
-	// owns, plus legal/ and project/ai-development/, added after the recovery.
-	if len(pages) != 149 {
-		t.Errorf("the docs producer publishes %d pages, want the 147 the recovered registry names plus legal/ and project/ai-development/", len(pages))
+	// owns, plus legal/, project/ai-development/ and the Docker guide.
+	if len(pages) != 150 {
+		t.Errorf("the docs producer publishes %d pages, want the 147 recovered pages plus legal/, project/ai-development/ and Docker", len(pages))
 	}
 	destinations := map[string]string{}
 	for _, page := range pages {
@@ -177,10 +177,10 @@ func repositoryRoot(t *testing.T) string {
 // reasons: a worktree is not part of this repository, so a machine without one
 // would run a different test, and the parity target is that COMMIT rather than
 // whatever the worktree holds now. Its 712 entries are the count `./le site
-// check` reported when phase 1 armed the coverage arithmetic, plus /legal/
-// and /project/ai-development/, the pages added to the site since, which
-// bring it to 714. A page added later is appended here by name and counted,
-// never by refreshing the list.
+// check` reported when phase 1 armed the coverage arithmetic, plus /legal/,
+// /project/ai-development/ and /guides/docker/, the pages added to the site
+// since, which bring it to 715. A page added later is appended here by name
+// and counted, never by refreshing the list.
 //
 // It MUST stay at that commit. It is the OUTPUT half of a pair whose INPUT half
 // is pinned there too. published-plugin-registry.json and
@@ -198,8 +198,8 @@ func publishedArtifactRoutes(t *testing.T) []string {
 	t.Helper()
 	content := readTestdata(t, "published-routes.txt")
 	routes := strings.Split(strings.TrimSpace(content), "\n")
-	if len(routes) != 714 {
-		t.Fatalf("the published route fixture holds %d routes, want the 712 at 2fa8fa2ad plus /legal/ and /project/ai-development/", len(routes))
+	if len(routes) != 715 {
+		t.Fatalf("the published route fixture holds %d routes, want the 712 at 2fa8fa2ad plus /legal/, /project/ai-development/ and /guides/docker/", len(routes))
 	}
 	return routes
 }

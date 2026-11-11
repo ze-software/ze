@@ -522,7 +522,18 @@ declarations. The rules are in `docs/contributing/feature-maturity.md`, "The
 published surfaces".
 <!-- source: internal/le/site/datapages.go -- loadFeatureData -->
 
-Card colours identify subjects across the website. Use the existing categories
+The Milestones page groups `website/data/milestones.json` into one card per
+month, newest first. Landmark titles form the short key points; long blurbs
+remain in the source data. Each card's footer links every report whose
+`covers:` starts in that month, read from `website/changes/posts/`. A report
+that spans months appears only under its starting month. Report-only months
+state that no new landmark capability was added. HTML and Markdown use the
+same monthly groups. Category filters hide individual key points and empty
+month cards; resetting the filter restores report-only months too.
+<!-- source: internal/le/site/datapages.go -- groupMilestones, milestoneMonthHTML, milestonesMirror -->
+<!-- source: website/assets/js/site.js -- initCategoryFilter, initTimelineFilters -->
+
+Card colors identify subjects across the website. Use the existing categories
 `operate`, `routing`, `services`, `automate`, `observe`, `secure`, and `platform`;
 use `meta` for mixed subjects, general editorial or project work. The
 [style guide](../../website/style-guide/index.html#sg-category) defines the

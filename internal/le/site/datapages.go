@@ -1,4 +1,4 @@
-// Design: website/AI.md -- three pages whose whole content is one committed data file
+// Design: website/AI.md -- data pages and the monthly milestone overview
 // Detail: shell.go wraps each body; dependencies.go is the fourth data page and reads go.mod too.
 package site
 
@@ -552,143 +552,116 @@ type milestone struct {
 	Blurb    string `json:"blurb"`
 }
 
-// milestoneQuarter is one run of milestones that share a quarter, in the order
-// the sorted list produced them.
-type milestoneQuarter struct {
-	Label string
-	Items []milestone
+// milestoneMonth holds one month's key points and update reports. Date is the
+// calendar month in YYYY-MM form, which sorts in chronological order.
+type milestoneMonth struct {
+	Date    string
+	Label   string
+	Items   []milestone
+	Reports []changeWeek
 }
 
-// groupMilestones sorts newest first and then splits the sorted list into runs
-// of one quarter each.
-//
-// The grouping is run-length over the SORTED list rather than a lookup keyed by
-// quarter, which is what makes a quarter appear once: two milestones of one
-// quarter are always adjacent after the sort. The sort is stable, so two
-// milestones sharing a date stay in the file's own order.
-func groupMilestones(milestones []milestone) ([]milestoneQuarter, error) {
-	for _, item := range milestones {
-		if _, err := time.Parse(dataDateLayout, item.Date); err != nil {
+// groupMilestones groups key points and reports by their starting month, newest
+// first. Equal milestone dates keep the source order. A report spanning two
+// months belongs only to the month it started in.
+func groupMilestones(milestones []milestone, reports []changeWeek) ([]milestoneMonth, error) {
+	months := make(map[string]*milestoneMonth)
+	monthFor := func(date string) (*milestoneMonth, error) {
+		parsed, err := time.Parse(dataDateLayout, date)
+		if err != nil {
+			return nil, fmt.Errorf("date %q: %w", date, err)
+		}
+		key := parsed.Format("2006-01")
+		month, found := months[key]
+		if !found {
+			month = &milestoneMonth{Date: key, Label: parsed.Format("January 2006")}
+			months[key] = month
+		}
+		return month, nil
+	}
+	sorted := append([]milestone{}, milestones...)
+	sort.SliceStable(sorted, func(left, right int) bool {
+		return sorted[left].Date > sorted[right].Date
+	})
+	for _, item := range sorted {
+		month, err := monthFor(item.Date)
+		if err != nil {
 			return nil, fmt.Errorf("data/%s: milestone %q states date %q: %w",
 				milestonesDataFile, item.Title, item.Date, err)
 		}
 		if err := validateSubjectCategory(item.Category); err != nil {
 			return nil, fmt.Errorf("data/%s: milestone %q: %w", milestonesDataFile, item.Title, err)
 		}
+		month.Items = append(month.Items, item)
 	}
-
-	sorted := append([]milestone{}, milestones...)
-	sort.SliceStable(sorted, func(left, right int) bool {
-		return sorted[left].Date > sorted[right].Date
-	})
-
-	var quarters []milestoneQuarter
-	previous := ""
-	for _, item := range sorted {
-		label, err := quarterLabel(item.Date)
+	seen := make(map[string]bool, len(reports))
+	for _, report := range reports {
+		if seen[report.Slug] {
+			continue
+		}
+		month, err := monthFor(report.CoverageStart)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("update report %q: %w", report.Slug, err)
 		}
-		if label != previous {
-			quarters = append(quarters, milestoneQuarter{Label: label})
-			previous = label
-		}
-		last := len(quarters) - 1
-		quarters[last].Items = append(quarters[last].Items, item)
+		seen[report.Slug] = true
+		month.Reports = append(month.Reports, report)
 	}
-	return quarters, nil
+	ordered := make([]milestoneMonth, 0, len(months))
+	for _, month := range months {
+		ordered = append(ordered, *month)
+	}
+	sort.SliceStable(ordered, func(left, right int) bool {
+		return ordered[left].Date > ordered[right].Date
+	})
+	return ordered, nil
 }
 
-// quarterLabel answers the heading one date sits under: "2026-04-13" is
-// "Q2 2026".
-func quarterLabel(date string) (string, error) {
-	parsed, err := time.Parse(dataDateLayout, date)
+// milestoneReportLabel keeps footer links short; the full coverage range is
+// carried by the link's accessible label and title.
+func milestoneReportLabel(report changeWeek) (string, error) {
+	parsed, err := time.Parse(dataDateLayout, report.CoverageStart)
 	if err != nil {
-		return "", fmt.Errorf("date %q: %w", date, err)
+		return "", fmt.Errorf("update report %q: %w", report.Slug, err)
 	}
-	quarter := (int(parsed.Month())-1)/3 + 1
-	return "Q" + strconv.Itoa(quarter) + " " + strconv.Itoa(parsed.Year()), nil
-}
-
-// monthLabel answers the date on the spine beside one milestone: "Jul 2026".
-func monthLabel(date string) (string, error) {
-	parsed, err := time.Parse(dataDateLayout, date)
-	if err != nil {
-		return "", fmt.Errorf("date %q: %w", date, err)
-	}
-	return parsed.Format("Jan 2006"), nil
+	return parsed.Format("2 Jan"), nil
 }
 
 // milestonesStyle is the timeline's own stylesheet. It is the one page whose
 // layout no shared rule covers, so the rules travel with the page that needs
 // them rather than growing site.css for a single reader.
 const milestonesStyle = `        <style>
-            .tl-quarter { margin: 0 0 0.5rem; }
-            .tl-quarter-head {
-                font-size: 0.82rem;
-                font-weight: 700;
-                letter-spacing: 0.12em;
-                text-transform: uppercase;
-                color: var(--muted);
-                margin: 2.2rem 0 0.9rem;
-                padding-left: 1.75rem;
+            .tl-timeline { display: grid; gap: 1.2rem; }
+            .tl-card {
+                padding: 1.2rem 1.4rem;
+                background: var(--bg-soft);
+                border: 1px solid var(--line);
+                border-radius: 12px;
             }
-            .tl-list {
+            .tl-month-title { margin: 0 0 1rem; font-size: 1.2rem; }
+            .tl-section-title {
+                margin: 0 0 0.5rem;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                color: var(--muted);
+            }
+            .tl-points {
                 list-style: none;
                 margin: 0;
-                padding: 0 0 0 1.75rem;
-                position: relative;
-            }
-            /* The spine: one continuous line down the left of each quarter. */
-            .tl-list::before {
-                content: "";
-                position: absolute;
-                left: 6px;
-                top: 6px;
-                bottom: 6px;
-                width: 2px;
-                background: var(--line-strong);
-                border-radius: 2px;
+                padding: 0;
+                display: grid;
+                gap: 0.5rem;
             }
             .tl-item {
-                position: relative;
-                padding: 0 0 1.4rem 0;
-            }
-            .tl-item.filtered-out { display: none; }
-            .tl-node {
-                position: absolute;
-                left: -1.75rem;
-                top: 0.35rem;
-                width: 14px;
-                height: 14px;
-                border-radius: 50%;
-                background: var(--acc, var(--muted));
-                border: 3px solid var(--bg);
-                box-shadow: 0 0 0 2px var(--acc, var(--muted));
-            }
-            .tl-date {
-                font-size: 0.78rem;
-                font-weight: 700;
-                letter-spacing: 0.04em;
-                color: var(--acc-deep, var(--muted));
-                text-transform: uppercase;
-            }
-            .tl-card {
-                margin-top: 0.25rem;
-                padding: 0.9rem 1.1rem;
-                background: var(--acc-tint, var(--bg-soft));
-                border: 1px solid var(--line);
-                border-left: 3px solid var(--acc, var(--line-strong));
-                border-radius: 10px;
-            }
-            .tl-head {
                 display: flex;
                 flex-wrap: wrap;
                 align-items: baseline;
-                gap: 0.6rem;
-                margin-bottom: 0.35rem;
+                gap: 0.3rem 0.75rem;
+                border-left: 3px solid var(--acc, var(--line-strong));
+                padding-left: 0.75rem;
             }
-            .tl-title { margin: 0; font-size: 1.06rem; }
+            .tl-item.filtered-out { display: none; }
+            .tl-title { font-weight: 600; }
             .tl-cat {
                 font-size: 0.68rem;
                 font-weight: 700;
@@ -696,17 +669,25 @@ const milestonesStyle = `        <style>
                 text-transform: uppercase;
                 color: var(--acc-deep, var(--muted));
             }
-            .tl-card p { margin: 0 0 0.5rem; color: var(--text); }
+            .tl-no-landmark { margin: 0; color: var(--muted); }
+            .tl-reports {
+                margin-top: 1rem;
+                padding-top: 0.8rem;
+                border-top: 1px solid var(--line);
+                display: flex;
+                flex-wrap: wrap;
+                align-items: baseline;
+                gap: 0.5rem 1rem;
+            }
+            .tl-reports-label { font-size: 0.75rem; color: var(--muted); }
             .tl-link {
                 font-size: 0.85rem;
                 font-weight: 600;
                 text-decoration: none;
-                color: var(--acc-deep, var(--muted));
             }
             .tl-link:hover { text-decoration: underline; }
             @media (max-width: 640px) {
-                .tl-quarter-head, .tl-list { padding-left: 1.4rem; }
-                .tl-node { left: -1.4rem; }
+                .tl-card { padding: 1rem; }
             }
         </style>
 `
@@ -720,7 +701,15 @@ func renderMilestones(paths Paths) ([]string, error) {
 	if data.Intro == "" {
 		return nil, fmt.Errorf("data/%s states no intro", milestonesDataFile)
 	}
-	quarters, err := groupMilestones(data.Milestones)
+	vocabulary, err := loadTopicVocabulary(paths.Source)
+	if err != nil {
+		return nil, err
+	}
+	reports, err := loadChangeWeeks(paths.Source, vocabulary)
+	if err != nil {
+		return nil, err
+	}
+	months, err := groupMilestones(data.Milestones, reports)
 	if err != nil {
 		return nil, err
 	}
@@ -729,8 +718,7 @@ func renderMilestones(paths Paths) ([]string, error) {
 		return nil, err
 	}
 
-	description := "The landmark features Ze has shipped, newest first: one node per " +
-		"capability the first time it arrived, on a timeline."
+	description := "Ze's key milestones by month, with links to every update report."
 	shell := pageShell{
 		Title:       "Milestones - Ze",
 		Description: description,
@@ -739,11 +727,11 @@ func renderMilestones(paths Paths) ([]string, error) {
 		ExtraHead:   milestonesStyle,
 		Sidebar:     pageSidebar(milestonesRoot, milestonesDest, links),
 	}
-	body, err := milestonesBody(data, quarters)
+	body, err := milestonesBody(data, months)
 	if err != nil {
 		return nil, err
 	}
-	mirror, err := milestonesMirror(data, quarters)
+	mirror, err := milestonesMirror(data, months)
 	if err != nil {
 		return nil, err
 	}
@@ -754,8 +742,8 @@ func renderMilestones(paths Paths) ([]string, error) {
 }
 
 // milestonesBody renders the page under <main>: the hero and its filter legend,
-// then one block for each quarter, newest first.
-func milestonesBody(data milestoneData, quarters []milestoneQuarter) (string, error) {
+// then one card per month, newest first.
+func milestonesBody(data milestoneData, months []milestoneMonth) (string, error) {
 	var body textbuf.Buffer
 	body.Str("            <section aria-labelledby=\"milestones-title\">\n")
 	body.Str("                <div class=\"section-head journey-hero reveal\">\n")
@@ -765,10 +753,9 @@ func milestonesBody(data milestoneData, quarters []milestoneQuarter) (string, er
 		Str(html.EscapeString(data.Intro)).Str("</p>\n")
 	body.Str("                </div>\n")
 	body.Str("                <div class=\"section-note reveal\">\n")
-	body.Str("                    <p>Each node&#39;s color is its category. This is the coarse ").
-		Str("view: the <a href=\"../changes/\">Changes</a> log has every week, and ").
-		Str("<a href=\"../../features/\">Features</a> lists what ships today. Click a category to ").
-		Str("filter, click again to show everything.</p>\n")
+	body.Str("                    <p>Browse the key points, then follow each month&#39;s reports for the details. ").
+		Str("<a href=\"../../features/\">Features</a> lists what ships today. ").
+		Str("Select a category to filter the key points; select it again to show every month.</p>\n")
 	body.Str("                </div>\n")
 	body.Str("                <div class=\"legend reveal\" role=\"group\" aria-label=\"Filter milestones by category\">\n")
 	for _, category := range legendCategories {
@@ -778,78 +765,81 @@ func milestonesBody(data milestoneData, quarters []milestoneQuarter) (string, er
 	body.Str("                </div>\n")
 	body.Str("            </section>\n\n")
 
-	body.Str("            <section class=\"reveal\" aria-label=\"Milestone timeline\">\n")
-	for _, quarter := range quarters {
-		body.Str("                <div class=\"tl-quarter\" data-quarter>\n")
-		body.Str("                    <h2 class=\"tl-quarter-head\">").Str(html.EscapeString(quarter.Label)).
-			Str("</h2>\n")
-		body.Str("                    <ol class=\"tl-list\">\n")
-		for _, item := range quarter.Items {
-			node, err := milestoneItemHTML(item)
-			if err != nil {
-				return "", err
-			}
-			body.Str(node)
+	body.Str("            <section class=\"tl-timeline reveal\" aria-label=\"Milestone timeline\">\n")
+	for _, month := range months {
+		card, err := milestoneMonthHTML(month)
+		if err != nil {
+			return "", err
 		}
-		body.Str("                    </ol>\n")
-		body.Str("                </div>\n")
+		body.Str(card)
 	}
 	body.Str("            </section>\n")
 	return body.String(), nil
 }
 
-// milestoneItemHTML renders one node of the spine.
-func milestoneItemHTML(item milestone) (string, error) {
-	month, err := monthLabel(item.Date)
-	if err != nil {
-		return "", err
-	}
+// milestoneMonthHTML renders the month's concise overview and report footer.
+func milestoneMonthHTML(month milestoneMonth) (string, error) {
 	var out textbuf.Buffer
-	category := html.EscapeString(item.Category)
-	out.Str("                    <li class=\"tl-item cat-").Str(category).Str("\" data-cat=\"").Str(category).
-		Str("\">\n")
-	out.Str("                        <span class=\"tl-node\" aria-hidden=\"true\"></span>\n")
-	out.Str("                        <div class=\"tl-date\"><time datetime=\"").Str(item.Date).Str("\">").Str(month).
-		Str("</time></div>\n")
-	out.Str("                        <div class=\"tl-card\">\n")
-	out.Str("                            <div class=\"tl-head\">\n")
-	out.Str("                                <h3 class=\"tl-title\">").Str(html.EscapeString(item.Title)).
-		Str("</h3>\n")
-	out.Str("                                <span class=\"tl-cat\">").
-		Str(html.EscapeString(strings.ToLower(categoryLabel(item.Category)))).
-		Str("</span>\n")
-	out.Str("                            </div>\n")
-	out.Str("                            <p>").Str(inlineMarkup(item.Blurb)).Str("</p>\n")
-	if item.Blog != "" {
-		out.Str("                            <a class=\"tl-link\" href=\"../changes/").
-			Str(html.EscapeString(item.Blog)).Str("/\">Read the week &rarr;</a>\n")
+	out.Str("                <article class=\"tl-card tl-month\" data-month=\"").Str(month.Date).
+		Str("\" aria-labelledby=\"month-").Str(month.Date).Str("\">\n")
+	out.Str("                    <h2 class=\"tl-month-title\" id=\"month-").Str(month.Date).
+		Str("\"><time datetime=\"").Str(month.Date).Str("\">").Str(month.Label).Str("</time></h2>\n")
+	out.Str("                    <h3 class=\"tl-section-title\">Key points</h3>\n")
+	if len(month.Items) == 0 {
+		out.Str("                    <p class=\"tl-no-landmark\">No new landmark capability in this month.</p>\n")
 	}
-	out.Str("                        </div>\n")
-	out.Str("                    </li>\n")
-	return out.String(), nil
-}
-
-// milestonesMirror renders the Markdown sibling from the same grouping the page
-// uses, so the two cannot disagree about which quarter a landmark sits in.
-func milestonesMirror(data milestoneData, quarters []milestoneQuarter) (string, error) {
-	var mirror textbuf.Buffer
-	mirror.Str("# Milestones\n\n")
-	mirror.Str(data.Intro).Str("\n\n")
-	for _, quarter := range quarters {
-		mirror.Str("## ").Str(quarter.Label).Str("\n\n")
-		for _, item := range quarter.Items {
-			month, err := monthLabel(item.Date)
+	if len(month.Items) > 0 {
+		out.Str("                    <ul class=\"tl-points\">\n")
+		for _, item := range month.Items {
+			category := html.EscapeString(item.Category)
+			out.Str("                        <li class=\"tl-item cat-").Str(category).
+				Str("\" data-cat=\"").Str(category).Str("\"><span class=\"tl-title\">").
+				Str(html.EscapeString(item.Title)).Str("</span><span class=\"tl-cat\">").
+				Str(html.EscapeString(strings.ToLower(categoryLabel(item.Category)))).Str("</span></li>\n")
+		}
+		out.Str("                    </ul>\n")
+	}
+	if len(month.Reports) > 0 {
+		out.Str("                    <footer class=\"tl-reports\"><span class=\"tl-reports-label\">Update reports</span>\n")
+		for _, report := range month.Reports {
+			label, err := milestoneReportLabel(report)
 			if err != nil {
 				return "", err
 			}
-			mirror.Str("### ").Str(item.Title).Str(" (").Str(month).Str(")\n\n")
-			mirror.Byte('*').Str(strings.ToLower(categoryLabel(item.Category))).Str("*\n\n")
-			mirror.Str(item.Blurb).Byte('\n')
-			if item.Blog != "" {
-				mirror.Str("\n[Read the week](../changes/").Str(item.Blog).Str("/)\n")
-			}
-			mirror.Byte('\n')
+			out.Str("                        <a class=\"tl-link\" href=\"../changes/").Str(html.EscapeString(report.Slug)).
+				Str("/\" title=\"").Str(html.EscapeString(report.label())).Str("\" aria-label=\"Update report ").
+				Str(html.EscapeString(report.label())).Str("\">").Str(label).Str("</a>\n")
 		}
+		out.Str("                    </footer>\n")
+	}
+	out.Str("                </article>\n")
+	return out.String(), nil
+}
+
+// milestonesMirror uses the same monthly groups and concise key points as HTML.
+func milestonesMirror(data milestoneData, months []milestoneMonth) (string, error) {
+	var mirror textbuf.Buffer
+	mirror.Str("# Milestones\n\n")
+	mirror.Str(data.Intro).Str("\n\n")
+	for _, month := range months {
+		mirror.Str("## ").Str(month.Label).Str("\n\n### Key points\n\n")
+		if len(month.Items) == 0 {
+			mirror.Str("No new landmark capability in this month.\n")
+		}
+		for _, item := range month.Items {
+			mirror.Str("- ").Str(item.Title).Str(" (").Str(strings.ToLower(categoryLabel(item.Category))).Str(")\n")
+		}
+		if len(month.Reports) > 0 {
+			mirror.Str("\n### Update reports\n\n")
+			for _, report := range month.Reports {
+				label, err := milestoneReportLabel(report)
+				if err != nil {
+					return "", err
+				}
+				mirror.Str("- [").Str(label).Str("](../changes/").Str(report.Slug).Str("/)\n")
+			}
+		}
+		mirror.Byte('\n')
 	}
 	return strings.TrimSpace(mirror.String()) + "\n", nil
 }

@@ -30,7 +30,23 @@ func dataPagePaths(t *testing.T, fixtures map[string]string) Paths {
 	}
 	copyFixture(t, filepath.Join(root, "website", "data", "page-links.json"),
 		filepath.Join(source, "data", "page-links.json"))
-	return Paths{Repository: root, Source: source, Output: t.TempDir()}
+	paths := Paths{Repository: root, Source: source, Output: t.TempDir()}
+	if _, found := fixtures[milestonesDataFile]; found {
+		copyFixture(t, filepath.Join(root, "website", topicsVocabularyFile),
+			filepath.Join(source, topicsVocabularyFile))
+		var data milestoneData
+		if err := readSourceJSON(source, milestonesDataFile, &data); err != nil {
+			t.Fatal(err)
+		}
+		for _, item := range data.Milestones {
+			if item.Blog == "" {
+				continue
+			}
+			writeArtifactFile(t, source, changesSourceDirectory+"/"+item.Blog+markdownExtension,
+				"---\ncovers: "+item.Blog+"\ntags: BGP\n---\n**Update**\nIntro.\n\n**Routing**\nDetails.\n")
+		}
+	}
+	return paths
 }
 
 // featuresPaths lays out the source the features page reads.
@@ -434,12 +450,12 @@ func TestFeaturesWithNoShippedSectionAreRefused(t *testing.T) {
 	}
 }
 
-// VALIDATES: the timeline sorts newest first and groups a quarter's milestones
-// into one run, so a quarter heading appears once.
+// VALIDATES: the timeline sorts newest first and groups all of a month's
+// milestones in one card.
 //
-// The method reads the rendered page: the dates on the spine must never rise,
-// and each quarter heading must be unique.
-func TestTheTimelineSortsNewestFirstAndGroupsByQuarter(t *testing.T) {
+// The method reads the rendered page: month dates must never rise, each month
+// appears once, and every fixture landmark remains present.
+func TestTheTimelineSortsNewestFirstAndGroupsByMonth(t *testing.T) {
 	paths := milestonesPaths(t)
 
 	if _, err := renderMilestones(paths); err != nil {
@@ -447,29 +463,32 @@ func TestTheTimelineSortsNewestFirstAndGroupsByQuarter(t *testing.T) {
 	}
 	page := readArtifact(t, paths.Output, milestonesDest)
 
-	dates := betweenAll(page, `<time datetime="`, `"`)
-	if len(dates) != 26 {
-		t.Fatalf("the page carries %d milestones, want the published 26", len(dates))
+	dates := betweenAll(page, `data-month="`, `"`)
+	var data milestoneData
+	if err := readSourceJSON(paths.Source, milestonesDataFile, &data); err != nil {
+		t.Fatal(err)
+	}
+	wantMonths := make(map[string]bool)
+	for _, item := range data.Milestones {
+		wantMonths[item.Date[:7]] = true
+	}
+	if len(dates) != len(wantMonths) {
+		t.Fatalf("the page carries %d monthly cards, want %d", len(dates), len(wantMonths))
+	}
+	seen := make(map[string]bool)
+	for _, date := range dates {
+		if seen[date] || !wantMonths[date] {
+			t.Errorf("monthly card %q is duplicated or unexpected", date)
+		}
+		seen[date] = true
 	}
 	for index := 1; index < len(dates); index++ {
 		if dates[index] > dates[index-1] {
-			t.Errorf("milestone %d is dated %s, above the older %s", index, dates[index], dates[index-1])
+			t.Errorf("month %d is dated %s, above the older %s", index, dates[index], dates[index-1])
 		}
 	}
-
-	quarters := betweenAll(page, `<h2 class="tl-quarter-head">`, `</h2>`)
-	seen := make(map[string]bool, len(quarters))
-	for _, quarter := range quarters {
-		if seen[quarter] {
-			t.Errorf("%s heads two blocks, so its milestones are not one run", quarter)
-		}
-		seen[quarter] = true
-	}
-	if len(quarters) != 4 {
-		t.Fatalf("the page carries %d quarters, want the published 4", len(quarters))
-	}
-	if quarters[0] != "Q3 2026" || quarters[len(quarters)-1] != "Q4 2025" {
-		t.Errorf("the quarters run %v, want newest first", quarters)
+	if points := strings.Count(page, `class="tl-title"`); points != len(data.Milestones) {
+		t.Errorf("the cards carry %d key points, want all %d landmarks", points, len(data.Milestones))
 	}
 }
 
@@ -487,7 +506,7 @@ func TestTwoMilestonesOnOneDateKeepTheFilesOrder(t *testing.T) {
 	}
 	page := readArtifact(t, paths.Output, milestonesDest)
 
-	titles := betweenAll(page, `<h3 class="tl-title">`, `</h3>`)
+	titles := betweenAll(page, `<span class="tl-title">`, `</span>`)
 	want := []string{"First of March", "Second of March", "Older"}
 	if len(titles) != len(want) {
 		t.Fatalf("the page lists %v, want %v", titles, want)
@@ -499,9 +518,84 @@ func TestTwoMilestonesOnOneDateKeepTheFilesOrder(t *testing.T) {
 	}
 }
 
-// VALIDATES: the timeline reads as the published page and its mirror is the
-// published mirror byte for byte.
-func TestTheTimelineReadsAsThePublishedPage(t *testing.T) {
+// VALIDATES: each month has one concise card and its footer links every report,
+// including a report with no landmark and a report spanning the next month.
+func TestMonthlyMilestonesCombineKeyPointsAndAllReports(t *testing.T) {
+	paths := milestonesPaths(t)
+	writeSourceData(t, paths, milestonesDataFile, `{"intro":"Intro.","milestones":[
+		{"date":"2026-05-04","title":"First capability","category":"routing","blog":"2026-05-04","blurb":"Long explanation that belongs in the report."},
+		{"date":"2026-05-04","title":"Second capability","category":"operate","blog":"2026-05-04","blurb":"Another long explanation."}]}`)
+	for name, covers := range map[string]string{
+		"2026-05-04.md": "2026-05-04 .. 2026-05-10",
+		"2026-05-11.md": "2026-05-11 .. 2026-05-17",
+		"2026-05-25.md": "2026-05-25 .. 2026-06-14",
+		"2026-06-01.md": "2026-06-01 .. 2026-06-07",
+		"same-start.md": "2026-05-04 .. 2026-05-10",
+	} {
+		writeArtifactFile(t, paths.Source, changesSourceDirectory+"/"+name,
+			"---\ncovers: "+covers+"\ntags: BGP\n---\n**Update**\nIntro.\n\n**Routing**\nDetails.\n")
+	}
+	if _, err := renderMilestones(paths); err != nil {
+		t.Fatal(err)
+	}
+	page := readArtifact(t, paths.Output, milestonesDest)
+	if count := strings.Count(page, `data-month="2026-05"`); count != 1 {
+		t.Fatalf("May has %d cards, want one", count)
+	}
+	start := strings.Index(page, `data-month="2026-05"`)
+	end := strings.Index(page[start:], "</article>")
+	if end < 0 {
+		t.Fatal("May has no complete monthly article")
+	}
+	card := page[start : start+end]
+	footer := strings.Index(card, `<footer class="tl-reports">`)
+	if footer < 0 {
+		t.Fatal("May has no report footer")
+	}
+	for _, title := range []string{"First capability", "Second capability"} {
+		if at := strings.Index(card, title); at < 0 || at >= footer {
+			t.Errorf("key point %q is missing above the footer", title)
+		}
+	}
+	for _, slug := range []string{"2026-05-04", "2026-05-11", "2026-05-25"} {
+		link := `href="../changes/` + slug + `/"`
+		if count := strings.Count(card[footer:], link); count != 1 {
+			t.Errorf("May footer carries %d links to %s, want one", count, slug)
+		}
+	}
+	if strings.Contains(card, "2026-06-01/") {
+		t.Error("a June report appears in May")
+	}
+	if !strings.Contains(page, `data-month="2026-06"`) {
+		t.Error("the month with reports but no new landmark has no card")
+	}
+	mirror := readArtifact(t, paths.Output, "project/milestones/"+pageMirrorFile)
+	for _, text := range []string{"First capability", "Second capability", "../changes/2026-05-11/", "../changes/2026-05-25/", "No new landmark capability"} {
+		if !strings.Contains(mirror, text) {
+			t.Errorf("the Markdown mirror is missing %q", text)
+		}
+	}
+	for _, text := range []string{"Long explanation that belongs in the report.", "Another long explanation."} {
+		if strings.Contains(page, text) || strings.Contains(mirror, text) {
+			t.Errorf("the monthly overview carries long report prose %q", text)
+		}
+	}
+}
+
+// VALIDATES: a report the monthly footer cannot parse stops publication and
+// names its source, instead of publishing an incomplete report list.
+func TestMonthlyMilestonesRefuseAnInvalidReport(t *testing.T) {
+	paths := milestonesPaths(t)
+	writeArtifactFile(t, paths.Source, changesSourceDirectory+"/invalid.md",
+		"---\ncovers: invalid\ntags: BGP\n---\n**Update**\nIntro.\n\n**Routing**\nDetails.\n")
+	if _, err := renderMilestones(paths); err == nil || !strings.Contains(err.Error(), "invalid.md") {
+		t.Fatalf("invalid report publication answers %v, want refusal naming invalid.md", err)
+	}
+}
+
+// VALIDATES: the monthly timeline retains page chrome and every landmark's
+// title and category in HTML and Markdown, with full prose left in its reports.
+func TestTheTimelineRetainsLandmarksAndPageChrome(t *testing.T) {
 	paths := milestonesPaths(t)
 
 	routes, err := renderMilestones(paths)
@@ -520,8 +614,8 @@ func TestTheTimelineReadsAsThePublishedPage(t *testing.T) {
 		`<main id="top" class="has-page-sidebar" tabindex="-1">`,
 		`<section aria-labelledby="milestones-title">`,
 		`<h1 id="milestones-title">The road so far.</h1>`,
-		`<section class="reveal" aria-label="Milestone timeline">`,
-		".tl-quarter-head {",
+		`<section class="tl-timeline reveal" aria-label="Milestone timeline">`,
+		".tl-month-title {",
 		`<aside class="page-sidebar" aria-label="Related page links">`,
 		"<footer>",
 	} {
@@ -530,21 +624,32 @@ func TestTheTimelineReadsAsThePublishedPage(t *testing.T) {
 		}
 	}
 
-	got := visibleText(mainContent(t, page))
-	// The category label changed; the historical fixture and all other text stay intact.
-	wantBody := strings.ReplaceAll(readFixture(t, "published-milestones-body.html"),
-		">Platform<", ">Setup<")
-	wantBody = strings.ReplaceAll(wantBody, `class="tl-cat">platform<`, `class="tl-cat">setup<`)
-	want := visibleText(wantBody)
-	if got != want {
-		t.Errorf("the timeline reads as\n  %q\nthe published page reads as\n  %q", got, want)
+	var data milestoneData
+	if err := readSourceJSON(paths.Source, milestonesDataFile, &data); err != nil {
+		t.Fatal(err)
 	}
-
 	mirror := readArtifact(t, paths.Output, "project/milestones/"+pageMirrorFile)
-	wantMirror := strings.ReplaceAll(readFixture(t, "published-milestones.md"), "\n*platform*\n", "\n*setup*\n")
-	if mirror != wantMirror {
-		t.Errorf("the mirror is\n%q\nthe published mirror is\n%q",
-			mirror, wantMirror)
+	if !strings.Contains(visibleText(mainContent(t, page)), data.Intro) || !strings.Contains(mirror, data.Intro) {
+		t.Error("the timeline drops its source introduction")
+	}
+	for _, item := range data.Milestones {
+		point := `<li class="tl-item cat-` + item.Category + `" data-cat="` + item.Category + `"><span class="tl-title">` + item.Title + `</span>`
+		if !strings.Contains(page, point) {
+			t.Errorf("the HTML drops the title or category of %q", item.Title)
+		}
+		want := "- " + item.Title + " (" + strings.ToLower(categoryLabel(item.Category)) + ")"
+		if !strings.Contains(mirror, want) {
+			t.Errorf("the Markdown drops %q", want)
+		}
+		if strings.Contains(page, item.Blurb) || strings.Contains(mirror, item.Blurb) {
+			t.Errorf("the key-point overview repeats the long blurb for %q", item.Title)
+		}
+		if item.Blog != "" {
+			link := "../changes/" + item.Blog + "/"
+			if !strings.Contains(page, link) || !strings.Contains(mirror, link) {
+				t.Errorf("the timeline drops the report for %q", item.Title)
+			}
+		}
 	}
 }
 
