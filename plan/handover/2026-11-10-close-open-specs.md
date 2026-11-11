@@ -1,6 +1,6 @@
 # Handover: closing near-done specs (2026-11-10)
 
-**Current status (2026-11-11):** nine specs closed; refusal verification is active;
+**Current status (2026-11-11):** nine specs closed; refusal is blocked on scoped lint;
 lint-tooling and route-policy remain claimed. Access's old claim marker is gone,
 but another session's uncommitted acceptance preparation is preserved.
 Route-policy still owes matched Mac measurements. Reload's claim is released.
@@ -10,14 +10,33 @@ owner asked that locked or blocked specs not stop progress on the others.
 
 ## Active refusal evidence continuation, 2026-11-11
 
-### Active checkpoint after the runtime admission repair
+### Blocked handback after source-CLEAN round 2
 
-Refusal remains open and claimed by
-`01a1c842-0a58-7752-bbff-2a3f1633b66f`. No further spec has closed, no CLEAN
-closure artifact exists, and no push or `./le verify` ran. Every test, build,
+Refusal remains open, with blocked handback prepared for claim release by
+`01a1c842-0a58-7752-bbff-2a3f1633b66f`. No further spec has closed. The native
+round-2 CLEAN review artifact is recorded and its check passes. Fresh prechecks
+have zero owned findings; broader lint remains blocked. No push or `./le verify` ran. Every test, build,
 lint and proof runs in main. Short log names below are under
 `tmp/session/2026-11-11-014000/scratch/`. This checkpoint supersedes the older
 repair queues retained below.
+
+Official Review Gate round 2 is SOURCE CLEAN: zero BLOCKER and zero ISSUE.
+The original round-1 context plus all 32 own commits are covered, including
+original `238bdb62e9` despite its missing Spec-work trailer. The source reports
+are `refusal-closure-round2.md` and `.json`; the full patch
+`refusal-round2-complete-review.patch` is pinned by SHA256
+`71c178166bb8830851b60ae2da59b9461e4bbe4991213fec02d4f02fb4f7368f`.
+Its population has 846 listed paths, 845 existing paths and 569 existing Go
+files. Current source/path hashes are in the JSON report. Main subsequently
+recorded the native artifact at
+`tmp/review/refuse-instead-of-defaulting-01a1c842-0a58-7752-bbff-2a3f1633b66f.md`;
+its check passes all 591 code files, including both promoted canonical
+fixtures. These prose corrections add no third source pass. The first native
+findings record needed full canonical source paths; that administrative
+correction stayed within round 2 and changed no product source.
+`cc190d045b` retains the preceding runtime checkpoint. The two newly promoted
+canonical runtime fixtures retain the exact reviewed draft contents and also
+belong in the final native review artifact.
 
 The BMP stored-path and missing-next-hop repair is committed in `4a991e513e`.
 All 268 BMP race roots pass in `job-refusal-bmp-stored-green-dc666453.log`.
@@ -35,12 +54,12 @@ all 273 roots under race with zero skips.
 NTP CLI wiring is committed in `e62bc0e2a1`. The actual external entry then
 reproduced the wrong `enabled=false` answer in
 `job-refusal-ntp-wired-baseline-a319bf40.log`. The worker-state and query
-transport repair is applied, and all 383 roots across four packages pass
-under race with zero skips in `job-refusal-ntp-boundary-race-9f5c7d40.log`.
+transport repair is committed in `2ea5329344`, and all 383 roots across four
+packages pass under race with zero skips in `job-refusal-ntp-boundary-race-9f5c7d40.log`.
 Independent bounded review is CLEAN. Commit preparation nevertheless refused
 the final-save warning without a doctor code and three SDK error returns
 without `opererr` recovery. The reviewed recovery and cleanup correction is
-now applied: callback recovery failures were observed in
+included in that commit: callback recovery failures were observed in
 `job-refusal-ntp-runtime-recovery-red-b32a7ded.log`, and an actual configured
 worker leak was observed in `job-refusal-ntp-startup-cleanup-red-82f32703.log`.
 All three focused roots then pass under race in
@@ -49,12 +68,14 @@ passes all 71 roots under race with zero skips in 3.763 seconds, recorded in
 `job-refusal-ntp-final-package-and-live-71bfbb66.log`. The same run's actual
 external `system-date-ntp-forked` test passes in 1.1 seconds. The NTP state,
 recovery and lifecycle repair is committed in `2ea5329344`.
+That combined job later failed on the old external BMP fixture expectation;
+the retained NTP PASS does not establish a combined all-green run.
 
 An earlier live attempt in
 `job-refusal-runtime-live-after-fib-doctor-9bdfbf35.log` failed first-party
-compilation on `internal/le/hookruntime/bash.go:695`, where
-`withoutReaderData` was undefined. That helper is now present and main's retry
-is in progress. This attempt reached no behavioral assertions. The earlier
+compilation on `internal/le/hookruntime/bash.go`, where
+`withoutReaderData` was undefined. That helper is now present. This attempt
+reached no behavioral assertions. The earlier
 FIB/VPP `codeStaleLabel` failure in `job-refusal-ntp-external-green-8a4d103a.log`
 also remains attempted-run history. Later current-source builds and the NTP
 live pass supersede those blockers. Preserve the other sessions' source and
@@ -70,43 +91,107 @@ assertions inspect the daemon stream, then successful SSH dispatch checks the
 process-manager list and the refused BMP process's absence. The actual draft
 passes 1/1 in `job-refusal-bmp-external-after-crash-api-dfbdeee1.log`. Its prior
 attempt failed to build during a foreign `ReportCrash` API change; that
-attempt reached no assertions. Both new drafts still owe 80 loaded iterations,
-promotion and canonical selected runs. Native weakening approval cannot name
-a brand-new ignored draft with no HEAD carrier; retain the independent
-judgment and carry its `Test-judge:` explanation on promotion.
+attempt reached no assertions. The later loaded run completed 80 invocations
+without reproduction in
+`job-refusal-runtime-drafts-stress-after-fixture-fix-d086478f.log`. Exit 1 is
+the stress reproducer's expected “not reproduced” result; the final invocation
+exits zero. Full capture:
+`tmp/stress-repro/plugin-draft-system-date-ntp-forked-bmp-locrib-external-refuses-66fc53f5c9d3446251bd5e7d387b20695a2e97516ec3ef16a3e7d7fc4ba29b12-20261111-210924-3167250360.log`.
+Main promoted both files without content changes to
+`test/plugin/system-date-ntp-forked.ci` (SHA256
+`5b8b621d54c4355dedfcdee089f4c2681b66cd7329a3b9859f24d465f721d901`)
+and `test/plugin/bmp-locrib-external-refuses.ci` (SHA256
+`c779732d3b49c33752003e4f37a0fe92483412bf083030c1c27888bba224f80d`).
+Their selected canonical run passes 2/2 in
+`job-refusal-promoted-runtime-fixtures-027d40a9.log`.
+Native weakening approval cannot name a brand-new ignored draft with no HEAD
+carrier; retain the independent judgment and carry its `Test-judge:` explanation
+when committing the promotion. Unchanged promotion does not need a third source
+review round.
 
 The current owned RFC population is 62 requirement IDs in
-`refusal-rfc-runtime-62-ids.txt`. Exact unit/producer ownership in
-`refusal-runtime-rfc-ownership.json` classifies the fresh 117 findings as 37
-owned and 80 foreign. The withdrawal caller repair also changed two forwarding
-producers, adding six IDs beyond the prior 56. Fifteen existing proof records,
-the first RFC9069-5.3-1 dependency proof, five semantic audits and 17 mechanical
-shifts remain. The first renewal baseline failed to build on foreign IKE
-`checkIPsecPeerMalformedMessage`; `job-refusal-runtime-rfc-record-77170cc5.log`
-contains no valid new record. That helper is now present. The independent BMP
-proof subset and scoped mechanical reseal are queued; no fresh result is
-claimed yet.
+`refusal-rfc-runtime-62-ids.txt`. The earlier 117-finding attribution in
+`refusal-runtime-rfc-ownership.json` assigned 37 owned and 80 foreign findings;
+it triggered the renewals and does not describe the remaining queue.
+`55d4cb0991` commits four BMP native proof pairs, the first RFC9069-5.3-1
+dependency proof, five semantic reviews, 17 mechanical shifts and the renewed
+RFC1997 unit binding. All ten remaining forwarding unit renewals succeed in
+`job-refusal-remaining-forward-unit-proofs-8dea3305.log`, preserving native
+RFC7947 paired/solo semantics. `85854bc757` commits the final seven record
+files, including the functional proof; prior BMP records are in `55d4cb0991`.
+The RFC1997 functional proof is valid in
+`job-refusal-withdrawal-ci-proof-after-fixture-fix-de37abbd.log`: its clean
+baseline passed before the intended negative. All 16 current native record
+tuples are complete and committed. Main regenerated 231 RFC shards; the final
+native check has 73 global findings. Individual source/history audit in
+`refusal-final-rfc-individual-ownership.json` and `.md` assigns all 73 to
+foreign work and zero to this spec. The RFC1997/RFC7947 same-ID interop SHIFT
+rows were individually traced to foreign history; no ID-only scope exemption
+was used. This is zero owned debt, not a claim of a passing global check.
+The failed IKE baseline in
+`job-refusal-runtime-rfc-record-77170cc5.log` wrote no record and is superseded.
 
-The fresh AC-7 report is `job-refusal-runtime-ac7-report-fcb16ac0.log`: 2208
-refused and 72 annotated shapes in 7083 files. The expanded 54-row/124-entry
-join has six raw hits, retained in `refusal-ac7-runtime-comparison.json`.
-Four are explicit NTP operator-error responses that the checker misclassifies;
-new canonical/import-alias/shadow/impostor regressions have observed red in
-`job-refusal-operator-response-red-a1ab3e18.log`. Expanded return-path controls
-are queued, and the independently reviewed precision repair remains
-unapplied until their red is observed. The other two raw hits are sibling BMP
-apply/rollback callbacks conflated by the report's `.func` name; actual new
-preflight consumers are configure/verify, and the final map must resolve
-those exact AST callback anchors. Do not drop an actual producer or claim a
-zero-owned join before this work completes. Scoped lint, docs and whole-scope
-review also remain owed. No additional spec is closed.
+Checker precision is committed in `60125ba1fb`. Its canonical-helper,
+import-alias, shadow and impostor controls retain the exact failure cases;
+only actual typed operator-error responses carry a refusal. The full checker
+race run passes 13 roots with zero skips and reports 88.1% statement coverage.
+The final named AC-7 report is `job-refusal-final-named-report-45a00bc9.log`:
+2207 refused and 72 annotated shapes in 7109 files. Main validated all 54 rows
+and 125 actual producer entries, including AST anchors for the BMP configure
+and verify consumers rather than sibling callbacks. Both report populations
+join to zero owned hits in `refusal-ac7-final-125-comparison.json`. The older
+six-hit 54-row/124-entry comparison is superseded, not scope-exempted.
+
+Narrow checker lint passes HOST and Linux integration with zero issues in
+`job-refusal-checker-scoped-lint-1359b2fb.log`; no Darwin or capability result
+is inferred. Earlier broad attempts refused changing foreign
+`server/register_plugin_restart.go` and another source. The latest 13-package
+attempt refused during planning because `core/sysctl/known.go` changed
+(`job-refusal-final-scoped-lint-stable-inputs-8d7938b4.log`); the next job is
+`refusal-final-lint-after-known-map-settled`. The earlier repeated-
+scope argv grammar failure (`f6f2827c`) ran no lint and is not a code finding.
+Broader scoped lint remains owed. The current documentation check has only one
+foreign completion-catalogue description drift; the other steps validate 447
+commands, and own handler/shape checks and all source anchors pass.
+
+The prior RFC1997 CI/load attempts stopped on a foreign fake in-process fixture
+before their assertions; its owner added the CLI handler at 20:59. The later
+functional proof and loaded run above supersede those attempts. Those foreign
+changes are preserved. A direct BMP interop retry reached zero scenarios when
+Docker info timed out (`job-refusal-bmp-collector-after-repair-632ff3c0.log`);
+the properly Ze-Docker-host-wrapped retry passes
+`bgp-addpath-best-path-pmacct` 1/1 in
+`job-refusal-bmp-collector-ze-docker-host-59be18bd.log`, recording
+`X6KQB2X5XBQFRHNP6ZP5YR44AH`. Main read the actual scenario PASS: check,
+command and lab exits are zero, the Ze QEMU Docker host uses KVM and no
+leftovers remain. No bypass or product failure is claimed for the earlier
+direct Docker timeout. Access's first existing PPP acceptance scenario now
+passes; the remaining five are in one Ze-VM batch, currently building, with
+no results yet.
+
+All refusal behavioral, loaded, canonical and interop proofs are complete,
+as are the native round-2 review/check and zero-owned RFC reconciliation.
+The remaining gate is broader scoped lint: the latest attempt refused after
+host planning when foreign `internal/test/fixture/native_readiness_test.go`
+and another reached input changed, producing no plan. Exact 13-package scope,
+guard producers and retained log are in the spec's Blocker. Resume that action
+once the owners finish their edits; preserve completed proofs and review.
+Fresh repository check has 31 foreign findings, weakened-test check has 21
+foreign MPLS test-move deletions, citations pass (666 specs/65 baselined/15
+foreign warnings), and bounded planned-file `ls` passes. No owned finding
+remains in these checks. Both canonical tests are committed in `074b82aae2`.
+The untracked six-heading news fragment and five citation updates are prepared
+for the eventual closing workflow. Keep the spec blocked until lint passes,
+then finish the two closing commits. Claim release follows this handback
+commit. No additional spec is closed, and no push or verify runs.
 
 Main revalidated ownership at 19:53: lint-tooling retains
 `1b60310f-ee84-4530-a4fa-5c2a0c43bc6f`; route-policy retains
 `367e6465-9216-4cab-a75e-1a935c4374b1` and
 `4aaa7cd7-aa9a-4878-ac2e-b87029a0b428`. Access's old marker is gone, but its
 uncommitted acceptance-table preparation belongs to another session and is
-preserved. Its six existing acceptance runs remain pending.
+preserved. Its first existing PPP acceptance run passes; the remaining five
+results are pending in the running batch.
 
 ## Earlier refusal checkpoint, 18:35 UTC (superseded)
 

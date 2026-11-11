@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped producers answer a default, a zero or a constant where they cannot answer, so operators and peers act on values Ze never measured; several rows are RFC defects in implemented capabilities (RADIUS, LDP, IS-IS, ADD-PATH, LLGR) |
@@ -15,8 +15,46 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Remaining verification
 
-Phase 7 remains open after the first whole-patch independent closure review.
+Phase 7 remains open after two independent source-review rounds. Official
+round 2 is CLEAN (zero BLOCKER, zero ISSUE). Main recorded the native artifact
+`tmp/review/refuse-instead-of-defaulting-01a1c842-0a58-7752-bbff-2a3f1633b66f.md`
+and its check passes for all 591 code files, including both promoted fixtures.
+All behavioral proofs are complete. Fresh repository and weakened-test checks
+have zero owned findings; citations pass and planned files exist. Broader
+scoped lint remains blocked as detailed below; commit B must wait for it.
 The current checkpoint below supersedes earlier pending repair queues.
+
+## Blocker
+
+The remaining gate is the unchanged 13-package scoped lint run. In
+`internal/le/go/lint/verifylint.go`, `Runner.plan` / `checkPlanningInputs`
+reject changes to reached inputs selected by `planInputs.population.reaches`
+in `internal/le/go/lint/planinputs.go`. The latest main-thread attempt refused
+after host planning because foreign `internal/test/fixture/native_readiness_test.go`
+and one other reached input changed. No plan was produced:
+`tmp/session/2026-11-11-014000/scratch/job-refusal-final-lint-after-known-map-settled-8d7938b4.log`.
+Earlier attempts separately encountered foreign plugin-server and sysctl edits;
+none is a lint pass or a finding against this implementation.
+
+Unblock: after the owners finish editing those dependencies, run the native
+`go lint run scope` action once with one space-separated scope value containing
+`./cmd/ze/hub/... ./internal/component/cmd/show/... ./internal/component/plugin/registry/... ./internal/le/arch/refusebydefault/... ./internal/le/rfc/... ./internal/le/interoplab/bgp/... ./internal/component/bgp/reactor/... ./internal/component/bgp/plugins/rib/... ./internal/component/bgp/plugins/bmp/... ./internal/test/fixture/... ./internal/component/config/cli/... ./internal/plugins/iface/netlink/... ./internal/plugins/ntp/...`.
+Run it in main through job admission. Preserve the clean round-2 artifact and
+completed proofs; finish the two closing commits after scoped lint passes.
+
+Fresh main checks: repository check reports 31 foreign findings, all outside
+the complete 846-path review population; weakened-test check reports 21 foreign
+deletions in the concurrent MPLS test move. Citation check passes for 666 specs
+with 65 baselined dangling citations and 15 foreign line-token warnings. The
+retained logs are `job-refusal-final-repo-check-f6785901.log`,
+`job-refusal-final-weakened-check-b6513fa8.log`, and
+`job-refusal-final-scoped-source-checks-5fb20925.log` under this session's scratch.
+Main's bounded `ls` confirms all three checker files, absent-CoS integration,
+the ADD-PATH/NTP fixtures, all three named canonical tests and the FRR scenario
+with both configuration files. The native review check still passes 591 files.
+
+## Completed runtime checkpoint
+
 BMP's stored AS_PATH and missing-next-hop repairs are committed in
 `4a991e513e`; all 268 BMP race roots pass in
 `job-refusal-bmp-stored-green-dc666453.log`.
@@ -34,12 +72,12 @@ under race with zero skips.
 
 NTP CLI wiring is committed in `e62bc0e2a1`. The actual external baseline
 reproduced `enabled=false` in `job-refusal-ntp-wired-baseline-a319bf40.log`.
-The state-owner/query transport repair is applied; all 383 roots across four
-packages pass under race with zero skips in
+The state-owner/query transport repair is committed in `2ea5329344`; all 383
+roots across four packages pass under race with zero skips in
 `job-refusal-ntp-boundary-race-9f5c7d40.log`, and independent bounded review is
 CLEAN. Preparation then refused the final-save warning without a doctor code
 and three SDK error returns without `opererr` recovery. The reviewed recovery
-and cleanup correction is now applied. Main observed the callback failures in
+and cleanup correction is included in that commit. Main observed the callback failures in
 `job-refusal-ntp-runtime-recovery-red-b32a7ded.log` and a real configured
 worker leak in `job-refusal-ntp-startup-cleanup-red-82f32703.log`; all three
 focused roots pass under race in
@@ -52,8 +90,8 @@ and lifetime repair is committed in `2ea5329344`.
 An earlier live attempt in
 `job-refusal-runtime-live-after-fib-doctor-9bdfbf35.log` failed first-party
 compilation on the then undefined `withoutReaderData` at
-`internal/le/hookruntime/bash.go:695`. The helper is now present and main's
-retry is in progress. That attempt reached no behavioral assertions. The
+`internal/le/hookruntime/bash.go`. The helper is now present. That attempt
+reached no behavioral assertions. The
 earlier FIB/VPP failure remains historical attempted-run evidence. Later
 current-source builds and the NTP live pass supersede those build blockers.
 The actual internal BMP collector proof passes 1/1 in
@@ -62,18 +100,35 @@ draft passes 1/1 in `job-refusal-bmp-external-after-crash-api-dfbdeee1.log`:
 the daemon remains reachable, the refused process is absent, and its exact
 cause and recovery remain asserted. Independent test judgment corrected the
 old daemon-exit expectation against the nonfatal plugin policy and placed
-each stream assertion under its producing command. Both new drafts still owe
-80 loaded iterations, promotion and selected canonical runs.
+each stream assertion under its producing command. The subsequent load run
+completed 80 invocations without reproduction in
+`job-refusal-runtime-drafts-stress-after-fixture-fix-d086478f.log`; exit 1 is
+the reproducer's expected “not reproduced” result, and invocation 80 exits zero.
+Full capture is
+`tmp/stress-repro/plugin-draft-system-date-ntp-forked-bmp-locrib-external-refuses-66fc53f5c9d3446251bd5e7d387b20695a2e97516ec3ef16a3e7d7fc4ba29b12-20261111-210924-3167250360.log`.
+Main promoted both fixtures without content changes to
+`test/plugin/system-date-ntp-forked.ci` (SHA256
+`5b8b621d54c4355dedfcdee089f4c2681b66cd7329a3b9859f24d465f721d901`)
+and `test/plugin/bmp-locrib-external-refuses.ci` (SHA256
+`c779732d3b49c33752003e4f37a0fe92483412bf083030c1c27888bba224f80d`).
+Their selected canonical run passes 2/2 in
+`job-refusal-promoted-runtime-fixtures-027d40a9.log`; unchanged promotion adds no
+source-review round. The native review artifact includes both canonical paths.
 
-The latest AC-7 report contains 2208 refused and 72 annotated shapes in 7083
-files. The expanded 54-row/124-entry join has six raw hits: four genuine NTP
-operator-error responses misclassified by the checker, and two unrelated BMP
-sibling callbacks conflated by its `.func` identity. The precision regression
-has observed red in `job-refusal-operator-response-red-a1ab3e18.log`; expanded
-return-path controls are queued before applying the reviewed repair. The
-final callback-aware map must retain both actual configure/verify consumers
-and validate their AST anchors. No renewed zero-owned result is claimed.
-Final scoped checks and whole-scope review remain owed.
+Checker precision is committed in `60125ba1fb`. It recognizes only a direct
+canonical `plugin.OperatorErrorResponse` refusal, including import aliases;
+shadowed imports, impostors and successful responses remain findings. The
+earlier regression red is `job-refusal-operator-response-red-a1ab3e18.log`.
+The full checker race run passes all 13 roots with zero skips and reports
+88.1% statement coverage; this is not a 100% claim.
+
+The final named AC-7 report is
+`job-refusal-final-named-report-45a00bc9.log`: 2207 refused and 72 annotated
+shapes in 7109 files. Main validated all 54 rows and 125 actual producer
+entries, including the exact AST anchors for BMP configure/verify rather than
+their sibling callbacks. Both report populations join to zero owned hits in
+`scratch/refusal-ac7-final-125-comparison.json`. The prior six-hit
+54-row/124-entry comparison is superseded by this result.
 
 Withdrawal error propagation is committed in `2558080335`. Its new source guard
 first failed in `job-refusal-withdrawal-adapter-red-78d9ded2.log`; 32 selected
@@ -83,29 +138,63 @@ source ownership. The fresh native AC-7 report in
 `job-refusal-ac7-clean-report-fcb16ac0.log` lists 2200 refused and 71 annotated
 shapes across 7050 files. Main joined both populations against all 54 census
 rows and 97 producing declarations and found zero owned matches. That is the
-static checkpoint before the BMP/NTP repairs. Main still owes a fresh report
-over the expanded NTP owner/query/worker chain and both report populations.
+static checkpoint before the BMP/NTP repairs. The final 54-row/125-entry
+comparison above supersedes it and covers the expanded owner/query/worker chain.
 
 The checker direct-assignment repair is committed in `06a4a22cbc`; full race
 retry `job-unit-pkg-ef92ffff.log` passes. Package coverage is 86.5%, with eight
 uncovered blocks retained. RFC framework/fixture repair `62f9ff2116` and the
 selected 67-root retry pass are recorded below. The current owned RFC scope
 contains 62 IDs in `scratch/refusal-rfc-runtime-62-ids.txt`. Exact unit/producer
-attribution of the latest 117 findings is 37 owned and 80 foreign; the
+attribution of the earlier 117 findings was 37 owned and 80 foreign; the
 withdrawal caller repair changed forwarding producers beyond the earlier
-56-ID census. Fifteen proof renewals, the first RFC9069-5.3-1 dependency proof,
-five semantic audits and 17 mechanical shifts remain. The first renewal
+56-ID census. `55d4cb0991` commits the four BMP native proof pairs, first
+RFC9069-5.3-1 dependency proof, five semantic audits, 17 mechanical shifts and
+the renewed RFC1997 unit binding. All ten remaining forwarding unit proof
+renewals now succeed in `job-refusal-remaining-forward-unit-proofs-8dea3305.log`.
+`85854bc757` commits the final seven proof-record files, including the
+functional renewal. The first renewal
 baseline failed to build on foreign IKE `checkIPsecPeerMalformedMessage` in
 `job-refusal-runtime-rfc-record-77170cc5.log`; no invalid record was written.
-The helper is now present. Main has queued the independent BMP proof subset
-and exact owned mechanical reseal. No renewed zero-owned result is claimed.
+The helper is now present and later completed runs supersede that failed
+attempt. The RFC1997 functional proof is now valid in
+`job-refusal-withdrawal-ci-proof-after-fixture-fix-de37abbd.log`: its clean
+baseline passed before the intended negative. All 16 current native record
+tuples are complete and committed. Main regenerated 231 RFC shards. Its final
+native check reports 73 global findings; the individual source/history audit in
+`scratch/refusal-final-rfc-individual-ownership.json` and `.md` assigns all 73
+to foreign work, with zero refusal-owned findings. Same-ID RFC1997 and RFC7947
+interop SHIFT rows were individually traced to foreign history; ID matching
+alone did not assign them here. This is zero owned debt, not a global pass.
 
 `7b2c596952` commits the four netlink embedded-literal lint repairs and five race
-controls. Final bounded lint and documentation retries remain owed because the
-last attempts met active foreign build changes. Main's mandatory repo and
-weakened-test prechecks reported only foreign in-progress findings, as classified
-in the Review Gate. The canonical news fragment is written. The spec stays open;
-no CLEAN closure artifact or closing commit is available.
+controls. Narrow checker lint passes HOST and Linux integration with zero
+issues in `job-refusal-checker-scoped-lint-1359b2fb.log`; no other lint
+configuration is inferred. Earlier broader planning attempts refused changing
+foreign `server/register_plugin_restart.go` and another source. The latest
+13-package attempt refused because `core/sysctl/known.go` changed during
+planning (`job-refusal-final-scoped-lint-stable-inputs-8d7938b4.log`);
+`refusal-final-lint-after-known-map-settled` is queued. The
+earlier repeated-scope argv grammar failure (`f6f2827c`) ran no lint and is
+not a code finding. Final broader lint remains owed. The current documentation
+check has one foreign completion-catalogue description drift; its other steps
+validate 447 commands and all source anchors. Main's mandatory repo and
+weakened-test prechecks reported only foreign in-progress findings; fresh
+repo/weakened/citation metadata checks are queued. The untracked canonical news
+fragment is ready with all six required headings. The spec stays open despite
+its passing native review artifact; no closing commit is available. `cc190d045b` retains
+the preceding runtime checkpoint. The successful functional proof and load-80
+run supersede attempts stopped by a foreign fake in-process fixture; its owner
+added the missing CLI handler at 20:59, and those changes are preserved. A
+direct BMP interop retry reached zero scenarios when Docker info timed out
+(`job-refusal-bmp-collector-after-repair-632ff3c0.log`). The properly
+Ze-Docker-host-wrapped retry passes `bgp-addpath-best-path-pmacct` 1/1 in
+`job-refusal-bmp-collector-ze-docker-host-59be18bd.log`, with recording
+`X6KQB2X5XBQFRHNP6ZP5YR44AH`. Main read the actual scenario PASS; check, command
+and lab exits are zero, the accelerator is KVM and no leftovers remain. The
+direct Docker timeout was not a product failure, and no bypass was used.
+Access's first existing PPP acceptance scenario now passes; its remaining five
+are running as one Ze-VM batch, currently building. They have no results yet.
 
 The current execution evidence supersedes the earlier blocked attempts retained
 under Prior blocker and completed corpus repair. Every run below was executed
@@ -175,11 +264,17 @@ added RFC1997 withdrawal coverage to the prior 47-ID population, producing the
 48-ID checkpoint. Its 60-finding global attribution and ownership disposition
 are retained in
 `scratch/refusal-rfc-ownership-final.md` and
-`scratch/refusal-rfc-final-48-ids.txt`. The current owned union is 56 IDs,
-with BMP semantic rejudgments, the corrected disabling fixture's proof and
-two RFC1997 renewals still pending. Matching an ID alone does not assign all
-findings under that ID to this spec. Final RFC reconciliation, bounded lint,
-documentation checks and review of the round-1 product fixes remain open.
+`scratch/refusal-rfc-final-48-ids.txt`. The current owned union is 62 IDs in
+`scratch/refusal-rfc-runtime-62-ids.txt`. BMP semantic rejudgments, the corrected
+disabling fixture's proof and the RFC1997 unit renewal are committed in
+`55d4cb0991`; all ten remaining forwarding unit renewals succeed and the final
+seven record files are committed in `85854bc757`. The RFC1997 functional renewal succeeds in
+`job-refusal-withdrawal-ci-proof-after-fixture-fix-de37abbd.log`; all 16 native
+record tuples are complete. The final native RFC check has 73 global findings,
+all foreign by individual source/history audit, with zero owned findings in
+`scratch/refusal-final-rfc-individual-ownership.json`. Matching an ID alone does
+not assign every finding under it to this spec. Round-2 native review check
+passes; only broader lint and fresh precommit checks remain open.
 
 The expanded carrier audit found two more peer-AS readers. Monitor repair
 `796dbf1f9d` and RPKI repair `84b2e6b526` are committed. Monitor
@@ -227,8 +322,10 @@ the durable files. No path is invented for the missing full output.
 This ledger accounts for the 54 census rows above. It preserves the producer-red
 provenance in `238bdb62e9` and `plan/handover/24-refuse-by-default-implemented-awaiting-closure.md`;
 it does not claim those historical runs were repeated. The regression definitions
-were located in the current checkout. The prior independent source review is
-retained in this session state; closure still owes its independent Review Gate.
+were located in the current checkout. The independent source reviews are
+retained in the Review Gate below: official round 2 is CLEAN and main's native
+record/check passes all 591 code files. Broader lint and fresh precommit results
+remain pending; no closing commit is claimed.
 
 `H` means the historical producer-red claim is retained; `R` means a recent
 main-thread red/green is recorded above. A named pending run is an evidence
@@ -312,9 +409,10 @@ cases in `internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go` and
 - AC-7: `2558080335` propagates the builder's reason through `fwdWithdrawal.of`
   and both real warning callers. Its source guard failed before the fix; 32
   selected race roots pass afterwards. Main's later native report and exact
-  54-row/97-producer join found zero owned refused or annotated matches. Renew
-  this checkpoint after the active BMP and forked-NTP fixes. Report exit zero
-  does not prove those semantic behaviors.
+  54-row/97-producer join found zero owned refused or annotated matches. The
+  final named report and exact 54-row/125-entry AST-anchored comparison also
+  join both populations to zero owned hits after the BMP/NTP repairs. Report
+  exit zero alone does not prove those semantic behaviors.
 - AC-8: retained unit/command evidence includes the recent absent-CoS and writer
   repairs. JSON RPKI admission and monitor race controls, full RPKI after
   fixture isolation, and both promoted identity functional tests pass.
@@ -432,8 +530,9 @@ command/check/lab exit zero in `job-refusal-withdrawal-qemu-afde2315.log`.
 The route-server fast path reaches `mods.SetWithdraw`, `fwdWithdrawal.of` and
 `buildWithdrawalPayload`. The fixture first establishes the advertised prefix
 and then observes its withdrawal, so a path that sent nothing cannot pass.
-This proves that useful withdrawal path; the later report still identifies
-the error-to-nil residual in `fwdWithdrawal.of`.
+This proves that useful withdrawal path. An earlier report identified the
+error-to-nil residual in `fwdWithdrawal.of`; `2558080335` fixes it, and the final
+54-row/125-entry comparison records zero owned hits in both populations.
 
 ### Scoped execution queue
 
@@ -441,19 +540,25 @@ Execution stays in the main thread against current source in the main checkout.
 The named native `test unit pkg` route supplies the checkout's feature tags,
 timeout and race detector; its `run` keyword takes a regex.
 
-1. Finish the assigned `fwdWithdrawal.of` error propagation to both callers,
-   prove the cause survives and repeat the owned-producer comparison against
-   the unchanged AC-7 criterion. The builder and notify scopes are clean; one
-   owned residual remains in the latest actual report.
-2. Finish the assigned classification of the final global RFC check's 60
-   violations against the 47-ID owned scope. The committed renewals/reseals and
-   selected 67-root fixture green are recorded above; no fresh owned-zero
-   verdict or whole-package green replaces the retained failed full retry.
-3. Await the running final bounded lint, then complete documentation checks,
-   final source audits and formal independent review. Netlink's four lint
-   repairs and five race controls are committed. Existing AC-4, full RPKI,
-   promoted identity/stress and QEMU withdrawal proofs need no timestamp
-   refresh. Closure follows only when the remaining obligations are complete.
+1. Finish the queued broader 13-package lint attempt after changing foreign
+   inputs settle. The narrow checker lint covers only HOST and Linux
+   integration, both zero issues; the latest broad planning attempt refused
+   a changed `core/sysctl/known.go` and produced no lint verdict.
+2. Read the queued fresh repo, weakened-test and citation metadata results and
+   complete the bounded file-existence record. Citers were already repointed:
+   main's whole-tracked-path search found only this spec itself. Current docs
+   have one foreign catalogue description drift, with 447 commands and all own
+   source anchors validated. Preserve foreign work and attribute any findings
+   individually; unknown queued results are not passes.
+3. After those gates pass, use the repository commit workflow for the remaining
+   functional-test piece and the two closing commits. The native round-2 review
+   artifact/check already passes all 591 code files. Canonical 2/2, wrapped
+   pmacct 1/1, all 80 loaded invocations, all 16 committed RFC tuples and the
+   zero-owned individual RFC audit are complete. No behavioral proof needs a
+   timestamp refresh, and no third source pass is required for these record
+   corrections. The selected 67-root RFC fixture green does not relabel the
+   retained failed full-package retry as passing. Keep this spec in progress
+   until the pending checks and closing commits actually finish.
 
 The handover's unqualified netlink `GetStats` item lacked a direct-method
 regression. `netlinkBackend.GetStats` refuses missing links, read errors
@@ -800,13 +905,13 @@ supply assertions rather than an absence-only success.
 | AC-4 | A healthy answer supported by a measured read remains permitted. A state boolean derived from measured data remains an answer; a literal needs a valid guard rather than pretending measurement. The full race retry after the forward package-alias fix passes; package statement coverage is 86.5%, with eight uncovered profile blocks retained. | `fileScan.function` / `expression`, `testdata/state.go` measured-health control; `TestL2TPHealthHealthyOnlyWithDataPlane`, `TestTrafficUsageReadinessCanFail`. |
 | AC-5 | A guarded zero remains valid when its annotation names the visible guard the consumer actually uses. | `annotations` / `parseGuard` / `annotationFor`; `TestRefuseByDefaultAnnotationNeedsGuard` and `TestRefuseByDefaultGuardInSiblingFile`. |
 | AC-6 | No unnamed guard survives, because the reviewer cannot identify the consumer that distinguishes the sentinel from an answer. | `RuleAnnotationNoGuard`, `TestRefuseByDefaultAnnotationNeedsGuard`. |
-| AC-7 | The tree report continues listing unrelated refused and annotated shapes so their owners can judge them. Its exit zero is a reporting convention, not acceptance. Main's last checkpoint after `2558080335` found zero owned matches against all 54 rows and 97 producers in both refused and annotated populations; renewal follows the new source fixes. | `Report` / `runReport`, `TestRefuseByDefaultReportListsTree`, and the exact producer/consumer census recorded above. |
+| AC-7 | The tree report continues listing unrelated refused and annotated shapes so their owners can judge them. Its exit zero is a reporting convention, not acceptance. Main's final named report joins to zero owned matches against all 54 rows and 125 producer entries in both populations, with configure/verify callback AST anchors validated. | `Report` / `runReport`, `TestRefuseByDefaultReportListsTree`, `job-refusal-final-named-report-45a00bc9.log` and `scratch/refusal-ac7-final-125-comparison.json`. |
 | AC-8 | Successful reads, typed not-found, no requested CoS profile, a valid pipeline and an inactive registered NTP provider remain usable. These are real outcomes, unlike failed measurement or an absent provider. Valid command objects/arrays and no-data answers also survive scalar refusal. | `TestResolveAbsentProviderPermitsNoProfile`, `TestNetlinkGetStatsZeroCounters` / `MeasuredCounters`, `TestSystemDateAcceptsInactiveNTPProvider` / `CarriesMeasuredNTPState`, valid pipeline/count controls, and `RawJSON` controls above. |
 | AC-9 | JSON/JSON_IETF gNMI Gets, valid debug syntax, an LDP unknown U=1 TLV, a free last label, a valid IS-IS state, complete RSVP PATH and IPv6 BFD with bind-v6 remain admitted. A non-EAP unsigned RADIUS answer survives only the existing explicit unsigned-response policy; it does not exempt unsigned EAP. | `TestGetAnswersEachJSONEncoding`, gnmic interop; LDP U=1 controls and `TestLDPLabelExhaustionRefusesSecondBinding`; IS-IS/RSVP controls; `TestIPv6SessionAcceptedWithBindV6`, `TestIPv4MappedPeerNeedsNoBindV6`; unsigned non-EAP control in `TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator`. RFC 5036 Section 3.3 permits U=1 processing while requiring U=0 notification and message rejection. |
 | AC-10 | Under ADD-PATH, zero and maximum are identities; without it the prefix stays free of an identifier regardless of the stored number. Re-advertisement retains negotiated framing and Ze's destination identifier. | `TestAddPathIdentifierZeroIsAnIdentifier` in each canonical consumer, `TestLabeledUnicastStringKeepsAPathIdentifierOfZero`, `addpath-identifier-zero-forwarded.ci`, and the actual FRR baseline/negative/clean. RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE message, the NLRI encoding MUST be extended by prepending the Path Identifier field, which is of four octets." |
 | AC-11 | Fresh LLGR routes survive missing stale state; thermal 0.0 is measured data; a clear names the resolved victim; a known peer AS stays numeric and a pre-negotiation event stays unknown. ExaBGP peers retain their documented auto-AS zero spelling at the compatibility boundary. Monitor preserves unknown as text and malformed input as raw data; RPKI still validates known-AS UPDATEs and removes routes on ASN-free state-down. EPE preserves its existing AS-zero up-event refusal while admitting valid identity and cleaning up non-up sessions. | `TestLLGREgressFilter_NilStateDoesNotSuppressFreshRoute`, thermal/DDoS/dynamic-AS tests in the ledger, `TestUnknownPeerASIsExabgpAuto`, monitor `TestFormatMonitorLineRemoteAS`, `TestFormatMonitorLineRemoteASNull` and `TestFormatMonitorLineRemoteASInvalid`, RPKI `TestJSONUpdateRequiresPeerAS` / `TestJSONPeerDownWithoutASClearsTrackedRoutes`, and EPE `Source.State`. These zeros have distinct explicit contracts, and none supplies a fabricated learned peer AS. |
 | AC-12 | Measured readiness, actual addresses, the recorded best/losing route, the best path's own BMP attributes and established-bypass RRO flags remain reportable. An inapplicable health check has no row; failed measurement keeps its reason. A real all-zero counter record remains valid. | L2TP healthy/data-plane controls, root/non-root TCX probe, VPP address tests, `TestShowRIBRowsSayWhichPathWon`, BMP attribute and healthy-collector controls, `TestRFC4090FlagsSetOnceBypassEstablished`, direct netlink zero/measured controls. |
-| AC-13 | Each owned row's normal input continues to produce the useful outcome its canonical regression names; each representative defect input must still discriminate against its producer break. Dependency-owned rows retain their separate owner and proof. | The 54-row ledger names each producer and regression. Historical reds remain attributed to `238bdb62e9`; later repairs retain their exact observed negative/clean evidence. This does not convert pending literal AC-7 or remaining final audit work into completion. |
+| AC-13 | Each owned row's normal input continues to produce the useful outcome its canonical regression names; each representative defect input must still discriminate against its producer break. Dependency-owned rows retain their separate owner and proof. | The 54-row ledger names each producer and regression. Historical reds remain attributed to `238bdb62e9`; later repairs retain their exact observed negative/clean evidence. The remaining RFC functional, loaded-run and closure-check obligations remain open despite source review and AC-7 being clean. |
 
 ## Risks & Assumptions
 
@@ -1158,11 +1263,14 @@ providers, JSON RPKI/monitor identity readers, fixture teardown isolation, direc
 state-member detection, and withdrawal error propagation through both forward
 rails. Their exact negative and passing logs are retained above.
 
-Round 1 found three additional product defects: BMP discards authoritative stored
-AS_PATH segments, BMP accepts an absent next hop without encoding a route, and
-forked NTP state is mistaken for inactive central state. These remain open until
-the implementation phase supplies source fixes, main-thread proofs and a fresh
-review of those fixes. No closure is claimed.
+Round 1 found three additional product defects: BMP discarded authoritative
+stored AS_PATH segments, BMP accepted an absent next hop without encoding a
+route, and forked NTP state was mistaken for inactive central state. Source fixes
+are committed in `4a991e513e`, `dfc2863cea` and `2ea5329344`, with main-thread
+negative/clean evidence above. Official round 2 is CLEAN and its native check
+passes all 591 code files. Load-80, unchanged promotion, canonical 2/2, wrapped
+pmacct 1/1 and zero-owned RFC reconciliation are complete. Broader scoped lint
+and fresh precommit checks remain pending; no closure is claimed.
 
 ### Documentation Updates
 
@@ -1173,9 +1281,11 @@ and the changed-line check/annotation contract
 (`docs/contributing/ze-go-style.md` and
 `docs/architecture/testing/verify-freshness-scope.md`). Later changes document
 RPKI refusal metrics, pipeline error verdicts, CoS and forwarding-provider refusal.
-The source anchors name the producing functions. Final `doc check all` remains
-owed after the active foreign build changes settle; its earlier failure is
-retained above. BMP and forked-NTP docs must accompany their pending fixes.
+The source anchors name the producing functions. The BMP guide and NTP command
+reference updates accompany their committed fixes and match the reviewed source.
+The current `doc check all` result has only a foreign completion-catalogue
+description drift; other steps validate 447 commands and all source anchors.
+The earlier build-blocked attempts remain retained above.
 
 ### Deviations from Plan
 
@@ -1207,7 +1317,7 @@ main's scoped package builds and executions are the applicable evidence.
 
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Repair every owned producer and its callers. | Partial; implementation active | 54-row retained ledger and changed-carrier census | Three round-1 product findings remain; no waiver or scope reduction. |
+| Repair every owned producer and its callers. | Done; closing checks pending | 54-row retained ledger, 125-entry producer map and changed-carrier census | Round-1 findings, runtime/interop proofs and native round-2 review/check are complete. No waiver or scope reduction. |
 | Prevent the defect shapes in new changes. | Done in source; main evidence retained | `internal/le/arch/refusebydefault/{refusebydefault,state_assignments,dropped,annotation,report,register}.go` | Changed-line, annotation, state and registration controls are named above; no whole-tree verify run is required. |
 
 ### Acceptance Criteria
@@ -1220,13 +1330,13 @@ main's scoped package builds and executions are the applicable evidence.
 | AC-4 | Done | `stateAssignments`, `stateValue`, `fileScan.expression` | Full race retry and 86.5% package coverage retained; uncovered blocks disclosed. |
 | AC-5 | Done | `parseGuard`, `annotationFor`, `judgeFile` | Valid visible consumer guards are listed in Annotated. |
 | AC-6 | Done | `RuleAnnotationNoGuard`, `namesEnclosing` | Missing, unknown and self-named guards refused. |
-| AC-7 | Done at the recorded checkpoint; repeat after new fixes | Main `job-refusal-ac7-clean-report-fcb16ac0.log` and exact 54-row/97-declaration comparison | 2200 refused + 71 annotated in 7050 files; zero owned matches in both populations. Report exit zero alone is not acceptance. |
-| AC-8 | Partial; implementation active | Typed not-found, pipeline, absent-CoS/writer, monitor and RPKI proofs | Forked NTP false inactivity remains open. |
+| AC-7 | Done at final named checkpoint | Main `job-refusal-final-named-report-45a00bc9.log` and `scratch/refusal-ac7-final-125-comparison.json` | 2207 refused + 72 annotated in 7109 files; exact 54-row/125-entry join finds zero owned matches in both populations. Report exit zero alone is not acceptance. |
+| AC-8 | Done | Typed not-found, pipeline, absent-CoS/writer, monitor/RPKI and actual forked-NTP proofs | NTP owner transport and inactive/unavailable distinction are committed and reviewed CLEAN; load-80 and promoted canonical 2/2 pass in the recorded logs. |
 | AC-9 | Done | RADIUS EAP discard controls; LDP/FRR 1/1; gnmic nine subtests; BFD/IS-IS/RSVP/label controls | Existing protocol-valid controls retained. |
 | AC-10 | Done | Actual ADD-PATH baseline, omitted-zero expected failure, unmodified clean | Four octets for identifier zero reach FRR; non-ADD-PATH retains no source identifier. |
 | AC-11 | Done | Typed dynamic-AS controls, monitor PTY/forked RPKI, thermal zero and LLGR/DDoS regressions | Compatibility auto-AS zero remains an explicit ExaBGP boundary contract. |
-| AC-12 | Partial; implementation active | Actual-kernel TCX root/non-root, VPP/L2TP/netlink and BMP/pmacct proofs | BMP stored AS_PATH fidelity and missing-next-hop refusal remain open. |
-| AC-13 | Partial; implementation active | 54-row regression ledger and exact producer map | The new round-1 defects need discriminating main-thread negative/clean execution before closure. |
+| AC-12 | Done | Actual-kernel TCX root/non-root, VPP/L2TP/netlink, BMP/pmacct and internal/external runtime proofs | Stored AS_PATH and missing-next-hop repairs pass 273 BMP race roots, zero skips. Load-80, promoted canonical 2/2 and properly wrapped pmacct 1/1 pass. |
+| AC-13 | Done; final closing checks separate | 54-row regression ledger and exact 125-entry producer map | BMP/NTP negatives/clean, load-80 and all 16 committed native RFC tuples are complete. Final 73-finding source/history audit finds zero owned debt. Broader lint and fresh precommit results remain pending process gates. |
 
 ### Tests from TDD Plan
 
@@ -1236,44 +1346,48 @@ main's scoped package builds and executions are the applicable evidence.
 | RADIUS, label exhaustion, LDP unknown TLV, IS-IS and RSVP regressions | Present; ledger retains original producer-red attribution | Owning files in the TDD table above | LDP and gnmic native interop renewed in main; historical evidence is not presented as a rerun. |
 | ADD-PATH zero/max/absent consumers and functional scenario | Present; actual interop negative/clean completed | Canonical consumer tests, `test/plugin/addpath-identifier-zero-forwarded.ci`, `test/interop/scenarios/addpath-zero-id-frr/` | Both writer and reader preserve negotiated framing. |
 | Absent-CoS real binary and inline-map controls | Present; main race proof retained | `internal/test/cosabsent/cos_absent_integration_test.go` | Explicit binary-tag checks prevent a provider-present false proof. |
-| Remaining census-row and numeric boundary controls | Present; 54-row ledger identifies canonical names | Owning packages in the retained row evidence audit | New BMP and forked-NTP controls are implementation work, not completed evidence. |
+| Remaining census-row and numeric boundary controls | Present; 54-row ledger identifies canonical names | Owning packages in the retained row evidence audit | BMP/NTP negatives, package greens, runtime passes, load-80 and promoted canonical 2/2 are recorded above; the properly wrapped pmacct scenario passes 1/1. |
 
 ### Files from Plan
 
 | File | Status | Notes |
 |------|--------|-------|
-| Planned radius/LDP/iface/CoS and ADD-PATH producer files | Modified | Whole patch includes original `238bdb62e9`, which has no Spec-work trailer, and all follow-ups through `2558080335`. |
+| Planned radius/LDP/iface/CoS and ADD-PATH producer files | Modified | Official round-2 population includes original `238bdb62e9`, which has no Spec-work trailer, and all 32 own commits through `cc190d045b`. |
 | `internal/le/arch/refusebydefault/` and verify stage registration | Created/modified | Check, report, registration, five rule shapes, annotation judgment, fixtures and tests. |
 | Absent-CoS integration, zero-ID functional test and FRR scenario | Created | Actual absent-build proof replaces the unsuitable all-feature fixture. |
-| Style, stage-scope and source-linked subsystem docs | Modified; final check owed | Further BMP/NTP fixes must update their governing docs. |
+| Style, stage-scope and source-linked subsystem docs | Modified; own anchors pass | Committed BMP/NTP docs match source; current global documentation result retains one foreign completion-catalogue description drift. |
 
 ### Audit Summary
 
-All 13 acceptance criteria are mapped. AC-8, AC-12 and AC-13 remain partial
-because of three concrete round-1 product findings. AC-7 has a clean exact-owned
-checkpoint and must be renewed after source changes. No in-scope work is skipped
-or approved for deferral. The spec stays open.
+All 13 acceptance criteria are mapped. The three round-1 product findings are
+fixed and official round 2 is SOURCE CLEAN. AC-7's final exact-owned checkpoint
+covers 54 rows and 125 producer entries. Runtime load-80 and unchanged promotion
+are complete, as are canonical 2/2, wrapped pmacct 1/1, all 16 committed native
+RFC tuples and zero owned findings in the final individual RFC audit. The native
+round-2 review check passes all 591 code files. Broader scoped lint and fresh
+precommit results remain pending. No in-scope work is skipped or approved for
+deferral. The spec stays open until those gates and the closing commits finish.
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| Reject values the producer cannot know, while retaining useful answers. | Functional and interop | Actual ADD-PATH omitted-zero negative/clean, LDP/FRR, RADIUS retained proof, monitor/forked RPKI 2/2 plus 80 stress invocations, pipeline daemon fixture and actual-kernel TCX root/non-root results above. BMP and forked-NTP findings still prevent full validation. |
+| Reject values the producer cannot know, while retaining useful answers. | Functional and interop | Actual ADD-PATH omitted-zero negative/clean, LDP/FRR, RADIUS retained proof, monitor/forked RPKI 2/2 plus 80 stress invocations, pipeline daemon fixture, actual-kernel TCX root/non-root and BMP/NTP results above. New runtime fixtures pass load-80 and promoted canonical 2/2; properly wrapped pmacct passes 1/1 with recording X6KQB2X5XBQFRHNP6ZP5YR44AH and no leftovers. |
 | Prevent new instances of the defect shapes. | Native checker fixtures and source wiring | `TestRefuseByDefaultRefusesEachRuleFixture`, guard/state/changed-line controls and `TestVerifyStagesIncludeRefuseByDefault`; main race logs above. The checker is syntactic and cannot replace the runtime producer audit. |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| Final BMP stored-path and missing-next-hop repairs, forked NTP repair, their proofs and fresh review | Round-1 product defects; implementation remains active, with no deferral | `plan/release/fixes/spec-refuse-instead-of-defaulting.md` remains open and owns this work. |
+| Final broader scoped lint and fresh precommit results, followed by closing commits | All product scope, behavioral proofs and native review/RFC gates are complete; the remaining process gates are pending, not deferred | `plan/release/fixes/spec-refuse-instead-of-defaulting.md` remains open and owns this work. |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | Not recorded; round 1 has product findings. |
-| `./le spec review check` | Not run; no CLEAN verdict is available. |
-| Rounds | 1 whole-patch independent pass; subsequent pass is bounded to its fixes. |
+| Artifact | `tmp/review/refuse-instead-of-defaulting-01a1c842-0a58-7752-bbff-2a3f1633b66f.md`; clean, rounds=2, 591 code files. Independent source reports remain `scratch/refusal-closure-round2.md` and `.json`. |
+| `./le spec review check` | PASS; main checked the current population of all 591 code files, including both promoted canonical fixtures. Broader lint and fresh precommit results are separate pending gates. |
+| Rounds | 2 official passes; round 1 found three product groups and round 2 found zero BLOCKER and zero ISSUE. Administrative corrections do not add a pass. |
 | Reviewer lenses used | Correctness and wiring; security and edge cases; ownership and performance; test preservation; Go style; complete task/spec alignment. |
 
 ### Round 1 scope
@@ -1300,40 +1414,68 @@ found no owned item in those populations; this review does not approve the
 foreign changes. Final lint, documentation and owned RFC reconciliation remain
 owed. Archive-based compile execution is excluded by the owner's main-only rule.
 
+### Round 2 source verdict
+
+Official round 2 is SOURCE CLEAN: zero BLOCKER and zero ISSUE. It preserves the
+original round-1 context and adds every subsequent own fix in
+`scratch/refusal-round2-review-commits.txt`: 32 commits, 846 listed paths,
+845 existing paths and 569 existing Go files. Original `238bdb62e9` is included
+explicitly despite its missing Spec-work trailer. The complete patch is
+`scratch/refusal-round2-complete-review.patch`, SHA256
+`71c178166bb8830851b60ae2da59b9461e4bbe4991213fec02d4f02fb4f7368f`.
+`scratch/refusal-closure-round2.json` retains the path-manifest and current
+source hashes; foreign dirty work is outside approval.
+
+Correctness, security, wiring, resource ownership/races, performance,
+test-preservation and Go-style lenses found no remaining product finding.
+The checker precision change permits only canonical typed refusals; BMP runtime
+admission precedes side effects; NTP uses the running owner, preserves caller
+authority/cancellation and stops workers/subscriptions on failure. This is a
+source verdict, not a claim of completed closing commits. Main recorded the
+native artifact above and its check passes all 591 code files, including the
+two unchanged canonical promotions. The canonical 2/2 and properly wrapped
+pmacct 1/1 runs pass; all 16 native RFC tuples are committed and individually
+reconciled to zero owned debt. Broad lint and fresh precommit results remain
+pending. Expanding abbreviated finding paths to full canonical source paths
+was an administrative correction within round 2, not a third pass. Subsequent
+native proof metadata updates changed no reviewed Go source.
+
 ### Findings fixed
 
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| 1 | ISSUE, open | Stored AS_PATH is discarded and rebuilt from a flat summary, omitting valid empty paths and changing AS_SET/mixed segments to AS_SEQUENCE. | `internal/component/bgp/plugins/bmp/bmp_locrib.go` `buildLocRIBUpdateBody`; `rib_attr_format.go` `formatASPath`; `rib_bestchange.go` `storedAttributes` | Pending source fix and actual negative/clean proof. |
-| 2 | ISSUE, open | A valid prefix and invalid next hop returns a successful attributes-only UPDATE; real inject/admission can reach it. | `bmp_locrib.go` `buildLocRIBUpdateBody`; `rib_commands.go` `injectRoute` / `candidateAdmitted`; `rib_bestchange.go` `internNextHop` | Pending explicit refusal and useful-next-hop controls. |
-| 3 | ISSUE, open | A supported forked NTP worker owns state outside the daemon, while central date/NTP shows read local nil as inactivity. | `internal/plugins/ntp/register.go` `ntpSyncInfo` / `runNTPPlugin`; `register.go` `handleShowSystemNTP` / `handleShowSystemNTPPeers`; registry `GetNTPSyncInfo` | Pending generic command RPC implementation, accepted-config inactivity decision and forked negative/clean proof. |
+| 1 | ISSUE, fixed | Stored AS_PATH was discarded and rebuilt from a flat summary, omitting valid empty paths and changing AS_SET/mixed segments to AS_SEQUENCE. | `internal/component/bgp/plugins/bmp/bmp_locrib.go` `buildLocRIBUpdateBody`; `rib_attr_format.go` `formatASPath`; `rib_bestchange.go` `storedAttributes` | `4a991e513e`; negative/clean evidence above, source reviewed CLEAN in round 2. `dfc2863cea` additionally refuses an unavailable runtime feed before configuration effects. |
+| 2 | ISSUE, fixed | A valid prefix and invalid next hop returned a successful attributes-only UPDATE; real inject/admission could reach it. | `bmp_locrib.go` `buildLocRIBUpdateBody`; `rib_commands.go` `injectRoute` / `candidateAdmitted`; `rib_bestchange.go` `internNextHop` | `4a991e513e`; explicit refusal and useful-next-hop controls pass, source reviewed CLEAN in round 2. |
+| 3 | ISSUE, fixed | A supported forked NTP worker owned state outside the daemon, while central date/NTP shows read local nil as inactivity. | `internal/plugins/ntp/register.go` `ntpSyncInfo` / `runNTPPlugin`; `register.go` `handleShowSystemNTP` / `handleShowSystemNTPPeers`; registry `GetNTPSyncInfo` | `e62bc0e2a1` wires the CLI; `2ea5329344` implements owner queries, accepted-config inactivity, typed refusal and cleanup. Actual forked pass and source-CLEAN round 2 are recorded above. |
 
 The initial BMP fixture migration draft was refused because `ASPath.WriteTo`
 writes only a value and omitted the attribute header. The corrected draft uses
 `WriteAttrTo`, including the present empty `40 02 00`. Independent source
 judgment approves all 30 affected canonical consumers/helpers without removing
-assertions, tags, selectors or waits; the exact report and pending main-thread
-metadata commands are `scratch/bmp-stored-fixtures-judge.json` and
-`scratch/bmp-stored-fixtures-approve.sh`. No approval command was run by the child.
+assertions, tags, selectors or waits. The exact report is
+`scratch/bmp-stored-fixtures-judge.json`; main recorded its commands before the
+fixture migration in `4a991e513e`. No approval command was run by the child.
 
 ## Pre-Commit Verification
 
-This is a live closure record. Pending rows below are blockers, not evidence of
-completion; main must refresh them after the round-1 repairs.
+This is a live closure record. The native review artifact is recorded and its
+check passes. Pending lint and fresh precommit rows remain blockers to the
+closing commits; no queued result is represented as a pass.
 
 ### Files Exist (ls)
 
 | File | Exists | Evidence |
 |------|--------|----------|
-| Planned checker files, absent-CoS integration, ADD-PATH fixture and FRR scenario | Located during source review | Main's fresh bounded `ls` output remains owed before commit A. |
+| Planned checker files, absent-CoS integration, ADD-PATH/NTP fixtures, three canonical tests and FRR scenario | Yes | Main bounded `ls` on 2026-11-11 found every named file; FRR scenario contains `frr.conf` and `ze.conf`. |
 
 ### AC Verified (grep/test)
 
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
 | AC-1–AC-6 | Rule, annotation, direct-assignment and stage controls are implemented. | Main full checker race retry `job-unit-pkg-ef92ffff.log`; selected state/naming `job-refusal-state-and-rfc-green-f471a48b.log`. |
-| AC-7 | Exact owned scope has no refused or annotated matches at the last checkpoint. | Main `job-refusal-ac7-clean-report-fcb16ac0.log`; all 54 rows/97 declarations joined against all 2271 matches, zero owned results. Renewal owed after new fixes. |
-| AC-8–AC-13 | Prior complete row proofs remain retained; open defects require new proof. | Completed runtime/interop sections above; BMP/NTP negatives and clean runs pending. |
+| AC-7 | Exact owned scope has no refused or annotated matches at the final named checkpoint. | Main `job-refusal-final-named-report-45a00bc9.log`; 54 rows/125 producer entries with actual AST anchors joined against all 2279 matches, zero owned results in `scratch/refusal-ac7-final-125-comparison.json`. |
+| AC-8–AC-13 | Product fixes, behavioral proofs and native review/RFC checks are complete. | BMP/NTP negatives/clean, load-80 and canonical 2/2 pass; wrapped pmacct 1/1 passes with all exits zero. All 16 native tuples are committed; the individual 73-finding RFC audit has zero owned debt. Broader lint and fresh precommit results remain pending. |
+| Final process gates | Broader scoped lint is blocked by concurrent input edits; all fresh precheck findings are foreign. | See Blocker: latest planning refusal names `internal/test/fixture/native_readiness_test.go`; repo31/weakening21 have zero owned findings, citation passes and bounded `ls` passes. No lint pass is claimed. |
 
 ### Wiring Verified (end-to-end)
 
@@ -1342,13 +1484,15 @@ completion; main must refresh them after the round-1 repairs.
 | Zero-ID route across native sender/receiver | `test/plugin/addpath-identifier-zero-forwarded.ci` | Existing fixture explicitly checks zero identifier octets; actual FRR baseline/negative/clean is recorded above. |
 | JSON peer identity and actual monitor output | `test/plugin/rpki-event-valid-forked.ci`, `test/plugin/monitor-remote-as-stream.ci` | Main promoted run 2/2; 80 native stress invocations; actual monitor producer-negative observed as recorded above. |
 | Synthesized withdrawal through real appliance kernel | `test/plugin/linklocal-only-multihop-withdraw.ci` | Main QEMU 1/1, `job-refusal-withdrawal-qemu-afde2315.log`, recorded kernel hash above. |
+| Runtime NTP owner and unavailable external BMP feed | `test/plugin/system-date-ntp-forked.ci`, `test/plugin/bmp-locrib-external-refuses.ci` | Main canonical selection passes 2/2 in `job-refusal-promoted-runtime-fixtures-027d40a9.log`; all 80 preceding loaded invocations complete without reproduction. Canonical content hashes above match the reviewed drafts. |
+| Actual BMP collector | Native scenario `bgp-addpath-best-path-pmacct` uses the registered interop checker rather than a `.ci`. | Ze QEMU Docker-host/KVM run passes 1/1 in `job-refusal-bmp-collector-ze-docker-host-59be18bd.log`, recording X6KQB2X5XBQFRHNP6ZP5YR44AH; command/check/lab exits zero, no leftovers. |
 | Rule registration, RADIUS socket, absent-CoS binary and LDP exhaustion | Wiring Test table uses Go/native socket or binary tests rather than `.ci` for these seams. | Exact named tests and retained main evidence above; no invented fixture. |
 
 ### Assumptions Resolved
 
 | ID | Final Status | Evidence |
 |----|--------------|----------|
-| A-1 | Broken as stated; the original four shapes needed extension. | `droppedError` adds the fifth dropped-error rule and `stateAssignments` covers direct field writes. The report remains syntactic: the three semantic round-1 defects still require producer-level controls before closing. |
+| A-1 | Broken as stated; the original four shapes needed extension. | `droppedError` adds the fifth dropped-error rule and `stateAssignments` covers direct field writes. The report remains syntactic: round-1 semantic defects required the explicit producer-level controls now recorded above. |
 | A-2 | Confirmed for the recorded sample, not a universal precision claim. | Historical 200-commit report: 10 findings, six true defects and four guarded zeros after the documented precision cuts. |
 | A-3 | Confirmed with the recorded threading extension. | Negotiated flags reach `NewINET` callers, route/adj-RIB indexes and native/compatibility formatters; actual FRR zero-ID proof validates the wire path. |
 
@@ -1356,8 +1500,9 @@ completion; main must refresh them after the round-1 repairs.
 
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| Checker contract and stage wiring | `ScanFile`, `stateAssignments`, `droppedError`, `parseGuard`, `judgeFile`, registered actions and stage entry | Source matches style/stage pages; final native doc check owed. |
-| Native identity, graph/pipeline and ADD-PATH formats | `appendPeerJSON`, `appendRemoteASText`, `formatMonitorLine`, `commandAnswer`, `applyRegisteredText`, `WriteNLRI` and `HasPathID` | Source-linked API/route/command pages cover changed carriers; final anchor/citation checks owed. |
+| Checker contract and stage wiring | `ScanFile`, `stateAssignments`, `droppedError`, `operatorErrorResponse`, `parseGuard`, `judgeFile`, registered actions and stage entry | Source matches style/stage pages; own source anchors pass. Current global documentation result has one foreign catalogue description drift. |
+| Native identity, graph/pipeline and ADD-PATH formats | `appendPeerJSON`, `appendRemoteASText`, `formatMonitorLine`, `commandAnswer`, `applyRegisteredText`, `WriteNLRI` and `HasPathID` | Source-linked API/route/command pages cover changed carriers; current handler/shape checks validate 447 commands and source anchors pass. Citers are repointed; main's whole-tracked-path grep finds only this spec itself. Fresh native citation metadata check remains queued. |
 | RPKI metrics, interface read/zero-counter semantics, CoS and writer dependencies | `SetMetricsRegistry`, `GetStats`, `Resolve`, `appendDataPlaneWriter` | Governing pages name the actual producers and preserve valid-control behavior. |
-| BMP and NTP state authority | `storedAttributes` / `buildLocRIBUpdateBody`, forked `runNTPPlugin` and central show readers | Open: pending fixes must bring guides, command reference and source contracts into agreement. |
-| Runtime inventory/RFC generated material | Native registry/RFC generators own derived documents. | Final main generation/reconciliation owed; no generated status page is hand-edited. |
+| BMP and NTP state authority | `storedAttributes` / `buildLocRIBUpdateBody`, `validateLocRIBRuntimeConfig`, forked `runNTPPlugin` and owner-query show readers | Committed guides, command reference and source contracts match the reviewed source. Load-80, unchanged promotion, canonical 2/2 and actual wrapped pmacct 1/1 pass. |
+| Runtime inventory/RFC generated material | Native registry/RFC generators own derived documents. | Main regenerated 231 RFC shards; its final native check has 73 global findings, individually audited as foreign with zero owned debt in `scratch/refusal-final-rfc-individual-ownership.json` and `.md`. No generated status page was hand-edited. |
+| Operator news | `website/changes/fragments/refuse-instead-of-defaulting.md` follows the six-heading fragment contract. | Ready and untracked for the closing workflow; no news content changed during administrative updates. |
