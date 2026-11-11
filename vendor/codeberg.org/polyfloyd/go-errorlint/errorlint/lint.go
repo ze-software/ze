@@ -207,6 +207,10 @@ func LintErrorComparisons(info *TypesInfoExt) []analysis.Diagnostic {
 			// Y is error, X is not
 			errVar = binExpr.Y
 			targetErr = binExpr.X
+		} else if isPackageLevelVar(info.TypesInfo, binExpr.X) && !isPackageLevelVar(info.TypesInfo, binExpr.Y) {
+			// Both are errors, but X is the sentinel, e.g. `io.EOF == err`
+			errVar = binExpr.Y
+			targetErr = binExpr.X
 		} else {
 			// X is error (or both are errors)
 			errVar = binExpr.X
@@ -389,6 +393,22 @@ func exprToString(expr ast.Expr) string {
 	}
 }
 
+// isPackageLevelVar reports whether ex refers to a package level variable, like a sentinel error
+// such as io.EOF.
+func isPackageLevelVar(info *types.Info, ex ast.Expr) bool {
+	var ident *ast.Ident
+	switch e := ast.Unparen(ex).(type) {
+	case *ast.Ident:
+		ident = e
+	case *ast.SelectorExpr:
+		ident = e.Sel
+	default:
+		return false
+	}
+	v, ok := info.Uses[ident].(*types.Var)
+	return ok && !v.IsField() && v.Pkg() != nil && v.Parent() == v.Pkg().Scope()
+}
+
 func isNil(ex ast.Expr) bool {
 	ident, ok := ex.(*ast.Ident)
 	return ok && ident.Name == "nil"
@@ -408,16 +428,26 @@ func isNodeInErrorIsFunc(info *TypesInfoExt, node ast.Node) bool {
 	if funcDecl.Name.Name != "Is" {
 		return false
 	}
+	// Inspect the signature through the type information rather than the AST: a FieldList may
+	// be nil (no results) or hold multiple names per field (e.g. `(a, b error)`).
+	fn, ok := info.TypesInfo.Defs[funcDecl.Name].(*types.Func)
+	if !ok {
+		return false
+	}
+	sig, ok := fn.Type().(*types.Signature)
+	if !ok {
+		return false
+	}
 	// Check if the function has a receiver.
-	if funcDecl.Recv == nil {
+	if sig.Recv() == nil {
 		return false
 	}
 	// There should be 1 argument of type error.
-	if params := funcDecl.Type.Params.List; len(params) != 1 || info.TypesInfo.Types[params[0].Type].Type.String() != "error" {
+	if params := sig.Params(); params.Len() != 1 || params.At(0).Type().String() != "error" {
 		return false
 	}
 	// The return type should be bool.
-	if params := funcDecl.Type.Results.List; len(params) != 1 || info.TypesInfo.Types[params[0].Type].Type.String() != "bool" {
+	if results := sig.Results(); results.Len() != 1 || results.At(0).Type().String() != "bool" {
 		return false
 	}
 	return true
@@ -497,27 +527,16 @@ func LintErrorTypeAssertions(fset *token.FileSet, info *TypesInfoExt) []analysis
 				ifParent, isIfInit := info.NodeParent[assign].(*ast.IfStmt)
 				if isIfInit && ifParent.Init == assign {
 					// Handle special case for if statements
-					// Replace: if targetErr, ok := err.(*SomeError); ok {
-					// With:    targetErr := &SomeError{}
-					//          if errors.As(err, &targetErr) {
-					var varDecl string
-					if isPointerType {
-						varDecl = fmt.Sprintf("%s := &%s{}", varName, baseType)
-					} else {
-						varDecl = fmt.Sprintf("var %s %s", varName, baseType)
-					}
-					condition := fmt.Sprintf("if errors.As(%s, &%s)", errExpr, varName)
-
-					replacement := fmt.Sprintf("%s\n%s",
-						varDecl, condition)
-
+					// Replace: if targetErr, ok := err.(*SomeError); <cond> {
+					// With:    if targetErr, ok := errors.AsType[*SomeError](err); <cond> {
+					// Only the type assertion is replaced, which leaves the condition, the scope of the
+					// variables and any else branches intact. Requires Go 1.26.
 					diagnostic.SuggestedFixes = []analysis.SuggestedFix{{
-						Message: "Use errors.As() for type assertions on errors",
+						Message: "Use errors.AsType() for type assertions on errors",
 						TextEdits: []analysis.TextEdit{{
-							// Replace both the if statement's initialization and condition
-							Pos:     ifParent.Pos(),
-							End:     ifParent.Body.Pos(),
-							NewText: []byte(replacement),
+							Pos:     typeAssert.Pos(),
+							End:     typeAssert.End(),
+							NewText: []byte(fmt.Sprintf("errors.AsType[%s](%s)", targetType, errExpr)),
 						}},
 					}}
 					lints = append(lints, diagnostic)
@@ -807,19 +826,24 @@ func LintErrorTypeAssertions(fset *token.FileSet, info *TypesInfoExt) []analysis
 				newVarName := typeToVar[typeExpr]
 
 				if oldVarName != newVarName {
-					// Create a visitor to replace all mentions of the original variable
-					// with our renamed variable in this case's body.
-					visitor := func(n ast.Node) bool {
-						if ident, ok := n.(*ast.Ident); ok && ident.Name == oldVarName {
-							ident.Name = newVarName
+					// Find the identifiers in this case's body that refer to the variable
+					// implicitly declared by the type switch for this clause. Matching on the
+					// object rather than the name leaves shadowing variables and selectors such as
+					// `x.e` untouched.
+					rename := map[*ast.Ident]string{}
+					if implicit := info.TypesInfo.Implicits[caseClause]; implicit != nil {
+						for _, bodyStmt := range caseClause.Body {
+							ast.Inspect(bodyStmt, func(n ast.Node) bool {
+								if ident, ok := n.(*ast.Ident); ok && info.TypesInfo.Uses[ident] == implicit {
+									rename[ident] = newVarName
+								}
+								return true
+							})
 						}
-						return true
 					}
 
-					// Apply the visitor to the case body
-					for _, bodyStmt := range newCaseClause.Body {
-						ast.Inspect(bodyStmt, visitor)
-					}
+					// The AST is shared with other analyzers, so the renaming is done on a copy.
+					newCaseClause.Body = cloneStmts(caseClause.Body, rename)
 				}
 			}
 

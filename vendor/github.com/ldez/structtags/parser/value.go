@@ -2,9 +2,11 @@ package parser
 
 import "fmt"
 
+const valueSeparator = ','
+
 // Value parses a tag value.
 // The value is split on comma, and escaped commas are ignored.
-func Value(raw string, escapeComma bool) ([]string, error) {
+func Value(raw string, escapeSeparator bool) ([]string, error) {
 	if raw == "" {
 		return []string{""}, nil
 	}
@@ -12,7 +14,7 @@ func Value(raw string, escapeComma bool) ([]string, error) {
 	var values []string
 
 	for raw != "" {
-		i := indexEscaped(raw, 0, escapeComma)
+		i := indexEscaped(raw, 0, escapeSeparator)
 
 		if i == 0 {
 			values = append(values, "")
@@ -39,7 +41,7 @@ func Value(raw string, escapeComma bool) ([]string, error) {
 
 		value := raw[:i]
 
-		endComma := raw[i] == ',' && raw[i+1:] == ""
+		endComma := raw[i] == valueSeparator && raw[i+1:] == ""
 
 		raw = raw[i+1:]
 
@@ -54,7 +56,7 @@ func Value(raw string, escapeComma bool) ([]string, error) {
 }
 
 func indexEscaped(raw string, i int, escapeComma bool) int {
-	for i < len(raw) && raw[i] != ',' {
+	for i < len(raw) && raw[i] != valueSeparator {
 		i++
 	}
 

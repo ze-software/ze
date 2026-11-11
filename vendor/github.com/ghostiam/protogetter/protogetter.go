@@ -73,7 +73,7 @@ func Run(pass *analysis.Pass, cfg *Config) error {
 		skipGeneratedBy = append(skipGeneratedBy, s)
 	}
 
-	skipFilesGlobPatterns := make([]glob.Glob, 0, len(cfg.SkipFiles))
+	skipFilesGlobPatterns := make([]*glob.Pattern, 0, len(cfg.SkipFiles))
 	for _, s := range cfg.SkipFiles {
 		s = strings.TrimSpace(s)
 		if s == "" {
@@ -218,7 +218,7 @@ func skipGeneratedFile(f *ast.File, prefixes []string, skipAny bool) bool {
 	return false
 }
 
-func skipFilesByGlob(filename string, patterns []glob.Glob) bool {
+func skipFilesByGlob(filename string, patterns []*glob.Pattern) bool {
 	for _, pattern := range patterns {
 		if pattern.Match(filename) || pattern.Match(filepath.Base(filename)) {
 			return true

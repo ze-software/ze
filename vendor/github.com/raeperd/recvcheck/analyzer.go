@@ -17,12 +17,13 @@ func NewAnalyzer(s Settings) *analysis.Analyzer {
 	if !s.DisableBuiltin {
 		// Default excludes for Unmarshal/Decode methods https://github.com/raeperd/recvcheck/issues/17
 		a.excluded = map[string]struct{}{
-			"*.UnmarshalText":   {},
-			"*.UnmarshalJSON":   {},
-			"*.UnmarshalYAML":   {},
-			"*.UnmarshalXML":    {},
-			"*.UnmarshalBinary": {},
-			"*.GobDecode":       {},
+			"*.UnmarshalText":     {},
+			"*.UnmarshalJSON":     {},
+			"*.UnmarshalJSONFrom": {},
+			"*.UnmarshalYAML":     {},
+			"*.UnmarshalXML":      {},
+			"*.UnmarshalBinary":   {},
+			"*.GobDecode":         {},
 		}
 	}
 
@@ -44,6 +45,7 @@ type Settings struct {
 	// Built-in excluded methods:
 	//   - "UnmarshalText"
 	//   - "UnmarshalJSON"
+	//   - "UnmarshalJSONFrom"
 	//   - "UnmarshalYAML"
 	//   - "UnmarshalXML"
 	//   - "UnmarshalBinary"

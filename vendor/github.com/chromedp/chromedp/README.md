@@ -80,14 +80,14 @@ See the [Go reference][goref-chromedp] for the documentation and examples.
 
 ## More examples
 
-The [examples][chromedp-examples] repository has 43 programs for larger tasks.
+The [examples][chromedp-examples] repository has 46 programs for larger tasks.
 Each program is one `main.go` file. Run one with `go run`, for example
 `go run github.com/chromedp/examples/tabs@latest`. Every program takes the flag `-v`
 to print the protocol messages. Every program except `remote` takes the flag
 `-visible` to show the browser window. Most programs take the flag
 `-visible-on-terminal` to draw the page in the terminal while they run, with
-[`termcast`](#show-the-browser-in-the-terminal). Every program except `fast`
-reads local content and needs no internet. Some programs take the flag `-url` to
+[`termcast`](#show-the-browser-in-the-terminal). Every program except `fast` and
+`distrust` reads local content and needs no internet. Some programs take the flag `-url` to
 read another site. The program `termcast` takes the flag `-fps` instead of
 `-visible-on-terminal`.
 
@@ -114,13 +114,15 @@ Network, sessions and files:
 - [proxy](https://github.com/chromedp/examples/tree/main/proxy) signs in to a proxy server that needs a password.
 - [intercept](https://github.com/chromedp/examples/tree/main/intercept) blocks, mocks and changes requests with the Fetch domain.
 - [session](https://github.com/chromedp/examples/tree/main/session) saves a login session and restores it in another browser.
-- [har](https://github.com/chromedp/examples/tree/main/har) writes a HAR file from the network events of a page.
+- [har](https://github.com/chromedp/examples/tree/main/har) writes a HAR file from the network events of a page, with `Listen`.
 - [download_file](https://github.com/chromedp/examples/tree/main/download_file) downloads a file with a headless browser.
 - [download_image](https://github.com/chromedp/examples/tree/main/download_image) downloads an image from the network response.
 
 Events and the protocol:
 
 - [eventsiter](https://github.com/chromedp/examples/tree/main/eventsiter) reads the events of a page with iterators, and waits for the network to be idle.
+- [timeline](https://github.com/chromedp/examples/tree/main/timeline) puts the events of every type in one timeline, in the order in which Chrome sent them, with `Listen`.
+- [contexts](https://github.com/chromedp/examples/tree/main/contexts) attaches to a tab that runs already and lists its JavaScript contexts, with `WithListener` and `Detached`.
 - [console](https://github.com/chromedp/examples/tree/main/console) reads the console and the uncaught exceptions of a page.
 - [dialogs](https://github.com/chromedp/examples/tree/main/dialogs) answers alert, confirm, prompt and beforeunload dialogs.
 - [popups](https://github.com/chromedp/examples/tree/main/popups) works with popups and several targets, and with browser contexts.
@@ -144,9 +146,10 @@ Several tabs and browsers:
 - [tabs](https://github.com/chromedp/examples/tree/main/tabs) uses several tabs of one browser, with or without a window for each tab, and switches between them.
 - [workers](https://github.com/chromedp/examples/tree/main/workers) runs many jobs at the same time in one browser with a pool of goroutines.
 - [multi](https://github.com/chromedp/examples/tree/main/multi) uses the headless-shell image in a container.
+- [distrust](https://github.com/chromedp/examples/tree/main/distrust) starts the headless-shell image in a container with Podman and checks that the browser rejects the certificates of a compromised certificate authority.
 - [remote](https://github.com/chromedp/examples/tree/main/remote) connects to a browser that is already running, with the package `remote`.
 
-The program [fast](https://github.com/chromedp/examples/tree/main/fast) reads a live site, `fast.com`, and draws an image in the terminal. It can fail when the site changes. The programs [forecast](https://github.com/chromedp/examples/tree/main/forecast) and [geoip](https://github.com/chromedp/examples/tree/main/geoip) also draw an image in the terminal. Run these programs in a terminal that can show images.
+The program [fast](https://github.com/chromedp/examples/tree/main/fast) reads a live site, `fast.com`, and draws an image in the terminal. It can fail when the site changes. The program [distrust](https://github.com/chromedp/examples/tree/main/distrust) reads the test page `emudhra.we-have-a-problem.com`. The programs [forecast](https://github.com/chromedp/examples/tree/main/forecast) and [geoip](https://github.com/chromedp/examples/tree/main/geoip) also draw an image in the terminal. Run these programs in a terminal that can show images.
 The tags of the examples repository follow the tags of `chromedp`.
 
 ## Show the browser in the terminal

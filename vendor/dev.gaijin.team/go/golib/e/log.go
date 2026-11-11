@@ -20,6 +20,7 @@ func Log(err error, f ErrorLogger) {
 	// We're not interested in wrapped error, therefore we're only typecasting it.
 	if e, ok := err.(*Err); ok { //nolint:errorlint
 		var wrapped error
+
 		if len(e.errs) > 1 {
 			wrapped = e.errs[1]
 		}

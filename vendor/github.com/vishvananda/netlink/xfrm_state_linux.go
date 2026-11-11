@@ -123,20 +123,8 @@ type XfrmState struct {
 	ESN           bool
 	DontEncapDSCP bool
 	OSeqMayWrap   bool
-	// AFUnspec sets XFRM_STATE_AF_UNSPEC. Without it the kernel gives a state
-	// with no selector family the outer family, so a tunnel-mode state carries
-	// inner packets of that family only.
-	AFUnspec bool
-	// NoPMTUDisc sets XFRM_STATE_NOPMTUDISC. The kernel's
-	// xfrm4_tunnel_encap_add then writes a clear DF bit into the outer IPv4
-	// header instead of copying the inner header's.
-	NoPMTUDisc bool
-	// ICMP sets XFRM_STATE_ICMP. On an inbound state, icmp_rcv and
-	// icmpv6_rcv then re-check an ICMP error that failed the inbound policy
-	// check against the header it embeds, with addresses and ports reversed.
-	ICMP     bool
-	Replay   *XfrmReplayState
-	Selector *XfrmPolicy
+	Replay        *XfrmReplayState
+	Selector      *XfrmPolicy
 }
 
 func (sa XfrmState) String() string {
@@ -217,10 +205,6 @@ func writeMark(m *XfrmMark) []byte {
 	return mark.Serialize()
 }
 
-// xfrm_usersa_info carries a 32-bit legacy replay bitmap. Larger windows use
-// XFRMA_REPLAY_ESN_VAL; without XFRM_STATE_ESN, Linux selects bitmap mode.
-const xfrmLegacyReplayWindow = 32
-
 func writeReplayEsn(replayWindow int) []byte {
 	replayEsn := &nl.XfrmReplayStateEsn{
 		OSeq:         0,
@@ -286,14 +270,11 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 
 	msg := xfrmUsersaInfoFromXfrmState(state)
 
-	useReplayESN := state.ESN || state.ReplayWindow > xfrmLegacyReplayWindow
 	if state.ESN {
 		if state.ReplayWindow == 0 {
 			return fmt.Errorf("ESN flag set without ReplayWindow")
 		}
 		msg.Flags |= nl.XFRM_STATE_ESN
-	}
-	if useReplayESN {
 		msg.ReplayWindow = 0
 	}
 
@@ -326,7 +307,7 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
 		req.AddData(out)
 	}
-	if useReplayESN {
+	if state.ESN {
 		out := nl.NewRtAttr(nl.XFRMA_REPLAY_ESN_VAL, writeReplayEsn(state.ReplayWindow))
 		req.AddData(out)
 	}
@@ -521,28 +502,22 @@ var familyError = fmt.Errorf("family error")
 
 func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	var state XfrmState
-	state.Dst = xfrmIPFromAddress(&msg.Id.Daddr, msg.Family)
-	state.Src = xfrmIPFromAddress(&msg.Saddr, msg.Family)
+	state.Dst = msg.Id.Daddr.ToIP()
+	state.Src = msg.Saddr.ToIP()
 	state.Proto = Proto(msg.Id.Proto)
 	state.Mode = Mode(msg.Mode)
 	state.Spi = int(nl.Swap32(msg.Id.Spi))
 	state.Reqid = int(msg.Reqid)
 	state.ReplayWindow = int(msg.ReplayWindow)
-	state.ESN = msg.Flags&nl.XFRM_STATE_ESN != 0
-	state.AFUnspec = msg.Flags&nl.XFRM_STATE_AF_UNSPEC != 0
-	state.NoPMTUDisc = msg.Flags&nl.XFRM_STATE_NOPMTUDISC != 0
-	state.ICMP = msg.Flags&nl.XFRM_STATE_ICMP != 0
 	lftToLimits(&msg.Lft, &state.Limits)
 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
 	state.Selector = &XfrmPolicy{
-		Dst:         xfrmIPNetFromAddress(&msg.Sel.Daddr, msg.Sel.PrefixlenD, msg.Sel.Family),
-		Src:         xfrmIPNetFromAddress(&msg.Sel.Saddr, msg.Sel.PrefixlenS, msg.Sel.Family),
-		Proto:       Proto(msg.Sel.Proto),
-		DstPort:     int(nl.Swap16(msg.Sel.Dport)),
-		SrcPort:     int(nl.Swap16(msg.Sel.Sport)),
-		DstPortMask: nl.Swap16(msg.Sel.DportMask),
-		SrcPortMask: nl.Swap16(msg.Sel.SportMask),
-		Ifindex:     int(msg.Sel.Ifindex),
+		Dst:     msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD, msg.Sel.Family),
+		Src:     msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS, msg.Sel.Family),
+		Proto:   Proto(msg.Sel.Proto),
+		DstPort: int(nl.Swap16(msg.Sel.Dport)),
+		SrcPort: int(nl.Swap16(msg.Sel.Sport)),
+		Ifindex: int(msg.Sel.Ifindex),
 	}
 
 	return &state
@@ -630,16 +605,6 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 		case nl.XFRMA_SA_PCPU:
 			pcpuNum := native.Uint32(attr.Value)
 			state.Pcpunum = &pcpuNum
-		case nl.XFRMA_REPLAY_ESN_VAL:
-			// xfrm_replay_state_esn is {bmp_len, oseq, seq, oseq_hi, seq_hi,
-			// replay_window} u32s then bmp[]. Read the window at its offset
-			// rather than casting the buffer to the Go struct: that struct
-			// carries a slice header for bmp, so a pointer conversion over a
-			// SizeofXfrmReplayStateEsn buffer would build a slice out of
-			// whatever follows the attribute.
-			if len(attr.Value) >= nl.SizeofXfrmReplayStateEsn {
-				state.ReplayWindow = int(native.Uint32(attr.Value[20:24]))
-			}
 		case nl.XFRMA_REPLAY_VAL:
 			if state.Replay == nil {
 				state.Replay = new(XfrmReplayState)
@@ -727,15 +692,6 @@ func xfrmUsersaInfoFromXfrmState(state *XfrmState) *nl.XfrmUsersaInfo {
 	msg.Sel = nl.XfrmSelector{}
 	if state.Selector != nil {
 		selFromPolicy(&msg.Sel, state.Selector)
-	}
-	if state.AFUnspec {
-		msg.Flags |= nl.XFRM_STATE_AF_UNSPEC
-	}
-	if state.NoPMTUDisc {
-		msg.Flags |= nl.XFRM_STATE_NOPMTUDISC
-	}
-	if state.ICMP {
-		msg.Flags |= nl.XFRM_STATE_ICMP
 	}
 	return msg
 }
