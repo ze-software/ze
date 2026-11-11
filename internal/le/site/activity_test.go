@@ -103,12 +103,12 @@ func activityWording(fragment string) string {
 }
 
 // TestTheActivityPageReadsAsThePublishedPage compares every word the page shows
-// against the page published at gh-pages 2fa8fa2ad, with the measured numbers
-// removed. The goal is rendered parity: a reader meets the same headings, the
-// same labels and the same captions.
+// against the original published layout plus the approved additive Growth view,
+// with the measured numbers removed. The goal is rendered parity: a reader
+// meets the same headings, labels and captions as the fixture.
 //
-// VALIDATES: every word the activity page shows is the word the published page
-// showed, once the measured numbers are set aside.
+// VALIDATES: every word the activity page shows matches the published-layout
+// fixture and its Growth extension, once measured numbers are set aside.
 func TestTheActivityPageReadsAsThePublishedPage(t *testing.T) {
 	paths := activityFixturePaths(t)
 	got := activityWording(activityRenderedBody(t, paths))
@@ -215,8 +215,8 @@ func TestTheActivityPageCarriesTheSharedShell(t *testing.T) {
 }
 
 // TestTheActivityMirrorReadsAsThePublishedMirror compares the Markdown beside
-// the page against the mirror published at gh-pages 2fa8fa2ad, with the
-// measured numbers removed.
+// the page against the original published mirror plus the approved additive
+// Growth view, with the measured numbers removed.
 //
 // The mirror is converted back from the rendered body rather than written by
 // hand, so this also proves the conversion still reaches every panel: a section

@@ -42,3 +42,22 @@ A year of commits, at a glance.
 - Blank:** 93,338**
 - Comments:** 133,855**
 - Modules:** 101**
+
+## Growth within this window
+
+Commits and added lines accumulated since the displayed window began. Added lines count additions, not net repository size.
+
+### Cumulative added lines
+
+### Cumulative commits
+
+Select a date Added lines: Commits:
+
+## Current Go lines
+
+Current snapshot, including blank lines and comments. Historical category totals are unavailable in this data.
+
+- Code:** 750,774**
+- Tests:** 847,566**
+- Third party:** 1,172,214**
+- Overall:** 2,770,554**

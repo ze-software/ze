@@ -470,4 +470,4 @@ const activityStyle = `        <style>
         }
 
         </style>
-`
+` + activityGrowthStyle

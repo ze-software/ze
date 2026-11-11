@@ -140,6 +140,9 @@ func activityBody(window *reporewrite.ActivityWindow, surface activitySurface) s
 		panic("BUG: site.activityBody: invalid activity surface")
 	}
 	body.Str(activityScriptHTML(activityLineMetric(window), activityCommitMetric(window)))
+	if surface == activitySurfacePage {
+		body.Str(activityGrowthScript)
+	}
 	return body.String()
 }
 
@@ -157,6 +160,10 @@ func activityWidgetHTML(window *reporewrite.ActivityWindow, surface activitySurf
 
 	var out textbuf.Buffer
 	out.Reset().Str(`                <div class="`).Str(class).Str(`" aria-label="Activity heatmap">`).Byte('\n')
+	if surface == activitySurfacePage {
+		out.Str(activityTabsHTML)
+		out.Str(`<div class="activity-view" id="activity-calendar" role="tabpanel" aria-labelledby="activity-tab-calendar">`).Byte('\n')
+	}
 	out.Str(activitySummaryHTML(activityLineMetric(window), activityRangeText(window), activityDaysShown(window)))
 	out.Str(`                    <div class="dashboard-grid">`).Byte('\n')
 	out.Str(`                        <div class="left-stack">`).Byte('\n')
@@ -164,6 +171,10 @@ func activityWidgetHTML(window *reporewrite.ActivityWindow, surface activitySurf
 	out.Str(activityGoPanelHTML(window.Go))
 	out.Str("                        </div>\n")
 	out.Str("                    </div>\n")
+	if surface == activitySurfacePage {
+		out.Str("</div>\n")
+		out.Str(activityGrowthHTML(window.Go))
+	}
 	out.Str(activityTooltipHTML)
 	out.Str("                </div>\n")
 	return out.String()
