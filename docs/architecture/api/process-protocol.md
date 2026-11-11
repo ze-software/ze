@@ -369,7 +369,9 @@ callback to every running plugin after `signalStartupComplete` has frozen both
 the plugin registry and the dispatcher command registry; at that point cross-
 plugin `DispatchCommand` is guaranteed to resolve. Plugins register a handler
 via the SDK `OnAllPluginsReady` method. Delivery is best-effort (fire-and-
-forget, bounded timeout, per-plugin goroutine) so a single slow or broken
+forget, bounded timeout, per-plugin goroutine), and its outcome is recorded on
+the plugin's process for the `plugin-poststartup` doctor check (`ze doctor`
+reports a running plugin whose callback failed), so a single slow or broken
 plugin cannot delay notification to the rest.
 <!-- source: internal/component/plugin/server/startup.go — sendPostStartupToAll -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go — OnAllPluginsReady -->
@@ -1469,7 +1471,13 @@ uses `DrainEventsApplied`. Its FIFO receipt includes the first delivery error
 in that `Process` lifetime, including an earlier fire-and-forget failure, timeout
 or panic. A later successful batch or barrier MUST NOT clear the error; only a
 new process lifecycle represented by a new `Process` starts without it. There
-is no authoritative in-place resynchronization.
+is no authoritative in-place resynchronization. The doctor reads a copy of that
+first error (`plugin-panic`), and every batch is timed: one that fails with no
+caller waiting, or takes over 500 ms on any transport, is logged with code
+`doctor-plugin-delivery-failed`, counted in `ze_plugin_delivery_failures_total`
+or `ze_plugin_delivery_slow_batches_total`, and kept in a five-minute window
+the `plugin-delivery` check reports.
+<!-- source: internal/component/plugin/process/doctor_records.go -- noteBatch, recordProjectionErr -->
 
 The strict drain bounds both queue admission and receipt waiting by the caller's
 context. It rejects an unstarted, stopped or rejecting owner and checks lifecycle
@@ -1966,7 +1974,11 @@ and the wire-compatible value for every pre-existing caller) resolves to the
 namespace registered by the owning protocol component (`bgp` today). A non-empty
 value subscribes to another namespace (e.g. `vpn-ipsec`) at startup; an
 unregistered namespace is logged and the subscribe block is skipped rather than
-registered as a silently-dead `NamespaceUnknown` subscription. The SDK exposes
+registered as a silently-dead `NamespaceUnknown` subscription. The skip, an
+empty namespace with no default registered, and `ready` parameters that do not
+parse (which carry the startup subscriptions, so none register) are each
+recorded on the plugin's process and reported by the `plugin-subscriptions`
+doctor check under `doctor-plugin-subscription-dropped`. The SDK exposes
 this via `SetStartupSubscriptionsIn(namespace, events, peers, format)`;
 `SetStartupSubscriptions` (namespace `""`) is unchanged.
 <!-- source: internal/component/plugin/server/dispatch.go -- registerSubscriptions, resolveSubscriptionNamespace -->

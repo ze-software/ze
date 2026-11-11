@@ -8,6 +8,7 @@ package server
 import (
 	"sync"
 
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 )
 
@@ -29,6 +30,9 @@ type engineEventSubscribers struct {
 	mu       sync.RWMutex
 	nextID   uint64
 	handlers map[engineSubKey]map[uint64]EngineEventHandler
+	// panics are the recovered handler panics the doctor reads
+	// (doctor_delivery.go).
+	panics handlerPanicRecord
 }
 
 // engineSubKey identifies an engine subscription by namespace and event type.
@@ -107,7 +111,7 @@ func (e *engineEventSubscribers) dispatch(ns events.NamespaceID, et events.Event
 	e.mu.RUnlock()
 
 	for _, h := range handlers {
-		invokeEngineHandler(ns, et, payload, h)
+		e.invokeHandler(ns, et, payload, h)
 	}
 }
 
@@ -121,14 +125,16 @@ func (e *engineEventSubscribers) hasSubscribers(ns events.NamespaceID, et events
 	return ok && len(m) > 0
 }
 
-// invokeEngineHandler runs a single handler with panic recovery.
-// Extracted so the dispatch loop is straight-line and the deferred
-// recover scope is exactly one handler invocation.
-func invokeEngineHandler(ns events.NamespaceID, et events.EventTypeID, payload any, h EngineEventHandler) {
+// invokeHandler runs a single handler with panic recovery, and records a
+// recovered panic for the doctor. Extracted so the dispatch loop is
+// straight-line and the deferred recover scope is exactly one handler
+// invocation.
+func (e *engineEventSubscribers) invokeHandler(ns events.NamespaceID, et events.EventTypeID, payload any, h EngineEventHandler) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger().Error("engine event handler panicked",
-				"namespace", ns, "event-type", et, "panic", r)
+				"namespace", ns, "event-type", et, "panic", r, "code", diagnostic.CodeDoctorPluginPanic)
+			e.recordHandlerPanic(ns, et, r)
 		}
 	}()
 	h(payload)

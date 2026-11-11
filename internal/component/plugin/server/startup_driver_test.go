@@ -61,6 +61,8 @@ func (r *recordingSink) onReady(*rpc.ReadyInput) error {
 }
 
 func (r *recordingSink) onRunning() { r.order = append(r.order, "OnRunning") }
+
+func (r *recordingSink) readyParamsRefused(error) { r.order = append(r.order, "ReadyParamsRefused") }
 func (r *recordingSink) publishTransport(*ipc.PluginConn, *rpc.ReadyInput) {
 	r.order = append(r.order, "PublishTransport")
 }

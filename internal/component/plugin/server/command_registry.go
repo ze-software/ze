@@ -155,6 +155,9 @@ type RegisterResult struct {
 	Name  string // Command that was registered
 	OK    bool   // True if registration succeeded
 	Error string // Error message if failed
+	// Owner names who holds the name when the refusal is a conflict: another
+	// plugin's process name, or "builtin". Empty for any other refusal.
+	Owner string
 }
 
 // RegisteredCommand represents a plugin command in the registry.
@@ -243,6 +246,7 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 		if r.builtins[key] {
 			results[i].OK = false
 			results[i].Error = tb.Reset().Str("conflicts with builtin: ").Str(def.Name).String()
+			results[i].Owner = CommandOwnerBuiltin
 			continue
 		}
 
@@ -250,6 +254,7 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 		if existing, ok := r.commands[key]; ok {
 			results[i].OK = false
 			results[i].Error = tb.Reset().Str("already registered by process: ").Str(existing.Process.Config().Name).String()
+			results[i].Owner = existing.Process.Config().Name
 			continue
 		}
 
@@ -348,13 +353,27 @@ func (r *CommandRegistry) registerDeprecated(proc *process.Process, oldName, new
 	newKey := strings.ToLower(newName)
 
 	if r.builtins[oldKey] {
-		return fmt.Errorf("deprecated alias %q conflicts with builtin command", oldName)
+		return &commandOwnedError{
+			message: fmt.Errorf("deprecated alias %q conflicts with builtin command", oldName).Error(),
+			owner:   CommandOwnerBuiltin,
+		}
 	}
 	if existing, ok := r.commands[oldKey]; ok {
-		return fmt.Errorf("deprecated alias %q conflicts with command registered by process %s", oldName, existing.Process.Config().Name)
+		owner := existing.Process.Config().Name
+		return &commandOwnedError{
+			message: fmt.Errorf("deprecated alias %q conflicts with command registered by process %s", oldName, owner).Error(),
+			owner:   owner,
+		}
 	}
-	if _, ok := r.deprecated[oldKey]; ok {
-		return fmt.Errorf("deprecated alias %q already registered", oldName)
+	if alias, ok := r.deprecated[oldKey]; ok {
+		owner := ""
+		if alias.Process != nil {
+			owner = alias.Process.Config().Name
+		}
+		return &commandOwnedError{
+			message: fmt.Errorf("deprecated alias %q already registered", oldName).Error(),
+			owner:   owner,
+		}
 	}
 	if _, ok := r.commands[newKey]; !ok {
 		return fmt.Errorf("deprecated alias %q points to unregistered command %q", oldName, newName)

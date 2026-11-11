@@ -108,8 +108,10 @@ type Process struct {
 	exit exitRecord
 
 	// Metrics callbacks (set by ProcessManager, nil when metrics disabled).
-	onStageChange func(plugin.PluginStage) // Called after stage transition
-	deliveryInc   func()                   // Called after successful Deliver enqueue
+	onStageChange   func(plugin.PluginStage) // Called after stage transition
+	deliveryInc     func()                   // Called after successful Deliver enqueue
+	deliveryFailInc func()                   // Called after a fire-and-forget batch failed
+	deliverySlowInc func()                   // Called after a batch took over DeliverySlowThreshold
 
 	// Direct transport bridge for internal plugins (nil for external).
 	// After 5-stage startup, events and RPCs bypass socket I/O via function calls.
@@ -126,6 +128,9 @@ type Process struct {
 	// Only the delivery goroutine accesses it; barrier receipts publish the error.
 	// A successful batch MUST NOT clear it: only a new Process starts clean.
 	projectionErr error
+
+	// doctor holds what the doctor reads of this lifetime (doctor_records.go).
+	doctor doctorRecords
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -972,7 +977,8 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 	}
 	if err != nil {
 		stderrLogger().Error("plugin stderr relay stopped, later plugin output is not relayed",
-			"plugin", p.config.Name, "err", err)
+			"plugin", p.config.Name, "err", err, "code", diagnostic.CodeDoctorPluginStderrRelayStopped)
+		raiseRelayStopped(p.config.Name, err)
 	}
 }
 

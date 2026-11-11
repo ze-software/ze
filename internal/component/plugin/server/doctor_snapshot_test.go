@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -41,7 +42,7 @@ func TestPluginSnapshotNotPublished(t *testing.T) {
 	require.Len(t, snapshot.Plugins, 1, "a configured plugin with no process must still be listed")
 	got := snapshot.Plugins[0]
 	want := PluginDoctorState{Name: "never-spawned", Configured: true}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("snapshot entry = %+v, want %+v", got, want)
 	}
 

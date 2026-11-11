@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 )
 
@@ -70,12 +71,14 @@ func (s *Server) reconcileDelivery(only *process.Process) {
 			logger().Warn(d.reason,
 				"process", d.process,
 				"effect", "no peer-scoped event of any type reaches this process",
-				"action", "name it in an `attach process` block on each peer it serves")
+				"action", "name it in an `attach process` block on each peer it serves",
+				"code", diagnostic.CodeDoctorPluginDeliveryDisagreement)
 			continue
 		}
 		logger().Warn(d.reason,
 			"peer", d.peer, "process", d.process,
-			"granted", d.granted, "declared", d.declared)
+			"granted", d.granted, "declared", d.declared,
+			"code", diagnostic.CodeDoctorPluginDeliveryDisagreement)
 	}
 }
 

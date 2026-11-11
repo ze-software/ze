@@ -978,6 +978,47 @@ where `recent-events` renders it, naming the claimed name (or the remote
 address when the request named none) and never the token.
 <!-- source: internal/component/plugin/ipc/connect_back_refusal.go -- reportConnectBackRefused -->
 
+### Plugin registration and delivery checks
+
+Nine runtime checks read what a plugin was refused or never received after it
+started. Each per-plugin record lives on the plugin's `process.Process`
+(`DoctorRecord`, bounded at 16 entries per list, the rest counted), so a
+respawn or restart starts clean; `PluginDoctorState.Records` carries the copy.
+What has no process to live on is on the server: the recovered engine handler
+panics, the enricher failures per plugin name (cleared with the plugin's
+process cleanup) and the daemon's last committed transaction. The snapshot
+also carries every finding of `deliveryDisagreements(nil)` and every role
+`unbackedClaims` returns, with its claimants. With no server published each
+check answers one warning saying it could not read the plugin state.
+<!-- source: internal/component/plugin/doctor/register_delivery.go -- init -->
+<!-- source: internal/component/plugin/doctor/checks_delivery.go -- snapshotCheck -->
+<!-- source: internal/component/plugin/process/doctor_records.go -- DoctorRecord, noteBatch -->
+<!-- source: internal/component/plugin/server/doctor_delivery.go -- registerProcessCommands, recordHandlerPanic, recordEnricherFailure -->
+<!-- source: internal/component/plugin/server/doctor_snapshot.go -- DeliveryDisagreement, UnbackedClaim -->
+<!-- test: internal/component/plugin/doctor/checks_delivery_test.go TestDoctorClassChecks -->
+
+| Check | Code | Reports | Recorded by | Fix |
+|-------|------|---------|-------------|-----|
+| `plugin-commands` | `doctor-plugin-command-not-registered` (warning) | each command or deprecated alias the registry refused, with the plugin that owns the name, or `builtin` | `registerProcessCommands` | remove or rename one of the two plugins, or the plugin that shadows a builtin |
+| `plugin-subscriptions` | `doctor-plugin-subscription-dropped` (error) | each dropped subscription block: unknown namespace, no default namespace, or ready parameters that did not parse | `resolveSubscriptionNamespace`, the sinks' `readyParamsRefused` | a plugin version that subscribes in a registered namespace, then the restart |
+| `plugin-delivery-agreement` | `doctor-plugin-delivery-disagreement` (warning) | each finding of `deliveryDisagreements(nil)` | computed at the snapshot | the `attach process` change (`DeliveryDisagreement.Fix`) |
+| `plugin-claims` | `doctor-plugin-claim-unbacked` (error) | each exclusive role with no claimant running, naming the claimants | computed at the snapshot | `ze request plugin restart <claimant>` |
+| `plugin-poststartup` | `doctor-plugin-poststartup-undelivered` (error) | each running plugin whose post-startup callback failed; one still starting, or whose callback is in flight, is not reported | `recordPostStartupOutcome` | `ze request plugin restart <name>` |
+| `plugin-panic` | `doctor-plugin-panic` (error) | a plugin's first failed event application (`projectionErr`), and each recovered engine handler panic with its namespace and event type | `deliverBatch`, `safeDeliverBatch`, `invokeHandler` | the restart, or `ze show errors` for an engine handler |
+| `plugin-delivery` | `doctor-plugin-delivery-failed` (warning) | the batches that failed with no caller waiting, and the batches over 500 ms, in the last five minutes (`DeliveryWindow`) | `noteBatch`, timed in `deliverBatch` for every transport | `ze request plugin restart <name>` |
+| `plugin-enrichers` | `doctor-plugin-enricher-unavailable` (warning) | each `show` enricher that failed to register, or whose last call failed | `registerProxyEnrichers`, `makeProxyCall` | remove the plugin holding the same field, or the restart |
+| `plugin-config-commit` | `doctor-plugin-config-unapplied` (warning) | each running plugin whose last config-committed callback failed, with the daemon's last committed transaction | `dispatchCommitted`, `subscribeCommitted` | `ze signal reload` |
+
+A batch of exactly 500 ms is not slow; one of 501 ms is (`DeliverySlow`). The
+window keeps the 64 newest problems and counts only those inside it, so a
+failure at boot stops counting five minutes later. A stopped stderr relay is an
+event, not a state: the relay logs it at ERROR and raises
+`doctor-plugin-stderr-relay-stopped` naming the plugin and the cause, with the
+restart as its fix; the end where a descendant holds stderr after the plugin
+exited stays at Debug.
+<!-- source: internal/component/plugin/process/doctor_records.go -- DeliverySlow, raiseRelayStopped -->
+<!-- test: internal/component/plugin/process/doctor_records_test.go TestDeliverySlowBoundary -->
+
 ## Environment values ze could not use
 
 An env getter that cannot parse a value answers its caller's default, and the

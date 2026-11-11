@@ -12,6 +12,7 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // errUnbackedClaim reports that a plugin stood its own default behavior down for
@@ -331,6 +332,7 @@ func (s *Server) verifyAdvertisedClaims() {
 	for _, token := range s.unbackedClaims() {
 		logger().Error("exclusive plugin role claimed but no claimant is running; "+
 			"the plugin that stood down for it will not perform the role",
-			"role", token, "consequence", errUnbackedClaim.Error())
+			"role", token, "claimants", s.advertisedClaimants()[token],
+			"consequence", errUnbackedClaim.Error(), "code", diagnostic.CodeDoctorPluginClaimUnbacked)
 	}
 }

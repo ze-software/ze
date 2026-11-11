@@ -945,36 +945,17 @@ func (e *engineStartupSink) onReady(input *rpc.ReadyInput) error {
 	} else {
 		logger().Debug("plugin registration", "plugin", proc.Name(), "commands", reg.Commands, "families", reg.Families)
 	}
-	if reg := proc.Registration(); reg != nil && len(reg.Commands) > 0 {
-		defs := make([]CommandDef, len(reg.Commands))
-		for i, name := range reg.Commands {
-			defs[i] = CommandDef{
-				Name:        name,
-				ShortHelp:   reg.CommandShortHelp[name],
-				Description: reg.CommandDescription[name],
-				Hidden:      reg.CommandHidden[name],
-				Completable: reg.CommandCompletable[name],
-			}
-		}
-		results := s.dispatcher.Registry().Register(proc, defs)
-		for _, r := range results {
-			if r.OK {
-				logger().Debug("command registered", "plugin", proc.Name(), "command", r.Name)
-			} else {
-				logger().Warn("command registration rejected", "plugin", proc.Name(), "command", r.Name, "error", r.Error)
-			}
-		}
-		for canonicalName, oldNames := range reg.CommandDeprecatedNames {
-			for _, oldName := range oldNames {
-				if err := s.dispatcher.Registry().registerDeprecated(proc, oldName, canonicalName); err != nil {
-					logger().Warn("deprecated alias rejected", "plugin", proc.Name(), "old", oldName, "new", canonicalName, "error", err)
-					continue
-				}
-				logger().Debug("deprecated alias registered", "plugin", proc.Name(), "old", oldName, "new", canonicalName)
-			}
-		}
-	}
+	registerProcessCommands(s.dispatcher.Registry(), proc, proc.Registration())
 	return nil
+}
+
+// readyParamsRefused records that the ready parameters, which carry the
+// startup subscriptions, did not parse, so the plugin runs subscribed to
+// nothing (AC-14).
+func (e *engineStartupSink) readyParamsRefused(err error) {
+	e.proc.RecordSubscriptionDrop(process.SubscriptionDrop{
+		Cause: process.SubscriptionDropReadyParamsUnparsable, Detail: err.Error(),
+	})
 }
 
 // OnRunning signals the reactor that a plugin's API is ready, after the

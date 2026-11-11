@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -133,11 +134,13 @@ func (p *Process) safeDeliverBatch(batch []EventDelivery, eventsBuf []string, ti
 			panicErr := fmt.Errorf("delivery panic: %v", rec)
 			if p.projectionErr == nil {
 				p.projectionErr = panicErr
+				p.recordProjectionErr(panicErr)
 			}
 			logger().Error("deliveryLoop panic recovered",
 				"plugin", p.config.Name,
 				"panic", rec,
 				"stack", string(debug.Stack()),
+				"code", diagnostic.CodeDoctorPluginPanic,
 			)
 			// Signal all waiting callers so they are not blocked forever.
 			for _, req := range batch {
@@ -201,10 +204,13 @@ func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeou
 	// consumer writes as a bare newline and a bridge consumer counts as a call.
 	var batchErr error
 	if len(carried) != 0 {
+		start := time.Now()
 		batchErr = p.sendBatch(carried, events, timeout)
+		p.noteBatch(time.Since(start), len(carried), batchErr, hasUnwaited(carried))
 		if batchErr != nil {
 			if p.projectionErr == nil {
 				p.projectionErr = batchErr
+				p.recordProjectionErr(batchErr)
 			}
 		}
 	}
@@ -225,7 +231,8 @@ func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeou
 			// Fire-and-forget delivery (no Result channel): log errors here
 			// since no caller is waiting to collect them. This covers sent
 			// event delivery which uses nil Result to avoid re-entrant deadlock.
-			logger().Warn("event delivery failed (fire-and-forget)", "plugin", p.config.Name, "error", batchErr)
+			logger().Warn("event delivery failed (fire-and-forget)", "plugin", p.config.Name, "error", batchErr,
+				"code", diagnostic.CodeDoctorPluginDeliveryFailed)
 			if req.OnFailure != nil {
 				req.OnFailure()
 			}
@@ -239,6 +246,18 @@ func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeou
 	}
 
 	return eventsBuf
+}
+
+// hasUnwaited reports whether any item of a carried batch has no caller
+// waiting for its result, so a failure of the batch reaches nobody but the
+// log and the doctor record.
+func hasUnwaited(carried []EventDelivery) bool {
+	for i := range carried {
+		if carried[i].Result == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // stopEventChan closes the event channel, causing deliveryLoop to drain and exit.
@@ -352,20 +371,10 @@ func (p *Process) deliverViaConn(events []string, timeout time.Duration) error {
 	if conn == nil {
 		return ErrConnectionClosed
 	}
-	start := time.Now()
+	// deliverBatch times every transport, so the slow-batch line is there.
 	ctx, cancel := context.WithTimeout(p.ctx, timeout)
 	defer cancel()
-	err := conn.SendDeliverBatch(ctx, events)
-	elapsed := time.Since(start)
-	if elapsed > 500*time.Millisecond {
-		logger().Warn("timing: slow deliverViaConn",
-			"plugin", p.config.Name,
-			"events", len(events),
-			"elapsed", elapsed,
-			"error", err,
-		)
-	}
-	return err
+	return conn.SendDeliverBatch(ctx, events)
 }
 
 // DrainEvents returns when every event enqueued before the call has finished

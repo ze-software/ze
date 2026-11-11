@@ -5,12 +5,12 @@ package server
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"maps"
 	"sync"
 	"time"
 
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/show"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -70,7 +70,11 @@ func registerProxyEnrichers(pluginName string, enrichers []rpc.EnricherDecl, con
 		brief := makeProxyCall(pluginName, decl.Command, decl.Key, "brief", conn)
 		if err := show.Register(decl.Command, decl.Key, show.Enricher{Detail: detail, Brief: brief}); err != nil {
 			logger().Warn("proxy enricher registration failed",
-				"plugin", pluginName, "command", decl.Command, "key", decl.Key, "error", err)
+				"plugin", pluginName, "command", decl.Command, "key", decl.Key, "error", err,
+				"code", diagnostic.CodeDoctorPluginEnricherUnavailable)
+			recordEnricherFailure(pluginName, EnricherFailure{
+				Command: decl.Command, Key: decl.Key, Registration: true, Error: err.Error(),
+			})
 			continue
 		}
 		proxyRegistry[pluginName] = append(proxyRegistry[pluginName], proxyEntry{
@@ -96,10 +100,13 @@ func makeProxyCall(pluginName, command, key, mode string, conn *plugipc.PluginCo
 
 		out, err := conn.SendEnrichShow(ctx, input)
 		if err != nil {
-			slog.Warn("proxy enricher call failed",
-				"plugin", pluginName, "command", command, "key", key, "error", err)
+			logger().Warn("proxy enricher call failed",
+				"plugin", pluginName, "command", command, "key", key, "error", err,
+				"code", diagnostic.CodeDoctorPluginEnricherUnavailable)
+			recordEnricherFailure(pluginName, EnricherFailure{Command: command, Key: key, Error: err.Error()})
 			return
 		}
+		clearEnricherCallFailure(pluginName, command, key)
 		maps.Copy(base, out.Data)
 	}
 }
@@ -111,6 +118,7 @@ func unregisterProxyEnrichers(processName string) {
 		delete(proxyRegistry, processName)
 	}
 	proxyMu.Unlock()
+	forgetEnricherFailures(processName)
 
 	if !ok {
 		return

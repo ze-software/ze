@@ -7,6 +7,9 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 )
 
 // TestPostStartupFailureWarnsWhileRunning proves a post-startup callback that
@@ -22,8 +25,9 @@ func TestPostStartupFailureWarnsWhileRunning(t *testing.T) {
 	captured := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	logger = func() *slog.Logger { return captured }
 
+	watchdog := process.NewProcess(plugin.PluginConfig{Name: "conf-watchdog"})
 	running := &Server{ctx: context.Background()}
-	running.reportPostStartupFailure("conf-watchdog", errors.New("exec: le: not found in PATH"))
+	running.recordPostStartupOutcome(watchdog, errors.New("exec: le: not found in PATH"))
 	out := buf.String()
 	for _, want := range []string{"level=WARN", "conf-watchdog", "exec: le: not found in PATH", "ze show plugin list"} {
 		if !strings.Contains(out, want) {
@@ -35,12 +39,12 @@ func TestPostStartupFailureWarnsWhileRunning(t *testing.T) {
 	stopped, cancel := context.WithCancel(context.Background())
 	cancel()
 	stopping := &Server{ctx: stopped}
-	stopping.reportPostStartupFailure("conf-watchdog", errors.New("connection closed"))
+	stopping.recordPostStartupOutcome(watchdog, errors.New("connection closed"))
 	if buf.Len() != 0 {
 		t.Fatalf("stopping daemon: the expected close race reached Info: %q", buf.String())
 	}
 
-	running.reportPostStartupFailure("conf-watchdog", nil)
+	running.recordPostStartupOutcome(watchdog, nil)
 	if buf.Len() != 0 {
 		t.Fatalf("a delivered callback logged: %q", buf.String())
 	}

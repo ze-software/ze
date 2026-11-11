@@ -244,8 +244,16 @@ func (hs *hubStartupSink) deliverRegistry(ctx context.Context) error {
 
 // onReady, onRunning, and publishTransport are no-ops: the hub registers no
 // subscriptions, wires no bridge, and signals no reactor.
-func (hs *hubStartupSink) onReady(*rpc.ReadyInput) error                           { return nil }
-func (hs *hubStartupSink) onRunning()                                              {}
+func (hs *hubStartupSink) onReady(*rpc.ReadyInput) error { return nil }
+func (hs *hubStartupSink) onRunning()                    {}
+
+// readyParamsRefused records the unparsable ready parameters on the
+// subsystem's process, as the engine sink does.
+func (hs *hubStartupSink) readyParamsRefused(err error) {
+	hs.h.proc.RecordSubscriptionDrop(process.SubscriptionDrop{
+		Cause: process.SubscriptionDropReadyParamsUnparsable, Detail: err.Error(),
+	})
+}
 func (hs *hubStartupSink) publishTransport(*pluginipc.PluginConn, *rpc.ReadyInput) {}
 
 // transition is an unconditional success: the hub runs one connection at a time

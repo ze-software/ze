@@ -67,6 +67,8 @@ type pluginMetrics struct {
 	status    metrics.GaugeVec   // ze_plugin_status: current stage per plugin
 	restarts  metrics.CounterVec // ze_plugin_restarts_total: cumulative restart count
 	delivered metrics.CounterVec // ze_plugin_events_delivered_total: events enqueued
+	failed    metrics.CounterVec // ze_plugin_delivery_failures_total: fire-and-forget batches that failed
+	slow      metrics.CounterVec // ze_plugin_delivery_slow_batches_total: batches over DeliverySlowThreshold
 }
 
 // ProcessManager manages multiple external processes.
@@ -132,6 +134,8 @@ func (pm *ProcessManager) SetMetricsRegistry(reg metrics.Registry) {
 		status:    reg.GaugeVec("ze_plugin_status", "Current plugin stage (0=init, 6=running)", []string{reportSourcePlugin}),
 		restarts:  reg.CounterVec("ze_plugin_restarts_total", "Total plugin restart attempts (process started)", []string{reportSourcePlugin}),
 		delivered: reg.CounterVec("ze_plugin_events_delivered_total", "Total events delivered to plugin", []string{reportSourcePlugin}),
+		failed:    reg.CounterVec("ze_plugin_delivery_failures_total", "Event batches sent with no caller waiting that the plugin failed to take", []string{reportSourcePlugin}),
+		slow:      reg.CounterVec("ze_plugin_delivery_slow_batches_total", "Event batches that took over 500ms to deliver to the plugin", []string{reportSourcePlugin}),
 	}
 }
 
@@ -152,6 +156,12 @@ func (pm *ProcessManager) wireMetrics(proc *Process) {
 	}
 	proc.deliveryInc = func() {
 		m.delivered.With(name).Inc()
+	}
+	proc.deliveryFailInc = func() {
+		m.failed.With(name).Inc()
+	}
+	proc.deliverySlowInc = func() {
+		m.slow.With(name).Inc()
 	}
 }
 
@@ -672,6 +682,8 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 	if proc, ok := pm.processes[name]; ok {
 		proc.onStageChange = nil
 		proc.deliveryInc = nil
+		proc.deliveryFailInc = nil
+		proc.deliverySlowInc = nil
 		proc.Stop()
 		// An external plugin that does not exit on its closed connection is killed
 		// only once pluginExitGrace has passed, so the join waits past its grace.
@@ -716,6 +728,8 @@ func (pm *ProcessManager) clearProcessCallbacks(name string) {
 	if proc, ok := pm.processes[name]; ok {
 		proc.onStageChange = nil
 		proc.deliveryInc = nil
+		proc.deliveryFailInc = nil
+		proc.deliverySlowInc = nil
 	}
 }
 

@@ -37,7 +37,7 @@ type detector struct {
 	// Emit, and d.mu is never held across one.
 	//
 	// Why a second lock exists: the fan-out is synchronous and sequential on the
-	// emitting goroutine (plugin/server engine_event.go invokeEngineHandler), and
+	// emitting goroutine (plugin/server engine_event.go engineEventSubscribers.invokeHandler), and
 	// it reaches responders that reconcile the kernel inside their handler
 	// (ddos-local onDetected -> firewall.ApplyAll -> netlink). Holding d.mu
 	// across that parked the detector's whole state -- the rate tick, Stop, and

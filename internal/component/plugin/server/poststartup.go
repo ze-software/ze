@@ -7,10 +7,12 @@ package server
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // postStartupTimeout bounds the wait for a plugin to process the post-startup
@@ -23,7 +25,7 @@ const postStartupTimeout = 10 * time.Second
 // sendPostStartupToAll delivers the post-startup callback to every running
 // plugin. Each delivery runs in its own goroutine with a bounded timeout, so
 // one slow or broken plugin cannot delay notification to the rest. A failure
-// is reported by reportPostStartupFailure: at Warn while the daemon runs, at
+// is reported by recordPostStartupOutcome: at Warn while the daemon runs, at
 // Debug only once it is stopping, where a closed connection is expected.
 //
 // It deliberately does NOT wait. Waiting was tried (2026-07-25) to make
@@ -83,40 +85,55 @@ func (s *Server) sendPostStartupToNames(names []string) {
 }
 
 // sendPostStartupTo delivers the callback to one plugin, on its own goroutine
-// with a bounded timeout. A process that is nil, stopped, or without a
-// connection is skipped: there is nothing to deliver to.
+// with a bounded timeout. A process that is nil or stopped is skipped: there
+// is nothing to deliver to. A running process with no connection is recorded
+// undelivered, because it will never get the callback.
 func (s *Server) sendPostStartupTo(proc *process.Process) {
 	if proc == nil || !proc.Running() {
 		return
 	}
 	conn := proc.Conn()
 	if conn == nil {
+		s.recordPostStartupOutcome(proc, errPostStartupNoConn)
 		return
 	}
-	name := proc.Name()
-	go func(c *plugipc.PluginConn, pluginName string) {
-		ctx, cancel := context.WithTimeout(s.ctx, postStartupTimeout)
-		defer cancel()
-		s.reportPostStartupFailure(pluginName, c.SendPostStartup(ctx))
-	}(conn, name)
+	proc.SetPostStartup(process.PostStartupPending, nil)
+	go s.deliverPostStartup(conn, proc)
 }
 
-// reportPostStartupFailure says that a plugin never received its post-startup
-// callback. While the daemon runs this is a Warn naming the plugin, the cause
-// and where to look: a plugin that misses the callback never starts the work
-// it defers to post-startup, and a Debug line left the operator nothing at the
-// default level. Once the server context is done the daemon is stopping, a
-// closed connection is the expected race, and the line stays at Debug.
-func (s *Server) reportPostStartupFailure(pluginName string, err error) {
+// errPostStartupNoConn is the post-startup outcome of a running plugin with
+// no connection to send the callback on.
+var errPostStartupNoConn = errors.New("the plugin has no connection to send the post-startup callback on")
+
+// deliverPostStartup sends the callback to one plugin and records the
+// outcome. It is the body of the one goroutine sendPostStartupTo starts per
+// plugin, bounded by postStartupTimeout.
+func (s *Server) deliverPostStartup(conn *plugipc.PluginConn, proc *process.Process) {
+	ctx, cancel := context.WithTimeout(s.ctx, postStartupTimeout)
+	defer cancel()
+	s.recordPostStartupOutcome(proc, conn.SendPostStartup(ctx))
+}
+
+// recordPostStartupOutcome records whether a plugin received its post-startup
+// callback, for the doctor (AC-17), and says when it did not. While the daemon
+// runs a failure is a Warn naming the plugin, the cause and where to look: a
+// plugin that misses the callback never starts the work it defers to
+// post-startup, and a Debug line left the operator nothing at the default
+// level. Once the server context is done the daemon is stopping, a closed
+// connection is the expected race, and the line stays at Debug with nothing
+// recorded.
+func (s *Server) recordPostStartupOutcome(proc *process.Process, err error) {
 	if err == nil {
+		proc.SetPostStartup(process.PostStartupDelivered, nil)
 		return
 	}
 	if s.ctx.Err() != nil {
 		logger().Debug("post-startup callback not delivered: the daemon is stopping",
-			"plugin", pluginName, "error", err)
+			"plugin", proc.Name(), "error", err)
 		return
 	}
+	proc.SetPostStartup(process.PostStartupUndelivered, err)
 	logger().Warn("plugin did not receive its post-startup callback, so work it starts after "+
 		"startup is not running; check it is running with `ze show plugin list` and read its log",
-		"plugin", pluginName, "error", err)
+		"plugin", proc.Name(), "error", err, "code", diagnostic.CodeDoctorPluginPostStartupUndelivered)
 }

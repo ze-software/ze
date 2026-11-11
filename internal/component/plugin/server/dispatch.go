@@ -17,6 +17,7 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/taskguard"
@@ -257,8 +258,14 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 func (s *Server) resolveSubscriptionNamespace(proc *process.Process, requested string) (events.NamespaceID, string, bool) {
 	if requested != "" {
 		if !events.IsValidNamespace(requested) {
+			valid := events.ValidNamespaceNames()
 			logger().Warn("rpc event subscription: unknown namespace, skipping subscriptions",
-				"plugin", proc.Name(), "namespace", requested, "valid", events.ValidNamespaceNames())
+				"plugin", proc.Name(), "namespace", requested, "valid", valid,
+				"code", diagnostic.CodeDoctorPluginSubscriptionDropped)
+			proc.RecordSubscriptionDrop(process.SubscriptionDrop{
+				Cause: process.SubscriptionDropUnknownNamespace, Namespace: requested,
+				Detail: "valid namespaces: " + valid,
+			})
 			return events.NamespaceUnknown, "", false
 		}
 		return events.LookupNamespaceID(requested), requested, true
@@ -267,7 +274,8 @@ func (s *Server) resolveSubscriptionNamespace(proc *process.Process, requested s
 	namespace := plugin.DefaultEventNamespace()
 	if namespace == "" {
 		logger().Warn("rpc event subscription: no default event namespace registered, subscriptions will not match (call plugin.RegisterDefaultEventNamespace from the protocol component's register.go)",
-			"plugin", proc.Name())
+			"plugin", proc.Name(), "code", diagnostic.CodeDoctorPluginSubscriptionDropped)
+		proc.RecordSubscriptionDrop(process.SubscriptionDrop{Cause: process.SubscriptionDropNoDefaultNamespace})
 	}
 	return events.LookupNamespaceID(namespace), namespace, true
 }

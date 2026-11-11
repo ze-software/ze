@@ -21,6 +21,7 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -131,6 +132,11 @@ type startupSink interface {
 	// error sent to the plugin (the barrier already recorded the tier-wide
 	// failure). Sinks with no barrier return true unconditionally.
 	transition(from, to plugin.PluginStage) bool
+
+	// readyParamsRefused records that the ready parameters did not parse, so
+	// the startup subscriptions they carry were dropped. The handshake goes
+	// on: the driver has already logged the refusal.
+	readyParamsRefused(err error)
 }
 
 // runStartupHandshake drives the 5-stage plugin startup handshake over the
@@ -270,7 +276,10 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	var readyInput rpc.ReadyInput
 	if req.Params != nil {
 		if perr := json.Unmarshal(req.Params, &readyInput); perr != nil {
-			logger().Warn("rpc startup: invalid ready params", "error", perr)
+			logger().Warn("rpc startup: invalid ready params, the plugin's startup subscriptions are dropped",
+				"plugin", sink.pluginName(), "error", perr,
+				"code", diagnostic.CodeDoctorPluginSubscriptionDropped)
+			sink.readyParamsRefused(perr)
 		}
 	}
 	// Publish the callback transport before onReady makes this plugin a

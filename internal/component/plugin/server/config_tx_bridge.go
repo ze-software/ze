@@ -8,6 +8,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -18,6 +19,7 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -778,6 +780,7 @@ func (b *configTxBridge) subscribeCommitted(parentCtx context.Context) {
 			logger().Error("config tx bridge: unmarshal committed event", "error", err)
 			return
 		}
+		b.server.recordCommitted(ev.TransactionID)
 		for _, name := range b.participantNames {
 			b.dispatchCommitted(parentCtx, ev.TransactionID, name)
 		}
@@ -794,15 +797,25 @@ func (b *configTxBridge) dispatchCommitted(ctx context.Context, txID, name strin
 	}
 	conn := b.participants[name].conn
 	if conn == nil {
+		proc.RecordConfigCommit(txID, errConfigCommittedNoConn)
 		return
 	}
 	ctx, cancel := context.WithTimeout(ctx, configCommittedTimeout)
 	defer cancel()
-	if err := conn.SendConfigCommitted(ctx, txID); err != nil {
+	err := conn.SendConfigCommitted(ctx, txID)
+	// The doctor reads the outcome (AC-22): a plugin not told keeps its
+	// rollback gate open on this transaction's undo set.
+	proc.RecordConfigCommit(txID, err)
+	if err != nil {
 		logger().Error("config tx bridge: config-committed",
-			"plugin", name, "transaction-id", txID, "error", err)
+			"plugin", name, "transaction-id", txID, "error", err,
+			"code", diagnostic.CodeDoctorPluginConfigUnapplied)
 	}
 }
+
+// errConfigCommittedNoConn is the config-committed outcome of a participant
+// with no connection to send it on.
+var errConfigCommittedNoConn = errors.New("the plugin has no connection to send config-committed on")
 
 // dispatchRollback calls config-rollback on one plugin and emits the ack.
 // Missing processes or closed connections surface as CodeBroken so the
