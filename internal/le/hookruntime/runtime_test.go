@@ -24,6 +24,7 @@ func runHook(t *testing.T, root, kind string, payload any) (int, string, string)
 	if err != nil {
 		t.Fatal(err)
 	}
+	recordCorpusPayload(kind, body)
 	var out bytes.Buffer
 	var errOut bytes.Buffer
 	code := Run(kind, bytes.NewReader(body), &out, &errOut)

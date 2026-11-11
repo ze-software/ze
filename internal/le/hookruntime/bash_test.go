@@ -1019,6 +1019,7 @@ type guardRow struct {
 func judgeGuardRows(t *testing.T, root string, rows []guardRow) {
 	t.Helper()
 	for _, row := range rows {
+		recordCorpusLine(row.command, false)
 		result := guardVerdict(row.check, root, row.command)
 		if (result != nil) != row.refused {
 			message := ""

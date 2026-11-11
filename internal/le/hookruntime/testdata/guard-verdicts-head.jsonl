@@ -1,0 +1,1189 @@
+{"line":"! golangci-lint run","caller":"main","refused-by":[],"reader-line":false}
+{"line":"! golangci-lint run","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"! grep -q x a","caller":"main","refused-by":[],"reader-line":false}
+{"line":"! grep -q x a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"( cat a )","caller":"main","refused-by":[],"reader-line":false}
+{"line":"( cat a )","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"( go test ./internal/x )","caller":"main","refused-by":[],"reader-line":false}
+{"line":"( go test ./internal/x )","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"( go test ./x )","caller":"main","refused-by":[],"reader-line":false}
+{"line":"( go test ./x )","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le commit no-such-action","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le commit no-such-action","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le doc check all > tmp/.ze-verify-duration.txt 2>&1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le doc check all > tmp/.ze-verify-duration.txt 2>&1","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le doc check all > tmp/commit-abc123.log 2>&1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le doc check all > tmp/commit-abc123.log 2>&1","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le doc check all > tmp/delete-abc123.sh 2>&1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le doc check all > tmp/delete-abc123.sh 2>&1","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le doc check all > tmp/mutation-survivors.md 2>&1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le doc check all > tmp/mutation-survivors.md 2>&1","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le doc check all > tmp/test-timings.json 2>&1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le doc check all > tmp/test-timings.json 2>&1","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le doc check all > tmp/verify/out.log 2>&1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le doc check all > tmp/verify/out.log 2>&1","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le doc check all > tmp/ze-verify.log 2>&1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le doc check all > tmp/ze-verify.log 2>&1","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le job run label gotest command go test ./internal/core/env","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le job run label gotest command go test ./internal/core/env","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le job run label unit-pkg quiet command go test ./x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le job run label unit-pkg quiet command go test ./x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le repo changed scope","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le repo changed scope","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le spec current","caller":"fork","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le spec wip | head -5","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le spec wip | head -5","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le test unit core","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le test unit core","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le verify current 2>&1 | tee tmp/v.log","caller":"main","refused-by":["bashScratch"],"reader-line":false}
+{"line":"./le verify current 2>&1 | tee tmp/v.log","caller":"subagent","refused-by":["bashScratch","bashAgentIdentity"],"reader-line":false}
+{"line":"./le verify current \\\n  | tail -40","caller":"main","refused-by":["bashLossyPipe"],"reader-line":false}
+{"line":"./le verify current \\\n  | tail -40","caller":"subagent","refused-by":["bashLossyPipe","bashAgentIdentity"],"reader-line":false}
+{"line":"./le verify current | grep X","caller":"main","refused-by":["bashLossyPipe"],"reader-line":false}
+{"line":"./le verify current | grep X","caller":"subagent","refused-by":["bashLossyPipe","bashAgentIdentity"],"reader-line":false}
+{"line":"./le verify current |& tail -5","caller":"main","refused-by":["bashLossyPipe"],"reader-line":false}
+{"line":"./le verify current |& tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashAgentIdentity"],"reader-line":false}
+{"line":"./le verify deps unit-race-changed > \"$dir/unit.log\" 2>&1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le verify deps unit-race-changed > \"$dir/unit.log\" 2>&1","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"./le verify status check | tail -1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"./le verify status check | tail -1","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"/bin/bash -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"/bin/bash -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"/bin/sh -c 'cat /tmp/x'","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"/bin/sh -c 'cat /tmp/x'","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"2>/dev/null go build -o bin/ze ./cmd/ze","caller":"main","refused-by":[],"reader-line":false}
+{"line":"2>/dev/null go build -o bin/ze ./cmd/ze","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"< f grep -n x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"< f grep -n x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"<<<cat ./le commit create x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"<<<cat ./le commit create x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"<<<cat go build -o /tmp/x ./cmd/z","caller":"main","refused-by":["bashRootBuild","bashSystemTmp"],"reader-line":false}
+{"line":"<<<cat go build -o /tmp/x ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"<<<cat go build -o /tmp/x ./cmd/ze","caller":"main","refused-by":["bashRootBuild","bashSystemTmp"],"reader-line":false}
+{"line":"<<<cat go build -o /tmp/x ./cmd/ze","caller":"subagent","refused-by":["bashRootBuild","bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"CC='sh -c x' go build ./internal/x","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"CC='sh -c x' go build ./internal/x","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"GOFLAGS=\"-a -b\" go test ./x | tail","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"GOFLAGS=\"-a -b\" go test ./x | tail","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"GOFLAGS=\"-race -count=1\" go test ./internal/x/","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"GOFLAGS=\"-race -count=1\" go test ./internal/x/","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"LC_ALL=C grep -n x notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"LC_ALL=C grep -n x notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"LC_ALL=C sort f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"LC_ALL=C sort f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"PATH=. cat f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"PATH=. cat f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"X=\"a ZE_ADMIT_RAW=1\" go test ./...","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"X=\"a ZE_ADMIT_RAW=1\" go test ./...","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"ZE_ADMIT_RAW=\"bisecting one 2s case\" go test -run TestX ./internal/core/env","caller":"main","refused-by":[],"reader-line":false}
+{"line":"ZE_ADMIT_RAW=\"bisecting one 2s case\" go test -run TestX ./internal/core/env","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"ZE_ADMIT_RAW=\"one vet of a fixture\" go vet ./internal/core/env","caller":"main","refused-by":[],"reader-line":false}
+{"line":"ZE_ADMIT_RAW=\"one vet of a fixture\" go vet ./internal/core/env","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"ZE_ADMIT_RAW=\"reason\" go test ./x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"ZE_ADMIT_RAW=\"reason\" go test ./x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"[ -R 'a[$(./le spec current)]' ]","caller":"main","refused-by":[],"reader-line":false}
+{"line":"[ -R 'a[$(./le spec current)]' ]","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"[ -f notes.md ] && cat notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"[ -f notes.md ] && cat notes.md","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"[ -f notes.md ] && test -n x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"[ -f notes.md ] && test -n x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"[ -f x ] 2>/dev/null && cat x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"[ -f x ] 2>/dev/null && cat x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"[ -v 'a[$(./le spec current)]' ]","caller":"main","refused-by":[],"reader-line":false}
+{"line":"[ -v 'a[$(./le spec current)]' ]","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"[ -v 'a[$(go build ./cmd/z)]' ]","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"[ -v 'a[$(go build ./cmd/z)]' ]","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"[ 1 -eq 'x[$(id)]' ]","caller":"main","refused-by":[],"reader-line":false}
+{"line":"[ 1 -eq 'x[$(id)]' ]","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"[[ -f \"$f\" ]] && cat \"$f\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"[[ -f \"$f\" ]] && cat \"$f\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"[[ -f a ]]","caller":"main","refused-by":[],"reader-line":false}
+{"line":"[[ -f a ]]","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"[[ -f a ]]\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"[[ -f a ]]\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"[[ -f a ]]\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"[[ -f a ]]\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"[[ -f a ]]\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"[[ -f a ]]\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"[[ -f a ]]\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"[[ -f a ]]\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"[[ a -eq b ]]","caller":"main","refused-by":[],"reader-line":false}
+{"line":"[[ a -eq b ]]","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"ash -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"ash -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"awk '{print > \"/tmp/x\"}' f","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"awk '{print > \"/tmp/x\"}' f","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"bash --init-file f -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"bash --init-file f -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"bash --rcfile f -c 'cat /tmp/x'","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"bash --rcfile f -c 'cat /tmp/x'","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"bash --rcfile f -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"bash --rcfile f -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"bash -c \"./le doc check all > tmp/out.log\"","caller":"main","refused-by":["bashScratch"],"reader-line":false}
+{"line":"bash -c \"./le doc check all > tmp/out.log\"","caller":"subagent","refused-by":["bashScratch","bashAgentIdentity"],"reader-line":false}
+{"line":"bash -c 'go build -o bin/x ./...'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"bash -c 'go build -o bin/x ./...'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"bash -c 'go build ./internal/x'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"bash -c 'go build ./internal/x'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"bash -c 'while true; do sleep 5; done'","caller":"main","refused-by":["bashPollLoop"],"reader-line":false}
+{"line":"bash -c 'while true; do sleep 5; done'","caller":"subagent","refused-by":["bashPollLoop","bashAgentIdentity"],"reader-line":false}
+{"line":"bash -e -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"bash -e -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"bash -o pipefail -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"bash -o pipefail -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"bash <<'EOF'\n./le doc check all > tmp/out.log\nEOF","caller":"main","refused-by":["bashScratch"],"reader-line":false}
+{"line":"bash <<'EOF'\n./le doc check all > tmp/out.log\nEOF","caller":"subagent","refused-by":["bashScratch","bashAgentIdentity"],"reader-line":false}
+{"line":"bash <<< 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"bash <<< 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"bash <<EOF\ngo build ./cmd/z\nEOF","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"bash <<EOF\ngo build ./cmd/z\nEOF","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"case x in a) cat a;; esac","caller":"main","refused-by":[],"reader-line":false}
+{"line":"case x in a) cat a;; esac","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat \"$EMPTY\"/tmp/x","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat \"$EMPTY\"/tmp/x","caller":"subagent","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat \"$dir/x.log\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat \"$dir/x.log\"","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cat \"${dir}/x.log\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat \"${dir}/x.log\"","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cat \"${x:-a}\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat \"${x:-a}\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat \"${x:-a}\"\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat \"${x:-a}\"\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat \"${x:-a}\"\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat \"${x:-a}\"\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat \"${x:-a}\"\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat \"${x:-a}\"\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat \"${x:-a}\"\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat \"${x:-a}\"\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat $\"x\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat $\"x\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat $\"x\"\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat $\"x\"\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat $\"x\"\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat $\"x\"\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat $\"x\"\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat $\"x\"\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat $\"x\"\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat $\"x\"\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat $'\\'' ; echo x > /tmp/y ; cat \\'","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat $'\\'' ; echo x > /tmp/y ; cat \\'","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat $'\\'' ; go build ./cmd/z ; cat \\'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat $'\\'' ; go build ./cmd/z ; cat \\'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat $'\\'' ; go test ./x ; cat \\'","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat $'\\'' ; go test ./x ; cat \\'","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat $'\\'' ; go test ./x | tail -5 ; cat \\'","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat $'\\'' ; go test ./x | tail -5 ; cat \\'","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat $'\\'' ; le x ; cat \\'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat $'\\'' ; le x ; cat \\'","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat $'x'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat $'x'","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat $'x'\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat $'x'\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat $'x'\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat $'x'\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat $'x'\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat $'x'\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat $'x'\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat $'x'\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat ${x:-a}","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat ${x:-a}","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat ${x:-a}\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat ${x:-a}\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat ${x:-a}\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat ${x:-a}\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat ${x:-a}\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat ${x:-a}\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat ${x:-a}\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat ${x:-a}\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat ${x}","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat ${x}","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat ${x}\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat ${x}\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat ${x}\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat ${x}\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat ${x}\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat ${x}\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat ${x}\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat ${x}\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat '#'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat '#'","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat '#'\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat '#'\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat '#'\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat '#'\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat '#'\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat '#'\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat '#'\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat '#'\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat '' a","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat '' a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat 'a\nb'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat 'a\nb'","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat 'a\nb'\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat 'a\nb'\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat 'a\nb'\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat 'a\nb'\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat 'a\nb'\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat 'a\nb'\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat 'a\nb'\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat 'a\nb'\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat 'go build' &> f","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat 'go build' &> f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat 'go build' 2> f","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat 'go build' 2> f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat 'go build' > /dev/null","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat 'go build' > /dev/null","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cat 'go build' > f","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat 'go build' > f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat /tmp/x","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat /tmp/x","caller":"subagent","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat <(cat a)","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat <(cat a)","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat <(cat a)\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat <(cat a)\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat <(cat a)\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat <(cat a)\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat <(cat a)\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat <(cat a)\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat <(cat a)\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat <(cat a)\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat <<< /tmp/a","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat <<< /tmp/a","caller":"subagent","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat <<EOF\n./le spec current\nEOF","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat <<EOF\n./le spec current\nEOF","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat <<EOF\nx","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat <<EOF\nx","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat <<EOF\nx\nEOF","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat <<EOF\nx\nEOF","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat <<EOF\nx\nEOF\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat <<EOF\nx\nEOF\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat <<EOF\nx\nEOF\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat <<EOF\nx\nEOF\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat <<EOF\nx\nEOF\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat <<EOF\nx\nEOF\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat <<EOF\nx\nEOF\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat <<EOF\nx\nEOF\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat <<cat\ngrep '\ncat\necho x > /tmp/y\ncat <<cat\n'\ncat","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat <<cat\ngrep '\ncat\necho x > /tmp/y\ncat <<cat\n'\ncat","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat <<cat\ngrep '\ncat\ngo build ./cmd/z\ncat <<cat\n'\ncat","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat <<cat\ngrep '\ncat\ngo build ./cmd/z\ncat <<cat\n'\ncat","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat <<cat\ngrep '\ncat\ngo test ./x\ncat <<cat\n'\ncat","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat <<cat\ngrep '\ncat\ngo test ./x\ncat <<cat\n'\ncat","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat <<cat\ngrep '\ncat\ngo test ./x | tail -5\ncat <<cat\n'\ncat","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat <<cat\ngrep '\ncat\ngo test ./x | tail -5\ncat <<cat\n'\ncat","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat <<cat\ngrep '\ncat\nle x\ncat <<cat\n'\ncat","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat <<cat\ngrep '\ncat\nle x\ncat <<cat\n'\ncat","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat > tmp/out.log <<'EOF'\nhello\nEOF","caller":"main","refused-by":["bashScratch"],"reader-line":false}
+{"line":"cat > tmp/out.log <<'EOF'\nhello\nEOF","caller":"subagent","refused-by":["bashScratch","bashAgentIdentity"],"reader-line":false}
+{"line":"cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF","caller":"main","refused-by":["bashScratch"],"reader-line":false}
+{"line":"cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF","caller":"subagent","refused-by":["bashScratch","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a &","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a &","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat a & cat b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a & cat b","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat a & cat b\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat a & cat b\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a & cat b\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat a & cat b\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a & cat b\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat a & cat b\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a & cat b\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat a & cat b\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a &> f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a &> f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat a 2> f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a 2> f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat a 2>&1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a 2>&1","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cat a 2>&1; go build ./internal/x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a 2>&1; go build ./internal/x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat a 2>/dev/null >&2 < notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a 2>/dev/null >&2 < notes.md","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cat a <<< ","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a <<< ","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat a <<< \necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat a <<< \necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a <<< \ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat a <<< \ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a <<< \ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat a <<< \ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a <<< \ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat a <<< \ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a > /dev/null","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a > /dev/null","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cat a > f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a > f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat a >& f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a >& f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat a >& f\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat a >& f\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a >& f\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat a >& f\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a >& f\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat a >& f\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a >& f\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat a >& f\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a >> /dev/null","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a >> /dev/null","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cat a |& cat b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a |& cat b","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat a |& cat b\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat a |& cat b\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a |& cat b\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat a |& cat b\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a |& cat b\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat a |& cat b\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a |& cat b\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat a |& cat b\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a#b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a#b","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat a#b\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat a#b\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a#b\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat a#b\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a#b\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat a#b\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a#b\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat a#b\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a; go build -o bin/ze ./cmd/ze","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a; go build -o bin/ze ./cmd/ze","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat a{b}","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat a{b}","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat a{b}\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat a{b}\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a{b}\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat a{b}\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a{b}\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat a{b}\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat a{b}\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat a{b}\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat café","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat café","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat café\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat café\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat café\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat café\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat café\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat café\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat café\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat café\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat docs/a.md docs/b.md | sort | uniq -c | tail -3","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat docs/a.md docs/b.md | sort | uniq -c | tail -3","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cat foo/tmp/x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat foo/tmp/x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cat list.txt | xargs ./le doc check","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat list.txt | xargs ./le doc check","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat notes.md \\","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat notes.md \\","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat plan/post-release/engineering/spec-x.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat plan/post-release/engineering/spec-x.md","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cat tmp/x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat tmp/x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cat x\u0001","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat x\u0001","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\u0001\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat x\u0001\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\u0001\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat x\u0001\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\u0001\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat x\u0001\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\u0001\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat x\u0001\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\r","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat x\r","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\r\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat x\r\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\r\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat x\r\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\r\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat x\r\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\r\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat x\r\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x > \"\\/dev/null\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat x > \"\\/dev/null\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat x!#; echo x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat x!#; echo x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x!#; go build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat x!#; go build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x!#; go test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat x!#; go test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x!#; go test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat x!#; go test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x!#; le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat x!#; le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\\ y","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat x\\ y","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\\ y\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat x\\ y\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\\ y\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat x\\ y\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\\ y\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat x\\ y\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x\\ y\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat x\\ y\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x{#}; echo x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat x{#}; echo x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x{#}; go build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat x{#}; go build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x{#}; go test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat x{#}; go test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x{#}; go test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat x{#}; go test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x{#}; le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat x{#}; le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat x}#; echo x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat x}#; echo x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x}#; go build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"cat x}#; go build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x}#; go test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"cat x}#; go test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x}#; go test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"cat x}#; go test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat x}#; le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat x}#; le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cd /srv/checkout && git log --oneline -3; sed -n 1,5p notes.md 2>&1 | wc -l","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cd /srv/checkout && git log --oneline -3; sed -n 1,5p notes.md 2>&1 | wc -l","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"coproc cat a","caller":"main","refused-by":[],"reader-line":false}
+{"line":"coproc cat a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cp .claude/worktrees/a internal/x","caller":"main","refused-by":["bashWorktreeCopy"],"reader-line":false}
+{"line":"cp .claude/worktrees/a internal/x","caller":"subagent","refused-by":["bashWorktreeCopy","bashAgentIdentity"],"reader-line":false}
+{"line":"curl -o\"/tmp/f\" u","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"curl -o\"/tmp/f\" u","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"declare A=1; cat a","caller":"main","refused-by":[],"reader-line":false}
+{"line":"declare A=1; cat a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"diff --pag 'go build' f","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"diff --pag 'go build' f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"diff --pag a b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"diff --pag a b","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"diff -L \"\" -l a b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"diff -L \"\" -l a b","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"diff -L '' -l a b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"diff -L '' -l a b","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"diff -l 'go build' f","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"diff -l 'go build' f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"diff -l a b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"diff -l a b","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"diff -u 'go build' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"diff -u 'go build' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"diff -u a b","caller":"main","refused-by":[],"reader-line":false}
+{"line":"diff -u a b","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"diff <(sort a) <(sort b)","caller":"main","refused-by":[],"reader-line":false}
+{"line":"diff <(sort a) <(sort b)","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo \"$(./le spec current)\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo \"$(./le spec current)\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo \"$(cat a)\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo \"$(cat a)\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo \"${a:1:2}\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo \"${a:1:2}\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo \"${a[0]}\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo \"${a[0]}\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo \"a\\\"b\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo \"a\\\"b\"","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo \"a\\\"b\"\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"echo \"a\\\"b\"\necho x > /tmp/y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"echo \"a\\\"b\"\ngo build ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"echo \"a\\\"b\"\ngo build ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"echo \"a\\\"b\"\ngo test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"echo \"a\\\"b\"\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"echo \"a\\\"b\"\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"echo \"a\\\"b\"\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"echo \"go build>\"|sh","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"echo \"go build>\"|sh","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"echo \"x>\"|sh","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo \"x>\"|sh","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo $((1+2))","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo $((1+2))","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo $(./le spec current)","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo $(./le spec current)","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo 'a|b' | go test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"echo 'a|b' | go test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"echo 'go build ./cmd/z' | bash","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"echo 'go build ./cmd/z' | bash","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"echo 'go build ./cmd/z' | sh -s","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"echo 'go build ./cmd/z' | sh -s","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"echo 'go build' 'x'\\>|sh","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"echo 'go build' 'x'\\>|sh","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"echo 'go build' >> f","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"echo 'go build' >> f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"echo 'go build'\\>|sh","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"echo 'go build'\\>|sh","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"echo 'x'\\>|sh","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo 'x'\\>|sh","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo --ext-diff; git log -p $_","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo --ext-diff; git log -p $_","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo -v; printf $_ 'a[$(./le spec current)]' v","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo -v; printf $_ 'a[$(./le spec current)]' v","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo `./le spec current`","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo `./le spec current`","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo probe > ./tmp/notes.txt","caller":"main","refused-by":["bashScratch"],"reader-line":false}
+{"line":"echo probe > ./tmp/notes.txt","caller":"subagent","refused-by":["bashScratch","bashAgentIdentity"],"reader-line":false}
+{"line":"echo probe > @PROJECT@/tmp/notes.txt","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo probe > @PROJECT@/tmp/notes.txt","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo probe > sub/tmp/notes.txt","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo probe > sub/tmp/notes.txt","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo x > plan/post-release/engineering/spec-x.md","caller":"main","refused-by":["bashGovernedWrite"],"reader-line":false}
+{"line":"echo x > plan/post-release/engineering/spec-x.md","caller":"subagent","refused-by":["bashGovernedWrite","bashAgentIdentity"],"reader-line":false}
+{"line":"echo x >\"/tmp/y\"","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"echo x >\"/tmp/y\"","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"echo x >> f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo x >> f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo x >| f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo x >| f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo x\\>|sh","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo x\\>|sh","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"eval 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"eval 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"export A=1; cat a","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export A=1; cat a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec current","caller":"fork","refused-by":[],"reader-line":false}
+{"line":"export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-10; export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-10; export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; . x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; . x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec current","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; /usr/bin/env -i ./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; /usr/bin/env -i ./le x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; <<<x ZE_AGENT_ID=y ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; <<<x ZE_AGENT_ID=y ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; >/dev/null export ZE_AGENT_ID=y; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; >/dev/null export ZE_AGENT_ID=y; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; FOO=bar ./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; FOO=bar ./le x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ZE_AGENT_\"\"ID=x ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ZE_AGENT_\"\"ID=x ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ZE_AGENT_ID+=x ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ZE_AGENT_ID+=x ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ZE_AGENT_ID=agent-2 ./le spec \"unclosed","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ZE_AGENT_ID=agent-2 ./le spec \"unclosed","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ZE_AGENT_ID=agent-2 ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ZE_AGENT_ID=agent-2 ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ZE_AGENT_ID[0]=x ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ZE_AGENT_ID[0]=x ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ZE_AGENT_{ID,}=x ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; ZE_AGENT_{ID,}=x ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; bash -c 'CLAUDE_CODE_SESSION_ID=parent-18 ./le spec current'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; bash -c 'CLAUDE_CODE_SESSION_ID=parent-18 ./le spec current'","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; bash tmp/commit-4f95a2b5-a-probe.sh","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; bash tmp/commit-4f95a2b5-a-probe.sh","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; builtin . x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; builtin . x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; builtin . x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; builtin . x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; builtin export CLAUDE_CODE_SESSION_ID=x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; builtin export CLAUDE_CODE_SESSION_ID=x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cat <<cat\ngrep '\ncat\nCLAUDE_CODE_SESSION_ID=parent-18 ./le x\ncat <<cat\n'\ncat","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cat <<cat\ngrep '\ncat\nCLAUDE_CODE_SESSION_ID=parent-18 ./le x\ncat <<cat\n'\ncat","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cat a > ZE_AGENT_ID; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cat a > ZE_AGENT_ID; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cat x{#}; ZE_AGENT_ID=agent-2 ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cat x{#}; ZE_AGENT_ID=agent-2 ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cd x && ./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; cd x && ./le x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; command . x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; command . x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; command . x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; command . x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; command export A=1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; command export A=1","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; command export ZE_AGENT_ID=x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; command export ZE_AGENT_ID=x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; declare -n r=ZE_AGENT_\"\"ID; r=x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; declare -n r=ZE_AGENT_\"\"ID; r=x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; declare -x X","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; declare -x X","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; echo \"$ZE_AGENT_ID\" && ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; echo \"$ZE_AGENT_ID\" && ./le spec current","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; echo $ZE_AGENT_ID","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; echo $ZE_AGENT_ID","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; env -i le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; env -i le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; env CLAUDE_CODE_SESSION_ID=parent-18 ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; env CLAUDE_CODE_SESSION_ID=parent-18 ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; env X=1 ./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; env X=1 ./le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; env ZE_AGENT_\"\"ID=x le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; env ZE_AGENT_\"\"ID=x le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; eval \"export ZE_AGENT_ID=agent-2\"; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; eval \"export ZE_AGENT_ID=agent-2\"; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; eval x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; eval x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; exec -c le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; exec -c le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; exec env ZE_AGENT_ID=x ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; exec env ZE_AGENT_ID=x ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export $'ZE_AGENT_\\x49D'=x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export $'ZE_AGENT_\\x49D'=x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export X=1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export X=1","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export Z''E_AGENT_ID=x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export Z''E_AGENT_ID=x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export ZE_AGENT_\"\"ID=x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export ZE_AGENT_\"\"ID=x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export ZE_AGENT_ID+=x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export ZE_AGENT_ID+=x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export ZE_AGENT_ID=agent-2; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export ZE_AGENT_ID=agent-2; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export ZE_AGENT_\\ID=x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; export ZE_AGENT_\\ID=x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; for ZE_AGENT_ID in x; do ./le spec current; done","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; for ZE_AGENT_ID in x; do ./le spec current; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; for f in a b; do grep -n \"x\\|go vet ./y\" \"$f\"; done","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; for f in a b; do grep -n \"x\\|go vet ./y\" \"$f\"; done","caller":"subagent","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; for f in a; do env -i le x; done","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; for f in a; do env -i le x; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; getopts a ZE_AGENT_ID; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; getopts a ZE_AGENT_ID; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep -n 'cat /tmp/x' f","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep -n 'cat /tmp/x' f","caller":"subagent","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep -n 'go build ./cmd/ze' f","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep -n 'go build ./cmd/ze' f","caller":"subagent","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep -n CLAUDE_CODE_SESSION_ID f; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep -n CLAUDE_CODE_SESSION_ID f; ./le spec current","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep -n x notes.md; ./le spec state current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep -n x notes.md; ./le spec state current","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep -rn \"ZE_AGENT_ID=\" docs/ ; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep -rn \"ZE_AGENT_ID=\" docs/ ; ./le spec current","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep ZE_AGENT_ID f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep ZE_AGENT_ID f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep ZE_AGENT_ID= notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; grep ZE_AGENT_ID= notes.md","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if env -i le x; then true; fi","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if env -i le x; then true; fi","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if false; then true; elif env -i le x; then true; fi","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if false; then true; elif env -i le x; then true; fi","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if false; then true; else env -i le x; fi","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if false; then true; else env -i le x; fi","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if true; then . ./env.sh; fi; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if true; then . ./env.sh; fi; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if true; then . ./env.sh; fi; ./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if true; then . ./env.sh; fi; ./le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if true; then ZE_AGENT_ID=x ./le spec current; fi","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if true; then ZE_AGENT_ID=x ./le spec current; fi","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if true; then export A=1; fi","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; if true; then export A=1; fi","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; let ZE_AGENT_ID=1; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; let ZE_AGENT_ID=1; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; local A","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; local A","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; mapfile ZE_AGENT_ID <<<x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; mapfile ZE_AGENT_ID <<<x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; n=ZE_AGENT; export \"${n}_ID=x\"; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; n=ZE_AGENT; export \"${n}_ID=x\"; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; n=ZE_AGENT_; export \"$n\"ID=x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; n=ZE_AGENT_; export \"$n\"ID=x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 ./le spec current","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 ./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 ./le x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 /usr/bin/sudo le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 /usr/bin/sudo le x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 env -u ZE_AGENT_\"\"ID le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 env -u ZE_AGENT_\"\"ID le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice env ZE_AGENT_ID=x ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice env ZE_AGENT_ID=x ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nohup env -i le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nohup env -i le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; printf -v ZE_AGENT_ID x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; printf -v ZE_AGENT_ID x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; read ZE_AGENT_ID <<<x; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; read ZE_AGENT_ID <<<x; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; readonly A","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; readonly A","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; set -a","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; set -a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; sh -c 'unset ZE_AGENT_ID; ./le spec current'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; sh -c 'unset ZE_AGENT_ID; ./le spec current'","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; source x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; source x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; stdbuf -o L env -i le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; stdbuf -o L env -i le x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; stdbuf -oL env -i le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; stdbuf -oL env -i le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; sudo le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; sudo le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . ./env.sh; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . ./env.sh; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . ./env.sh; ./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . ./env.sh; ./le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time Z\"\"E_AGENT_ID=x ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time Z\"\"E_AGENT_ID=x ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time ZE_AGENT_ID=x ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time ZE_AGENT_ID=x ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout -s KILL 60 ./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout -s KILL 60 ./le x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout -s KILL 60 env -i ./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout -s KILL 60 env -i ./le x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout 1.5s ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout 1.5s ./le spec current","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout 1.5s ./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout 1.5s ./le x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout 1.5s sudo le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout 1.5s sudo le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout 5 ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout 5 ./le spec current","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout 5 ./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout 5 ./le x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout 5 env -i le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; timeout 5 env -i le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; typeset -x A","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; typeset -x A","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; unset CLAUDE_CODE_\"\"SESSION_ID; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; unset CLAUDE_CODE_\"\"SESSION_ID; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; unset ZE_AGENT_ID; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; unset ZE_AGENT_ID; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; until env -i le x; do true; done","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; until env -i le x; do true; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; while env -i le x; do true; done","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; while env -i le x; do true; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; xargs env -i le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; xargs env -i le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; { time . ./env.sh; }; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; { time . ./env.sh; }; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-18; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-18; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-2; export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-2; export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"f() { cat a; }; f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"f() { cat a; }; f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"fi","caller":"main","refused-by":[],"reader-line":false}
+{"line":"fi","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"find . -delete","caller":"main","refused-by":[],"reader-line":false}
+{"line":"find . -delete","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"find . -fprint out.txt","caller":"main","refused-by":[],"reader-line":false}
+{"line":"find . -fprint out.txt","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"find . -name '*.md' -exec ./le doc check {} \\;","caller":"main","refused-by":[],"reader-line":false}
+{"line":"find . -name '*.md' -exec ./le doc check {} \\;","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"find . -name '*_test.go' -mtime -1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"find . -name '*_test.go' -mtime -1","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"find . -name 'go build' -delete","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"find . -name 'go build' -delete","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"find . -name 'go build' -mtime -1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"find . -name 'go build' -mtime -1","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"find . -name *.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"find . -name *.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"find . {-exec,sh} x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"find . {-exec,sh} x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"flock lock -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"flock lock -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"for f in /tmp/a; do cat \"$f\"; done","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"for f in /tmp/a; do cat \"$f\"; done","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"for f in a b; do cat \"$f\"; done","caller":"main","refused-by":[],"reader-line":false}
+{"line":"for f in a b; do cat \"$f\"; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"for f in a b; do grep -c 'x; go test ./y | tail -1' \"$f\"; done","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"for f in a b; do grep -c 'x; go test ./y | tail -1' \"$f\"; done","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"for f in a b; do grep -n \"x\\|go vet ./y\" \"$f\"; done","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"for f in a b; do grep -n \"x\\|go vet ./y\" \"$f\"; done","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"for f in a b; do grep -n 'cat /tmp/x' \"$f\"; done","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"for f in a b; do grep -n 'cat /tmp/x' \"$f\"; done","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"for f in a b; do grep -n 'go build ./cmd/ze' \"$f\"; done","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"for f in a b; do grep -n 'go build ./cmd/ze' \"$f\"; done","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"for f in a; do cat \"$f\"; done; go build -o bin/ze ./cmd/ze","caller":"main","refused-by":[],"reader-line":false}
+{"line":"for f in a; do cat \"$f\"; done; go build -o bin/ze ./cmd/ze","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"for p in a b; do ./le test unit all | tail -3; done","caller":"main","refused-by":[],"reader-line":false}
+{"line":"for p in a b; do ./le test unit all | tail -3; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"for p in a b; do go test ./$p; done","caller":"main","refused-by":[],"reader-line":false}
+{"line":"for p in a b; do go test ./$p; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"for p in a b; do go test ./internal/$p; done","caller":"main","refused-by":[],"reader-line":false}
+{"line":"for p in a b; do go test ./internal/$p; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"for p in a b; do grep -c x a | tail -3; done","caller":"main","refused-by":[],"reader-line":false}
+{"line":"for p in a b; do grep -c x a | tail -3; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"git -C /srv/checkout log --oneline","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git -C /srv/checkout log --oneline","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"git commit -m x","caller":"main","refused-by":["bashDestructiveGit"],"reader-line":false}
+{"line":"git commit -m x","caller":"subagent","refused-by":["bashDestructiveGit","bashAgentIdentity"],"reader-line":false}
+{"line":"git diff --output=out.txt","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git diff --output=out.txt","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"git diff --stat && git status --short","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git diff --stat && git status --short","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"git diff internal/le/hookcheck/fixtures.go | head -60","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git diff internal/le/hookcheck/fixtures.go | head -60","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"git grep --open=./le x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git grep --open=./le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"git grep --open=bash 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"git grep --open=bash 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"git grep -n 'go build' -- '*.go'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git grep -n 'go build' -- '*.go'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"git grep -n x -- '*.go'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git grep -n x -- '*.go'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"git log --ext 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"git log --ext 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"git log --ext x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git log --ext x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"git log --oneline -3","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git log --oneline -3","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"git log --oneline -3 --grep 'go build'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git log --oneline -3 --grep 'go build'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"git log --oneline -5 -- notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git log --oneline -5 -- notes.md","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"git log --oneline -5 --grep 'go build'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git log --oneline -5 --grep 'go build'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"git log --oneline | tail -3","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git log --oneline | tail -3","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"git log -p $_ 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"git log -p $_ 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"git merge main","caller":"main","refused-by":["bashBranchMove"],"reader-line":false}
+{"line":"git merge main","caller":"subagent","refused-by":["bashBranchMove","bashAgentIdentity"],"reader-line":false}
+{"line":"git reset --hard","caller":"main","refused-by":["bashDestructiveGit"],"reader-line":false}
+{"line":"git reset --hard","caller":"subagent","refused-by":["bashDestructiveGit","bashAgentIdentity"],"reader-line":false}
+{"line":"git restore --staged f","caller":"main","refused-by":["bashDestructiveGit"],"reader-line":false}
+{"line":"git restore --staged f","caller":"subagent","refused-by":["bashDestructiveGit","bashAgentIdentity"],"reader-line":false}
+{"line":"git stash list","caller":"main","refused-by":["bashDestructiveGit"],"reader-line":false}
+{"line":"git stash list","caller":"subagent","refused-by":["bashDestructiveGit","bashAgentIdentity"],"reader-line":false}
+{"line":"git status | grep foo; ./le ai rules update index","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git status | grep foo; ./le ai rules update index","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"go build -o \"\\bin/z\" ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"go build -o \"\\bin/z\" ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"go build -o bin/ze ./cmd/ze","caller":"main","refused-by":[],"reader-line":false}
+{"line":"go build -o bin/ze ./cmd/ze","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"go build -o tmp/session/2026-08-10-abc123/bin/ze ./cmd/ze","caller":"main","refused-by":[],"reader-line":false}
+{"line":"go build -o tmp/session/2026-08-10-abc123/bin/ze ./cmd/ze","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"go build -o\"/tmp/x\" .","caller":"main","refused-by":["bashRootBuild","bashSystemTmp"],"reader-line":false}
+{"line":"go build -o\"/tmp/x\" .","caller":"subagent","refused-by":["bashRootBuild","bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"go build -toolexec 'bash -c \"go build ./cmd/z\"' ./internal/x","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"go build -toolexec 'bash -c \"go build ./cmd/z\"' ./internal/x","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"go build ./...","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"go build ./...","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"go build ./cmd/ze","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"go build ./cmd/ze","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"go build ./internal/x && bash -c true","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"go build ./internal/x && bash -c true","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"go build ./internal/x && grep -c x f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"go build ./internal/x && grep -c x f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"go test -count=1 ./internal/x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"go test -count=1 ./internal/x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"go test -timeout 300s ./... | while read l; do sleep 5; done","caller":"main","refused-by":["bashRawHeavy","bashPollLoop"],"reader-line":false}
+{"line":"go test -timeout 300s ./... | while read l; do sleep 5; done","caller":"subagent","refused-by":["bashRawHeavy","bashPollLoop","bashAgentIdentity"],"reader-line":false}
+{"line":"go test ./...","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"go test ./...","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"go test ./... 2>&1 |\n  grep -c FAIL","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"go test ./... 2>&1 |\n  grep -c FAIL","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"go test ./... 2>&1 | tee tmp/session/2026-08-10-abc123/t.log","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"go test ./... 2>&1 | tee tmp/session/2026-08-10-abc123/t.log","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"go test ./... 2>&1 | tee tmp/t.log","caller":"main","refused-by":["bashRawHeavy","bashScratch"],"reader-line":false}
+{"line":"go test ./... 2>&1 | tee tmp/t.log","caller":"subagent","refused-by":["bashRawHeavy","bashScratch","bashAgentIdentity"],"reader-line":false}
+{"line":"go test ./... | head -50","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"go test ./... | head -50","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"go test ./internal/core/env","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"go test ./internal/core/env","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"go test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"go test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"go version","caller":"main","refused-by":[],"reader-line":false}
+{"line":"go version","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"go vet ./internal/core/env","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"go vet ./internal/core/env","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"golangci-lint config verify","caller":"main","refused-by":[],"reader-line":false}
+{"line":"golangci-lint config verify","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"golangci-lint run","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"golangci-lint run","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"golangci-lint run ./...","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"golangci-lint run ./...","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"gopls -remote=auto symbols 'go build'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"gopls -remote=auto symbols 'go build'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"gopls -remote=auto symbols f.go","caller":"main","refused-by":[],"reader-line":false}
+{"line":"gopls -remote=auto symbols f.go","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"gopls codelens -exec f.go","caller":"main","refused-by":[],"reader-line":false}
+{"line":"gopls codelens -exec f.go","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"gopls execute 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"gopls execute 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"gopls execute x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"gopls execute x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"gopls references -d 'go build'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"gopls references -d 'go build'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"gopls references -d f.go:1:2","caller":"main","refused-by":[],"reader-line":false}
+{"line":"gopls references -d f.go:1:2","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"gopls rename -w f.go:1:1 y","caller":"main","refused-by":[],"reader-line":false}
+{"line":"gopls rename -w f.go:1:1 y","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"gopls symbols internal/le/hookruntime/session.go","caller":"main","refused-by":[],"reader-line":false}
+{"line":"gopls symbols internal/le/hookruntime/session.go","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep \"unclosed notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep \"unclosed notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep 'go build' f 2>&1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep 'go build' f 2>&1","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep 'go build' f 2>/dev/null","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep 'go build' f 2>/dev/null","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep 'go build' f > /dev/null","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep 'go build' f > /dev/null","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -c 'go build' <<< x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -c 'go build' <<< x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -c x <<< y","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -c x <<< y","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -c x a.md\ngrep -c y b.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -c x a.md\ngrep -c y b.md","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -e '' 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"grep -e '' 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n \"a\\|b\" f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n \"a\\|b\" f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n \"a\\|b\" internal/x.go | head -5","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n \"a\\|b\" internal/x.go | head -5","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n \"foo$\" f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n \"foo$\" f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n \"go build\" \"$dir/x.log\"","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n \"go build\" \"$dir/x.log\"","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n \"go build\\|x\" f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n \"go build\\|x\" f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n \"unclosed notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n \"unclosed notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n \"x f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n \"x f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n $\"x\" f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n $\"x\" f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n $'x' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n $'x' f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n '!x' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n '!x' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n '#' f; go test -run 'TestA|TestB' ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"grep -n '#' f; go test -run 'TestA|TestB' ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n '' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n '' f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n '^##' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n '^##' f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n 'a|b' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n 'a|b' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n 'bash -c go build ./cmd/z' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n 'bash -c go build ./cmd/z' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n 'echo $(date)' notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n 'echo $(date)' notes.md","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n 'eval go test ./x' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n 'eval go test ./x' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n 'go build|x' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n 'go build|x' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n 'go test ./x | tail' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n 'go test ./x | tail' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n 'go vet ./x' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n 'go vet ./x' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n 'unclosed notes.md | head","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n 'unclosed notes.md | head","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n '{x}' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n '{x}' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n 'é' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n 'é' f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n x f.log","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n x f.log","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n x notes.md | head -5","caller":"fork","refused-by":[],"reader-line":false}
+{"line":"grep -n x notes.md | head -5","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n x notes.md | head -5","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n x notes.md; ./le commit create","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n x notes.md; ./le commit create","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n x\\ y f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n x\\ y f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep -rn \"go build\" plan/ | head -5","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -rn \"go build\" plan/ | head -5","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -rn '> tmp/out.log' ai/rules","caller":"main","refused-by":["bashScratch"],"reader-line":false}
+{"line":"grep -rn '> tmp/out.log' ai/rules","caller":"subagent","refused-by":["bashScratch"],"reader-line":false}
+{"line":"grep -rn 'time.sleep(' test/plugin","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -rn 'time.sleep(' test/plugin","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -rn 'until ! pgrep' ai/rules","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -rn 'until ! pgrep' ai/rules","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -rn foo ai/rules > tmp/notes.txt","caller":"main","refused-by":["bashScratch"],"reader-line":false}
+{"line":"grep -rn foo ai/rules > tmp/notes.txt","caller":"subagent","refused-by":["bashScratch","bashAgentIdentity"],"reader-line":false}
+{"line":"grep -rn golangci-lint ai/rules","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -rn golangci-lint ai/rules","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep eval -- 'go build'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep eval -- 'go build'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep x f 2>&1","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep x f 2>&1","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep x f 2>/dev/null","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep x f 2>/dev/null","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep x | tail -5","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep x | tail -5","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"if [ -f a ]; then cat a; fi","caller":"main","refused-by":[],"reader-line":false}
+{"line":"if [ -f a ]; then cat a; fi","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"if true; then go vet ./internal/x; fi","caller":"main","refused-by":[],"reader-line":false}
+{"line":"if true; then go vet ./internal/x; fi","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"if true; then go vet ./x; fi","caller":"main","refused-by":[],"reader-line":false}
+{"line":"if true; then go vet ./x; fi","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"let a=1; cat a","caller":"main","refused-by":[],"reader-line":false}
+{"line":"let a=1; cat a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"ls -la","caller":"main","refused-by":[],"reader-line":false}
+{"line":"ls -la","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"ls -la internal/le &> /dev/null","caller":"main","refused-by":[],"reader-line":false}
+{"line":"ls -la internal/le &> /dev/null","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"ls | head; go test ./... | grep FAIL","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"ls | head; go test ./... | grep FAIL","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"mkdir -p \"$D\"/tmp/x","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"mkdir -p \"$D\"/tmp/x","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"mksh -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"mksh -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"nice -n 5 ./le verify current | head -20","caller":"main","refused-by":["bashLossyPipe"],"reader-line":false}
+{"line":"nice -n 5 ./le verify current | head -20","caller":"subagent","refused-by":["bashLossyPipe","bashAgentIdentity"],"reader-line":false}
+{"line":"nice eval 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"nice eval 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"pgrep -f qemu","caller":"main","refused-by":[],"reader-line":false}
+{"line":"pgrep -f qemu","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"printf $_ 'a[$(go build ./cmd/z)]' v","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"printf $_ 'a[$(go build ./cmd/z)]' v","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"printf '%s\\n' 'go build'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"printf '%s\\n' 'go build'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"printf '%s\\n' x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"printf '%s\\n' x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"printf 'go build' >| f","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"printf 'go build' >| f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"printf -v 'a[$(./le spec current)]' v","caller":"main","refused-by":[],"reader-line":false}
+{"line":"printf -v 'a[$(./le spec current)]' v","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"printf -v 'a[$(go build ./cmd/z)]' v","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"printf -v 'a[$(go build ./cmd/z)]' v","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"printf <<<x -v 'a[$(touch /tmp/p)]' y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"printf <<<x -v 'a[$(touch /tmp/p)]' y","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"printf x >| f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"printf x >| f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"python3 -c 'import os; os.system(\"go build ./cmd/z\")'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"python3 -c 'import os; os.system(\"go build ./cmd/z\")'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"python3 -c 'open(\"/tmp/x\", \"w\")'","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"python3 -c 'open(\"/tmp/x\", \"w\")'","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"read -n 1 x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"read -n 1 x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rg --pre ./le x notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rg --pre ./le x notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rg --pre-glob '*' x notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rg --pre-glob '*' x notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rg --pre=sh 'go build' f","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"rg --pre=sh 'go build' f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"rg -iz 'go build'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"rg -iz 'go build'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"rg -iz x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rg -iz x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rg -n 'go build' -g '*.go'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rg -n 'go build' -g '*.go'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"rg -n -g '*.go' x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rg -n -g '*.go' x","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"rg -z 'go build'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"rg -z 'go build'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"rg -z 'go build' f","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"rg -z 'go build' f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"rg -z x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rg -z x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rg -z x notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rg -z x notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f scratch && grep x internal/a_test.go","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rm -f scratch && grep x internal/a_test.go","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rm internal/foo_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm internal/foo_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm tmp/x","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rm tmp/x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"script -qc 'go build ./cmd/z' log","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"script -qc 'go build ./cmd/z' log","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"sed 's/[a-z]\\/b/x/g' notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sed 's/[a-z]\\/b/x/g' notes.md","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"sed 's/a/b/w out.txt' notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sed 's/a/b/w out.txt' notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"sed 's/go build/x/g' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sed 's/go build/x/g' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"sed --expr=1p notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sed --expr=1p notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"sed -e <<<p 'w out' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sed -e <<<p 'w out' f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"sed -f script.sed notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sed -f script.sed notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"sed -i 's/a/b/' notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sed -i 's/a/b/' notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"sed -n '/go build/p' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sed -n '/go build/p' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"sed -n '/go build/p;10,20p' notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sed -n '/go build/p;10,20p' notes.md","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"sed -n '1,5p' 'go build'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sed -n '1,5p' 'go build'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"sed -n '1,5p' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sed -n '1,5p' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"sed -n '1e ./le spec current' notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sed -n '1e ./le spec current' notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"sed -n '1e go build ./cmd/z' f","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"sed -n '1e go build ./cmd/z' f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"sed -n 's/x/go build .\\/cmd\\/z/e' f","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"sed -n 's/x/go build .\\/cmd\\/z/e' f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"sed -n 'w /tmp/x' f","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"sed -n 'w /tmp/x' f","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"sort 'go build' ~/x","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"sort 'go build' ~/x","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"sort --co=./le notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sort --co=./le notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"sort --co=sh 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"sort --co=sh 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"sort --compress-program=./le notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sort --compress-program=./le notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"sort --compress=./le notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sort --compress=./le notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"sort --compress=sh 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"sort --compress=sh 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"sort -k1 X=~/notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sort -k1 X=~/notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"sort -o out.txt notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sort -o out.txt notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"sort -t, -k2 'go build'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sort -t, -k2 'go build'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"sort -t, -k2 -n notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sort -t, -k2 -n notes.md","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"sort f | uniq -c 2>/dev/null","caller":"main","refused-by":[],"reader-line":false}
+{"line":"sort f | uniq -c 2>/dev/null","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"su -c 'go build ./cmd/z' builder","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"su -c 'go build ./cmd/z' builder","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"tcsh -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"tcsh -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"tee @PROJECT@/tmp/notes.txt","caller":"main","refused-by":[],"reader-line":false}
+{"line":"tee @PROJECT@/tmp/notes.txt","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"test -d docs && ls docs","caller":"main","refused-by":[],"reader-line":false}
+{"line":"test -d docs && ls docs","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"test -n 'go build'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"test -n 'go build'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"test -v 'a[$(./le spec current)]'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"test -v 'a[$(./le spec current)]'","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"test -v 'a[$(go build ./cmd/z)]'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"test -v 'a[$(go build ./cmd/z)]'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"time grep -c x a","caller":"main","refused-by":[],"reader-line":false}
+{"line":"time grep -c x a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"timeout -k 5 30 ./le verify current | tail -5","caller":"main","refused-by":["bashLossyPipe"],"reader-line":false}
+{"line":"timeout -k 5 30 ./le verify current | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashAgentIdentity"],"reader-line":false}
+{"line":"timeout 10 curl -s localhost:8080; until ! pgrep -f qemu; do sleep 5; done","caller":"main","refused-by":["bashPollLoop"],"reader-line":false}
+{"line":"timeout 10 curl -s localhost:8080; until ! pgrep -f qemu; do sleep 5; done","caller":"subagent","refused-by":["bashPollLoop","bashAgentIdentity"],"reader-line":false}
+{"line":"timeout 240s ./le verify current | tail -5","caller":"main","refused-by":["bashLossyPipe"],"reader-line":false}
+{"line":"timeout 240s ./le verify current | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashAgentIdentity"],"reader-line":false}
+{"line":"timeout 240s ls | head -5","caller":"main","refused-by":[],"reader-line":false}
+{"line":"timeout 240s ls | head -5","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"timeout 60 bash -c 'until [ -f a ]; do sleep 1; done'; while true; do sleep 5; done","caller":"main","refused-by":["bashPollLoop"],"reader-line":false}
+{"line":"timeout 60 bash -c 'until [ -f a ]; do sleep 1; done'; while true; do sleep 5; done","caller":"subagent","refused-by":["bashPollLoop","bashAgentIdentity"],"reader-line":false}
+{"line":"timeout 600 bash -c 'until [ -f tmp/session/2026-08-10-x/ready ]; do sleep 30; done'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"timeout 600 bash -c 'until [ -f tmp/session/2026-08-10-x/ready ]; do sleep 30; done'","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"timeout bash -c 'until [ -f tmp/session/2026-08-10-x/r ]; do sleep 30; done'","caller":"main","refused-by":["bashPollLoop"],"reader-line":false}
+{"line":"timeout bash -c 'until [ -f tmp/session/2026-08-10-x/r ]; do sleep 30; done'","caller":"subagent","refused-by":["bashPollLoop","bashAgentIdentity"],"reader-line":false}
+{"line":"uniq 'go build' out","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"uniq 'go build' out","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"uniq -c 'go build'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"uniq -c 'go build'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"uniq -c notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"uniq -c notes.md","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"uniq -c ~/notes.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"uniq -c ~/notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"uniq notes.md out.txt","caller":"main","refused-by":[],"reader-line":false}
+{"line":"uniq notes.md out.txt","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"until ! pgrep -f qemu; do sleep 5; done","caller":"main","refused-by":["bashPollLoop"],"reader-line":false}
+{"line":"until ! pgrep -f qemu; do sleep 5; done","caller":"subagent","refused-by":["bashPollLoop","bashAgentIdentity"],"reader-line":false}
+{"line":"until true; do cat a; done","caller":"main","refused-by":[],"reader-line":false}
+{"line":"until true; do cat a; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"watch -n1 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"watch -n1 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"while pgrep -q qemu; do :; done","caller":"main","refused-by":["bashPollLoop"],"reader-line":false}
+{"line":"while pgrep -q qemu; do :; done","caller":"subagent","refused-by":["bashPollLoop","bashAgentIdentity"],"reader-line":false}
+{"line":"while read -r f; do cat \"$f\"; done < list","caller":"main","refused-by":[],"reader-line":false}
+{"line":"while read -r f; do cat \"$f\"; done < list","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"while read -r f; do echo $f; done < tmp/list","caller":"main","refused-by":[],"reader-line":false}
+{"line":"while read -r f; do echo $f; done < tmp/list","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"while read -r f; do grep -c 'x;go test ./y' \"$f\"; done < list","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"while read -r f; do grep -c 'x;go test ./y' \"$f\"; done < list","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"while read -r line; do echo no-sleep-here; done < tmp/list","caller":"main","refused-by":[],"reader-line":false}
+{"line":"while read -r line; do echo no-sleep-here; done < tmp/list","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"while true; do sleep 5; timeout 10 curl -s localhost; done","caller":"main","refused-by":["bashPollLoop"],"reader-line":false}
+{"line":"while true; do sleep 5; timeout 10 curl -s localhost; done","caller":"subagent","refused-by":["bashPollLoop","bashAgentIdentity"],"reader-line":false}
+{"line":"x=$(go test ./x)","caller":"main","refused-by":[],"reader-line":false}
+{"line":"x=$(go test ./x)","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"ze le ai hooks unit | tail -25","caller":"main","refused-by":[],"reader-line":false}
+{"line":"ze le ai hooks unit | tail -25","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"{ cat a; cat b; }","caller":"main","refused-by":[],"reader-line":false}
+{"line":"{ cat a; cat b; }","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"{ go test -run 'TestA|TestB' ./x | tail -5; }","caller":"main","refused-by":[],"reader-line":false}
+{"line":"{ go test -run 'TestA|TestB' ./x | tail -5; }","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}

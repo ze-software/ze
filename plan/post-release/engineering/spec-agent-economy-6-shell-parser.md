@@ -157,7 +157,7 @@ reads an environment variable nobody has shown the harness scopes to a fork.
 | Git verb guards | `bash.go` `gitVerbRun`, `insideQuotes`, `gitInvocation` | Judge a git verb by its text position, with a quote exemption of their own | Does not apply: they call neither splitter, and they enforce a hard ban. Moving a hard ban onto a new reading is a decision of its own, not a consequence of this replacement |
 | Governed-write taint, poll-loop and scratch guards | `bash_governed_taint.go`; `bash.go` `bashPollLoop`, `bashScratch`, `bashGovernedWrite` | Text patterns over the whole line | Does not apply: none reads the splitter, and none lifts on a reader line |
 | Check registry | `internal/le/hookruntime/runtime.go`, `nativeHookActions`, `context` | The authority for every native check; one context per call | Extends: no check joins. The parse is made once per hook call, held by the context, and shared by the checks that read it |
-| Parity golden and fixture sites | `internal/le/ai/hooks/parity_catalog.go`, `parity.go` `bashCode`, `fixtures.go` | 83 model-judged bash rows; behavioral sites that run the hook | Extends: rows and sites join. The golden stays a hand model (owned journal row of `plan/post-release/engineering/spec-tooling-one-off-defects.md`), so no row of it is cited as proof |
+| Parity golden and fixture sites | `internal/le/ai/hooks/parity_catalog.go`, `parity.go` `bashCode`, `fixtures.go` | 83 model-judged bash rows; behavioral sites that run the hook | Extends: rows and sites join. Replaces `bashCode`: every bash row is judged by the hook's own `pretool-bash` action (AC-36), so a row proves its verdict |
 | Source seal | `fixtures.go` `hookSourcesDigest`, `parity.go` `parityCatalogDigest` | Detect a change to the hook sources and the rows | Extends: both are re-derived once, in the last code phase |
 | Dependency ledger | `dependency-ledger.txt`, `./le deps approve`, `docs/contributing/dependency-approval.md` | Declares who may import which third-party package | Extends: one row, written by Thomas |
 | Vendor-only commit | commit `bfc6dfe868` (circl) | The precedent for a module that lands before its first use | Extends: the same shape for `mvdan.cc/sh/v3` |
@@ -319,9 +319,10 @@ After it, the same test holds the new hook to that file.
 | Field | Type | Description |
 |-------|------|-------------|
 | `line` | string | The command, as an agent types it |
-| `caller` | string | `main` or `subagent`; a subagent row is judged without the identity line |
+| `caller` | string | `main`, `subagent`, or `fork` for a line a source test judged as a fork; a subagent row is judged without the identity line |
 | `refused-by` | list of strings | The checks that refuse the line at HEAD, by name; empty when it passes |
 | `reader-line` | boolean | Hand-set to true only on a row this spec loosens; such a row names the test that proves its commands are readers |
+| `proof` | string | Present only with `reader-line`: the name of the package test that proves the row's commands are readers; the test refuses a name the package does not declare |
 
 The corpus: the 83 bash parity rows; the command of every Bash fixture site;
 the rows of `TestGuardsKeepTheTextVerdictOfHead`,
@@ -339,9 +340,8 @@ siblings, which AC-31 loosens on purpose and which name that criterion.
 ### Parity golden rows
 
 No existing bash row changes its expected code. Nine rows join, 83 become 92.
-The golden is judged by the hand model `bashCode`, so these rows show the
-intended verdicts and prove nothing about the hook; the proof of each is the
-unit test in the last column. Each verdict "at HEAD" below is derived by
+From AC-36 on, the golden is judged by the hook itself, so each row proves its
+verdict; the unit test in the last column proves the mechanism behind it. Each verdict "at HEAD" below is derived by
 reading the text judgment and is confirmed when the recorded table is written.
 
 | Row | HEAD | After | Direction | Proof |
@@ -410,7 +410,7 @@ added to the identity tests (AC-27) lower nothing and need no judge.
 |----------|--------|
 | What breaks if this is wrong? | Every session at once. Too strict: reader lines are refused and every agent pays a turn per call. Too loose: a subagent's `le` call acts as the main thread, or a heavy job runs unadmitted |
 | How is it reverted? | `./le rollback` moves the build aside at once. Each phase is one commit or a short run of commits, reverted by a script prepared for the owner. The vendor commit can stay: nothing imports it once the code is reverted |
-| Who else touches this path? | `plan/post-release/engineering/spec-tooling-one-off-defects.md` owns three open rows on the text judgment of the same guards and the parity golden's mechanism. `plan/post-release/engineering/spec-agent-economy-4-supervision.md` edits `lifecycle.go`. Neither edits the splitter |
+| Who else touches this path? | `plan/post-release/engineering/spec-agent-economy-4-supervision.md` edits `lifecycle.go` and not the splitter. The three text-judgement rows, the parity golden row and the `shapeFinding` row moved here from `plan/post-release/engineering/spec-tooling-one-off-defects.md` (AC-33 to AC-37), so no other spec edits these guards, the golden or `writers.go` for them |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -448,7 +448,7 @@ added to the identity tests (AC-27) lower nothing and need no judge.
 | AC-20 | A raw `go test` or `go vet` the short action cannot express, and a raw `golangci-lint run` | The `Use:` line shows `./le job run label <label> quiet command <argv>`, and the generic-form line carries `quiet` too | The short package action is still advised where it expresses the words exactly: it is quiet by itself |
 | AC-21 | `rawHeavy` and `programWords` on a segment with a launcher | The numeric-argument pattern is compiled once, at package load, and both read it | The patterns `bashLossyPipe`, `bashPollLoop` and `bashTestDeletion` compile per call stay: they are outside the two launcher loops, and one compile per hook call is not a loop |
 | AC-22 | The doc comment above `TestSubagentStartCarriesTheIdentityLine`, and the sentence of `docs/contributing/running-commands.md` that says a start payload with no agent id gets "a note that the first refusal prints the rest" | Both say what `hookSubagentContext` writes and the test asserts: with no agent id the start text carries the session part alone, which is the whole line, and the words "first refusal" are absent | The test body is unchanged |
-| AC-23 | The open row of 2026-11-11 in `plan/journal/hook-existing-patterns-false-positive.md` (`rawHeavy` on a `for` loop) | This spec's Owned journal rows table lists it and the table of `plan/post-release/engineering/spec-tooling-one-off-defects.md` no longer does, both in the commit that lands this spec; the row's Fix cell is closed by the commit that proves AC-5 | The three `bash-guard-misses-a-command-shape` rows and the parity-golden row stay with their owner: they are faults of the text judgment and of the golden, which this spec keeps |
+| AC-23 | The open row of 2026-11-11 in `plan/journal/hook-existing-patterns-false-positive.md` (`rawHeavy` on a `for` loop) | This spec's Owned journal rows table lists it and the table of `plan/post-release/engineering/spec-tooling-one-off-defects.md` no longer does, both in the commit that lands this spec; the row's Fix cell is closed by the commit that proves AC-5 | None. The five rows that moved here from that spec on Thomas's decision (2026-11-11) are owned here too, and each is closed by the commit that proves its AC: the three `bash-guard-misses-a-command-shape` rows by AC-33, AC-34 and AC-35, the parity-golden row by AC-36, the `shapeFinding` row by AC-37 |
 | AC-24 | `./le ai hooks unit` after the last code phase | Green: `hookSourcesDigest` and `parityCatalogDigest` are each re-derived once, with a dated comment naming this spec, and the bash rows are 92 | Commits before it name the stale seal in their body: a red holds no commit |
 | AC-25 | `.claude/hooks/README.md`, `docs/contributing/running-commands.md`, `plan/learned/HOOK-FRICTION.md` and the subagent start text | Each states the reader line as the parser gives it, with the table of admitted constructs, and its source anchors name files that exist | A sentence that was already true stays as written |
 | AC-26 | After the agent's own line, a `.` behind a wrapper or a reserved word: `time . ./env.sh; ./le x`, `if true; then . ./env.sh; fi; ./le x`, `command . x`, `builtin . x` | Each is refused as taking another identity: a word the walk skips as a duration holds a digit, so a lone `.` is the command word | `timeout 5 ./le x`, `timeout 1.5s ./le x` and `nice -n 5 ./le x` pass: `5` and `1.5s` hold a digit and `./le` is no environment tool |
@@ -458,6 +458,11 @@ added to the identity tests (AC-27) lower nothing and need no judge.
 | AC-30 | A subagent line with no identity line whose refusal names a construct | The words name the construct bash would read there, and no message names a construct the line does not hold; `grep -n "foo$" f` is not refused at all (AC-7) | The refusal still ends with the identity line to type |
 | AC-31 | After the agent's own line: `set -o pipefail; ./le x`, `set -e`, `set -eu`, `set -x`, `set +e` | Each passes the identity check: these options change no variable | `set -a`, `set -k`, `set -- a b`, `set -o allexport` and any other `set` are refused as today: they export later assignments or replace the positional parameters |
 | AC-32 | The comment of `readerCommands` | It says the nil judges assume the GNU option sets of grep and coreutils, and names what a host with another grep changes: a judge is owed before the nil entry is trusted there | The table's entries are unchanged |
+| AC-33 | The text judgement of `bashLossyPipe` and `bashRawHeavy` (`programWords`, `rawHeavy`) on a launcher with an option that takes a value: `bash -o pipefail -c './le test unit all \| tail -5'`, `bash -O extglob -c 'go test ./x'`, `timeout -s KILL 60 go test ./x`, `nice -n 5 go test ./x`, `sudo -u u go test ./x` | Each gets the verdict the same line gets without the option and its value. The launcher loops skip a value-taking option together with its one value. Both loops read one declared table of each launcher's value-taking options (journal row `bash-guard-misses-a-command-shape`, 2026-11-11, launcher option value) | A launcher option that takes no value is skipped alone, as today. The recorded table holds: the fix only adds refusals |
+| AC-34 | `bashRootBuild`'s text judgement (`goBuildText`) on `go build -toolexec=x -o bin/y ./cmd/y`, `go build -overlay=o.json -o bin/y ./cmd/y`, `go build -modfile=m -o bin/y ./cmd/y`, the spaced forms (`-toolexec x`), and the same flags in a `GOFLAGS` assignment | Refused. The message names the flag, says it makes the toolchain run or read what the line names, and gives the `go build -o bin/<name> ./cmd/<name>` form (journal row `bash-guard-misses-a-command-shape`, 2026-11-11, `-toolexec`) | `go build -o bin/ze ./cmd/ze` passes. A reader line whose quoted pattern names `-toolexec` still lifts: the lift belongs to the reader line |
+| AC-35 | `bashSystemTmp`'s text pattern `systemTmp` on `cat ${v}/tmp`, `cat ${v}/tmp/x` and `ls ${HOME}/tmp`, unquoted | Refused. `}` is in the pattern's boundary class, so a parent the shell can expand to nothing counts as a boundary before `/tmp` (journal row `bash-guard-misses-a-command-shape`, 2026-11-11, `}` boundary) | `cat x/tmp/y` and `cat tmp/x` pass, as today: a literal parent keeps the path inside it |
+| AC-36 | `./le ai hooks unit` over the bash parity golden (`parity_catalog.go` BASH_GOLDEN) | Each row is judged by `hookruntime`'s own `pretool-bash` action over a main-thread payload, through an exported entry `aihooks` calls, and its expected code is compared with that verdict. `bashCode`, and the regular expressions only it reads, are deleted (no layering). Breaking `bashRootBuild` reddens the `go build ./...` row (journal row `green-that-could-not-have-been-red`, 2026-11-11) | A row whose expected code disagrees with the hook is either a hook defect, which is fixed, or a wrong row, which changes only with a `ze-test-judge` approval. The nine rows of the Parity golden rows table then prove their verdict through the hook |
+| AC-37 | The error inventory (`internal/le/arch/errorinventory/writers.go`, `shapeFinding`) on a `Finding` composite literal under `internal/le` that sets no message field, such as `Finding{Path: p, Package: k, Name: n}` | It is not judged a message writer, and the inventory reports no plain message with text `""` for it. The message fields are declared once, beside `shapeFinding` (journal row `hook-existing-patterns-false-positive`, 2026-11-11, `shapeFinding`). Test: `TestIdentityOnlyFindingIsNotAMessage` in that package | A `Finding` literal that sets a message field is judged a message writer, as today |
 
 ## 🧪 TDD Test Plan
 
@@ -488,6 +493,11 @@ added to the identity tests (AC-27) lower nothing and need no judge.
 | `TestHandSplitterIsGone` | `internal/le/hookruntime/shellparse_test.go` | AC-3, AC-4: the package declares none of the deleted names, and one file imports the parser | |
 | `FuzzShellParse` | `internal/le/hookruntime/shellparse_test.go` | R-2: no input makes the parse call panic or the predicate answer yes for a line holding a command outside the reader set | |
 | `BenchmarkHookParse` | `internal/le/hookruntime/shellparse_test.go` | A-4: allocations per parse of a typical line | |
+| `TestLauncherValueOptionsAreSkippedWithTheirValue` | `internal/le/hookruntime/rawheavy_test.go` | AC-33, both loops, with the no-value survivor | |
+| `TestRootBuildRefusesToolchainFlagsByText` | `internal/le/hookruntime/bash_test.go` | AC-34, with the `-o bin/` survivor | |
+| `TestSystemTmpTakesABraceAsABoundary` | `internal/le/hookruntime/bash_test.go` | AC-35, with the literal-parent survivors | |
+| `TestBashGoldenIsJudgedByTheHook` | `internal/le/ai/hooks/parity_test.go` | AC-36: a row's code is the hook's verdict | |
+| `TestIdentityOnlyFindingIsNotAMessage` | `internal/le/arch/errorinventory/` | AC-37, with the message-field survivor; the `shapeFinding` row of `docs/contributing/error-inventory.md` (the `shape` field table) is reworded in the same commit to say a literal counts only when it sets a message field | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -499,7 +509,7 @@ The feature takes no numeric input.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `./le ai hooks unit` | `internal/le/ai/hooks/fixtures.go`, `parity_catalog.go` | Every golden row and behavioral site, with a site per looser parity row that runs the hook as a subagent with no identity line, and the nine parity rows. The parity rows are model-judged and prove no AC | |
+| `./le ai hooks unit` | `internal/le/ai/hooks/fixtures.go`, `parity_catalog.go` | Every golden row and behavioral site, with a site per looser parity row that runs the hook as a subagent with no identity line, and the nine parity rows, every bash row judged by the hook itself (AC-36) | |
 | `./le test functional runner` | `test/runner/` | Unchanged: the runner primitives still pass with the hook package rebuilt | |
 | Live probe | a research agent spawned after the phase 3 build of HEAD is published | Its reader loops and a quoted `#` run without the identity line, and a loop of raw `go test` is refused with the admitted form | |
 | Fork probe | a fork agent and the main thread, phase 2 | AC-28's record | |
@@ -519,7 +529,8 @@ The feature takes no numeric input.
 - `internal/le/hookruntime/lifecycle.go` - the start text's sentence on readers, if AC-25 finds it wrong
 - `internal/le/hookruntime/lifecycle_test.go` - the stale comment (AC-22)
 - `internal/le/hookruntime/bash_test.go`, `session_identity_test.go`, `rawheavy_test.go`, `refusal_messages_test.go` - the expectation changes the judge approves, and the new tests and rows
-- `internal/le/ai/hooks/parity_catalog.go`, `parity.go`, `fixtures.go`, `fixture_catalog.go` - rows, model, sites, seals
+- `internal/le/ai/hooks/parity_catalog.go`, `parity.go`, `fixtures.go`, `fixture_catalog.go` - rows, the golden judged by the hook with `bashCode` deleted (AC-36), sites, seals
+- `internal/le/arch/errorinventory/writers.go` - `shapeFinding` judges only a literal that sets a message field (AC-37)
 - `.claude/hooks/README.md`, `docs/contributing/running-commands.md`, `plan/learned/HOOK-FRICTION.md` - the pages
 - `plan/journal/hook-existing-patterns-false-positive.md` - the row's Fix cell
 - `plan/post-release/engineering/spec-tooling-one-off-defects.md` - its owned-rows table loses the row
@@ -585,6 +596,8 @@ umbrella's Children table.
 2. **Phase: Wiring (MANDATORY FIRST of the code)** -- development tier; strongest-tier review
    - → Decision (2026-11-11, main thread): the fixes below (AC-20, AC-21, AC-22, AC-26, AC-27, AC-32) land first, in a commit of their own, and the recorded HEAD-verdict table (`TestGuardVerdictsOfHeadStand`) lands in the next commit, recorded from the tree that commit produces. The fix commit changes one verdict, and only toward refusal (AC-26's lone `.`), so a table recorded after it still holds every refusal HEAD gives.
    - First commit, no parser, the first hook-touching commit: the recorded table written from HEAD (`TestGuardVerdictsOfHeadStand`, green by construction against the code it recorded). Then the fixes that need no parser, each with its test failing first: the lone `.` (AC-26) and the rows owed (AC-27), because that hole is open in every session today; the quiet form (AC-20); the hoisted pattern (AC-21); the stale comment and page sentence (AC-22); the `readerCommands` comment (AC-32).
+   - → Decision (2026-11-11, agent a35909a020a742ffb): the second commit is `internal/le/hookruntime/verdicts_test.go` plus the table its `-args -update` run writes. The corpus is collected, never copied. (1) The listed source tests run as subtests of `TestGuardVerdictsOfHeadStand` while a recorder is on: `judgeGuardRows` and `runHook` add each line they judge, so computed rows are recorded as judged. The list is `corpusSourceTests`: the six named guard tests, and every test of `session_identity_test.go`, which `holdSourcesComplete` checks against that file's syntax tree. (2) The parity rows and Bash fixture values of `internal/le/ai/hooks` are read with go/ast, because that package imports this one. These are the `name:` of every BASH_GOLDEN fixture, held to the table's `expected:` count, and the `allow` and `refuse` of every `fixtureCategories` row whose `categoryProbes` entry has `tool: "Bash"`. A shape the reading does not model fails the test: a non-literal, a `wrap`, a count mismatch. (3) `specConstructLines`, the spec's named rows, without the AC-31 `set` rows, which are recorded after their fix. Every line is judged as `main` and `subagent`, and as `fork` when a source judged it so. Each pretool-bash check is asked alone, in registry order, over `goBuildTree`, with `GOFLAGS`, `CDPATH` and the fork variable fixed. `bashCallBudget` is left out. The plain run is red on a corpus key with no row, on a recorded refusal the check no longer gives (unless `reader-line`), on a duplicate key, and on a `reader-line` whose `proof` names no package test. `-update` appends rows for missing keys only, through `mergeVerdictRows`, which keeps every recorded row as it stands (`TestVerdictTableUpdateKeepsEveryRecordedRow`), and then runs the same judgment.
+   - Pre-parser commits after the recorded table, each with its test failing first: the text-judgement tightenings AC-33 (launcher value-taking options), AC-34 (`-toolexec`, `-overlay`, `-modfile` in `goBuildText`) and AC-35 (`}` in `systemTmp`), in one hook commit; AC-37 (`shapeFinding`) in a commit of its own. Every one only adds refusals, so `TestGuardVerdictsOfHeadStand` stays green; the update run then appends their rows.
    - The fork probe (AC-28) runs here; its record decides whether the hook's fork test changes, in a commit of its own.
    - Second commit: `shellparse.go` with the parse, the panic containment and the word-value reading; the wiring tests of the table above fail; the bash comparison tests and the fuzz target pass over the corpus. The parse has one production reader from this commit: `commandOutsideReaders` names a line that does not parse from it.
    - Verify: `./le test unit pkg path ./internal/le/hookruntime/`; A-3 recorded.
@@ -598,7 +611,7 @@ umbrella's Children table.
    - Tests: `TestHeavyJobIsRefusedWhereverTheLineRunsIt`, `TestLossyPipeIsRefusedInsideAConstruct`, the recorded table.
    - Pages: the two guard rows of `.claude/hooks/README.md`.
 5. **Phase: Fixtures, seal, history** -- development tier
-   - Work: the nine parity rows and the `bashCode` model, the fixture sites, both digests re-derived once (AC-24), the `HOOK-FRICTION.md` entry, the journal row's Fix cell.
+   - Work: the nine parity rows; the golden judged by the hook's `pretool-bash` action and `bashCode` deleted (AC-36); the fixture sites, both digests re-derived once (AC-24), the `HOOK-FRICTION.md` entry, the journal row's Fix cell.
    - Verify: `./le ai hooks unit`, `./le go vet-platforms darwin`.
 
 ### Model tier per phase
@@ -700,6 +713,21 @@ recorded in the closure sections.
 |------------|------|-----------------|
 | `hook-existing-patterns-false-positive` | 2026-11-11 | `rawHeavy` on a `for` loop: a quoted `go vet` alternative read as a raw run |
 | `hook-existing-patterns-false-positive` | 2026-11-11 | `bashTestDeletion` line-wide words: a test path `cmp` read beside a plain `rm` refused as a deletion (AC-18) |
+| `bash-guard-misses-a-command-shape` | 2026-11-11 | `bashLossyPipe`, `bashRawHeavy`: a launcher's option value read as the command word |
+| `bash-guard-misses-a-command-shape` | 2026-11-11 | `bashRootBuild`: `-toolexec`, `-overlay`, `-modfile` pass the text judgement |
+| `bash-guard-misses-a-command-shape` | 2026-11-11 | `bashSystemTmp`: no `}` boundary in `systemTmp` |
+| `green-that-could-not-have-been-red` | 2026-11-11 | bash parity golden judged by the hand model `bashCode` |
+| `hook-existing-patterns-false-positive` | 2026-11-11 | error-inventory `shapeFinding`: an identity-only `Finding` literal judged as a plain message |
+
+The last five rows came here from `plan/post-release/engineering/spec-tooling-one-off-defects.md` on Thomas's decision (2026-11-11). Thomas's words: "complete all the work, it does not matter if we do via a spec-agent-economy-6-shell-parser spec". The criteria that fix them:
+
+| Row | Fixed by | Phase |
+|-----|----------|-------|
+| launcher option value read as the command word | AC-33 | 2, a pre-parser commit |
+| `-toolexec`, `-overlay`, `-modfile` | AC-34 | 2, a pre-parser commit |
+| no `}` boundary in `systemTmp` | AC-35 | 2, a pre-parser commit |
+| parity golden judged by `bashCode` | AC-36 | 5 |
+| `shapeFinding` identity-only literal | AC-37 | 2, a pre-parser commit of its own (no hook code) |
 
 The row moves here from `plan/post-release/engineering/spec-tooling-one-off-defects.md`
 in the commit that lands this spec: that spec's table drops the entry and this
@@ -721,13 +749,13 @@ table holds it, so the row is owned at every commit.
 | The lone-`.` fix and its rows land in phase 2's first commit, before the parser | Fix it with the tree in phase 3 | It is an open hole in the identity check, a one-condition fix, and the rows prove it either way |
 | The git guards are not moved to the tree | Judge `git commit` as a parsed command | They read neither splitter and enforce a hard ban. Forecloses: their quote handling stays hand-written |
 | HEAD's verdicts are recorded as data before the replacement | Keep a frozen copy of the old splitter in a test as the oracle | Data states the verdict; a frozen copy keeps deleted code alive. Forecloses: a line absent from the corpus is not protected by it |
-| The parity golden gains rows and stays a hand model | Run the rows through the hook here | Its mechanism has an owner. Forecloses: the nine rows prove nothing by themselves. Open question 2 |
+| The parity golden gains rows and runs them through the hook (AC-36) | Keep the hand model `bashCode` | A model stays green when the hook moves (the `go build ./...` row did). Thomas's decision of 2026-11-11 put the row here. Forecloses: nothing |
 
 ## Known Limitations
 - A mixed line keeps the text verdict: one command outside the reader set and every quoted separator on the line is read as a command boundary again. The identity line in front is the one exception.
 - Arithmetic, arrays, functions, `declare` and an assignment in front of a command are outside the reader line. A subagent types its line for them.
 - A string in ANSI-C or locale quoting puts its line outside the reader line.
-- The text judgment keeps its gaps: a launcher's option value read as the command word, `-toolexec` with `-o bin/`, an unquoted `${v}/tmp`. Their rows are owned by `plan/post-release/engineering/spec-tooling-one-off-defects.md`.
+- The text judgment is kept as the verdict of a non-reader line. Its three known gaps are closed here as tightenings: a launcher's option value read as the command word (AC-33), `-toolexec` with `-o bin/` (AC-34), an unquoted `${v}/tmp` (AC-35). A gap found later is a new row.
 - The check still catches a mistake and is no sandbox: a script the agent writes runs unseen.
 - The bash comparison tests need a bash on the machine that runs the hook package tests.
 - The reader table's nil judges assume GNU grep and coreutils. On a host with other tools the table is trusted as written until a judge is added (AC-32 states it where the table is declared).
@@ -737,7 +765,7 @@ table holds it, so the row is owned at every commit.
 | # | Question | Evidence | Default taken |
 |---|----------|----------|---------------|
 | 1 | Not a question, an action only you can take: approve the import before phase 2's second commit | `docs/contributing/dependency-approval.md`: `./le commit create` refuses a third-party import with no ledger row, and only `./le deps approve` from your terminal writes one. Command: `./le deps approve package mvdan.cc/sh/v3/syntax importer internal/le/hookruntime reason "bash parser for the pre-tool Bash hook"` | None possible. Phase 1 and the first commit of phase 2 run without it; the parser import waits |
-| 2 | Should this spec also make the bash parity golden run its rows through the hook? | The golden is judged by the hand model `bashCode`; the open row `green-that-could-not-have-been-red` of 2026-11-11 is owned by `spec-tooling-one-off-defects.md`. This spec adds nine rows to it that therefore prove nothing | No: the row stays with its owner, and every verdict here is proven by a hook package test and a fixture site |
+| 2 | Answered: the bash parity golden runs its rows through the hook | Thomas's decision of 2026-11-11 moved the `green-that-could-not-have-been-red` row here ("complete all the work") | Yes: AC-36, phase 5. `bashCode` is deleted, and the nine rows added here prove their verdict through the hook |
 | 3 | May a reader's quoted arguments be cleared on a mixed line too, such as `./le spec current; grep 'a\|go vet b' f`? | Child 1's rule, set by its review and not by you: only a whole line of readers lifts. It keeps that grep refused. The known way a reader's text reaches a later command is `$_`, a pipe or a file | No: the lift stays line-wide |
 
 ## Checklist
@@ -756,7 +784,7 @@ table holds it, so the row is owned at every commit.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-32 all demonstrated
+- [ ] AC-1..AC-37 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass, run in the main checkout: the hook package tests and `./le ai hooks unit`. No agent runs any `./le verify` command
 - [ ] Feature code integrated (`internal/*`), not library-only
