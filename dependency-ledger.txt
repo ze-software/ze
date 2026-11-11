@@ -1017,3 +1017,4 @@ gopkg.in/yaml.v3	internal/le/repo/codeql	in use when the ledger was seeded
 gopkg.in/yaml.v3	internal/le/test/netlab	in use when the ledger was seeded
 gopkg.in/yaml.v3	internal/le/workflowcheck	in use when the ledger was seeded
 honnef.co/go/tools/cmd/staticcheck	.	in use when the ledger was seeded
+mvdan.cc/sh/v3/syntax	internal/le/hookruntime	bash parser for the pre-tool Bash hook
