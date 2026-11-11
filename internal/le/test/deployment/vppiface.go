@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- ze against a real VPP daemon
 // Overview: actions.go -- the area table that reaches this run
-// Detail: vppifacescenarios.go -- the five features and the configuration each needs
+// Detail: vppifacescenarios.go -- the features and the configuration each needs
 // Detail: vppifacereport.go -- the payload this run answers
 // Related: deployment.go -- the container and the collector
 // Related: daemonbuild.go -- the daemon this proof builds
@@ -363,6 +363,9 @@ func (v *vppIface) proveScenarios(report VPPIfaceReport) (VPPIfaceReport, error)
 // proveOne runs one scenario: start ze on its configuration, ask VPP whether
 // the object exists, and answer what happened.
 func (v *vppIface) proveOne(container string, one *vppScenario, loaded map[string]bool) (ScenarioResult, error) {
+	if one.qosReload {
+		return v.proveVLANQoSReload(container, one)
+	}
 	result := ScenarioResult{Feature: one.feature}
 
 	for _, plugin := range one.needsPlugins {

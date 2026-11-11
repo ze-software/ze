@@ -108,6 +108,7 @@
 4 internal/le/interoplab/topology/check_access_verdict.go
 1 internal/le/interoplab/topology/check_pppoe_dhcpv6_pd.go
 1 internal/le/interoplab/topology/check_pppoe_dhcpv6_pd_lan.go
+3 internal/le/test/deployment/vppifaceqos.go
 1 internal/plugins/as112/config.go
 1 internal/plugins/copp/config.go
 1 internal/plugins/cos/config.go

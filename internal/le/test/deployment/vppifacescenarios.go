@@ -1,15 +1,15 @@
 // Design: docs/architecture/testing/interop.md -- what one VPP feature proof is
 // Overview: vppiface.go -- the run that drives this table
 //
-// vppifacescenarios.go contains the DATA for the five interface features. Each
+// vppifacescenarios.go contains the DATA for the six interface features. Each
 // row defines the ze configuration, the vppctl query that checks whether VPP
 // created the object and the words that a reader gets back.
 //
-// This is a table because only the data differs between the five features. Each
+// This is a table because only the data differs between the initial-state features. Each
 // scenario writes a configuration, starts ze on it, polls one VPP query and
-// matches a needle. A sixth feature is another row in this table.
+// matches a needle. The QoS row additionally checks two reloads against the same running daemon.
 //
-// LCP must stay off in four of the five configurations. When it is enabled, ze
+// LCP must stay off in the other five configurations. When it is enabled, ze
 // creates an lcp_itf_pair for every loopback. This fails the whole apply on a
 // VPP build without linux_cp_plugin.so. This is an honest exact-or-reject at the
 // binapi layer. Only the LCP scenario turns it on, and only after its plugin
@@ -171,6 +171,7 @@ type vppScenario struct {
 	provenDetail    string
 	missingDetail   string
 	hostLinks       bool
+	qosReload       bool
 }
 
 // vppScenarios is the table in the order that the run performs it. After the
@@ -192,6 +193,16 @@ var vppScenarios = []vppScenario{
 		needles:       []string{"ip4-rx-urpf-strict"},
 		provenDetail:  "real VPP enabled strict IPv4 uRPF on the receive path of the dummy ze created",
 		missingDetail: "ip4-rx-urpf-strict not observed on the receive path in real VPP",
+	},
+	{
+		feature:       "vlan-qos-reload",
+		file:          "qos.conf",
+		config:        vlanQoSConfig("egress-qos-map 3 { pcp 3; } egress-qos-map 5 { pcp 5; }"),
+		probe:         "show qos mark",
+		needles:       []string{"vlan"},
+		provenDetail:  "real VPP replaced the VLAN egress row and disabled its mark after two reloads",
+		missingDetail: "VLAN egress replacement or empty-map mark removal was not observed in real VPP",
+		qosReload:     true,
 	},
 	{
 		feature: "gre-tunnel",
