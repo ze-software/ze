@@ -1910,7 +1910,7 @@ digests were re-sealed after the judgement. Package runs: `session`,
 
 ## P-8: fenced recovery blocks and both rule generators (2026-11-11)
 
-Ported from Mac `9bd860189a`, not yet committed on SERVER. The 2026-11-09 record above
+Ported from Mac `9bd860189a`, committed on SERVER as `b823463535`. The 2026-11-09 record above
 already holds the historical-consumer carriers and the block-start boundary,
 so this adds only what that record lacked.
 
@@ -1926,8 +1926,9 @@ so this adds only what that record lacked.
 The catalog site gains a second required needle and keeps its exit-2
 refusal, so it proves more than before. The three seals
 (`fixtureSiteDigest`, `fixtureCatalogDigest`, `hookSourcesDigest`) are
-renewed over these bytes. Package runs owed: `internal/le/session`,
-`internal/le/hookruntime`, `internal/le/ai/hooks`.
+renewed over these bytes. `b823463535` records the `internal/le/session`,
+`internal/le/hookruntime` and `internal/le/ai/hooks` packages passing; the
+red cells above stay owed.
 
 ## P-12 (a) #8: the oracle speaker dials until its deadline (2026-11-09)
 
@@ -1971,11 +1972,17 @@ happened not to batch. `7081cfdfa7` orders subjects and the fence by NLRI
 across the byte stream; every per-UPDATE attribute check still covers every
 NLRI. Judged by an independent `ze-test-judge` (RFC approval for
 `bgp.checkLocalPrefStrip` recorded; weakening approval for the refactored
-`localPrefTestCapture` carried by the commit). Unit cases: batched third and
-fence accepted, fence before third in one UPDATE refused, the observed lab
-frames accepted, batched LOCAL_PREF 200 refused. The lab green run and the
-discrimination record, against `applyFactsLocalPref`
-(`reactor/forward_local_pref.go`), are still owed.
+`localPrefTestCapture` carried by the commit). `d645d0357b` then replaced
+`7081cfdfa7`'s in-UPDATE NLRI-order rule with the repair Thomas authorized:
+the fence is accepted in either NLRI order inside the UPDATE that completes
+the three subjects, and the independent judge approved the change for
+`bgp.TestLocalPrefStripChecksDestinationWire` (the `Weakening-approved:` line
+in that commit). Unit cases: batched third and fence accepted, fence before
+third in one UPDATE accepted, a fence in an earlier UPDATE than the third
+subject refused, the observed lab frames accepted, batched LOCAL_PREF 200
+refused. The lab red walk on `bgp-local-pref-strip-gobgp` (break the rule in
+the checker or in `applyFactsLocalPref` (`reactor/forward_local_pref.go`),
+rebuild, red, restore, green) and the discrimination record are still owed.
 
 ## Unit red walks of landed fixes (2026-11-09)
 
@@ -3611,7 +3618,8 @@ blocked.
 
 ## P-17: CodeQL initializes after the patched Go selection (2026-11-10)
 
-Ported from Mac `2fa7ad5808`, not yet committed on SERVER.
+Ported from Mac `2fa7ad5808`, committed on SERVER as `4f3d1b5c6b` (joined with
+Mac `8dcbf9ff62`).
 
 `2300efb0f9` already moved the CodeQL Select step to `./le go stdpatch goroot`
 so the launcher links `cache/` before the tree is written (CodeQL run
@@ -3643,7 +3651,9 @@ into `workflowSteps` and `workflowStepBody` (Weakening-approved on the Mac
 commit: the same step, read and parse failures, missing-step refusal and all
 five `TestWorkflowTrackedPopulation` stimuli stay).
 
-Server evidence, owed (no SERVER log yet):
+Server evidence: `4f3d1b5c6b` records the whole `internal/le/repo/codeql`
+package passing with all feature tags, built against HEAD's inventory through
+`go test -overlay`. No SERVER log of the focused command below is kept:
 
 ```sh
 tags="ze_core ze_le $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
@@ -3658,7 +3668,7 @@ close P-17. No push or workflow trigger ran.
 
 ## P-17: extraction entry and finalized-database checker
 
-Ported from Mac `8dcbf9ff62`, not yet committed on SERVER.
+Ported from Mac `8dcbf9ff62`, committed on SERVER as `4f3d1b5c6b`.
 
 The new registered `repo codeql prepare` and `repo codeql check` actions reuse
 BuildContext, Guard and canonical cache boundaries. Preparation reserves a new
@@ -3683,7 +3693,7 @@ Normal security analysis/upload and the three maintained build contexts remain.
 | Boundary red | Mac `job-inventory-restored-codeql-boundary-red-2600a696.log`: both selected-bundle cases failed at the wrong search path; the existing `TestReportAreasWriteNothing` reported the writing report area. |
 | Repair | GroupSuite follows the maintained purpose ladder. The checker resolves and confines the actual bundled Go library, uses its exact local search path and isolated caches, and refuses missing libraries before execution. |
 | Package green, Mac | All extraction, boundary, selection, Guard, bootstrap and workflow roots passed in `job-codeql-extraction-package-green-a697b795.log`, package statement coverage 76.4%. |
-| Package green, this host | owed: the command below has not yet run on this host. The Mac logs above are not on this host. |
+| Package green, this host | `4f3d1b5c6b` records the package passing with all feature tags, built against HEAD's inventory through `go test -overlay` because another session had the inventory package mid-deletion in the working tree; `internal/le/workflowcheck` passes too. No SERVER log of the command below is kept. The Mac logs above are not on this host. |
 
 ```sh
 tags="ze_core ze_le $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
@@ -3740,14 +3750,14 @@ identities/results and finding no open users, MAIN removed the task-owned
 `p9-causal-overlay/` and `p9-causal-overlay-generator/` directories. The three
 small native logs retain the proof without a duplicate source copy.
 
-The additive carrier and this proof are ported from Mac `64a2928e2f`, not yet committed on SERVER.
+The additive carrier and this proof are ported from Mac `64a2928e2f`, committed on SERVER as `0502b9fd20`, which records `TestRuleMetadataLevelFollowsBody` passing here.
 `job-metadata-p9-committed-compile-3fef8394.log` records the Mac's immediate
 native `repo compiles check` after that commit: all five committed-source
 flavors pass. The SERVER port owes its own `./le repo compiles check`.
 
 ## P-31: canonical weakening approval before writes (2026-11-10)
 
-Ported from Mac `3514e9c43b`, not yet committed on SERVER.
+Ported from Mac `3514e9c43b`, committed on SERVER as `0b44189f53`.
 
 SERVER's writer already resolved the unit before writing: `rfc.ApproveInto`
 calls `rfc.ResolveApprovalUnitContent` (`4aafc843c0`), so the callable
@@ -3779,14 +3789,31 @@ green `job-p31-green-p4-copy-red-b7769260.log` and
 `test weakened selftest` reporting `SELFTEST PASS` in
 `job-p31-native-weakening-selftest-68879cce.log`. On SERVER only the
 registered and prepared leaves can go red, because the callable writer
-already refused: owed. The SERVER red walk (making the prepared answer skip `ResolveApprovalUnit` and the reason checks, then `go test ./internal/le/test/weakened/ -run 'TestWeakeningApproval' -count=1`, where the `prepared/*` and `registered/*reason*` leaves must fail, then restored green) has not run. The package is red on SERVER today with "approval identity: git ls-tree ... not a git repository" in tests that call the unchanged `Approve`, from SERVER's own approval-identity change, not from this port.
+already refused. `0b44189f53` records `internal/le/test/weakened` passing on SERVER, the new approve identity test included.
 
-The repair is ported from Mac `3514e9c43b`, not yet committed on SERVER; on the Mac it carried all thirteen independent verdicts, and the Mac's immediate native committed-source check passed all five flavors in `job-p31-committed-compile-3fef8394.log`.
+SERVER red walk (2026-11-11), through `./le test redwalk check`, which
+overlays the break and never writes the tracked file. The break makes
+`approveAnswer` skip `rfc.ResolveApprovalUnit` and both reason checks (`false &&`
+on each condition); patch and logs in
+`tmp/session/2026-11-11-004732/scratch/walks/` (`p31-break.patch`,
+`p31-TestWeakeningApproval*.log`).
+
+| Carrier | Clean | Broken | Verdict |
+| --- | --- | --- | --- |
+| `TestWeakeningApprovalValidatesCarrierBeforeWrites` | PASS | FAIL: all eight `prepared/*` leaves and all eight `registered/*` leaves (unknown directory, unknown declaration, package-clause alias, ambiguous directory key, empty reason, `\|`, newline, carriage return); the eight `callable/*` leaves still pass, because `Approve` keeps the writer's own guard | red |
+| `TestWeakeningApprovalPreparesWithoutWrites` | PASS | PASS | green, as it should be: it admits a valid request, which the break does not change |
+
+The tree never held the break, so the clean run is the restored state.
+
+The repair is ported from Mac `3514e9c43b`, committed on SERVER as `0b44189f53`; on the Mac it carried all thirteen independent verdicts, and the Mac's immediate native committed-source check passed all five flavors in `job-p31-committed-compile-3fef8394.log`.
 
 ## P-4: child help words cross the actual argv boundary
 
-Ported from Mac `35fc637fca`, not yet committed on SERVER. The logs in the
-table are the Mac's native runs; the SERVER runs are owed.
+Ported from Mac `35fc637fca`, committed on SERVER as `d54128e6f8`. The logs in
+the table are the Mac's native runs. `d54128e6f8` records the action, root and
+commit packages passing here, and `TestJobDispatchRunsChildHelpArguments` and
+`TestJobDispatchOwnHelpDoesNotRunAChild` passing through the real dispatcher;
+the SERVER attributed red and literal launcher runs are owed.
 
 `KindArgv` after a keyword now gives every remaining word to the child. Its
 trailing `help`, `--help`, `-h` and `-help` are child data. A lone positional
@@ -3818,20 +3845,23 @@ other argv/session/executable proof chains retain their independent scope.
 ## Mac working-tree evidence of 2026-11-10, ported (2026-11-11)
 
 The Mac checkout carried uncommitted work after its last commit. This is
-what SERVER now holds of it, ported and not yet committed, and what each piece
-still owes. Mac logs and proposals named here are copied to
+what SERVER now holds of it, ported and committed (the tests in `36d3cdf3f3`,
+the LOCAL_PREF repair in `d645d0357b`), and what each piece still owes.
+`36d3cdf3f3` records the rfc, deployment, commit, hookruntime, chaos/web and
+setup cases passing here, and carries the two HTMX capture tests red on
+purpose. Mac logs and proposals named here are copied to
 `tmp/mac-port/logs/10/`; logs not listed there exist only on the Mac.
 
 | Item | On SERVER | Proof state |
 | --- | --- | --- |
 | P-18 gokrazy cancellation carrier | `TestGokrazyBuildCancelEndsTheGrandchildren` (`internal/le/test/deployment/gokrazyroot_test.go`) waits on `owned.Done()` for at most 10s, and a timeout joins owned cleanup through `owned.Close()` before it fails | The Mac's independently approved proposal (`p18-gokrazy-bounded-wait-proposal.patch`) is applied; bounded baseline, cut and restored runs owed |
 | P-13 broadcast interleaving | `internal/chaos/web/broadcast_snapshot_interleaving_test.go`, verbatim; the package's non-test source is identical to the Mac's | Native cut and restored runs owed; the Mac's hash-bound overlay generator is not on this host |
-| P-13 HTMX request lifetime | `capture_htmx_body_integration_test.go` and `capture_htmx_lifecycle_integration_test.go` (`internal/component/web/testing`, build tag `integration`), verbatim | The Mac's source-only proposal `p13-htmx-lifecycle-proposal.patch` was never applied there and is not ported; actual browser baseline, red, repair and restored owed |
-| P-16 positive criteria at both entries | `TestPositiveCriteriaReachCarriedCommit` (`internal/le/commit`) and `TestPositiveCriteriaReachPreWriteHook` (`internal/le/hookruntime`), verbatim; their fixtures and `internal/le/spec/mechanisms/criteria.go` are identical to the Mac's | Runs owed |
-| P-24 design-admission fixture | `internal/le/spec/testdata/design-admission.json` completed as recorded below; its `ai/skills/ze-spec.md` range is `211-275` here, because SERVER's `ze-spec.md` has three more lines above that section than the Mac's. The fixture here is SHA256 `4633cf2562f177c2b77b0cdd8cce43fa020488365ff8c5a5f129b33f347d316c`, not the Mac's `938f2f52...` | The observations below ran on the Mac's bytes |
-| P-14 real vendor publication | `internal/le/setup/vendor_real_publication_test.go`, verbatim; `internal/le/setup` and `internal/le/vendorpatch` are identical to the Mac's | Runs owed |
-| RFC 7296 correction provenance | `TestOwnedDocumentDisposition` (`internal/le/rfc`) also requires `RFC7296-2.1-1` retired, which `rfc/corrections/rfc7296.md` records | Run owed |
-| P-12 (a) LOCAL_PREF batching | `internal/le/interoplab/bgp/check_local_pref_batch_test.go`, adapted: SERVER's observer (`7081cfdfa7`) orders the fence and the third subject by NLRI inside one UPDATE, so the port expects "fence then third" refused with "LOCAL_PREF FIFO fence preceded all three subjects in NLRI order" | Open decision: the Mac's design, an independently approved proposal Thomas authorized (`p12-local-pref-batching-proposal.patch`), accepts either NLRI order inside one UPDATE. Adopting it changes `check_local_pref_wire.go`, this port's case and the "fence before third batched" case of `TestLocalPrefStripChecksDestinationWire`, which needs a `ze-test-judge` verdict |
+| P-13 HTMX request lifetime | `capture_htmx_body_integration_test.go` and `capture_htmx_lifecycle_integration_test.go` (`internal/component/web/testing`, build tag `integration`), verbatim | Committed red in `36d3cdf3f3` (`TestBrowserScreenshotNativeWaitsForHTMXBody`, `TestBrowserScreenshotNativeHTMXLifecycle`). The Mac's source-only proposal `p13-htmx-lifecycle-proposal.patch` was never applied there and is not ported; the browser repair and its restored run are owed |
+| P-16 positive criteria at both entries | `TestPositiveCriteriaReachCarriedCommit` (`internal/le/commit`) and `TestPositiveCriteriaReachPreWriteHook` (`internal/le/hookruntime`), verbatim; their fixtures and `internal/le/spec/mechanisms/criteria.go` are identical to the Mac's | Pass in `36d3cdf3f3`'s record; the walk is owed |
+| P-24 design-admission fixture | `internal/le/spec/testdata/design-admission.json` completed as recorded below; its `ai/skills/ze-spec.md` range is `211-275` here, because SERVER's `ze-spec.md` has three more lines above that section than the Mac's. The fixture here is SHA256 `4633cf2562f177c2b77b0cdd8cce43fa020488365ff8c5a5f129b33f347d316c`, not the Mac's `938f2f52...`. The nil-input correction (`p24-model-proof/nil-preservation-proposal.json`) was judged APPROVE (b) on SERVER by an independent `ze-test-judge` (2026-11-11) and applied: 84 leaves, 9 design fields in each of 8 design targets and 2 criterion fields in each of 6 AC-2 objects, no before-value mismatch; the fixture is now SHA256 `cdb562cc2d8c4e1c58d6bd1297c056d12c6073051249be2a9fd75c17290857fa`. No Go test reads it | The observations below ran on the Mac's pre-correction bytes; fresh observations over the corrected inputs are owed |
+| P-14 real vendor publication | `internal/le/setup/vendor_real_publication_test.go`, verbatim; `internal/le/setup` and `internal/le/vendorpatch` are identical to the Mac's | Passes in `36d3cdf3f3`'s record; the walk is owed |
+| RFC 7296 correction provenance | `TestOwnedDocumentDisposition` (`internal/le/rfc`) also requires `RFC7296-2.1-1` retired, which `rfc/corrections/rfc7296.md` records | Passes in `36d3cdf3f3`'s record; the walk is owed |
+| P-12 (a) LOCAL_PREF batching | `internal/le/interoplab/bgp/check_local_pref_batch_test.go` with the repair Thomas authorized, committed in `d645d0357b`: `check_local_pref_wire.go` accepts the fence in either NLRI order inside the UPDATE that completes the three subjects (RFC 4271 Section 4.3: "An UPDATE message is used to advertise feasible routes that share common path attributes to a peer"), replacing `7081cfdfa7`'s in-UPDATE NLRI-order rule; "fence then third" is accepted, and a fence in an earlier UPDATE than the third subject is refused | Settled: the independent judge approved the change for `bgp.TestLocalPrefStripChecksDestinationWire` (the `Weakening-approved:` line in `d645d0357b`), which records `TestLocalPrefStrip*` passing. Owed: the lab red walk on `bgp-local-pref-strip-gobgp` (break the rule in the checker or in Ze's `applyFactsLocalPref`, rebuild, red, restore, green) and the discrimination record |
 
 Not ported. The P-32 ambient capture work (the generation guard in
 `externaleffects.go` and `externalrangeelements.go`, its counter, the two
@@ -3920,4 +3950,4 @@ APPROVE(a): Yangcontract `191ba60d` and hugepages `58756b12`, with the guest
 timeout is not accepted as child cleanup.
 
 The proposals are copied to `tmp/mac-port/logs/10/`. Of them only the gokrazy
-bounded-wait proposal is applied on SERVER (row above).
+bounded-wait proposal is applied on SERVER, committed in `36d3cdf3f3` (row above).

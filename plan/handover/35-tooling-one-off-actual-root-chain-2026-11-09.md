@@ -5,24 +5,25 @@
 This section supersedes the old Next and Last run sections below. Work on this
 spec continued by accident on the Mac checkout for nine commits and some
 uncommitted work, stopped on 2026-11-10. That work has been carried to this
-checkout by re-implementing each change against current code. **None of it is
-committed here yet**: every item below is working-tree state on this checkout.
-The spec stays open; Review Gate and the two-commit closure have not happened,
+checkout by re-implementing each change against current code, and the port is
+committed here: `0502b9fd20`, `b823463535`, `b87b910f0b`, `d54128e6f8`,
+`0b44189f53`, `4f3d1b5c6b`, `36d3cdf3f3`, `d645d0357b`, and the plan record
+`65017ff2a4`. The spec stays open; Review Gate and the two-commit closure have not happened,
 and no scope was dropped.
 
 ### The nine Mac commits
 
 | Mac commit | Work | Here |
 | --- | --- | --- |
-| `2fa7ad5808` | CodeQL patched-Go bootstrap | Adapted: `2300efb0f9` already selected Go through `./le go stdpatch goroot`; added `Initialize CodeQL` after the Select step, `CGO_ENABLED=0`, and the two bootstrap tests |
-| `9bd860189a` | Stop-hook recovery blocks, fences, both rule generators | Adapted into this checkout's `preserveState`; fence handling, the second generator needle, seals renewed |
+| `2fa7ad5808` | CodeQL patched-Go bootstrap | Adapted in `4f3d1b5c6b`: `2300efb0f9` already selected Go through `./le go stdpatch goroot`; added `Initialize CodeQL` after the Select step, `CGO_ENABLED=0`, and the two bootstrap tests |
+| `9bd860189a` | Stop-hook recovery blocks, fences, both rule generators | Adapted into this checkout's `preserveState` in `b823463535`; fence handling, the second generator needle, seals renewed |
 | `15fb445289` | Inventory interface result types | **Not ported** (see below) |
-| `8dcbf9ff62` | CodeQL extraction entries and finalized-database checker | Ported |
-| `64a2928e2f` | Rule metadata polarity proof | Ported |
-| `3514e9c43b` | Weakening approval validated before writes | Adapted: this checkout's writer already resolved the unit (`4aafc843c0`); only the registered action's read-only preparation was ported. P-31's red walk here is owed |
-| `35fc637fca` | Trailing child help words forwarded unchanged | Ported |
+| `8dcbf9ff62` | CodeQL extraction entries and finalized-database checker | Ported in `4f3d1b5c6b` |
+| `64a2928e2f` | Rule metadata polarity proof | Ported in `0502b9fd20` |
+| `3514e9c43b` | Weakening approval validated before writes | Adapted in `0b44189f53`: this checkout's writer already resolved the unit (`4aafc843c0`); only the registered action's read-only preparation was ported. P-31's red walk is recorded in the evidence file (2026-11-11, red) |
+| `35fc637fca` | Trailing child help words forwarded unchanged | Ported in `d54128e6f8` |
 | `2290209274` | Finite inventory field equations | **Not ported** (see below) |
-| `6362c8fbd5` | Typed-NLRI listener readiness, current-session EOR | Mostly already here: listener readiness is solved by the speaker redial (`ac1a28dc21`, `41fb15dad0`); the cancelled-identity test and one doc sentence were ported |
+| `6362c8fbd5` | Typed-NLRI listener readiness, current-session EOR | Mostly already here: listener readiness is solved by the speaker redial (`ac1a28dc21`, `41fb15dad0`); the cancelled-identity test and one doc sentence were ported in `b87b910f0b` |
 
 **The inventory work is not ported, and the actual-root chain is closed by
 supersession, not by a result.** `spec-inventory-fast-registry-checks` deletes
@@ -39,36 +40,46 @@ the Mac record.
 
 ### The Mac's uncommitted work, as carried here
 
-The evidence file's section "Mac working-tree evidence of 2026-11-10, ported
-(2026-11-11)" records each item and what it owes. In short:
+The regression tests are committed in `36d3cdf3f3`, which records the rfc,
+deployment, commit, hookruntime, chaos/web and setup cases passing here, and
+carries the two HTMX capture tests red on purpose. The evidence file's section
+"Mac working-tree evidence of 2026-11-10, ported (2026-11-11)" records each
+item and what it owes. In short:
 
 - P-18: `TestGokrazyBuildCancelEndsTheGrandchildren` has the approved bounded
   wait; no baseline, cut or restored run yet. The guest (`d3195649`),
   Yangcontract (`191ba60d`) and hugepages (`58756b12`) cleanup proposals are
   approved but not applied or run; their unsafe cuts must not run first.
-- P-13: the broadcast-interleaving test and the two HTMX capture tests are
-  carried, unrun; the Mac's browser repair proposal is not applied.
-- P-16: both positive-criteria entry tests are carried, unrun.
-- P-14: the real vendor publication test is carried, unrun.
+- P-13: the broadcast-interleaving test is committed and passes in
+  `36d3cdf3f3`'s record; its cut and restored runs are owed. The two HTMX
+  capture tests are committed red (`TestBrowserScreenshotNativeWaitsForHTMXBody`,
+  `TestBrowserScreenshotNativeHTMXLifecycle`); the Mac's browser repair
+  proposal is not applied.
+- P-16: both positive-criteria entry tests are committed and pass in
+  `36d3cdf3f3`'s record.
+- P-14: the real vendor publication test is committed and passes in
+  `36d3cdf3f3`'s record.
 - P-24: `design-admission.json` carries the completed fixture, with the
   `ze-spec.md` range corrected to this checkout's lines (`211-275`). A model
-  found a real nil-input scope defect in that completion; the fix proposal
-  `p24-model-proof/nil-preservation-proposal.json` is not judged or applied.
-  Do not certify the fixture complete.
+  found a real nil-input scope defect in that completion. The fix proposal
+  `p24-model-proof/nil-preservation-proposal.json` was judged APPROVE (b) by an
+  independent `ze-test-judge` on this host and applied (fixture SHA256
+  `cdb562cc...57fa`). Fresh model observations over the corrected inputs are
+  owed; do not certify the fixture complete before they are recorded.
 - P-25: the `RFC7296-2.1-1` provenance assertion in `TestOwnedDocumentDisposition`
-  is carried, unrun.
-- P-12 (a) LOCAL_PREF, **open decision**: Thomas authorized the Mac's exact
-  repair ("Authorize this exact repair and approval record"), independently
-  judged APPROVE(b) for `bgp.checkLocalPrefStrip`, which accepts the final
-  subject and fence in one UPDATE in either NLRI order. This checkout instead
-  landed `7081cfdfa7`, which accepts the fence after the third subject in one
-  UPDATE but refuses it before. The batch test is carried adapted to
-  `7081cfdfa7`. Adopting the authorized design means applying
-  `tmp/mac-port/logs/10/p12-local-pref-batching-proposal.patch` to
-  `check_local_pref_wire.go`, flipping this port's "fence then third" case
-  and `TestLocalPrefStripChecksDestinationWire`'s "fence before third batched"
-  case, under a fresh `ze-test-judge` verdict for this checkout's code (the
-  Mac's pending approval row was written on the Mac and does not apply here).
+  is committed and passes in `36d3cdf3f3`'s record.
+- P-12 (a) LOCAL_PREF, **settled**: `d645d0357b` applied the repair Thomas
+  authorized ("Authorize this exact repair and approval record"). The checker
+  accepts the FIFO fence in either NLRI order inside the UPDATE that completes
+  the three subjects (RFC 4271 Section 4.3: "An UPDATE message is used to
+  advertise feasible routes that share common path attributes to a peer"), and
+  refuses a fence in an earlier UPDATE than the third subject. This replaces
+  the in-UPDATE NLRI-order rule of `7081cfdfa7`. The independent judge approved
+  the change for `bgp.TestLocalPrefStripChecksDestinationWire` (the
+  `Weakening-approved:` line in `d645d0357b`). Owed: the lab red walk on
+  `bgp-local-pref-strip-gobgp` (break the rule in the checker or in Ze's
+  `applyFactsLocalPref`, rebuild, red, restore, green) and the discrimination
+  record.
 - P-35: the Mac's bounded BFD batch is a second observation of a carrier this
   checkout already walked (evidence, "P-35: the GR purge, BFD join and
   document-too-wide members").
@@ -79,11 +90,23 @@ Mac logs, proposals and the P-24 payloads used above are in
 
 ### Resume order
 
-1. Run the scoped tests the port owes (each package touched above) and commit
-   the port in pieces through `./le commit create`, with `./le repo compiles
-   check` after each Go commit.
-2. Decide the LOCAL_PREF design above, then prove it.
-3. Run the owed walks: P-31 here, P-18 gokrazy, P-13, P-16, P-14, P-25.
+1. Done: the port is committed, in the commits named at the top of this
+   section.
+2. Prove the LOCAL_PREF repair: the lab red walk on
+   `bgp-local-pref-strip-gobgp` and its discrimination record.
+3. Close the remaining owed items:
+   - P-18: the gokrazy baseline, cut and restored runs, and the three cleanup
+     proposals (guest `d3195649`, Yangcontract `191ba60d`, hugepages
+     `58756b12`).
+   - P-13: the HTMX browser repair that turns the two red capture tests green,
+     and the broadcast-interleaving walk.
+   - P-16, P-14 and P-25: their walks.
+   - P-24: fresh model observations over the corrected fixture.
+   - P-8: the evidence-2 cells.
+   - P-28: the open overlays.
+   - The interop readiness probe gap that `ac1a28dc21` names: Ze's readiness
+     probe checks nothing.
+   - The rationale for `CGO_ENABLED=0` on the CodeQL Select step.
 4. Complete every remaining P-1 through P-41 proof, the Review Gate and the
    two-commit closure. AC-32 and P-32 are restated by
    `spec-inventory-fast-registry-checks` AC-17 when that spec lands.
