@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Release-independent development tooling: it changes how two local gates choose what they judge and changes no shipped binary. |
 | RFC gaps | - |
-| Depends | plan/post-release/engineering/spec-agent-economy-2-scoped-test.md |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-11 |

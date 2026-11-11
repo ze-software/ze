@@ -106,7 +106,7 @@ Forced reads: the Go style guide (49KB) 858 times, the system door (11KB)
 | # | Spec | Owns | Depends |
 |---|------|------|---------|
 | 1 | spec-agent-economy-1-call-shape (closed) | The Bash hook's command rewrite, quote-blind guards, the budget's counting, refusal messages that teach a forbidden form, what a subagent is told at start | - |
-| 2 | `plan/post-release/engineering/spec-agent-economy-2-scoped-test.md` | A short action that tests, vets or compiles named packages; persisted queue wait; nearest-name answer for an unknown command; commit-create ergonomics | 1 (the hook messages name this action) |
+| 2 | spec-agent-economy-2-scoped-test (closed) | A short action that tests, vets or compiles named packages; persisted queue wait; nearest-name answer for an unknown command; commit-create ergonomics | 1 (the hook messages name this action) |
 | 3 | `plan/post-release/engineering/spec-agent-economy-3-preamble.md` | D-1, D-2, D-3; the skill listing served to phase agents; main-only `.claude/rules/` files | - |
 | 4 | `plan/post-release/engineering/spec-agent-economy-4-supervision.md` | Context-size nudge at agent spawn; a warning on a second spec claim; the agent's call count reported to the main thread; skill bodies shed branch-only reference text; test-judge batching | 1 (same hook file) |
 | 5 | `plan/post-release/engineering/spec-agent-economy-5-scoped-gates.md` | A cheaper post-commit compile gate and a changed-only RFC check, CI keeping the whole-corpus runs | 2 |

@@ -18,10 +18,10 @@ first. This page says only where each child stands and what to do next.
 | # | Work | State | First action |
 |---|------|-------|--------------|
 | 1 | Child 1, spec-agent-economy-1-call-shape | Closed. 18f0f40a19 (identity line), 614ce4ebea (guards keep HEAD's verdict; a modelled reader line lifts it; repairs the identity exemption), 48a98fb9d4 (refusal messages, a refused call costs nothing, test-deletion narrowing), 70f70633b3 (fixtures, parity, seal), accde6836c and 391cc12bc6 (closure). Live probe passed on 18f0f40a19's build: 0 of 5 calls voided | None |
-| 2 | Child 2, `spec-agent-economy-2-scoped-test.md` | Phases 1 to 6 committed: 75907fdffc, 7e072d42d3, db7126e71e, bcb429469e, 7e66c69bdd, ae3022e659. Phase 6 also carries AC-13 (`./le commit create ... body-file <path>`) and child 1's transferred findings I1, N1 to N5 | Phase 7 (pages and the rule point), one `ze-work` agent, then `/ze-close` |
+| 2 | Child 2, spec-agent-economy-2-scoped-test | Closed. Phases 1 to 7: 75907fdffc, 7e072d42d3, db7126e71e, bcb429469e, 7e66c69bdd, ae3022e659 (with AC-13, `./le commit create ... body-file <path>`, and child 1's transferred findings I1, N1 to N5), 6cc68aaba9 (pages and the rule point); a91061b8c7 (review fixes), then the closure record and the spec's removal. Review clean in 2 rounds | None |
 | 3 | Child 3, `spec-agent-economy-3-preamble.md` | `ready`, not started | Phase 1 is the probe and needs a session started after `./le ai sync update`, because agent definitions load at session start. Its review, and the review of the decisions-file move, are strongest-tier work |
 | 4 | Child 4, `spec-agent-economy-4-supervision.md` | `skeleton` with the research; its Depends row is cleared | Design it (development tier) |
-| 5 | Child 5, `spec-agent-economy-5-scoped-gates.md` | `skeleton` | Last, by design: it changes what two gates prove. Child 2's wait record now exists (db7126e71e). Its design is strongest-tier work |
+| 5 | Child 5, `spec-agent-economy-5-scoped-gates.md` | `skeleton`; its Depends row is cleared | Last, by design: it changes what two gates prove. Child 2's wait record now exists (db7126e71e). Its design is strongest-tier work |
 | 6 | The umbrella's acceptance criteria | AC-6 met (one six-word command answers one line on green) and AC-7 met (wait recorded) by child 2; the others need children 3 and 4 and the two-week window | Child 4 owns a kept measure (`./le ai tokens`); repeat the baseline with it |
 
 ## What every brief must say now

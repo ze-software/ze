@@ -8,7 +8,7 @@
 | Release reason | Release-independent development tooling: it adds a short `le` action for scoped tests and changes no shipped binary. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 7 of 7 done; closure next |
+| Phase | 7 of 7 done; closed |
 | Handoff | - |
 | Updated | 2026-11-11 |
 
@@ -211,7 +211,7 @@ commit body with one over-long word is accepted.
 | A-1 | After child 1 lands, `rawHeavy` and `admittedCommand` still exist under those names, and `admittedCommand` writes the `quiet` form | Child 1's Existing Mechanisms rows for the two functions | Phase 6 edits whichever function then builds the raw-test replacement | `gopls symbols internal/le/hookruntime/bash.go` at the start of phase 6 | broken in its last clause: both names exist, `rawHeavy` now in `hookruntime/rawheavy.go` and `admittedCommand` still in `bash.go`, but `packageRefusal` (`rawheavy.go`) calls `admittedCommand` with quiet false, so the raw-job long form carries no `quiet`; the piped refusal does. The fallback was taken: phase 6 edited the function that builds the replacement |
 | A-2 | A `go test` child run through admission with the toolchain's environment keeps the race detector's cgo setting | Read: `commandEnvironment` in `internal/le/job/process.go` keeps the environment it is given and appends `CGO_ENABLED=1` when the argv carries the race flag. A `go vet` child keeps the environment unchanged. Its call site in the stream was not read | The action passes no environment and lets the boundary choose | `TestPkgActionChildEnvironmentEnablesRace` | confirmed: `commandEnvironment` (`job/process.go`) appends `CGO_ENABLED=1` for a `go test` child whose argv or effective `GOFLAGS` carry the race flag and `CGO_ENABLED=0` otherwise, and returns a non-test child's environment unchanged; the test pins it |
 | A-3 | The selector's `Packages` are patterns `go test` accepts | `go/lint/actions.go`, `changedScope` joins them into a scope | The action maps them to import paths with `GoList` first | `TestPkgActionChangedRunsTheReachedPackages`, and one real `changed` run at closure | confirmed: the main thread's real `./le test unit pkg changed vet` vetted 516 packages reached from 11 changed files, exit 0, and wrote the duration row `vet-pkg 220 2026-11-11T10:57:47Z 0` with its fourth column |
-| A-4 | A keyword spelled `run` or `vet` passes the table's start-up checks and the grammar gate | `checkKeyword` refuses only spacing, a dash and a duplicate | Respell the keyword (`match` for the regex) and update AC-3 | The package's tests start `le`'s tables; `./le cli grammar`, run by the main thread | confirmed by the closure reviewer: `pkgParameters` (`pkg.go`) declares `run` and `vet` as keywords, the table starts in the package tests, and the grammar gate accepts them |
+| A-4 | A keyword spelled `run` or `vet` passes the table's start-up checks and the grammar gate | `checkKeyword` refuses only spacing, a dash and a duplicate | Respell the keyword (`match` for the regex) and update AC-3 | The package's tests start `le`'s tables; `./le cli grammar`, run by the main thread | confirmed: `pkgParameters` (`pkg.go`) declares `run` and `vet` as keywords and the table starts in the package tests; the main thread's `./le cli grammar` run exits 1 with exactly two violations, `[R9] arch error-inventory` and `[R9] arch error-wrap`, both foreign to this spec, and none on `test unit pkg` |
 | A-5 | Without `-v`, `go test` prints one `ok` line per passing package and the assertion lines indented under each `--- FAIL:` line | Go's documented output | The readers are written against the format the fixture produces | `TestPkgActionReportsARedFixturePackage` | confirmed: that test runs a real `go test` over a passing and a failing fixture package and asserts one package ok and one failed, the `--- FAIL: TestTriple` line, the assertion text indented beneath it, then the summary |
 | A-6 | Nothing outside the repository parses the duration file | The census; the umbrella says its measuring scripts were session scratch and are not kept | A consumer that splits on a fixed column count breaks | The census, repeated at closure | confirmed: `grep -rIl ze-verify-duration` over the checkout without `.git`, `vendor`, `tmp`, `bin` and `cache`, repeated on 2026-11-11, finds `job/job.go`, `ai/hooks/parity.go`, `ai/hooks/parity_catalog.go`, the two pages, the verify-scope umbrella and this spec: no consumer the census lacked |
 | A-7 | A test can run the real `go test` over a fixture module, with no `feature-gates.txt` in the fixture root | Read: `TestASecondCheckoutPathReusesTheFirstOnesTestResult` does it today, with a `Toolchain` built as a value (so `New`, which reads the manifest and the pin, is not called), `GOWORK` off, a private `GOENV` and a skip without `go`. The unit area's `answer` takes the toolchain loader as a seam. `job.NewIn(root)` takes the registry root | The functional test uses a helper process in place of `go test` and the real run is demonstrated at closure | `TestPkgActionReportsARedFixturePackage` | confirmed: the test keeps the production quiet-run seam, so `admittedQuietRun` admits through `job.NewIn` at the fixture's own root, with `GOWORK` off, a private `GOENV` and a toolchain built as a value |
@@ -566,6 +566,8 @@ The candidates are every command name `Commands` answers that is not hidden, and
 - The unit groups stay unadmitted; `plan/post-release/engineering/spec-native-action-job-admission.md` owns that.
 - `rawHeavy` (`hookruntime/rawheavy.go`) compiles its launcher-option regexp on each call rather than once at package level (closure review N5). The cost is one compile each time it checks a word that follows a launcher such as `timeout` and does not start with a dash, and hoisting it changes a hook source, which re-derives the hook seal for every session, so it stays as it is.
 - The action runs under the full feature tag set. Tests behind a tag no table declares, such as `integration`, compile out and the summary cannot say so; they stay on the long `job run` form with their tag. A file guarded by the absence of a feature tag compiles only in a build that drops the tag; the action ignores the selector's `Tags`, and the compile-out builds stay with `./le repo compiles check` and CI.
+- The AC-10 check `TestDocsShowTheShortPackageAction` judges by text (closure review R2-4). A line holding `command go test` or `command go vet` passes when it holds any `-tags`, whatever tags it names. An indented code block (four spaces, no fence) is read as prose. A package written as a shell variable such as `$pkg` is not read as a package word, so a tagless `go test $pkg` is not refused.
+- The same check reads a `go test` or `go vet` only inside backticks and fences (`codeSegments`, `goWithoutTags` in `pkg_test.go`), or after the word `command` on any line (closure review R2-5). A tagless `go test <package>` written in plain prose, outside backticks and not after `command`, is not judged.
 
 ## Checklist
 
@@ -608,3 +610,148 @@ The candidates are every command name `Commands` answers that is not hidden, and
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `./le test unit pkg path <package>... [run <regex>] [vet]` and `pkg changed [vet]`: one action of the `test unit` table (`pkg.go` in `internal/le/test/unit`), admitted in process through `job.RunQuiet` under `unit-pkg` or `vet-pkg`, argv from `Toolchain.GoTest` and `GoVet`, one summary line on green, failure blocks then the summary on red, every whole-tree and tag-hiding form refused before admission (75907fdffc, 7e072d42d3).
+- `runlog` gained the reader of the lines under each failed test and the count that tells a passing package from one that ran no test; `Key` is unchanged (7e072d42d3).
+- The queue wait: `appendDuration` (`internal/le/job/registry.go`) writes a fourth column, `Ticket.Release` (`job.go`) passes it, the quiet text (`report.go`) shows `waited <s>s` above zero (db7126e71e).
+- An unknown command answers two lines naming the nearest registered names (`internal/le/le/root/nearest.go`, called from `dispatchLine` and `helpAsked`) (bcb429469e).
+- `wrapBody` (`internal/le/commit/input.go`) puts an over-long body word on its own line instead of refusing (7e66c69bdd).
+- The raw `go test` and `go vet` refusal advises the short action where it expresses the caller's line, and the long admitted form otherwise (`rawHeavy` in `internal/le/hookruntime/rawheavy.go`, `lossyPipeRefusal` in `lossypipe.go`); `commit create body-file <path>` (AC-13, `internal/le/commit/actions.go`); child 1's transferred findings (ae3022e659).
+- The six AC-10 surfaces use the short action, and `TestDocsShowTheShortPackageAction` judges them (6cc68aaba9, a91061b8c7).
+
+### Bugs Found/Fixed
+- `docs/contributing/running-commands.md` named the quiet log `job-<label>.log`; `quietLog` (`job/quiet.go`) writes `job-<label>-<eight hex of the job key>.log`. Page repaired in 6cc68aaba9.
+- Review round 1 I1: the AC-10 check did not judge code spans or table cells; fixed in a91061b8c7, covered by `TestSurfaceLinesAreJudgedByEveryRule`.
+
+### Documentation Updates
+- `docs/contributing/testing.md`, `docs/contributing/running-commands.md` ("A bare `go test`", "How long a verify takes", "Testing one package", the quiet example), `docs/guide/developer-setup.md` ("After Setup"), `docs/contributing/committing.md` (`body-file`), `ai/rationale/git-safety.md` (the writer named), the rule point under `ai/rules/points/testing/native-test-actions/`, `ai/doors/le-tooling.md`; condensed rule files regenerated.
+- `./le doc check all`, run by the main thread: red only on the wiki and gh-pages command catalog drift, foreign to this spec.
+
+### Deviations from Plan
+- A-1 broke in its last clause: the raw-job long form was built with quiet false; phase 6 edited the function that builds the replacement (the planned fallback).
+- AC-13 (`body-file`) was added in phase 6, because the Bash hook refuses an inline body naming an environment-changing word.
+- No separate `plan/learned/` summary: `ai/rules/planning.md` says closure requires no lesson artifact, and this spec's lessons are already on their surfaces (the page repair, the journal row, the Known Limitations).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 assumed the raw-job refusal's long form carries `quiet` | it was built with quiet false | gopls at the start of phase 6 | Phase 6 edited that builder; recorded in A-1 |
+| approach | The phase 7 docs check read raw lines only, so a tagless command in a code span passed | Review round 1 I1 | Independent closure reviewer | The check judges spans and fences; one judge refusal, then approval |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One short command tests, vets or compiles named packages under the right tags, admitted, one line on green | Done | `internal/le/test/unit/pkg.go` | "compiles" is the `vet` keyword, which type-checks packages and test files |
+| Every admitted run records its wait | Done | `internal/le/job/registry.go`, `appendDuration` | |
+| A mistyped command answers with the nearest real one | Done | `internal/le/le/root/nearest.go` | |
+| A commit body with one over-long word is accepted | Done | `internal/le/commit/input.go`, `wrapBody` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestPkgActionBuildsTheToolchainArgv`, `TestPkgActionGreenAnswersOneLine`, `TestPkgActionCountsOnlyPackagesThatRanATest`, `TestPkgActionAnswersRedWhenNoTestRan` | |
+| AC-2 | Done | `TestPkgActionRedPrintsFailuresThenTheSummary`, `TestPkgActionReportsARedFixturePackage` | |
+| AC-3 | Done | `TestPkgActionRunKeywordSelectsTests`, `TestPkgActionAnswersRedWhenNoTestRan` | |
+| AC-4 | Done | `TestPkgActionVetBuildsTheVetArgv`; real `changed vet` run | |
+| AC-5 | Done | `TestPkgActionChangedRunsTheReachedPackages` and the three `TestPkgActionChanged...` refusal and survivor tests | |
+| AC-6 | Done | `TestDurationRecordCarriesTheWait`, `TestPreviousRunReadsThreeAndFourColumnRows`, `TestQuietSummaryShowsTheWaitWhenAboveZero` | |
+| AC-7 | Done | `TestRawGoTestRefusalNamesTheShortAction`, `TestRawGoVetIsRefusedNamingTheShortAction`, `TestRawGoTestWithAnotherFlagKeepsTheLongForm`, `TestRefusalAdviceIsAcceptedByTheHook`; golden rows | |
+| AC-8 | Done | the five `nearest_test.go` tests | |
+| AC-9 | Done | the three `input_test.go` tests | |
+| AC-10 | Done | `TestDocsShowTheShortPackageAction`, `TestSurfaceLinesAreJudgedByEveryRule` | Check limits in Known Limitations |
+| AC-11 | Done | `TestPkgActionRefusesAPackageBehindAGroupTag`, `TestPkgActionChangedLeavesOutAPackageBehindAGroupTag` | |
+| AC-12 | Done | `TestPkgActionRefusesALineWithNoSingleMeaning`, `TestPkgActionRefusesTheWholeTree`, `TestPkgActionRefusesAPathSpanningGroups`, `TestPkgActionRefusesADashLeadingPath`, `TestPackageIsMatchedAgainstAGroupPattern` | |
+| AC-13 | Done | the three `body_file_test.go` tests | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every Unit Tests row | Done | the files named in the TDD table | Green in the main thread's per-phase package runs and `./le test unit pkg path ./internal/le/test/unit/` after a91061b8c7 |
+| `TestPkgActionReportsARedFixturePackage` | Done | `internal/le/test/unit/pkg_test.go` | real `go test` child over fixture packages |
+| `./le ai hooks unit` | Done | `internal/le/ai/hooks/parity_catalog.go` | phase 6 run by the main thread |
+| Demonstration at closure | Done | main checkout | real `changed vet` run, and the refusal and nearest-name runs below |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create, every row | Done | each is among the change set's 41 reviewable files or its pages; the raw-job advice moved from `bash.go` to `rawheavy.go` |
+
+### Audit Summary
+- **Total items:** 4 requirements, 13 ACs
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** A-1 fallback, AC-13 added (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One short command tests or vets named packages under the right tags, admitted, one line on green | functional | `TestPkgActionReportsARedFixturePackage` runs a real `go test` child through the production quiet-run seam; the main thread's real `./le test unit pkg changed vet` vetted 516 packages, exit 0; at closure `./le test unit pkg path ./...` exits 2 naming `./le test unit all` |
+| Every admitted run records its wait | functional | the real run wrote `vet-pkg 220 2026-11-11T10:57:47Z 0`; the duration file's latest `unit-pkg` rows carry four columns (`unit-pkg 11 2026-11-11T11:16:12Z 0`) |
+| A mistyped command answers with the nearest real one | functional | `./le lint` at closure: `error: unknown command: lint. Nearest: le go lint` then `List every command: le help`, exit 2; `TestUnknownCommandRunsNothing` |
+| A commit body with one over-long word is accepted | functional | `TestMessagePutsAnOverLongWordOnItsOwnLine`; this closure's commit A body carries a URL longer than the 72-column line, and `./le commit create` wrote its script |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The unit groups are admitted | Out of this spec by design (Design Insights) | `plan/post-release/engineering/spec-native-action-job-admission.md` |
+| The `for ... do` quoted `go vet` false positive of `rawHeavy` | Met in use, a defect of the segmenter | `plan/post-release/engineering/spec-tooling-one-off-defects.md` (owns the journal row) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/agent-economy-2-scoped-test-f4d858bd-ad8f-4b19-8a8d-50f67a40ccf9.md` (41 files, verdict clean) |
+| `./le spec review check` | clean: `review_gate: OK (41 code files, clean, hashes match ...)` |
+| Rounds | 2 |
+| Reviewer lenses used | round 1: independent ze-read reviewer over 75907fdffc..6cc68aaba9 (logic, wiring, refusals, docs check, style); round 2: fresh independent reviewer over the whole change set at a91061b8c7; the docs-test rewrite judged by two independent ze-test-judge agents |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R1 I1 to I4 | ISSUE | The AC-10 check missed code spans and table cells; page statements on counts, left-out lines, vet's race and the integration tag; the spanning-groups refusal untested at action level; assumption rows unsettled | `pkg_test.go`, the AC-10 surfaces, this spec | a91061b8c7 (red walk: disabling `goWithoutTags` and `codeRunsBinLe` turned 8 seeded rows red; Weakening-approved by a fresh judge after one refusal) |
+| R2-1 | ISSUE | The journal row's Spec cell named the owning spec, where it records the finding spec | `plan/journal/hook-existing-patterns-false-positive.md` | this closure's commit A |
+
+NOTEs: R1 N5 (regexp compiled per call in `rawHeavy`), R2-4 and R2-5 are Known Limitations; R2-2 (the row example reproduces) fixed in the same row; R2-3 fixed in A-4. Final run: 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/test/unit/pkg.go`, `pkg_test.go`, `internal/le/unit_pkg_wiring_test.go`, `internal/le/le/root/nearest.go`, `nearest_test.go`, `internal/le/runlog/failures_test.go`, `internal/le/job/duration_test.go` | Yes | each is among the recorded review artifact's 41 hashed files, and `./le spec review check` matched every hash |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-13 | the tests in the audit pass | main thread: `./le test unit pkg path ./internal/le/test/unit/` green after a91061b8c7; `./le test unit pkg path ./internal/le/setup/` green; lint of `./internal/le/test/unit/...` clean |
+| AC-12 | `path ./...` refused | closure run: exit 2, `names the whole tree, which is the owner's run (./le test unit all)` |
+| AC-8 | nearest name | closure run of `./le lint`: two lines, exit 2 |
+| AC-10 | no tagless example, no literal launcher | `grep -n "command go test \./" docs/contributing/testing.md docs/guide/developer-setup.md` exit 1; `grep -n "command bin/le" docs/contributing/testing.md` exit 1 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le test unit pkg ...` through `leroot.Dispatch` | none: Go wiring tests `TestTestUnitPkgIsReachableFromDispatch`, `TestDispatchReachesThePkgActionBody` | Yes: `./le help test unit` lists `pkg`; `./le help ai commands` lists it with `path`, `run`, `vet`, `changed` |
+| `le <mistyped>` | none: `TestUnknownCommandNamesTheNearestRegisteredOne` | Yes: the real `./le lint` run |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken (fallback taken) | the A-1 row |
+| A-2 to A-8 | confirmed | each A-N row's Status cell |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| CLI (row 3), guide (row 6), test infrastructure (row 10) | the action's help derives from its table; the pages are judged by `TestDocsShowTheShortPackageAction` | Yes |
+| Doc anchors (row 16) | row 16 of the Documentation Update Checklist | Yes |
+| `./le repo compiles check` | OK in all five flavours at 6cc68aaba9's content (main thread) | Yes |
