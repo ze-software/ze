@@ -9,7 +9,7 @@
 | Depends | Phase 1: `plan/release/fixes/spec-config-yang-loader-structural-checks.md` lands first, and the goyang enum numbering fix (another agent, 2026-10-09; first a fork `replace`, since 2026-10-21 `internal/le/vendorpatch/patches/goyang-enum-negative.patch` over upstream goyang) lands before step 1. Later phases: reconcile the completed enum migration before changing its producers; coordinate overlapping IKE plans below |
 | Phase | Phase 1 (YANG resolved schema, strict `DefaultLoader`, validated command arguments, `ArgDef` construction) authorized by the owner on 2026-10-08; design decisions D-1 to D-7 answered by the owner on 2026-10-09. **Phase 1 closed on 2026-10-11** (review clean, I5 resolved; evidence and what is still owed in "Phase 1 closure" below). Later phases not authorized, so the spec stays, at `design`, until the owner authorizes one |
 | Handoff | None. The Phase 1 handover (12-validated-construction-phase-1) was retired in the Phase 1 closing commit; its owed items are reconciled in "Phase 1 closure" below |
-| Updated | 2026-10-11 |
+| Updated | 2026-11-11 |
 
 ## Release ownership split
 
@@ -55,6 +55,8 @@ The governing policy is `ai/rules/points/go-standards/directives/preserve-validi
 | `plan/post-release/features/spec-ike-missing-transforms.md` | Owns new algorithms and DH table design. Keep its supported set and algorithm implementation independent; adapt encapsulation to the table if that plan lands first |
 | `plan/post-release/features/spec-ike-post-quantum.md` | Owns future key exchange support. No post-quantum or hybrid design enters this migration |
 | `plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md` | Owns acceptance and exact dataplane encoding of OPAQUE. Representation changes here preserve the refusal in the implementation tree unless that separate plan has already changed it |
+| `plan/release/fixes/spec-single-owner-lifecycle.md` | Origin of the IKE SA state item ("Later-phase item: IKE SA state, one transition" below). The item was that spec's AC-9 and its phase 4, and moved here by owner decision on 2026-11-11. That spec keeps the release fixes; this one owns the single-writer mechanism |
+| `plan/release/fixes/spec-single-owner-lifecycle-4-ike-unauthenticated-input.md` | Owns the release defect that motivated the item: an IKE message that fails its integrity check must not end an SA (RFC 7296 Section 2.4, journal `plan/journal/unprotected-message-changes-sa-state.md`). It lands first and independently. The item here decides who may write the SA state, never which input may change it, and that child names this spec as the home of the single-writer work |
 | `plan/journal/earlier-guard-hides-the-better-error.md` | The DH public-value record shows why a wrong-length input cannot prove the numeric range check. Boundary tests below isolate each guard |
 | `plan/journal/committed-tree-does-not-build.md` | The storage-constructor record shows missed callers on another platform. Census reconciliation includes tests and every supported build population |
 | `plan/journal/unwired-feature.md` | The schema-length record motivates proofs through actual admission consumers. This draft makes no claim that the historical defect remains present |
@@ -135,6 +137,22 @@ Source was read before this draft. The enum census manifest and the completed `E
 
 The intended change is to make internal APIs carry those established guarantees, close mutation bypasses and remove repeated internal validation only where producer and ownership evidence permits it. No measured speedup is claimed.
 
+## Existing Mechanisms (MANDATORY)
+
+This section was added on 2026-11-11, when the IKE SA state item below joined the spec; the spec predates the section. Each row was read at its source that day. The rows are the mechanisms the spec's own design already builds on plus the ones the IKE SA state item meets. They are not a census of the tree: step 1 of the Implementation Steps (the census) adds a row for every further mechanism a migration row extends or replaces, before that row's callers change.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| The house rule for state types | `docs/contributing/ze-go-style.md`, "One type per lifecycle state" | States that an operation belonging to a validated type cannot be called with anything else, that a transition returning a new type does not consume the old value, and that Ze writes the type instead of a state field and a check where it controls the transition | Extends: every migration row applies this rule to legacy code; the spec adds no second policy |
+| A resolved type behind one transition | `internal/component/config/yang/loader.go`: `Loader`, `Resolved`, `(*Loader).Resolve` | `Resolve` is the only producer of `Resolved`, and the readers are methods of `Resolved` (Phase 1 of this spec, T1) | Extends: the precedent each later lifecycle row follows where the progression is a one-way step |
+| A value only its package can produce | `internal/component/command/argbind.go`: `ValidatedArgs`; `internal/component/command/argvalidate.go`: `ValidateArgString` reading the private `constructed` marker of `ArgDef` | Private fields in package `command` make `ValidateArgs` and the `ArgDef` constructors the only producers outside the package; a zero `ArgDef` is refused with an error (Phase 1, T2 and T3) | Extends: the same package-privacy mechanism, with no source gate, is what the IKE SA state item uses for its single writer |
+| A finite category from a private producer | `internal/le/chaos/selftest/actions.go`: `Action` and its private `kind` | The exported struct carries a private kind only `Table` assigns, and `Argv` and `envOptions` derive from it | Does not apply as a migration: already enforced, recorded as the pattern not to wrap in a ceremonial constructor |
+| Side-effect-free candidate validation, then a staged value | `internal/component/ike/engine/config.go`: `validateIPsecSections`; `internal/component/ike/engine/register.go`: `ikeConfigStaging`, `stage`, `commit` | Validation reads the candidate PKI without installing it and returns only an error; `stage` stores a plain `*ipsec.IPsecConfig` and performs no check; `commit` consumes the staged value and refuses an apply with no stage | Extends: the validated candidate becomes the only value `stage` accepts |
+| The IKE SA state field | `internal/component/ike/engine/sa.go`: `SA`, `SAState`, `SAState.String` | `State` is an exported field of `SA`, assigned directly by the handlers of the engine package; `String` ends in a BUG panic on a value outside the eight declared states | Replaces: the directly assigned field becomes a state held by a type of another package, written by one transition method (item below) |
+| The wake of the initiator's handshake loop | `internal/component/ike/engine/reconcile.go`: `(*PeerSession).wakeHandshake`; `internal/component/ike/engine/fsm.go`: `(*PeerSession).awaitHandshake`, `handleInbound` | `handleInbound` defers `wakeHandshake` so the wake follows the state a handler wrote; `awaitHandshake` returns and its caller reads `sa.State` again. The state write itself notifies nobody | Does not apply as a replacement: the item keeps this wake and its ordering; a notification on the transition is not part of it |
+| Dropping an unauthenticated handshake request | `internal/component/ike/engine/responder_unauthenticated.go`: `discardUnauthenticatedHandshakeRequest` | The responder drops a first IKE_AUTH or EAP round that fails to decrypt and keeps the handshake | Does not apply: owned by `plan/release/fixes/spec-single-owner-lifecycle-4-ike-unauthenticated-input.md`, which also fixes the initiator side. The item below changes who may write the state, never which input may change it |
+| IKE state for readers outside the component | `internal/component/ike/engine/register.go`: `ipsecinventory.Register`, `ikeprobe.Register` (`ai/doors/access-security.md`, "Boundaries") | Two core leaves publish IKE state to readers that must not import the engine | Does not apply: the item changes neither leaf; the readers it touches are the ones that read `SA.State` directly |
+
 ## Data Flow
 
 ### Entry Point
@@ -206,6 +224,7 @@ Apply the canonical construction policy through the following design choices. Th
 | PortSelector and selector aggregates | Private normalized port payload; admission distinguishes raw/normalized from programmable selectors. Remove public Form/Port mutation from validated values and migrate all narrowing/sink callers | Every raw pair, numeric conversion, config parser and error-result consumer accounted for; invalid forms never publish/install ANY |
 | Parsed and validated config | Separate raw/parsed values from the immutable validated candidate accepted by staging; return that candidate from the existing validation chain and avoid reparsing the same delivery | Same candidate references and owned collections survive until apply. Initial startup, reload, failed verify and apply-without-verify each pass through the intended checks |
 | ArgDef and command tree | Kind-specific validated argument payloads with private invariant-bearing members; construction occurs during lowering/publication, with mutable builders confined before publication | Enumerate manual ArgDef/Node construction as well as YANG lowering, including tests and plugin metadata; preserve kind defaults and consumer output |
+| IKE SA state (owner-added 2026-11-11) | The state leaves the exported `SA.State` field for a value of a small leaf package with a private field, a read accessor and one transition method carrying the legal-transition table. Design, census and criteria: "Later-phase item: IKE SA state, one transition" below | Every one of the direct assignments and composite-literal initialisations accounted for, tests included; the legal-transition table derived from the writes the code performs, never from memory of the RFC; the existing IKE suites green over it |
 | Already-closed finite category | Retain `Action`-style package construction where it satisfies the policy, documenting permitted zero/misuse behavior | Trace the actual producer and captured caller; no ceremonial NewAction wrapper or claim that a private enum proves the whole exported object valid |
 
 The main design tradeoff is preserving a convenient value API while controlling backing-store and resource aliases. An opaque struct is cheaper than interface allocation and usually easier to use, but it cannot express affine ownership. Choose package-owned immutable values for data and existing shared runtime ownership for resources. Reject a design that removes a necessary runtime guard merely to claim all validity is static.
@@ -442,7 +461,7 @@ These steps are contingent on owner approval. Each package migration is complete
 1. **Phase: Wiring and census.** Enumerate the full source population, record every disposition and all mutation/ownership paths, and bind each migration to its actual entry point. Add the named failing behavioral/API proofs for the first dependency batch, with valid controls. No production stub or alternate handler is needed: existing callbacks and consumers are the wiring. Append the complete source/doc/test list to this spec before source edits. Reconcile the enum cutover and overlapping plans.
 2. **Phase: Leaf values and variants.** Close scalar and payload-combination construction paths first, including normalized selectors and command argument payloads. Migrate every constructor, literal, decoder, test fixture and caller for that type in the same batch. Preserve zero/sentinel and wire behavior; publish allocation evidence for affected hot paths.
 3. **Phase: Validated aggregates and publication.** Construct owned validated snapshots, including the IKE candidate. Make staging and downstream consumers accept only those values. Preserve raw external DTOs at decode boundaries, remove redundant reparsing, and prove invalid updates never partially publish. Update data-model and callback docs during this phase.
-4. **Phase: Controlled lifecycles and resources.** Apply state-specific APIs where operation ordering is Ze-controlled. Establish shared ownership or immutable snapshot semantics for remaining aliases, including DH clear/use and staged apply. Retain peer, environment and revocation checks. Complete stale-alias and failed-transition tests.
+4. **Phase: Controlled lifecycles and resources.** Apply state-specific APIs where operation ordering is Ze-controlled. Establish shared ownership or immutable snapshot semantics for remaining aliases, including DH clear/use and staged apply. Retain peer, environment and revocation checks. Complete stale-alias and failed-transition tests. The IKE SA state item (owner-added 2026-11-11, its own section below) belongs to this phase.
 5. **Phase: Remaining census batches.** Complete every remaining first-party migrate row in dependency order, using the same leaf → aggregate → lifecycle sequence. Record already-correct/open/runtime/unconstrained exclusions with sources. This phase cannot end at the representative examples.
 6. **Phase: Reconciliation and integration.** Reconcile declarations and all build populations again, remove obsolete APIs and temporary analysis/probe files, and verify documentation mappings. Run the native tests, allocation checks, lint/staticcheck and final worktree verification once after all edits have landed. An independent review checks complete producer closure and residual runtime enforcement before closure.
 
@@ -524,6 +543,105 @@ The source already contains useful boundary separation: candidate PKI validation
 ## RFC Documentation
 
 Preserve existing requirement comments and tests on enforcing behavior. When moving a guard or type changes a requirement's source anchor, update the existing summary/test reference without changing the quoted requirement or claiming new support. This draft changes no RFC metadata.
+
+## Later-phase item: IKE SA state, one transition (owner-added 2026-11-11)
+
+### Owner decision, 2026-11-11
+
+Relayed by the main session that supervised `plan/release/fixes/spec-single-owner-lifecycle.md`, in the owner's words:
+
+> D3 - Ok add it to the post-release spec
+
+"It" is one work item: every write of the IKE SA state goes through one transition function. Until that day it was AC-9 and phase 4 of `plan/release/fixes/spec-single-owner-lifecycle.md`. "The post-release spec" is this file.
+
+On how the single writer is enforced, the owner answered the same day:
+
+> D1 - yes you are right
+
+The proposal he answered: enforce it with Go package privacy, with no annotation gate over the source and no typed analyzer.
+
+→ Constraint: the decision adds the item to this spec's scope. It authorizes no phase. The item is later-phase work under the Phase row of the metadata table and waits for the same owner authorization as the rest; Status stays `design`.
+
+→ Constraint: the release defect that motivated the item is not in it. An IKE message that fails its integrity check ending an SA (RFC 7296 Section 2.4) is fixed by `plan/release/fixes/spec-single-owner-lifecycle-4-ike-unauthenticated-input.md`, which lands first. This item prevents no further defect on that path, which is why it is post-release: it removes the class (any code in the engine can write any state) rather than one instance of it.
+
+### Current behavior (read 2026-11-11)
+
+Counts are from a search of the engine package's files for an assignment to a field named `State`, split into non-test and test files, and for a `State` key in a composite literal. Every non-test hit assigns `sa.State`. They are a host-build count; the census reconciles them across build populations (A-2).
+
+| Source files and symbols read | Observed behavior | Migration consequence |
+|--------------------------------|-------------------|-----------------------|
+| `internal/component/ike/engine/sa.go`: `SAState`, its eight constants, `SAState.String`, `SA` | `SAState` is an unsigned 8-bit type with eight states, idle as its zero. `State` is an exported field of the exported `SA`. `String` ends in a BUG panic on any other value. No method of `SA` or `SAState` changes the state, and nothing observes a write | The state can be given any value, in any order, by any code that holds an `SA`. Go privacy is per package, so making the field private inside the engine changes nothing for the engine's own files |
+| Direct assignments, non-test files of `internal/component/ike/engine` | 102 assignments in 10 files: `fsm.go` 41, `responder.go` 22, `responder_eap.go` 14, `multiple_auth.go` 11, `sa_init_retry.go` 7, `established.go` 2, `rebind.go` 2, `delete.go` 1, `mobike.go` 1, `notify_error.go` 1. By target: dead 92, established 2, SA-init-sent 2, auth-sent 2, EAP-in-progress 2, SA-init-received 1, auth-received 1 | Nine in ten writes end the SA. The legal-transition table is small in targets and wide in sources; each write's source states are read at its site during the census |
+| Composite-literal initialisations, non-test files | Four: `newInitiatorSA` (`initiator.go`) and `newResponderSA` (`responder.go`) start idle; `applyIKERekeyResponse` and `respondIKERekey` (`rekey.go`) create the rekeyed SA already established | The state value needs two admitted starting points, idle and established-by-rekey, and no other |
+| Test files of the engine package | 78 direct assignments in 45 test files and 11 composite-literal initialisations | Tests in the package build SAs in a chosen state. They move to the same producers, or to a test-only starting point the census names; none keeps a direct write |
+| `internal/component/ike/engine/fsm.go`: `handleInbound`, `(*PeerSession).awaitHandshake`; `reconcile.go`: `(*PeerSession).wakeHandshake` | `handleInbound` dispatches an initiator SA by its state and defers `wakeHandshake`, so the wake follows the state the handler wrote; `awaitHandshake` returns and its caller reads the state again. After `handleAuthResponse` returns, `handleInbound` reads the state being established as the signal that the responder's AUTH was verified, and adopts the peer's endpoint on it | Readers poll; the write notifies nobody. The item keeps both the wake and the read of the state as the authentication signal: the transition method must be called at the one place that signal relies on, after the AUTH check |
+| `internal/component/ike/engine/fsm.go`: `(*PeerSession).reapStaleHandshake` | Reads the state under `childLifecycleMu` to avoid tearing down an SA the dispatch goroutine just established | The state is read from more than one goroutine. The census records which lock or owner loop covers each write and each read before the representation is chosen; the item adds no synchronization the engine does not have |
+| Readers outside the engine package | `internal/component/ike/cmd/show_ipsec.go` and `internal/component/web/page_vpn_ipsec.go` compare `sa.State` with the established state and print its string. `internal/component/ike/dataplane` reads no SA state (its one `State` comparison is a kernel capability probe) | Outside readers move to the read accessor; no outside package writes the state today |
+
+### Design
+
+The existing mechanisms this starts from are in "Existing Mechanisms": the style-guide rule, the Phase 1 values only their package can produce, and the engine's wake.
+
+| Aspect | Decision |
+|--------|----------|
+| Representation | The state lives in a value of a small leaf package inside the IKE component. The package holds the state type, a private field, a read accessor and one transition method. `SA` holds that value in place of the exported `State` field |
+| Why another package | Go privacy is per package. A private field inside `engine` is writable by every file of `engine`, which is where all 102 writes are. Only a type of another package makes a second writer fail to compile |
+| The one writer | The transition method. It carries the legal-transition table, so the table is declared once, beside the only code that can change the state |
+| Starting points | The package's constructors admit the two starting states the code uses today (idle; established for a rekeyed SA) and no other |
+| Illegal transition | Refused: the state is unchanged and the method returns the refusal to its caller, naming the from and to states, and the caller logs it. It is not a BUG panic, because a peer's message chooses which handler runs (R-6) |
+| Legal-transition table | Derived in the census from the from and to states of the 102 writes the code performs. A pair the code performs today is legal. The table is not written from the RFC's prose, and it refuses no transition the engine makes today |
+| Readers | The accessor, for the engine and for the two outside readers. Comparisons with a state constant keep their meaning |
+| What it does not do | It does not make each state its own type (R-12: the state is driven by peer messages and timers at runtime, the case "One type per lifecycle state" leaves to a runtime value), add a notification on transition, change which input may cause a transition, or add locking |
+| Enforcement | The compiler. No annotation gate, no typed analyzer, no source-text test (owner decision above; "Not commissioned" in the Task scope table already excludes a blanket linter) |
+| Placement | The leaf's path is fixed in the census row before any edit, as "Files to Create" requires of a new production file. It imports nothing from `engine`, sits under the `ze_ike` gate with the engine unless a reader outside the gate needs it, and passes `./le arch tier check` |
+
+→ Constraint: the Task scope table excludes "runtime protocol states that intentionally represent unvalidated or changing input" from compulsory encapsulation. The item does not contradict that row. The SA state stays a runtime value that peer input moves; what the item encapsulates is the ownership invariant (one writer) and the Ze-controlled order (the table), both of which the "Included" row names.
+
+→ Constraint: Go does not revoke copies. A copied state value is a snapshot, and the value `SA` holds is reached through the `SA` pointer the engine already shares. The census records every whole-value copy of `SA` or of the state value (AC-7).
+
+### Acceptance criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-26 | Code outside the leaf package, the engine included, assigns the SA state, or builds the state value with a literal that names its field | It does not compile, with the expected type error, beside a positive control that compiles (the transition call, the accessor, the empty literal). No direct assignment and no `State` key in an `SA` literal remains in the engine, its tests included |
+| AC-27 | A transition the table does not hold is requested | The method refuses it, the state is unchanged, the caller receives a refusal naming both states and logs it, and nothing panics. Removing a pair from the table turns the test for that pair red |
+| AC-28 | Every transition the engine performs today, on the initiator and the responder, through establishment, EAP, multiple authentication, rekey, MOBIKE, rebind, delete and teardown | Each still occurs and is in the table. The existing IKE unit tests of `internal/component/ike/engine`, `./le test functional ipsec` and `./le test integration interop-ipsec` pass unchanged in what they assert; `show vpn ipsec sa` and the web page print the same state strings |
+
+AC-2, AC-3, AC-4, AC-7, AC-16, AC-17 and AC-18 apply to the item as they read above. The zero of the state value is idle, a valid zero that stays valid (AC-4).
+
+### Tests
+
+| Test | File / carrier | Validates |
+|------|----------------|-----------|
+| `TestSAStateOnlyTransitionWrites` | One-shot compiler probes from a throwaway package under `internal/component/ike/`, following the probe procedure of the TDD Test Plan, errors recorded here, probe removed | AC-26 |
+| `TestSAStateRefusesIllegalTransition` | The leaf package's tests, one case per absent pair class, each beside a legal control | AC-27 |
+| `TestSAStateTableHoldsEveryEngineTransition` | The leaf package's tests, table against the list the census derived | AC-28, the table half |
+| Existing engine unit tests, `test/ipsec/` functional suite, `interop-ipsec` scenarios | Existing carriers, assertions unchanged | AC-28, the behavior half. No new interop scenario: the item changes nothing on the wire |
+
+No test here carries an `RFC requirement:` tag of its own. Where a migrated write sits under an RFC-tagged unit, the unit's claim and assertions stay, and "RFC Documentation" above governs a moved anchor.
+
+### Files
+
+| File | Change |
+|------|--------|
+| A new leaf package under `internal/component/ike/`, path fixed in the census | The state type, constants, string form, accessor, constructors, transition method and table |
+| `internal/component/ike/engine/sa.go` | `SA` holds the leaf value; `SAState`, its constants and `String` move to the leaf |
+| The 10 engine files with assignments, and `initiator.go`, `responder.go`, `rekey.go` for the four initialisations | Each write becomes a transition call whose refusal is handled; each initialisation becomes a constructor call |
+| Every engine file that reads the state, `internal/component/ike/cmd/show_ipsec.go`, `internal/component/web/page_vpn_ipsec.go` | Read through the accessor |
+| The 45 engine test files that assign the state | Build SAs through the producers |
+| `docs/architecture/ike/ipsec-7-ikev2-engine.md`, `ai/digests/ipsec-ike.md` | The state's owner and the table, in the step that changes them |
+
+### How the item sits in this spec
+
+| Row of this spec | How the item sits |
+|------------------|-------------------|
+| Phase (metadata): later phases not authorized | Unchanged. The item is later-phase work, phase 4 of the Implementation Steps |
+| Task scope, "Included" | Inside it: an ownership invariant and a Ze-controlled operation order |
+| Task scope, "Excluded from compulsory encapsulation" | Respected: the state stays a runtime value; peer input is still judged by the handlers |
+| Task scope, "Not commissioned" | Nothing on that list is used: no validation framework, no reflection, no central type registry, no blanket linter, no circumvention of privacy |
+| Task scope, "Preserved" | Wire, config and CLI output, error identities and the valid zero are unchanged |
+| "Files to Create": a new production file needs an owner and responsibility in the census | The leaf package is that file; its row is written in the census before the edit |
+| A-1 (owner wants the full ordered migration) | Still awaiting the owner. For this one item his wish to have it done is recorded above; when it runs is not |
 
 ## Phase 1 (owner-authorized 2026-10-08)
 
@@ -925,6 +1043,7 @@ Each goal is a Phase 1 scope row. The tests were run at the close, at HEAD `7689
 |------|-----|-------|
 | Every later phase: the full census, the IKE families, AC-1, AC-5, AC-8 to AC-12, AC-14, AC-15, and the `command.Node` and plugin SDK exclusions above | Not authorized by the owner | This spec, at `design` |
 | T2 residual bypasses (`ValidateArgs` with nil definitions, `InvokeLocal` with a caller-chosen path) | Review-only today, recorded in the T2 residual (N1) | This spec, later phase |
+| IKE SA state, one transition (AC-26 to AC-28) | Added to this spec's scope by the owner on 2026-11-11, after Phase 1 closed; adding it authorized no phase | This spec, later phase (Implementation Steps, phase 4) |
 
 ## Review Gate
 
