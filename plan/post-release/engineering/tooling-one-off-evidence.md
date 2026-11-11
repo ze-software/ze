@@ -4246,7 +4246,7 @@ still pending when that passes, and has the poster build its own `ze`.
 | P | Observable | Carrier | Break | Red |
 | --- | --- | --- | --- | --- |
 | P-20 | the comparison table validates raw input | `TestComparisonRefusesLossBeforeSelection/markdown` (`internal/perf/report`) | `markdown.go` `Markdown`: `ValidateResults(nil)` | "lossy raw row was ranked" |
-| P-36 | a foreign quiet holder is never signalled | `TestAForeignQuietHolderIsNeverSignalled` (new, `internal/le/job`): the stand-in holder traps every catchable signal and records it; the test also requires the holder is alive and not stopped, and the registry unchanged | `registry.go` `reportBusy` sends SIGTERM | "the waiter signalled the foreign quiet holder; it recorded \"TERM\\nTERM\\nUSR2\\n\", want only the test's barrier" |
+| P-36 | a foreign quiet holder is never signalled | `TestAForeignQuietHolderIsNeverSignalled` (new, `internal/le/job`): the stand-in holder traps and records twelve signals it can survive (HUP, INT, QUIT, USR1, USR2, TERM, CONT, ALRM, PIPE, WINCH, URG, CHLD), and a stop or kill shows in its state and alive checks; the test also requires the holder is alive and not stopped, and the registry unchanged | `registry.go` `reportBusy` sends SIGTERM | "the waiter signalled the foreign quiet holder; it recorded \"TERM\\nTERM\\nUSR2\\n\", want only the test's barrier" |
 | P-36 | same | same | SIGSTOP | "the foreign quiet holder was stopped: ps state \"T\"" |
 | P-36 | same | same | SIGSTOP then SIGCONT | "... it recorded \"CONT\\nCONT\\nUSR2\\n\" ..." |
 
@@ -4276,8 +4276,9 @@ bytes. Every cut the P-18 generator names now has an attributed red.
 
 ## Review Gate round 4: the P-18 cuts re-walked, the P-36 URG and CHLD walks (2026-11-11)
 
-An independent reviewer, who wrote neither the carriers nor the walks above,
-checked each generator cut (`tmp/mac-port/logs/10/p18-causal-overlays-generator/main.go`,
+A reviewer who wrote neither the carriers nor the walks above (though it did
+write the P-18, P-20 and P-36 status lines it also reviewed; a separate
+read-only agent then checked those lines) checked each generator cut (`tmp/mac-port/logs/10/p18-causal-overlays-generator/main.go`,
 thirteen cuts) against today's source: every `Before` anchor still stands in
 the function it names. The reviewer re-walked the five detached-context cuts
 whose earlier red names no retained log, through `./le test redwalk check`.
