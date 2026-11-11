@@ -367,6 +367,7 @@ const activityStyle = `        <style>
         }
         .activity-widget .go-bucket {
             display: grid;
+            align-content: start;
             gap: 0.45rem;
             border: 1px solid var(--activity-border);
             border-radius: 0.95rem;
@@ -383,6 +384,7 @@ const activityStyle = `        <style>
         }
         .activity-widget .go-stats {
             display: grid;
+            align-content: start;
             grid-template-columns: 1fr;
             gap: 0.22rem;
         }
