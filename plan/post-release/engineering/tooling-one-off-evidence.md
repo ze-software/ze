@@ -3854,7 +3854,7 @@ purpose. Mac logs and proposals named here are copied to
 
 | Item | On SERVER | Proof state |
 | --- | --- | --- |
-| P-18 gokrazy cancellation carrier | `TestGokrazyBuildCancelEndsTheGrandchildren` (`internal/le/test/deployment/gokrazyroot_test.go`) waits on `owned.Done()` for at most 10s, and a timeout joins owned cleanup through `owned.Close()` before it fails | The Mac's independently approved proposal (`p18-gokrazy-bounded-wait-proposal.patch`) is applied; bounded baseline, cut and restored runs owed |
+| P-18 gokrazy cancellation carrier | `TestGokrazyBuildCancelEndsTheGrandchildren` (`internal/le/test/deployment/gokrazyroot_test.go`) waits on `owned.Done()` for at most 10s, and a timeout joins owned cleanup through `owned.Close()` before it fails | The Mac's independently approved proposal (`p18-gokrazy-bounded-wait-proposal.patch`) is applied. SERVER (2026-11-11): baseline passes, and the Mac generator's `gokrazy-image-build` cut is red with "canceled build did not join within 10s"; see "P-18: the three cleanups applied and seven cuts walked" |
 | P-13 broadcast interleaving | `internal/chaos/web/broadcast_snapshot_interleaving_test.go`, verbatim; the package's non-test source is identical to the Mac's | Red on SERVER (2026-11-11) under the Mac generator's seven `dashboard.go` edits, reproduced against this tree (`tmp/mac-port/logs/10/p13-broadcast-overlay-generator`); see "SERVER unit red walks of the ported carriers" |
 | P-13 HTMX request lifetime | `capture_htmx_body_integration_test.go` and `capture_htmx_lifecycle_integration_test.go` (`internal/component/web/testing`, build tag `integration`), verbatim | Committed red in `36d3cdf3f3` (`TestBrowserScreenshotNativeWaitsForHTMXBody`, `TestBrowserScreenshotNativeHTMXLifecycle`). Repaired in `7b5d645b94` (2026-11-11): the Mac's `p13-htmx-lifecycle-proposal.patch`, reviewed against this tree by an independent agent that added the hx-sse and comment corrections. Baseline on SERVER before the repair: both fail, "the real capture predicate accepted headers before the finite HTMX body and swap completed" and, for `awaited-swap` and `removed-source`, "capture readiness accepted the actual pending HTMX body/swap". Repaired: both pass, all eight lifecycle cases. Red walk through a compiler overlay removing the two listeners (`tmp/session/2026-11-11-004732/scratch/walks/p13-htmx-break.patch`, `p13-htmx-broken.log`): the body test, `awaited-swap` and `removed-source` fail again; `request-failure`, `body-failure`, `abort-*` and `cancel-*` stay green, as they guard against a stuck counter. `test/web/lg-stream-swaps.wb` and `lg-stream-error.wb` (hx-sse pages) pass on the repair. The "cleanup incomplete: signal: killed" lines in the Mac's `test-10-htmx.log` came from the agent-browser daemon hanging at `set viewport` there; no SERVER run printed it, so it is not recorded as a SERVER defect |
 | P-16 positive criteria at both entries | `TestPositiveCriteriaReachCarriedCommit` (`internal/le/commit`) and `TestPositiveCriteriaReachPreWriteHook` (`internal/le/hookruntime`), verbatim; their fixtures and `internal/le/spec/mechanisms/criteria.go` are identical to the Mac's | Pass in `36d3cdf3f3`'s record; red at both entries on SERVER (2026-11-11), "SERVER unit red walks of the ported carriers" |
@@ -3982,6 +3982,44 @@ timeout is not accepted as child cleanup.
 
 The proposals are copied to `tmp/mac-port/logs/10/`. Of them only the gokrazy
 bounded-wait proposal is applied on SERVER, committed in `36d3cdf3f3` (row above).
+
+## P-18: the three cleanups applied and seven cuts walked (SERVER, 2026-11-11)
+
+The guest (`d3195649`), Yangcontract (`191ba60d`) and hugepages (`58756b12`)
+proposals are applied to `run_guestcommand_test.go`, `catalog_cancel_test.go`
+and `hugepages_root_proof_test.go`. Five lint rewrites changed the approved
+text (an if/else chain to a switch, `strings.SplitSeq`, `net.Dialer.DialContext`
+for `net.DialTimeout`, four `exitAfterDefer` nolint comments); an independent
+`ze-test-judge` on SERVER found each behaviour-identical and approved
+`yangcontract.pids`, `qemu.hugepagesRootBlock` and
+`qemu.TestHugepagesRootProcess` under (a). It also found that the hugepages
+verb's cleanup never killed a verb that outlived its 30s bound, so a stuck verb
+ran until Go's test timeout; the cleanup now kills the verb's group when the
+bound expires and bounds the observation after the kill to 10s.
+
+Baselines, full tag set: `TestGuestCommandInterruptReachesTheGuestBeforeTheVMStops`,
+`TestHugepagesVerbRootReachesEveryOwnedPhase`,
+`TestGokrazyBuildCancelEndsTheGrandchildren`, `TestCatalogActionCancellation`
+and `TestCatalogActionNormalInvocation` pass. The cuts are the Mac generator's
+fragments (`tmp/mac-port/logs/10/p18-causal-overlays-generator`), reproduced
+against this tree and walked through `./le test redwalk check` (patches and
+logs `walks/P-18-*.patch`, `walk-P-18-*.log`):
+
+| Cut | Carrier | Red |
+| --- | --- | --- |
+| `gokrazy-image-build`: image-build command detached from its context | `TestGokrazyBuildCancelEndsTheGrandchildren` | "canceled build did not join within 10s" |
+| `dockerlab-guest-command`: command limit detached | `TestGuestCommandInterruptReachesTheGuestBeforeTheVMStops` | "root cancellation did not finish the owned guest command within 10s" |
+| `hugepages-host-build` | `TestHugepagesVerbRootReachesEveryOwnedPhase` | "verb did not finish bounded owned teardown" |
+| `hugepages-appliance` | same | same |
+| `hugepages-ssh` (`boot.go`) | same | same |
+| `yangcontract-build` | `TestCatalogActionCancellation` | "helper did not finish its timeout stack diagnostic" |
+| `yangcontract-run` | same | same |
+
+No owned process (gate watchdog, catalog helper, hugepages fixture) was left
+running after the seven cut runs. The tree never held a cut, so each clean
+run is its restored state. The three stale generator cuts (`scale-simulator`,
+docker-lab command startup, installer first stop) bind source this tree has
+changed and were not walked here.
 
 ## SERVER unit red walks of the ported carriers (2026-11-11)
 

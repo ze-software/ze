@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"os"
 	"os/exec"
@@ -63,11 +64,54 @@ func TestHugepagesVerbRootReachesEveryOwnedPhase(t *testing.T) {
 			done := make(chan error, 1)
 			go func() { done <- cmd.Wait() }()
 			defer func() {
-				cancel()
-				select {
-				case <-done:
-				case <-time.After(10 * time.Second):
-					t.Error("verb fixture could not be joined")
+				// A completed verb can still have left a separately owned
+				// fixture group alive. Release and observe every fixture
+				// before helper termination or temporary-directory removal.
+				if err := os.WriteFile(filepath.Join(work, "failure-cleanup"), nil, 0o600); err != nil {
+					t.Errorf("release owned hugepages fixture commands: %v", err)
+				}
+				joined := false
+				until := time.NewTimer(30 * time.Second)
+				defer until.Stop()
+				cleanupBound := until.C
+				// killBound starts when cleanupBound expires and the owned
+				// group is killed; nil until then, so it never fires early.
+				var killBound <-chan time.Time
+				tick := time.NewTicker(20 * time.Millisecond)
+				defer tick.Stop()
+				var observationErr error
+				for {
+					if !joined {
+						select {
+						case <-done:
+							joined = true
+						default:
+						}
+					}
+					gone, err := hugepagesRootFixturesGone(work)
+					if err != nil {
+						observationErr = err
+					}
+					if joined && gone && err == nil {
+						cancel()
+						return
+					}
+					select {
+					case <-cleanupBound:
+						t.Errorf("hugepages failure cleanup did not observe all fixture sockets closed and verb joined: joined=%v observation=%v", joined, observationErr)
+						// Every fixture retains its original 25s bound and its
+						// failure defer kills/joins its own child. A verb still
+						// running now is killed with its process group
+						// (KillGroupOnCancel; cancel is idempotent), then the
+						// join and the sockets are observed for a bounded time.
+						cancel()
+						cleanupBound = nil
+						killBound = time.After(10 * time.Second)
+					case <-killBound:
+						t.Errorf("hugepages failure cleanup still did not observe all fixture sockets closed and verb joined 10s after killing the verb group: joined=%v observation=%v", joined, observationErr)
+						return
+					case <-tick.C:
+					}
 				}
 			}()
 			if phase != "normal" {
@@ -115,6 +159,37 @@ func TestHugepagesVerbRootReachesEveryOwnedPhase(t *testing.T) {
 			}
 		})
 	}
+}
+
+// hugepagesRootFixturesGone reads the entire task-owned socket population.
+// A live process publishes its listener before it can start a descendant, so
+// dynamically rereading this directory also covers late descendant receipts.
+// Only kernel connection refusal proves a published listener closed.
+func hugepagesRootFixturesGone(work string) (bool, error) {
+	entries, err := os.ReadDir(work)
+	if err != nil {
+		return false, err
+	}
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".socket") {
+			continue
+		}
+		address, err := os.ReadFile(filepath.Join(work, entry.Name()))
+		if err != nil {
+			return false, err
+		}
+		// Not a test context: a canceled context fails the dial, and a failed
+		// dial must never read as a closed listener.
+		dialer := net.Dialer{Timeout: 100 * time.Millisecond}
+		connection, err := dialer.DialContext(context.Background(), "tcp", string(address))
+		if err == nil {
+			return false, connection.Close()
+		}
+		if !errors.Is(err, syscall.ECONNREFUSED) {
+			return false, err
+		}
+	}
+	return true, nil
 }
 
 // hugepagesRootAwait waits only for the fixture's reached-command handshake.
@@ -185,22 +260,50 @@ func hugepagesRootBlock(t *testing.T, phase string) {
 	if err := child.Start(); err != nil {
 		t.Fatal(err)
 	}
+	joined := false
+	defer func() {
+		if joined {
+			return
+		}
+		if err := child.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			t.Errorf("kill owned hugepages fixture descendant: %v", err)
+		}
+		_ = child.Wait() // The failure-only kill is intentional; this is its sole reaper.
+	}()
 	hugepagesRootAwait(t, filepath.Join(os.Getenv("HP_ROOT_WORK"), phase+"-descendant.ready"))
 	hugepagesRootMark(t, phase+".ready")
-	select {
-	case stopped := <-caught:
-		if phase == "vm" {
-			if err := child.Process.Signal(stopped); err != nil {
+	until := time.NewTimer(25 * time.Second)
+	defer until.Stop()
+	cleanup := time.NewTicker(20 * time.Millisecond)
+	defer cleanup.Stop()
+	for {
+		select {
+		case stopped := <-caught:
+			if phase == "vm" {
+				if err := child.Process.Signal(stopped); err != nil {
+					t.Fatal(err)
+				}
+			}
+			err := child.Wait()
+			joined = true
+			if err != nil {
 				t.Fatal(err)
 			}
+			hugepagesRootMark(t, phase+".stopped")
+			os.Exit(0) //nolint:gocritic // exitAfterDefer: the defers serve only the t.Fatal path; the exit status is the receipt.
+		case <-cleanup.C:
+			if _, err := os.Stat(filepath.Join(os.Getenv("HP_ROOT_WORK"), "failure-cleanup")); err == nil {
+				if err := child.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+					t.Errorf("kill released hugepages fixture descendant: %v", err)
+				}
+				_ = child.Wait() // The explicit failure release intentionally kills this child.
+				joined = true
+				hugepagesRootMark(t, phase+".cleanup-joined")
+				os.Exit(1) //nolint:gocritic // exitAfterDefer: the defers serve only the t.Fatal path; the exit status is the receipt.
+			}
+		case <-until.C:
+			t.Fatal("command fixture never received teardown")
 		}
-		if err := child.Wait(); err != nil {
-			t.Fatal(err)
-		}
-		hugepagesRootMark(t, phase+".stopped")
-		os.Exit(0)
-	case <-time.After(25 * time.Second):
-		t.Fatal("command fixture never received teardown")
 	}
 }
 
@@ -219,12 +322,22 @@ func TestHugepagesRootProcess(t *testing.T) {
 		phase := os.Getenv("HP_ROOT_PHASE")
 		hugepagesRootSocket(t, phase+"-descendant")
 		hugepagesRootMark(t, phase+"-descendant.ready")
-		select {
-		case <-caught:
-			hugepagesRootMark(t, phase+"-descendant.stopped")
-			os.Exit(0)
-		case <-time.After(25 * time.Second):
-			t.Fatal("descendant never received teardown")
+		until := time.NewTimer(25 * time.Second)
+		defer until.Stop()
+		cleanup := time.NewTicker(20 * time.Millisecond)
+		defer cleanup.Stop()
+		for {
+			select {
+			case <-caught:
+				hugepagesRootMark(t, phase+"-descendant.stopped")
+				os.Exit(0) //nolint:gocritic // exitAfterDefer: the deferred Stops serve only the t.Fatal path; the exit status is the receipt.
+			case <-cleanup.C:
+				if _, err := os.Stat(filepath.Join(os.Getenv("HP_ROOT_WORK"), "failure-cleanup")); err == nil {
+					os.Exit(1) //nolint:gocritic // exitAfterDefer: the deferred Stops serve only the t.Fatal path; the exit status is the receipt.
+				}
+			case <-until.C:
+				t.Fatal("descendant never received teardown")
+			}
 		}
 	}
 	if role == "verb" {

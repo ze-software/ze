@@ -5,8 +5,10 @@ package docyangcontract
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -133,6 +135,10 @@ type catalogCancellationProbe struct {
 	sentinel                     *exec.Cmd
 	output                       catalogProbeOutput
 	ready, release, next, result string
+	abort                        string
+	group                        int
+	cleanupComplete              bool
+	cleanupErr                   error
 	done                         <-chan struct{}
 }
 
@@ -157,13 +163,38 @@ func newCatalogCancellationProbe(t *testing.T, stage string) *catalogCancellatio
 	probe := &catalogCancellationProbe{
 		ready: filepath.Join(dir, "ready"), release: filepath.Join(dir, "release"),
 		next: filepath.Join(dir, "next"), result: filepath.Join(dir, "result"),
+		abort: filepath.Join(dir, "abort-owned-groups"),
 	}
-	gateWait := "while [ ! -f " + catalogShellQuote(probe.release) + " ]; do sleep 0.02; done\n"
-	gate := "sleep 120 &\nchild=$!\nprintf '%s %s\\n' \"$$\" \"$child\" > " + catalogShellQuote(probe.ready+".pending") + "\n" +
+	outerGroupCommand := exec.CommandContext(t.Context(), "ps", "-o", "pgid=", "-p", strconv.Itoa(os.Getpid()))
+	outerGroupRaw, err := outerGroupCommand.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	outerGroup := strings.TrimSpace(string(outerGroupRaw))
+	if group, err := strconv.Atoi(outerGroup); err != nil || group <= 0 {
+		t.Fatalf("read the test's actual process group: %q (%v)", outerGroup, err)
+	}
+	// Each command group is private because runCatalogProcess uses the
+	// existing process-group owner. A fixture may retire its OWN current
+	// group; a numeric group read from a marker never grants signal authority.
+	groupIdentity := "group=$(ps -o pgid= -p \"$$\") || exit 1\n" +
+		"group=$(printf '%s' \"$group\" | tr -d ' ')\n" +
+		"case \"$group\" in ''|*[!0-9]*) exit 1;; esac\n" +
+		"if [ \"$group\" = \"$ZE_YANG_CATALOG_OUTER_GROUP\" ]; then exit 1; fi\n"
+	retireOwnGroup := groupIdentity + "kill -KILL 0\nexit 1\n"
+	abortGate := "if [ -f " + catalogShellQuote(probe.abort) + " ]; then\n" + retireOwnGroup + "fi\n"
+	gateWait := "while [ ! -f " + catalogShellQuote(probe.release) + " ]; do\n" +
+		abortGate + "sleep 0.02\ndone\n" + abortGate
+	// Preserve the existing 120s child lifetime as an independent fallback.
+	// Its watchdog lives in the command's own group, survives helper death,
+	// and retires the entire group even if the abort file cannot be written.
+	// Redirection prevents a surviving watchdog sleep holding catalog pipes.
+	gate := groupIdentity + "( sleep 120\nkill -KILL 0\nexit 1\n) >/dev/null 2>&1 &\n" +
+		"child=$!\nprintf '%s %s %s\\n' \"$$\" \"$child\" \"$group\" > " + catalogShellQuote(probe.ready+".pending") + "\n" +
 		"mv " + catalogShellQuote(probe.ready+".pending") + " " + catalogShellQuote(probe.ready) + "\n" +
 		gateWait + "kill \"$child\"\nwait \"$child\" 2>/dev/null\nprintf next > " + catalogShellQuote(probe.next) + "\n"
 	childEnv := append(os.Environ(), catalogCancelProbe+"=action", "ZE_REPO_ROOT="+invocationRoot,
-		"ZE_YANG_CATALOG_RESULT="+probe.result)
+		"ZE_YANG_CATALOG_RESULT="+probe.result, "ZE_YANG_CATALOG_OUTER_GROUP="+outerGroup)
 	if stage == "build" {
 		tool := filepath.Join(dir, "compiler-gate")
 		// One tool owns readiness; competing compilers wait on the same release
@@ -193,7 +224,10 @@ func newCatalogCancellationProbe(t *testing.T, stage string) *catalogCancellatio
 		}
 		_ = probe.sentinel.Wait() // The sentinel is deliberately killed during cleanup.
 	})
-	probe.command = exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestCatalogCancellationConsumerHelper$")
+	// Go cancels t.Context before t.Cleanup. Keep this helper alive until
+	// its separately owned groups have retired, then join its retained owner.
+	helper, cancelHelper := context.WithCancel(context.WithoutCancel(t.Context()))
+	probe.command = exec.CommandContext(helper, os.Args[0], "-test.run=^TestCatalogCancellationConsumerHelper$")
 	probe.command.Env = childEnv
 	probe.command.Dir = root
 	input, release := io.Pipe()
@@ -202,6 +236,7 @@ func newCatalogCancellationProbe(t *testing.T, stage string) *catalogCancellatio
 	probe.command.Stderr = &probe.output
 	owner, err := runner.StartServerProcess(probe.command)
 	if err != nil {
+		cancelHelper()
 		_ = input.Close()
 		_ = release.Close()
 		t.Fatal(err)
@@ -209,12 +244,16 @@ func newCatalogCancellationProbe(t *testing.T, stage string) *catalogCancellatio
 	// Close MUST follow every successful StartServerProcess, after assertions
 	// and before temporary files are removed; it joins the sole reaper.
 	t.Cleanup(func() {
+		if err := probe.abortAndJoin(); err != nil {
+			t.Error(err)
+		}
 		if err := release.Close(); err != nil {
 			t.Error(err)
 		}
 		if err := owner.Close(); err != nil {
 			t.Error(err)
 		}
+		cancelHelper()
 		if err := input.Close(); err != nil {
 			t.Error(err)
 		}
@@ -243,6 +282,11 @@ func (p *catalogCancellationProbe) waitFile(t *testing.T, path string, bound tim
 			t.Fatalf("catalog helper exited before %s: %s", filepath.Base(path), p.output.String())
 		case <-timer.C:
 			// Failure-only diagnostics keep the original success bound intact.
+			// Finish separate-group retirement before SIGQUIT can kill the
+			// helper that otherwise owns their production Close/Wait.
+			if err := p.abortAndJoin(); err != nil {
+				t.Error(err)
+			}
 			// Signal the retained os.Process handle, never a marker's numeric PID.
 			if err := p.command.Process.Signal(syscall.SIGQUIT); err != nil && !errors.Is(err, os.ErrProcessDone) {
 				t.Logf("request helper timeout stack: %v", err)
@@ -261,23 +305,146 @@ func (p *catalogCancellationProbe) waitFile(t *testing.T, path string, bound tim
 
 func (p *catalogCancellationProbe) pids(t *testing.T) []int {
 	t.Helper()
-	raw, err := os.ReadFile(p.ready)
+	pids, group, err := readCatalogGateIdentity(p.ready)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fields := strings.Fields(string(raw))
-	if len(fields) != 2 {
-		t.Fatalf("owned process readiness has %d identities: %q", len(fields), raw)
+	p.group = group
+	return pids
+}
+
+// readCatalogGateIdentity retains the original two process assertions and adds
+// the whole group identity while the gate and watchdog still pin it alive.
+func readCatalogGateIdentity(path string) ([]int, int, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, 0, err
 	}
-	pids := make([]int, 0, len(fields))
+	fields := strings.Fields(string(raw))
+	if len(fields) != 3 {
+		return nil, 0, fmt.Errorf("owned gate readiness needs two processes and one group: %q", raw)
+	}
+	identities := make([]int, 0, len(fields))
 	for _, field := range fields {
 		pid, err := strconv.Atoi(field)
 		if err != nil || pid <= 0 {
-			t.Fatalf("invalid owned process identity %q", field)
+			return nil, 0, fmt.Errorf("invalid owned gate identity %q", field)
 		}
-		pids = append(pids, pid)
+		identities = append(identities, pid)
 	}
-	return pids
+	return identities[:2], identities[2], nil
+}
+
+// abortAndJoin prefers the original post-owner Answer receipt. If the helper
+// died first, whole-group disappearance proves cleanup only; it never supplies
+// a passing owner-join assertion. All failure waits are independent of t.Context.
+func (p *catalogCancellationProbe) abortAndJoin() error {
+	if p.cleanupComplete {
+		return p.cleanupErr
+	}
+	if _, err := os.Stat(p.result); err == nil {
+		p.cleanupComplete = true
+		return nil
+	}
+	var cause error
+	if err := os.WriteFile(p.abort, nil, 0o600); err != nil {
+		cause = errors.Join(cause, fmt.Errorf("request fixture-group retirement: %w", err))
+	}
+	until := time.NewTimer(130 * time.Second)
+	defer until.Stop()
+	bound := until.C
+	tick := time.NewTicker(20 * time.Millisecond)
+	defer tick.Stop()
+	var observationErr error
+	var goneSince time.Time
+	for {
+		observationErr = nil
+		knownAlive := false
+		_, receiptErr := os.Stat(p.result)
+		if receiptErr == nil {
+			p.cleanupComplete = true
+			p.cleanupErr = cause
+			return p.cleanupErr
+		}
+		if !errors.Is(receiptErr, os.ErrNotExist) {
+			observationErr = receiptErr
+		}
+		helperEnded := false
+		select {
+		case <-p.done:
+			helperEnded = true
+		default:
+		}
+		if p.group == 0 {
+			_, group, err := readCatalogGateIdentity(p.ready)
+			if err == nil {
+				p.group = group
+			} else if !errors.Is(err, os.ErrNotExist) {
+				observationErr = err
+			}
+		}
+		if p.group != 0 {
+			alive, err := catalogGroupAlive(p.group)
+			switch {
+			case err != nil:
+				observationErr = err
+			case alive:
+				knownAlive = true
+				goneSince = time.Time{}
+			default:
+				if goneSince.IsZero() {
+					goneSince = time.Now()
+				}
+				if helperEnded || time.Since(goneSince) >= 2*time.Second {
+					p.cleanupComplete = true
+					p.cleanupErr = errors.Join(cause, fmt.Errorf("catalog group retired without the helper's post-join result: helper-ended=%v", helperEnded))
+					return p.cleanupErr
+				}
+			}
+		}
+		select {
+		case <-bound:
+			// The independent 120s in-group watchdog has now expired even
+			// if the helper died or abort-file I/O failed. Unknown observation
+			// is a failed fixture, never an invented passing retirement.
+			if !knownAlive && (observationErr != nil || p.group == 0) {
+				p.cleanupComplete = true
+				p.cleanupErr = errors.Join(cause, observationErr, errors.New("catalog fixture retirement could not be verified after its independent watchdog bound"))
+				return p.cleanupErr
+			}
+			// A positively observed live group still owns resources. Do
+			// not remove files underneath it on a diagnostic timeout.
+			bound = nil
+			cause = errors.Join(cause, errors.New("catalog group survived its independent fixture watchdog"))
+		case <-tick.C:
+		}
+	}
+}
+
+// catalogGroupAlive reads the whole group, including the go root, competing
+// toolexec wrappers and descendants. It never signals the recorded identity.
+func catalogGroupAlive(group int) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, "ps", "-axo", "pgid=")
+	raw, err := command.Output()
+	if err != nil {
+		return false, errors.Join(err, context.Cause(ctx))
+	}
+	for line := range strings.SplitSeq(string(raw), "\n") {
+		field := strings.TrimSpace(line)
+		if field == "" {
+			continue
+		}
+		found, err := strconv.Atoi(field)
+		if err != nil {
+			return false, err
+		}
+		if found == group {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func catalogProbeAlive(t *testing.T, pid int) bool {

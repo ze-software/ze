@@ -132,8 +132,12 @@ func TestGuestCommandInterruptReachesTheGuestBeforeTheVMStops(t *testing.T) {
 	root, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	released := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(released) }) }
+	entered := make(chan struct{})
 	f.answer(t, func(ctx context.Context) (commandResult, error) {
 		cancel()
+		close(entered)
 		select {
 		case <-released:
 			return commandResult{Code: 1}, nil
@@ -141,11 +145,64 @@ func TestGuestCommandInterruptReachesTheGuestBeforeTheVMStops(t *testing.T) {
 			return commandResult{}, ctx.Err()
 		}
 	}, func() (commandResult, error) {
-		close(released)
+		release()
 		return commandResult{Stdout: "4242\n"}, nil
 	})
 
-	_, err := f.run.executePlan(root, &f.report)
+	// Keep the VM's original Start and sole executePlan waiter. The retained
+	// os.Process handle is failure-only cleanup authority, never a PID lookup.
+	startedVM := make(chan *exec.Cmd, 1)
+	start := f.run.ops.Start
+	f.run.ops.Start = func(command *exec.Cmd) error {
+		if err := start(command); err != nil {
+			return err
+		}
+		startedVM <- command
+		return nil
+	}
+	done := make(chan struct{})
+	var err error
+	go func() {
+		defer close(done)
+		_, err = f.run.executePlan(root, &f.report)
+	}()
+	defer func() {
+		// A disconnected root must not leave the fake SSH waiting for the
+		// authored one-hour command limit. Release its actual transport and
+		// join the action before the fixture's files are removed.
+		release()
+		cancel()
+		select {
+		case <-done:
+			return
+		case <-time.After(10 * time.Second):
+		}
+		// Only executePlan calls Wait. If its ordinary VM stop has not
+		// completed, kill this exact retained child, then join that owner.
+		select {
+		case vm := <-startedVM:
+			if err := vm.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+				t.Errorf("kill the owned guest-command fixture VM: %v", err)
+			}
+		default:
+			t.Error("guest-command fixture did not publish its owned VM")
+		}
+		<-done
+	}()
+	select {
+	case <-entered:
+	case <-done:
+		t.Fatalf("guest command ended before its cancellation rendezvous: %v", err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("guest command did not reach its cancellation rendezvous")
+	}
+	// The observation starts after the guest actually cancels the root.
+	// Its one-hour limit is unchanged: expiry cannot satisfy this bound.
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("root cancellation did not finish the owned guest command within 10s")
+	}
 	if err == nil {
 		t.Fatal("an interrupted guest command answered no error")
 	}
