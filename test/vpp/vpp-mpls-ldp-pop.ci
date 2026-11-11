@@ -1,0 +1,27 @@
+# Test: LDP's egress pop reaches VPP MPLS table 0 through fib-vpp, with no fib block.
+#
+# Question: does `ldp { }` under `interface { backend vpp; }` and no `fib { }`
+# make the engine load fib-vpp as the label writer, and does fib-vpp program
+# LDP's local label as both stack positions in MPLS table 0? A unit test drives
+# the writer or the producer alone; only the daemon resolves the writer from
+# NeedsDataPlane and DataPlane and carries the entry over the bus to VPP.
+#
+# Flow: the compiled driver starts the VPP stub on a per-test Unix socket with
+# a JSONL request log, then ze with vpp.external, `interface { backend vpp; }`
+# and `ldp { lsr-id 10.0.0.1; interfaces lo; }`. LDP originates its LSR-ID FEC
+# in OnStarted and applies an egress pop; fib-vpp creates MPLS table 0 and
+# installs the S=1 route (IP lookup) and the S=0 route (MPLS lookup). The
+# driver polls the stub log for mpls_table_add_del table 0, then two
+# mpls_route_add_del adds in table 0 for one label, eos 1 and eos 0, each after
+# the table. Only fib-vpp talks to the VPP API socket, so the routes are the
+# proof it was the writer the engine loaded.
+#
+# VALIDATES: spec-fib-depth AC-16 (fib-vpp auto-loaded for a label producer),
+#            AC-19 (egress pop as both S routes), AC-20 (MPLS table 0, created
+#            before the first label route)
+# PREVENTS:  LDP naming fib-kernel again, or fib-vpp not subscribing to
+#            (mpls-fib, entry): the stub then logs no mpls_route_add_del.
+
+cmd=foreground:seq=1:exec=le test fixture vpp/vpp-mpls-ldp-pop:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=OK: fib-vpp created MPLS table 0 and programmed LDP label
