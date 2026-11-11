@@ -38,6 +38,7 @@ type monitor struct {
 	eventBus ze.EventBus
 	sub      api.SubscriptionCtx
 	notif    chan api.Message
+	stopped  chan struct{}
 	done     chan struct{}
 	stopOnce sync.Once
 }
@@ -179,6 +180,7 @@ func (b *vppBackendImpl) StartMonitor(eb ze.EventBus) error {
 		b:        b,
 		eventBus: eb,
 		notif:    make(chan api.Message, 64),
+		stopped:  make(chan struct{}),
 		done:     make(chan struct{}),
 	}
 	sub, err := b.ch.SubscribeNotification(m.notif, &interfaces.SwInterfaceEvent{})
@@ -220,7 +222,9 @@ func (b *vppBackendImpl) StopMonitor() {
 }
 
 // stop disables event delivery on the VPP side, unsubscribes from the
-// GoVPP channel, and waits for the dispatch goroutine to drain.
+// GoVPP channel, and waits for the dispatch goroutine to drain. It MUST close
+// only stopped: GoVPP owns closing notif during Unsubscribe. run MUST join
+// even when an unsuccessful unsubscribe leaves notif open.
 func (m *monitor) stop() {
 	m.stopOnce.Do(func() {
 		// Tell VPP to stop emitting. Ignore errors: the channel may
@@ -232,21 +236,52 @@ func (m *monitor) stop() {
 		if m.sub != nil {
 			_ = m.sub.Unsubscribe() //nolint:errcheck // best-effort on stop
 		}
-		close(m.notif)
+		close(m.stopped)
 	})
 	<-m.done
 }
 
-// run dispatches incoming SwInterfaceEvent notifications. It exits when the
-// notif channel is closed (by stop) or when the GoVPP channel drops it.
+// run dispatches incoming SwInterfaceEvent notifications. It MUST drain the
+// queued notifications and join when stop closes stopped, even if GoVPP did
+// not close notif. A closed producer channel also ends dispatch.
 func (m *monitor) run() {
 	defer close(m.done)
-	for msg := range m.notif {
-		ev, ok := msg.(*interfaces.SwInterfaceEvent)
-		if !ok {
-			continue
+	for {
+		// Prefer the stop signal even if a failed unsubscribe left a
+		// producer continuously ready to send.
+		select {
+		case <-m.stopped:
+			m.drainQueued()
+			return
+		default:
 		}
-		m.safeHandleEvent(ev)
+		select {
+		case <-m.stopped:
+			m.drainQueued()
+			return
+		case msg, ok := <-m.notif:
+			if !ok {
+				return
+			}
+			if ev, ok := msg.(*interfaces.SwInterfaceEvent); ok {
+				m.safeHandleEvent(ev)
+			}
+		}
+	}
+}
+
+// drainQueued preserves events queued before successful unsubscribe. Its
+// snapshot is bounded by notif's capacity (64), so a producer still sending
+// after an unsuccessful unsubscribe cannot keep shutdown alive indefinitely.
+func (m *monitor) drainQueued() {
+	for queued := len(m.notif); queued > 0; queued-- {
+		msg, ok := <-m.notif
+		if !ok {
+			return
+		}
+		if ev, ok := msg.(*interfaces.SwInterfaceEvent); ok {
+			m.safeHandleEvent(ev)
+		}
 	}
 }
 
