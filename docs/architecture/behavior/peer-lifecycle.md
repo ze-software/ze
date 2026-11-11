@@ -408,7 +408,7 @@ receiver sends Cease / Out of Resources.
 |----------|-------|
 | Normal session error | Exponential base, starting at `reconnectMin` (default 5s), doubling each attempt, capped at `reconnectMax` (default 60s). Each wait samples uniform jitter from 0.75 to 1.0 of that base. |
 | `ErrTeardown` (API-initiated stop) | Reset `delay` to `reconnectMin`, continue loop immediately. No wait. |
-| Successful session exit (err == nil) | Reset `delay` to `reconnectMin` and `prefixTeardownCount` to 0. |
+| Cycle returns nil (err == nil) | Reset `delay` to `reconnectMin` and `prefixTeardownCount` to 0. `Session.Run` never returns nil, so this arm runs only when `runOnce` published no session (the peer is stopping or administratively down). A session that reached Established and then ended by NOTIFICATION, hold expiry or TCP close returns an error and resets neither (`plan/journal/state-read-after-teardown-reset-it.md`, 2026-10-11). |
 | Prefix teardown, family mode `never` (the default) | No delay, because there is no next attempt. The peer enters `PeerStateIdleHold`, raises a `prefix-hold` warning, refuses inbound connections and waits for the peer context to end. Only an operator recreating the peer brings it back. |
 | Prefix teardown, family mode `timer` (`idle-timeout > 0`) | Separate backoff: `PrefixIdleTimeout * 2^(teardownCount-1)`, capped at 1 hour. `prefixTeardownCount` capped at 60 to prevent `time.Duration` overflow. Per RFC 4486. |
 | Prefix teardown, family mode `backoff` | The normal exponential backoff of the first row. This is the explicit opt-in, and it was the accidental behavior of every zero `idle-timeout` until 2026-08-03. |
