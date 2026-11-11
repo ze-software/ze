@@ -4074,3 +4074,39 @@ so it never fired and the walk read `green`; it now compares with
 P-12 (a) is the `./le rfc record` run against `applyFactsLocalPref`; the host
 `le` is not rebuilt by a scenario walk, so only the unit walk above reaches the
 checker break.
+
+## P-32: TestAnswerAnswersTheInventory passes on the actual repository (2026-11-11)
+
+The test had stopped in the inventory's whole-tree external-effect proof, at
+protobuf `compiler/protogen/protogen.go` ("returned root field ownership is
+unresolved"). Its carrier, `spec-inventory-fast-registry-checks`, ran in this
+session on Thomas's order. It is closed in `6953c0e966` and `a32cec10c7`, and
+its Review Gate is clean after two rounds. Thomas approved the design on
+2026-11-09 ("yes replace"): three fast checks replace the proof, and the proof
+is deleted.
+
+| Check | Commit | Red that proves it |
+| --- | --- | --- |
+| The registry seals in `main` before dispatch; every start-up writer refuses after it; lookups return copies | `6750277e28`, `ae1aac228b`, `ecfdc5c679` | `registry-sealed-after-start` fails twice with the `Seal` call removed; each `seal_test` carrier goes red on its break |
+| Registration sites: a registering call only from initialization of a `register*.go` file | `10a0471714` (sites moved: `66e2ccdb94`) | the wrong-file fixture goes red when any `.go` file may register; the tree passes with one `registry.Register` site per declared plugin (96) |
+| The built ze registers exactly the declared plugins, field by field | `7d35fed490`, `bd41a902a8` | red both ways: a plugin dropped from the build, and one hidden from the declared walk ("bgp-hostname ... absent from the declared list"); a dependency change also goes red ("copp dependencies: declared [firewall], registered []") |
+
+The readers moved to the declared walk (`d7791ae716`), the walker shed the
+proof's state (`d793ad88a6`), and the proof was deleted (`066717fbab`): 56
+production files, its test files and four D3 files, each deletion approved by
+an independent ze-test-judge. The 18 tests whose claims outlived it were moved
+first (`12720abe4c`). With the proof's refusal gone, a committed malformed-YANG
+fixture under `testdata` surfaced, and the inventory now skips YANG under
+`testdata` (`d7791ae716`).
+
+Result: `./le job run label unit-pkg command go test -count=1 -run
+'^TestAnswerAnswersTheInventory$' ./internal/le/repo/inventory/` prints `ok`
+(9.6s). The whole inventory package passes with `-tags ze_bfd`, at HEAD after
+the deletion.
+
+Met on the way and fixed:
+- `textbuf.New` left its buffer on the caller's stack, so a short operator
+  error could render as garbage (`78320a778b`).
+- With a verdict on the real tree for the first time, the coupling check found
+  ike and bgp-gr filling registries they declared no edge to (`44cb535338`).
+  The check is now clean across 96 plugins.
