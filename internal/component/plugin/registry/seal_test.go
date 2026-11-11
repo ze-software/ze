@@ -625,6 +625,41 @@ func TestLookupAndAllReturnCopies(t *testing.T) {
 	}
 }
 
+// TestFieldAccessorsReturnCopies extends AC-3 past Lookup and All. Goal: an
+// accessor that hands out one field's slice (ClaimsFor, ConfigRootsMap,
+// PluginDoctorChecks) shares nothing with the registry, so a caller that
+// writes into its answer changes nothing the next call answers. Method:
+// store a filled registration, mutate every element of each answer by
+// reflection, and compare the next answer with the fresh fill's field.
+func TestFieldAccessorsReturnCopies(t *testing.T) {
+	snap := Snapshot()
+	t.Cleanup(func() { Restore(snap) })
+	Reset()
+
+	filled := filledRegistration(t, "seal-fields")
+	storeFilled(&filled)
+	want := filledRegistration(t, "seal-fields")
+
+	mutateValue(reflect.ValueOf(ClaimsFor("seal-fields")))
+	if got := ClaimsFor("seal-fields"); !slices.Equal(got, want.Claims) {
+		t.Errorf("a write into a ClaimsFor answer reached the registry: got %v, want %v", got, want.Claims)
+	}
+
+	mutateValue(reflect.ValueOf(ConfigRootsMap()["seal-fields"]))
+	if got := ConfigRootsMap()["seal-fields"]; !slices.Equal(got, want.ConfigRoots) {
+		t.Errorf("a write into a ConfigRootsMap answer reached the registry: got %v, want %v", got, want.ConfigRoots)
+	}
+
+	checks := PluginDoctorChecks()
+	for index := range checks {
+		mutateValue(reflect.ValueOf(&checks[index].DoctorCheckDef).Elem())
+	}
+	got := PluginDoctorChecks()
+	if len(got) != 1 || !reflect.DeepEqual(got[0].DoctorCheckDef, want.DoctorChecks[0]) {
+		t.Errorf("a write into a PluginDoctorChecks answer reached the registry: got %+v, want %+v", got, want.DoctorChecks)
+	}
+}
+
 // TestRegistrationCloneCoversEveryReferenceField checks R-5 and AC-3 by
 // reflection over the type. Goal: the clone equals the original and shares
 // no slice array, map or pointer with it at any depth, and Registration

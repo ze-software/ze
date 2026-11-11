@@ -52,14 +52,17 @@ from the package source and refuses an exported writer that is neither.
 stores one: no slice or map of a returned registration, nested ones included,
 is shared with the registry, so a caller that writes into one changes nothing
 the next reader sees. Function values are shared, since a copy cannot change
-them. A per-event caller that needs one field reads it through an accessor
+them. An accessor that hands out one field's slice (`registry.ClaimsFor`,
+`registry.ConfigRootsMap`, `registry.PluginDoctorChecks`) hands out a copy
+too. A per-event caller that needs one field reads it through an accessor
 that answers a value (`registry.StartOrderEdges`,
 `registry.RegisteredSessionReady`) rather than paying for the clone. Tests
 that seal take a `registry.Snapshot` first: it records the seal state,
 `Restore` puts it back, and `Reset` clears it.
 <!-- source: internal/component/plugin/registry/seal.go -- Seal, refuseSealedLocked, panicIfSealedLocked, ErrRegistrySealed -->
-<!-- source: internal/component/plugin/registry/registration_clone.go -- cloneRegistration -->
-<!-- source: internal/component/plugin/registry/registry.go -- Lookup, All, StartOrderEdges, RegisteredSessionReady, Snapshot, Restore -->
+<!-- source: internal/component/plugin/registry/registration_clone.go -- cloneRegistration, cloneDoctorCheck -->
+<!-- source: internal/component/plugin/registry/registry.go -- Lookup, All, ClaimsFor, ConfigRootsMap, StartOrderEdges, RegisteredSessionReady, Snapshot, Restore -->
+<!-- source: internal/component/plugin/registry/doctor.go -- PluginDoctorChecks -->
 <!-- source: internal/component/plugin/registry/seal_test.go -- TestEveryRegistryWriterIsGuardedOrASeam -->
 <!-- source: cmd/ze/main.go -- main -->
 

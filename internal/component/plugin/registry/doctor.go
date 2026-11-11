@@ -41,16 +41,19 @@ type PluginDoctorCheck struct {
 }
 
 // PluginDoctorChecks returns all doctor checks declared by registered plugins.
+// Each definition is a copy that shares no slice with the registry
+// (cloneDoctorCheck), so a caller that writes into it changes nothing the
+// next call answers.
 func PluginDoctorChecks() []PluginDoctorCheck {
 	mu.RLock()
 	defer mu.RUnlock()
 
 	var result []PluginDoctorCheck
 	for _, reg := range plugins {
-		for _, dc := range reg.DoctorChecks {
+		for index := range reg.DoctorChecks {
 			result = append(result, PluginDoctorCheck{
 				PluginName:     reg.Name,
-				DoctorCheckDef: dc,
+				DoctorCheckDef: cloneDoctorCheck(&reg.DoctorChecks[index]),
 			})
 		}
 	}

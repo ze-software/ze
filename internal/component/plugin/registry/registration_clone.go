@@ -25,6 +25,15 @@ func cloneRegistration(reg *Registration) *Registration {
 	return clone
 }
 
+// cloneDoctorCheck answers a copy of check that shares no slice with it, for
+// an accessor that hands one doctor check out without the whole registration.
+// Safe for concurrent use under the same condition as cloneRegistration.
+func cloneDoctorCheck(check *DoctorCheckDef) DoctorCheckDef {
+	var clone DoctorCheckDef
+	deepCopyInto(reflect.ValueOf(&clone).Elem(), reflect.ValueOf(check).Elem())
+	return clone
+}
+
 // deepCopyInto writes a copy of source into target, which MUST be settable,
 // of source's type, and hold its zero value.
 //

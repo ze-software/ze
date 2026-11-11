@@ -1058,7 +1058,8 @@ func (r *Registration) ConfigSectionRoots() []string {
 }
 
 // ConfigRootsMap returns a map from plugin name to config roots.
-// Only includes plugins that declared config roots.
+// Only includes plugins that declared config roots. Each list is a copy, so a
+// caller that writes into it changes nothing the registry holds.
 func ConfigRootsMap() map[string][]string {
 	mu.RLock()
 	defer mu.RUnlock()
@@ -1066,7 +1067,7 @@ func ConfigRootsMap() map[string][]string {
 	m := make(map[string][]string)
 	for _, reg := range plugins {
 		if len(reg.ConfigRoots) > 0 {
-			m[reg.Name] = reg.ConfigRoots
+			m[reg.Name] = slices.Clone(reg.ConfigRoots)
 		}
 	}
 	return m
@@ -1127,6 +1128,8 @@ func PluginsForConfigPaths(paths []string) []string {
 // (Registration.Claims). Returns nil for an unregistered name -- an unknown
 // plugin claims nothing, which is the fail-closed answer: the plugin whose
 // default would be stood down keeps running it. See Registration.Claims.
+// The answer is a copy, so a caller that writes into it changes nothing the
+// registry holds.
 func ClaimsFor(name string) []string {
 	mu.RLock()
 	defer mu.RUnlock()
@@ -1135,7 +1138,7 @@ func ClaimsFor(name string) []string {
 	if reg == nil {
 		return nil
 	}
-	return reg.Claims
+	return slices.Clone(reg.Claims)
 }
 
 // RequiresPeerUpBarrier reports whether a registered plugin declares
