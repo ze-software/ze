@@ -4357,3 +4357,51 @@ The classic builder's tar context does not read the link's xattrs. An earlier
 run the same day without buildx answered only the classic legs, and one
 before it stopped in the kernel build ("No space left on device") before any
 guest booted.
+
+## P-10: repaired, red and green through `Docker.Build` on the Mac (2026-11-11)
+
+The cause, read in QEMU's source (master and v11.1.3): `hw/9pfs/9p-util.h`
+defines `O_PATH_9P_UTIL` as 0 where the host has no `O_PATH`, and
+`hw/9pfs/9p-util-darwin.c` `flistxattrat_nofollow` and `fgetxattrat_nofollow`
+open the entry `O_NOFOLLOW` before reading its xattrs, which macOS answers
+with ELOOP on a symlink. Every security model reaches that helper. The Linux
+helpers read through `/proc/self/fd`, which is why a Linux host passes.
+BuildKit's context walker (tonistiigi/fsutil `loadXattr`) tolerates only
+ENOTSUP. The 9p client's `noxattr` mount option is no way out:
+`v9fs_listxattr` stays wired as an inode operation and still asks the server.
+
+Repair `8c184b7ed0` (dependency `cd6c0c3705`, `moby/patternmatcher` v0.6.1,
+ledger rows approved by Thomas): `Docker.Build` writes the build context
+itself as a tar on stdin (`-f <Dockerfile in the context> -`). It applies
+`<Dockerfile>.dockerignore` or `.dockerignore` as the docker CLI does, and
+writes a symlink as a link entry read by `Lstat` and `Readlink`, so BuildKit
+never walks the share. The carriers on this host, each red under a break of
+its producer and green restored (`walks-p10*.json`, `walks-p10-logs/`):
+
+| Break | Carrier | Red |
+| --- | --- | --- |
+| argv back to `-f <Dockerfile> <context>` | `TestBuildSendsContextAsTarWithSymlinksAsLinks` | "... does not end in -, the context on stdin" |
+| the walk follows symlinks (`os.Stat`) | same | "link-in is type '0' linking \"\", want a symlink to file.txt" |
+| the ignore file not applied | same | "the archive carries cache, which .dockerignore excludes" |
+| the Dockerfile's own ignore file not preferred | `TestBuildPrefersTheDockerfilesOwnIgnoreFile` | "the archive carries other.txt, which the Dockerfile's own ignore file excludes" |
+
+The real daemon here (dockerd 29.9.2, buildx v0.38.1) builds from the tar
+(`TestDockerBuildStreamsProgressAndRetainsIdentity`,
+`TestDockerBuildRetainsImageAcrossRetag`). The changed fixtures were judged
+by an independent `ze-test-judge` agent: 20 units approved, none refused.
+
+The defect's own red and green, on the owner's Mac (`a669259023`, script
+`p10-mac2.sh`). `TestDockerBuildSendsAContextHoldingSymlinks` (`-tags docker`)
+builds through `Docker.Build` from a context holding a `cache` symlink to a
+directory outside it. It ran in Ze's arm64 guest through `./le test qemu
+docker-lab kernel <k> harness`, with `TMPDIR` on the 9p share, built for
+linux/arm64 twice: once with `docker.go` and `docker_build_progress.go` from
+`3a66d9d5cd` laid over the package (`-overlay`), and once at HEAD.
+
+| Build | Result |
+| --- | --- |
+| pre-fix `Docker.Build` | FAIL: "docker build --label failed (exit 1): ERROR: failed to build: failed to solve: failed to read dockerfile: error from sender: failed to xattr /workspace/tmp/p10bx/ctx/TestDockerBuildSendsAContextHoldingSymlinks2541332456/001/cache: too many levels of symbolic links" |
+| HEAD | PASS |
+
+On a Linux host the same test is green with either build, since Linux 9p reads
+a symlink's xattrs, so the Mac run is the carrier's attributed red.
