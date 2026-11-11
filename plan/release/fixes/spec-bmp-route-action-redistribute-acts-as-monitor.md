@@ -7,7 +7,7 @@
 | Release reason | Accepted receiver action must not silently perform monitoring instead of redistribution. |
 | Scope | protocol |
 | Depends | closure only: `plan/release/fixes/spec-config-enum-refusal-proposes-valid-values.md` must be closed before this spec closes, because A-2b is validated by its tests. Implementation and commits do not wait on it |
-| Phase | 3/4 |
+| Phase | 4/4 |
 | Handoff | - |
 | Updated | 2026-11-11 |
 
@@ -401,6 +401,13 @@ Steps follow approach A, which owner answers Q-1 (monitoring only, the refusal i
 | warning text gone | `grep -rn "not yet implemented, using monitor" internal` returns nothing |
 | refusal through real entry points | the two new `.ci` green, with the recorded red from the revert walk |
 | `monitor` unchanged | `test/plugin/bmp-lg-bestpath-isolation.ci` green; `bmp-locrib-receiver-frr` green |
+
+-> Decision (2026-11-11, proof run): every deliverable above is met.
+- Code, schema and guide: commit fa74dc4c00. The two greps return only unrelated mentions (the redistribute orchestrator, a test comment, and the guide sentence that states the refusal); the warning text is gone.
+- Refusal: `test/parse/bmp-route-action-refuses-redistribute.ci` and `test/reload/bmp-route-action-redistribute-refused.ci` went red with `enum redistribute` restored (validate exit 0, reload accepted) and green with it removed; each passed 80 invocations under `./le test stress-repro` load; promoted in fb0f9181ec (the parse test's daemon-start deadline raised from 10s to 30s, as other parse tests use).
+- Unit: `TestRouteActionEnumIsMonitorOnly` and both `TestProcessRouteMonitoring` tests pass (`go test -tags ze_bgp,ze_bmp`).
+- `monitor` unchanged: `bmp-lg-bestpath-isolation`, `bmp-lg-ingest`, `bmp-lg-disconnect`, `bmp-lg-http-routes` and `bmp-config` pass; AC-8 `bmp-locrib-receiver-frr` against FRR passes (`./le test integration interop`, 1 passed, 0 failed).
+- Closure still waits only on `spec-config-enum-refusal-proposes-valid-values` (Depends, A-2b), which is at status design.
 
 ### Security Review Checklist
 
