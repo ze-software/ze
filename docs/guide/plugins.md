@@ -1448,7 +1448,7 @@ command argument, which expands the chain in the client process and answers
 Plugins can declare dependencies on other plugins. The engine starts plugins in dependency order and delivers state/EOR events to dependents first.
 
 ```
-# bgp-gr depends on bgp-rib
+# bgp-gr depends on bgp-rib and policy
 # bgp-rpki depends on bgp-adj-rib-in
 # bgp-rs optionally uses bgp-adj-rib-in
 ```

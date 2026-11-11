@@ -424,7 +424,7 @@ edges its own Stage 1 declaration carries. `bgp-gr` declares the same edges
 at Stage 1 as in its registration, so the order a forked `bgp-gr` would take
 a DOWN in is the internal one: before `bgp-rr`, `bgp-rs` and `bgp-rib`, with
 its retention verdict queued ahead of their DOWN.
-<!-- source: internal/component/bgp/plugins/gr/register.go -- grRIBDependency, grOptionalDependencies, grStartAfter -->
+<!-- source: internal/component/bgp/plugins/gr/register.go -- grDependencies, grOptionalDependencies, grStartAfter -->
 <!-- source: internal/component/bgp/server/events.go -- sortByReverseDependencyTier -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- handleStructuredState -->
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- commandDecls declares the LLGR community mutation commands -->

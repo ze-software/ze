@@ -239,7 +239,7 @@ func runGRPlugin(conn net.Conn) int {
 		// The plugin ordering edges register.go declares. The config root
 		// dependency is not one: the BGP subsystem delivers the state events
 		// this plugin is ordered among, and takes none of them.
-		Dependencies:         grRIBDependency,
+		Dependencies:         grDependencies,
 		OptionalDependencies: grOptionalDependencies,
 		StartAfter:           grStartAfter,
 	})

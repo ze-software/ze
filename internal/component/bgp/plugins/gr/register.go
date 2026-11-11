@@ -28,9 +28,13 @@ const configRootBGP = "bgp"
 // an external program by its own declaration, bgp/server
 // sortByReverseDependencyTier).
 var (
-	// grRIBDependency: bgp-rib marks and purges the stale routes this plugin
-	// decides on, and takes the DOWN after this plugin.
-	grRIBDependency = []string{"bgp-rib"}
+	// grDependencies: bgp-rib marks and purges the stale routes this plugin
+	// decides on, and takes the DOWN after this plugin. policy owns the route
+	// field vocabulary and the filter types this plugin fills (fieldStale,
+	// grFilterDecls), so it names policy the way every filter plugin does
+	// (policy.PluginName). bgp lists policy too, so a daemon running this
+	// plugin always loads it.
+	grDependencies = []string{"bgp-rib", policy.PluginName}
 	// grOptionalDependencies and grStartAfter put this plugin's retention
 	// verdict (bgp-gr/retention) ahead of the route server's and the route
 	// reflector's DOWN, which consume it. Order only: a graceful-restart
@@ -74,7 +78,7 @@ func init() {
 		// inserted where a peer's config makes Ze advertise LLGR.
 		Filters:          grFilterDecls(),
 		FilterInsertions: grInsertions(),
-		Dependencies:     append([]string{configRootBGP}, grRIBDependency...),
+		Dependencies:     append([]string{configRootBGP}, grDependencies...),
 		// Reverse dependency delivery puts GR's retention verdict before the
 		// route server and the route reflector decide which source families
 		// to withdraw on DOWN (rs and rr handleStateDown).

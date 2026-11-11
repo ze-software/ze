@@ -1,0 +1,6 @@
+# A plugin registers into another plugin's registry and declares no edge to its owner
+
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-11-11 | - | ike `kernelGuard.publish` (`ike/engine/source_guard.go`), ike Registration (`ike/engine/register.go`) | `./le plugin coupling check` refuses: ike fills `firewall.RegisterTables` and runs `firewall.ApplyAll` for its IPv6 tunnel-source guard but declares no edge to `firewall`. The check calls firewall the consumer; the direction is inverted, firewall works alone and ike needs it. | fixed: the ike Registration (`ike/engine/register.go`) declares `Dependencies: []string{"firewall"}`, as copp does; firewall is ungated, so every build with ike has it; firewall gets no edge. |
+| 2026-11-11 | - | bgp-gr `fieldStale` (`policy.MustRegisterField`, `bgp/plugins/gr/register.go`) | `./le plugin coupling check` refuses: bgp-gr registers the `stale` route field and filter decls into policy but declares no edge to `policy`, while role and every filter plugin list `policy.PluginName`. Inverted direction: policy works alone, gr needs it. | fixed: `grDependencies` (`gr/register.go`) holds `bgp-rib` and `policy.PluginName`, read by the Registration and the Stage 1 declaration (`gr.go` `runGRPlugin`); bgp lists policy too, so a forked bgp-gr finds it loaded; policy gets no edge. |

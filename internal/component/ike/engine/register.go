@@ -294,7 +294,10 @@ func init() {
 		// started for it would build an SPD (applyConfig) on a box that configured no
 		// IPsec, and refuse the daemon's start wherever the catch-all cannot be installed.
 		ConfigReads: []string{configRootPKI},
-		RunEngine:   runEngine,
+		// The IPv6 tunnel-source guard fills the firewall (kernelGuard.publish), as copp
+		// does. firewall is ungated, so every build with ike carries it: a hard edge.
+		Dependencies: []string{"firewall"},
+		RunEngine:    runEngine,
 		// The SAME chain the runtime OnConfigVerify below runs, reached OFFLINE by
 		// ze config validate and by the web and hub commit paths
 		// (config.VerifyPluginConfig, internal/component/config/plugin_verify.go).
