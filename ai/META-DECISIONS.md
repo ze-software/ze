@@ -448,6 +448,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   start work.
 - Up to three spec closures may run at once, each on a different spec in its
   own agent with its own claim. The main thread still runs every test.
+- A spec's main session may run that spec's child specs, or specs its own work
+  depends on, through agents in the same session. The main session keeps its
+  claim on the spec it supervises, and each agent claims the spec it runs
+  under its own agent claim. Every such claim counts toward the WIP cap like
+  any other: this permits no claim above the cap. The main thread still
+  verifies each report and runs every test, one CPU-intensive job at a time.
 - A handover lives in the repository (`plan/handover/`) and is committed in the
   turn it is written, never only in a session directory.
 - Test selectively: run only the tests the change reaches (its packages, its
@@ -486,6 +492,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   The spec moves to ready and is implemented, and any choice only he can make
   waits in a table for his return.
 - A hook checks what a command, path or file is, never how a message is worded.
+- An agent never gets past a hook refusal by running the refused command from
+  a script file or any other wrapper, even when the refusal is false. It
+  reports the refusal, with the command and the hook's message, and a false
+  refusal is a hook defect recorded like any other defect met in passing.
 - A design is never written without the constraints it must keep. Before an
   agent writes or edits a spec, or reports a design verdict, it reads
   `ai/doors/system.md` and the door of every subsystem the work touches, and

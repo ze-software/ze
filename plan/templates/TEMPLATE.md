@@ -17,9 +17,14 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
+| Design tier | development tier \| strongest tier |
+| Implementation tier | development tier \| strongest tier |
 | Updated | YYYY-MM-DD |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later session reviews that commit and closes. `-` closes in the same session. -->
+
+<!-- Design tier / Implementation tier: the model tier for the agents that design and review the design, and for the agents that implement, test and review the implementation. Name a tier, never a vendor's model name; each harness maps the tier to its own model. An absent row means the development tier. -->
+
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".

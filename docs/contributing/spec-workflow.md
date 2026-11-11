@@ -18,6 +18,8 @@ validates it on every write.
 | Release reason | Why this work belongs in its release category | A concise rationale based on remaining work and evidence |
 | RFC gaps | The RFC gaps the spec closes | A comma list of requirement ids (`RFC3948-5.1-1`) and RFC summary stems (`rfc7947`), or `-` for none. An absent row also declares none |
 | Handoff | Who closes this spec | `verify` for the two-session handoff, `-` for closure in the same session |
+| Design tier | The model tier for the agents that design the spec and review its design | `development tier` or `strongest tier`. A tier, never a vendor's model name. Optional: an absent row means the development tier, and no gate reads it |
+| Implementation tier | The model tier for the agents that implement, test and review the implementation | `development tier` or `strongest tier`, as for Design tier |
 | Depends | Blocking prerequisite | A spec filename, or `-` |
 | Phase | Multi-phase progress | `N/M`, or `-` for single-phase |
 | Updated | Date of the last status change | `YYYY-MM-DD`, not the last file edit |

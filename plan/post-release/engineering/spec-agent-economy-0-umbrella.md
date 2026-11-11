@@ -23,13 +23,16 @@ child specs that remove the waste. It modifies no file itself.
 
 ### Owner permissions for this work (2026-11-11)
 
-These are permissions for this umbrella and its children only. They are not
-standing rules.
+This permission is for this umbrella and its children only. It is not a
+standing rule.
 
 | Permission | What it allows |
 |------------|----------------|
 | WIP cap exception | 13 specs were in progress against a cap of 12. The umbrella's children may be claimed above the cap, each claim setting the cap one above the current count. No other spec uses this. |
-| One spec runs other specs | This main session supervises the umbrella, and its agents claim and run the child specs in parallel, each under its own agent claim. |
+
+That this main session supervises the umbrella while its agents claim and run
+the child specs, each under its own agent claim, is no longer a permission of
+this umbrella: a standing owner rule now allows it for every spec.
 
 ### Owner decisions (2026-11-11)
 

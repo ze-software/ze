@@ -56,13 +56,14 @@ first. This page says only where each child stands and what to do next.
 | Race detector on the short action | Always on | A package tested without it is not tested the way the gate tests it |
 | The decisions file split (D-1) | One file, two parts, wording unchanged | One home every harness loads |
 | The style gate (D-3) | The page is split; the gate's code is untouched | "Read in full" stays literally true |
+| Two model fields in the spec template | Decided by Thomas: `Design tier` and `Implementation tier` rows in `plan/templates/TEMPLATE.md`, values `development tier` or `strongest tier`. Optional on every spec, an absent row means the development tier, and no gate reads them | No sibling workflow field (`Handoff`, `Phase`, `Scope`) is validated, so no gate pattern exists to copy |
+| "One spec's agents run other specs" | Decided by Thomas: a standing rule in `ai/META-DECISIONS.md`, "How agents work". Each claim stays inside the WIP cap; the umbrella's own cap exception stays a one-off | His order: incorporate the improvements |
+| Running a refused command from a script file to get past the hook | Decided by Thomas: a standing rule in `ai/META-DECISIONS.md`, "How agents work" | His order: incorporate the improvements |
 
 ## Open with Thomas
 
 | Question | State |
 |----------|-------|
-| Two model fields in the spec template (design tier, implementation tier) | Recommended; not answered. Do not change the template without his word |
-| Whether "one spec's agents run other specs" is a standing rule | Recorded as a permission for this umbrella only |
 | A vendored bash parser (`mvdan.cc/sh`) in place of the syntax allow-list | Offered; not answered. The allow-list stands meanwhile |
 | Strongest-tier review of child 1's identity-exemption change | Offered; not answered. It ran on the development tier |
 

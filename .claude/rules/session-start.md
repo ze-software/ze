@@ -61,3 +61,6 @@ goal, not "find more things to do."
 **One spec per session, and the next spec in a fresh session.** The main thread
 never compacts under a 1M window, and every call re-feeds all of it. The per-spec
 state file is the handoff, so the next session starts from it, not from this one.
+The spec a session supervises may still have its agents run its child specs, or
+the specs its work depends on, each under the agent's own claim and inside the
+WIP cap (`ai/META-DECISIONS.md`, "How agents work").
