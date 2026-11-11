@@ -76,7 +76,9 @@ and the toolchain's timeout, admitted under the job label `unit-pkg`. Repeat
 
 The output goes to this session's scratch log. A green run answers one line,
 `test unit pkg: exit 0, <n> packages ok, ..., log <path>`, which counts only
-the packages that ran a test. A red run prints each failed test's
+the packages that ran a test. With `changed`, a `left out <package>` line
+comes before it for each reached package that `changed` set aside behind a
+group's own tags, naming the group's command. A red run prints each failed test's
 `--- FAIL:` line with the lines beneath it, then that summary. A run in which
 no package ran a test, a `run` that matched nothing included, answers exit 1.
 

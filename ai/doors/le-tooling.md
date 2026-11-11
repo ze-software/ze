@@ -101,7 +101,7 @@ launcher, and the test trees it runs. Here "outside" does not mean a customer. I
 - **A relative scratch path resolved against the package directory**, so a
   `go test` left `proof.json` inside `internal/le/interoplab/bgp/`
   (`plan/journal/test-artifacts-land-in-the-repository-root.md`, 2026-10-09).
-  Stray `.go` files in `tmp/` were compiled by `go test ./...`
+  Stray `.go` files in `tmp/` were compiled by a whole-tree `go test`
   (`plan/journal/stray-go-files-in-tmp.md`).
 - **Parallel runs collide on a fixed port.** The QEMU SSH port
   probe missed an IPv4 holder on macOS

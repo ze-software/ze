@@ -2034,7 +2034,9 @@ root and named-build identity, while preserving the parent job setting. Keep
 
 Carry the feature tags from the recipe in "A bare `go test` is not `./le test
 unit`", or the run judges a tree in which no gated plugin registers. These two
-keep the long form for a flag the short action does not take:
+keep the long form for what the short action does not take: the first for its
+flags (`-v`, `-count`), the second for a tag the feature set lacks
+(`integration`):
 
 ```
 tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"

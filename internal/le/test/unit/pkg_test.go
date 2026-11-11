@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -460,6 +461,37 @@ func TestPkgActionRefusesTheWholeTree(t *testing.T) {
 	}
 }
 
+// TestPkgActionRefusesAPathSpanningGroups covers AC-12's near-whole-tree form.
+//
+// VALIDATES: a `path` value holding two or more groups (`./internal/...` holds
+// every group, `./internal/component/...` three) is refused with 2 before
+// admission, naming each group it spans and the path form.
+// PREVENTS: a near-whole-tree race run started by an agent through a sub-tree
+// one level above the groups.
+func TestPkgActionRefusesAPathSpanningGroups(t *testing.T) {
+	for _, row := range []struct {
+		path   string
+		groups []string
+	}{
+		{path: "./internal/...", groups: []string{"bgp", "core", "plugins", "config", "cli", "installer"}},
+		{path: fixtureModule + "/internal/component/...", groups: []string{"bgp", "config", "cli"}},
+	} {
+		noQuietRun(t)
+		var code int
+		_, stderr := captureOutput(t, func() { _, _, code = answerPkgLine(t, pkgVerb, pathKeyword, row.path) })
+		if code != 2 {
+			t.Errorf("path %s answered %d, want 2", row.path, code)
+		}
+		spans := "spans the groups " + strings.Join(row.groups, " ") + ","
+		if !strings.Contains(stderr, spans) {
+			t.Errorf("path %s: the refusal does not say %q:\n%s", row.path, spans, stderr)
+		}
+		if !strings.Contains(stderr, "path <package>") {
+			t.Errorf("path %s: the refusal does not name the path form:\n%s", row.path, stderr)
+		}
+	}
+}
+
 // TestPkgActionRefusesADashLeadingPath covers AC-12's dash.
 //
 // VALIDATES: a `path` value that begins with a dash is refused by the parser
@@ -810,9 +842,9 @@ var shortActionSurfaces = []string{
 }
 
 // TestDocsShowTheShortPackageAction pins AC-10: each surface that shows a
-// one-package test shows the short action, a long-form `go test` or `go vet`
-// example kept for a flag the action does not take carries the feature tags,
-// and no example spells the launcher as its installed copy bin/le.
+// one-package test shows the short action, no example runs `go test` or
+// `go vet` over a package without the feature tags, and no example spells the
+// launcher as its installed copy bin/le (surfaceFaults).
 // Method: read each surface from this checkout and judge it line by line, so a
 // page that slides back to the tagless form or to bin/le goes red here.
 func TestDocsShowTheShortPackageAction(t *testing.T) {
@@ -831,18 +863,242 @@ func TestDocsShowTheShortPackageAction(t *testing.T) {
 			if !strings.Contains(text, short) {
 				t.Errorf("%s shows no %q example of the short package action", name, short)
 			}
-			for number, line := range strings.Split(text, "\n") {
-				longForm := strings.Contains(line, "command go test") || strings.Contains(line, "command go vet")
-				if longForm && !strings.Contains(line, "-tags") {
-					t.Errorf("%s:%d keeps the long form without the feature tags: %s", name, number+1, line)
-				}
-				trimmed := strings.TrimLeft(line, " \t`|$")
-				if strings.Contains(line, "command bin/le") || strings.HasPrefix(trimmed, "bin/le ") {
-					t.Errorf("%s:%d spells the launcher bin/le where an example runs it: %s", name, number+1, line)
-				}
+			for _, fault := range surfaceFaults(text, strings.HasSuffix(name, ".go")) {
+				t.Errorf("%s:%s", name, fault)
 			}
 		})
 	}
+}
+
+// TestSurfaceLinesAreJudgedByEveryRule pins the judgement
+// TestDocsShowTheShortPackageAction applies to a surface.
+// Method: one seeded text per rule, each of which must answer that rule's
+// fault, and the lines the real surfaces hold that name a go test flag or the
+// installed copy in prose, none of which may fault.
+func TestSurfaceLinesAreJudgedByEveryRule(t *testing.T) {
+	for _, row := range []struct {
+		name     string
+		text     string
+		goSource bool
+		fault    string
+	}{
+		// The rules, one seed each.
+		{name: "long form without tags", text: "./le job run label unit-pkg quiet command go test ./internal/le/job/", fault: faultLongFormTagless},
+		{name: "go test in a code span", text: "Run `go test ./internal/le/job/` once.", fault: faultGoTagless},
+		{name: "go vet on a fenced line", text: "```\ngo vet ./internal/core/...\n```", fault: faultGoTagless},
+		{name: "go test after a prompt and an assignment", text: "```sh\n$ CGO_ENABLED=1 go test -race ./internal/core/eap\n```", fault: faultGoTagless},
+		{name: "go test of a placeholder package", text: "Test it with `go test <package>`.", fault: faultGoTagless},
+		{name: "go test in a Go string", text: "\tnote := \"next: go test ./internal/le/job/\"", goSource: true, fault: faultGoTagless},
+		{name: "bin/le opening a line", text: "bin/le test bgp", fault: faultBinLe},
+		{name: "bin/le after command", text: "./le job run label x quiet command bin/le test bgp", fault: faultBinLe},
+		{name: "bin/le in a span in a table cell", text: "| unit | `bin/le test unit pkg path ./x/` |", fault: faultBinLe},
+		{name: "bin/le opening a table cell", text: "| unit | bin/le job run label x quiet command true |", fault: faultBinLe},
+		{name: "bin/le behind ./ in a span", text: "Then type `./bin/le test bgp` to run it.", fault: faultBinLe},
+		{name: "bin/le in a span opened on the line above", text: "The script runs `true &&\nexec bin/le test bgp` at the end.", fault: faultBinLe},
+		{name: "bin/le in a Go string", text: "\tnote := \"run bin/le test bgp\"", goSource: true, fault: faultBinLe},
+		{name: "bin/le in a triple-backtick inline span", text: "```bin/le test bgp```", fault: faultBinLe},
+		{name: "long form on a fence line", text: "```command go test ./internal/x/", fault: faultLongFormTagless},
+		// Lines the six surfaces hold, which name rather than run.
+		{name: "the installed copy named in a span", text: "`./le` is a dispatcher, and `bin/le` is an identical copy of it that `./le`"},
+		{name: "a named build's path", text: "yourself. The build lands in `bin/le-<name>/le`, which `bin/` already keeps out"},
+		{name: "another directory's copy across two lines", text: "On Tab the script runs `<the typed word's directory>/bin/le completion words\n<line>`, with stderr discarded. `bin/le` is the dispatcher's installed copy, and"},
+		{name: "the installed copy in prose", text: "Several sessions run bin/le at once."},
+		{name: "a go test flag", text: "`path` for each package. `run` hands its regex to `go test -run`. `vet` runs"},
+		{name: "a go test form with an assignment", text: "4. **Changed-group pass**: uses the test-only `CGO_ENABLED=1 go test -race`"},
+		{name: "a go test form with a quoted filter", text: "| `./le test redwalk check break <patch> unit <Test> package <pkg>` | one Go test function, through `go test -run '^<Test>$' -v` |"},
+		{name: "the bare verb", text: "- **A bare `go test` MUST NOT be used in its place.**"},
+		{name: "the long form with tags", text: "```\n./le job run label unit-pkg quiet command go test -race -tags \"$tags integration\" ./internal/exabgp/bridge/\n```"},
+		{name: "an inline span opening a line leaves the next line prose", text: "```bin/le-<name>/le``` is a named build.\nSeveral sessions run go test ./internal/x/ by hand."},
+		{name: "the short action in a Go string", text: "\tnote := \"next: ./le test unit pkg path ./internal/core/textbuf/\"", goSource: true},
+	} {
+		faults := surfaceFaults(row.text, row.goSource)
+		if row.fault == "" {
+			if len(faults) != 0 {
+				t.Errorf("%s: a line that names rather than runs faulted: %q", row.name, faults)
+			}
+			continue
+		}
+		if len(faults) != 1 || !strings.Contains(faults[0], row.fault) {
+			t.Errorf("%s: answered %q, want one fault %q", row.name, faults, row.fault)
+		}
+	}
+}
+
+// The faults a surface line can carry, each naming the example it shows.
+const (
+	faultLongFormTagless = "keeps the long form without the feature tags"
+	faultGoTagless       = "runs go test or go vet over a package without the feature tags"
+	faultBinLe           = "spells the launcher bin/le where an example runs it"
+)
+
+// surfaceFaults judges every line of one surface and answers one entry per
+// faulty line, "<line number>: <fault>: <line>". goSource judges every line as
+// code, because a Go surface prints its examples from string literals.
+func surfaceFaults(text string, goSource bool) []string {
+	var faults []string
+	inFence, spanOpen := false, false
+	for number, line := range strings.Split(text, "\n") {
+		trimmed := strings.TrimSpace(line)
+		var fault string
+		if fenceLine(trimmed) && !goSource {
+			// A fence line is judged too, as prose with no span open: its info
+			// string is text a reader sees, so no line escapes the judgement.
+			fault, _ = lineFault(line, false, false)
+			inFence, spanOpen = !inFence, false
+		} else {
+			if trimmed == "" {
+				spanOpen = false
+			}
+			fault, spanOpen = lineFault(line, goSource || inFence, spanOpen)
+		}
+		if fault != "" {
+			faults = append(faults, strconv.Itoa(number+1)+": "+fault+": "+line)
+		}
+	}
+	return faults
+}
+
+// fenceLine reports whether a trimmed line opens or closes a fenced code block.
+// A backtick fence whose info string holds a backtick is no fence (CommonMark,
+// "Fenced code blocks"): "```bin/le test bgp```" is an inline code span, and
+// reading it as a fence would flip the block state of every line after it.
+func fenceLine(trimmed string) bool {
+	if strings.HasPrefix(trimmed, "~~~") {
+		return true
+	}
+	if !strings.HasPrefix(trimmed, "```") {
+		return false
+	}
+	return !strings.Contains(strings.TrimLeft(trimmed, "`"), "`")
+}
+
+// lineFault answers the first fault of one surface line, or "", and whether a
+// code span is still open at its end. inCode says the whole line is code (a
+// fenced block, a Go surface); spanOpen says a span opened on an earlier line of
+// the paragraph is still open.
+func lineFault(line string, inCode, spanOpen bool) (string, bool) {
+	code, open := codeSegments(line, inCode, spanOpen)
+	longForm := strings.Contains(line, "command go test") || strings.Contains(line, "command go vet")
+	if longForm && !strings.Contains(line, "-tags") {
+		return faultLongFormTagless, open
+	}
+	for _, segment := range code {
+		if goWithoutTags(segment) {
+			return faultGoTagless, open
+		}
+		if codeRunsBinLe(segment) {
+			return faultBinLe, open
+		}
+	}
+	if proseRunsBinLe(line) {
+		return faultBinLe, open
+	}
+	return "", open
+}
+
+// codeSegments answers the parts of line that are code, and whether a span is
+// open at its end. Each backtick opens or closes a span; a fenced or Go line is
+// code whole.
+func codeSegments(line string, inCode, spanOpen bool) ([]string, bool) {
+	if inCode {
+		return []string{line}, spanOpen
+	}
+	var code []string
+	open := spanOpen
+	for index, piece := range strings.Split(line, "`") {
+		if index > 0 {
+			open = !open
+		}
+		if open {
+			code = append(code, piece)
+		}
+	}
+	return code, open
+}
+
+// goWithoutTags reports whether a code segment runs go test or go vet over a
+// package with no -tags after the verb. A form that names only flags
+// (`go test -run`) or no argument names the verb, not a run.
+func goWithoutTags(segment string) bool {
+	words := strings.Fields(segment)
+	for index := 0; index+1 < len(words); index++ {
+		if strings.TrimLeft(words[index], "\"'($") != "go" {
+			continue
+		}
+		verb := strings.TrimRight(words[index+1], "\"')")
+		if verb != "test" && verb != "vet" {
+			continue
+		}
+		rest := words[index+2:]
+		tagged := slices.ContainsFunc(rest, func(word string) bool { return strings.HasPrefix(word, "-tags") })
+		if !tagged && slices.ContainsFunc(rest, isPackageWord) {
+			return true
+		}
+	}
+	return false
+}
+
+// isPackageWord reports whether a go argument names packages: a relative
+// directory, an import path, a pattern, or a placeholder such as <package>.
+// A flag and a quoted flag value name none.
+func isPackageWord(word string) bool {
+	if strings.HasPrefix(word, "-") {
+		return false
+	}
+	if strings.HasPrefix(word, "'") {
+		return false
+	}
+	word = strings.Trim(word, "\"")
+	if strings.HasPrefix(word, ".") {
+		return true
+	}
+	if strings.Contains(word, "/") {
+		return true
+	}
+	return strings.HasPrefix(word, "<") && strings.HasSuffix(word, ">")
+}
+
+// codeRunsBinLe reports whether a code segment runs bin/le: bin/le followed by
+// a word, at the start of a word or behind a ./ that starts one. A bin/le under
+// another directory (<dir>/bin/le) is that copy's path, named by what runs it.
+func codeRunsBinLe(segment string) bool {
+	for from := 0; ; {
+		at := strings.Index(segment[from:], "bin/le ")
+		if at < 0 {
+			return false
+		}
+		at += from
+		if binLeStartsAWord(segment[:at]) {
+			return true
+		}
+		from = at + len("bin/le ")
+	}
+}
+
+// binLeStartsAWord reports whether the text before bin/le ends where a word
+// starts.
+func binLeStartsAWord(before string) bool {
+	before = strings.TrimSuffix(before, "./")
+	if before == "" {
+		return true
+	}
+	return strings.ContainsRune(" \t(|\"'$;&", rune(before[len(before)-1]))
+}
+
+// proseRunsBinLe reports whether a line outside code runs bin/le: as the
+// command of a job, or opening the line or a table cell. Prose that names
+// bin/le inside a sentence names the installed copy.
+func proseRunsBinLe(line string) bool {
+	if strings.Contains(line, "command bin/le") {
+		return true
+	}
+	for cell := range strings.SplitSeq(line, "|") {
+		start := strings.TrimPrefix(strings.TrimLeft(cell, " \t`$"), "./")
+		if strings.HasPrefix(start, "bin/le ") {
+			return true
+		}
+	}
+	return false
 }
 
 // writeRedFixture writes redFixture under a temporary root, commits it as a git
