@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Priority | P1 |
 | Release reason | Retain reload repair ownership and outstanding review findings; completed phases are not closure. |
 | Scope | plugin |
@@ -21,7 +21,7 @@ The owner keeps this spec open until it closes on Linux (2026-10-15). All six ph
 |------|--------|---------|
 | 1 | MET: real VPP 26.06 lifecycle proof, empty-egress no-op mutation red, then final clean normal run. Harness 844f42a7d5; alias a82960a6e8 and monitor e4e5f8da3a repairs. Do not repeat completed proof without new changes. | `./le test deployment vpp-iface` (Docker server with required kernel features and devices) |
 | 2 | MET: current-source static-BFD guest fixture passed 1/1, 2.5s, one phase ran and none skipped, command/check/lab exit 0 on Linux 7.3.0-ze. Console `tmp/qemu/docker-lab-console-2884467513.log`. | `./le test qemu ci test test/reload/static-bfd-profile-reload-deleted.ci` |
-| 3 | Main-thread scoped proof of changed packages and affected functional fixtures, then scoped lint and closure prechecks. Whole-tree verification belongs to pushed CI and is not an agent closure gate. | Named race tests, affected reload fixtures, `./le test deployment vpp-iface`, scoped `./le go lint run` |
+| 3 | MET: scoped race and functional evidence retained; final two-package native lint passed all four configurations, exit 0 (main session 8677). Whole-tree verification belongs to pushed CI. | Scoped native lint over plugin/server and le/test/deployment: Linux, integration, Darwin, capability all PASS |
 | 4 | Round 6 independently reviewed diagnostic repair `1cddf638d8`: source CLEAN, 0 BLOCKER/0 ISSUE/1 NOTE. Owner explicitly answered "Authorize sixth review", ran the native owner-terminal recording, and all 29 code hashes now match. | Native artifact recorded and checked; retain hashes until closure |
 | 5 | Close: append `plan/templates/TEMPLATE-CLOSURE.md`, commit A (code, tests, docs, spec), commit B (`remove` the spec) in one `./le commit create` script | `/ze-close` |
 
@@ -993,23 +993,21 @@ expectation change has its independent `Weakening-approved` trailer in
 `1cddf638d8`; no unapproved expectation change is introduced here.
 
 
-## Blocker
+## Final closure evidence
 
-The old QEMU, inventory and native owner-recording blockers are cleared.
-Static-BFD guest proof is complete (1/1, 2.5s, no skipped phase), with console
-`tmp/qemu/docker-lab-console-2884467513.log`. The owner recorded the authorized
-sixth CLEAN review; native check passed all 29 code hashes in the 39-path
-population. Source review scope and retained proof are recorded above.
+All previously recorded blockers are cleared. Main's final native scoped lint
+(session 8677) exited 0: primary Linux, Linux integration, Darwin and capability
+configurations all passed over `internal/component/plugin/server` and
+`internal/le/test/deployment`. Earlier dependency/vendor and concurrent
+refactor failures are historical; their owners completed them without this
+session modifying their work.
 
-The final combined five-package lint attempt exited 2 during planning after
-wasip1 because foreign `internal/le/setup/setup.go` changed. No immutable
-plan was produced, so this is not a lint pass. Preserve that session's work.
-Once the setup source is stable, main must rerun the final scoped lint over
-`internal/component/plugin/server` and `internal/le/test/deployment` (the
-combined run additionally covered the NTP registry/show/hub packages).
-No new guest, VPP or focused race run is required without another change.
-The spec stays open until this final lint succeeds; then prepare the two
-closure commits using the existing hash-pinned CLEAN artifact.
+Static-BFD guest proof passed 1/1 with no skipped phase; real VPP replacement,
+empty-map mutation red and final clean lifecycle proof remain complete.
+The owner-recorded authorized sixth CLEAN review passed native hash checking
+for all 29 code files in the 39-path population. Focused diagnostic and lint
+repair race controls passed in main. No scope reduction, unapproved test
+weakening, or additional product review round is claimed.
 
 
 ## Implementation Summary
@@ -1062,7 +1060,7 @@ superseded by scoped evidence and pushed CI.
 ## Implementation Audit
 
 This is the accumulated evidence inventory, not a new full-suite claim.
-Native review recording and hash checks are complete. Final scoped lint remains blocked by foreign setup.go changing during planning.
+Native review recording and hash checks are complete. Final scoped lint passed all four native configurations, exit 0, in main session 8677.
 
 ### Requirements from Task
 
@@ -1107,7 +1105,7 @@ Native review recording and hash checks are complete. Final scoped lint remains 
 ### Audit Summary
 
 All six implementation phases and the two previously missing runtime proofs
-are recorded. Native owner review recording is complete; final scoped lint remains open because foreign setup.go changed during planning. No scope reduction or skipped deliverable is approved or claimed.
+are recorded. Native owner review recording is complete; final scoped lint passed all four native configurations, exit 0 (main session 8677). No scope reduction or skipped deliverable is approved or claimed.
 
 ## Goal Validation
 
@@ -1120,10 +1118,13 @@ are recorded. Native owner review recording is complete; final scoped lint remai
 
 ## Work Not Done
 
+No in-scope work remains. The two established design boundaries below retain
+their existing owners; they are not new deferrals.
+
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| Final scoped lint | foreign `internal/le/setup/setup.go` changed during planning; no plan produced | this spec remains open and owns the check; no deferral |
-| Stored-route re-import and export re-advertisement | explicit scope boundary established before implementation | `spec-bgp-filtered-route-storage` and `spec-bgp-export-policy-reload-readvertise` |
+| Stored-route re-import | explicit scope boundary established before implementation | `plan/post-release/features/spec-bgp-filtered-route-storage.md` |
+| Export re-advertisement | explicit scope boundary established before implementation | `plan/release/fixes/spec-bgp-export-policy-reload-readvertise.md` |
 
 ## Pre-Commit Verification
 
@@ -1156,6 +1157,14 @@ are recorded. Native owner review recording is complete; final scoped lint remai
 | A-1..3,A-5,A-7..9 | confirmed | individual producer and discriminating test evidence in Risks and Assumptions table |
 | A-4 | confirmed by owner decision Q6 | no-config participants keep WantsConfig and declare their no-op explicitly |
 | A-6 | confirmed | restart routes named by shared SDK helper; signal restart alone is not prescribed |
+
+### Scoped checks
+
+| Check | Result | Evidence |
+|-------|--------|----------|
+| Final native scoped lint | PASS, exit 0 | main session 8677; Linux, integration, Darwin, capability |
+| Native review hashes | PASS | owner-recorded CLEAN artifact; all 29 code files match |
+| Static-BFD guest | PASS | 1/1, 2.5s, no skipped phase; console recorded above |
 
 ### Documentation Verified
 

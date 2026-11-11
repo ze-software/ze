@@ -1,5 +1,5 @@
 ---
-spec: spec-plugin-reload-applies-or-refuses
+spec: plugin-reload-applies-or-refuses
 topic: Config
 found-by: review
 ---
