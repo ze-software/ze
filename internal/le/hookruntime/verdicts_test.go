@@ -1,6 +1,6 @@
 // Design: docs/contributing/running-commands.md -- session identity, and what each agent owns
 // Related: runtime.go -- nativeHookActions, the checks whose refusals the table records
-// Related: bash_test.go -- judgeGuardRows, one helper the corpus is collected through
+// Related: bash_test.go -- guardVerdict, one helper the corpus is collected through
 // Related: runtime_test.go -- runHook, the other
 package hookruntime
 
@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -72,14 +73,20 @@ func (row verdictRow) key() verdictKey {
 
 // corpusRecorder collects the command lines the corpus source tests judge
 // while collectCorpus runs them. Its lines map is nil in every other run, so
-// the two helpers that feed it (judgeGuardRows, runHook) record nothing there.
+// the two helpers that feed it (guardVerdict, runHook) record nothing there.
 //
 //nolint:gochecknoglobals // test-only collector, active inside collectCorpus alone
 var corpusRecorder struct {
 	sync.Mutex
 	// lines maps a judged line to whether some source judged it as a fork.
-	lines  map[string]bool
-	faults []string
+	lines map[string]bool
+
+	// current is the source test collectCorpus is running, and judgedBy maps
+	// each judged line to the tests that judged it: a reader-line row's proof
+	// must be one of them.
+	current  string
+	judgedBy map[string]map[string]bool
+	faults   []string
 }
 
 // recordCorpusLine adds one judged line to the corpus while collectCorpus runs.
@@ -93,12 +100,18 @@ func recordCorpusLine(line string, fork bool) {
 		return
 	}
 	corpusRecorder.lines[line] = corpusRecorder.lines[line] || fork
+	if corpusRecorder.judgedBy[line] == nil {
+		corpusRecorder.judgedBy[line] = map[string]bool{}
+	}
+	corpusRecorder.judgedBy[line][corpusRecorder.current] = true
 }
 
 // recordCorpusPayload adds the command of one pretool-bash payload runHook
 // sends. It decodes the bytes Run reads, so every payload shape a test builds
 // is read the way the hook reads it. A payload that does not decode is a fault
-// collectCorpus reports, never a line silently left out.
+// collectCorpus reports, never a line silently left out. The fork variable it
+// reads is pinned empty by collectCorpus, so a line is a fork row only when
+// its own source test set that variable, never because the runner's did.
 func recordCorpusPayload(kind string, body []byte) {
 	if kind != "pretool-bash" {
 		return
@@ -117,13 +130,18 @@ func recordCorpusPayload(kind string, body []byte) {
 }
 
 // corpusSourceTests are the tests whose judged lines the corpus holds (the
-// spec's "Recorded verdicts"): six guard tests of bash_test.go, and every test
-// of session_identity_test.go, which TestGuardVerdictsOfHeadStand holds
-// complete against that file. A test listed here that judges nothing through
-// judgeGuardRows or runHook adds no line and costs one run.
+// spec's "Recorded verdicts"): six guard tests and every TestTestDeletion test
+// of bash_test.go, and every test of session_identity_test.go.
+// TestGuardVerdictsOfHeadStand holds the deletion tests and the identity tests
+// complete against their files (holdSourcesComplete). A test listed here that
+// judges nothing through guardVerdict or runHook adds no line and costs one run.
 //
 //nolint:gochecknoglobals // the declared corpus sources
 var corpusSourceTests = []func(*testing.T){
+	TestTestDeletionFixNamesThePathAndTheRoute,
+	TestTestDeletionAsksOnlyForATestPath,
+	TestTestDeletionJudgesOnlyTheArgumentsOfAPlainRm,
+	TestTestDeletionRefusalNamesTheNextAction,
 	TestGuardsKeepTheTextVerdictOfHead,
 	TestGuardsKeepTheTextVerdictBesideAReaderItsJudgeRefuses,
 	TestGuardsJudgeALineThatCanRunAStringByItsText,
@@ -147,6 +165,27 @@ var corpusSourceTests = []func(*testing.T){
 	TestSubagentNamingAnIdentityVariableAfterItsLineIsRefused,
 	TestEnvironmentToolIsFoundBehindEveryWrapper,
 }
+
+// readerLineProofs are the tests a reader-line row may name as its proof,
+// beside corpusSourceTests. collectCorpus runs them with the recorder on, and
+// a row's proof holds only when the test it names judged that exact line,
+// through guardVerdict or runHook, and passed. The parser replacement adds
+// each test it names in a reader-line row here; none exists before it.
+//
+//nolint:gochecknoglobals // the declared reader-line proofs
+var readerLineProofs = []func(*testing.T){}
+
+// verdictsTableRowsMin is the row count of the table after its last update. A
+// table holding fewer rows lost recorded refusals: deleting the file and
+// re-running -update records again from the tree in hand, which keeps no
+// refusal HEAD gave. Raise it when an update appends rows; never lower it.
+const verdictsTableRowsMin = 1345
+
+// readerSetJudgment is the one function that judges whether a command is a
+// reader (readers.go). A check whose code reaches it can pass a line because
+// its commands are readers, so only such a check may lose a recorded refusal
+// on a row marked a reader line (readerLiftableChecks).
+const readerSetJudgment = "readerCommand"
 
 // specConstructLines are the construct rows the spec names: its parity table
 // and the inputs of its acceptance criteria. The after-line `set` rows of AC-31
@@ -193,6 +232,8 @@ var specConstructLines = []string{
 	`grep -n $"x" f`,
 	// AC-8.
 	`f() { cat a; }; f`,
+	`A=1; cat a`,
+	`PATH=/x; cat a`,
 	`export A=1; cat a`,
 	`declare A=1; cat a`,
 	`let a=1; cat a`,
@@ -309,15 +350,18 @@ var specConstructLines = []string{
 // PREVENTS: the parser replacement clearing a line HEAD refused, which a test
 // written against the new contract is green over by construction.
 func TestGuardVerdictsOfHeadStand(t *testing.T) {
-	corpus := collectCorpus(t)
+	corpus, judgedBy := collectCorpus(t)
 	recorded, err := readVerdictTable(verdictsTablePath)
 	if err != nil {
 		if !*verdictsUpdate {
-			t.Fatalf("%v\nRecord it with -args -update.", err)
+			t.Fatalf("%v\nRestore the committed table: an update run only appends to it.", err)
 		}
-		if !errors.Is(err, os.ErrNotExist) {
-			t.Fatal(err)
+		// The table is committed: an update run over a missing table would
+		// record every row from the tree in hand, with none of HEAD's refusals.
+		if errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("%v\nThe table is committed and an update only appends to it: restore the committed file, never record it again", err)
 		}
+		t.Fatal(err)
 	}
 	root := goBuildTree(t)
 	t.Setenv("GOFLAGS", "")
@@ -340,7 +384,11 @@ func TestGuardVerdictsOfHeadStand(t *testing.T) {
 		}
 		t.Logf("%s: %d rows, %d appended", verdictsTablePath, len(recorded), len(fresh))
 	}
-	checkVerdictTable(t, root, recorded, corpus)
+	if len(recorded) < verdictsTableRowsMin {
+		t.Errorf("%s holds %d rows and its last update left %d (verdictsTableRowsMin): rows were lost, and an update re-records them from the tree in hand rather than from HEAD; restore the committed file",
+			verdictsTablePath, len(recorded), verdictsTableRowsMin)
+	}
+	checkVerdictTable(t, t, root, recorded, corpus, judgedBy)
 }
 
 // TestVerdictTableUpdateKeepsEveryRecordedRow drives mergeVerdictRows, the one
@@ -365,30 +413,130 @@ func TestVerdictTableUpdateKeepsEveryRecordedRow(t *testing.T) {
 	}
 }
 
-// collectCorpus runs every corpus source test as a subtest with the recorder
-// on, then adds the parity, fixture and spec lines, and answers each line once
-// per caller it is judged as: main and subagent always, fork too when a source
-// judged it as a fork.
-func collectCorpus(t *testing.T) map[verdictKey]bool {
+// TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts drives checkVerdictTable
+// with hand-marked reader-line rows over a fixed tree, and reads what it
+// reports.
+//
+// VALIDATES: a reader-line row keeps every recorded refusal of a check that
+// never asks the reader set (the git branch guard refuses `git merge main`
+// still); it waives a recorded refusal of a check a reader line lifts
+// (bashRawHeavy over `cat a`), and the same row unmarked does not; a proof
+// that judged another line, or none, is refused.
+// PREVENTS: a reader-line mark that clears a git, poll, scratch or governed
+// write refusal, and a proof that names any test of the package.
+func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
+	root := goBuildTree(t)
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("CDPATH", "")
+	const proof = "TestTestDeletionAsksOnlyForATestPath"
+	judge := func(row verdictRow, judgedBy map[string]map[string]bool) verdictFaults {
+		var faults verdictFaults
+		checkVerdictTable(&faults, t, root, []verdictRow{row}, map[verdictKey]bool{row.key(): true}, judgedBy)
+		return faults
+	}
+	judged := func(line string) map[string]map[string]bool {
+		return map[string]map[string]bool{line: {proof: true}}
+	}
+
+	// The hook refuses `git merge main` by bashBranchMove today, so the row
+	// holds; the same mark on a line the branch guard passes (the shape a
+	// parser change that lost the refusal would leave) is reported.
+	merge := verdictRow{Line: "git merge main", Caller: callerMain, RefusedBy: []string{"bashBranchMove"}, ReaderLine: true, Proof: proof}
+	if faults := judge(merge, judged(merge.Line)); len(faults) != 0 {
+		t.Errorf("a reader-line mark on %q, which bashBranchMove refuses: faults %q, want none", merge.Line, faults)
+	}
+	for _, check := range []string{"bashBranchMove", "bashDestructiveGit", "bashPollLoop", "bashScratch", "bashGovernedWrite"} {
+		lost := verdictRow{Line: "cat a", Caller: callerMain, RefusedBy: []string{check}, ReaderLine: true, Proof: proof}
+		if faults := judge(lost, judged(lost.Line)); len(faults) != 1 || !strings.Contains(faults[0], check+" refused") {
+			t.Errorf("a reader-line row whose %s refusal the hook no longer gives: faults %q, want that refusal held", check, faults)
+		}
+	}
+
+	lifted := verdictRow{Line: "cat a", Caller: callerMain, RefusedBy: []string{"bashRawHeavy"}, ReaderLine: true, Proof: proof}
+	if faults := judge(lifted, judged(lifted.Line)); len(faults) != 0 {
+		t.Errorf("a reader-line row losing a bashRawHeavy refusal: faults %q, want none", faults)
+	}
+	unmarked := lifted
+	unmarked.ReaderLine, unmarked.Proof = false, ""
+	if faults := judge(unmarked, judged(unmarked.Line)); len(faults) != 1 || !strings.Contains(faults[0], "bashRawHeavy refused") {
+		t.Errorf("the same row unmarked: faults %q, want the bashRawHeavy refusal held", faults)
+	}
+	if faults := judge(lifted, judged("cat b")); len(faults) != 1 || !strings.Contains(faults[0], "judged that exact line") {
+		t.Errorf("a proof that judged another line: faults %q, want the proof refused", faults)
+	}
+	if faults := judge(lifted, map[string]map[string]bool{}); len(faults) != 1 || !strings.Contains(faults[0], "judged that exact line") {
+		t.Errorf("a proof that judged nothing: faults %q, want the proof refused", faults)
+	}
+}
+
+// TestReaderLiftableChecksAreTheReaderGuards reads the set readerLiftableChecks
+// derives from the source.
+//
+// VALIDATES: the guards that ask the reader set are in it (the identity
+// exemption, the lifts of the raw-job, lossy-pipe and /tmp guards, the build
+// guard's reader+build line, the plain-rm narrowing); the guards the spec
+// says never lift are not (the git guards, bashGovernedWrite, bashPollLoop,
+// bashScratch).
+// PREVENTS: a derivation that follows a shared helper into a git guard and
+// lets a reader-line mark waive its refusal.
+func TestReaderLiftableChecksAreTheReaderGuards(t *testing.T) {
+	liftable := readerLiftableChecks(t)
+	for _, name := range []string{"bashAgentIdentity", "bashRawHeavy", "bashLossyPipe", "bashSystemTmp", "bashRootBuild", "bashTestDeletion"} {
+		if !liftable[name] {
+			t.Errorf("%s asks the reader set and is not in the liftable set %v", name, liftable)
+		}
+	}
+	for _, name := range []string{"bashWorktreeCopy", "bashDestructiveGit", "bashBranchMove", "bashGovernedWrite", "bashPollLoop", "bashScratch"} {
+		if liftable[name] {
+			t.Errorf("%s never lifts on a reader line and is in the liftable set %v", name, liftable)
+		}
+	}
+}
+
+// collectCorpus runs every corpus source test and every reader-line proof as a
+// subtest with the recorder on, then adds the parity, fixture and spec lines,
+// and answers each line once per caller it is judged as: main and subagent
+// always, fork too when a source judged it as a fork. It also answers, for
+// each line a test judged, the tests that judged it.
+func collectCorpus(t *testing.T) (map[verdictKey]bool, map[string]map[string]bool) {
 	t.Helper()
 	holdSourcesComplete(t)
+	// The runner may itself be a forked agent: the fork rows come from the
+	// sources that set this variable, never from the environment of the run.
+	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "")
 
 	corpusRecorder.Lock()
 	corpusRecorder.lines = map[string]bool{}
+	corpusRecorder.judgedBy = map[string]map[string]bool{}
 	corpusRecorder.faults = nil
 	corpusRecorder.Unlock()
 	defer func() {
 		corpusRecorder.Lock()
 		corpusRecorder.lines = nil
+		corpusRecorder.judgedBy = nil
+		corpusRecorder.current = ""
 		corpusRecorder.Unlock()
 	}()
 
-	for _, source := range corpusSourceTests {
-		t.Run(testFunctionName(source), source)
+	for _, source := range slices.Concat(corpusSourceTests, readerLineProofs) {
+		name := testFunctionName(source)
+		corpusRecorder.Lock()
+		corpusRecorder.current = name
+		corpusRecorder.Unlock()
+		// A proof that fails proves nothing: its name is withheld from the
+		// lines it judged, so no row can cite it.
+		if !t.Run(name, source) {
+			corpusRecorder.Lock()
+			for _, tests := range corpusRecorder.judgedBy {
+				delete(tests, name)
+			}
+			corpusRecorder.Unlock()
+		}
 	}
 
 	corpusRecorder.Lock()
 	lines := corpusRecorder.lines
+	judgedBy := corpusRecorder.judgedBy
 	faults := corpusRecorder.faults
 	corpusRecorder.Unlock()
 	for _, fault := range faults {
@@ -413,28 +561,41 @@ func collectCorpus(t *testing.T) map[verdictKey]bool {
 			corpus[verdictKey{line: line, caller: callerFork}] = true
 		}
 	}
-	return corpus
+	return corpus, judgedBy
 }
 
-// holdSourcesComplete refuses a test of session_identity_test.go that
-// corpusSourceTests does not list, so a table added there joins the corpus.
+// completeSources names, per test file, the prefix of the tests that file
+// must list in corpusSourceTests: every test of session_identity_test.go, and
+// every deletion test of bash_test.go, whose word list the parser replacement
+// rewrites.
+//
+//nolint:gochecknoglobals // the declared complete sources
+var completeSources = map[string]string{
+	"session_identity_test.go": "Test",
+	"bash_test.go":             "TestTestDeletion",
+}
+
+// holdSourcesComplete refuses a test of a completeSources file, under its
+// prefix, that corpusSourceTests does not list, so a table added there joins
+// the corpus.
 func holdSourcesComplete(t *testing.T) {
 	t.Helper()
 	listed := map[string]bool{}
 	for _, source := range corpusSourceTests {
 		listed[testFunctionName(source)] = true
 	}
-	file := parseGoFile(t, "session_identity_test.go")
-	for _, decl := range file.Decls {
-		function, ok := decl.(*ast.FuncDecl)
-		if !ok {
-			continue
-		}
-		if !strings.HasPrefix(function.Name.Name, "Test") {
-			continue
-		}
-		if !listed[function.Name.Name] {
-			t.Errorf("%s (session_identity_test.go) is not in corpusSourceTests: the lines it judges are outside the recorded corpus", function.Name.Name)
+	for path, prefix := range completeSources {
+		for _, decl := range parseGoFile(t, path).Decls {
+			function, ok := decl.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+			if !strings.HasPrefix(function.Name.Name, prefix) {
+				continue
+			}
+			if !listed[function.Name.Name] {
+				t.Errorf("%s (%s) is not in corpusSourceTests: the lines it judges are outside the recorded corpus", function.Name.Name, path)
+			}
 		}
 	}
 }
@@ -484,11 +645,34 @@ func refusingChecks(t *testing.T, root string, key verdictKey) []string {
 	return refused
 }
 
+// verdictReporter is where checkVerdictTable reports a broken rule: the test
+// itself, or a collector a test of the judgment reads.
+type verdictReporter interface {
+	Helper()
+	Errorf(format string, args ...any)
+}
+
+// verdictFaults collects what checkVerdictTable reports, for a test that
+// judges the judgment.
+type verdictFaults []string
+
+func (*verdictFaults) Helper() {}
+
+func (faults *verdictFaults) Errorf(format string, args ...any) {
+	*faults = append(*faults, fmt.Sprintf(format, args...))
+}
+
 // checkVerdictTable is the plain run's judgment of the table, and the update
-// run's after it wrote.
-func checkVerdictTable(t *testing.T, root string, recorded []verdictRow, corpus map[verdictKey]bool) {
+// run's after it wrote. It reports to t, and asks the checks through run.
+// A reader-line row is held to two rules more than its mark: its proof is a
+// test of corpusSourceTests or readerLineProofs that judged that exact line
+// and passed (judgedBy, from collectCorpus), and it waives only the recorded
+// refusals of checks a reader line can lift (readerLiftableChecks). Every
+// other check it recorded still refuses it.
+func checkVerdictTable(t verdictReporter, run *testing.T, root string, recorded []verdictRow, corpus map[verdictKey]bool, judgedBy map[string]map[string]bool) {
 	t.Helper()
-	proofs := packageTestNames(t)
+	proofs := packageTestNames(run)
+	liftable := readerLiftableChecks(run)
 	held := map[verdictKey]bool{}
 	for _, row := range recorded {
 		key := row.key()
@@ -498,6 +682,9 @@ func checkVerdictTable(t *testing.T, root string, recorded []verdictRow, corpus 
 		held[key] = true
 		if row.ReaderLine && !proofs[row.Proof] {
 			t.Errorf("%q (%s) is marked a reader line, and its proof %q names no test of this package", row.Line, row.Caller, row.Proof)
+		}
+		if row.ReaderLine && !judgedBy[row.Line][row.Proof] {
+			t.Errorf("%q (%s) is marked a reader line, and its proof %q is no test of corpusSourceTests or readerLineProofs that judged that exact line and passed", row.Line, row.Caller, row.Proof)
 		}
 		if !row.ReaderLine && row.Proof != "" {
 			t.Errorf("%q (%s) names the proof %q but is not marked a reader line", row.Line, row.Caller, row.Proof)
@@ -514,11 +701,11 @@ func checkVerdictTable(t *testing.T, root string, recorded []verdictRow, corpus 
 		t.Errorf("%d corpus rows are missing: record them with -args -update, which appends and keeps every recorded row", missing)
 	}
 	for _, row := range recorded {
-		if row.ReaderLine {
-			continue
-		}
-		now := refusingChecks(t, root, row.key())
+		now := refusingChecks(run, root, row.key())
 		for _, check := range row.RefusedBy {
+			if row.ReaderLine && liftable[check] {
+				continue
+			}
 			if !slices.Contains(now, check) {
 				t.Errorf("%s refused %q (%s) when the table was recorded and passes it now (refused by %v)", check, row.Line, row.Caller, now)
 			}
@@ -543,6 +730,75 @@ func packageTestNames(t *testing.T) map[string]bool {
 		}
 	}
 	return names
+}
+
+// readerLiftableChecks answers the pretool-bash checks whose code reaches
+// readerSetJudgment, read from this package's non-test source: a function's
+// body is followed through every package function or method name it mentions,
+// called or not, so the set can only be too wide. TestReaderLiftableChecks
+// holds it apart from the guards the spec says never lift.
+func readerLiftableChecks(t *testing.T) map[string]bool {
+	t.Helper()
+	paths, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodies := map[string][]*ast.BlockStmt{}
+	for _, path := range paths {
+		if strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+		for _, decl := range parseGoFile(t, path).Decls {
+			if function, ok := decl.(*ast.FuncDecl); ok && function.Body != nil {
+				bodies[function.Name.Name] = append(bodies[function.Name.Name], function.Body)
+			}
+		}
+	}
+	if bodies[readerSetJudgment] == nil {
+		t.Fatalf("the package declares no function %s: readerSetJudgment names the function that judges whether a command is a reader", readerSetJudgment)
+	}
+	liftable := map[string]bool{}
+	for _, check := range nativeHookActions["pretool-bash"].checks {
+		name := checkName(check)
+		if bodies[name] == nil {
+			t.Fatalf("the pretool-bash check %s has no body in this package's source", name)
+		}
+		if reachesFunction(bodies, name, readerSetJudgment) {
+			liftable[name] = true
+		}
+	}
+	return liftable
+}
+
+// reachesFunction answers whether target is start, or is named in the body of
+// a function start reaches through the names its body mentions.
+func reachesFunction(bodies map[string][]*ast.BlockStmt, start, target string) bool {
+	seen := map[string]bool{start: true}
+	queue := []string{start}
+	for len(queue) > 0 {
+		name := queue[0]
+		queue = queue[1:]
+		if name == target {
+			return true
+		}
+		for _, body := range bodies[name] {
+			ast.Inspect(body, func(node ast.Node) bool {
+				ident, isIdent := node.(*ast.Ident)
+				if !isIdent {
+					return true
+				}
+				if bodies[ident.Name] == nil {
+					return true
+				}
+				if !seen[ident.Name] {
+					seen[ident.Name] = true
+					queue = append(queue, ident.Name)
+				}
+				return true
+			})
+		}
+	}
+	return false
 }
 
 // mergeVerdictRows answers every recorded row unchanged, plus each fresh row
@@ -693,8 +949,11 @@ func bashFixtureValues(t *testing.T, file *ast.File) []string {
 		if tool == nil {
 			continue
 		}
-		if _, isLiteral := tool.(*ast.BasicLit); !isLiteral {
-			continue
+		// A tool named by a constant is read from that constant's literal;
+		// any other shape may be Bash, so the reading fails rather than leave
+		// that probe's values out.
+		if name, isName := tool.(*ast.Ident); isName {
+			tool = constLiteral(t, file, name.Name)
 		}
 		if stringLiteral(t, tool, "a categoryProbes tool") != toolBash {
 			continue
@@ -707,6 +966,9 @@ func bashFixtureValues(t *testing.T, file *ast.File) []string {
 			t.Fatalf("the Bash probe of %s wraps its value, which this reading does not model", category.Name)
 		}
 		bash[category.Name] = true
+	}
+	if len(bash) == 0 {
+		t.Fatal("categoryProbes holds no probe whose tool is \"Bash\": the reading found none of the Bash fixture values it collects")
 	}
 	allow, refuse := structFieldIndex(t, file, "fixtureCategory", "allow"), structFieldIndex(t, file, "fixtureCategory", "refuse")
 	values := []string{}
@@ -778,6 +1040,38 @@ func varLiteral(t *testing.T, file *ast.File, name string) *ast.CompositeLit {
 		}
 	}
 	t.Fatalf("%s declares no var %s", file.Name.Name, name)
+	return nil
+}
+
+// constLiteral answers the value expression of a top-level const of the file
+// that holds one value per name, and fails for any other declaration.
+func constLiteral(t *testing.T, file *ast.File, name string) ast.Expr {
+	t.Helper()
+	for _, decl := range file.Decls {
+		general, ok := decl.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+		if general.Tok != token.CONST {
+			continue
+		}
+		for _, spec := range general.Specs {
+			value, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			for index, declared := range value.Names {
+				if declared.Name != name {
+					continue
+				}
+				if len(value.Values) != len(value.Names) {
+					t.Fatalf("const %s takes its value from an earlier line, which this reading does not model", name)
+				}
+				return value.Values[index]
+			}
+		}
+	}
+	t.Fatalf("%s declares no const %s", file.Name.Name, name)
 	return nil
 }
 

@@ -841,9 +841,12 @@ pieces (`ZE_AGENT_""ID`, `"${n}_ID"`), so a command that changes the
 environment by its form is refused whatever names it carries: `export`,
 `declare`, `typeset`, `readonly`, `local`, `unset`, `env`, `exec`, `sudo`,
 `eval`, `source`, `.` or `set` as the command word, past a reserved word or a
-wrapper such as `time` or `nice` and the options and the count or duration
-the wrapper takes (a skipped count holds a digit, so `time . ./env.sh` is
-judged as `.`), and an assignment in front of a command to
+wrapper such as `time` or `nice`. After a wrapper the walk skips each word
+that starts with `-` and each count or duration, which holds a digit, so
+`time . ./env.sh` is judged as `.`. It does not yet skip the value an option
+takes: a value with no digit is read as the command word, so `timeout -s KILL
+60 env -i ./le x` passes, its command word taken to be `KILL`. The check also refuses an
+assignment in front of a command to
 a name that is not plain. On a line outside the allow-list the first words
 of each command are judged by their text. `FOO=bar ./le x` and `cd x &&
 ./le x` pass.

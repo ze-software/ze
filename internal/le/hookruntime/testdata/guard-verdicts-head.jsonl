@@ -2,12 +2,20 @@
 {"line":"! golangci-lint run","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"! grep -q x a","caller":"main","refused-by":[],"reader-line":false}
 {"line":"! grep -q x a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"! rm internal/x/foo_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"! rm internal/x/foo_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"\"rm\" -rf internal/component/cli/testing","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"\"rm\" -rf internal/component/cli/testing","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"'rm' internal/x/foo_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"'rm' internal/x/foo_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"( cat a )","caller":"main","refused-by":[],"reader-line":false}
 {"line":"( cat a )","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"( go test ./internal/x )","caller":"main","refused-by":[],"reader-line":false}
 {"line":"( go test ./internal/x )","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"( go test ./x )","caller":"main","refused-by":[],"reader-line":false}
 {"line":"( go test ./x )","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"(cd internal && rm x/foo_test.go)","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"(cd internal && rm x/foo_test.go)","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"./le commit no-such-action","caller":"main","refused-by":[],"reader-line":false}
 {"line":"./le commit no-such-action","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"./le doc check all > tmp/.ze-verify-duration.txt 2>&1","caller":"main","refused-by":[],"reader-line":false}
@@ -63,6 +71,8 @@
 {"line":"<<<cat go build -o /tmp/x ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashSystemTmp","bashAgentIdentity"],"reader-line":false}
 {"line":"<<<cat go build -o /tmp/x ./cmd/ze","caller":"main","refused-by":["bashRootBuild","bashSystemTmp"],"reader-line":false}
 {"line":"<<<cat go build -o /tmp/x ./cmd/ze","caller":"subagent","refused-by":["bashRootBuild","bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"A=1; cat a","caller":"main","refused-by":[],"reader-line":false}
+{"line":"A=1; cat a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"CC='sh -c x' go build ./internal/x","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"CC='sh -c x' go build ./internal/x","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"GOFLAGS=\"-a -b\" go test ./x | tail","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
@@ -73,10 +83,14 @@
 {"line":"GOFLAGS=-toolexec=x go build -o bin/y ./cmd/y","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"LC_ALL=C grep -n x notes.md","caller":"main","refused-by":[],"reader-line":false}
 {"line":"LC_ALL=C grep -n x notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"LC_ALL=C rm internal/foo/foo_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"LC_ALL=C rm internal/foo/foo_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"LC_ALL=C sort f","caller":"main","refused-by":[],"reader-line":false}
 {"line":"LC_ALL=C sort f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"PATH=. cat f","caller":"main","refused-by":[],"reader-line":false}
 {"line":"PATH=. cat f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"PATH=/x; cat a","caller":"main","refused-by":[],"reader-line":false}
+{"line":"PATH=/x; cat a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"X=\"a ZE_ADMIT_RAW=1\" go test ./...","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
 {"line":"X=\"a ZE_ADMIT_RAW=1\" go test ./...","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
 {"line":"ZE_ADMIT_RAW=\"bisecting one 2s case\" go test -run TestX ./internal/core/env","caller":"main","refused-by":[],"reader-line":false}
@@ -455,6 +469,8 @@
 {"line":"cat x}#; go test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
 {"line":"cat x}#; le x","caller":"main","refused-by":[],"reader-line":false}
 {"line":"cat x}#; le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cd /Users/thomas/Code/github.com/ze-software/ze/main; rm -rf bin/le-hookchk; git status --short internal/le/commit internal/le/hookruntime docs/contributing/navigating-the-code.md docs/architecture/testing/verify-freshness-scope.md | cat; git diff --stat docs/contributing/navigating-the-code.md docs/architecture/testing/verify-freshness-scope.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cd /Users/thomas/Code/github.com/ze-software/ze/main; rm -rf bin/le-hookchk; git status --short internal/le/commit internal/le/hookruntime docs/contributing/navigating-the-code.md docs/architecture/testing/verify-freshness-scope.md | cat; git diff --stat docs/contributing/navigating-the-code.md docs/architecture/testing/verify-freshness-scope.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"cd /srv/checkout && git log --oneline -3; sed -n 1,5p notes.md 2>&1 | wc -l","caller":"main","refused-by":[],"reader-line":false}
 {"line":"cd /srv/checkout && git log --oneline -3; sed -n 1,5p notes.md 2>&1 | wc -l","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"coproc cat a","caller":"main","refused-by":[],"reader-line":false}
@@ -509,6 +525,8 @@
 {"line":"echo $((1+2))","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"echo $(./le spec current)","caller":"main","refused-by":[],"reader-line":false}
 {"line":"echo $(./le spec current)","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"echo 'an unclosed quote with no delete","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo 'an unclosed quote with no delete","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"echo 'a|b' | go test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
 {"line":"echo 'a|b' | go test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
 {"line":"echo 'go build ./cmd/z' | bash","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
@@ -521,6 +539,8 @@
 {"line":"echo 'go build' >> f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"echo 'go build'\\>|sh","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"echo 'go build'\\>|sh","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"echo 'rm internal/foo/foo_test.go'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo 'rm internal/foo/foo_test.go'","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"echo 'x'\\>|sh","caller":"main","refused-by":[],"reader-line":false}
 {"line":"echo 'x'\\>|sh","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"echo --ext-diff; git log -p $_","caller":"main","refused-by":[],"reader-line":false}
@@ -547,6 +567,8 @@
 {"line":"echo x\\>|sh","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"eval 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"eval 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"eval rm internal/x/foo_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"eval rm internal/x/foo_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"export A=1; cat a","caller":"main","refused-by":[],"reader-line":false}
 {"line":"export A=1; cat a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec current","caller":"fork","refused-by":[],"reader-line":false}
@@ -774,6 +796,8 @@
 {"line":"find . -name '*.md' -exec ./le doc check {} \\;","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"find . -name '*_test.go' -mtime -1","caller":"main","refused-by":[],"reader-line":false}
 {"line":"find . -name '*_test.go' -mtime -1","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"find . -name '*_test.go' | xargs rm","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"find . -name '*_test.go' | xargs rm","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"find . -name 'go build' -delete","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"find . -name 'go build' -delete","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"find . -name 'go build' -mtime -1","caller":"main","refused-by":[],"reader-line":false}
@@ -782,6 +806,10 @@
 {"line":"find . -name *.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"find . {-exec,sh} x","caller":"main","refused-by":[],"reader-line":false}
 {"line":"find . {-exec,sh} x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"find internal -name '*_test.go' -delete","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"find internal -name '*_test.go' -delete","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"find internal -name '*_test.go' -exec rm {} +","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"find internal -name '*_test.go' -exec rm {} +","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"flock lock -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"flock lock -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"for f in /tmp/a; do cat \"$f\"; done","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
@@ -798,6 +826,8 @@
 {"line":"for f in a b; do grep -n 'go build ./cmd/ze' \"$f\"; done","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"for f in a; do cat \"$f\"; done; go build -o bin/ze ./cmd/ze","caller":"main","refused-by":[],"reader-line":false}
 {"line":"for f in a; do cat \"$f\"; done; go build -o bin/ze ./cmd/ze","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"for f in internal/x/*_test.go; do rm \"$f\"; done","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"for f in internal/x/*_test.go; do rm \"$f\"; done","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"for p in a b; do ./le test unit all | tail -3; done","caller":"main","refused-by":[],"reader-line":false}
 {"line":"for p in a b; do ./le test unit all | tail -3; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"for p in a b; do go test ./$p; done","caller":"main","refused-by":[],"reader-line":false}
@@ -806,8 +836,14 @@
 {"line":"for p in a b; do go test ./internal/$p; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"for p in a b; do grep -c x a | tail -3; done","caller":"main","refused-by":[],"reader-line":false}
 {"line":"for p in a b; do grep -c x a | tail -3; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"git -C /repo rm --cached internal/foo/foo_test.go","caller":"main","refused-by":["bashDestructiveGit","bashTestDeletion"],"reader-line":false}
+{"line":"git -C /repo rm --cached internal/foo/foo_test.go","caller":"subagent","refused-by":["bashDestructiveGit","bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"git -C /srv/checkout log --oneline","caller":"main","refused-by":[],"reader-line":false}
 {"line":"git -C /srv/checkout log --oneline","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"git checkout -- internal/foo/foo_test.go","caller":"main","refused-by":["bashDestructiveGit","bashTestDeletion"],"reader-line":false}
+{"line":"git checkout -- internal/foo/foo_test.go","caller":"subagent","refused-by":["bashDestructiveGit","bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"git checkout -- internal/x/a_test.go","caller":"main","refused-by":["bashDestructiveGit","bashTestDeletion"],"reader-line":false}
+{"line":"git checkout -- internal/x/a_test.go","caller":"subagent","refused-by":["bashDestructiveGit","bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"git commit -m x","caller":"main","refused-by":["bashDestructiveGit"],"reader-line":false}
 {"line":"git commit -m x","caller":"subagent","refused-by":["bashDestructiveGit","bashAgentIdentity"],"reader-line":false}
 {"line":"git diff --output=out.txt","caller":"main","refused-by":[],"reader-line":false}
@@ -824,6 +860,8 @@
 {"line":"git grep -n 'go build' -- '*.go'","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"git grep -n x -- '*.go'","caller":"main","refused-by":[],"reader-line":false}
 {"line":"git grep -n x -- '*.go'","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"git log -- internal/foo/foo_test.go | grep rm","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"git log -- internal/foo/foo_test.go | grep rm","caller":"subagent","refused-by":["bashTestDeletion"],"reader-line":false}
 {"line":"git log --ext 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"git log --ext 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"git log --ext x","caller":"main","refused-by":[],"reader-line":false}
@@ -846,6 +884,8 @@
 {"line":"git reset --hard","caller":"subagent","refused-by":["bashDestructiveGit","bashAgentIdentity"],"reader-line":false}
 {"line":"git restore --staged f","caller":"main","refused-by":["bashDestructiveGit"],"reader-line":false}
 {"line":"git restore --staged f","caller":"subagent","refused-by":["bashDestructiveGit","bashAgentIdentity"],"reader-line":false}
+{"line":"git rm test/editor/y.et","caller":"main","refused-by":["bashDestructiveGit","bashTestDeletion"],"reader-line":false}
+{"line":"git rm test/editor/y.et","caller":"subagent","refused-by":["bashDestructiveGit","bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"git stash list","caller":"main","refused-by":["bashDestructiveGit"],"reader-line":false}
 {"line":"git stash list","caller":"subagent","refused-by":["bashDestructiveGit","bashAgentIdentity"],"reader-line":false}
 {"line":"git status | grep foo; ./le ai rules update index","caller":"main","refused-by":[],"reader-line":false}
@@ -984,6 +1024,8 @@
 {"line":"grep -n '{x}' f","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"grep -n 'é' f","caller":"main","refused-by":[],"reader-line":false}
 {"line":"grep -n 'é' f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"grep -n rm internal/foo/foo_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"grep -n rm internal/foo/foo_test.go","caller":"subagent","refused-by":["bashTestDeletion"],"reader-line":false}
 {"line":"grep -n x f.log","caller":"main","refused-by":[],"reader-line":false}
 {"line":"grep -n x f.log","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"grep -n x notes.md | head -5","caller":"fork","refused-by":[],"reader-line":false}
@@ -1019,6 +1061,8 @@
 {"line":"if true; then go vet ./internal/x; fi","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"if true; then go vet ./x; fi","caller":"main","refused-by":[],"reader-line":false}
 {"line":"if true; then go vet ./x; fi","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"if true; then rm internal/x/foo_test.go; fi","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"if true; then rm internal/x/foo_test.go; fi","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"let a=1; cat a","caller":"main","refused-by":[],"reader-line":false}
 {"line":"let a=1; cat a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"ls ${HOME}/tmp","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
@@ -1029,6 +1073,8 @@
 {"line":"ls -la internal/le &> /dev/null","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"ls | head; go test ./... | grep FAIL","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
 {"line":"ls | head; go test ./... | grep FAIL","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"ls; rm internal/x/testdata/y","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"ls; rm internal/x/testdata/y","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"mkdir -p \"$D\"/tmp/x","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
 {"line":"mkdir -p \"$D\"/tmp/x","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
 {"line":"mksh -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
@@ -1085,10 +1131,88 @@
 {"line":"rg -z x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"rg -z x notes.md","caller":"main","refused-by":[],"reader-line":false}
 {"line":"rg -z x notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rm \"test/plugin/x.ci\"","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm \"test/plugin/x.ci\"","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm 'a b_test.go'","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm 'a b_test.go'","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm 'unclosed_quote","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm 'unclosed_quote","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f \"$f\" && grep x internal/a_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -f \"$f\" && grep x internal/a_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f $(cat list) && grep x internal/a_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -f $(cat list) && grep x internal/a_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f bin/x # test/old","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rm -f bin/x # test/old","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f bin/x && go test ./internal/foo","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"rm -f bin/x && go test ./internal/foo","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f bin/x && ls test/plugin","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rm -f bin/x && ls test/plugin","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f bin/x && rm internal/a_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -f bin/x && rm internal/a_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f bin/x bin/y && wc -l internal/foo/foo_test.go | sort","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rm -f bin/x bin/y && wc -l internal/foo/foo_test.go | sort","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f bin/x; cat internal/foo/foo_test.go","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rm -f bin/x; cat internal/foo/foo_test.go","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"rm -f scratch && grep x internal/a_test.go","caller":"main","refused-by":[],"reader-line":false}
 {"line":"rm -f scratch && grep x internal/a_test.go","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f tmp/session/2026-11-11-021635/scratch/out.log && grep x internal/a_test.go","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rm -f tmp/session/2026-11-11-021635/scratch/out.log && grep x internal/a_test.go","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f x && bash -c 'rm internal/a_test.go'","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -f x && bash -c 'rm internal/a_test.go'","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f x && cat a > internal/a_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -f x && cat a > internal/a_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f x && cd internal/x_test_dir && rm a.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -f x && cd internal/x_test_dir && rm a.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f x && eval rm internal/a_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -f x && eval rm internal/a_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f x && find . -name '*_test.go' | xargs rm","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -f x && find . -name '*_test.go' | xargs rm","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f x && find internal -name '*_test.go' -delete","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -f x && find internal -name '*_test.go' -delete","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f x && git rm internal/a_test.go","caller":"main","refused-by":["bashDestructiveGit","bashTestDeletion"],"reader-line":false}
+{"line":"rm -f x && git rm internal/a_test.go","caller":"subagent","refused-by":["bashDestructiveGit","bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f x && grep -n rm internal/a_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -f x && grep -n rm internal/a_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -f x; for f in internal/a_test.go; do rm \"$f\"; done","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -f x; for f in internal/a_test.go; do rm \"$f\"; done","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -r internal/foo/*test*","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -r internal/foo/*test*","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -r test/","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -r test/","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -r test/x","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -r test/x","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -r testdata","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -r testdata","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -rf /repo/internal/le/chaos/selftest","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -rf /repo/internal/le/chaos/selftest","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -rf bin/le-latest","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rm -rf bin/le-latest","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rm -rf bin/x && rm -rf internal/foo/testdata","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -rf bin/x && rm -rf internal/foo/testdata","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -rf docs/architecture/testing/old","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rm -rf docs/architecture/testing/old","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rm -rf internal/component/cli/testing","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -rf internal/component/cli/testing","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -rf internal/component/web/testing","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -rf internal/component/web/testing","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -rf internal/foo/foo_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -rf internal/foo/foo_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -rf internal/le/chaos/selftest","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm -rf internal/le/chaos/selftest","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm -rf test/draft/wip.ci","caller":"main","refused-by":[],"reader-line":false}
+{"line":"rm -rf test/draft/wip.ci","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"rm 2>&1 internal/x/foo_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm 2>&1 internal/x/foo_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm bin/x \\","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm bin/x \\","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"rm internal/foo_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
 {"line":"rm internal/foo_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm internal/x/a_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm internal/x/a_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm internal/x/foo_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm internal/x/foo_test.go","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
+{"line":"rm internal/x/foo_test.go>/dev/null","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"rm internal/x/foo_test.go>/dev/null","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"rm tmp/x","caller":"main","refused-by":[],"reader-line":false}
 {"line":"rm tmp/x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"script -qc 'go build ./cmd/z' log","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
@@ -1149,6 +1273,8 @@
 {"line":"su -c 'go build ./cmd/z' builder","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"sudo -u u go test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
 {"line":"sudo -u u go test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"sudo /bin/rm -rf /repo/test/x","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"sudo /bin/rm -rf /repo/test/x","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"tcsh -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"tcsh -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"tee @PROJECT@/tmp/notes.txt","caller":"main","refused-by":[],"reader-line":false}
@@ -1215,3 +1341,5 @@
 {"line":"{ cat a; cat b; }","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"{ go test -run 'TestA|TestB' ./x | tail -5; }","caller":"main","refused-by":[],"reader-line":false}
 {"line":"{ go test -run 'TestA|TestB' ./x | tail -5; }","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"{ rm internal/x/foo_test.go; }","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"{ rm internal/x/foo_test.go; }","caller":"subagent","refused-by":["bashTestDeletion","bashAgentIdentity"],"reader-line":false}

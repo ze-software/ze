@@ -980,8 +980,10 @@ func TestSpecValidationRefusesObsoletePlacements(t *testing.T) {
 	}
 }
 
-// guardVerdict runs one Bash guard alone over a command and a checkout root.
+// guardVerdict runs one Bash guard alone over a command and a checkout root,
+// and adds the command to the recorded corpus while collectCorpus runs.
 func guardVerdict(check hookCheck, root, command string) *verdict {
+	recordCorpusLine(command, false)
 	return check(context{root: root, input: map[string]any{"command": command}})
 }
 
@@ -1019,7 +1021,6 @@ type guardRow struct {
 func judgeGuardRows(t *testing.T, root string, rows []guardRow) {
 	t.Helper()
 	for _, row := range rows {
-		recordCorpusLine(row.command, false)
 		result := guardVerdict(row.check, root, row.command)
 		if (result != nil) != row.refused {
 			message := ""
