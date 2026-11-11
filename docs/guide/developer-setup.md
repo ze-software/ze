@@ -645,8 +645,13 @@ section governs each of them.
 Check that the checkout builds and its tests run with one scoped package test:
 
 ```bash
-./le job run label unit-pkg command go test ./internal/core/textbuf/
+./le test unit pkg path ./internal/core/textbuf/
 ```
+
+It runs the package's tests under the feature tags with the race detector,
+admitted as a job, and a green run answers one line naming the packages that
+passed and the log it wrote (`../contributing/running-commands.md`, "Testing
+one package while you develop it").
 
 `./le verify changed` is the day-to-day evidence once you have a change: it
 judges only the change set against the upstream, so on a fresh clone it judges

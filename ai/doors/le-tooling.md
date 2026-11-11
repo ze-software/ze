@@ -62,7 +62,10 @@ launcher, and the test trees it runs. Here "outside" does not mean a customer. I
   outside `internal/le`.
 - **A bare `go test` omits the feature tags**, so plugins do not register and
   unrelated tests fail. Run one package through
-  `./le job run label unit-pkg command go test -tags ...`
+  `./le test unit pkg path <dir>/ [run <regex>] [vet]`, which takes the tags
+  from the toolchain. A run it does not express (`-v`, `-count`, a tag the
+  feature set lacks) stays on `./le job run label unit-pkg quiet command go
+  test -race -tags "$tags" ...` with the tags written out
   (`running-commands.md`, "A bare `go test` is not `./le test unit`" and
   "Testing one package while you develop it").
 - **A `.ci` that needs a Linux kernel feature carries `option=needs-linux`** and
@@ -118,7 +121,7 @@ launcher, and the test trees it runs. Here "outside" does not mean a customer. I
 | Command | Judges |
 |---------|--------|
 | `./le ai hooks unit` | Every hook golden row and behavioral fixture, in process |
-| `./le job run label unit-pkg command go test -tags ... ./internal/le/<area>/` | The package you changed, admitted and logged |
+| `./le test unit pkg path ./internal/le/<area>/` | The package you changed, under the feature tags with the race detector, admitted and logged |
 | `./le test functional runner` | The runner primitives (`test/runner/*.ci`) |
 | `./le cli grammar` | le's namespaces obey the command grammar |
 | `./le repo bootstraps`, `./le repo compiles` | le builds from what git holds. The tree compiles in every shipped flavor |

@@ -797,6 +797,54 @@ func TestPkgActionReportsARedFixturePackage(t *testing.T) {
 	}
 }
 
+// shortActionSurfaces are the checkout-relative files that show how to test one
+// package: the pages, the rule point an agent reads, the door of le, and the
+// setup closing note (AC-10).
+var shortActionSurfaces = []string{
+	"docs/contributing/testing.md",
+	"docs/contributing/running-commands.md",
+	"docs/guide/developer-setup.md",
+	"ai/rules/points/testing/native-test-actions/run-the-focused-test-through-a-native-action.md",
+	"ai/doors/le-tooling.md",
+	"internal/le/setup/setup.go",
+}
+
+// TestDocsShowTheShortPackageAction pins AC-10: each surface that shows a
+// one-package test shows the short action, a long-form `go test` or `go vet`
+// example kept for a flag the action does not take carries the feature tags,
+// and no example spells the launcher as its installed copy bin/le.
+// Method: read each surface from this checkout and judge it line by line, so a
+// page that slides back to the tagless form or to bin/le goes red here.
+func TestDocsShowTheShortPackageAction(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("find the checkout the surfaces live in: %v", err)
+	}
+	const short = "./le test unit pkg path "
+	for _, name := range shortActionSurfaces {
+		t.Run(name, func(t *testing.T) {
+			content, err := os.ReadFile(filepath.Join(root, name)) //nolint:gosec // a fixed checkout-relative path
+			if err != nil {
+				t.Fatalf("read %s: %v", name, err)
+			}
+			text := string(content)
+			if !strings.Contains(text, short) {
+				t.Errorf("%s shows no %q example of the short package action", name, short)
+			}
+			for number, line := range strings.Split(text, "\n") {
+				longForm := strings.Contains(line, "command go test") || strings.Contains(line, "command go vet")
+				if longForm && !strings.Contains(line, "-tags") {
+					t.Errorf("%s:%d keeps the long form without the feature tags: %s", name, number+1, line)
+				}
+				trimmed := strings.TrimLeft(line, " \t`|$")
+				if strings.Contains(line, "command bin/le") || strings.HasPrefix(trimmed, "bin/le ") {
+					t.Errorf("%s:%d spells the launcher bin/le where an example runs it: %s", name, number+1, line)
+				}
+			}
+		})
+	}
+}
+
 // writeRedFixture writes redFixture under a temporary root, commits it as a git
 // checkout, and links its cache to this checkout's when one exists.
 func writeRedFixture(t *testing.T) string {

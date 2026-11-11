@@ -108,7 +108,7 @@ Every other option travels on. An area with a table refuses it, except after
 a keyword of kind `argv`, which ends the grammar: every word after it is
 another program's line, handed over as typed. `command <argv...>` is that
 keyword, so `./le job run label x command echo -html=cover.out` prints
-`-html=cover.out`, and `./le job run label encode-list command bin/le test bgp
+`-html=cover.out`, and `./le job run label encode-list command ./le test bgp
 encode --list` hands `--list` to the child. A pass-through area
 (`leroot.RegisterForwarding`) hands every word after its name to its program,
 a trailing help spelling included: `./le mrt statistics --help` is the MRT
@@ -492,8 +492,12 @@ other copy: code is tested in the main checkout (`ai/rules/precommit-verify.md`)
 A bare run in such a copy carries the same trap besides, and confirms a red
 that does not exist.
 
-To scope a run to one package and keep the tags, read the tag list out of
-`feature-gates.txt` and pass it with `-tags`, prefixed by `ze_core`:
+To scope a run to one package and keep the tags, run
+`./le test unit pkg path <dir>/`, which takes the tags from the toolchain
+("Testing one package while you develop it"). A run the short action does not
+express (a `-v`, a `-count`, a benchmark, a tag no group declares) stays on
+`./le job run`, and there you read the tag list out of `feature-gates.txt` and
+pass it with `-tags`, prefixed by `ze_core`:
 
 ```
 tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
@@ -931,7 +935,7 @@ its journal row carries the reproduction attempt and says the storage stalled.
 ## Where a Go test keeps its temp dirs
 
 Every Go test le starts, through a native unit action, a verify unit stage or
-`./le job run ... command go test`, runs with `GOTMPDIR=<home>/.zt`. Go 1.27's
+a `go test` child of `./le job run`, runs with `GOTMPDIR=<home>/.zt`. Go 1.27's
 `t.TempDir()` creates beneath `GOTMPDIR`, and the go command writes its build
 work directory there, test binaries included, so both sit on the device that
 holds your home rather than under `TMPDIR`. A work directory holds 0.5-0.7G
@@ -1923,9 +1927,69 @@ inside another job's slot uses its parent's entry rather than queueing behind it
 
 ## Testing one package while you develop it
 
-`./le job run label unit-pkg command <argv...>` is the supported route. It takes
-the admission slot, so one heavy job runs while the peers queue, and it tees the
-child's merged output to the job log.
+`./le test unit pkg` is the route for a package you are developing:
+
+```
+./le test unit pkg path ./internal/core/eap/
+./le test unit pkg path ./internal/component/ike/... run TestEAPTLS
+./le test unit pkg path ./internal/le/job/ path ./internal/le/runlog/
+./le test unit pkg path ./internal/le/commit/ vet
+./le test unit pkg changed
+```
+
+It runs `go test` with the toolchain's timeout, the checkout's feature tags and
+`-race`, built by the same toolchain call a unit group uses, so no tag list is
+copied by hand. `run <regex>` becomes `-run <regex>`. `vet` runs `go vet` under
+the same tags instead, which type-checks the packages and their test files.
+`changed` takes the packages `./le repo changed scope print packages` answers
+for this checkout, in place of `path`. Each value follows its own keyword, and
+a value that begins with a dash is refused, so no word can become a `go` flag.
+
+The run is admitted under the label `unit-pkg`, or `vet-pkg` for a vet, as a
+quiet job ("`quiet`, and the pattern it replaces"), and the action answers from
+the quiet log:
+
+```
+test unit pkg: exit 0, 2 packages ok, log tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-unit-pkg-<key>.log
+```
+
+A package counts as ok only when it ran a test. A package whose `ok` line says
+`[no tests to run]`, or whose `?` line says `[no test files]`, is counted apart
+as `<m> ran no test`. When `go test` exits 0 and no package ran a test, a
+`run` that matched nothing included, the action answers exit 1, because a
+question that got no answer is not a pass. A red prints each failed test's
+`--- FAIL:` line with the lines indented beneath it, up to twenty lines, then
+the summary with the packages ok and failed. A green vet answers
+`test unit pkg: exit 0, vet, log <path>`. The `waited <s>s` clause appears as on
+a quiet job.
+
+It refuses with exit 2, before it takes a slot:
+
+| Line | Why, and what to run |
+|------|----------------------|
+| neither `path` nor `changed`, or both | nothing, or two things, say which packages |
+| `run` beside `vet` | vet runs no test for `run` to select |
+| `path ./...` | the whole tree is the owner's run, `./le test unit all` |
+| `path` equal to a group's pattern (`./internal/core/...`) | run that group, `./le test unit core` |
+| `path` holding two or more groups (`./internal/...`) | a near-whole-tree run: name the packages meant |
+| `path` under, or holding, the `installer` group | its `ze_installer` tag is not in the feature set, so its tagged tests would compile out: run `./le test unit installer` |
+| `changed` whose answer the selector widened to every package | the selector's reason, and the `path` form |
+
+A package `changed` reached under the `installer` group is left out of the run
+instead, and the answer names it with `./le test unit installer`. The race
+detector is always on.
+<!-- source: internal/le/test/unit/pkg.go -- pkgParameters, answerPkg, pkgLineOf, namedPackagesRun, changedPackages, PkgReport.read, PkgReport.Text -->
+<!-- source: internal/le/test/unit/groups.go -- groups, place -->
+<!-- source: internal/le/runlog/runlog.go -- PackageResults, Failures -->
+
+### The long form, for any other command
+
+`./le job run label <label> command <argv...>` admits any other command, and it
+is the route for a package run the short action does not express: `-v`,
+`-count`, `-bench`, `-cover`, `-json`, `-args`, a run without `-race`, or a
+test behind a tag the feature set lacks (`integration`). It takes the admission
+slot, so one heavy job runs while the peers queue, and it tees the child's
+merged output to the job log.
 
 Everything after the `command` keyword is the child's argv, and `job` passes it
 through unchanged (its kind is `argv`, `KindArgv` in
@@ -1968,29 +2032,31 @@ root and named-build identity, while preserving the parent job setting. Keep
 <!-- source: internal/le/job/process.go -- commandEnvironment, goTestRace, goFlagsRace -->
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- EffectiveGoFlags -->
 
-Carry the feature tags from the recipe at the top of this page, or the run
-judges a tree in which no gated plugin registers.
+Carry the feature tags from the recipe in "A bare `go test` is not `./le test
+unit`", or the run judges a tree in which no gated plugin registers. These two
+keep the long form for a flag the short action does not take:
 
 ```
 tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
-./le job run label unit-pkg quiet command go test -race -tags "$tags" ./internal/core/eap
-./le job run label unit-pkg quiet command go test -race -tags "$tags" -run TestEAPTLS ./internal/component/ike/...
+./le job run label unit-pkg quiet command go test -v -count=1 -race -tags "$tags" -run TestEAPTLS ./internal/component/ike/...
+./le job run label unit-pkg quiet command go test -race -tags "$tags integration" ./internal/exabgp/bridge/
 ```
 
-Drop `-race` while iterating if you must. A package tested without `-race` has
+On the long form, drop `-race` while iterating if you must. A package tested without `-race` has
 not been tested the way the gate tests it, so put it back before the end.
 
 ### `quiet`, and the pattern it replaces
 
 `quiet` sits between the label and the `command` keyword. It sends the child's
-merged output to `tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-<label>.log` instead of
-the terminal, and answers the exit code, how long admission waited when it
+merged output to `tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-<label>-<key>.log`
+instead of the terminal, where `<key>` is the first eight hex digits of the
+command's job key, and answers the exit code, how long admission waited when it
 waited a whole second or more, that log's path, and up to twenty failure lines
 from it, each with its line number. At zero wait the `waited` clause is left
 out.
 
 ```
-job unit-pkg: exit 1, waited 42s, log tmp/session/2026-09-01-abc/scratch/job-unit-pkg.log
+job unit-pkg: exit 1, waited 42s, log tmp/session/2026-09-01-abc/scratch/job-unit-pkg-3f9a01c2.log
 412:--- FAIL: TestEAPIdentity (0.00s)
 418:FAIL	github.com/ze-software/ze/internal/core/eap	0.310s
 ```
@@ -2008,7 +2074,9 @@ The job log under `tmp/.ze-jobs/` is not that file. It supplies the waiting
 banner's progress observation and a follower's replay.
 `Ticket.Release` removes its own registry log when the job ends.
 The quiet log is the session's own and stays until the session's scratch
-directory goes. Two runs of one label in one session overwrite it.
+directory goes. Two runs of the same command under one label in one session
+overwrite it; two different commands under one label each keep their own.
+<!-- source: internal/le/job/quiet.go -- quietLog -->
 <!-- source: internal/le/job/job.go -- Ticket.Release -->
 <!-- source: internal/le/job/registry.go -- reportBusy -->
 
@@ -2023,10 +2091,14 @@ attribution report` answers, for each test a quiet log reports failed, whether
 the files you name cause it:
 
 ```
-./le job run label unit-pkg quiet command go test -race -tags "$tags" ./internal/le/commit
-./le test attribution report log tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-unit-pkg.log \
+./le test unit pkg path ./internal/le/commit/
+./le test attribution report log tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-unit-pkg-<key>.log \
   package internal/le/commit tags "$tags" file internal/le/commit/create.go file internal/le/commit/create_test.go
 ```
+
+The `log` value is the path the first line's summary names. `tags` is the
+feature set the run used, from the recipe in "A bare `go test` is not `./le
+test unit`".
 
 Name every file of your change with its own `file` keyword, as `./le commit
 create` takes them. The changed-set selector cannot do it for you: it cannot
@@ -2093,12 +2165,13 @@ a cost: a package whose whole run takes under a second can list the test that
 dominates it. The row shows its seconds, so such a row is one to dismiss.
 
 A plain `go test` prints no time for a passing test, so a Go log must come
-from a run with `-v`. The quiet job route keeps it, and `runlog` still picks
-the same failure lines, because a passing test's line never matches them:
+from a run with `-v`, which `./le test unit pkg` does not take. The long quiet
+job route keeps it, and `runlog` still picks the same failure lines, because a
+passing test's line never matches them:
 
 ```
 ./le job run label unit-pkg quiet command go test -v -race -tags "$tags" ./internal/core/eap
-./le test cost report log tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-unit-pkg.log
+./le test cost report log tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-unit-pkg-<key>.log
 ```
 
 The report exits 0 whatever it lists: it is triage, never a gate. A line that

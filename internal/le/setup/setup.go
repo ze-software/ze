@@ -208,7 +208,7 @@ func (s *Setup) Run() (*Report, int) {
 		return report, 1
 	}
 	if code == 0 {
-		report.Note("Test with the scoped tests of what you change, for example: ./le job run label unit-pkg command go test ./internal/core/textbuf/ (GitHub CI verifies a pushed commit)")
+		report.Note("Test with the scoped tests of what you change, for example: ./le test unit pkg path ./internal/core/textbuf/ (GitHub CI verifies a pushed commit)")
 	}
 	return report, code
 }

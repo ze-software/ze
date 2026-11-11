@@ -9,11 +9,11 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 ```sh
 ./le setup install
 ./le setup check
-./le job run label unit-pkg command go test ./internal/core/textbuf/
+./le test unit pkg path ./internal/core/textbuf/
 ```
 
 `./le setup check` reports every tool setup installs, and the scoped package
-test proves the checkout builds and its tests run
+test proves the checkout builds and its tests run under the feature tags
 (`../guide/developer-setup.md`, "After Setup").
 
 `./le verify current` is the full verification, Thomas's release check, which
@@ -37,7 +37,7 @@ Use the narrowest test that covers your change. Escalate only when needed.
 
 | Step | What you run | When | Time |
 |------|--------------|------|------|
-| 1 | `./le job run label one-test command go test ./pkg/... -run TestName` | Iterating on one test | seconds |
+| 1 | `./le test unit pkg path ./internal/core/textbuf/ run TestName` | Iterating on one test | seconds |
 | 2 | `./le test unit bgp` | Checking one component group | 10s to 1:30 |
 | 3 | `./le test functional plugin` | Checking the user-visible path | varies |
 | 4 | GitHub CI on the pushed commit | Judging the pushed change set: no agent runs it locally | minutes |
@@ -61,9 +61,38 @@ skips it. When Thomas starts `./le verify current`, it runs every stage in a fre
 at HEAD, through the same lifecycle as `./le verify worktree`, so an edit made
 while it runs cannot move the tree it judges; `./le verify current fast` runs
 the changed-files stages in place, over the working tree.
-The narrower commands are development tools. `./le job run` admits an individual heavy command
-through `internal/le/job`, so concurrent sessions do not oversubscribe the
-machine.
+The narrower commands are development tools. `./le test unit pkg` admits its
+run through `internal/le/job`, and `./le job run` admits any other heavy
+command the same way, so concurrent sessions do not oversubscribe the machine.
+
+### One package: `./le test unit pkg`
+
+`./le test unit pkg path <dir>/ [run <regex>] [vet]` tests the packages it
+names under the feature tags from `feature-gates.txt`, with the race detector
+and the toolchain's timeout, admitted under the job label `unit-pkg`. Repeat
+`path` for each package. `run` hands its regex to `go test -run`. `vet` runs
+`go vet` on the same packages and their test files instead, under `vet-pkg`.
+`changed` in place of `path` takes the packages the change reaches.
+
+The output goes to this session's scratch log. A green run answers one line,
+`test unit pkg: exit 0, <n> packages ok, ..., log <path>`, which counts only
+the packages that ran a test. A red run prints each failed test's
+`--- FAIL:` line with the lines beneath it, then that summary. A run in which
+no package ran a test, a `run` that matched nothing included, answers exit 1.
+
+It refuses with exit 2, before it takes a slot, a line that would test more
+than the packages meant: `path ./...` (the whole tree, `./le test unit all`,
+is the owner's run), a group's whole pattern (run that group), a value that
+spans two or more groups, and a package under the `installer` group, whose
+`ze_installer` tag the feature set lacks (run `./le test unit installer`). A
+`changed` answer the selector widened to every package is refused the same
+way. The race detector is always on, and the action takes no other `go test`
+flag: a run that needs `-v`, `-count`, `-bench` or a cover profile stays on
+`./le job run label unit-pkg quiet command go test -race -tags "$tags" ...`
+with the tags written out (`running-commands.md`, "Testing one package while
+you develop it").
+<!-- source: internal/le/test/unit/pkg.go -- pkgParameters, answerPkg, pkgLineOf, namedPackagesRun, changedPackages, PkgReport.Text -->
+<!-- source: internal/le/test/unit/groups.go -- groups, place -->
 
 ### Component groups for step 3
 
@@ -96,8 +125,8 @@ right output, does the state machine transition correctly, does the encoder
 round-trip.
 
 ```sh
-./le job run label bgp-message command go test ./internal/component/bgp/message/...
-./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
+./le test unit pkg path ./internal/component/bgp/message/...
+./le test unit pkg path ./internal/component/bgp/route/ run TestParseOrigin
 ```
 
 Dynamic-group coverage exercises each plugin's real configuration boundary:
@@ -141,8 +170,10 @@ the host. Write such a test this way:
   header comment.
 
 Run the evidence as your own user through the launcher, for example
-`./le job run label unit-pkg quiet command go test -v -count=1 -run '^TestName$' ./internal/core/routewatch`,
-and read `--- PASS` for each test. Off Linux, `Enter` returns true at once and
+`./le job run label unit-pkg quiet command go test -v -count=1 -race -tags "$tags" -run '^TestName$' ./internal/core/routewatch`,
+and read `--- PASS` for each test in the quiet log. It keeps the long form
+because the short action takes no `-v`, so `$tags` comes from the recipe in
+`running-commands.md`, "A bare `go test` is not `./le test unit`". Off Linux, `Enter` returns true at once and
 the test runs in place, which serves a portable test such as the traceroute
 command tests. The namespace mechanics are in
 [QEMU integration testing](../architecture/testing/qemu-integration.md),
@@ -162,7 +193,8 @@ Go test callers using `gotoolchain.Toolchain.Environment` MUST set
 production commands retain operator checkout overrides and named-build checks.
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- EnvOptions, Environment -->
 
-Direct `./le job run ... command go test ...` children use the same isolation
+A `go test` that `./le job run` starts as its direct child, and the one
+`./le test unit pkg` starts through it, use the same isolation
 at the process boundary, including Go's optional leading `-C` directory option.
 The admission process retains its root and job identity; only the test child's
 checkout/build identity is removed. The test child also gets `GOTMPDIR` set to
@@ -222,18 +254,20 @@ Each `test/` subdirectory has its own runner and format:
 | `test/exabgp-compat/` | ExaBGP compatibility | `le test exabgp` |
 
 Run a single test by one-based ID or exact name, list the available IDs, or
-resume from the last printed ID after an interrupted run. Queue the runner
-through `./le job run label <label> command <argv...>` to use the same admission
-as a full suite.
+resume from the last printed ID after an interrupted run. Each of these
+runners admits itself through the same job admission as a full suite, so it
+needs no `./le job run` around it (`running-commands.md`, "One verify at a
+time").
 
 ```sh
-./le job run label plugin-42 command bin/le test bgp plugin 42          # test id 42
-./le job run label encode-list command bin/le test bgp encode --list    # list N/TOTAL, id, and name
-./le job run label plugin-from-42 command bin/le test bgp plugin --start 42  # id 42 and every later test
-./le job run label editor-7 command bin/le test editor 7                # editor test id 7
-./le job run label editor-nav command bin/le test editor -p nav         # editor tests matching "nav"
-./le job run label exabgp-from-20 command bin/le test exabgp --start 20 # resume ExaBGP compatibility
+./le test bgp plugin 42              # test id 42
+./le test bgp encode --list          # list N/TOTAL, id, and name
+./le test bgp plugin --start 42      # id 42 and every later test
+./le test editor 7                   # editor test id 7
+./le test editor -p nav              # editor tests matching "nav"
+./le test exabgp --start 20          # resume ExaBGP compatibility
 ```
+<!-- source: internal/le/test/harnesstool/harnesstool.go -- RunnerAnswer, admitRun -->
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- TestFinished -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- ExaBGP compatibility selection -->
@@ -779,15 +813,17 @@ Reproducing a load-dependent flake is
 
 | I want to... | Run |
 |--------------|-----|
-| Check my setup | `./le setup check`, then `./le job run label unit-pkg command go test ./internal/core/textbuf/` |
-| Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
-| Run one functional test | `./le job run label plugin-42 command bin/le test bgp plugin 42` |
+| Check my setup | `./le setup check`, then `./le test unit pkg path ./internal/core/textbuf/` |
+| Test one package | `./le test unit pkg path ./internal/core/textbuf/`; add `vet` to vet it instead |
+| Run one Go test | `./le test unit pkg path ./internal/core/textbuf/ run TestName` |
+| Test the packages my change reaches | `./le test unit pkg changed` |
+| Run one functional test | `./le test bgp plugin 42` |
 | Run a component group | `./le test unit bgp` |
 | Judge my committed change set before a push | the scoped package tests and functional suites `./le repo changed scope print both` names; GitHub CI verifies the pushed commit, and no agent runs `./le verify` |
 | Have the release check run: GitHub CI runs it on a pushed commit, and Thomas runs it at his terminal | `./le verify current` |
 | Type-check every supported feature combination | `./le go staticcheck check` |
 | List native test actions | `./le help` |
-| List functional tests | `./le job run label encode-list command bin/le test bgp encode --list` |
+| List functional tests | `./le test bgp encode --list` |
 | Run one fuzz target | `FUZZ=FuzzName PKG=./path/... TIME=30s ./le test fuzz run` |
 | Run all fuzz targets | `./le test fuzz run` |
 | Check the commit compiles | `./le repo compiles check` |

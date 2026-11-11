@@ -8,7 +8,7 @@
 | Release reason | Release-independent development tooling: it adds a short `le` action for scoped tests and changes no shipped binary. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 6 of 7 done (the refusal messages and AC-13); phase 7 next |
+| Phase | 7 of 7 done; closure next |
 | Handoff | - |
 | Updated | 2026-11-11 |
 
@@ -525,10 +525,15 @@ The candidates are every command name `Commands` answers that is not hidden, and
 
 - The unit groups are not admitted: they stream through `gaterun.Run`. Admitting them is `spec-native-action-job-admission.md`'s work, not this spec's.
 - The wait was already in the job's JSON payload; only the text and the file lacked it.
+- Phase 7: the functional-runner examples on `docs/contributing/testing.md` wrapped `bin/le test <suite>` in `./le job run`. Every `le test` runner already admits itself (`RunnerAnswer`, `internal/le/test/harnesstool/harnesstool.go`), so the examples became the bare `./le test bgp plugin 42` and its siblings rather than `./le` inside `job run`.
+  → Decision: the AC-10 check `TestDocsShowTheShortPackageAction` judges three things on each surface: it holds `./le test unit pkg path `, every line holding `command go test` or `command go vet` holds `-tags`, and no line holds `command bin/le` or opens with `bin/le `. Prose that names `bin/le` as the installed copy stays.
+  → Decision: a one-package example the short action cannot express keeps the long form and gains `-race -tags "$tags"`: the userns `-v -count=1` evidence run, the `-v` cost-report run, and an `integration`-tagged run on `running-commands.md`.
+- Phase 7 found `docs/contributing/running-commands.md` naming the quiet log `job-<label>.log`, where `quietLog` (`internal/le/job/quiet.go`) has written `job-<label>-<first eight hex of the job key>.log` since 2026-09-03, and saying that two runs of one label overwrite it, where only two runs of the same command do. The page was repaired, with the attribution and cost-report examples that passed that path.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `hook-existing-patterns-false-positive.md` | 2026-11-11 | `rawHeavy` refuses a `go vet` quoted in a grep pattern inside a `for` loop |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
