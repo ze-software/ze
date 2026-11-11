@@ -15,11 +15,12 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Remaining verification
 
-The active continuation's latest shared build refusal was inconsistent vendoring
-while another session added `github.com/moby/patternmatcher v0.6.1`. That owner
-now reports its explicit vendor entry and files complete; main is retrying a
-current-source named proof. No result is claimed before the runner answers.
-Preserve that session's module and vendor work.
+The dependency addition is now coherent enough for main's current-source named
+netlink scoped package proof to pass and its negative overlay to run. The later
+verbose clean control could not start: foreign in-progress hook-runtime edits
+left callers in `lossypipe.go` and `rawheavy.go` passing three arguments to
+`admittedCommand`, whose current signature takes two. Preserve that owner's
+work; this is a shared launcher build refusal, not a netlink test failure.
 
 At the final NTP phase boundary, the repair is committed as `cb44713011` with
 the scoped race tests and actual daemon functional test passing, as recorded
@@ -266,9 +267,9 @@ detector; its `run` keyword takes a regex. It accepts no arbitrary Go flags.
    loopback and the client uses host networking. A forwarded guest Docker
    socket cannot stand in for that network identity.
 
-The handover's unqualified netlink `GetStats` item still needs a specific proof
-identified. Current `netlinkBackend.GetStats` refuses missing links, read errors
-and absent statistics, but the backend's current test files contain no direct
+The handover's unqualified netlink `GetStats` item lacked a direct-method
+regression. `netlinkBackend.GetStats` refuses missing links, read errors
+and absent statistics, but the backend's existing test files contained no direct
 `GetStats` call. `TestGetStatsInvalidName` in the iface package exercises only
 name validation, and `TestGetInterface` reads statistics through a different
 producer. Neither is relabelled as proof of those three `GetStats` branches.
@@ -278,9 +279,29 @@ declares `TestNetlinkGetStatsMissingLink`,
 `TestNetlinkGetStatsReadErrorIsNotAbsence`, `TestNetlinkGetStatsMissingCounters`,
 `TestNetlinkGetStatsZeroCounters` and `TestNetlinkGetStatsMeasuredCounters`.
 They drive the real method through its `linkByNameForStats` lookup seam; the
-production default remains `netlink.LinkByName`. Main is executing
-`test unit pkg path ./internal/plugins/iface/netlink/ run '^TestNetlinkGetStats'`;
-no passing verdict is yet claimed.
+production default remains `netlink.LinkByName`. Main's current-source named
+`test unit pkg path ./internal/plugins/iface/netlink/ run '^TestNetlinkGetStats'`
+exited zero, reporting the selected package `ok` in
+`tmp/session/2026-11-11-014000/scratch/job-unit-pkg-d8ec4396.log`. The native
+route supplies full feature tags and race. Its default output gives no
+individual test names, so no five named PASS lines are claimed. Independent
+source review by `reload_close` is clean.
+
+The prepared negative overlay changes only the two refusal branches: another
+read error is mislabeled as `ErrInterfaceNotFound`, and missing statistics
+become a successful zero-counter answer. It is retained as
+`tmp/session/2026-11-11-014000/scratch/netlink-getstats-negative-overlay.json`,
+mapping to `netlink-getstats-negative.go.txt` beside it. Main executed it through
+the Go child's overlay flag, without mutating shared source. In
+`tmp/session/2026-11-11-014000/scratch/job-netlink-getstats-negative-d7c279be.log`,
+both permission and wrapped-I/O subcases of
+`TestNetlinkGetStatsReadErrorIsNotAbsence` fail on the fabricated absence, and
+`TestNetlinkGetStatsMissingCounters` fails on the fabricated zero record.
+The typed-missing-link, valid-zero and measured-counter controls pass in the
+same negative run. The subsequent verbose clean attempt stopped at the foreign
+hook-runtime launcher compile failure before any test ran; that clean control
+remains owed. The initial scoped package pass and observed negative support
+this standalone coverage piece, while the full refusal spec stays open.
 This is not a kernel-capability finding or a reason to repeat the already-passing
 VPP test.
 

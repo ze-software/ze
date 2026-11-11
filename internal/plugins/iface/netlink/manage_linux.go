@@ -684,11 +684,15 @@ func (b *netlinkBackend) GetMACAddress(ifaceName string) (string, error) {
 	return hw.String(), nil
 }
 
+// linkByNameForStats isolates the kernel lookup so tests can supply read errors
+// and a link without counters. Tests MUST restore it and MUST NOT run in parallel.
+var linkByNameForStats = netlink.LinkByName
+
 func (b *netlinkBackend) GetStats(ifaceName string) (*iface.InterfaceStats, error) {
 	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return nil, fmt.Errorf("iface: get stats on %q: %w", ifaceName, err)
 	}
-	link, err := netlink.LinkByName(ifaceName)
+	link, err := linkByNameForStats(ifaceName)
 	if _, notFound := errors.AsType[netlink.LinkNotFoundError](err); notFound {
 		// No such link is absence and only absence, as in readLink: every
 		// other error is a read that did not answer.
