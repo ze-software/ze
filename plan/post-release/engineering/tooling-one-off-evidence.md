@@ -4255,3 +4255,21 @@ HTML report have no validation of their own: `writeSVGChart` and
 `writeHTMLTable` are called only from `HTML()`, after `HTML()` validates the raw
 rows. So the recorded HTML walk (`ValidateResults(nil)` in `html.go`, "lossy raw
 row was ranked") is the break for both.
+
+## P-18: the stale generator cuts rebuilt and walked (2026-11-11)
+
+Review Gate round 3 found three generator cuts unwalked: `scale-simulator`,
+docker-lab command startup and installer first stop. The generator pinned
+hashes the tree has moved past, but each cut's anchor still stands, unchanged,
+in the same function. A fourth cut, docker-lab lab-branch startup, was
+unwalked and unrecorded too.
+
+| Cut | Site today | Carrier | Break | Red |
+| --- | --- | --- | --- | --- |
+| installer first stop | `internal/le/setup/docker/kernel/dockerkernel.go` `cancelInstallOnSignal` | `TestInstallSecondSignalEndsWaitingEntry` | already recorded: "Recorded reds for existing carriers, batch of 2026-11-10" (`p18-installer-second-signal`, the same edit to the same unchanged site) | "second interrupt was suppressed while the owned step ignored TERM" |
+| scale simulator | `internal/le/test/deployment/l2tpscale.go` `realL2TPScaleSystem.Run` (the simulator command, not the earlier walks' `Start`) | `TestScaleSimulatorCancellationJoinsActualDescendants` | the command context is detached from `ctx` | "canceled simulator waited on a surviving descendant" |
+| docker-lab command startup | `internal/le/test/qemu/dockerlab_command.go`, the boot readiness context | `TestDockerLabStartupCancellationStopsOnlyOwnedVM/command` | readiness detached from `ctx` | "own-system startup lost cancellation: context deadline exceeded" |
+| docker-lab lab startup | `internal/le/test/qemu/dockerlab.go` `session.waitReady` | `TestDockerLabStartupCancellationStopsOnlyOwnedVM/lab` | readiness waits on `context.Background()` | "readiness detached from the canceled root" |
+
+Each walk overlaid the producer, and the carrier passed again on the restored
+bytes. Every cut the P-18 generator names now has an attributed red.
