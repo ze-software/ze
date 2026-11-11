@@ -7,10 +7,10 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md`, "Goal and scope": `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of `spec-doctor-coverage-1-audit-and-gate` makes every area child release work |
 | RFC gaps | - |
-| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the `recent-events` check and the doctor-coverage gate, landed in ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md`, whose phase P0a registers the cross-cutting codes (`doctor-internal-defect`, `doctor-audit-record-failed`), the event-code registration and the convention that a report-bus raise carries its own fix, and whose phase P0b builds the report-bus raise route: both come before this spec's P2 to P5, and this spec builds no raise route of its own; `plan/release/validation/spec-doctor-coverage-4-api-surfaces.md`, which owns the management listener classes (SSH, web and MCP after start) and the SSH public-key class (its AC-13), and registers `doctor-mgmt-auth-failed` and `doctor-mgmt-user-list-unreadable` with the check that declares them (P2 here needs them); `plan/release/validation/spec-doctor-coverage-9-config-yang.md`, which owns the editor commit and store classes (`doctor-store-integrity`, `doctor-store-permissions`, `doctor-store-staged-leftover`); `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` reuses `doctor-cli-editor-unavailable`, which this spec registers (its AC-22), and owns the SSH boot half of the listener class (its AC-8) |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the `recent-events` check and the doctor-coverage gate, landed in ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md`, whose phase P0a registers the cross-cutting codes (`doctor-internal-defect`), the event-code registration and the convention that a report-bus raise carries its own fix: it comes before this spec's P3 to P5. Its P0b (the report route for a forked plugin) is not needed here: the SSH server and the `cli` sessions run in the daemon process and raise through `internal/core/report` directly, and the `ze cli` client lines (AC-13) raise nothing; `plan/release/validation/spec-doctor-coverage-4-api-surfaces.md`, which owns the management listener classes (SSH, web and MCP after start), the SSH public-key class (its AC-13) and, by the cross-child decision recorded in its header, every SSH management-auth row of this area's inventory: the login failures (its AC-2, AC-11), the unreadable user list (its AC-12) and the audit record (its AC-4), with `doctor-mgmt-auth-failed`, `doctor-mgmt-user-list-unreadable` and the SSH lines that carry them; `plan/release/validation/spec-doctor-coverage-9-config-yang.md`, which owns the editor commit and store classes (`doctor-store-integrity`, `doctor-store-permissions`, `doctor-store-staged-leftover`); `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` reuses `doctor-cli-editor-unavailable`, which this spec registers (its AC-22), and owns the SSH boot half of the listener class (its AC-8) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -39,6 +39,7 @@ corrected"). This spec closes every gap the area owns:
 | "An editor session's state was not persisted: ... or a session's model failed to close" (sites: the `ssh/ssh.go` stop drain and session close) | `sessionCloseMiddleware` logs the error of `owner.closer.Close()`. The closer is the session's `cli.Model`, whose `Close` ends dispatch, calls `History.Close` (which returns nothing) and returns `TranscriptWriter.Close`, the close of the transcript file. So the session-close line reports a transcript file that did not close, never editor state | split: the stop-drain line stays in the editor-storage class (AC-8, AC-9); the session-close line is the transcript class (AC-10) |
 | "Attaching the CLI gives a command-only session: the config editor could not be built (`unicli.NewModel` error)", state read "the editor's store and draft" | `NewModel` fails only when `NewCompleter` or `NewConfigValidator` fails, both on the YANG loader (`yang.DefaultLoader`, `config.YANGSchema`). The store and draft causes are `newSessionEditor`'s (`cmd/ze/hub/session_editor.go`), whose lines child 11 AC-22 codes | the check reads both: the schema load and the active config's editor build (AC-11) |
 | "SSH is not serving a configured listener" | the boot half is `cmd/ze/hub/service_ssh.go` (`sshBuildImpl`, `sshBuildStandaloneImpl`); the after-start half is `serveListener` (`ssh/listener_start.go`) | owned by siblings, no AC here: boot by child 11 AC-8, after start by child 4 (management listener classes), both under `doctor-mgmt-listener-not-serving` |
+| "SSH login refused", "running-config users unreadable", "SSH audit record failed" | the lines are `authenticatePasswordResult`, `authenticatePublicKeyResult` and `recordAuthFailure` (`ssh/passwordauth.go`, `ssh/pubkey.go`, `ssh/ssh.go`) | owned by `plan/release/validation/spec-doctor-coverage-4-api-surfaces.md` (AC-2, AC-11 login-failure record and `doctor-mgmt-auth-failed`; AC-12 `doctor-mgmt-user-list-unreadable`; AC-4 `doctor-audit-record-failed`), as its header's cross-child decision assigns; this spec's former AC-2, AC-3 and AC-6 coded and raised the same lines and are removed, so no line is coded by two specs |
 | "An SSH public key that does not parse passes commit" | `parseConfiguredKey` runs only at login (`matchPublicKey`) | owned by `plan/release/validation/spec-doctor-coverage-4-api-surfaces.md` AC-13 (the verifier, the `ssh-public-keys` check, `doctor-ssh-public-key-invalid`, the `matchPublicKey` Warn line, the YANG description, and the journal row `validate-accepts-what-start-refuses`); no AC here |
 
 ## Required Reading
@@ -70,7 +71,8 @@ corrected"). This spec closes every gap the area owns:
 - [ ] `ai/rules/spec-no-code.md` - no code in a spec
 
 **Key insights:**
-- the SSH login failure, unreadable user list and audit lines already exist; each gets its code and a raise, and the checks that declare those codes are siblings' (child 4, child 12)
+- the SSH login failure, unreadable user list and audit lines are child 4's (Audit rows corrected); this spec edits no line in `ssh/pubkey.go` or `ssh/passwordauth.go`
+- the SSH server never reads the host key from the filesystem: `resolveHostKeyOption` reads it from `s.config.Storage` when the store holds it, and otherwise generates one (and writes it to the store when there is one); only the host certificate falls back to disk (`hostKeyWithCertOption`, `readFileFromDisk`)
 - the editor history write (`History.publish`) and the transcript writes (`TranscriptWriter.Record`, `writeHeader`) discard their errors today, so no producer-side record exists for doctor to read; AC-8 and AC-10 add it
 - the public-key class (no verifier calls `parseConfiguredKey`) is child 4's AC-13, not this spec's
 
@@ -116,10 +118,10 @@ corrected"). This spec closes every gap the area owns:
 | Doctor check registry and phases | `internal/core/diagnostic/doctor_registry.go` `RegisterDoctorCheck`, `DoctorCheck`, `DoctorCheckContext` (`Tree`, `ConfigDir`, `Store`, `Platform`) | Registered checks with codes, by phase | extends: `cli` registers `cli-editor` and `cli-session-storage`, each from its own `init()` |
 | Diagnostic code registry | `internal/core/diagnostic/codes.go` and its `CodeMeta` entries | One spelling and metadata per code | extends: the codes this spec owns get one spelling and metadata each |
 | `Diagnostic.Fix` | `internal/core/diagnostic/types.go` `Diagnostic`, page "Every finding names the command that fixes it" | The fix command alone, drawn on its own line | extends: every new row fills it |
-| Report bus | `internal/core/report/report.go` `RaiseWarning`, `ClearWarning`, `RaiseError` | Active warnings and a ring of error events | extends: SSH and `cli/client` raise their transient classes; each raise carries its fix by child 12's P0a convention over its P0b route |
+| Report bus | `internal/core/report/report.go` `RaiseWarning`, `ClearWarning`, `RaiseError` | Active warnings and a ring of error events | extends: the attached console (`cli/client` `newAttachedModel`, in the daemon process) raises its event directly; the raise carries its fix by child 12's P0a convention |
 | Recent-events check | `internal/component/doctor/checks_recent_events.go` `recentEventsCheck` | One runtime row per bus key, under the event's code when described | does not apply as a change: it renders the raises above once their owner's check declares the code |
 | Health registry | `internal/core/health` `Register` | Health endpoint rows by name | does not apply: the slice found no health row in this area, and no row keys on a code this spec renames |
-| Audit recorder | `internal/core/audit` `Recorder.Record`; child 12 AC-33 | Writes the audit entry; the SSH caller Warns on error | extends: the Warn line carries `doctor-audit-record-failed`; the check is child 12's |
+| Audit recorder | `internal/core/audit` `Recorder.Record`; child 12 AC-33 | Writes the audit entry; the SSH caller Warns on error | does not apply here: the SSH line is child 4's AC-4 |
 | Public key parse | `internal/component/ssh/pubkey.go` `parseConfiguredKey` | The only parse of a configured key, at login | does not apply here: the verifier and the `ssh-public-keys` check over it are `plan/release/validation/spec-doctor-coverage-4-api-surfaces.md` AC-13 |
 | Editor history | `internal/component/cli/history.go` `History.publish`, `History.Close` | Writes the per-user history file, discarding the error | extends: the error and a write slower than the SSH drain limit go to the session-storage record |
 | Transcript writer | `internal/component/cli/transcript.go` `TranscriptWriter`, `OpenTranscriptFile` | Opt-in session record, errors discarded | extends: keeps its first open, write or close error for the session-storage record |
@@ -133,8 +135,8 @@ corrected"). This spec closes every gap the area owns:
 - `show doctor` on every daemon surface, which runs the local phases and the `runtime` phase in the daemon process
 
 ### Transformation Path
-1. `ssh-host-key` asks `ctx.Store` whether it holds the key path, then the certificate path, and probes the filesystem only for what the store does not hold.
-2. SSH login failures and the unreadable user list raise on the report bus (child 12's route): an error event per failure, an active warning while `s.users()` fails, cleared by the next read that succeeds.
+1. `ssh-host-key` judges the host key and certificate the way the server loads them: the key from `ctx.Store` only (the server generates a key the store does not hold, and never reads one from disk), the certificate from `ctx.Store` first and the filesystem otherwise.
+2. (removed: the SSH login-failure and user-list raises are child 4's)
 3. The `cli` package keeps one process-wide session-storage record: per (user, kind, path) the last failed or overdue write, with its error and time. `History.publish`, `AckDiscardNotice`, `startDiscardNotice`, `TranscriptWriter` and `OpenTranscriptFile` write it; a later successful write of the same path clears its entry.
 4. `cli-session-storage` (runtime, `internal/component/cli`) reads that record.
 5. `cli-editor` (post-config, `internal/component/cli`) builds the completer and the validator, then opens the active config from `ctx.Store` through `NewEditorWithStorage` without writing.
@@ -145,7 +147,7 @@ corrected"). This spec closes every gap the area owns:
 |----------|-----|----------|
 | SSH to doctor | `internal/component/ssh/register.go` registers its checks from `init()`; compiled out with `ze_ssh` | Yes: `ssh-host-key` already registers there |
 | CLI to doctor | `internal/component/cli` registers its checks from `init()`; the runtime check reads a package record the daemon's sessions write | No: A-1 |
-| SSH and CLI to report bus | the raise route of child 12 P0b, in the daemon process | No: A-3 |
+| Attached console to report bus | `report.RaiseError` called in the daemon process, fix by child 12 P0a's convention | No: A-3 |
 
 ### Changed-Wire Census
 
@@ -181,14 +183,14 @@ corrected"). This spec closes every gap the area owns:
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The `cli` package's `init()` runs in the daemon process that answers `show doctor`, and SSH sessions write the record there | the daemon builds every SSH session model (`buildSessionModelFactory`) in its own process | the runtime row would never see a failure | `TestCLISessionStorageCheckRegistered` | unvalidated |
 | A-2 | `NewEditorWithStorage` opens the active config without writing to the store | it reads the config and the draft state | `cli-editor` would mutate the store from doctor | read `NewEditorWithStorage` at P4; if it writes, the check opens through a read-only view of `ctx.Store` | unvalidated |
-| A-3 | Child 12 P0a and P0b and child 4's two codes land before P2 | cross-child decision of the main thread | P2's raises would have no route or no declared code | the Depends row; P2 starts after them | unvalidated |
+| A-3 | Child 12 P0a (shared codes, fix convention) lands before P3 | cross-child decision of the main thread; the bus itself (`internal/core/report`) already serves an in-daemon raiser | P4's raise would carry no fix, and P5's `doctor-internal-defect` lines no declared code | the Depends row; P3 starts after it | unvalidated |
 | A-4 | No `.ci` outside this area reads the reworded session-close text | the audit slice grep found no reader | a test turns red on wording | grep `test/` at P3 | unvalidated |
 | A-5 | `doctor-cli-transcript-write-failed` is admitted as a canonical code | not in the audit's code table: the transcript class appeared only when the producer was read | the main thread names another code | main thread decision before P3 | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A brute force fills the report bus error ring with login events and pushes other events out | `show errors` dominated by SSH login rows | the event's subject is user and source host, so `recent-events` folds one source into one row with a count; the ring's cap is the bus's own (child 12) |
+| R-1 | A brute force fills the report bus error ring with login events | `show errors` dominated by SSH login rows | moved with the login rows to child 4 (its R-1) |
 | R-2 | Two children register the same code spelling | duplicate constant at compile | one spelling in `internal/core/diagnostic/codes.go`; this spec reuses the spellings children 4 and 12 own |
 
 ## Blast Radius
@@ -204,7 +206,6 @@ corrected"). This spec closes every gap the area owns:
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `show doctor` on a daemon whose host key lives in the store | → | `checkSSHHostKey` over `ctx.Store` | `test/ui/doctor-ssh-hostkey-in-store.ci` |
-| SSH login with a wrong password, then `show doctor` | → | `authenticatePasswordResult` raise, `recent-events` | `test/plugin/ssh-auth-failed-show-doctor.ci` |
 | an editor session whose history write fails, then `show doctor` | → | session-storage record, `cli-session-storage` | `test/editor/editor-storage-write-failed-show-doctor.ci` |
 
 ## Acceptance Criteria
@@ -221,10 +222,8 @@ Every finding is a `Diagnostic` with code, severity, a message that names the us
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-2 | An SSH login fails, by password or by public key | both "SSH auth failure" Warn lines carry `doctor-mgmt-auth-failed` and raise an error event, source `ssh`, subject "`<user>` from `<remote host>`", message naming the method; `show doctor` shows one row per subject with count and last time, its fix the one the code's metadata gives (child 4) | a failed login stays a recent event after a later success: it is history, and the ring bounds it (R-1) |
-| AC-3 | `s.users()` fails during a public-key login | the Warn line carries `doctor-mgmt-user-list-unreadable` and raises an active warning, source `ssh`, subject `public-key login`, message "every SSH public-key login is refused: the running configuration's users cannot be read: `<error>`"; the next `s.users()` read that succeeds clears it | none |
-| AC-6 | An SSH auth-failure audit record cannot be written | the "audit record failed" Warn line carries `doctor-audit-record-failed` and raises by child 12's route | none: the check is child 12's AC-33 |
-| AC-7 | The SSH host key or host certificate is held in the daemon store, not on the filesystem (local) | `ssh-host-key` asks `ctx.Store` first, as `resolveHostKeyOption` and `hostKeyWithCertOption` do, and reports nothing for a path the store holds; a certificate neither the store nor the filesystem holds stays Error, fix `delete environment ssh host-certificate`; a host key neither holds is an Info row "SSH host key `<path>` will be generated at the next start", code kept (fixes journal row `helper-bypassed-by-an-open-coded-copy`, 2026-11-10) | a run with no store (`ctx.Store` nil) probes the filesystem only, the one source it has |
+| AC-2, AC-3, AC-6 | (removed) SSH login failures, the unreadable user list, the SSH audit record | owned by `plan/release/validation/spec-doctor-coverage-4-api-surfaces.md` AC-2, AC-11, AC-12 and AC-4 (Audit rows corrected) | the IDs stay unused so siblings' citations do not shift |
+| AC-7 | The SSH host key or host certificate is held in the daemon store, not on the filesystem (local) | `ssh-host-key` reads as the server loads: the host key from `ctx.Store` only, as `resolveHostKeyOption` does, and the certificate from `ctx.Store` first and the filesystem otherwise, as `hostKeyWithCertOption` does; it reports nothing for a path the store holds; a certificate neither the store nor the filesystem holds stays Error, fix `delete environment ssh host-certificate`; a host key the store does not hold is an Info row "SSH host key `<path>` will be generated at the next start", code kept, whether or not a file sits at that path, because the server never reads one from disk (fixes journal row `helper-bypassed-by-an-open-coded-copy`, 2026-11-10) | a run with no store (`ctx.Store` nil) reports the host key as the Info row (the server generates one) and probes the filesystem for the certificate, its only source then |
 
 ### Editor session storage and transcripts (P3)
 
@@ -246,7 +245,7 @@ Every finding is a `Diagnostic` with code, severity, a message that names the us
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-13 | The two not-problem groups | the removed-listener close line (`ssh/ssh.go` `Reconfigure`) and the two "system command list refused" lines (`cli/client/main.go` `buildRuntimeTree` and its dispatch twin) carry `doctor-internal-defect` and keep their fallbacks; the decode line's message says the client and the daemon may come from different builds | none: no line in this area reports nothing wrong, so none drops to Info |
-| AC-14 | `./le arch doctor-coverage report` over `internal/component/ssh`, `internal/component/cli`, `internal/component/cli/client`, `internal/component/command`, `internal/component/cmd` | zero uncovered Warn or Error sites, the sibling-owned `serveListener` line included once child 4 codes it | none |
+| AC-14 | `./le arch doctor-coverage report` over `internal/component/ssh`, `internal/component/cli`, `internal/component/cli/client`, `internal/component/command`, `internal/component/cmd` | zero uncovered Warn or Error sites, the sibling-owned lines (`serveListener`, the SSH login-failure, user-list, audit and `matchPublicKey` lines) included once child 4 codes them | none |
 
 ## 🧪 TDD Test Plan
 
@@ -254,10 +253,7 @@ Every finding is a `Diagnostic` with code, severity, a message that names the us
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestCodesCommandsCLIRegistered` | `internal/core/diagnostic/codes_test.go` | AC-1 | |
-| `TestSSHAuthFailureRaises` | `internal/component/ssh/passwordauth_test.go` | AC-2, password and key | |
-| `TestSSHUserListUnreadableRaisesAndClears` | `internal/component/ssh/pubkey_test.go` | AC-3 | |
-| `TestSSHAuditFailureCoded` | `internal/component/ssh/ssh_test.go` | AC-6 | |
-| `TestSSHHostKeyCheckReadsStore` | `internal/component/ssh/doctor_test.go` | AC-7, store-held key and certificate give no row; nil store probes the filesystem | |
+| `TestSSHHostKeyCheckReadsStore` | `internal/component/ssh/doctor_test.go` | AC-7, store-held key and certificate give no row; a key file on disk the store lacks still gives the Info row; nil store gives the key Info row and probes the filesystem for the certificate | |
 | `TestCLISessionStorageCheckRegistered` | `internal/component/cli/doctor_test.go` | A-1, the runtime check declares both codes | |
 | `TestHistoryPublishFailureRecorded`, `TestDiscardNoticeFailureRecorded` | `internal/component/cli/history_test.go`, `editor_commit_force_test.go` | AC-8, record set and cleared | |
 | `TestHistorySlowWriteRecorded` | `internal/component/cli/history_test.go` | AC-9 | |
@@ -274,7 +270,6 @@ Every finding is a `Diagnostic` with code, severity, a message that names the us
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `doctor-ssh-hostkey-in-store` | `test/ui/*.ci` | a store-backed box reads no host key row | |
-| `ssh-auth-failed-show-doctor` | `test/plugin/*.ci` | a failed login shows in `show doctor` with its count | |
 | `editor-storage-write-failed-show-doctor` | `test/editor/*.ci` | a failed history write shows with `ze data check` | |
 
 ### Interop Tests (Scope: protocol)
@@ -282,7 +277,7 @@ N-A: no protocol behaviour changes.
 
 ## Files to Modify
 - `internal/core/diagnostic/codes.go` - the three codes and their metadata (AC-1)
-- `internal/component/ssh/pubkey.go`, `passwordauth.go`, `ssh.go` - coded lines, raises, the session-close wording (AC-2, AC-3, AC-6, AC-9, AC-10, AC-13); the `matchPublicKey` Warn line is child 4 AC-13's
+- `internal/component/ssh/ssh.go` - the `Stop` drain line, the session-close wording and the `Reconfigure` close line (AC-9, AC-10, AC-13); the `recordAuthFailure` audit line, `pubkey.go` and `passwordauth.go` are child 4's (AC-4, AC-11 to AC-13 there)
 - `internal/component/ssh/doctor.go` - the store read of `ssh-host-key` (AC-7)
 - `internal/component/cli/history.go`, `transcript.go`, `editor_commit_force.go` - the session-storage record (AC-8 to AC-10)
 - `internal/component/cli/client/main.go` - coded lines and the raise (AC-12, AC-13)
@@ -331,14 +326,13 @@ N-A: no protocol behaviour changes.
 
 ## Implementation Steps
 
-Each phase is sized for one agent of about 60 tool calls. P1 first; P2 needs child 12 P0a and P0b and child 4's codes; P3 needs the main thread's decision on A-5.
+Each phase is sized for one agent of about 60 tool calls. P1 first; P3 needs child 12 P0a and the main thread's decision on A-5. P2 is removed: its SSH raises are child 4's (Audit rows corrected).
 
 | Phase | Files | ACs | Needs |
 |-------|-------|-----|-------|
 | P1 codes and host key (wiring first) | `codes.go`, `ssh/doctor.go`; `doctor-ssh-hostkey-in-store.ci` | AC-1, AC-7 | - |
-| P2 SSH raises | `ssh/pubkey.go`, `passwordauth.go`, `ssh.go`; `ssh-auth-failed-show-doctor.ci` | AC-2, AC-3, AC-6 | P1; child 12 P0a, P0b; child 4 codes |
 | P3 session storage | new `cli/doctor.go` (record and `cli-session-storage`), `history.go`, `transcript.go`, `editor_commit_force.go`, `ssh/ssh.go`; `editor-storage-write-failed-show-doctor.ci` | AC-8, AC-9, AC-10 | P1; child 12 P0a; A-5 |
-| P4 editor availability | `cli/doctor.go` (`cli-editor`), `cli/client/main.go` | AC-11, AC-12 | P1; child 12 P0b |
+| P4 editor availability | `cli/doctor.go` (`cli-editor`), `cli/client/main.go` | AC-11, AC-12 | P1; child 12 P0a (the raise's fix) |
 | P5 remaining lines and coverage | `ssh/ssh.go`, `cli/client/main.go`, docs | AC-13, AC-14 | P1 to P4 |
 
 Gates each phase owes, run by the main thread: the scoped package tests (`./le job run label <label> command go test -tags <tags> <package>` for `internal/component/ssh` with `ze_ssh`, `internal/component/cli`, `internal/component/cli/client`, `internal/core/diagnostic`), the named `.ci` tests, `./le arch doctor-coverage report`, and `./le repo compiles check` after each Go commit.
@@ -415,7 +409,7 @@ Gates each phase owes, run by the main thread: the scoped package tests (`./le j
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-14 all demonstrated
+- [ ] AC-1 and AC-7 to AC-14 all demonstrated (AC-2 to AC-6 are owned by child 4, Audit rows corrected)
 - [ ] Targeted tests pass: `./le test functional ui`, `./le test functional editor`, `./le test functional plugin` (the named `.ci` files), and the scoped package tests of P1 to P5
 - [ ] Every user story has a working path and a passing test (N-A: Scope cli, the Wiring Test table carries the paths)
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
