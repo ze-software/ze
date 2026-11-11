@@ -22,8 +22,7 @@ var (
 	goBuildCall      = regexp.MustCompile(`(^|[^A-Za-z0-9_])go\s+build([^A-Za-z0-9_]|$)`)
 	goBuildBin       = regexp.MustCompile(`-o\s+bin/`)
 	goBuildSession   = regexp.MustCompile(`-o\s+tmp/session/[0-9]{4}-[0-9]{2}-[0-9]{2}-[A-Za-z0-9._-]+/bin/`)
-	goBuildAll       = regexp.MustCompile(`go\s+build\s+(-[A-Za-z0-9_]+\s+)*\./\.{3}`)
-	systemTmp        = regexp.MustCompile(`(^|[\s='"$(` + "`" + `:,])/tmp(/|\s|$)`)
+	systemTmp        = regexp.MustCompile(`(^|[\s='"$(` + "`" + `:,<>])/tmp(/|\s|$)`)
 	scratchWrite     = regexp.MustCompile(`(?:>>?\s*|\btee\s+(?:-a\s+)?)(["']?)([A-Za-z0-9_./-]*tmp/[^\s;|&)'\"]+)`)
 	waitKeyword      = regexp.MustCompile(`\b(while|until)\b`)
 	sleepCall        = regexp.MustCompile(`(?:^|[;&|(\s./])sleep\s*[0-9$"'(]`)
@@ -227,20 +226,32 @@ func bashBranchMove(ctx context) *verdict {
 }
 
 // ze point: none -- build hygiene; no rule states where a Go binary must be written
-// bashRootBuild refuses a Go compile that names no output path. Without -o the
-// binary lands in the working directory under the package name, where the next
-// tracked-file check reports it as an untracked artifact.
+// bashRootBuild refuses a Go compile that writes a binary outside bin/, and a
+// compile of the whole tree. Without -o the binary of a main package lands in
+// the working directory under the package name, where the next tracked-file
+// check reports it as an untracked artifact. A compile of packages that
+// produce no binary passes, and the advice names the caller's own package
+// (goBuildLine, gobuild.go).
 func bashRootBuild(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
-	if !goBuildCall.MatchString(command) || goBuildBin.MatchString(command) ||
-		goBuildSession.MatchString(command) || strings.Contains(command, "go build ./...") ||
-		goBuildAll.MatchString(command) {
+	outcome, advice := goBuildLine(ctx.root, command)
+	switch outcome {
+	case goBuildAllowed:
 		return nil
+	case goBuildBinary:
+		return &verdict{2, red + bold + "✘ BLOCKED: go build without -o bin/" + reset + "\n\n" + advice}
+	case goBuildWholeTree:
+		return &verdict{2, red + bold + "✘ BLOCKED: a whole-tree go build" + reset + "\n\n" + advice}
+	case goBuildUnspecified:
 	}
-	return &verdict{2, red + bold + "✘ BLOCKED: go build without -o bin/" + reset + "\n\n" +
-		"  " + red + "→" + reset + " Use: go build -o bin/<name> ./cmd/<name>"}
+	return &verdict{2, red + bold + "✘ BLOCKED: BUG: the go build judgment answered no outcome" + reset}
 }
 
+// shellWords splits one command's text at whitespace into words with their
+// quotes removed, keeping a redirection such as `2>&1` one word. A backslash
+// outside single quotes escapes the next character, except inside double
+// quotes, where bash, and lineCommands, keep a backslash before any character
+// but `$`, a backtick, `"`, `\` and a newline.
 func shellWords(text string) []string {
 	words := make([]string, 0, 16)
 	var word textbuf.Buffer
@@ -252,10 +263,17 @@ func shellWords(text string) []string {
 			words = append(words, word.String())
 		}
 	}
-	for _, character := range text {
+	for index, character := range text {
 		if escaped {
 			word.WriteRune(character)
 			escaped = false
+			continue
+		}
+		if character == '\\' && quote == '"' && strings.IndexByte("$`\"\\\n", byteAt(text, index+1)) < 0 {
+			// Inside double quotes bash keeps a backslash that precedes any
+			// other character, as lineCommands does, so `"\/dev/null"` is not
+			// /dev/null and `-o "\bin/ze"` does not name bin/.
+			word.WriteRune(character)
 			continue
 		}
 		if character == '\\' && quote != '\'' {
@@ -394,9 +412,15 @@ func heavyArea(words []string) bool {
 // ze point: commands/directives/run-commands-through-native-actions-and-never-poll
 // bashLossyPipe refuses piping an expensive command through a filter that drops
 // output. The truncated text is what the caller would judge the run by, and the
-// part a filter removes is usually the part that says why the run failed.
+// part a filter removes is usually the part that says why the run failed. Its
+// text judgment is its verdict, and only a line readerLine admits lifts it: no
+// reader is an expensive command, so `grep -n 'ok | go test ./x | head'`
+// pipes nothing.
 func bashLossyPipe(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
+	if _, reader := readerLine(command); reader {
+		return nil
+	}
 	flat := strings.ReplaceAll(command, "\\\n", " ")
 	flat = regexp.MustCompile(`\|[ \t]*\n`).ReplaceAllString(flat, "| ")
 	for _, statement := range regexp.MustCompile(`&&|\|\||;|\n`).Split(flat, -1) {
@@ -426,6 +450,9 @@ func bashLossyPipe(ctx context) *verdict {
 	return nil
 }
 
+// commandSegments splits a line into command texts at every separator, inside
+// quotes included, which is the text judgment a guard keeps for any line
+// readerLine does not admit.
 func commandSegments(command string) []string {
 	parts := regexp.MustCompile(`&&|\|\||;|\n|\|&?|&`).Split(command, -1)
 	out := parts[:0]
@@ -489,9 +516,14 @@ func admittedCommand(label string, tokens []string) string {
 
 // ze point: commands/directives/heavy-jobs-are-admitted-by-native-actions-never-typed-raw
 // bashRawHeavy refuses a heavy job typed raw, outside job admission. One machine
-// carries several sessions, and an unadmitted job oversubscribes it.
+// carries several sessions, and an unadmitted job oversubscribes it. A line
+// readerLine admits runs no heavy job, so a grep pattern naming one passes;
+// every other line is judged by its text.
 func bashRawHeavy(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
+	if _, reader := readerLine(command); reader {
+		return nil
+	}
 	for _, segment := range commandSegments(command) {
 		what, replacement := rawHeavy(segment)
 		if what == "" {
@@ -554,9 +586,15 @@ func bashPollLoop(ctx context) *verdict {
 // ze point: testing/temporary-files/use-project-tmp-for-scratch-files
 // bashSystemTmp refuses the system temporary directory. Session scratch belongs
 // under the per-session directory, which is isolated and reaped with the session.
+// Its text judgment (systemTmp) is its verdict, and only a line readerLine
+// admits lifts it, judged by its words instead (systemTmpWord), so a grep
+// pattern holding a /tmp path passes there.
 func bashSystemTmp(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
-	if command == "" || !systemTmp.MatchString(command) {
+	if command == "" {
+		return nil
+	}
+	if !namesSystemTmp(command) {
 		return nil
 	}
 	return &verdict{2, "❌ Blocked: /tmp access is forbidden\nUse this session's own scratch dir instead:\n  dir=$(./le session scratch ensure)   # <session-dir>/scratch/\n  <command> > \"$dir/<name>\""}

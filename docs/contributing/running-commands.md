@@ -800,12 +800,64 @@ The check has three outcomes:
 
 | The subagent's command | Outcome |
 |------------------------|---------|
-| Every command of the line is in the reader set (`readerCommands`: `grep`, `sed`, `cat`, `head`, `gopls`, `git` followed directly by a read verb, and the rest of that table) | Passes as typed. A reader reads neither variable and starts no `le` |
-| It starts with the agent's exact identity line, and sets neither variable again after it | Passes as typed |
-| Anything else: a command outside the reader set, a command substitution (a backtick or `$(`), a line that ends inside a quote, or an identity line naming another agent or session | Refused (hook exit 2). The message prints the line to type |
+| The line lies inside the shell syntax the hook models (below), every command of it is in the reader set (`readerCommands`: `grep`, `sed`, `cat`, `head`, `gopls`, `git` followed directly by a read verb, and the rest of that table) with the arguments its judge admits, and no command redirects its output into a file (`/dev/null`, `2>&1` and an input `<` are fine) | Passes as typed. A reader reads neither variable and starts no `le` |
+| It starts with the agent's exact identity line, and no command after it but an admitted reader names either variable | Passes as typed |
+| Anything else: syntax the hook does not model, a command outside the reader set, a reader carrying an option or a word its judge does not admit, a command substitution (a backtick or `$(`), a line that ends inside a quote, or an identity line naming another agent or session | Refused (hook exit 2). The message prints the line to type |
+
+The hook splits a line into commands with its own splitter (`lineCommands`),
+which reads only part of bash's syntax, so it trusts that split only on a line
+inside an allow-list of syntax (`modeledSyntax`): printable ASCII with spaces,
+tabs and newlines; unquoted words, globs and `~`; a single-quoted string on one
+line; a double-quoted string on one line holding no backtick, `$(` or `!`,
+whose backslash precedes no `$`, backtick, `"` or `\`; `$NAME` and the plain
+special parameters (`$_`, `$?`, `$@`, `$1`), and `${NAME}` inside double
+quotes; the separators `;`, `&&`, `||`, `|` and a newline; and the
+redirections `<`, `>`, `>>`, `>|`, `&>`, `2>`, `2>>`, `<<<` with a word after
+them, and `>&N`, each only after the last word of its command. A `#`
+anywhere, a backslash outside quotes, a redirection before or between a
+command's words (`<<<cat ./le x` reads as the reader cat, `sed -e <<<p 'w
+out' f` as `sed -e p`), an empty quoted word (`''`, `""`, which the splitter
+drops and bash passes as an argument), a here-document
+(`<<`), `$'...'`, `$"..."`, a brace, `!`, a parenthesis, `[[`, a background
+`&`, `|&`, a carriage return and any other byte need the line, whatever the
+commands are. Each of these is a construct the splitter could read
+differently from bash: `cat x{#}; ./le x` ended at the brace, read `#` as a
+comment and lost the `./le`.
+
+After the agent's own identity line, any command whose text names
+`ZE_AGENT_ID` or `CLAUDE_CODE_SESSION_ID` is refused as taking another
+identity, unless it is a reader its judge admits that writes no file: `grep
+ZE_AGENT_ID f` and `echo $ZE_AGENT_ID` pass. Bash sets a variable in more
+forms than a list holds (`+=`, `read`, `printf -v`, `for`, `time` or `exec
+env` in front), so the check judges the name, not the form. On a line
+outside the allow-list every mention refuses. A name can also be built from
+pieces (`ZE_AGENT_""ID`, `"${n}_ID"`), so a command that changes the
+environment by its form is refused whatever names it carries: `export`,
+`declare`, `typeset`, `readonly`, `local`, `unset`, `env`, `exec`, `sudo`,
+`eval`, `source`, `.` or `set` as the command word, past a reserved word or a
+wrapper such as `time` or `nice`, and an assignment in front of a command to
+a name that is not plain. On a line outside the allow-list the first words
+of each command are judged by their text. `FOO=bar ./le x` and `cd x &&
+./le x` pass.
+
+The check catches an agent that forgets or mistypes its identity. It is not
+a sandbox: it judges the command, not the files the command runs, so a
+script the agent writes can set either variable and run `./le` (`bash
+./s.sh`), and the hook does not see it.
 
 The reader set is one declared table, and a command absent from it needs the
 line, so an unknown command is refused with its fix and never passed unjudged.
+A reader's judge is an allow-list of the options and argument shapes it names:
+an abbreviated long option (`sort --co=...`), an option that runs a program,
+writes a file or evaluates an array subscript (`printf -v`, `test -v`, sed's
+`e` command, `find -exec`, `gopls rename -w`), and any word the shell expands
+(`$_`, an unquoted glob, a leading `~`) given to a reader that has a judge
+need the line. A reader with no judge (`cat`, `grep`, `head`) takes expanded
+arguments, so `cat "$dir/x.log"` passes. A redirection into a file
+(`cat a > f`) needs the line too, because a reader could write the git or
+shell configuration that a later reader runs. `printf -v 'a[$(./le spec current)]' v`
+runs `le` although its substitution is single-quoted, because bash evaluates
+the subscript.
 The main thread is never asked for the line: it is the identity `le` resolves
 by default.
 
@@ -847,8 +899,10 @@ a name of your own.
 <!-- source: internal/le/le/path/session.go -- SpecClaimMarker, MarkerOwnedBy -->
 <!-- source: internal/core/sessiondir/sessiondir.go -- Resolve, Find, Owner -->
 <!-- source: internal/le/session/reap.go -- candidateSID -->
-<!-- source: internal/le/hookruntime/session.go -- bashAgentIdentity, identityLine, readerCommands, commandOutsideReaders -->
+<!-- source: internal/le/hookruntime/session.go -- bashAgentIdentity, identityLine, commandOutsideReaders, takesAnotherIdentity -->
+<!-- source: internal/le/hookruntime/readers.go -- readerCommands, readerCommand -->
 <!-- source: internal/le/hookruntime/shellline.go -- lineCommands -->
+<!-- source: internal/le/hookruntime/shellsyntax.go -- modeledSyntax, unmodeledSyntax -->
 <!-- source: internal/le/hookruntime/lifecycle.go -- hookSubagentContext -->
 <!-- source: internal/le/test/weakened/approve.go -- ApprovalPath, approveAnswer -->
 <!-- source: internal/le/test/overlay/overlay.go -- Write -->

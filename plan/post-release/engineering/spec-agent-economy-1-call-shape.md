@@ -8,7 +8,7 @@
 | Release reason | Release-independent development tooling: it changes how the Bash hook judges an agent's command and changes no shipped binary. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 1/4 |
+| Phase | 2/4 |
 | Handoff | - |
 | Updated | 2026-11-11 |
 
@@ -105,8 +105,8 @@ packages that produce no binary, and no longer exempts a whole-tree build.
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Identity prefix | `internal/le/hookruntime/session.go`, `writeParentSessionPrefix` | Rewrites every subagent command to carry the identity | Replaces: the same function becomes a check that passes a reader command, passes a command already carrying the exact line, and refuses any other with the line to type. The rewrite is deleted, not kept beside the check |
-| Quote-aware word splitter | `internal/le/hookruntime/bash.go`, `lineWords` | Splits a line into words, honours quotes, reports an unparsable line | Extends: one segmenter built on it yields each command of a line with its words; the four guards read that |
-| Per-segment word splitter | `internal/le/hookruntime/bash.go`, `shellWords`, `commandExpensive`, `rawHeavy` | Judge one segment's leading command past launchers and assignments | Extends: they receive segments from the new segmenter instead of regular-expression splits |
+| Quote-aware word splitter | `internal/le/hookruntime/bash.go`, `lineWords` | Splits a line into words, honours quotes, reports an unparsable line | Extends: `lineCommands` yields each command of a line with its words. The text judgement is each guard's default verdict, unchanged from HEAD; readerLine and the reader+build line may only lift it |
+| Per-segment word splitter | `internal/le/hookruntime/bash.go`, `shellWords`, `commandExpensive`, `rawHeavy` | Judge one segment's leading command past launchers and assignments | Does not change: they stay the text judgement of `bashLossyPipe` and `bashRawHeavy`, byte for byte HEAD's, which readerLine may only lift |
 | Admitted replacement text | `internal/le/hookruntime/bash.go`, `admittedCommand` | Builds the `./le job run label <label> command <argv>` form for the raw-test refusal | Extends: the piped-command refusal uses it with `quiet`, so one function writes the advised form |
 | Check registry | `internal/le/hookruntime/runtime.go`, `nativeHookActions` | The authority for every native check | Extends: the identity check and the budget stay members; nothing is added outside it |
 | Start text | `internal/le/hookruntime/lifecycle.go`, `hookSubagentContext` | Injects the subagent's constraints | Extends: the same text carries the identity line and five rule lines |
@@ -120,7 +120,7 @@ packages that produce no binary, and no longer exempts a whole-tree build.
 
 ### Transformation Path
 1. `Run` decodes the payload and builds the context.
-2. Each registered check judges the command. The Bash guards obtain the line's commands and words from one segmenter.
+2. Each registered check judges the command. The text judgement is each guard's default verdict, unchanged from HEAD; readerLine and the reader+build line may only lift it, reading the line's commands and words from `lineCommands`.
 3. The identity check judges whether the command needs the identity line and whether it carries the exact one.
 4. When no check refused, the budget counts the call.
 5. The hook answers with an exit code and its messages. It writes no changed input.
@@ -154,7 +154,7 @@ Two wires change hands.
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes | the command is judged by registered checks only; nothing rewrites it on the way to the shell |
 | No unintended coupling (components stay isolated) | Yes | every edit is inside `internal/le/hookruntime` and its fixtures |
-| No duplicated functionality (extends existing, does not recreate) | Yes | one segmenter on `lineWords`; the regular-expression splitters are removed |
+| No duplicated functionality (extends existing, does not recreate) | Yes | one splitter, `lineCommands`, under `lineWords`, the identity check and the lift. The text judgement is each guard's default verdict, unchanged from HEAD; readerLine and the reader+build line may only lift it, so the text splitters stay as that verdict, not as a fallback |
 | Zero-copy preserved where applicable (refs, not copies) | Yes | not applicable: a hook judges one short command line |
 | Registration over hardcoding, outbound | Yes | no new command, view or handler; checks stay in `nativeHookActions` |
 | Registration over hardcoding, inbound | Yes | the reader-command set is one declared table in the hook package, and a command absent from it needs the identity line, so an unknown command is refused with its fix and never passed unjudged |
@@ -164,10 +164,10 @@ Two wires change hands.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The SubagentStart payload carries the agent's id | `Payload.AgentID` exists and the PreToolUse payload fills it; not observed for SubagentStart | The start text cannot print the full line; the agent learns it from its first refusal, one wasted call per agent | Phase 1 records one real SubagentStart payload into scratch and reads the field | unvalidated |
-| A-2 | Auto mode voids a call only because the hook returns changed input | The voided calls' message names the changed input | Voids continue after the rewrite is gone | After the phase 1 commit, a research agent's Bash calls are counted for the "no verdict" text | unvalidated |
+| A-1 | The SubagentStart payload carries the agent's id | `Payload.AgentID` exists and the PreToolUse payload fills it; not observed for SubagentStart | The start text cannot print the full line; the agent learns it from its first refusal, one wasted call per agent | Phase 1 records one real SubagentStart payload into scratch and reads the field | validated 2026-11-11 by the live probe: the first research agent spawned on the phase 1 build had the full identity line (agent id and session) in its start text, and no fallback sentence |
+| A-2 | Auto mode voids a call only because the hook returns changed input | The voided calls' message names the changed input | Voids continue after the rewrite is gone | After the phase 1 commit, a research agent's Bash calls are counted for the "no verdict" text | validated 2026-11-11 by the live probe: on the old build two of three readers sent in parallel were voided with "no verdict"; on the phase 1 build the same three ran, and 0 of 5 calls were voided. The umbrella's AC-2 window remains the wider measure |
 | A-3 | Only `le`, test binaries and scripts that start them read the two variables | Census above | A reader command needs the identity after all | The census, re-run at implementation | unvalidated |
-| A-4 | An agent reliably types a line it is given verbatim | Agents retype the hook's output today to pass auto mode | Repeated refusals | The same count as A-2, for the identity refusal | unvalidated |
+| A-4 | An agent reliably types a line it is given verbatim | Agents retype the hook's output today to pass auto mode | Repeated refusals | The same count as A-2, for the identity refusal | validated 2026-11-11 by the live probe: a bare `./le spec current` was refused printing the line byte-identical to the start text, and the retyped call with the line ran first try |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -215,7 +215,7 @@ Two wires change hands.
 | AC-13 | A budgeted agent's call that another check refuses | The agent's counter is unchanged | A call that passes every other check is counted, a handoff call past the budget still passes |
 | AC-14 | `rm -f <scratch file> && grep x internal/a_test.go`, where the `rm` is a plain command with literal arguments | Passes: only the `rm`'s own arguments are judged | A line using substitution, a variable, `find`, `xargs`, a loop or `eval` with a delete keeps the line-wide judgment: the hook cannot see what such a line deletes |
 | AC-15 | A deletion of a test path | Refused; the message says an agent cannot approve it, names `./le commit create ... remove <path>` for a tracked test, and tells the agent to report the path and the reason to the main thread otherwise. It asks no question | None |
-| AC-16 | `cat "$CLAUDE_JOB_DIR"/tmp/x`, or any word whose path merely contains `/tmp/` after another directory | Passes the `/tmp` guard | A word that is `/tmp` or starts with `/tmp/`, after quotes are removed, stays refused |
+| AC-16 | On a reader line, a word whose path contains `/tmp/` after a literal directory (`cat foo/tmp/x`, `ls ./a/tmp`) | Passes the `/tmp` guard | A word that is `/tmp` or starts with `/tmp/`, after quotes are removed, stays refused, and so does a `/tmp` under a parent the shell expands (`cat "$CLAUDE_JOB_DIR"/tmp/x`, `"${v}/tmp"`): see Known Limitations |
 
 ## 🧪 TDD Test Plan
 
@@ -249,13 +249,14 @@ Two wires change hands.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `./le ai hooks unit` | `internal/le/ai/hooks/fixtures.go` | Every golden row and behavioral fixture of the hooks, with rows added for AC-1, AC-2, AC-7 and AC-12 and the source seal re-derived | |
-| Live probe | a research agent spawned after the phase 1 commit | Its Bash calls run with no "no verdict" failure, and its first `le` call carries the line (A-2, A-4) | |
+| Live probe | a research agent spawned after the phase 1 build of HEAD is published under `bin/builds/` (the launcher builds a new HEAD in the background and serves the previous binary until then, about 95 s here) | Its Bash calls run with no "no verdict" failure, and its first `le` call carries the line (A-2, A-4) | passed 2026-11-11 on build `20261111T022138Z-18f0f40a19`: 5 calls, 4 ran, 1 refused as designed, 0 voided. An earlier probe spawned before the build was published hit the old hook and proves nothing about phase 1 |
 
 ## Files to Modify
 - `internal/le/hookruntime/session.go` - the prefix rewrite becomes the identity check
 - `internal/le/hookruntime/runtime.go` - `Run` no longer calls a rewrite; the budget counts only an unrefused call
 - `internal/le/hookruntime/budget.go` - counting moves behind the other verdicts
-- `internal/le/hookruntime/bash.go` - one segmenter on `lineWords`; `bashLossyPipe`, `bashRawHeavy`, `bashRootBuild`, `bashSystemTmp`, `bashTestDeletion` and their messages
+- `internal/le/hookruntime/bash.go` - the text judgement is each guard's default verdict, unchanged from HEAD; readerLine and the reader+build line may only lift it, in `bashLossyPipe`, `bashRawHeavy`, `bashRootBuild` and `bashSystemTmp`; `bashTestDeletion` and the messages in phase 3
+- `internal/le/hookruntime/session.go` - `readerCommands` and its judges move to `readers.go`; `commandOutsideReaders` reads the word expansions
 - `internal/le/hookruntime/lifecycle.go` - the start text
 - `internal/le/ai/hooks/fixtures.go` - new rows, the counts and the source seal
 
@@ -274,7 +275,12 @@ guards' matching or the budget's counting, so no sentence in it becomes wrong.
 
 ## Files to Create
 - `internal/le/hookruntime/session_identity_test.go` - the identity check's tests
-- `internal/le/hookruntime/shellline.go` - the one line splitter (`lineCommands`, and `lineWords` on it), created in phase 1
+- `internal/le/hookruntime/shellline.go` - the one line splitter (`lineCommands`, and `lineWords` on it), created in phase 1; phase 2 adds `guardLine` and `textCommands`
+- `internal/le/hookruntime/gobuild.go` - the build guard's judgment of what a `go build` writes, created in phase 2
+- `internal/le/hookruntime/readers.go` - `readerCommands` and its allow-list judges, moved from `session.go` in phase 2
+- `internal/le/hookruntime/systemtmp.go` - the `/tmp` guard's word judgement on a reader line, split from `bash.go` to keep it under 1000 lines
+- `internal/le/hookruntime/shellsyntax.go` - `modeledSyntax`, the allow-list of shell syntax the splitter models, which every lift and the identity exemption require (phase 2, round 6)
+- `ai/skills/ze-fix-alloc.md` - its verification step named `go build ./...`, which the build guard now refuses; phase 2 names the scoped compile
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -342,7 +348,7 @@ agent, committed when it passes. The main thread runs every test.
 | Completeness | Every AC-N has an implementation and a test that goes red without it |
 | Correctness | No path remains on which a subagent command outside the reader set runs without its identity; an unparsable line is never treated as a reader line |
 | Fail-closed | Each changed guard, given a line `lineWords` cannot parse, refuses what it refused before |
-| No layering | The regular-expression splitters and the rewrite are deleted, not kept as a fallback |
+| No layering | The rewrite is deleted. The text judgement is each guard's default verdict, unchanged from HEAD; readerLine and the reader+build line may only lift it, so the text splitters are that verdict, never a fallback beside a second judgement |
 | Messages | Every changed refusal names what is wrong, why, and the exact command; none asks a question; none advises a form another rule forbids |
 | Rule: a hook judges what a command is | No check reads the wording of a message or a prompt |
 
@@ -350,7 +356,7 @@ agent, committed when it passes. The main thread runs every test.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | No changed input is written | `grep -rn updatedInput internal/le/hookruntime` finds no writer |
-| One segmenter | `grep -n "regexp.MustCompile(\`&&" internal/le/hookruntime/bash.go` finds no command splitter outside the poll-loop check |
+| The text judgement is each guard's default verdict, unchanged from HEAD; readerLine and the reader+build line may only lift it | No guard returns nil from the parse except on readerLine or a reader+build line: every `return nil` or `goBuildAllowed` reached from `lineCommands` in `bashLossyPipe`, `bashRawHeavy`, `namesSystemTmp` and `goBuildLine` sits behind `readerLine` or behind every command being a `readerCommand` or a build; `TestGuardsKeepTheTextVerdictOfHead` holds HEAD's refusals |
 | Start text carries the line and the rules | `TestSubagentStartCarriesTheIdentityLine` |
 | Hook fixtures green | `./le ai hooks unit` |
 
@@ -397,10 +403,162 @@ Phase 1 (2026-11-11):
 - Two reader-set members stay on trust and the table's comment says so: a GNU
   `sed` script can run a command through its `e` command, and `gopls` starts
   the go tool. `find`, `rg`, `sort` and `git` carry an argument judge.
-- A-1 is not validated by phase 1: no hook records a SubagentStart payload,
-  and the agent cannot make the harness send one. The start text handles both
-  shapes, so the first agent spawned after the commit shows which shape the
-  harness sends: the full line, or the session part with the fallback sentence.
+- A-1 could not be validated inside phase 1, since no hook records a
+  SubagentStart payload. The live probe settled it on 2026-11-11: the harness
+  sends the agent id, and the first agent spawned on the phase 1 build had the
+  full line in its start text. The fallback shape stays for a payload without
+  a usable agent id.
+
+Phase 2 (2026-11-11):
+
+- The rule: the text judgement is each guard's default verdict, unchanged
+  from HEAD; readerLine and the reader+build line may only lift it. A reader
+  line (`readerLine`, `shellline.go`) is one `lineCommands` parses whole, with
+  no command substitution, whose every command is a `readerCommand`
+  (`readers.go`): a member of `readerCommands` its judge admits. Nothing on
+  such a line runs its arguments or its stdin, so a quoted `go build` is
+  text.
+- Round 3 of review showed that editing the text judgement opens holes:
+  `GOFLAGS="-race -count=1" go test ./internal/x/`, `GOFLAGS="-a -b" go test
+  ./x | tail`, `X="a ZE_ADMIT_RAW=1" go test ./...`, `curl -o"/tmp/f" u`,
+  `go build -o"/tmp/x" .` and `cat "$EMPTY"/tmp/x` were cleared by the
+  quote-deleting, option-skipping and boundary edits, so all of them were
+  reverted (`TestGuardsKeepTheTextVerdictOfHead`). The build guard's text
+  judgement differs from HEAD's in one direction only: D-4 removes its
+  `./...` exemption, so it refuses a superset of what HEAD refused. The
+  `/tmp` guard's text judgement also refuses a superset: its class before
+  `/tmp` adds `>` and `<`, because once a line that writes a file is no
+  reader line, `cat x 2>/tmp/err` reaches the text match, which HEAD's class
+  missed.
+- Every reader judge is an allow-list (`readers.go`), because a deny-list
+  misses the abbreviations getopt and git expand (`git grep --open=bash`,
+  `sort --compress=sh`, `sort --co=`). `printf`, `test` and `[` refuse `-v`
+  (and `test` `-R`): bash evaluates the array subscript, so
+  `printf -v 'a[$(./le spec current)]' v` ran `le` although the splitter saw
+  the substitution single-quoted. That was a hole in phase 1's identity
+  exemption too, closed by the same table. `sed` admits only print, delete,
+  quit and substitution scripts with no `e` or `w` flag, so it joins the
+  reader line rather than being excepted from it; `gopls` admits only its
+  read subcommands; `diff` refuses `-l`, which pipes through pr; `uniq`
+  refuses a second operand, the file it writes. The splitter records which
+  words the shell expands (`shellLine.expands`), and every judge refuses one,
+  since `$_` after `echo --ext-diff` is `--ext-diff`. A first draft
+  instead opened the string a shell is handed (`-c`, `eval`, nested four
+  deep) and judged its words. Two reviews found the same defect class twice:
+  a line the text guard refused passed, because something on it (a shell fed
+  by stdin or `--rcfile`, `watch`, `su -c`, `script -qc`, `flock -c`, `ash`,
+  `mksh`, `tcsh`, `python3 -c`, `awk`, `eval` as an argument) runs a string the
+  parser saw as one word. Patching shell after shell does not close it; the
+  reader-only lift does by construction, and the shell opening was deleted.
+- The /tmp guard judges words on a reader line only (`systemtmp.go`), so a
+  redirect to `/tmp` there is still refused; on every other line HEAD's text
+  match stands. AC-16 is honoured only for a literal parent (see Known
+  Limitations).
+- The build guard reads a line's words only on a reader+build line: every
+  other command is a `readerCommand`, the build sets no variable but
+  `GOFLAGS` (GOOS, GOARCH, CGO_ENABLED and GOEXPERIMENT change which files a
+  package holds, CC and GOTOOLCHAIN name a program), passes no `-toolexec`,
+  `-overlay` or `-modfile`, and no command redirects into a file, since a
+  reader could write the package the hook then reads. Every other line
+  holding `go build` is judged by its text, which also refuses a `...`
+  pattern after the `go build` as a whole-tree build (D-4).
+- A cd is followed only when it starts the line or follows `;` or a newline
+  and `;`, `&&` or a newline ends it (`cdFollowed`, from the separators
+  `lineCommands` records): a cd in a pipeline or behind `&` runs in a
+  subshell, one after `&&` or `||` may not run, one before `||` leaves the
+  build in the old directory. An unfollowed cd leaves the directory unknown,
+  so only an absolute `-o` under the checkout's `bin/` passes. The working
+  directory, the `-C` directory and the `-o` path are resolved as the kernel
+  resolves them, every link followed (`physicalPath`), against the root with
+  its links resolved, and `-o` must land in `bin/` both as typed and cleaned,
+  because a `link/..` climbs from the link's target only in the first
+  reading. A link that cannot be resolved, an `-o` holding a character the
+  shell expands, and a cd target the shell cannot enter refuse.
+- Review also found the build guard clearing what it could not place. A
+  build whose packages hold no Go file under its tags refuses; `GOFLAGS`
+  supplies tags; a package outside the checkout, in a nested module, or a
+  `/...` pattern under `tmp/` (its start included) is not resolved; a `/...`
+  pattern whose cleaned directory is the module root, by path (absolute too)
+  or import path, is a whole-tree build; a walk skips a directory holding its
+  own `go.mod` and is refused past 2048 directories; the module path is read
+  once per call. After a followed `cd` (no variable, no `cd -` or `-P`, no
+  group or subshell on the line, the target must exist, no `CDPATH`) a build
+  passes only when its `-o`, resolved from that directory and `-C`, lands in
+  the checkout's `bin/`; `-o` after `-C` resolves from the `-C` directory as
+  the go command does.
+- `lineCommands` also yields each command's text (`segments`). The build
+  guard reads a build's arguments with `shellWords` over it, so a
+  redirection such as `2>&1` stays one word and `beforeRedirection` cuts at
+  it: the splitter's own words split `2>&1` into `2` and `1`.
+- Round 5 of review found the class every earlier round found: the
+  hand-written splitter reads a line differently from bash, and the lift and
+  the identity exemption trusted its split. `cat x{#}; le x` ended a command
+  at the brace and read `#` as a comment; `$'\''` ANSI-C quoting and a
+  here-document body were read as shell text. The class is closed by an
+  allow-list of syntax, not by modelling each construct: `modeledSyntax`
+  (`shellsyntax.go`) accepts printable ASCII with spaces, tabs and newlines,
+  unquoted words and globs, a one-line single-quoted string, a one-line
+  double-quoted string with no backtick, `$(` or `!` and no backslash before
+  `$`, a backtick, `"` or `\`, `$NAME` and the plain special parameters
+  (`${NAME}` only inside double quotes, where the splitter keeps the braces
+  in the word), the separators `;`, `&&`, `||`, `|` and a newline, and the
+  redirections `<`, `>`, `>>`, `>|`, `&>`, `N>`, `N>>` and `<<<` with a word
+  after them and `>&N`. A `#` anywhere, a backslash outside quotes, `<<`,
+  `$'`, `$"`, a brace, `!`, a parenthesis, `[[`, a background `&`, `|&`, `;;`,
+  a carriage return and any other byte answer false. `readerLine`,
+  `goBuildLine`, `commandOutsideReaders` and `takesAnotherIdentity` require it
+  before they trust `lineCommands`; a line outside it keeps the text verdict
+  and needs the identity line, and its text decides whether it takes another
+  identity.
+- The brief asked for no backslash anywhere. A committed test of phase 1
+  (`grep -n "a\|b" internal/x.go | head -5` passes without the line) and the
+  phase 2 rows `printf '%s\n' x` and `sed 's/[a-z]\/b/x/g'` need a quoted
+  backslash, so the allow-list keeps one where bash reads it as text: any
+  backslash inside single quotes, and inside double quotes one before any
+  character but `$`, a backtick, `"`, `\` and a newline. `lineCommands`
+  dropped such a backslash from the word while bash keeps it, so it now
+  keeps it too, and the word a judge reads is the word bash passes on.
+  `shellWords`, which reads a command's text for `writesOnlyDevNull` and the
+  build's arguments, now keeps it the same way: it read `> "\/dev/null"` as
+  /dev/null and `-o "\bin/ze"` as bin/ze. Its other callers, the raw-job and
+  cost judgments and the document-read marker, now read `"\go"` as `\go`,
+  which is the program bash runs, so a `"\go" test` is no longer counted as
+  a go test; no such program exists, so nothing heavy passes.
+- Round 6 of review found two more ways the split moved a word inside the
+  accepted syntax, closed again by narrowing the allow-list: a redirection
+  before or between a command's words (`<<<cat ./le commit create x` read as
+  the reader cat, `sed -e <<<p 'w out' f` as `sed -e p`, `<<<cat go build -o
+  /tmp/x ./cmd/ze` as a line with no build) and an empty quoted word, which
+  the splitter drops and bash passes (`diff -L '' -l a b` runs `diff -l`).
+  `syntaxCommand` (`shellsyntax.go`) admits a redirection only after the last
+  word of its command and refuses an empty word.
+- The second-identity check judged a list of forms (`setsIdentity`), and
+  round 6 found fourteen it missed (`+=`, a subscript, `then` or `time` in
+  front, `command export`, `exec env`, `for`, `read`, `printf -v`, `let`,
+  `mapfile`, `getopts`). The list is gone: after the agent's own line, any
+  command whose text names either variable is refused unless it is a reader
+  its judge admits that writes no file, and every mention must lie inside
+  such a reader, on modeled and unmodeled lines alike.
+- A build word the shell expands (`-tags $_`, `GOFLAGS=$X`, a `$_` package)
+  sends the line to the text judgment: `echo 'x -toolexec=/path/evil'; go
+  build -tags $_ ./internal/x` hands the build a -toolexec flag the hook read
+  as a tag.
+- `commandSegments` is back to its text split, which is the text judgment
+  `bashRawHeavy` and `bashDocumentRead` keep.
+- The build guard reads the packages: the go command writes a binary only for
+  a single main package, so one non-main package and several packages pass.
+  `go/build` `ImportDir` judges main under the build's `-tags`; a `/...`
+  pattern is walked as the go command walks it, stopping at two packages. A
+  package the hook cannot resolve to a checkout directory is refused, so a
+  build in a tree without the package (the hook fixtures' throwaway roots)
+  refuses as before. The judgment lives in `internal/le/hookruntime/gobuild.go`
+  to keep `bash.go` under the 1000-line threshold; the refusal text stays in
+  `bash.go`, where the parity mutation test
+  (`TestActualHookMessageAndExitMutationsFailClosed`) edits it.
+- The parity catalog row `go build ./...` in
+  `internal/le/ai/hooks/parity_catalog.go` expects exit 0, the exemption D-4
+  removes. It now answers 2, so the row and the `bashCode` model in
+  `internal/le/ai/hooks/parity.go` owe the change with the phase 4 fixture work.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
@@ -416,6 +574,57 @@ Phase 1 (2026-11-11):
 
 ## Known Limitations
 - The budget still counts parallel calls separately. Rewarding batching in the budget needs a turn count, which child 4 of the umbrella examines with the transcript.
+- The build guard, reviewed in phase 2, keeps shapes the text match also
+  passed, so none is a regression: a line judged by its text that names
+  `-o bin/` anywhere passes whatever it builds, a `...` pattern aside; a
+  flag written after the packages is read as a flag; `go -C dir build` puts
+  `-C` before `build`, so the command is not read as a build and its line is
+  judged by its text; `-o/tmp/x` written as one word is not read as `-o`, so
+  the build is judged as having no output (the `/tmp` guard still refuses the
+  path); and `GOFLAGS` set by an earlier `export` or by `go env -w` is not
+  seen (an `export` line is judged by its text, but the next call is not).
+- A reader line fails closed in the safe direction only: a guard's text
+  refusal stands on any line holding a command outside the reader set or one
+  its judge refuses, so `time grep 'go build' x`, `[ -n "$X" ] && grep 'go
+  build' f` (a judge refuses every expanded word) and `uniq -c f 2>/dev/null`
+  (the splitter leaves `2` and `/dev/null` as operands) are still refused, as
+  before phase 2.
+- The syntax allow-list is narrower than bash, in the safe direction only: a
+  line holding a `#` (`grep -n '#' f`), a brace or `!` outside single
+  quotes, a here-document, a background `&`, `[[`, `$#`, `$!`, a `${...}`
+  outside double quotes, or a non-ASCII byte (a UTF-8 grep pattern) needs
+  the identity line and keeps every guard's text verdict, and so does a
+  harmless redirection before the words (`2>/dev/null cat a`, `<f grep x`)
+  and an empty pattern (`grep -c '' f`).
+- The identity check catches an agent that forgets or mistypes its
+  identity. It is not a sandbox: it judges the command, not the files the
+  command runs, so a script the agent writes can set either variable and
+  run `./le` (`bash ./s.sh`) unseen. After the agent's line it refuses, by
+  form, every command that changes the environment (`export`, `env`,
+  `exec`, `sudo`, `set`, `.`, `source` and the rest, and an assignment to a
+  name that is not plain), because a name built from pieces
+  (`ZE_AGENT_""ID`, `"${n}_ID"`) hides from the literal-mention rule.
+- `cd d; cat f` runs `d/cat` when PATH holds `.` or another relative entry:
+  the reader's command word names a program the environment chooses. The
+  hook does not read PATH, so this depends on the environment, not the line.
+- The -toolexec, -overlay and -modfile flags send a build to the text
+  judgment, which does not refuse them by itself: it reads only the `...`
+  pattern and the `-o` path, so `go build -toolexec=x -o bin/y ./cmd/y`
+  passes, as it did at HEAD. Refusing it changes a text verdict, which is
+  outside phase 2.
+- HEAD's text judgement is kept with its gaps, which phase 2 neither opens
+  nor closes: `bash -o pipefail -c './le test unit all | tail -5'` and
+  `bash -O extglob -c 'go test ./x'` pass the piped-command and raw-job
+  guards, which read the option value as the command, and `cat ${v}/tmp`
+  unquoted passes the /tmp guard, whose text match takes no `}` as a
+  boundary. The raw-job text judgment reads only each command's first word,
+  so a heavy job inside a double-quoted `$(...)` is not seen there either.
+- AC-16 is narrowed (R4 of the phase 2 brief): a /tmp under another directory
+  passes only for a literal parent on a reader line (`foo/tmp/x`,
+  `./a/tmp`). A parent the shell expands (`"$D"/tmp/x`, `"${v}/tmp"`,
+  `~/tmp`, a glob) stays refused, because it can expand to nothing or to `/`
+  and so reach /tmp itself; `cat "$CLAUDE_JOB_DIR"/tmp/x`, the example AC-16
+  first named, is refused.
 - A raw `go vet` without tags is not refused here. `plan/post-release/engineering/spec-agent-economy-2-scoped-test.md` owns the short action that replaces it and the message that names it.
 
 ## Checklist

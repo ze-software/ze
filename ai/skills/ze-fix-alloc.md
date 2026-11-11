@@ -182,7 +182,7 @@ n.cached = make([]byte, 2+len(data))
 
 After making changes:
 
-1. **Compile:** `go build ./...`
+1. **Compile:** `go build` of the packages you changed, such as `go build ./internal/<area>/`. Never `go build ./...`: the Bash hook refuses a whole-tree build, and `./le repo changed scope print both` names the packages a change reaches
 2. **Test:** the scoped package test of each changed package under `./le job run`, then its component group (`./le test unit <group>`)
 3. **No verify run:** never `./le verify changed`, `./le test unit all` or a full verification. The scoped runs above are the evidence, and GitHub CI verifies the pushed commit
 4. **Check for Pack() deprecation:** If ALL callers now use WriteTo, add deprecation comment to Pack()

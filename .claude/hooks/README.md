@@ -76,16 +76,63 @@ check's row cannot survive it.
 | `bashWorktreeCopy` | `ai/INSTRUCTIONS.md` prohibition, no rule point | A file copy out of a worktree into the main tree. A worktree agent lands its work by committing, and a direct copy overwrites whatever another session left uncommitted at the destination. |
 | `bashDestructiveGit` | `git-safety.md` | Every git verb that discards work or publishes it. Committing and pushing are allowed through the prepared script alone, because sessions share one index. |
 | `bashBranchMove` | `git-safety.md` | Every git verb that creates, switches, renames, deletes or integrates a branch. Which branch a session works on is the user's choice, and a session that moves it lands the work where the user is not looking. |
-| `bashRootBuild` | build hygiene, no rule point | A Go compile that names no output path. Without `-o` the binary lands in the working directory under the package name. |
-| `bashLossyPipe` | `commands.md` | Piping an expensive command through a filter that drops output. The part a filter removes is usually the part that says why the run failed. |
-| `bashRawHeavy` | `commands.md` | A heavy job typed raw, outside job admission. One machine carries several sessions, and an unadmitted job oversubscribes it. |
+| `bashRootBuild` | build hygiene, no rule point | A Go compile that writes a binary outside `bin/`, and a whole-tree compile. The go command writes a binary only for one main package (`go help build`), so a build of one non-main package or of several packages passes, by path, `/...` pattern or module import path; `-o bin/...` and a session's `bin/` pass. Refused: one main package with no `-o` or with `-o` outside `bin/`; a build that names no package, or whose packages hold no Go file under its tags (read from `-tags` and from `GOFLAGS`, in the hook's environment or assigned on the line); a package the hook cannot resolve to a directory of the checkout, a word holding an unexpanded variable included; a package outside the checkout (`//...`, `/proc/self/cwd/...`), in a module nested below its root, or a `/...` pattern under its `tmp/`; a build after a `cd` earlier on the line, unless its `-o` resolves to the checkout's `bin/` from the directory the `cd` moved to and the `-C` directory (a `cd` is followed only when it starts the line or follows `;` or a newline and is ended by `;`, `&&` or a newline; a `cd` in a pipeline, behind `&`, after `&&` or `||`, before `\|\|`, to a variable, `cd -`, `cd -P`, or on a line holding a group or subshell leaves the directory unknown, and then only an absolute `-o` under the checkout's `bin/` passes); an `-o` that leaves `bin/` once the working directory, the `-C` directory and the path are resolved as the kernel resolves them, every symbolic link followed, as typed and cleaned, or that holds a link the hook cannot resolve or a character the shell expands; and a whole-tree build whatever the output: `./...`, `...`, `all`, or any `/...` pattern whose cleaned directory is the module root, by import path (`github.com/ze-software/ze/...`) or by path (`.//...`, `./cmd/../...`, an absolute path). A `/...` pattern is walked as the go command walks it, also skipping the checkout's `tmp/` and every directory holding its own `go.mod`; the walk stops at the second package and is refused past 2048 directories. The module path is read once per call. The advice names the caller's own package in the `go build -o bin/<name> <package>` form, and the whole-tree refusal names `./le repo changed scope print both`. A build is judged by its words only on a reader+build line: every other command is a reader its judge admits (see below), the build sets no variable but `GOFLAGS`, passes no `-toolexec`, `-overlay` or `-modfile`, and no command on the line redirects into a file (only `/dev/null` and another descriptor), since a reader could write the package the hook reads. Every other line holding `go build` is judged by its text: refused unless it names `-o bin/` or a session `bin/`, and refused as a whole-tree build when a `...` pattern follows the `go build`. |
+| `bashLossyPipe` | `commands.md` | Piping an expensive command through a filter that drops output. The part a filter removes is usually the part that says why the run failed. A reader line passes; every other line is judged by its text, as before the guards read commands. |
+| `bashRawHeavy` | `commands.md` | A heavy job typed raw, outside job admission. One machine carries several sessions, and an unadmitted job oversubscribes it. A reader line passes; every other line is judged by its text, as before the guards read commands. |
 | `bashPollLoop` | `commands.md` | An unbounded wait loop. A loop with no timeout holds the session captive. |
-| `bashSystemTmp` | `testing.md` | The system temporary directory. Session scratch belongs under the per-session directory, which is reaped with the session. |
+| `bashSystemTmp` | `testing.md` | The system temporary directory. Session scratch belongs under the per-session directory, which is reaped with the session. On a reader line it judges words, quotes removed: a word that is `/tmp` or starts with `/tmp/`, or such a value after `=`, `:` or `,`, or a `/tmp` under a parent the shell expands (`"$D"/tmp/x`, `"${v}/tmp"`, `~/tmp`), which can expand to `/tmp`; a grep pattern holding a `/tmp` path and a `/tmp` under a literal parent (`foo/tmp/x`) pass, and a redirect to `/tmp` does not. Every other line is judged by its text, as before the guards read commands: `/tmp` after a word boundary, a quote, `=`, `$`, `(`, a backtick, `:`, `,`, or a redirection operator `>` or `<` (`2>/tmp/err`), which the text judgment before the guards read commands missed, so it refuses a superset of what it refused. |
 | `bashScratch` | `commands.md` | Ad-hoc scratch written at the `tmp/` root. Sessions share that tree, so an unqualified name collides. |
 | `bashTestDeletion` | `testing.md` | Deleting a test without approval. A deleted test is indistinguishable from a test that never existed. It fails closed and judges the whole line: it asks when a word, quoted or not, is `rm`, ends in `/rm`, or is `-delete`, AND any word is a test path. A test path is a `*_test.go`, `.ci` or `.et` file, a path with a `test` or `testdata` element, or, inside `internal/` or `test/`, a path with any element whose name contains `test` (`internal/component/cli/testing`, `internal/foo/*test*`); `test/draft/` is exempt, and outside those two trees a name that only contains "test", such as `docs/architecture/testing/`, is not one. Words break at whitespace and at `; & | ( ) { } ! < >`, so a redirect glued to a path leaves the path whole. A line with an unclosed quote that runs `rm` is asked about. A line that names `rm` without running it, such as `grep rm x_test.go`, is asked about too. Known gaps: a bare word at the checkout root with no `/`, such as `rm -r test` or `rm -r test*`, because on a whole line `test` is `go test` or the test builtin far more often than the directory; a command inside a `bash -c` string or inside `$(...)` in double quotes; `find ... -delete` with no test word on the line; `rm -rf` of a directory that holds tests but has no element naming `test`; `git clean`; `mv`; and truncation or a redirect that overwrites a test. |
 | `bashGovernedWrite` | `commands.md` | A shell write into `plan/` or `ai/rules/`. Those trees are guarded by the Write/Edit hook, and a shell write runs none of its checks. |
 | `preMaterializeDerived` | `principles.md` | A command naming a derived artifact the tree does not hold. It rebuilds the artifact first, and refuses the command when the rebuild fails, because a grep of an absent file answers "no match" for a tree nobody rendered. |
 | `bashDocumentRead` | `go-standards.md`, `architecture.md` | Never refuses. A command that prints the whole of a gated document (`docs/contributing/ze-go-style.md`, or a page under `ai/doors/`) with `cat`, `bat` (no line range), `nl`, `less` or `more`, and has no pipe, redirection or substitution, writes that document's read marker, which `writeStyleGuideRead`, `writeDesignDoorsRead` and `writeSpecDoorsRead` read. `head`, `tail` and `sed` print a range and record nothing, and an unexpanded glob names no document. It runs before the command, so a command that then fails still leaves the marker. |
+
+The text judgment is each guard's default verdict, unchanged from before the
+build, piped-command, raw-job and `/tmp` guards judged commands; `readerLine`
+and the build guard's reader+build line may only lift it. A reader line is
+one inside the shell syntax the hook models (`modeledSyntax`, the allow-list
+`docs/contributing/running-commands.md` states under the identity check: no
+`#`, no backslash outside quotes, no here-document, `$'...'`, brace, `!`,
+parenthesis, `[[`, background `&` or non-ASCII byte, no redirection before
+or between a command's words, since `<<<cat go build ...` would read as the
+reader cat, and no empty quoted word, since the splitter drops `''` where
+bash passes it, among the rest), since
+`lineCommands` splits only that syntax into the words bash runs, and one
+`lineCommands` then parses whole, with no command substitution, whose every
+command is in the reader set `bashAgentIdentity` uses with the arguments its
+judge admits, and redirects its output into no file (`> f`, `>> f`, `>| f`,
+`&> f`, `2> f`; `/dev/null`, `2>&1` and an input `<` pass), since a reader
+could otherwise write the git or shell configuration a later reader runs.
+Each judge is an allow-list of the options and argument shapes
+it names (`readers.go`), so an abbreviated long option a program would
+expand (`git grep --open=bash`, `sort --co=sh`) is refused; `printf`, `test`
+and `[` refuse `-v` (and `test` `-R`), which evaluate an array subscript;
+`sed` passes only print, delete, quit and substitution scripts with no `e`
+or `w` flag; `gopls` passes only its read subcommands; and every judge
+refuses a word the shell expands (`$`, an unquoted glob, a leading `~`),
+since `$_` can hold an option. A reader with no judge (`cat`, `grep`,
+`head` and the other commands whose options run, write and evaluate
+nothing) takes expanded arguments, because no value turns one into a run
+or a write; only its command word must be text. The same
+judgments decide which subagent lines run without the identity line. On a
+reader line nothing runs its arguments or its input as a program, so a name
+or a separator inside quotes is text: `grep -n -E 'rebuild|go build' le` is
+a grep. Every other line, one holding a shell (fed by `-c`, stdin, a
+here-string or an rc file), a launcher (`watch`, `su`, `script`, `flock`,
+`time`, `xargs`), an interpreter, `awk`, `eval` or any command the set does
+not hold or a judge refuses, is judged by its text, so a command such a line
+can run from a quoted string is refused there as before. The text match is
+not a proof: a reader+build line whose build holds a word the shell expands
+(`-tags $_`, `GOFLAGS=$X`) is judged by its text too, and the text judgment
+reads only the `...` pattern and the `-o` path, so `go build -toolexec=x -o
+bin/y ./cmd/y` passes it, as it did before the guards read commands. What it never saw, such as `bash -o pipefail -c 'go test ./x'`
+(the option value read as the command) or a raw `go test` inside a
+double-quoted `$(...)`, it does not see there either.
+
+<!-- source: internal/le/hookruntime/shellline.go -- readerLine, lineCommands -->
+<!-- source: internal/le/hookruntime/shellsyntax.go -- modeledSyntax, unmodeledSyntax -->
+<!-- source: internal/le/hookruntime/readers.go -- readerCommands, readerCommand -->
+<!-- source: internal/le/hookruntime/gobuild.go -- goBuildLine, judgeGoBuild, cdFollowed, physicalPath -->
 
 ## PreToolUse: Write/Edit (`internal/le/hookruntime/writeedit.go`)
 
@@ -151,12 +198,13 @@ judgment are unchanged.
 
 ## PreToolUse: Bash, a subagent's identity (`internal/le/hookruntime/session.go`)
 
-<!-- source: internal/le/hookruntime/session.go -- bashAgentIdentity, identityLine, readerCommands, commandOutsideReaders, takesAnotherIdentity -->
+<!-- source: internal/le/hookruntime/session.go -- bashAgentIdentity, identityLine, commandOutsideReaders, takesAnotherIdentity -->
+<!-- source: internal/le/hookruntime/readers.go -- readerCommands, readerCommand -->
 <!-- source: internal/le/hookruntime/shellline.go -- lineCommands -->
 
 | Check | Enforces | What it refuses |
 |---|---|---|
-| `bashAgentIdentity` | `planning.md` | A subagent's Bash command that could start `le` without the agent's own identity. A command whose every command word is in the reader set (`readerCommands`) passes as typed, and so does one that starts with the agent's exact identity line, `export ZE_AGENT_ID=<agent>; export CLAUDE_CODE_SESSION_ID=<parent>; ` (the session part alone for a fork subagent), and sets neither variable again. Refused: any other command, a command substitution, a line the splitter cannot parse, an identity line naming another agent or session, and every call of an agent whose id or session id cannot name a file. The refusal prints the line to type. The check never changes the command, and the main thread is never judged. |
+| `bashAgentIdentity` | `planning.md` | A subagent's Bash command that could start `le` without the agent's own identity. A command whose every command is in the reader set (`readerCommands`) with the arguments its allow-list judge admits, holds no word the shell expands where a judge reads one, and redirects its output into no file but `/dev/null` or another descriptor, passes as typed, and so does one that starts with the agent's exact identity line, `export ZE_AGENT_ID=<agent>; export CLAUDE_CODE_SESSION_ID=<parent>; ` (the session part alone for a fork subagent), and names neither variable again after it outside a reader its judge admits (`grep ZE_AGENT_ID f` and `echo $ZE_AGENT_ID` pass; any other command naming one, in whatever form it sets it, is refused as taking another identity), and runs no command that changes the environment by its form: `export`, `declare`, `typeset`, `readonly`, `local`, `unset`, `env`, `exec`, `sudo`, `eval`, `source`, `.` or `set` as the command word (past a reserved word or a wrapper such as `time` or `nice`), or an assignment in front of a command to a name that is not plain (`ZE_AGENT_""ID=x`), judged by its text on a line outside the modeled syntax; `FOO=bar ./le x` and `cd x && ./le x` pass. The check catches an agent that forgets or mistypes its identity. It is not a sandbox: it judges the command, not the files the command runs, so a script the agent writes can set either variable and run `./le` (`bash ./s.sh`). Refused: any other command, a line outside the shell syntax the hook models (`modeledSyntax`), a command substitution, a line the splitter cannot parse, an identity line naming another agent or session, and every call of an agent whose id or session id cannot name a file. The refusal prints the line to type. The check never changes the command, and the main thread is never judged. |
 
 The check replaced a rewrite: the hook used to prepend the identity line and
 return the command as changed input, and auto mode then voided the call
