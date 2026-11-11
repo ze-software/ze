@@ -6,7 +6,7 @@
 | Priority | P1 |
 | Release reason | Committed export policy must reconcile previously advertised routes, not only future updates. |
 | Scope | protocol |
-| Depends | `plan/release/fixes/spec-plugin-reload-applies-or-refuses.md` (the egress filter plugins gain a live apply there); `plan/release/fixes/spec-bgp-refresh-reapplies-export-policy.md` (re-running the chain needs the pre-policy attributes that spec stores) |
+| Depends | `spec-plugin-reload-applies-or-refuses` (live egress-filter apply delivered; see `docs/guide/config-reload.md`); `plan/release/fixes/spec-bgp-refresh-reapplies-export-policy.md` (re-running the chain needs the pre-policy attributes that spec stores) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-14 |
@@ -38,8 +38,8 @@ it is `plan/post-release/features/spec-bgp-filtered-route-storage.md` AC-3.
 ### Architecture Docs
 - [ ] `docs/guide/config-reload.md` - what a reload does today
   → Constraint: to be filled at design
-- [ ] `plan/release/fixes/spec-plugin-reload-applies-or-refuses.md` "Boundary with stored routes"
-  → Decision: that spec applies egress edits to subsequent UPDATEs only and names this spec as the owner of re-advertisement
+- [ ] `docs/guide/config-reload.md` "Plugin config changed"
+  → Decision: live egress edits affect subsequent UPDATEs; this spec owns re-advertisement of previously advertised routes
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc4271.md` - UPDATE and Adj-RIB-Out
