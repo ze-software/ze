@@ -92,21 +92,26 @@ Mac logs, proposals and the P-24 payloads used above are in
 
 1. Done: the port is committed, in the commits named at the top of this
    section.
-2. Prove the LOCAL_PREF repair: the lab red walk on
-   `bgp-local-pref-strip-gobgp` and its discrimination record.
-3. Close the remaining owed items:
-   - P-18: the gokrazy baseline, cut and restored runs, and the three cleanup
-     proposals (guest `d3195649`, Yangcontract `191ba60d`, hugepages
-     `58756b12`).
-   - P-13: the HTMX browser repair that turns the two red capture tests green,
-     and the broadcast-interleaving walk.
-   - P-16, P-14 and P-25: their walks.
-   - P-24: fresh model observations over the corrected fixture.
-   - P-8: the evidence-2 cells.
-   - P-28: the open overlays.
-   - The interop readiness probe gap that `ac1a28dc21` names: Ze's readiness
-     probe checks nothing.
-   - The rationale for `CGO_ENABLED=0` on the CodeQL Select step.
+2. Prove the LOCAL_PREF repair in the lab (the `applyFactsLocalPref` strip
+   removed), then commit the record it writes:
+
+   ```
+   ./le rfc record id RFC4271-5.1.5-2 polarity positive unit internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip route mutant report tmp/session/2026-11-11-004732/scratch/walks/lp-mutant.json mutant internal/component/bgp/reactor/forward_local_pref.go:120:2#1 citation 13
+   ```
+
+   On 2026-11-11 its clean run passed (4m11s); the broken run never started
+   because another session's uncommitted edit left
+   `internal/le/interoplab/topology` not compiling (`undefined: cpeIKEName`),
+   and the overlay build compiles the working tree. The checker half is
+   already walked at unit level (evidence, "SERVER unit red walks").
+3. Done on 2026-11-11, each recorded in the evidence file: P-18 (three
+   cleanups applied in `c408086726`, seven cuts red), P-13 HTMX repair
+   (`7b5d645b94`) and broadcast walk, P-16, P-14, P-25, P-8 and P-28 walks,
+   P-24 fresh observations (all seven matched), P-31, the readiness probe
+   (`fe96a2c67d`, with the BMP collector and, in `ab4a67d631`, BIRD's IPv6
+   sysctls, both text matches on scenario configs), and the CodeQL
+   `CGO_ENABLED=0` rationale (`9be512c243`: not needed on the Select step,
+   dropped and documented).
 4. Complete every remaining P-1 through P-41 proof, the Review Gate and the
    two-commit closure. AC-32 and P-32 are restated by
    `spec-inventory-fast-registry-checks` AC-17 when that spec lands.
