@@ -43,7 +43,7 @@ jobs:
         if: matrix.build-mode == 'manual'
         shell: bash
         run: |
-          tree="$(CGO_ENABLED=0 ./le go stdpatch goroot)"
+          tree="$(./le go stdpatch goroot)"
           echo "GOROOT=$tree" >> "$GITHUB_ENV"
           echo "GOTOOLCHAIN=local" >> "$GITHUB_ENV"
           echo "$tree/bin" >> "$GITHUB_PATH"

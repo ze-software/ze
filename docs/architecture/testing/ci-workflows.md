@@ -49,7 +49,17 @@ to link `cache/` to `~/.cache/ze`, and the exported GOROOT went with it (run
 written behind it. CodeQL initializes after that step, against the Go
 executable the traced builds use, so its Go-path capture and tracing wrapper
 see the patched toolchain.
+
+`CGO_ENABLED=0` binds the extraction contexts, not the GOROOT selection. The
+prepare, build and check steps set it because cgo build constraints decide
+which files a package holds, so the prepared population, the traced builds and
+the checked database must agree on it, and `codeql_build` refuses any other
+assignment. The selection step compiles nothing: it lists the standard library
+under both cgo settings itself, and the launcher builds le with cgo off
+whatever the caller sets.
 <!-- source: .github/workflows/codeql.yml -- Select the patched Go standard library, Initialize CodeQL -->
+<!-- source: internal/le/go/stdpatch/gen/tree.go -- listStdlib, embedSet -->
+<!-- source: internal/le/repo/codeql/context.go -- CGO_ENABLED -->
 <!-- source: le -- ensure_cache_link, build_le -->
 
 Each build passes its actual tag argument to
