@@ -21,6 +21,8 @@ func TestRuleMetadataLevelFollowsBody(t *testing.T) {
 		{"matching-should", "SHOULD", "An author SHOULD name the source.", false},
 		{"matching-must", "MUST", "An author MUST name the source.", false},
 		{"quoted-must-is-not-obligation", "SHOULD", "An author SHOULD name the source.\n\n> An example MUST stay quoted.\n", false},
+		{"must-metadata-must-not-body", "MUST", "An author MUST NOT regenerate a tagged test.", true},
+		{"matching-must-not", "MUST NOT", "An author MUST NOT regenerate a tagged test.", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
