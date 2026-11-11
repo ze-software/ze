@@ -64,9 +64,6 @@ func wantedListeners(cfg *receiverConfig) map[string]struct{} {
 // max-sessions is stored rather than passed down, so a reload changes the cap
 // on a listener it did not have to rebind (acceptLoop reads it per accept).
 func (bp *BMPPlugin) applyReceiverConfig(cfg *receiverConfig) {
-	if cfg != nil && cfg.RouteAction == "redistribute" {
-		logger().Warn("bmp: route-action redistribute is not yet implemented, using monitor")
-	}
 	if cfg != nil {
 		bp.maxSessions.Store(uint32(parseUint16(cfg.MaxSessions, 100)))
 	}

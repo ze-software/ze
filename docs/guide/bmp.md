@@ -51,7 +51,7 @@ environment {
 | `ip` | 0.0.0.0 | Listen IP address |
 | `port` | 11019 | Listen TCP port (IANA assigned for BMP) |
 | `max-sessions` | 100 | Maximum concurrent BMP sessions (1-1000) |
-| `route-action` | monitor | `monitor` (BMP RIB for visibility) or `redistribute` (future: also enter best-path) |
+| `route-action` | monitor | `monitor` is the only value: routes go to the BMP RIB for visibility, never to best-path or the FIB |
 
 Multiple listeners are supported (same pattern as SSH/web):
 
@@ -498,9 +498,16 @@ When the BMP receiver is enabled, monitored routes are stored in the BMP RIB
 (a separate protocol namespace). These routes are visible through `show bmp rib`
 and looking glass endpoints but never enter BGP best-path selection or the FIB.
 
-The `route-action` leaf controls future behavior:
-- `monitor` (default): store in BMP RIB for visibility only
-- `redistribute`: store in BMP RIB AND redistribute into BGP best-path (not yet implemented)
+The `route-action` leaf has one value, `monitor`, which is also the default. A
+BMP receiver is a monitoring station: RFC 7854 defines no use of the routes it
+is told about, and a Route Monitoring message carries another router's
+unprocessed Adj-RIB-In over a session with no authentication. Ze therefore
+never feeds those routes to best-path selection. Any other value, such as
+`redistribute`, is refused when the config loads or reloads, naming the leaf
+and the accepted value; delete the line or write `route-action monitor;`.
+
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- route-action -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- processRouteMonitoring -->
 
 ### CLI
 
@@ -508,7 +515,7 @@ The `route-action` leaf controls future behavior:
 |---------|-------------|
 | `ze show bmp rib` | Show all BMP-monitored routes |
 
-BMP routes are separate from BGP routes: `ze bgp rib show` excludes
+BMP routes are separate from BGP routes: `ze show bgp rib` excludes
 BMP-monitored routes, and `ze show bmp rib` excludes real BGP routes.
 
 ### API Endpoints

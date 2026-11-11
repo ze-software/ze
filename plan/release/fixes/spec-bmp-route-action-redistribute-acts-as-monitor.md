@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Priority | P1 |
 | Release reason | Accepted receiver action must not silently perform monitoring instead of redistribution. |
 | Scope | protocol |
 | Depends | closure only: `plan/release/fixes/spec-config-enum-refusal-proposes-valid-values.md` must be closed before this spec closes, because A-2b is validated by its tests. Implementation and commits do not wait on it |
-| Phase | - |
+| Phase | 3/4 |
 | Handoff | - |
-| Updated | 2026-10-14 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -130,6 +130,16 @@ no direction, so one change cannot fix both.
 - The runtime warning, which can no longer fire, is deleted, and so is the `RouteAction` field nobody reads.
 - Help text and the guide stop promising best-path entry.
 
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec |
+|-----------|------------------------------------------|--------------------|-----------|
+| Native YANG enumeration refusal | `internal/component/config/schema.go` `ValidateLeafValue` (enum arm), `internal/component/config/yang/validator.go` `validateEnumeration` | Refuses a leaf value outside its `enumeration` on file parse, `set` parse and tree validation, naming the leaf and the allowed values | Extends: deleting `enum redistribute` makes this mechanism the refusal, with no new code |
+| Custom `ze:validate` validators | `internal/component/config/validators.go` `unimplementedVRFValidator`, registered in `validators_register.go` | Refuses a whole leaf Ze does not honor | Does not apply: approach B rejected by owner Q-2; a central registration is not needed when the enum already refuses |
+| Protocol-namespaced RIB injection | `internal/component/bgp/plugins/rib/rib_inject.go` `handleInjectWireRoute`; candidates from `bgpPeers` only (`rib_commands.go` `gatherPrefixCandidatesLocked`, `gatherKeyCandidatesLocked`) | Stores BMP Route Monitoring routes in `ribInPool[bmp]`, outside best-path | Does not change: it is the `monitor` behavior the surviving value names |
+| Receiver config reconcile | `internal/component/bgp/plugins/bmp/receiver.go` `applyReceiverConfig` | Reconciles listeners and stores `max-sessions`; today also logs the redistribute warning | Extends by deletion: the warning branch and `receiverConfig.RouteAction` go, the reconcile stays |
+| Enum agreement test helper | `internal/component/bgp/plugins/bmp/yang_enum_agreement_test.go` `yangEnumValues` | Reads an enumeration's values from the loaded `ze-bmp-conf` module | Extends: its path walk becomes a leaf-entry accessor the new AC-6 test also uses for the default |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -176,9 +186,9 @@ no direction, so one change cannot fix both.
 | A-1 | The owner does not want BMP redistribution built now, so refusing the value is the fix rather than a placeholder | RFC 7854 defines no station-side use of received routes (Sections 1, 2) and warns of false information without mutual authentication (Section 11); `plan/README.md` immediate-bucket test is "Ze accepts a configuration and then does something else" | If redistribution is wanted, approach C replaces this spec's design and a trust and loop-prevention design is owed first; the refusal still lands as the interim per Q-1 | Owner answer to Q-1 | unvalidated |
 | A-2a | A value outside the enumeration is refused by `ze config validate`, by file load at daemon start, and by reload | Read at the producer (round-1 review): the file parser (`config/parser.go`) and the set parser (`config/setparser.go`) both call `ValidateLeafValue`. `environment/bmp` has no env-var route (no `ze.bmp.*` key) | One of these paths would still accept `redistribute` and the plugin would then silently ignore it | This spec's own tests: AC-1 `.ci` (validate), AC-2 `.ci` (daemon start refuses), AC-3 `.ci` (reload refused) | unvalidated |
 | A-2b | A value outside the enumeration is refused on the SSH editor `set`, the web form, a REST config session commit and a gNMI `Set`. This is generic over every YANG enum, not BMP-specific, and this spec claims it only through the citation | Read at the producer (round-1 review): editor set uses `ValidateValueAtPath`; web set today refuses only at commit; REST and gNMI commit go through `ValidateContent` (`config/cli/cmd_validate.go`). No test at HEAD 8e1595acf2 proves enum refusal on editor set, REST or gNMI (round-2 review grep over `test/editor`, `test/plugin`, the cli, api and gnmi tests) | One of these paths would still accept `redistribute` | `plan/release/fixes/spec-config-enum-refusal-proposes-valid-values.md` AC-6 to AC-9: `TestValidateValueAtPathEnumRefusal`, `test/editor/validation/enum-refusal-set.et`, `TestWebFormRefusesEnumAtSet`, `test/web/config-enum-refusal.wb`, `test/plugin/api-config-enum-refusal.ci`, `test/plugin/gnmi-set-enum-refusal.ci` (driven by the `le test fixture` gNMI client that spec's settled A-6 adds). Validated when that spec closes; this spec does not close before then (metadata Depends, closure only) | unvalidated |
-| A-3 | No config in the repository, test, or interop scenario writes `route-action redistribute` | `grep -rn "route-action" test etc docs internal` at HEAD: only `bmp-locrib-receiver-frr/ze.conf` (`monitor`) and the guide | A fixture would go red at implementation | Re-run the grep in Phase 1 | unvalidated |
+| A-3 | No config in the repository, test, or interop scenario writes `route-action redistribute` | `grep -rn "route-action" test etc docs internal` at HEAD: only `bmp-locrib-receiver-frr/ze.conf` (`monitor`) and the guide | A fixture would go red at implementation | Re-run the grep in Phase 1 | confirmed 2026-11-11: only `bmp-locrib-receiver-frr/ze.conf` (`monitor`) and `docs/guide/bmp.md`; the `internal/chaos` `route-action` hits are an unrelated event name |
 | A-4 | The site fixtures `internal/le/site/testdata/published-*.{md,json}` are snapshots and do not follow the live YANG | `configurationPaths` copies `published-yang-config-tree.json` in as input | `TestTheConfigurationMirrorReadsAsThePublishedMirror` would redden | Run `./le go test package internal/le/site` scoped after the YANG edit | unvalidated |
-| A-5 | Nothing outside the BMP plugin reads `route-action` or `receiverConfig.RouteAction` | grep for `RouteAction` and `route-action` at HEAD: only `bmp.go`, `receiver.go`, `route_action_test.go` (the `redistevents.RouteAction` hits are an unrelated type) | Deleting the field breaks a build | `gopls references` on the field before deleting it | unvalidated |
+| A-5 | Nothing outside the BMP plugin reads `route-action` or `receiverConfig.RouteAction` | grep for `RouteAction` and `route-action` at HEAD: only `bmp.go`, `receiver.go`, `route_action_test.go` (the `redistevents.RouteAction` hits are an unrelated type) | Deleting the field breaks a build | `gopls references` on the field before deleting it | confirmed 2026-11-11 by grep (gopls not run): readers were `receiver.go` (warning, deleted) and `route_action_test.go` `TestReceiverConfig_RouteActionDefault` (deletion waits on the ze-test-judge approval, see Q-4 note) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -446,7 +456,13 @@ Recorded as R-1 to R-5 (stored config stops loading, message lacks the reason, l
 | Q-3 | The two existing `processRouteMonitoring` tests in `route_action_test.go` assert only "does not panic". Journal row only (recommended, out of this goal), or strengthen them here? | Strengthen here | **Answered by the owner, 2026-10-13: "Yes", strengthen here.** `TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB` is wrong about what it asserts (its nil plugin returns before the store, so it passes with storing removed) and the monitor path is what AC-5 relies on, so `ai/rules/rule-precedence.md` fixes it on the spot. See AC-9 |
 | Q-4 | May `TestReceiverConfig_RouteActionDefault` (`route_action_test.go`) be deleted? It asserts only that an empty Go field is empty, so it proves nothing about the YANG default (AC-6's `TestRouteActionEnumIsMonitorOnly` proves that), and once this spec removes `receiverConfig.RouteAction` it cannot compile. `ai/rules/testing.md` requires the owner's answer before deleting any `*_test.go` content, and Q-3 covered only the two `processRouteMonitoring` tests | Delete it | Decides Phase 3. A `test/weakened/<session>.md` row IS owed for the deletion: `docs/contributing/testing.md`, "When a test must be weakened", records a removal whose coverage "is genuinely gone, because the feature it proved was removed or another test now proves it", and the compiled detector (`internal/le/test/weakened`, `docs/architecture/testing/test-health.md`) refuses an edit that deletes assertions without that row. The row names `bmp.TestReceiverConfig_RouteActionDefault` with the reason "field removed; YANG default proven by TestRouteActionEnumIsMonitorOnly", is written before the edit, and is named in the commit. Not RFC-tagged, so no `./le rfc approve`. **Answered by the owner, 2026-10-13 (commit f8c0c10c3b): "ok". The test is deleted in Phase 3, with the weakened row above written before the edit** |
 
-Q-1 to Q-4 are answered (2026-10-13). Round 3 of the design review is clean. No owner approval of the design is recorded as given, so Status stays `design` until the owner approves the design.
+Q-1 to Q-4 are answered (2026-10-13). Round 3 of the design review is clean.
+
+**Owner decisions, 2026-11-11 (Thomas: "do it").**
+- The design (approach A) is approved, so Status moved `design` to `ready` and the spec was then claimed for implementation.
+- One-off WIP cap exception: this one spec may be claimed above the WIP cap. It was claimed with `ZE_SPEC_WIP_CAP=19` when 18 specs were in progress. This is a permission for this piece of work, not a rule, and is recorded here only.
+
+**Q-4 route correction (2026-11-11).** The `test/weakened/<session>.md` row named above is not the route the tooling holds. `docs/contributing/testing.md`, "When a test must be weakened", and the edit hook require an independent `ze-test-judge` agent to approve the deletion before the edit, recorded by `./le test weakened approve unit bmp.TestReceiverConfig_RouteActionDefault reason "<verdict>"` into `tmp/commit-weakening-approved-<session>.md`; the commit then carries a `Weakening-approved:` line. The owner's Q-4 "ok" is the scope decision; the judge's verdict is the recorded approval. The edit hook refused the deletion until then.
 
 ## Known Limitations
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work

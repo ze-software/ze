@@ -61,12 +61,12 @@ func yangModel(t *testing.T) *configyang.Resolved {
 	return schema
 }
 
-// yangEnumValues answers the values of the enumeration the leaf at path
-// declares, sorted. module is the module name without its `.yang` suffix.
+// yangLeafEntry answers the goyang entry of the node at path in module. module
+// is the module name without its `.yang` suffix.
 //
-// It FAILS rather than answering an empty set for a leaf it cannot reach: a
-// test comparing a Go table against nothing passes over every drift there is.
-func yangEnumValues(t *testing.T, module string, path ...string) []string {
+// It FAILS rather than answering nil for a node it cannot reach, so a caller
+// never reads the type or default of a leaf that is not there.
+func yangLeafEntry(t *testing.T, module string, path ...string) *gyang.Entry {
 	t.Helper()
 
 	entry := yangModel(t).GetEntry(module)
@@ -75,6 +75,18 @@ func yangEnumValues(t *testing.T, module string, path ...string) []string {
 		entry = entry.Dir[step]
 		require.NotNil(t, entry, "YANG module %s declares no %s under %v", module, step, path)
 	}
+	return entry
+}
+
+// yangEnumValues answers the values of the enumeration the leaf at path
+// declares, sorted. module is the module name without its `.yang` suffix.
+//
+// It FAILS rather than answering an empty set for a leaf it cannot reach: a
+// test comparing a Go table against nothing passes over every drift there is.
+func yangEnumValues(t *testing.T, module string, path ...string) []string {
+	t.Helper()
+
+	entry := yangLeafEntry(t, module, path...)
 	require.NotNil(t, entry.Type, "YANG leaf %s/%v has no type", module, path)
 	require.Equal(t, gyang.Yenum, entry.Type.Kind, "YANG leaf %s/%v is not an enumeration", module, path)
 	require.NotNil(t, entry.Type.Enum, "YANG leaf %s/%v declares no enumeration values", module, path)
@@ -97,4 +109,21 @@ func TestRouteMonitoringPolicyNamesMatchTheYANGModel(t *testing.T) {
 	slices.Sort(named)
 
 	require.Equal(t, declared, named)
+}
+
+// TestRouteActionEnumIsMonitorOnly proves the receiver's `route-action` leaf
+// offers `monitor` alone, and defaults to it.
+//
+// PREVENTS: a value the receiver does not perform coming back into the
+// enumeration. `redistribute` was listed, committed, and then acted as
+// `monitor` with one warning line as the only signal. With the value gone,
+// the native enum refusal rejects it on every config path.
+func TestRouteActionEnumIsMonitorOnly(t *testing.T) {
+	path := []string{"environment", "bmp", "route-action"}
+
+	require.Equal(t, []string{"monitor"}, yangEnumValues(t, "ze-bmp-conf", path...))
+
+	def, ok := yangLeafEntry(t, "ze-bmp-conf", path...).SingleDefaultValue()
+	require.True(t, ok, "YANG leaf ze-bmp-conf/%v declares no single default", path)
+	require.Equal(t, "monitor", def)
 }

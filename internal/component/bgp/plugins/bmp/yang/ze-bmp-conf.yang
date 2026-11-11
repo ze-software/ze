@@ -81,16 +81,14 @@ module ze-bmp-conf {
                     enum monitor {
                         ze:help "Store in BMP RIB for visibility (show bmp rib), isolated from BGP best-path and FIB";
                     }
-                    enum redistribute {
-                        ze:help "Store in BMP RIB and redistribute into BGP best-path selection";
-                    }
                 }
                 default monitor;
-                description "monitor is the default and is the only action Ze performs. redistribute is
-                    accepted by the schema and is not implemented: Ze writes a warning in the log and acts
-                    as monitor. Under monitor the routes of a BMP Route Monitoring message go to the BMP
-                    RIB, which show bmp rib reads. They reach neither BGP best-path selection nor the
-                    FIB.";
+                description "monitor is the default and the only value. The routes of a BMP Route
+                    Monitoring message go to the BMP RIB, which show bmp rib reads. They reach neither
+                    BGP best-path selection nor the FIB, because a BMP receiver is a monitoring station:
+                    RFC 7854 defines no use of the routes it is told about. Any other value is refused
+                    when the config loads. The leaf stays with one value on purpose: a value removed
+                    from the enumeration is refused, while a removed leaf would be skipped in silence.";
                 ze:help "Action for received BMP Route Monitoring messages";
             }
         }

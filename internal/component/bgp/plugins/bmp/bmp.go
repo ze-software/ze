@@ -81,11 +81,13 @@ func setLogger(l *slog.Logger) {
 // receiverConfig holds parsed receiver configuration from environment { bmp { ... } }.
 // YANG config tree delivers all values as strings (including booleans and numbers).
 // YANG list with key is delivered as a map keyed by the key value.
+//
+// route-action is not read: its one value, monitor, is what the receiver
+// always does (processRouteMonitoring), and the schema refuses any other.
 type receiverConfig struct {
 	Enabled     string                    `json:"enabled"`
 	Servers     map[string]listenerConfig `json:"server"`
 	MaxSessions string                    `json:"max-sessions"`
-	RouteAction string                    `json:"route-action"`
 }
 
 type listenerConfig struct {
