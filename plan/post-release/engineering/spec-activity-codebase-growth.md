@@ -33,8 +33,28 @@ The public page must answer this requirement throughout its default view,
 headline figures, chart, date readout and readable mirror. Correcting only a
 secondary tab while retaining an additions headline does not meet the task.
 The homepage's full-word units and Zeledon separator are a separate small
-correction already being implemented; this spec does not own those changes.
+correction completed in `e8780328d4`; this spec does not own those changes.
 The earlier homepage WIP exception is not authorization to claim this spec.
+
+### Completed homepage correction
+
+`FormatGoLines` now writes the units in full, with unchanged rounding and raw
+counts. The hero states its first-party inventory boundary and has the matching
+divider before Zeledon. Independent review approved the source, styles and test
+updates. Raw-source fixture setup no longer rebuilds unrelated RFC artifacts;
+its inputs and assertions remain unchanged.
+
+| Verification | Direct result |
+|--------------|---------------|
+| `le test unit pkg`, facts and browser-refresh scopes | PASS; `facts/golines_test.go` retains its rounding boundaries and `browsertest/home_metrics_test.go` exercises both snapshot versions. |
+| `le test unit pkg`, five homepage/snapshot tests | PASS; `home_metrics_test.go` and `golinefacts_test.go` exercise values, links, mirror, preserved navigation and missing/negative/zero inputs. |
+| `le site build partial` and `le site check` | PASS; canonical artifact has 24 producers and 1107 published/written routes. |
+| Real browser, 1440px and 320px, light/dark | PASS; explicit million units, correct links, responsive divider, no horizontal overflow and visible keyboard focus. |
+| `le repo compiles check`, committed tree `02692d2ed823` | PASS for distro, appliance, setup, host and installer. |
+| `le doc check all` | Source references valid. Overall RED: wiki command-catalog drift and four missing `ai/PACKAGE-MAP.md` anchors in three unrelated digest files. |
+
+The activity chart still uses the old additions measure. These completed
+homepage checks do not claim that this spec's historical-growth ACs are met.
 
 ### Admission record
 
