@@ -96,6 +96,7 @@ and backend parity under AC-15.
 | `guard-added-to-one-half-of-a-pair.md` | 2026-11-11 | fib-vpp sweeps no stale IP routes or labeled pushes at writer open, as fib-kernel's `startupSweep` does (Work Not Done) |
 | `config-accepts-a-value-that-breaks-an-rfc-must.md` | 2026-11-11 | `net.mpls.ip_ttl_propagate` 0 accepted by the sysctl registry, so pushed labels carry `net.mpls.default_ttl`, against RFC 3032 Section 2.4.3 (fixed: the key's `KeyDef.Constraint` refuses 0; `TestBuildRichRoutePushCarriesNoTTL` proves the push carries no tunnel TTL) |
 | `config-accepts-a-value-that-breaks-an-rfc-must.md` | 2026-11-11 | kernel `net.mpls.ip_ttl_propagate` 0 written outside Ze, which no doctor check reports (Work Not Done) |
+| `suite-shares-one-persistent-store.md` | 2026-11-11 | `./le test deployment vpp` traffic scenario starts its daemon while the previous one still holds the store |
 | `plugin-list-hardcoded.md` | 2026-09-07 | OSPF and IS-IS `Dependencies` named `fib-kernel` (Phase 13 AC-16; also listed by `spec-one-owner-per-domain-fact.md`) |
 | `plugin-list-hardcoded.md` | 2026-10-20 | LDP `Dependencies` named `fib-kernel` (Phase 13 AC-16; also listed by `spec-one-owner-per-domain-fact.md`) |
 | `plugin-list-hardcoded.md` | 2026-11-11 | geodns, dnsresolver and as112 doctor checks name `fib-kernel` in `DoctorCheckDef.Dependencies` |
@@ -735,6 +736,7 @@ daemons rebuilt from the broken tree. Host `.ci` runs used `./le --name`, becaus
 | ECMP installed in FIB | functional test + interop | test-fib-ecmp.ci + ecmp-frr |
 | Rich route attributes in kernel | functional test | test-fib-blackhole.ci (test-fib-vrf-table.ci moved with AC-9 to `spec-fib-nexthop-objects-vpp-metric.md`, 2026-10-09) |
 | Linux/VPP parity | functional comparison test | test comparing both backends |
+| Label-switching entries reach VPP (Phase 13) | real-VPP deployment scenario + stub functional test | AC-28: `mpls-label-pop` passed against real VPP v26.06 (`ligato/vpp-base:26.06-release`) in `./le test deployment vpp` on 2026-11-11, all five checks (installed, mpls-input, popped, unprogrammed-drop, removed); the run then stopped on the traffic-scenario store race (owned row `suite-shares-one-persistent-store.md`, 2026-11-11). `test/vpp/vpp-mpls-ldp-pop.ci` committed: red with fib-vpp's `mpls-fib` subscription removed, green restored, 80 stress invocations clean. Commits 01250d9b63, 2f988033a8, 748b173c1b (promotion) |
 
 ## Review Gate
 
