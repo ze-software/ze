@@ -518,12 +518,18 @@ that executes, and the ratchet it feeds MUST NOT.
 **`le test unit` runs Go tests three ways, and only one of them is a verdict about
 the checkout.** The six named verbs are targeted subsets a developer runs while
 working inside one of them: `bgp`, `core`, `plugins`, `config`, `cli` and
-`installer`. `pkg` runs the packages its repeated `path` keyword names, or vets
-them with `vet`, under the same feature tag set and race detector as a host
-group. It is the one action of the area that takes arguments, so the area
-answers a line that opens with it rather than sweeping it, and it runs through
-job admission's quiet run under the `unit-pkg` or `vet-pkg` label, where the
-groups stream unadmitted. `all` runs `./...`, so a package outside every named group is
+`installer`. `pkg` runs the packages its repeated `path` keyword names, or the
+ones `changed` takes from the reached-package selector, or vets them with
+`vet`, under the same feature tag set and race detector as a host group. It is
+the one action of the area that takes arguments, so the area answers a line
+that opens with it rather than sweeping it, and it runs through job
+admission's quiet run under the `unit-pkg` or `vet-pkg` label, where the groups
+stream unadmitted. It refuses, before admission, every value the group table
+says is not a scoped run (`place`): the whole tree, a group's whole pattern, a
+sub-tree spanning two or more groups, a package behind a group's own tags, and
+a widened selector answer. Its answer is the lines under each failed test, then
+one summary line that counts only the packages that ran a test, so a run in
+which no test ran answers 1. `all` runs `./...`, so a package outside every named group is
 compiled and its tests run. It then runs each group whose own build tags compile
 its test files out of that pass, which `allGroups` derives from the group's
 `Tags` field rather than from a second list. Today that is `installer`: every
@@ -547,7 +553,9 @@ its compile-out groups after a failure and returns the first non-zero code.
 
 <!-- source: internal/le/test/unit/groups.go -- Group.EnvOptions, allGroups -->
 <!-- source: internal/le/test/unit/actions.go -- runner, allRunner -->
-<!-- source: internal/le/test/unit/pkg.go -- pkgAction, answerPkg, packageGroup -->
+<!-- source: internal/le/test/unit/pkg.go -- pkgAction, answerPkg, packageGroup, changedPackages, PkgReport -->
+<!-- source: internal/le/test/unit/groups.go -- place -->
+<!-- source: internal/le/runlog/runlog.go -- Failures, PackageResults -->
 
 **The closed vocabularies the gate reads are EXPORTED, and every publisher of a
 verdict reads them rather than spelling one.** The polarities, the annotation

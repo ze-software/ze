@@ -13,6 +13,7 @@ package testunit
 
 import (
 	"runtime"
+	"strings"
 
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
@@ -132,6 +133,117 @@ func allGroups() []Group {
 		rows = append(rows, group)
 	}
 	return rows
+}
+
+// placementKind is where a package value lies against the group table, which
+// decides whether `pkg` may run it.
+type placementKind uint8
+
+const (
+	placementUnspecified placementKind = iota
+	// placementRuns: a package of no group, a package or sub-tree inside a
+	// group that declares no tags, or a sub-tree holding exactly one such group.
+	placementRuns
+	// placementWholeTree: every package of the checkout.
+	placementWholeTree
+	// placementGroupPattern: exactly one group's whole pattern, which that
+	// group's own action runs.
+	placementGroupPattern
+	// placementBehindGroupTags: a package under, or a sub-tree holding, a group
+	// that declares its own tags. Under the feature tags its tagged tests
+	// compile out while its untagged ones run, so a green covers part of it and
+	// reads as all of it.
+	placementBehindGroupTags
+	// placementSpansGroups: a sub-tree holding two or more groups, which is a
+	// near-whole-tree run.
+	placementSpansGroups
+)
+
+// placement is a package value's placementKind and the groups that decided it:
+// the one group for a pattern or a tag, every held group for a span.
+type placement struct {
+	kind   placementKind
+	groups []Group
+}
+
+// place answers where value lies against rows. module is the checkout's module
+// path, so an import-path spelling reduces to the same directory as a ./dir
+// spelling.
+//
+// The value is reduced to a checkout-relative directory, and remembered as a
+// sub-tree when it ends in /.... It is under a group when that directory is the
+// group pattern's directory or lies below it. It equals the group's pattern when
+// the directories are equal and the value is a sub-tree. It holds a group when
+// it is a sub-tree and the group's directory lies below it. A value that is not
+// a sub-tree names one directory and holds no group.
+func place(value, module string, rows []Group) placement {
+	dir, subtree := packageDir(value, module)
+	if subtree && dir == "" {
+		return placement{kind: placementWholeTree}
+	}
+
+	var held, pattern []Group
+	for _, group := range rows {
+		groupDir, _ := packageDir(group.Pattern, "")
+		if underDir(dir, groupDir) && len(group.Tags) != 0 {
+			return placement{kind: placementBehindGroupTags, groups: []Group{group}}
+		}
+		if subtree && dir == groupDir {
+			pattern = append(pattern, group)
+		}
+		if subtree && strings.HasPrefix(groupDir, dir+"/") {
+			held = append(held, group)
+		}
+	}
+	if len(held) >= 2 {
+		return placement{kind: placementSpansGroups, groups: held}
+	}
+	for _, group := range held {
+		if len(group.Tags) != 0 {
+			return placement{kind: placementBehindGroupTags, groups: []Group{group}}
+		}
+	}
+	if len(pattern) != 0 {
+		return placement{kind: placementGroupPattern, groups: pattern}
+	}
+	return placement{kind: placementRuns}
+}
+
+// packageDir reduces a package value to its checkout-relative directory, ""
+// for the module root, and reports whether the value is a /... sub-tree. The
+// module prefix of an import path, a leading ./, a trailing / and a trailing
+// /... are removed.
+func packageDir(value, module string) (string, bool) {
+	dir := value
+	if module != "" {
+		rest, found := strings.CutPrefix(dir, module+"/")
+		if found {
+			dir = rest
+		}
+		if dir == module {
+			dir = "."
+		}
+	}
+	subtree := false
+	if dir == "..." {
+		dir, subtree = "", true
+	}
+	if trimmed, found := strings.CutSuffix(dir, "/..."); found {
+		dir, subtree = trimmed, true
+	}
+	dir = strings.TrimSuffix(strings.TrimPrefix(dir, "./"), "/")
+	if dir == "." {
+		dir = ""
+	}
+	return dir, subtree
+}
+
+// underDir reports whether dir is groupDir or lies below it.
+func underDir(dir, groupDir string) bool {
+	if dir == groupDir {
+		return true
+	}
+	return strings.HasPrefix(dir, groupDir+"/")
 }
 
 // options answers the tag selection this group's commands carry. A group naming
