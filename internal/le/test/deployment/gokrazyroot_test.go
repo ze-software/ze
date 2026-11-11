@@ -143,6 +143,16 @@ func TestGokrazyBuildCancelEndsTheGrandchildren(t *testing.T) {
 	t.Cleanup(func() { syscall.Kill(grandchild, syscall.SIGKILL) }) //nolint:errcheck // the sleeper is gone when the fix holds
 
 	cancel()
+	// Done observes the sole reaper without starting another waiter.
+	// A timeout must join owned cleanup before failing and releasing files.
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-owned.Done():
+	case <-timer.C:
+		cleanupErr := owned.Close()
+		t.Fatalf("canceled build did not join within 10s; owned cleanup: %v", cleanupErr)
+	}
 	if err := owned.Wait(); err == nil {
 		t.Fatal("a canceled build answered no error")
 	}

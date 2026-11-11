@@ -105,6 +105,9 @@ func TestOwnedDocumentDisposition(t *testing.T) {
 		if _, held := rows["RFC7383-2.4-2"]; !held {
 			t.Fatal("retired RFC7296 fragmentation recommendation was not retained in RFC7383")
 		}
+		if !retired["RFC7296-2.1-1"] {
+			t.Fatal("retired RFC7296 fragmentation recommendation lost correction provenance")
+		}
 	})
 	t.Run("rfc8247", func(t *testing.T) {
 		row, held := rows["RFC8247-3.1-4"]

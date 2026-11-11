@@ -2,10 +2,10 @@
   "proof-kind": "HARNESSMODEL",
   "contract": "Independent harness-model judgments over frozen canonical design instructions and authored executable source fixtures. This is not native CLI automation. An unavailable model or unsupported source evidence is UNJUDGEABLE and refuses acceptance.",
   "baseline-canonical-sources": [
-    "ai/skills/ze-spec.md:208-272",
-    "ai/skills/ze-design.md:38-76",
-    "ai/skills/ze-review-spec.md:37-53",
-    "plan/templates/TEMPLATE.md:54-111,151-157"
+    "ai/skills/ze-spec.md:211-275",
+    "ai/skills/ze-design.md:40-52",
+    "ai/skills/ze-review-spec.md:41",
+    "plan/templates/TEMPLATE.md:54-134,173-186"
   ],
   "baseline-instruction": "You are the independent design reviewer. Apply the supplied canonical design instructions to this proposed design and the supplied source files. Read actual producers and consumers in the source, not the proposed Files to Modify list. Return a verdict ACCEPT, REWORK, or UNJUDGEABLE, and findings with the requirement and file/symbol evidence. Do not invent source, missing evidence, or prior verdicts. Judge this design now, not whether an implementation exists. If the supplied canonical instructions do not establish a proposed new requirement, do not invent that requirement. A missing or unusable model result is UNJUDGEABLE, never ACCEPT.",
   "source-fixture": {
@@ -65,9 +65,148 @@
         "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
         "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24.",
         "permitted-survivors": "Installed 192.0.2.0/24 remains in the snapshot and visible to both readers because the requested change excludes only routes that have not been installed. Other installed routes follow the same rule; unchanged JSON field names and the two reader entry points remain permitted."
+      },
+      {
+        "id": "AC-2",
+        "condition": "Run three independent inputs: nil []Route, a non-nil empty []Route, and []Route{{Prefix: \"198.51.100.0/24\", Installed: false}}.",
+        "expected-behavior": "PublishRoutes returns success and writes exactly {\"routes\":[]} for every input. The routes value decodes as an iterable array with zero elements. reader.sh exits 0 with zero stdout bytes; reader.py exits 0 with exactly one newline, and its installed_prefixes function returns an empty list.",
+        "permitted-survivors": "The routes array and both existing reader entry points remain usable when the requested filter leaves no installed route. No Route value survives these three inputs because none is installed. The Python CLI's existing final newline remains permitted because this change preserves that reader's print behavior."
       }
     ],
-    "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+    "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
+    "alternatives": [
+      {
+        "approach": "Filter in PublishRoutes before the existing JSON marshal.",
+        "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
+        "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
+        "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+        "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
+        "recommended": true
+      },
+      {
+        "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
+        "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
+        "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+        "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
+        "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
+        "recommended": false
+      }
+    ],
+    "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
+    "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+    "preservation-list": [
+      "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
+      "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
+      "Keep the existing caller-supplied output path, os.WriteFile publication, 0600 creation argument and error propagation.",
+      "Keep reader.sh's jq selection and reader.py's json.load and installed_prefixes selection unchanged, including their existing command-line newline behavior."
+    ],
+    "boundaries-crossed": [
+      {
+        "boundary": "Caller to writer.go PublishRoutes",
+        "representation": "In-process caller-supplied path and []Route",
+        "disposition": "Preserve the function signature and input ownership; filter only into the producer's new owned slice.",
+        "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput calls the existing function and compares the input before and after publication."
+      },
+      {
+        "boundary": "PublishRoutes to the published snapshot",
+        "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
+        "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+        "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
+      },
+      {
+        "boundary": "Published snapshot to reader.sh",
+        "representation": "The snapshot path is the shell entry point's $1; jq reads routes[].installed and routes[].prefix.",
+        "disposition": "Preserve the shell entry and jq filter unchanged.",
+        "verification": "Planned TestShellReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+      },
+      {
+        "boundary": "Published snapshot to reader.py",
+        "representation": "The snapshot path is sys.argv[1]; installed_prefixes loads JSON and iterates snapshot[\"routes\"].",
+        "disposition": "Preserve the Python function and command-line entry unchanged.",
+        "verification": "Planned TestPythonReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+      }
+    ],
+    "wiring-test-table": [
+      {
+        "entry-point": "PublishRoutes(path, routes)",
+        "feature-code": "writer.go PublishRoutes selection, json.Marshal and os.WriteFile",
+        "test": "writer_test.go TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+        "observation": "Publish the mixed installed/uninstalled input through the real function; decode the written file and assert the exact retained Route values, caller input preservation and schema."
+      },
+      {
+        "entry-point": "reader.sh SNAPSHOT after PublishRoutes",
+        "feature-code": "writer.go PublishRoutes to reader.sh jq",
+        "test": "writer_test.go TestShellReaderConsumesPublishRoutesSnapshot",
+        "observation": "The Go test publishes through PublishRoutes, starts the existing shell entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+      },
+      {
+        "entry-point": "reader.py SNAPSHOT after PublishRoutes",
+        "feature-code": "writer.go PublishRoutes to reader.py installed_prefixes and __main__",
+        "test": "writer_test.go TestPythonReaderConsumesPublishRoutesSnapshot",
+        "observation": "The Go test publishes through PublishRoutes, starts the existing Python entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+      },
+      {
+        "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
+        "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+        "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+        "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+      }
+    ],
+    "tdd-test-plan": [
+      {
+        "stage": "Producer behavior",
+        "test": "TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+        "method": "Use a temporary output path, call PublishRoutes with AC-1's actual Route values, decode the written file, check the exact surviving Route and retain a copy of the original input for equality. The current unfiltered producer must fail the snapshot membership assertion."
+      },
+      {
+        "stage": "Reader wiring",
+        "test": "TestShellReaderConsumesPublishRoutesSnapshot and TestPythonReaderConsumesPublishRoutesSnapshot",
+        "method": "Go tests invoke the existing reader entry points with the same file produced by PublishRoutes. Assert exact exit status and stdout. Their positive results alone do not detect a missing producer filter, because both readers already select Installed values; the producer membership assertion remains required."
+      },
+      {
+        "stage": "Empty population boundary",
+        "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+        "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+      },
+      {
+        "stage": "Fault discrimination and regression",
+        "test": "All four named Go tests",
+        "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+      }
+    ],
+    "files-to-create": [
+      {
+        "path": "writer_test.go",
+        "purpose": "The four planned Go tests over PublishRoutes and the existing shell/Python entry points, using temporary snapshot files and bounded child commands."
+      }
+    ],
+    "architectural-verification": [
+      {
+        "check": "No bypassed layers",
+        "basis": "All proposed paths call PublishRoutes, its existing JSON marshal and file write, then the existing readers. The wiring tests consume the actual file, not an independently assembled snapshot.",
+        "state": "Designed; the named tests have not run."
+      },
+      {
+        "check": "No unintended coupling",
+        "basis": "The shell and Python readers retain their independent implementations. Neither receives an import, a callback or another reader's output; both consume the existing snapshot path.",
+        "state": "Designed; the named tests have not run."
+      },
+      {
+        "check": "No duplicated functionality",
+        "basis": "The recommended approach places filtering in the single existing producer. It retains the existing JSON encoder, file publication and reader filters; no second writer or replacement reader is added.",
+        "state": "Designed; the named tests have not run."
+      },
+      {
+        "check": "Zero-copy where applicable",
+        "basis": "The existing producer already marshals JSON into bytes. Filtering requires a retained population without mutating the caller; the new bounded owned slice is explicit, and there is no cross-plugin pointer or zero-copy wire contract in this authored fixture.",
+        "state": "Source-supported design; no performance claim."
+      },
+      {
+        "check": "Registration rather than a central feature enumeration",
+        "basis": "This authored fixture has one ordinary publishing function and two scripts, with no plugin or feature registry. The change introduces no feature name, switch, factory, seed map, validator or central dispatch list.",
+        "state": "Not applicable to this source tree, with the stated reason."
+      }
+    ]
   },
   "cases": [
     {
@@ -78,7 +217,7 @@
     },
     {
       "id": "missing-survivor-rationale",
-      "change": "Keep the positive expected-behavior in base-design but remove permitted-survivors from its AC row; supply no preservation rationale elsewhere.",
+      "change": "Use the completed base-design but keep only its AC-1 row, remove permitted-survivors from that row, and omit preservation-list; supply no explicit rationale for the retained installed-route population elsewhere. Keep the completed alternatives, boundary and wiring tables, test plan, source files, source-search evidence and census unchanged.",
       "new-required-verdict": "REWORK",
       "new-required-finding": "Missing explicit permitted-survivor rationale: identify what remains permitted and why under the requested change."
     },
@@ -108,7 +247,7 @@
     },
     {
       "id": "unsupported-source",
-      "change": "Use base-design but replace source-fixture and source-search-evidence with an unavailable-source error. Do not use a previous judgment as source evidence.",
+      "change": "Use base-design but replace source-files and source-search-evidence with an unavailable-source error. Do not use a previous judgment as source evidence.",
       "new-required-verdict": "UNJUDGEABLE",
       "new-required-finding": "Cannot establish complete source-derived wire population from unavailable producer/reader evidence; refuse acceptance rather than infer completeness."
     }
@@ -152,7 +291,140 @@
             "expected-behavior": "The published snapshot does not contain 198.51.100.0/24."
           }
         ],
-        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
+        "alternatives": [
+          {
+            "approach": "Filter in PublishRoutes before the existing JSON marshal.",
+            "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
+            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
+            "recommended": true
+          },
+          {
+            "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
+            "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
+            "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
+            "recommended": false
+          }
+        ],
+        "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "preservation-list": [
+          "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
+          "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
+          "Keep the existing caller-supplied output path, os.WriteFile publication, 0600 creation argument and error propagation.",
+          "Keep reader.sh's jq selection and reader.py's json.load and installed_prefixes selection unchanged, including their existing command-line newline behavior."
+        ],
+        "boundaries-crossed": [
+          {
+            "boundary": "Caller to writer.go PublishRoutes",
+            "representation": "In-process caller-supplied path and []Route",
+            "disposition": "Preserve the function signature and input ownership; filter only into the producer's new owned slice.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput calls the existing function and compares the input before and after publication."
+          },
+          {
+            "boundary": "PublishRoutes to the published snapshot",
+            "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
+          },
+          {
+            "boundary": "Published snapshot to reader.sh",
+            "representation": "The snapshot path is the shell entry point's $1; jq reads routes[].installed and routes[].prefix.",
+            "disposition": "Preserve the shell entry and jq filter unchanged.",
+            "verification": "Planned TestShellReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          },
+          {
+            "boundary": "Published snapshot to reader.py",
+            "representation": "The snapshot path is sys.argv[1]; installed_prefixes loads JSON and iterates snapshot[\"routes\"].",
+            "disposition": "Preserve the Python function and command-line entry unchanged.",
+            "verification": "Planned TestPythonReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          }
+        ],
+        "wiring-test-table": [
+          {
+            "entry-point": "PublishRoutes(path, routes)",
+            "feature-code": "writer.go PublishRoutes selection, json.Marshal and os.WriteFile",
+            "test": "writer_test.go TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "observation": "Publish the mixed installed/uninstalled input through the real function; decode the written file and assert the exact retained Route values, caller input preservation and schema."
+          },
+          {
+            "entry-point": "reader.sh SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.sh jq",
+            "test": "writer_test.go TestShellReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing shell entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "reader.py SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.py installed_prefixes and __main__",
+            "test": "writer_test.go TestPythonReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing Python entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
+            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+          }
+        ],
+        "tdd-test-plan": [
+          {
+            "stage": "Producer behavior",
+            "test": "TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "method": "Use a temporary output path, call PublishRoutes with AC-1's actual Route values, decode the written file, check the exact surviving Route and retain a copy of the original input for equality. The current unfiltered producer must fail the snapshot membership assertion."
+          },
+          {
+            "stage": "Reader wiring",
+            "test": "TestShellReaderConsumesPublishRoutesSnapshot and TestPythonReaderConsumesPublishRoutesSnapshot",
+            "method": "Go tests invoke the existing reader entry points with the same file produced by PublishRoutes. Assert exact exit status and stdout. Their positive results alone do not detect a missing producer filter, because both readers already select Installed values; the producer membership assertion remains required."
+          },
+          {
+            "stage": "Empty population boundary",
+            "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+          },
+          {
+            "stage": "Fault discrimination and regression",
+            "test": "All four named Go tests",
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+          }
+        ],
+        "files-to-create": [
+          {
+            "path": "writer_test.go",
+            "purpose": "The four planned Go tests over PublishRoutes and the existing shell/Python entry points, using temporary snapshot files and bounded child commands."
+          }
+        ],
+        "architectural-verification": [
+          {
+            "check": "No bypassed layers",
+            "basis": "All proposed paths call PublishRoutes, its existing JSON marshal and file write, then the existing readers. The wiring tests consume the actual file, not an independently assembled snapshot.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No unintended coupling",
+            "basis": "The shell and Python readers retain their independent implementations. Neither receives an import, a callback or another reader's output; both consume the existing snapshot path.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No duplicated functionality",
+            "basis": "The recommended approach places filtering in the single existing producer. It retains the existing JSON encoder, file publication and reader filters; no second writer or replacement reader is added.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "Zero-copy where applicable",
+            "basis": "The existing producer already marshals JSON into bytes. Filtering requires a retained population without mutating the caller; the new bounded owned slice is explicit, and there is no cross-plugin pointer or zero-copy wire contract in this authored fixture.",
+            "state": "Source-supported design; no performance claim."
+          },
+          {
+            "check": "Registration rather than a central feature enumeration",
+            "basis": "This authored fixture has one ordinary publishing function and two scripts, with no plugin or feature registry. The change introduces no feature name, switch, factory, seed map, validator or central dispatch list.",
+            "state": "Not applicable to this source tree, with the stated reason."
+          }
+        ]
       },
       "source-files": {
         "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
@@ -214,7 +486,134 @@
             "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24."
           }
         ],
-        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
+        "alternatives": [
+          {
+            "approach": "Filter in PublishRoutes before the existing JSON marshal.",
+            "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
+            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
+            "recommended": true
+          },
+          {
+            "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
+            "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
+            "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
+            "recommended": false
+          }
+        ],
+        "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "boundaries-crossed": [
+          {
+            "boundary": "Caller to writer.go PublishRoutes",
+            "representation": "In-process caller-supplied path and []Route",
+            "disposition": "Preserve the function signature and input ownership; filter only into the producer's new owned slice.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput calls the existing function and compares the input before and after publication."
+          },
+          {
+            "boundary": "PublishRoutes to the published snapshot",
+            "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
+          },
+          {
+            "boundary": "Published snapshot to reader.sh",
+            "representation": "The snapshot path is the shell entry point's $1; jq reads routes[].installed and routes[].prefix.",
+            "disposition": "Preserve the shell entry and jq filter unchanged.",
+            "verification": "Planned TestShellReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          },
+          {
+            "boundary": "Published snapshot to reader.py",
+            "representation": "The snapshot path is sys.argv[1]; installed_prefixes loads JSON and iterates snapshot[\"routes\"].",
+            "disposition": "Preserve the Python function and command-line entry unchanged.",
+            "verification": "Planned TestPythonReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          }
+        ],
+        "wiring-test-table": [
+          {
+            "entry-point": "PublishRoutes(path, routes)",
+            "feature-code": "writer.go PublishRoutes selection, json.Marshal and os.WriteFile",
+            "test": "writer_test.go TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "observation": "Publish the mixed installed/uninstalled input through the real function; decode the written file and assert the exact retained Route values, caller input preservation and schema."
+          },
+          {
+            "entry-point": "reader.sh SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.sh jq",
+            "test": "writer_test.go TestShellReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing shell entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "reader.py SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.py installed_prefixes and __main__",
+            "test": "writer_test.go TestPythonReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing Python entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
+            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+          }
+        ],
+        "tdd-test-plan": [
+          {
+            "stage": "Producer behavior",
+            "test": "TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "method": "Use a temporary output path, call PublishRoutes with AC-1's actual Route values, decode the written file, check the exact surviving Route and retain a copy of the original input for equality. The current unfiltered producer must fail the snapshot membership assertion."
+          },
+          {
+            "stage": "Reader wiring",
+            "test": "TestShellReaderConsumesPublishRoutesSnapshot and TestPythonReaderConsumesPublishRoutesSnapshot",
+            "method": "Go tests invoke the existing reader entry points with the same file produced by PublishRoutes. Assert exact exit status and stdout. Their positive results alone do not detect a missing producer filter, because both readers already select Installed values; the producer membership assertion remains required."
+          },
+          {
+            "stage": "Empty population boundary",
+            "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+          },
+          {
+            "stage": "Fault discrimination and regression",
+            "test": "All four named Go tests",
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+          }
+        ],
+        "files-to-create": [
+          {
+            "path": "writer_test.go",
+            "purpose": "The four planned Go tests over PublishRoutes and the existing shell/Python entry points, using temporary snapshot files and bounded child commands."
+          }
+        ],
+        "architectural-verification": [
+          {
+            "check": "No bypassed layers",
+            "basis": "All proposed paths call PublishRoutes, its existing JSON marshal and file write, then the existing readers. The wiring tests consume the actual file, not an independently assembled snapshot.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No unintended coupling",
+            "basis": "The shell and Python readers retain their independent implementations. Neither receives an import, a callback or another reader's output; both consume the existing snapshot path.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No duplicated functionality",
+            "basis": "The recommended approach places filtering in the single existing producer. It retains the existing JSON encoder, file publication and reader filters; no second writer or replacement reader is added.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "Zero-copy where applicable",
+            "basis": "The existing producer already marshals JSON into bytes. Filtering requires a retained population without mutating the caller; the new bounded owned slice is explicit, and there is no cross-plugin pointer or zero-copy wire contract in this authored fixture.",
+            "state": "Source-supported design; no performance claim."
+          },
+          {
+            "check": "Registration rather than a central feature enumeration",
+            "basis": "This authored fixture has one ordinary publishing function and two scripts, with no plugin or feature registry. The change introduces no feature name, switch, factory, seed map, validator or central dispatch list.",
+            "state": "Not applicable to this source tree, with the stated reason."
+          }
+        ]
       },
       "source-files": {
         "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
@@ -269,9 +668,148 @@
             "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
             "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24.",
             "permitted-survivors": "Installed 192.0.2.0/24 remains in the snapshot and visible to both readers because the requested change excludes only routes that have not been installed. Other installed routes follow the same rule; unchanged JSON field names and the two reader entry points remain permitted."
+          },
+          {
+            "id": "AC-2",
+            "condition": "Run three independent inputs: nil []Route, a non-nil empty []Route, and []Route{{Prefix: \"198.51.100.0/24\", Installed: false}}.",
+            "expected-behavior": "PublishRoutes returns success and writes exactly {\"routes\":[]} for every input. The routes value decodes as an iterable array with zero elements. reader.sh exits 0 with zero stdout bytes; reader.py exits 0 with exactly one newline, and its installed_prefixes function returns an empty list.",
+            "permitted-survivors": "The routes array and both existing reader entry points remain usable when the requested filter leaves no installed route. No Route value survives these three inputs because none is installed. The Python CLI's existing final newline remains permitted because this change preserves that reader's print behavior."
           }
         ],
-        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
+        "alternatives": [
+          {
+            "approach": "Filter in PublishRoutes before the existing JSON marshal.",
+            "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
+            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
+            "recommended": true
+          },
+          {
+            "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
+            "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
+            "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
+            "recommended": false
+          }
+        ],
+        "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "preservation-list": [
+          "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
+          "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
+          "Keep the existing caller-supplied output path, os.WriteFile publication, 0600 creation argument and error propagation.",
+          "Keep reader.sh's jq selection and reader.py's json.load and installed_prefixes selection unchanged, including their existing command-line newline behavior."
+        ],
+        "boundaries-crossed": [
+          {
+            "boundary": "Caller to writer.go PublishRoutes",
+            "representation": "In-process caller-supplied path and []Route",
+            "disposition": "Preserve the function signature and input ownership; filter only into the producer's new owned slice.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput calls the existing function and compares the input before and after publication."
+          },
+          {
+            "boundary": "PublishRoutes to the published snapshot",
+            "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
+          },
+          {
+            "boundary": "Published snapshot to reader.sh",
+            "representation": "The snapshot path is the shell entry point's $1; jq reads routes[].installed and routes[].prefix.",
+            "disposition": "Preserve the shell entry and jq filter unchanged.",
+            "verification": "Planned TestShellReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          },
+          {
+            "boundary": "Published snapshot to reader.py",
+            "representation": "The snapshot path is sys.argv[1]; installed_prefixes loads JSON and iterates snapshot[\"routes\"].",
+            "disposition": "Preserve the Python function and command-line entry unchanged.",
+            "verification": "Planned TestPythonReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          }
+        ],
+        "wiring-test-table": [
+          {
+            "entry-point": "PublishRoutes(path, routes)",
+            "feature-code": "writer.go PublishRoutes selection, json.Marshal and os.WriteFile",
+            "test": "writer_test.go TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "observation": "Publish the mixed installed/uninstalled input through the real function; decode the written file and assert the exact retained Route values, caller input preservation and schema."
+          },
+          {
+            "entry-point": "reader.sh SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.sh jq",
+            "test": "writer_test.go TestShellReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing shell entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "reader.py SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.py installed_prefixes and __main__",
+            "test": "writer_test.go TestPythonReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing Python entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
+            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+          }
+        ],
+        "tdd-test-plan": [
+          {
+            "stage": "Producer behavior",
+            "test": "TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "method": "Use a temporary output path, call PublishRoutes with AC-1's actual Route values, decode the written file, check the exact surviving Route and retain a copy of the original input for equality. The current unfiltered producer must fail the snapshot membership assertion."
+          },
+          {
+            "stage": "Reader wiring",
+            "test": "TestShellReaderConsumesPublishRoutesSnapshot and TestPythonReaderConsumesPublishRoutesSnapshot",
+            "method": "Go tests invoke the existing reader entry points with the same file produced by PublishRoutes. Assert exact exit status and stdout. Their positive results alone do not detect a missing producer filter, because both readers already select Installed values; the producer membership assertion remains required."
+          },
+          {
+            "stage": "Empty population boundary",
+            "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+          },
+          {
+            "stage": "Fault discrimination and regression",
+            "test": "All four named Go tests",
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+          }
+        ],
+        "files-to-create": [
+          {
+            "path": "writer_test.go",
+            "purpose": "The four planned Go tests over PublishRoutes and the existing shell/Python entry points, using temporary snapshot files and bounded child commands."
+          }
+        ],
+        "architectural-verification": [
+          {
+            "check": "No bypassed layers",
+            "basis": "All proposed paths call PublishRoutes, its existing JSON marshal and file write, then the existing readers. The wiring tests consume the actual file, not an independently assembled snapshot.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No unintended coupling",
+            "basis": "The shell and Python readers retain their independent implementations. Neither receives an import, a callback or another reader's output; both consume the existing snapshot path.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No duplicated functionality",
+            "basis": "The recommended approach places filtering in the single existing producer. It retains the existing JSON encoder, file publication and reader filters; no second writer or replacement reader is added.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "Zero-copy where applicable",
+            "basis": "The existing producer already marshals JSON into bytes. Filtering requires a retained population without mutating the caller; the new bounded owned slice is explicit, and there is no cross-plugin pointer or zero-copy wire contract in this authored fixture.",
+            "state": "Source-supported design; no performance claim."
+          },
+          {
+            "check": "Registration rather than a central feature enumeration",
+            "basis": "This authored fixture has one ordinary publishing function and two scripts, with no plugin or feature registry. The change introduces no feature name, switch, factory, seed map, validator or central dispatch list.",
+            "state": "Not applicable to this source tree, with the stated reason."
+          }
+        ]
       },
       "source-files": {
         "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
@@ -326,9 +864,148 @@
             "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
             "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24.",
             "permitted-survivors": "Installed 192.0.2.0/24 remains in the snapshot and visible to both readers because the requested change excludes only routes that have not been installed. Other installed routes follow the same rule; unchanged JSON field names and the two reader entry points remain permitted."
+          },
+          {
+            "id": "AC-2",
+            "condition": "Run three independent inputs: nil []Route, a non-nil empty []Route, and []Route{{Prefix: \"198.51.100.0/24\", Installed: false}}.",
+            "expected-behavior": "PublishRoutes returns success and writes exactly {\"routes\":[]} for every input. The routes value decodes as an iterable array with zero elements. reader.sh exits 0 with zero stdout bytes; reader.py exits 0 with exactly one newline, and its installed_prefixes function returns an empty list.",
+            "permitted-survivors": "The routes array and both existing reader entry points remain usable when the requested filter leaves no installed route. No Route value survives these three inputs because none is installed. The Python CLI's existing final newline remains permitted because this change preserves that reader's print behavior."
           }
         ],
-        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
+        "alternatives": [
+          {
+            "approach": "Filter in PublishRoutes before the existing JSON marshal.",
+            "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
+            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
+            "recommended": true
+          },
+          {
+            "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
+            "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
+            "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
+            "recommended": false
+          }
+        ],
+        "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "preservation-list": [
+          "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
+          "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
+          "Keep the existing caller-supplied output path, os.WriteFile publication, 0600 creation argument and error propagation.",
+          "Keep reader.sh's jq selection and reader.py's json.load and installed_prefixes selection unchanged, including their existing command-line newline behavior."
+        ],
+        "boundaries-crossed": [
+          {
+            "boundary": "Caller to writer.go PublishRoutes",
+            "representation": "In-process caller-supplied path and []Route",
+            "disposition": "Preserve the function signature and input ownership; filter only into the producer's new owned slice.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput calls the existing function and compares the input before and after publication."
+          },
+          {
+            "boundary": "PublishRoutes to the published snapshot",
+            "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
+          },
+          {
+            "boundary": "Published snapshot to reader.sh",
+            "representation": "The snapshot path is the shell entry point's $1; jq reads routes[].installed and routes[].prefix.",
+            "disposition": "Preserve the shell entry and jq filter unchanged.",
+            "verification": "Planned TestShellReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          },
+          {
+            "boundary": "Published snapshot to reader.py",
+            "representation": "The snapshot path is sys.argv[1]; installed_prefixes loads JSON and iterates snapshot[\"routes\"].",
+            "disposition": "Preserve the Python function and command-line entry unchanged.",
+            "verification": "Planned TestPythonReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          }
+        ],
+        "wiring-test-table": [
+          {
+            "entry-point": "PublishRoutes(path, routes)",
+            "feature-code": "writer.go PublishRoutes selection, json.Marshal and os.WriteFile",
+            "test": "writer_test.go TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "observation": "Publish the mixed installed/uninstalled input through the real function; decode the written file and assert the exact retained Route values, caller input preservation and schema."
+          },
+          {
+            "entry-point": "reader.sh SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.sh jq",
+            "test": "writer_test.go TestShellReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing shell entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "reader.py SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.py installed_prefixes and __main__",
+            "test": "writer_test.go TestPythonReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing Python entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
+            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+          }
+        ],
+        "tdd-test-plan": [
+          {
+            "stage": "Producer behavior",
+            "test": "TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "method": "Use a temporary output path, call PublishRoutes with AC-1's actual Route values, decode the written file, check the exact surviving Route and retain a copy of the original input for equality. The current unfiltered producer must fail the snapshot membership assertion."
+          },
+          {
+            "stage": "Reader wiring",
+            "test": "TestShellReaderConsumesPublishRoutesSnapshot and TestPythonReaderConsumesPublishRoutesSnapshot",
+            "method": "Go tests invoke the existing reader entry points with the same file produced by PublishRoutes. Assert exact exit status and stdout. Their positive results alone do not detect a missing producer filter, because both readers already select Installed values; the producer membership assertion remains required."
+          },
+          {
+            "stage": "Empty population boundary",
+            "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+          },
+          {
+            "stage": "Fault discrimination and regression",
+            "test": "All four named Go tests",
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+          }
+        ],
+        "files-to-create": [
+          {
+            "path": "writer_test.go",
+            "purpose": "The four planned Go tests over PublishRoutes and the existing shell/Python entry points, using temporary snapshot files and bounded child commands."
+          }
+        ],
+        "architectural-verification": [
+          {
+            "check": "No bypassed layers",
+            "basis": "All proposed paths call PublishRoutes, its existing JSON marshal and file write, then the existing readers. The wiring tests consume the actual file, not an independently assembled snapshot.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No unintended coupling",
+            "basis": "The shell and Python readers retain their independent implementations. Neither receives an import, a callback or another reader's output; both consume the existing snapshot path.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No duplicated functionality",
+            "basis": "The recommended approach places filtering in the single existing producer. It retains the existing JSON encoder, file publication and reader filters; no second writer or replacement reader is added.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "Zero-copy where applicable",
+            "basis": "The existing producer already marshals JSON into bytes. Filtering requires a retained population without mutating the caller; the new bounded owned slice is explicit, and there is no cross-plugin pointer or zero-copy wire contract in this authored fixture.",
+            "state": "Source-supported design; no performance claim."
+          },
+          {
+            "check": "Registration rather than a central feature enumeration",
+            "basis": "This authored fixture has one ordinary publishing function and two scripts, with no plugin or feature registry. The change introduces no feature name, switch, factory, seed map, validator or central dispatch list.",
+            "state": "Not applicable to this source tree, with the stated reason."
+          }
+        ]
       },
       "source-files": {
         "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
@@ -383,9 +1060,148 @@
             "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
             "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24.",
             "permitted-survivors": "Installed 192.0.2.0/24 remains in the snapshot and visible to both readers because the requested change excludes only routes that have not been installed. Other installed routes follow the same rule; unchanged JSON field names and the two reader entry points remain permitted."
+          },
+          {
+            "id": "AC-2",
+            "condition": "Run three independent inputs: nil []Route, a non-nil empty []Route, and []Route{{Prefix: \"198.51.100.0/24\", Installed: false}}.",
+            "expected-behavior": "PublishRoutes returns success and writes exactly {\"routes\":[]} for every input. The routes value decodes as an iterable array with zero elements. reader.sh exits 0 with zero stdout bytes; reader.py exits 0 with exactly one newline, and its installed_prefixes function returns an empty list.",
+            "permitted-survivors": "The routes array and both existing reader entry points remain usable when the requested filter leaves no installed route. No Route value survives these three inputs because none is installed. The Python CLI's existing final newline remains permitted because this change preserves that reader's print behavior."
           }
         ],
-        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
+        "alternatives": [
+          {
+            "approach": "Filter in PublishRoutes before the existing JSON marshal.",
+            "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
+            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
+            "recommended": true
+          },
+          {
+            "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
+            "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
+            "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
+            "recommended": false
+          }
+        ],
+        "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "preservation-list": [
+          "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
+          "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
+          "Keep the existing caller-supplied output path, os.WriteFile publication, 0600 creation argument and error propagation.",
+          "Keep reader.sh's jq selection and reader.py's json.load and installed_prefixes selection unchanged, including their existing command-line newline behavior."
+        ],
+        "boundaries-crossed": [
+          {
+            "boundary": "Caller to writer.go PublishRoutes",
+            "representation": "In-process caller-supplied path and []Route",
+            "disposition": "Preserve the function signature and input ownership; filter only into the producer's new owned slice.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput calls the existing function and compares the input before and after publication."
+          },
+          {
+            "boundary": "PublishRoutes to the published snapshot",
+            "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
+          },
+          {
+            "boundary": "Published snapshot to reader.sh",
+            "representation": "The snapshot path is the shell entry point's $1; jq reads routes[].installed and routes[].prefix.",
+            "disposition": "Preserve the shell entry and jq filter unchanged.",
+            "verification": "Planned TestShellReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          },
+          {
+            "boundary": "Published snapshot to reader.py",
+            "representation": "The snapshot path is sys.argv[1]; installed_prefixes loads JSON and iterates snapshot[\"routes\"].",
+            "disposition": "Preserve the Python function and command-line entry unchanged.",
+            "verification": "Planned TestPythonReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          }
+        ],
+        "wiring-test-table": [
+          {
+            "entry-point": "PublishRoutes(path, routes)",
+            "feature-code": "writer.go PublishRoutes selection, json.Marshal and os.WriteFile",
+            "test": "writer_test.go TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "observation": "Publish the mixed installed/uninstalled input through the real function; decode the written file and assert the exact retained Route values, caller input preservation and schema."
+          },
+          {
+            "entry-point": "reader.sh SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.sh jq",
+            "test": "writer_test.go TestShellReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing shell entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "reader.py SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.py installed_prefixes and __main__",
+            "test": "writer_test.go TestPythonReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing Python entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
+            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+          }
+        ],
+        "tdd-test-plan": [
+          {
+            "stage": "Producer behavior",
+            "test": "TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "method": "Use a temporary output path, call PublishRoutes with AC-1's actual Route values, decode the written file, check the exact surviving Route and retain a copy of the original input for equality. The current unfiltered producer must fail the snapshot membership assertion."
+          },
+          {
+            "stage": "Reader wiring",
+            "test": "TestShellReaderConsumesPublishRoutesSnapshot and TestPythonReaderConsumesPublishRoutesSnapshot",
+            "method": "Go tests invoke the existing reader entry points with the same file produced by PublishRoutes. Assert exact exit status and stdout. Their positive results alone do not detect a missing producer filter, because both readers already select Installed values; the producer membership assertion remains required."
+          },
+          {
+            "stage": "Empty population boundary",
+            "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+          },
+          {
+            "stage": "Fault discrimination and regression",
+            "test": "All four named Go tests",
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+          }
+        ],
+        "files-to-create": [
+          {
+            "path": "writer_test.go",
+            "purpose": "The four planned Go tests over PublishRoutes and the existing shell/Python entry points, using temporary snapshot files and bounded child commands."
+          }
+        ],
+        "architectural-verification": [
+          {
+            "check": "No bypassed layers",
+            "basis": "All proposed paths call PublishRoutes, its existing JSON marshal and file write, then the existing readers. The wiring tests consume the actual file, not an independently assembled snapshot.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No unintended coupling",
+            "basis": "The shell and Python readers retain their independent implementations. Neither receives an import, a callback or another reader's output; both consume the existing snapshot path.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No duplicated functionality",
+            "basis": "The recommended approach places filtering in the single existing producer. It retains the existing JSON encoder, file publication and reader filters; no second writer or replacement reader is added.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "Zero-copy where applicable",
+            "basis": "The existing producer already marshals JSON into bytes. Filtering requires a retained population without mutating the caller; the new bounded owned slice is explicit, and there is no cross-plugin pointer or zero-copy wire contract in this authored fixture.",
+            "state": "Source-supported design; no performance claim."
+          },
+          {
+            "check": "Registration rather than a central feature enumeration",
+            "basis": "This authored fixture has one ordinary publishing function and two scripts, with no plugin or feature registry. The change introduces no feature name, switch, factory, seed map, validator or central dispatch list.",
+            "state": "Not applicable to this source tree, with the stated reason."
+          }
+        ]
       },
       "source-files": {
         "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
@@ -446,9 +1262,148 @@
             "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
             "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24.",
             "permitted-survivors": "Installed 192.0.2.0/24 remains in the snapshot and visible to both readers because the requested change excludes only routes that have not been installed. Other installed routes follow the same rule; unchanged JSON field names and the two reader entry points remain permitted."
+          },
+          {
+            "id": "AC-2",
+            "condition": "Run three independent inputs: nil []Route, a non-nil empty []Route, and []Route{{Prefix: \"198.51.100.0/24\", Installed: false}}.",
+            "expected-behavior": "PublishRoutes returns success and writes exactly {\"routes\":[]} for every input. The routes value decodes as an iterable array with zero elements. reader.sh exits 0 with zero stdout bytes; reader.py exits 0 with exactly one newline, and its installed_prefixes function returns an empty list.",
+            "permitted-survivors": "The routes array and both existing reader entry points remain usable when the requested filter leaves no installed route. No Route value survives these three inputs because none is installed. The Python CLI's existing final newline remains permitted because this change preserves that reader's print behavior."
           }
         ],
-        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
+        "alternatives": [
+          {
+            "approach": "Filter in PublishRoutes before the existing JSON marshal.",
+            "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
+            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
+            "recommended": true
+          },
+          {
+            "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
+            "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
+            "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
+            "recommended": false
+          }
+        ],
+        "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "preservation-list": [
+          "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
+          "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
+          "Keep the existing caller-supplied output path, os.WriteFile publication, 0600 creation argument and error propagation.",
+          "Keep reader.sh's jq selection and reader.py's json.load and installed_prefixes selection unchanged, including their existing command-line newline behavior."
+        ],
+        "boundaries-crossed": [
+          {
+            "boundary": "Caller to writer.go PublishRoutes",
+            "representation": "In-process caller-supplied path and []Route",
+            "disposition": "Preserve the function signature and input ownership; filter only into the producer's new owned slice.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput calls the existing function and compares the input before and after publication."
+          },
+          {
+            "boundary": "PublishRoutes to the published snapshot",
+            "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
+          },
+          {
+            "boundary": "Published snapshot to reader.sh",
+            "representation": "The snapshot path is the shell entry point's $1; jq reads routes[].installed and routes[].prefix.",
+            "disposition": "Preserve the shell entry and jq filter unchanged.",
+            "verification": "Planned TestShellReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          },
+          {
+            "boundary": "Published snapshot to reader.py",
+            "representation": "The snapshot path is sys.argv[1]; installed_prefixes loads JSON and iterates snapshot[\"routes\"].",
+            "disposition": "Preserve the Python function and command-line entry unchanged.",
+            "verification": "Planned TestPythonReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          }
+        ],
+        "wiring-test-table": [
+          {
+            "entry-point": "PublishRoutes(path, routes)",
+            "feature-code": "writer.go PublishRoutes selection, json.Marshal and os.WriteFile",
+            "test": "writer_test.go TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "observation": "Publish the mixed installed/uninstalled input through the real function; decode the written file and assert the exact retained Route values, caller input preservation and schema."
+          },
+          {
+            "entry-point": "reader.sh SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.sh jq",
+            "test": "writer_test.go TestShellReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing shell entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "reader.py SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.py installed_prefixes and __main__",
+            "test": "writer_test.go TestPythonReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing Python entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
+            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+          }
+        ],
+        "tdd-test-plan": [
+          {
+            "stage": "Producer behavior",
+            "test": "TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "method": "Use a temporary output path, call PublishRoutes with AC-1's actual Route values, decode the written file, check the exact surviving Route and retain a copy of the original input for equality. The current unfiltered producer must fail the snapshot membership assertion."
+          },
+          {
+            "stage": "Reader wiring",
+            "test": "TestShellReaderConsumesPublishRoutesSnapshot and TestPythonReaderConsumesPublishRoutesSnapshot",
+            "method": "Go tests invoke the existing reader entry points with the same file produced by PublishRoutes. Assert exact exit status and stdout. Their positive results alone do not detect a missing producer filter, because both readers already select Installed values; the producer membership assertion remains required."
+          },
+          {
+            "stage": "Empty population boundary",
+            "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+          },
+          {
+            "stage": "Fault discrimination and regression",
+            "test": "All four named Go tests",
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+          }
+        ],
+        "files-to-create": [
+          {
+            "path": "writer_test.go",
+            "purpose": "The four planned Go tests over PublishRoutes and the existing shell/Python entry points, using temporary snapshot files and bounded child commands."
+          }
+        ],
+        "architectural-verification": [
+          {
+            "check": "No bypassed layers",
+            "basis": "All proposed paths call PublishRoutes, its existing JSON marshal and file write, then the existing readers. The wiring tests consume the actual file, not an independently assembled snapshot.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No unintended coupling",
+            "basis": "The shell and Python readers retain their independent implementations. Neither receives an import, a callback or another reader's output; both consume the existing snapshot path.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No duplicated functionality",
+            "basis": "The recommended approach places filtering in the single existing producer. It retains the existing JSON encoder, file publication and reader filters; no second writer or replacement reader is added.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "Zero-copy where applicable",
+            "basis": "The existing producer already marshals JSON into bytes. Filtering requires a retained population without mutating the caller; the new bounded owned slice is explicit, and there is no cross-plugin pointer or zero-copy wire contract in this authored fixture.",
+            "state": "Source-supported design; no performance claim."
+          },
+          {
+            "check": "Registration rather than a central feature enumeration",
+            "basis": "This authored fixture has one ordinary publishing function and two scripts, with no plugin or feature registry. The change introduces no feature name, switch, factory, seed map, validator or central dispatch list.",
+            "state": "Not applicable to this source tree, with the stated reason."
+          }
+        ]
       },
       "source-files": {
         "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
@@ -509,9 +1464,148 @@
             "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
             "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24.",
             "permitted-survivors": "Installed 192.0.2.0/24 remains in the snapshot and visible to both readers because the requested change excludes only routes that have not been installed. Other installed routes follow the same rule; unchanged JSON field names and the two reader entry points remain permitted."
+          },
+          {
+            "id": "AC-2",
+            "condition": "Run three independent inputs: nil []Route, a non-nil empty []Route, and []Route{{Prefix: \"198.51.100.0/24\", Installed: false}}.",
+            "expected-behavior": "PublishRoutes returns success and writes exactly {\"routes\":[]} for every input. The routes value decodes as an iterable array with zero elements. reader.sh exits 0 with zero stdout bytes; reader.py exits 0 with exactly one newline, and its installed_prefixes function returns an empty list.",
+            "permitted-survivors": "The routes array and both existing reader entry points remain usable when the requested filter leaves no installed route. No Route value survives these three inputs because none is installed. The Python CLI's existing final newline remains permitted because this change preserves that reader's print behavior."
           }
         ],
-        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof.",
+        "alternatives": [
+          {
+            "approach": "Filter in PublishRoutes before the existing JSON marshal.",
+            "mechanism": "Extend writer.go PublishRoutes, retaining its encoding/json encoder, anonymous routes wrapper and os.WriteFile publication.",
+            "operation": "Allocate selected := make([]Route, 0, len(routes)); append each Route whose Installed is true in input order; pass selected to the existing routes wrapper and json.Marshal. Keep the caller's slice and Route values unchanged.",
+            "advantages": "The filter is visible at the one existing publication entry. It preserves the existing JSON field names and error path and produces an iterable empty array for nil, empty or entirely uninstalled input.",
+            "costs": "A temporary slice holds the installed Route values before JSON encoding; its capacity is bounded by the input length.",
+            "recommended": true
+          },
+          {
+            "approach": "Filter through an encoding/json Marshaler on the existing wrapper's routes field.",
+            "mechanism": "Extend the existing encoding/json call in writer.go with a private installedRoutes slice type implementing MarshalJSON. Retain the outer routes wrapper, PublishRoutes signature and os.WriteFile publication.",
+            "operation": "Wrap the incoming slice as installedRoutes in the existing outer wrapper. Its MarshalJSON builds a non-nil selected []Route from Installed values in input order and returns json.Marshal(selected), so it does not recursively marshal its own type.",
+            "advantages": "The filter is enforced at the existing routes field's encoding boundary and leaves the caller's input unchanged. It keeps the outer JSON schema and existing file publication entry.",
+            "costs": "This adds a private type and custom marshaler where a local loop suffices. It still allocates a selected slice and nests the JSON encoding call, making the control flow less direct.",
+            "recommended": false
+          }
+        ],
+        "recommendation": "Use filtering directly in PublishRoutes. Both approaches extend the existing producer and encoder rather than adding another publication entry; the direct loop needs fewer moving parts and keeps selection beside the current serialization.",
+        "implementation-detail": "Keep func PublishRoutes(path string, routes []Route) error. Build selected as a non-nil empty []Route before the loop, copy only Installed values into it, and marshal the existing struct with Routes: selected. Propagate the existing marshal and file-write errors and keep os.WriteFile's existing 0600 argument. This is planned behavior, not an implemented change.",
+        "preservation-list": [
+          "Keep the existing routes, prefix and installed JSON field names and the two existing reader entry points.",
+          "Keep each retained Route's Prefix and Installed values, its position relative to other retained routes, and the caller's input slice and values.",
+          "Keep the existing caller-supplied output path, os.WriteFile publication, 0600 creation argument and error propagation.",
+          "Keep reader.sh's jq selection and reader.py's json.load and installed_prefixes selection unchanged, including their existing command-line newline behavior."
+        ],
+        "boundaries-crossed": [
+          {
+            "boundary": "Caller to writer.go PublishRoutes",
+            "representation": "In-process caller-supplied path and []Route",
+            "disposition": "Preserve the function signature and input ownership; filter only into the producer's new owned slice.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput calls the existing function and compares the input before and after publication."
+          },
+          {
+            "boundary": "PublishRoutes to the published snapshot",
+            "representation": "encoding/json bytes written with os.WriteFile to the caller-supplied path",
+            "disposition": "Preserve the routes/prefix/installed schema and existing file-write error path; the routes value remains an array even when no route survives.",
+            "verification": "Planned TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput and TestPublishRoutesEmptyPopulationKeepsAnIterableArray parse the actual produced file."
+          },
+          {
+            "boundary": "Published snapshot to reader.sh",
+            "representation": "The snapshot path is the shell entry point's $1; jq reads routes[].installed and routes[].prefix.",
+            "disposition": "Preserve the shell entry and jq filter unchanged.",
+            "verification": "Planned TestShellReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          },
+          {
+            "boundary": "Published snapshot to reader.py",
+            "representation": "The snapshot path is sys.argv[1]; installed_prefixes loads JSON and iterates snapshot[\"routes\"].",
+            "disposition": "Preserve the Python function and command-line entry unchanged.",
+            "verification": "Planned TestPythonReaderConsumesPublishRoutesSnapshot invokes the existing script against the file created by PublishRoutes and checks exit status and exact stdout."
+          }
+        ],
+        "wiring-test-table": [
+          {
+            "entry-point": "PublishRoutes(path, routes)",
+            "feature-code": "writer.go PublishRoutes selection, json.Marshal and os.WriteFile",
+            "test": "writer_test.go TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "observation": "Publish the mixed installed/uninstalled input through the real function; decode the written file and assert the exact retained Route values, caller input preservation and schema."
+          },
+          {
+            "entry-point": "reader.sh SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.sh jq",
+            "test": "writer_test.go TestShellReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing shell entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "reader.py SNAPSHOT after PublishRoutes",
+            "feature-code": "writer.go PublishRoutes to reader.py installed_prefixes and __main__",
+            "test": "writer_test.go TestPythonReaderConsumesPublishRoutesSnapshot",
+            "observation": "The Go test publishes through PublishRoutes, starts the existing Python entry with that file path, and asserts exit 0 and stdout 192.0.2.0/24 followed by one newline."
+          },
+          {
+            "entry-point": "PublishRoutes followed by both existing reader entries with no surviving route",
+            "feature-code": "writer.go non-nil selected []Route to the unchanged JSON readers",
+            "test": "writer_test.go TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "observation": "For nil, empty and entirely uninstalled input, require exact snapshot bytes {\"routes\":[]}; the shell entry exits 0 with zero stdout bytes, and the Python entry exits 0 with exactly one newline."
+          }
+        ],
+        "tdd-test-plan": [
+          {
+            "stage": "Producer behavior",
+            "test": "TestPublishRoutesSnapshotUsesInstalledValuesAndPreservesInput",
+            "method": "Use a temporary output path, call PublishRoutes with AC-1's actual Route values, decode the written file, check the exact surviving Route and retain a copy of the original input for equality. The current unfiltered producer must fail the snapshot membership assertion."
+          },
+          {
+            "stage": "Reader wiring",
+            "test": "TestShellReaderConsumesPublishRoutesSnapshot and TestPythonReaderConsumesPublishRoutesSnapshot",
+            "method": "Go tests invoke the existing reader entry points with the same file produced by PublishRoutes. Assert exact exit status and stdout. Their positive results alone do not detect a missing producer filter, because both readers already select Installed values; the producer membership assertion remains required."
+          },
+          {
+            "stage": "Empty population boundary",
+            "test": "TestPublishRoutesEmptyPopulationKeepsAnIterableArray",
+            "method": "Table-drive nil []Route, non-nil empty []Route and a nonempty slice containing only Installed:false. Decode the written routes value and require an array of length zero, additionally assert exact compact bytes {\"routes\":[]}, and run both existing CLI readers. Preserve their different empty stdout bytes. The same Go test also starts a bounded Python child which loads the existing reader file under a non-__main__ module name and asserts installed_prefixes(snapshotPath) equals []; retain the existing reader source bytes and check the child status."
+          },
+          {
+            "stage": "Fault discrimination and regression",
+            "test": "All four named Go tests",
+            "method": "After the producer repair, restore the old unfiltered producer for the mixed-input membership failure, restore the repair and rerun. Independently replace the non-nil selected initialization with a nil slice for the empty-array failure, restore it and rerun. Keep all source reader bytes unchanged. These are planned tests and cuts, not executed results."
+          }
+        ],
+        "files-to-create": [
+          {
+            "path": "writer_test.go",
+            "purpose": "The four planned Go tests over PublishRoutes and the existing shell/Python entry points, using temporary snapshot files and bounded child commands."
+          }
+        ],
+        "architectural-verification": [
+          {
+            "check": "No bypassed layers",
+            "basis": "All proposed paths call PublishRoutes, its existing JSON marshal and file write, then the existing readers. The wiring tests consume the actual file, not an independently assembled snapshot.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No unintended coupling",
+            "basis": "The shell and Python readers retain their independent implementations. Neither receives an import, a callback or another reader's output; both consume the existing snapshot path.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "No duplicated functionality",
+            "basis": "The recommended approach places filtering in the single existing producer. It retains the existing JSON encoder, file publication and reader filters; no second writer or replacement reader is added.",
+            "state": "Designed; the named tests have not run."
+          },
+          {
+            "check": "Zero-copy where applicable",
+            "basis": "The existing producer already marshals JSON into bytes. Filtering requires a retained population without mutating the caller; the new bounded owned slice is explicit, and there is no cross-plugin pointer or zero-copy wire contract in this authored fixture.",
+            "state": "Source-supported design; no performance claim."
+          },
+          {
+            "check": "Registration rather than a central feature enumeration",
+            "basis": "This authored fixture has one ordinary publishing function and two scripts, with no plugin or feature registry. The change introduces no feature name, switch, factory, seed map, validator or central dispatch list.",
+            "state": "Not applicable to this source tree, with the stated reason."
+          }
+        ]
       },
       "source-files": {
         "error": "SOURCE UNAVAILABLE: authored producer and reader files cannot be read"
