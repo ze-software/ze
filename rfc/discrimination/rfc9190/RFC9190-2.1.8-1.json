@@ -7,8 +7,8 @@
     "claim-sha": "b6dd0c7d02829db6",
     "route": "revert",
     "producer": "internal/core/eap/revocation.go::checkChainRevocation",
-    "producer-sha": "bc6548ee07f24385",
-    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "0e4381c3b1543953",
+    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-2.1.8-1",

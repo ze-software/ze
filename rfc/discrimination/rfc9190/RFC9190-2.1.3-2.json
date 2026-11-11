@@ -18,8 +18,8 @@
     "claim-sha": "e2d2b25cc06378fc",
     "route": "revert",
     "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-    "producer-sha": "9d4ae49c78228895",
-    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2bebbb8781d67867",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-2.1.3-2",

@@ -2,27 +2,35 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | verification |
 | Priority | P2 |
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
 | Scope | tooling |
 | Depends | `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the IKE/EAP group before any row edit, parent R-11) |
 | Phase | independent closure |
 | Handoff | - |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Blocker
 
-The main-thread `./le rfc check` after repair `e37d91f4f5` reports 127
-violations. The two rejudged gap audits and the CERTREQ naming marker are
-clear, but 65 discrimination records in this child's stems have changed
-producer fingerprints. This is missing current proof, not evidence that the
-test failed. AC-C2 and AC-C5 therefore cannot support closure.
+The 2026-11-10 closure check after repair `e37d91f4f5` reported 65 stale
+discrimination covers and a shifted RFC3948 audit. Implementation resumed
+to refresh that evidence; the closure phase did not write proof records.
+The native replay and follow-up ledger check are complete as described below.
+Independent closure still needs the citation repair and acceptance review.
 
-| Producer | Stale covers reported |
-|----------|-----------------------|
+## Discrimination evidence refresh, 2026-11-11
+
+The main thread replayed all 65 covers through `./le rfc record`, with each
+command observing its own passing baseline and failing broken producer.
+All six producer-group scripts exited successfully. These are 53 distinct
+unit/producer/break combinations; duplicate requirement covers were recorded
+individually because the native recorder does not reuse observations.
+
+| Producer | Covers refreshed |
+|----------|------------------|
 | `internal/core/eap/eap_tls.go`, `newTLSMethod` | 36 |
 | `internal/core/eap/peer.go`, `startTLSClient` | 9 |
 | `internal/core/eap/revocation.go`, `checkChain` | 2 |
@@ -30,14 +38,39 @@ test failed. AC-C2 and AC-C5 therefore cannot support closure.
 | `internal/core/eap/revocation.go`, `currentListFrom` | 1 |
 | `internal/component/ike/engine/rekey.go`, `newRekeyedChild` | 1 |
 
-The first 64 covers are in RFC3748, RFC5216 and RFC9190; the last is
-RFC3948-5.1-1 negative. RFC3948-3.1.2-1 also has a shifted audit verdict
-after edits around the NAT-T checker functions. The implementation phase
-must re-observe each affected cover against its current producer through
-`./le rfc record`, preserving assertions and claim scope, and reseal the
-unchanged RFC3948 audit unit. Grouping by these six producers bounds the
-next proof phase; a passing ordinary test does not replace the recorded
-red. This spec retains that evidence work. Closure made no proof changes.
+The 64 EAP covers retain their existing whole-producer halt breaks. They
+prove dependency on the named producer, not clause-specific discrimination;
+this refresh makes no coverage or verdict upgrade. The RFC3948-5.1-1
+negative cover retains the independently reviewed targeted mutation removing
+`innerGuard` inheritance from the rekeyed child. Both initiator and responder
+baselines passed; both mutated runs failed because retiring the old pair left
+zero registry holdings instead of the replacement child's one holding.
+
+Comparison with the pre-refresh records finds exactly 65 changed covers in
+30 requirement files. Only producer fingerprints and break descriptions
+changed; unit fingerprints, claim fingerprints, polarities, routes and
+producer identities are unchanged. No production source or assertion changed.
+
+Main-thread evidence: `tmp/session/2026-11-10-224742/scratch/` contains the
+`ike-eap-refresh-<producer>.log` logs for `newTLSMethod`, `startTLSClient`,
+`checkChainRevocation`, `currentListFrom` and `newRekeyedChild`. The two
+`checkChain` observations are in
+`tmp/session/2026-11-11-000151/scratch/discrimination/run-3377386267` and
+`run-441056762`. The native records are the durable evidence; these local
+logs retain the baseline and expected broken-run observations.
+
+The main thread also ran the native RFC3948 reseal: one shifted verdict,
+RFC3948-3.1.2-1, resealed and none refused. Only the containing-file
+fingerprints changed; tagged-unit fingerprints and the judgment stayed fixed.
+
+The main-thread follow-up `rfc update` left the generated outputs unchanged.
+`rfc check` exited 1 with 63 global violations; none names an owned stem
+(RFC2759, RFC3748, RFC3948, RFC4301, RFC4303, RFC4555, RFC5216, RFC5282,
+RFC7296, RFC7427 or RFC9190). Full output is
+`tmp/session/2026-11-10-224742/scratch/rfc-check-after-65-refreshes.log`.
+This is scoped freshness evidence, not a claim that the global check passed
+or that independent closure has completed. AC-C5 still requires the check
+after this repair commit.
 
 The review also found a stale citation in
 `plan/release/fixes/spec-ike-responder-auth-malformed-request-notify.md`:

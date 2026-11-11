@@ -7,8 +7,8 @@
     "claim-sha": "e8549a60f8648016",
     "route": "revert",
     "producer": "internal/core/eap/peer.go::startTLSClient",
-    "producer-sha": "dcfd4f1b0f5e2729",
-    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "12b766abcc807753",
+    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -29,8 +29,8 @@
     "claim-sha": "3afc2ded63080658",
     "route": "revert",
     "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-    "producer-sha": "9d4ae49c78228895",
-    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2bebbb8781d67867",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -40,8 +40,8 @@
     "claim-sha": "41d1866e3bac08cf",
     "route": "revert",
     "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-    "producer-sha": "9d4ae49c78228895",
-    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2bebbb8781d67867",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -51,8 +51,8 @@
     "claim-sha": "3485fa0191290a43",
     "route": "revert",
     "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-    "producer-sha": "9d4ae49c78228895",
-    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2bebbb8781d67867",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -62,8 +62,8 @@
     "claim-sha": "26449caea0ae82e6",
     "route": "revert",
     "producer": "internal/core/eap/peer.go::startTLSClient",
-    "producer-sha": "dcfd4f1b0f5e2729",
-    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "12b766abcc807753",
+    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -73,8 +73,8 @@
     "claim-sha": "c338c6a63a86bd01",
     "route": "revert",
     "producer": "internal/core/eap/peer.go::startTLSClient",
-    "producer-sha": "dcfd4f1b0f5e2729",
-    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "12b766abcc807753",
+    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -84,8 +84,8 @@
     "claim-sha": "de1225fbdb54daa2",
     "route": "revert",
     "producer": "internal/core/eap/peer.go::startTLSClient",
-    "producer-sha": "dcfd4f1b0f5e2729",
-    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "12b766abcc807753",
+    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -95,8 +95,8 @@
     "claim-sha": "2b4215628a0dc666",
     "route": "revert",
     "producer": "internal/core/eap/peer.go::startTLSClient",
-    "producer-sha": "dcfd4f1b0f5e2729",
-    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "12b766abcc807753",
+    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -106,8 +106,8 @@
     "claim-sha": "f9e0e16c911c0e95",
     "route": "revert",
     "producer": "internal/core/eap/peer.go::startTLSClient",
-    "producer-sha": "dcfd4f1b0f5e2729",
-    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "12b766abcc807753",
+    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -117,8 +117,8 @@
     "claim-sha": "ef488ec824f2cbc7",
     "route": "revert",
     "producer": "internal/core/eap/peer.go::startTLSClient",
-    "producer-sha": "dcfd4f1b0f5e2729",
-    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "12b766abcc807753",
+    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -128,8 +128,8 @@
     "claim-sha": "e0c738f6885c397d",
     "route": "revert",
     "producer": "internal/core/eap/peer.go::startTLSClient",
-    "producer-sha": "dcfd4f1b0f5e2729",
-    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "12b766abcc807753",
+    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -139,8 +139,8 @@
     "claim-sha": "86a7a759eb3e63ee",
     "route": "revert",
     "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-    "producer-sha": "9d4ae49c78228895",
-    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2bebbb8781d67867",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -161,8 +161,8 @@
     "claim-sha": "c0890af3d95cf1fa",
     "route": "revert",
     "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-    "producer-sha": "9d4ae49c78228895",
-    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2bebbb8781d67867",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.10-1",
@@ -172,7 +172,7 @@
     "claim-sha": "54c141de27a2d584",
     "route": "revert",
     "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-    "producer-sha": "9d4ae49c78228895",
-    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2bebbb8781d67867",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

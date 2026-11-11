@@ -18,8 +18,8 @@
     "claim-sha": "2fac8cd0524961aa",
     "route": "revert",
     "producer": "internal/core/eap/revocation.go::checkChainRevocation",
-    "producer-sha": "bc6548ee07f24385",
-    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "0e4381c3b1543953",
+    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.7-2",
@@ -29,8 +29,8 @@
     "claim-sha": "494e50c32430eb99",
     "route": "revert",
     "producer": "internal/core/eap/revocation.go::checkChainRevocation",
-    "producer-sha": "bc6548ee07f24385",
-    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "0e4381c3b1543953",
+    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-5.7-2",
@@ -40,7 +40,7 @@
     "claim-sha": "54f58fbb18e61d89",
     "route": "revert",
     "producer": "internal/core/eap/revocation.go::checkChainRevocation",
-    "producer-sha": "bc6548ee07f24385",
-    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "0e4381c3b1543953",
+    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
