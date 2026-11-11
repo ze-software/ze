@@ -1,12 +1,14 @@
 // Design: docs/architecture/core-design.md -- component-group unit actions.
 // Detail: actions.go -- command dispatch and subprocess execution.
 //
-// Package testunit runs the Go unit tests two ways: six named component-group
-// subsets, and `all` over the whole checkout.
+// Package testunit runs the Go unit tests three ways: six named component-group
+// subsets, `pkg` over the packages a line names, and `all` over the whole
+// checkout.
 //
 // A named group is the targeted subset a developer runs while working inside
-// it. The `all` verb runs every package of the checkout, then each group whose
-// own build tags compile its test files out of that run.
+// it. `pkg` is the scoped test of the packages being developed (pkg.go). The
+// `all` verb runs every package of the checkout, then each group whose own
+// build tags compile its test files out of that run.
 package testunit
 
 import (

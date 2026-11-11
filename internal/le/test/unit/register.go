@@ -10,7 +10,7 @@ import (
 
 func init() {
 	leroot.Register(Area, leroot.GroupSuite, Answer, registry.Meta{
-		Description: "The five race-instrumented component-group Go test suites, the installer initrd behind its own tag, and `all`: the whole checkout under the race detector.",
+		Description: "The five race-instrumented component-group Go test suites, the installer initrd behind its own tag, `pkg`: named packages tested or vetted under the feature tags and admitted, and `all`: the whole checkout under the race detector.",
 		ShortHelp:   "run the race-instrumented unit test groups",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

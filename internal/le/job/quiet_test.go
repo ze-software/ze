@@ -43,8 +43,8 @@ func TestAQuietJobAnswersTheVerdictInsteadOfTheOutput(t *testing.T) {
 	var terminal strings.Builder
 	adm.Out = &terminal
 
-	report, code := runQuiet(adm, "unit-pkg", []string{"sh", "-c",
-		"echo 'ok  	first	0.1s'; echo 'FAIL	second	0.2s'; exit 1"})
+	report, code := adm.RunQuiet("unit-pkg", []string{"sh", "-c",
+		"echo 'ok  	first	0.1s'; echo 'FAIL	second	0.2s'; exit 1"}, "", nil)
 
 	if code != 1 {
 		t.Errorf("the quiet job answered %d, want the child's 1", code)
@@ -72,7 +72,7 @@ func TestTheQuietLogSurvivesTheRun(t *testing.T) {
 	adm := quietAdmission(t)
 	adm.Out = &strings.Builder{}
 
-	report, _ := runQuiet(adm, "unit-pkg", []string{"sh", "-c", "echo done"})
+	report, _ := adm.RunQuiet("unit-pkg", []string{"sh", "-c", "echo done"}, "", nil)
 
 	if _, err := os.Stat(filepath.Join(adm.Root, report.Log)); err != nil {
 		t.Fatalf("the quiet log is gone once the job ended: %v", err)
@@ -88,7 +88,7 @@ func TestAPassingQuietJobStillSaysWhereItsOutputWent(t *testing.T) {
 	adm := quietAdmission(t)
 	adm.Out = &strings.Builder{}
 
-	report, code := runQuiet(adm, "unit-pkg", []string{"sh", "-c", "echo 'ok  	first	0.1s'"})
+	report, code := adm.RunQuiet("unit-pkg", []string{"sh", "-c", "echo 'ok  	first	0.1s'"}, "", nil)
 
 	if code != 0 {
 		t.Fatalf("the quiet job answered %d, want 0", code)
@@ -109,7 +109,7 @@ func TestALabelThatIsNotAPathComponentIsRefusedBeforeAnythingIsWritten(t *testin
 	adm := quietAdmission(t)
 	adm.Out = &strings.Builder{}
 
-	report, code := runQuiet(adm, "../escape", []string{"sh", "-c", "echo done"})
+	report, code := adm.RunQuiet("../escape", []string{"sh", "-c", "echo done"}, "", nil)
 
 	if code != 2 {
 		t.Errorf("an unusable label answered %d, want the refusal code 2", code)
@@ -163,8 +163,8 @@ func TestTwoCommandsUnderOneLabelDoNotShareALog(t *testing.T) {
 	adm := quietAdmission(t)
 	adm.Out = &strings.Builder{}
 
-	first, _ := runQuiet(adm, "unit-pkg", []string{"sh", "-c", "echo FAIL\tsibling-one"})
-	second, _ := runQuiet(adm, "unit-pkg", []string{"sh", "-c", "echo FAIL\tsibling-two"})
+	first, _ := adm.RunQuiet("unit-pkg", []string{"sh", "-c", "echo FAIL\tsibling-one"}, "", nil)
+	second, _ := adm.RunQuiet("unit-pkg", []string{"sh", "-c", "echo FAIL\tsibling-two"}, "", nil)
 
 	if first.Log == second.Log {
 		t.Fatalf("both commands wrote %s, so the second truncated the first and "+
@@ -179,8 +179,48 @@ func TestTwoCommandsUnderOneLabelDoNotShareALog(t *testing.T) {
 
 	// The same command twice still shares one log, which is the behavior the
 	// original comment described and the only thing it was right about.
-	repeat, _ := runQuiet(adm, "unit-pkg", []string{"sh", "-c", "echo FAIL\tsibling-one"})
+	repeat, _ := adm.RunQuiet("unit-pkg", []string{"sh", "-c", "echo FAIL\tsibling-one"}, "", nil)
 	if repeat.Log != first.Log {
 		t.Errorf("the same work wrote %s then %s, want one log", first.Log, repeat.Log)
+	}
+}
+
+// TestQuietRunTakesADirectoryAndAnEnvironment drives the exported quiet run the
+// way another le package calls it: with the directory the child runs in and the
+// environment it runs under.
+//
+// VALIDATES: the child runs in the named directory, sees a variable only the
+// named environment carries, and its output still lands in the quiet log.
+// PREVENTS: the quiet run dropping either argument and running the child in the
+// checkout root under this process's environment, which for `le test unit pkg`
+// would run `go test` without the toolchain's cgo and cache settings.
+func TestQuietRunTakesADirectoryAndAnEnvironment(t *testing.T) {
+	adm := quietAdmission(t)
+	adm.Out = &strings.Builder{}
+
+	dir := filepath.Join(adm.Root, "child-dir")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatalf("create the child's directory: %v", err)
+	}
+	environ := append(os.Environ(), "QUIET_FIXTURE_MARK=named-environment")
+
+	report, code := adm.RunQuiet("unit-pkg", []string{"sh", "-c", "pwd -P; echo \"mark=$QUIET_FIXTURE_MARK\""}, dir, environ)
+	if code != 0 {
+		t.Fatalf("the quiet run answered %d, want 0", code)
+	}
+	if report.Log == "" {
+		t.Fatal("the report named no log")
+	}
+
+	body := read(t, filepath.Join(adm.Root, report.Log))
+	resolved, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatalf("resolve the child's directory: %v", err)
+	}
+	if !strings.Contains(body, resolved+"\n") {
+		t.Errorf("the child did not run in %s; the log holds:\n%s", resolved, body)
+	}
+	if !strings.Contains(body, "mark=named-environment\n") {
+		t.Errorf("the child did not see the named environment; the log holds:\n%s", body)
 	}
 }

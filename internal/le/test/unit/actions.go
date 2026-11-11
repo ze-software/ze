@@ -4,7 +4,8 @@
 // A bare `le test unit` lists the actions and runs nothing. `le test unit all`
 // runs the whole checkout, then each group whose build tags hide its tests from
 // that run. Named actions run in command-line order, and every sweep returns
-// the first failure's exit code.
+// the first failure's exit code. `le test unit pkg path <package>...` is the one
+// action that takes arguments: it runs alone, admitted (pkg.go).
 package testunit
 
 import (
@@ -27,11 +28,14 @@ type rootResolver func() (string, error)
 
 type toolchainLoader func(string) (gotoolchain.Toolchain, error)
 
-// table derives dispatch, listing, and help from the group table, with `all`
-// appended as the action that runs the whole checkout.
+// table derives dispatch, listing, and help from the group table, with `pkg`
+// appended as the action that runs named packages and `all` as the action that
+// runs the whole checkout.
 func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {
 	actions := actionsFor(tc, Table(), run)
-	actions = append(actions, leaction.Action{
+	// `pkg` sits before `all`, so the help hint still ends by naming the run
+	// of the whole checkout.
+	actions = append(actions, pkgAction(tc), leaction.Action{
 		Verb:    allVerb,
 		Summary: "test the whole checkout, race-instrumented",
 		Why:     allWhy,
@@ -46,9 +50,9 @@ func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {
 }
 
 // actionsFor turns a group population into the actions that run it. The spare
-// slot is for the `all` action its first caller appends.
+// slots are for the `pkg` and `all` actions its first caller appends.
 func actionsFor(tc gotoolchain.Toolchain, rows []Group, run actionRunner) []leaction.Action {
-	actions := make([]leaction.Action, 0, len(rows)+1)
+	actions := make([]leaction.Action, 0, len(rows)+2)
 	for _, group := range rows {
 		actions = append(actions, leaction.Action{
 			Verb:    group.Verb,
@@ -128,5 +132,14 @@ func answer(args []string, resolveRoot rootResolver, loadToolchain toolchainLoad
 		return nil, 1
 	}
 
-	return table(tc, run).Sweep(args, leaction.RunEveryAction)
+	// A line that opens with an action taking arguments (`pkg`) is that
+	// action's grammar, so it is answered rather than swept. Every other line
+	// sweeps as before, a single group and `all` alone included, so their
+	// payloads keep the sweep's shape. Area.AnswerOrSweep would answer a
+	// one-word line itself and change that shape.
+	area := table(tc, run)
+	if area.TakesArguments(args[0]) {
+		return area.Answer(args)
+	}
+	return area.Sweep(args, leaction.RunEveryAction)
 }

@@ -60,11 +60,15 @@ func TestTablePinsEveryUnitGroup(t *testing.T) {
 		t.Fatalf("unit group table differs:\n got: %#v\nwant: %#v", got, want)
 	}
 
-	// The listing carries one row for each group, then `all`, which runs them
-	// and is therefore not one of them (actions.go, Actions).
+	// The listing carries one row for each group, then `pkg`, which runs the
+	// packages a line names, then `all`, which runs the groups and is therefore
+	// not one of them (actions.go, Actions).
 	list := Actions()
-	if list.Area != Area || len(list.Actions) != len(want)+1 {
-		t.Fatalf("action population is area %q with %d rows, want %q with %d", list.Area, len(list.Actions), Area, len(want)+1)
+	if list.Area != Area || len(list.Actions) != len(want)+2 {
+		t.Fatalf("action population is area %q with %d rows, want %q with %d", list.Area, len(list.Actions), Area, len(want)+2)
+	}
+	if pkg := list.Actions[len(want)]; pkg.Verb != pkgVerb || len(pkg.Parameters) != 4 {
+		t.Errorf("the row after the groups is %#v, want %q with its four keywords", pkg, pkgVerb)
 	}
 	for index, row := range list.Actions {
 		if index < len(want) && (row.Verb != want[index].Verb || row.Why != want[index].Why) {
@@ -391,7 +395,7 @@ func TestBareCommandListsAndRunsNothing(t *testing.T) {
 	for _, row := range listing.Actions {
 		verbs = append(verbs, row.Verb)
 	}
-	want := append(groupVerbs(), allVerb)
+	want := append(groupVerbs(), pkgVerb, allVerb)
 	if !reflect.DeepEqual(verbs, want) {
 		t.Fatalf("the listing names %q, want %q", verbs, want)
 	}

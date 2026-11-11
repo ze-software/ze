@@ -515,10 +515,15 @@ so a ratchet that started a mutation run or an interop scenario would put that
 cost on every session in the checkout. A gate area MAY therefore carry a verb
 that executes, and the ratchet it feeds MUST NOT.
 
-**`le test unit` runs Go tests two ways, and only one of them is a verdict about
+**`le test unit` runs Go tests three ways, and only one of them is a verdict about
 the checkout.** The six named verbs are targeted subsets a developer runs while
 working inside one of them: `bgp`, `core`, `plugins`, `config`, `cli` and
-`installer`. `all` runs `./...`, so a package outside every named group is
+`installer`. `pkg` runs the packages its repeated `path` keyword names, or vets
+them with `vet`, under the same feature tag set and race detector as a host
+group. It is the one action of the area that takes arguments, so the area
+answers a line that opens with it rather than sweeping it, and it runs through
+job admission's quiet run under the `unit-pkg` or `vet-pkg` label, where the
+groups stream unadmitted. `all` runs `./...`, so a package outside every named group is
 compiled and its tests run. It then runs each group whose own build tags compile
 its test files out of that pass, which `allGroups` derives from the group's
 `Tags` field rather than from a second list. Today that is `installer`: every
@@ -542,6 +547,7 @@ its compile-out groups after a failure and returns the first non-zero code.
 
 <!-- source: internal/le/test/unit/groups.go -- Group.EnvOptions, allGroups -->
 <!-- source: internal/le/test/unit/actions.go -- runner, allRunner -->
+<!-- source: internal/le/test/unit/pkg.go -- pkgAction, answerPkg, packageGroup -->
 
 **The closed vocabularies the gate reads are EXPORTED, and every publisher of a
 verdict reads them rather than spelling one.** The polarities, the annotation

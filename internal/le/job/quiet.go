@@ -1,5 +1,6 @@
 // Design: docs/contributing/running-commands.md -- testing one package while you develop it
 // Related: answer.go -- the grammar that reaches this
+// Related: ../test/unit/pkg.go -- the scoped package test, which calls RunQuiet as Go
 // Related: report.go -- the fields a quiet run fills, and how they render
 //
 // A session that runs a job to learn whether a package still passes does not
@@ -32,47 +33,53 @@ import (
 // needs more opens the log, whose path the summary names.
 const quietKeyLines = 20
 
-// runQuiet runs one job with its output going to this session's scratch log
+// RunQuiet runs one job with its output going to this session's scratch log
 // rather than to the terminal, and answers the summary of what happened.
 //
 // The admission, the queueing and the exit code are the ordinary ones. Only
 // the destination of the child's output changes, and Admission.Out is where
 // every branch of Run sends it: the streamed child, the replay of a job this
 // one attached to, and a stage that ran inside a parent's slot.
-func runQuiet(adm *Admission, label string, argv []string) (Report, int) {
+//
+// dir and environ are Run's: the directory the child runs in (the checkout
+// root when empty) and its environment (this process's when nil). `le job run
+// quiet` passes neither; an le action that built a toolchain environment, such
+// as `le test unit pkg`, passes both. Admission.Out is replaced for the run, so
+// the caller MUST NOT share one Admission between concurrent quiet runs.
+func (a *Admission) RunQuiet(label string, argv []string, dir string, environ []string) (Report, int) {
 	report := Report{Label: label, Command: argv, Admission: KindUnspecified.String(), Quiet: true}
 
 	// The log is named for the label, so the name is checked before it becomes
 	// a path. Run checks it too, but only after this function has written.
 	if !validLabel(label) {
-		adm.note(errorLine(ErrLabel))
+		a.note(errorLine(ErrLabel))
 		report.Code = 2
 		return report, report.Code
 	}
 
-	relative, err := quietLog(adm.Root, label, argv)
+	relative, err := quietLog(a.Root, label, argv)
 	if err != nil {
 		leaction.ReportError(err)
 		report.Code = 2
 		return report, report.Code
 	}
 
-	file, err := os.OpenFile(filepath.Join(adm.Root, relative), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644) //nolint:gosec // this session's own scratch log, named from a validated label
+	file, err := os.OpenFile(filepath.Join(a.Root, relative), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644) //nolint:gosec // this session's own scratch log, named from a validated label
 	if err != nil {
 		leaction.ReportError(err)
 		report.Code = 2
 		return report, report.Code
 	}
 
-	adm.Out = file
-	report, code := adm.Run(label, argv, "", nil)
+	a.Out = file
+	report, code := a.Run(label, argv, dir, environ)
 	report.Quiet = true
 	report.Log = relative
 
 	if err := file.Close(); err != nil {
-		adm.note(errorLine(err))
+		a.note(errorLine(err))
 	}
-	report.KeyLines = quietSummary(adm, filepath.Join(adm.Root, relative))
+	report.KeyLines = quietSummary(a, filepath.Join(a.Root, relative))
 	return report, code
 }
 

@@ -83,7 +83,7 @@ func answerRun(args leaction.Arguments) (any, int) {
 	}
 
 	if asked.Quiet {
-		return runQuiet(adm, asked.Label, asked.Argv)
+		return adm.RunQuiet(asked.Label, asked.Argv, "", nil)
 	}
 
 	report, code := adm.Run(asked.Label, asked.Argv, "", nil)

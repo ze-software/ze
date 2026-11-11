@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P1 |
 | Release reason | Release-independent development tooling: it adds a short `le` action for scoped tests and changes no shipped binary. |

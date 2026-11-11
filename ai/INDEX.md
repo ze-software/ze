@@ -406,7 +406,7 @@ disagree, the manifest is right and the row is stale.
 | `./le test qemu` | `internal/le/test/qemu.Answer` | proofs that boot a real appliance image in a virtual machine and ask it what it did |
 | `./le test sensitivity` | `internal/le/test/sensitivity.Answer` | no more tests than the committed floor pass unconditionally or sit behind a build tag nothing supplies, which no count of tests can reveal |
 | `./le test stress-repro` | `internal/le/test/stressrepro.Answer` | reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure |
-| `./le test unit` | `internal/le/test/unit.Answer` | the five race-instrumented component-group Go test suites, the installer initrd behind its own tag, and `all`: the whole checkout under the race detector |
+| `./le test unit` | `internal/le/test/unit.Answer` | the five race-instrumented component-group Go test suites, the installer initrd behind its own tag, `pkg`: named packages tested or vetted under the feature tags and admitted, and `all`: the whole checkout under the race detector |
 | `./le test weakened` | `internal/le/test/weakened.Answer` | detect and record test weakenings against a commit baseline |
 | `./le verify deps` | `internal/le/verify/deps.Answer` | the Go-tool and dependency stages used only by native pre-commit verification |
 | `./le go lint` | `internal/le/go/lint.Answer` | run golangci-lint over every Go build flavor and prove tracked-file coverage |
