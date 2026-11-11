@@ -8,6 +8,76 @@ owner asked that locked or blocked specs not stop progress on the others.
 
 ## Model-switch checkpoint, 2026-11-11
 
+### Latest continuation after the switch
+
+This subsection supersedes the checkpoint's remaining-work statements below.
+No additional spec closed. All execution stayed in the main thread; no push or
+`./le verify` ran.
+
+- Static-BFD guest proof **passed**: exactly
+  `test/reload/static-bfd-profile-reload-deleted.ci`, 1/1 tests, 1 phase executed,
+  none skipped, 2.5 seconds, command/check/lab exit 0. Kernel `7.3.0-ze`, SHA-256
+  `1305faf7734c0c309b0b1d97d37951df625f71e548bbdc04f7ff456f27d4c5e0`.
+  Console: `tmp/qemu/docker-lab-console-2884467513.log`.
+- Thomas explicitly authorized the sixth review. Independent source review is
+  CLEAN. Native recording nevertheless refuses noninteractive authorization.
+  Thomas must run
+  `bash /home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-11-11-014000/scratch/reload-owner-review-record.sh`
+  in his terminal. The script pins the accumulated 39-path native population,
+  including the lint cleanup; the sixth review's narrow scope remains the
+  diagnostic repair. The native record is still absent at this handback.
+- `ea8001c256` fixes both reload scoped-lint findings without changing accepted
+  inputs: widen the QoS comparison and remove an unused removal wrapper, keeping
+  its exact operations in the existing tests. Six focused race controls passed
+  (`job-reload-lint-repair-controls-38d67305.log`). The original broader scoped
+  lint reported these two findings, with Darwin and capability passes clean.
+  The two-package rerun stopped during planning because foreign
+  `internal/le/job/quiet.go` changed; no final lint plan was produced. Retry
+  after that owner's edits settle. Reload evidence handback is `80c6383866`;
+  its claim is released.
+- `e7a77d6e73` commits all four independently approved corpus fixture repairs.
+  Actual named runs passed: two reload drafts, doctor, and compiled-out feature
+  guidance. The last run supplied the freshly built QEMU stripped daemon through
+  PATH; the initial host attempt lacked that binary and did not reach assertions.
+  Logs: `job-refusal-reload-drafts-191cf58e.log`,
+  `job-refusal-ui-drafts-1cebaff3.log` (doctor pass, missing stripped binary),
+  `job-refusal-ui-stripped-retry-c751b774.log` (compiled-out fixture pass).
+- The refusal audit reproduced an owned pipeline bug: malformed arguments to
+  both `show bgp rib` and `show bgp rib best` produced an error payload with
+  status `done`. The repair uses the existing `pipelineRefusal` path. Seven
+  focused race units passed after the observed red; independent source review
+  and five test migrations are approved. Logs:
+  `job-refusal-pipeline-ntp-red-0f4a55fa.log` and
+  `job-refusal-pipeline-green-191dfb31.log`. The functional fixture still needs
+  execution; its latest attempt hit the launcher panic described next.
+  Implementation and blocked handback committed as `820476c6ee`.
+
+**Current shared execution blocker:** the current-source launcher panics before
+dispatch because the foreign new `internal/le/test/unit/pkg.go` declares an
+83-character Help for `test unit pkg path`, over the 60-character limit.
+Other descriptions there also need their owner to check the same contract.
+The dirty unit files belong to claimed `spec-agent-economy-2-scoped-test`, held
+by `f4d858bd-ad8f-4b19-8a8d-50f67a40ccf9+a438d3331bd8f1e98`. Preserve that work.
+Its owner must shorten those descriptions and let the named launcher rebuild.
+No functional pipeline, corpus, ADD-PATH or LDP verdict is claimed after this
+failure; do not use a stale runner to bypass it.
+
+**Scope question pending:** the refusal spec's owned table includes the NTP
+omission, but Known Limitations explicitly excludes it. The closed dependency
+spec also left it outside its config-only work. The absent-provider regression
+failed, while inactive/measured-provider controls passed. Thomas was asked
+whether to repair it in this spec or give it a separate spec; no reply yet.
+NTP producer patches are unapplied. The regression was moved out of the package
+to scratch `ntp-system-regression.go.txt`; retain it with
+`ntp-producer-repair.patch`, `ntp-test-migration.patch`, and `ntp-pending-scope.md`
+until ownership is resolved.
+
+Next execution: pipeline functional fixture and scoped RIB package tests;
+the config corpus after the four landed corrections; ADD-PATH baseline,
+negative-overlay and clean rebuild, then LDP; the AC-7 actual refusal report.
+Current audit source/test census is in `refusal-independent-evidence-review.md`
+and `refusal-remaining-evidence-audit.md` under the same session scratch.
+
 This section supersedes the old blockers below. The owner requested a model
 switch after the continuation's source review and focused repairs. No additional
 spec closed. No push or `./le verify` command ran. Unrelated dirty files remain.
