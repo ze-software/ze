@@ -7,14 +7,14 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md`, "Goal and scope": `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of `spec-doctor-coverage-1-audit-and-gate` makes every area child release work |
 | RFC gaps | - |
-| Depends | `spec-doctor-coverage-1-audit-and-gate`: the `runtime` doctor phase, `Diagnostic.Fix`, the `doctor-recent-events` check (`internal/component/doctor/checks_recent_events.go`) and the doctor-coverage gate, landed in commits ce58dddf53 and fc96556110. `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (the cross-cutting codes `doctor-internal-defect`, `doctor-plugin-stopped`, `doctor-plugin-config-unapplied`, the event-code registration, the raise-carries-its-fix convention) and its AC-9 and AC-22 checks, cited by name and never rebuilt here. `plan/release/validation/spec-doctor-coverage-11-hub-engine.md`: its `hub-runtime` check reports the confirm window (AC-23) and declares `doctor-config-reload-refused` and `config-plugin-verify` (AC-34); this spec registers the confirm codes it uses and duplicates neither check. `plan/release/validation/spec-doctor-coverage-4-api-surfaces.md` AC-22 carries this spec's `doctor-config-password-weak` on the REST, gRPC and gNMI commit advisory line |
+| Depends | `spec-doctor-coverage-1-audit-and-gate`: the `runtime` doctor phase, `Diagnostic.Fix`, the `doctor-recent-events` check (`internal/component/doctor/checks_recent_events.go`) and the doctor-coverage gate, landed in commits ce58dddf53 and fc96556110. `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (the cross-cutting codes `doctor-internal-defect`, `doctor-plugin-stopped`, `doctor-plugin-config-unapplied`, the event-code registration, the raise-carries-its-fix convention) and its AC-9 and AC-22 checks, cited by name and never rebuilt here. `plan/release/validation/spec-doctor-coverage-11-hub-engine.md`: its `hub-runtime` check reports the confirm window (AC-23) and declares `doctor-config-reload-refused` and `config-plugin-verify` (AC-34; `config-plugin-verify` already has metadata in `codes.go` and is already declared by this component's `config-semantics`, and a second check may declare it, A-3); this spec registers the confirm codes it uses and duplicates neither check. `plan/release/validation/spec-doctor-coverage-4-api-surfaces.md` AC-22 carries this spec's `doctor-config-password-weak` on the REST, gRPC and gNMI commit advisory line |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Parent: `plan/release/validation/spec-doctor-coverage-0-umbrella.md`. Source: the config-yang section of the audit, `plan/audits/doctor-problem-inventory/config-yang.md` (slice A3, 18 class rows, all gaps, canonical codes from the inventory's code table), and the per-site list `./le arch doctor-coverage report` prints for the seven config packages (57 uncovered sites: config 16, archive 6, confirm 2, infra 1, storage 3, transaction 24, yang 5).
+Parent: `plan/release/validation/spec-doctor-coverage-0-umbrella.md`. Source: the config-yang section of the audit, `plan/audits/doctor-problem-inventory/config-yang.md` (slice A3, 18 class rows, all gaps, canonical codes from the inventory's code table), and the per-site list `./le arch doctor-coverage report` prints for the seven config packages. On 2026-11-11, after commit 10c6647f6d made the gate judge every doctor finding's `Fix`, it lists 63 uncovered sites: config 20 (16 log sites, and 4 `diagnostic.Diagnostic` findings with no `Fix` in `validate_semantic.go`), archive 8 (6 log sites, and 2 findings with no `Fix` in `archive/doctor.go`), confirm 2, infra 1, storage 3, transaction 24 (21 log sites, 3 raises), yang 5. The 2026-11-10 count of 57 predates the finding judgement. `warnWeakPassword` logs a variable message with no attributes, which the gate does not see as a site until child 12 AC-43 lands, so it is in none of these counts and AC-5 still codes it.
 
 ## Task
 
@@ -56,7 +56,7 @@ the config changes again (journal row in "Owned journal rows", fixed by AC-12).
 
 **Key insights:**
 - The parent's AC-9 (checks reading daemon state outside `runtime`) has no row in this area: `config-semantics` reads the config tree, `archive-destinations` probes over the network, and the store checks read the store on disk.
-- Every one of the 57 sites reports a real problem, so no Warn line in this area drops to Info.
+- Every one of the 57 log and raise sites reports a real problem, so no Warn line in this area drops to Info. The other 6 sites are existing doctor findings that set no `Fix` (AC-29).
 - No health row in this area, and no health-row filter keys on `commit-aborted`, `commit-rollback` or `commit-save-failed` (searched `HealthProbe` users); the renamed codes' only readers are `internal/test/fixture/plugin_fixture_06_events.go` and `test/plugin/errors-config-abort-show.ci`.
 
 ## Current Behavior (MANDATORY)
@@ -156,6 +156,7 @@ the config changes again (journal row in "Owned journal rows", fixed by AC-12).
 | report-bus `code` field | writer | `internal/component/config/transaction/orchestrator.go` `publishAbort`, `publishRollback`, `writeConfigFile` | `report.RaiseError` with `reportCodeCommitAborted`, `reportCodeCommitRollback`, `reportCodeCommitSaveFail` | change: renamed to `doctor-commit-aborted`, `doctor-commit-rollback`, `doctor-commit-save-failed` (no release shipped the old names) |
 | report-bus `code` field | reader | `internal/test/fixture/plugin_fixture_06_events.go` `fixture06ErrorsConfigAbort` | matches the literal `commit-aborted` in `show errors` JSON | change: converted in the same commit |
 | report-bus `code` field | reader | `test/plugin/errors-config-abort-show.ci` | names the code | change: converted in the same commit |
+| report-bus `code` field | reader | `internal/component/config/transaction/orchestrator_test.go` (asserts the raised codes) and the `PREVENTS:` comment in `orchestrator_shutdown_test.go` | name the old codes | change: converted in the same commit |
 | report-bus `code` field | reader | `internal/component/doctor/checks_recent_events.go` `recentEventsDiagnostic` | reads `Issue.Code` generically through `Lookup` | preserve: renders the new names once registered |
 | zefs key `meta/config/{name}/password-weak` | writer | the daemon's config load and commit paths after `ApplyPasswordHashing` (`internal/component/config`) | new | new private key in `pkg/zefs/keys.go`, listed by `ze data registered` |
 | zefs key `meta/config/{name}/password-weak` | reader | the `config-passwords` check (`internal/component/config`) through `ctx.Store` | new | new, read-only |
@@ -182,7 +183,7 @@ the config changes again (journal row in "Owned journal rows", fixed by AC-12).
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The tree `ze doctor` hands a post-config check is the hashed one, so a plaintext sibling is gone from it | `loader.go` comment: `hashPlaintextSibling` deletes the plaintext leaf before `warnPlaintextOnDisk` | AC-4 reads the tree instead of the source | read the doctor config-tree loader in P1 | unvalidated |
 | A-2 | Weakness cannot be judged from a bcrypt hash, so a record taken at hash time is the only source | `password_hash.go` `HashedPassword.Weakness` exists only on the hashing result | AC-5 needs no record | read `PasswordWeaknessWarnings` in P1 | unvalidated |
-| A-3 | Several checks may declare one shared code (`doctor-internal-defect`) | `DoctorCheck.Codes` is a per-check list | AC-9 raises on the bus instead | read `RegisterDoctorCheck` in P0 | unvalidated |
+| A-3 | Several checks may declare one shared code (`doctor-internal-defect`) | `DoctorCheck.Codes` is a per-check list | AC-9 raises on the bus instead | read `RegisterDoctorCheck` in P0 | confirmed 2026-11-11: `validateDoctorCheckCodesReg` (`internal/core/diagnostic/doctor_registry.go`) refuses a duplicate code only inside one check's `Codes`, and `config-plugin-verify` is already declared by `config-semantics` while child 11 AC-34 declares it again |
 | A-4 | A commit from the editor rewrites the config file from the committed version, so it is the fix for an out-of-sync file | `PromoteCandidate` mirrors the active version into the file | AC-16's fix names the `ze data` `write` subcommand instead | the AC-16 unit test | unvalidated |
 | A-5 | Child 12 P0a lands before P0 here | child 12 Depends line | P0 waits | `./le spec status` | unvalidated |
 
@@ -275,7 +276,8 @@ Every row: severity, code, the fix line, the state read, and the route. "Event" 
 | AC-25 | the four transaction event marshal failures (`orchestrator.go` `publish*`) | each line carries `doctor-internal-defect` | none: a fixed struct |
 | AC-26 | the eight ack-channel-full drops (`executor.go` `trySend*Ack`, `orchestrator.go`) | each line carries `doctor-internal-defect` | none: a plugin sent more acks than the transaction expects; the timeout it causes is AC-21 |
 | AC-27 | the rollback tier computation failure (`collectRollbackAcks`) | the line carries `doctor-internal-defect` | none |
-| AC-28 | `./le arch doctor-coverage report` after P6 | zero uncovered sites in `internal/component/config`, `config/archive`, `config/confirm`, `config/infra`, `config/storage`, `config/transaction`, `config/yang` | none: every site of the area reports a real problem, so none drops to Info |
+| AC-28 | `./le arch doctor-coverage report` after P6 | zero uncovered sites in `internal/component/config`, `config/archive`, `config/confirm`, `config/infra`, `config/storage`, `config/transaction`, `config/yang`, doctor findings included (AC-29) | none: every site of the area reports a real problem, so none drops to Info |
+| AC-29 | the existing doctor findings that set no `Fix`: the four `ValidateSemantics` findings in `validate_semantic.go` (`config-mcp-invalid`, `config-gnmi-invalid`, `config-plugin-verify`, `config-hub-invalid`) and the two `archive-destinations` findings in `archive/doctor.go` (`doctor-archive-invalid`, `doctor-archive-unreachable`) | each sets `Fix` to the command or config statement that clears it: the refusal's own fix line where the error carries one, else `ze config validate` for the four semantic findings; the `set` or `delete` of the archive `location` for the invalid entry; the archive trigger `config archive <name>` once the destination answers for the unreachable one; the archive message drops the fix it spells inline today, since the renderer draws `Fix` on its own line | none: commit 10c6647f6d makes a finding with no `Fix` an uncovered site |
 
 ## 🧪 TDD Test Plan
 
@@ -323,7 +325,8 @@ N-A: no protocol behavior changes.
 - `internal/component/config/loader.go`, `loader_extract.go`, `password_hash.go`, `stamp.go`, `yang_schema.go`, `listener.go`, `doctor.go` - coded lines, weak record, local checks (AC-4 to AC-9, AC-16, AC-23)
 - `internal/component/config/yang/command.go` - coded lines (AC-24)
 - `internal/component/config/confirm/confirm.go` - coded lines (AC-13)
-- `internal/component/config/infra/authz.go` and its register file - findings walk, check (AC-15)
+- `internal/component/config/infra/authz.go` - findings walk (AC-15); the package has no `init()` and no register file today, so the check registers from the new `infra/doctor.go`
+- `internal/component/config/validate_semantic.go` - `Fix` on the four semantic findings (AC-29); `archive/doctor.go` carries the archive half
 - `internal/component/config/storage/pointer.go`, `tree.go`, `open.go` - coded lines, leftover list (AC-16, AC-18)
 - `internal/component/doctor/doctor_checks.go` - `store-integrity` declares the leftover code (AC-18)
 - `pkg/zefs/keys.go` - the weak-password record key (AC-5)
@@ -331,6 +334,7 @@ N-A: no protocol behavior changes.
 - `docs/guide/config-archive.md`, `docs/guide/config-editor.md`, `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/zefs-format.md` - rows, codes, key
 
 ## Files to Create
+- `internal/component/config/infra/doctor.go` (+ test) - the `authz-match` check and its `init()` (AC-15)
 - `test/plugin/doctor-archive-delivery-failed.ci`
 - `test/ui/doctor-config-password-plaintext.ci`, `test/ui/doctor-config-file-out-of-sync.ci`, `test/ui/doctor-config-listen-host-overridden.ci`
 
@@ -369,7 +373,7 @@ N-A: no protocol behavior changes.
 | 14 | Prometheus counters added/changed? | No | - |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | the `// Design:` pages the changed files declare: `docs/features/ai-first.md` (`config/doctor.go`: updated with the new config checks), `docs/architecture/config/yang-config-design.md` (`yang_schema.go`: updated, the registration-integrity check), `docs/architecture/config/syntax.md` (loader files: unaffected, no syntax changes), `docs/architecture/config/apply-ordering.md` (transaction files: unaffected, apply order unchanged); the rest derived at implementation with `./le spec citation anchors spec plan/release/validation/spec-doctor-coverage-9-config-yang.md` |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `show errors` examples naming `commit-aborted` are updated to the new code |
+| 17 | Existing docs show config/CLI/API examples for this area? | No | no page under `docs/` or `website/` names `commit-aborted`, `commit-rollback` or `commit-save-failed` (grep 2026-11-11); the in-tree readers are the census rows |
 
 ## Implementation Steps
 
@@ -385,7 +389,7 @@ Sized for one agent of about 60 tool calls each. Every phase ends with the scope
 | P3 confirm and authz | coded revert lines; `authz-match` | AC-13 to AC-15 | P0 | ∥ P1 |
 | P4 storage | `config-file-sync`, save-failed line, leftover list in `store-integrity` | AC-16 to AC-18 | P0 | ∥ P1 |
 | P5 transaction | event rows, rollback record, plugin-stopped raise | AC-19 to AC-22 | P0, child 12 AC-5 snapshot | after P0 |
-| P6 not problem classes | coded lines; coverage report | AC-23 to AC-28 | P0 to P5 | last |
+| P6 not problem classes | coded lines; `Fix` on the existing findings; coverage report | AC-23 to AC-29 | P0 to P5 | last |
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -456,7 +460,7 @@ Sized for one agent of about 60 tool calls each. Every phase ends with the scope
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-28 all demonstrated
+- [ ] AC-1..AC-29 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass, run in the main checkout: the scoped package tests (`./le job run label config command go test -race ./internal/component/config/...`, and `./internal/component/doctor/`, `./internal/core/diagnostic/`) and the named `.ci` files through `./le test functional plugin` and `./le test functional ui`, each run with the test names above only. No agent runs any `./le verify` command
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only

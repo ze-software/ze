@@ -7,10 +7,10 @@
 | Priority | P2 |
 | Release reason | Thomas's rule that `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it (`ai/META-DECISIONS.md`, Goal and scope), and owner decision O-3 of `spec-doctor-coverage-1-audit-and-gate.md`: every area child is release work |
 | RFC gaps | - |
-| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the local route asking the daemon, the `recent-events` check, the doctor-coverage gate; landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (cross-cutting codes `doctor-plugin-stopped`, `doctor-internal-defect`, the transient-code registration, a raise carrying its fix) and phase P0b (the plugin report route phase S2 uses); `plan/release/validation/spec-doctor-coverage-10-forwarding.md` for the fib-kernel MPLS codes |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the local route asking the daemon, the `recent-events` check, the doctor-coverage gate; landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (cross-cutting codes `doctor-plugin-stopped`, `doctor-internal-defect`, the transient-code registration, a raise carrying its fix) and phase P0b (the plugin report route phase S2 uses); `plan/release/validation/spec-doctor-coverage-10-forwarding.md` for the MPLS writer-side codes: `doctor-fib-kernel-mpls-install` and `doctor-fib-kernel-mpls-remove` (its AC-83, AC-84), the failed install or removal seen by the writer, which AC-28 and AC-43 here do not duplicate: they compare the protocol's own table with the kernel; `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` adds a route field to `DoctorCheckContext` (its Required Reading), which AC-9c does not need because each owner answers from its own recorded bind result |
 | Phase | ready |
 | Handoff | - |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -100,7 +100,7 @@ area's packages names its doctor code (owner decision O-2 of the parent), so
 | LDP port check | `internal/plugins/ldp/doctor.go` `checkLDPPort` | binds UDP and TCP 646 plainly | extends: probes UDP 646 only, as the engine binds, and yields to the runtime answer when the engine holds the port (AC-9c) |
 | Doctor listeners | `internal/component/doctor/checks_listener.go` `extractBFDListeners` | one UDP 3784 probe for BFD | replaces (`ai/rules/no-layering.md`): the BFD extractor is deleted first, then the BFD-owned `bfd-ports` check probes every mode, the echo port and VRF devices; one owner for one fact |
 | Doctor registry and runtime phase | `internal/core/diagnostic/doctor_registry.go` `RegisterDoctorCheck`, `DoctorPhaseRuntime`; `internal/component/doctor/registry.go` `RunRuntimeChecks` | runs checks per phase; runtime only on the daemon route | extends: the area's runtime classes register as runtime |
-| Plugin doctor checks | `internal/component/plugin/registry/doctor.go` `DoctorCheckDef`; `internal/component/doctor/cmd/show.go` `collectPluginDoctorChecks` | config-time plugin checks; SDK-declared checks answered by the running plugin | extends: every runtime class is SDK-declared and answered by `OnDoctorCheck` in the protocol's own process, internal or forked |
+| Plugin doctor checks | `internal/component/plugin/registry/doctor.go` `DoctorCheckDef`, `validateDoctorCheckDef`; `internal/component/doctor/cmd/show.go` `collectDoctorChecksFrom`; `internal/component/plugin/server/startup.go` `refuseDoctorCheckDeclaredTwice` | config-time plugin checks (the registry refuses a `DoctorCheckDef` in the `runtime` phase, commit 149497ce12); SDK-declared checks answered by the running plugin, whatever their phase; Stage 1 refuses a declared check whose name the plugin's registry row already holds | extends: every runtime class is SDK-declared and answered by `OnDoctorCheck` in the protocol's own process, internal or forked; `ldp-port` and `rsvp-te-rawsock` stay post-config `DoctorCheckDef`s, so the new runtime `ldp-state` and `rsvp-te-state` take names of their own |
 | Fix field | `internal/core/diagnostic/types.go` `Diagnostic.Fix`; `pkg/plugin/rpc/types.go` `DoctorCheckDiagnostic` | carries the command on its own line | extends: every finding here sets it |
 | Diagnostic code registry | `internal/core/diagnostic/codes.go` | metadata for `ze show diagnostic` | extends: one metadata row per new canonical code |
 | Report bus and recent events | `internal/core/report/report.go` `RaiseError`, `RaiseWarning`; `internal/component/doctor/checks_recent_events.go` `recent-events` | coded events; recent rows in `show doctor` | extends: each transient class raises its event under its code, registered through `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a's transient-code registration, which `recent-events` reads; a forked plugin reaches the bus through child 12 phase P0b's plugin report route |
@@ -116,7 +116,7 @@ area's packages names its doctor code (owner decision O-2 of the parent), so
 
 ### Transformation Path
 1. Config classes (no router-id, no lsr-id, unmapped admission, unbound BFD loop, IPv6 BFD not bound, redistribute family, key-chain expiry, missing interface devices) run post-config on both routes from the config tree
-2. Runtime classes run on the daemon route: `collectPluginDoctorChecks` calls the SDK-declared check of each protocol (`bfd-state`, `ldp-state`, `rsvp-te-state`, `ospf-state`, `isis-state`), answered by `OnDoctorCheck` in the protocol's process from its live state and counters
+2. Runtime classes run on the daemon route: `collectDoctorChecksFrom` calls the SDK-declared check of each protocol (`bfd-state`, `ldp-state`, `rsvp-te-state`, `ospf-state`, `isis-state`), answered by `OnDoctorCheck` in the protocol's process from its live state and counters
 3. Transient classes: the site logs at Warn with its code and raises the event on the report bus under that code; `recent-events` reports it; the owning protocol's check declares the code so the gate counts the site covered
 4. Each finding carries `fix`; `show doctor` returns it on every surface and `ze doctor` draws it
 
@@ -237,7 +237,7 @@ Warn site carrying the code plus a report-bus raise under it, reported by
 | AC-25 | A Hello adjacency with no operational session past the KeepAlive hold | runtime `doctor-ldp-session-not-operational` (warning) naming the peer, the last failure (connect, Initialization rejection, send, Notification, KeepAlive expiry) and retries, from a per-adjacency last-failure record (S3); the message names the active-role case when the peer's transport address is higher | an adjacency inside its first setup backoff (R-1) |
 | AC-26 | A label mapping dropped as a loop (hop count above `hop-count-max`) | transient `doctor-ldp-loop-detected` naming peer and FEC | none |
 | AC-27 | A peer sends an unknown message type or an unknown TLV with the U bit clear | transient `doctor-ldp-peer-message-ignored` naming peer and type | none |
-| AC-28 | An LDP LIB binding absent from the kernel AF_MPLS table, or a withdrawn one still present | runtime `doctor-mpls-label-not-programmed` (error) from `ldp-state`, comparing LIB local bindings with the kernel MPLS dump; fix `show mpls forwarding` | an entry inside one refresh of its change (R-5) |
+| AC-28 | An LDP LIB binding absent from the kernel AF_MPLS table, or a withdrawn one still present | runtime `doctor-mpls-label-not-programmed` (error) from `ldp-state`, comparing LIB local bindings with the kernel MPLS dump; fix `show mpls forwarding` | an entry inside one refresh of its change (R-5). Where `fib-kernel` is not loaded nothing consumes `(mpls-fib, entry)` events (fib-vpp programs only labeled system-RIB routes, from `sysribevents.BestChange` in `internal/plugins/fib/vpp/register.go`), so every binding reads not programmed and the message names the missing label writer, not a failed install; where `fib-kernel` recorded the failed install, the message names child 10's `doctor-fib-kernel-mpls-install` row as the cause |
 
 ### RSVP-TE
 
@@ -256,7 +256,7 @@ Warn site carrying the code plus a report-bus raise under it, reported by
 | AC-40 | `transport.LocalAddresses()` failing | runtime `doctor-rsvpte-local-addresses` (error) with the error and time | none |
 | AC-41 | A protected LSP with no Up bypass, or a failed local-repair FIB programming | runtime `doctor-rsvpte-frr-unprotected` (warning) naming LSP and bypass state; fix `show rsvp-te fast-reroute` | none |
 | AC-42 | Interface-down events dropped (worker backlog, no bus subscription) | transient `doctor-rsvpte-link-event-dropped` naming the interface, with a drop counter (S3) | none |
-| AC-43 | An RSVP `lspTable` label absent from the kernel AF_MPLS table, or a withdrawn one present | runtime `doctor-mpls-label-not-programmed` from `rsvp-te-state` | an entry inside one refresh of its change (R-5) |
+| AC-43 | An RSVP `lspTable` label absent from the kernel AF_MPLS table, or a withdrawn one present | runtime `doctor-mpls-label-not-programmed` from `rsvp-te-state` | an entry inside one refresh of its change (R-5); the missing-writer and failed-install messages are AC-28's |
 
 ### OSPF
 
@@ -323,13 +323,14 @@ Warn site carrying the code plus a report-bus raise under it, reported by
 | AC-96 | BFD non-Linux source-address site | carries `doctor-bfd-send-failed` | none |
 | AC-97 | OSPF, OSPFv3 and IS-IS socket and fd close errors on teardown, rescan and probe | carry `doctor-internal-defect` (the CODES merge of the per-protocol close codes) | none |
 | AC-98 | OSPF and IS-IS Ze-defect sites (registration errors, self-built LSA normalise, metric style missing, undecodable iface event, malformed producer prefix, post-panic follow-ups) | carry `doctor-internal-defect` | none |
+| AC-100 | The existing doctor findings of the area that set no `Fix` (13 on 2026-11-11, after commit 10c6647f6d made the gate judge them): `ospf/doctor.go` 4, `ospf/doctor_debug.go` 1, `ospf/doctor_ipsec.go` 1, `ospf/sr_doctor.go` 1, `ospf/unnumbered.go` 1, `ospf/transport/doctor.go` 1, `ospf/v3/transport/doctor.go` 1, `isis/doctor.go` 2, `isis/transport/doctor.go` 1 | each sets `Fix` to the command or config statement that clears it; a message that spells its fix inline drops that text, since the renderer draws `Fix` on its own line | none: a finding with no `Fix` is an uncovered site (AC-1) |
 | AC-99 | "ospf: no ospf config" at plugin start | logged at Info: nothing is configured, so nothing is degraded | none: the line is not a problem, so it is not a Warn |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | runs `show doctor` on a box whose BFD peer never answers | `HandleDoctor` -> `collectPluginDoctorChecks` -> bfd `OnDoctorCheck` -> session snapshot | `test/plugin/show-doctor-bfd-state.ci` |
+| 1 | runs `show doctor` on a box whose BFD peer never answers | `HandleDoctor` -> `collectDoctorChecksFrom` -> bfd `OnDoctorCheck` -> session snapshot | `test/plugin/show-doctor-bfd-state.ci` |
 | 2 | runs `ze doctor` before committing `ldp` with no `lsr-id` | `doctor.Answer` -> `ldp-config` -> config tree | `test/ui/doctor-routing-protocols-config.ci` |
 | 3 | runs `show doctor` with IS-IS on an absent device and sees IS-IS still up on the others | IS-IS start -> `isis-state` | `test/plugin/show-doctor-isis-state.ci` |
 
@@ -464,7 +465,7 @@ before the checks that read them.
 | P4a OSPF config and adjacency | AC-9a, AC-9b; interfaces, neighbors, auth, key chain, BFD, LDP sync | AC-9a, AC-9b, AC-50 to AC-57 | P0, child 12 P0b | ∥ P5 |
 | P4b OSPF databases and exports | IPsec, GR, LSDB, redistribution, BGP-LS, SR, opaque, sink; not-problem sites; AC-99 | AC-58 to AC-69, AC-90, AC-97, AC-98 (OSPF sites), AC-99 | P4a | - |
 | P5 IS-IS | defect AC-80 first; `isis-state`; records for own-ID conflict and fragment truncation; codes | AC-70 to AC-80, AC-90, AC-97, AC-98 (IS-IS sites) | P0, child 12 P0b | ∥ P4a |
-| P6 gate | `./le arch doctor-coverage report` over the area's package trees reads every site covered | AC-1 | all | - |
+| P6 gate | `Fix` on the existing findings; `./le arch doctor-coverage report` over the area's package trees reads every site covered, findings included | AC-1, AC-100 | all | - |
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

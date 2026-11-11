@@ -7,10 +7,10 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md` (Goal and scope): `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of `spec-doctor-coverage-1-audit-and-gate` makes every area child release work |
 | RFC gaps | - |
-| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the doctor-coverage gate, the `recent-events` check: landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` for the cross-cutting codes (`doctor-internal-defect`, `doctor-plugin-stopped`, `doctor-plugin-crashed`, `doctor-plugin-config-unapplied`, `doctor-plugin-setup-failed`, `doctor-plugin-external-unsupported`, `doctor-plugin-stop-cleanup-late`), the registration field that declares a plugin runs only in the daemon's process (phase P0a, with the transient-code registration and a raise carrying its fix), and the plugin-protocol route for a forked plugin to raise on the daemon's report bus (phase P0b); `plan/release/validation/spec-doctor-coverage-10-forwarding.md` for `doctor-firewall-drift` and `doctor-firewall-apply-behind`; `plan/release/validation/spec-doctor-coverage-5-appliance.md` for the `doctor-dns-source-*` check and the `ConsumerSelection` fields of its AC-19 (AC-31, AC-32) |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the doctor-coverage gate, the `recent-events` check: landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` for the cross-cutting codes (`doctor-internal-defect`, `doctor-plugin-stopped`, `doctor-plugin-crashed`, `doctor-plugin-config-unapplied`, `doctor-plugin-setup-failed`, `doctor-plugin-external-unsupported`, `doctor-plugin-stop-cleanup-late`), the transient-code registration and a raise carrying its fix (phase P0a), the registration field that declares a plugin runs only in the daemon's process and its `doctor-plugin-external-unsupported` check (AC-24, phase P4; the code itself is registered in P0a), and the plugin-protocol route for a forked plugin to raise on the daemon's report bus (phase P0b); `plan/release/validation/spec-doctor-coverage-10-forwarding.md` for `doctor-firewall-drift` and `doctor-firewall-apply-behind`; `plan/release/validation/spec-doctor-coverage-5-appliance.md` for the `doctor-dns-source-*` check and the `ConsumerSelection` fields of its AC-19 (AC-31, AC-32) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -66,7 +66,7 @@ No row of this area is owned by child 2 (`spec-doctor-coverage-2-home-cpe-batch.
   → Constraint: tables, no snippets; every open journal row is owned by a spec table
 
 **Key insights:**
-- `collectPluginDoctorChecks` (`internal/component/doctor/cmd/show.go`) calls every check a running plugin declared, whatever its phase, inside the daemon; a `registry.DoctorCheckDef` check runs in the daemon process and sees nothing of a forked plugin
+- `collectDoctorChecksFrom` (`internal/component/doctor/cmd/show.go`, renamed from `collectPluginDoctorChecks` by commit 149497ce12) calls, on the daemon route, every check a running plugin declared at Stage 1, whatever its phase, and the plugin answers it in its own process through `OnDoctorCheck`; a `registry.DoctorCheckDef` check runs in the daemon process and sees nothing of a forked plugin, so the registry refuses one in the `runtime` phase (`validateDoctorCheckDef`), and Stage 1 refuses a declared check whose name the plugin's registry row already holds (`refuseDoctorCheckDeclaredTwice`)
 - No report-bus raise and one health row (`flow-export`) exist in the area today, so most transient classes need both a record in the owner and a raise
 - 18 plugins work only in the daemon's process and know it only in code; child 12 gives them one declared field
 - dhcpserver already bounds its Warn lines (`warnLimited`); the NTP and MRT floods reuse that shape
@@ -91,7 +91,7 @@ No row of this area is owned by child 2 (`spec-doctor-coverage-2-home-cpe-batch.
 - [ ] `internal/plugins/anomaly/shape/register.go` - Warns when the legacy sweep (`firewall.LegacySweepPending`) did not run
 - [ ] `internal/component/doctor/registry.go` - `RunRuntimeChecks`, daemon route only
 - [ ] `internal/component/doctor/checks_recent_events.go` - `recentEventsCheck` shows bus events under their own code when the code has metadata
-- [ ] `internal/component/doctor/cmd/show.go` - `collectPluginDoctorChecks` answers every declared plugin check in the daemon
+- [ ] `internal/component/doctor/cmd/show.go` - `collectDoctorChecksFrom` asks every running plugin for its Stage 1 declared checks on the daemon route
 - [ ] `internal/core/diagnostic/codes.go` - code metadata, the existing static, ddos and flow-export codes among it
 - [ ] `pkg/zefs/keys.go` - the registered zefs keys a persisted record joins
 
@@ -110,7 +110,8 @@ No row of this area is owned by child 2 (`spec-doctor-coverage-2-home-cpe-batch.
 | `static-route-skipped` silent locally and forked | confirmed | `checkRouteSkipped` returns nil on a nil `activeRouteManager` |
 
 **Behavior to preserve:**
-- every existing check and code of the area: `anomaly-detect-feature-source`, `anomaly-shape-firewall`, `as112-listen-capability`, `dns-resolver-listen-capability`, `dns-resolver-upstream-reachable`, `copp-input-chain`, `crash-directory-writable`, `crash-capture-armed`, `crash-capture-pstore`, `ddos-detect-rate-feed`, `ddos-detect-flow-source`, `dhcp-listen-interface`, `flow-export-conntrack-tracking`, `geodns-listen-capability`, `geodns-tls-cert`, `ntp-client`, `ntp-clock-privilege`, `static-route-skipped`, `static-fib-writer`, `static-interface-nexthop-backend`, `traffic-usage-ebpf`, `vrrp-config-sanity`, `vrrp-raw-socket`, `systemd-service`, with their codes
+- every existing check and code of the area: `anomaly-detect-feature-source`, `anomaly-shape-firewall`, `as112-listen-capability`, `dns-resolver-listen-capability`, `dns-resolver-upstream-reachable`, `copp-input-chain`, `crash-directory-writable`, `crash-capture-armed`, `crash-capture-pstore`, `ddos-detect-rate-feed`, `ddos-detect-flow-source`, `dhcp-listen-interface`, `flow-export-conntrack-tracking`, `geodns-listen-capability`, `geodns-tls-cert`, `ntp-client`, `ntp-clock-privilege`, `static-route-skipped`, `static-interface-nexthop-backend`, `traffic-usage-ebpf`, `vrrp-config-sanity`, `vrrp-raw-socket`, `systemd-service`, with their codes
+- `static-fib-writer` (`doctor-static-no-fib-writer`) is not preserved here: `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` AC-34 removes it in favour of its generic `doctor-plugin-no-dataplane-writer` check, and this spec neither keeps nor edits it
 - the `flow-export` health row name and its healthy, degraded and down meanings
 - `update serve` answers `running` from the server goroutine
 
@@ -124,8 +125,8 @@ No row of this area is owned by child 2 (`spec-doctor-coverage-2-home-cpe-batch.
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Doctor check registry and phases | `diagnostic.RegisterDoctorCheck`; `RunRuntimeChecks` (`internal/component/doctor/registry.go`) | owner-registered checks per phase; `runtime` runs only in the daemon | extends: a new check of an in-process-only plugin registers here at `runtime`; local config and host checks at `post-config` |
-| Plugin doctor checks, registry form | `registry.DoctorCheckDef` in a plugin `Registration` | runs in the daemon process (or the local process) beside the plugin registry | extends: used for config and host checks, and for runtime checks of a plugin declared in-process only |
-| Plugin doctor checks, SDK form | Stage 1 `rpc.DoctorCheckDecl` answered by `OnDoctorCheck` (`ddos/detect/doctor.go`, `register.go`); called by `collectPluginDoctorChecks` | the running plugin answers, in process or forked | extends: every runtime check of a plugin that can run forked is declared here with phase `runtime` (AC-2) |
+| Plugin doctor checks, registry form | `registry.DoctorCheckDef` in a plugin `Registration`; `validateDoctorCheckDef` (`internal/component/plugin/registry/doctor.go`) | runs in the process that answers (the daemon, or the local process) beside the plugin registry; refused in the `runtime` phase since commit 149497ce12 | extends: used for config and host checks only |
+| Plugin doctor checks, SDK form | Stage 1 `rpc.DoctorCheckDecl` answered by `OnDoctorCheck` (`ddos/detect/doctor.go`, `register.go`); called by `collectDoctorChecksFrom`; `refuseDoctorCheckDeclaredTwice` (`internal/component/plugin/server/startup.go`) | the running plugin answers, in process or forked; a name its registry row also holds is refused at Stage 1 | extends: every runtime check of a plugin, whether it can run forked or is declared in-process only, is declared here with phase `runtime` (AC-2), under a name its registry row does not hold |
 | `Diagnostic.Fix` | `diagnostic.Diagnostic.Fix` (`internal/core/diagnostic/types.go`) | the fixing command on its own line | extends: every new diagnostic sets it |
 | Report bus | `report.RaiseWarning`, `RaiseError`, `ClearWarning` (`internal/core/report/report.go`) | coded active warnings and an error ring, process-local | extends: each transient class raises under its doctor code; a forked plugin raises through child 12's plugin-protocol route (AC-3) |
 | `recent-events` check | `recentEventsCheck` (`checks_recent_events.go`) | one row per bus event under the event's code when that code has metadata | extends: each transient code here has metadata and is declared by its owner's runtime check |
@@ -146,7 +147,7 @@ No row of this area is owned by child 2 (`spec-doctor-coverage-2-home-cpe-batch.
 
 ### Transformation Path
 1. Local checks (`post-config`) read the config tree plus host state (files, sysfs, procfs, tc, nft, netlink reads); they apply nothing
-2. Runtime checks read the owner's live state and run only in the daemon: an in-process-only plugin through a `registry.DoctorCheckDef` at `runtime`, a forkable plugin through its own `OnDoctorCheck` answer to a Stage 1 declaration at `runtime`
+2. Runtime checks read the owner's live state and run only on the daemon route: every plugin, in-process-only or forkable, through its own `OnDoctorCheck` answer to a Stage 1 declaration at `runtime` (the registry refuses a `runtime` `DoctorCheckDef`); a component that is not a plugin (`internal/component/firewall`, AC-11) through `diagnostic.RegisterDoctorCheck` at `runtime`
 3. A transient class raises on the report bus under its doctor code, from the daemon process or through child 12's plugin-protocol route; `recent-events` shows it with subject, count and time
 4. Each diagnostic carries code, severity, message and `fix`; `show doctor` returns it on every surface
 
@@ -159,12 +160,12 @@ No row of this area is owned by child 2 (`spec-doctor-coverage-2-home-cpe-batch.
 
 ### Changed-Wire Census
 
-**Search evidence:** scope `internal/`, `pkg/`, `test/`, `docs/`; terms `ddos-detect-rate-feed`, `DoctorPhasePostConfig` in `ddos/detect`, `flow-export` health row name, `updateServeStatus`, `checkFlowExportHealth`. Positive control: `rateFeedCheckDecl` carries phase post-config (read above). Found: the decl in `ddos/detect/doctor.go`, its reader `collectPluginDoctorChecks`; the health row writer `health.go` and readers `show health` and `ze status`; the `update serve` answer writer `updateServeOwner.status`, read by its handler and API clients. No report-bus code of this area exists today (slices A13 to A15: no raise).
+**Search evidence:** scope `internal/`, `pkg/`, `test/`, `docs/`; terms `ddos-detect-rate-feed`, `DoctorPhasePostConfig` in `ddos/detect`, `flow-export` health row name, `updateServeStatus`, `checkFlowExportHealth`. Positive control: `rateFeedCheckDecl` carries phase post-config (read above). Found: the decl in `ddos/detect/doctor.go`, its reader `collectDoctorChecksFrom` (named `collectPluginDoctorChecks` before commit 149497ce12); the health row writer `health.go` and readers `show health` and `ze status`; the `update serve` answer writer `updateServeOwner.status`, read by its handler and API clients. No report-bus code of this area exists today (slices A13 to A15: no raise).
 
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
 | Stage 1 doctor declaration phase | writer | `rateFeedCheckDecl` (`ddos/detect/doctor.go`), and each new Stage 1 runtime declaration | phase field of `rpc.DoctorCheckDecl` | change: `runtime`; the value already exists in `pkg/plugin/rpc` |
-| same | reader | `collectPluginDoctorChecks` (`doctor/cmd/show.go`); a third-party plugin reads nothing of another's declaration | calls every declared check whatever its phase | preserve: the reader already answers runtime declarations |
+| same | reader | `collectDoctorChecksFrom` (`doctor/cmd/show.go`); a third-party plugin reads nothing of another's declaration | calls every declared check whatever its phase | preserve: the reader already answers runtime declarations |
 | `show doctor` JSON | writer | the new checks, through `diagnostic.Diagnostic` | keys unchanged | preserve: rows are added, no key changes |
 | `show doctor` JSON | reader | `outputJSON`, `outputText` (doctor component); MCP, REST, gRPC, SSH clients; `test/plugin/*doctor*.ci` | rows are data | preserve: a reader that lists rows sees more rows |
 | `flow-export` health row | writer | `checkFlowExportHealth` | status and reason | change of meaning only: failing means errors in the recent window; names unchanged |
@@ -223,7 +224,7 @@ No row of this area is owned by child 2 (`spec-doctor-coverage-2-home-cpe-batch.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `show doctor` with a static route whose next-hop the kernel refuses | → | static runtime checks through `OnDoctorCheck` | `test/static/show-doctor-static-route-skipped.ci` (`option=needs-linux`) |
-| `ze doctor` locally, daemon running, `copp bgp` configured | → | `copp-input-chain` at runtime in the daemon | `test/plugin/doctor-copp-runtime.ci` (`option=needs-linux`) |
+| `ze doctor` locally, daemon running, `copp bgp` configured | → | the copp runtime half (AC-7), answered by copp's `OnDoctorCheck` on the daemon route | `test/plugin/doctor-copp-runtime.ci` (`option=needs-linux`) |
 | `show doctor` with an NTP server that never answers | → | NTP runtime sync check | `test/plugin/show-doctor-ntp-not-synced.ci` |
 | `show doctor` with geodns serving on a privileged port | → | geodns runtime listener check, no bind-probe row | `test/plugin/show-doctor-geodns-listener.ci` |
 | `ze doctor --json` with `plugin { external mrt }` | → | child 12 check over the field mrt sets | `test/ui/doctor-plugin-external-unsupported-mrt.ci` |
@@ -241,7 +242,7 @@ Every row below holds for every check it names: the message states the cause in 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | `plugin { external <name> }` for anomaly-detect, anomaly-observe, anomaly-shape, ddos-detect, ddos-observe, ddos-flowspec, ddos-local, ddos-flowtriq, as112, dhcpserver, cos, connected, flow-export, flowspec-firewall, kernel, mrt, vrrp or traffic-usage | each of these registrations sets child 12's in-process-only field, so child 12's local check reports `doctor-plugin-external-unsupported` (error) naming the plugin and why it cannot run forked, with the fix that removes the `external` entry; each plugin's own refusal line (the `IsInternal()` branches) carries the same code; the silent ones (connected, kernel, mrt, flowspec-firewall) refuse to start forked with that line instead of running inert | a plugin that works forked sets nothing and is never reported |
-| AC-2 | A runtime check of a plugin that can run forked (static, ntp, geodns, imageserver, tftpserver, dnsresolver, exabgp, redistribute, update-cmd) | it is a Stage 1 `DoctorCheckDecl` with phase `runtime`, answered by the plugin's `OnDoctorCheck` from its live state, so it answers the same in process and forked; a unit test drives each through the callback, and one check per plugin is proven under `./le mock plugin-external <name>` | a plugin declared in-process only (AC-1) may use a `registry.DoctorCheckDef` at `runtime` |
+| AC-2 | A runtime check of a plugin that can run forked (static, ntp, geodns, imageserver, tftpserver, dnsresolver, exabgp, redistribute, update-cmd) | it is a Stage 1 `DoctorCheckDecl` with phase `runtime`, answered by the plugin's `OnDoctorCheck` from its live state, so it answers the same in process and forked; a unit test drives each through the callback, and one check per plugin is proven under `./le mock plugin-external <name>` | none: a plugin declared in-process only (AC-1) declares its runtime checks the same way, because the plugin registry refuses a `registry.DoctorCheckDef` in the `runtime` phase (`validateDoctorCheckDef`, commit 149497ce12); for it the forked proof under `./le mock plugin-external` does not apply |
 | AC-3 | A transient class below raised by a plugin running forked | the raise reaches the daemon's report bus through child 12's plugin-protocol route, so `recent-events` shows it as for an in-process raise | none: a raise lost at the process boundary is the silent class this work closes |
 | AC-4 | The Warn sites the gate's scan does not resolve: dhcpserver's `warnUnserved` and `warnWithheld` callers (`register.go`, `segment.go`) and the flow-export advisor line (`register.go`) | each carries a `code` attribute naming its row's code (AC-28, AC-27, AC-42), passed through `warnLimited`, so `./le arch doctor-coverage report` lists them covered | none |
 | AC-5 | A Warn line of this area that reports nothing wrong | it logs at Info and carries no code; the commit that moves it names each line and why nothing is wrong | a line that reports a degraded outcome stays Warn with its code |
@@ -251,8 +252,8 @@ Every row below holds for every check it names: the message states the cause in 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-6 | `ddos-detect-rate-feed` | `rateFeedCheckDecl` declares phase `runtime`; the local route never lists it as a config check; `doctor-ddos-detect-blind` (warning) unchanged in the daemon | none |
-| AC-7 | `copp-input-chain` with `control-plane-protection bgp` configured | split: a `post-config` half reports a copp config that does not parse (`doctor-copp-missing`, error); a `runtime` half in the daemon reads the kernel tables through the backend `ApplyAll` loaded and reports a missing `ze_copp` table or unknown-source-drop term (`doctor-copp-missing`, error) with fix `ze signal restart`; the local process never answers "kernel firewall tables could not be read" for a backend it never loaded | none |
-| AC-8 | `ntp-clock-privilege` with the client enabled | the check runs in the process that adjusts the clock (the NTP plugin's `OnDoctorCheck`), reads that process's uid and CapEff, and reports `doctor-ntp-clock-privilege` (warning) when CAP_SYS_TIME is missing or the last slew, step or restore failed (the worker keeps the last set-clock error and time); fix names the service unit's capability setting | none |
+| AC-7 | `copp-input-chain` with `control-plane-protection bgp` configured | split: a `post-config` half reports a copp config that does not parse (`doctor-copp-missing`, error); a `runtime` half in the daemon reads the kernel tables through the backend `ApplyAll` loaded and reports a missing `ze_copp` table or unknown-source-drop term (`doctor-copp-missing`, error) with fix `ze signal restart`; the post-config half keeps the `copp-input-chain` `registry.DoctorCheckDef`, and the runtime half is a Stage 1 declaration under a name of its own answered by copp's `OnDoctorCheck`, because the registry refuses a `runtime` `DoctorCheckDef` and Stage 1 refuses a name the registry row already holds (`refuseDoctorCheckDeclaredTwice`); the local process never answers "kernel firewall tables could not be read" for a backend it never loaded | none |
+| AC-8 | `ntp-clock-privilege` with the client enabled | the check runs in the process that adjusts the clock (the NTP plugin's `OnDoctorCheck`), reads that process's uid and CapEff, and reports `doctor-ntp-clock-privilege` (warning) when CAP_SYS_TIME is missing or the last slew, step or restore failed (the worker keeps the last set-clock error and time); fix names the service unit's capability setting; the post-config `diagnostic.RegisterDoctorCheck` registration in `ntp/doctor.go` is deleted (`ai/rules/no-layering.md`), so one check answers | none |
 | AC-9 | `geodns-listen-capability` while the daemon serves geodns | split: the runtime half reads the dnsserver listener manager's bound set against `service geodns listener` and reports each configured listener not bound, `doctor-geodns-port-unavailable` when the bind error was a permission refusal and `doctor-dns-listener-down` (error) otherwise (AC-21); the bind probe answers only on the local route's fallback when no daemon answered (A-3) | the TLS certificate check `geodns-tls-cert` stays `post-config` |
 | AC-10 | `static-route-skipped` | the check is a Stage 1 runtime declaration answered by the static plugin from its `routeManager`, so it reports `doctor-static-route-skipped` (warning) in process and forked; the `post-config` registration is deleted (`ai/rules/no-layering.md`) | none |
 
@@ -372,7 +373,8 @@ Every row below holds for every check it names: the message states the cause in 
 | AC-85 | The "plugin failed" and `Run` error lines (A13: 14, A14: 8, A15: 6) | each carries `doctor-plugin-stopped`, or `doctor-plugin-setup-failed` when it fails before ready (child 12) | none |
 | AC-86 | Engine and programmer faults: event-bus emit failures, `json.Marshal` of fixed structs, `trafficfeature` unavailable, SDK close at shutdown (A13); the 17 A14 sites (bridge event before configure, invalid event JSON, shutdown line encode, peer list refusal, missing encoder, malformed FlowSpec framing, kernel emit, MRT message and peer-index faults); the A15 invariants, static emit, VRRP queue-full, advert re-encode, teardown close and completion sites | each carries `doctor-internal-defect` (child 12) | none |
 | AC-87 | bridgerun `fleet.go` kills a script still running when the shutdown wait ends | the line carries `doctor-plugin-stop-cleanup-late` (child 12) | none |
-| AC-88 | `./le arch doctor-coverage report` over the door's packages | every site is listed covered; `TestSystemPluginsSitesCovered` | none |
+| AC-88 | `./le arch doctor-coverage report` over the door's packages | every site is listed covered, doctor findings included (AC-89); `TestSystemPluginsSitesCovered` | none |
+| AC-89 | The existing `diagnostic.Diagnostic` findings of the area that set no `Fix` (26 on 2026-11-11, after commit 10c6647f6d made the gate judge them): `systemd/doctor.go` 12, `dhcpserver/doctor.go` 5, `crashes/doctor.go` 3, `ntp/doctor.go` 2, `ntp/doctor_linux.go` 1, `vrrp/doctor.go` 2, `vrrp/transport/doctor.go` 1; and the `routing-table plugin failed` Error line (`internal/plugins/routingtable/register.go`), which no slice listed | each finding sets `Fix` to the command or config statement that clears it, and a message that spells its fix inline drops that text, since the renderer draws `Fix` on its own line; the routingtable line carries `doctor-plugin-stopped` as AC-85's lines do | none: a finding with no `Fix` is an uncovered site (AC-88) |
 
 ## 🧪 TDD Test Plan
 
@@ -504,6 +506,7 @@ Each phase is sized for one agent of about 60 tool calls. Agents edit; every tes
 | P15 VRRP dataplane and adverts | master, backup, send, source, owner conflict, discarded | AC-76, AC-77, AC-79..AC-82 | P14 | - |
 | P16 provision and update server | added-address record, update server ended | AC-83, AC-84 | P1 | ∥ P14 |
 | P17 not problem classes | the remaining lines of the three slices | AC-85..AC-87 | child 12 codes; P3..P16 | - |
+| P17b existing findings | `Fix` on the area's existing findings, the routingtable line | AC-89 | P2 (AC-8 moves the NTP privilege check first) | ∥ P17 |
 | P18 coverage proof | `TestSystemPluginsSitesCovered`, the coverage report | AC-88 | all | - |
 
 ### Critical Review Checklist
@@ -543,7 +546,7 @@ Each phase is sized for one agent of about 60 tool calls. Agents edit; every tes
 
 ## Design Insights
 
-- A runtime check in the plugin registry runs in the daemon process; only the Stage 1 declaration answered by the plugin survives a fork. The phase a Stage 1 declaration carries is a label: `collectPluginDoctorChecks` calls it in the daemon whatever it says
+- A check in the plugin registry runs in the daemon process, so the registry now refuses one in the `runtime` phase; only the Stage 1 declaration answered by the plugin survives a fork. The phase a Stage 1 declaration carries is a label: `collectDoctorChecksFrom` calls it on the daemon route whatever it says, and the local route never calls it
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
@@ -582,7 +585,7 @@ Each phase is sized for one agent of about 60 tool calls. Agents edit; every tes
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-88 all demonstrated
+- [ ] AC-1..AC-89 all demonstrated
 - [ ] Every user story has a working path and a passing test (Scope plugin: the stories are the Wiring Test rows)
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass, run in the main checkout: the scoped package tests (one package at a time through `./le job run`), `./le test functional plugin`, `./le test functional static`, `./le test functional exabgp`, `./le test functional ui`, and the suites `./le repo changed scope print both` reaches. No agent runs any `./le verify` command
