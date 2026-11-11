@@ -79,13 +79,10 @@ func rawHeavy(segment string, moves []string, root string) rawRefusal {
 			tokens = tokens[1:]
 			continue
 		}
-		if oneOf(head, "bash", "sh", "perl", "ruby", "sudo", "time", "nice", "env", "timeout") {
-			prefix = append(prefix, head)
-			tokens = tokens[1:]
-			for len(tokens) != 0 && (strings.HasPrefix(tokens[0], "-") || launcherNumber.MatchString(tokens[0])) {
-				prefix = append(prefix, tokens[0])
-				tokens = tokens[1:]
-			}
+		if _, launcher := launcherValueOptions[head]; launcher {
+			skipped := 1 + launcherArguments(head, tokens[1:])
+			prefix = append(prefix, tokens[:skipped]...)
+			tokens = tokens[skipped:]
 			continue
 		}
 		break
@@ -369,9 +366,64 @@ func shellWord(value string) (string, bool) {
 var literalWord = regexp.MustCompile(`^[A-Za-z0-9_./:@%+=,-]+$`)
 
 // launcherNumber matches a launcher's numeric argument, a count or a duration
-// (`nice 10`, `timeout 60`, `timeout 1.5m`), which the launcher loops of
-// rawHeavy and programWords skip to reach the program. It is compiled once,
-// at package load, because both loops run on every Bash call. A negative
-// value needs no sign here: both loops skip a word that starts with `-`
-// before they ask this pattern.
+// (`nice 10`, `timeout 60`, `timeout 1.5m`), which launcherArguments skips to
+// reach the program. It is compiled once, at package load, because both
+// launcher loops run on every Bash call. A negative value needs no sign here:
+// launcherArguments skips a word that starts with `-` before it asks this
+// pattern.
 var launcherNumber = regexp.MustCompile(`^\d+(?:\.\d+)?[smhd]?$`)
+
+// launcherValueOptions is the one declaration of the launchers the text
+// judgment reads through, rawHeavy's and programWords', each with the options
+// whose value is the next word. Its keys are the launchers. An option missing
+// from a launcher's set is skipped alone, so a value it takes would be read
+// as the program; one joined to its value (`--user=u`, `-uroot`) is one word
+// and needs no entry. A shell's `-c` and env's `-S` are left out on purpose:
+// their value is the command string, which the text judgment reads where the
+// program stands, so skipping it would read the word after it instead.
+var launcherValueOptions = map[string]map[string]bool{
+	"bash":         {"-o": true, "+o": true, "-O": true, "+O": true, "--rcfile": true, "--init-file": true},
+	"sh":           {"-o": true, "+o": true},
+	"perl":         {},
+	"ruby":         {"-C": true, "-E": true, "-I": true, "-r": true},
+	sudoCommand:    {"-C": true, "-D": true, "-g": true, "-p": true, "-R": true, "-r": true, "-T": true, "-t": true, "-U": true, "-u": true, "--chdir": true, "--chroot": true, "--close-from": true, "--command-timeout": true, "--group": true, "--host": true, "--other-user": true, "--prompt": true, "--role": true, "--type": true, "--user": true},
+	timeCommand:    {"-f": true, "-o": true, "--format": true, "--output": true},
+	niceCommand:    {"-n": true, "--adjustment": true},
+	"env":          {"-C": true, "-u": true, "--chdir": true, "--unset": true},
+	timeoutCommand: {"-k": true, "-s": true, "--kill-after": true, "--signal": true},
+}
+
+// The launchers launcherValueOptions names that other tables of the package
+// name too (environmentTools, transparentWords).
+const (
+	sudoCommand = "sudo"
+	timeCommand = "time"
+)
+
+// launcherArguments answers how many of words, the words after the launcher
+// named, are the launcher's own: its options, the value of each option
+// launcherValueOptions names for it, and its numeric arguments. Both launcher
+// loops skip that many to reach the program, so they read one rule. The
+// count never exceeds len(words), and each step consumes a word, so the loop
+// is bounded by the line's length.
+func launcherArguments(launcher string, words []string) int {
+	values := launcherValueOptions[launcher]
+	at := 0
+	for at < len(words) {
+		word := words[at]
+		if values[word] {
+			at += 2
+			continue
+		}
+		if strings.HasPrefix(word, "-") {
+			at++
+			continue
+		}
+		if launcherNumber.MatchString(word) {
+			at++
+			continue
+		}
+		break
+	}
+	return min(at, len(words))
+}

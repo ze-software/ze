@@ -36,7 +36,25 @@ const (
 	// goBuildBinary is a build that writes its result outside bin/, or one
 	// whose packages or output the hook cannot place.
 	goBuildBinary
+	// goBuildToolchain is a line judged by its text (goBuildText) that names
+	// -toolexec, -overlay or -modfile, which make the go command run or read
+	// what the line names, whatever its -o says.
+	goBuildToolchain
 )
+
+// goBuildToolchainFlag matches a -toolexec, -overlay or -modfile flag in a
+// line's text, with one dash or two, joined to its value by `=` or spaced,
+// and after `=` or a quote, so inside a GOFLAGS assignment too. `-mod=` is
+// another flag and does not match.
+var goBuildToolchainFlag = regexp.MustCompile(`(?:^|[\s='"])--?(toolexec|overlay|modfile)(?:[\s='"]|$)`)
+
+// goBuildToolchainEffect says what each flag goBuildToolchainFlag matches
+// makes the toolchain run or read.
+var goBuildToolchainEffect = map[string]string{
+	"toolexec": "makes the go command run the program it names for every compile and link step",
+	"overlay":  "makes the go command read the files its JSON file names in place of the sources the hook reads",
+	"modfile":  "makes the go command read the module file it names in place of go.mod",
+}
 
 // goBuildWalkMax bounds how many directories one `/...` pattern visits. A
 // pattern that reaches more without finding two packages is refused, so the
@@ -87,11 +105,13 @@ type goBuildArgs struct {
 	moved bool
 	// textJudged reports a flag that hands the go command a program to run
 	// (-toolexec) or a file that replaces what the hook reads (-overlay,
-	// -modfile), so the line is judged by its text (goBuildText). That keeps
-	// HEAD's verdict and refuses nothing more: the text judgment reads only
-	// the `...` pattern and the -o path, so `go build -toolexec=x -o bin/y
-	// ./cmd/y` is allowed, as before the guard read words. The parse only
-	// declines to lift that verdict for a flag whose effect it cannot read.
+	// -modfile), so the line is judged by its text (goBuildText), which
+	// refuses a line that names one of the three whatever its -o
+	// (spec-agent-economy-6-shell-parser AC-34). A flag that reaches the
+	// build only through the hook's own GOFLAGS is not in the line's text,
+	// so there the text verdict is the one the -o path decides. The parse
+	// only declines to lift that verdict for a flag whose effect it cannot
+	// read.
 	textJudged bool
 }
 
@@ -638,7 +658,8 @@ func modulePath(root string) string {
 // an interpreter or any command the reader set does not hold, which may run
 // a build its quotes hide; a build behind another assignment (goBuildAt),
 // with a word the shell expands, or with a -toolexec, -overlay or -modfile
-// flag, none of which the text judgment refuses by itself (goBuildArgs); and
+// flag (goBuildArgs), which the text judgment then refuses when the line's
+// text names it; and
 // a line with a redirection that writes a file, with or without a build,
 // because a reader could write the package the hook reads before the build
 // compiles it, or the configuration a later reader runs. A
@@ -906,12 +927,20 @@ func cdTarget(cwd string, arguments []string, expands []bool) (string, string) {
 	return logical, physical
 }
 
-// goBuildText judges a line by its text: one that names `go build` with a
-// `...` pattern is a whole-tree build, and one that names `go build` and no
-// output under bin/ or a session bin/ directory is refused.
+// goBuildText judges a line by its text: one that names `go build` and a
+// -toolexec, -overlay or -modfile flag is refused whatever its output, one
+// that names `go build` with a `...` pattern is a whole-tree build, and one
+// that names `go build` and no output under bin/ or a session bin/ directory
+// is refused.
 func goBuildText(command string) (goBuildOutcome, string) {
 	if !goBuildCall.MatchString(command) {
 		return goBuildAllowed, ""
+	}
+	if match := goBuildToolchainFlag.FindStringSubmatch(command); match != nil {
+		flag := "-" + match[1]
+		return goBuildToolchain, strings.TrimSuffix(adviceLine("`"+flag+"` "+goBuildToolchainEffect[match[1]]+
+			", so the hook cannot tell what the build runs or writes. Drop the flag and build into bin/.")+
+			adviceLine("Use: go build -o bin/<name> ./cmd/<name>"), "\n")
 	}
 	if goBuildTextWholeTree.MatchString(command) {
 		// The text cannot tell `./...` from `./internal/x/...`, so the advice

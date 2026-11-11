@@ -271,6 +271,25 @@ var specConstructLines = []string{
 	identityLineOfAgent + `nice -n 5 /usr/bin/sudo le x`,
 	identityLineOfAgent + `stdbuf -o L env -i le x`,
 	identityLineOfAgent + `timeout -s KILL 60 ./le x`,
+	// AC-33.
+	`bash -o pipefail -c './le test unit all | tail -5'`,
+	`bash -O extglob -c 'go test ./x'`,
+	`timeout -s KILL 60 go test ./x`,
+	`nice -n 5 go test ./x`,
+	`sudo -u u go test ./x`,
+	// AC-34.
+	`go build -toolexec=x -o bin/y ./cmd/y`,
+	`go build -overlay=o.json -o bin/y ./cmd/y`,
+	`go build -modfile=m -o bin/y ./cmd/y`,
+	`go build -toolexec x -o bin/y ./cmd/y`,
+	`GOFLAGS=-toolexec=x go build -o bin/y ./cmd/y`,
+	`go build -o bin/ze ./cmd/ze`,
+	// AC-35.
+	`cat ${v}/tmp`,
+	`cat ${v}/tmp/x`,
+	`ls ${HOME}/tmp`,
+	`cat x/tmp/y`,
+	`cat tmp/x`,
 }
 
 // TestGuardVerdictsOfHeadStand holds the pre-tool Bash hook to the verdicts

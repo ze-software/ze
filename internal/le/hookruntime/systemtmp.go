@@ -9,7 +9,10 @@ import (
 )
 
 // namesSystemTmp reports whether a line reaches the system temporary
-// directory, by its words on a reader line and by its text otherwise.
+// directory, by its words on a reader line and by its text otherwise. The
+// text pattern (systemTmp) takes `}` as a boundary before /tmp, because a
+// braced parameter the shell expands to nothing (`${v}/tmp`) leaves /tmp
+// itself (spec-agent-economy-6-shell-parser AC-35).
 func namesSystemTmp(command string) bool {
 	line, reader := readerLine(command)
 	if !reader {

@@ -1786,3 +1786,78 @@ func TestGuardsKeepTheTextVerdictWhereTheSplitMovesAWord(t *testing.T) {
 	}
 	judgeGuardRows(t, root, rows)
 }
+
+// TestRootBuildRefusesToolchainFlagsByText drives the build guard's text
+// judgment with -toolexec, -overlay and -modfile, joined by `=`, spaced, with
+// two dashes and in a GOFLAGS assignment, beside lines that name none.
+//
+// VALIDATES: AC-34 of spec-agent-economy-6-shell-parser. goBuildText refuses
+// a `go build` line that names one of the three flags, whatever its -o, with
+// a message that names the flag, says what it makes the toolchain run or
+// read, and gives the `go build -o bin/<name> ./cmd/<name>` form; a build
+// into bin/ that names none passes, `-mod=` is not `-modfile`, and a reader
+// line whose quoted pattern names -toolexec still lifts.
+// PREVENTS: `go build -toolexec=x -o bin/y ./cmd/y` admitted as a bin/ build
+// while every compile step runs the program x.
+func TestRootBuildRefusesToolchainFlagsByText(t *testing.T) {
+	root := goBuildTree(t)
+	for _, test := range []struct {
+		command string
+		flag    string
+	}{
+		{`go build -toolexec=x -o bin/y ./cmd/y`, "-toolexec"},
+		{`go build -overlay=o.json -o bin/y ./cmd/y`, "-overlay"},
+		{`go build -modfile=m -o bin/y ./cmd/y`, "-modfile"},
+		{`go build -toolexec x -o bin/y ./cmd/y`, "-toolexec"},
+		{`go build -overlay o.json -o bin/y ./cmd/y`, "-overlay"},
+		{`go build -modfile m -o bin/y ./cmd/y`, "-modfile"},
+		{`go build --toolexec=x -o bin/y ./cmd/y`, "-toolexec"},
+		{`time go build -toolexec=x -o bin/y ./cmd/y`, "-toolexec"},
+		{`GOFLAGS=-toolexec=x go build -o bin/y ./cmd/y`, "-toolexec"},
+		{`GOFLAGS='-mod=mod -overlay=o.json' go build -o bin/y ./cmd/y`, "-overlay"},
+		{`GOFLAGS="-modfile=m" go build -o bin/y ./cmd/y`, "-modfile"},
+	} {
+		result := guardVerdict(bashRootBuild, root, test.command)
+		if result == nil {
+			t.Errorf("%q passed, want it refused for %s", test.command, test.flag)
+			continue
+		}
+		if !strings.Contains(result.message, "`"+test.flag+"`") {
+			t.Errorf("%q: the refusal does not name %s: %s", test.command, test.flag, result.message)
+		}
+		if !strings.Contains(result.message, "Use: go build -o bin/<name> ./cmd/<name>") {
+			t.Errorf("%q: the refusal does not give the bin/ form: %s", test.command, result.message)
+		}
+	}
+	judgeGuardRows(t, root, []guardRow{
+		{"build", bashRootBuild, `go build -o bin/z ./cmd/z`, false},
+		{"build", bashRootBuild, `time go build -o bin/z ./cmd/z`, false},
+		{"build", bashRootBuild, `time go build -mod=mod -o bin/z ./cmd/z`, false},
+		{"build", bashRootBuild, `grep -n 'go build -toolexec=x' f`, false},
+	})
+	if outcome, advice := goBuildText(`go build -o bin/ze ./cmd/ze`); outcome != goBuildAllowed {
+		t.Errorf("goBuildText(`go build -o bin/ze ./cmd/ze`) = %d, want allowed: %s", outcome, advice)
+	}
+}
+
+// TestSystemTmpTakesABraceAsABoundary drives the /tmp guard's text judgment
+// with a /tmp under an unquoted braced variable, beside /tmp under a literal
+// parent.
+//
+// VALIDATES: AC-35 of spec-agent-economy-6-shell-parser. `}` is in the
+// boundary class of systemTmp, so `${v}/tmp`, which the shell expands to
+// /tmp when v is empty, is refused on a line judged by its text; a literal
+// parent keeps the path inside it.
+// PREVENTS: `cat ${v}/tmp` passing because the pattern took no `}` as a
+// boundary before /tmp.
+func TestSystemTmpTakesABraceAsABoundary(t *testing.T) {
+	root := t.TempDir()
+	judgeGuardRows(t, root, []guardRow{
+		{"tmp", bashSystemTmp, `cat ${v}/tmp`, true},
+		{"tmp", bashSystemTmp, `cat ${v}/tmp/x`, true},
+		{"tmp", bashSystemTmp, `ls ${HOME}/tmp`, true},
+		{"tmp", bashSystemTmp, `cat x/tmp/y`, false},
+		{"tmp", bashSystemTmp, `cat tmp/x`, false},
+		{"tmp", bashSystemTmp, `time cat x/tmp/y`, false},
+	})
+}

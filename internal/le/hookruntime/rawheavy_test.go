@@ -307,3 +307,63 @@ func TestRawRefusalAdvisesTheQuietForm(t *testing.T) {
 		})
 	}
 }
+
+// TestLauncherValueOptionsAreSkippedWithTheirValue drives the raw-job and
+// piped-command guards with a launcher option that takes a value, beside the
+// same line without the option and its value.
+//
+// VALIDATES: AC-33 of spec-agent-economy-6-shell-parser. Both launcher loops
+// (rawHeavy, programWords) skip a value-taking option together with its one
+// value, read from launcherValueOptions, so each line gets the verdict of the
+// line without the option; an option that takes no value is skipped alone,
+// as before. The `-c` rows of the criterion keep the verdict of their line
+// without the option, a pass: the text judgment reads the `-c` string as one
+// word whether or not an option comes first, and reading inside it is the
+// tree judgment's work (AC-9, AC-10).
+// PREVENTS: `timeout -s KILL 60 go test ./x` and `sudo -u u go test ./x`
+// passing because `KILL` and `u` were read as the program, and `time -o t.log
+// ./le test unit all | tail -5` passing because `t.log` was.
+func TestLauncherValueOptionsAreSkippedWithTheirValue(t *testing.T) {
+	root := t.TempDir()
+	for _, row := range []struct {
+		guard   string
+		check   hookCheck
+		with    string
+		without string
+		refused bool
+	}{
+		{"raw", bashRawHeavy, `timeout -s KILL 60 go test ./x`, `timeout 60 go test ./x`, true},
+		{"raw", bashRawHeavy, `timeout --signal KILL 60 go test ./x`, `timeout 60 go test ./x`, true},
+		{"raw", bashRawHeavy, `timeout -k 5s 60 go test ./x`, `timeout 60 go test ./x`, true},
+		{"raw", bashRawHeavy, `nice -n 5 go test ./x`, `nice go test ./x`, true},
+		{"raw", bashRawHeavy, `sudo -u u go test ./x`, `sudo go test ./x`, true},
+		{"raw", bashRawHeavy, `sudo --user u go test ./x`, `sudo go test ./x`, true},
+		{"raw", bashRawHeavy, `env -u HOME go test ./x`, `env go test ./x`, true},
+		{"raw", bashRawHeavy, `time -o t.log go vet ./x`, `time go vet ./x`, true},
+		{"raw", bashRawHeavy, `sh -o errexit go test ./x`, `sh go test ./x`, true},
+		{"raw", bashRawHeavy, `bash +O extglob go test ./x`, `bash go test ./x`, true},
+		{"raw", bashRawHeavy, `bash -O extglob -c 'go test ./x'`, `bash -c 'go test ./x'`, false},
+		{"pipe", bashLossyPipe, `timeout -s KILL 600 ./le test unit all | tail -5`, `timeout 600 ./le test unit all | tail -5`, true},
+		{"pipe", bashLossyPipe, `sudo -u u ./le test unit all | tail -5`, `sudo ./le test unit all | tail -5`, true},
+		{"pipe", bashLossyPipe, `time -o t.log ./le test unit all | tail -5`, `time ./le test unit all | tail -5`, true},
+		{"pipe", bashLossyPipe, `bash -o pipefail ./le test unit all | tail -5`, `bash ./le test unit all | tail -5`, true},
+		{"pipe", bashLossyPipe, `nice -n 5 go test ./x | tail -5`, `nice go test ./x | tail -5`, true},
+		{"pipe", bashLossyPipe, `bash -o pipefail -c './le test unit all | tail -5'`, `bash -c './le test unit all | tail -5'`, false},
+		// An option that takes no value is skipped alone, so the word after
+		// it is still read as the program.
+		{"raw", bashRawHeavy, `sudo -E go test ./x`, `sudo go test ./x`, true},
+		{"raw", bashRawHeavy, `env -i go test ./x`, `env go test ./x`, true},
+		{"raw", bashRawHeavy, `timeout -v 60 go test ./x`, `timeout 60 go test ./x`, true},
+		{"pipe", bashLossyPipe, `sudo -E ./le test unit all | tail -5`, `sudo ./le test unit all | tail -5`, true},
+	} {
+		with := guardVerdict(row.check, root, row.with)
+		without := guardVerdict(row.check, root, row.without)
+		if (without != nil) != row.refused {
+			t.Errorf("%s: %q without the option refused = %t, want %t", row.guard, row.without, without != nil, row.refused)
+		}
+		if (with != nil) != (without != nil) {
+			t.Errorf("%s: %q refused = %t, but %q refused = %t: the option and its value must not change the verdict",
+				row.guard, row.with, with != nil, row.without, without != nil)
+		}
+	}
+}

@@ -22,7 +22,7 @@ var (
 	goBuildCall      = regexp.MustCompile(`(^|[^A-Za-z0-9_])go\s+build([^A-Za-z0-9_]|$)`)
 	goBuildBin       = regexp.MustCompile(`-o\s+bin/`)
 	goBuildSession   = regexp.MustCompile(`-o\s+tmp/session/[0-9]{4}-[0-9]{2}-[0-9]{2}-[A-Za-z0-9._-]+/bin/`)
-	systemTmp        = regexp.MustCompile(`(^|[\s='"$(` + "`" + `:,<>])/tmp(/|\s|$)`)
+	systemTmp        = regexp.MustCompile(`(^|[\s='"$(` + "`" + `:,<>}])/tmp(/|\s|$)`)
 	scratchWrite     = regexp.MustCompile(`(?:>>?\s*|\btee\s+(?:-a\s+)?)(["']?)([A-Za-z0-9_./-]*tmp/[^\s;|&)'\"]+)`)
 	waitKeyword      = regexp.MustCompile(`\b(while|until)\b`)
 	sleepCall        = regexp.MustCompile(`(?:^|[;&|(\s./])sleep\s*[0-9$"'(]`)
@@ -244,6 +244,8 @@ func bashRootBuild(ctx context) *verdict {
 		// The outcome also holds a text-judged `...` pattern under one
 		// directory (goBuildText), so the header names a tree of packages.
 		return &verdict{2, red + bold + "✘ BLOCKED: a go build of a package tree (a `...` pattern)" + reset + "\n\n" + advice}
+	case goBuildToolchain:
+		return &verdict{2, red + bold + "✘ BLOCKED: a go build flag that hands the toolchain a program or a file" + reset + "\n\n" + advice}
 	case goBuildUnspecified:
 	}
 	return &verdict{2, red + bold + "✘ BLOCKED: BUG: the go build judgment answered no outcome" + reset}
@@ -333,22 +335,16 @@ func commandExpensive(segment string) bool {
 // judged.
 func programWords(segment string) []string {
 	tokens := shellWords(segment)
-	launchers := map[string]bool{"bash": true, "sh": true, "perl": true, "ruby": true, "sudo": true, "time": true, "nice": true, "env": true, "timeout": true}
 	for len(tokens) != 0 {
 		head := tokens[0]
 		if strings.Contains(strings.Split(head, "/")[0], "=") && !strings.HasPrefix(head, "-") {
 			tokens = tokens[1:]
 			continue
 		}
-		if !launchers[head] {
+		if _, launcher := launcherValueOptions[head]; !launcher {
 			break
 		}
-		tokens = tokens[1:]
-		if head == "timeout" || head == "nice" {
-			for len(tokens) != 0 && (strings.HasPrefix(tokens[0], "-") || launcherNumber.MatchString(tokens[0])) {
-				tokens = tokens[1:]
-			}
-		}
+		tokens = tokens[1+launcherArguments(head, tokens[1:]):]
 	}
 	for len(tokens) != 0 && strings.HasPrefix(tokens[0], "-") {
 		tokens = tokens[1:]

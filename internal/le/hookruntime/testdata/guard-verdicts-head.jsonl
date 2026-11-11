@@ -69,6 +69,8 @@
 {"line":"GOFLAGS=\"-a -b\" go test ./x | tail","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
 {"line":"GOFLAGS=\"-race -count=1\" go test ./internal/x/","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
 {"line":"GOFLAGS=\"-race -count=1\" go test ./internal/x/","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"GOFLAGS=-toolexec=x go build -o bin/y ./cmd/y","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"GOFLAGS=-toolexec=x go build -o bin/y ./cmd/y","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"LC_ALL=C grep -n x notes.md","caller":"main","refused-by":[],"reader-line":false}
 {"line":"LC_ALL=C grep -n x notes.md","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"LC_ALL=C sort f","caller":"main","refused-by":[],"reader-line":false}
@@ -121,6 +123,8 @@
 {"line":"bash --rcfile f -c 'cat /tmp/x'","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
 {"line":"bash --rcfile f -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"bash --rcfile f -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"bash -O extglob -c 'go test ./x'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"bash -O extglob -c 'go test ./x'","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"bash -c \"./le doc check all > tmp/out.log\"","caller":"main","refused-by":["bashScratch"],"reader-line":false}
 {"line":"bash -c \"./le doc check all > tmp/out.log\"","caller":"subagent","refused-by":["bashScratch","bashAgentIdentity"],"reader-line":false}
 {"line":"bash -c 'go build -o bin/x ./...'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
@@ -131,6 +135,8 @@
 {"line":"bash -c 'while true; do sleep 5; done'","caller":"subagent","refused-by":["bashPollLoop","bashAgentIdentity"],"reader-line":false}
 {"line":"bash -e -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"bash -e -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"bash -o pipefail -c './le test unit all | tail -5'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"bash -o pipefail -c './le test unit all | tail -5'","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"bash -o pipefail -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"bash -o pipefail -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"bash <<'EOF'\n./le doc check all > tmp/out.log\nEOF","caller":"main","refused-by":["bashScratch"],"reader-line":false}
@@ -187,6 +193,10 @@
 {"line":"cat $'x'\ngo test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
 {"line":"cat $'x'\ngo test ./x | tail -5","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
 {"line":"cat $'x'\ngo test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"cat ${v}/tmp","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat ${v}/tmp","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"cat ${v}/tmp/x","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"cat ${v}/tmp/x","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
 {"line":"cat ${x:-a}","caller":"main","refused-by":[],"reader-line":false}
 {"line":"cat ${x:-a}","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"cat ${x:-a}\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
@@ -413,6 +423,8 @@
 {"line":"cat x!#; go test ./x | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
 {"line":"cat x!#; le x","caller":"main","refused-by":[],"reader-line":false}
 {"line":"cat x!#; le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"cat x/tmp/y","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat x/tmp/y","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"cat x\\ y","caller":"main","refused-by":[],"reader-line":false}
 {"line":"cat x\\ y","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"cat x\\ y\necho x > /tmp/y","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
@@ -838,6 +850,8 @@
 {"line":"git stash list","caller":"subagent","refused-by":["bashDestructiveGit","bashAgentIdentity"],"reader-line":false}
 {"line":"git status | grep foo; ./le ai rules update index","caller":"main","refused-by":[],"reader-line":false}
 {"line":"git status | grep foo; ./le ai rules update index","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"go build -modfile=m -o bin/y ./cmd/y","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"go build -modfile=m -o bin/y ./cmd/y","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"go build -o \"\\bin/z\" ./cmd/z","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"go build -o \"\\bin/z\" ./cmd/z","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"go build -o bin/ze ./cmd/ze","caller":"main","refused-by":[],"reader-line":false}
@@ -846,8 +860,14 @@
 {"line":"go build -o tmp/session/2026-08-10-abc123/bin/ze ./cmd/ze","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"go build -o\"/tmp/x\" .","caller":"main","refused-by":["bashRootBuild","bashSystemTmp"],"reader-line":false}
 {"line":"go build -o\"/tmp/x\" .","caller":"subagent","refused-by":["bashRootBuild","bashSystemTmp","bashAgentIdentity"],"reader-line":false}
+{"line":"go build -overlay=o.json -o bin/y ./cmd/y","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"go build -overlay=o.json -o bin/y ./cmd/y","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"go build -toolexec 'bash -c \"go build ./cmd/z\"' ./internal/x","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"go build -toolexec 'bash -c \"go build ./cmd/z\"' ./internal/x","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"go build -toolexec x -o bin/y ./cmd/y","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"go build -toolexec x -o bin/y ./cmd/y","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"go build -toolexec=x -o bin/y ./cmd/y","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
+{"line":"go build -toolexec=x -o bin/y ./cmd/y","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"go build ./...","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"go build ./...","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"go build ./cmd/ze","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
@@ -1001,6 +1021,8 @@
 {"line":"if true; then go vet ./x; fi","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"let a=1; cat a","caller":"main","refused-by":[],"reader-line":false}
 {"line":"let a=1; cat a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"ls ${HOME}/tmp","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
+{"line":"ls ${HOME}/tmp","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
 {"line":"ls -la","caller":"main","refused-by":[],"reader-line":false}
 {"line":"ls -la","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"ls -la internal/le &> /dev/null","caller":"main","refused-by":[],"reader-line":false}
@@ -1013,6 +1035,8 @@
 {"line":"mksh -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"nice -n 5 ./le verify current | head -20","caller":"main","refused-by":["bashLossyPipe"],"reader-line":false}
 {"line":"nice -n 5 ./le verify current | head -20","caller":"subagent","refused-by":["bashLossyPipe","bashAgentIdentity"],"reader-line":false}
+{"line":"nice -n 5 go test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"nice -n 5 go test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
 {"line":"nice eval 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"nice eval 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"pgrep -f qemu","caller":"main","refused-by":[],"reader-line":false}
@@ -1123,6 +1147,8 @@
 {"line":"sort f | uniq -c 2>/dev/null","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"su -c 'go build ./cmd/z' builder","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"su -c 'go build ./cmd/z' builder","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"sudo -u u go test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"sudo -u u go test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
 {"line":"tcsh -c 'go build ./cmd/z'","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"tcsh -c 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"tee @PROJECT@/tmp/notes.txt","caller":"main","refused-by":[],"reader-line":false}
@@ -1139,6 +1165,8 @@
 {"line":"time grep -c x a","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"timeout -k 5 30 ./le verify current | tail -5","caller":"main","refused-by":["bashLossyPipe"],"reader-line":false}
 {"line":"timeout -k 5 30 ./le verify current | tail -5","caller":"subagent","refused-by":["bashLossyPipe","bashAgentIdentity"],"reader-line":false}
+{"line":"timeout -s KILL 60 go test ./x","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"timeout -s KILL 60 go test ./x","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
 {"line":"timeout 10 curl -s localhost:8080; until ! pgrep -f qemu; do sleep 5; done","caller":"main","refused-by":["bashPollLoop"],"reader-line":false}
 {"line":"timeout 10 curl -s localhost:8080; until ! pgrep -f qemu; do sleep 5; done","caller":"subagent","refused-by":["bashPollLoop","bashAgentIdentity"],"reader-line":false}
 {"line":"timeout 240s ./le verify current | tail -5","caller":"main","refused-by":["bashLossyPipe"],"reader-line":false}
