@@ -155,6 +155,9 @@
             gap: 0.85rem;
             align-items: stretch;
         }
+        .activity-widget .stats:where(:has(.activity-tabs:not([hidden]))) {
+            grid-template-columns: auto repeat(4, minmax(0, 1fr)) auto;
+        }
         .activity-widget .stat {
             position: relative;
             overflow: hidden;
@@ -188,25 +191,33 @@
             font-weight: 900;
             letter-spacing: -0.04em;
         }
+        .activity-widget .stats .stat {
+            container-type: inline-size;
+            padding: 0.6rem 0.4rem;
+        }
+        .activity-widget .stats .stat strong {
+            font-size: clamp(0.9rem, 22cqw, 1.7rem);
+        }
         .activity-widget .metric-control {
             display: grid;
             justify-items: end;
             align-content: center;
             gap: 0.45rem;
-            min-width: 10.5rem;
+            min-width: 0;
         }
         .activity-widget .metric-switch {
             display: inline-flex;
+            flex-direction: column;
             gap: 0.3rem;
             padding: 0.32rem;
             border: 2px solid var(--activity-border);
-            border-radius: 999px;
+            border-radius: var(--radius-md);
             background: var(--activity-card-strong);
             box-shadow: var(--clay);
         }
         .activity-widget .metric-switch button {
             border: 0;
-            border-radius: 999px;
+            border-radius: var(--radius-sm);
             padding: 0.45rem 0.7rem;
             color: var(--muted);
             background: transparent;
@@ -484,6 +495,99 @@
         }
 
         </style>
+<style>
+    .activity-widget .activity-tabs {
+        display: flex;
+        flex-direction: column;
+        align-self: center;
+        gap: 0.3rem;
+        width: fit-content;
+        padding: 0.32rem;
+        border: 2px solid var(--activity-border);
+        border-radius: var(--radius-md);
+        background: var(--activity-card-strong);
+        box-shadow: var(--clay);
+    }
+    .activity-widget .activity-tabs[hidden],
+    .activity-widget .activity-view[hidden] { display: none; }
+    body[data-metric="lines"] .activity-growth [data-growth-metric="commits"],
+    body[data-metric="commits"] .activity-growth [data-growth-metric="lines"] { display: none; }
+    .activity-tabs button {
+        border: 0;
+        border-radius: var(--radius-sm);
+        padding: 0.45rem 0.7rem;
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.74rem;
+        font-weight: 900;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        cursor: pointer;
+    }
+    .activity-tabs button[aria-selected="true"] {
+        background: var(--activity-card);
+        color: var(--text);
+        box-shadow: var(--clay);
+    }
+    .activity-tabs button:focus-visible,
+    .growth-chart:focus-visible,
+    .growth-date-control input:focus-visible {
+        outline: 2px solid var(--activity-ink);
+        outline-offset: 3px;
+    }
+    .activity-widget .activity-view {
+        display: grid;
+        gap: 1rem;
+        min-width: 0;
+    }
+    .activity-calendar-footer {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .activity-widget .activity-calendar-footer .pill { max-width: 100%; white-space: normal; }
+    .activity-widget .activity-calendar-footer .legend { margin: 0; }
+    .activity-growth p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+    }
+    .activity-widget .activity-growth h2 { margin: 0; }
+    .growth-charts { display: grid; gap: 1rem; min-width: 0; }
+    .growth-charts > div {
+        min-width: 0;
+        border: 1px solid var(--activity-border);
+        border-radius: 0.8rem;
+        padding: 0.75rem;
+        background: var(--activity-card);
+    }
+    .growth-charts h3 { margin: 0 0 0.5rem; color: var(--text); font-size: 0.95rem; }
+    .growth-chart { display: block; width: 100%; height: auto; overflow: visible; }
+    .growth-grid { fill: none; stroke: var(--activity-border); stroke-width: 1; }
+    .growth-axis { fill: var(--muted); font-size: 14px; }
+    .growth-series { fill: none; stroke: var(--activity-level-4); stroke-width: 3; }
+    #activity-growth-commits-chart .growth-series { stroke: var(--sky-deep); }
+    .growth-series, .growth-cursor { vector-effect: non-scaling-stroke; }
+    .growth-cursor { fill: none; stroke: var(--text); stroke-width: 1; stroke-dasharray: 4 4; }
+    .growth-point { fill: var(--text); stroke: var(--activity-card); stroke-width: 2; }
+    .growth-date-control { display: grid; gap: 0.5rem; color: var(--text); font-weight: 700; }
+    .growth-date-control input { width: 100%; accent-color: var(--teal-deep); }
+    .growth-readout {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.25rem;
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+    }
+    .growth-snapshot { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.8rem; }
+    @media (max-width: 620px) {
+        .growth-snapshot { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .growth-charts > div { padding: 0.4rem; }
+        .growth-axis { font-size: 21px; }
+    }
+</style>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -512,8 +616,12 @@
                 </div>
                 <div class="activity-widget reveal" aria-label="Activity heatmap">
 <section class="stats" aria-label="Summary">
-        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">5,669,527</strong></div>
-        <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">324</strong></div>
+<div class="activity-tabs" role="tablist" aria-label="Activity representation" aria-orientation="vertical" hidden>
+    <button type="button" id="activity-tab-calendar" role="tab" aria-controls="activity-calendar" aria-selected="true" tabindex="0">Calendar</button>
+    <button type="button" id="activity-tab-growth" role="tab" aria-controls="activity-growth" aria-selected="false" tabindex="-1">Growth</button>
+</div>
+        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">5,775,449</strong></div>
+        <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">326</strong></div>
         <div class="stat"><span id="peak-label">Peak line day</span><strong id="peak-value">140,381</strong></div>
         <div class="stat"><span>Days shown</span><strong>365</strong></div>
         <div class="metric-control">
@@ -521,9 +629,9 @@
                 <button type="button" data-metric="lines" aria-pressed="true">Added Lines</button>
                 <button type="button" data-metric="commits" aria-pressed="false">Commits</button>
             </div>
-            <div class="pill">2025-11-10 to 2026-11-09</div>
         </div>
     </section>
+<div class="activity-view" id="activity-calendar" role="tabpanel" aria-labelledby="activity-tab-calendar">
                     <div class="dashboard-grid">
                         <div class="left-stack">
 <div class="chart-scroll">
@@ -585,10 +693,10 @@
                 </div>
                 <div class="chart-body">
                     <div class="weekday-labels" aria-hidden="true"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>
-                    <div class="activity-grid" role="img" aria-label="Daily activity from 2025-11-10 to 2026-11-09">
+                    <div class="activity-grid" role="img" aria-label="Daily activity from 2025-11-12 to 2026-11-11">
 <div class="day-cell outside pre-repo" data-date="2025-11-09" data-date-label="Sun 09 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 09 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-10" data-date-label="Mon 10 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 10 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-11" data-date-label="Tue 11 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 11 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
+<div class="day-cell outside pre-repo" data-date="2025-11-10" data-date-label="Mon 10 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 10 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
+<div class="day-cell outside pre-repo" data-date="2025-11-11" data-date-label="Tue 11 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 11 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell pre-repo" data-date="2025-11-12" data-date-label="Wed 12 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 12 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell pre-repo" data-date="2025-11-13" data-date-label="Thu 13 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 13 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell pre-repo" data-date="2025-11-14" data-date-label="Fri 14 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 14 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
@@ -951,9 +1059,9 @@
 <div class="day-cell" data-date="2026-11-06" data-date-label="Fri 06 Nov 2026" data-lines="38638" data-lines-display="38,638" data-lines-level="2" data-commits="82" data-commits-display="82" data-commits-level="2" data-level="2" aria-label="Fri 06 Nov 2026: 38,638 lines added, 82 commits" tabindex="0"></div>
 <div class="day-cell" data-date="2026-11-07" data-date-label="Sat 07 Nov 2026" data-lines="58465" data-lines-display="58,465" data-lines-level="3" data-commits="96" data-commits-display="96" data-commits-level="2" data-level="3" aria-label="Sat 07 Nov 2026: 58,465 lines added, 96 commits" tabindex="0"></div>
 <div class="day-cell" data-date="2026-11-08" data-date-label="Sun 08 Nov 2026" data-lines="32775" data-lines-display="32,775" data-lines-level="2" data-commits="185" data-commits-display="185" data-commits-level="3" data-level="2" aria-label="Sun 08 Nov 2026: 32,775 lines added, 185 commits" tabindex="0"></div>
-<div class="day-cell" data-date="2026-11-09" data-date-label="Mon 09 Nov 2026" data-lines="21182" data-lines-display="21,182" data-lines-level="1" data-commits="207" data-commits-display="207" data-commits-level="3" data-level="1" aria-label="Mon 09 Nov 2026: 21,182 lines added, 207 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-11-10" data-date-label="Tue 10 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 10 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-11-11" data-date-label="Wed 11 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 11 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-11-09" data-date-label="Mon 09 Nov 2026" data-lines="24765" data-lines-display="24,765" data-lines-level="1" data-commits="226" data-commits-display="226" data-commits-level="4" data-level="1" aria-label="Mon 09 Nov 2026: 24,765 lines added, 226 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-11-10" data-date-label="Tue 10 Nov 2026" data-lines="69130" data-lines-display="69,130" data-lines-level="3" data-commits="238" data-commits-display="238" data-commits-level="4" data-level="3" aria-label="Tue 10 Nov 2026: 69,130 lines added, 238 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-11-11" data-date-label="Wed 11 Nov 2026" data-lines="33209" data-lines-display="33,209" data-lines-level="2" data-commits="172" data-commits-display="172" data-commits-level="3" data-level="2" aria-label="Wed 11 Nov 2026: 33,209 lines added, 172 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-11-12" data-date-label="Thu 12 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 12 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-11-13" data-date-label="Fri 13 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 13 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-11-14" data-date-label="Sat 14 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 14 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
@@ -961,55 +1069,83 @@
                 </div>
             </div>
         </div>
+<div class="activity-calendar-footer">
+<div class="pill">2025-11-12 to 2026-11-11</div>
         <div class="legend"><span>Less</span><span class="day-cell" data-level="0"></span><span class="day-cell" data-level="1"></span><span class="day-cell" data-level="2"></span><span class="day-cell" data-level="3"></span><span class="day-cell" data-level="4"></span><span class="day-cell" data-level="5"></span><span>More</span></div>
+</div>
 <section class="panel go-panel" aria-label="Go code stats">
         <h2>Go code composition</h2>
         <div class="go-breakdown">
 <div class="go-bucket">
             <h3>Total Code</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>15,192</strong></div>
-<div class="stat"><span>Total lines</span><strong>3,347,263</strong></div>
-<div class="stat"><span>Code</span><strong>2,410,684</strong></div>
-<div class="stat"><span>Blank</span><strong>288,114</strong></div>
-<div class="stat"><span>Comments</span><strong>648,465</strong></div>
+<div class="stat"><span>Files</span><strong>15,484</strong></div>
+<div class="stat"><span>Total lines</span><strong>3,411,177</strong></div>
+<div class="stat"><span>Code</span><strong>2,455,780</strong></div>
+<div class="stat"><span>Blank</span><strong>292,582</strong></div>
+<div class="stat"><span>Comments</span><strong>662,815</strong></div>
             </div>
         </div>
 <div class="go-bucket">
             <h3>Production</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>7,003</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,540,607</strong></div>
-<div class="stat"><span>Code</span><strong>1,075,611</strong></div>
-<div class="stat"><span>Blank</span><strong>124,768</strong></div>
-<div class="stat"><span>Comments</span><strong>340,228</strong></div>
+<div class="stat"><span>Files</span><strong>7,154</strong></div>
+<div class="stat"><span>Total lines</span><strong>1,568,952</strong></div>
+<div class="stat"><span>Code</span><strong>1,093,164</strong></div>
+<div class="stat"><span>Blank</span><strong>126,946</strong></div>
+<div class="stat"><span>Comments</span><strong>348,842</strong></div>
             </div>
         </div>
 <div class="go-bucket">
             <h3>Test</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>8,189</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,806,656</strong></div>
-<div class="stat"><span>Code</span><strong>1,335,073</strong></div>
-<div class="stat"><span>Blank</span><strong>163,346</strong></div>
-<div class="stat"><span>Comments</span><strong>308,237</strong></div>
+<div class="stat"><span>Files</span><strong>8,330</strong></div>
+<div class="stat"><span>Total lines</span><strong>1,842,225</strong></div>
+<div class="stat"><span>Code</span><strong>1,362,616</strong></div>
+<div class="stat"><span>Blank</span><strong>165,636</strong></div>
+<div class="stat"><span>Comments</span><strong>313,973</strong></div>
             </div>
         </div>
 <div class="go-bucket">
             <h3>Dependencies</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>6,554</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,989,386</strong></div>
-<div class="stat"><span>Code</span><strong>1,542,298</strong></div>
-<div class="stat"><span>Blank</span><strong>176,946</strong></div>
-<div class="stat"><span>Comments</span><strong>270,142</strong></div>
-                <div class="stat"><span>Modules</span><strong>283</strong></div>
+<div class="stat"><span>Files</span><strong>6,566</strong></div>
+<div class="stat"><span>Total lines</span><strong>1,999,450</strong></div>
+<div class="stat"><span>Code</span><strong>1,550,519</strong></div>
+<div class="stat"><span>Blank</span><strong>177,622</strong></div>
+<div class="stat"><span>Comments</span><strong>271,309</strong></div>
+                <div class="stat"><span>Modules</span><strong>285</strong></div>
             </div>
         </div>
         </div>
     </section>
                         </div>
                     </div>
+</div>
+<section class="activity-view activity-growth panel" id="activity-growth" role="tabpanel" aria-labelledby="activity-tab-growth" hidden>
+    <h2>Growth within this window</h2>
+    <p>Commits and added lines accumulated since the displayed window began. Added lines count additions, not net repository size.</p>
+    <div class="growth-charts">
+        <div data-growth-metric="lines"><h3>Cumulative added lines</h3><svg id="activity-growth-lines-chart" class="growth-chart" viewBox="0 0 720 220" tabindex="0" role="img" aria-label="Cumulative added lines. Use arrow keys to select a date, or Home and End."></svg></div>
+        <div data-growth-metric="commits"><h3>Cumulative commits</h3><svg id="activity-growth-commits-chart" class="growth-chart" viewBox="0 0 720 220" tabindex="0" role="img" aria-label="Cumulative commits. Use arrow keys to select a date, or Home and End."></svg></div>
+    </div>
+    <label class="growth-date-control" for="activity-growth-day">Select a date
+        <input id="activity-growth-day" type="range" min="0" max="0" value="0" step="1" aria-describedby="activity-growth-readout">
+    </label>
+    <div id="activity-growth-readout" class="growth-readout" aria-live="polite" aria-atomic="true">
+        <strong id="activity-growth-date"></strong>
+        <span data-growth-metric="lines">Added lines: <strong id="activity-growth-lines"></strong></span>
+        <span data-growth-metric="commits">Commits: <strong id="activity-growth-commits"></strong></span>
+    </div>
+    <h2>Current Go lines</h2>
+    <p>Current snapshot, including blank lines and comments. Historical category totals are unavailable in this data.</p>
+    <div class="growth-snapshot">
+<div class="stat"><span>Code</span><strong id="activity-growth-code">1,568,952</strong></div>
+<div class="stat"><span>Tests</span><strong id="activity-growth-tests">1,842,225</strong></div>
+<div class="stat"><span>Third party</span><strong id="activity-growth-vendor">1,999,450</strong></div>
+<div class="stat"><span>Overall</span><strong id="activity-growth-overall">5,410,627</strong></div>
+    </div>
+</section>
 <div id="activity-tooltip" class="activity-tooltip" role="tooltip" hidden>
     <span class="tooltip-date"></span>
     <div class="tooltip-gap"></div>
@@ -1019,7 +1155,7 @@
                 </div>
             </section>
 <script>
-const metricSummaries = {"commits":{"totalLabel":"Total commits","totalValue":"16,035","activeLabel":"Days with commits","activeValue":"324","peakLabel":"Peak commit day","peakValue":"351","thresholdLabel":"Commit thresholds","thresholdValue":"71, 141, 211, 281"},"lines":{"totalLabel":"Total added lines","totalValue":"5,669,527","activeLabel":"Days with added lines","activeValue":"324","peakLabel":"Peak line day","peakValue":"140,381","thresholdLabel":"Line thresholds","thresholdValue":"28,077, 56,153, 84,229, 112,305"}};
+const metricSummaries = {"commits":{"totalLabel":"Total commits","totalValue":"16,464","activeLabel":"Days with commits","activeValue":"326","peakLabel":"Peak commit day","peakValue":"351","thresholdLabel":"Commit thresholds","thresholdValue":"71, 141, 211, 281"},"lines":{"totalLabel":"Total added lines","totalValue":"5,775,449","activeLabel":"Days with added lines","activeValue":"326","peakLabel":"Peak line day","peakValue":"140,381","thresholdLabel":"Line thresholds","thresholdValue":"28,077, 56,153, 84,229, 112,305"}};
 let currentMetric = "lines";
 const cells = Array.from(document.querySelectorAll(".activity-grid .day-cell"));
 const buttons = Array.from(document.querySelectorAll(".metric-switch button"));
@@ -1121,6 +1257,108 @@ for (const cell of cells) {
 }
 setMetric("lines");
 </script>
+<script>
+(() => {
+    const tabs = Array.from(document.querySelectorAll('.activity-tabs [role="tab"]'));
+    const points = Array.from(document.querySelectorAll('.activity-grid .day-cell:not(.outside)'))
+        .sort((a, b) => a.dataset.date.localeCompare(b.dataset.date));
+    let lines = 0, commits = 0;
+    const history = points.map(cell => {
+        lines += Number(cell.dataset.lines);
+        commits += Number(cell.dataset.commits);
+        return {date: cell.dataset.date, lines, commits};
+    });
+    const slider = document.getElementById('activity-growth-day');
+    const charts = [document.getElementById('activity-growth-lines-chart'), document.getElementById('activity-growth-commits-chart')];
+    const left = 72, right = 704, top = 20, bottom = 184;
+    const format = value => value.toLocaleString('en-US');
+    const x = index => left + index / Math.max(1, history.length - 1) * (right - left);
+    function svgElement(name, attributes, text) {
+        const element = document.createElementNS('http://www.w3.org/2000/svg', name);
+        for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+        if (text !== undefined) element.textContent = text;
+        return element;
+    }
+    function draw(chart, metric) {
+        const maximum = history.length ? history[history.length - 1][metric] : 0;
+        const y = value => bottom - value / Math.max(1, maximum) * (bottom - top);
+        for (const level of new Set([0, Math.ceil(maximum / 2), maximum])) {
+            chart.append(svgElement('path', {class:'growth-grid', d:'M' + left + ' ' + y(level) + 'H' + right}));
+            chart.append(svgElement('text', {class:'growth-axis', x:left - 10, y:y(level) + 4, 'text-anchor':'end'}, format(level)));
+        }
+        if (!history.length) return;
+        const path = 'M' + left + ' ' + bottom + history.map((point, index) => 'L' + x(index) + ' ' + y(point[metric])).join('');
+        chart.append(svgElement('path', {class:'growth-series', d:path}));
+        chart.append(svgElement('path', {class:'growth-cursor', d:'M' + left + ' ' + top + 'V' + bottom}));
+        chart.append(svgElement('circle', {class:'growth-point', cx:left, cy:bottom, r:4}));
+        chart.append(svgElement('text', {class:'growth-axis', x:left, y:211}, history[0].date));
+        chart.append(svgElement('text', {class:'growth-axis', x:right, y:211, 'text-anchor':'end'}, history[history.length - 1].date));
+    }
+    draw(charts[0], 'lines'); draw(charts[1], 'commits');
+    let selected = history.length - 1;
+    function selectDay(index) {
+        if (!history.length) return;
+        selected = Math.max(0, Math.min(history.length - 1, index));
+        slider.value = selected;
+        const point = history[selected];
+        document.getElementById('activity-growth-date').textContent = point.date;
+        document.getElementById('activity-growth-lines').textContent = format(point.lines);
+        document.getElementById('activity-growth-commits').textContent = format(point.commits);
+        slider.setAttribute('aria-valuetext', point.date + ': ' + format(point.lines) + ' added lines, ' + format(point.commits) + ' commits');
+        charts.forEach((chart, index) => {
+            const metric = index === 0 ? 'lines' : 'commits';
+            const maximum = history[history.length - 1][metric];
+            chart.querySelector('.growth-cursor').setAttribute('d', 'M' + x(selected) + ' ' + top + 'V' + bottom);
+            const dot = chart.querySelector('.growth-point');
+            dot.setAttribute('cx', x(selected));
+            dot.setAttribute('cy', bottom - point[metric] / Math.max(1, maximum) * (bottom - top));
+        });
+    }
+    slider.max = Math.max(0, history.length - 1);
+    slider.disabled = history.length === 0;
+    if (history.length) selectDay(selected);
+    else document.getElementById('activity-growth-date').textContent = 'No daily values in this window.';
+    slider.addEventListener('input', () => selectDay(Number(slider.value)));
+    for (const chart of charts) {
+        chart.addEventListener('pointermove', event => {
+            const bounds = chart.getBoundingClientRect();
+            const position = (event.clientX - bounds.left) / bounds.width * 720;
+            selectDay(Math.round((position - left) / (right - left) * (history.length - 1)));
+        });
+        chart.addEventListener('keydown', event => {
+            let index;
+            if (event.key === 'ArrowLeft') index = selected - 1;
+            else if (event.key === 'ArrowRight') index = selected + 1;
+            else if (event.key === 'Home') index = 0;
+            else if (event.key === 'End') index = history.length - 1;
+            else return;
+            event.preventDefault(); selectDay(index);
+        });
+    }
+    function selectTab(tab) {
+        document.getElementById('activity-tooltip').hidden = true;
+        for (const candidate of tabs) {
+            const active = candidate === tab;
+            candidate.setAttribute('aria-selected', String(active));
+            candidate.tabIndex = active ? 0 : -1;
+            document.getElementById(candidate.getAttribute('aria-controls')).hidden = !active;
+        }
+    }
+    tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => selectTab(tab));
+        tab.addEventListener('keydown', event => {
+            let next;
+            if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index + tabs.length - 1) % tabs.length;
+            else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % tabs.length;
+            else if (event.key === 'Home') next = 0;
+            else if (event.key === 'End') next = tabs.length - 1;
+            else return;
+            event.preventDefault(); selectTab(tabs[next]); tabs[next].focus();
+        });
+    });
+    document.querySelector('.activity-tabs').hidden = false;
+})();
+</script>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Journey</p>
                 <nav class="page-sidebar-nav" aria-label="Related links">
@@ -1143,7 +1381,7 @@ setMetric("lines");
                     <h2>Trust checks</h2>
                     <a class="page-sidebar-link" href="../../quality/">
                         <span class="page-sidebar-link-label concept-evidence">Quality</span>
-                        <small>Verification gates behind the activity.</small>
+                        <small>How changes to Ze are tested.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../reference/dependencies/">
                         <span class="page-sidebar-link-label">Dependencies</span>
@@ -1162,7 +1400,7 @@ setMetric("lines");
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 11 November 2026 18:54 UTC</span>
                 </div>
             </div>
         </footer>
