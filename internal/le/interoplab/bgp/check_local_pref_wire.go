@@ -132,32 +132,53 @@ func (sequence *localPrefWireSequence) observe(frame []byte) error {
 		if err := sequence.attributes(update.attributes); err != nil {
 			return err
 		}
-		// Subjects and the fence are ordered by NLRI across the byte stream:
-		// message order between UPDATEs, NLRI order inside one. RFC 4271
-		// Section 4.3 lets a speaker pack routes that share path attributes into
-		// one UPDATE, so Ze may carry the fence after the third subject in that
-		// subject's UPDATE. The attribute check above covers every NLRI here.
+		// RFC 4271 Section 4.3: "An UPDATE message is used to advertise feasible
+		// routes that share common path attributes to a peer, or to withdraw
+		// multiple unfeasible routes from service (see 3.1)."
+		// Routes in one UPDATE share one attribute set and arrive together, so
+		// the fence is accepted in the UPDATE that completes the three subjects,
+		// in either NLRI order inside it. The whole UPDATE is validated before
+		// its subjects and fence are committed to the sequence. A fence in an
+		// UPDATE that leaves a subject outstanding, a second fence, and a
+		// subject in an UPDATE after the fence's are refused. The attribute
+		// check above covers every NLRI here.
 		before := sequence.subjects
+		subjects := before
+		fenced := false
 		for nlri := update.nlri; len(nlri) != 0; nlri = nlri[4:] {
 			if len(nlri) < 4 || !bytes.Equal(nlri[:3], []byte{24, 10, 54}) {
 				return errors.New("unexpected or truncated LOCAL_PREF fixture NLRI")
 			}
 			subnet := nlri[3]
 			if subnet == 255 {
-				if sequence.subjects != 7 || sequence.fenced {
-					return errors.New("LOCAL_PREF FIFO fence preceded all three subjects in NLRI order")
+				if sequence.fenced {
+					return errors.New("second LOCAL_PREF FIFO fence in the declared interval")
 				}
-				sequence.fenced = true
+				if fenced {
+					return errors.New("second LOCAL_PREF FIFO fence in the declared interval")
+				}
+				fenced = true
 				continue
 			}
-			if subnet > 2 || sequence.fenced || sequence.subjects&(1<<subnet) != 0 {
+			if subnet > 2 {
+				return errors.New("unexpected or duplicate LOCAL_PREF subject")
+			}
+			if sequence.fenced {
+				return errors.New("unexpected or duplicate LOCAL_PREF subject")
+			}
+			if subjects&(1<<subnet) != 0 {
 				return errors.New("unexpected or duplicate LOCAL_PREF subject")
 			}
 			if subnet == 2 && (before != 3 || !sequence.eor) {
 				return errors.New("third LOCAL_PREF subject preceded initial pair or EOR")
 			}
-			sequence.subjects |= 1 << subnet
+			subjects |= 1 << subnet
 		}
+		if fenced && subjects != 7 {
+			return errors.New("LOCAL_PREF FIFO fence arrived before the UPDATE completing all three subjects")
+		}
+		sequence.subjects = subjects
+		sequence.fenced = fenced
 		if len(update.nlri) == 0 {
 			return errors.New("attribute-bearing LOCAL_PREF UPDATE has no subject")
 		}

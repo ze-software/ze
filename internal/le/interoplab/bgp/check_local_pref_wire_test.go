@@ -39,9 +39,12 @@ func TestLocalPrefStripChecksDestinationWire(t *testing.T) {
 		{"replaced source", strings.ReplaceAll(clean, "ac1e0009", "ac1e0002"), true},
 		{"missing fence", strings.ReplaceAll(clean, "180a36ff", "180a36fe"), true},
 		// RFC 4271 Section 4.3 lets Ze pack NLRI sharing path attributes into one
-		// UPDATE, so the fence may follow the third subject inside its UPDATE.
+		// UPDATE. Those routes arrive together, so the fence is accepted in the
+		// UPDATE that completes the three subjects, in either NLRI order, and is
+		// refused in an UPDATE earlier than the third subject's.
 		{"third and fence batched", localPrefTestCaptureTail(t, -1, []byte{24, 10, 54, 2, 24, 10, 54, 255}), false},
-		{"fence before third batched", localPrefTestCaptureTail(t, -1, []byte{24, 10, 54, 255, 24, 10, 54, 2}), true},
+		{"fence before third batched", localPrefTestCaptureTail(t, -1, []byte{24, 10, 54, 255, 24, 10, 54, 2}), false},
+		{"fence UPDATE before third UPDATE", localPrefTestCaptureTail(t, -1, []byte{24, 10, 54, 255}, []byte{24, 10, 54, 2}), true},
 		{"batched leaked200", localPrefTestCaptureTail(t, 200, []byte{24, 10, 54, 2, 24, 10, 54, 255}), true},
 		{"observed batched frames", localPrefTestObservedCapture(t), false},
 	} {
