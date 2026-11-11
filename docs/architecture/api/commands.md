@@ -935,6 +935,11 @@ Event types span all namespaces: BGP (update, open, notification, keepalive, ref
 Wire method: `ze-meta:event-monitor`. Supports pipe operators: `| json`, `| table`, `| match`.
 <!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
 
+Compact BGP event lines show `AS<number>` when the peer's AS is known and
+`AS unknown` before negotiation. An event with an invalid AS value stays in
+its original JSON form.
+<!-- source: internal/component/bgp/plugins/cmd/monitor/format.go -- formatMonitorLine -->
+
 #### One-shot answer of a streaming command
 
 A streaming command registers with `RegisterStreamingHandler(prefix, oneShot,

@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 const maxDisplayPrefixes = 5
@@ -25,7 +26,10 @@ func formatMonitorLine(raw string) string {
 
 	dir := formatDirection(ev.BGP.Message.Direction)
 	peer := ev.BGP.Peer.Remote.Address
-	asn := textbuf.StrInt("AS", int64(ev.BGP.Peer.Remote.AS))
+	asn := "AS unknown"
+	if remoteAS, known := ev.BGP.Peer.Remote.AS.ASN(); known {
+		asn = textbuf.StrInt("AS", int64(remoteAS))
+	}
 
 	switch ev.BGP.Message.Type {
 	case "update":
@@ -152,8 +156,8 @@ type monitorEvent struct {
 	BGP struct {
 		Peer struct {
 			Remote struct {
-				Address string `json:"address"`
-				AS      uint32 `json:"as"`
+				Address string       `json:"address"`
+				AS      rpc.RemoteAS `json:"as"`
 			} `json:"remote"`
 		} `json:"peer"`
 		Message struct {

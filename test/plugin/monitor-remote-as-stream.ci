@@ -1,0 +1,17 @@
+# Test: does a daemon monitor show a dynamic peer's unknown AS before its OPEN
+# and its negotiated AS afterward on the same operator PTY?
+# A formatter unit cannot prove that the daemon's real monitor subscription,
+# registered formatter and SSH terminal carry those producer events together.
+# The PTY's monitor-active marker precedes dialing the dynamic peer. The peer
+# sends its OPEN only after the unknown-AS line is visible, and stays connected
+# until the known-AS state-up line is visible. No elapsed-time readiness guess.
+# VALIDATES: actual native BGP events reach the compact operator monitor with
+# AS unknown before negotiation and AS65001 afterward.
+# PREVENTS: the native unknown-AS field being omitted correctly at its producer
+# but decoded as zero by the terminal consumer.
+
+cmd=foreground:seq=1:exec=le test fixture plugin/monitor-remote-as-stream $PORT:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: daemon monitor PTY showed AS unknown before OPEN and AS65001 after negotiation
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
