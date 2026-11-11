@@ -120,7 +120,8 @@ func handleShowSystemPlatform(_ *pluginserver.CommandContext, _ command.Validate
 }
 
 // handleShowSystemDate reports the daemon's current wall-clock view in
-// RFC3339, Unix seconds, and the configured timezone name.
+// RFC3339, Unix seconds, and the configured timezone name. An absent NTP state
+// provider refuses the command; a registered inactive provider adds no metadata.
 func handleShowSystemDate(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	now := time.Now()
 	zone, offset := now.Zone()
@@ -131,9 +132,11 @@ func handleShowSystemDate(_ *pluginserver.CommandContext, _ command.ValidatedArg
 		"timezone":        zone,
 		"utc-offset-secs": offset,
 	}
-	if ntp := registry.GetNTPSyncInfo(); ntp != nil {
-		maps.Copy(data, ntp)
+	ntp, refusal := registry.GetNTPSyncInfo()
+	if refusal != nil {
+		return plugin.OperatorErrorResponse(refusal), nil
 	}
+	maps.Copy(data, ntp)
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data:   plugin.Map(data),

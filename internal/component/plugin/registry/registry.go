@@ -29,6 +29,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
@@ -803,16 +804,20 @@ func SetNTPSyncProvider(fn func() map[string]any) {
 	ntpSyncProvider = fn
 }
 
-// GetNTPSyncInfo calls the registered NTP sync provider and returns
-// the result, or nil if no provider is registered.
-func GetNTPSyncInfo() map[string]any {
+// GetNTPSyncInfo reads the registered NTP state provider. An absent provider
+// refuses the read; nil metadata with no refusal is the registered provider's
+// answer that NTP is unconfigured or disabled.
+func GetNTPSyncInfo() (map[string]any, *opererr.Error) {
 	mu.RLock()
 	fn := ntpSyncProvider
 	mu.RUnlock()
 	if fn == nil {
-		return nil
+		return nil, opererr.New(
+			"show system date cannot read NTP state: the NTP provider is unavailable",
+			"An unavailable reader does not mean NTP is disabled. Install a build with NTP support, then retry the command.",
+			"ze show system date")
 	}
-	return fn()
+	return fn(), nil
 }
 
 // Lookup returns a clone of the registration for a named plugin, or nil if

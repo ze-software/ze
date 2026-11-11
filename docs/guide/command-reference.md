@@ -556,10 +556,19 @@ Each response is a flat JSON map with kebab-case keys:
 |---------|----------------|
 | `show runtime memory` | `alloc`, `total-alloc`, `sys`, `heap-alloc`, `heap-sys`, `heap-in-use`, `heap-objects`, `stack-in-use`, `num-gc`, `gc-cpu-pct`, `hardware` (optional: physical memory + ECC from `host.DetectMemory()`) |
 | `show system cpu` | `num-cpu`, `num-goroutines`, `max-procs`, `go-version`, `hardware` (optional: `host.DetectCPU()`) |
-| `show system date` | `time` (RFC3339), `unix`, `unix-nano`, `timezone`, `utc-offset-secs` |
+| `show system date` | `time` (RFC3339), `unix`, `unix-nano`, `timezone`, `utc-offset-secs`; an enabled NTP client adds `ntp-synced`, `ntp-source`, `ntp-offset` |
 | `show system dns` | `records` (each learned record: `origin`, `rank`, `interface`, `unit`, `addresses`, `received`, `expires`, and when set `fallback`, `priority`, `name`, `transport`, `port`, `path`), `consumers` (each: `consumer`, `selections` with `path`, `instance`, `sources`, `mode`, `default`, `received-interfaces`, `used`, `servers`, `self`, `serves`); the router is first, as consumer `system` (`docs/features/dns-resolver.md`) |
 | `show system platform` | `type` (gokrazy, systemd, container, plain-linux, darwin), `read-only-root`, `perm-available`, `systemd-available`, `gokrazy-update-socket`, `gokrazy-ui-available`, `reboot-allowed`, `persistent-storage-writable`, `fd-limit-soft-current`, `fd-limit-hard-max`, `fd-limit-raisable` |
 | `show system conntrack` | `count`, `max`, `buckets`, `expect-max`, `accounting`, `timestamp`, `checksum`, `log-invalid`, `modules` (loaded nf_conntrack_* list), `helpers` (one row per assigned kernel helper: `module`, `kernel-helper`, `protocol`, `ports`, `families`), `timeouts` (per-protocol), `tcp-behavior` (be-liberal, loose, max-retrans, ignore-invalid-rst) |
+
+`show system date` refuses when the NTP state provider is unavailable, including
+a build without NTP support. Install a build with NTP support and retry
+`ze show system date`. A registered but unconfigured or disabled NTP client
+still permits the date answer, without synchronization metadata. An enabled
+client reports its measured synchronization state, including `false` and a
+zero offset.
+<!-- source: internal/component/plugin/registry/registry.go -- GetNTPSyncInfo -->
+<!-- source: internal/plugins/ntp/register.go -- ntpSyncInfo -->
 
 The `hardware` subobject under `memory` and `cpu` mirrors the data
 returned by `show host memory` / `show host cpu`. Both paths are

@@ -6,9 +6,9 @@ package hub
 
 // VALIDATES: without the ze_ntp build tag (e.g. a bare ze_core build), the NTP
 // plugin is NOT registered and its config schema (`environment { ntp {} }`) is
-// absent, while the rest of the plugin registry is still populated. `show
-// system` degrades cleanly because its only coupling is the nil-safe
-// registry.GetNTPSyncInfo seam. The binary symbol-drop proof is in
+// absent, while the rest of the plugin registry is still populated. The
+// registry.GetNTPSyncInfo seam refuses the absent state reader, so `show system
+// date` cannot silently omit unreadable NTP state. The binary symbol-drop proof is in
 // build_tag_gate12_absent_test.go.
 // PREVENTS: a regression where ntp leaks into a hardened build via an always-on
 // import or an ungated registration/schema import.
@@ -52,12 +52,20 @@ func TestBuildTag_NTP_AbsentRejectsNTPConfig(t *testing.T) {
 	}
 }
 
-// TestBuildTag_NTP_AbsentSyncInfoNil proves the show-system seam degrades: with
-// no NTP plugin registered, GetNTPSyncInfo returns nil (the provider was never
-// set), which is exactly what cmd/show/system.go nil-checks before rendering
-// the NTP block.
+// TestBuildTag_NTP_AbsentSyncInfoNil proves an absent NTP state reader returns
+// no invented metadata and an explicit refusal, rather than the same answer
+// as a registered but inactive NTP client.
 func TestBuildTag_NTP_AbsentSyncInfoNil(t *testing.T) {
-	if info := pluginreg.GetNTPSyncInfo(); info != nil {
+	info, refusal := pluginreg.GetNTPSyncInfo()
+	if info != nil {
 		t.Fatalf("non-ze_ntp build: GetNTPSyncInfo = %v, want nil (no provider registered)", info)
+	}
+	if refusal == nil {
+		t.Fatal("non-ze_ntp build: missing state reader did not refuse")
+	}
+	for _, text := range []string{"NTP", "show system date", "fix:"} {
+		if !strings.Contains(refusal.Error(), text) {
+			t.Errorf("refusal %q does not name %q", refusal, text)
+		}
 	}
 }

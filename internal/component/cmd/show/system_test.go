@@ -6,6 +6,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // TestHandleShowSystemMemory asserts that the handler returns the expected
@@ -84,6 +85,9 @@ func TestHandleShowSystemCPU(t *testing.T) {
 //
 // VALIDATES: AC-4 of spec-op-1-easy-wins.md.
 func TestHandleShowSystemDate(t *testing.T) {
+	snapshot := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snapshot) })
+	registry.SetNTPSyncProvider(func() map[string]any { return nil })
 	before := time.Now()
 	resp, err := handleShowSystemDate(nil, commandtest.Args())
 	if err != nil {

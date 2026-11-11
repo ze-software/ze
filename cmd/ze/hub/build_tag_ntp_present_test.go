@@ -6,7 +6,7 @@ package hub
 
 // VALIDATES: with the ze_ntp build tag (a default ze / ze-appliance feature) the
 // NTP plugin is registered in the plugin registry, so an `environment { ntp {} }`
-// config is reachable and `show system` can read sync state through the nil-safe
+// config is reachable and `show system date` can read sync state through the
 // registry.GetNTPSyncInfo seam the plugin populates at init.
 // PREVENTS: a regression where ze_ntp is set but NTP is not wired -- the generated
 // all_ze_ntp.go blank import dropped, or the manifest tag not reaching the generator.

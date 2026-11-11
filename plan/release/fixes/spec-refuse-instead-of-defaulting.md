@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped producers answer a default, a zero or a constant where they cannot answer, so operators and peers act on values Ze never measured; several rows are RFC defects in implemented capabilities (RADIUS, LDP, IS-IS, ADD-PATH, LLGR) |
@@ -54,9 +54,22 @@ thread:
 
 The full AC-1 through AC-13 and 54-row audit remains incomplete. The older
 handover also names Linux, gnmic and BMP evidence to reconcile. The NTP audit
-found a separate unresolved absent-provider path and a product-contract question;
-its untracked regression belongs to the independent audit agent and is not part
-of this pipeline handback. The spec stays open.
+found an absent-provider path. Owner instruction (Thomas, 2026-11-11):
+"fix NTP". This spec now owns that repair: an absent NTP state provider must
+refuse `show system date`, while a registered inactive provider remains a valid
+date-only answer. The prior exclusion below no longer applies to NTP. The
+regression was observed red, with inactive and measured-state controls passing,
+in `tmp/session/2026-11-11-014000/scratch/job-refusal-pipeline-ntp-red-0f4a55fa.log`.
+The repair and independent source/docs review are complete. Main-thread race
+proof passes the absent, inactive and measured-state command cases, the existing
+date assertions, registry snapshot restoration and NTP-present build test in
+`tmp/session/2026-11-11-014000/scratch/job-ntp-provider-green-8e407612.log`.
+All three NTP-absent hub tests pass under `ze_core` without `ze_ntp` in
+`tmp/session/2026-11-11-014000/scratch/job-ntp-provider-absent-fe550150.log`.
+The actual daemon functional `system-date-show` passes 1/1 in
+`tmp/session/2026-11-11-014000/scratch/job-ntp-system-date-functional-a1dd9b1c.log`.
+The scoped lint run is still pending at this repair checkpoint. This evidence
+covers the NTP repair, not the remaining acceptance criteria; the spec stays open.
 
 The first draft reload attempt used `test reload`, which printed a namespace
 error. No fixture ran. The correct registered route is `test bgp reload`.
@@ -486,7 +499,7 @@ named as one").
 Owner approval (Thomas, 2026-10-24): the functional tests rib-graph, rib-graph-filtered and rib-graph-best (fixture `ribGraph13`, `internal/test/fixture/plugin_fixture_13_rib.go`) may change to assert the structured payload instead of the pre-rendered box text.
 
 ## Known Limitations
-- The rows of this family owned by `spec-plugin-optional-dependency-refusal` (2026-10-20 census rows: auto-load hard dependency, mrt and NTP not built, ddos/exabgp/flowexport undeclared BGP, redistribute and ls_export free strings) stay there
+- The rows of this family owned by `spec-plugin-optional-dependency-refusal` (2026-10-20 census rows: auto-load hard dependency, mrt not built, ddos/exabgp/flowexport undeclared BGP, redistribute and ls_export free strings) stay there. Owner instruction "fix NTP" on 2026-11-11 returns the NTP answer omission to this spec; its absence must be distinguished from a registered inactive provider.
 
 ## RFC Documentation (Scope: protocol)
 

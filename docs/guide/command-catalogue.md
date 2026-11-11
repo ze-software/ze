@@ -284,7 +284,7 @@ subsystem lands.
 | Daemon uptime | `show system uptime` | `show system uptime` | `show system uptime` | `show uptime` | - | `show uptime` | shipped | process | |
 | Daemon memory | `show system memory` | `show task memory` | `show system memory-pools` | `show processes memory` | `show memory` | `show system memory` | shipped | process | Complements `show bgp rib status`. Nests a `hardware` subobject from `host.DetectMemory()`; same data available standalone via `show host memory` |
 | Daemon CPU | `show system cpu` | `show task cpu` | `show system cpu` | `show processes cpu` | - | `show system cpu` | shipped | process | Nests a `hardware` subobject from `host.DetectCPU()`; same data available standalone via `show host cpu` |
-| Daemon date/time | `show date` | `show system time` | `show system time` | `show clock` | - | `show system date` | shipped | process | |
+| Daemon date/time | `show date` | `show system time` | `show system time` | `show clock` | - | `show system date` | shipped | process | Refuses an unavailable NTP state provider; an inactive registered client still permits the date answer |
 | Platform detection | - | - | - | - | - | `show system platform` | shipped | process | Runtime platform type (gokrazy, systemd, container, plain-linux, darwin) and capability flags (read-only root, /perm, reboot, persistent storage). Also in `ze doctor` and `ze request support archive` |
 | Firmware update | - | - | - | - | - | `show system update` | shipped | process | Periodic check against remote version manifest (`{"version":"26.05.17"}`); reports availability via report bus |
 | Update server | - | - | - | - | - | `ze update serve` | shipped | offline | Minimal HTTP server: `GET /version.json` + `GET /<os>/<arch>` binary download; run on build infra, not on routers |
@@ -295,6 +295,9 @@ subsystem lands.
 | Kernel log / dmesg | `show log kernel` | - | - | `show logging` | - | | scope | - | OS-level |
 | License info | `show license` | `show system license` | `show system license` | `show version detail` | - | | scope | - | |
 | Hardware / chassis | `show hardware cpu` etc. | `show chassis hardware` | `show chassis` | `show environment all` | - | | scope | - | |
+
+<!-- source: internal/component/cmd/show/system.go -- handleShowSystemDate -->
+<!-- source: internal/component/plugin/registry/registry.go -- GetNTPSyncInfo -->
 
 ## 9. Logging & Telemetry
 
