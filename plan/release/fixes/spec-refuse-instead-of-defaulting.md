@@ -13,26 +13,50 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Blocker
+## Remaining verification
 
-Verification is incomplete at the owner's model-switch checkpoint. The old
-inventory compilation failure no longer blocks the named launcher. The shared
-CPE renderer repair passes focused race tests, but the four corrected fixtures
-remain drafts and the required full corpus run has not followed their promotion.
+The current launcher panics during command registration before dispatch because
+`internal/le/test/unit/pkg.go` supplies Help strings longer than the 60-character
+limit (the first reported string is 83 characters at line 86). This file is
+foreign dirty work owned by `spec-agent-economy-2-scoped-test`, session
+`f4d858bd` and agent `a438d3331bd8f1e98`. The owning session must shorten its
+Help strings, then the main thread must rebuild the named launcher from current
+source and rerun the blocked commands. No stale binary supplies proof.
+
+All four corpus fixtures passed their named draft runs, were promoted, and
+landed in `e7a77d6e73`. The shared CPE renderer's focused race proof remains
+green. The full corpus has not yet run after those promotions.
+
+The owned pipeline parse-error defect is now repaired: `showPipeline` and
+`bestPipeline` return `pipelineRefusal` through `refusePipelineArgs`, preserving
+the parser diagnostic and adding the corrected count command. Main observed
+`TestPipelineParseErrorsReachCommandVerdict` fail on the old successful error
+payloads, then pass with six companion tests under race. Evidence is
+`tmp/session/2026-11-11-014000/scratch/job-refusal-pipeline-ntp-red-0f4a55fa.log`
+and `job-refusal-pipeline-green-191dfb31.log` in that directory. Independent
+source review is clean; five existing test migrations and the functional
+fixture change have independent judge approval. The attempted named functional
+run stopped at the launcher registration panic, before any fixture ran.
 
 Resume with these commands, through the current named launcher and in the main
 thread:
 
-- `./le test bgp reload --draft dns-source-reload reload-parse-error-single-prefix`.
-- `./le test ui --draft config-compiled-out-feature-names-tag doctor-procfs-netlink`.
-- Promote the four passing drafts, preserving the native test-judge approvals,
-  then run `TestRepositoryConfigsValidate` under the full feature tags and race.
+- Run `go test -race -tags ze_bgp ./internal/component/bgp/plugins/rib` through
+  main-thread job admission; the seven selected regressions already passed.
+- Run `./le test bgp plugin rib-filter-show` through the rebuilt named launcher.
+- Run `TestRepositoryConfigsValidate` under the full feature tags and race.
 - `INTEROP_SCENARIO=addpath-zero-id-frr ./le test integration interop` for the
   baseline, the zero-ID omission overlay, and the clean rebuild in that order.
   Preserve effective Go flags when adding the overlay. The overlay and its
   single changed producer are recorded below.
 - `INTEROP_SCENARIO=ldp-init-unknown-tlv-frr ./le test integration interop`.
 - Complete the remaining scoped checks and independent closure review.
+
+The full AC-1 through AC-13 and 54-row audit remains incomplete. The older
+handover also names Linux, gnmic and BMP evidence to reconcile. The NTP audit
+found a separate unresolved absent-provider path and a product-contract question;
+its untracked regression belongs to the independent audit agent and is not part
+of this pipeline handback. The spec stays open.
 
 The first draft reload attempt used `test reload`, which printed a namespace
 error. No fixture ran. The correct registered route is `test bgp reload`.

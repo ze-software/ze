@@ -1262,7 +1262,7 @@ const (
 func (r *RIBManager) showPipeline(selector string, args []string) any {
 	scope, pipeSelector, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
-		return map[string]any{jsonKeyError: errMsg}
+		return refusePipelineArgs(errMsg, "show bgp rib count")
 	}
 	if pipeSelector != "" {
 		selector = pipeSelector

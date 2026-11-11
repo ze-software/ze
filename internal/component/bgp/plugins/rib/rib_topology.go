@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/graph"
 )
 
@@ -152,11 +153,18 @@ func (gt *graphTerminal) Meta() PipelineMeta {
 	return gt.meta
 }
 
-// pipelineRefusal is the answer of a show pipeline whose terminal could not
-// build its document. commandAnswer turns it into an error status, so the
-// refusal reaches the caller as an error and never as a done answer.
+// pipelineRefusal is the answer of a show pipeline whose arguments are invalid
+// or whose terminal could not build its document. commandAnswer turns it into an
+// error status, so the refusal reaches the caller as an error and never as a done answer.
 type pipelineRefusal struct {
 	reason error
+}
+
+// refusePipelineArgs carries a nonempty diagnostic produced by the pipeline
+// parser to the command verdict, together with a valid command to start from.
+func refusePipelineArgs(reason, recovery string) pipelineRefusal {
+	return pipelineRefusal{reason: opererr.New(reason,
+		"The route list was not read because the command arguments are invalid.", recovery)}
 }
 
 // errPipelineRefusalNoReason guards commandAnswer against a refusal built

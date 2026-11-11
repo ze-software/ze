@@ -153,12 +153,12 @@ func TestBestPipelineReason_UnknownKeyword(t *testing.T) {
 	r := newTestRIBManager(t)
 	result := r.bestPipeline("*", []string{"reasons"})
 
-	var parsed map[string]any
-	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
-	errStr, ok := parsed["error"].(string)
-	require.True(t, ok, "expected error key for unknown keyword")
-	assert.Contains(t, errStr, "unknown keyword")
-	assert.Contains(t, errStr, "reasons")
+	status, data, err := commandAnswer(result)
+	assert.Equal(t, statusError, status)
+	assert.Empty(t, data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown keyword")
+	assert.Contains(t, err.Error(), "reasons")
 }
 
 // TestBestPipeline_MultipathPeersInOutput verifies that the best-path JSON

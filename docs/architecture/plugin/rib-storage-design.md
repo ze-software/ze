@@ -2220,6 +2220,13 @@ not tell, where `false` would claim it lost. Sent rows carry none either.
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- showPipeline, newShowSource, inboundSource, lastFilter -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_bestfact.go -- markBestFacts, bestFactOf, writeBestFact -->
 
+Invalid arguments to `show bgp rib` and `show bgp rib best` produce an error
+verdict before the route walk starts. The refusal preserves the parser's reason
+and names a valid count command to start from. A JSON object containing an
+`error` member is not a successful route answer. Terminal failures, such as an
+oversized graph, use the same refusal path.
+<!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- refusePipelineArgs, commandAnswer -->
+
 ### Example: IPv4 Unicast
 
 ```

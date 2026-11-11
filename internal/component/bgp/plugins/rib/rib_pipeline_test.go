@@ -320,10 +320,11 @@ func TestBuildPipelineUnknownKeyword(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	result := r.showPipeline("*", []string{"bogus"})
-	var parsed map[string]any
-	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
-	_, hasError := parsed["error"]
-	assert.True(t, hasError, "expected error for unknown keyword: %s", result)
+	status, data, err := commandAnswer(result)
+	assert.Equal(t, statusError, status)
+	assert.Empty(t, data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown keyword: bogus")
 }
 
 // TestBuildPipelineFilterKeywordNoValue verifies filter keywords without values return error.
@@ -347,10 +348,11 @@ func TestBuildPipelineFilterKeywordNoValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := r.showPipeline("*", tt.args)
-			var parsed map[string]any
-			require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
-			_, hasError := parsed["error"]
-			assert.True(t, hasError, "expected error for '%s': %s", tt.name, result)
+			status, data, err := commandAnswer(result)
+			assert.Equal(t, statusError, status)
+			assert.Empty(t, data)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.args[0]+" requires a value")
 		})
 	}
 }
@@ -478,9 +480,11 @@ func TestShowPipelineRejectsConflictingDirection(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	result := r.showPipeline("*", []string{"received", "advertised", "count"})
-	var parsed map[string]any
-	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
-	assert.Contains(t, parsed["error"], "multiple route direction filters")
+	status, data, err := commandAnswer(result)
+	assert.Equal(t, statusError, status)
+	assert.Empty(t, data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "multiple route direction filters")
 }
 
 // TestShowPipelinePeerFilter verifies peer pipe filter constrains generation.
@@ -595,16 +599,13 @@ func TestHandleCommandOldCommandsError(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pipeline-parsed old keywords: routed through "show bgp rib" with args,
-	// parsePipelineArgs returns "unknown keyword" error in JSON data.
+	// parsePipelineArgs returns an "unknown keyword" refusal.
 	for _, keyword := range []string{"in", "out", "best"} {
 		status, data, err := r.handleCommand("show bgp rib", "*", []string{keyword})
-		assert.NoError(t, err, "pipeline error for %q should not be a Go error", keyword)
-		assert.Equal(t, statusDone, status, "pipeline error status for %q", keyword)
-
-		var parsed map[string]any
-		require.NoError(t, json.Unmarshal(mustMarshal(t, data), &parsed), "data should be valid JSON for %q", keyword)
-		_, hasError := parsed["error"]
-		assert.True(t, hasError, "data should contain error key for old keyword %q", keyword)
+		require.Error(t, err, "pipeline error for %q", keyword)
+		assert.Equal(t, statusError, status, "pipeline error status for %q", keyword)
+		assert.Empty(t, data)
+		assert.Contains(t, err.Error(), "unknown keyword: "+keyword)
 	}
 
 	// Truly unknown commands: fall through to default case in handleCommand.

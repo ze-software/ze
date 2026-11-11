@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -362,7 +363,7 @@ func ribFilterShow13(ctx context.Context, args []string) error {
 		pollCommand13(ctx, plugin, "show bgp rib count", 20, 250*time.Millisecond, done13)
 		checks := []struct {
 			label, command string
-			errorData      bool
+			refused        bool
 		}{
 			{fieldCommunity, "show bgp rib received community 65000:100", false},
 			{fieldPath, "show bgp rib received path 64501", false},
@@ -372,11 +373,23 @@ func ribFilterShow13(ctx context.Context, args []string) error {
 		}
 		for _, check := range checks {
 			result := command13(ctx, plugin, check.command)
+			if check.refused {
+				if result.status != rpc.StatusError {
+					return fmt.Errorf("%s: status=%s, want error", check.label, result.status)
+				}
+				if result.err == nil {
+					return fmt.Errorf("%s: no refusal reason", check.label)
+				}
+				if !strings.Contains(result.err.Error(), "unknown keyword: bogus") {
+					return fmt.Errorf("%s: refusal lost the invalid argument: %w", check.label, result.err)
+				}
+				if !strings.Contains(result.err.Error(), "fix: show bgp rib count") {
+					return fmt.Errorf("%s: refusal names no corrected command: %w", check.label, result.err)
+				}
+				continue
+			}
 			if err := requireDone13(check.label, result); err != nil {
 				return err
-			}
-			if check.errorData && !strings.Contains(result.text(), `"error"`) {
-				return fmt.Errorf("%s: expected error JSON, got %.200s", check.label, result.raw)
 			}
 		}
 		return waitEORSent13(ctx, plugin, "peer1")

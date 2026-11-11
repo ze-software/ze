@@ -309,7 +309,7 @@ const bestPathEnvelopeKey = "best-path"
 func (r *RIBManager) bestPipeline(selector string, args []string) any {
 	pipeSelector, stages, errMsg := parseBestPipelineArgs(args)
 	if errMsg != "" {
-		return map[string]any{jsonKeyError: errMsg}
+		return refusePipelineArgs(errMsg, "show bgp rib best count")
 	}
 	if pipeSelector != "" {
 		selector = pipeSelector
