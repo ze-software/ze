@@ -43,18 +43,23 @@ Make a new token for each lane run, and discard it after the run. Pass it to
 the daemon through the environment, not on the command line, so it is not in
 the process arguments:
 
+The daemon needs its own config store, so run it from an empty directory that
+`ze init` sets up, with `ze` built with the `ze_mcp` tag:
+
 ```bash
+printf 'admin\nlanepass\n127.0.0.1\n12222\n' | ZE_CONFIG_DIR=. XDG_DATA_HOME=. ./ze init
+printf '# ze mcp lane\n' > lane.conf
 token=$(openssl rand -hex 32)
-ze_mcp_token="$token" ze --mcp 9718 <config>
+ZE_CONFIG_DIR=. XDG_DATA_HOME=. ze_mcp_token="$token" ./ze start --mcp 9718 lane.conf &
 ```
 
-`--mcp <port>` binds `127.0.0.1:<port>`. The MCP endpoint is
+`--mcp <port>` is a `ze start` option and binds `127.0.0.1:<port>`. The MCP endpoint is
 `http://127.0.0.1:9718/mcp`. A token with no `auth-mode` set selects the
 `bearer` mode, so every request must carry `Authorization: Bearer <token>`.
 The `--mcp-token <token>` flag and the config leaves `environment mcp
 auth-mode bearer` and `token` do the same, but the flag puts the token in the
 process arguments. Use the same `<config>` for every run in one round, and
-record its path in the notes.
+record it in the notes.
 
 <!-- source: cmd/ze/ze_core_dispatch.go -- flagStartMCP, flagStartMCPToken -->
 <!-- source: cmd/ze/hub/main.go -- ze.mcp.token read in runYANGConfig -->
