@@ -21,17 +21,17 @@ type Use struct {
 	File     string `json:"file"`
 }
 
-// Report is what `deps check` answers: the imports the ledger does not
-// approve, and the rows no Go file uses any more.
+// Report is what `deps check` answers: the imports neither declared modules
+// nor the ledger permit, and the rows no Go file uses any more.
 type Report struct {
 	Files      int   `json:"files"`
 	Unapproved []Use `json:"unapproved"`
 	Stale      []Row `json:"stale"`
 }
 
-// Check compares every Go file of the Ze module, tracked or not ignored, with
-// the ledger. An unreadable file, ledger or go.mod is an error: a check that
-// skipped one would report a tree it never read.
+// Check judges every Go file of the Ze module, tracked or not ignored, against
+// the current module declarations and exact-ledger approvals. An unreadable
+// file, ledger or go.mod is an error: skipping one would leave it unjudged.
 func Check(root string) (Report, error) {
 	var report Report
 	goMod, err := os.ReadFile(filepath.Join(root, "go.mod")) //nolint:gosec // the checkout root this command was pointed at
@@ -47,6 +47,17 @@ func Check(root string) (Report, error) {
 		return report, errors.New("read the ledger " + LedgerRel + ": " + err.Error())
 	}
 	ledger, err := Parse(string(text))
+	if err != nil {
+		return report, err
+	}
+	vendorModules, err := os.ReadFile(filepath.Join(root, VendorModulesRel)) //nolint:gosec // a checkout-relative constant path
+	// refuse-by-default: guards ParsePolicy -- an absent inventory grants no ordinary-module reuse; exact-ledger approvals remain available
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return report, err
+		}
+	}
+	policy, err := ParsePolicy(string(goMod), string(vendorModules), ledger)
 	if err != nil {
 		return report, err
 	}
@@ -79,7 +90,7 @@ func Check(root string) (Report, error) {
 		importer := Importer(rel)
 		for _, pkg := range Added(module, nil, imports) {
 			used[key{pkg, importer}] = true
-			if ledger.Allows(pkg, importer) {
+			if policy.Allows(pkg, importer) {
 				continue
 			}
 			report.Unapproved = append(report.Unapproved, Use{Package: pkg, Importer: importer, File: rel})

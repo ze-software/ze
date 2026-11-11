@@ -3,11 +3,9 @@
 // Related: check.go -- the whole-tree comparison of the tree with the ledger
 // Related: ../commit/dependencies.go -- the commit gate that judges what a commit adds
 //
-// Package deps holds the dependency ledger: each third-party Go package Ze may
-// import, and the Ze directories Thomas approved to import it. A module is
-// approved only for its approved use (ai/META-DECISIONS.md, "Code and
-// dependencies"), so the unit of approval is one package path and one
-// importer directory, never a whole module.
+// Package deps combines ordinary-module reuse with exact package/importer
+// approvals. Existing modules may be used in full, except circl, whose uses
+// remain individually approved (ai/META-DECISIONS.md, "Code and dependencies").
 package deps
 
 import (
@@ -25,7 +23,7 @@ import (
 )
 
 // LedgerRel is the ledger's path from the checkout root. It sits beside
-// go.mod, which declares what is vendored; the ledger declares who may use it.
+// go.mod, which declares modules; the ledger records use-specific approvals.
 const LedgerRel = "dependency-ledger.txt"
 
 // ApprovalsRel is the untracked record `deps approve` appends each approved
@@ -34,10 +32,11 @@ const LedgerRel = "dependency-ledger.txt"
 const ApprovalsRel = "tmp/dependency-approvals.txt"
 
 // ledgerHeader opens the ledger. Every line starting with '#' is a comment.
-const ledgerHeader = "# Dependency ledger: each third-party Go package Ze may import, and the\n" +
-	"# Ze directories Thomas approved to import it. One row per package and\n" +
-	"# importer, three tab-separated fields: package, importer directory, reason.\n" +
-	"# A module is approved only for its approved use: a new row is written by\n" +
+const ledgerHeader = "# Dependency ledger: exact third-party package/importer approvals.\n" +
+	"# Ordinary modules already declared in go.mod may be used in full.\n" +
+	"# Circl remains restricted to its approved package/importer uses.\n" +
+	"# Three tab-separated fields: package, importer directory, reason.\n" +
+	"# A new row is written by\n" +
 	"# ./le deps approve, from Thomas's terminal, never by hand.\n" +
 	"# Page: docs/contributing/dependency-approval.md\n"
 
@@ -270,6 +269,22 @@ func Importer(rel string) string { return path.Dir(rel) }
 // gokrazy build directory) is another module whose imports Ze does not link.
 // A go.mod that cannot be read answers an error rather than a guess.
 func Judged(root, rel string) (bool, error) {
+	return JudgedWith(rel, func(moduleFile string) (bool, error) {
+		_, err := os.Stat(filepath.Join(root, filepath.FromSlash(moduleFile)))
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	})
+}
+
+// JudgedWith classifies source using the caller's nested-module boundaries.
+// A commit MUST supply existence from its prospective content; Judged uses
+// the current filesystem for a whole-tree check.
+func JudgedWith(rel string, moduleExists func(string) (bool, error)) (bool, error) {
 	if !strings.HasSuffix(rel, ".go") {
 		return false, nil
 	}
@@ -282,12 +297,12 @@ func Judged(root, rel string) (bool, error) {
 		}
 	}
 	for dir := path.Dir(rel); dir != "." && dir != "/"; dir = path.Dir(dir) {
-		_, err := os.Stat(filepath.Join(root, filepath.FromSlash(dir), "go.mod"))
-		if err == nil {
-			return false, nil
-		}
-		if !errors.Is(err, os.ErrNotExist) {
+		present, err := moduleExists(path.Join(dir, "go.mod"))
+		if err != nil {
 			return false, err
+		}
+		if present {
+			return false, nil
 		}
 	}
 	return true, nil

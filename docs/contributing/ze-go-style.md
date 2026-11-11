@@ -648,11 +648,11 @@ fix. When you replace X with Y, delete X first (`ai/rules/no-layering.md`). Ze
 is unreleased, so no compatibility shim exists (`ai/rules/go-standards.md`).
 Only the plugin API contract freezes, and only after the first release.
 
-No new third-party import enters until Thomas agrees, because each one adds a
-supply-chain, safety, performance and install cost. A module is approved only
-for its approved use, so each new importing directory is a new approval:
-`./le commit create` refuses an import `dependency-ledger.txt` does not list
-for its directory (`dependency-approval.md`). Existing dependencies are
+Existing modules in `go.mod` may be used in full. The experimental circl
+cryptography module remains restricted to the package/importer pairs Thomas
+approved. A new module lands in a dependency-only commit before its first
+use. The commit gate reads HEAD's module declarations and the exact approval
+ledger; see [dependency approval](dependency-approval.md). Dependencies are
 vendored, so a build never reaches the network.
 <!-- source: internal/le/commit/dependencies.go -- dependencyRefusal -->
 

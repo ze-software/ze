@@ -30,7 +30,7 @@ var actions = leaction.New(area,
 		Summary: "approve one third-party package for one importer",
 		Why: "record Thomas's approval of one third-party Go package for one Ze directory: the row joins " +
 			LedgerRel + " and the untracked record " + ApprovalsRel + " that `./le commit create` reads. " +
-			"A module is approved only for its approved use, so each new importer is a new approval. " +
+			"Existing ordinary modules may be used in full; circl still needs each package/importer approved. " +
 			"Owner only: refused unless stdin and stdout are interactive terminals, and the refusal " +
 			"prints the command for Thomas to run. Approving the same package and importer again replaces the reason",
 		Writes: true,
@@ -42,9 +42,9 @@ var actions = leaction.New(area,
 		PrepareArgs: approveAnswer},
 	leaction.Action{
 		Verb:    "check",
-		Summary: "compare every third-party import with the ledger",
-		Why: "parse the imports of every Go file of the Ze module and refuse any third-party import " +
-			"the ledger does not approve for its directory; rows no file uses any more are listed as " +
+		Summary: "check third-party imports against modules and approvals",
+		Why: "parse every Go file of the Ze module and permit ordinary modules declared in go.mod, " +
+			"while preserving exact-ledger approval for circl and other uses; unused rows are listed as " +
 			"stale without failing, because removing a use needs nobody's approval",
 		Answer: checkAnswer},
 )

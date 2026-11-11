@@ -711,7 +711,7 @@ func newCommitRepository(t *testing.T) string {
 	writeCommitFixture(t, root, "feature-gates.txt", "")
 	writeCommitFixture(t, root, "tracked.txt", "tracked\n")
 	runCommitGit(t, root, "init", "-q")
-	runCommitGit(t, root, "add", "--", "tracked.txt")
+	runCommitGit(t, root, "add", "--", "tracked.txt", "go.mod")
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "baseline")
 	return root
 }

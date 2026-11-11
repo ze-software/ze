@@ -39,7 +39,7 @@ if [ "$_ze_status" -gt 1 ]; then
 fi
 _ze_sign=
 if [ "$_ze_gpgsign" = true ]; then _ze_sign=1; fi
-_ze_parent='9341d427f4d2f1beebd4282b6ae401cf0d50d11b'
+_ze_parent='20361eb7f082478f7a801d9a606dcbe0c33198f1'
 _ze_attempt=1
 while :; do
 _ze_seen=$_ze_parent

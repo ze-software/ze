@@ -291,8 +291,8 @@ func Create(root string, options *Options) (Prepared, error) {
 		if err != nil {
 			return result, err
 		}
-		// A third-party import is approved only for its approved use
-		// (ai/META-DECISIONS.md, "Code and dependencies").
+		// Existing ordinary modules permit full reuse; other uses, including
+		// circl, retain exact-ledger approval (ai/META-DECISIONS.md).
 		if err := dependencyRefusal(root, paths, removed, selection, content.before); err != nil {
 			return result, err
 		}

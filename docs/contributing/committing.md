@@ -390,11 +390,14 @@ command for each unit. `rfc-change-ok "<reason>"` admits the commit with one
 units it judged is refused even then, because it has nothing to record. A row a landed commit already carries as a trailer approves
 nothing further, and the next successful commit drops it from the file.
 
-`dependencyRefusal` (`internal/le/commit/dependencies.go`) refuses a commit
-whose Go adds a third-party import `dependency-ledger.txt` does not approve for
-the importing directory, a ledger row no `./le deps approve` recorded, or the
-ledger's removal. It names the package, the module, the importer and the
-command Thomas runs (`docs/contributing/dependency-approval.md`).
+`dependencyRefusal` (`internal/le/commit/dependencies.go`) allows full use of
+ordinary modules already declared in HEAD's `go.mod`. Circl remains restricted
+to its approved package/importer pairs. The gate refuses an added import that
+neither allowance permits, a ledger row no `./le deps approve` recorded, or the
+ledger's removal. A new module lands in a dependency-only commit before its
+first use; an uncommitted declaration cannot supply the existing-module
+allowance. See [dependency approval](dependency-approval.md) for the refusal
+and the owner-only approval command.
 <!-- source: internal/le/commit/dependencies.go -- dependencyRefusal -->
 
 `changeCheckRefusal` (`internal/le/commit/changechecks.go`) runs right after

@@ -12,10 +12,13 @@ import (
 	"github.com/ze-software/ze/internal/le/deps"
 )
 
-// dependencyBaseline commits the named files over a fresh fixture checkout.
+// dependencyBaseline commits root module/vendor metadata and the named files
+// over a fresh fixture checkout. Named metadata overrides those defaults.
 func dependencyBaseline(t *testing.T, files map[string]string) string {
 	t.Helper()
 	root := newCommitRepository(t)
+	writeCommitFixture(t, root, deps.VendorModulesRel, "")
+	runCommitGit(t, root, "add", "--", "go.mod", deps.VendorModulesRel)
 	for path, content := range files {
 		writeCommitFixture(t, root, path, content)
 		runCommitGit(t, root, "add", "--", path)
@@ -89,7 +92,7 @@ func TestDependencyRefusalAdmitsApprovedKeptAndDroppedImports(t *testing.T) {
 // into the ledger is refused until the approval record holds it, the seed is
 // admitted once, and removing the ledger is refused.
 func TestDependencyRefusalRefusesUnrecordedLedgerRow(t *testing.T) {
-	seed := newCommitRepository(t)
+	seed := dependencyBaseline(t, nil)
 	writeCommitFixture(t, seed, deps.LedgerRel, dependencyRow)
 	if err := dependencyRefusal(seed, []string{deps.LedgerRel}, nil, nil, "HEAD"); err != nil {
 		t.Fatalf("the seed commit creating the ledger was refused:\n%v", err)

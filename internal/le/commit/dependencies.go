@@ -15,22 +15,37 @@ import (
 	"github.com/ze-software/ze/internal/le/deps"
 )
 
-// dependencyRefusal refuses a commit that adds a third-party import the
-// ledger does not approve for the importing directory, a ledger row no
-// `deps approve` recorded, or the ledger's removal. It judges only what the
-// commit adds: an import a file already held, or one it drops, asks nothing,
-// so the gate reads the carried Go files and the ledger and nothing else.
+// dependencyRefusal permits full use of ordinary modules declared at HEAD,
+// and preserves exact-ledger approval for other uses, including all circl
+// imports. It refuses an unpermitted added import, an unrecorded ledger row,
+// or the ledger's removal. Kept or dropped imports ask nothing.
 //
 // The ledger is read as the commit leaves it: the carried blob when the
 // commit carries the ledger, HEAD's otherwise. Reading the working tree
 // instead would admit an import whose row lands in no commit.
 func dependencyRefusal(root string, paths, removed []string, selection hunks.Selection, head string) error {
 	if slices.Contains(removed, deps.LedgerRel) {
-		return errors.New(deps.LedgerRel + " cannot be removed: with no ledger every third-party import would go unjudged; " +
+		return errors.New(deps.LedgerRel + " cannot be removed: use-specific approvals would go unjudged; " +
 			"narrow it by deleting rows instead (docs/contributing/dependency-approval.md)")
 	}
 	sides := workingTreeSides(root, head, selection)
-	module, err := dependencyModule(sides)
+	prospective := func(path string) (string, bool, string) {
+		if slices.Contains(removed, path) {
+			return "", false, ""
+		}
+		if slices.Contains(paths, path) {
+			return sides.after(path)
+		}
+		return sides.before(path)
+	}
+	moduleExists := func(path string) (bool, error) {
+		_, present, problem := prospective(path)
+		if problem != "" {
+			return false, errors.New(problem)
+		}
+		return present, nil
+	}
+	module, err := dependencyModule(prospective)
 	if err != nil {
 		return couldNotRun(err)
 	}
@@ -38,12 +53,20 @@ func dependencyRefusal(root string, paths, removed []string, selection hunks.Sel
 	if err != nil {
 		return err
 	}
-	vendorModules, _, problem := sides.after(deps.VendorModulesRel)
+	declared, _, problem := sides.before("go.mod")
+	if problem != "" {
+		return couldNotRun(errors.New("judge declared dependencies: " + problem))
+	}
+	vendorModules, _, problem := prospective(deps.VendorModulesRel)
 	if problem != "" {
 		return couldNotRun(errors.New("judge third-party imports: " + problem))
 	}
+	policy, err := deps.ParsePolicy(declared, vendorModules, ledger)
+	if err != nil {
+		return couldNotRun(err)
+	}
 	for _, path := range paths {
-		judged, err := deps.Judged(root, path)
+		judged, err := deps.JudgedWith(path, moduleExists)
 		if err != nil {
 			return couldNotRun(errors.New("judge third-party imports of " + path + ": " + err.Error()))
 		}
@@ -56,7 +79,7 @@ func dependencyRefusal(root string, paths, removed []string, selection hunks.Sel
 		}
 		importer := deps.Importer(path)
 		for _, pkg := range added {
-			if ledger.Allows(pkg, importer) {
+			if policy.Allows(pkg, importer) {
 				continue
 			}
 			problems = append(problems, unapprovedImport(path, pkg, importer, deps.ModuleOf(vendorModules, pkg)))
@@ -69,8 +92,8 @@ func dependencyRefusal(root string, paths, removed []string, selection hunks.Sel
 }
 
 // dependencyModule reads the module path from go.mod as the commit leaves it.
-func dependencyModule(sides specSides) (string, error) {
-	goMod, present, problem := sides.after("go.mod")
+func dependencyModule(prospective specSide) (string, error) {
+	goMod, present, problem := prospective("go.mod")
 	if problem != "" {
 		return "", errors.New("judge third-party imports: " + problem)
 	}
@@ -170,7 +193,7 @@ func unapprovedImport(path, pkg, importer, module string) string {
 		text.Str("  module:   ").Str(module).Byte('\n')
 	}
 	text.Str("  importer: ").Str(importer).Byte('\n')
-	text.Str("  a third-party module is approved only for its approved use, so each new use needs Thomas's approval\n")
+	text.Str("  this import has neither an existing ordinary-module allowance nor an exact use approval\n")
 	text.Str("  ask Thomas; if he agrees, he runs from his own terminal:\n")
 	text.Str("    ").Str(deps.ApproveCommand(pkg, importer)).Byte('\n')
 	text.Str("  then carry ").Str(deps.LedgerRel).Str(" in this commit")
