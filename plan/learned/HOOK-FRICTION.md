@@ -1889,3 +1889,43 @@ sent in parallel were voided with "no verdict". The entry is retired.
 **The general trap.** A PreToolUse hook that returns `updatedInput` changes
 what the permission layer judged. Any hook that repairs a command in place
 has this cost under auto mode. Refuse with the exact text to type instead.
+
+---
+
+## The post-Bash gofmt check blocks a read-only command for another session's file (2026-11-11)
+
+**Hook.** `postBashGofmt` and `commandNames`
+(`internal/le/hookruntime/postbash.go`).
+
+**What it is meant to do.** After a Bash call it lists the uncommitted Go
+files changed in the last two minutes that `gofmt` would reshape. It blocks
+(exit 2) only for a file "the command names, by its path or by a directory
+holding it", because the window alone cannot tell this session's write from
+another's.
+
+**The false positive.** `commandNames` walks the file's parent directories
+and tests each with `strings.Contains(command, dir)`. The walk ends at the
+top-level directory, so for any file under `internal/` the last test is
+whether the command text contains the word `internal`. A `grep`, a `sed -n`
+or a `git log -- internal/le/arch` therefore "names" every unformatted Go
+file another session touched under `internal/` in the last two minutes. The
+match is a substring of the whole command line, so the word matches inside
+any argument, a pattern or a commit message included.
+
+**What it cost.** In one design session that edited no Go file, the check
+blocked more than a dozen read-only commands, of the main thread and of
+eleven subagents, each time for a test file another session was editing
+(`internal/le/test/netlab/`, `internal/le/build/preview/`,
+`internal/component/cli/sshclient/`). Each block put the other session's
+file in the reader's context with the advice `gofmt -w <path>`, which the
+owner's rule forbids for a file the session did not edit.
+
+**Workaround.** None that is honest: the command cannot avoid the word
+`internal`. Do not run the formatter on the named file. Say in the report
+that the file is another session's and carry on.
+
+**The fix it needs.** A command names a path only when a whole argument of
+the parsed command is that path or a directory above it, and a command made
+only of readers names nothing: it cannot have changed the file. The Bash hook
+already parses each line with `mvdan.cc/sh` and already knows which commands
+are readers, so both facts exist to be reused.
