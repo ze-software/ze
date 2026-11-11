@@ -699,6 +699,7 @@ recorded in the closure sections.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `hook-existing-patterns-false-positive` | 2026-11-11 | `rawHeavy` on a `for` loop: a quoted `go vet` alternative read as a raw run |
+| `hook-existing-patterns-false-positive` | 2026-11-11 | `bashTestDeletion` line-wide words: a test path `cmp` read beside a plain `rm` refused as a deletion (AC-18) |
 
 The row moves here from `plan/post-release/engineering/spec-tooling-one-off-defects.md`
 in the commit that lands this spec: that spec's table drops the entry and this

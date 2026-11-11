@@ -1,5 +1,6 @@
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
+| 2026-11-11 | spec-agent-economy-6-shell-parser | `bashTestDeletion` line-wide words | a subagent's `cmp <scratch file> internal/le/test/weakened/helpers_test.go` followed by `rm <scratch file>` on the same line was refused as deleting that test, a path only `cmp` read | open: the guard reads the words of the whole line, so a test path any reader names counts as an `rm` target; AC-18 judges a plain `rm` by its own arguments from the parse |
 | 2026-11-11 | spec-agent-economy-2-scoped-test | `rawHeavy` on a `for` loop | `for ...; do grep -n "<BRE alternation with a go vet alternative followed by a space or another alternative>" "$f"; done` was refused as `go vet` run raw; without the loop it passes | open: `commandSegments` splits at every pipe character, quoted ones too, so one piece starts `go vet`, which `rawHeavy` matches since ae3022e659; no reader judge accepts `for` or `do`, so `readerLine` cannot lift the text verdict. Fix: model `for ... do ... done` as a reader construct, with quoted and unquoted `go vet` fixtures |
 | 2026-03-21 | - | hooks | new `.go` file rejected because first exported name collides | fixed: used package-qualified name |
 | 2026-03-25 | - | hooks | generic name `Config` collided with existing type | fixed: renamed to subsystem-prefixed name |
