@@ -297,6 +297,161 @@ func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
 	}
 }
 
+// rawRefusalOf drives one Bash payload through the hook's Run, as a session's
+// call reaches it, and answers the exit code and the refusal text.
+func rawRefusalOf(t *testing.T, command string) (int, string) {
+	t.Helper()
+	code, _, message := runHook(t, t.TempDir(), "pretool-bash", map[string]any{
+		"tool_name":  "Bash",
+		"tool_input": map[string]any{"command": command},
+	})
+	return code, message
+}
+
+// TestRawGoTestRefusalNamesTheShortAction is the replacement the raw-job
+// refusal writes for a raw go test it can express exactly (AC-7).
+//
+// VALIDATES: through the hook's Run, a raw go test is refused with exit 2 and
+// its Use line is the short package action with each of the caller's packages
+// after `path`, in order, and the caller's -run value as `run <regex>`, quoted
+// when the shell would read it otherwise. `-race` is dropped because the
+// action always sets it.
+// PREVENTS: the refusal teaching the tagless long form for the run an agent
+// types most, which compiles out every feature-tagged test.
+func TestRawGoTestRefusalNamesTheShortAction(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		use     string
+	}{
+		{"one-package", `go test ./internal/x/`, "./le test unit pkg path ./internal/x/"},
+		{"two-packages", `go test ./internal/x/ ./internal/y/...`,
+			"./le test unit pkg path ./internal/x/ path ./internal/y/..."},
+		{"run-separate", `go test -run TestX ./internal/x/`, "./le test unit pkg path ./internal/x/ run TestX"},
+		{"run-joined", `go test -run=TestX ./internal/x/`, "./le test unit pkg path ./internal/x/ run TestX"},
+		{"run-quoted", `go test -run '^TestX$' ./internal/x/`, "./le test unit pkg path ./internal/x/ run '^TestX$'"},
+		{"race-dropped", `go test -race ./internal/x/`, "./le test unit pkg path ./internal/x/"},
+		{"import-path", `go test github.com/ze-software/ze/internal/x`,
+			"./le test unit pkg path github.com/ze-software/ze/internal/x"},
+		{"after-a-reader", `git status && go test ./internal/x/`, "./le test unit pkg path ./internal/x/"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			code, message := rawRefusalOf(t, test.command)
+			if code != 2 {
+				t.Fatalf("%q: code %d, want 2: %s", test.command, code, message)
+			}
+			if !strings.Contains(message, "  -- Use: "+test.use+"\n") {
+				t.Errorf("%q: the refusal does not use %q: %s", test.command, test.use, message)
+			}
+			if strings.Contains(message, "label unit-pkg command") {
+				t.Errorf("%q: the refusal still teaches the long form: %s", test.command, message)
+			}
+		})
+	}
+}
+
+// TestRawGoVetIsRefusedNamingTheShortAction is the raw go vet AC-7 adds.
+//
+// VALIDATES: a raw go vet is refused with exit 2 and its Use line is the
+// short action with `vet`, and a go vet the action cannot express (a flag)
+// keeps the long form under the vet-pkg label with the short form named.
+// `ZE_ADMIT_RAW` with a reason passes, and a go vet a reader names is text.
+// PREVENTS: a raw go vet reaching the box unadmitted, which nothing refused
+// before.
+func TestRawGoVetIsRefusedNamingTheShortAction(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		code    int
+		want    []string
+	}{
+		{"one-package", `go vet ./internal/x/`, 2, []string{"  -- Use: ./le test unit pkg path ./internal/x/ vet\n"}},
+		{"two-packages", `go vet ./internal/x/ ./internal/y/`, 2,
+			[]string{"  -- Use: ./le test unit pkg path ./internal/x/ path ./internal/y/ vet\n"}},
+		{"a-flag", `go vet -printf=false ./internal/x/`, 2, []string{
+			"  -- Use: ./le job run label vet-pkg command go vet -printf=false ./internal/x/\n",
+			"takes no other flag: ./le test unit pkg path <package> vet\n"}},
+		{"admitted-raw", `ZE_ADMIT_RAW="one vet of a fixture" go vet ./internal/x/`, 0, nil},
+		{"a-reader", `grep -n "go vet ./internal/x/" f`, 0, nil},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			code, message := rawRefusalOf(t, test.command)
+			if code != test.code {
+				t.Fatalf("%q: code %d, want %d: %s", test.command, code, test.code, message)
+			}
+			if test.code == 0 {
+				return
+			}
+			if !strings.Contains(message, "`go vet` run raw, outside job admission") {
+				t.Errorf("%q: not the raw-job refusal: %s", test.command, message)
+			}
+			for _, want := range test.want {
+				if !strings.Contains(message, want) {
+					t.Errorf("%q: the refusal lacks %q: %s", test.command, want, message)
+				}
+			}
+		})
+	}
+}
+
+// TestRawGoTestWithAnotherFlagKeepsTheLongForm is the survivor of AC-7: a go
+// test the short action cannot express keeps child 1's long admitted form.
+//
+// VALIDATES: one row per class the action cannot carry (a flag it does not
+// supply, a -run value that opens with a dash, a value with a single quote,
+// no package, the whole tree, an assignment, a launcher, a directory change)
+// answers exit 2, a Use line that is the long admitted form of everything the
+// caller typed (an assignment through env, a launcher as typed, the directory
+// the line's literal `cd` changes reach as `env -C`, which holds no separator
+// the hook's split would cut at), and one line naming the short action.
+// PREVENTS: a suggestion that silently drops a flag, an assignment, a
+// launcher or a directory change the caller typed, which would run a
+// different test than the one typed (review I1).
+func TestRawGoTestWithAnotherFlagKeepsTheLongForm(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		use     string
+	}{
+		{"verbose", `go test -v ./internal/x/`, "go test -v ./internal/x/"},
+		{"count", `go test -count=1 ./internal/x/`, "go test -count=1 ./internal/x/"},
+		{"bench", `go test -bench . ./internal/x/`, "go test -bench . ./internal/x/"},
+		{"compile-only", `go test -c ./internal/x/`, "go test -c ./internal/x/"},
+		{"cover", `go test -cover ./internal/x/`, "go test -cover ./internal/x/"},
+		{"json", `go test -json ./internal/x/`, "go test -json ./internal/x/"},
+		{"args", `go test ./internal/x/ -args -update`, "go test ./internal/x/ -args -update"},
+		{"tags", `go test -tags ze_bgp ./internal/x/`, "go test -tags ze_bgp ./internal/x/"},
+		{"run-twice", `go test -run A -run B ./internal/x/`, "go test -run A -run B ./internal/x/"},
+		{"run-dash", `go test -run=-x ./internal/x/`, "go test -run=-x ./internal/x/"},
+		{"run-single-quote", `go test -run "it's" ./internal/x/`, `go test -run 'it'\''s' ./internal/x/`},
+		{"no-package", `go test`, "go test"},
+		{"whole-tree", `go test ./...`, "go test ./..."},
+		{"assignment", `GOFLAGS=-count=1 go test ./internal/x/`, "env GOFLAGS=-count=1 go test ./internal/x/"},
+		{"launcher", `timeout 60 go test ./internal/x/`, "timeout 60 go test ./internal/x/"},
+		{"directory-change", `cd internal && go test ./x/`, "env -C internal go test ./x/"},
+		{"two-directory-changes", `cd internal && cd le; go test ./x/`, "env -C internal/le go test ./x/"},
+		{"absolute-directory-change", `cd internal && cd /srv/ze && go test ./x/`, "env -C /srv/ze go test ./x/"},
+		{"directory-change-and-assignment", `cd internal && GOFLAGS=-count=1 go test ./x/`,
+			"env -C internal GOFLAGS=-count=1 go test ./x/"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			code, message := rawRefusalOf(t, test.command)
+			if code != 2 {
+				t.Fatalf("%q: code %d, want 2: %s", test.command, code, message)
+			}
+			if !strings.Contains(message, "  -- Use: ./le job run label unit-pkg command "+test.use+"\n") {
+				t.Errorf("%q: the refusal lacks the long form of %q: %s", test.command, test.use, message)
+			}
+			if !strings.Contains(message, "takes no other flag: ./le test unit pkg path <package> [run <regex>]\n") {
+				t.Errorf("%q: the refusal does not name the short action: %s", test.command, message)
+			}
+		})
+	}
+}
+
 // TestLossyPipeRefusalNamesTheQuietAdmittedForm is the command the
 // piped-command refusal teaches (AC-12).
 //
@@ -314,6 +469,16 @@ func TestLossyPipeRefusalNamesTheQuietAdmittedForm(t *testing.T) {
 	}{
 		{"go-test", `go test -run TestX ./internal/x/ | tail -5`,
 			[]string{"./le job run label unit-pkg quiet command go test -run TestX ./internal/x/\n", "./le test unit pkg path <package>"}},
+		// Review I1: a quoted argument holding a bar or a space is advised as
+		// the same one argument, the package kept.
+		{"quoted-alternation", `go test -run 'TestA|TestB' ./internal/x/ | tail -5`,
+			[]string{"./le job run label unit-pkg quiet command go test -run 'TestA|TestB' ./internal/x/\n"}},
+		// Review I2: the expensive command advised is the one the filter
+		// reads, not the first of the line.
+		{"filter-in-a-later-statement", `go test ./a > /dev/null; go test ./b | tail -5`,
+			[]string{"./le job run label unit-pkg quiet command go test ./b\n"}},
+		{"quoted-space", `go test -run 'Test A$' ./internal/x/ | tail -5`,
+			[]string{"./le job run label unit-pkg quiet command go test -run 'Test A$' ./internal/x/\n"}},
 		{"go-test-assignment-and-redirect", `GOFLAGS=-count=1 go test ./internal/x/ 2>&1 | grep FAIL`,
 			[]string{"./le job run label unit-pkg quiet command go test ./internal/x/\n"}},
 		{"lint", `golangci-lint run ./internal/x/ | head -20`,
@@ -604,7 +769,38 @@ func testDeletionAsked(t *testing.T, command string) (bool, string) {
 		"tool_name":  "Bash",
 		"tool_input": map[string]any{"command": command},
 	})
-	return strings.Contains(message, "Test deletion - user approval required"), message
+	return strings.Contains(message, "Test deletion - the agent cannot approve it"), message
+}
+
+// TestTestDeletionFixNamesThePathAndTheRoute is review N1.
+//
+// VALIDATES: an rm of a test path is refused with a fix line naming that
+// path after `remove`; a git checkout that discards test changes is told to
+// leave them, never to `remove` the file; the header no longer asks for an
+// approval the body says the agent cannot give.
+// PREVENTS: a placeholder fix for a path the hook already knows, and a
+// deletion route advised for a discard.
+func TestTestDeletionFixNamesThePathAndTheRoute(t *testing.T) {
+	asked, message := testDeletionAsked(t, "rm internal/x/a_test.go")
+	if !asked {
+		t.Fatalf("rm of a test path was not refused: %s", message)
+	}
+	if !strings.Contains(message, "./le commit create ... remove internal/x/a_test.go") {
+		t.Errorf("the fix does not name the path: %s", message)
+	}
+	asked, message = testDeletionAsked(t, "git checkout -- internal/x/a_test.go")
+	if !asked {
+		t.Fatalf("a discard of test changes was not refused: %s", message)
+	}
+	if strings.Contains(message, "remove ") {
+		t.Errorf("a discard is advised as a removal: %s", message)
+	}
+	if !strings.Contains(message, "leave the changes in place") {
+		t.Errorf("the discard refusal does not say to keep the changes: %s", message)
+	}
+	if strings.Contains(message, "user approval required") {
+		t.Errorf("the header still asks for an approval: %s", message)
+	}
 }
 
 // TestTestDeletionAsksOnlyForATestPath drives the pretool-bash hook with lines
@@ -728,22 +924,39 @@ func TestTestDeletionJudgesOnlyTheArgumentsOfAPlainRm(t *testing.T) {
 // tells an agent to do (AC-15).
 //
 // VALIDATES: the refusal says the agent cannot approve the deletion, names
-// the commit route for a tracked test, and sends anything else to the main
-// thread.
-// PREVENTS: a refusal that ends in a question an agent cannot answer.
+// the commit route for a tracked test with the real path an rm reaches (the
+// placeholder only when the line names no path), tells a git checkout --
+// discard to leave the changes in place with no remove route, and sends
+// anything else to the main thread (review N1).
+// PREVENTS: a refusal that ends in a question an agent cannot answer, hides
+// the path it knows, or advises deleting a file whose changes were discarded.
 func TestTestDeletionRefusalNamesTheNextAction(t *testing.T) {
-	for _, command := range []string{`rm internal/x/foo_test.go`, `git checkout -- internal/foo/foo_test.go`, `rm 'unclosed_quote`} {
+	for _, row := range []struct {
+		command string
+		want    []string
+		banned  []string
+	}{
+		{`rm internal/x/foo_test.go`, []string{"./le commit create ... remove internal/x/foo_test.go"}, nil},
+		{`git checkout -- internal/foo/foo_test.go`,
+			[]string{"git checkout -- is forbidden (AGENTS.md): leave the changes in place"}, []string{"remove"}},
+		{`rm 'unclosed_quote`, []string{"./le commit create ... remove <path>"}, nil},
+	} {
+		command := row.command
 		refusal := guardVerdict(bashTestDeletion, t.TempDir(), command)
 		if refusal == nil || refusal.code != 2 {
 			t.Fatalf("%q: verdict %+v, want the test-deletion refusal", command, refusal)
 		}
-		for _, want := range []string{
+		for _, want := range append([]string{
 			"cannot approve that",
-			"./le commit create ... remove <path>",
 			"report the path and the reason to the main thread",
-		} {
+		}, row.want...) {
 			if !strings.Contains(refusal.message, want) {
 				t.Errorf("%q: the refusal lacks %q: %s", command, want, refusal.message)
+			}
+		}
+		for _, banned := range row.banned {
+			if strings.Contains(refusal.message, banned) {
+				t.Errorf("%q: the refusal holds %q: %s", command, banned, refusal.message)
 			}
 		}
 		if strings.Contains(refusal.message, "?") {
@@ -1268,6 +1481,32 @@ func TestRootBuildRefusesTheWholeTree(t *testing.T) {
 		}
 		if !strings.Contains(result.message, "./le repo changed scope print both") {
 			t.Errorf("%q: the refusal does not name the scoped command: %s", command, result.message)
+		}
+	}
+}
+
+// TestBuildTreeRefusalNamesWhatItJudged is the build guard's text path for a
+// `...` pattern under one directory (review N5).
+//
+// VALIDATES: a subtree pattern the text judges (the line does not parse) is
+// still refused, and neither the header nor the advice calls it the whole
+// tree; the advice still names the scoped command.
+// PREVENTS: a refusal that misnames what the caller typed.
+func TestBuildTreeRefusalNamesWhatItJudged(t *testing.T) {
+	root := goBuildTree(t)
+	command := `go build ./internal/x/... 'unterminated`
+	result := guardVerdict(bashRootBuild, root, command)
+	if result == nil || result.code != 2 {
+		t.Fatalf("%q: verdict %+v, want the build refusal", command, result)
+	}
+	for _, banned := range []string{"whole-tree", "the whole tree is"} {
+		if strings.Contains(result.message, banned) {
+			t.Errorf("%q: the refusal holds %q: %s", command, banned, result.message)
+		}
+	}
+	for _, want := range []string{"package tree", "./le repo changed scope print both"} {
+		if !strings.Contains(result.message, want) {
+			t.Errorf("%q: the refusal lacks %q: %s", command, want, result.message)
 		}
 	}
 }

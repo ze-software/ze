@@ -37,7 +37,7 @@ Run the native extraction action:
 1. Read both files -- verify they look correct
 2. Check destination has `// Design:` annotation (add if missing -- inherit from source)
 3. Check both files have `// Related:` annotations pointing to each other (add if missing)
-4. Run `go vet` on the package to verify compilation
+4. Vet the package to verify compilation: `./le test unit pkg path <package> vet` (a raw `go vet` is refused by the Bash hook)
 5. Report what was moved and line counts for both files
 
 ### If Destination Is New
@@ -56,4 +56,4 @@ If extraction fails or produces broken code:
 
 ## Done when
 
-Done when the symbols are in the destination file, both files carry their `// Design:` and `// Related:` annotations, `go vet` passes on the package, and the report gives what moved and the line count of both files.
+Done when the symbols are in the destination file, both files carry their `// Design:` and `// Related:` annotations, `./le test unit pkg path <package> vet` passes, and the report gives what moved and the line count of both files.

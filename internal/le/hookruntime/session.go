@@ -356,7 +356,9 @@ func bashAgentIdentity(ctx context) *verdict {
 	}
 	command := stringInput(ctx.input, "command")
 	own := identityLine(agent, session)
-	if rest, carries := strings.CutPrefix(command, own); carries {
+	// Leading whitespace runs nothing, so the agent's own exact line after it
+	// is the agent's line (review N4); every other check reads it as typed.
+	if rest, carries := strings.CutPrefix(strings.TrimLeft(command, " \t\n"), own); carries {
 		if takesAnotherIdentity(rest) {
 			return anotherIdentityVerdict(own, "After its identity line a command changes the environment (export, env, exec, sudo, set and the like, or an assignment to a name that is not plain),"+
 				" or a command other than a reader names "+agentVariable+" or "+sessionVariable+", which can set, unset or drop the identity.")
@@ -373,10 +375,33 @@ func bashAgentIdentity(ctx context) *verdict {
 	return &verdict{2, red + bold + "BLOCKED: this subagent command needs the agent's identity line in front of it" + reset +
 		"\n  It holds " + outsider + "." +
 		"\n  Such a command can start ./le, and without the line ./le acts as the main thread: it shares the main thread's commit namespace and spec claim." +
-		"\n  Next: type the command again with this line in front of it, exactly as printed. The hook checks the line and never adds it:" +
-		"\n  " + own +
 		"\n  A command made only of these readers needs no line (git only as `git <read verb>`): " +
-		strings.Join(slices.Sorted(maps.Keys(readerCommands)), ", ")}
+		strings.Join(slices.Sorted(maps.Keys(readerCommands)), ", ") +
+		"\n  Next: type the command again with this line in front of it, exactly as printed. The hook checks the line and never adds it:" +
+		"\n  " + own}
+}
+
+// commandIdentityPrefix answers the identity line a command another refusal
+// advises must start with: the caller's own line for a subagent (an agent id
+// or a fork), so that following the advice is not refused by
+// bashAgentIdentity, and "" for the main thread. A payload whose identity
+// cannot be typed answers "" too, because bashAgentIdentity refuses that
+// caller's every command with stop-and-report before any advice applies.
+func commandIdentityPrefix(ctx context) string {
+	agent := ctx.payload.AgentID
+	if agent == "" && os.Getenv("CLAUDE_CODE_FORK_SUBAGENT") == "" {
+		return ""
+	}
+	session, _ := payloadSessionID(ctx.payload)
+	if session == "" {
+		return ""
+	}
+	if agent != "" {
+		if _, err := lepath.AgentFingerprint(session, agent); err != nil {
+			return ""
+		}
+	}
+	return identityLine(agent, session)
 }
 
 // anotherIdentityVerdict refuses a subagent command that would run under an

@@ -5,6 +5,7 @@ package testunit
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/le/hookruntime"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -17,6 +18,10 @@ func init() {
 		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(Area, Actions)
+
+	// The raw-job refusal advises `pkg path <package>` only for a package
+	// this action runs, judged by the action's own refusal (PackageRuns).
+	hookruntime.RegisterPackageRuns(PackageRuns)
 
 	// A listing and a sweep have different row shapes. Document rendering keeps
 	// both structured answers available without claiming one common row set.

@@ -22,6 +22,7 @@ const area = "commit"
 const (
 	keywordSubject     = "subject"
 	keywordBody        = "body"
+	keywordBodyFile    = "body-file"
 	keywordFile        = "file"
 	keywordFileList    = "file-list"
 	keywordRemove      = "remove"
@@ -484,6 +485,8 @@ func reasonParameter(keyword, help string) leaction.Parameter {
 var createParameters = []leaction.Parameter{
 	subjectParameter,
 	bodyParameter,
+	{Keyword: keywordBodyFile, Kind: leaction.KindPath, Value: valuePath, Requirement: leaction.Optional,
+		Help: "a file whose text is the body, wrapped as body is"},
 	{Keyword: keywordFile, Kind: leaction.KindPath, Value: valuePath, Requirement: leaction.Optional, Repeat: true,
 		Help: "one explicit file to stage, never a directory"},
 	{Keyword: keywordFileList, Kind: leaction.KindPath, Value: "list", Requirement: leaction.Optional, Repeat: true,
@@ -548,7 +551,8 @@ var createPolicy = map[string]keywordPolicy{
 	keywordSession:        {Given: givenText(func(o *Options) string { return o.Session }), WithAttest: true},
 	keywordTag:            {Given: givenText(func(o *Options) string { return o.Tag }), WithAttest: true},
 	keywordSubject:        {Given: givenText(func(o *Options) string { return o.Subject }), WithAttest: true},
-	keywordBody:           {Given: func(o *Options) bool { return len(o.Body) != 0 }, WithAttest: true},
+	keywordBody:           {Given: givenBody, WithAttest: true},
+	keywordBodyFile:       {Given: givenBody, WithAttest: true},
 	keywordFile:           {Given: givenFiles},
 	keywordFileList:       {Given: givenFiles},
 	keywordHunks:          {Given: func(o *Options) bool { return len(o.Hunks) != 0 }},
@@ -578,6 +582,10 @@ func givenText(value func(*Options) string) func(*Options) bool {
 func givenFiles(o *Options) bool  { return len(o.Files) != 0 }
 func givenRemove(o *Options) bool { return len(o.Remove) != 0 }
 
+// givenBody reads body and body-file, which a file's text expands into the
+// same field.
+func givenBody(o *Options) bool { return len(o.Body) != 0 }
+
 // parseCreate reads a create line through the table, as Answer does, and
 // answers the Options it names. It runs nothing.
 func parseCreate(args []string) (Options, error) {
@@ -600,6 +608,10 @@ func optionsOf(args leaction.Arguments) (Options, error) {
 	if err != nil {
 		return Options{}, err
 	}
+	body, err := bodyOf(args.Values(keywordBody), args.One(keywordBodyFile), args.Has(keywordBodyFile))
+	if err != nil {
+		return Options{}, err
+	}
 	var attest [2]string
 	if pairs := args.Pairs(keywordAttest); len(pairs) != 0 {
 		attest = pairs[0]
@@ -610,7 +622,7 @@ func optionsOf(args leaction.Arguments) (Options, error) {
 	}
 	return Options{
 		Session: args.One(keywordSession), Tag: args.One(keywordTag), Subject: args.One(keywordSubject),
-		Body: args.Values(keywordBody), Files: files, Hunks: hunkSelections(args.Values(keywordHunks)), Remove: removed,
+		Body: body, Files: files, Hunks: hunkSelections(args.Values(keywordHunks)), Remove: removed,
 		Script: args.One(keywordScript), Append: args.Has(keywordAppend), Replace: args.Has(keywordReplace),
 		NoTest:         args.One(keywordNoTest),
 		ReviewOverride: args.One(keywordReviewOverride),

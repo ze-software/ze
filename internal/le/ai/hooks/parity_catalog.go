@@ -7,7 +7,7 @@ package aihooks
 // the former producer and is part of the structured answer contract.
 var parityCatalog = [...]parityTable{
 	{
-		key: "BASH_GOLDEN", name: "bash-dispatcher-golden", expected: 80, judge: bashCode,
+		key: "BASH_GOLDEN", name: "bash-dispatcher-golden", expected: 83, judge: bashCode,
 		fixtures: []parityFixture{
 			{name: "cat /tmp/x", expectedCode: 2},
 			{name: "cat tmp/x", expectedCode: 0},
@@ -93,6 +93,11 @@ var parityCatalog = [...]parityTable{
 			{name: "grep -n 'go test ./x | tail' f", expectedCode: 0},
 			{name: "grep -rn golangci-lint ai/rules", expectedCode: 0},
 			{name: "go test ./x | tail -5", expectedCode: 2},
+			// spec-agent-economy-2-scoped-test AC-7: a raw go vet is refused,
+			// a go vet a reader names is text, and ZE_ADMIT_RAW passes it.
+			{name: "go vet ./internal/core/env", expectedCode: 2},
+			{name: "grep -n 'go vet ./x' f", expectedCode: 0},
+			{name: "ZE_ADMIT_RAW=\"one vet of a fixture\" go vet ./internal/core/env", expectedCode: 0},
 			// AC-16: a tmp directory under a literal parent is not /tmp.
 			{name: "cat foo/tmp/x", expectedCode: 0},
 		},

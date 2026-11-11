@@ -163,6 +163,45 @@ func readPathList(name string) ([]string, error) {
 	return paths, nil
 }
 
+// bodyOf answers the body chunks a create line gives: the body keyword's
+// chunks, or the text of the one body-file when given is set.
+//
+// A body typed inline is a shell word of the Bash call, so prose that names an
+// environment-changing word (export, env, unset) or quotes a heavy command
+// (go build ./...) is judged by the Bash hook as if it ran, and the commit
+// cannot be prepared. Written to a file with the Write tool, the same prose is
+// data. The file's text is one chunk: wrapBody wraps each of its lines and
+// reads a blank line as a paragraph break, and the trailer refusal reads the
+// lines it emits, exactly as for a body chunk. The file is read from the
+// working directory, as a path list is.
+func bodyOf(chunks []string, file string, given bool) ([]string, error) {
+	if given {
+		return bodyFromFile(chunks, file)
+	}
+	return chunks, nil
+}
+
+// bodyFromFile reads the body-file. A line that also gives body has no single
+// body, and a file holding no text would commit an empty one the author meant
+// to fill, so both are refused.
+func bodyFromFile(chunks []string, file string) ([]string, error) {
+	if len(chunks) != 0 {
+		return nil, fmt.Errorf("%s and %s both give the commit body, so neither can be taken as the one meant: "+
+			"put the whole body in %s and drop every %s keyword, or drop %s", keywordBody, keywordBodyFile,
+			file, keywordBody, keywordBodyFile)
+	}
+	content, err := os.ReadFile(file) //nolint:gosec // the body file is a path the caller named on the command line
+	if err != nil {
+		return nil, fmt.Errorf("read body file %s: %w; write the body to that path with the Write tool, or drop %s",
+			file, err, keywordBodyFile)
+	}
+	if strings.TrimSpace(string(content)) == "" {
+		return nil, fmt.Errorf("body file %s holds no text: write the body into it, or drop %s for a commit with no body",
+			file, keywordBodyFile)
+	}
+	return []string{string(content)}, nil
+}
+
 func gitExit(root string, args ...string) (int, error) {
 	command := exec.CommandContext(context.Background(), "git", args...) // #nosec G204 -- executable and verbs are closed; paths are argv.
 	command.Dir = root

@@ -108,8 +108,19 @@ func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
 		{
 			name:    "payload-without-agent-id",
 			payload: map[string]any{"session_id": "context-parent"},
-			want:    []string{"\nexport CLAUDE_CODE_SESSION_ID=context-parent; \n", "first refusal"},
-			absent:  []string{"ZE_AGENT_ID="},
+			// Review N2: with no agent id the session part is the whole line
+			// the identity check compares, so no later refusal prints more.
+			want:   []string{"\nexport CLAUDE_CODE_SESSION_ID=context-parent; \n", "your whole identity line"},
+			absent: []string{"ZE_AGENT_ID=", "first refusal"},
+		},
+		{
+			// Review N2: an agent id that cannot name a file gets no line to
+			// type; every command, readers included, is refused with
+			// stop-and-report (review I3), and the start text says so.
+			name:    "payload-with-an-unusable-agent-id",
+			payload: map[string]any{"session_id": "context-parent", "agent_id": "a/b"},
+			want:    []string{"stop and report the agent id to the main thread", "refuses every command, readers included"},
+			absent:  []string{"ZE_AGENT_ID=", "first refusal"},
 		},
 	}
 	for _, test := range tests {

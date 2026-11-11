@@ -241,7 +241,9 @@ func bashRootBuild(ctx context) *verdict {
 	case goBuildBinary:
 		return &verdict{2, red + bold + "✘ BLOCKED: go build without -o bin/" + reset + "\n\n" + advice}
 	case goBuildWholeTree:
-		return &verdict{2, red + bold + "✘ BLOCKED: a whole-tree go build" + reset + "\n\n" + advice}
+		// The outcome also holds a text-judged `...` pattern under one
+		// directory (goBuildText), so the header names a tree of packages.
+		return &verdict{2, red + bold + "✘ BLOCKED: a go build of a package tree (a `...` pattern)" + reset + "\n\n" + advice}
 	case goBuildUnspecified:
 	}
 	return &verdict{2, red + bold + "✘ BLOCKED: BUG: the go build judgment answered no outcome" + reset}
@@ -449,10 +451,10 @@ func bashLossyPipe(ctx context) *verdict {
 		}
 		for _, segment := range segments[1:] {
 			fields := strings.Fields(segment)
-			if len(fields) == 0 || !oneOf(fields[0], "head", "tail", "grep", "egrep", "fgrep", "awk", "sed", catCommand, "less", "more") {
+			if len(fields) == 0 || !lossyFilter(fields[0]) {
 				continue
 			}
-			return lossyPipeRefusal(fields[0], expensive)
+			return lossyPipeRefusal(commandIdentityPrefix(ctx), fields[0], advisedSegment(command, expensive))
 		}
 	}
 	return nil
@@ -472,52 +474,6 @@ func commandSegments(command string) []string {
 	return out
 }
 
-func rawHeavy(segment string) (string, string) {
-	tokens := shellWords(segment)
-	if len(tokens) == 0 {
-		return "", ""
-	}
-	for len(tokens) != 0 {
-		head := tokens[0]
-		if strings.HasPrefix(head, "ZE_ADMIT_RAW=") && strings.Trim(strings.TrimPrefix(head, "ZE_ADMIT_RAW="), "'\"") != "" {
-			return "", ""
-		}
-		if strings.Contains(strings.Split(head, "/")[0], "=") {
-			tokens = tokens[1:]
-			continue
-		}
-		if oneOf(head, "bash", "sh", "perl", "ruby", "sudo", "time", "nice", "env", "timeout") {
-			tokens = tokens[1:]
-			for len(tokens) != 0 && (strings.HasPrefix(tokens[0], "-") || regexp.MustCompile(`^\d+(?:\.\d+)?[smhd]?$`).MatchString(tokens[0])) {
-				tokens = tokens[1:]
-			}
-			continue
-		}
-		break
-	}
-	if len(tokens) == 0 {
-		return "", ""
-	}
-	base := filepath.Base(tokens[0])
-	if goTest(tokens) {
-		return "`go test`", admittedCommand("unit-pkg", false, tokens)
-	}
-	if base == lintCommand {
-		sub := ""
-		for _, token := range tokens[1:] {
-			if !strings.HasPrefix(token, "-") {
-				sub = token
-				break
-			}
-		}
-		if oneOf(sub, "config", "version", "help", "linters", "cache", "completion") {
-			return "", ""
-		}
-		return "`golangci-lint`", admittedCommand("lint", false, tokens)
-	}
-	return "", ""
-}
-
 // admittedCommand writes the job-admission form of a command a refusal
 // advises: `./le job run label <label> [quiet] command <argv>`. quiet sends
 // the child's output to this session's scratch log rather than the
@@ -527,7 +483,25 @@ func admittedCommand(label string, quiet bool, tokens []string) string {
 	if quiet {
 		form += " quiet"
 	}
-	return form + " command " + strings.Join(tokens, " ")
+	var advice strings.Builder
+	advice.WriteString(form)
+	advice.WriteString(" command")
+	// Each word is written back as one shell word, so a value the caller
+	// quoted (`-run 'TestA|TestB'`) is advised as the same argument.
+	for _, token := range tokens {
+		advice.WriteByte(' ')
+		advice.WriteString(quotedWord(token))
+	}
+	return advice.String()
+}
+
+// quotedWord writes value as one shell word whatever it holds: as it is, or
+// single-quoted with each single quote closed, escaped and reopened.
+func quotedWord(value string) string {
+	if word, written := shellWord(value); written {
+		return word
+	}
+	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
 }
 
 // ze point: commands/directives/heavy-jobs-are-admitted-by-native-actions-never-typed-raw
@@ -540,15 +514,40 @@ func bashRawHeavy(ctx context) *verdict {
 	if _, reader := readerLine(command); reader {
 		return nil
 	}
+	var moves []string
 	for _, segment := range commandSegments(command) {
-		what, replacement := rawHeavy(segment)
-		if what == "" {
+		if words := shellWords(segment); len(words) != 0 && oneOf(words[0], "cd", "pushd") {
+			moves = append(moves, segment)
 			continue
 		}
-		return &verdict{2, "❌ Blocked: " + what + " run raw, outside job admission (ai/rules/commands.md)\n" +
+		text := rawHeavy(segment, moves, ctx.root)
+		if text.what == "" {
+			continue
+		}
+		// The text split decides the verdict; the advice comes from the
+		// modeled line, quotes intact (rawAdvice).
+		refusal := rawAdvice(command, ctx.root, text)
+		short := ""
+		if refusal.short != "" && refusal.vet {
+			short = "  -- The short form vets a package with its feature tags,\n" +
+				"     and takes no other flag: " + refusal.short + "\n"
+		}
+		if refusal.short != "" && !refusal.vet {
+			short = "  -- The short form tests a package with its feature tags and the race detector,\n" +
+				"     and takes no other flag: " + refusal.short + "\n"
+		}
+		moved := ""
+		if refusal.uncarried != "" {
+			moved = "  -- Your line changes directory first (" + refusal.uncarried + "), which this form cannot carry:\n" +
+				"     run it from the directory that change reaches, or name that directory as\n" +
+				"     `env -C <dir>` in front of the program.\n"
+		}
+		// The Use line starts with the caller's identity line, so a subagent
+		// following it is not refused by bashAgentIdentity (review N7).
+		return &verdict{2, "❌ Blocked: " + refusal.what + " run raw, outside job admission (ai/rules/commands.md)\n" +
 			"  -- One machine, several sessions: registered `./le` actions admit\n" +
 			"     their own heavy work. A raw tool reaches the box unadmitted.\n" +
-			"  -- Use: " + replacement + "\n" +
+			"  -- Use: " + commandIdentityPrefix(ctx) + refusal.use + "\n" + moved + short +
 			"  -- Generic form:\n     ./le job run label <label> command <argv...>\n" +
 			"  -- A one-off that must not queue states its reason:\n" +
 			"     ZE_ADMIT_RAW=\"bisecting one 2s case\" <command>"}
@@ -613,7 +612,8 @@ func bashSystemTmp(ctx context) *verdict {
 	if !namesSystemTmp(command) {
 		return nil
 	}
-	return &verdict{2, "❌ Blocked: /tmp access is forbidden\nUse this session's own scratch dir instead:\n  dir=$(./le session scratch ensure)   # <session-dir>/scratch/\n  <command> > \"$dir/<name>\""}
+	return &verdict{2, "❌ Blocked: /tmp access is forbidden\nUse this session's own scratch dir instead:\n  " +
+		commandIdentityPrefix(ctx) + "dir=$(./le session scratch ensure)   # <session-dir>/scratch/\n  <command> > \"$dir/<name>\""}
 }
 
 // ze point: commands/write-ad-hoc-scratch-under-your-per-session-dir/write-ad-hoc-scratch-under-this-session-s-private-directory
@@ -635,7 +635,7 @@ func bashScratch(ctx context) *verdict {
 	}
 	return &verdict{2, red + bold + "❌ Refused: the command writes ad-hoc scratch at the tmp/ root: " + strings.Join(offenders, ", ") + reset + "\n" +
 		"  -- tmp/ is keyed per CHECKOUT, so that name is one file for every session in this tree, and nothing removes it.\n" +
-		"  -- Use: dir=$(./le session scratch ensure); <command> > \"$dir/out.log\"\n" +
+		"  -- Use: " + commandIdentityPrefix(ctx) + "dir=$(./le session scratch ensure); <command> > \"$dir/out.log\"\n" +
 		"  -- A subdirectory passes, and so do the root names that are shared by design: ze-verify*, commit-*, delete-*, mutation*, test-timings*\n" +
 		"  -- ai/rules/commands.md, 'Write Ad-Hoc Scratch Under Your Per-Session Dir'"}
 }
@@ -722,6 +722,10 @@ const testElement = "test"
 func bashTestDeletion(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	errors := make([]string, 0, 2)
+	// deleted holds each test path an rm reaches, and discarded reports a
+	// git checkout that discards test changes: the fix differs for the two.
+	deleted := make([]string, 0, 2)
+	discarded := false
 	words, parsed := lineWords(command)
 	if !parsed && rmWord.MatchString(command) {
 		errors = append(errors, "Cannot split the command into words (an unclosed quote or a trailing backslash), so what its rm deletes is unknown: "+command)
@@ -734,24 +738,40 @@ func bashTestDeletion(ctx context) *verdict {
 		for _, word := range judged {
 			if testPath(word) {
 				errors = append(errors, "Attempting to delete test path "+word+" via: "+command)
+				deleted = append(deleted, word)
 			}
 		}
 	}
 	if regexp.MustCompile(`git checkout.*(_test\.go|\.ci)`).MatchString(command) && regexp.MustCompile(`git checkout (--|[.])`).MatchString(command) {
 		errors = append(errors, "Attempting to discard test file changes: "+command)
+		discarded = true
 	}
 	if len(errors) == 0 {
 		return nil
 	}
-	lines := []string{red + bold + "❌ Blocked: Test deletion - user approval required" + reset, ""}
+	// The header and the body say the same thing: the agent cannot approve
+	// it, and the route is the commit or the main thread (review N1).
+	lines := []string{red + bold + "❌ Blocked: Test deletion - the agent cannot approve it" + reset, ""}
 	for _, problem := range errors {
 		lines = append(lines, "  → "+problem)
 	}
 	lines = append(lines, "",
-		"  -- A deleted test takes its coverage with it, and the agent that deletes it cannot approve that (ai/rules/testing.md).",
-		"  -- A tracked test that the agreed work removes is deleted by the commit that lands the work. Leave the file in place and name it:",
-		"     ./le commit create ... remove <path>",
-		"  -- Otherwise do not delete it: report the path and the reason to the main thread.")
+		"  -- A deleted test takes its coverage with it, and the agent that deletes it cannot approve that (ai/rules/testing.md).")
+	if len(deleted) != 0 || !parsed {
+		lines = append(lines,
+			"  -- A tracked test that the agreed work removes is deleted by the commit that lands the work. Leave the file in place and name it:")
+		if len(deleted) == 0 {
+			lines = append(lines, "     ./le commit create ... remove <path>")
+		}
+		for _, path := range deleted {
+			lines = append(lines, "     ./le commit create ... remove "+quotedWord(path))
+		}
+	}
+	if discarded {
+		lines = append(lines,
+			"  -- Discarding a test's changes reverts work, and git checkout -- is forbidden (AGENTS.md): leave the changes in place.")
+	}
+	lines = append(lines, "  -- Otherwise do not delete or discard it: report the path and the reason to the main thread.")
 	return &verdict{2, strings.Join(lines, "\n")}
 }
 

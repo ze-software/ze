@@ -7,8 +7,8 @@
 | Priority | P1 |
 | Release reason | Release-independent development tooling: it adds a short `le` action for scoped tests and changes no shipped binary. |
 | RFC gaps | - |
-| Depends | plan/post-release/engineering/spec-agent-economy-1-call-shape.md |
-| Phase | - |
+| Depends | - |
+| Phase | 6 of 7 done (the refusal messages and AC-13); phase 7 next |
 | Handoff | - |
 | Updated | 2026-11-11 |
 
@@ -270,6 +270,7 @@ How a package is matched against a group: the `path` value, or the selector's pa
 | AC-9 | A commit body holding one word longer than the line | Accepted: the word sits on a line of its own, with its indent, and the lines around it wrap as before | A subject over the limit and a hand-written trailer line stay refused |
 | AC-10 | `docs/contributing/testing.md`, `docs/contributing/running-commands.md`, `docs/guide/developer-setup.md`, the rule point, the door and the setup note | Each one-package example is the short action. An example that keeps the long form carries the tags. Every example spells the launcher `./le` | The long form stays documented as the generic route for any other command |
 | AC-11 | A `path` under a group that declares its own tags (the installer), a `path` that holds such a group, or a `changed` answer reaching such a package | A named `path`, under the group or holding it, is refused with exit 2 before admission: the message names the group and the command `./le test unit <group>`. A package `changed` reached is left out of the run, and the answer carries one line naming it and that command | Under the feature tags the package's tagged tests compile out while its untagged ones run, so a green would cover part of the package and read as all of it. Not covered, and stated in Known Limitations: tests behind a tag no table declares (`integration`), and files guarded by the absence of a feature tag |
+| AC-13 | `./le commit create ... body-file <path>`, the file written with the Write tool. Added in phase 6: an inline body that names an environment-changing word or a heavy command is refused by the Bash hook | The file's text is the body, wrapped and gated exactly as `body` chunks holding the same text: each line wrapped at 72 with its indent, a blank line a paragraph break, a line starting with a declared trailer key refused. The keyword is one row of the create table, so `le help`, completion and the grammar derive it, and `docs/contributing/committing.md` lists it. It also needs one `createPolicy` entry (`internal/le/commit/actions.go`), which every live create keyword carries: it gives the body-file the same attestation as `body` | `body` is unchanged. `body` beside `body-file` is refused with exit 2, naming both and the fix. A missing file and a file holding no text are refused with exit 2, naming the file and the fix |
 | AC-12 | A `pkg` line with neither `path` nor `changed`; with both; with `run` and `vet`; a `path` value that begins with a dash; a `path` of `./...`; a `path` equal to a group's whole pattern; a `path` that holds two or more groups | Refused with exit 2 before admission, naming the word at fault and the form that works. The dash is refused by the parser (`keywordValue`). `./...` names `./le test unit all` as the owner's run. A group's pattern names `./le test unit <group>`. A value holding two or more groups is refused as a near-whole-tree run, naming the groups it spans and the `path` form for the packages meant | A sub-package of a group that declares no tags runs: it is the scoped test this action exists for. A value ending in `/...` that lies inside one group, or holds no group directory, runs. A value holding exactly one group that declares no tags runs: it spans less than two groups and hides no test |
 
 ## 🧪 TDD Test Plan
@@ -314,7 +315,23 @@ How a package is matched against a group: the `path` value, or the selector's pa
 | `TestMessageStillRefusesAnOverLongSubject` | `internal/le/commit/input_test.go` | AC-9 survivor | |
 | `TestRawGoTestRefusalNamesTheShortAction` | `internal/le/hookruntime/bash_test.go` | AC-7 through the hook's `Run` | |
 | `TestRawGoVetIsRefusedNamingTheShortAction` | `internal/le/hookruntime/bash_test.go` | AC-7 | |
-| `TestRawGoTestWithAnotherFlagKeepsTheLongForm` | `internal/le/hookruntime/bash_test.go` | AC-7 survivor, one row per flag class | |
+| `TestRawGoTestWithAnotherFlagKeepsTheLongForm` | `internal/le/hookruntime/bash_test.go` | AC-7 survivor, one row per flag class; the long form keeps an assignment (env), a launcher and a directory change (env -C, re-review ISSUE), review I1 | |
+| `TestRawGoTestAdviceKeepsAQuotedFilter` | `internal/le/hookruntime/rawheavy_test.go` | AC-7, review I1: the raw-job block keeps a quoted -run value and its package, piped or not, and an assignment through env | |
+| `TestRawGoVetShortLineSaysVet` | `internal/le/hookruntime/rawheavy_test.go` | AC-7, review N6: the vet short line says vet | |
+| `TestRawGoTestMoveTheFormCannotCarry` | `internal/le/hookruntime/rawheavy_test.go` | AC-7, re-review ISSUE: a move `env -C` cannot express keeps the long form with no move and a sentence naming it | |
+| `TestRefusalAdviceIsAcceptedByTheHook` | `internal/le/hookruntime/rawheavy_test.go` | AC-7 and AC-12, re-review ISSUE and N7: every advised command passes the whole pretool-bash hook, main thread and subagent, a subagent's behind its identity line | |
+| `TestRawJobAdviceUsesTheActionsOwnWords` | `internal/le/test/unit/hook_advice_test.go` | re-review N6: the hook's copied labels, command and keywords equal the action's constants | |
+| `TestRawGoTestAdvisesTheShortFormOnlyWhereTheActionRuns` | `internal/le/test/unit/hook_advice_test.go` | AC-7 with AC-11 and AC-12, review N7: the short form only where the action runs the package | |
+| `TestLossyPipeRefusalNamesTheQuietAdmittedForm` | `internal/le/hookruntime/bash_test.go` | AC-12, review I1 and I2: quoted rows, and the filter's own pipeline advised | |
+| `TestScratchAdviceCarriesTheSubagentIdentityLine` | `internal/le/hookruntime/refusal_messages_test.go` | review N3: the scratch advice behind the agent's identity line | |
+| `TestIdentityRefusalEndsWithTheFixingLine` | `internal/le/hookruntime/refusal_messages_test.go` | review N4: the exact line last; leading whitespace before the agent's own line passes | |
+| `TestTestDeletionFixNamesThePathAndTheRoute` | `internal/le/hookruntime/bash_test.go` | review N1: the real path in the remove line | |
+| `TestTestDeletionRefusalNamesTheNextAction` | `internal/le/hookruntime/bash_test.go` | review N1: the path for rm; leave-the-changes and no remove for a discard | |
+| `TestBuildTreeRefusalNamesWhatItJudged` | `internal/le/hookruntime/bash_test.go` | review N5: a text-judged subtree is not called the whole tree | |
+| subagent-context rows `payload-without-agent-id`, `payload-with-an-unusable-agent-id` | `internal/le/hookruntime/lifecycle_test.go` | review N2 and I3: a fork's whole line; an unusable agent id refused for every command, readers included | |
+| `TestCreateBodyFileIsWrappedAndGatedLikeBody` | `internal/le/commit/body_file_test.go` | AC-13: same message as the `body` chunks, trailer line refused | |
+| `TestCreateRefusesBodyBesideBodyFile` | `internal/le/commit/body_file_test.go` | AC-13 survivor: both keywords refused, exit 2 through `prepareCreate` | |
+| `TestCreateBodyFileRefusesAFileWithNoText` | `internal/le/commit/body_file_test.go` | AC-13 survivor: a blank and a missing file | |
 | `TestDocsShowTheShortPackageAction` | `internal/le/test/unit/pkg_test.go` | AC-10: the six surfaces hold the short action and no literal `bin/le` example | |
 
 ### Boundary Tests (numeric inputs)
@@ -407,7 +424,7 @@ How a package is matched against a group: the `path` value, or the selector's pa
 
 Each phase is one editing agent of about 60 tool calls and ends in one commit. The main thread runs every test.
 
-Only phase 6 depends on child 1, which is what the `Depends` row records. Phases 1 to 5 edit no Go file child 1 edits. Phases 3 and 7 edit `docs/contributing/running-commands.md`, which child 1's phase 1 also edits, in other sections.
+Only phase 6 depended on child 1 (`spec-agent-economy-1-call-shape`), whose phases 3 and 4 are committed and which has closed, so the `Depends` row is `-`. Phases 1 to 5 edit no Go file child 1 edits. Phases 3 and 7 edit `docs/contributing/running-commands.md`, which child 1's phase 1 also edits, in other sections.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- the action exists and is reachable
    - Tests: `TestTestUnitPkgIsReachableFromDispatch`, `TestDispatchReachesThePkgActionBody`, `TestPkgActionBuildsTheToolchainArgv`, `TestPkgActionRunKeywordSelectsTests`, `TestPkgActionVetBuildsTheVetArgv`, `TestUnitGroupsStillSweepBesideThePkgAction`, `TestQuietRunTakesADirectoryAndAnEnvironment`, `TestPkgActionChildEnvironmentEnablesRace`
@@ -430,8 +447,9 @@ Only phase 6 depends on child 1, which is what the `Depends` row records. Phases
    - Files: `commit/input.go`
    - Verify: the `commit` package tests
 6. **Phase: the refusal messages** -- starts only once child 1's phase 3 (the refusal messages in `bash.go`) and phase 4 (the seal in `fixtures.go`) are committed
-   - Tests: the three `bash_test.go` tests, the golden rows
-   - Files: `hookruntime/bash.go`, `ai/hooks/parity_catalog.go`, `fixtures.go`
+   - Tests: the three `bash_test.go` tests, the golden rows, and for AC-13 the three `body_file_test.go` tests
+   - Files: `hookruntime/bash.go`, `hookruntime/rawheavy.go` (the raw-job refusal's advice, moved out of `bash.go` so that file does not grow past 1000 lines), `hookruntime/lossypipe.go`, `ai/hooks/parity_catalog.go`, `parity.go`, `fixtures.go`; for AC-13 `commit/actions.go`, `commit/input.go`, `docs/contributing/committing.md`
+   - Child 1's phase 3 already met part of the piped-command side: `lossyPipeRefusal` names `./le test unit pkg path <package>` for a piped go test and a verify. AC-7 itself (the raw, unpiped refusal) was unmet and is this phase's
    - Verify: the `hookruntime` package tests and `./le ai hooks unit`
 7. **Phase: pages and the rule point**
    - Tests: `TestDocsShowTheShortPackageAction`
@@ -534,6 +552,7 @@ The candidates are every command name `Commands` answers that is not hidden, and
 ## Known Limitations
 - An unknown action inside an area and an unknown member of a namespace keep their present answers, which are already one or two lines. A nearest-name answer there is not part of this spec.
 - A package test without the race detector, with `-v`, with a benchmark or with a coverage profile stays on the long `job run` form.
+- `le commit message` takes no `body-file`: only `commit create` reads one (AC-13), so a message prepared alone still takes its body inline.
 - The unit groups stay unadmitted; `plan/post-release/engineering/spec-native-action-job-admission.md` owns that.
 - The action runs under the full feature tag set. Tests behind a tag no table declares, such as `integration`, compile out and the summary cannot say so; they stay on the long `job run` form with their tag. A file guarded by the absence of a feature tag compiles only in a build that drops the tag; the action ignores the selector's `Tags`, and the compile-out builds stay with `./le repo compiles check` and CI.
 

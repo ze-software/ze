@@ -234,6 +234,18 @@ func namedPackagesRun(packages []string, module string) error {
 	return nil
 }
 
+// PackageRuns reports whether `test unit pkg path <pkg>` runs pkg in the
+// checkout at root, by the refusal the action itself gives (namedPackagesRun),
+// so the raw-job refusal of the Bash hook advises the short form only where
+// the action runs it. An error is a checkout whose module path cannot be read.
+func PackageRuns(root, pkg string) (bool, error) {
+	module, err := lepath.Module(root)
+	if err != nil {
+		return false, err
+	}
+	return namedPackagesRun([]string{pkg}, module) == nil, nil
+}
+
 // changedPackages answers the packages the change reaches that this action
 // runs, the ones it leaves out because a group's own tags hide their tests, and
 // 0; or a non-zero code once the refusal is reported. A widened answer, and any

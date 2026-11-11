@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	bashRowsExpected          = 80
+	bashRowsExpected          = 83
 	writeEditRowsExpected     = 92
 	weakeningRowsExpected     = 10
 	postWriteEditRowsExpected = 24
@@ -39,11 +39,14 @@ const (
 // Re-sealed 2026-11-11 for spec-agent-economy-1-call-shape phase 4: `go build
 // ./...` expects 2 (umbrella D-4, AC-11), and five bash rows join for AC-7,
 // AC-12 and AC-16. 75 rows are 80.
+// Re-sealed 2026-11-11 for spec-agent-economy-2-scoped-test phase 6 (AC-7):
+// three bash rows join for go vet, a refused raw one, a reader naming one and
+// an admitted raw one. 80 rows are 83.
 var parityCatalogDigest = [sha256.Size]byte{
-	0x9f, 0xf2, 0x14, 0xe6, 0xf4, 0x0f, 0x45, 0x35,
-	0xa4, 0x87, 0x82, 0x24, 0x18, 0xe4, 0xcd, 0xc3,
-	0xc4, 0xec, 0x3a, 0xd5, 0x18, 0x37, 0x22, 0xb3,
-	0x04, 0x42, 0xb4, 0x42, 0x89, 0x46, 0x38, 0x51,
+	0x60, 0x96, 0x0d, 0x64, 0x47, 0xba, 0x0f, 0xcf,
+	0xbd, 0xf4, 0xd5, 0x68, 0x4a, 0x7b, 0x85, 0x8b,
+	0x57, 0x1d, 0x36, 0xa3, 0x34, 0x7c, 0x45, 0x9a,
+	0x9c, 0x91, 0x74, 0x3d, 0x96, 0x2f, 0x10, 0x45,
 }
 
 var (
@@ -57,7 +60,9 @@ var (
 	// expensive pattern above matches `le verify` and RE2 has no lookahead, so
 	// the cheap area is removed from the text before that pattern is applied.
 	cheapVerifyArea = regexp.MustCompile(`(?:\./)?\ble\s+verify\s+(?:status|summary)\b`)
-	rawGoTest       = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+(?:-k\s+\S+\s+)?\S+\s+|nice\s+-n\s+\S+\s+)?go\s+test\b`)
+	// rawGoTest matches a raw go test or go vet, the two the raw-job refusal
+	// names the short package action for (rawHeavy in hookruntime).
+	rawGoTest       = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+(?:-k\s+\S+\s+)?\S+\s+|nice\s+-n\s+\S+\s+)?go\s+(?:test|vet)\b`)
 	rawLint         = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+\S+\s+)?golangci-lint\s+run\b`)
 	rootScratch     = regexp.MustCompile(`(?:>|>>|\btee\s+)(?:\s*)(?:\./|@PROJECT@/)?tmp/([^/\s'"]+)(?:\s|['"]|$)`)
 	boundedTimeout  = regexp.MustCompile(`^timeout\s+(?:-k\s+\S+\s+)?\d`)

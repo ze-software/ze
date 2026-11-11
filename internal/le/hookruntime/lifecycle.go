@@ -529,14 +529,21 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 				Str("\nParent session scratch: ").Str(paths.Scratch).
 				Str("\nStart every Bash command that runs anything but readers (grep, sed, cat, a git read verb) with your identity line, exactly as printed. The Bash hook checks the line and never adds it:\n")
 			// The line is the one bashAgentIdentity compares a command with.
-			// A payload whose agent id is absent, or cannot name a file, gets
-			// the session part: the hook's first refusal prints the full line,
-			// or says why the agent has none.
-			if agent := ctx.payload.AgentID; lepath.ValidAgentID(agent) {
+			// A payload with no agent id (a fork) owns the session part alone,
+			// which is the whole line bashAgentIdentity compares. An agent id
+			// that cannot name a file owns no line: bashAgentIdentity refuses
+			// every command, readers included, with stop-and-report, at the
+			// AgentFingerprint error before it reads the reader set.
+			agent := ctx.payload.AgentID
+			switch {
+			case lepath.ValidAgentID(agent):
 				text.Str(identityLine(agent, id)).Byte('\n')
-			} else {
+			case agent == "":
 				text.Str(identityLine("", id)).
-					Str("\nThat is the session part of the line. This start payload carries no usable agent id, so the first refusal of a Bash command prints your full line.\n")
+					Str("\nThis start payload names no agent id, as a fork's does, so that session part is your whole identity line.\n")
+			default:
+				text.Str("This start payload's agent id cannot name a file, so you have no identity line: the Bash hook refuses every command, readers included. " +
+					"Next: stop and report the agent id to the main thread.\n")
 			}
 		}
 	}

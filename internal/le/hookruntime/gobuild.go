@@ -28,8 +28,10 @@ const (
 	// working directory: it names an output under the checkout's bin/, or
 	// compiles packages that produce no binary.
 	goBuildAllowed
-	// goBuildWholeTree is a build of every package of the module, which the
-	// no-whole-tree rule forbids whatever its output.
+	// goBuildWholeTree is a build of every package of the module, or, on the
+	// text path (goBuildText) where the line does not parse, of any `...`
+	// pattern, which the text cannot tell from the module's whole tree. The
+	// no-whole-tree rule forbids it whatever its output.
 	goBuildWholeTree
 	// goBuildBinary is a build that writes its result outside bin/, or one
 	// whose packages or output the hook cannot place.
@@ -912,7 +914,10 @@ func goBuildText(command string) (goBuildOutcome, string) {
 		return goBuildAllowed, ""
 	}
 	if goBuildTextWholeTree.MatchString(command) {
-		return goBuildWholeTree, strings.TrimSuffix(adviceLine("A `...` pattern compiles a tree of packages, and the whole tree is the release check's job, never a session's.")+
+		// The text cannot tell `./...` from `./internal/x/...`, so the advice
+		// names a tree of packages and not the module's whole tree.
+		return goBuildWholeTree, strings.TrimSuffix(adviceLine("A `...` pattern compiles every package under its directory. "+
+			"A session builds only the packages its change reaches, and the module's whole tree is the release check's job.")+
 			adviceLine("Use: ./le repo changed scope print both, then go build only the packages it names"), "\n")
 	}
 	if goBuildBin.MatchString(command) {
