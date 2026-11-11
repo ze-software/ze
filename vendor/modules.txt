@@ -995,6 +995,10 @@ github.com/miekg/dns
 # github.com/mitchellh/go-homedir v1.1.0
 ## explicit
 github.com/mitchellh/go-homedir
+# github.com/moby/patternmatcher v0.6.1
+## explicit; go 1.19
+github.com/moby/patternmatcher
+github.com/moby/patternmatcher/ignorefile
 # github.com/modelcontextprotocol/go-sdk v1.8.0
 ## explicit; go 1.25.0
 github.com/modelcontextprotocol/go-sdk/auth
