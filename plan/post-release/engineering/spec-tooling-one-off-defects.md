@@ -315,6 +315,40 @@ Independent reviewer.
 
 Owed round-2 work, from finding 7 (each observable has no recorded red and restored green): P-1 the input named for an unknown suite verb and an orphan peer block, and help distinguished from invalid input; P-2 `.et` height, and the real tick cost traced; P-13 poster byte stability at the poster itself; P-15 the `webBrowserMissing` verify-mode consumer; P-20 the unrecorded pass named, HTML/table/SVG and PerformanceDoc validation, compare stdout-only with stdout failure propagated, raw JSON/NDJSON loss evidence; P-23 publication; P-25 ASPA-profile, RFC 4506, RFC 7519 and RFC 1008 accounting, and RFC 7383's optional debt; P-36 a foreign silent holder never signalled; P-37 a preserved backup not compiled, and another session's backup not deleted; P-41 no RFC7084 row reporting `no-rfc-text`. Findings 1, 3, 4, 5 and 8 stay owed as their rows state.
 
+### Round 2 (2026-11-11): NOT CLEAN
+
+Scope: round 1's findings and their fixes; the owed round-2 observables and
+their walks (`tooling-one-off-evidence.md`, "Review Gate round 1: the missing
+reds walked", "Security Review (2026-11-11)", "Review Gate round 2: the OPEN
+observables walked", "P-13: poster bytes are stable for equal inputs"); the
+code of `e63d3d37cf` and `1acd3d7341`, with a code-lens pass over it.
+Independent reviewer. Each named carrier was found in source, and each new
+carrier was read.
+
+Round 1's findings:
+
+| # | Resolution |
+|---|------------|
+| 1 | resolved: three P-32 walks, each red under its break (`normalizeLinuxContext`, the committed read's context, `Gates()` re-reading HEAD) |
+| 2 | resolved: the `.ci` walk through `zeTestParseRunCLI` and `TestBgpHelpSucceeds`, and in round 2 `TestBgpUnknownVerbRefusalNamesIt` |
+| 3 | resolved: `TestWebNativeExclusiveCleanup` red under the `webResourceRecord` collapse |
+| 4 | resolved: `TestNeedsLinuxSkipNamesTheHostGuestRoute` and `TestRunnerGuestRouteIsTheOneCIAction` red under their breaks |
+| 5 | resolved on this host: both CodeQL workflow carriers red under in-place workflow breaks. The real extraction stays the owner's (push) |
+| 8 | resolved: recorded in the evidence file, "Security Review (2026-11-11)", 0 BLOCKER, 0 ISSUE |
+| 6, 7, 9, 10 | resolved in round 1 |
+
+Every owed round-2 observable carries a red under a break of its producer and
+a restored green. P-10 (Mac 9p) and P-17 (real CodeQL extraction) stay open
+on the owner and are not findings.
+
+| # | Severity | Finding | State |
+|---|----------|---------|-------|
+| 1 | ISSUE | `TestWBExpectationNestedAllowance` and `TestWBExpectationSequentialAllowances` (`internal/component/web/testing/expect_deadline_test.go`) fail at HEAD, observed in this round: "install request observation before open ...: start owned blank page for render observation: exit status 1", commands `[open about:blank close]`. The cause is this spec's `553f9543af`. It put `renderObserverScript` into `Browser.Open` (`runner.go`), and the expectation fixture's command handler refuses that `open about:blank` as "unexpected owned command". So both tests stop at the first `open` and never reach the nested and sequential expectation allowances they exist to prove. `1acd3d7341`'s body calls them "not caused here", which is true of that commit, and no row owns them | open: teach the fixture the observer registration sequence `fake_observer_test.go` answers. The changed tests go to an independent `ze-test-judge` |
+| 2 | NOTE | The status lines of P-1, P-2, P-13, P-15, P-20, P-23, P-25, P-32, P-36, P-37, P-40 and P-41 still say OPEN for observables the round 1, round 2 and P-13 evidence sections now walk | open (record) |
+| 3 | NOTE | P-36: under the kill break the red comes from `observeQueue` (the waiter's report), because a dead holder is reaped and the queue moves. So the "foreign quiet holder was killed" check in `TestAStalledHolderIsBrokenOnItsSilence` cannot be reached under any kill. The test still goes red on a kill. It checks "not killed", which is narrower than "never signalled" | open (record) |
+| 4 | NOTE | P-13: the walk's back-to-back restored leg ran out of its 90s case budget at load average 21, and the green came from a lone rerun. The evidence states this. The poster proof is load-sensitive | noted |
+| 5 | NOTE | The spec's `## Security Review` section does not point at the evidence file's "Security Review (2026-11-11)" | open (record) |
+
 ## Executable integrity incident
 
 AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not investigated in the session that met it, so it is not recorded (`ai/META-DECISIONS.md`), and its journal class file `plan/journal/artifact-bytes-disagree-with-identity.md` is removed.
