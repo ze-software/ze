@@ -4,13 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -775,4 +778,97 @@ func TestTokenForPluginUniqueness(t *testing.T) {
 	token1again, err3 := acceptor.TokenForPlugin("bgp-rib")
 	require.NoError(t, err3)
 	assert.Equal(t, token1, token1again, "same plugin must get same token")
+}
+
+// TestExternalPluginNameRefusedAtCommit is AC-23's connect-back half: the one
+// name declaration (pluginNamePattern) answers the handshake and the config
+// validator alike, at the boundary of 64 characters accepted and 0 and 65
+// refused, and the refusal names the allowed form.
+func TestExternalPluginNameRefusedAtCommit(t *testing.T) {
+	t.Parallel()
+
+	long64 := strings.Repeat("a", 64)
+	cases := []struct {
+		name  string
+		valid bool
+	}{
+		{"bgp-rib", true},
+		{"1st", true},
+		{long64, true},
+		{"", false},
+		{long64 + "a", false},
+		{"a_b", false},
+		{"a.b", false},
+		{"-ab", false},
+		{"_reserved", false},
+	}
+	for _, tc := range cases {
+		err := CheckPluginName(tc.name)
+		if tc.valid {
+			assert.NoError(t, err, "name %q", tc.name)
+			assert.True(t, ValidPluginName(tc.name), "name %q", tc.name)
+			continue
+		}
+		require.Error(t, err, "name %q", tc.name)
+		assert.False(t, ValidPluginName(tc.name), "name %q", tc.name)
+		assert.Contains(t, err.Error(), PluginNameForm, "refusal of %q names the allowed form", tc.name)
+	}
+}
+
+// TestConnectBackRefusalNamesClaimNotToken is AC-23's runtime half: a
+// connect-back refused for its token returns an AuthRefusal naming the claimed
+// name, and reportConnectBackRefused raises doctor-plugin-connect-back-refused
+// on the report bus under that name, with a fix, and never the token. A bad
+// name is raised the same way, quoting the allowed form.
+func TestConnectBackRefusalNamesClaimNotToken(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	serverTLS, clientTLS := selfSignedTLSConfig(t)
+	ln := startTestListener(t, serverTLS)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	const sentToken = "a-wrong-token-that-must-never-be-shown"
+	errCh := make(chan error, 1)
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			errCh <- err
+			return
+		}
+		_, authErr := AuthenticateWithLookup(ctx, conn, "shared-secret-at-least-32-chars!", func(string) (string, bool) {
+			return "", false
+		})
+		errCh <- authErr
+	}()
+
+	conn, err := (&tls.Dialer{Config: clientTLS}).DialContext(ctx, "tcp", ln.Addr().String())
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // test cleanup
+	require.NoError(t, SendAuth(ctx, conn, sentToken, "unknown-plugin"))
+
+	authErr := <-errCh
+	refusal, ok := errors.AsType[*AuthRefusal](authErr)
+	require.True(t, ok, "token refusal is an AuthRefusal: %v", authErr)
+	assert.Equal(t, "unknown-plugin", refusal.Claimed)
+	assert.Equal(t, AuthRefusedToken, refusal.Cause)
+	assert.ErrorIs(t, authErr, errAuthFailedInvalidToken)
+
+	reportConnectBackRefused("192.0.2.1:4000", authErr)
+	reportConnectBackRefused("192.0.2.1:4001", &AuthRefusal{Claimed: "a_b", Cause: AuthRefusedName})
+
+	issues := report.Errors(0)
+	require.Len(t, issues, 2)
+	bySubject := map[string]report.Issue{}
+	for _, issue := range issues {
+		assert.Equal(t, ConnectBackRefusedCode, issue.Code)
+		assert.NotEmpty(t, issue.Fix)
+		assert.NotContains(t, issue.Message, sentToken)
+		assert.NotContains(t, issue.Fix, sentToken)
+		bySubject[issue.Subject] = issue
+	}
+	require.Contains(t, bySubject, "unknown-plugin")
+	require.Contains(t, bySubject, "a_b")
+	assert.Contains(t, bySubject["a_b"].Message, PluginNameForm)
 }

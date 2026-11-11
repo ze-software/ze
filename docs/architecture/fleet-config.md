@@ -150,6 +150,26 @@ At `#0 auth`, the hub looks up the token against the `client` entries nested und
 | `server central { client edge-01 { secret "abc"; } }` | `client edge-01 { secret "xyz"; }` | Mismatch, rejected |
 | No `client edge-01` in any server | Any | Rejected: unknown client |
 
+### What doctor reads from the managed listener
+
+`startManagedServer` hands the managed server the plugin acceptor's address
+(`ManagedServerConfig.Acceptor`, the first `server` block). The server
+publishes its record when `Start` begins, before it binds, and `Stop`
+withdraws it; `show doctor` reads it through `ManagedDoctorSnapshot`, and with
+no managed server in the process the answer is `ErrManagedNotServing`, so both
+checks report nothing.
+<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedDoctorSnapshot, managedDoctorState, notifyDropped -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected -->
+
+| Event | Recorded as | Doctor code |
+|-------|-------------|-------------|
+| A listen address that does not bind, other than the acceptor's own | the address and the kernel's error | `doctor-managed-listener-unbound` (error) |
+| A listen address the plugin acceptor already holds | not recorded; logged at ERROR, and the local `hub-managed-listener` check reports it from the config | `doctor-hub-managed-collision` |
+| A second session under a name already connected | that client's last refusal | `doctor-managed-client-rejected` (warning) |
+| A `config-ack` with an error | that client's last refusal, cleared by the next successful ack | `doctor-managed-client-rejected` (warning) |
+| A `config-changed` not delivered (queue full, build or push failure) | an event on the report bus naming the client and the cause | `doctor-managed-client-notify-dropped` |
+
 ### Config Storage (Hub Side)
 
 Client configs are entries in the hub's live tree, keyed by client name at

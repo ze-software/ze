@@ -2579,6 +2579,22 @@ For external plugins (Python, Rust, etc.) -- runs as separate process:
 7. No `DirectBridge` -- always uses newline-framed RPC over TLS
 8. Same 5-stage handshake over the same connection
 
+#### A refused connect-back
+
+The engine answers a refused `#0 auth` with an error line and closes the
+connection. It refuses a claimed name that is not 1 to 64 letters, digits and
+hyphens, the first a letter or a digit (the form the commit also requires of a
+`plugin external` name), and a token that is not the one bound to the claimed
+name. The acceptor logs each
+refusal at WARN and raises `doctor-plugin-connect-back-refused` on the report
+bus, where `show doctor` lists it. The event names the claimed name, bounded
+to 64 characters, or the remote address when the request named none; it never
+carries the token. The plugin whose start waited for that connection fails as
+one that never connected.
+<!-- source: internal/component/plugin/ipc/tls.go -- AuthenticateWithLookup -->
+<!-- source: internal/component/plugin/ipc/connect_back_refusal.go -- AuthRefusal, reportConnectBackRefused -->
+<!-- source: internal/component/plugin/ipc/plugin_name.go -- PluginNameForm -->
+
 The Go SDK registers `ze.plugin.name` with the transport environment keys, so
 SDK consumers can read the daemon-assigned identity without the plugin CLI.
 Compiled fixture observers use that identity when they call `NewFromTLSEnv`;

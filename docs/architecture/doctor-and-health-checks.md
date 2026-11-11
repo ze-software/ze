@@ -936,6 +936,37 @@ args`; `docs/architecture/cli/command-completion.md`).
 <!-- test: internal/component/plugin/doctor/checks_runtime_test.go TestPluginStoppedEveryDownPath -->
 <!-- test: internal/component/plugin/doctor/check_setup_test.go TestPluginSetupFailedReportsRecordedOutcome -->
 
+### External plugin and managed fleet checks
+
+Two checks judge the `plugin external` blocks the daemon cannot start, and two
+read what the managed config server recorded. The name check runs on the
+parsed tree, before `ReadConfig`, because the commit now refuses a name of the
+wrong form and the load would hide the block; a run that hands it no tree gets
+a row saying the names were not checked, never the empty answer. The
+in-process check reads `Registration.RunsInProcessOnly` of the registration
+each external block resolves to. The managed server publishes its record when
+`Start` begins, before it binds, and `Stop` withdraws it; with no managed
+server in the process `ManagedDoctorSnapshot` answers `ErrManagedNotServing`,
+and both managed checks then report nothing, because no listener was asked for
+and no client was served.
+<!-- source: internal/component/plugin/doctor/register_external.go -- init -->
+<!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalPluginNames, checkExternalInProcess -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedDoctorSnapshot, managedDoctorState -->
+
+| Check | Phase | Code | Reports | Fix |
+|-------|-------|------|---------|-----|
+| `plugin-external-name` | parsed-config | `doctor-plugin-connect-back-refused` (error) | each external block whose name is not of the plugin name form | rename the block, then `ze config validate` |
+| `plugin-external-in-process` | post-config | `doctor-plugin-external-unsupported` (error) | each external block that runs a plugin declared in-process only | the `internal` block that runs it |
+| `managed-listener-unbound` | runtime | `doctor-managed-listener-unbound` (error) | each managed listen address that did not bind, with the kernel's error; a collision with the plugin acceptor is `hub-managed-listener`'s | free the address or give the server block another ip and port, then restart ze |
+| `managed-client-rejected` | runtime | `doctor-managed-client-rejected` (warning) | each client whose last exchange was a refusal: a second session under a connected name, or a config it refused to apply | the cause's own fix |
+
+A refused plugin connect-back is an event, not a state: the acceptor logs it
+at WARN and raises `doctor-plugin-connect-back-refused` on the report bus,
+where `recent-events` renders it, naming the claimed name (or the remote
+address when the request named none) and never the token.
+<!-- source: internal/component/plugin/ipc/connect_back_refusal.go -- reportConnectBackRefused -->
+
 ## Environment values ze could not use
 
 An env getter that cannot parse a value answers its caller's default, and the

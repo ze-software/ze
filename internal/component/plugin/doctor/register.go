@@ -63,7 +63,7 @@ func init() {
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        701,
 		Component:    componentPlugin,
-		Dependencies: []string{"config-tree"},
+		Dependencies: []string{doctorDependencyConfigTree},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{codeHubManagedCollision},
 		Check:        checkManagedListener,

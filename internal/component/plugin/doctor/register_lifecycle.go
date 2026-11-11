@@ -62,7 +62,7 @@ func init() {
 			Phase:        diagnostic.DoctorPhasePostConfig,
 			Order:        pluginLifecycleOrderFirst + 3,
 			Component:    componentPlugin,
-			Dependencies: []string{"config-tree"},
+			Dependencies: []string{doctorDependencyConfigTree},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
 			Codes:        []string{diagnostic.CodeDoctorPluginAutoloadUnresolved},
 			Check:        checkPluginAutoload,

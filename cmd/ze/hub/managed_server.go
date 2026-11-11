@@ -76,6 +76,10 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		Certificate:         certificate,
 		TLSMaterialResolver: zepki.ServerTLSMaterial,
 		Authority:           caRoot,
+		// The plugin acceptor binds the first server block (hubAcceptorServer),
+		// so a managed address colliding with it is the collision the local
+		// hub-managed-listener check reports, not an unbound listener.
+		Acceptor: hubConfig.Servers[0],
 	})
 	if err != nil {
 		managedServerLog().Error("managed config server disabled", "error", err)

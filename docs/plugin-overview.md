@@ -63,6 +63,15 @@ the only kernel FIB owner.
 Internal plugins bypass IPC serialization via DirectBridge for hot-path
 performance. External plugins connect back to the engine's TLS listener and
 authenticate with a token (`ZE_PLUGIN_HUB_TOKEN`).
+
+A plugin that reaches daemon state a forked process does not hold declares
+`RunsInProcessOnly` in its `Registration`. It then works only in internal
+mode: an `external` block that runs it starts a process that does nothing,
+and `ze doctor` reports that block under `doctor-plugin-external-unsupported`
+by reading the field, never a list of plugin names. No shipped plugin sets the
+field yet.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.RunsInProcessOnly -->
+<!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalInProcess -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge implementation -->
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn concurrent RPC multiplexer -->
 

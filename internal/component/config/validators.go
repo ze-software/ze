@@ -19,6 +19,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
@@ -701,6 +702,23 @@ func sortedInternalPluginNames() []string {
 	// registry.Names already returns a freshly-allocated, alphabetically
 	// sorted slice, so no further sorting is needed here.
 	return registry.Names()
+}
+
+// ExternalPluginNameValidator returns the validator for the key of a
+// `plugin external <name>` block. The hub binds the connect-back token to that
+// name, and the auth handshake refuses a name ipc.CheckPluginName refuses, so
+// the commit refuses the same names from the same declaration rather than
+// letting the plugin hang at its connect-back.
+func ExternalPluginNameValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			name, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			return ipc.CheckPluginName(name)
+		},
+	}
 }
 
 // InternalPluginNameValidator returns a validator for the internal plugin `use` leaf.

@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/taskguard"
@@ -93,6 +95,13 @@ type ManagedServerConfig struct {
 	// expiry rather than wait for it. A named certificate reads no clock: the
 	// operator owns that material and Ze never replaces it.
 	Clock clock.Clock
+
+	// Acceptor is the hub server block the plugin acceptor binds
+	// (Servers[0], hubAcceptorServer). A managed address that collides with it
+	// is the collision the local hub-managed-listener check reports from the
+	// config, so Start logs it under that code and does not record it as
+	// unbound. The zero value names port 0, which collides with nothing.
+	Acceptor plugin.HubServerConfig
 }
 
 // managedLeafCommonName names the managed listener in the subject of the leaf
@@ -119,6 +128,11 @@ type ManagedServer struct {
 	// certName is the configured pki certificate name, empty when the leaf was
 	// issued by the daemon root. Kept only so Start can name it in its log.
 	certName string
+	// acceptor is ManagedServerConfig.Acceptor.
+	acceptor plugin.HubServerConfig
+
+	// doctor is what this server records for the managed runtime checks.
+	doctor managedDoctorState
 
 	mu    sync.Mutex
 	conns map[string]*rpc.MuxConn // Connected client name -> mux, for config-changed push.
@@ -170,6 +184,7 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		addrs:          cfg.Addrs,
 		getCertificate: getCertificate,
 		certName:       cfg.Certificate,
+		acceptor:       cfg.Acceptor,
 		conns:          make(map[string]*rpc.MuxConn),
 		notifyCh:       make(chan string, managedNotifyBuffer),
 		sem:            make(chan struct{}, managedMaxConns),
@@ -266,15 +281,16 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 		return errors.New("managed server: no listen addresses")
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
+	// Published before any bind, so a server whose every address failed is still
+	// what the managed-listener-unbound check reads.
+	publishManagedDoctor(s)
 	// Bind each address independently so one unavailable address (e.g. a server block
 	// whose port collides with the plugin acceptor's listener) disables only that block,
-	// not the whole managed server. The collision is logged loudly so the operator can
-	// move managed clients to their own server block.
+	// not the whole managed server.
 	for _, addr := range s.addrs {
 		lns, err := pluginipc.StartListeners([]string{addr}, s.getCertificate)
 		if err != nil {
-			managedLogger().Error("managed listener disabled: address unavailable "+
-				"(does it collide with the plugin acceptor's server block?)", "addr", addr, "error", err)
+			s.bindFailed(addr, err)
 			continue
 		}
 		s.listeners = append(s.listeners, lns...)
@@ -298,6 +314,37 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 			"this daemon's certificate authority. Export the root and name it in each client's pki ca block")
 	}
 	return nil
+}
+
+// bindFailed logs one address Start could not bind and records it for doctor.
+// A collision with the plugin acceptor is the condition the local
+// hub-managed-listener check reports from the config, under its own code, so
+// it is logged under that code and not recorded as unbound: one fault, one
+// row. Any other failure is recorded with the kernel's error text.
+func (s *ManagedServer) bindFailed(addr string, err error) {
+	if s.collidesWithAcceptor(addr) {
+		managedLogger().Error("managed listener disabled: the plugin acceptor already binds this address",
+			"code", managedCodeCollision, "addr", addr, "error", err)
+		return
+	}
+	s.doctor.recordUnbound(addr, err)
+	managedLogger().Error("managed listener disabled: address unavailable",
+		"code", diagnostic.CodeDoctorManagedListenerUnbound, "addr", addr, "error", err)
+}
+
+// collidesWithAcceptor reports whether addr asks for the socket the plugin
+// acceptor holds, judged by plugin.HubAddressesCollide, the predicate the
+// local collision check uses.
+func (s *ManagedServer) collidesWithAcceptor(addr string) bool {
+	host, portText, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false // Not host:port, so not the acceptor's address; the bind error says why.
+	}
+	port, err := strconv.ParseUint(portText, 10, 16)
+	if err != nil {
+		return false // Not a port the acceptor could hold; the bind error says why.
+	}
+	return plugin.HubAddressesCollide(s.acceptor, plugin.HubServerConfig{Host: host, Port: uint16(port)})
 }
 
 func (s *ManagedServer) acceptLoop(ln net.Listener) {
@@ -355,7 +402,9 @@ func (s *ManagedServer) handleConn(conn net.Conn) {
 	// One connection per name. A duplicate is refused so a second session cannot
 	// shadow the first (RegisterClient tracks the connected set).
 	if regErr := s.svc.RegisterClient(name); regErr != nil {
-		managedLogger().Warn("managed client rejected", "name", name, "error", regErr)
+		s.doctor.recordRejected(name, ManagedRejectNameConnected, regErr.Error())
+		managedLogger().Warn("managed client rejected", "code", diagnostic.CodeDoctorManagedClientRejected,
+			"name", name, "error", regErr)
 		conn.Close() //nolint:errcheck,gosec // duplicate name; refuse the second connection
 		return
 	}
@@ -428,9 +477,12 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 		var ack fleet.ConfigAck
 		_ = json.Unmarshal(req.Params, &ack) //nolint:errcheck // ack is informational; log best-effort
 		if ack.OK {
+			s.doctor.clearRejected(name)
 			managedLogger().Info("managed client applied config", "name", name, "version", ack.Version)
 		} else {
-			managedLogger().Warn("managed client rejected config", "name", name, "error", ack.Error)
+			s.doctor.recordRejected(name, ManagedRejectConfigRejected, ack.Error)
+			managedLogger().Warn("managed client rejected config", "code", diagnostic.CodeDoctorManagedClientRejected,
+				"name", name, "error", ack.Error)
 		}
 		_ = mc.SendOK(s.ctx, req.ID)
 
@@ -453,7 +505,7 @@ func (s *ManagedServer) NotifyConfigChanged(name string) {
 	select {
 	case s.notifyCh <- name:
 	default:
-		managedLogger().Warn("config-changed notify queue full; dropping", "name", name)
+		notifyDropped(name, "the notify queue is full")
 	}
 }
 
@@ -482,7 +534,9 @@ func (s *ManagedServer) pushConfigChanged(name string) {
 	}
 	changed, err := s.svc.BuildConfigChanged(name)
 	if err != nil {
-		managedLogger().Warn("build config-changed failed", "name", name, "error", err)
+		var cause textbuf.Buffer
+		cause.Str("building the notification failed: ").Err(err)
+		notifyDropped(name, cause.String())
 		return
 	}
 	// Bound the round-trip: a client that accepts the notification but never replies
@@ -491,7 +545,9 @@ func (s *ManagedServer) pushConfigChanged(name string) {
 	pushCtx, cancel := context.WithTimeout(s.ctx, managedPushTimeout)
 	defer cancel()
 	if _, err := mc.CallRPC(pushCtx, fleet.VerbConfigChanged, changed); err != nil {
-		managedLogger().Debug("push config-changed failed", "name", name, "error", err)
+		var cause textbuf.Buffer
+		cause.Str("the push failed: ").Err(err)
+		notifyDropped(name, cause.String())
 		return
 	}
 	s.mPushed.Inc()
@@ -526,6 +582,7 @@ func (s *ManagedServer) Stop() {
 		s.cancel()
 	}
 	s.wg.Wait()
+	withdrawManagedDoctor(s)
 }
 
 // Per-client config key convention: a managed client's config is stored on the hub

@@ -221,14 +221,14 @@ module ze-plugin-conf {
             ze:help "External plugin process";
 
             leaf name {
-                type string {
-                    length "1..64";
-                }
+                type string;
+                ze:validate "external-plugin-name";
                 description "The key of the block, and the name the rest of the config uses for this plugin. A peer's
                     'attach process' binding names it, and the child reads it as ZE_PLUGIN_NAME. The hub binds the
-                    connect-back token to this name, so one plugin's token authenticates no other. A name that starts
-                    with an underscore is reserved and the config is refused. The name MUST NOT repeat a name in the
-                    internal list.";
+                    connect-back token to this name, so one plugin's token authenticates no other. The name is 1 to 64
+                    letters, digits and hyphens, the first a letter or a digit, the one form the connect-back accepts:
+                    the commit refuses any other name, an underscore or a dot included. The name MUST NOT repeat a
+                    name in the internal list.";
                 ze:help "Plugin name";
             }
 

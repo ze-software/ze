@@ -21,6 +21,7 @@ import (
 	_ "github.com/ze-software/ze/internal/test/plugins/fakeenrich"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakefib"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakefilter/compiledin"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakeinprocess"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakel2tp"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakel2tp/yang"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakeredist"

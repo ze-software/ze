@@ -123,6 +123,14 @@ type Registration struct {
 	// resolution runs.
 	NeedsDataPlane bool
 
+	// RunsInProcessOnly declares that this plugin works only as an internal
+	// plugin, a goroutine in the daemon: it reaches daemon state a forked
+	// process does not hold. A config that names it in a `plugin external`
+	// block starts a process that silently does nothing, so the
+	// plugin-external-in-process doctor check reports that block, reading this
+	// field and never a list of plugin names.
+	RunsInProcessOnly bool
+
 	// PeerUpBarrier declares that this plugin does work on the peer-up event
 	// that a peer's initial-sync End-of-RIB must not overtake: it registers the
 	// peer as a live forward target, or captures a per-peer cut, so an UPDATE

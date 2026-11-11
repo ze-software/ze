@@ -5,8 +5,6 @@
 package doctor
 
 import (
-	"net"
-
 	"github.com/ze-software/ze/internal/component/config"
 	zeplugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -64,7 +62,7 @@ func diagnoseManagedListener(hub zeplugin.HubConfig) []diagnostic.Diagnostic {
 		if len(block.Clients) == 0 {
 			continue // Not a managed-client-serving block.
 		}
-		if !hubAddressesCollide(acceptor, block) {
+		if !zeplugin.HubAddressesCollide(acceptor, block) {
 			continue
 		}
 		var message textbuf.Buffer
@@ -80,43 +78,4 @@ func diagnoseManagedListener(hub zeplugin.HubConfig) []diagnostic.Diagnostic {
 		})
 	}
 	return diags
-}
-
-// hubAddressesCollide reports whether two hub server blocks ask the kernel for
-// the same listening socket.
-//
-// The port has to match, and the hosts have to overlap. Two named hosts overlap
-// when they are equal. An unspecified host (0.0.0.0, ::, or no ip leaf at all)
-// covers every address on the machine. It therefore overlaps any host on that
-// port, and tls.Listen refuses the second bind with EADDRINUSE either way round.
-//
-// Port 0 is the one case a shared block does not collide. The kernel picks a
-// free port for each listener. Such a hub still cannot be reached by a remote
-// managed client. No client config can name a port the kernel has not chosen
-// yet. That is a different defect and this check does not claim it.
-func hubAddressesCollide(first, second zeplugin.HubServerConfig) bool {
-	if first.Port != second.Port {
-		return false
-	}
-	if first.Port == 0 {
-		return false
-	}
-	if first.Host == second.Host {
-		return true
-	}
-	return hubHostIsUnspecified(first.Host) || hubHostIsUnspecified(second.Host)
-}
-
-// hubHostIsUnspecified reports whether a host names every address on the
-// machine. An empty ip leaf reaches tls.Listen as ":port", which binds the
-// wildcard, so it counts as unspecified too.
-func hubHostIsUnspecified(host string) bool {
-	if host == "" {
-		return true
-	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return false // A name, not an address. Resolution is the kernel's job at bind time.
-	}
-	return ip.IsUnspecified()
 }

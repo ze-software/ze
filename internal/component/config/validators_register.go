@@ -30,6 +30,7 @@ func RegisterValidators(reg *yang.ValidatorRegistry) {
 	reg.Register("set-ref", SetRefValidator())
 	reg.Register("port-spec", PortSpecValidator())
 	reg.Register("internal-plugin-name", InternalPluginNameValidator())
+	reg.Register("external-plugin-name", ExternalPluginNameValidator())
 	reg.Register("delegation-source-url", DelegationSourceValidator())
 	reg.Register("archive-location", ArchiveLocationValidator())
 	reg.Register("archive-timeout", ArchiveTimeoutValidator())

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"regexp"
 	"sync"
 	"time"
 
@@ -68,9 +67,6 @@ const MaxAuthFrameSize = 4096
 
 // authMethod is the RPC method name for the auth handshake.
 const authMethod = "auth"
-
-// validPluginName matches alphanumeric names with hyphens, max 64 chars.
-var validPluginName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}$`)
 
 // authParams is the JSON payload for the #0 auth RPC.
 type authParams struct {
@@ -137,7 +133,7 @@ func Authenticate(ctx context.Context, conn net.Conn, expectedToken string) (str
 		return "", errAuthFailedInvalidToken
 	}
 
-	if !validPluginName.MatchString(params.Name) {
+	if !ValidPluginName(params.Name) {
 		writeErrorRaw(conn, id, "invalid plugin name")
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
 		return "", fmt.Errorf("auth failed: invalid plugin name %q", params.Name)
@@ -197,10 +193,10 @@ func AuthenticateWithLookup(ctx context.Context, conn net.Conn, sharedSecret str
 		return "", fmt.Errorf("auth failed: malformed params: %w", err)
 	}
 
-	if !validPluginName.MatchString(params.Name) {
+	if !ValidPluginName(params.Name) {
 		writeErrorRaw(conn, id, "invalid plugin name")
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
-		return "", fmt.Errorf("auth failed: invalid plugin name %q", params.Name)
+		return "", &AuthRefusal{Claimed: params.Name, Cause: AuthRefusedName}
 	}
 
 	// Try per-client secret first, fall back to shared secret.
@@ -216,7 +212,7 @@ func AuthenticateWithLookup(ctx context.Context, conn net.Conn, sharedSecret str
 	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
 		writeErrorRaw(conn, id, "auth failed")
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
-		return "", errAuthFailedInvalidToken
+		return "", &AuthRefusal{Claimed: params.Name, Cause: AuthRefusedToken}
 	}
 
 	if _, writeErr := conn.Write(append(rpc.FormatOK(id), '\n')); writeErr != nil {
@@ -316,7 +312,7 @@ func authenticateWithName(ctx context.Context, conn net.Conn, expectedToken, exp
 		return "", fmt.Errorf("auth failed: malformed params: %w", err)
 	}
 
-	if !validPluginName.MatchString(params.Name) {
+	if !ValidPluginName(params.Name) {
 		writeErrorRaw(conn, id, "invalid plugin name")
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
 		return "", fmt.Errorf("auth failed: invalid plugin name %q", params.Name)
@@ -641,14 +637,12 @@ func (pa *PluginAcceptor) handleConn(conn net.Conn) {
 	lookup := pa.combinedLookup()
 	name, err := AuthenticateWithLookup(authCtx, conn, pa.secret, lookup)
 	if err != nil {
-		// Say something. This rejection used to be silent, so a plugin whose
-		// name the validPluginName regex refuses (an underscore, a dot, or a
-		// name over 64 chars -- none of which any config layer rejects first)
-		// produced a 30s connect-back hang with no diagnosis anywhere. A guard
-		// that denies without speaking does not exist
-		// (ai/rules/evidence.md). The error text carries the offending
-		// name but never a token or secret (see AuthenticateWithLookup).
-		slog.Warn("acceptor: plugin connect-back rejected", "error", err)
+		// Say something, to the log and to doctor. A guard that denies without
+		// speaking does not exist (ai/rules/evidence.md). The commit now
+		// refuses a name the form refuses, so this is reached by a config
+		// written before that refusal, a process ze did not start, or a stale
+		// token. The refusal names the claimed name and never the token.
+		reportConnectBackRefused(conn.RemoteAddr().String(), err)
 		return // Authenticate already closed conn on failure.
 	}
 

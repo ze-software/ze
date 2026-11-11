@@ -87,6 +87,28 @@ under `doctor-plugin-shell-missing`, and a start that meets it names the shell
 rather than the plugin.
 <!-- source: internal/component/plugin/shell.go -- Shell, ShellAvailable -->
 
+An `external` name is 1 to 64 letters, digits and hyphens, the first a letter
+or a digit: `collector` and `looking-glass` are accepted, `my_plugin` and
+`feed.v2` are not. The forked process authenticates to ze under that name, and
+ze binds the process's token to it, so the commit refuses any other form with
+an error that names the allowed form. A config written before that refusal
+still fails its load, and `ze doctor` reports each such block under
+`doctor-plugin-connect-back-refused`. A process that connects back under a
+name the form refuses, or with a token ze did not issue for that name, is
+refused too: the refusal names the claimed name, never the token, and `show
+doctor` lists it under the same code.
+<!-- source: internal/component/plugin/ipc/plugin_name.go -- PluginNameForm, CheckPluginName -->
+<!-- source: internal/component/config/validators.go -- ExternalPluginNameValidator -->
+<!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalPluginNames -->
+<!-- source: internal/component/plugin/ipc/connect_back_refusal.go -- reportConnectBackRefused -->
+
+A plugin whose registration declares that it works only inside the daemon
+cannot run from an `external` block: the forked process does not hold the
+daemon state it reaches, so it would start and do nothing. `ze doctor` reports
+such a block under `doctor-plugin-external-unsupported`, with the `internal`
+block that runs it instead.
+<!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalInProcess, inProcessOnlyRegistration -->
+
 ## When a Plugin Fails
 
 **The plugin decides, not the configuration.** Every plugin tells ze at startup

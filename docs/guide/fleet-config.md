@@ -123,6 +123,19 @@ The hub refuses `client <name>` when it has no `client <name>` entry under
 <!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
 <!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->
 
+## When a Client Cannot Connect
+
+`show doctor` on the hub lists under `doctor-managed-client-rejected` a second
+ze connecting under a name already connected, and a client that refused to
+apply the config the hub serves it.
+
+`show doctor` also reports a managed listen address the hub could not bind
+(`doctor-managed-listener-unbound`), and a `config-changed` the hub could not
+deliver (`doctor-managed-client-notify-dropped`): that client runs its
+previous config until it fetches again, which it does each time it connects.
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, managedRejectedRow, checkManagedListenerUnbound -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- notifyDropped -->
+
 ## Resilience
 
 - **Partition tolerance:** Clients cache their last known config locally
