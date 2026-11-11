@@ -872,7 +872,7 @@ func readDemoJSON(t *testing.T, path string, value any) {
 func TestTheHomepageRFCCardSaysWhatTheOldFigureCounted(t *testing.T) {
 	page, _ := renderHomeFixture(t)
 	text := visibleText(page)
-	want := "Until 2026-10-31 the percentage counted all mandatory requirements, including those with special notes; rows summarizing other requirements were excluded"
+	want := "Until 2026-10-31: all mandatory rows counted, including annotated rows; summary rows excluded."
 	if !strings.Contains(text, want) {
 		t.Errorf("the homepage RFC card does not say what the earlier figure counted: want %q", want)
 	}

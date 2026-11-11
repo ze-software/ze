@@ -145,11 +145,11 @@ const homeTemplate = `        <div class="site-home">
                                 <div class="hero-metrics-grid">
                                     <a class="hero-project-metric" href="project/activity/">
                                         <strong>{{ze:repo.go_source_lines_display}}</strong>
-                                        <span>Go source lines</span>
+                                        <span>lines of Go source code</span>
                                     </a>
                                     <a class="hero-project-metric" href="project/activity/">
                                         <strong>{{ze:repo.go_test_lines_display}}</strong>
-                                        <span>Go test lines</span>
+                                        <span>lines of Go test code</span>
                                     </a>
                                     <a class="hero-project-metric" href="reference/plugins/">
                                         <strong>{{ze:plugin_registrations}}</strong>
@@ -177,7 +177,8 @@ const homeTemplate = `        <div class="site-home">
                                     />
                                 </a>
                                 <p>
-                                    Expected initial release: Q4 2026.<br />
+                                    Expected initial release:<br />
+                                    Q4 2026.<br />
                                     No stable release yet.
                                 </p>
                             </div>
@@ -226,9 +227,9 @@ const homeTemplate = `        <div class="site-home">
                             <span class="label">Mandatory RFC requirements proven</span></strong
                         >
                         <ul>
-                            <li>{{ze:rfc.proven_display}} of {{ze:rfc.must_kept_display}} mandatory requirements that Ze or the operating system must meet, from RFCs whose requirement lists have been reviewed</li>
-                            <li>Ze implements {{ze:rfc.implemented_display}} RFCs; {{ze:rfc.not_walked_display}} still await that review and are not included in this percentage</li>
-                            <li>Until 2026-10-31 the percentage counted all mandatory requirements, including those with special notes; rows summarizing other requirements were excluded</li>
+                            <li>{{ze:rfc.proven_display}} of {{ze:rfc.must_kept_display}} requirements for Ze or the OS.</li>
+                            <li>{{ze:rfc.implemented_display}} RFCs implemented; {{ze:rfc.not_walked_display}} unreviewed requirement lists excluded.</li>
+                            <li>Until 2026-10-31: all mandatory rows counted, including annotated rows; summary rows excluded.</li>
                             <li>Each test identifies the requirement it checks</li>
                         </ul>
                         <span class="proof-check concept-evidence">Standards requirements and test results.</span>

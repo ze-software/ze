@@ -44,8 +44,8 @@ func TestHomeProjectMetricsUseSnapshotValues(t *testing.T) {
 		t.Fatal(err)
 	}
 	wants := map[string]struct{ value, label, href string }{
-		"repo.go_source_lines_display": {"2.35 million", "Go source lines", "project/activity/"},
-		"repo.go_test_lines_display":   {"3.46 million", "Go test lines", "project/activity/"},
+		"repo.go_source_lines_display": {"2.35 million", "lines of Go source code", "project/activity/"},
+		"repo.go_test_lines_display":   {"3.46 million", "lines of Go test code", "project/activity/"},
 		"plugin_registrations":         {"87", "Plugins", "reference/plugins/"},
 		"cli_commands":                 {"612", "CLI commands", "reference/cli/"},
 	}
@@ -128,7 +128,7 @@ func TestHomeProjectMetricsMirrorIsReadable(t *testing.T) {
 	}
 	mirror := readArtifact(t, paths.Output, "index.md")
 	for _, want := range []string{
-		"2.35 million", "Go source lines", "3.46 million", "Go test lines", "87", "Plugins", "612", "CLI commands",
+		"2.35 million", "lines of Go source code", "3.46 million", "lines of Go test code", "87", "Plugins", "612", "CLI commands",
 		"Includes comments and blank lines; excludes third-party dependencies.", "project/activity/", "project/why-ze/", "discord.gg/T8s7CjPDne",
 		"Current first-party Go inventory.",
 	} {

@@ -414,8 +414,8 @@ recording for `homeTemplate`'s `data-cast-poster`.
 
 
 The hero's project-size band replaces its repeated navigation tiles. It shows
-Go source lines, Go test lines, plugins and CLI commands through marked
-`data/site-facts.json` values. The line figures include comments and blank lines,
+lines of Go source code, lines of Go test code, plugins and CLI commands through
+marked `data/site-facts.json` values. The line figures include comments and blank lines,
 exclude third-party dependencies, and count development tooling as source.
 They come from the recorded repository facts, using the activity page's Go
 inventory definition; the activity page itself still measures the current
@@ -425,6 +425,30 @@ Discord is linked in a sentence. Search and demonstrations retain their existing
 header and player paths. The release notice and testing proof section remain.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: internal/le/site/facts.go -- factsFromRepositoryFile -->
+
+The line labels read as a phrase after the quantity. Thomas requested this
+wording improvement on 2026-11-11:
+
+> "Go source lines" does not read well or naturally after the number same for the other string, "lines of go application code" may be better ???
+
+Use "source code" because this count includes the development tools as well as
+the application.
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
+
+The release date appears on its own line, with larger release text. Thomas
+requested these changes on 2026-11-11:
+
+> can you add a new line after expected release: so the date is on its own line
+>
+> and increase the font size
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
+<!-- source: website/assets/css/30-components.css -- .site-home .hero-release-callout p -->
+
+Keep the RFC card's bullets compact while retaining the reviewed population,
+exclusions and historical counting note. Thomas requested this on 2026-11-11:
+
+> Under the first section with 45.3% has very long descriptions in the three bullet points pushing the page down. Can we be more compact in our descriptions ?
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
 ### Site design and content rules
 
