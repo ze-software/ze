@@ -193,7 +193,9 @@ func unique(values []string) []string {
 }
 
 // Message returns a commit message with a one-line 72-column subject, a body
-// wrapped without breaking words, and the trailer lines after a blank line.
+// wrapped without breaking words (a single word longer than the line, such as
+// a URL or a path, takes a line of its own), and the trailer lines after a
+// blank line.
 // A trailer is a record a script reads back, so it is never wrapped, and a
 // subject or body line that starts with a declared trailer key is refused:
 // the record is written by the one route declaredTrailers names, never by
@@ -228,6 +230,11 @@ func Message(subject string, body, trailers []string) (string, error) {
 	return message, nil
 }
 
+// wrapBody wraps each body line at messageWidth, keeping the line's indent on
+// every line it emits and never breaking a word. A word that cannot fit even
+// alone with its indent (a URL, a path, a hash) is accepted, not refused: it
+// starts its own emitted line, and the next word starts the line after it.
+// Only a single word is exempt, so a line of several words still wraps.
 func wrapBody(chunks []string) (string, error) {
 	lines := make([]string, 0)
 	for _, chunk := range chunks {
@@ -242,20 +249,17 @@ func wrapBody(chunks []string) (string, error) {
 				continue
 			}
 			indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-			words := strings.Fields(strings.TrimSpace(line))
-			for _, word := range words {
-				if utf8.RuneCountInString(indent+word) > messageWidth {
-					return "", fmt.Errorf("body contains an unwrappable line longer than %d characters", messageWidth)
-				}
-			}
 			current := indent
-			for _, word := range words {
-				separator := ""
-				if current != indent {
-					separator = " "
+			for word := range strings.FieldsSeq(line) {
+				// The first word of an emitted line is taken whatever its
+				// width, so an over-long word never flushes an indent-only
+				// line above itself.
+				if current == indent {
+					current += word
+					continue
 				}
-				if utf8.RuneCountInString(current+separator+word) <= messageWidth {
-					current += separator + word
+				if utf8.RuneCountInString(current+" "+word) <= messageWidth {
+					current += " " + word
 					continue
 				}
 				lines = append(lines, current)

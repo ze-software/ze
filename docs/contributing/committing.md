@@ -40,7 +40,7 @@ Write a bullet as `body "* item"`, or put a word before the dash, as in
 | Keyword | Repeats | Meaning |
 |---------|---------|---------|
 | `subject` | no | The one-line commit subject. At most 72 characters, and a longer one is refused with the count and the overage |
-| `body` | yes | One body chunk, wrapped to 72 characters without breaking a word. Two chunks run together, so a paragraph break is an empty `body ""` between them |
+| `body` | yes | One body chunk, wrapped to 72 characters without breaking a word, each emitted line keeping its input line's indent. A single word longer than the line with its indent (a URL, a path, a hash) is accepted and takes a line of its own; a line of several words still wraps. Two chunks run together, so a paragraph break is an empty `body ""` between them |
 | `file` | yes | One explicit file to stage. Never a directory |
 | `file-list` | yes | A file holding one path to stage per line. Blank lines and `#` comments are skipped |
 | `hunks` | yes | Two values, `hunks <path> <patch-file>`: commit HEAD's blob of `<path>` with only the hunks in `<patch-file>` applied, and leave the working-tree file as it is. See "Committing some hunks of a shared file" below. Refused with `attest`, and for a path also named by `file` or by `hunks` twice |
@@ -68,13 +68,14 @@ before a session directory, message or script is written. Reading an existing
 <!-- source: internal/le/commit/prepare.go -- Create -->
 
 `Message` in `internal/le/commit/input.go` enforces the subject limit and the
-body wrap, and appends one `RFC-approved: <package>.<TestName>: <reason>`
+body wrap (`wrapBody`), and appends one `RFC-approved: <package>.<TestName>: <reason>`
 trailer line, never wrapped, for each `ze-test-judge` approval the commit uses. The
 approval is written once, by `./le rfc approve unit <package>.<TestName> reason
 "<the judge's verdict>"`, into `tmp/commit-rfc-approved-<session>.md`; the
 generated script drops the used rows from that file after `git commit`
 succeeds, so the trailer in the commit is the only record
 (`docs/contributing/rfc-implementation-guide.md`).
+<!-- source: internal/le/commit/input.go -- Message, wrapBody -->
 
 An approval-only publication names `rfc-approval` without files and uses the same
 private-index publication route without changing the tree. It cannot combine
