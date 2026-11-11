@@ -1,20 +1,313 @@
 # Handover: closing near-done specs (2026-11-10)
 
 **Current status (2026-11-11):** nine specs closed; refusal verification is active;
-lint-tooling and access remain owned by other sessions, and route-policy still
-owes matched Mac measurements. Reload's claim is released after closure.
+lint-tooling and route-policy remain claimed. Access's old claim marker is gone,
+but another session's uncommitted acceptance preparation is preserved.
+Route-policy still owes matched Mac measurements. Reload's claim is released.
 **Branch:** main. No push was performed by this session; Thomas controls pushes.
 **Goal:** close the open specs whose implementation is already committed. The
 owner asked that locked or blocked specs not stop progress on the others.
 
 ## Active refusal evidence continuation, 2026-11-11
 
+### Active checkpoint after the runtime admission repair
+
+Refusal remains open and claimed by
+`01a1c842-0a58-7752-bbff-2a3f1633b66f`. No further spec has closed, no CLEAN
+closure artifact exists, and no push or `./le verify` ran. Every test, build,
+lint and proof runs in main. Short log names below are under
+`tmp/session/2026-11-11-014000/scratch/`. This checkpoint supersedes the older
+repair queues retained below.
+
+The BMP stored-path and missing-next-hop repair is committed in `4a991e513e`.
+All 268 BMP race roots pass in `job-refusal-bmp-stored-green-dc666453.log`.
+The subsequent runtime audit found that a forked plugin could accept Loc-RIB
+without its event bus. Startup and reload now refuse that request before
+configuration effects, with the cause and an internal-plugin configuration
+fix. Main first observed both missing-bus regressions fail while available-bus
+controls passed. The full retry exposed one old disabling-reload fixture that
+booted with Loc-RIB enabled but no bus. Its independently approved correction
+supplies the real bus and preserves every assertion; the exact root passes in
+`job-refusal-bmp-locrib-off-fixture-green-cb55598c.log`. Runtime admission and
+the corrected fixture are committed in `dfc2863cea`; the full BMP retry passes
+all 273 roots under race with zero skips.
+
+NTP CLI wiring is committed in `e62bc0e2a1`. The actual external entry then
+reproduced the wrong `enabled=false` answer in
+`job-refusal-ntp-wired-baseline-a319bf40.log`. The worker-state and query
+transport repair is applied, and all 383 roots across four packages pass
+under race with zero skips in `job-refusal-ntp-boundary-race-9f5c7d40.log`.
+Independent bounded review is CLEAN. Commit preparation nevertheless refused
+the final-save warning without a doctor code and three SDK error returns
+without `opererr` recovery. The reviewed recovery and cleanup correction is
+now applied: callback recovery failures were observed in
+`job-refusal-ntp-runtime-recovery-red-b32a7ded.log`, and an actual configured
+worker leak was observed in `job-refusal-ntp-startup-cleanup-red-82f32703.log`.
+All three focused roots then pass under race in
+`job-refusal-ntp-runtime-recovery-green-4ebbb0be.log`. The final NTP package
+passes all 71 roots under race with zero skips in 3.763 seconds, recorded in
+`job-refusal-ntp-final-package-and-live-71bfbb66.log`. The same run's actual
+external `system-date-ntp-forked` test passes in 1.1 seconds. The NTP state,
+recovery and lifecycle repair is committed in `2ea5329344`.
+
+An earlier live attempt in
+`job-refusal-runtime-live-after-fib-doctor-9bdfbf35.log` failed first-party
+compilation on `internal/le/hookruntime/bash.go:695`, where
+`withoutReaderData` was undefined. That helper is now present and main's retry
+is in progress. This attempt reached no behavioral assertions. The earlier
+FIB/VPP `codeStaleLabel` failure in `job-refusal-ntp-external-green-8a4d103a.log`
+also remains attempted-run history. Later current-source builds and the NTP
+live pass supersede those blockers. Preserve the other sessions' source and
+dependency work.
+
+The actual internal `bmp-locrib` collector proof passes 1/1 in 1.7 seconds in
+`job-refusal-bmp-internal-locrib-live-d641eed6.log`. The first external BMP
+draft timed out because it wrongly expected a nonfatal plugin refusal to stop
+the daemon. The documented failure policy and
+`TestConfigRefusalIsNotFatalWithoutTheFlag` require the daemon to continue.
+An independent judge approved the corrected draft: all exact cause/fix
+assertions inspect the daemon stream, then successful SSH dispatch checks the
+process-manager list and the refused BMP process's absence. The actual draft
+passes 1/1 in `job-refusal-bmp-external-after-crash-api-dfbdeee1.log`. Its prior
+attempt failed to build during a foreign `ReportCrash` API change; that
+attempt reached no assertions. Both new drafts still owe 80 loaded iterations,
+promotion and canonical selected runs. Native weakening approval cannot name
+a brand-new ignored draft with no HEAD carrier; retain the independent
+judgment and carry its `Test-judge:` explanation on promotion.
+
+The current owned RFC population is 62 requirement IDs in
+`refusal-rfc-runtime-62-ids.txt`. Exact unit/producer ownership in
+`refusal-runtime-rfc-ownership.json` classifies the fresh 117 findings as 37
+owned and 80 foreign. The withdrawal caller repair also changed two forwarding
+producers, adding six IDs beyond the prior 56. Fifteen existing proof records,
+the first RFC9069-5.3-1 dependency proof, five semantic audits and 17 mechanical
+shifts remain. The first renewal baseline failed to build on foreign IKE
+`checkIPsecPeerMalformedMessage`; `job-refusal-runtime-rfc-record-77170cc5.log`
+contains no valid new record. That helper is now present. The independent BMP
+proof subset and scoped mechanical reseal are queued; no fresh result is
+claimed yet.
+
+The fresh AC-7 report is `job-refusal-runtime-ac7-report-fcb16ac0.log`: 2208
+refused and 72 annotated shapes in 7083 files. The expanded 54-row/124-entry
+join has six raw hits, retained in `refusal-ac7-runtime-comparison.json`.
+Four are explicit NTP operator-error responses that the checker misclassifies;
+new canonical/import-alias/shadow/impostor regressions have observed red in
+`job-refusal-operator-response-red-a1ab3e18.log`. Expanded return-path controls
+are queued, and the independently reviewed precision repair remains
+unapplied until their red is observed. The other two raw hits are sibling BMP
+apply/rollback callbacks conflated by the report's `.func` name; actual new
+preflight consumers are configure/verify, and the final map must resolve
+those exact AST callback anchors. Do not drop an actual producer or claim a
+zero-owned join before this work completes. Scoped lint, docs and whole-scope
+review also remain owed. No additional spec is closed.
+
+Main revalidated ownership at 19:53: lint-tooling retains
+`1b60310f-ee84-4530-a4fa-5c2a0c43bc6f`; route-policy retains
+`367e6465-9216-4cab-a75e-1a935c4374b1` and
+`4aaa7cd7-aa9a-4878-ac2e-b87029a0b428`. Access's old marker is gone, but its
+uncommitted acceptance-table preparation belongs to another session and is
+preserved. Its six existing acceptance runs remain pending.
+
+## Earlier refusal checkpoint, 18:35 UTC (superseded)
+
+The following checkpoint retains the earlier evidence and attempted-run
+history. Its pending queues and ownership statements are superseded by the
+active checkpoint above.
+
+Nine specs are closed. Refusal remains open and claimed by parent session
+`01a1c842-0a58-7752-bbff-2a3f1633b66f`. Work continues: no handback or claim
+release is being performed. The closure agent owns
+the refusal spec's current prose. The canonical news fragment remains untracked
+until closure. No push or `./le verify` ran, and all execution stays in main.
+Short artifact names below are under
+`tmp/session/2026-11-11-014000/scratch/`; native approval namespace is
+`8b5d7643`.
+
+Fresh round-1 generic, spec and style review is complete over original
+`238bdb62e9` plus this spec's commits through `2558080335`. It returned three
+product issue groups, with no CLEAN artifact. The historical implementation
+proofs below remain useful, but they do not establish the BMP/NTP behavior
+that this review found missing.
+
+### Shared build history and current scoped execution
+
+The 18:28 native attempt failed on diagnostic → plugin → ipc → diagnostic.
+Foreign `internal/core/diagnostic/doctor_registry.go` still imports
+`component/plugin` for `DoctorCheckContext.Plugins`, but that import line alone
+cannot establish that the cycle remains: another edge changed. At 18:35 main's
+pending job compiled and all six intended behavioral regression roots went red
+in `job-refusal-review-regressions-current-203b1b6f.log`. Execution is unblocked
+for those scoped packages; this is no claim about a whole-tree build.
+
+Doctor owner `8bedf141-9362-41ef-ad37-33c270750d20` holds
+`spec-doctor-coverage-12-plugin-infra`. Preserve that owner's source and the
+foreign patternmatcher dependency work, as Thomas instructed. The earlier
+arity, `DeclaresEventCodes`, `pluginInfraCodes` and import-cycle setup failures
+remain historical attempted-run evidence. Current native results supersede
+those blockers; no handback is needed to wait for their old signatures.
+
+### Review findings and current repairs
+
+| Issue | Producing path and required outcome | Current state |
+|-------|------------------------------------|---------------|
+| BMP stored AS_PATH fidelity | `buildLocRIBUpdateBody` replaces authoritative stored AS_PATH with flattened display ASNs, omitting a valid empty path and changing AS_SET or multiple segments into one AS_SEQUENCE. Encode the stored attribute, including its empty form. | All four new roots in `internal/component/bgp/plugins/bmp/locrib_stored_path_test.go` have observed behavioral red. The author is now applying the reviewed product, 30 approved fixture migrations and docs; green remains owed. |
+| BMP missing reachability | A missing next hop can reach the same builder through `RIBManager.injectRoute`, candidate admission and `bestPrevInterner.internNextHop`, then report successful construction. Refuse that announce while preserving valid routes. | The new missing-next-hop regression went behaviorally red in the same compiled run. Its reviewed fix is now being applied with the stored-path repair. |
+| Forked NTP state | Supported `externalRunPlugin` → `RunEngine` launches keep worker state in the subprocess, while daemon-local state can falsely answer inactive. NTP status, peers and date must query their owner and distinguish unavailable state from accepted inactive configuration. | The two status/peers roots went behaviorally red. A configured-enablement control, `internal/test/fixture/register_ntp_forked_state.go` and ignored `test/draft/plugin/system-date-ntp-forked.ci` are present. RPC draft finalization and actual external-daemon red precede product application. |
+
+The new BMP roots are `TestLocRIBBodyPreservesStoredASPath`,
+`TestLocRIBCollectorPreservesStoredEmptyASPath`,
+`TestLocRIBMissingASPathIsRefused` and `TestLocRIBMissingNextHopIsRefused`.
+The NTP roots are `TestNTPStatusWithoutPublicationRefuses` and
+`TestNTPPeersWithoutPublicationRefuse`; current source also includes
+`TestNTPPublicationReadsConfiguredEnablement` as the accepted-config control.
+Main observed all six intended BMP/NTP roots fail behaviorally after successful
+compilation in `job-refusal-review-regressions-current-203b1b6f.log`. This
+supersedes the queued/setup-failure state. BMP product and approved old-fixture
+application has started; NTP product application still awaits the actual
+external-daemon draft red and judgment of its existing-fixture changes.
+
+The reviewed BMP draft baseline is retained in `bmp-stored-path-product.patch`,
+`bmp-stored-path-docs.patch` and `bmp-stored-fixtures-proposed.patch`.
+`bmp-stored-path-main-commands.md` gives the exact four-root selection, package
+and pmacct commands; its old approval-record step is already complete.
+`bmp-stored-fixtures-unit-map.md` identifies the 30 direct/transitive fixture
+consumers. The initial helper draft was refused because ASPath.WriteTo omitted
+the attribute header. The corrected helper uses WriteAttrTo and is approved;
+no refused draft was applied. Root successfully recorded all 30 independent
+approvals in `job-refusal-bmp-fixture-approvals-f426c00a.log`. Preserve the
+foreign BMP enum extraction, receiver/config edits and guide CLI hunk when
+applying the scoped patches.
+
+The NTP author is preparing a reviewable generic per-request `CommandQuery`
+owner query over existing wire commands, with scope and functional draft
+changes. Accepted configuration false is the authority for inactivity. Accepted
+active configuration with runtime enabled=false must refuse, including the
+asynchronous reload window. Missing, malformed or transport-failed state must
+refuse; measured synced=false and zero values remain valid answers. Draft
+feedback still requires direct NTP forwarding errors to carry opererr recovery,
+and active accepted config must never be recast as inactive from an unready
+worker snapshot. No NTP product fix is claimed yet.
+
+### Completed adapter proof and bounded static census
+
+`2558080335` commits withdrawal error propagation through both forwarding WARN
+sinks. The actual source regression first failed in
+`job-refusal-withdrawal-adapter-red-78d9ded2.log`; all 32 selected roots then
+passed under race in `job-refusal-withdrawal-adapter-green-93827d21.log`.
+Independent source/style review was CLEAN for that repair.
+
+The actual AC-7 report is `job-refusal-ac7-clean-report-fcb16ac0.log`: 2200
+refused, 71 annotated and 7050 Go files. Main verified all 97 source declaration
+entries of the 54-row map, then parsed both report populations, 2271 findings,
+with zero owned hits. The comparison is retained in
+`refusal-ac7-clean-comparison.txt`. This is a static checkpoint before the new
+BMP/NTP repairs. Extend the map over the full NTP owner/query/worker chain,
+including `runNTPPlugin`'s two currently unmapped state/save-error shapes; the
+author's planned fixes derive enabled state from `cfg.Enabled` and report save
+failure at WARN. Run a fresh report and comparison after those repairs. The
+existing zero-owned join does not prove the new runtime behavior.
+
+### RFC evidence still owed
+
+The latest global report has 60 findings: two owned RFC1997 producer bindings
+and 58 foreign findings, including a separate SHIFTED interop verdict under the
+same RFC1997 ID. `refusal-rfc-ownership-final.md` attributes individual findings.
+The old 48-ID population in `refusal-rfc-final-48-ids.txt` must expand after the
+approved BMP fixture edits: `bmp-stored-fixtures-record-tuples.json` names 12
+renewal candidates over eight IDs, several outside that population. Native
+freshness decides which renewals are due; no blanket fresh verdict is claimed.
+
+No RFC1997 record was written by these unsuccessful attempts:
+
+- `job-refusal-rfc1997-renew-579f816b.log`: baseline build failure on the then
+  missing `DeclaresEventCodes`.
+- `job-refusal-rfc1997-after-doctor-579f816b.log`: baseline passed, but the
+  intended producer mutation failed to build on the then missing
+  `pluginInfraCodes`. The tagged unit never supplied the intended red, and the
+  recorder correctly refused a record.
+- `job-refusal-rfc1997-code-catalog-retry-579f816b.log`: baseline setup failure
+  on the current diagnostic/plugin import cycle.
+
+After rebuilding the current named runner, main runs
+`refusal-rfc1997-renew.sh` under a fresh label. Its two negative bindings are
+`TestForwardNoExportStillWithdrawsFromExternalPeer` in
+`internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go` and
+`test/plugin/wellknown-no-export-withdraw-egress.ci`, against
+`forward_build.go` `buildWithdrawalPayload`. Keep the existing functional
+citation. Reconcile the newly stale BMP covers through the prepared native
+routes and independent semantic rejudgment; never hand-write proof hashes or
+reseal the same-ID foreign RFC1997 interop verdict.
+
+### Then, in main
+
+1. Complete the BMP author's current application of reviewed product/docs and
+   the 30 approved fixture migrations. The four new roots already have their
+   required red. Run focused green, the complete BMP package and the actual
+   pmacct collector scenario from current source. The old approval-record step
+   in `bmp-stored-path-main-commands.md` is complete and needs no repeat.
+2. Finish and review the NTP RPC/scope draft against both outstanding feedback
+   points. Main rebuilds the named runner, runs the actual external-daemon draft
+   to observe its red, and obtains independent judgment of existing-fixture
+   changes before applying them. Then apply the product and approved fixture
+   changes and prove focused/full internal and forked controls green.
+3. Complete the two native RFC1997 records, newly stale BMP covers and their
+   rejudgments. Derive the expanded owned-ID set from current producers,
+   fixtures and native freshness; retain the individual 58 foreign
+   dispositions. Extend the NTP producer map and repeat both AC-7 populations.
+4. Complete the final four-configuration lint, documentation checks and
+   round-2 generic/spec/style review over the repairs and final evidence.
+   Record CLEAN only if that review is clean. No current CLEAN artifact exists.
+   Repository precheck reports nine foreign unwired exports in
+   `job-refusal-review-repo-f6785901.log`; the weakening audit reports five
+   foreign dirty findings in `job-refusal-review-weakened-2e1e4fc8.log` (one BMP
+   enum helper, two hook identity tests and two web Timeline deletions).
+   Preserve those owners' work and do not use this spec's approvals for it.
+5. Continue the repair and closure work under the current parent claim. No
+   blocked handback, handback commit or claim release is planned at this edge.
+   The six observed reds permit the next source phase; they do not supply its
+   green or the final review result. Keep the spec open until all remaining
+   behavior and proof obligations are complete.
+
+The derived package map regenerated successfully for 989 packages in
+`job-refusal-package-map-28eed09c.log`. Final docs still need a coherent
+current-source build. Earlier lint planning stopped on a foreign changing input
+and earlier doc checks failed during partial provider edits; neither supplies a
+passing verdict. The canonical news fragment stays unchanged and untracked.
+
+### Other specs after the refusal handback
+
+Root revalidated these ownership facts. Lint-tooling still has the
+`1b60310f-ee84-4530-a4fa-5c2a0c43bc6f` marker. Route-policy has
+`367e6465-9216-4cab-a75e-1a935c4374b1` and
+`4aaa7cd7-aa9a-4878-ac2e-b87029a0b428`; its matched Mac pair remains owed.
+Access now has no marker, remains in progress, and last changed in
+`14804a9b54`. This newer check supersedes the older header's ownership label;
+recheck before taking its claim. The successful six-root compile clears the blocker for that scoped work; it
+does not pre-judge the launcher or acceptance builds Access will use.
+
+Access's six existing acceptance scenarios, from
+`plan/release/validation/spec-rfc-verdict-fix-access.md`, are `01-ppp-ipv4`,
+`03-ze-lac-xl2tpd-lns`, `04-radius-acct-attrs` under `test deployment
+docker-l2tp-ppp`; `01-pppoe-chap-ipv4`, `02-ze-ac-pppd-client` under `test
+deployment docker-pppoe-accel`; and `radius-admin-eap-freeradius` under `test
+integration interop-radius`. Retain their logs in `tmp/access-close/` and finish
+that spec's review after checking its current runner build. Its five new scenarios already
+have intended-red/green/restored proof and need no timestamp-refresh repeat.
+
+### Retained earlier implementation snapshots
+
+The following text preserves the preceding implementation checkpoint verbatim
+apart from its headings. Its old queues and readiness statements are historical;
+the active checkpoint above supplies the latest result and next action.
+
+### Previous implementation checkpoint, before closure round 1
+
 Refusal remains claimed and in progress. Its spec carries the retained 54-row
 regression ledger, the separate changed-carrier census and the exact completed
 proofs. All execution stays in main. No push or whole-tree verification was
 performed.
 
-### Completed evidence
+#### Completed evidence at that checkpoint
 
 - `eb3efdecee` repairs BMP Loc-RIB collector send failures: the regression first
   failed after confirming healthy delivery, then seven focused race controls
@@ -53,7 +346,7 @@ performed.
   exclusions remain intact. The final LOCAL_PREF stamp completed on 2026-11-11;
   remaining owned RFC reconciliation is listed below.
 
-### Current repair and proof obligations
+#### Obligations recorded at that earlier checkpoint
 
 AC-4's direct-assignment and forward package-alias repair is committed in
 `06a4a22cbc`. Main's full race retry passes in `job-unit-pkg-ef92ffff.log`; this
@@ -88,44 +381,65 @@ fail before peer OPEN with AS0 in the PTY transcript, then an unmodified clean
 rebuild pass 2/2. The baseline/negative tool output has no retained full scratch
 file; the promoted clean and stress paths above are the retained logs.
 
-The earlier full RFC package failed in `job-unit-pkg-d25f06c4.log` on naming
-exclusion and at the 20-minute timeout. Approved naming/ledger maintenance has
-focused green; the full retry remains owed. LOCAL_PREF final audit stamping is
-complete as of 2026-11-11. The ASPA fixture reseal and all four owned SHIFT
-reseals are complete against source: RFC5549-4-1, RFC5549-4-4, RFC7911-2-2 and
-RFC8950-4-1. Those audit changes remain dirty and uncommitted.
+`a7afabc1be` commits the explicit BGP builder/ParseError repair and all 16
+RFC7311 unit/polarity renewals. The initial retained red `f0b4a2f9` showed two
+notify hits and one builder hit while four callback controls passed; independent
+actual-patch generic/style review was CLEAN. `62f9ff2116` commits RFC framework/fixture
+repairs, LOCAL_PREF/ASPA/all owned SHIFT reseals and the extra RFC7084-4.2-24
+renewal. The four SHIFT IDs are RFC5549-4-1, RFC5549-4-4, RFC7911-2-2 and
+RFC8950-4-1. `7b2c596952` commits the four netlink embedded-literal lint fixes
+and their five race controls; none of these remains an uncommitted obligation.
 
-The AC-7 explicit-error/ParseError-recording patch is stable. Main's new red
-in retained run `f0b4a2f9` found exactly two notify hits and one builder hit;
-four callback controls passed. `buildWithdrawalPayload` now returns a length
-and explicit static-class error; `fwdWithdrawal.of` releases its buffer on that
-error. `notifyOneMessage` records parse failure visibly and clears a stale
-record after successful modified-wire parsing. `refusal_signature_judge` found
-the actual patch generic/style CLEAN. Main formatting and green/report proof
-remain pending. Literal AC-7 is unchanged; meeting it by implementation needs
-no waiver or answer to the earlier owner question.
+The full RFC retry completed in 1168.248 seconds, below the 20-minute ceiling,
+but three intended interop/nightly fixtures still used unit-test filenames and
+failed. The current catalog requires real `check_*.go` checker files for those
+fixtures. All other executed roots passed. The retained failed run is
+`job-refusal-rfc-full-retry1-d25f06c4.log`; `job-unit-pkg-d25f06c4.log` was
+overwritten by that retry and cannot be cited as the original timeout's raw log.
+The two fixture-input repairs preserve every assertion, workflow and tag and
+have independent approval. All 67 selected roots across six files now pass
+under race in `job-refusal-rfc-fixture-green-48640de7.log`, including the three
+failed roots. Eight CarrierFor controls and ordinary misnamed-unit refusal
+controls remain covered. The immutable actual-corpus cache runs once outside
+individual ledger consumers and refuses a different checkout root; its helper
+approval is complete. RFC package statement coverage is 37.6%, with three new
+defensive profile blocks still uncovered.
 
-The two RFC7311 tagged caller migrations have independent judge approval:
-`TestRFC7311DirectLinkCostNeverWrapsOrDisappears` and
-`TestAIGPForwardedMetricsReachFinalWire`. Main still owes 16 native unit/polarity
-renewals for RFC7311-3.4.3-1 through -6 and assigned audit rejudgments for -2,
--4 and -6. The expanded 43-ID scope is not declared fresh. The earlier native
-check's 64 violations are not all attributed to refusal.
+The owned RFC population is 47 IDs: original 37, ASPA one, AIGP six, mechanical
+AIGP two and the extra RFC7084 ID. The final global check has 60 violations;
+the assigned ownership audit is still classifying them. No fresh owned-zero
+verdict is claimed.
+
+Main's actual QEMU `plugin/linklocal-only-multihop-withdraw` passes 1/1 with all
+phases on kernel `7.3.0-ze`, SHA256
+`1305faf7734c0c309b0b1d97d37951df625f71e548bbdc04f7ff456f27d4c5e0`, in
+`job-refusal-withdrawal-qemu-afde2315.log`. The RS fast path reaches the
+withdrawal builder through `mods.SetWithdraw` and `fwdWithdrawal.of`; the
+fixture observes withdrawal of a previously advertised prefix, so the proof
+cannot pass by sending nothing.
+
+The final AC-7 report is `job-refusal-final-report-fcb16ac0.log`: 2200 refused,
+71 annotated, 7042 Go files. Its comparison with all 54 producers uses
+`scratch/refusal-ac7-producer-map.json`. Notify and builder scopes are now
+clean, but the report checkpoint still has one owned residual: `fwdWithdrawal.of`
+released its buffer then turned the builder error into nil, leaving generic
+caller warnings. The assigned follow-up propagation patch is in progress;
+main still owes its proof and report comparison. Literal
+AC-7 remains open; the successful QEMU withdrawal does not prove that error
+path or remove the report hit. Formal independent review has not started.
 
 The expanded carrier census records monitor/RPKI readers and EPE `Source.State`'s
 existing AS-zero admission guard, plus useful known identity and ASN-free
 cleanup outcomes. Main's final source verification remains owed.
 
-The next work is main formatting and green/report proof for the stable AC-7
-patch, the RFC7311 renewals/rejudgments and the full RFC retry. All completed
-LOCAL_PREF/ASPA/SHIFT audit changes still need their native commit. Current
-bounded lint found four modernize embedded-literal findings in this spec's
-`internal/plugins/iface/netlink/stats_linux_test.go`; main will fix them after
-the current run, and no lint pass is claimed. Final source audits, documentation
-checks and independent review remain owed. Formal native closure review has not
-started. Completed AC-4, full RPKI and identity functional/stress proofs need no
-timestamp refresh. Agents run source/prose work only; main runs every build,
-test, formatter, lint and proof.
+The next action is the remaining `fwdWithdrawal.of` cause-propagation repair,
+its caller proof and a fresh owned-producer comparison. Then finish the active
+47-ID RFC ownership classification against the final 60-violation report. The
+final bounded lint is running, with no final passing verdict claimed.
+Documentation checks, final source audits and formal independent review remain
+owed. No closure template is appended. Completed proofs need no timestamp
+refresh. Agents run source/prose work only; main runs every build, test,
+formatter, lint and proof.
 
 Reload closed in `ce66c7971b` and `4bfe6f2ab3`. Final scoped lint passed Linux,
 integration, Darwin and capability configurations, and the owner-recorded
@@ -390,7 +704,7 @@ the build. Agents continued source work while main-thread jobs ran. No push was 
 | Spec | Current evidence and what clears it |
 |------|-------------------------------------|
 | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` | Handback `dc7b73d88c`; claim released. Repairs and independent source review are complete. Final scoped lint and structural/documentation checks need the claimed inventory build repaired first. |
-| `plan/release/fixes/spec-refuse-instead-of-defaulting.md` | Handback `a261740ab2`; claim released. CoS and forwarding-writer refusals are repaired. Actual absent-CoS CLI, affected Go consumers and all eight parser cases passed. Interop staging cannot build the shared `le` dependency; no ADD-PATH scenario or negative control ran, and LDP remains unrun. The config corpus is separately red with eight errors across five non-CoS fixtures. |
+| `spec-refuse-instead-of-defaulting` | Handback `a261740ab2`; claim released. CoS and forwarding-writer refusals are repaired. Actual absent-CoS CLI, affected Go consumers and all eight parser cases passed. Interop staging cannot build the shared `le` dependency; no ADD-PATH scenario or negative control ran, and LDP remains unrun. The config corpus is separately red with eight errors across five non-CoS fixtures. |
 | `plan/post-release/features/spec-route-policy-0-umbrella.md` | Handback `a32bb92747`; claim released. A-4 requires matched Loc-RIB performance results on the owner's Mac: baseline `fb94aa0497^` versus implementation `fb94aa0497`. Preserve revisions, Go version, hardware and full output. The SDK transport benchmark does not answer this obligation. Final review and closure remain owed. |
 | `spec-plugin-reload-applies-or-refuses` | Historical handback `dbf47bb319`; the permission blocker and guest proof were subsequently cleared. See the latest continuation above for current evidence. |
 | `spec-rfc-verdict-fix-access` | Locked by `644a4e78-0122-4eeb-8642-eb50638a1641+AccessInteropImplement`. Its owner holds the six lab acceptance runs and proof work; this continuation did not take the claim or alter its source. |
