@@ -1,17 +1,21 @@
 // Design: docs/architecture/core-design.md -- native Go gates run through le
 // Overview: hookcheck.go -- selftest orchestration and structured report
 //
-// Dispatcher fixtures are typed Go data. Native rules evaluate that data and
-// hook source contracts detect changes to the dispatchers themselves.
+// Dispatcher fixtures are typed Go data. The bash rows are judged by the hook's
+// own pretool-bash action (hookruntime.ProbeBash); the other tables by native
+// rules over that data. Hook source contracts detect changes to the
+// dispatchers themselves.
 package aihooks
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
-	"regexp"
+	"os"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/hookruntime"
 )
 
 const (
@@ -49,25 +53,27 @@ var parityCatalogDigest = [sha256.Size]byte{
 	0x9c, 0x91, 0x74, 0x3d, 0x96, 0x2f, 0x10, 0x45,
 }
 
-var (
-	expensivePipe = regexp.MustCompile(
-		`(?s)(?:^|[;&\n])\s*(?:timeout\s+(?:-k\s+\S+\s+)?\S+\s+|nice\s+-n\s+\S+\s+)?` +
-			`(?:go\s+test\b|(?:\./)?le\s+verify(?:\s|$)|` +
-			`(?:(?:\./)?bin/ze|ze)\s+le\s+(?:hook-check|ai\s+hooks)\s+unit\b)[^;&\n]*?(?:\||\|&)\s*(?:head|tail|grep)\b`,
-	)
-	// cheapVerifyArea names the le areas that live under the `verify` word and
-	// run nothing: they read and write the verification certificate. The
-	// expensive pattern above matches `le verify` and RE2 has no lookahead, so
-	// the cheap area is removed from the text before that pattern is applied.
-	cheapVerifyArea = regexp.MustCompile(`(?:\./)?\ble\s+verify\s+(?:status|summary)\b`)
-	// rawGoTest matches a raw go test or go vet, the two the raw-job refusal
-	// names the short package action for (rawHeavy in hookruntime).
-	rawGoTest       = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+(?:-k\s+\S+\s+)?\S+\s+|nice\s+-n\s+\S+\s+)?go\s+(?:test|vet)\b`)
-	rawLint         = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+\S+\s+)?golangci-lint\s+run\b`)
-	rootScratch     = regexp.MustCompile(`(?:>|>>|\btee\s+)(?:\s*)(?:\./|@PROJECT@/)?tmp/([^/\s'"]+)(?:\s|['"]|$)`)
-	boundedTimeout  = regexp.MustCompile(`^timeout\s+(?:-k\s+\S+\s+)?\d`)
-	waitLoopPattern = regexp.MustCompile(`\b(?:while|until)\s+`)
-)
+// bashGoldenProject is the placeholder a bash row writes for the checkout
+// root. The judge puts the probe tree's root in its place, so a row such as
+// `echo probe > @PROJECT@/tmp/notes.txt` names that tree's own tmp/.
+const bashGoldenProject = "@PROJECT@"
+
+// bashGoldenTree is the checkout the bash rows are judged over: a module with
+// one main package, the package two rows test and vet, and a tmp/ directory.
+// The build guard reads the tree (the module path, which directory is a main
+// package), and the scratch guard resolves tmp/, so the rows need a tree that
+// holds what they name. A throwaway tree also keeps the action's writers off
+// the session's checkout.
+var bashGoldenTree = map[string]string{
+	"go.mod":                    "module github.com/ze-software/ze\n\ngo 1.24\n",
+	"cmd/ze/main.go":            "package main\n\nfunc main() {}\n",
+	"internal/core/env/env.go":  "package env\n",
+	"tmp/session/.probe-anchor": "",
+}
+
+// parityJudge answers one row's verdict over the probe tree: the exit code,
+// what the producer wrote, or why it could not answer.
+type parityJudge func(tree, row string) (code int, output string, err error)
 
 type parityFixture struct {
 	name         string
@@ -78,7 +84,7 @@ type parityTable struct {
 	key      string
 	name     string
 	expected int
-	judge    func(string) int
+	judge    parityJudge
 	fixtures []parityFixture
 }
 
@@ -90,11 +96,19 @@ func runParity(_ string) ([]Result, Population, []GoldenCase) {
 	currentDigest := parityDigest(parityCatalog[:])
 	catalogOK := currentDigest == parityCatalogDigest
 
+	tree, treeErr := probeTree("bash-golden", bashGoldenTree)
+	if tree != "" {
+		defer func() { _ = os.RemoveAll(tree) }()
+	}
+
 	for index, table := range parityCatalog {
 		result := Result{Name: table.name, Passed: catalogOK}
 		if !catalogOK {
 			result.Code = 2
-			result.Message = fmt.Sprintf("typed dispatcher fixture content changed: got %x, want %x", currentDigest, parityCatalogDigest)
+			var tb textbuf.Buffer
+			result.Message = tb.Str("typed dispatcher fixture content changed: got ").
+				Str(hex.EncodeToString(currentDigest[:])).Str(", want ").
+				Str(hex.EncodeToString(parityCatalogDigest[:])).String()
 		} else if len(table.fixtures) != table.expected {
 			result.Passed = false
 			result.Code = 2
@@ -103,7 +117,17 @@ func runParity(_ string) ([]Result, Population, []GoldenCase) {
 				Str(" rows, want ").Int(int64(table.expected)).String()
 		}
 		for _, fixture := range table.fixtures {
-			got := table.judge(fixture.name)
+			got, output, err := judgeRow(table, tree, treeErr, fixture.name)
+			if err != nil {
+				// A row the producer could not judge has no verdict to record,
+				// so it joins no golden case and the table fails on it.
+				if result.Passed {
+					result.Passed = false
+					result.Code = 2
+					result.Message = fixture.name + ": " + err.Error()
+				}
+				continue
+			}
 			golden = append(golden, GoldenCase{
 				Table:        table.key,
 				Name:         fixture.name,
@@ -117,8 +141,12 @@ func runParity(_ string) ([]Result, Population, []GoldenCase) {
 			result.Passed = false
 			result.Code = 1
 			var tb textbuf.Buffer
-			result.Message = tb.Str(fixture.name).Str(": native code ").Int(int64(got)).
-				Str(", expected code ").Int(int64(fixture.expectedCode)).String()
+			tb.Str(fixture.name).Str(": native code ").Int(int64(got)).
+				Str(", expected code ").Int(int64(fixture.expectedCode))
+			if output != "" {
+				tb.Str("\n").Str(output)
+			}
+			result.Message = tb.String()
 		}
 		results = append(results, result)
 		switch index {
@@ -135,6 +163,16 @@ func runParity(_ string) ([]Result, Population, []GoldenCase) {
 	return results, population, golden
 }
 
+// judgeRow asks the table's judge for one row over the probe tree. A tree that
+// could not be built answers its error for every row, so no row reads as
+// judged over a tree that does not exist.
+func judgeRow(table parityTable, tree string, treeErr error, row string) (int, string, error) {
+	if treeErr != nil {
+		return 0, "", fmt.Errorf("build the probe tree: %w", treeErr)
+	}
+	return table.judge(tree, row)
+}
+
 func parityDigest(tables []parityTable) [sha256.Size]byte {
 	var tb textbuf.Buffer
 	for _, table := range tables {
@@ -146,146 +184,20 @@ func parityDigest(tables []parityTable) [sha256.Size]byte {
 	return sha256.Sum256([]byte(tb.String()))
 }
 
-func bashCode(command string) int {
-	command = strings.ReplaceAll(command, "\\\n", " ")
-	fields := strings.Fields(command)
-	if len(fields) >= 3 && fields[0] == "./le" && fields[1] == "commit" {
-		switch fields[2] {
-		case "session", "create", "message", "check",
-			"push", "debt-status":
-		default:
-			return 2
-		}
-	}
-	if strings.Contains(command, "cp .claude/worktrees/") {
-		return 2
-	}
-	for _, destructive := range []string{"git reset --hard", "git commit ", "git merge "} {
-		if strings.Contains(command, destructive) {
-			return 2
-		}
-	}
-	if strings.TrimSpace(command) == "go build ./cmd/ze" || strings.Contains(command, "cat /tmp/") {
-		return 2
-	}
-	// Umbrella D-4: the build guard refuses a whole-tree build
-	// (TestRootBuildRefusesTheWholeTree, internal/le/hookruntime/bash_test.go).
-	if strings.TrimSpace(command) == "go build ./..." {
-		return 2
-	}
-	if strings.Contains(command, "rm internal/") && strings.Contains(command, "_test.go") {
-		return 2
-	}
-	if unboundedWait(command) || rawJob(command) || lossyPipe(command) {
-		return 2
-	}
-	if match := rootScratch.FindStringSubmatch(scratchText(command)); len(match) == 2 &&
-		!sharedScratchName(match[1]) {
-		return 2
-	}
-	return 0
+// bashHookVerdict judges one bash row by the hook itself: the whole
+// pretool-bash action, over a main-thread payload, with the probe tree as the
+// checkout (hookruntime.ProbeBash). The golden then goes red when the hook's
+// verdict moves, which the hand model it replaces never did: the `go build
+// ./...` row stayed at 0 after the build guard began refusing it.
+func bashHookVerdict(tree, row string) (int, string, error) {
+	return hookruntime.ProbeBash(strings.ReplaceAll(row, bashGoldenProject, tree), tree)
 }
 
-// lossyPipe answers whether an expensive command's output is piped into a
-// filter that drops lines. It mirrors bashLossyPipe in the hook itself
-// (internal/le/hookruntime/bash.go), which reads the same two-word area.
-func lossyPipe(command string) bool {
-	return expensivePipe.MatchString(cheapVerifyArea.ReplaceAllString(command, ""))
-}
-
-func rawJob(command string) bool {
-	if strings.Contains(command, "internal/le/job/answer.go") {
-		return false
-	}
-	if strings.Contains(command, "ZE_ADMIT_RAW=\"") && !strings.Contains(command, "ZE_ADMIT_RAW=\"\"") {
-		return false
-	}
-	return rawGoTest.MatchString(command) || rawLint.MatchString(command)
-}
-
-func unboundedWait(command string) bool {
-	for _, location := range waitLoopPattern.FindAllStringIndex(command, -1) {
-		loop := location[0]
-		statementStart := strings.LastIndexAny(command[:loop], ";\n") + 1
-		prefix := strings.TrimSpace(command[statementStart:loop])
-		if searchCommandPrefix(prefix) || boundedTimeout.MatchString(prefix) {
-			continue
-		}
-
-		body := command[loop:]
-		if done := strings.Index(body, "done"); done >= 0 {
-			body = body[:done+len("done")]
-		}
-		if strings.Contains(body, "read -r") && !strings.Contains(body, "sleep ") {
-			continue
-		}
-		if strings.Contains(body, "sleep ") || strings.Contains(body, "pgrep") {
-			return true
-		}
-	}
-	return false
-}
-
-func searchCommandPrefix(prefix string) bool {
-	fields := strings.Fields(prefix)
-	if len(fields) == 0 {
-		return false
-	}
-	if fields[0] == "grep" {
-		return true
-	}
-	if fields[0] != "git" || len(fields) < 2 {
-		return false
-	}
-	switch fields[1] {
-	case "diff", "log", "show":
-		return true
-	default:
-		return false
-	}
-}
-
-func scratchText(command string) string {
-	trimmed := strings.TrimSpace(command)
-	if strings.HasPrefix(trimmed, "cat ") && strings.Contains(trimmed, "<<") {
-		line, _, _ := strings.Cut(command, "\n")
-		return line
-	}
-	if !strings.HasPrefix(trimmed, "grep ") {
-		return command
-	}
-
-	var visible textbuf.Buffer
-	visible.Grow(len(command))
-	var quote byte
-	for index := range len(command) {
-		char := command[index]
-		if quote == 0 && (char == '\'' || char == '"') {
-			quote = char
-			visible.Byte(' ')
-			continue
-		}
-		if quote != 0 {
-			if char == quote {
-				quote = 0
-			}
-			visible.Byte(' ')
-			continue
-		}
-		visible.Byte(char)
-	}
-	return visible.String()
-}
-
-func sharedScratchName(name string) bool {
-	if strings.HasPrefix(name, "commit-") || strings.HasPrefix(name, "delete-") {
-		return true
-	}
-	switch name {
-	case "ze-verify.log", ".ze-verify-duration.txt", "mutation-survivors.md", "test-timings.json":
-		return true
-	default:
-		return false
+// handModel adapts a table judged by a hand-written model of its dispatcher,
+// which reads no tree and writes nothing.
+func handModel(code func(string) int) parityJudge {
+	return func(_, row string) (int, string, error) {
+		return code(row), "", nil
 	}
 }
 

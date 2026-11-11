@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/le/hookruntime"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
@@ -90,12 +91,88 @@ func TestBashNativeStatementBoundariesMatchDispatcher(t *testing.T) {
 			code:    2,
 		},
 	}
+	tree := bashGoldenProbeTree(t)
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
-			if got := bashCode(test.command); got != test.code {
-				t.Errorf("bashCode(%q) = %d, want %d", test.command, got, test.code)
+			got, output, err := bashHookVerdict(tree, test.command)
+			if err != nil {
+				t.Fatalf("the hook could not judge %q: %v", test.command, err)
+			}
+			if got != test.code {
+				t.Errorf("hook verdict on %q = %d, want %d\n%s", test.command, got, test.code, output)
 			}
 		})
+	}
+}
+
+// bashGoldenProbeTree builds the tree the bash rows are judged over, removed
+// when the test ends.
+func bashGoldenProbeTree(t *testing.T) string {
+	t.Helper()
+	tree, err := probeTree("bash-golden", bashGoldenTree)
+	if tree != "" {
+		t.Cleanup(func() { _ = os.RemoveAll(tree) })
+	}
+	if err != nil {
+		t.Fatalf("build the bash golden tree: %v", err)
+	}
+	return tree
+}
+
+// TestBashGoldenIsJudgedByTheHook asks the BASH_GOLDEN judge for every row and
+// asks the hook's own pretool-bash action (hookruntime.ProbeBash) for the
+// same row over the same tree, from a shell environment set to mislead it.
+//
+// VALIDATES: each row's verdict and output are the hook's; each row's expected
+// code is that verdict; every row the hook refuses carries the hook's own
+// refusal text, which no hand model writes; the environment the probe pins
+// (GOFLAGS, CDPATH, CLAUDE_CODE_FORK_SUBAGENT, CLAUDE_PROJECT_DIR) is put back.
+// PREVENTS: a golden judged by a model of the hook, which stays green when the
+// hook's verdict moves (the `go build ./...` row stayed at 0 after the build
+// guard began refusing it), and a verdict that depends on the caller's shell.
+func TestBashGoldenIsJudgedByTheHook(t *testing.T) {
+	tree := bashGoldenProbeTree(t)
+	// A root the probe did not pin would leave `@PROJECT@/tmp/notes.txt`
+	// outside the tree the hook judges, and the scratch row would pass.
+	misleading := map[string]string{
+		"GOFLAGS":                   "-toolexec=probe",
+		"CDPATH":                    t.TempDir(),
+		"CLAUDE_CODE_FORK_SUBAGENT": "1",
+		"CLAUDE_PROJECT_DIR":        t.TempDir(),
+	}
+	for name, value := range misleading {
+		t.Setenv(name, value)
+	}
+	table := parityCatalog[0]
+	if table.key != "BASH_GOLDEN" {
+		t.Fatalf("parityCatalog[0] is %s, want BASH_GOLDEN", table.key)
+	}
+	for _, fixture := range table.fixtures {
+		got, output, err := table.judge(tree, fixture.name)
+		if err != nil {
+			t.Errorf("%q: the judge could not answer: %v", fixture.name, err)
+			continue
+		}
+		command := strings.ReplaceAll(fixture.name, bashGoldenProject, tree)
+		hookCode, hookOutput, err := hookruntime.ProbeBash(command, tree)
+		if err != nil {
+			t.Errorf("%q: the hook could not answer: %v", fixture.name, err)
+			continue
+		}
+		if got != hookCode || output != hookOutput {
+			t.Errorf("%q: judge answered %d %q, the hook %d %q", fixture.name, got, output, hookCode, hookOutput)
+		}
+		if got != fixture.expectedCode {
+			t.Errorf("%q: the hook answers %d, the row expects %d\n%s", fixture.name, got, fixture.expectedCode, output)
+		}
+		if got == 2 && strings.TrimSpace(output) == "" {
+			t.Errorf("%q: refused with no text, so the verdict did not come from the hook", fixture.name)
+		}
+	}
+	for name, value := range misleading {
+		if current := os.Getenv(name); current != value {
+			t.Errorf("%s = %q after the probes, want %q put back", name, current, value)
+		}
 	}
 }
 

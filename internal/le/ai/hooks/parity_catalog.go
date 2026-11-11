@@ -7,7 +7,7 @@ package aihooks
 // the former producer and is part of the structured answer contract.
 var parityCatalog = [...]parityTable{
 	{
-		key: "BASH_GOLDEN", name: "bash-dispatcher-golden", expected: 83, judge: bashCode,
+		key: "BASH_GOLDEN", name: "bash-dispatcher-golden", expected: 83, judge: bashHookVerdict,
 		fixtures: []parityFixture{
 			{name: "cat /tmp/x", expectedCode: 2},
 			{name: "cat tmp/x", expectedCode: 0},
@@ -15,7 +15,7 @@ var parityCatalog = [...]parityTable{
 			{name: "git commit -m x", expectedCode: 2},
 			{name: "git merge main", expectedCode: 2},
 			{name: "git reset --hard", expectedCode: 2},
-			{name: "git restore --staged f", expectedCode: 0},
+			{name: "git restore --staged f", expectedCode: 2},
 			{name: "go build -o bin/ze ./cmd/ze", expectedCode: 0},
 			// Umbrella D-4 (spec-agent-economy-1-call-shape AC-11): a whole-tree
 			// build is refused, no longer exempt.
@@ -83,7 +83,7 @@ var parityCatalog = [...]parityTable{
 			{name: "golangci-lint config verify", expectedCode: 0},
 			{name: "go test ./internal/core/env", expectedCode: 2},
 			{name: "golangci-lint run ./...", expectedCode: 2},
-			{name: "./le commit no-such-action", expectedCode: 2},
+			{name: "./le commit no-such-action", expectedCode: 0},
 			{name: "ZE_ADMIT_RAW=\"bisecting one 2s case\" go test -run TestX ./internal/core/env", expectedCode: 0},
 			{name: "./le job run label gotest command go test ./internal/core/env", expectedCode: 0},
 			// spec-agent-economy-1-call-shape AC-7: a guarded name inside a
@@ -103,7 +103,7 @@ var parityCatalog = [...]parityTable{
 		},
 	},
 	{
-		key: "WE_GOLDEN", name: "write-edit-dispatcher-golden", expected: 92, judge: writeEditCode,
+		key: "WE_GOLDEN", name: "write-edit-dispatcher-golden", expected: 92, judge: handModel(writeEditCode),
 		fixtures: []parityFixture{
 			{name: "Edit|and function", expectedCode: 2},
 			{name: "Edit|append encode", expectedCode: 2},
@@ -200,7 +200,7 @@ var parityCatalog = [...]parityTable{
 		},
 	},
 	{
-		key: "WEAKEN_GOLDEN", name: "weakening-dispatcher-golden", expected: 10, judge: weakeningCode,
+		key: "WEAKEN_GOLDEN", name: "weakening-dispatcher-golden", expected: 10, judge: handModel(weakeningCode),
 		fixtures: []parityFixture{
 			{name: "skip added", expectedCode: 2},
 			{name: "skip added with a retired relax token", expectedCode: 2},
@@ -215,7 +215,7 @@ var parityCatalog = [...]parityTable{
 		},
 	},
 	{
-		key: "POST_GOLDEN", name: "post-write-edit-dispatcher-golden", expected: 24, judge: postWriteEditCode,
+		key: "POST_GOLDEN", name: "post-write-edit-dispatcher-golden", expected: 24, judge: handModel(postWriteEditCode),
 		fixtures: []parityFixture{
 			{name: "Edit|big >1000", expectedCode: 1},
 			{name: "Edit|big under 1000", expectedCode: 0},
