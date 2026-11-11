@@ -113,7 +113,7 @@ Forced reads: the Go style guide (49KB) 858 times, the system door (11KB)
 | 3 | `plan/post-release/engineering/spec-agent-economy-3-preamble.md` | D-1, D-2, D-3; the skill listing served to phase agents; main-only `.claude/rules/` files | - |
 | 4 | `plan/post-release/engineering/spec-agent-economy-4-supervision.md` | Context-size nudge at agent spawn; a warning on a second spec claim; the agent's call count reported to the main thread; skill bodies shed branch-only reference text; test-judge batching | 1 (same hook file) |
 | 5 | `plan/post-release/engineering/spec-agent-economy-5-scoped-gates.md` | A cheaper post-commit compile gate and a changed-only RFC check, CI keeping the whole-corpus runs | 2 |
-| 6 | `plan/post-release/engineering/spec-agent-economy-6-shell-parser.md` | The pre-tool Bash hook reads a command line with one bash parser (`mvdan.cc/sh/v3/syntax`) in place of the hand splitter and the byte allow-list; a reader line through loops, conditionals, groups and substitutions; a heavy job refused wherever the line runs it; the after-line walk's wrapper options, base-name match and `set`; the raw-job refusal's quiet form | 1 (the hook it replaces) |
+| 6 | spec-agent-economy-6-shell-parser (closed) | The pre-tool Bash hook reads a command line with one bash parser (`mvdan.cc/sh/v3/syntax`) in place of the hand splitter and the byte allow-list; a reader line through loops, conditionals, groups and substitutions; a heavy job refused wherever the line runs it; the after-line walk's wrapper options, base-name match and `set`; the raw-job refusal's quiet form | 1 (the hook it replaces) |
 
 ### Model tier per child (owner, 2026-11-11)
 

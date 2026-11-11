@@ -846,3 +846,180 @@ table holds it, so the row is owned at every commit.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/post-release/engineering/spec-agent-economy-6-shell-parser.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1, 1fdd96d4d6: `mvdan.cc/sh/v3` v3.14.1 vendored (`syntax` and the `fileutil` it imports), with the `dependency-ledger.txt` row Thomas approved.
+- Phase 2: e7e1d95731 (lone `.` behind a wrapper, AC-27 rows, quiet raw-job advice, hoisted launcher pattern, stale start-text sentence, `readerCommands` GNU comment), 04caac807e and ff53c0b945 (the recorded verdict table and its review fixes), 1c2220b392 (AC-33, AC-34, AC-35), 47be60c067 (AC-37), 2ec3034f3d (one parse per hook call, panic contained), 9f61ac6f47 (word-value reading `readWord`, the two bash comparison tests, `FuzzShellParse`, `BenchmarkHookParse`, the carriage-return refusal).
+- Phase 3, acaa1826a2: `shellsyntax.go`, `lineCommands`, `lineWords`, `shellLine`, `rawWords` deleted; `judgeReaderLine` (`readerline.go`) answers the reader line from the tree for the identity exemption, every lift, the plain-`rm` narrowing and the build guard; the after-line walk (`afterline.go`) reads the tree with declared wrapper options, base-name match and `set`; review fixes B1-B5 and I1-I6.
+- Phase 4, 870b838478: `treeRawHeavy` and `treeLossyPipe` over `everyCommand` (`parsedcommands.go`), OR-ed with the unchanged text judgments; `leroot.RegisterExpensive`; the scratch guard lifts on a reader line and a here-document body that is data to readers is not scanned (`readerdata.go`).
+- Phase 5: 02692d2ed8 (AC-36, `hookruntime.ProbeBash`, `bashCode` deleted), fa67a14f0d (nine golden rows, five subagent fixture sites, `cmp` reader with `cmpOptions`, seals re-derived, journal Fix cells), 489ed77732 (live-probe fix: `parsedCommand.written`, an expanded word advised as typed).
+
+### Bugs Found/Fixed
+- Raw-job advice single-quoted an expanded word (`'./internal/le/$p'`): found by the live probe, fixed in 489ed77732, held by three rows of `TestRefusalAdvisesTheParsedCommand`.
+- The hook never read `ai hooks unit` as expensive; a quoted tmp/ path in a grep pattern and a here-document fed to a reader were refused by `bashScratch`: found when the golden was first judged by the hook (870b838478), held by `TestHookSelftestIsAnExpensiveCommand`, `TestScratchGuardLiftsOnAReaderLine`, `TestHereDocumentToAReaderIsDataToTheScratchGuard`.
+- Two golden rows were wrong against their source (`git restore --staged f`, `./le commit no-such-action`), changed on a judge's approval in 02692d2ed8.
+- The lexer drops a CR before LF and a NUL, joins a backslash-newline in a comment, and reads `$` then backslash-newline as a literal: each line is outside the reader line (`parseCommandLine`, `treeMisreadsLine`), held by `TestWordValuesMatchBash`, `TestLinesBashReadsOtherwiseAreNotRead`.
+
+### Documentation Updates
+- `.claude/hooks/README.md` and `docs/contributing/running-commands.md` rewritten for the reader line in acaa1826a2, the guard rows in 870b838478 and 489ed77732; their anchors name `readerline.go` and `shellparse.go` (5 and 2 anchors); no anchor names `shellline.go`'s deleted symbols or `shellsyntax.go`.
+- `plan/learned/HOOK-FRICTION.md` entry ("What removed it", phase 3).
+- `./le doc check all` (main thread): this spec's anchors valid, README 0 disagreements; the only red is another session's catalog drift.
+
+### Deviations from Plan
+- A-1: two packages vendored, not one; no second ledger row is owed (phase 1 Constraint).
+- The ledger row rode the vendor commit rather than the importing commit (AC-1/AC-2 wording); the commit gate admitted both.
+- Tests named in the TDD table for `session_identity_test.go`, `refusal_messages_test.go` and `bash_test.go` live in `readerline_test.go` (phase 3 Decision).
+- `TestMainThreadIsNeverReadAsAFork` not written: the AC-28 probe took the branch that leaves the hook unchanged.
+- The scratch guard lifts on a reader line (phase 4 Decision), so the liftable set is seven guards, not six.
+- Red walk: all 22 breaks of the Red walk table are walked. Five during the phases (function definition admitted, `for` body skipped, tree reads only top level, tree reads arguments as commands, backslash kept). The other 17 by the main thread at closure (2026-11-11), each break applied, the named test run and the file restored byte for byte, every one red: assignment in front admitted (`TestReaderLineRefusesWhatCanRunAnythingElse`, `LC_ALL=C sort f`); `$( )` statements skipped (same, `echo "$(go test ./x)"`); `[[` admits `-eq` (same); bare assignment admits `PATH` (same, `PATH=.`); predicate refuses `for` (`TestReaderLineReachesThroughConstructs`); a judge handed a redirection target, two variants (same, `[ -f x ] 2>/dev/null && cat x`); parse error read as empty readers (`TestUnparsedLineKeepsTheTextVerdictAndNeedsTheIdentityLine`); panic containment removed (`TestParserPanicIsAnUnparsedLine`); text verdict skipped on a parsed non-reader line, `bashRawHeavy` (`TestGuardVerdictsOfHeadStand`); identity exports judged as non-readers (`TestIdentityLineBeforeAReaderLineStillLifts`); tool matched by the whole word (`TestEnvironmentToolIsFoundBehindEveryWrapper`, `/usr/bin/env -i ./le x`); `timeout -s` takes no value (same); `environmentTools` loses `source` (`TestSubagentChangingTheEnvironmentAfterItsLineIsRefused`, `source x`); `set -a` passes (`TestSetOptionsThatChangeNoVariablePass`); the long form without `quiet` (`TestRawRefusalAdvisesTheQuietForm`; the equivalent break, since `admittedCommand` no longer takes the flag); `lineCommands` restored (`TestHandSplitterIsGone`); and the skipped-value digit rule, which stayed green at first (Mistake Log): with `wrapperNumber` (`session.go`) answering true, the new `nice -n 5 . ./env.sh; ./le spec current 'oops` row of `TestEnvironmentToolIsFoundBehindEveryWrapper` goes red ("code=0 ... want exit 2"), restored green. Results: the main thread's `redwalk2-results.txt` beside `redwalk2.sh` in its job scratch. Twelve breaks outside the table were walked as well: tree cut to the first statement, parse answering a tree and a failure, B1 clamp removed, `treeMisreadsLine` answering "", scratch lift dropped, `stageCommands` keeping only a simple-command leaf, `heavyArea` without `expensiveAction`, `register.go` without `RegisterExpensive`, `withoutReaderData` answering unchanged, `runsWhenExpanded` dropped, `readerLineButWrites` dropped, and the phase 2 table's own walks.
+- Scoped lint `./le go lint run scope ./internal/le/hookruntime/...` never produced a plan ("lint inputs changed during planning", other sessions editing its dependency set); edit-time lint of each file reported no finding. Not run, with that cause.
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: one vendored package | `syntax` imports `fileutil` | Phase 1 read of the import blocks | Recorded; no ledger change owed |
+| approach | Phase 4 note said an expanded advised word "is written as typed" | The code single-quoted the typed text | Live probe after phase 5 | Fixed in 489ed77732 |
+| approach | The Red walk break "the skipped-value rule drops its digit requirement" stayed green | On a parsed line `time` is a `TimeClause` and the wrappers are read by `wrapperOption`, so `wrapperNumber` acts only on the text route, a remainder the parser refuses, and no row reached that route | Closure red walk by the main thread | Two rows joined `TestEnvironmentToolIsFoundBehindEveryWrapper` (`time . ./env.sh; ./le spec current 'oops`, `nice -n 5 . ./env.sh; ./le spec current 'oops`); re-walked red; verdict table 1759 rows, `verdictsTableRowsMin = 1759` |
+| approach | The parity golden's hand model kept rows green the hook no longer gave | Five rows disagreed when the hook judged them | AC-36 first run | Three hook defects fixed, two rows changed with judge approval |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One real bash parser reads the line | Done | `shellparse.go` `parseCommandLine`, `parseBashLine` | One `syntax.NewParser` call (`TestHandSplitterIsGone`) |
+| A line proven readers runs as typed and lifts each guard | Done | `readerline.go` `judgeReaderLine`; `ctxReaderLine` in each guard | AC-5..AC-7, AC-14 |
+| A heavy job is refused wherever the line runs it | Done | `rawheavy.go` `treeRawHeavy`; `lossypipe.go` `treeLossyPipe` | AC-9, AC-10 |
+| Every other line keeps HEAD's verdict or stricter | Done | text judgments unchanged; `TestGuardVerdictsOfHeadStand` over 1759 rows | AC-11 |
+| Hand splitter and byte allow-list deleted | Done | acaa1826a2 | AC-4 |
+| Smaller findings (quiet advice, hoisted regexp, stale sentence, identity rows, fork probe) | Done | e7e1d95731; AC-28 probe record | AC-20..AC-22, AC-27, AC-28 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | 1fdd96d4d6 | Also carried the ledger row and four stale go-abnf fuzz removals (phase 1 Done note) |
+| AC-2 | Done | `dependency-ledger.txt:1020` | Row landed in the vendor commit |
+| AC-3 | Done | `TestCommandIsParsedOncePerHookCall`, `TestHandSplitterIsGone` | |
+| AC-4 | Done | grep below | Names survive only in `TestHandSplitterIsGone`'s list and one history comment |
+| AC-5 | Done | `TestSubagentReaderLoopPassesUnchanged`, golden row + fixture site | |
+| AC-6, AC-7 | Done | `TestReaderLineReachesThroughConstructs` | |
+| AC-8, AC-30 | Done | `TestReaderLineRefusesWhatCanRunAnythingElse` | |
+| AC-9 | Done | `TestHeavyJobIsRefusedWhereverTheLineRunsIt` | |
+| AC-10 | Done | `TestLossyPipeIsRefusedInsideAConstruct` | |
+| AC-11 | Done | `TestGuardVerdictsOfHeadStand`, `TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts` | |
+| AC-12 | Done | `TestUnparsedLineKeepsTheTextVerdictAndNeedsTheIdentityLine` | |
+| AC-13 | Done | `TestParserPanicIsAnUnparsedLine` | |
+| AC-14 | Done | `TestIdentityLineBeforeAReaderLineStillLifts` | |
+| AC-15 | Done | `TestRefusalAdvisesTheParsedCommand` (group row, expanded-word rows) | |
+| AC-16 | Done | `TestRootBuildReadsTheBuildFromTheTree` | |
+| AC-17 | Done | `TestSystemTmpJudgesEveryWordOfAReaderLine` | |
+| AC-18 | Done | `TestTestDeletionReadsThePlainRmFromTheTree` | |
+| AC-19 | Done | `TestAnotherIdentityIsJudgedByTheNode` | |
+| AC-20 | Done | `TestRawRefusalAdvisesTheQuietForm` | |
+| AC-21 | Done | `launcherNumber` at package level, `rawheavy.go:455` | |
+| AC-22 | Done | `lifecycle_test.go:93`; no "first refusal" in `running-commands.md` | |
+| AC-23 | Done | Owned journal rows table; Fix cells closed in fa67a14f0d's tree | |
+| AC-24 | Done | `./le ai hooks unit` 30/30 on the published build holding 489ed77732; `bashRowsExpected = 92` | |
+| AC-25 | Done | the three pages, anchors to `readerline.go`, `shellparse.go` | |
+| AC-26, AC-29 | Done | `TestEnvironmentToolIsFoundBehindEveryWrapper` | |
+| AC-27 | Done | `TestSubagentChangingTheEnvironmentAfterItsLineIsRefused` rows | |
+| AC-28 | Done | probe record (phase 2) | Hook unchanged by the branch the record took |
+| AC-31 | Done | `TestSetOptionsThatChangeNoVariablePass` | |
+| AC-32 | Done | `readers.go:50` comment | |
+| AC-33 | Done | `TestLauncherValueOptionsAreSkippedWithTheirValue` | |
+| AC-34 | Done | `TestRootBuildRefusesToolchainFlagsByText` | |
+| AC-35 | Done | `TestSystemTmpTakesABraceAsABoundary` | |
+| AC-36 | Done | `TestBashGoldenIsJudgedByTheHook`; `bashCode` absent | |
+| AC-37 | Done | `TestIdentityOnlyFindingIsNotAMessage` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every Unit Tests row but `TestMainThreadIsNeverReadAsAFork` | Done | files listed in Files Exist below | Several in `readerline_test.go` (Deviations) |
+| `TestMainThreadIsNeverReadAsAFork` | Changed | - | Conditional on the probe; the probe took the other branch |
+| `./le ai hooks unit` | Done | 30/30 | |
+| `./le test functional runner` | Not run here | - | The hook package changed no runner primitive; owed by the main thread if it wants it |
+| Live probe, Fork probe | Done | phase 2 and phase 5 records | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create | Done | `shellsyntax.go` deleted; `afterline.go`, `parsedcommands.go`, `probebash.go`, `reader_row_sites_test.go` added beyond the list |
+
+### Audit Summary
+- **Total items:** 37 AC, 6 task requirements
+- **Done:** 37 AC, 6 requirements
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** `TestMainThreadIsNeverReadAsAFork`, A-1, tests' files, liftable set (Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Harmless reader lines outside the old allow-list run without the identity line | functional (live) | Live probe on the phase 5 build: calls 1-5 (reader loops, a quoted `#`, `if`, a here-string, `${VAR-default}`) ran without the identity line; `TestLooserBashRowsPassAsASubagentWithoutTheIdentityLine` runs each looser golden row through `hookruntime.Run` |
+| A heavy job behind a keyword is refused | functional (live) | Live probe: a raw `go test` loop refused with the admitted form; golden rows `for p in a b; do go test ...`, `if true; then go vet ...`, `( go test ... )` code 2 through `ProbeBash` |
+| No verdict loosens off a reader line | data correctness | `TestGuardVerdictsOfHeadStand` over 1759 recorded rows |
+| The identity walk's holes are closed | unit through Run | `TestEnvironmentToolIsFoundBehindEveryWrapper`, AC-27 rows |
+| Parser misreads cannot pass a line | fuzz | `FuzzShellParse`, 60 s, 13 871 inputs, at phase 2; `TestWordValuesMatchBash` over 440 lines against bash 5.2 |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | Every AC is done and every Red walk break is walked | - |
+
+## Review Gate
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/agent-economy-6-shell-parser-8189a124-aa2b-44d6-b8a3-416d48de63ab.md` (34 code files: every code file of the spec's change set, which the closure gate reads from each `Spec-work: agent-economy-6-shell-parser` commit, and `verdicts_test.go`; verdict clean) |
+| `./le spec review check` | clean over the closure population; the closure pass read 489ed77732, `probebash.go`, `cmpOptions` and the `postbash.go` change in full, and rests on the phase 2, 3 and 4 strongest-tier reviews for the rest |
+| Rounds | 1 (closure pass); phases 2, 3 and 4 each had a strongest-tier review whose findings are recorded in their Decisions |
+| Reviewer lenses used | the closure agent, which wrote none of the code: wiring and alignment of `parsedCommand.written` with `tokens` (489ed77732), `ProbeBash` environment pinning and failure answer (02692d2ed8), `cmpOptions` against cmp(1), removed-name audit, fail direction |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | No BLOCKER or ISSUE | - | - |
+
+NOTEs (do not block): N1, `session_identity_test.go:686` names `unmodeledSyntax` and `syntaxBang` as history of 9f61ac6f47's hook; AC-4 reads it as a test mention, it describes the old route. N2, `plainLowerName` reads the process environment, so a golden row with a bare lower-case assignment would depend on the environment `./le ai hooks unit` runs in (`ProbeBash` pins only GOFLAGS, CDPATH, the fork variable and the root); no current row assigns. N3, `verdicts_test.go` comment repointed to the bare stem at closure.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `shellparse.go`, `readerline.go`, `readerdata.go`, `afterline.go`, `parsedcommands.go`, `shellparse_test.go`, `readerline_test.go`, `verdicts_test.go`, `testdata/guard-verdicts-head.jsonl` (1759 lines), `ai/hooks/expensive_test.go`, `ai/hooks/reader_row_sites_test.go` | Yes | `ls` at closure listed each; `shellsyntax.go`: "No such file or directory" |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | module and ledger row | `vendor/modules.txt:2138` `# mvdan.cc/sh/v3 v3.14.1`, `go.mod:69`, `dependency-ledger.txt:1020` |
+| AC-4 | names gone | grep over `internal/le/hookruntime`, `docs`, `.claude/hooks/README.md`: only `readerline_test.go:602-603` (the gone-list) and `session_identity_test.go:686` (history comment) |
+| AC-3..AC-37 tests | each named test exists | `grep -E "^func <name>\("` located every Unit Tests row at closure; `./le test unit pkg path ./internal/le/hookruntime/` green at 489ed77732's tree, `./internal/le/ai/hooks/` green after the reseal (main thread) |
+| AC-24, AC-36 | golden by hook, 92 rows | `parity.go:22` `bashRowsExpected = 92`; no `func bashCode`; `./le ai hooks unit` 30/30 on the build holding 489ed77732 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le ai hooks pretool-bash`, the five Wiring Test rows | none: the entry is the hook action, driven through `hookruntime.Run` by the named Go tests and by `./le ai hooks unit` fixture sites | Yes: tests located; live probe on the published build exercised the real harness path |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | two packages vendored; no design change (phase 1 Constraint) |
+| A-2 | confirmed | `TestWordValuesMatchBash` (one CR disagreement, now refused), `TestParsedCommandsMatchBash` |
+| A-3 | confirmed | probe record, bash 5.2.21 via eval, extglob off |
+| A-4 | confirmed | `BenchmarkHookParse`: 26 and 30 allocations, about 6 KB |
+| A-5 | confirmed | no reader judge reads either identity variable: `grep ZE_AGENT_ID\|CLAUDE_CODE_SESSION_ID readers.go` empty; mention rule held by `TestReaderMentionsAreCountedFromItsOwnWords` |
+| A-6 | confirmed | the four "0 at HEAD" golden rows were 0 under the text split (`do`, `then`, `(` as command words) and are 2 through the hook (phase 5 Decision) |
+| A-7 | confirmed | 1fdd96d4d6 landed with no importer |
+| A-8 | confirmed in effect | probe: the main thread's environment lacks the variable; a fork is told apart by `agent_id` (caveat: the shell's environment was read, not the hook's) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Checklist rows 6, 12, 16, 17 (pages, anchors, examples) | anchors to `readerline.go`/`shellparse.go` in both pages; no anchor to the deleted file; "first refusal" absent from `running-commands.md` | Yes |
+| Rows answered No | development tooling: no `features/` entry, config, CLI, RPC, wire or RFC surface changed | Yes |

@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Agent tooling: a false refusal costs every session a retry and pushes agents toward wrappers, but no shipped behaviour changes |
 | RFC gaps | - |
-| Depends | `plan/post-release/engineering/spec-agent-economy-6-shell-parser.md` (the parse the guards will read) |
+| Depends | - (spec-agent-economy-6-shell-parser, closed: the parse the guards will read, `internal/le/hookruntime/shellparse.go`) |
 | Phase | - |
 | Handoff | - |
 | Design tier | development tier |
@@ -50,7 +50,7 @@ job typed anywhere it can run.
 ### Architecture Docs
 - [ ] `ai/doors/system.md`, `ai/doors/le-tooling.md` - the doors this work crosses
   → Constraint: a hook checks what a command is, never how a message is worded (`ai/META-DECISIONS.md`); a refusal is never passed by a wrapper
-- [ ] `plan/post-release/engineering/spec-agent-economy-6-shell-parser.md` - Design Insights and Key Design Decisions on the text verdict
+- [ ] spec-agent-economy-6-shell-parser (closed; read it from git history, the commit before its removal) - Design Insights and Key Design Decisions on the text verdict, and `.claude/hooks/README.md`, which carries the reader line and the text verdict now
   → Constraint: on a non-reader line the text verdict holds "HEAD or stricter"; this spec must lift it only for arguments a declaration proves are data
 
 ## Current Behavior (MANDATORY)

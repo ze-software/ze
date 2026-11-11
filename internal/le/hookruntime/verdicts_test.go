@@ -35,7 +35,7 @@ var verdictsUpdate = flag.Bool("update", false,
 	"append to "+verdictsTablePath+" a row for each corpus line it lacks, with the verdicts the hook gives now")
 
 // verdictsTablePath is the recorded table of AC-11 of
-// plan/post-release/engineering/spec-agent-economy-6-shell-parser.md: each
+// spec-agent-economy-6-shell-parser (closed): each
 // line of the corpus, for each caller, with the checks that refused it on the
 // tree it was recorded from.
 const verdictsTablePath = "testdata/guard-verdicts-head.jsonl"
@@ -245,7 +245,7 @@ var readerLineProofs = []func(*testing.T){
 // table holding fewer rows lost recorded refusals: deleting the file and
 // re-running -update records again from the tree in hand, which keeps no
 // refusal HEAD gave. Raise it when an update appends rows; never lower it.
-const verdictsTableRowsMin = 1755
+const verdictsTableRowsMin = 1759
 
 // readerSetJudgment is the one function that judges whether a command is a
 // reader (readers.go). A check whose code reaches it can pass a line because

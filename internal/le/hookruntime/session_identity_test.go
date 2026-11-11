@@ -777,6 +777,11 @@ func TestEnvironmentToolIsFoundBehindEveryWrapper(t *testing.T) {
 		`strace -u nobody ./le x`,
 		`ltrace -o out env -i ./le x`,
 		`ltrace -u nobody ./le x`,
+		// The text route, which judges a remainder the parser refuses (the
+		// unclosed quote): there a lone `.` after a wrapper holds no digit,
+		// so it is the command word and not a skipped duration.
+		`time . ./env.sh; ./le spec current 'oops`,
+		`nice -n 5 . ./env.sh; ./le spec current 'oops`,
 	} {
 		code, output, message := runSubagentBash(t, identityLineOfAgent+rest)
 		if code != 2 || output != "" {

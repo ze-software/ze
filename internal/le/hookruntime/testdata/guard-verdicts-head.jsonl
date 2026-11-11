@@ -964,6 +964,8 @@
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; n=x; read -r \"$n\" <<< y; ./le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice --adjustment 5 env -i ./le x","caller":"main","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice --adjustment 5 env -i ./le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 . ./env.sh; ./le spec current 'oops","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 . ./env.sh; ./le spec current 'oops","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 ./le spec current","caller":"main","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 ./le spec current","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; nice -n 5 ./le x","caller":"main","refused-by":[],"reader-line":false}
@@ -1040,6 +1042,8 @@
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; sudo le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . ./env.sh; ./le spec current","caller":"main","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . ./env.sh; ./le spec current","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . ./env.sh; ./le spec current 'oops","caller":"main","refused-by":[],"reader-line":false}
+{"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . ./env.sh; ./le spec current 'oops","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . ./env.sh; ./le x","caller":"main","refused-by":[],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . ./env.sh; ./le x","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; time . x","caller":"main","refused-by":[],"reader-line":false}
