@@ -4240,3 +4240,18 @@ still pending when that passes, and has the poster build its own `ze`.
 | --- | --- | --- |
 | broken | `demos/terminal/web-config/demo.cjs` writes `Date.now()` and a random number into the page before the CDP screenshot (in place) | "equal authored inputs produced different actual WebP poster bytes" |
 | restored | the bytes as committed | `ok` (176.5s, load average 21). The walk's own back-to-back restored leg ran out of its 90s case budget at line 49 under that load; the rerun alone passed |
+
+## P-20 table and SVG, P-36 any signal (2026-11-11)
+
+| P | Observable | Carrier | Break | Red |
+| --- | --- | --- | --- | --- |
+| P-20 | the comparison table validates raw input | `TestComparisonRefusesLossBeforeSelection/markdown` (`internal/perf/report`) | `markdown.go` `Markdown`: `ValidateResults(nil)` | "lossy raw row was ranked" |
+| P-36 | a foreign quiet holder is never signalled | `TestAForeignQuietHolderIsNeverSignalled` (new, `internal/le/job`): the stand-in holder traps every catchable signal and records it; the test also requires the holder is alive and not stopped, and the registry unchanged | `registry.go` `reportBusy` sends SIGTERM | "the waiter signalled the foreign quiet holder; it recorded \"TERM\\nTERM\\nUSR2\\n\", want only the test's barrier" |
+| P-36 | same | same | SIGSTOP | "the foreign quiet holder was stopped: ps state \"T\"" |
+| P-36 | same | same | SIGSTOP then SIGCONT | "... it recorded \"CONT\\nCONT\\nUSR2\\n\" ..." |
+
+Each passes again on the restored bytes. The SVG chart and the table inside the
+HTML report have no validation of their own: `writeSVGChart` and
+`writeHTMLTable` are called only from `HTML()`, after `HTML()` validates the raw
+rows. So the recorded HTML walk (`ValidateResults(nil)` in `html.go`, "lossy raw
+row was ranked") is the break for both.
