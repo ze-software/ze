@@ -62,7 +62,7 @@ every gate.
 
 **Key insights:**
 - `ip netns exec <ns> <cmd>` outside batch mode execs its target without forking (iproute2 v6.1.0 `ip/ipnetns.c` `netns_exec` calls `cmd_exec(argv[1], argv + 1, !!batch_mode, ...)`; `lib/exec.c` `cmd_exec` forks only when `do_fork`), so the target IS the forked child and inherits its group and its death signal
-- The kernel clears the death signal on an exec that changes credentials; the harness runs as root and execs ordinary binaries, so the signal survives every stress exec
+- The kernel clears the death signal whenever a process's effective credentials change (`commit_creds`), by a setuid exec or by a setuid call after the exec. The harness execs no setuid binary; tcpdump (which a Debian or Ubuntu build switches to its own user) runs with `-Z root`, and ze starts without `ze.user`, so no child switches user (corrected at closure: the design read covered only the exec)
 
 ## Current Behavior (MANDATORY)
 
@@ -188,6 +188,7 @@ every gate.
 | `TestStressChildLivesWhileItsHarnessLives` | same | AC-4 | |
 | `TestStressRunTimeoutReachesTheWholeGroup` | same | AC-5 | |
 | `TestStressBirdGateRunsUnderTheSignalContext` | `internal/le/test/integration/stressbird_test.go` | AC-6, through a recorder whose waits honor the context | |
+| `TestStressChildrenKeepTheirCredentials` | `internal/le/test/integration/stress_test.go` | AC-1 for ze and tcpdump: neither is asked to switch user, which clears the death signal (closure review) | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -204,6 +205,8 @@ every gate.
 - `internal/le/test/integration/actions.go` - `stressBirdGate(system)` replaces `runStressBirdGate` and runs `runStressBird` under the context and root it is handed
 - `internal/le/test/integration/gates.go` - the `stress-bird` row uses `stressBirdGate(realStressBirdSystem{})`
 - `docs/functional-tests.md` - the stress cleanup paragraph: the children's lifetime
+- `internal/le/test/integration/stress.go` - `stressRunner.startZe` (closure review): ze starts without `ze.user`/`ze.group`, tcpdump with `-Z root`, so neither switches user and loses its death signal
+- `internal/le/test/integration/stress_test.go` - `TestStressChildrenKeepTheirCredentials` (closure review)
 
 ## Files to Create
 - `internal/le/test/integration/stressbird_system.go` - `realStressBirdSystem` and `realStressBirdProcess` moved out of `stressbird.go` (which passed 1000 lines with the change): `Start`, `Run` fork through `plugin.KillGroupOnCancel` and `plugin.StartChild`; `Terminate`, `Kill` signal the group
@@ -351,3 +354,144 @@ every gate.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/validation/spec-stress-children-die-with-harness.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `stressbird_system.go` (new, 3d82a368bb): `realStressBirdSystem.Start` and `Run` fork through `plugin.KillGroupOnCancel` + `plugin.StartChild` (own group, Pdeathsig SIGKILL, spawner thread); `Run` sets `WaitDelay`; `realStressBirdProcess.Terminate`/`Kill` signal `-pid`, ESRCH read as `os.ErrProcessDone` (`stressGroupSignalResult`)
+- `actions.go`/`gates.go`: `stressBirdGate(system)` replaces `runStressBirdGate`, runs `runStressBird` under nativeRunner's signal context and root; `runStressBirdAction` (the `context.Background()` root) deleted
+- Closure fix, `stress.go` `stressRunner.startZe`: ze's environment drops `ze.user`/`ze.group` (`env.Without`), tcpdump starts with `-Z root`
+
+### Bugs Found/Fixed
+- Closure review: tcpdump (Ubuntu/Debian build, `tcpdump` user created by its postinst) switches user after opening the capture and ze switches user when `ze.user` is inherited; the kernel clears the death signal on an effective uid change, so either outlived a harness killed outright. Covered by `TestStressChildrenKeepTheirCredentials`
+
+### Documentation Updates
+- `docs/functional-tests.md`, the stress cleanup paragraph (3d82a368bb), anchors `stressbird_system.go` (Start, Run, Terminate, Kill) and `actions.go` (stressBirdGate, runStressGate); still true after the closure fix
+- `./le doc check all`: fails only on `../wiki/command-catalog.md` drift (unrelated, other work); every source anchor resolves (main thread, 3d82a368bb)
+
+### Deviations from Plan
+- `realStressBirdSystem` moved to a new `stressbird_system.go` (Files to Create) because `stressbird.go` passed 1000 lines
+- `stress.go` and `stress_test.go` added at closure for the credential fix above
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The design read "the kernel clears the death signal on an exec that changes credentials; root execs ordinary binaries" and stopped there | `commit_creds` clears `pdeath_signal` on any effective-uid change, including a `setuid` after exec; Ubuntu/Debian tcpdump drops to its `tcpdump` user, and ze drops to `ze.user` | Closure review, reading the tcpdump argv in `stressRunner.startZe` and `privilege.Drop` | Fixed in `startZe`; the comment above `realStressBirdSystem` and the spec's key insight now state the whole rule |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every stress child dies when the harness dies | Done | `stressbird_system.go` `Start`, `Run`; `stress.go` `startZe` | death signal kept for tcpdump and ze by the closure fix |
+| SIGINT/SIGTERM runs teardown on every gate | Done | `actions.go` `stressBirdGate`, `runStressGate` | cleanup roots on `context.WithoutCancel` (`stressBirdRunner.cleanup`) |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestStressHarnessKilledOutrightTakesItsChildren/start`, `TestStressChildrenKeepTheirCredentials` | |
+| AC-2 | Done | `TestStressHarnessKilledOutrightTakesItsChildren/run` | |
+| AC-3 | Done | `TestStressStopReachesTheChildsWholeGroup` | |
+| AC-4 | Done | `TestStressChildLivesWhileItsHarnessLives` | green before the fix, by design |
+| AC-5 | Done | `TestStressRunTimeoutReachesTheWholeGroup` | |
+| AC-6 | Done | `TestStressBirdGateRunsUnderTheSignalContext` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestStressHarnessKilledOutrightTakesItsChildren` + `TestStressHarnessDeathStandIn` | Done | `stressbird_death_linux_test.go` | |
+| `TestStressStopReachesTheChildsWholeGroup` | Done | same | |
+| `TestStressChildLivesWhileItsHarnessLives` | Done | same | |
+| `TestStressRunTimeoutReachesTheWholeGroup` | Done | same | |
+| `TestStressBirdGateRunsUnderTheSignalContext` | Done | `stressbird_test.go` | |
+| `TestStressChildrenKeepTheirCredentials` | Done | `stress_test.go` | green; red under a discrimination break of `startZe` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `stressbird.go`, `actions.go`, `gates.go`, `docs/functional-tests.md` | Done | 3d82a368bb |
+| `stressbird_system.go`, `stressbird_death_linux_test.go` | Done | 3d82a368bb |
+| `stress.go`, `stress_test.go` | Done | closure fix, commit A |
+
+### Audit Summary
+- **Total items:** 16
+- **Done:** 16
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every process the stress harness starts dies when the harness dies, however it dies | unit test over the real `realStressBirdSystem`, real processes | `TestStressHarnessKilledOutrightTakesItsChildren/{start,run}`: red before the fix ("outlived its SIGKILLed harness: still in state S 5s later"), green after; `TestStressStopReachesTheChildsWholeGroup`, `TestStressRunTimeoutReachesTheWholeGroup` red/green on the grandchild; `TestStressChildrenKeepTheirCredentials` for the user-switching children |
+| A SIGINT or SIGTERM to the harness runs its teardown on every gate | unit test through the gate entry | `TestStressBirdGateRunsUnderTheSignalContext`: red before ("a canceled gate answered code 0"), green after; cleanup tail asserted |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Sweeping namespaces and `/tmp` files a harness killed outright leaves | needs a judgment of which run suffixes belong to dead runs; outside this spec's ACs | `plan/release/validation/spec-stress-sweeps-abandoned-namespaces.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` (path in the closure report) |
+| `./le spec review check` | run after record |
+| Rounds | 3 |
+| Reviewer lenses used | logic+wiring+removed-behavior (round 1, full diff of 3d82a368bb), security+edge-cases over the fork and signal paths, style pass over every changed Go file; round 2 over the closure fix only |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | tcpdump drops to its own user after opening the capture (Ubuntu/Debian build) and ze drops to an inherited `ze.user`; `commit_creds` then clears the death signal, so either outlives a harness killed outright, and the comment above `realStressBirdSystem` claimed no credential change happens | `stress.go` `stressRunner.startZe`; `stressbird_system.go` type comment | `-Z root` on tcpdump, `env.Without(..., "ze.user", "ze.group")` for ze, comment corrected, `TestStressChildrenKeepTheirCredentials` |
+
+### Fixes applied
+- Root cause: `stressRunner.startZe` started tcpdump with no `-Z` and handed ze the harness environment unfiltered; `privilege.Drop` (ze) and tcpdump's `droproot` change the effective uid. [workaround] document the two as exceptions; [source] keep both children's credentials, which keeps the goal true
+
+### Run 2
+- Scope: the closure fix. `env.Without` returns a new slice and leaves `r.base.environ` unchanged; `-Z root` is a no-op credential switch on a build with no default user; the test wrapper delegates every method to the recorder. 0 BLOCKER, 0 ISSUE
+
+### Run 3
+- Scope: the test-match fix in `TestStressChildrenKeepTheirCredentials` only. The DUT build argv (`go build` with the binary as its `-o` target, `stressRunner.buildZe`) holds no `start` after the binary, the start argv (`ip netns exec`, the binary, optional `--pprof`, then `start` and the config, `stressRunner.startZe`) does, and `sawZe` still requires the start to be seen, so the test cannot pass vacuously. 0 BLOCKER, 0 ISSUE
+
+### NOTEs
+- `Terminate`/`Kill` check `done`, then signal `-pid`: in the window after `collect` reaps the child and before `done` closes, the emptied group's pid could in principle be reused by a new group leader. Microsecond window, test tooling, no fix
+- `stress.go` is 1009 lines (1003 before this spec); the file-length hook warns
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/test/integration/stressbird_system.go` | Yes | in 3d82a368bb (`git show --stat`) |
+| `internal/le/test/integration/stressbird_death_linux_test.go` | Yes | in 3d82a368bb (`git show --stat`) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-6 | the six tests pass | main thread: `go test -race -count=1 -v -run 'TestStress(HarnessKilled\|StopReaches\|ChildLives\|RunTimeout\|BirdGateRuns)' ./internal/le/test/integration/` all PASS; `./le test unit pkg path ./internal/le/test/integration/` ok (3d82a368bb) |
+| AC-1 (credentials) | ze and tcpdump keep their credentials | main thread: `TestStressChildrenKeepTheirCredentials` first went red on a test defect (`ze started with "ze.user=nobody"`: its ze match also caught the DUT `go build -o` argv, which rightly inherits the harness environment); match fixed to the binary followed by `start`. Then `./le test unit pkg path ./internal/le/test/integration/` exit 0 (the credential test and the six death tests included). Discrimination: `startZe` temporarily on `env.Without(r.base.environ, "ze.discrimination-probe")` turned it red (`ze started with "ze.user=nobody"`); restored to `env.Without(r.base.environ, "ze.user", "ze.group")`, green |
+| lint | `./le go lint run scope "./internal/le/test/integration/..."` | NOT RUN: aborted four times before planning because other sessions changed its inputs (l2tp, cos, `plugin/process/process.go`); it judged no code |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le test integration stress-bird` | none (N-A: root and a quiet host); `gates.go` `Native: stressBirdGate(realStressBirdSystem{})` | Yes, read at source |
+| `./le test integration stress` | none; `realStressSystem` embeds `realStressBirdSystem` (`stress.go`) | Yes, read at source |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | iproute2 `cmd_exec`; AC-1 green with `sleep` forked directly |
+| A-2 | confirmed | grep of `stressbird.go`, `stress.go`: no group use |
+| A-3 | confirmed | `TestStressHarnessKilledOutrightTakesItsChildren` red then green |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/functional-tests.md`: children get their own group and SIGKILL on harness death; stops reach the group; both gates tear down on SIGINT/SIGTERM | `stressbird_system.go` `Start`, `Run`, `Terminate`, `Kill`; `actions.go` `stressBirdGate`, `runStressGate`; `stressBirdRunner.cleanup` (`context.WithoutCancel`) | Yes |
+| No other page | `grep -rln 'source: internal/le/test/integration/stress' docs/`: `functional-tests.md`, plus `perf-round-3.md` (`stressProfileReach`, `buildZe`) and `testing/qemu-integration.md` (`stressConfigDir`, `stageConfig`), whose anchored symbols this spec does not change | Yes |
+| `./le test weakened check` | 5 `[DELETED]` findings, all `internal/component/plugin/server/managed_auth_refused_test.go`, another session's file; none in this spec's files | Yes |

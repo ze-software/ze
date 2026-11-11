@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 func TestStressScenarioRegistryIsExact(t *testing.T) {
@@ -351,6 +353,59 @@ func TestStressProfileScenarioCapturesAllProfiles(t *testing.T) {
 	}
 	if !startsCPU {
 		t.Fatalf("profile scenario never started the 90-second CPU capture: %v", recorder.events)
+	}
+}
+
+// stressPrivilegeDropRecorder is the stress recorder whose harness environment
+// names a user and a group for ze to drop privileges to.
+type stressPrivilegeDropRecorder struct {
+	*stressRecorder
+}
+
+func (r stressPrivilegeDropRecorder) Environ() []string {
+	return append(r.stressRecorder.Environ(), "ze.user=nobody", "ZE_GROUP=nogroup")
+}
+
+// TestStressChildrenKeepTheirCredentials proves no long-lived stress child is
+// asked to switch user, since the kernel clears a death signal when the
+// effective uid changes and that child would outlive a harness killed outright.
+//
+// Method: record a run whose harness environment carries ze.user and ze.group,
+// then require that ze starts with neither spelling in its environment and
+// that tcpdump starts with `-Z root`, which stops a Debian tcpdump switching
+// to its own user.
+func TestStressChildrenKeepTheirCredentials(t *testing.T) {
+	recorder := newStressRecorder()
+	report, code := runStressAt(
+		context.Background(), "/repo", stressOptions{Scenario: "01-bulk-ipv4"},
+		stressPrivilegeDropRecorder{recorder},
+	)
+	if code != 0 || report.Passed != 1 {
+		t.Fatalf("run = code %d report %#v", code, report)
+	}
+	var sawZe, sawCapture bool
+	for _, command := range recorder.commands {
+		// The DUT build names the binary too, as its -o target, and rightly
+		// inherits the harness environment; only the start runs the binary.
+		binary := slices.Index(command.argv, "/repo/"+stressZeBinaryRel)
+		if binary >= 0 && slices.Contains(command.argv[binary+1:], "start") {
+			sawZe = true
+			for _, entry := range command.environ {
+				name, _, _ := strings.Cut(entry, "=")
+				if key := env.Normalize(name); key == "ze_user" || key == "ze_group" {
+					t.Fatalf("ze started with %q: it would drop privileges and its death signal", entry)
+				}
+			}
+		}
+		if index := slices.Index(command.argv, "tcpdump"); index >= 0 {
+			sawCapture = true
+			if !slices.Equal(command.argv[index+1:index+3], []string{"-Z", "root"}) {
+				t.Fatalf("tcpdump argv = %q, want -Z root after tcpdump", command.argv)
+			}
+		}
+	}
+	if !sawZe || !sawCapture {
+		t.Fatalf("the run started ze %t and tcpdump %t, want both", sawZe, sawCapture)
 	}
 }
 

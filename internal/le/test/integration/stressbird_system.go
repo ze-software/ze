@@ -46,8 +46,12 @@ import (
 // lib/exec.c cmd_exec, which forks only when asked to), so the target IS the
 // forked child and keeps its group and its death signal. The fork also runs
 // from the host namespace: `ip` moves itself, so no fork needs a namespace
-// thread. A credential-changing exec would clear the death signal, and none
-// happens here: root execs ordinary binaries.
+// thread. The kernel clears the death signal whenever a child's effective
+// credentials change, by a setuid exec or by a setuid call after the exec. The
+// harness execs no setuid binary, and no child switches user: tcpdump runs with
+// `-Z root` (stressRunner.startZe), BIRD runs with no `-u`, and ze drops
+// privileges only when ze.user is set, which startZe removes from the
+// environment ze inherits from the harness.
 type realStressBirdSystem struct{}
 
 func (realStressBirdSystem) effectiveUID() int { return os.Geteuid() }

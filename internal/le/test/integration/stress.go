@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
@@ -676,7 +677,9 @@ func (r *stressRunner) startZe(ctx context.Context) *StressBirdFailure {
 		argv = append(argv, "--pprof", "127.0.0.1:6060")
 	}
 	argv = append(argv, "start", config)
-	environ := slices.Clone(r.base.environ)
+	// No ze.user: a ze that switched user would lose its death signal, which
+	// the kernel clears on an effective uid change (stressbird_system.go).
+	environ := env.Without(r.base.environ, "ze.user", "ze.group")
 	environ = append(environ, "ze.log.bgp.reactor=info", "ze.log.plugin=info")
 	process, err := r.system.Start(ctx, stressBirdCommand{
 		argv: argv, environ: environ, outputPath: r.base.paths.zeLog,
@@ -706,9 +709,12 @@ func (r *stressRunner) startZe(ctx context.Context) *StressBirdFailure {
 		return stressBirdFailure("ze-start", code, message)
 	}
 	r.base.runOptional(ctx, r.base.namespaceArgv(r.base.zeNS, "ss", "-tlnp", "sport", "=", "179"))
+	// `-Z root`: a Debian or Ubuntu tcpdump otherwise switches to its own user
+	// once the capture opens, and so loses its death signal (stressbird_system.go).
 	capture, err := r.system.Start(ctx, stressBirdCommand{
 		argv: r.base.namespaceArgv(
-			r.base.zeNS, "tcpdump", "-i", r.base.zeVeth, "-nn", "-l", "-c", "100", "tcp", "port", "179",
+			r.base.zeNS, "tcpdump", "-Z", "root", "-i", r.base.zeVeth,
+			"-nn", "-l", "-c", "100", "tcp", "port", "179",
 		),
 		environ: r.base.environ, outputPath: r.base.paths.pcapLog,
 	})

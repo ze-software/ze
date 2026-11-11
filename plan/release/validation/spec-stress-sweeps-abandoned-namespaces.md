@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Each stress harness killed outright leaves two network namespaces on the host; they accumulate across runs and no later run removes them |
 | RFC gaps | - |
-| Depends | `plan/release/validation/spec-stress-children-die-with-harness.md` (once its children die with the harness, a dead run's namespaces hold no process) |
+| Depends | - (spec-stress-children-die-with-harness, closed: every stress child now dies with the harness, so a dead run's namespaces hold no process) |
 | Phase | - |
 | Handoff | - |
 | Design tier | development tier |
