@@ -429,10 +429,22 @@ type Reactor struct {
 	sessionCaptures   map[*sessionCapture]struct{}
 
 	// running is true from the end of StartWithContext until stop (from the
-	// barrier on the standalone path). It opens listeners for peers and groups
-	// added at runtime. It does NOT mean peers may start: in borrow mode it is
-	// set before plugin startup has finished.
+	// barrier on the standalone path). It opens listeners for groups added at
+	// runtime (installDynamicGroupsLocked); a peer's listener follows
+	// listenersStarted instead. It does NOT mean peers may start: in borrow
+	// mode it is set before plugin startup has finished.
 	running bool
+	// listenersStarted is true, under r.mu, once startMultiListeners has
+	// opened the listener for every configured pair, and false again once
+	// stopAllListeners has closed them, which both the stop (cleanup) and an
+	// aborted start (abortStartup) do. These are its only two writers.
+	// addPeerLocked opens a listener for a peer it adds only while this holds:
+	// before it, the start's own pass covers the peer. The standalone start
+	// sets running only after its plugin waits, so a listener gated on running
+	// left a passive peer added during those waits accepting nothing. Opening
+	// one early is safe: a connection for a peer that is not started waits in
+	// the peer's inbound slot until the barrier starts it (peersStarted).
+	listenersStarted bool
 	// peersStarted is the plugin startup barrier as the peer start paths read
 	// it, under r.mu. StartPeers (borrow mode, after every plugin finished its
 	// 5-stage startup) or the standalone StartWithContext (after its plugin
@@ -1497,7 +1509,9 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 }
 
 // startMultiListeners starts one listener per unique (local address, port) pair
-// the configuration accepts connections on (listenerSpecs).
+// the configuration accepts connections on (listenerSpecs), then records that
+// the listeners have started (Reactor.listenersStarted). A failure records
+// nothing: the start aborts, and abortStartup closes what was opened.
 // Caller MUST hold r.mu.
 func (r *Reactor) startMultiListeners() error {
 	for _, spec := range r.listenerSpecs() {
@@ -1505,6 +1519,7 @@ func (r *Reactor) startMultiListeners() error {
 			return err
 		}
 	}
+	r.listenersStarted = true
 	return nil
 }
 
@@ -2028,9 +2043,12 @@ func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int) error {
 	return nil
 }
 
-// stopAllListeners stops all multi-listeners and waits for them to finish.
+// stopAllListeners stops all multi-listeners and waits for them to finish, and
+// records that the listeners are no longer started (Reactor.listenersStarted),
+// so a peer added after a stop or an aborted start opens no socket.
 // Must be called with r.mu held.
 func (r *Reactor) stopAllListeners() {
+	r.listenersStarted = false
 	for key, listener := range r.listeners {
 		listener.Stop()
 		waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

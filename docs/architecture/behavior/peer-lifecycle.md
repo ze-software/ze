@@ -443,6 +443,36 @@ by the reactor's accept loop. Two race conditions need handling:
 <!-- source: internal/component/bgp/reactor/peer_connection.go — setInboundConnection, takeInboundConnection -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — runOnce takeInboundConnection path -->
 
+### When a passive peer gets its listener
+
+The start opens one listener per configured pair in `startMultiListeners`,
+then records that the listeners have started (`Reactor.listenersStarted`).
+`stopAllListeners` clears that record, and both the stop (`cleanup`) and an
+aborted start (`abortStartup`) call it. `AddPeer` opens a listener for a
+passive peer with a local address only while the record holds and the reactor
+is not stopping:
+
+| When `AddPeer` runs | Listener |
+|---------------------|----------|
+| During the config load, before the start | None from `AddPeer`: `startMultiListeners` opens it |
+| After the listener pass, before the peer start barrier opens (the standalone start's plugin waits and announce delay, or borrow mode before `StartPeers`) | Opened now |
+| While running | Opened now |
+| After a stop or an aborted start | None |
+
+When the pair has no listener, one is started. When the pair already has one
+and the new peer carries an MD5 key, the listener is rebuilt, because the key
+set is read only when the socket is created (`newListenerFactory`). When the
+listener cannot start, the peer is removed again and `AddPeer` returns the
+`listen on <address>:<port>` error. The peer itself starts only once the
+reactor is running and the barrier has opened (`peersStarted`). Until then a
+connection the listener accepts waits in the peer's inbound slot: the peer
+has no session, so `acceptOrReject` stores it with `setInboundConnection`, and
+only the peer's own run loop takes it.
+
+<!-- source: internal/component/bgp/reactor/reactor.go — startMultiListeners, stopAllListeners, abortStartup, cleanup, newListenerFactory, Reactor.listenersStarted -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go — addPeerLocked listener block -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go — acceptOrReject -->
+
 ## Collision resolution (RFC 4271 §6.8)
 
 When both peers initiate simultaneously, the system may have a live

@@ -199,18 +199,27 @@ func (r *Reactor) addPeerLocked(settings *PeerSettings) error {
 		)
 	}
 
-	// If reactor is running, create the listener if needed, and start the peer
-	// once the plugin startup barrier has lifted (Reactor.peersStarted). A peer
-	// added before that is started by the StartPeers copy, so it cannot reach
-	// Established before the plugins its policy names are connected.
-	// Active-only peers dial out and never accept inbound — skip listener.
+	// Once the start's own listener pass has run (Reactor.listenersStarted),
+	// open the listener this peer needs: a peer added before that pass is
+	// covered by it, and one added after it has nobody else to open it. This
+	// holds from that pass, before running is set: the standalone start sets
+	// running only after its plugin waits. A connection the early listener
+	// accepts waits in the peer's inbound slot until the peer starts
+	// (acceptOrReject, setInboundConnection). Active-only peers dial out and
+	// never accept inbound, so they get no listener. A listener that cannot
+	// start rolls the addition back, so AddPeer answers the listen error.
+	//
+	// Start the peer only once the reactor is running and the plugin startup
+	// barrier has lifted (Reactor.peersStarted). A peer added before that is
+	// started by the barrier's copy, so it cannot reach Established before the
+	// plugins its policy names are connected.
 	//
 	// A stop that has begun stays sealed: reactor.go shuts the listeners and
 	// marks every peer stopping under this same lock, so starting one here
 	// would open a session nothing notifies and the cancel closes in silence
 	// (RFC 4271 Section 8.2.2, ManualStop). The peer stays in r.peers, inert,
 	// and the process is leaving.
-	if r.running && !r.stopping {
+	if r.listenersStarted && !r.stopping {
 		if settings.LocalAddress.IsValid() && settings.Connection.IsPassive() {
 			listenPort := r.peerListenPort(settings)
 			lkey := net.JoinHostPort(settings.LocalAddress.String(), strconv.Itoa(listenPort))
@@ -235,6 +244,8 @@ func (r *Reactor) addPeerLocked(settings *PeerSettings) error {
 				}
 			}
 		}
+	}
+	if r.running && !r.stopping {
 		if r.peersStarted {
 			peer.StartWithContext(r.ctx)
 		} else {
