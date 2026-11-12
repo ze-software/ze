@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
@@ -133,7 +134,12 @@ func llgrDownLiveRouter(t *testing.T, restart uint16) ([]*lowLivePeer, *process.
 		}
 		require.NoError(t, r.AddPeer(s))
 	}
-	srv := flowForwardPluginServer(t, r, plugin.PluginConfig{Name: "bgp-gr", Internal: true, Encoder: "json"})
+	// bgp-gr declares policy as a dependency (grDependencies), and the plugin
+	// server refuses its Stage 1 unless policy runs too. The daemon's loader
+	// adds it (config.ExpandDependencies); this hand-built list names it.
+	srv := flowForwardPluginServer(t, r,
+		plugin.PluginConfig{Name: routepolicy.PluginName, Internal: true, Encoder: "json"},
+		plugin.PluginConfig{Name: "bgp-gr", Internal: true, Encoder: "json"})
 	r.SetPluginServer(srv)
 	require.NoError(t, r.StartWithContext(context.Background()))
 	t.Cleanup(func() { stopAndWait(t, r) })
