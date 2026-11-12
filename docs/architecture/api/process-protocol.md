@@ -2908,6 +2908,21 @@ Plugins can dispatch commands to other plugins via the external-compatible strin
 #4 ze-plugin-engine:dispatch-command {"command":"rib adjacent inbound show"}
 ```
 
+The `command` line carries no pipe chain. The answer of `dispatch-command` is
+data, and a chain renders text, so the dispatcher does not apply one. A line
+that holds a pipe outside double quotes gets the error answer before any
+handler or plugin process runs, and the plugin's request is logged as refused
+(`dispatch-command failed`, doctor code `CodeDoctorPluginRequestRefused`). The
+error gives the line to send instead. When the chain is only filters the
+command registered, that line is the folded form, such as
+`show bgp rib received count` for `show bgp rib received` piped to `count`.
+Otherwise it names the command part alone, so the plugin selects from the data
+itself, and the `ze cli -c` form an operator uses to apply the chain. A pipe
+inside double quotes stays an argument value.
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch -->
+<!-- source: internal/component/command/pipe.go -- foldFilters -->
+<!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandResponse -->
+
 Internal plugins that already know the exact registered command should use the
 typed args API. It carries the command name, pre-tokenized arguments, and optional
 peer selector separately, so runtime values are not split by the command tokenizer.

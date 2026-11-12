@@ -171,3 +171,54 @@ func TestTokenize(t *testing.T) {
 		})
 	}
 }
+
+// TestScanCommandReportsUnquotedPipe proves the scanner Dispatch reads finds
+// the first pipe character outside double quotes, and that its tokens are the
+// tokens tokenize answers for the same line, so accounting and the typed
+// authorizer read a refused line exactly as before.
+//
+// Method: each case names the byte offset in the raw line (leading space
+// included) and the tokens; the quoted cases put a literal pipe inside quotes,
+// alone and before an unquoted one, which a token-based check cannot tell apart.
+//
+// VALIDATES: the quote-aware offset of spec-plugin-dispatch-pipe-chain-reaches-the-handler (R-1, R-4).
+// PREVENTS: a quoted pipe value refused, or a joined pipe ("a|b") missed.
+func TestScanCommandReportsUnquotedPipe(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantPipeAt int
+		wantTokens []string
+	}{
+		{name: "no pipe", input: "show bgp rib received", wantPipeAt: noPipe, wantTokens: []string{"show", "bgp", "rib", "received"}},
+		{name: "empty", input: "  ", wantPipeAt: noPipe, wantTokens: nil},
+		{name: "spaced pipe", input: "show x | count", wantPipeAt: 7, wantTokens: []string{"show", "x", "|", "count"}},
+		{name: "leading space counted", input: "  show x | count", wantPipeAt: 9, wantTokens: []string{"show", "x", "|", "count"}},
+		{name: "joined both sides", input: "show x|count", wantPipeAt: 6, wantTokens: []string{"show", "x|count"}},
+		{name: "joined before operator", input: "show x |count", wantPipeAt: 7, wantTokens: []string{"show", "x", "|count"}},
+		{name: "first of several", input: "show x | match y | count", wantPipeAt: 7, wantTokens: []string{"show", "x", "|", "match", "y", "|", "count"}},
+		{name: "quoted pipe alone", input: `set x "|"`, wantPipeAt: noPipe, wantTokens: []string{"set", "x", "|"}},
+		{name: "quoted value holding a pipe", input: `set x "a | b"`, wantPipeAt: noPipe, wantTokens: []string{"set", "x", "a | b"}},
+		{name: "quoted pipe before an unquoted one", input: `show "a|b" | count`, wantPipeAt: 11, wantTokens: []string{"show", "a|b", "|", "count"}},
+		{name: "unclosed quote hides the pipe", input: `show "a | count`, wantPipeAt: noPipe, wantTokens: []string{"show", "a | count"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tokens, pipeAt, err := scanCommand(tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantPipeAt, pipeAt, "pipe offset")
+			assert.Equal(t, tt.wantTokens, tokens, "tokens")
+			if pipeAt != noPipe {
+				assert.Equal(t, byte('|'), tt.input[pipeAt], "the offset points at the pipe in the raw line")
+			}
+
+			tokenized, err := tokenize(tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tokenized, tokens, "tokenize answers the scanner's tokens")
+		})
+	}
+
+	_, pipeAt, err := scanCommand(`show x\y | count`)
+	require.ErrorIs(t, err, errBackslashInCommand, "a backslash is refused before any pipe is read")
+	assert.Equal(t, noPipe, pipeAt)
+}

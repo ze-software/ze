@@ -295,6 +295,35 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, pipeChainMeta)
 	return command, chainOps, meta
 }
 
+// FoldPipeChain answers the line a dispatch caller sends instead of command
+// piped to chain, and whether the whole chain folded into it.
+//
+// command is the text before the first pipe outside quotes and chain the text
+// after it, both separated by the caller's own quote-aware scan, so ParsePipe's
+// quote-blind cut never reads the command part. The chain runs through the
+// parse, alias expansion, address binding and fold every operator surface runs
+// (parsePipeOps, expandAliases, bindAddressFields, foldFilters), never a second
+// reading of the operator names.
+//
+// whole is true only when no operator stays in the chain and none was invalid:
+// folded is then the command with every operator as its own filter arguments
+// (`show bgp rib received count`). An empty chain folds to the command alone.
+// An empty command folds nothing, because no command owns a filter there.
+func FoldPipeChain(command, chain string) (folded string, whole bool) {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return "", false
+	}
+	ops := parsePipeOps(chain)
+	ops = expandAliases(command, ops)
+	ops = bindAddressFields(command, ops)
+	folded, remaining, _ := foldFilters(command, ops)
+	if len(remaining) > 0 {
+		return "", false
+	}
+	return folded, true
+}
+
 // pipeChainStep is one operator that shaped an answer.
 type pipeChainStep struct {
 	Op  string `json:"op"`

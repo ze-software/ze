@@ -637,6 +637,14 @@ Dispatches a command through the engine's command dispatcher (inter-plugin commu
 status, data, err := p.DispatchCommand(ctx, "rib adjacent inbound show")
 ```
 
+Send a command's own filters as its arguments, never as a pipe chain:
+`show bgp rib received first 3 count`, not the operator's spelling with pipes.
+The engine refuses a line that holds a pipe outside double quotes, because the
+answer is data and a chain renders text. The error names the line to send
+instead. A pipe inside double quotes is an ordinary argument value.
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch -->
+<!-- source: internal/test/fixture/plugin_fixture_16.go -- plugin16PipeFirstLast -->
+
 A command that completed and stated a warning answers status `warning`. The
 warning text, one line per entry, comes with `DispatchCommandResult`:
 

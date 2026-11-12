@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net"
 	"slices"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,6 +20,9 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -828,4 +833,187 @@ func TestResponseToDispatchOutputWarnings(t *testing.T) {
 	encoded, err = json.Marshal(done)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"status":"done"}`, string(encoded), "an answer with no warning keeps the old shape")
+}
+
+// pipeChainTarget builds a dispatcher with one builtin command, "test command",
+// whose handler counts its calls and answers success. The command declares no
+// argument leaves and no pipe filters, so before the refusal a pipe token after
+// it reached the handler as a positional argument and the handler answered
+// done: the defect the pipe-chain wiring tests below refuse.
+func pipeChainTarget(t *testing.T) (*Dispatcher, *atomic.Int32) {
+	t.Helper()
+	calls := &atomic.Int32{}
+	d := NewDispatcher()
+	if err := d.Register("test command", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
+		calls.Add(1)
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"answered": "unfiltered"}}, nil
+	}, "test command"); err != nil {
+		t.Fatal(err)
+	}
+	return d, calls
+}
+
+// pipeChainBridge wires a DirectBridge for proc from the engine-op registry,
+// exactly as wireBridgeDispatch does for an internal plugin.
+func pipeChainBridge(s *Server, proc *process.Process) *rpc.DirectBridge {
+	bridge := rpc.NewDirectBridge()
+	for i := range engineOps {
+		if engineOps[i].typedWire != nil {
+			engineOps[i].typedWire(s, proc, bridge)
+		}
+	}
+	bridge.SetReady()
+	return bridge
+}
+
+// requirePipeChainOperatorError checks the refusal an in-process caller holds:
+// an opererr.Error whose problem names the command part and the chain, whose
+// why says the dispatcher answers data and the chain belongs to the surface
+// that renders the answer, and whose fix carries every wanted fragment.
+func requirePipeChainOperatorError(t *testing.T, err error, commandPart, chain string, fixParts ...string) {
+	t.Helper()
+	require.Error(t, err, "a pipe chain outside quotes must be refused, never answered")
+	refusal, ok := errors.AsType[*opererr.Error](err)
+	require.True(t, ok, "the refusal is an operator error with problem, why and fix, got %T: %v", err, err)
+	assert.Contains(t, refusal.Problem(), commandPart, "the problem names the command part")
+	assert.Contains(t, refusal.Problem(), chain, "the problem names the chain")
+	assert.Contains(t, refusal.Why(), "data", "the why says the dispatcher answers data")
+	assert.Contains(t, refusal.Why(), "render", "the why says the surface that renders the answer applies the chain")
+	for _, part := range fixParts {
+		assert.Contains(t, refusal.Fix(), part, "the fix names the line to send instead")
+	}
+}
+
+// TestDispatchCommandRefusesPipeChain proves a plugin's dispatch-command that
+// carries a pipe chain outside quotes is refused before the handler runs, on
+// the socket and through the DirectBridge's DispatchCommand slot
+// (Server.dispatchCommand), and that the refusal is raised under the doctor
+// code for a refused plugin request.
+//
+// Method: one builtin command whose handler counts its calls and has no pipe
+// filters registered, so the chain cannot fold and the fix is the AC-1b form
+// (the command part alone, and the `ze cli -c` form of the original line). The
+// socket case runs the real engine-op loop (handleSingleProcessCommandsRPC) and
+// reads the answer the way a forked plugin does; the bridge case wires the
+// typed slots from engineOps as wireBridgeDispatch does.
+//
+// VALIDATES: AC-1, AC-1b, AC-6 of spec-plugin-dispatch-pipe-chain-reaches-the-handler.
+// PREVENTS: a piped line answered by the handler, unfiltered, with status done.
+func TestDispatchCommandRefusesPipeChain(t *testing.T) {
+	// Not parallel: it reads the process-wide report bus.
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	const line = "test command | count"
+
+	t.Run("socket", func(t *testing.T) {
+		d, calls := pipeChainTarget(t)
+		pluginSide, engineSide := net.Pipe()
+		t.Cleanup(func() { _ = pluginSide.Close() })
+		t.Cleanup(func() { _ = engineSide.Close() })
+
+		proc := process.NewProcess(plugin.PluginConfig{Name: "pipe-chain-socket"})
+		proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
+
+		s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
+		s.ctx, s.cancel = context.WithCancel(context.Background())
+		defer s.cancel()
+
+		handlerDone := make(chan struct{})
+		go func() {
+			defer close(handlerDone)
+			s.handleSingleProcessCommandsRPC(proc)
+		}()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		status, data, err := dispatchAnswerOverSocket(ctx, pluginSide, &rpc.DispatchCommandInput{Command: line})
+		require.Error(t, err, "the plugin must receive an error answer, got status=%q data=%s", status, data)
+		assert.Equal(t, int32(0), calls.Load(), "no handler may run for a refused chain")
+
+		// The forked plugin reads the operator error as text: problem, why,
+		// then the fix on the last line (opererr.Error.Error).
+		message := err.Error()
+		assert.Contains(t, message, "test command", "the refusal names the command part")
+		assert.Contains(t, message, "count", "the refusal names the chain")
+		lines := strings.Split(message, "\n")
+		fix := lines[len(lines)-1]
+		assert.True(t, strings.HasPrefix(fix, "fix: "), "the fix is the last line of the refusal, got %q", message)
+		assert.Contains(t, fix, "test command", "the fix names the command part to dispatch")
+		assert.Contains(t, fix, "ze cli -c", "the fix names the operator form that applies the chain")
+
+		raised := false
+		for _, issue := range report.Errors(0) {
+			if issue.Source != serverEventSource || issue.Code != diagnostic.CodeDoctorPluginRequestRefused {
+				continue
+			}
+			if issue.Subject != proc.Name() {
+				continue
+			}
+			raised = true
+			assert.Contains(t, issue.Message, "carries the pipe chain", "the raised event carries the refusal itself")
+		}
+		assert.True(t, raised, "the refusal must be raised under %s for the plugin: %v",
+			diagnostic.CodeDoctorPluginRequestRefused, report.Errors(0))
+
+		require.NoError(t, pluginSide.Close())
+		select {
+		case <-handlerDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("handler did not exit")
+		}
+	})
+
+	t.Run("bridge-dispatch-command", func(t *testing.T) {
+		d, calls := pipeChainTarget(t)
+		s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
+		s.ctx, s.cancel = context.WithCancel(context.Background())
+		defer s.cancel()
+
+		proc := process.NewProcess(plugin.PluginConfig{Name: "pipe-chain-bridge"})
+		out, err := pipeChainBridge(s, proc).DispatchCommand(t.Context(), line)
+		requirePipeChainOperatorError(t, err, "test command", "count", "test command", "ze cli -c")
+		if out != nil {
+			assert.NotEqual(t, plugin.StatusDone, out.Status, "a refused chain never answers done")
+		}
+		assert.Equal(t, int32(0), calls.Load(), "no handler may run for a refused chain")
+	})
+}
+
+// TestDispatchCommandAnswerRefusesPipeChain proves the DirectBridge answer
+// path (Server.dispatchCommandAnswer, the slot an in-process plugin's
+// DispatchCommandResult walks) refuses a pipe chain before the handler runs,
+// with the same operator error the socket path carries.
+//
+// Method: the typed slots are wired from engineOps as wireBridgeDispatch does,
+// and the line pipes to a format operator, which never folds into a command's
+// own filters, so the fix names the command part alone and the `ze cli -c`
+// form holding the original line.
+//
+// VALIDATES: AC-1, AC-1b of spec-plugin-dispatch-pipe-chain-reaches-the-handler.
+// PREVENTS: an in-process plugin reading the unfiltered answer of a piped line.
+func TestDispatchCommandAnswerRefusesPipeChain(t *testing.T) {
+	t.Parallel()
+
+	const line = "test command | json"
+
+	d, calls := pipeChainTarget(t)
+	s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	defer s.cancel()
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: "pipe-chain-answer"})
+	answer, err := pipeChainBridge(s, proc).DispatchCommandAnswer(t.Context(), line)
+	if answer != nil {
+		// Walk the answer so the bridge releases its dispatch admission, as the
+		// DispatchCommandAnswer contract requires of every caller.
+		rows := 0
+		for range answer.Records {
+			rows++
+		}
+		t.Errorf("a refused chain carries no answer, got %d rows ending %q", rows, answer.Verdict())
+	}
+	requirePipeChainOperatorError(t, err, "test command", "json", "test command", "ze cli -c", line)
+	assert.Equal(t, int32(0), calls.Load(), "no handler may run for a refused chain")
 }

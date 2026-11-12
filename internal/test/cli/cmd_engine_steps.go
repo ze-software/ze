@@ -138,13 +138,12 @@ func CmdEngineSteps(args []string) int {
 // line to the daemon the way SSH sends one, so a step reads what `ze cli -c`
 // prints for the same line.
 //
-// The daemon's dispatcher gives "|" no meaning: every operator surface splits
-// the pipe chain off before it dispatches and renders the answer through it
-// (the SSH exec channel, the web CLI and `ze cli` all call
+// The daemon's dispatcher answers data and applies no pipe chain: every
+// operator surface splits the chain off before it dispatches and renders the
+// answer through it (the SSH exec channel, the web CLI and `ze cli` all call
 // command.ProcessPipesDefaultFormatChecked). Sent whole, `show doctor config f
-// | json` reaches the handler with "|" and "json" as its arguments, and a
-// handler that reads its arguments refuses them, while one that ignores them
-// answers its raw JSON whatever the chain asked for (`| table` included).
+// | json` is refused by the dispatcher, which names the line to send instead,
+// so the step would read that refusal and never the rendered answer.
 //
 // A line with no pipe keeps the raw JSON answer: no default format is added,
 // because json= predicates walk that answer (runner.RunEngineSteps). A refused

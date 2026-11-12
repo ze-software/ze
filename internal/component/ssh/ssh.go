@@ -1125,8 +1125,9 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
-			// Split the pipe chain off the command. The dispatcher's tokenizer
-			// gives "|" no meaning, so the chain must not reach it. The formatter
+			// Split the pipe chain off the command. The dispatcher answers data
+			// and refuses a line with "|" outside quotes, so the chain is applied
+			// here, where the answer is rendered. The formatter
 			// renders the answer in the format the chain names, or in the
 			// configured default (ze.cli.format) when it names none. An exec
 			// channel holds no per-session "set cli format" override, so the

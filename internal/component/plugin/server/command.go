@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/command"
@@ -24,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -1076,13 +1078,26 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	if strings.TrimSpace(input) != "" {
 		defer d.BeginAccounting(ctx, input)()
 	}
-	tokens, err := tokenize(input)
+	tokens, pipeAt, err := scanCommand(input)
 	if err != nil {
 		return nil, err
 	}
 	if len(tokens) == 0 {
 		return nil, ErrEmptyCommand
 	}
+
+	// A pipe outside quotes is the operator's spelling of a chain that the
+	// surface rendering the answer applies (ssh execMiddleware, the web CLI,
+	// ze cli). The dispatcher answers data, so a chain that reached it would
+	// arrive at a handler, a subsystem or a plugin process as arguments and be
+	// answered as if it were not there. It is refused here, after accounting
+	// started and before any resolution, so every caller of an unsplit line
+	// (a plugin's dispatch-command, MCP, REST, gRPC) meets the same refusal.
+	if pipeAt != noPipe {
+		refusal := pipeChainRefusal(input[:pipeAt], input[pipeAt+1:], input)
+		return plugin.OperatorErrorResponse(refusal), refusal
+	}
+
 	if ctx != nil {
 		ctx.Selectors = nil
 	}
@@ -1182,7 +1197,9 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// ArgDefs does not mean "takes no arguments" (extractArgDefs reads YANG
 		// leaf children only, so most nodes have none while their handlers still
 		// read positional args), and `| peer X` is folded into trailing args
-		// client-side by foldFilters. A leading dash, though, is never valid
+		// by foldFilters on the surface that splits the chain off. A pipe
+		// outside quotes never reaches this point: Dispatch refused the line
+		// above (pipeChainRefusal). A leading dash, though, is never valid
 		// here: no ArgKind is signed, and folding only emits bare filter names
 		// and values. So a flag can only be a client-side flag that leaked.
 		if flag := firstFlagToken(args); flag != "" {
@@ -1332,6 +1349,47 @@ func flagRefusal(path, flag, input string) error {
 		tb.Str("; run 'ze ").Str(input).Str("' on the host that holds what it reads")
 	}
 	return errors.New(tb.String())
+}
+
+// pipeChainRefusal is the answer to a line that carries a pipe outside quotes
+// (Dispatch, from the offset scanCommand found). commandPart is the text before
+// that pipe, chain the text after it, and line the whole line.
+//
+// The fix is the line the caller sends instead. When every operator of the
+// chain folds into the command's own filters, that is the folded line
+// (command.FoldPipeChain, which runs the fold the operator surfaces run), the
+// dispatch grammar a plugin already uses. Otherwise it names the command part
+// alone, to dispatch and select from its data, and the `ze cli -c` form of the
+// original line, which applies the chain for an operator.
+//
+// Every echoed part passes through config.DisplayCommand, so a secret value on
+// the line reads as the placeholder.
+func pipeChainRefusal(commandPart, chain, line string) *opererr.Error {
+	commandPart = strings.TrimSpace(commandPart)
+	shownChain := config.DisplayCommand(strings.TrimSpace(chain))
+	shownLine := config.DisplayCommand(strings.TrimSpace(line))
+	const why = "the dispatcher answers data, and a pipe chain is applied by the surface that renders the answer"
+
+	if commandPart == "" {
+		var problem, fix textbuf.Buffer
+		problem.Str("the line ").Quoted(shownLine).Str(" starts with a pipe chain and names no command")
+		fix.Str("ze cli -c '<command> | ").Str(shownChain).Byte('\'')
+		return opererr.New(problem.String(), why, fix.String())
+	}
+
+	shownCommand := config.DisplayCommand(commandPart)
+	var problem textbuf.Buffer
+	problem.Str("the command ").Quoted(shownCommand).Str(" carries the pipe chain ").
+		Quoted("| " + shownChain).Str(", which the dispatcher does not apply")
+
+	if folded, whole := command.FoldPipeChain(commandPart, chain); whole {
+		return opererr.New(problem.String(), why, config.DisplayCommand(folded))
+	}
+
+	var fix textbuf.Buffer
+	fix.Str("dispatch ").Quoted(shownCommand).Str(" and select from its data, or run ze cli -c '").
+		Str(shownLine).Byte('\'')
+	return opererr.New(problem.String(), why, fix.String())
 }
 
 // firstFlagToken returns the first flag-shaped token in args, or "" if there is
@@ -1719,28 +1777,57 @@ func answerTruncatedFault(produced uint64) json.RawMessage {
 
 var errBackslashInCommand = errors.New("backslash is not allowed in commands")
 
+// noPipe is the pipe offset scanCommand answers for a line that holds no pipe
+// character outside quotes.
+const noPipe = -1
+
 // tokenize splits a command string into tokens.
 // Handles quoted strings: "hello world" → single token "hello world".
 // Backslash is rejected: commands have no escape sequences.
 // Quotes are stripped from the result.
+//
+// It reads the pipe offset scanCommand also answers not at all: accounting
+// (BeginAccounting) and the typed authorizer (isAuthorized) tokenize every
+// line the same way whether or not it holds a pipe, and only Dispatch refuses
+// a pipe chain.
 func tokenize(input string) ([]string, error) {
-	input = strings.TrimSpace(input)
-	if input == "" {
-		return nil, nil
+	tokens, _, err := scanCommand(input)
+	return tokens, err
+}
+
+// scanCommand is the one quote-aware pass over a command line. It answers the
+// tokens tokenize answers, and the byte offset in input of the first pipe
+// character outside double quotes, or noPipe when there is none.
+//
+// The offset comes from this scan and never from the tokens: the quotes are
+// stripped from a token, so a quoted pipe (a value that is a literal pipe
+// character) and an operator's pipe are the same token after it. A pipe joined
+// to a word ("a|b") is found too, because every operator surface cuts at any
+// pipe character (command.ParsePipe).
+func scanCommand(input string) (tokens []string, pipeAt int, err error) {
+	trimmed := strings.TrimLeftFunc(input, unicode.IsSpace)
+	lead := len(input) - len(trimmed)
+	trimmed = strings.TrimRightFunc(trimmed, unicode.IsSpace)
+	if trimmed == "" {
+		return nil, noPipe, nil
 	}
 
-	if strings.IndexByte(input, '\\') >= 0 {
-		return nil, errBackslashInCommand
+	if strings.IndexByte(trimmed, '\\') >= 0 {
+		return nil, noPipe, errBackslashInCommand
 	}
 
-	var tokens []string
+	pipeAt = noPipe
 	var current textbuf.Buffer
 	inQuote := false
 
-	for _, r := range input {
+	for i, r := range trimmed {
 		if r == '"' {
 			inQuote = !inQuote
 			continue
+		}
+
+		if r == '|' && !inQuote && pipeAt == noPipe {
+			pipeAt = lead + i
 		}
 
 		if (r == ' ' || r == '\t') && !inQuote {
@@ -1757,5 +1844,5 @@ func tokenize(input string) ([]string, error) {
 		tokens = append(tokens, current.String())
 	}
 
-	return tokens, nil
+	return tokens, pipeAt, nil
 }

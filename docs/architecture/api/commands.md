@@ -2036,6 +2036,46 @@ func Dispatch(tree DispatchTree, tokens *Tokenizer, reactor *Reactor) (Handler, 
 ```
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher, Handler -->
 
+#### The surface splits the pipe chain; the dispatcher refuses one
+
+The dispatcher answers data, and a pipe chain renders text, so the chain is
+applied by the surface that renders the answer. The SSH exec channel, the web
+CLI, `ze cli` and the functional-test engine steps split the chain off the line
+with `ProcessPipesDefaultFormatChecked` (or its `Local` form), dispatch the
+command part, and render the answer through the chain. Their line reaches
+`Dispatch` with no pipe.
+<!-- source: internal/component/command/pipe.go -- ProcessPipesDefaultFormatChecked -->
+<!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
+<!-- source: internal/test/cli/cmd_engine_steps.go -- pipedEngineDispatch -->
+
+A caller that sends the line whole (a plugin's `dispatch-command`, MCP
+`ze_execute`, REST execute, gRPC, `Reactor.ExecuteCommand`) gets an error when
+the line holds a pipe outside double quotes, joined to a word or not. The check
+runs in `Dispatch` after accounting starts and before any builtin, subsystem or
+plugin command is resolved, so no handler and no plugin process sees the line.
+The error names the command part and the chain, says why the chain is not
+applied there, and gives the line to send instead. When every operator of the
+chain is a filter the command registered (`RegisterPipeFilters`), that line is
+the folded form `foldFilters` writes, which the command reads as its own
+arguments. Otherwise the fix names the command part alone, so the caller selects
+from its data, and the `ze cli -c` form of the original line, which applies the
+chain for an operator.
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch, scanCommand, pipeChainRefusal -->
+<!-- source: internal/component/command/pipe.go -- FoldPipeChain, foldFilters -->
+
+A pipe inside double quotes is an argument value. `tokenize` reads quoting, so
+the handler receives the pipe character, or the whole quoted value, as today.
+Accounting and authorization read the same tokens as for any other line.
+`dispatch-command-args` never reaches the tokenizer, so a pipe in its `args`
+is data.
+<!-- source: internal/component/plugin/server/command.go -- tokenize -->
+<!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandArgs -->
+
+MCP, REST and gRPC are operator surfaces that do not yet split the chain at
+their edge, so they refuse a piped line rather than apply it. Applying the chain
+there is owned by `plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md`.
+<!-- source: cmd/ze/hub/main_servers.go -- serverDispatcher -->
+
 ### YANG-Typed Command Arguments
 
 Operational commands declare their argument types as YANG leaves inside
@@ -3077,6 +3117,12 @@ to the client at session start, and it is NOT built.
 
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+
+A surface missing from the table parses no chain. A plugin's `dispatch-command`,
+MCP `ze_execute`, REST execute and gRPC hand the line to the dispatcher whole,
+and the dispatcher refuses a pipe outside quotes ("The surface splits the pipe
+chain; the dispatcher refuses one").
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch -->
 
 #### Discovery: what each catalog reader can see
 

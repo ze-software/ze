@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Shipped daemon behaviour: a command a plugin dispatches with a pipe chain gets a silently wrong answer (the whole answer, unfiltered, or a refusal naming the pipe as an argument), which `ai/rules/principles.md` forbids. That is incorrect shipped behaviour (`plan/README.md`, `release/fixes/`), not tooling |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 2/3 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -43,143 +43,323 @@ The repair needs care: `tokenize` unquotes, so a quoted pipe (a value that is a
 literal pipe character) becomes the same token as an unquoted one. A refusal
 keyed on the token alone would refuse a legitimate quoted argument.
 
+**Decision (design, 2026-11-12):** the dispatcher REFUSES a line that carries a
+pipe outside quotes, in `Dispatch` itself, before any handler, plugin process or
+subsystem sees it. The refusal names the command, the chain, why the chain is
+not applied there, and the exact line to send instead (the folded filter form
+when the whole chain is command-owned filters). Key Design Decisions carries the
+alternatives and the producer functions that decide it.
+
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `ai/doors/system.md` - a plugin can run in another process; the text command dispatcher is the slow path an external caller uses
   → Constraint: the fix behaves the same for an internal plugin (DirectBridge) and a forked one (RPC)
+  → Decision: the check lives in `Dispatch`, which both transports reach through `dispatchCommandResponse`, so no transport gets its own copy
 - [ ] `ai/doors/plugin-infra.md` - the dispatcher and `dispatch-command` belong to `plugin/server`
   → Constraint: one engine-op entry per RPC; the fix adds no second dispatch path
+  → Decision: `opDispatchCommand` and its typed bridge slot are unchanged; only what `Dispatch` accepts changes
 - [ ] `ai/doors/commands-cli.md` - pipe operators, pipe aliases, `ApplyPipes`
-  → Constraint: a handler answers data, never text; output shaping goes through the pipe layer
-- [ ] `docs/architecture/api/commands.md` - "Pipe aliases: a name for an operator chain", "The pipe layer selects and re-sequences. It cannot compute"
-- [ ] `docs/architecture/api/process-protocol.md` - the `dispatch-command` runtime RPC and its answer
+  → Constraint: a handler answers data, never text; output shaping goes through the pipe layer at the surface that renders
+  → Decision: the dispatcher does not render. Applying the chain inside `Dispatch` would put rendered text where every caller reads data
+- [ ] `ai/doors/api-surfaces.md` - REST, gRPC, MCP are thin adapters over `serverDispatcher`
+  → Constraint: never add a command or a check in an adapter
+  → Decision: the adapters stay unchanged; the check in `Dispatch` reaches them
+- [ ] `ai/doors/le-tooling.md`, `ai/doors/hub-engine.md`, `ai/doors/system-plugins.md`, `ai/doors/bgp-engine.md` - the fixture and `.ci`, `serverDispatcher`, the ExaBGP bridge, the route push
+  → Constraint: a compiled fixture returns an error when an assertion fails; the bridge's translated `send bgp ... update text` lines are a contract, and the route text grammar has no pipe
+  → Decision: no change to the hub, the bridge or the route grammar
+- [ ] `docs/architecture/api/commands.md` - "Pipe aliases: a name for an operator chain", "The pipe layer selects and re-sequences. It cannot compute", "Where an alias resolves, and where it does not"
+  → Constraint: an alias expands in the process that parses the chain; the pipe layer only reshapes a returned payload
+  → Decision: the refusal's suggested line is computed with the same parse, alias expansion and fold the operator surfaces use (`parsePipeOps`, `expandAliases`, `bindAddressFields`, `foldFilters`), never a second reading of the operator names
+- [ ] `docs/architecture/api/process-protocol.md` - "Inter-Plugin Communication": `dispatch-command` answers a head, records and a terminator; the single-value form `DispatchCommandOutput.data` "carries raw JSON"
+  → Constraint: the answer of `dispatch-command` is data. Its contract is unchanged for every line without a pipe outside quotes
+  → Decision: a piped line gets the existing error answer form, with the refusal text as its message
 
 **Key insights:**
 - The dispatcher's comment on flag-shaped leftovers says a pipe filter is folded into trailing args client-side by `foldFilters`, so a pipe token reaching `Dispatch` was never meant to be an argument.
+- In-tree plugins already send the folded form: `plugin16PipeFirstLast` (`internal/test/fixture/plugin_fixture_16.go`) dispatches `show bgp rib received first 3 count`, never a pipe. The folded form is the dispatch grammar; the pipe is the operator's spelling of it.
+- `ParsePipe` (`internal/component/command/pipe.go`) cuts at the first pipe character with `strings.Cut` and is not quote-aware; `tokenize` is. So only the dispatcher's own tokenizer can tell a quoted pipe from a chain.
+- MCP `ze_execute` (`internal/component/mcp/tools.go`), REST execute (`internal/component/api/rest/server.go` `handleExecute`) and gRPC reach `Dispatch` through `serverDispatcher` (`cmd/ze/hub/main_servers.go`) with the line unsplit too. Fixing `Dispatch` covers them in the same place.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/plugin/server/command.go` - `Dispatch` tokenizes, matches the longest builtin prefix, validates args, refuses flag-shaped leftovers (`firstFlagToken`), then calls the handler; `tokenize` strips quotes and splits on whitespace only
-- [ ] `internal/component/plugin/server/dispatch.go` - `dispatchCommandResponse` builds a `CommandContext` for the plugin and calls `Dispatch` with the line unchanged
-- [ ] `internal/component/ssh/ssh.go` - the exec channel splits the chain with `command.ProcessPipesDefaultFormatChecked` before dispatch
-- [ ] `internal/test/cli/cmd_engine_steps.go` - `pipedEngineDispatch` splits the same way, and its comment records the symptom
-- [ ] `internal/component/command/pipe.go` - `ProcessPipesDefaultFormatChecked` and `ProcessPipesDefaultFormatLocal`
+- [ ] `internal/component/plugin/server/command.go` - `Dispatch` defers `BeginAccounting`, calls `tokenize`, matches the longest builtin prefix (`matchBuiltinTokens`), validates args (`command.ValidateArgs`), applies the selector guard, authorizes, refuses flag-shaped leftovers (`firstFlagToken`, `flagRefusal`), then calls the handler; with no builtin match it resolves a subsystem (`dispatchSubsystem`) or a plugin command (`dispatchPlugin`, which re-tokenizes the raw remainder and sends it to the plugin process with `execute-command`). `tokenize` rejects a backslash, toggles quoting on each double quote, drops the quote characters and splits on space and tab outside quotes
+  → Constraint: `dispatchPlugin` and `dispatchSubsystem` re-tokenize substrings of the RAW input, so the quoting fact survives to them; a check in `Dispatch` before resolution covers all three branches
+- [ ] `internal/component/plugin/server/dispatch.go` - `dispatchCommandResponse` builds a `CommandContext` (internal plugin identity, `ProcessSender`) and calls `Dispatch` with the line unchanged; on error it logs `dispatch-command failed` with `diagnostic.CodeDoctorPluginRequestRefused` and raises a server event. `dispatchCommand` (socket and DirectBridge JSON path) and `dispatchCommandAnswer` (DirectBridge answer path, `plugin.AnswerFor`) both call it
+  → Decision: no change here; the refusal arrives as a dispatch error and takes the existing log, doctor code and error answer
+- [ ] `internal/component/ssh/ssh.go` - the exec channel calls `command.ProcessRemoteStreamPipes` for streams and `command.ProcessPipesDefaultFormatChecked` before dispatch; its comment says the tokenizer gives the pipe no meaning
+- [ ] `internal/test/cli/cmd_engine_steps.go` - `pipedEngineDispatch` splits whenever the line contains a pipe character, and its comment records the symptom
+- [ ] `internal/component/command/pipe.go` - `ParsePipe` cuts on the first pipe character, `parsePipeOps` splits the rest on every pipe, `parsePipeChain` adds `expandAliases` and `bindAddressFields`, `foldFilters` rewrites command-owned filters (registered with `RegisterPipeFilters`, `pipe_filter.go`) into trailing server args and keeps every other operator in the chain; `processPipesDefaultFormat` then appends a default format operator and returns a formatter that calls `ApplyPipes` and yields rendered text
+  → Constraint: the formatter's output is text in the format the chain or `ze.cli.format` names, never the raw data a dispatch caller reads
+- [ ] `cmd/ze/hub/main_servers.go` - `serverDispatcher` hands web, SSH, MCP, REST, gRPC, LG and chaos one closure that calls `Dispatch` with the surface's line
+- [ ] `internal/component/mcp/tools.go` - `ze_execute` and `run` pass the line to `CommandDispatcher.JSON` unsplit
+- [ ] `internal/component/plugin/server/dispatch_registry.go`, `system.go` - `opUpdateRoute` and the typed route-select op build `send bgp <peer> <command>` and call `Dispatch`; `handleSystemDispatch` re-joins its already unquoted args with spaces and calls `Dispatch`
 
 **Behavior to preserve:**
 - A quoted pipe character stays an ordinary argument value
-- A line with no pipe dispatches exactly as today, with the raw answer
-- Operator surfaces keep splitting the chain themselves
+- A line with no pipe outside quotes dispatches exactly as today, with the raw answer
+- Operator surfaces keep splitting the chain themselves, so their lines reach `Dispatch` with no pipe
+- `dispatch-command-args` carries pre-tokenized args and never reaches the tokenizer, so a pipe value there stays data
+- `BeginAccounting` and the typed authorizer still tokenize exactly as today (the RFC 8907 Section 8.3 record of every entered command is unchanged)
 
 **Behavior to change:**
-- A pipe chain on a plugin's `dispatch-command` (and any other caller that passes an unsplit line to `Dispatch`) is no longer handed to the handler as arguments
+- A pipe chain on a plugin's `dispatch-command` (and any other caller that passes an unsplit line to `Dispatch`) is refused before any handler, plugin process or subsystem receives it, with an error naming the chain and the line to send instead
 
 ## Existing Mechanisms (MANDATORY)
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| Pipe chain split | `internal/component/command/pipe.go` `ProcessPipesDefaultFormatChecked` | Splits the chain off a line, returns the command and a formatter, or a refusal | extends: the plugin dispatch path uses it, or the dispatcher refuses what it would have split; decided at design |
-| Flag-leftover refusal | `internal/component/plugin/server/command.go` `firstFlagToken`, `flagRefusal` | Refuses a client-side flag that leaked into dispatch | extends: the same shape of refusal is the candidate for an unsplit pipe, if refusal is chosen |
-| Tokenizer | `internal/component/plugin/server/command.go` `tokenize` | Strips quotes and splits on whitespace, so quoted and bare pipes are indistinguishable after it | extends: a refusal needs the quoting fact, which `tokenize` discards today |
-| Operator-surface split | `internal/component/ssh/ssh.go` exec channel, `internal/component/web/cli_terminal.go`, `internal/component/cli/model_mode.go`, `pipedEngineDispatch` | Each splits before dispatch | does not apply: unchanged; the defect is the caller that does not split |
+| Pipe chain split | `internal/component/command/pipe.go` `ProcessPipesDefaultFormatChecked`, `parsePipeOps`, `expandAliases`, `bindAddressFields`, `foldFilters` | Splits the chain off a line, folds command-owned filters into args, returns the command and a text formatter, or a refusal | extends: a new exported helper in the same file composes `parsePipeOps`, `expandAliases`, `bindAddressFields` and `foldFilters` over a command part and an operator text the dispatcher already separated, and answers the folded line and whether the whole chain folded. The formatter is not used: it renders text |
+| Flag-leftover refusal | `internal/component/plugin/server/command.go` `firstFlagToken`, `flagRefusal` | Refuses a client-side flag that leaked into dispatch, with Status error and the refusal as `Response.Error` | extends: the pipe refusal takes the same shape (Response with Status error, the error returned beside it), built as an `opererr` error with problem, why and fix |
+| Tokenizer | `internal/component/plugin/server/command.go` `tokenize` | Strips quotes and splits on whitespace, so quoted and bare pipes are indistinguishable after it | extends: its loop becomes one scanner that also reports the byte offset of the first pipe outside quotes; `tokenize` keeps its signature and output for every other caller, and `Dispatch` reads the offset. One quote rule, two consumers |
+| Backslash refusal | `internal/component/plugin/server/command.go` `errBackslashInCommand` | A precedent for refusing a character class at tokenization | does not apply: a backslash is refused for every caller, accounting included; the pipe refusal must leave accounting's tokens unchanged, so it is read in `Dispatch`, not raised by `tokenize` |
+| Doctor code for a refused plugin request | `internal/component/plugin/server/dispatch.go` `dispatchCommandResponse`, `diagnostic.CodeDoctorPluginRequestRefused` | Logs and raises every dispatch error a plugin's request meets | extends: a plugin that sends a chain is reported under this existing code, with no new code |
+| Secret redaction | `config.DisplayCommand` (used by `unauthorizedError`) | Masks secret values in an echoed command line | extends: the refusal echoes the command and the suggested line through it |
+| Operator-surface split | `internal/component/ssh/ssh.go` exec channel, `internal/component/web/cli_terminal.go`, `internal/component/cli/model_mode.go`, `pipedEngineDispatch` | Each splits before dispatch | does not apply: unchanged in behaviour; two comments that say the dispatcher gives the pipe no meaning are corrected |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A plugin's `dispatch-command` RPC (socket or DirectBridge), carrying one command line as text
+- Every other caller of `Dispatch` with a free line: `serverDispatcher` (MCP `ze_execute`, REST execute, gRPC), `Reactor.ExecuteCommand`, `handleSystemDispatch`
 
 ### Transformation Path
 1. `Server.dispatchCommand` / `dispatchCommandAnswer` call `dispatchCommandResponse`
-2. `Dispatcher.Dispatch` tokenizes and resolves the command
-3. The handler runs with the leftover tokens as its arguments
+2. `Dispatcher.Dispatch` defers accounting, then scans the line once: tokens plus the offset of the first pipe outside quotes
+3. When an offset is found, `Dispatch` builds the refusal from the command part (before the offset) and the operator text (after it), asking the new pipe helper for the folded line, and returns a Response with Status error and the error. No resolution, authorization, handler, subsystem or plugin process runs
+4. Otherwise the existing path runs on the same tokens, unchanged
+5. `dispatchCommandResponse` logs the error with `CodeDoctorPluginRequestRefused`; the transport writes the existing error answer
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Plugin ↔ Engine | `dispatch-command` text line | No |
+| Plugin ↔ Engine | `dispatch-command` text line in, error answer out (existing form) | No |
+| API client ↔ Engine | REST / MCP / gRPC line through `serverDispatcher` | No |
 
 ### Changed-Wire Census
 
-**Search evidence:** to be filled at design. No wire format is expected to change: the line stays text, and only how the daemon reads a pipe in it changes.
+**Search evidence:** scope `internal/`, `pkg/`, `cmd/`, `test/` (Go, `.ci`, scripts). Terms: `DispatchCommand(`, `DispatchCommandResult(`, `dispatch-command`, `ProcessPipesDefaultFormat`, a pipe character inside a dispatched literal. Positive control: `internal/test/fixture/plugin_fixture_16.go` `plugin16PipeFirstLast` is found by the `DispatchCommand` term and sends the folded form `show bgp rib received first 3 count`. Findings: 76 non-test lines call `DispatchCommand`/`DispatchCommandResult`; none passes a literal holding a pipe; no `.ci` and no script under `test/` sends `dispatch-command` with a pipe; the dynamic producers are the ExaBGP bridge (`internal/plugins/exabgp/bridgerun/script.go`, translated ExaBGP grammar, which has no pipe operator), `ze bgp plugin cli` (`internal/component/bgp/cli/cmd_plugin.go` `runInteractive`, an operator-typed line) and the route push (`send bgp <peer> <route text>`, a grammar with no pipe). The line format and the answer framing do not change; only the answer to a line holding a pipe outside quotes changes from a handler's answer to the existing error answer.
 
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
-| [format] | [role] | [source site] | [search finding] | [disposition] |
+| `dispatch-command` request line | writer | `pkg/plugin/sdk/sdk_engine.go` `DispatchCommand`, `DispatchCommandResult`; every in-tree plugin and fixture; third-party plugins | grep above: no in-tree writer sends a pipe | preserve: format unchanged; a third-party plugin that sent a chain now reads a refusal instead of a wrong success |
+| `dispatch-command` request line | reader | `internal/component/plugin/server/dispatch_registry.go` `opDispatchCommand` → `dispatchCommand` / `dispatchCommandAnswer` → `dispatchCommandResponse` → `Dispatch` | read at source | change: `Dispatch` refuses a pipe outside quotes |
+| `dispatch-command` answer | writer | `dispatch_registry.go` `recordAnswer` (socket), `plugin.AnswerFor` (DirectBridge) | read at source | preserve: the existing error answer carries the refusal text |
+| `dispatch-command` answer | reader | `pkg/plugin/sdk/sdk_engine.go` `DispatchCommand` (status, data, err); `internal/test/fixture` `Dispatch`; `ze bgp plugin cli` prints `error:` and the text | read at source | preserve: framing unchanged; readers already handle an error answer |
+| REST / MCP / gRPC execute line | writer | API clients, `internal/component/mcp/tools.go` `ze_execute`, `internal/component/api/rest/server.go` `handleExecute` | read at source: no split before `serverDispatcher` | preserve format; a piped line now gets the refusal instead of an unfiltered answer |
+| REST / MCP / gRPC execute line | reader | `cmd/ze/hub/main_servers.go` `serverDispatcher` → `Dispatch` | read at source | change: `Dispatch` refuses a pipe outside quotes |
+| REST / MCP / gRPC execute answer | writer | `internal/component/plugin/dispatch.go` `ResponseJSON`; `internal/component/plugin/types.go` `RefusalLine`; MCP `run` and `ze_execute` (`ErrResult`, `refusalResult`) | read at source | preserve: the existing error envelopes carry the refusal text |
+| REST / MCP / gRPC execute answer | reader | API clients outside the repository | the error envelope is the existing one | preserve: error form unchanged |
 
 ### Integration Points
-- `Dispatcher.Dispatch` - where a refusal or split lands
-- `Server.dispatchCommandResponse` - the plugin caller
+- `Dispatcher.Dispatch` - where the refusal lands, ahead of resolution
+- `tokenize` - its loop becomes the shared scanner that reports the pipe offset
+- `internal/component/command/pipe.go` - new exported fold helper for the refusal's suggested line
+- `Server.dispatchCommandResponse` - unchanged caller; its log and doctor code carry the refusal
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound | No | |
-| Registration over hardcoding, inbound | No | |
+| No bypassed layers (data flows through the intended path) | Yes | the refusal sits in `Dispatch`, which every caller already reaches; no transport or surface gains a check of its own |
+| No unintended coupling (components stay isolated) | Yes | `plugin/server` already imports `internal/component/command`; the helper is in the command model, which knows no owner |
+| No duplicated functionality (extends existing, does not recreate) | Yes | one quote rule (the scanner `tokenize` uses); one pipe parse, alias expansion and fold (`parsePipeOps`, `expandAliases`, `bindAddressFields`, `foldFilters`) |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | the scan is the existing single pass; the refusal path allocates only on a refused line |
+| Registration over hardcoding, outbound | Yes | the folded suggestion reads the pipe-filter and alias registries; no command is named in the dispatcher |
+| Registration over hardcoding, inbound | Yes | no new registry and no enumeration of operators: any pipe outside quotes is refused, whatever follows it |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No plugin in the tree relies on a pipe token reaching its handler as an argument | `foldFilters` comment in `Dispatch` | A refusal breaks that plugin | grep of every dispatch-command producer | unvalidated |
+| A-1 | No plugin in the tree relies on a pipe token reaching its handler as an argument | `foldFilters` comment in `Dispatch`; census grep of 76 non-test `DispatchCommand` call lines, `test/` `.ci` and scripts | A refusal breaks that plugin | Changed-Wire Census search; in-tree fixtures send the folded form (`plugin16PipeFirstLast`, `plugin_fixture_13_rib.go`) | confirmed 2026-11-12: no literal pipe in any dispatched line; dynamic producers (ExaBGP bridge, route push) use grammars with no pipe; `ze bgp plugin cli` is operator-typed and was silently wrong before |
+| A-2 | No operator surface hands `Dispatch` a line with a pipe outside quotes after its own split | `ParsePipe` cuts at the first pipe, so the command part it returns holds none; `foldFilters` appends values taken from between pipes | SSH or web would start refusing | `TestDispatchAllowsNonFlagArgs` and the existing pipe `.ci` suites (`test-pipe-first-last`, `rib-pipe-filter`, `plugin-pipe-alias`) stay green | confirmed by reading `ParsePipe`, `parsePipeOps`, `foldFilters` |
+| A-3 | The daemon process holds the pipe-filter and alias registries the suggestion reads | `RegisterPipeFilters`, `RegisterPluginAliases` fill the daemon's registries (`commands.md`, "Where an alias resolves") | the suggestion falls back to the generic fix, never a wrong line | `TestDispatchPipeRefusalNamesFoldedForm` | confirmed by reading `pipe_filter.go` and `alias.go` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A refusal keyed on the token refuses a quoted pipe argument | a test with a quoted pipe value goes red | carry the quoting fact out of `tokenize` |
+| R-1 | A refusal keyed on the token refuses a quoted pipe argument | `TestDispatchKeepsQuotedPipeArgument` goes red | the offset comes from the quote-aware scanner, never from the tokens |
+| R-2 | Making `tokenize` itself fail would change RFC 8907 accounting (`BeginAccounting` falls back to one token on a tokenize error) and the typed authorizer (`isAuthorizedCommandArgs` denies on a tokenize error) | `TestDispatchPipeRefusalIsAccounted` reads one token | `tokenize` keeps its output; only `Dispatch` reads the offset |
+| R-3 | `handleSystemDispatch` re-joins already unquoted args, so `system dispatch` with a quoted pipe value is re-read unquoted and refused | a `system dispatch` test with a quoted pipe | accepted: that path already loses quoting for spaces; the refusal is honest where the old answer was wrong. Named in Known Limitations |
+| R-4 | The suggested folded line is wrong when a quoted pipe precedes the chain | `TestDispatchPipeRefusalNamesFoldedForm` case with a quoted pipe before the chain | the helper receives the command part and the operator text the scanner separated, so `ParsePipe`'s quote-blind cut never runs on the command part |
+| R-5 | The echoed line carries a secret | `TestDispatchPipeRefusalRedactsSecrets` | command part and suggestion pass through `config.DisplayCommand` |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | A plugin command line with a pipe is refused or reshaped |
+| What breaks if this is wrong? | A plugin or API command line with a pipe is refused; a quoted pipe value refused would break that caller (guarded by AC-2) |
 | How is it reverted? | single commit revert |
-| Who else touches this path? | every surface that calls `Dispatch` (SSH, web, MCP, REST, gRPC, plugins) |
+| Who else touches this path? | every surface that calls `Dispatch` (SSH, web, MCP, REST, gRPC, plugins, reactor `ExecuteCommand`, `system dispatch`) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| plugin `dispatch-command` with a pipe chain | → | `Dispatcher.Dispatch` | named at design |
+| plugin `dispatch-command` over the socket with a pipe chain | → | `dispatchCommandResponse` → `Dispatcher.Dispatch` refusal | `TestDispatchCommandRefusesPipeChain` (`internal/component/plugin/server/dispatch_test.go`) |
+| plugin `dispatch-command` over DirectBridge with a pipe chain | → | `dispatchCommandAnswer` → `Dispatcher.Dispatch` refusal | `TestDispatchCommandAnswerRefusesPipeChain` (`internal/component/plugin/server/dispatch_test.go`) |
+| a forked plugin against a running daemon | → | the whole path, RIB populated | `test/plugin/dispatch-pipe-chain-refused.ci` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | A plugin dispatches a known command followed by an unquoted pipe chain | The answer is filtered by the chain as on SSH, or the plugin receives a refusal naming the chain and the fix; which one is fixed at design | none: the unfiltered answer is the defect |
-| AC-2 | A plugin dispatches a command whose argument is a quoted pipe character | The handler receives the pipe character as its argument, as today | the quoted value, because it is data |
+| AC-1 | A plugin dispatches a known command followed by a pipe chain outside quotes (`show bgp rib received`, a pipe, `count`) | The plugin receives an error answer; no handler, subsystem or plugin process runs. The message is an `opererr` error: the problem names the command part and the chain; the why says the dispatcher answers data and a pipe chain is applied by the surface that renders the answer; the fix names the exact line to send. When every operator folds into the command's own filters, the fix is the folded line (`show bgp rib received count`) | none: the unfiltered answer is the defect |
+| AC-1b | The chain holds an operator that does not fold (a format, `display`, `match` on a command that owns no such filter) | Same refusal; the fix names the command part alone, to dispatch and select from its data, and the `ze cli -c` form with the original line that applies the chain for an operator | none |
+| AC-2 | A plugin dispatches a command whose argument is a quoted pipe character, or a quoted value holding one | The handler receives the pipe character (or the whole value) as its argument, as today | the quoted value, because it is data |
+| AC-3 | Any other caller hands `Dispatch` an unsplit line with a pipe outside quotes (MCP `ze_execute`, REST execute, gRPC, `Reactor.ExecuteCommand`) | The caller receives the same refusal as AC-1 | none: the check is in `Dispatch`, the one entry they share |
+| AC-4 | A line with no pipe outside quotes, from any caller | Dispatches exactly as today, with the raw answer | every existing dispatch, because the scan changes no token |
+| AC-5 | The refused line, with an accountant configured | Accounting START and STOP are recorded with the same tokens `tokenize` produces today (RFC 8907 Section 8.3) | the accounting record, because it is owed for every entered command |
+| AC-6 | The refused line from a plugin | `dispatch-command failed` is logged with `CodeDoctorPluginRequestRefused` and the server event is raised | the log line, because a plugin that sends a chain is a plugin defect doctor reports |
+| AC-7 | The refused line carries a secret value | The echoed command part and the suggested line show the masked value `config.DisplayCommand` writes | none |
+| AC-8 | A pipe outside quotes joined to a word on either side with no space, or with no space before the operator | The caller receives the AC-1 refusal, naming the chain from the first pipe outside quotes, because every operator surface reads it as a chain | none |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| named at design | `internal/component/plugin/server/` | AC-1, AC-2 | |
+| `TestScanCommandReportsUnquotedPipe` | `internal/component/plugin/server/plugin_rpc_test.go` | the scanner's offset: none for no pipe, the first pipe outside quotes, a quoted pipe ignored, a quoted pipe before an unquoted one; tokens equal `tokenize`'s | |
+| `TestDispatchRefusesUnquotedPipeChain` | `internal/component/plugin/server/command_pipe_refusal_test.go` | AC-1, AC-1b, AC-8 on a registered builtin: handler not called, Status error, problem / why / fix present and naming the chain | |
+| `TestDispatchPipeRefusalNamesFoldedForm` | `internal/component/plugin/server/command_pipe_refusal_test.go` | AC-1 fix line from registered pipe filters (registry snapshot restored in cleanup), and R-4 | |
+| `TestDispatchKeepsQuotedPipeArgument` | `internal/component/plugin/server/command_pipe_refusal_test.go` | AC-2: the handler's validated tokens hold the pipe and the quoted value | |
+| `TestDispatchPipeRefusalReachesNoPluginProcess` | `internal/component/plugin/server/command_pipe_refusal_test.go` | AC-1, AC-3: a plugin-registered command target (the `registerExecuteCommandTarget` helper) gets zero `execute-command` calls | |
+| `TestDispatchPipeRefusalIsAccounted` | `internal/component/plugin/server/command_pipe_refusal_test.go` | AC-5: START and STOP recorded with the unchanged tokens | |
+| `TestDispatchPipeRefusalRedactsSecrets` | `internal/component/plugin/server/command_pipe_refusal_test.go` | AC-7 | |
+| `TestDispatchCommandRefusesPipeChain` | `internal/component/plugin/server/dispatch_test.go` | wiring, socket path, AC-1, AC-6 | |
+| `TestDispatchCommandAnswerRefusesPipeChain` | `internal/component/plugin/server/dispatch_test.go` | wiring, DirectBridge answer path, AC-1 | |
+| `TestFoldPipeChain` | `internal/component/command/pipe_fold_test.go` | the helper: whole fold, partial fold, an alias expanding to foldable filters, an invalid operator | |
+| existing `TestTokenize`, `TestDispatcherTokenize`, `TestTokenizeRejectsBackslash`, `TestDispatchAllowsNonFlagArgs`, `TestDispatchRejectsFlagShapedArgs` | `internal/component/plugin/server/` | AC-4, unchanged | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| none | the change reads no numeric input | N/A | N/A | N/A |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| named at design | `test/plugin/` | a plugin dispatches a piped command | |
+| `dispatch-pipe-chain-refused` | `test/plugin/dispatch-pipe-chain-refused.ci`, fixture `plugin/dispatch-pipe-chain-refused` registered in `internal/test/fixture/plugin_fixture_16.go` | Modelled on `test/plugin/test-pipe-first-last.ci` and `plugin16PipeFirstLast` (a forked plugin over a populated adj-rib-in). The fixture dispatches `show bgp rib received` piped to `count` and expects the error naming the folded line; dispatches the folded line and expects count 5 (positive control); dispatches `show system platform` piped to `json` and expects the generic fix | |
 
 ## Files to Modify
-- `internal/component/plugin/server/command.go` - `Dispatch`, `tokenize`
-- `internal/component/plugin/server/dispatch.go` - `dispatchCommandResponse`, if the split lands at the caller
-- `docs/architecture/api/process-protocol.md` - how a pipe on `dispatch-command` is read
+- `internal/component/plugin/server/command.go` - the scanner under `tokenize`, the pipe check in `Dispatch`, the refusal builder beside `flagRefusal`
+- `internal/component/command/pipe.go` - the exported fold helper over `parsePipeOps`, `expandAliases`, `bindAddressFields`, `foldFilters`
+- `internal/component/ssh/ssh.go` - correct the comment saying the tokenizer gives the pipe no meaning
+- `internal/test/cli/cmd_engine_steps.go` - correct the `pipedEngineDispatch` comment that describes the old symptom
+- `internal/test/fixture/plugin_fixture_16.go` - the new fixture
+- `docs/architecture/api/process-protocol.md` - "Inter-Plugin Communication": a pipe outside quotes is refused, with the fold
+- `docs/architecture/api/commands.md` - "Command Dispatch": the dispatcher refuses an unsplit chain; the operator surfaces split
+- `docs/plugin-development/handlers.md` - "DispatchCommand": send the folded filter form, never a pipe
+- `plan/journal/silent-fall-through.md` - the owned row, resolved at closure
 
 ## Files to Create
-- named at design
+- `internal/component/plugin/server/command_pipe_refusal_test.go` - the Dispatch-level unit tests
+- `internal/component/command/pipe_fold_test.go` - the helper's tests
+- `test/plugin/dispatch-pipe-chain-refused.ci` - the functional test
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | N-A | no RPC or leaf changes |
+| YANG validation constraints | N-A | no leaf |
+| YANG custom validators | N-A | no leaf |
+| CLI commands/flags | N-A | no command |
+| CLI grammar (keyword before value) | N-A | the folded form is the existing grammar |
+| Editor autocomplete | N-A | no completion change |
+| Functional test for new RPC/API | Yes | `test/plugin/dispatch-pipe-chain-refused.ci` |
+| Pipe completeness | Yes | operator surfaces keep `ProcessPipes`; the dispatcher refuses, it does not render |
+| Env var registration | N-A | none |
+| Doctor check for runtime dependencies | N-A | no runtime dependency |
+| Doctor code per problem class | Yes | the refusal from a plugin is reported under the existing `CodeDoctorPluginRequestRefused` in `dispatchCommandResponse` |
+| Prometheus counters/metrics | N-A | none |
+| BGP family surface (new SAFI / capability / attribute) | N-A | none |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | a refusal of a wrong answer, no feature level |
+| 2 | Config syntax changed? | No | - |
+| 3 | CLI command added/changed? | No | - |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` "Command Dispatch" |
+| 5 | Plugin added/changed? | No | - |
+| 6 | Has a user guide page? | No | - |
+| 7 | Wire format changed? | No | framing unchanged |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/architecture/api/process-protocol.md` "Inter-Plugin Communication", `docs/plugin-development/handlers.md` "DispatchCommand" |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 8907 accounting is preserved, not changed |
+| 10 | Test infrastructure changed? | No | a fixture added in the existing registry |
+| 11 | Affects daemon comparison? | No | - |
+| 12 | Internal architecture changed? | No | - |
+| 13 | Route metadata keys added/changed? | No | - |
+| 14 | Prometheus counters added/changed? | No | - |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/architecture/api/process-protocol.md` (declared by `command.go`): updated, row 8. `docs/architecture/system-architecture.md` (declared by `ssh.go`): unaffected, only a comment in `ssh.go` changes and the exec channel's split is unchanged. `docs/architecture/testing/ci-format.md` (declared by `cmd_engine_steps.go`): unaffected, only the `pipedEngineDispatch` comment changes and the engine-step format is unchanged. Re-run `./le spec citation anchors spec plan/release/fixes/spec-plugin-dispatch-pipe-chain-reaches-the-handler.md` at implementation for the advisory source anchors |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `dispatch-command` examples in `process-protocol.md` and `handlers.md` carry no pipe; check they stay correct |
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- a failing test through the plugin dispatch path
-2. **Phase: refusal or split** -- decided at design
+1. **Phase: Wiring (MANDATORY FIRST)** -- about 40 tool calls
+   - Tests: `TestDispatchCommandRefusesPipeChain`, `TestDispatchCommandAnswerRefusesPipeChain`, the `dispatch-pipe-chain-refused` fixture and `.ci`
+   - Files: `dispatch_test.go`, `plugin_fixture_16.go`, `test/plugin/dispatch-pipe-chain-refused.ci`
+   - Verify: the tests fail because the handler runs and answers success
+2. **Phase: Refusal** -- about 60 tool calls
+   - Tests: `TestScanCommandReportsUnquotedPipe`, `TestFoldPipeChain`, every test in `command_pipe_refusal_test.go`
+   - Files: `command.go` (scanner, check, refusal builder), `pipe.go` (fold helper)
+   - Verify: unit tests fail, implement, pass; the wiring tests and the `.ci` go green; the existing pipe `.ci` suites named in A-2 stay green; record the red of the `.ci` with the check removed
+3. **Phase: Docs and comments** -- about 25 tool calls
+   - Files: `process-protocol.md`, `commands.md`, `handlers.md`, the `ssh.go` and `cmd_engine_steps.go` comments, the flag-check comment in `Dispatch` if it reads wrong
+   - Verify: `./le doc check all` on the edited pages (main thread)
+
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has an implementation at file:line |
+| Feature completeness | a forked plugin, an internal plugin and an API caller all meet the refusal |
+| Correctness | the check runs after the accounting defer and before `matchBuiltinTokens`, the subsystem lookup and `dispatchPlugin`; the offset is read from the quote-aware scan, never from the tokens |
+| Correctness | `tokenize` output is byte-identical for every input; `BeginAccounting` and `isAuthorizedCommandArgs` are untouched |
+| Correctness | the suggested folded line is produced by `foldFilters` itself, and the helper offers a fold only when no operator remains and none is invalid |
+| Data flow | no rendering in `Dispatch`; no new op in `engineOps`; no surface gains its own check |
+| Operator errors and doctor codes | the refusal is an `opererr` error with its fix on the last line, both fix forms exact and copyable; the plugin case logs under `CodeDoctorPluginRequestRefused` |
+| Rule: stale comments | the `ssh.go` and `pipedEngineDispatch` comments no longer say the dispatcher gives the pipe no meaning |
+
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| the pipe check in `Dispatch` | `TestDispatchRefusesUnquotedPipeChain` |
+| the quote-aware offset | `TestScanCommandReportsUnquotedPipe`, `TestDispatchKeepsQuotedPipeArgument` |
+| the fold helper | `TestFoldPipeChain` |
+| both transports | `TestDispatchCommandRefusesPipeChain`, `TestDispatchCommandAnswerRefusesPipeChain` |
+| end to end | `./le test functional plugin dispatch-pipe-chain-refused` |
+| the page edits | `./le doc check all` |
+
+### Security Review Checklist
+
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | the refusal runs before authorization and must reveal nothing authorization would hide: it echoes only the caller's own line and the folded grammar the help already publishes |
+| Error leakage | the echoed line passes through `config.DisplayCommand` (AC-7) |
+| Authorization fail-open | no path that refused before now runs a handler; the refusal never returns a success Response |
+| Accounting | a refused line is still accounted (AC-5) |
+| Resource exhaustion | the fold helper runs once per refused line on a line already bounded by the request framing |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Lint failure | Fix inline. If architectural → DESIGN |
+| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| Audit finds a missing AC | Back to the relevant phase and implement |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
+
+- The folded filter form is the dispatch grammar and the pipe is the operator's spelling of it, so a dispatch caller is pointed at the form it should have sent, not given a second grammar.
 
 ## Owned journal rows
 
@@ -190,9 +370,15 @@ keyed on the token alone would refuse a legitimate quoted argument.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| Refuse a pipe outside quotes in `Dispatch` | Apply the chain as SSH does (`ProcessPipesDefaultFormatChecked` then the formatter) | `processPipesDefaultFormat` always appends a format operator and its formatter returns rendered text through `ApplyPipes`. `dispatch-command` answers data: `DispatchCommandOutput.data` carries raw JSON and the record form carries rows (`recordAnswer`, `plugin.AnswerFor`). Applying it would turn the answer of a piped line into text, break every reader that decodes `data`, and force a record answer to be flattened. It would also put rendering in the dispatcher, which the commands door forbids (a handler answers data; shaping is at the surface edge) |
+| Refuse rather than fold-and-dispatch | Fold command-owned filters into args (`foldFilters`) and dispatch, refusing only what does not fold | `foldFilters` moves only command-owned `match` / `count` / `first` / `last` and named filters, and only before a format; the same operator stays a rendering step on another command. One line would then mean dispatch on one command and refusal on its neighbour, and a dispatch caller would have two grammars for one request. The refusal names the folded line, so the caller gets the exact form, and the dispatch grammar stays one form |
+| The check lives in `Dispatch`, not at the plugin caller | A check in `dispatchCommandResponse` only | MCP `ze_execute`, REST execute, gRPC, `Reactor.ExecuteCommand` reach `Dispatch` unsplit too (`serverDispatcher`, `tools.go`, `server.go`); one check covers every caller, and the plugin-infra door forbids a second path per op |
+| The offset comes from the scanner `tokenize` uses | A second scan in `Dispatch`; raising an error from `tokenize` | A second scan is a second quote rule. An error from `tokenize` would change `BeginAccounting` (it falls back to one token) and the typed authorizer (it denies on a tokenize error), so the accounting record for RFC 8907 Section 8.3 would change |
+| Any pipe outside quotes is refused, joined to a word or not | Refuse only a token that is exactly a pipe | `ParsePipe` cuts at any pipe character, so every operator surface reads a word, a pipe and a word with no spaces as a chain; refusing only the bare token would let the dispatcher read as data what every other surface reads as a chain |
 
 ## Known Limitations
-- none yet
+- `handleSystemDispatch` re-joins its args unquoted, so `system dispatch` cannot carry a quoted pipe value (R-3); the same path already loses quoting for spaces.
+- MCP `ze_execute`, REST execute and gRPC are operator surfaces that do not split the chain at their edge; after this spec they refuse a piped line instead of answering it wrong. Applying the chain there is surface work outside this spec's goal.
 
 ## Checklist
 
@@ -212,7 +398,7 @@ keyed on the token alone would refuse a legitimate quoted argument.
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass, run in the main checkout. No agent runs any `./le verify` command
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
-- [ ] Targeted tests pass: `./le test unit pkg path ./internal/component/plugin/server/` and the `.ci` named at design under `./le test functional plugin`
+- [ ] Targeted tests pass: `./le test unit pkg path ./internal/component/plugin/server/`, `./le test unit pkg path ./internal/component/command/`, and `./le test functional plugin dispatch-pipe-chain-refused`, with `test-pipe-first-last`, `rib-pipe-filter` and `plugin-pipe-alias` as regression
 
 ### TDD
 - [ ] Tests written
