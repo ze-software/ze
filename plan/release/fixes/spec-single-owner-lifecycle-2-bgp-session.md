@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Release fix: on a rapid reconnect a goroutine of the ended session can write End-of-RIB and queued routes on the next session's connection, the reconnect backoff never returns to its minimum after a session that ran, and a passive peer added during the standalone start accepts nothing. All three are defects in shipped BGP session behaviour. |
@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

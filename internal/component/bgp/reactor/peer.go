@@ -339,8 +339,11 @@ type Peer struct {
 	reconnectMin time.Duration
 	reconnectMax time.Duration
 
-	// prefixTeardownCount tracks consecutive prefix-limit teardowns for exponential backoff.
-	// Reset when a session stays established (successful Run return).
+	// prefixTeardownCount counts the prefix-limit teardowns since the last
+	// stable session, and doubles the `reconnect timer` wait for each one.
+	// Peer.run restarts it at zero after a session that stayed in Established
+	// at least reconnectMax (cycleStayedEstablished), and when a cycle returns
+	// no error. Read and written by the run goroutine only.
 	prefixTeardownCount uint32
 
 	// connectRetryCounter is RFC 4271 §8.1.1 mandatory session attribute 2:
@@ -367,7 +370,10 @@ type Peer struct {
 	// to false before its start event and fires RFC 4271 Event 3
 	// (AutomaticStart) when it was true, Event 6 when it was false. It is the
 	// only input to that choice: the backoff delay cannot carry it, because
-	// inboundNotify resets the delay without any session having run.
+	// inboundNotify resets the delay without any session having run. Peer.run
+	// also loads it, without a swap, between the cycle's end and the next
+	// runOnce, for the stable-session restart of the backoff
+	// (cycleStayedEstablished).
 	cycleReachedEstablished atomic.Bool
 
 	// stopping is set by Reactor.stop (reactor.go) on every peer BEFORE it

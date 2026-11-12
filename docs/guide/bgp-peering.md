@@ -292,6 +292,10 @@ session {
 
 `reconnect` with no value means `timer` when `idle-timeout` is above zero, and `never` when it is zero. A family that configured nothing therefore stays down after a teardown, and the peer state reads `idle-hold` until an operator restarts it. `ze show warnings` carries the prefix-hold warning for the whole hold.
 
+Both reconnect waits forget their history after a stable session. Ze waits 5 seconds before it redials a peer whose session failed, and doubles the wait after each new failure, up to 60 seconds. A `timer` wait doubles the same way, up to one hour. When a session stayed established for at least 60 seconds before it ended, the next wait starts again from 5 seconds, and the `timer` wait from `idle-timeout`. A session that ends sooner keeps the longer wait, so a peer that flaps is still slowed down. A teardown you request and an inbound connection from the peer still redial at once.
+
+<!-- source: internal/component/bgp/reactor/peer_run.go -- run, cycleStayedEstablished -->
+
 The teardown NOTIFICATION and the log line name the family that exceeded its maximum.
 
 ## Attached programs

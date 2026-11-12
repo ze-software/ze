@@ -80,40 +80,21 @@ The peer state transitions are driven from `peer_run.go`:
 
 ## The run loop
 
-`Peer.run()` is the peer goroutine. Its shape:
+`Peer.run()` is the peer goroutine. It holds the reconnect delay in a local,
+`delay`, which starts at `reconnectMin`. Each pass of the loop takes these
+steps in order:
 
-```text
-for {
-    check ctx.Done
+| # | Step | What happens |
+|---|------|--------------|
+| 1 | Stop checks | Return when the peer is stopping or its context ended. A peer held administratively down parks in `holdAdminDown`, then `delay` is reset to `reconnectMin` |
+| 2 | One cycle | `err := safeRunOnce()`, one session lifecycle. The context is checked again after it |
+| 3 | Stable session | When `err` is not nil and `cycleStayedEstablished` holds (the cycle reached Established and stayed there at least `reconnectMax`), `delay` is reset to `reconnectMin` and `prefixTeardownCount` to 0 |
+| 4 | Local teardown | `ErrTeardown`: `delay` is reset to `reconnectMin` and the loop redials at once, with no wait |
+| 5 | Prefix teardown | The mode of the family that overflowed decides. `never` (the default) holds the peer down until it stops. `timer` increments `prefixTeardownCount` and waits `idle-timeout * 2^(count-1)`, capped at one hour. `backoff` goes on to step 6 |
+| 6 | Any other error | Wait `fsm.Jitter(delay)`. The administrative wake and an inbound connection end the wait early and reset `delay` to `reconnectMin`. A wait that ran to its end doubles `delay`, capped at `reconnectMax` |
+| 7 | No error | `runOnce` returns nil only when the peer is stopping or held administratively down when it would publish the session. `delay` is reset to `reconnectMin` and `prefixTeardownCount` to 0, and step 1 ends or parks the loop |
 
-    err := safeRunOnce()   # one session lifecycle
-
-    check ctx.Done
-
-    if err == ErrTeardown:
-        delay = reconnectMin
-        continue   # immediate reconnect
-
-    if err is a prefix teardown:
-        mode = PrefixReconnectFor(the family that overflowed)
-        if mode == never:                # the default
-            hold down, refuse inbound, return when the peer stops
-        if mode == timer:
-            wait idleBase * 2^(teardownCount-1), capped at 1 hour
-        if mode == backoff:
-            fall through to the normal wait below
-
-    if any other err:
-        wait `delay`, wake early on inbound notify
-        delay *= 2 (capped at reconnectMax)
-
-    if err == nil:
-        delay = reconnectMin
-        prefixTeardownCount = 0
-}
-```
-
-<!-- source: internal/component/bgp/reactor/peer_run.go — run -->
+<!-- source: internal/component/bgp/reactor/peer_run.go — run, cycleStayedEstablished -->
 
 **Backoff defaults:**
 
@@ -122,7 +103,7 @@ for {
 | `DefaultReconnectMin` | 5 seconds | `peer.go` |
 | `DefaultReconnectMax` | 60 seconds | `peer.go` |
 | `reconnectMin` override | None. `NewPeer` sets `DefaultReconnectMin` and no config leaf changes it. `settings.ConnectRetry` is the connect TIMEOUT, not the backoff floor: wiring it in made floor(120s) exceed ceiling(60s) and stranded peers `connecting` for two minutes (spec-fixit-redistribute-establishment-stall). | `peer.go` `NewPeer` |
-| `reconnectMax` override | `DefaultReconnectMax` (no setting yet) | `peer.go` |
+| `reconnectMax` override | `DefaultReconnectMax` (no setting yet). `reconnectMax` is also the stable time: a session that stays in Established that long restarts the delay and the prefix teardown count | `peer.go` `NewPeer`; `peer_run.go` `cycleStayedEstablished` |
 
 <!-- source: internal/component/bgp/reactor/peer.go — DefaultReconnectMin, DefaultReconnectMax, NewPeer, setReconnectDelay -->
 
@@ -407,15 +388,40 @@ receiver sends Cease / Out of Resources.
 | Scenario | Delay |
 |----------|-------|
 | Normal session error | Exponential base, starting at `reconnectMin` (default 5s), doubling each attempt, capped at `reconnectMax` (default 60s). Each wait samples uniform jitter from 0.75 to 1.0 of that base. |
-| `ErrTeardown` (API-initiated stop) | Reset `delay` to `reconnectMin`, continue loop immediately. No wait. |
-| Cycle returns nil (err == nil) | Reset `delay` to `reconnectMin` and `prefixTeardownCount` to 0. `Session.Run` never returns nil, so this arm runs only when `runOnce` published no session (the peer is stopping or administratively down). A session that reached Established and then ended by NOTIFICATION, hold expiry or TCP close returns an error and resets neither (`plan/journal/state-read-after-teardown-reset-it.md`, 2026-10-11). |
+| Session error after a stable session | The cycle reached Established and stayed there at least `reconnectMax`, measured from `EstablishedAt()` on the peer clock: `delay` restarts at `reconnectMin` and `prefixTeardownCount` at 0, then the error takes its own row. A cycle that never reached Established restarts nothing, however long it lasted, and a session shorter than `reconnectMax` keeps the doubling. |
+| `ErrTeardown` (API-initiated stop) | Reset `delay` to `reconnectMin`, continue loop immediately. No wait. `prefixTeardownCount` is kept, unless the torn-down session was stable (row above). |
+| Cycle returns nil (err == nil) | Reset `delay` to `reconnectMin` and `prefixTeardownCount` to 0. This arm runs only when `runOnce` published no session (the peer is stopping or administratively down). |
+| Administrative hold or wake | Reset `delay` to `reconnectMin`: `Disable` parks the loop and `Enable` retries at once. |
 | Prefix teardown, family mode `never` (the default) | No delay, because there is no next attempt. The peer enters `PeerStateIdleHold`, raises a `prefix-hold` warning, refuses inbound connections and waits for the peer context to end. Only an operator recreating the peer brings it back. |
 | Prefix teardown, family mode `timer` (`idle-timeout > 0`) | Separate backoff: `PrefixIdleTimeout * 2^(teardownCount-1)`, capped at 1 hour. `prefixTeardownCount` capped at 60 to prevent `time.Duration` overflow. Per RFC 4486. |
 | Prefix teardown, family mode `backoff` | The normal exponential backoff of the first row. This is the explicit opt-in, and it was the accidental behavior of every zero `idle-timeout` until 2026-08-03. |
 | Inbound connection arrives during backoff | Reset `delay` to `reconnectMin` and continue immediately. `inboundNotify` is a buffered channel (size 1) signaled by `setInboundConnection`. |
 
-<!-- source: internal/component/bgp/reactor/peer_run.go — run backoff arms -->
+<!-- source: internal/component/bgp/reactor/peer_run.go — run backoff arms, cycleStayedEstablished -->
+<!-- source: internal/component/bgp/reactor/peer_stats.go — setEstablishedNow, EstablishedAt -->
 <!-- source: internal/component/bgp/reactor/peer_connection.go — setInboundConnection signals inboundNotify -->
+
+The stable-session rule follows BIRD's intent and not its measure. BIRD's
+`bgp_update_startup_delay` (`proto/bgp/bgp.c`) forgets the delay when the
+previous error is at least `error forget time` old, and doubles it otherwise.
+Ze measures the time the ended session spent in Established instead. Ze grows
+the delay on a failed dial, so at the cap two errors are already about one
+maximum apart, and BIRD's measure would restart the delay of a peer that never
+came up. FRR resets its start timer on every entry to Established
+(`bgp_establish`, `bgpd/bgp_fsm.c`); Ze does not, so a peer that flaps every
+few seconds stays damped. RFC 4271 Section 8.2.2 leaves the method to the
+implementation.
+
+**Difference from BIRD: which session ends grow the delay.** Ze doubles the
+delay after every error that waits, a received Cease and a TCP failure
+included. BIRD does not grow it on either: `bgp_rx_notification`
+(`proto/bgp/packets.c`) skips `bgp_update_startup_delay` for error code 6
+(Cease), and `bgp_sock_err` (`proto/bgp/bgp.c`) never calls it. An operator
+moving from BIRD sees Ze wait longer to redial after the far end resets the
+session with a Cease or the TCP session drops. An inbound connection from the
+peer is still accepted at once and resets the delay.
+
+<!-- source: internal/component/bgp/reactor/peer_run.go — run, cycleStayedEstablished -->
 
 ## Inbound connection handling for passive peers
 

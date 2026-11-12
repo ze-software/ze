@@ -195,6 +195,22 @@ occurs"), TRUE after a failed attempt, when the reconnect loop's exponential
 backoff is the damping. No config leaf sets it, because the answer is a fact
 about the last cycle and not a preference.
 
+The damping forgets after a stable session. RFC 4271 Section 8.2.2 says "The
+method of preventing persistent peer oscillation is outside the scope of this
+document." so the rule follows BIRD's `bgp_update_startup_delay` in intent.
+After a cycle returned an error, `Peer.run` loads
+`Peer.cycleReachedEstablished` without swapping it, and when it is true and
+the peer clock's now minus `EstablishedAt()` is at least `reconnectMax` (60
+seconds), it restarts the reconnect delay at its minimum and the prefix
+teardown count at zero. Reaching Established alone restarts nothing, so a peer
+that flaps every few seconds stays damped. The Event 3 choice above is a
+separate fact: it zeroes the ConnectRetryCounter after any session that
+reached Established, however short. The table of every reset is in
+[peer lifecycle](peer-lifecycle.md#reconnect-backoff).
+
+<!-- source: internal/component/bgp/reactor/peer_run.go -- run, cycleStayedEstablished -->
+<!-- source: internal/component/bgp/reactor/peer_stats.go -- setEstablishedNow, EstablishedAt -->
+
 | Event | Ze producer | Why it is not the mandatory event beside it |
 |-------|-------------|---------------------------------------------|
 | Event 3, `AutomaticStart` | `Session.startAutomatic`, from a reconnect cycle whose previous cycle reached Established | Event 3 runs Event 1's Idle action list, so it sets the ConnectRetryCounter to zero too: a session that reached Established ended the run of failures the counter recorded. It differs from Event 1 in who started it, which is the system |

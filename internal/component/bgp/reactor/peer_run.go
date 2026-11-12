@@ -28,6 +28,13 @@ import (
 // returning. The retry delay between attempts is managed here at the Peer level
 // with exponential backoff (min 5s → max 60s), which is more robust than the
 // RFC's fixed 120s ConnectRetryTimer.
+//
+// The delay doubles after every wait that ran to its end, up to reconnectMax.
+// It returns to reconnectMin after a session that stayed in Established at
+// least reconnectMax (cycleStayedEstablished), and on a local teardown
+// (ErrTeardown), the administrative hold or wake, and an inbound connection
+// during the wait. prefixTeardownCount, which sizes the `reconnect timer` wait
+// of a prefix-limit teardown, restarts on the same stable session only.
 func (p *Peer) run() {
 	defer p.wg.Done()
 	defer p.cleanup()
@@ -105,6 +112,18 @@ func (p *Peer) run() {
 		}
 
 		if err != nil {
+			// RFC 4271 Section 8.2.2: "The method of preventing persistent peer oscillation is outside the scope of this document."
+			// The model is BIRD's bgp_update_startup_delay (proto/bgp/bgp.c):
+			// a penalty is forgotten once the peer has been quiet long enough.
+			// Ze measures that quiet as time in Established, so a peer that
+			// never comes up stays at the cap. The check runs before the
+			// ErrTeardown branch, so a teardown of a stable session also
+			// clears the prefix teardown count.
+			if p.cycleStayedEstablished() {
+				delay = p.reconnectMin
+				p.prefixTeardownCount = 0
+			}
+
 			// Check if this was a teardown - reconnect immediately
 			if errors.Is(err, ErrTeardown) {
 				// Teardown means intentional disconnect, reconnect immediately
@@ -190,12 +209,32 @@ func (p *Peer) run() {
 				delay = maxDelay
 			}
 		} else {
-			// Reset delay on successful session
+			// runOnce returns nil when the peer is stopping or held
+			// administratively down at publication, and the loop top ends or
+			// parks the loop. Whatever cycle follows starts with no penalty.
 			delay = p.reconnectMin
-			// Reset prefix teardown backoff after stable session.
 			p.prefixTeardownCount = 0
 		}
 	}
+}
+
+// cycleStayedEstablished reports whether the connection cycle that just ended
+// reached Established and stayed there at least reconnectMax, measured on the
+// peer clock. run MUST call it after the cycle returned and before the next
+// runOnce, which swaps cycleReachedEstablished back to false.
+//
+// cycleReachedEstablished is read first, without a swap, because nothing
+// clears EstablishedAt between sessions: after a cycle that never reached
+// Established it holds an older session's entry time, or zero for a peer that
+// never came up, and either would read as a long stable session.
+func (p *Peer) cycleStayedEstablished() bool {
+	if !p.cycleReachedEstablished.Load() {
+		return false
+	}
+	p.mu.RLock()
+	stableTime := p.reconnectMax
+	p.mu.RUnlock()
+	return p.clock.Now().Sub(p.EstablishedAt()) >= stableTime
 }
 
 // safeRunOnce wraps runOnce with panic recovery. If runOnce panics, the panic
