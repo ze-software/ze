@@ -868,6 +868,29 @@ Each line carries its code and its site raises an error event under it, with
 | `doctor-plugin-request-refused` | `plugin-server`: a plugin's dispatched command failed, or its `forward-cached` request named a malformed destination | the plugin did not get what it asked for |
 | `doctor-plugin-answer-undelivered` | `plugin-server`: an answer, refusal or completion its caller never took, or a plugin answer that ended before its terminator | the caller waits or goes on without it |
 | `doctor-plugin-drain-incomplete` | `plugin-server`: a drain round with a failed or late plugin, or one a signal aborted | queued work was dropped |
+| `doctor-config-reload-refused` | `plugin-server`, subject `config-reload`: a configuration transaction that did not commit, the plugins a new configuration needs that could not be resolved or did not start, or a configuration refused once they started | the reload is refused and ze keeps the configuration it was running; raised while ze restored that configuration, the event says the restore did not complete |
+
+A refused reload is the one row whose fix is not always `ze show errors`. When
+the refusal's error chain holds an operator error (`internal/core/opererr`),
+the event carries that error's own fix: a plugin dependency this build does not
+carry names the build that does. A plugin's verify or apply refusal reaches the
+server as text over the plugin connection, so it carries no fix of its own, and
+the event then names `ze show errors`. `ze config validate` is no fallback: it
+takes a file path, reads only the file system, and never runs the live verify
+callback of a running plugin, which is what refuses a reload. For the same
+reason the transaction's line cannot tell a plugin's verify refusal from a
+plugin that did not answer or an apply that rolled back, so it carries
+`doctor-config-reload-refused`, never `config-plugin-verify`. A fatal plugin
+whose startup the reload's tier or caller ended is left not running: the
+startup phase records it through `RecordStopped`, so its line carries
+`doctor-plugin-stopped` and raises nothing more. Every event message passes
+through `report.FitMessage`, which cuts it to the bus's message bound, because
+the bus refuses a longer message and the event would be lost.
+<!-- source: internal/component/plugin/server/server_events.go -- raiseReloadRefused, reloadRefusalFix, reloadRefusalMessage, configReloadSubject -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- selectAutoLoad, startAutoLoaded, autoLoadRefusalProblem -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- stopDaemonOnStartupFailure -->
+<!-- source: internal/core/report/report.go -- FitMessage -->
+<!-- test: internal/component/plugin/server/reload_refused_events_test.go TestRefusedReloadRaisesEvent -->
 
 The process manager raises one more error event of this kind, with a fix of
 its own. `ProcessManager.Respawn` stops the process it replaces and waits for

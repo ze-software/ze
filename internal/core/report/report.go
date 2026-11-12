@@ -38,6 +38,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -311,6 +312,22 @@ func validFields(source, code, subject, message, fix string, detail map[string]a
 		return false
 	}
 	return true
+}
+
+// FitMessage answers message cut to the longest message the bus accepts, at a
+// UTF-8 rune boundary. A producer whose message carries an error's text, which
+// can be of any length, passes it through FitMessage, because validFields
+// refuses a longer message and the event would then be lost with only a debug
+// line. Safe for concurrent use.
+func FitMessage(message string) string {
+	if len(message) <= maxMessageLen {
+		return message
+	}
+	cut := maxMessageLen
+	for cut > 0 && !utf8.RuneStart(message[cut]) {
+		cut--
+	}
+	return message[:cut]
 }
 
 // RaiseWarning adds or refreshes an active warning.

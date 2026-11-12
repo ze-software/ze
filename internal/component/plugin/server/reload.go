@@ -460,11 +460,19 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 			logger().Info("config reload: canceled by shutdown", "error", err)
 			return err
 		}
-		logger().Warn("config reload: transaction failed", "error", err)
+		// The transaction's error cannot tell a plugin's verify refusal from
+		// a plugin that did not answer, a planning refusal or an apply that
+		// rolled back: each reaches here as text. So the line carries the
+		// reload code, never config-plugin-verify.
+		logger().Warn("config reload: transaction failed", "error", err,
+			"code", diagnostic.CodeDoctorConfigReloadRefused)
 		if len(autoLoaded) > 0 {
 			logger().Info("config reload: stopping auto-loaded plugins after failed transaction", "plugins", autoLoaded)
 			err = errors.Join(err, s.autoStopPluginNames(autoLoaded))
 		}
+		raiseReloadRefused(reloadRefusalMessage(
+			"the configuration transaction did not commit, so ze rolls the change back and keeps the configuration it was running",
+			nil, err), err)
 		return err
 	}
 	recordReloadCompensation(ctx, running, newTree, affected, created)

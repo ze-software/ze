@@ -56,6 +56,7 @@ func TestCrossCuttingCodesDescribed(t *testing.T) {
 		CodeDoctorCommandDeprecatedUsed,
 		CodeDoctorPluginNoDataPlaneWriter,
 		CodeDoctorEnvInvalidValue,
+		CodeDoctorConfigReloadRefused,
 	}
 
 	// The spellings are the spec's, and a renamed constant must not pass by
@@ -71,6 +72,7 @@ func TestCrossCuttingCodesDescribed(t *testing.T) {
 		CodeDoctorAuditRecordFailed:         "doctor-audit-record-failed",
 		CodeDoctorPluginRequestRefused:      "doctor-plugin-request-refused",
 		CodeDoctorPluginStopCleanupLate:     "doctor-plugin-stop-cleanup-late",
+		CodeDoctorConfigReloadRefused:       "doctor-config-reload-refused",
 	}
 	for constant, want := range spelled {
 		if constant != want {

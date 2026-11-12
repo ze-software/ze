@@ -243,8 +243,12 @@ func (s *Server) stopDaemonOnStartupFailure(ctx context.Context, proc *process.P
 		return
 	}
 	if reloadOwnsStartup(ctx) && startupEndedOutsidePlugin(ctx, cause) {
+		// The plugin is left not running, which the phase recorded through
+		// RecordStopped before calling here (startup.go), raising
+		// doctor-plugin-stopped on the bus. The refused reload itself is the
+		// caller's to record (startAutoLoaded).
 		logger().Warn("plugin startup was ended by its tier or its caller, not by the plugin, so ze keeps running without the plugin; correct the failure the log names and reload",
-			"plugin", proc.Name(), "error", cause)
+			"plugin", proc.Name(), "error", cause, "code", diagnostic.CodeDoctorPluginStopped)
 		return
 	}
 	s.stopDaemonForPlugin(proc.Name(), "the plugin declares that its failure stops ze, and its startup ended: "+

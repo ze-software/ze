@@ -48,6 +48,7 @@ const (
 	CodeDoctorCommandDeprecatedUsed         = "doctor-command-deprecated-used"
 	CodeDoctorPluginNoDataPlaneWriter       = "doctor-plugin-no-dataplane-writer"
 	CodeDoctorEnvInvalidValue               = "doctor-env-invalid-value"
+	CodeDoctorConfigReloadRefused           = "doctor-config-reload-refused"
 )
 
 // exampleShowErrors lists the report bus's recent error events, the record
@@ -316,6 +317,16 @@ var pluginInfraCodes = []CodeMeta{
 		Description: "A configured plugin produces routes for a data plane, and no plugin in the configuration programs that data plane, or its writer is compiled out of this build. " +
 			"The daemon refuses to start or reload with this configuration. The row names the producer and the data plane: add a fib block, or configure the writer for that data plane.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-plugin-no-dataplane-writer"},
+	},
+	{
+		Code:  CodeDoctorConfigReloadRefused,
+		Title: "Configuration reload refused",
+		Description: "The daemon refused a configuration reload: the configuration transaction did not commit (a plugin refused the change or did not answer its verify or apply step), " +
+			"a plugin the new configuration needs could not be resolved or did not start, or the daemon refused the configuration once those plugins had started. " +
+			"The daemon stops the plugins the reload started and keeps the configuration it was running; an event raised while it restored that configuration says the restore did not complete. " +
+			"The event says what refused the change and why: correct the configuration and reload again.",
+		Examples:     []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-config-reload-refused"},
+		RelatedCodes: []string{CodeConfigPluginVerify, CodeDoctorPluginStopped},
 	},
 
 	// The core class.

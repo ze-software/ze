@@ -15,6 +15,7 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // encoderJSON is the wire encoder every auto-loaded internal plugin speaks.
@@ -296,7 +297,13 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 	resolved, err := registry.ResolveDependencies(needed, nil, needHolds)
 	if err != nil {
 		logger().Error("config reload: dependency resolution failed, aborting auto-load",
-			"plugins", needed, "error", err)
+			"plugins", needed, "error", err, "code", diagnostic.CodeDoctorConfigReloadRefused)
+		// Reload compensation also selects here, to restore what a refused
+		// reload removed, so the event claims only what both callers make
+		// true: nothing was started.
+		raiseReloadRefused(reloadRefusalMessage(
+			"ze could not resolve the plugins the configuration needs, so it started none of them",
+			needed, err), err)
 		return nil, fmt.Errorf("config-path auto-load dependency resolution: %w", err)
 	}
 
@@ -333,22 +340,22 @@ func (s *Server) startAutoLoaded(ctx context.Context, plugins []plugin.PluginCon
 	} else {
 		startErr = s.runPluginPhaseWithin(ctx, plugins, configureConfig{tree: newTree})
 	}
-	if startErr != nil {
-		logger().Error("config reload: auto-load plugin startup failed", "error", startErr)
-		if s.reactor != nil {
-			s.reactor.AddAPIProcessCount(-len(plugins))
-		}
-		started := make([]string, len(plugins))
-		for i, p := range plugins {
-			started[i] = p.Name
-		}
-		stopErr := s.autoStopPluginNames(started)
-		return nil, errors.Join(fmt.Errorf("config-path auto-load startup: %w", reloadChainRefusal(startErr)), stopErr)
-	}
-
 	started := make([]string, len(plugins))
 	for i, p := range plugins {
 		started[i] = p.Name
+	}
+
+	if startErr != nil {
+		logger().Error("config reload: auto-load plugin startup failed", "error", startErr,
+			"code", diagnostic.CodeDoctorConfigReloadRefused)
+		if s.reactor != nil {
+			s.reactor.AddAPIProcessCount(-len(plugins))
+		}
+		stopErr := s.autoStopPluginNames(started)
+		refusal := errors.Join(fmt.Errorf("config-path auto-load startup: %w", reloadChainRefusal(startErr)), stopErr)
+		raiseReloadRefused(reloadRefusalMessage(autoLoadRefusalProblem(recovery,
+			"did not all start, so ze stopped them"), started, refusal), refusal)
+		return nil, refusal
 	}
 
 	// Tell the reactor that a plugin phase has settled. The reactor's own
@@ -358,9 +365,13 @@ func (s *Server) startAutoLoaded(ctx context.Context, plugins []plugin.PluginCon
 	// refusal there refuses the reload, and the plugins it started stop.
 	if s.reactor != nil {
 		if err := s.reactor.SignalPluginStartupComplete(); err != nil {
-			logger().Error("config reload: the reactor refused the config after the auto-loaded plugins started", "error", err)
+			logger().Error("config reload: the reactor refused the config after the auto-loaded plugins started", "error", err,
+				"code", diagnostic.CodeDoctorConfigReloadRefused)
 			stopErr := s.autoStopPluginNames(started)
-			return nil, errors.Join(fmt.Errorf("config-path auto-load post-startup: %w", err), stopErr)
+			refusal := errors.Join(fmt.Errorf("config-path auto-load post-startup: %w", err), stopErr)
+			raiseReloadRefused(reloadRefusalMessage(autoLoadRefusalProblem(recovery,
+				"started, and ze then refused the configuration, so it stopped them"), started, refusal), refusal)
+			return nil, refusal
 		}
 	}
 
@@ -375,6 +386,21 @@ func (s *Server) startAutoLoaded(ctx context.Context, plugins []plugin.PluginCon
 	s.sendPostStartupToNames(started)
 
 	return started, nil
+}
+
+// autoLoadRefusalProblem says which plugins failed and what that left, for
+// the event of a refused auto-load. A reload's own start leaves ze on the
+// configuration it was running. A recovery start (reload compensation, or
+// removal recovery) was itself restoring that configuration, so its failure
+// leaves the restore incomplete, and the event says so rather than claim the
+// configuration ze kept.
+func autoLoadRefusalProblem(recovery bool, outcome string) string {
+	if recovery {
+		return "the plugins ze restarted to restore the configuration it was running " + outcome +
+			", and the restore did not complete"
+	}
+	return "the plugins the new configuration needs " + outcome +
+		", and ze keeps the configuration it was running"
 }
 
 // navigateNestedMap descends into a nested map using a config path (e.g., "bgp/peer").
