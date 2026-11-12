@@ -162,7 +162,6 @@
     .site-home .showcase { display: flex; flex-direction: column; }
     .site-home .showcase .product-panels { order: 1; }
     .site-home .showcase .screen-tabs { order: 2; margin-bottom: 0; }
-    .site-home .hero-capabilities dl { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
     .site-home .screen-tabs button { font-size: 0.75rem; padding: 0.5rem 0.65rem; }
     .site-home .screen-toolbar { gap: 0.5rem; font-size: 0.65rem; }
     .site-home .screen-description { padding: 1rem; }

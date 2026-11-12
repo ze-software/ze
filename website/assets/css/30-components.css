@@ -1287,10 +1287,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .hero-status { margin: 0.75rem 0 0; color: var(--hero-muted); font-size: 0.78rem; line-height: 1.5; }
 .site-home .hero-status span { color: var(--hero-text); white-space: nowrap; }
 .site-home .hero-capabilities { grid-area: details; min-width: 0; padding: 1rem 0 0; border-top: 1px solid #2c4564; color: var(--hero-muted); font-size: 0.88rem; line-height: 1.65; }
-.site-home .hero-capabilities dl { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; margin: 0; }
-.site-home .hero-capabilities dt { margin-bottom: 0.15rem; color: var(--hero-text); font: 700 0.88rem/1.5 Poppins, sans-serif; }
-.site-home .hero-capabilities dd { margin: 0; }
-.site-home .hero-capabilities p { margin: 0.75rem 0 0; color: var(--hero-muted); font-size: inherit; }
+.site-home .hero-capabilities p { margin: 0; color: var(--hero-muted); font-size: inherit; }
 .site-home .hero-capabilities a { color: #b8def6; text-decoration: none; }
 .site-home .hero :is(a, button):focus-visible { outline-color: #8fcff4; }
 .site-home .hero-actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 1.6rem 0 0; }

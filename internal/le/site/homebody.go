@@ -112,22 +112,16 @@ const homeTemplate = `        <div class="site-home">
                                 </div>
                             </div>
                             <div class="hero-capabilities" aria-label="Networking and management capabilities">
-                                <dl>
-                                    <div>
-                                        <dt>Manage one configuration</dt>
-                                        <dd>
-                                            Ze uses one configuration, defined in <a href="features/bgp-configuration/">YANG</a>,
-                                            through its own built-in SSH server, <a href="features/web-interface/">web interface</a>,
-                                            <a href="features/cli-commands/">CLI</a>, <a href="features/mcp-integration/">MCP</a>
-                                            and <a href="features/api-commands/">APIs</a>:
-                                            <a href="guides/api/#rest-endpoints">REST</a>,
-                                            <a href="guides/api/#grpc-services">gRPC</a> and <a href="guides/gnmi/">gNMI</a>.
-                                        </dd>
-                                    </div>
-                                </dl>
                                 <p>Ze is built on a configuration and protocol engine.
-                                    Extend Ze with plugins for automation and services of your own.
-                                    It runs as a <a href="architecture/">background service (daemon)</a> or an
+                                    It keeps a single configuration, defined in <a href="features/bgp-configuration/">YANG</a>,
+                                    which you manage through its own built-in SSH server,
+                                    <a href="features/web-interface/">web interface</a>,
+                                    <a href="features/cli-commands/">CLI</a>, <a href="features/mcp-integration/">MCP</a>
+                                    and <a href="features/api-commands/">APIs</a>:
+                                    <a href="guides/api/#rest-endpoints">REST</a>,
+                                    <a href="guides/api/#grpc-services">gRPC</a> and <a href="guides/gnmi/">gNMI</a>.
+                                    You can extend Ze with plugins for automation and services of your own,
+                                    and run it as a <a href="architecture/">background service (daemon)</a> or as an
                                     <a href="guides/appliance/">appliance with a read-only operating system</a>.</p>
                             </div>
                         </div>

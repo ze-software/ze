@@ -204,7 +204,7 @@ func TestHomeOpeningKeepsLinkedCapabilities(t *testing.T) {
 			t.Errorf("opening lacks useful capability link %s", href)
 		}
 	}
-	for _, text := range []string{"Manage one configuration", "plugins for automation and services of your own"} {
+	for _, text := range []string{"It keeps a single configuration", "plugins for automation and services of your own"} {
 		if !strings.Contains(metricNodeText(opening), text) {
 			t.Errorf("opening lacks capability information %q", text)
 		}
