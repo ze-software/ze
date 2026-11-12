@@ -105,11 +105,20 @@ Verified in source by the supervising session: items 1 and 2 and the
 
 ## 3. Open from the page work
 
-- The `site` package test run started at closure had not finished when the
-  session closed. Its log is the newest `job-unit-pkg-*.log` under
-  `tmp/session/2026-11-12-131825/scratch/`. Run the package again if that log
-  is gone.
-- `TestHomeHeroDerivesFromTheManifest` was red before this session's changes:
-  it expects a `hero-start-action` link to the quickstart web tour that
-  `homeTemplate` does not carry.
+- The tests that cover the approved page changes pass: `./le test unit pkg
+  path ./internal/le/site/ run 'Activity|TestHomeOpening|TestHomeIntro'`,
+  run after the last page commit.
+- The whole `site` package run at closure ended red, with the one-page build's
+  uncommitted code in the tree. None of the failures names text this
+  session's page commits changed; whether each is older than the session or
+  comes from another session's work was not traced:
+
+  | Test | What it reported |
+  |------|------------------|
+  | `TestTheComplianceIndexLinksEveryStemOfThisCheckout` | Still running when the package hit its 20-minute limit |
+  | `TestHomeHeroDerivesFromTheManifest` | No `hero-start-action` link to the quickstart web tour in `homeTemplate`. Red before this session's first edit |
+  | `TestTheHomepageProofStripCarriesItsStatSpans` | 14 proof-strip stat spans, want 9 |
+  | `TestAFactTheSnapshotLostStopsTheHomepage` | The refusal names `repo.go_source_lines_display`, not the token the test expects |
+  | `TestTheSharedHeaderReadsAsThePublishedHeader` | Quickstart caption: got "Two BGP peers in under five minutes", fixture wants "Two local BGP peers and a received route" |
+  | `TestTheLabISOSizeFallsBackUntilAReleaseCarriesOne` | The lab page source lacks the ISO size sentence |
 - Nothing was pushed. `../gh-pages` is regenerated locally and uncommitted.
