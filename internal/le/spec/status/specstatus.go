@@ -101,7 +101,7 @@ func Declared(status string) bool { return slices.Contains(Vocabulary, status) }
 func MetadataStatus(content string) (string, error) {
 	rows, found := metaRows(content)
 	if !found {
-		return "", errors.New("Missing metadata table: add a '| Field | Value |' header and one Status row")
+		return "", errors.New("the metadata table is missing: add a '| Field | Value |' header and one Status row")
 	}
 	status := ""
 	count := 0

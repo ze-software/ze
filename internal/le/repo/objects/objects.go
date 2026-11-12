@@ -71,7 +71,7 @@ func ReadPath(ctx context.Context, root, tree, path string) ([]byte, bool, error
 	}
 	for i := range len(path) {
 		if path[i] < ' ' || path[i] == 0x7f {
-			return nil, false, fmt.Errorf("Git path %q contains a control character", path)
+			return nil, false, fmt.Errorf("the Git path %q contains a control character", path)
 		}
 	}
 	output, err := run(ctx, root, nil, "--literal-pathspecs", "ls-tree", "-r", "-z", tree, "--", path)

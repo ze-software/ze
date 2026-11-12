@@ -52,7 +52,7 @@ func checkConversion(ctx context.Context, check *interoplab.CheckContext) error 
 	}
 	for _, device := range []string{"br0", "wg0", "vti0"} {
 		if _, err := execOK(ctx, check, nodeCPE, []string{"ip", "-o", "link", "show", "dev", device}); err != nil {
-			return fmt.Errorf("Ze started with the conversion but the kernel holds no %s: %w", device, err)
+			return fmt.Errorf("the kernel holds no %s although Ze started with the conversion: %w", device, err)
 		}
 	}
 	return nil

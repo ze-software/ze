@@ -73,8 +73,9 @@ func TestDocumentTooWideOperatorLogsInWithNoStore(t *testing.T) {
 //	duration follows the host's link count and link churn rather
 //	than anything the fixture tests.
 //
-// MUTATION: restore `fixture10Run(ctx, ..., initInput, "ze", "init")` in
-// fixture10DocumentTooWide and this test fails naming the call's position.
+// MUTATION: restore `fixture10RunWithin(ctx, fixture10ProcessTimeout, ...,
+// initInput, "ze", "init")` in fixture10DocumentTooWide and this test fails
+// naming the call's position.
 func TestDocumentTooWideRunsNoInit(t *testing.T) {
 	files := token.NewFileSet()
 	file, err := parser.ParseFile(files, "plugin_fixture_10_process.go", nil, 0)

@@ -41,8 +41,10 @@ func init() {
 	Register("plugin/plugin-command-document-too-wide", fixture10DocumentTooWide)
 }
 
-func fixture10Run(ctx context.Context, env map[string]string, stdin string, argv ...string) fixture10ProcessResult {
-	return fixture10RunWithin(ctx, fixture10ProcessTimeout, env, stdin, argv...)
+// fixture10Run runs one child under fixture10ProcessTimeout with an empty
+// stdin. A child that reads its input goes through fixture10RunWithin.
+func fixture10Run(ctx context.Context, env map[string]string, argv ...string) fixture10ProcessResult {
+	return fixture10RunWithin(ctx, fixture10ProcessTimeout, env, "", argv...)
 }
 
 // fixture10RunWithin keeps process execution in one owner while allowing a
@@ -175,7 +177,7 @@ func fixture10NetlabLabProfile(ctx context.Context, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("read committed netlab render: %w", err)
 	}
-	validated := fixture10Run(ctx, nil, "", "ze", "config", "validate", golden)
+	validated := fixture10Run(ctx, nil, "ze", "config", "validate", golden)
 	if validated.code != 0 {
 		return fmt.Errorf("committed netlab render is invalid: %s%s", validated.stdout, validated.stderr)
 	}
@@ -231,7 +233,7 @@ func fixture10NetlabLabProfile(ctx context.Context, _ []string) error {
 		envSSHPort:     strconv.Itoa(sshPort),
 		envSSHPassword: credential[2],
 	}
-	peers := fixture10Run(ctx, remoteEnv, "", "ze", "cli", "--user", credential[1], "-c", "show bgp peer list")
+	peers := fixture10Run(ctx, remoteEnv, "ze", "cli", "--user", credential[1], "-c", "show bgp peer list")
 	if peers.code != 0 {
 		return fmt.Errorf("render credential cannot log in: %s%s\n%s", peers.stdout, peers.stderr, fixture10ReadLog(logFile, "daemon.log"))
 	}
@@ -239,7 +241,7 @@ func fixture10NetlabLabProfile(ctx context.Context, _ []string) error {
 		return fmt.Errorf("daemon did not authenticate request as %s", credential[1])
 	}
 	fmt.Fprintln(os.Stderr, "OK: AC-10 -- the render's own credential logs in over SSH")
-	compact := fixture10Run(ctx, remoteEnv, "", "ze", "cli", "--user", credential[1], "-c", "show bgp peer list | json compact")
+	compact := fixture10Run(ctx, remoteEnv, "ze", "cli", "--user", credential[1], "-c", "show bgp peer list | json compact")
 	if compact.code != 0 {
 		return fmt.Errorf("netlab show command failed: %s%s", compact.stdout, compact.stderr)
 	}
@@ -441,23 +443,23 @@ environment {
 		envConfigDir: stateDir, envSSHHost: addrLoopback,
 		envSSHPort: strconv.Itoa(sshPort), envSSHPassword: valueTestPassword,
 	}
-	oversized := fixture10Run(ctx, remoteEnv, "", "ze", "cli", "--user", "operator", "-c", "show bgp rib | last 257")
+	oversized := fixture10Run(ctx, remoteEnv, "ze", "cli", "--user", "operator", "-c", "show bgp rib | last 257")
 	if err := fixture10RequireRefusal(oversized, "last", "at most 256"); err != nil {
 		return err
 	}
 	if !strings.Contains(strings.ToLower(oversized.stderr), "257") {
 		return fmt.Errorf("last refusal did not name supplied 257: %s", oversized.stderr)
 	}
-	surplus := fixture10Run(ctx, remoteEnv, "", "ze", "cli", "--user", "operator", "-c", "show bgp rib | count extra")
+	surplus := fixture10Run(ctx, remoteEnv, "ze", "cli", "--user", "operator", "-c", "show bgp rib | count extra")
 	if err := fixture10RequireRefusal(surplus, "count", "does not accept an argument"); err != nil {
 		return err
 	}
-	oneShot := fixture10Run(ctx, remoteEnv, "", "ze", "cli", "--user", "operator", "-c", "show version | log")
+	oneShot := fixture10Run(ctx, remoteEnv, "ze", "cli", "--user", "operator", "-c", "show version | log")
 	if err := fixture10RequireRefusal(oneShot, "log", "streaming command"); err != nil {
 		return err
 	}
 	sshSave := filepath.Join(work, "ssh-must-not-exist.json")
-	sshRefusal := fixture10Run(ctx, remoteEnv, "", "ze", "cli", "--user", "operator", "-c", "show version | save "+sshSave)
+	sshRefusal := fixture10Run(ctx, remoteEnv, "ze", "cli", "--user", "operator", "-c", "show version | save "+sshSave)
 	if err := fixture10RequireRefusal(sshRefusal, "save", "daemon"); err != nil {
 		return err
 	}
@@ -633,12 +635,12 @@ environment {
 	defer os.RemoveAll(configDir) //nolint:errcheck // scratch cleanup on exit, so a removal failure changes no assertion
 	remoteEnv := fixture10OperatorEnvironment(configDir, sshPort)
 	if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
-		result := fixture10Run(ctx, remoteEnv, "", "ze", "cli", "--user", "admin", "-c", "system command list | raw")
+		result := fixture10Run(ctx, remoteEnv, "ze", "cli", "--user", "admin", "-c", "system command list | raw")
 		return result.code == 0 && strings.Contains(result.stdout, "show test records document")
 	}) {
 		return fmt.Errorf("record plugin command never appeared: %s", fixture10ReadLog(logFile, logPath))
 	}
-	result := fixture10Run(ctx, remoteEnv, "", "ze", "cli", "--user", "admin", "-c", "show test records document | raw")
+	result := fixture10Run(ctx, remoteEnv, "ze", "cli", "--user", "admin", "-c", "show test records document | raw")
 	if result.code == 0 {
 		return fmt.Errorf("an answer that delivered no row reported success")
 	}
