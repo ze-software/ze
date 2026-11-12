@@ -52,6 +52,7 @@ const (
 	CodeDoctorAS112RedistributeOriginUncoordinated = "doctor-as112-redistribute-origin-uncoordinated"
 	CodeDoctorAS112WatchdogMissingWithdraw         = "doctor-as112-watchdog-missing-withdraw"
 	CodeDoctorDDoSDetectBlind                      = "doctor-ddos-detect-blind"
+	CodeDoctorDDoSFlowspecOrphanAnnouncement       = "doctor-ddos-flowspec-orphan-announcement"
 	CodeDoctorDNSResolverPortUnavailable           = "doctor-dns-resolver-port-unavailable"
 	CodeDoctorDNSResolverUpstreamUnreachable       = "doctor-dns-resolver-upstream-unreachable"
 	CodeDoctorDNSSourceEmpty                       = "doctor-dns-source-empty"
@@ -374,6 +375,12 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "DDoS detector is armed but its interface rate feed shows no traffic",
 		Description: "ddos-detect is enabled, but for a whole baseline window (baseline-window times check-interval seconds) its interface rate feed has either delivered no sample, reported no interface, or reported zero received packets and bytes on every interface. The baseline then holds only zeros: it reads as ready, its threshold sits at the absolute floor, and the detector cannot tell an attack from no traffic. An external ddos-detect never receives the feed, because it is a same-process subscription; remove the `plugin { external ddos-detect { ... } }` block so ze runs it internal. Today an external ddos-detect never arms: it fails startup with `ddos-detect: event bus not configured` in the log, because a forked plugin is handed no event bus. Once that is fixed, the external case is reported as soon as the detector is armed, with no window. The input is the per-interface receive rate from the trafficstat service, not the traffic-usage or flow-export flow sources, which only characterize an attack after detection. A lab or standby router with no traffic is a legitimate cause: the warning clears on the first sample with traffic, and `ddos detect enabled false` silences it. Otherwise check the rate feed with `ze show interface rate` and check that interfaces exist with `ze show interface`.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ddos-detect-blind"},
+	},
+	{
+		Code:        CodeDoctorDDoSFlowspecOrphanAnnouncement,
+		Title:       "A DDoS FlowSpec rule may still be at the BGP peers with no responder to withdraw it",
+		Description: "ddos-flowspec records each FlowSpec rule it announces in its runtime state key meta/ddos-flowspec/announcement and removes the record when the rule is withdrawn. A record that no running responder holds as its live announcement means a withdrawal did not reach the BGP engine: the plugin was killed or the daemon stopped with the rule announced, a withdrawal on the way out or at start failed, or the plugin is no longer configured. Until the rule is withdrawn, every BGP peer that took it may still discard or rate-limit traffic to the victim prefix. The plugin withdraws a recorded rule each time it starts. To withdraw it now, send the withdrawal the report prints, then remove the record with ze data rm meta/ddos-flowspec/announcement. A record that cannot be decoded is reported as corrupt and never sent: check the peers for a FlowSpec rule ze announced, withdraw it, then remove the record.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ddos-flowspec-orphan-announcement"},
 	},
 	{
 		Code:        "doctor-flowexport-conntrack-unavailable",

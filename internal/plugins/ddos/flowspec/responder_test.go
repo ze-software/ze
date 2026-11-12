@@ -1,6 +1,7 @@
 package flowspec
 
 import (
+	"context"
 	"net/netip"
 	"strings"
 	"sync"
@@ -12,13 +13,36 @@ import (
 
 // fakeDispatcher records the commands the responder would send to the engine.
 type fakeDispatcher struct {
-	cmds []string
-	err  error
+	cmds     []string
+	err      error
+	recorded *flowspecMatch // the announcement record; nil when none is stored
 }
 
 func (f *fakeDispatcher) Dispatch(cmd string) error {
 	f.cmds = append(f.cmds, cmd)
 	return f.err
+}
+
+// WithContext returns f itself: the fake honors no context.
+func (f *fakeDispatcher) WithContext(context.Context) routeDispatcher { return f }
+
+// Record, Forget and Recorded keep the announcement record in memory.
+func (f *fakeDispatcher) Record(m flowspecMatch) error {
+	f.recorded = &m
+	return nil
+}
+
+func (f *fakeDispatcher) Forget() error {
+	f.recorded = nil
+	return nil
+}
+
+func (f *fakeDispatcher) Recorded() ([]byte, bool, error) {
+	if f.recorded == nil {
+		return nil, false, nil
+	}
+	data, err := encodeAnnouncementRecord(*f.recorded)
+	return data, true, err
 }
 
 // blockingDispatcher holds the caller inside Dispatch until released. It stands
@@ -34,6 +58,12 @@ func (d *blockingDispatcher) Dispatch(string) error {
 	<-d.release
 	return nil
 }
+
+// The record methods complete routeDispatcher; this fake blocks only Dispatch.
+func (d *blockingDispatcher) WithContext(context.Context) routeDispatcher { return d }
+func (d *blockingDispatcher) Record(flowspecMatch) error                  { return nil }
+func (d *blockingDispatcher) Forget() error                               { return nil }
+func (d *blockingDispatcher) Recorded() ([]byte, bool, error)             { return nil, false, nil }
 
 // TestFlowspecStatusDuringSlowDispatch proves the show surface reads the
 // announcement state without waiting on a BGP-engine round trip.

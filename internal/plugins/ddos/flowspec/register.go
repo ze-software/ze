@@ -11,10 +11,15 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	flowspecyang "github.com/ze-software/ze/internal/plugins/ddos/flowspec/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 var eventBusPtr atomic.Pointer[ze.EventBus]
@@ -27,6 +32,17 @@ const bgpPlugin = "bgp"
 // (show.go). Nil when the plugin is not configured/running.
 var activeResponder atomic.Pointer[responder]
 
+// announcementKey is the runtime state key that records the FlowSpec rule the
+// plugin has announced and not yet withdrawn (encodeAnnouncementRecord). A
+// daemon stop or a kill ends the plugin with the rule still at the peers and no
+// connection left to withdraw it through, so the record is what lets the next
+// start withdraw it and `ze doctor` report it until then. The name is a
+// contract: an operator reads it in `ze data registered`.
+var announcementKey = zefs.MustRegister(zefs.KeyEntry{
+	Pattern:     "meta/ddos-flowspec/announcement",
+	Description: "DDoS FlowSpec rule announced to the BGP peers and not yet withdrawn (JSON)",
+})
+
 func loadBus() (ze.EventBus, error) {
 	p := eventBusPtr.Load()
 	if p == nil {
@@ -36,6 +52,15 @@ func loadBus() (ze.EventBus, error) {
 }
 
 func init() {
+	// The plugin reads and writes its record through the SDK state calls, which
+	// the daemon answers only for a key the owning plugin was granted here.
+	statestore.RegisterPluginKeys(Name, announcementKey)
+	if err := diagnostic.RegisterDoctorCheck(orphanRecordCheck); err != nil {
+		var tb textbuf.Buffer
+		_ = tb.Str("ddos-flowspec: doctor check registration failed: ").Err(err).Byte('\n').StdErr()
+		os.Exit(1)
+	}
+
 	reg := registry.Registration{
 		Name:        Name,
 		Description: "DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear",
@@ -62,7 +87,8 @@ func init() {
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "ddos-flowspec: registration failed: %v\n", err)
+		var tb textbuf.Buffer
+		_ = tb.Str("ddos-flowspec: registration failed: ").Err(err).Byte('\n').StdErr()
 		os.Exit(1)
 	}
 }
@@ -146,6 +172,9 @@ func (p *pendingConfig) rollback(_ string) error {
 //     of alert: reading the removal off that default would make the guard vanish
 //     the day the default changes, with no line deleted and no test red
 //     (docs/contributing/ze-go-style.md -- a zero value is never an answer).
+//     Deleting the PARENT `ddos` block reaches here the same way: its one
+//     removed key "ddos" matches as an ancestor of "ddos/flowspec" in
+//     rootHasChanges (plugin/server/reload.go) since 2026-10-10.
 //   - response-level left enforce. `alert` is "detect and report, do not act"
 //     (onCharacterized logs "would announce" and returns), and lifting an
 //     upstream discard is what an operator commits it for. Neither
@@ -186,14 +215,135 @@ func replaceResponder(cfg *Config, dispatcher routeDispatcher, prev *responder, 
 	return r
 }
 
+// exitWithdrawBudget bounds the withdrawal stopResponder sends, and the record
+// removal that follows it. It sits below pluginRemovalGrace, the 500 ms the
+// engine waits for this plugin's `bye` answer before it stops the process
+// anyway (internal/component/plugin/server/startup_removal.go), so a slow
+// engine costs the withdrawal, which leaves the record for the next start and
+// for `ze doctor`, and never the removal itself.
+const exitWithdrawBudget = 400 * time.Millisecond
+
+// stopResponder takes r out of service on the plugin's way out and withdraws
+// the FlowSpec rule it still announces. A nil r is the engine that never
+// configured, and an r with nothing live sends nothing.
+//
+// It is named for the whole act rather than for the flag it ends with, because
+// it does two things: (*responder).retire only sets that flag
+// (docs/contributing/ze-go-style.md -- do not overload a name).
+//
+// The rule has to go out with the plugin because nothing else knows it is
+// there: the FlowSpec NLRI lives in the BGP engine's RIB and in every peer's,
+// and the engine keeps no record of what a plugin announced through
+// update-route (withdrawPluginRoutes covers route-install only).
+//
+// It has two callers, and the second finds nothing live when the first ran:
+//
+//   - the `bye` handler, the one moment the engine waits for this plugin with
+//     the connection open (notifyPluginRemoval sends `bye` and waits for the
+//     answer before Process.Stop refuses the plugin's calls);
+//   - the deferred call in runEngine, for every other end where the engine
+//     still answers: Run returning, a panic unwinding the engine function.
+//
+// The withdrawal runs under a context of its own, bounded by
+// exitWithdrawBudget and NOT derived from the signal context: on the way out
+// that context is already canceled, and a withdrawal sent under it would be
+// refused before it left.
+//
+// At a daemon stop the engine sends no `bye` and closes the connection, so the
+// withdrawal cannot leave. That is one INFO line, not an error: the BGP
+// sessions end with the daemon, the peers drop the rule with the session (or
+// hold it as stale under graceful restart), and the record stays for the next
+// start to withdraw.
+func stopResponder(r *responder) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	defer r.retire()
+
+	if !r.active {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), exitWithdrawBudget)
+	defer cancel()
+
+	err := r.withdrawThrough(r.dispatcher.WithContext(ctx))
+	if err == nil {
+		return
+	}
+	if transportClosed(err) {
+		logger().Info("ddos-flowspec: the connection to the engine is closed, so the FlowSpec rule is not withdrawn on the way out; the BGP sessions end with the daemon, and the next start withdraws the recorded rule",
+			"target", r.target.DstPrefix)
+		return
+	}
+	logger().Warn("ddos-flowspec: the FlowSpec rule could not be withdrawn on the way out; it stays recorded, the next start withdraws it and ze doctor reports it until then",
+		"target", r.target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+}
+
+// transportClosed reports whether err says the connection to the engine is
+// gone, on either transport: the RPC connection (rpc.ErrMuxConnClosed, or the
+// socket's own close error) or the in-process bridge (rpc.ErrBridgeClosed).
+func transportClosed(err error) bool {
+	if errors.Is(err, rpc.ErrMuxConnClosed) {
+		return true
+	}
+	if errors.Is(err, rpc.ErrBridgeClosed) {
+		return true
+	}
+	return errors.Is(err, net.ErrClosed)
+}
+
 // maxDurationCheckInterval is how often the plugin re-checks whether a live
 // announce has outlived max-mitigation-duration. One second is finer than any
 // cap the YANG admits (the minimum meaningful value is 1) and costs one wakeup
 // per second holding no lock unless an announce is live.
 const maxDurationCheckInterval = time.Second
 
-// sdkDispatcher is the production routeDispatcher: it sends rendered update-text
-// commands to the BGP engine via the plugin SDK's UpdateRoute over the RPC path.
+// startMaxDurationWorker starts the plugin's one cap worker and returns a
+// channel closed when it has exited. The worker stops when ctx is canceled;
+// the caller MUST cancel ctx and then wait on the channel, so a tick in flight
+// (enforceMaxDuration, a dispatcher round trip) finishes before the caller
+// goes on.
+//
+// One long-lived worker for the whole plugin, not one per announce: it reads
+// whichever responder is live through activeResponder, so a config apply that
+// replaces the responder needs no restart here, and there is no goroutine per
+// event (ai/rules/goroutine-lifecycle.md). enforceMaxDuration is a no-op unless
+// an announce is live and the operator set a cap, so it ticks cheaply through
+// the common idle case.
+func startMaxDurationWorker(ctx context.Context, every time.Duration) (exited <-chan struct{}) {
+	done := make(chan struct{})
+	go runMaxDurationWorker(ctx, every, done)
+	return done
+}
+
+// runMaxDurationWorker is the cap worker's loop. It closes done when it returns.
+func runMaxDurationWorker(ctx context.Context, every time.Duration, done chan<- struct{}) {
+	defer close(done)
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+	// Bounded by ctx: the loop ends when the plugin's signal context ends.
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if r := activeResponder.Load(); r != nil {
+				r.enforceMaxDuration()
+			}
+		}
+	}
+}
+
+// stateCallTimeout bounds one runtime state call, as the SDK's StateKeys
+// adapter bounds each of its calls.
+const stateCallTimeout = 5 * time.Second
+
+// sdkDispatcher is the production routeDispatcher. It sends rendered
+// update-text commands to the BGP engine through the plugin SDK's UpdateRoute,
+// and keeps the announcement record through the SDK state calls, which reach
+// the daemon's store on both transports.
 type sdkDispatcher struct {
 	p   *sdk.Plugin
 	ctx context.Context
@@ -204,6 +354,36 @@ func (d sdkDispatcher) Dispatch(command string) error {
 	return err
 }
 
+// WithContext returns the same dispatcher under ctx.
+func (d sdkDispatcher) WithContext(ctx context.Context) routeDispatcher {
+	return sdkDispatcher{p: d.p, ctx: ctx}
+}
+
+// Record writes m as the live announcement. Only an acknowledged write returns nil.
+func (d sdkDispatcher) Record(m flowspecMatch) error {
+	data, err := encodeAnnouncementRecord(m)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(d.ctx, stateCallTimeout)
+	defer cancel()
+	return d.p.StatePut(ctx, announcementKey.Pattern, data)
+}
+
+// Forget removes the announcement record.
+func (d sdkDispatcher) Forget() error {
+	ctx, cancel := context.WithTimeout(d.ctx, stateCallTimeout)
+	defer cancel()
+	return d.p.StateRemove(ctx, announcementKey.Pattern)
+}
+
+// Recorded reads the announcement record. found is false when none is stored.
+func (d sdkDispatcher) Recorded() (data []byte, found bool, err error) {
+	ctx, cancel := context.WithTimeout(d.ctx, stateCallTimeout)
+	defer cancel()
+	return d.p.StateGet(ctx, announcementKey.Pattern)
+}
+
 func runEngine(conn net.Conn) int {
 	log := logger()
 	log.Debug("ddos-flowspec plugin starting")
@@ -212,11 +392,19 @@ func runEngine(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	ctx, cancel := sdk.SignalContext()
-	defer cancel()
 	dispatcher := sdkDispatcher{p: p, ctx: ctx}
 
 	var resp *responder
-	defer activeResponder.Store(nil)
+
+	// Registered BEFORE the cap worker's own defer, so LIFO runs it AFTER the
+	// worker has been canceled and waited for, and before p.Close: the
+	// withdrawal is then the last thing this plugin sends the engine.
+	// stopResponder says why the rule cannot be left behind, and why a `bye`
+	// that already withdrew leaves this call nothing to do.
+	defer func() {
+		activeResponder.Store(nil)
+		stopResponder(resp)
+	}()
 
 	parseSections := func(sections []sdk.ConfigSection) (*Config, bool, error) {
 		for _, s := range sections {
@@ -268,29 +456,6 @@ func runEngine(conn net.Conn) int {
 		}
 	}
 
-	// One long-lived worker for the whole plugin, not one per announce: it reads
-	// whichever responder is live through activeResponder, so a config apply that
-	// replaces the responder needs no restart here, and there is no goroutine per
-	// event (ai/rules/goroutine-lifecycle.md). It selects on ctx, which
-	// sdk.SignalContext cancels at shutdown.
-	//
-	// enforceMaxDuration is a no-op unless an announce is live and the operator
-	// set a cap, so this ticks cheaply through the common idle case.
-	go func() {
-		t := time.NewTicker(maxDurationCheckInterval)
-		defer t.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				if r := activeResponder.Load(); r != nil {
-					r.enforceMaxDuration()
-				}
-			}
-		}
-	}()
-
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		cfg, configured, err := parseSections(sections)
 		if err != nil {
@@ -303,6 +468,26 @@ func runEngine(conn net.Conn) int {
 		resp = replaceResponder(cfg, dispatcher, resp, configured)
 		subscribe(bus, resp)
 		log.Info("ddos-flowspec: configured", "response-level", cfg.ResponseLevel, "action", cfg.Action)
+		return nil
+	})
+
+	// The first engine call this plugin makes is here: the state calls are
+	// refused until the startup handshake ends. A rule a previous run left
+	// announced is withdrawn before any detector event can announce a new one,
+	// and nothing is adopted: protection after a restart comes from fresh
+	// detection, as it does for ddos local.
+	p.OnStarted(func(startCtx context.Context) error {
+		withdrawRecordedAnnouncement(dispatcher.WithContext(startCtx))
+		return nil
+	})
+
+	// The engine sends `bye` when it removes this plugin from a running daemon,
+	// and waits for the answer with the connection open. The answer is always
+	// success: a withdrawal that did not reach the engine leaves the record,
+	// which the next start withdraws and `ze doctor` reports, while an error
+	// answer would only keep a plugin the engine is removing alive.
+	p.OnBye(func(_ string) error {
+		stopResponder(resp)
 		return nil
 	})
 
@@ -349,10 +534,25 @@ func runEngine(conn net.Conn) int {
 	// it (pendingConfig.clear).
 	p.OnConfigRollback(pending.rollback)
 
+	p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
+		live, isLive := liveMatch()
+		return answerOrphanRuntimeCheck(name, dispatcher, live, isLive)
+	})
+
+	// The cap worker stops when the signal context is canceled, which is the
+	// plugin's own shutdown, and the wait after the cancel lets a tick in flight
+	// finish before stopResponder runs (startMaxDurationWorker).
+	workerExited := startMaxDurationWorker(ctx, maxDurationCheckInterval)
+	defer func() {
+		cancel()
+		<-workerExited
+	}()
+
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,
 		ApplyBudget:  10,
+		DoctorChecks: []rpc.DoctorCheckDecl{orphanRuntimeCheckDecl},
 	}); err != nil {
 		log.Error("ddos-flowspec plugin failed", "error", err)
 		unsubscribe()

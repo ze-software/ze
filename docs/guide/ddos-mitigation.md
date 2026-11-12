@@ -457,12 +457,14 @@ the new config, and what happens to the rule depends on what the commit says.
 | `response-level alert` | REMOVED at once. `alert` is detect-and-report, and un-blackholing a victim is what an operator commits it for. The log line is `response-level left enforce, removing the drop rule` |
 | `forward-mitigation false`, with the live rule on the FORWARD hook | REMOVED at once. The leaf's whole subject is whether this box drops a transit victim's traffic on-host, so turning it off is the commit that says stop. The log line is `forward-mitigation was disabled, removing the drop rule`. A drop on the INPUT hook, for a victim the box owns, is KEPT: this leaf says nothing about it |
 | The `ddos local` block deleted | REMOVED at once. The plugin is stopped as soon as the reload lands, so a rule carried past this point would stay in the kernel with no responder and no cap worker left to remove it. The log line is `the ddos local section was removed, removing the drop rule` |
-| The parent `ddos` block deleted | REMOVED, on the plugin's way out. This commit tells the plugin nothing: the reload records one removed key for the whole subtree, and the walk that picks the plugins to notify does not match an ancestor, so no config reaches `ddos local` at all. The plugin is stopped all the same, and it removes its own rule as it exits. The log line is `the plugin is stopping, removing the drop rule` |
+| The parent `ddos` block deleted | REMOVED at once, as for the `ddos local` block. The reload records one removed key, `ddos`, and matches it as an ancestor of `ddos/local`, so the plugin is told that its section is gone. The log line is `the ddos local section was removed, removing the drop rule` |
 <!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration, adoptMitigation, withdrawMitigation; internal/plugins/ddos/local/register.go -- startMaxDurationWorker, replaceResponder, stopResponder -->
+<!-- source: internal/component/plugin/server/reload.go -- rootHasChanges -->
 
 **A daemon stop makes no promise about the drop.** ddos local does try to
-withdraw the rule as it exits. That withdrawal is what the parent-block row above
-depends on: there the daemon and the firewall engine both live on.
+withdraw the rule as it exits. That withdrawal covers a stop that delivers no
+config, such as a plugin crash, while the daemon and the firewall engine both
+live on.
 
 At a DAEMON stop nothing orders it. `ProcessManager.Stop` cancels every plugin at
 once and waits on them together. So the firewall engine CAN close its backend
@@ -541,7 +543,47 @@ one no operator can lift.
 | `response-level alert` | WITHDRAWN at once. `alert` is detect-and-report, and lifting an upstream discard is what an operator commits it for. The log line is `response-level left enforce, withdrawing the announcement` |
 | The `ddos flowspec` block deleted | WITHDRAWN at once. The plugin is stopped as soon as the reload lands, so an announcement carried past this point would sit in every peer's RIB with no responder and no cap worker left to withdraw it. The log line is `the ddos flowspec section was removed, withdrawing the announcement` |
 | `action` or `rate-limit-bytes` changed | The rule already on the wire keeps the action it was announced with. Nothing re-announces, so the new values govern the NEXT announcement |
+| The parent `ddos` block deleted | WITHDRAWN at once, as for the `ddos flowspec` block. The reload records one removed key, `ddos`, and matches it as an ancestor of `ddos/flowspec`, so the plugin is told that its section is gone. The log line is `the ddos flowspec section was removed, withdrawing the announcement` |
 <!-- source: internal/plugins/ddos/flowspec/register.go -- replaceResponder; internal/plugins/ddos/flowspec/responder.go -- adoptAnnouncement, withdrawForConfig, enforceMaxDuration -->
+<!-- source: internal/component/plugin/server/reload.go -- rootHasChanges -->
+
+**What each end of the plugin does to a live FlowSpec announcement.** A commit
+is not the only way the plugin ends. Where the BGP engine still answers, the
+plugin withdraws the rule on its way out. Where it does not, the rule is
+recorded and withdrawn at the next start.
+
+| The end | The live announcement |
+|---------|-----------------------|
+| The plugin removed while the daemon runs (the engine's `bye`) | WITHDRAWN before the plugin answers the `bye`. The engine waits 500 ms for that answer, and the withdrawal has 400 ms of its own. A withdrawal that does not reach the engine in that time leaves the record |
+| A daemon stop | NOT withdrawn. The engine sends no `bye` and closes the connection, so no withdrawal can leave. The BGP sessions end with the daemon: a peer drops the rule with the session, or keeps it as stale under graceful restart until its restart timer runs out. The plugin logs one INFO line that ends `the BGP sessions end with the daemon, and the next start withdraws the recorded rule` |
+| A crash | A panic that unwinds the plugin, or a plugin that stops on its own while the engine still answers, WITHDRAWS on the way out. A killed process withdraws nothing: the rule stays recorded, and the next start withdraws it |
+<!-- source: internal/plugins/ddos/flowspec/register.go -- stopResponder, exitWithdrawBudget, runEngine -->
+
+**The live-announcement record.** Each announcement is recorded in the runtime
+state key `meta/ddos-flowspec/announcement` before the plugin goes on, and every
+withdrawal that reaches the BGP engine removes the record. When the record cannot
+be written, the plugin logs a WARN line with the code
+`doctor-ddos-flowspec-orphan-announcement`, and the announcement still goes out:
+refusing to mitigate because of a failed record would be worse. When the plugin
+starts and finds a record, it withdraws that rule, logs `a previous run left a
+FlowSpec rule announced, withdrawing it` at WARN with the victim, and removes the
+record. It adopts nothing: protection after a restart comes from fresh detection,
+as for ddos local. This withdrawal runs when the plugin starts, which can be
+before any BGP session is established. It then reaches no peer, and that is
+correct, because a session that comes up later never held the rule.
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- announce, withdrawThrough, withdrawRecordedAnnouncement, encodeAnnouncementRecord -->
+
+`ze doctor` reports a recorded rule that no running responder holds, under
+`doctor-ddos-flowspec-orphan-announcement`. It names the victim, says why the
+rule may still be at the peers, and prints the exact withdrawal as the fix. While
+`ddos flowspec` is configured, the plugin answers this check itself. While it is
+not, doctor reads the record from the store. After you send the withdrawal,
+remove the record with `ze data rm meta/ddos-flowspec/announcement`. A record that
+does not decode is reported as corrupt and is never sent to the peers. A doctor
+run that opened no store, or holds no parsed configuration, cannot judge the
+record: it says so, and its fix is `ze data cat meta/ddos-flowspec/announcement`,
+which prints the record if one is stored.
+<!-- source: internal/plugins/ddos/flowspec/doctor.go -- orphanRuntimeCheckDecl, orphanRecordCheck, orphanFindings, orphanDiagnostic, recordReadCommand -->
 
 ### VPP dataplane
 

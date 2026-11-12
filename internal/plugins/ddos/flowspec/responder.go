@@ -3,12 +3,18 @@
 package flowspec
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -27,12 +33,114 @@ func logger() *slog.Logger {
 	return slog.Default()
 }
 
-// routeDispatcher sends a rendered update-text command to the BGP engine. The
-// production implementation (register.go) wraps the plugin SDK's UpdateRoute;
-// tests inject a fake. The responder is a separate process and cannot reach the
-// in-process tag registry, so origination goes through the update-text path.
+// routeDispatcher is the responder's link to the engine. It sends a rendered
+// update-text command to the BGP engine, and it keeps the record of the rule
+// that command put at the peers in the plugin's runtime state. The production
+// implementation (register.go sdkDispatcher) wraps the plugin SDK's UpdateRoute
+// and state calls; tests inject a fake. The responder is a separate process and
+// cannot reach the in-process tag registry, so origination goes through the
+// update-text path.
 type routeDispatcher interface {
 	Dispatch(command string) error
+	// WithContext returns the same link under ctx. stopResponder uses it to
+	// withdraw under a context of its own on the way out.
+	WithContext(ctx context.Context) routeDispatcher
+	// Record writes m as the live announcement. Only an acknowledged write
+	// returns nil.
+	Record(m flowspecMatch) error
+	// Forget removes the record. An absent record is no error.
+	Forget() error
+	// Recorded reads the record. found is false when none is stored.
+	Recorded() (data []byte, found bool, err error)
+}
+
+// announcementRecord is the stored form of the live announcement: the
+// FlowSpec match the withdrawal renders, and nothing else. It holds a victim
+// prefix and match fields, no credential, and its key is granted to this
+// plugin only (register.go announcementKey).
+type announcementRecord struct {
+	Victim          string `json:"victim"`
+	Protocol        uint8  `json:"protocol,omitempty"`
+	DestinationPort uint16 `json:"destination-port,omitempty"`
+	SourcePort      uint16 `json:"source-port,omitempty"`
+	TCPFlags        uint8  `json:"tcp-flags,omitempty"`
+}
+
+// encodeAnnouncementRecord is the one writer of the record format.
+func encodeAnnouncementRecord(m flowspecMatch) ([]byte, error) {
+	if !m.DstPrefix.IsValid() {
+		return nil, errors.New("ddos-flowspec: an announcement with no victim prefix has no record")
+	}
+	return json.Marshal(announcementRecord{
+		Victim:          m.DstPrefix.String(),
+		Protocol:        m.Proto,
+		DestinationPort: m.DstPort,
+		SourcePort:      m.SrcPort,
+		TCPFlags:        m.TCPFlags,
+	})
+}
+
+// decodeAnnouncementRecord is the one reader of the record format. A record it
+// refuses is corrupt: it is reported, never rendered into a withdrawal.
+func decodeAnnouncementRecord(data []byte) (flowspecMatch, error) {
+	var rec announcementRecord
+	if err := json.Unmarshal(data, &rec); err != nil {
+		return flowspecMatch{}, fmt.Errorf("ddos-flowspec: the announcement record is not valid JSON: %w", err)
+	}
+	victim, err := netip.ParsePrefix(rec.Victim)
+	if err != nil {
+		return flowspecMatch{}, fmt.Errorf("ddos-flowspec: the announcement record names no valid victim prefix: %w", err)
+	}
+	return flowspecMatch{
+		DstPrefix: victim,
+		Proto:     rec.Protocol,
+		DstPort:   rec.DestinationPort,
+		SrcPort:   rec.SourcePort,
+		TCPFlags:  rec.TCPFlags,
+	}, nil
+}
+
+// withdrawRecordedAnnouncement withdraws the rule a previous run of the plugin
+// recorded and could not withdraw, then removes the record. It adopts nothing:
+// protection after a restart comes from fresh detection.
+//
+// A record it cannot read or decode is left in place and logged; the doctor
+// checks report it (doctor.go). A withdrawal that fails leaves the record too.
+// A withdrawal sent before any BGP session is established reaches no peer,
+// which is correct: a session that comes up later never held the rule.
+//
+// runEngine calls it once, from OnStarted, before any responder can announce.
+//
+// Every line names the code constant at the call, never through a local: `./le
+// arch doctor-coverage check` matches a log line to its doctor check by the
+// constant it reads at the site.
+func withdrawRecordedAnnouncement(d routeDispatcher) {
+	data, found, err := d.Recorded()
+	if err != nil {
+		logger().Warn("ddos-flowspec: could not read the record of a FlowSpec rule a previous run announced, so it is not withdrawn",
+			"error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return
+	}
+	if !found {
+		return
+	}
+	m, err := decodeAnnouncementRecord(data)
+	if err != nil {
+		logger().Warn("ddos-flowspec: the record of a FlowSpec rule a previous run announced is corrupt, so nothing is withdrawn from it",
+			"error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return
+	}
+	logger().Warn("ddos-flowspec: a previous run left a FlowSpec rule announced, withdrawing it",
+		"target", m.DstPrefix, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+	if err := d.Dispatch(renderFlowspecCommand(m, "", 0, "del")); err != nil {
+		logger().Warn("ddos-flowspec: the withdrawal of a FlowSpec rule a previous run announced failed; it stays recorded",
+			"target", m.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return
+	}
+	if err := d.Forget(); err != nil {
+		logger().Warn("ddos-flowspec: the FlowSpec rule a previous run announced was withdrawn, but its record could not be removed",
+			"target", m.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+	}
 }
 
 // flowspecSelector announces to all peers; the engine only sends flow NLRI to
@@ -360,9 +468,9 @@ func (r *responder) withdrawForConfig(reason withdrawReason) {
 // retire takes this responder out of service, so it can neither announce a rule
 // nor claim one, whatever reaches it afterwards. Caller holds r.mu.
 //
-// It is called once for each responder, at the moment the plugin stops being
-// able to reach it: from replaceResponder (register.go), for the responder a
-// config apply replaces. Ordering against a handler already in flight is settled
+// It is called at the moment the plugin stops being able to reach the
+// responder: from replaceResponder (register.go), for the responder a config
+// apply replaces, and from stopResponder, on the plugin's way out. Ordering against a handler already in flight is settled
 // by mu either way. A handler that wins the lock announces a rule this call's
 // caller then withdraws; a handler that loses it finds retired and announces
 // nothing.
@@ -511,6 +619,14 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 	r.setAnnouncement(true, target, p)
 	logger().Info("ddos-flowspec: announced",
 		"target", target.DstPrefix, "action", action, "reason", reason)
+	// The rule is at the peers now, so it is recorded before this returns: a
+	// daemon stop or a kill leaves no connection to withdraw it through, and the
+	// record is what the next start withdraws. A failed write does not undo the
+	// announcement, because refusing to mitigate over a record would be worse.
+	if err := r.dispatcher.Record(r.match); err != nil {
+		logger().Warn("ddos-flowspec: the announced FlowSpec rule could not be recorded, so a crash or daemon stop before its withdrawal would leave it at the peers unknown to the next start",
+			"target", target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+	}
 }
 
 func (r *responder) onCleared(_ *ddosevent.AttackCleared) {
@@ -598,11 +714,23 @@ func (r *responder) enforceMaxDuration() {
 	r.withdraw()
 }
 
+// withdraw withdraws the live announcement through the responder's own
+// dispatcher. Caller holds r.mu.
 func (r *responder) withdraw() {
-	cmd := renderFlowspecCommand(r.match, "", 0, "del")
-	if err := r.dispatcher.Dispatch(cmd); err != nil {
-		logger().Error("ddos-flowspec: withdraw failed", "error", err)
+	if err := r.withdrawThrough(r.dispatcher); err != nil {
+		logger().Error("ddos-flowspec: withdraw failed; the rule stays recorded and ze doctor reports it",
+			"target", r.target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
 	}
+}
+
+// withdrawThrough sends the withdrawal through d, ends the announcement either
+// way, and removes the record only when the withdrawal reached the engine: a
+// rule the engine may still hold stays recorded, for the next start to
+// withdraw and for `ze doctor` to report. It returns the dispatch error.
+// Caller holds r.mu.
+func (r *responder) withdrawThrough(d routeDispatcher) error {
+	cmd := renderFlowspecCommand(r.match, "", 0, "del")
+	err := d.Dispatch(cmd)
 	if r.probe != nil {
 		r.probe.Stop()
 	}
@@ -610,7 +738,15 @@ func (r *responder) withdraw() {
 	// one, and probeTick reads it only while active. Keeping the target lets the
 	// log line and a post-withdraw read still name what was announced.
 	r.setAnnouncement(false, r.target, nil)
+	if err != nil {
+		return err
+	}
 	logger().Info("ddos-flowspec: withdrawn", "target", r.target.DstPrefix)
+	if forgetErr := d.Forget(); forgetErr != nil {
+		logger().Warn("ddos-flowspec: the FlowSpec rule was withdrawn, but its record could not be removed; ze doctor reports it until the next start removes it",
+			"target", r.target.DstPrefix, "error", forgetErr, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+	}
+	return nil
 }
 
 // status returns the published snapshot for the show handler: whether an
