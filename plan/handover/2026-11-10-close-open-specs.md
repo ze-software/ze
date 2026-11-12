@@ -96,8 +96,31 @@ identical messages at 10, so more is hidden. Its Linux build judged nothing:
 exist on linux/arm64, so on an arm64 host that test package does not compile.
 Fix that first, or the Mac cannot show the Linux findings.
 
-Batch 5 is written and tested but **not committed**: it waits for a review
-round. It is the preview-bundle package, `internal/le/build/preview`, which
+Batch 5's form changes are committed: `066a8e1097`, twelve files, reviewed
+clean in the one round the owner granted. Its other half, the size bound in
+`check.go` with `check_archive_limit_test.go`, is **not committed**: that round
+found a blocker in it, since fixed, and the fix has not been reviewed.
+
+The blocker: a tar entry can declare itself sparse (PAX `GNU.sparse.*`
+records) with any logical size, and `archive/tar` fills the holes with zeros
+that never pass through the limited reader. `readerSum` hashed them, so a
+one-kilobyte bundle could still cost unbounded time. `checkArchiveWithin` now
+refuses a `ze` entry whose declared size is negative or above the limit before
+hashing it. The round also asked for boundary cases (exactly the limit is
+accepted, one byte over is refused; both added) and for the refusal to name
+the archive (`check` now wraps with the archive's file name, as the Docker
+loop does). The sparse case was observed red before the fix
+(`job-unit-pkg-828c06ab.log`) and the package is green after.
+
+The same round named three more unbounded reads of untrusted data in that
+package that predate this work and are not fixed: `scanImageArchive`
+(`docker_archive.go`) hashes a regular entry with the same sparse exposure;
+`regularFile` (`check.go`) reads `manifest.json` and `SHA256SUMS` with no size
+cap; `layer` (`docker_archive.go`) reports an exhausted budget inside `Next` as
+"unexpected EOF" instead of the limit. They belong to
+`deployment-user-journeys`, which landed the package, and are not journaled.
+
+Batch 5 was the preview-bundle package, `internal/le/build/preview`, which
 `deployment-user-journeys` landed on 2026-11-12 (61 findings, the largest
 share). Lists: `lint3-mac-preview-findings.tsv`, `lint3-batch5a-files.txt`
 (six source files), `lint3-batch5b-files.txt` (seven test files), plus the new
