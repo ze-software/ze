@@ -21,14 +21,14 @@ For each sentence, identify what it explains and how it follows from the precedi
 
 Use literal actors and actions. Software does not need, want or understand things, and a binary cannot "reject advice." Describe the data, operation or developer decision instead. "Ze needs to know which arguments a command accepts" hides the mechanism; explain that the accepted arguments are defined in command metadata. Software can parse input or return an error without being given human motives.
 
-Review meaning before style. Keep concrete evidence and qualifications; never invent details to make the prose sound personal. When the reasoning is unclear, resolve it from the supplied material or ask about the missing point. Do not cover the gap with a fluent transition.
+Review meaning before style. Keep concrete evidence and qualifications; never invent details to make the prose sound personal. When the reasoning is unclear, resolve it from the supplied material or ask about the missing point. Do not cover the gap with a fluent transition. Preserve distinctions within his argument: craft can exist within industrial production, and an intentional framework can acquire its detailed procedures through experience. Explain how the ideas relate before presenting them as alternatives.
 
 ### Explain the relationships between the facts
 
 Thomas's correction on 21 September 2026 was about the missing line of thought, even after the individual statements had become accurate. Apply it at sentence and paragraph level:
 
 - Explain what causes the problem. "Documentation must change when code changes" states an obligation. Explain why separately maintained documentation depends on someone remembering another edit, and what happens to the reader when that edit is missed.
-- Connect a technique to the cause it addresses. Naming metadata and then announcing documentation generation leaves the reader to infer the relationship. Explain how shared definitions supply both the program and the reference, removing the separate edit.
+- Connect a technique to the cause it addresses. Naming metadata and then announcing documentation generation leaves the reader to infer the relationship. Explain how shared definitions supply both the program and the reference, removing the separate edit. When Thomas explains his trust in a process, identify the safeguards that earn it. His reliance on tests is supported by the process for designing and independently checking those tests.
 - Start from what the preceding text has established and develop it. Each sentence must contribute to the explanation, for example by explaining a cause, showing a consequence or making a mechanism concrete. Sharing a subject is insufficient. Adding "so" or "therefore" cannot repair missing reasoning.
 - Keep related clauses together when that makes their relationship easier to follow. Shorter sentences are not automatically clearer. Use words such as "when," "because" and "so" to express actual dependencies, and retain concrete nouns when "the first," "the second" or "that arrangement" would require mental translation.
 - Introduce qualifications where the reader can understand their relevance. "On the next documentation build" explains when the update appears. A detour about publishing before explaining generation interrupts the reasoning.
@@ -55,11 +55,17 @@ The anti-patterns further down are the things to remove. These are the things to
 
 **Sentences carry a full thought, and often two.** Clauses are joined with "and" or a comma and the sentence follows the logic of the reasoning rather than a rhythm. "That knowledge exists. It lives in a wiki nobody updates, in a handful of pull request comments, and in the maintainer's head."
 
-**Authority comes from having been there.** He reaches for dated, first-hand specifics: CVS and Subversion at the start of the 2000s, the first ExaBGP commit in September 2009, a 64K connection at home between 1994 and 1996, what working for an ISP felt like in 1999. Use the real ones he gives you. Never manufacture a date, a number, a customer or an anecdote to fill the same slot.
+**Authority comes from having been there.** He reaches for dated, first-hand specifics: CVS and Subversion at the start of the 2000s, the first ExaBGP commit in September 2009, a 64K connection at home between 1994 and 1996, what working for an ISP felt like in 1999. Use the real ones he gives you. Never manufacture a date, a number, a customer or an anecdote to fill the same slot. Preserve his actual involvement and its timing: "I initially had to develop software" describes a responsibility, while "I was initially a developer" assigns a role. "I had to observe" records experience; "I have to observe" states an ongoing obligation. Put the experience before explaining how it informed his approach.
 
 **Positions are stated flat.** State the view itself rather than repeatedly prefacing it with "I think", "I want" or "I find". Preserve a real uncertainty or qualification, but do not add one merely to soften the opinion.
 
 **The concession sits inside the argument.** When something weakens his point he says so in the same breath and keeps going: "Stencil sells that format, so their own figures deserve the usual caution, and an effect of that size is hard to dismiss." That is one sentence, not a hedging paragraph.
+
+**Disagreement leaves room for other people's convictions.** He can reject a position while recognising that others hold it strongly and may act on principle. State his view clearly and represent the other position fairly, without inventing agreement or disparaging its holders.
+
+**Personal investment remains visible.** Preserve the feelings he supplies when they explain why the subject matters to him. "Love and sweat" and "seeing your vision coming to life" convey attachment to software he created. Language about a perfect implementation would change that point. Concrete personal language and an apt metaphor can carry meaning that an impersonal account loses.
+
+**Self-deprecation is gentle, and humour belongs to the situation.** "I sometimes trust the resulting copy a little too readily" admits a limitation without defining him as lazy or careless. An observation about the different replies he receives when challenging an AI carries the humour of that experience. Keep that restraint and use only experiences he supplied; a joke is no reason to invent an anecdote.
 
 **Evidence is attributed and linked.** Numbers come with the source that produced them, linked inline. If you cannot attribute a figure, drop it.
 
@@ -93,7 +99,7 @@ Each of these has a repair. Apply the repair rather than deleting the idea.
 - **Empty trailing claims.** Phrases such as ", making it easier" or ", ensuring quality" often append an unexplained benefit. Explain the mechanism and name the actor when needed. Keep a clause that expresses a concrete consequence, as "leaving a reader to follow instructions that no longer work" does in the example above. Do not split a causal connection merely to avoid a grammatical form.
 - **Overly structured argumentation.** Symmetric pros and cons, neat parallels, example then counterexample then conclusion. Real reasoning is lopsided: the strong point gets three paragraphs and the weak one gets a clause.
 - **Uniformly balanced or hedged tone.** Stacked hedges ("can sometimes potentially") and "it is worth noting". Take the position or cut the sentence.
-- **Overstated certainty.** The ban on hedging is not permission to promote a possibility into a fact. "The API and the config syntax will change before a release" was corrected to "may change", because he does not know that they will. Where the truth is a possibility, "may" and "can" are the accurate words and they are not hedges. The test is whether an event outside his control could prove the sentence wrong.
+- **Overstated certainty.** The ban on hedging is not permission to promote a possibility into a fact. "The API and the config syntax will change before a release" was corrected to "may change", because he does not know that they will. Where the truth is a possibility, "may" and "can" are the accurate words and they are not hedges. "An agent can apply" expresses a capability without claiming it always does. Preserve the distinction between a requirement, a recommendation, an illustrative expectation and an observed guarantee. An example using "should" must remain an expectation. The test is whether an event outside his control could prove the sentence wrong.
 - **Grading his own work.** "The BGP engine works and is tested hard" became "The core BGP engine works, and it is covered by 20,000+ unit tests". He gives the number and lets the reader judge the size. An adjective that rates his own output is the one thing the number makes unnecessary.
 - **Decorative metaphor.** A metaphor is allowed when it does work the literal statement cannot. If the sentence survives its removal, remove it.
 - **Uniform sentence rhythm.** The single most reliable structural signal readers report. AI prose settles into sentences of similar length and the same subject-verb-object shape, paragraph after paragraph. Thomas does not: a long sentence that follows a chain of reasoning is followed by a short flat judgement. Read the draft aloud in your head and break up any run of three sentences of similar length.
@@ -107,7 +113,7 @@ Each of these has a repair. Apply the repair rather than deleting the idea.
 - **Bold used to emphasise a phrase mid-paragraph.** If the sentence needs bold to land, rewrite the sentence.
 - **Sentence fragments and telegraphic style.** "Step here. Turn the hips. Extend the arms." Prefer full sentences that explain rather than list actions, unless the impact is genuinely worth it.
 - **A closing paragraph that summarises what was just said.** End on the last real point, or on a concrete gesture. "In conclusion" and "Ultimately" never appear.
-- **Quoting Thomas's own words verbatim** when he has explained something to you. Rephrase and integrate it into the flow.
+- **Quoting Thomas's explanation verbatim** without integrating it into the prose. Organise his supplied ideas into the argument. Preserve wording he deliberately chooses during editing: replacing "overfocus" with "focus too much" after his correction loses that choice. Treat a contextual correction as evidence about that passage; rejecting "much as" in one comparison does not ban the phrase everywhere.
 
 ### Over-correcting the list
 
@@ -209,6 +215,12 @@ Documents that are neither correspondence nor articles (a proposal, a policy, a 
 2. Use the source material and intent already supplied. Ask only when a missing fact or ambiguous purpose prevents a faithful draft.
 3. If he has given you a brain dump, find the structure yourself and organise it logically. He expects you to do that work.
 4. Establish the argument and section sequence, draft, then revise through the final check below before showing him anything.
+
+## Editing iteratively with Thomas
+
+When Thomas asks to work through revisions together, take one point at a time. Show the current wording and a concrete replacement, then incorporate his direction. Supply the surrounding paragraphs or the complete revised section when he asks to judge the flow. Keep clear which changes are proposed and which have been applied to the canonical source. Apply accepted wording before advancing to the next point, within the scope he authorised.
+
+After substantial additions or moves, reread the whole document. Individually approved passages can repeat each other or interrupt the argument in their new positions. Consolidate repeated explanations while preserving distinct points, and bring further substantive changes back for discussion. Record reusable preferences in this skill without turning each local word choice into a universal rule.
 
 ## Final check
 

@@ -72,6 +72,7 @@ Ask the question from Bash instead
 | Edit the website or presentations | `docs/contributing/gh-pages.md` then `website/AI.md` | Source layout, generation target, adding a talk |
 | Assign website card colors | `website/style-guide/index.html#sg-category` | Shared subject categories, matching controls, neutral content and independent status colors |
 | Write, change, or record a terminal demo or video | `docs/contributing/terminal-demos.md` then `docs/contributing/gh-pages.md` | What the recording shows and its tone, then how it is built and rendered |
+| Write or revise prose in Thomas's voice | `ai/skills/ze-author.md` | Precise claims, personal voice, and iterative editing with approved wording |
 | Write or revise blog articles | `ai/skills/ze-author.md` then `ai/skills/ze-blog.md` | Reader understanding, article argument, and the connected story of Ze development |
 | Write and publish the weekly update | `ai/skills/ze-weekly-update.md` | Draft in Zeledon voice, update `website/`, post the approved message to `ze-news`, and verify site/feed/homepage output |
 
