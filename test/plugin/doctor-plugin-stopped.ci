@@ -1,0 +1,100 @@
+# Test: a plugin whose failure policy is ignore exits; show doctor names it
+#       under doctor-plugin-stopped with the restart command, and the plugins
+#       health row reads down.
+# Spec: spec-doctor-coverage-12-plugin-infra AC-9
+# VALIDATES: applyFailurePolicy (server/failure_policy.go) records the stop
+#   (process.ProcessManager.RecordStopped), which raises doctor-plugin-stopped
+#   on the bus, and the plugin-stopped runtime check
+#   (plugin/doctor/checks_runtime.go) reads it from the plugin snapshot.
+# PREVENTS: a configured plugin that is down reading as one nobody configured.
+# Why not a unit test: only the daemon route proves the policy path, the
+#   record, the bus and the check meet in one process.
+#
+# No `ze init`: the store is not part of the question, and seeding it is a
+# whole ze process that was killed after 98 s under the stress run. The daemon
+# starts from the file (`ze start running.conf`, as test/plugin/
+# drain-show-answers.ci does) on the runner's default in-memory store, and
+# authenticates the config's own user. The client takes its credentials from
+# the environment, as test/policy/policy-interface-list-counters.ci does:
+# ze.ssh.username and ze.ssh.password stand in for the store's super-admin
+# (resolveUsername and resolvePassword, internal/component/cli/sshclient/
+# client.go), and ze.ssh.port names the daemon's listener (resolveHostPort).
+# No store sits in the work directory, so the client reads it as unavailable
+# rather than failing (openStoreIfReadable). 127.0.0.1 needs no host-key
+# check (hostKeyCallback), so ze.ssh.insecure is not set.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external failure-ignore {
+		run "le test fixture plugin/failure-policy-ignore"
+		encoder json
+	}
+}
+EOF_CONF
+
+# The first `ze cli` step needs two states, and `ze cli` does not retry a
+# refused connection:
+# - The SSH listener accepts. This config has no bgp block, so runYANGConfig
+#   (cmd/ze/hub/main.go) starts SSH through sshBuildStandalone, whose
+#   Server.Start returns only once (*Server).serveListener
+#   (internal/component/ssh/listener_start.go) has seen Serve reach Accept on
+#   the bound listener. runYANGConfig prints "Ze running." after that and
+#   after apiServer.WaitForStartupComplete, so ready= on it holds this state
+#   and a booted daemon, as test/plugin/doctor-env-invalid-value.ci relies on.
+# - The plugin is recorded down. failure-ignore exits from a goroutine its
+#   OnAllPluginsReady callback starts (failurePolicyRun and failurePolicyAct,
+#   internal/test/fixture/plugin_fixture_failure_policy.go). Its supervising
+#   goroutine, superviseProcess, then calls applyFailurePolicy
+#   (internal/component/plugin/server/failure_policy.go), and policy ignore
+#   reaches ProcessManager.RecordStopped. recordStoppedLocked
+#   (internal/component/plugin/process/stopped.go) stores the stop record and
+#   raises the doctor-plugin-stopped bus warning, both under pm.mu, and only
+#   then logs "configured plugin is not running". That goroutine is ordered
+#   against neither "SSH server listening" nor "Ze running.", so neither line
+#   implies this state, and no single ready= text can name both.
+# daemon/await-answer (internal/test/fixture/daemon_await_answer_fixture.go)
+# holds the second state through the daemon itself: it runs
+# `ze cli -c "show warnings | json"` until the command exits zero with
+# doctor-plugin-stopped in its answer, retrying a refused connection, so its
+# release also proves the listener accepts. It waits on the bus warning, not on
+# the doctor or health rows the steps below assert. The record the doctor check
+# reads was stored under the same lock, and ProcessManager.Stopped takes that
+# lock, so it is visible to the next step. Policy ignore starts no new
+# generation, so nothing calls ClearStopped (superviseProcess) after the wait.
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer doctor-plugin-stopped "show warnings | json":exit=0
+
+cmd=foreground:seq=3:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-plugin-stopped"
+expect=stdout:contains=configured plugin failure-ignore is not running
+expect=stdout:contains=failure policy ignore
+expect=stdout:contains="fix": "ze request plugin restart failure-ignore"
+
+# show health carries rows (name, status, reason), not doctor codes. The
+# plugins row is report.HealthProbeDown(doctor-plugin-stopped)
+# (plugin/process/register.go): status down, reason the bus warning's message,
+# which is process.StoppedMessage. handleShowHealth (cmd/show/show.go) writes
+# each row as a map, so its keys come out sorted: name, reason, status.
+cmd=foreground:seq=4:exec=ze cli -c "show health | json":exit=0
+expect=stdout:pattern="name":\s*"plugins",\s*"reason":\s*"configured plugin failure-ignore is not running: [^"]*\(failure policy ignore\)[^"]*",\s*"status":\s*"down"

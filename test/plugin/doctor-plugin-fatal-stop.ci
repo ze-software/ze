@@ -1,0 +1,99 @@
+# Test: a plugin whose failure policy is fatal stops ze; the next ze doctor
+#       names the plugin, the reason and the time under doctor-plugin-fatal-stop.
+# Spec: spec-doctor-coverage-12-plugin-infra AC-11
+# VALIDATES: stopDaemonForPlugin (server/failure_policy.go) writes the
+#   last-stop record before the stop, and the local plugin-fatal-stop check
+#   (plugin/doctor/check_lifecycle_local.go) reads it from the store the
+#   local ze doctor opens (server.ReadLastStopFrom).
+# PREVENTS: a daemon that stopped itself leaving the operator with no cause.
+# Why not a unit test: only the two runs prove the record survives the stop
+#   and that the local process, which registers no statestore, reads it.
+#
+# No `ze init`: seeding the store is a whole ze process that took 28 s under
+# load and timed this test out, and nothing here needs a seeded store or a
+# login. The daemon starts from the file and creates the store itself:
+# `ze start running.conf` opens the store at resolve.StoreDir(running.conf),
+# the work directory, and finding none creates it there (openExplicitStore and
+# createAbsentStore, cmd/ze/ze_core_start.go), then hands that handle to
+# statestore.SetStore (hub.Run, cmd/ze/hub/main.go), which recordStop writes
+# meta/plugin/last-stop through.
+#
+# The record must outlive the daemon, so the store is the disk one. The
+# runner's default is the in-memory store a DUT build creates when none
+# exists (record_dut_store.go, register_store_zetest.go), whose keys die with
+# the process: the second run would find no store at all.
+option=storage:value=disk
+# The one budget. A `timeout=` on a cmd=foreground line would replace it
+# (resolveOrchestratedTimeout, runner_exec_util.go: a foreground command's
+# timeout wins over option=timeout), so no cmd= line carries one. The daemon's
+# start and stop write the disk store (storage.Create, the boot record, the
+# last-stop record), and each of those writes waits on the disk's other
+# writers (plan/journal/startup-wait-expires-under-load.md).
+option=timeout:value=60s
+# The local ze doctor probes the daemon's SSH listener before it runs the
+# local checks (askDaemonOverSSH, internal/component/doctor/local_route.go).
+# With no store pointer and no env it would probe the built-in 127.0.0.1:2222,
+# a literal port outside this test's range that another process may hold.
+# $PORT is this test's own, and nothing listens on it once the daemon is gone,
+# so the probe is refused and the local checks answer.
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+plugin {
+	external failure-fatal {
+		run "le test fixture plugin/failure-policy-fatal"
+		encoder json
+	}
+}
+EOF_CONF
+
+# The daemon runs through a script so the runner waits for it to EXIT before
+# the doctor starts. A cmd=foreground `ze start` is a daemon to the runner
+# (classifyStepArm, steparm.go: stepArmDaemon): it is started and not waited
+# for, the next step starts once daemon.ready appears or a 5 s wait (scaled by
+# the parallel headroom) expires, whichever is first (runOrchestrated,
+# runner_exec.go, the stepArmDaemon arm), and the daemon is torn down at the
+# end. The first run of this file showed it: the doctor started at +5.005 s
+# while the daemon had written nothing and created no store.
+# A foreground program that is neither ze nor the test peer is a helper
+# (stepArmHelper), and runOrchestrated calls owned.Wait() on it before the next
+# step. `exec` makes the ze process the helper process itself, so the wait is
+# on ze's own exit, and exit=0 asserts its status. The script's `ze` is this
+# run's binary: the runner puts its shim directory first on every child's PATH
+# (setupBinShims, childPathEnv, runner.go), and every child gets the test's
+# store choice and option=env entries (dutEnv, record_dut_store.go).
+#
+# Process exit is the state the doctor needs: the record is written, the
+# store is closed (cmdStart's deferred store.Close), and no daemon listens.
+tmpfs=run-daemon.sh:terminator=EOF_SCRIPT
+#!/bin/sh
+exec ze start running.conf
+EOF_SCRIPT
+
+# An intermediate helper's stream span runs from its start to the end of the
+# run (ci-format.md, "Every stream assertion sits under a command"), so these
+# also see the doctor's output; the doctor writes its answer to stdout.
+# `created live store` is createLiveStore's line, which proves the disk store
+# was created in the work directory (the memory store prints
+# `created memory store (test build)` instead). The stop log line is written
+# after recordStop (stopDaemonForPlugin, server/failure_policy.go), and the
+# reject proves the record write did not fail (recordLastStopLogged logs that).
+cmd=foreground:seq=1:exec=sh run-daemon.sh:exit=0
+expect=stderr:contains=created live store:
+expect=stderr:contains=FIXTURE: failure-fatal is exiting
+expect=stderr:contains=stopping ze because a plugin failed
+reject=stderr:contains=could not record why ze is stopping
+reject=stderr:contains=created memory store
+
+# `ze doctor config <file>` opens the store at resolve.StoreDir(<file>), the
+# file's directory (doctor.go resolveStorageWithDiag, storage.OpenReadOnly).
+# The doctor runs in the work directory, so that is ".", the directory
+# `ze start running.conf` created the store in and wrote meta/plugin/last-stop
+# into. The daemon is down, so the ask fails and the local checks run; the
+# fatal-stop check is pre-config and reads ctx.Store. --json makes the code a
+# field the assertion can name. The pattern asserts the recorded time
+# (fatalStopRow formats it RFC 3339 in UTC).
+cmd=foreground:seq=2:exec=ze doctor --json config running.conf
+expect=stdout:contains="code": "doctor-plugin-fatal-stop"
+expect=stdout:pattern=ze stopped itself at [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z because plugin failure-fatal
+expect=stdout:contains=because plugin failure-fatal failed and its failure policy stops ze
+expect=stdout:contains=| grep failure-fatal, then change that plugin's configuration and start ze

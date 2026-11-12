@@ -497,6 +497,36 @@ markers so the source peer cannot start before the intended observer releases it
 
 <!-- source: internal/test/fixture/plugin_fixture_02_events.go -- waitFileDriver02, dynamicGroupWait02, waitForMarker02 -->
 
+### Waiting for a daemon state over SSH
+
+`ready=` holds one substring of one background process's output, so it cannot
+wait for a state that no output line orders against the later steps. A plugin
+that exits after startup completes is one: the daemon may print `Ze running.`
+before or after it records the stop. `le test fixture daemon/await-answer
+<needle> <command>` runs `ze cli -c <command>` until the command exits zero
+with `<needle>` in its stdout, so the step after it starts only once the daemon
+answers over SSH and the answer shows the state:
+
+```
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer doctor-plugin-stopped "show warnings | json"
+cmd=foreground:seq=3:exec=ze cli -c "show doctor | json":exit=0
+```
+
+The client takes the daemon's address and credentials from the environment the
+runner gave the test (`option=env:var=ze.ssh.port:value=$PORT` and the
+username and password), as a `ze cli` step does. A refused connection, a
+nonzero exit and an answer without the needle all count as "not yet". Attempts
+are 250 milliseconds apart, and the wait is bounded by half the test's budget
+(`WaitBudget`). When the state never arrives, the step fails with the last
+complete answer, its exit code, stdout and stderr. Choose a needle and a
+command other than the ones the next steps assert on, so the barrier does not
+make an assertion true by itself: the example waits on the bus warning, and
+its later steps assert the doctor row and the health row.
+
+<!-- source: internal/test/fixture/daemon_await_answer_fixture.go -- daemonAwaitAnswer, awaitAnswerFailure -->
+<!-- test: internal/test/fixture/daemon_await_answer_fixture_test.go TestDaemonAwaitAnswer -->
+
 Test-peer idle timeouts do not discard partially received BGP frames. The reader
 retains header and body bytes until a complete frame can reach the checker or
 echo consumer, including while a check peer lingers. Cancellation still runs
