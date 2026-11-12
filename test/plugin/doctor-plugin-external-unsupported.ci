@@ -1,0 +1,38 @@
+# Test: ze doctor reports a plugin declared in-process only configured external.
+#
+# VALIDATES: spec-doctor-coverage-12-plugin-infra AC-24 -- `ze doctor` reads
+#            Registration.RunsInProcessOnly of the plugin an external block
+#            runs and reports doctor-plugin-external-unsupported, with the fix
+#            "move it to an internal block". The registration is the test-only
+#            internal/test/plugins/fakeinprocess (linked by the zetest build).
+# PREVENTS:  an external block starting a forked process that silently does
+#            nothing, with doctor reporting a clean box.
+#
+# Revert checkExternalInProcess (internal/component/plugin/doctor/check_external.go)
+# or the field on the fixture and the code leaves stdout.
+
+tmpfs=in-process.conf:terminator=EOF_CONF
+plugin {
+	external fake-in-process-only {
+		run "ze plugin fake-in-process-only"
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json config in-process.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-plugin-external-unsupported
+expect=stdout:contains=move it to an internal block

@@ -1,0 +1,32 @@
+# Test: a forked plugin's raise reaches show doctor with its fix
+# QUESTION: does a problem a plugin raises from its own process, through the
+# SDK's RaiseIssue, reach the daemon's report bus under the plugin's
+# configured name, so show doctor reports it under its code with the fix the
+# plugin gave, and does ClearIssue remove it?
+# VALIDATES: spec-doctor-coverage-12-plugin-infra AC-4 over the forked
+# transport. The observer (internal/test/fixture/doctor_plugin_report_raise.go)
+# runs as an external plugin through a real TLS connect-back, so its raise can
+# reach the daemon only over ze-plugin-engine:report-issue (opReportIssue,
+# internal/component/plugin/server/dispatch_report.go): a raise on its own
+# report bus would sit in its own process, where show doctor never reads.
+# It polls show doctor (a state read, no sleep) until the recent-events row
+# carries doctor-internal-defect, a message naming doctor-report-raise-test
+# and the subject, and the fix "show plugin list", which recent-events never
+# writes on its own. It then checks an unregistered code is refused with an
+# answer naming it, clears the warning and polls until the row is gone.
+# PREVENTS: a forked plugin's problems staying invisible to the operator, and
+# a plugin raising under a name or a code the daemon did not give it.
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external doctor-report-raise-test {
+		run "le test fixture plugin/doctor-plugin-report-raise"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: show doctor reports a forked plugin's raise with its fix, and its clear removes it
+reject=stderr:pattern=panic

@@ -1,0 +1,51 @@
+# Test: the commit refuses a plugin external name the connect-back refuses.
+#
+# VALIDATES: spec-doctor-coverage-12-plugin-infra AC-23 -- `plugin external a_b`
+#            is refused by `ze config validate` and by `ze start`, naming the
+#            name and the allowed form, from the one declaration
+#            (ipc.pluginNamePattern, internal/component/plugin/ipc/plugin_name.go)
+#            the auth handshake reads.
+# PREVENTS:  plan/journal/validate-accepts-what-start-refuses.md, 2026-11-10:
+#            the name validated, the daemon started, and the plugin hung for its
+#            connect-back timeout because AuthenticateWithLookup refused it.
+#
+# The enforcing producer is ExternalPluginNameValidator
+# (internal/component/config/validators.go), reached through the ze:validate
+# on plugin/external/name in ze-plugin-conf.yang, walked by
+# ValidateCustomSections. Revert the ze:validate and both commands accept the
+# config: validate exits 0 and the daemon starts.
+#
+# The bgp block routes the config to runYANGConfig rather than the hub-only
+# parser (see test/parse/config-startup-refuses-invalid-validator.ci).
+
+tmpfs=bad-name.conf:terminator=EOF_CONF
+plugin {
+	external a_b {
+		run "/bin/true"
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate bad-name.conf:exit=1
+expect=exit:code=1
+expect=stdout:contains=a_b
+expect=stdout:contains=letters, digits and hyphens
+
+cmd=foreground:seq=2:exec=ze start bad-name.conf:timeout=20s
+expect=exit:code=1
+expect=stderr:contains=config validation failed
+expect=stderr:contains=a_b
+expect=stderr:contains=letters, digits and hyphens
