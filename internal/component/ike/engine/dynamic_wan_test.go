@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -429,8 +428,10 @@ func TestInterfaceReadFaultKeepsPeers(t *testing.T) {
 // address table watch calls it after every address change on the host.
 func TestInterfaceAbsenceLoggedOncePerAbsence(t *testing.T) {
 	state := applyTestState(t)
-	var logged bytes.Buffer
-	state.log = slog.New(slog.NewTextHandler(&logged, nil))
+	// The transports applyConfig starts write read-error lines into this sink from
+	// their own goroutines while absences() reads it, so the sink is the locked one.
+	logged := &ikeGuardLog{}
+	state.log = slog.New(slog.NewTextHandler(logged, nil))
 	wan := &fakeInterface{addr: "127.0.0.1"}
 	wan.install(t)
 

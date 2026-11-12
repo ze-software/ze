@@ -47,8 +47,8 @@ func panicLogger(message string) (*slog.Logger, *atomic.Bool) {
 	return slog.New(panicOnRecord{message: message, armed: armed}), armed
 }
 
-// ikeGuardLog is the guard's log sink, written by the engine's goroutines and
-// read by the test, so every access holds the lock.
+// ikeGuardLog is a log sink written by the engine's goroutines and read by the
+// test (the panic guard's log, a test's engine log), so every access holds the lock.
 type ikeGuardLog struct {
 	mu  sync.Mutex
 	buf bytes.Buffer
