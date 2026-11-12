@@ -1,7 +1,6 @@
 package reporewrite
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -17,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -57,9 +57,32 @@ var activityCodeNames = map[string]bool{
 	"Dockerfile": true, "GNUmakefile": true, "Makefile": true, "go.mod": true, "go.sum": true,
 }
 
-var defaultActivityExcludes = []string{
-	"tmp/*", "vendor/*", "*/vendor/*", "pages/activity.html",
-	"pages/code-activity.html", "tmp/code-activity.html",
+// activityVendorExcludes are the calendar's own view of dependency code: any
+// path under a directory named vendor, at the root or below it. The calendar
+// measures activity, so it keeps them. The Go inventory skips them and decides
+// third-party by ThirdPartyPath, because a directory named vendor below the
+// root holds code this project wrote.
+var activityVendorExcludes = []string{"vendor/*", "*/vendor/*"}
+
+// defaultActivityExcludes are the paths the calendar's added lines leave out
+// by default. The Go inventory applies every one except activityVendorExcludes.
+var defaultActivityExcludes = append(append([]string(nil), activityVendorExcludes...),
+	"tmp/*", "pages/activity.html", "pages/code-activity.html", "tmp/code-activity.html")
+
+// thirdPartyTrees are the trees that hold code this project did not write,
+// each named from the repository root with its trailing slash.
+var thirdPartyTrees = []string{"vendor/", "third_party/", "website/assets/vendor/"}
+
+// ThirdPartyPath answers whether path, slash-separated and relative to the
+// repository root, lies under one of the third-party trees. A directory merely
+// named vendor elsewhere, such as internal/le/web/vendor, is first-party.
+func ThirdPartyPath(path string) bool {
+	for _, tree := range thirdPartyTrees {
+		if strings.HasPrefix(path, tree) {
+			return true
+		}
+	}
+	return false
 }
 
 // ActivityOptions selects the history, files, and output used by the dashboard.
@@ -102,7 +125,8 @@ type ActivityGoBucket struct {
 
 // ActivityGo is a checkout's tracked Go source in four buckets. Total counts
 // every first-party file, and Code and Tests divide that same population, so
-// Code plus Tests equals Total and Vendor stands outside all three.
+// Code plus Tests equals Total. Vendor counts the Go files under the
+// third-party trees ThirdPartyPath names and stands outside all three.
 type ActivityGo struct {
 	Total         ActivityGoBucket
 	Code          ActivityGoBucket
@@ -483,20 +507,13 @@ func collectGoStats(options ActivityOptions) (ActivityGo, error) {
 		if statErr != nil || !info.Mode().IsRegular() {
 			continue
 		}
-		if strings.HasPrefix(relative, "vendor/") {
+		if ThirdPartyPath(relative) {
 			if err := addGoFile(&stats.Vendor, path); err != nil {
 				return ActivityGo{}, err
 			}
 			continue
 		}
-		excluded := false
-		for _, pattern := range options.Excludes {
-			if fnmatch(pattern, relative) {
-				excluded = true
-				break
-			}
-		}
-		if excluded {
+		if inventoryExcluded(relative, options.Excludes) {
 			continue
 		}
 		if err := addGoFile(&stats.Total, path); err != nil {
@@ -523,33 +540,79 @@ func collectGoStats(options ActivityOptions) (ActivityGo, error) {
 	return stats, nil
 }
 
+// inventoryExcluded answers whether the Go inventory leaves out the
+// first-party path relative. It applies every exclude except the calendar's
+// vendor patterns, which would drop a first-party directory named vendor; the
+// third-party trees are decided by ThirdPartyPath before this is asked.
+func inventoryExcluded(relative string, excludes []string) bool {
+	for _, pattern := range excludes {
+		if slices.Contains(activityVendorExcludes, pattern) {
+			continue
+		}
+		if fnmatch(pattern, relative) {
+			return true
+		}
+	}
+	return false
+}
+
 func addGoFile(bucket *ActivityGoBucket, path string) error {
 	raw, err := os.ReadFile(path) //nolint:gosec // a rewrite tool reads the path the operator named
 	if err != nil {
 		return err
 	}
-	text := string(raw)
-	if !utf8.Valid(raw) {
+	lines := CountGoLines(raw)
+	bucket.Files++
+	bucket.TotalLines += lines.Total
+	bucket.CodeLines += lines.Code
+	bucket.BlankLines += lines.Blank
+	bucket.CommentLines += lines.Comment
+	return nil
+}
+
+// GoLineRulesVersion names the rules CountGoLines and classifyGoLine count
+// by. Raise it whenever a change alters what either one counts: recorded
+// history was measured under the old rules, and the version is how a reader
+// of that history learns its days must be measured again.
+const GoLineRulesVersion = 1
+
+// GoLines is how one Go source's lines divide. Total is Code plus Blank plus
+// Comment.
+type GoLines struct {
+	Total   int
+	Code    int
+	Blank   int
+	Comment int
+}
+
+// CountGoLines counts source's lines and classifies each as code, blank or
+// comment. Invalid UTF-8 is replaced first. A line ends at a newline, with one
+// carriage return before it dropped, and an unterminated last line counts. It
+// is the one Go line counter: the working-tree inventory and the committed
+// history both call it. Safe for concurrent use.
+func CountGoLines(source []byte) GoLines {
+	text := string(source)
+	if !utf8.Valid(source) {
 		text = strings.ToValidUTF8(text, "\uFFFD")
 	}
-	bucket.Files++
+	var lines GoLines
 	inBlock := false
-	scanner := bufio.NewScanner(strings.NewReader(text))
-	scanner.Buffer(nil, len(text)+1)
-	for scanner.Scan() {
-		bucket.TotalLines++
-		kind, nextBlock := classifyGoLine(scanner.Text(), inBlock)
+	for line := range strings.Lines(text) {
+		line = strings.TrimSuffix(line, "\n")
+		line = strings.TrimSuffix(line, "\r")
+		lines.Total++
+		kind, nextBlock := classifyGoLine(line, inBlock)
 		inBlock = nextBlock
 		switch kind {
 		case "blank":
-			bucket.BlankLines++
+			lines.Blank++
 		case lineComment:
-			bucket.CommentLines++
+			lines.Comment++
 		default:
-			bucket.CodeLines++
+			lines.Code++
 		}
 	}
-	return scanner.Err()
+	return lines
 }
 
 func classifyGoLine(line string, inBlock bool) (string, bool) {
@@ -810,10 +873,11 @@ func renderGoBucket(title string, stats ActivityGoBucket, note string) string {
 }
 
 func renderActivityHTML(data *activityPageData) string {
-	goBuckets := renderGoBucket("All First-Party Go", data.Stats.Total, "Tracked .go files outside vendor/.") +
+	trees := html.EscapeString(strings.Join(thirdPartyTrees, ", "))
+	goBuckets := renderGoBucket("All First-Party Go", data.Stats.Total, "Tracked .go files outside the third-party trees.") +
 		renderGoBucket("Production Go", data.Stats.Code, "First-party tracked .go files excluding _test.go.") +
 		renderGoBucket("Go Tests", data.Stats.Tests, "First-party tracked _test.go files.") +
-		`<div class="go-bucket"><h3>Vendored Dependencies</h3><div class="go-stats">` + renderGoCards(data.Stats.Vendor) + `<div class="stat"><span>Modules</span><strong>` + displayNumber(data.Stats.VendorModules) + `</strong></div></div><p class="note">Tracked vendored .go files under vendor/. Module count comes from vendor/modules.txt.</p></div>`
+		`<div class="go-bucket"><h3>Vendored Dependencies</h3><div class="go-stats">` + renderGoCards(data.Stats.Vendor) + `<div class="stat"><span>Modules</span><strong>` + displayNumber(data.Stats.VendorModules) + `</strong></div></div><p class="note">Tracked .go files under the third-party trees: ` + trees + `. Module count comes from vendor/modules.txt.</p></div>`
 	return fmt.Sprintf(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Source Line Activity</title>
 <style>:root{color-scheme:dark;--bg:#071118;--panel:#0d1a24;--text:#e8f7fb;--muted:#8fb7c3;--cell:12px;--gap:3px;--level-0:#14232c;--level-1:#143d45;--level-2:#1d6869;--level-3:#299e91;--level-4:#48d2b2;--level-5:#bef86a}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,sans-serif}.page{max-width:1280px;margin:auto;padding:32px}.eyebrow,.note{color:var(--muted)}h1{font-size:34px}.panel,.go-bucket{background:var(--panel);border:1px solid #29404d;border-radius:14px;padding:20px;margin:16px 0}.toolbar{display:flex;gap:8px}.metric-button{padding:8px 14px}.metric-button.active{background:#48d2b2;color:#071118}.chart-wrap{overflow-x:auto}.chart{display:grid;grid-template-columns:repeat(%d,var(--cell));grid-template-rows:20px repeat(7,var(--cell));gap:var(--gap);min-width:calc(%d * (var(--cell) + var(--gap)))}.month-label{grid-row:1;color:var(--muted)}.day-cell{width:var(--cell);height:var(--cell);background:var(--level-0);border-radius:2px}.day-cell[data-level="1"]{background:var(--level-1)}.day-cell[data-level="2"]{background:var(--level-2)}.day-cell[data-level="3"]{background:var(--level-3)}.day-cell[data-level="4"]{background:var(--level-4)}.day-cell[data-level="5"]{background:var(--level-5)}.outside,.pre-repo{opacity:.25}.summary,.go-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat{background:#10232e;padding:12px;border-radius:8px}.stat span{display:block;color:var(--muted)}.stat strong{font-size:22px}table{width:100%%;border-collapse:collapse}td,th{text-align:left;padding:8px;border-bottom:1px solid #29404d}</style></head>

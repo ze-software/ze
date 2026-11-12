@@ -320,6 +320,98 @@ func TestActivityDashboardFixture(t *testing.T) {
 	}
 }
 
+// TestThirdPartyPathNamesOnlyTheRootTrees verifies that ThirdPartyPath answers
+// true for a path under vendor/, third_party/ or website/assets/vendor/ from
+// the repository root, and false for every other path.
+//
+// The method asks about a path in each tree, then about the shapes a looser
+// rule would take for third-party: a first-party directory named vendor below
+// the root, a file named vendor.go, a directory whose name only starts with
+// vendor or third_party, and a vendor directory elsewhere under website/.
+func TestThirdPartyPathNamesOnlyTheRootTrees(t *testing.T) {
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{"vendor/github.com/example/dep/dep.go", true},
+		{"vendor/modules.txt", true},
+		{"third_party/vpp-linux-cp/src/lcp.api", true},
+		{"website/assets/vendor/htmx.min.js", true},
+		{"internal/le/web/vendor/vendorweb.go", false},
+		{"internal/tool/vendor/a_test.go", false},
+		{"vendor.go", false},
+		{"internal/tool/vendor.go", false},
+		{"vendorweb/x.go", false},
+		{"third_partyx/a.go", false},
+		{"website/vendor/x.js", false},
+		{"website/assets/vendored/x.js", false},
+		{"vendor", false},
+	}
+	for _, tc := range cases {
+		if got := ThirdPartyPath(tc.path); got != tc.want {
+			t.Errorf("ThirdPartyPath(%q) = %v, want %v", tc.path, got, tc.want)
+		}
+	}
+}
+
+// TestGoInventoryCountsFirstPartyVendorNamedDirectories verifies AC-14: the
+// working-tree Go inventory counts a first-party package in a directory named
+// vendor as source and test, and the third-party trees as vendored code.
+//
+// The method tracks, in a fixture repository, a first-party package under
+// internal/tool/vendor, Go files under the root vendor/ and third_party/
+// trees, and a Go file under tmp/, which the default exclusions still drop.
+// MeasureGoInventory, the entry point the homepage facts read, must answer
+// the hand-counted buckets exactly.
+func TestGoInventoryCountsFirstPartyVendorNamedDirectories(t *testing.T) {
+	repo, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	runFixtureGit(t, repo, "init", "-q")
+	files := map[string]string{
+		// 4 lines: code 2, blank 1, comment 1.
+		"internal/tool/vendor/a.go": "package vendor\n\n// A is counted.\nfunc A() {}\n",
+		// 3 lines: code 2, blank 1.
+		"internal/tool/vendor/a_test.go": "package vendor\n\nfunc TestA() {}\n",
+		// 2 lines: code 1, comment 1.
+		"vendor/dep/d.go": "// Package dep is third-party.\npackage dep\n",
+		// 1 line: code 1.
+		"third_party/lib/t.go": "package lib\n",
+		// 1 module.
+		"vendor/modules.txt": "# example.test/dep v1.0.0\n## explicit\n",
+		// Excluded by tmp/*.
+		"tmp/scratch.go": "package scratch\n",
+	}
+	paths := make([]string, 0, len(files))
+	for name, body := range files {
+		path := filepath.Join(repo, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, name)
+	}
+	runFixtureGit(t, repo, append([]string{"add", "-f", "--"}, paths...)...)
+
+	got, err := MeasureGoInventory(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := ActivityGo{
+		Total:         ActivityGoBucket{Files: 2, TotalLines: 7, CodeLines: 4, BlankLines: 2, CommentLines: 1},
+		Code:          ActivityGoBucket{Files: 1, TotalLines: 4, CodeLines: 2, BlankLines: 1, CommentLines: 1},
+		Tests:         ActivityGoBucket{Files: 1, TotalLines: 3, CodeLines: 2, BlankLines: 1},
+		Vendor:        ActivityGoBucket{Files: 2, TotalLines: 3, CodeLines: 2, CommentLines: 1},
+		VendorModules: 1,
+	}
+	if got != want {
+		t.Fatalf("inventory = %+v\nwant        %+v", got, want)
+	}
+}
+
 func runFixtureGit(t *testing.T, repo string, arguments ...string) {
 	t.Helper()
 	argv := append([]string{"-C", repo}, arguments...)

@@ -43,20 +43,26 @@ and the pair is the point: a generated file nobody gates goes stale in silence.
 
 The homepage's Go line figures follow that same route. `repo.go_source_lines`
 counts tracked first-party Go files other than `_test.go`; `repo.go_test_lines`
-counts those test files. Both include comments and blank lines, exclude vendor
-dependencies and share the activity collector's exclusions. Source includes
+counts those test files. Both include comments and blank lines and exclude the
+third-party trees, named from the repository root: `vendor/`, `third_party/`
+and `website/assets/vendor/`. A first-party directory merely named `vendor`,
+such as `internal/le/web/vendor`, counts as source or test. Of the activity
+collector's other exclusions they keep `tmp/*` and the dashboard page paths;
+only the calendar also drops every directory named `vendor`. One counter,
+`CountGoLines`, splits each file into code, blank and comment lines. Source includes
 development tooling, so it is a repository-size figure rather than shipped
 product code alone. The activity page reads a live checkout inventory; a
 homepage figure is the inventory recorded by the facts update action.
 <!-- source: internal/le/site/facts/sitefacts.go -- derive -->
 
-`repo.go_vendor_lines` records the same collector's separate vendor total,
-including comments and blank lines in tracked Go files under `vendor/`. The
-homepage places this third-party code figure after test lines. It counts lines
+`repo.go_vendor_lines` records the same collector's separate third-party
+total, including comments and blank lines in tracked Go files under those
+three trees. The homepage places this third-party code figure after test
+lines. It counts lines
 of dependency source; the activity inventory's module count remains a separate
 measurement. All three line totals use the same display and staleness precision.
 <!-- source: internal/le/site/facts/sitefacts.go -- derive -->
-<!-- source: internal/le/repo/rewrite/activity.go -- collectGoStats -->
+<!-- source: internal/le/repo/rewrite/activity.go -- collectGoStats, ThirdPartyPath, CountGoLines -->
 <!-- source: internal/le/site/facts/golines.go -- displayedFact -->
 
 ## Not every fact can be committed
