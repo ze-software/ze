@@ -1,0 +1,122 @@
+# Test: an operator's `request plugin restart <name>` over SSH of a RUNNING
+#       external plugin whose process does NOT exit when the daemon stops it
+#       still answers, the old process is killed rather than left running
+#       beside its replacement, and a new process serves under the name.
+# Spec: spec-doctor-coverage-12-plugin-infra R-11
+# VALIDATES: ProcessManager.Respawn (internal/component/plugin/process/
+#   manager.go) calls proc.Stop(), which cancels the process context and
+#   closes its connections, and nothing more: no SIGTERM is sent. On Linux
+#   superviseExit (process.go) then waits pluginExitGrace (1s) and SIGKILLs the
+#   plugin's process group (pluginGroup.kill, KillProcessGroup) when the plugin
+#   has not exited. Respawn joins the old Process for stopExitGrace()+1s (2s),
+#   which covers monitorCmd reaping the killed child, then forks the
+#   replacement, and restartHandshake (server/restart.go) brings it to
+#   StageRunning before handlePluginRestart answers.
+# PREVENTS: a restart that hangs on a plugin ignoring its stop, one that leaves
+#   the old process running beside its replacement, and one that leaves the
+#   name down; and the kill of the old generation reported as a crash or a
+#   stop.
+# Why not a unit test: the unit tests drive internal plugins, which have no
+#   process to outlive their connection. Only a forked plugin that ignores the
+#   close reaches superviseExit's kill, and only the daemon route proves the
+#   operator's command answers through it.
+#
+# The harness is test/plugin/plugin-restart-external-running.ci's, which
+# carries the reasoning for each piece (no `ze init`, the config user, the
+# environment credentials, `ready=Ze running.`). The difference is the
+# fixture's argument: plugin/restart-generation ignore-first-stop
+# (internal/test/fixture/plugin_fixture_restart_generation.go). Its generation
+# 1 records its pid in restart-generation.ignored-stop.pid, ignores SIGTERM and
+# SIGINT, and when its connection closes writes
+# restart-generation.ignored-stop.held and goes on running for
+# restartGenerationHoldMax (60s), so in this test's window only a kill ends
+# it. Generation 2 behaves like the sibling's, so the daemon's own stop at the
+# end of the test ends it. Bounds on the ignoring process: the daemon's group
+# kill in a working product (about 1s after the stop); in a broken one the
+# 60s hold, and the plugin's Pdeathsig SIGKILL when the daemon dies.
+#
+# Budget: the restart costs the 1s exit grace, the reap, a fork and a TLS
+# connect-back and handshake. The restart step carries its own 30s bound so a
+# hang reads as that step's failure; the await-answer barrier is bounded by
+# half the test's budget; the gone check is bounded by 10s. All fit in 60s.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external restart-generation {
+		run "le test fixture plugin/restart-generation ignore-first-stop"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# Barrier, state 1: generation 1 runs and serves. Its first answer is where it
+# counts itself, records its pid and arms the ignored stop
+# (restartGenerationArmIgnore), so the restart below meets a process that will
+# not exit on its own.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer restart-generation-1 "show restart-generation status":exit=0
+
+# The command under test, bounded. Its answer is the handler's Data map:
+# message, plugin, was-running (fieldMessage, fieldRestartedPlugin,
+# fieldRestartWasRunning, register_plugin_restart.go). It comes only after
+# Respawn's join and the replacement's handshake, so an answer at all proves
+# the ignored stop did not hang the command.
+cmd=foreground:seq=3:exec=ze cli -c "request plugin restart restart-generation | json":timeout=30s:exit=0
+expect=stdout:contains=plugin restart-generation was running: stopped and started again
+expect=stdout:pattern="was-running":\s*true
+expect=stdout:pattern="plugin":\s*"restart-generation"
+
+# A new process serves under the name, with no further barrier: the handler
+# answered after restartHandshake reached StageRunning. Generation 1 answering
+# would mean the old process still holds the name.
+cmd=foreground:seq=4:exec=ze cli -c "show restart-generation status":exit=0
+expect=stdout:contains=restart-generation-2
+reject=stdout:contains=restart-generation-1
+
+# The old process is gone. plugin/restart-generation-gone refuses unless the
+# held marker exists, which proves generation 1 ran on past its closed
+# connection, so its being gone can only be a kill; it then polls the pid's
+# state for at most 10s (no process, or state Z, is gone: daemonProcessState).
+# The product prints nothing for the kill (signalLocked logs only a failed
+# signal, at debug), so the pid is the observable.
+cmd=foreground:seq=5:exec=le test fixture plugin/restart-generation-gone:exit=0
+expect=stdout:contains=ran on past its closed connection and is gone
+
+# The kill of the old generation is the operator's restart, not a crash, and
+# leaves no stop record: applyFailurePolicy (server/failure_policy.go) returns
+# at its slot check, because Respawn stored the replacement under pm.mu, the
+# lock GetProcess takes. The ordering caveat of the sibling test applies: no
+# output marks applyFailurePolicy's return, so these rejects are ordered
+# against the old generation's RPC loop ending, which the answer waited for.
+#
+# Nor is it an overlap: the group kill lands 1s after the stop, inside
+# Respawn's 2s join (StopJoinBound), so the join completes and
+# recordRestartOverlap raises nothing. That raise would come inside Respawn,
+# before the restart answered, so this reject is ordered by the answer.
+cmd=foreground:seq=6:exec=ze cli -c "show errors | json":exit=0
+reject=stdout:contains=doctor-plugin-crashed
+reject=stdout:contains=doctor-plugin-restart-overlap
+cmd=foreground:seq=7:exec=ze cli -c "show warnings | json":exit=0
+reject=stdout:contains=doctor-plugin-stopped
