@@ -126,7 +126,8 @@ func oneRow(text string) string {
 // '-' removed, '*' modified. The line mapping is adjusted so validation
 // highlighting still finds the correct lines.
 //
-// When a YANG schema is available and we're at root context, uses tree-aware diff
+// When a YANG schema is available and the view was built at the root
+// (data.path), uses tree-aware diff
 // that respects container boundaries (solving LCS brace-misalignment). Falls back
 // to line-based LCS diff for subtrees or when schema is unavailable.
 func (m *Model) setViewportData(data viewportData) {
@@ -139,7 +140,9 @@ func (m *Model) setViewportData(data viewportData) {
 	// (both diff gutter markers and annotated column markers).
 	changesEnabled := data.forceChanges || !m.hasEditor() || m.editor.diffGutterEnabled()
 	if changesEnabled && data.hasOriginal && data.originalContent != data.content {
-		if m.hasEditor() && m.editor.schema != nil && len(m.contextPath) == 0 {
+		// The view's own path decides, not the model's position: a root view
+		// drawn inside a context (`top show`) is still a root view.
+		if m.hasEditor() && m.editor.schema != nil && len(data.path) == 0 {
 			content, lineMapping = annotateContentWithTreeDiff(data.originalContent, data.content, m.editor.schema)
 		} else {
 			content, lineMapping = annotateContentWithGutter(data.originalContent, data.content)
@@ -200,6 +203,7 @@ func (m *Model) configViewAtPath(path []string) *viewportData {
 		originalContent: original,
 		hasOriginal:     true,
 		secretChanges:   m.editor.changedSecretsAt(path),
+		path:            path,
 	}
 }
 

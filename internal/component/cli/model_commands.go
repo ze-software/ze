@@ -169,6 +169,16 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 	cmd := tokens[0]
 	args := tokens[1:]
 
+	// `top <command>` is taken before the pipe split, so `top show | errors`
+	// runs `show | errors` at the root. A pipe right after `top` leaves the
+	// line to the split, which refuses `top` as unpipeable as before.
+	if cmd == cmdTop && len(args) > 0 && args[0] != "|" {
+		if m.editor == nil {
+			return commandResult{}, fmt.Errorf("command %q requires config mode (no config file loaded)", cmd)
+		}
+		return m.cmdTop(args)
+	}
+
 	// Check for pipe in command
 	if pipeIdx := FindPipeIndex(tokens); pipeIdx > 0 {
 		return m.dispatchWithPipe(tokens[:pipeIdx], tokens[pipeIdx+1:])
@@ -189,7 +199,7 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		return commandResult{showHelp: true}, nil
 
 	case cmdTop:
-		return m.cmdTop()
+		return m.cmdTop(nil)
 
 	case cmdUp:
 		return m.cmdUp()
@@ -271,7 +281,28 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 
 // Command implementations
 
-func (m *Model) cmdTop() (commandResult, error) {
+// cmdTop moves to the root, or with a command runs that command once at the
+// root, whatever the command is.
+//
+// The command runs on the per-command copy of the Model (executeCommand), so
+// emptying the copy's position changes nothing the operator sees. The real
+// position moves only when the inner result sets clearContext or newContext,
+// which only edit, up and top do; nothing is put back by hand. The inner
+// result is answered as built, so `top show` draws the root, and an inner
+// refusal is the inner command's own.
+//
+// The operator's position is saved on the copy first (operatorPosition), and
+// only by the outermost `top`, so `top top ...` keeps the real origin.
+func (m *Model) cmdTop(args []string) (commandResult, error) {
+	if len(args) > 0 {
+		if !m.underTop {
+			m.topOrigin = m.contextPath
+			m.underTop = true
+		}
+		m.contextPath = nil
+		m.isTemplate = false
+		return m.dispatchCommand(joinTokensWithQuotes(args))
+	}
 	if m.editor.WorkingContent() == "" {
 		return commandResult{clearContext: true, output: emptyConfiguration}, nil
 	}
@@ -419,6 +450,28 @@ func handleQuoteChar(current *textbuf.Buffer, tokens []string, inQuote bool) ([]
 // it once the line runs.
 func quoteOpen(prefix string) bool {
 	return strings.Count(prefix, `"`)%2 == 1
+}
+
+// lineBehindTop answers the line a leading `top ` runs, every leading `top`
+// word dropped, and whether one was there. A line with no `top` in front
+// answers itself. Leading blanks of the rest are dropped and trailing ones
+// kept, so completion still reads a finished last word.
+//
+// handleEnter tests its intercepted verbs (run, exit, quit, stop, restart,
+// clear) on this line, and completion completes it at the root. The loop
+// ends because each pass removes at least one word.
+func lineBehindTop(input string) (string, bool) {
+	rest, under := input, false
+	for len(rest) > len(cmdTop) && strings.HasPrefix(rest, cmdTop) && isCommandBlank(rest[len(cmdTop)]) {
+		rest, under = strings.TrimLeft(rest[len(cmdTop):], " \t"), true
+	}
+	return rest, under
+}
+
+// isCommandBlank reports whether c separates words, as tokenizeCommand reads
+// a line.
+func isCommandBlank(c byte) bool {
+	return c == ' ' || c == '\t'
 }
 
 // joinTokensWithQuotes joins tokens into a command string, quoting tokens that need it.

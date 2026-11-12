@@ -136,7 +136,7 @@ func (m *Model) showAlternateSource(content string) (commandResult, error) {
 	if content == "" {
 		return commandResult{output: emptyConfiguration}, nil
 	}
-	return commandResult{configView: &viewportData{content: content}}, nil
+	return commandResult{configView: &viewportData{content: content, path: m.contextPath}}, nil
 }
 
 // renderRawSourceAtPath parses raw source content, then serializes only the
@@ -245,6 +245,7 @@ func (m *Model) compareView(format, compareTarget, source string) (commandResult
 		hasOriginal:     true,
 		forceChanges:    true,
 		secretChanges:   secrets,
+		path:            m.contextPath,
 		// The pruned view is not the validated string, so it cannot position
 		// validation errors. Only this branch opts out: compareViewUnpruned below
 		// renders the full content, where the line numbers still line up.
@@ -268,6 +269,7 @@ func (m *Model) compareViewUnpruned(format, compareTarget, source string, column
 		originalContent: original,
 		hasOriginal:     true,
 		forceChanges:    true,
+		path:            m.contextPath,
 	}}, nil
 }
 

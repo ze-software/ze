@@ -104,6 +104,12 @@ type viewportData struct {
 	// unchanged. setViewportData writes one line per path, and nothing else can:
 	// both values are gone by the time the diff has text.
 	secretChanges []string
+
+	// path is the position this view was built at, nil for the root.
+	// setViewportData picks the diff annotator from it, never from the
+	// model's position: `top show` draws a root view while the operator sits
+	// inside a context, and `show <path>` draws a sub-view at the root.
+	path []string
 }
 
 // CommandModeCompleter provides completions for command mode.
@@ -126,6 +132,15 @@ type Model struct {
 	viewport    viewport.Model
 	contextPath []string // Current edit context (e.g., ["neighbor", "192.168.1.1"])
 	isTemplate  bool     // true when editing with wildcard (*)
+
+	// topOrigin and underTop hold the operator's position while a
+	// `top <command>` runs. cmdTop sets them on the per-command copy of the
+	// Model (executeCommand) before it empties that copy's contextPath, and
+	// the copy dies with the command, so the real Model never holds them.
+	// Two fields rather than a pointer: a nil topOrigin is a valid origin,
+	// the root. Read through operatorPosition.
+	topOrigin []string
+	underTop  bool
 
 	// dispatch orders this session's config commands. A pointer, so the Model
 	// copies Update makes share one queue -- as they share editor and
@@ -195,6 +210,10 @@ type Model struct {
 	pasteBuffer       *strings.Builder // Accumulates pasted lines
 	pasteModeLocation string           // "absolute" or "relative"
 	pasteModeAction   string           // "replace" or "merge"
+	// pasteModePosition is the position `load terminal` ran at, nil for the
+	// root. finishPasteMode applies the paste there, so the paste of a
+	// `top load terminal relative ...` lands at the root.
+	pasteModePosition []string
 
 	// Command history (browsing, entries, and persistence)
 	history *History
@@ -366,6 +385,7 @@ type commandResult struct {
 	enterPasteMode    bool   // True to enter paste mode
 	pasteModeLocation string // "absolute" or "relative"
 	pasteModeAction   string // "replace" or "merge"
+	pasteModePosition []string
 }
 
 // Message types for the editor.
@@ -734,10 +754,22 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 		m.pasteBuffer.Reset()
 		m.pasteModeLocation = r.pasteModeLocation
 		m.pasteModeAction = r.pasteModeAction
+		m.pasteModePosition = r.pasteModePosition
 	}
 
 	m.err = nil
 	return m, complete
+}
+
+// operatorPosition answers the position the operator typed the line at: the
+// saved origin while a `top <command>` runs on this copy, the model's own
+// position otherwise. A fix line names its command relative to this position,
+// never to the root the copy resolves paths at.
+func (m *Model) operatorPosition() []string {
+	if m.underTop {
+		return m.topOrigin
+	}
+	return m.contextPath
 }
 
 // applyCompletion applies a completion to the input.
@@ -799,13 +831,15 @@ func (m Model) commandCompleterInput() (string, bool) {
 	}
 
 	if m.mode == ModeConfig {
-		// Config mode reaches operational commands behind "run " alone. The
-		// trailing spaces are preserved: they tell Complete that the last word
-		// is finished.
-		if !strings.HasPrefix(input, cmdRun+" ") {
+		// Config mode reaches operational commands behind "run " alone, and
+		// `top run ...` runs the same command (handleEnter strips the `top`).
+		// The trailing spaces are preserved: they tell Complete that the last
+		// word is finished.
+		line, _ := lineBehindTop(input)
+		if !strings.HasPrefix(line, cmdRun+" ") {
 			return "", false
 		}
-		return input[len(cmdRun)+1:], true
+		return line[len(cmdRun)+1:], true
 	}
 
 	if completesFromYANG(input) && m.completer != nil {
@@ -823,6 +857,7 @@ func (m Model) commandCompleterInput() (string, bool) {
 func (m *Model) updateCompletions() {
 	input := m.textInput.Value()
 	commandArgs, hasCommandArgs := m.commandCompleterInput()
+	behindTop, underTop := lineBehindTop(input)
 
 	switch {
 	case strings.HasPrefix(input, "/"):
@@ -830,7 +865,7 @@ func (m *Model) updateCompletions() {
 		m.completions = m.searchConfig(input[1:])
 		m.ghostText = ""
 
-	case m.mode == ModeConfig && strings.HasPrefix(input, cmdRun+" "):
+	case m.mode == ModeConfig && strings.HasPrefix(behindTop, cmdRun+" "):
 		// Config mode with "run " prefix: delegate to command completer for operational completions.
 		if hasCommandArgs {
 			m.completions = m.commandCompleter.Complete(commandArgs)
@@ -863,6 +898,15 @@ func (m *Model) updateCompletions() {
 			if m.ghostText == "" {
 				m.ghostText = m.completer.GhostText(m.completionTree(), input, m.contextPath)
 			}
+		}
+
+	case m.mode == ModeConfig && underTop:
+		// `top <command>` runs the rest of the line at the root, so the rest
+		// completes as the root completes it: the editor's verbs, then the
+		// root's nodes, never the current context's children.
+		if m.completer != nil {
+			m.completions = m.completer.Complete(m.completionTree(), behindTop, nil)
+			m.ghostText = m.completer.GhostText(m.completionTree(), behindTop, nil)
 		}
 
 	case m.mode == ModeConfig:

@@ -43,6 +43,7 @@ var knownModelFields = map[string]bool{
 	"confirmQuit": true, "confirmExitConfig": true,
 	"confirmTimerActive": true, "confirmSecondsLeft": true, "confirmBackupPath": true, "windowWatch": true,
 	"pasteMode": true, "pasteBuffer": true, "pasteModeLocation": true, "pasteModeAction": true,
+	"pasteModePosition": true, "topOrigin": true, "underTop": true,
 	"history": true, "outputBuf": true, "lastCommand": true,
 	"mode": true, "modeStates": true, "commandCompleter": true, "commandExecutor": true,
 	"filesystemAuthority": true,
@@ -215,7 +216,12 @@ func TestModelCommitBlockedOnErrors(t *testing.T) {
 	result, err := model.cmdCommit()
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "blocked")
-	assert.NotNil(t, result.configView, "config should stay visible on commit failure")
+	assert.True(t, result.refreshConfig, "a refused commit asks for the config to be redrawn")
+	// The redraw happens when the result is applied, at the operator's
+	// position: the config stays visible, with the refused line in it.
+	model.applyResult(result)
+	assert.True(t, model.showingConfig, "config should stay visible on commit failure")
+	assert.Contains(t, model.viewportContent, "receive-hold-time 2")
 }
 
 // TestModelCommitSucceedsWhenValid verifies commit works with valid config.

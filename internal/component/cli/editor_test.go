@@ -4464,7 +4464,7 @@ func TestCmdShowChangesAllMultiSession(t *testing.T) {
 	result, cmdErr := m.cmdShowChangesAll()
 	require.NoError(t, cmdErr)
 	assert.Contains(t, result.statusMessage, "2 pending changes across 2 sessions")
-	assert.NotNil(t, result.configView, "should include tree view")
+	assert.True(t, result.refreshConfig, "should include tree view")
 }
 
 // TestCmdWhoEmpty verifies "who" output when no sessions are active.

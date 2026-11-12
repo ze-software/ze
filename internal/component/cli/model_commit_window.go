@@ -195,7 +195,7 @@ func (m *Model) windowReverted(msg string) commandResult {
 		var tb textbuf.Buffer
 		msg = tb.Str(msg).Str(" (view not refreshed: ").Err(err).Byte(')').String()
 	}
-	return commandResult{statusMessage: msg, configView: m.configViewAtPath(m.contextPath), revalidate: true}
+	return commandResult{statusMessage: msg, refreshConfig: true, revalidate: true}
 }
 
 // pollDaemonWindow is the draft poll's look at the daemon window

@@ -70,7 +70,10 @@ var editorCommands = []editorCommand{
 		{"discard all", "Drop every pending change"},
 		{"discard <path>", "Drop the pending changes under path"},
 	}},
-	{name: cmdTop, help: "Return to root context"},
+	{name: cmdTop, help: "Return to root context, or run one command there", forms: []editorHelpForm{
+		{"top", "Return to root context"},
+		{"top <command>", "Run one command as if at the root context"},
+	}},
 	{name: cmdUp, help: "Go up one level"},
 	{name: cmdRollback, help: "Restore from backup", forms: []editorHelpForm{
 		{"rollback <N>", "Restore backup N"},

@@ -94,11 +94,25 @@ result. Separate sessions keep independent whole snapshots, not merged history.
 | `discard <path>` | Drop the pending changes at or under the path, and keep every other change |
 | `rollback <N>` | Restore revision N |
 | `top` | Navigate to config root |
+| `top <command>` | Run one command as if at the root, and stay where you are unless the command moves you |
 | `up` | Navigate up one level |
 | `edit <path>` | Navigate into a section |
 | `exit` | Exit editor |
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
 <!-- source: internal/component/cli/editor_help.go -- editorCommands, EditorHelpEntries -->
+
+`top <command>` takes any command the editor accepts and runs it once with
+the position at the root, then leaves you where you were. Inside
+`edit bgp peer peer1`, `top set bgp router-id 192.0.2.9` sets the root path,
+`top show` displays the whole configuration, and `top show | errors` lists
+every issue. Only a command that moves you keeps its move: `top edit bgp`
+goes to `bgp`, as `edit bgp` typed at the root would. `top run <cmd>`,
+`top exit`, `top clear`, `top stop` and `top restart` do exactly what they do
+without `top`. `top load terminal relative merge` pastes at the root. History
+keeps the line as you typed it, and completion after `top ` offers what the
+root offers. This form runs in the SSH editor and `ze config edit`.
+<!-- source: internal/component/cli/model_commands.go -- cmdTop, lineBehindTop -->
+<!-- source: internal/component/cli/model_keys.go -- handleEnter, finishPasteMode -->
 
 In an editing session a bare `discard` is refused and names both forms above.
 Without an editing session, a bare

@@ -48,7 +48,7 @@ func TestCommitRefusalListsIssuesAndNamesForce(t *testing.T) {
 			assert.Contains(t, result.statusMessage, "commit blocked: 0 error(s), 1 warning(s)")
 			assert.Contains(t, result.statusMessage, "'commit now force'")
 			assert.Contains(t, result.statusMessage, warning, "the refusal lists the warning")
-			assert.NotNil(t, result.configView, "the config stays in the viewport with its markers")
+			assert.True(t, result.refreshConfig, "the config stays in the viewport with its markers")
 
 			result, err = model.dispatchCommand("commit verify")
 			require.NoError(t, err)

@@ -149,12 +149,12 @@ func (m *Model) cmdOptionErrors(args []string) (commandResult, error) {
 		}
 		return commandResult{
 			statusMessage: msg,
-			configView:    m.configViewAtPath(m.contextPath),
+			refreshConfig: true,
 		}, nil
 	case "hide":
 		return commandResult{
 			statusMessage: "Errors hidden",
-			configView:    m.configViewAtPath(m.contextPath),
+			refreshConfig: true,
 		}, nil
 	}
 

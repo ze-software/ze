@@ -446,12 +446,21 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// The verbs taken here, before dispatch (run, exit, quit, stop, restart,
+	// clear), read no position, so behind `top` each behaves exactly as without
+	// it: line is the input with any leading `top` dropped, and only the verb
+	// tests read it. History and dispatch keep input, the line as typed.
+	line := input
+	if m.mode == ModeConfig {
+		line, _ = lineBehindTop(input)
+	}
+
 	// Handle mode switching commands.
 	// "run <args>" in config mode -> one-shot execution, stay in config mode.
 	// "configure" in operational mode -> switch to config mode.
 	// Config commands (set, delete, etc.) in operational mode -> switch to config mode and execute.
-	if m.mode == ModeConfig && strings.HasPrefix(input, cmdRun+" ") {
-		args := strings.TrimSpace(strings.TrimPrefix(input, cmdRun))
+	if m.mode == ModeConfig && strings.HasPrefix(line, cmdRun+" ") {
+		args := strings.TrimSpace(strings.TrimPrefix(line, cmdRun))
 		m.textInput.SetValue("")
 		if m.history.Append(input) {
 			m.history.Save(m.mode)
@@ -496,7 +505,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		m.statusMessage = "running..."
 		return m, m.executeOperationalCommand(args)
 	}
-	if m.mode == ModeConfig && input == cmdRun {
+	if m.mode == ModeConfig && line == cmdRun {
 		m.textInput.SetValue("")
 		m.statusMessage = "usage: run <command>"
 		return m, nil
@@ -528,13 +537,14 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		m.SetMode(ModeConfig)
 		// Fall through to normal dispatch -- history/clear happens below,
 		// executeCommand runs with the switched mode.
+		line, _ = lineBehindTop(input)
 	}
 
 	// Handle exit/quit directly (not via async command dispatch).
 	// In config mode, "exit" returns to operational mode (like NOS convention).
 	// In operational mode, "exit" and "quit" terminate the CLI.
-	if input == cmdExit || input == cmdQuit {
-		if m.mode == ModeConfig && input == cmdExit {
+	if line == cmdExit || line == cmdQuit {
+		if m.mode == ModeConfig && line == cmdExit {
 			if m.hasPendingChanges() {
 				m.textInput.SetValue("")
 				m.statusMessage = "Pending changes. Use 'commit now', 'discard all', or type y to force exit."
@@ -559,7 +569,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 
 	// Handle stop/restart: daemon lifecycle commands with confirmation.
 	// These affect all connected users, so require y/N confirmation.
-	if input == cmdStop {
+	if line == cmdStop {
 		if m.shutdownFunc == nil {
 			m.textInput.SetValue("")
 			m.statusMessage = "stop not available (not connected to daemon)"
@@ -570,7 +580,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		m.confirmStop = true
 		return m, nil
 	}
-	if input == cmdRestart {
+	if line == cmdRestart {
 		if m.restartFunc == nil {
 			m.textInput.SetValue("")
 			m.statusMessage = "restart not available (not connected to daemon)"
@@ -597,7 +607,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	m.completions = nil
 
 	// Clear scrollback.
-	if input == "clear" {
+	if line == "clear" {
 		m.outputBuf.Reset()
 		if m.hasEditor() {
 			m.showConfigContent()
@@ -699,7 +709,13 @@ func (m Model) finishPasteMode() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	result, err := m.applyLoad(m.pasteModeLocation, m.pasteModeAction, content, "terminal")
+	// The paste lands where `load terminal` ran, which is the root under
+	// `top`. It is applied on a copy at that position, as a dispatched
+	// command runs on a copy, so the real position stays where it is and the
+	// result's view is drawn there.
+	at := m
+	at.contextPath = m.pasteModePosition
+	result, err := at.applyLoad(m.pasteModeLocation, m.pasteModeAction, content, "terminal")
 	if err != nil {
 		m.err = err
 		return m, nil

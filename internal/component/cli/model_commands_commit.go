@@ -96,7 +96,7 @@ func (m *Model) cmdRollback(args []string) (commandResult, error) {
 
 	return commandResult{
 		statusMessage: tb.Reset().Str("Rolled back to ").Str(backups[n-1].Path).String(),
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 		revalidate:    true,
 	}, nil
 }
@@ -217,7 +217,7 @@ func (m *Model) cmdCommitVerify() (commandResult, error) {
 	b.Str("commit verify: nothing was applied; ").Int(int64(len(result.Errors))).Str(" error(s), ").
 		Int(int64(len(result.Warnings))).Str(" warning(s): ")
 	appendIssueSummary(&b, issues)
-	return commandResult{statusMessage: b.String(), configView: m.configViewAtPath(m.contextPath)}, nil
+	return commandResult{statusMessage: b.String(), refreshConfig: true}, nil
 }
 
 // commitValidationRefusal is CommitRefusal as this session's status, with the
@@ -227,7 +227,7 @@ func (m *Model) commitValidationRefusal(result ConfigValidationResult, force boo
 	if !blocked {
 		return commandResult{}, false
 	}
-	return commandResult{statusMessage: refusal, configView: m.configViewAtPath(m.contextPath)}, true
+	return commandResult{statusMessage: refusal, refreshConfig: true}, true
 }
 
 // CommitRefusal answers whether validation blocks a commit, and the line that
@@ -381,7 +381,7 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 		var tb textbuf.Buffer
 		return commandResult{
 			statusMessage: tb.Str("commit failed: ").Err(err).String(),
-			configView:    m.configViewAtPath(m.contextPath),
+			refreshConfig: true,
 			revalidate:    true,
 		}, nil
 	}
@@ -474,7 +474,7 @@ func (m *Model) runCommitSession(req contract.CommitRequest) (commandResult, boo
 			var tb3 textbuf.Buffer
 			return commandResult{
 				statusMessage: tb3.Str("commit failed: ").Err(err).String(),
-				configView:    m.configViewAtPath(m.contextPath),
+				refreshConfig: true,
 				revalidate:    true,
 			}, false, nil
 		}
@@ -539,7 +539,7 @@ func (m *Model) cmdDiscardSession(args []string) (commandResult, error) {
 
 	return commandResult{
 		statusMessage: msg,
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 		revalidate:    true,
 	}, nil
 }
@@ -558,7 +558,7 @@ func (m *Model) cmdDiscardPath(path []string) (commandResult, error) {
 	var tb textbuf.Buffer
 	return commandResult{
 		statusMessage: tb.Str("Discarded: ").Join(path, " ").String(),
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 		revalidate:    true,
 	}, nil
 }
@@ -574,7 +574,7 @@ func (m *Model) cmdDiscard() (commandResult, error) {
 
 	return commandResult{
 		statusMessage: "Changes discarded",
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 		revalidate:    true,
 	}, nil
 }

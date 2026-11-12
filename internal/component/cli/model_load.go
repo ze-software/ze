@@ -222,7 +222,7 @@ func (m *Model) rollbackConfirmed() (commandResult, error) {
 
 	return commandResult{
 		statusMessage:     msg,
-		configView:        m.configViewAtPath(m.contextPath),
+		refreshConfig:     true,
 		revalidate:        true,
 		setConfirmTimer:   true,
 		confirmTimerValue: false,
@@ -324,6 +324,7 @@ func (m *Model) cmdLoadNew(args []string) (commandResult, error) {
 			enterPasteMode:    true,
 			pasteModeLocation: location,
 			pasteModeAction:   action,
+			pasteModePosition: m.contextPath,
 		}, nil
 	}
 
@@ -368,7 +369,7 @@ func (m *Model) applyLoad(location, action, content, source string) (commandResu
 	}
 	return commandResult{
 		statusMessage: tb.String(),
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 		revalidate:    true,
 	}, nil
 }

@@ -32,7 +32,7 @@ func (m *Model) cmdShowChanges(args []string) (commandResult, error) {
 	if len(changes) == 0 {
 		return commandResult{
 			statusMessage: "No pending changes",
-			configView:    m.configViewAtPath(m.contextPath),
+			refreshConfig: true,
 		}, nil
 	}
 
@@ -104,7 +104,7 @@ func (m *Model) cmdShowChangesAll() (commandResult, error) {
 	if len(sessions) == 0 {
 		return commandResult{
 			statusMessage: "No pending changes",
-			configView:    m.configViewAtPath(m.contextPath),
+			refreshConfig: true,
 		}, nil
 	}
 
@@ -123,7 +123,7 @@ func (m *Model) cmdShowChangesAll() (commandResult, error) {
 	msg := tb6.String()
 	return commandResult{
 		statusMessage: msg,
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 	}, nil
 }
 
@@ -172,7 +172,7 @@ func (m *Model) cmdDisconnectSession(args []string) (commandResult, error) {
 	var tb7 textbuf.Buffer
 	return commandResult{
 		statusMessage: tb7.Str("Disconnected session: ").Str(targetSession).String(),
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 		revalidate:    true,
 	}, nil
 }

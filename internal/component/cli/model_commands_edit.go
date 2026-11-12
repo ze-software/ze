@@ -100,7 +100,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 
 	return commandResult{
 		statusMessage: msg,
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 		revalidate:    true,
 	}, nil
 }
@@ -117,7 +117,7 @@ func (m *Model) createListEntry(entry config.ListEntryTarget, address []string) 
 	m.editor.appendConflictStatus(&tb)
 	return commandResult{
 		statusMessage: tb.String(),
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 		revalidate:    true,
 	}, nil
 }
@@ -149,7 +149,7 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 
 	return commandResult{
 		statusMessage: msg,
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 		revalidate:    true,
 	}, nil
 }
@@ -197,7 +197,7 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 	m.editor.appendConflictStatus(&tb)
 	return commandResult{
 		statusMessage: tb.String(),
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 		revalidate:    true,
 	}, nil
 }
@@ -288,7 +288,7 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 
 	return commandResult{
 		statusMessage: msg,
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 		revalidate:    true,
 	}, nil
 }
@@ -373,7 +373,7 @@ func (m *Model) listEntryMove(args []string, verb listEntryMoveVerb) (commandRes
 	m.editor.appendConflictStatus(&tb)
 	return commandResult{
 		statusMessage: tb.String(),
-		configView:    m.configViewAtPath(m.contextPath),
+		refreshConfig: true,
 		revalidate:    true,
 	}, nil
 }

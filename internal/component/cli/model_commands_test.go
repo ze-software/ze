@@ -97,7 +97,7 @@ func TestModelCmdTop(t *testing.T) {
 	model.contextPath = []string{"bgp", "peer", "1.1.1.1"}
 
 	// Call top
-	result, err := model.cmdTop()
+	result, err := model.cmdTop(nil)
 	require.NoError(t, err)
 
 	// Should clear context
@@ -1818,7 +1818,7 @@ func TestCmdShowChangesAllGrouping(t *testing.T) {
 	// Should have summary with session count
 	assert.Contains(t, result.statusMessage, "2 pending changes across 2 sessions")
 	// Should have tree content in configView
-	assert.NotNil(t, result.configView, "should include tree view")
+	assert.True(t, result.refreshConfig, "should include tree view")
 }
 
 // TestCmdCommitConfirmedRejectedInSession verifies commit confirmed is refused
