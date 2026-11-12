@@ -975,9 +975,17 @@ func TestFwdWithdrawalLabelledCompatibility(t *testing.T) {
 				assert.Zero(t, refused, "a nil source context frames a labeled family")
 				assert.Error(t, err)
 
+				// The measured call's result is kept outside the closure and
+				// checked after it, so a zero count over a refused framing
+				// cannot pass: a failed call allocates nothing either.
+				var measured int
+				var measuredErr error
 				allocs := testing.AllocsPerRun(100, func() {
-					buildWithdrawalPayload(payload, buf, source)
+					measured, measuredErr = buildWithdrawalPayload(payload, buf, source)
 				})
+				require.NoError(t, measuredErr)
+				require.NotZero(t, measured, "labeled payload refused while measured")
+				assert.Equal(t, hex.EncodeToString(want), hex.EncodeToString(buf[:measured]))
 				assert.Zero(t, allocs, "buildWithdrawalPayload allocates")
 			})
 		}
