@@ -17,13 +17,14 @@ Access, refusal and lint-tooling. Eleven specs are closed.
 |------|-------|--------------|
 | access | **Closed**: `a5ca6d22cd`. The owner authorised review rounds 6 and 7 and ran the closing script. | Nothing |
 | refusal | **Closed**: record `15c252ebea`, removal `e32b0c9820`. The owner ran the 13-package scoped lint on his Mac at `ef1563f19f`: no finding in any file the lint fix changed. That run exposed one finding the spec had caused and blame had hidden, fixed in `ad05166600`; the reactor package then lints clean at that commit. Evidence: `refusal-lint-mac-ef1563f19f.md`. Review: four rounds. | Nothing |
-| lint-tooling | In progress, unclaimed between steps. The owner ruled that AC-1's "Zero findings" binds committed code in scope ("1 commited"); the spec records it as a ruling on this spec only. Batches `d3b523bb85` and `0b446895a2` are in. | The findings in the fixture files of `4c05449c18` are being fixed by their own session (those files are modified in the working tree as of 06:39): do not touch them. Owed here: the `fixture10Run` unparam in `plugin_fixture_10_process.go`; the capitalised-message candidates in `internal/le/interoplab/topology/check_conversion.go`, `internal/le/repo/objects/objects.go`, `internal/le/spec/status/specstatus.go`; the spec's own scoped lint, which plans only on a still tree (the owner's Mac did it for refusal); then the review record, which is past the round cap and needs the owner's words at a terminal |
+| lint-tooling | In progress, unclaimed between steps. The owner ruled that AC-1's "Zero findings" binds committed code in scope ("1 commited"); the spec records it as a ruling on this spec only. Batches `d3b523bb85` and `0b446895a2` are in. | The findings in the fixture files of `4c05449c18` are being fixed by their own session (those files are modified in the working tree as of 06:39): do not touch them. Batch 3 `c9f53eb9de` cleared the `fixture10Run` unparam and three capitalised messages and re-sealed the hook sources. Owed here: the "Invalid Status" message in `internal/le/spec/status/specstatus.go`; the spec's own scoped lint, which plans only on a still tree (the owner's Mac did it for refusal); then the review record, which is past the round cap and needs the owner's words at a terminal. See the batch 3 paragraphs below |
 | route-policy | Unchanged. | The owner runs `plan/records/route-policy-0-a4-procedure.md` on the Mac |
 
-Lint-tooling batch 3 is written and tested but **not committed**: it waits for
-the owner to grant one more review round, because the spec is past the round
-cap. It is six files in the working tree
-(`tmp/session/2026-11-12-014013/scratch/lint3-batch3-files.txt`):
+Lint-tooling batch 3 is committed: `c9f53eb9de`. The owner granted one review
+round for it, because the spec is past the round cap. The round found no
+blocker or issue in the change and raised one issue about what it leaves out
+(the "Invalid Status" message below). The spec text does not record batch 3
+yet. It is six files:
 `internal/test/fixture/plugin_fixture_10_process.go` and its `_test.go` (the
 `fixture10Run` unparam: nine callers, all in that file),
 `internal/le/interoplab/topology/check_conversion.go`,
@@ -35,8 +36,8 @@ That last file repairs a red this session put at HEAD. `./le ai hooks unit`
 fails its `hook-source-drift` case since `d3b523bb85`: batch 1 changed two
 files in `internal/le/rfc`, which the hook source seal covers, and did not
 re-derive `hookSourcesDigest`. Batch 3 re-derives it for the committed tree
-plus its own one-line change in `internal/le/spec/status`. Until batch 3
-lands, that self-test case is red for every session.
+plus its own one-line change in `internal/le/spec/status`, so the case passes
+again from `c9f53eb9de`.
 
 Evidence for batch 3: the five packages pass under race, `internal/test/fixture`
 with a native `le` on `PATH` (`job-unit-pkg-70f11c97.log`), and the hook
@@ -47,9 +48,11 @@ also changes a hook fixture and a second seal, `fixtureCatalogDigest`, whose
 value comes from `TestEveryStoredDigestMatchesTheTreeItRatchets`, and that
 test could not compile here while other sessions edited the tree.
 
-When the owner grants the round: one bounded independent review of those six
-files, then commit them under the spec's claim, then record the batch in the
-spec.
+Next for lint-tooling, in order: record batches 2 and 3 in the spec; reword
+"Invalid Status" with its fixture and both seals on a tree that compiles; run
+the spec's own scoped lint on a still tree and fix what the repeat cap had
+hidden; then the closing review record. Every further review round, the
+closing one included, is the owner's to grant.
 
 Two things this session got wrong, so the next one does not repeat them:
 
