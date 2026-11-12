@@ -87,7 +87,6 @@
     .feature-catalog[data-enhanced="true"] { grid-template-columns: 11rem minmax(0, 1fr); gap: 1.5rem; }
     .feature-results .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .site-home .hero-start-intro.hero-grid { gap: 2rem; }
-    .site-home .hero-action-row { flex-wrap: wrap; }
     .site-home .hero-release-callout { max-width: none; }
     .site-home .hero-primary-actions { flex-basis: 70%; }
     .site-home .usp-grid, .site-home .capability-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -98,6 +97,8 @@
     main.has-page-sidebar > .page-sidebar .page-sidebar-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
     .site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; grid-template-areas: "copy" "preview" "details"; gap: 1.5rem; padding-top: 1.5rem; }
     .site-home .hero-copy { max-width: 46rem; }
+    .site-home .hero-action-row { grid-template-columns: minmax(0, 1fr); }
+    .site-home .hero-release-callout { width: 100%; border-inline-start: 0; border-top: 1px solid #2c4564; padding-inline-start: 0; padding-top: 1rem; }
     .site-home #hero-title { font-size: clamp(2.25rem, 5vw, 3rem); }
     .site-home .showcase { width: 100%; max-width: 46rem; justify-self: center; }
     .site-home .hero-outcome-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -131,8 +132,6 @@
     .site-home .usp-grid, .site-home .capability-grid, .site-home .run-path-grid, .site-home .reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .site-home .terminal-panel { grid-template-columns: minmax(0, 1fr); }
     .site-home .hero-primary-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .site-home .hero-project-metrics { flex-basis: 100%; }
-    .site-home .hero-release-callout { width: 100%; border-inline-start: 0; border-top: 1px solid #2c4564; padding-inline-start: 0; padding-top: 1rem; }
     .site-home .section-head, .site-home .home-section-panel-map .section-head { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
     .site-home .home-proof-head { gap: 1rem; }
     .site-home .home-proof-actions { max-width: none; }

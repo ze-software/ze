@@ -505,6 +505,8 @@ Thomas requested this layout refinement on 2026-11-12:
 
 Each metric keeps its number and written unit on one line. The metric cards
 take their width from their content and wrap as whole cards when space runs out.
+The first metric has no leading divider or inset. The desktop metric group
+fits its content, with the same gap before the release group as between metrics.
 The introduction presents IPsec VPN or WireGuard as tunnel options and FIB or
 VPP as forwarding options. The management clause describes interfaces and
 services.
@@ -512,7 +514,8 @@ Links in the left hero column keep their existing colors without underlines;
 keyboard focus remains outlined.
 The release group has a Planned release title, followed by the linked bird
 beside two lines: Initial version and Q4 2026. The separator before this group
-remains vertical on desktop and horizontal when the group stacks on mobile.
+remains vertical on desktop and horizontal when the group stacks at tablet
+widths and below.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: website/assets/css/30-components.css -- .site-home .hero-metrics-grid -->
 <!-- source: website/assets/css/30-components.css -- .site-home .hero-project-metric strong -->
