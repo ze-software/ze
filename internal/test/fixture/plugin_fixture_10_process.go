@@ -42,7 +42,13 @@ func init() {
 }
 
 func fixture10Run(ctx context.Context, env map[string]string, stdin string, argv ...string) fixture10ProcessResult {
-	commandCtx, cancel := context.WithTimeout(ctx, fixture10ProcessTimeout)
+	return fixture10RunWithin(ctx, fixture10ProcessTimeout, env, stdin, argv...)
+}
+
+// fixture10RunWithin keeps process execution in one owner while allowing a
+// lifecycle fixture to budget expensive initialization within its own deadline.
+func fixture10RunWithin(ctx context.Context, timeout time.Duration, env map[string]string, stdin string, argv ...string) fixture10ProcessResult {
+	commandCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	command := exec.CommandContext(commandCtx, argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Env = fixture10Environment(env)
@@ -60,7 +66,7 @@ func fixture10Run(ctx context.Context, env map[string]string, stdin string, argv
 	}
 	if commandCtx.Err() != nil {
 		code = 124
-		stderr.WriteString("process timed out after 15 seconds")
+		fmt.Fprintf(&stderr, "process context ended: %v (command limit %.0f seconds)", context.Cause(commandCtx), timeout.Seconds())
 	}
 	return fixture10ProcessResult{stdout: stdout.String(), stderr: stderr.String(), code: code}
 }
