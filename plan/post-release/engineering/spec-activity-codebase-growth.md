@@ -8,7 +8,7 @@
 | Release reason | Correct public project-size reporting; no shipped routing or lifecycle behavior changes. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | implementation: phases 1 to 4 committed (`6b71cb9764`, `f9c89e551d`, `7c2bdfeae7`, `71aa9c7188`, `13276d9afe`); phase 5 (canonical artifact and inspection) in progress; closure is `/ze-close` |
+| Phase | implementation: phases 1 to 4 committed (`6b71cb9764`, `f9c89e551d`, `7c2bdfeae7`, `71aa9c7188`, `13276d9afe`, `a60e6eb1a4`); the owner's four page corrections committed (`35856a314b`); canonical artifact rebuilt after each; closure is `/ze-close` |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -61,6 +61,35 @@ The approved objective, as quoted back to him:
 Approved with it: the calendar heatmap stays, only the added-lines total stops
 being shown as a size, the cumulative added-lines curve gives way to size
 curves per section, and nothing else leaves the page.
+
+### Owner review of the built page, 2026-11-12
+
+After the page was built and shown to him (`a60e6eb1a4`), he corrected four
+things. His words, dictated; the first sentence is cut off:
+
+> In the tab repository size, Go code composition should not be added as it
+> should only. "Select a recorded day" and "Lines per section" do not align
+> with "Lines gained above the axis, lines lost below", the bar should match
+> the length of the time line. It is not because of the number before the
+> graphing.
+>
+> The table on 2026-05-28 size is not constant it must not change depending on
+> the data presented.
+>
+> "In Commit calendar", "Commits within this window" does not change data
+> source when "Commit" vs "Added line" is changed
+
+| # | Reading, put back to him | Where the spec changes |
+|---|--------------------------|------------------------|
+| 1 | The Go code composition belongs only in the Commit calendar view, where the page had it before; it keeps reading the committed history | Behavior to change; Information-preservation map |
+| 2 | Each day selector is exactly as long as its chart's time line and sits under it; the axis figures do not offset it | Behavior to change; AC-11 |
+| 3 | The readout table's size is constant whatever day or sections are shown | Behavior to change; AC-11 |
+| 4 | The curve under the calendar follows the Added Lines and Commits switch | Behavior to change; Information-preservation map; Key Design Decisions |
+
+Correction 4 brings back the cumulative added-lines curve the first page
+removed, inside the calendar view only, under the switch, labelled as lines
+added by commits. Landed in `35856a314b`. He raised nothing about the charts
+drawing twelve series in the existing treatment (A-5).
 
 ### What the measurement shows (prototype, 2026-11-12)
 
@@ -164,10 +193,11 @@ Reading is complete; unchecked boxes remain template markers.
 **Behavior to change:**
 
 - The page opens on repository size, read from the committed history file, with the newest recorded day's figures as its headline.
-- The cumulative added-lines curve is replaced by size-over-time curves per section and a daily-change chart. The size view selects a date among the file's days, on its own scrubber.
+- The size view draws size-over-time curves per section and a daily-change chart. It selects a date among the file's days, on its own selector, whose bar is exactly as long as the charts' time line and sits under it, so its handle stands on the cursor line (owner review, correction 2). Its readout table has a fixed layout and is built once, so its size does not change with the day or the sections shown (correction 3).
 - The view tabs stay visible in both views. The four calendar cards and the Added Lines and Commits switch belong to the Calendar view and show only there; the added-lines total is labelled as lines added by commits, never as a total. Today the tabs, the cards and the switch are one block (`activitySummaryHTML`), which the deck shares without the tabs; the page alone gains the rule that hides cards and switch outside the Calendar view.
-- The cumulative commits curve moves under the calendar. It is drawn from the calendar's cells, over the calendar's window, so it stays with them and keeps its own readout. Today a style rule shows it only while the switch says Commits (`body[data-metric]` in `activitygrowthstyle.go`); under the calendar it shows whatever the switch says.
-- The Go composition panel, its module count and the "Current Go lines" block state the newest recorded day from the file, no longer the working tree.
+- The cumulative curve moves under the calendar and follows the calendar's switch: lines added by commits under Added Lines, commits under Commits, each accumulated over the calendar's window from the calendar's own cells, with its title, sentence, readout and selector naming the metric shown (owner review, correction 4). Its selector matches its time line as the size view's does. The first page showed commits whatever the switch said; that was wrong.
+- The calendar view opens with its own heading, "Commit calendar": a reader without JavaScript meets both views one after the other, and the heading keeps the first card on its own line in the Markdown mirror.
+- The Go composition panel sits in the Commit calendar view, after the calendar (correction 1). It, its module count and the all-Go figure state the newest recorded day from the file, no longer the working tree.
 - The working-tree Go inventory counts first-party packages whose directory is named `vendor`.
 
 ## Existing Mechanisms
@@ -403,7 +433,7 @@ style rule, the stage population test and the generation lists.
 | A-3 | Twelve sections describe the repository at every point of its history | Prototype: 0.10M of 7.89M lines fall in Other today, 0.03M of 0.05M on the first day | A large unexplained Other section | The Other section's share in the real file, day by day; owner decision O-4 | Confirmed: Other holds 97,579 of 7,905,557 lines on the newest day; the owner confirmed the table |
 | A-6 | No commit of this history is authored after it was committed | Measured on 16,558 first-parent commits: none has an author day after its committer day, none an author instant after its committer instant | The refusal of step 2 would stop the tool on a real commit | The first real whole-history run | Confirmed: the real whole-history run refused no commit |
 | A-4 | Gained and lost per file between recorded days is what "the additions" means for growth | Owner: "the growth of the codebase NOT the change over time" | He wanted commit additions per section | Put to him as a decision on 2026-11-12 | Confirmed by the owner, 2026-11-12 |
-| A-5 | The existing chart treatment carries several series without being a new treatment | `website/AI.md`: a new treatment needs owner approval | A style-guide change and his approval are owed first | His review of the preview before the canonical build | Awaiting his review |
+| A-5 | The existing chart treatment carries several series without being a new treatment | `website/AI.md`: a new treatment needs owner approval | A style-guide change and his approval are owed first | His review of the built page | He reviewed the built page on 2026-11-12 and corrected four other things, raising nothing about the series treatment. That is not an explicit approval; it is put to him again with the corrected page |
 
 ### Risks
 
@@ -458,7 +488,7 @@ style rule, the stage population test and the generation lists.
 | AC-8 | A file under other rules, a rewritten history, a ranged run with no file, a range that would leave a gap, a malformed day, an inverted or empty range, an unreadable object | `update` refuses, names what is wrong, and names the command that repairs it: the default run for a gap, the whole-history run for the others; the committed file is unchanged | The previous file survives every refusal, because a half-written history is worse than a stale one |
 | AC-9 | `check` over: a correct file; the same file after more commits the same day and on later days; a newest-day figure altered; a size altered on an older day; a stale rules identifier; a missing day | It passes the first two and reports the later commits as lag; it names the day and section of each altered figure, the stale rules and the missing day, each with its repair command | A file behind `HEAD` survives the check: new commits must not turn a gate red. An older day's files and Go split are proven by a whole-history run, not by the check |
 | AC-10 | A visitor opens the activity page, with or without JavaScript | The page opens on repository size: the newest recorded day's total and per-section figures, its date, and what the numbers measure, each figure inside a history-marked element | The calendar, its switch and its four cards stay on the Calendar view, with the commits curve under the calendar; the tabs reach both views |
-| AC-11 | Pointer, keyboard, scrubber, section selection, both themes, a 320px viewport, a section that shrank, switching views both ways | The selected day's per-section sizes, gained and lost agree with the file; an earlier peak and a later decline stay inside the chart; both views open from the tabs; focus stays visible | Commit activity stays inspectable on the Calendar view, labelled as activity |
+| AC-11 | Pointer, keyboard, selector, section selection, both themes, a 320px viewport, a section that shrank, switching views both ways, switching the calendar's metric | The selected day's per-section sizes, gained and lost agree with the file; an earlier peak and a later decline stay inside the chart; each selector's handle stands on its chart's cursor line and its bar spans the plotted first and last day; the readout table's width, columns and rows are the same for every day and selection; the calendar's curve reads cumulative commits under Commits and cumulative added lines under Added Lines, keeping the selected date; both views open from the tabs; focus stays visible | Commit activity stays inspectable on the Calendar view, labelled as activity |
 | AC-12 | The site build with the committed file, with the file missing, and with a page marker naming a section the file lacks | The build publishes the page, the mirror and `data/repo-history.json` from the file without measuring; without the file it refuses and names `./le site history update`; it refuses the unknown marker by name | The calendar's own build-time measurement survives: this spec does not own it |
 | AC-13 | The deck embed and the standalone dashboard | They render their calendar, cards and switch as before | Their added-lines figures survive, on surfaces that label them as additions |
 | AC-14 | The working-tree Go inventory over a tree holding a first-party package in a directory named `vendor` and a root `vendor/` tree | The package's files count as source or test; the root tree counts as third-party; the homepage's recorded facts are regenerated with that population | The calendar's additions keep their own exclusions: they measure activity, not the inventory |
@@ -610,10 +640,10 @@ exercised directly by the two action tests.
 | Calendar heatmap, Added Lines and Commits switch, tooltip, legend, range | Build-time calendar measurement | Kept, on the Calendar view |
 | View tabs | Static | Kept, visible in both views |
 | Four cards: total added lines, days with added lines, peak day, days shown | Same | Kept, shown with the Calendar view; the first is labelled as lines added by commits |
-| Go code composition: total, production, test, dependencies with files and code, blank, comment lines; module count | Working tree | Kept; every value, the module count included, from the newest recorded day, with its date |
-| Cumulative added lines curve | Sum of calendar cells | Replaced by size per section over time and a daily-change chart (approved 2026-11-12) |
-| Cumulative commits curve | Sum of calendar cells | Kept, moved under the calendar it is drawn from, shown whatever the metric switch says |
-| "Current Go lines": code, tests, third party, overall | Working tree | Replaced by the newest recorded day's per-section figures, which include those four |
+| Go code composition: total, production, test, dependencies with files and code, blank, comment lines; module count | Working tree | Kept, in the Commit calendar view after the calendar (owner review, correction 1); every value, the module count included, from the newest recorded day, with its date |
+| Cumulative added lines curve | Sum of calendar cells | Kept, under the calendar, shown when the switch says Added Lines and titled as lines added by commits (owner review, correction 4). The size view's curves per section and its daily-change chart are additions, not its replacement |
+| Cumulative commits curve | Sum of calendar cells | Kept, under the calendar, shown when the switch says Commits |
+| "Current Go lines": code, tests, third party, overall | Working tree | Replaced by the newest recorded day's per-section figures in the size view, and by the all-Go sentence in the Go composition |
 | Sentence "Added lines count additions, not net repository size" | Static | Kept with the calendar's added-lines card |
 | Sentence "Historical category totals are unavailable in this data" | Static | Removed: it becomes false |
 | Journey and Trust checks links | Static | Kept |
@@ -735,7 +765,10 @@ exercised directly by the two action tests.
 | The file must hold every history day up to its newest | Let a ranged run write any days | A gap passes the arithmetic and silently drops days from the curve |
 | Refuse a commit authored after it was committed | Accept it and raise later days onto it | One such commit would freeze the history on a future day; none exists today |
 | No byte sizes, no commit counts, no `day` keyword on the check | Record and offer them | The owner asked for lines per section over time; nothing designed reads the rest, and commits per day already have one definition, the calendar's |
-| The commits curve lives under the calendar | Keep it in the size view on a shared scrubber | It is drawn from the calendar's cells, over the calendar's window and its author-local days; the size view's days come from the file |
+| The cumulative curve lives under the calendar and follows its switch | Keep it in the size view on a shared scrubber; show commits whatever the switch says | It is drawn from the calendar's cells, over the calendar's window and its author-local days; the size view's days come from the file. The owner's review made it follow the switch (correction 4) |
+| The curve observes the body's metric attribute | Call into the calendar's script from the curve's | The calendar's script is shared with the deck, whose document has no curve; observing what `setMetric` already writes leaves that script untouched |
+| The day selector's geometry is derived from the chart's declared plot bounds | A full-width selector under the charts | The owner's correction 2: the handle must stand on the cursor line. The view width and the plot's first and last x are declared once and feed the charts, the script and the selector's style |
+| The readout table is built once with fixed columns | Rebuild a shrink-to-fit table for each day | The owner's correction 3: its size changed with the figures shown |
 | The Go inventory takes the table's third-party rule | Leave `collectGoStats` as it is and state the difference | Two counts of Go lines on one site must name one population; the old exclusion dropped first-party code |
 | The history stays out of `./le repo update` | List it with the other generated files | Every session's regeneration would rewrite the newest day of a file meant to be refreshed on purpose |
 | The homepage keeps its own figures | Read them from the history's newest day | Scope the owner has not decided (O-3) |
