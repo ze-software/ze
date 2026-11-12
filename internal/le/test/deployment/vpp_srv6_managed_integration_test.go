@@ -56,7 +56,7 @@ func vppSRv6Managed(t *testing.T, v *VPP, container, work string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stopVPPProcess(daemon, seen)
+	defer v.stopVPPProcess(daemon, seen)
 	defer func() {
 		// Preserve the real child's log and generated input before container
 		// cleanup, including failures before its API socket becomes ready.

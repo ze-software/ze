@@ -90,7 +90,7 @@ func TestVPPSRv6ServiceRoute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stopVPPProcess(peer, seen)
+	defer v.stopVPPProcess(peer, seen)
 	if !await(seen, "srv6 peer listening", peer, 30*time.Second) {
 		t.Fatal("SRv6 probe did not become ready: ", seen.tailLines())
 	}
@@ -98,7 +98,7 @@ func TestVPPSRv6ServiceRoute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stopVPPProcess(daemon, daemonSeen)
+	defer v.stopVPPProcess(daemon, daemonSeen)
 	if !await(seen, "srv6 ze restart requested", peer, 60*time.Second) {
 		t.Fatal("confirmed-ownership restart barrier: ", seen.tailLines(), " daemon: ", daemonSeen.tailLines())
 	}
@@ -107,7 +107,7 @@ func TestVPPSRv6ServiceRoute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stopVPPProcess(daemon, daemonSeen)
+	defer v.stopVPPProcess(daemon, daemonSeen)
 	select {
 	case <-peer.done:
 		seen.wait()
@@ -133,7 +133,7 @@ func vppSRv6StopDaemon(t *testing.T, v *VPP, container string, daemon *running, 
 	}
 	select {
 	case <-daemon.done:
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 	case <-time.After(20 * time.Second):
 		t.Fatal("Ze did not stop before restart: ", seen.tailLines())
 	}

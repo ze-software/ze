@@ -149,6 +149,11 @@ type vppIface struct {
 	// that drives the steps itself): every docker call is bound to it, so a
 	// SIGINT ends the run and the deferred removal still runs.
 	ctx context.Context
+	// stopFailure is the first daemon stop that did not end in a clean exit
+	// (stopVPPProcess). It guards the next daemon start and the run's verdict:
+	// a daemon that may still own its config store must not be followed by a
+	// replacement on the same store, and the run fails with this error.
+	stopFailure error
 }
 
 // newVPPIface answers the run the command performs over tree, with every
@@ -346,14 +351,20 @@ func (v *vppIface) proveScenarios(report VPPIfaceReport) (VPPIfaceReport, error)
 	}
 
 	for i := range vppScenarios {
+		if err := v.checkDaemonsStopped(); err != nil {
+			return report, err
+		}
 		result, err := v.proveOne(report.Container, &vppScenarios[i], loaded)
 		if err != nil {
 			return report, err
 		}
 		report.Scenarios = append(report.Scenarios, result)
 		if result.Outcome == OutcomeFail {
-			return report, nil
+			return report, v.checkDaemonsStopped()
 		}
+	}
+	if err := v.checkDaemonsStopped(); err != nil {
+		return report, err
 	}
 
 	report.Passed = true

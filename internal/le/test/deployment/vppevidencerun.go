@@ -265,7 +265,7 @@ func (v *VPP) runFIB(container, work string, mpls bool) (VPPScenarioReport, erro
 	if err != nil {
 		return VPPScenarioReport{}, err
 	}
-	defer stopVPPProcess(peer, peerSeen)
+	defer v.stopVPPProcess(peer, peerSeen)
 	if !await(peerSeen, vppPeerReadyLine, peer, vppPeerWait) {
 		return VPPScenarioReport{}, errors.New("the le test peer did not start")
 	}
@@ -274,7 +274,7 @@ func (v *VPP) runFIB(container, work string, mpls bool) (VPPScenarioReport, erro
 	if err != nil {
 		return VPPScenarioReport{}, err
 	}
-	defer stopVPPProcess(daemon, daemonSeen)
+	defer v.stopVPPProcess(daemon, daemonSeen)
 
 	query := vppCommand("show ip fib", prefix)
 	present := func(text string) bool {
@@ -361,32 +361,32 @@ func (v *VPP) runTrafficInterface(container, work string) (VPPScenarioReport, er
 	}
 	if !v.waitDaemonLine(seen, daemon, vppTrafficLogLine) {
 		checks = append(checks, failVPPCheck("applied", "traffic-control apply log not observed", "", seen))
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return finishVPPScenario(VPPScenarioTrafficInterface, checks), nil
 	}
 	ok, text, err := v.awaitPolicer(container, name, true, vppQueryWait)
 	if err != nil {
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return VPPScenarioReport{}, err
 	}
 	if !ok {
 		checks = append(checks, failVPPCheck("applied", vppMissingPolicer(name, "not observed after apply"), text, seen))
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return finishVPPScenario(VPPScenarioTrafficInterface, checks), nil
 	}
 	ok, text, err = v.awaitQuery(container, vppCommand("show interface features", iface), true, vppQueryWait,
 		func(value string) bool { return strings.Contains(strings.ToLower(value), "policer") })
 	if err != nil {
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return VPPScenarioReport{}, err
 	}
 	if !ok {
 		checks = append(checks, failVPPCheck("bound", tbDetail("real VPP policer feature not observed on ", iface), text, seen))
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return finishVPPScenario(VPPScenarioTrafficInterface, checks), nil
 	}
 	checks = append(checks, passVPPCheck("applied", vppPolicerDetail(name, "exists and is bound to", iface)))
-	stopVPPProcess(daemon, seen)
+	v.stopVPPProcess(daemon, seen)
 
 	daemon, seen, err = v.startEvidenceDaemon(container, file, 0)
 	if err != nil {
@@ -394,27 +394,27 @@ func (v *VPP) runTrafficInterface(container, work string) (VPPScenarioReport, er
 	}
 	ok, text, err = v.awaitPolicer(container, name, true, vppApplyWait)
 	if err != nil {
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return VPPScenarioReport{}, err
 	}
 	if !ok {
 		checks = append(checks, failVPPCheck("restart", vppMissingPolicer(name, "missing after ze restart with same config"), text, seen))
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return finishVPPScenario(VPPScenarioTrafficInterface, checks), nil
 	}
 	ok, text, err = v.awaitQuery(container, vppCommand("show interface features", iface), true, vppQueryWait,
 		func(value string) bool { return strings.Contains(strings.ToLower(value), "policer") })
 	if err != nil {
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return VPPScenarioReport{}, err
 	}
 	if !ok {
 		checks = append(checks, failVPPCheck("restart-bound", tbDetail("real VPP policer feature not observed on ", iface, " after ze restart"), text, seen))
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return finishVPPScenario(VPPScenarioTrafficInterface, checks), nil
 	}
 	checks = append(checks, passVPPCheck("restart", tbDetail("real VPP traffic policer ", name, " survived ze restart with same config")))
-	stopVPPProcess(daemon, seen)
+	v.stopVPPProcess(daemon, seen)
 
 	if err := v.writeConfig(work, file, vppTrafficConfig(iface, VPPScenarioTrafficInterface, false)); err != nil {
 		return VPPScenarioReport{}, err
@@ -423,7 +423,7 @@ func (v *VPP) runTrafficInterface(container, work string) (VPPScenarioReport, er
 	if err != nil {
 		return VPPScenarioReport{}, err
 	}
-	defer stopVPPProcess(daemon, seen)
+	defer v.stopVPPProcess(daemon, seen)
 	ok, text, err = v.awaitPolicer(container, name, false, vppReconcileWait)
 	if err != nil {
 		return VPPScenarioReport{}, err
@@ -467,18 +467,18 @@ func (v *VPP) runTrafficClassify(container, work, scenario, file string, classes
 	}
 	if !v.waitDaemonLine(seen, daemon, vppTrafficLogLine) {
 		checks = append(checks, failVPPCheck("applied", vppTrafficApplyMissing(scenario), "", seen))
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return finishVPPScenario(scenario, checks), nil
 	}
 	for _, name := range names {
 		ok, text, queryErr := v.awaitPolicer(container, name, true, vppQueryWait)
 		if queryErr != nil {
-			stopVPPProcess(daemon, seen)
+			v.stopVPPProcess(daemon, seen)
 			return VPPScenarioReport{}, queryErr
 		}
 		if !ok {
 			checks = append(checks, failVPPCheck("applied", vppClassifyPolicerMissing(scenario, name), text, seen))
-			stopVPPProcess(daemon, seen)
+			v.stopVPPProcess(daemon, seen)
 			return finishVPPScenario(scenario, checks), nil
 		}
 	}
@@ -486,28 +486,28 @@ func (v *VPP) runTrafficClassify(container, work, scenario, file string, classes
 		ok, text, queryErr := v.awaitQuery(container, "show classify tables", true, vppQueryWait,
 			func(value string) bool { return !strings.Contains(value, "No classifier tables configured") })
 		if queryErr != nil {
-			stopVPPProcess(daemon, seen)
+			v.stopVPPProcess(daemon, seen)
 			return VPPScenarioReport{}, queryErr
 		}
 		if !ok {
 			checks = append(checks, failVPPCheck("classify-tables", vppClassifyTablesMissing(scenario), text, seen))
-			stopVPPProcess(daemon, seen)
+			v.stopVPPProcess(daemon, seen)
 			return finishVPPScenario(scenario, checks), nil
 		}
 	}
 	ok, text, queryErr := v.awaitQuery(container, vppCommand("show interface features", iface), true, vppQueryWait,
 		func(value string) bool { return strings.Contains(strings.ToLower(value), "policer-classify") })
 	if queryErr != nil {
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return VPPScenarioReport{}, queryErr
 	}
 	if !ok {
 		checks = append(checks, failVPPCheck("classify-binding", vppClassifyBindingMissing(scenario, iface), text, seen))
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return finishVPPScenario(scenario, checks), nil
 	}
 	checks = append(checks, passVPPCheck("applied", vppClassifyApplied(scenario, iface, names)))
-	stopVPPProcess(daemon, seen)
+	v.stopVPPProcess(daemon, seen)
 
 	if err := v.writeConfig(work, file, vppTrafficConfig(iface, scenario, false)); err != nil {
 		return VPPScenarioReport{}, err
@@ -516,7 +516,7 @@ func (v *VPP) runTrafficClassify(container, work, scenario, file string, classes
 	if err != nil {
 		return VPPScenarioReport{}, err
 	}
-	defer stopVPPProcess(daemon, seen)
+	defer v.stopVPPProcess(daemon, seen)
 	for _, name := range names {
 		ok, text, queryErr = v.awaitPolicer(container, name, false, vppReconcileWait)
 		if queryErr != nil {
@@ -549,32 +549,32 @@ func (v *VPP) runFirewall(container, work string) (VPPScenarioReport, error) {
 	}
 	if !v.waitDaemonLine(seen, daemon, vppFirewallLine) {
 		checks = append(checks, failVPPCheck("applied", "firewall config apply log not observed", "", seen))
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return finishVPPScenario(VPPScenarioFirewall, checks), nil
 	}
 	ok, text, err := v.awaitACL(container, true, vppQueryWait)
 	if err != nil {
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return VPPScenarioReport{}, err
 	}
 	if !ok {
 		checks = append(checks, failVPPCheck("applied", tbDetail("expected exactly one real VPP ACL with tag ", VPPFirewallACLTag, " after apply"), text, seen))
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return finishVPPScenario(VPPScenarioFirewall, checks), nil
 	}
 	ok, text, err = v.awaitQuery(container, vppCommand("show acl-plugin interface", iface), true, vppQueryWait,
 		vppACLBound)
 	if err != nil {
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return VPPScenarioReport{}, err
 	}
 	if !ok {
 		checks = append(checks, failVPPCheck("bound", tbDetail("real VPP ACL not bound to interface ", iface), text, seen))
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return finishVPPScenario(VPPScenarioFirewall, checks), nil
 	}
 	checks = append(checks, passVPPCheck("applied", tbDetail("real VPP firewall ACL ", VPPFirewallACLTag, " exists and is bound to ", iface)))
-	stopVPPProcess(daemon, seen)
+	v.stopVPPProcess(daemon, seen)
 
 	daemon, seen, err = v.startEvidenceDaemon(container, file, 0)
 	if err != nil {
@@ -582,21 +582,21 @@ func (v *VPP) runFirewall(container, work string) (VPPScenarioReport, error) {
 	}
 	if !v.waitDaemonLine(seen, daemon, vppFirewallLine) {
 		checks = append(checks, failVPPCheck("restart", "firewall config apply log not observed after restart", "", seen))
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return finishVPPScenario(VPPScenarioFirewall, checks), nil
 	}
 	ok, text, err = v.awaitACL(container, true, vppApplyWait)
 	if err != nil {
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return VPPScenarioReport{}, err
 	}
 	if !ok {
 		checks = append(checks, failVPPCheck("restart", tbDetail("expected exactly one real VPP ACL with tag ", VPPFirewallACLTag, " after ze restart with same config"), text, seen))
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return finishVPPScenario(VPPScenarioFirewall, checks), nil
 	}
 	checks = append(checks, passVPPCheck("restart", tbDetail("real VPP firewall ACL ", VPPFirewallACLTag, " survived ze restart with same config")))
-	stopVPPProcess(daemon, seen)
+	v.stopVPPProcess(daemon, seen)
 
 	if err := v.writeConfig(work, file, vppFirewallConfig(false)); err != nil {
 		return VPPScenarioReport{}, err
@@ -605,7 +605,7 @@ func (v *VPP) runFirewall(container, work string) (VPPScenarioReport, error) {
 	if err != nil {
 		return VPPScenarioReport{}, err
 	}
-	defer stopVPPProcess(daemon, seen)
+	defer v.stopVPPProcess(daemon, seen)
 	ok, text, err = v.awaitACL(container, false, vppReconcileWait)
 	if err != nil {
 		return VPPScenarioReport{}, err

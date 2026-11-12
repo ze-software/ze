@@ -225,8 +225,14 @@ daemon by signalling its exact command inside the container, not the host
 `docker exec` client. Each replacement must reach its own startup marker before
 the harness inspects retained VPP state. A policer or ACL left by the previous
 daemon therefore cannot make a failed replacement look like a successful restart.
-<!-- source: internal/le/test/deployment/vppevidence.go -- startEvidenceDaemon -->
-<!-- source: internal/le/test/deployment/deployment.go -- running.stop -->
+A stop returns only once the daemon has exited, because a stopping ze still owns
+its config store while it finishes recording its boot configuration, which on a
+slow disk takes seconds. It waits up to two minutes after SIGTERM, then sends
+SIGKILL. A daemon that needed SIGKILL, or that is still running after it, fails
+the run with its command named, and no further daemon starts, since it may still
+own the store the next one would open.
+<!-- source: internal/le/test/deployment/vppevidence.go -- startEvidenceDaemon, stopVPPProcess, vppDaemonStopWait -->
+<!-- source: internal/le/test/deployment/deployment.go -- running.stopAwaitingExit -->
 
 `vpp` and `vpp-iface` start their container through the lab Docker
 wrapper, which labels it with the run that owns it. Ctrl-C or SIGTERM ends the

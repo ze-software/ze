@@ -29,6 +29,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -229,12 +230,15 @@ func (c *collector) wait() { c.wg.Wait() }
 // running is one started process, with the goroutine that reaps it and the
 // goroutine that reads its output.
 //
-// stop MUST be called for every running a caller starts, and wait on the
-// collector MUST come after it.
+// stop or stopAwaitingExit MUST be called for every running a caller starts,
+// and wait on the collector MUST come after it.
 type running struct {
 	done   chan struct{}
 	read   *os.File
 	signal func(syscall.Signal) error
+	// command names the process in a stop failure: the container and argv of
+	// a watched exec. A native process is named by its owner instead.
+	command string
 	// owner is nonnil only for a native process started by startWatched.
 	// That process MUST be closed through closeNative before collector.wait.
 	owner *runner.ServerProcess
@@ -323,34 +327,64 @@ func (r *running) exited() bool {
 	}
 }
 
-// stop ends the process and releases the pipe. It MUST be called for every
-// process startWatched started, and it is safe to call for one that has already
-// exited.
+// stop ends the process with the default graces and releases the pipe. It is
+// safe to call for one that has already exited. A process that outlived both
+// graces is logged at WARN: a proof whose next step needs the process gone
+// calls stopAwaitingExit and fails on the answer instead.
 func (r *running) stop() {
+	if err := r.stopAwaitingExit(stopGrace, killGrace); err != nil {
+		slog.Warn("proof process stop failed", "error", err)
+	}
+}
+
+// errProcessKilled and errProcessSurvived name the two ways a stop can fail
+// to see a clean exit, so a caller and a test can tell them apart.
+var (
+	errProcessKilled   = errors.New("did not exit on SIGTERM and was killed")
+	errProcessSurvived = errors.New("did not exit on SIGTERM or SIGKILL")
+)
+
+// stopAwaitingExit signals SIGTERM, waits up to termWait for the process to
+// exit, then signals SIGKILL and waits up to killWait. It answers nil only when
+// the process exited on SIGTERM (or had already exited). A process SIGKILL
+// ended answers errProcessKilled: its own stop did not finish. A process still
+// running after both waits answers errProcessSurvived; it can still hold what
+// it opened (a SIGKILL stays pending while the process sits in an
+// uninterruptible disk sync), so the caller MUST NOT start anything that needs
+// those resources.
+//
+// It releases the pipe either way, so the collector's wait returns. For a
+// native process it closes the owned group instead, which waits for the exit.
+func (r *running) stopAwaitingExit(termWait, killWait time.Duration) error {
 	if r.owner != nil {
-		if err := r.closeNative(); err != nil {
-			slog.Warn("native proof process cleanup failed", "error", err)
-		}
-		return
+		return r.closeNative()
 	}
 	defer r.read.Close() //nolint:errcheck // the stream is finished either way
 
 	if r.exited() {
-		return
+		return nil
 	}
-	r.signal(syscall.SIGTERM) //nolint:errcheck // a process that refuses SIGTERM is killed below
-
-	select {
-	case <-r.done:
-		return
-	case <-time.After(stopGrace):
+	r.signal(syscall.SIGTERM) //nolint:errcheck // a process the signal does not reach is killed below
+	if r.awaitExit(termWait) {
+		return nil
 	}
 
-	r.signal(syscall.SIGKILL) //nolint:errcheck // nothing further can be done about a process that survives this
+	r.signal(syscall.SIGKILL) //nolint:errcheck // the wait below judges whether it reached the process
+	if r.awaitExit(killWait) {
+		return fmt.Errorf("process %s %w after %s", r.command, errProcessKilled, termWait)
+	}
+	return fmt.Errorf("process %s %w within %s", r.command, errProcessSurvived, termWait+killWait)
+}
 
+// awaitExit answers whether the process exited within wait.
+func (r *running) awaitExit(wait time.Duration) bool {
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
 	select {
 	case <-r.done:
-	case <-time.After(killGrace):
+		return true
+	case <-timer.C:
+		return false
 	}
 }
 
@@ -521,7 +555,8 @@ func startWatchedExec(ctx context.Context, docker *interoplab.Docker, spec inter
 	execCtx, cancel := context.WithCancel(ctx)
 	proc := &running{
 		done: make(chan struct{}), read: read,
-		signal: func(syscall.Signal) error { cancel(); return nil },
+		signal:  func(syscall.Signal) error { cancel(); return nil },
+		command: spec.Container + ": " + strings.Join(spec.Command, " "),
 	}
 	seen.stream(prefix, read, progress)
 	go proc.execUntilDone(execCtx, cancel, docker, spec, write)

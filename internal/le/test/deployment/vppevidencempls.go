@@ -73,7 +73,7 @@ func (v *VPP) runMPLSLabelPop(container, work string) (VPPScenarioReport, error)
 	if err != nil {
 		return VPPScenarioReport{}, err
 	}
-	defer stopVPPProcess(daemon, seen)
+	defer v.stopVPPProcess(daemon, seen)
 
 	var label uint32
 	ok, text, err := v.awaitQuery(container, vppMPLSFIBQuery, true, v.vppApplyWait(), func(text string) bool {

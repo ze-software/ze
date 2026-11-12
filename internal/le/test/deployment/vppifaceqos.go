@@ -70,7 +70,7 @@ func (v *vppIface) proveVLANQoSReload(container string, one *vppScenario) (Scena
 		})
 		return signalErr
 	}
-	defer stopVPPProcess(daemon, seen)
+	defer v.stopVPPProcess(daemon, seen)
 
 	var expected [256]byte
 	expected[3], expected[5] = 3, 5

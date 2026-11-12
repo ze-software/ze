@@ -14,6 +14,7 @@ package testdeployment
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -41,6 +42,17 @@ const (
 	vppTrafficLogLine  = "traffic-control config applied"
 	vppFirewallLine    = "firewall config applied"
 	vppDaemonReadyLine = "Ze running."
+)
+
+// vppDaemonStopWait bounds a daemon's own stop after SIGTERM. ze waits for its
+// boot-configuration record before it exits, with no bound of its own, and a
+// slow store holds that for many seconds; two minutes is far past any stop the
+// runs have shown, so reaching it means the stop is stuck, not slow.
+// vppDaemonKillWait then bounds the reaping after SIGKILL, which stays pending
+// while the process sits in an uninterruptible disk sync.
+const (
+	vppDaemonStopWait = 2 * time.Minute
+	vppDaemonKillWait = 30 * time.Second
 )
 
 // VPP is one run of the nine deployment scenarios. It
@@ -127,8 +139,12 @@ func (v *VPP) Run(ctx context.Context) (report VPPReport, err error) {
 			return report, errors.New(tb.Str("VPP scenario ").Quoted(step.name).
 				Str(" answered as ").Quoted(scenario.Scenario).String())
 		}
+		stopped := v.checkDaemonsStopped()
 		if appendVPPScenario(&report, scenario) {
-			return report, nil
+			return report, stopped
+		}
+		if stopped != nil {
+			return report, stopped
 		}
 	}
 	report.Passed = true
@@ -382,6 +398,9 @@ func (v *VPP) writeConfig(work, name, content string) error {
 }
 
 func (v *VPP) startEvidenceDaemon(container, configFile string, port int) (*running, *collector, error) {
+	if err := v.checkDaemonsStopped(); err != nil {
+		return nil, nil, err
+	}
 	if err := v.stageConfig(container, configFile); err != nil {
 		return nil, nil, err
 	}
@@ -404,7 +423,7 @@ func (v *VPP) startEvidenceDaemon(container, configFile string, port int) (*runn
 	}
 	// Existing VPP state cannot prove that a replacement Ze process started.
 	if !await(seen, vppDaemonReadyLine, daemon, v.vppApplyWait()) {
-		stopVPPProcess(daemon, seen)
+		v.stopVPPProcess(daemon, seen)
 		return nil, nil, errors.New("VPP evidence daemon did not become ready: " + strings.Join(seen.tailLines(), "\n"))
 	}
 	return daemon, seen, nil
@@ -435,9 +454,43 @@ func (v *VPP) evidenceDaemonExec(container, configFile string, port int) interop
 	}
 }
 
-func stopVPPProcess(proc *running, seen *collector) {
-	proc.stop()
+// stopVPPProcess is the stop contract of every daemon a VPP scenario starts:
+// it answers only once the process has exited, so the next daemon never meets
+// a predecessor that still owns the config store. ze's own stop can take many
+// seconds while it finishes recording its boot configuration to a slow store
+// (awaitBootRecordAtStop, cmd/ze/hub/config_source.go), so the SIGTERM wait is
+// vppDaemonStopWait rather than the short default grace.
+//
+// A stop that did not end in a clean exit is kept in v.stopFailure, the first
+// one only. checkDaemonsStopped answers it, and every daemon start and every
+// scenario loop MUST call that, so the run fails naming the daemon. A deferred
+// call has nowhere to return an error, which is why the failure is kept on v.
+func (v *vppIface) stopVPPProcess(proc *running, seen *collector) {
+	err := proc.stopAwaitingExit(vppDaemonStopWait, vppDaemonKillWait)
 	seen.wait()
+	if err == nil {
+		return
+	}
+	v.recordStopFailure(err)
+}
+
+// recordStopFailure keeps err as the run's stop failure unless an earlier one
+// is already kept: the first daemon that did not exit is the one that explains
+// what followed.
+func (v *vppIface) recordStopFailure(err error) {
+	if v.stopFailure != nil {
+		return
+	}
+	v.stopFailure = fmt.Errorf("ze daemon did not stop cleanly: %w; it may still own its config store, "+
+		"so this run starts no further daemon. Its last output above shows what held the stop; "+
+		"once that is fixed, rerun the `./le test deployment vpp` or `vpp-iface` action that failed", err)
+}
+
+// checkDaemonsStopped answers the first daemon stop that did not end in a
+// clean exit, or nil. MUST be called before a daemon starts and after each
+// scenario.
+func (v *vppIface) checkDaemonsStopped() error {
+	return v.stopFailure
 }
 
 func (v *VPP) waitDaemonLine(seen *collector, proc *running, line string) bool {
