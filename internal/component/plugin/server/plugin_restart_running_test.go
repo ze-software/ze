@@ -22,6 +22,19 @@ import (
 // wait for every goroutine the server started, after its teardown.
 func startRestartTarget(t *testing.T, name string, policy rpc.FailurePolicy, onEvent sdk.EventHandler) *Server {
 	t.Helper()
+	return startRestartTargetWith(t, name, func(p *sdk.Plugin) *sdk.Registration {
+		if onEvent != nil {
+			p.OnEvent(onEvent)
+		}
+		return &sdk.Registration{FailurePolicy: policy}
+	})
+}
+
+// startRestartTargetWith is startRestartTarget for a plugin whose callbacks
+// and registration setup gives it: setup runs once per process the plugin
+// starts, the restart's replacement included.
+func startRestartTargetWith(t *testing.T, name string, setup func(p *sdk.Plugin) *sdk.Registration) *Server {
+	t.Helper()
 	snap := registry.Snapshot()
 	registry.Reset()
 	t.Cleanup(func() { registry.Restore(snap) })
@@ -31,10 +44,7 @@ func startRestartTarget(t *testing.T, name string, policy rpc.FailurePolicy, onE
 		Description: "restart of a running plugin",
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(name, conn)
-			if onEvent != nil {
-				p.OnEvent(onEvent)
-			}
-			if err := p.Run(context.Background(), &sdk.Registration{FailurePolicy: policy}); err != nil {
+			if err := p.Run(context.Background(), setup(p)); err != nil {
 				return 1
 			}
 			return 0

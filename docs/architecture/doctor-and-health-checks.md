@@ -1032,7 +1032,9 @@ started. Each per-plugin record lives on the plugin's `process.Process`
 respawn or restart starts clean; `PluginDoctorState.Records` carries the copy.
 What has no process to live on is on the server: the recovered engine handler
 panics, the enricher failures per plugin name (cleared with the plugin's
-process cleanup) and the daemon's last committed transaction. The server
+process cleanup and again when its next process registers its enrichers, and
+never recorded from a call through a replaced process's connection) and the
+daemon's last committed transaction. The server
 lists are bounded at 16 too. Each bounded list carries its count of the rest
 into the snapshot (`EnrichersDropped`, and the `...Dropped` fields of
 `DoctorRecord`), and its check adds one row naming that count, with `ze show

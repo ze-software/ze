@@ -195,7 +195,8 @@ type enricherFailureList struct {
 
 // enricherFailureRecord holds the enricher failures per plugin name. A call
 // that succeeds clears its own call failure, kept or counted; the plugin's
-// process cleanup clears them all (unregisterProxyEnrichers).
+// process cleanup clears them all (unregisterProxyEnrichers), and so does the
+// next process's registration (registerProxyEnrichers).
 var (
 	enricherFailureMu  sync.Mutex
 	enricherFailureMap = map[string]*enricherFailureList{}

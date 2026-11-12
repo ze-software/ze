@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -49,20 +50,32 @@ func validateEnricherDecls(enrichers []rpc.EnricherDecl) error {
 // proxyRegistry holds the enrichers each plugin registered through this
 // proxy. unregisterProxyEnrichers, a process cleanup hook registered from
 // init() (register.go), removes a plugin's entries when its process ends.
+// Guarded by proxyMu, which no caller holds across an enricher call.
 var (
 	proxyMu       sync.Mutex
 	proxyRegistry = map[string][]proxyEntry{}
 )
 
+// proxyEntry is one registered enricher and the connection of the process
+// that registered it, which its calls go through.
 type proxyEntry struct {
 	command string
 	key     string
+	conn    *plugipc.PluginConn
 }
 
 func registerProxyEnrichers(pluginName string, enrichers []rpc.EnricherDecl, conn *plugipc.PluginConn) {
 	proxyMu.Lock()
 	defer proxyMu.Unlock()
 
+	// A new process starts with no enricher failure. The cleanup of the
+	// process it replaces forgot the plugin's failures, but a call that
+	// process's stop cut can record its failure after that: Process.Stop
+	// cancels the context the cleanup waits on before it closes the bridge
+	// the call waits on. Forgotten here, under proxyMu, the record cannot
+	// outlive the registration, and recordProxyCallFailure refuses one that
+	// arrives after it.
+	forgetEnricherFailures(pluginName)
 	for _, decl := range enrichers {
 		detail := makeProxyCall(pluginName, decl.Command, decl.Key, "detail", conn)
 		brief := makeProxyCall(pluginName, decl.Command, decl.Key, "brief", conn)
@@ -78,10 +91,50 @@ func registerProxyEnrichers(pluginName string, enrichers []rpc.EnricherDecl, con
 		proxyRegistry[pluginName] = append(proxyRegistry[pluginName], proxyEntry{
 			command: decl.Command,
 			key:     decl.Key,
+			conn:    conn,
 		})
 		logger().Debug("proxy enricher registered",
 			"plugin", pluginName, "command", decl.Command, "key", decl.Key)
 	}
+}
+
+// replacedProxyConn reports whether the plugin's enrichers are registered by
+// a process other than conn's: a later process replaced it. The caller MUST
+// hold proxyMu.
+//
+// A plugin with no registered enricher is not replaced: its process ended and
+// its cleanup ran, and the next registration forgets what is recorded
+// meanwhile. makeProxyCall built without a registration (a test) records as
+// before.
+func replacedProxyConn(pluginName string, conn *plugipc.PluginConn) bool {
+	entries := proxyRegistry[pluginName]
+	return len(entries) > 0 && !slices.ContainsFunc(entries, func(e proxyEntry) bool { return e.conn == conn })
+}
+
+// recordProxyCallFailure records a failed call through conn, unless conn's
+// process was replaced. That failure belongs to the old process (a call its
+// stop cut, or one a `show` reached through the enricher it read before the
+// restart), whose cleanup forgot its failures, and recording it would blame
+// the replacement.
+func recordProxyCallFailure(pluginName string, conn *plugipc.PluginConn, failure EnricherFailure) {
+	proxyMu.Lock()
+	defer proxyMu.Unlock()
+	if replacedProxyConn(pluginName, conn) {
+		return
+	}
+	recordEnricherFailure(pluginName, failure)
+}
+
+// clearProxyCallFailure clears the call failure of one enricher once a call
+// through conn succeeded, unless conn's process was replaced: the old
+// process answering says nothing of the replacement's enricher.
+func clearProxyCallFailure(pluginName string, conn *plugipc.PluginConn, command, key string) {
+	proxyMu.Lock()
+	defer proxyMu.Unlock()
+	if replacedProxyConn(pluginName, conn) {
+		return
+	}
+	clearEnricherCallFailure(pluginName, command, key)
 }
 
 func makeProxyCall(pluginName, command, key, mode string, conn *plugipc.PluginConn) func(base map[string]any) {
@@ -101,10 +154,10 @@ func makeProxyCall(pluginName, command, key, mode string, conn *plugipc.PluginCo
 			logger().Warn("proxy enricher call failed",
 				"plugin", pluginName, "command", command, "key", key, "error", err,
 				"code", diagnostic.CodeDoctorPluginEnricherUnavailable)
-			recordEnricherFailure(pluginName, EnricherFailure{Command: command, Key: key, Error: err.Error()})
+			recordProxyCallFailure(pluginName, conn, EnricherFailure{Command: command, Key: key, Error: err.Error()})
 			return
 		}
-		clearEnricherCallFailure(pluginName, command, key)
+		clearProxyCallFailure(pluginName, conn, command, key)
 		maps.Copy(base, out.Data)
 	}
 }

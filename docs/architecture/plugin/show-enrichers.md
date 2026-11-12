@@ -49,6 +49,21 @@ plugin exits, the connection is closed, the send returns an error, and the proxy
 logs a warning. The show command continues with partial data, which is safe
 because the enrich entry point recovers from panics.
 
+**A restart cuts a call in flight, and the failure stays with the old
+process.** Stopping the old process closes its bridge or connection, which
+ends a call waiting on it at once, well inside the 2-second timeout. The proxy
+holds no lock across the call, so the cleanup that unregisters the enrichers
+never waits behind one. The failure of such a call, or of a call a `show`
+makes through the enricher it read before the restart, is not recorded against
+the plugin once a later process registered its enrichers. The registration of
+a new process also forgets the plugin's enricher failures, because a cut call
+can record its failure after the old process's cleanup already forgot them.
+<!-- source: internal/component/plugin/server/enricher.go -- registerProxyEnrichers, replacedProxyConn, recordProxyCallFailure -->
+<!-- source: internal/component/plugin/process/process.go -- Stop -->
+<!-- source: pkg/plugin/rpc/bridge.go -- SendCallback -->
+<!-- source: internal/component/plugin/server/enricher_restart_test.go -- TestRestartCutsEnricherCallInFlight -->
+
+
 **A test enricher plugin needs a command handler.** `fakeenrich` is a full
 registry-registered plugin with `RunEngine` and `OnExecuteCommand`, so a `.ci`
 can dispatch `show test enrich` through the standard command pipeline. An
