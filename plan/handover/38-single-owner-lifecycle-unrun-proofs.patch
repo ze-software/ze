@@ -1,0 +1,3978 @@
+diff --git a/docs/architecture/ldp/mpls-ldp.md b/docs/architecture/ldp/mpls-ldp.md
+index d116cb6756..c2a2a50852 100644
+--- a/docs/architecture/ldp/mpls-ldp.md
++++ b/docs/architecture/ldp/mpls-ldp.md
+@@ -239,13 +239,24 @@ An adjacency that expires drops its backoff entry, so a neighbor rediscovered
+ later is dialed on its first Hello. `expireAdjacencies` marks the session as
+ ended by the expiry before it stops it, and `onDone` records no setup failure
+ for such a session, so the entry stays gone whatever state the session was in.
++RFC 5036 section 2.5.3 does not say what becomes of the backoff when the
++adjacency is lost, and FRR's ldpd forgets it too: `adj_del` calls `nbr_del` once
++a neighbor has no adjacency left in its address family, `nbr_del` stops the
++initialization delay timer and frees the neighbor with its delay count, and
++`nbr_new` allocates the next one zeroed, so a neighbor rediscovered later is
++dialed with no delay.
++
++The interop scenario `ldp-backoff-clear-frr` checks the operational case against
++FRR: after `clear mpls ldp neighbor` ends a session that was OPERATIONAL, ze
++dials again on FRR's next Hello and logs no setup backoff for that end.
+ 
+ No timer goroutine exists for this: the Hello is the tick, and an adjacency that
+ stops sending Hellos retries nothing.
+ 
+ <!-- source: internal/plugins/ldp/register.go -- startSessionForAdj, runSession, setupRetry, recordSetupFailure, expireAdjacencies, processDiscoveryPacket -->
+ <!-- source: internal/plugins/ldp/session.go -- markAdjacencyExpired, endedByAdjacencyExpiry, ReadLoop -->
+ <!-- source: internal/plugins/ldp/session_end_test.go -- TestSessionEndAfterOperationalClearsBackoff, TestSessionEndBeforeOperationalPublishesNoSessionDown, TestRunSessionReportsOperationalToOnDone -->
++<!-- source: internal/le/interoplab/bgp/check_ldp_backoff_clear.go -- checkLDPBackoffClear, requireLDPBackoffReleased -->
+ 
+ ## Decision: LDP names no forwarding writer
+ 
+diff --git a/internal/le/interoplab/bgp/check_special.go b/internal/le/interoplab/bgp/check_special.go
+index 17f5eca3e3..cb1cc87531 100644
+--- a/internal/le/interoplab/bgp/check_special.go
++++ b/internal/le/interoplab/bgp/check_special.go
+@@ -38,6 +38,7 @@ var specialCheckers = map[string]interoplab.Checker{
+ 	bfdLinkLocalScenario:                       checkBFDLinkLocal,
+ 	ldpKeepaliveExpiryScenario:                 checkLDPKeepaliveExpiry,
+ 	ldpInitUnknownTLVScenario:                  checkLDPInitUnknownTLV,
++	ldpBackoffClearScenario:                    checkLDPBackoffClear,
+ 	bfdProfileEditScenario:                     checkBFDProfileEditLive,
+ 	attachReceiveOnlyLiveScenario:              checkAttachReceiveOnlyLive,
+ 	bfdEnableLiveScenario:                      checkBFDEnableLive,
+diff --git a/internal/test/fixture/tunnel_fixture_l2tp_ppp.go b/internal/test/fixture/tunnel_fixture_l2tp_ppp.go
+index 7b554466f7..c330835d0f 100644
+--- a/internal/test/fixture/tunnel_fixture_l2tp_ppp.go
++++ b/internal/test/fixture/tunnel_fixture_l2tp_ppp.go
+@@ -559,7 +559,7 @@ func tunnelRadiusValue(line, name string) (string, bool) {
+ func (peer *tunnelAccountingPeer) waitRadius(ctx context.Context, description string, timeout time.Duration, predicate func(string) bool) (string, error) {
+ 	deadline := time.Now().Add(timeout)
+ 	for time.Now().Before(deadline) {
+-		contents, _ := os.ReadFile("radius-rx.log")
++		contents, _ := os.ReadFile(tunnelRadiusRXLog)
+ 		for line := range strings.SplitSeq(string(contents), "\n") {
+ 			if predicate(line) {
+ 				return line, nil
+diff --git a/internal/test/fixture/tunnel_fixture_l2tp_radius.go b/internal/test/fixture/tunnel_fixture_l2tp_radius.go
+index 3a713849ca..759f031424 100644
+--- a/internal/test/fixture/tunnel_fixture_l2tp_radius.go
++++ b/internal/test/fixture/tunnel_fixture_l2tp_radius.go
+@@ -172,6 +172,12 @@ func tunnelRadiusCoA(ctx context.Context, args []string) error {
+ 	return nil
+ }
+ 
++// tunnelRadiusRXLog is the file, in the test's working directory, where
++// tunnelRadiusAccounting appends one RADIUS-RX line per packet it received.
++// The peers that assert on what the server decoded read it back under this
++// name.
++const tunnelRadiusRXLog = "radius-rx.log"
++
+ func tunnelRadiusAccounting(ctx context.Context, args []string) error {
+ 	port, err := tunnelArgPort(args, 0)
+ 	if err != nil {
+@@ -202,7 +208,7 @@ func tunnelRadiusAccounting(ctx context.Context, args []string) error {
+ 		}
+ 		line := tunnelRadiusDescribe(buffer[:n])
+ 		fmt.Println(line)
+-		file, openErr := os.OpenFile("radius-rx.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
++		file, openErr := os.OpenFile(tunnelRadiusRXLog, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+ 		if openErr != nil {
+ 			return openErr
+ 		}
+diff --git a/docs/architecture/testing/interop.md b/docs/architecture/testing/interop.md
+index c5369cea6c..933bcc99ff 100644
+--- a/docs/architecture/testing/interop.md
++++ b/docs/architecture/testing/interop.md
+@@ -4496,6 +4554,7 @@ is not packet-forwarding evidence.
+ | 38 | bgp-vpn-addpath-frr | Ze, FRR | ipv4/mpls-vpn over ADD-PATH with no path-information: FRR holds the exact RD, prefix and label, so ze wrote Path Identifier 0 (RFC 7911 Section 3) |
+ | 39 | ldp-keepalive-expiry-frr | Ze, FRR ldpd | ze's LDP KeepAlive Timer expires after an `ldplab` nft table in ze's container rewrites the TCP window ze advertises on the session to zero, so FRR can send ze no PDU while its kernel still acknowledges ze's segments (a drop of FRR's segments would also drop the ACKs they carry and stall ze's own stream); FRR logs `msg[in]: notification: ... status KeepAlive Timer Expired (fatal error)` (RFC 5036 Section 3.5.1.2.3) and leaves OPERATIONAL. Red with the send reverted: FRR logs only `connection closed by remote end`. Ships its own `daemons` (`ldpd=yes`) and gives ze transport address 172.30.0.250 so ze is the active LSR |
+ | 53 | ldp-init-unknown-tlv-frr | Ze, FRR ldpd | RFC 5036 Section 3.3 on ze's receive side: "if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored". FRR cannot send an unknown TLV, so an `ldplab` nft rule in ze's container rewrites the type of the first Capability TLV in FRR's real Initialization (0x8506, the Dynamic Capability Announcement ldpd's `send_init` writes at LDP offset 36) to 0x3f00, U and F clear, and counts each match. FRR, the originator, logs `msg[in]: notification: ... status Unknown TLV`, and stays short of OPERATIONAL for 10 s because ze never answers the ignored Initialization with a KeepAlive. With the rule removed the same peers reach OPERATIONAL, the positive control. FRR proves the Notification reached the originator and decodes as Unknown TLV; the rule's counter proves ze was shown the TLV. Red with `skipTLV` returning nil for every TLV: FRR logs no received `status Unknown TLV` Notification. Shares the `daemons` and the 172.30.0.250 transport address of `ldp-keepalive-expiry-frr` |
++| 66 | ldp-backoff-clear-frr | Ze, FRR ldpd | A session that reached OPERATIONAL leaves no setup backoff when it ends (RFC 5036 Section 2.5.3, "After such a configuration action, there is no further need to throttle subsequent session establishment attempts"). Once FRR has reported the session OPERATIONAL for 3 s, FRR runs `clear mpls ldp neighbor <ze's transport address>`: ldpd's `nbr_clear_ctl` calls `session_shutdown` with S_SHUTDOWN, so FRR sends a Shutdown Notification and closes the TCP connection while the adjacency stays. FRR holds the passive role and ze dials on each Hello FRR sends (`processDiscoveryPacket`, `startSessionForAdj`), every 1 s by `discovery hello interval 1`. FRR's `show mpls ldp neighbor json` must report ze OPERATIONAL again with an `upTime` no older than the clear (`nbr_to_ctl` restarts it on each entry to OPERATIONAL) within 8 s of the clear: the released backoff lands near 2 s, a recorded one forbids the dial for 15 s. ze's own log, read at info (`environment { log { ldp info } }`), must carry a new fatal Notification and a new session end, the proof that the clear reached ze and that info lines are read, and no new `ldp: session setup failed, next attempt delayed`. Shares the `daemons` and the 172.30.0.250 transport address of `ldp-keepalive-expiry-frr` |
+ | 40 | bgp-attr-flags-low-nibble-gobgp | Ze, GoBGP, raw injector | RFC 4271 Section 4.3: attribute 241 sent to Ze at flags 0xCF reaches GoBGP at 0xE0 (low nibble cleared, Partial stamped by Section 5), never 0xEF |
+ | 41 | bgp-large-community-no-repeat-gobgp | Ze, GoBGP, raw injector, native speaker | RFC 8092 Section 3: an export policy adding values the route already carries leaves GoBGP with each Large Community once, and the native speaker's `no-repeated-large-community` oracle finds no value sent twice on the wire. GoBGP alone cannot go red: it removes repeats on receipt, as the same section requires of a receiver (v4.10.0 decodes every value, then `ValidateAttribute` in `pkg/packet/bgp/validate.go` drops each repeat). Red on GoBGP v4.10.0 with the `largeCommunityRedundant` branch of the egress normalizer disabled: GoBGP still printed each value once, and the oracle failed on 65000:1:1 and 65000:2:2 transmitted twice in one UPDATE | <!-- doc-links: ignore (GoBGP v4.10.0 source in github.com/osrg/gobgp, outside this repository) -->
+ | 42 | bgp-mup-malformed-t1st-withdraw-gobgp | Ze, GoBGP, raw injector | draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up |
+@@ -4529,6 +4588,7 @@ is not packet-forwarding evidence.
+ <!-- source: test/interop/scenarios/ -- scenario directories -->
+ <!-- source: internal/le/interoplab/bgp/check_route_server_replacement.go -- checkRouteServerReplacement, waitBIRDReplacement, holdBIRDASPath -->
+ <!-- source: internal/le/interoplab/bgp/check_ldp_init_unknown_tlv.go -- checkLDPInitUnknownTLV, ldpInitRewrite -->
++<!-- source: internal/le/interoplab/bgp/check_ldp_backoff_clear.go -- checkLDPBackoffClear, requireLDPBackoffReleased, requireLDPRedialWithin -->
+ <!-- source: internal/le/interoplab/bgp/check_panic_cease.go -- checkPanicCease, frrReceivedCeaseUnspecific -->
+ 
+ ### Running
+diff --git a/docs/functional-tests.md b/docs/functional-tests.md
+index 8eedc4ef61..8d8ec17cf1 100644
+--- a/docs/functional-tests.md
++++ b/docs/functional-tests.md
+@@ -1538,6 +1541,42 @@ subject of the test.
+ <!-- source: test/traffic/traffic-boot-qdisc-tc.ci -- needs-linux tc qdisc assertion -->
+ <!-- source: internal/chaos/peer/simulator_actions_iface_linux.go -- iface fault executor -->
+ 
++#### An LDP neighbor on a veth pair
++
++The `ldp` suite's live-neighbor tests run the daemon through `le test fixture
++ldp/neighbor-link netns <prefix> run <argv...>`
++(`internal/test/fixture/ldp_neighbor_linux.go`). The fixture builds two network
++namespaces, `<prefix>-z` for the daemon and `<prefix>-n` for the neighbor,
++joins them with one veth pair (`ldpz0` at 10.99.0.2/24 on Ze's side, `ldpn0` at
++10.99.0.1/24 on the neighbor's), runs argv in `<prefix>-z`, and removes both
++namespaces when argv exits. Both namespaces are needed. In one namespace the
++neighbor's Hello arrives from an address that namespace owns, and Linux drops
++it as a martian. In the guest root namespace, where the `ldp` suite runs, every
++LDP daemon binds 224.0.0.2:646, and with `IP_MULTICAST_ALL` on by default each
++of them would hear this neighbor's Hellos. The namespaces also keep the fixed
++ports 646 apart, so these tests need no exclusive group.
++
++The neighbor is the observer plugin the daemon forks. It opens its Hello socket
++and its TCP 646 listener inside `<prefix>-n` (`inNamedNetns`), and speaks
++RFC 5036 through its own encoder, because `internal/plugins/ldp` is gated by
++`ze_ldp` and the fixture package is always-on. Its transport address is the
++lower one, so Ze plays the active role and dials. The scenario subscribes to
++the `ldp` namespace's session-up and session-down with an envelope, reads `show
++ldp neighbor` for the daemon's view, and either brings Ze's session to
++operational or rejects Ze's Initialization with a fatal Session
++Rejected/Parameters Max PDU Length Notification. The neighbor's sockets are
++closed only after the daemon stopped, so a session a scenario leaves
++operational ends with the daemon and never as a failed setup attempt.
++
++`test/ldp/ldp-session-end-clears-backoff.ci` ends an operational session and
++requires Ze to dial again on the first Hello after `show ldp neighbor` reads
++`discovered`. `test/ldp/ldp-setup-failure-publishes-no-session-down.ci` rejects
++the first attempt and requires the event history to be the next session's up
++and down alone. Both declare `option=needs-linux:caps=net-admin` and run as
++root in the QEMU guest.
++<!-- source: internal/test/fixture/ldp_neighbor_linux.go -- ldpNeighborLinkDriver, wireLDPNeighborLink, openLDPNeighbor, inNamedNetns, ldpNeighborSession -->
++<!-- source: internal/test/fixture/ldp_session_end_linux.go -- ldpSessionEndClearsBackoff, ldpSetupFailurePublishesNoSessionDown, ldpSessionEventLog -->
++
+ ### How a suite's concurrency is chosen
+ 
+ A `.ci` suite runs `-p N` tests at once. Where N comes from depends on the suite:
+diff --git a/internal/test/fixture/ldp_neighbor_linux.go b/internal/test/fixture/ldp_neighbor_linux.go
+new file mode 100644
+index 0000000000..8b0a38f61f
+--- /dev/null
++++ b/internal/test/fixture/ldp_neighbor_linux.go
+@@ -0,0 +1,830 @@
++//go:build linux
++
++// Design: docs/functional-tests.md -- an LDP neighbor on a veth pair
++// Related: register_ldp_neighbor_linux.go -- the fixture names
++// Related: ldp_session_end_linux.go -- the two scenarios that drive this neighbor
++// Related: plugin_fixture_clamped_path_linux.go -- createTestNetns, configureLink, runInNetns
++
++package fixture
++
++// ldp_neighbor_linux.go plays one LDP neighbor of a Ze daemon over a veth pair:
++// it sends Link Hellos, accepts the TCP session Ze opens on port 646, and either
++// brings that session to operational or rejects Ze's Initialization.
++//
++// WHY TWO NAMESPACES. `ldp/neighbor-link` runs Ze in `<prefix>-z` and keeps the
++// neighbor's link in `<prefix>-n`, joined by one veth pair. Both ends in one
++// namespace do not work: the neighbor's Hello arrives on Ze's link from an
++// address that namespace owns, and Linux drops it as a martian unless
++// accept_local is set. The guest's root namespace, where the ldp suite runs,
++// does not work either: every LDP daemon there binds 224.0.0.2:646, and a socket
++// bound to a group hears that group's datagrams from any link some socket on the
++// host joined it on (IP_MULTICAST_ALL is on by default). A sibling test's daemon
++// would then form an adjacency with this neighbor, and its own empty-neighbor
++// assertion would fail.
++//
++// WHY THE NEIGHBOR IS PASSIVE. RFC 5036 Section 2.5.2: "If A1 > A2, LSR1 plays
++// the active role; otherwise, it is passive." The neighbor's transport address
++// 10.99.0.1 is below Ze's 10.99.0.2, so Ze is the active LSR that dials, which
++// is the only role Ze plays today (startSessionForAdj).
++//
++// WHY ITS OWN CODEC. internal/plugins/ldp is gated by ze_ldp and this package is
++// always-on (feature-gates.txt), so it MUST NOT import it, and most of that
++// package's encoders are unexported. A neighbor written from RFC 5036 also does
++// not share a defect with the encoder it talks to.
++
++import (
++	"context"
++	"encoding/binary"
++	"errors"
++	"fmt"
++	"io"
++	"net"
++	"net/netip"
++	"runtime"
++	"sync"
++	"time"
++
++	"github.com/vishvananda/netlink"
++	"github.com/vishvananda/netns"
++	"golang.org/x/net/ipv4"
++)
++
++// The topology `ldp/neighbor-link` builds. The scenarios and the .ci configs
++// name the same values: Ze's link, LSR-ID and transport address, and the
++// neighbor's.
++const (
++	ldpNeighborZeLink     = "ldpz0"
++	ldpNeighborPeerLink   = "ldpn0"
++	ldpNeighborZeCIDR     = "10.99.0.2/24"
++	ldpNeighborPeerCIDR   = "10.99.0.1/24"
++	ldpNeighborLinkMTU    = 1500
++	ldpNeighborZeSuffix   = "-z"
++	ldpNeighborPeerSuffix = "-n"
++	// ldpNeighborIdentifier is the neighbor's LDP Identifier as Ze writes it
++	// (ldp.AdjacencyKey): its LSR-ID and label space 0, the key of every
++	// session event and log line Ze emits about it.
++	ldpNeighborIdentifier = "10.99.0.1:0"
++)
++
++var (
++	ldpNeighborZeLSR   = [4]byte{10, 99, 0, 2}
++	ldpNeighborPeerLSR = [4]byte{10, 99, 0, 1}
++	ldpNeighborGroup   = netip.AddrFrom4([4]byte{224, 0, 0, 2})
++)
++
++// ldpWireVersion is the protocol version, RFC 5036 Section 3.1: "This version
++// of the specification specifies LDP protocol version 1."
++const ldpWireVersion uint16 = 1
++
++// RFC 5036 wire values the neighbor sends or reads (Sections 3.1, 3.3, 3.4.6,
++// 3.5.1 to 3.5.4, 3.9).
++const (
++	ldpWirePort             = 646
++	ldpWirePDUHeaderOctets  = 10
++	ldpWireMessageHdrOctets = 8
++	ldpWireTLVHeaderOctets  = 4
++	// ldpWirePDULengthMax is the largest PDU Length read before the session
++	// negotiated another: RFC 5036 Section 3.1, "Prior to completion of the
++	// negotiation, the maximum allowable length is 4096 bytes."
++	ldpWirePDULengthMax = 4096
++
++	ldpWireNotification   uint16 = 0x0001
++	ldpWireHello          uint16 = 0x0100
++	ldpWireInitialization uint16 = 0x0200
++	ldpWireKeepAlive      uint16 = 0x0201
++	ldpWireTypeMask       uint16 = 0x7fff // clears the U-bit of a message or TLV type
++
++	ldpWireStatusTLV        uint16 = 0x0300
++	ldpWireCommonHelloTLV   uint16 = 0x0400
++	ldpWireIPv4TransportTLV uint16 = 0x0401
++	ldpWireCommonSessionTLV uint16 = 0x0500
++	ldpWireCommonSessionLen        = 14
++
++	// ldpWireStatusFatal is the E-bit of a Status Code (RFC 5036 Section 3.4.6).
++	ldpWireStatusFatal uint32 = 0x80000000
++	// ldpWireRejectedMaxPDU is Session Rejected/Parameters Max PDU Length
++	// (RFC 5036 Section 3.9, 0x00000012).
++	ldpWireRejectedMaxPDU uint32 = 0x00000012
++)
++
++// The neighbor's own session and Hello parameters.
++const (
++	// ldpNeighborHelloHold is the Hello Hold Time the neighbor proposes, in
++	// seconds. Ze holds the adjacency for it, so a scenario that pauses its
++	// Hellos for one step keeps the adjacency.
++	ldpNeighborHelloHold uint16 = 30
++	// ldpNeighborKeepalive is the KeepAlive Time the neighbor proposes, in
++	// seconds. Each scenario ends inside it; the drain worker answers Ze's
++	// KeepAlives besides.
++	ldpNeighborKeepalive uint16 = 60
++	// ldpNeighborHelloEvery is the neighbor's Hello cadence. Ze dials on a
++	// Hello, so this is the granularity of every redial the scenarios observe.
++	ldpNeighborHelloEvery = time.Second
++	// ldpNeighborReadWait bounds one read of a handshake message from Ze.
++	ldpNeighborReadWait = 10 * time.Second
++)
++
++// ldpNeighborLinkDriver is `ldp/neighbor-link netns <prefix> run <argv...>`. It
++// builds `<prefix>-z` and `<prefix>-n`, joins them with a veth pair, runs argv
++// in `<prefix>-z` and removes both namespaces when argv exits. Its exit is
++// argv's.
++func ldpNeighborLinkDriver(ctx context.Context, args []string) error {
++	plan, err := parseNetnsRunArgs(args)
++	if err != nil {
++		return err
++	}
++	if err := refuseLDPNeighborLinkOptions(plan); err != nil {
++		return err
++	}
++	// The thread stays locked for the life of the process: a namespace switch is
++	// per thread, and argv MUST be forked from this thread to inherit Ze's.
++	runtime.LockOSThread()
++	orig, err := netns.Get()
++	if err != nil {
++		return fmt.Errorf("get the current network namespace: %w", err)
++	}
++	defer orig.Close() //nolint:errcheck // best-effort close at exit
++
++	zeSide, err := createTestNetns(plan.prefix+ldpNeighborZeSuffix, orig)
++	if err != nil {
++		return err
++	}
++	defer zeSide.remove()
++
++	peerSide, err := createTestNetns(plan.prefix+ldpNeighborPeerSuffix, orig)
++	if err != nil {
++		return err
++	}
++	defer peerSide.remove()
++
++	if err := wireLDPNeighborLink(zeSide, peerSide); err != nil {
++		return err
++	}
++	return runInNetns(ctx, plan, zeSide, orig)
++}
++
++// refuseLDPNeighborLinkOptions refuses every clamped-path keyword the LDP link
++// has no use for, so a copied line fails before any namespace exists.
++func refuseLDPNeighborLinkOptions(plan *netnsRunPlan) error {
++	const refusal = "ldp/neighbor-link takes only netns <prefix> and run <argv...>"
++	if plan.routeMTU != 0 {
++		return errors.New(refusal + ": route-mtu given")
++	}
++	if len(plan.farDaemons) != 0 {
++		return errors.New(refusal + ": far-daemon given")
++	}
++	if plan.ipv6 {
++		return errors.New(refusal + ": ipv6 given")
++	}
++	if len(plan.peers) != 0 {
++		return errors.New(refusal + ": peer given")
++	}
++	if plan.withoutNetRaw {
++		return errors.New(refusal + ": without-net-raw given")
++	}
++	return nil
++}
++
++// wireLDPNeighborLink creates the veth pair with one end in each namespace,
++// addresses both ends and brings them up.
++func wireLDPNeighborLink(zeSide, peerSide *testNetns) error {
++	pair := &netlink.Veth{
++		LinkAttrs:     netlink.LinkAttrs{Name: ldpNeighborZeLink},
++		PeerName:      ldpNeighborPeerLink,
++		PeerNamespace: netlink.NsFd(int(peerSide.ns)),
++	}
++	if err := zeSide.handle.LinkAdd(pair); err != nil {
++		return fmt.Errorf("create %s/%s: %w", ldpNeighborZeLink, ldpNeighborPeerLink, err)
++	}
++	if err := zeSide.configureLink(ldpNeighborZeLink, ldpNeighborLinkMTU, ldpNeighborZeCIDR); err != nil {
++		return err
++	}
++	return peerSide.configureLink(ldpNeighborPeerLink, ldpNeighborLinkMTU, ldpNeighborPeerCIDR)
++}
++
++// ldpNeighbor is the neighbor: its Hello socket, its session listener, the
++// Hello sender and every session it accepted, all opened in the neighbor's
++// namespace. openLDPNeighbor returns it; close MUST be called, after the daemon
++// stopped, so a session the scenario left operational ends with the daemon and
++// never as a failed setup attempt. Safe for concurrent use.
++type ldpNeighbor struct {
++	listener *net.TCPListener
++	hellos   *ldpHelloer
++
++	mu       sync.Mutex
++	sessions []*ldpNeighborSession
++}
++
++// openLDPNeighbor opens the neighbor's sockets inside namespace and starts its
++// Hello sender, disabled until the scenario enables it.
++func openLDPNeighbor(ctx context.Context, namespace string) (*ldpNeighbor, error) {
++	var hello *net.UDPConn
++	var listener *net.TCPListener
++	err := inNamedNetns(namespace, func() error {
++		var openErr error
++		hello, listener, openErr = openLDPNeighborSockets(ctx)
++		return openErr
++	})
++	if err != nil {
++		return nil, err
++	}
++	return &ldpNeighbor{listener: listener, hellos: startLDPHelloer(hello)}, nil
++}
++
++// openLDPNeighborSockets opens the Hello socket, pinned to the neighbor's link
++// with TTL 1, and the listener on the neighbor's transport address. The calling
++// thread MUST be in the neighbor's namespace.
++func openLDPNeighborSockets(ctx context.Context) (*net.UDPConn, *net.TCPListener, error) {
++	link, err := net.InterfaceByName(ldpNeighborPeerLink)
++	if err != nil {
++		return nil, nil, fmt.Errorf("find %s: %w", ldpNeighborPeerLink, err)
++	}
++	address := netip.AddrFrom4(ldpNeighborPeerLSR)
++	var config net.ListenConfig
++
++	packets, err := config.ListenPacket(ctx, "udp4", netip.AddrPortFrom(address, 0).String())
++	if err != nil {
++		return nil, nil, fmt.Errorf("open the Hello socket: %w", err)
++	}
++	hello, ok := packets.(*net.UDPConn)
++	if !ok {
++		packets.Close() //nolint:errcheck // best-effort close on the error path
++		return nil, nil, fmt.Errorf("the Hello socket is a %T, not a UDP socket", packets)
++	}
++	// RFC 5036 Section 2.4.1: "LDP Link Hellos are sent as UDP packets addressed
++	// to the well-known LDP discovery port for the "all routers on this subnet"
++	// group multicast address."
++	if err := pinLDPHelloSocket(hello, link); err != nil {
++		hello.Close() //nolint:errcheck // best-effort close on the error path
++		return nil, nil, err
++	}
++
++	stream, err := config.Listen(ctx, "tcp4", netip.AddrPortFrom(address, ldpWirePort).String())
++	if err != nil {
++		hello.Close() //nolint:errcheck // best-effort close on the error path
++		return nil, nil, fmt.Errorf("listen on TCP %d: %w", ldpWirePort, err)
++	}
++	listener, ok := stream.(*net.TCPListener)
++	if !ok {
++		stream.Close() //nolint:errcheck // best-effort close on the error path
++		hello.Close()  //nolint:errcheck // best-effort close on the error path
++		return nil, nil, fmt.Errorf("the session listener is a %T, not a TCP listener", stream)
++	}
++	return hello, listener, nil
++}
++
++// pinLDPHelloSocket sends the socket's multicast out link, link-scoped.
++func pinLDPHelloSocket(hello *net.UDPConn, link *net.Interface) error {
++	packets := ipv4.NewPacketConn(hello)
++	if err := packets.SetMulticastInterface(link); err != nil {
++		return fmt.Errorf("send Hellos out %s: %w", link.Name, err)
++	}
++	if err := packets.SetMulticastTTL(1); err != nil {
++		return fmt.Errorf("set the Hello TTL to 1: %w", err)
++	}
++	if err := packets.SetMulticastLoopback(false); err != nil {
++		return fmt.Errorf("keep Hellos off the neighbor's own sockets: %w", err)
++	}
++	return nil
++}
++
++// inNamedNetns runs open on a thread switched into the named namespace, then
++// switches the thread back, so the sockets open creates belong to that
++// namespace for their lifetime. A thread that cannot switch back stays locked,
++// and the goroutine's exit retires it.
++func inNamedNetns(name string, open func() error) error {
++	target, err := netns.GetFromName(name)
++	if err != nil {
++		return fmt.Errorf("open network namespace %s: %w", name, err)
++	}
++	defer target.Close() //nolint:errcheck // best-effort close of a namespace handle
++
++	runtime.LockOSThread()
++	orig, err := netns.Get()
++	if err != nil {
++		runtime.UnlockOSThread()
++		return fmt.Errorf("get the current network namespace: %w", err)
++	}
++	defer orig.Close() //nolint:errcheck // best-effort close of a namespace handle
++
++	if err := netns.Set(target); err != nil {
++		runtime.UnlockOSThread()
++		return fmt.Errorf("enter %s: %w", name, err)
++	}
++	openErr := open()
++	if err := netns.Set(orig); err != nil {
++		return errors.Join(openErr, fmt.Errorf("return from %s: %w", name, err))
++	}
++	runtime.UnlockOSThread()
++	return openErr
++}
++
++// acceptSession waits until deadline for the next TCP connection Ze opens,
++// then reads and checks Ze's Initialization on it.
++func (n *ldpNeighbor) acceptSession(deadline time.Time) (*ldpNeighborSession, error) {
++	if err := n.listener.SetDeadline(deadline); err != nil {
++		return nil, fmt.Errorf("arm the accept deadline: %w", err)
++	}
++	conn, err := n.listener.AcceptTCP()
++	if err != nil {
++		return nil, fmt.Errorf("accept a session on TCP %d: %w", ldpWirePort, err)
++	}
++	session := &ldpNeighborSession{conn: conn}
++	n.mu.Lock()
++	n.sessions = append(n.sessions, session)
++	n.mu.Unlock()
++	if err := session.readInitialization(); err != nil {
++		return nil, err
++	}
++	return session, nil
++}
++
++// close stops the Hello sender, closes every accepted session and both
++// sockets, and returns the first failure of any of them.
++func (n *ldpNeighbor) close() error {
++	failure := n.hellos.stop()
++	n.mu.Lock()
++	sessions := n.sessions
++	n.sessions = nil
++	n.mu.Unlock()
++	for _, session := range sessions {
++		failure = errors.Join(failure, session.close())
++	}
++	if err := n.listener.Close(); err != nil {
++		failure = errors.Join(failure, fmt.Errorf("close the session listener: %w", err))
++	}
++	return failure
++}
++
++// ldpNeighborSession is one TCP connection Ze opened to the neighbor. Once
++// establish succeeds, one drain worker reads it, answering each KeepAlive Ze
++// sends, until close closes the connection and waits for the worker. close
++// MUST be called; ldpNeighbor.close calls it for every session it accepted.
++type ldpNeighborSession struct {
++	conn *net.TCPConn
++	// zeInitID is the Message ID of Ze's Initialization, which a rejection names.
++	zeInitID uint32
++
++	closeOnce sync.Once
++	closeErr  error
++	drained   chan struct{} // nil until establish starts the worker
++	drainErr  error         // written by the worker before it closes drained
++}
++
++// readInitialization reads Ze's first message and requires it to be the
++// Initialization of a session for this neighbor's adjacency.
++func (s *ldpNeighborSession) readInitialization() error {
++	pdu, err := readLDPPDU(s.conn, time.Now().Add(ldpNeighborReadWait))
++	if err != nil {
++		return fmt.Errorf("read Ze's Initialization: %w", err)
++	}
++	if pdu.lsr != ldpNeighborZeLSR {
++		return fmt.Errorf("the session's first PDU names LSR %s, want Ze's %s",
++			netip.AddrFrom4(pdu.lsr), netip.AddrFrom4(ldpNeighborZeLSR))
++	}
++	first := pdu.messages[0]
++	if first.msgType != ldpWireInitialization {
++		return fmt.Errorf("the first message Ze sent is type %#04x, want Initialization %#04x", first.msgType, ldpWireInitialization)
++	}
++	s.zeInitID = first.id
++	return checkLDPInitialization(first.body)
++}
++
++// establish plays the passive role's acceptance and waits for Ze's. RFC 5036
++// Section 2.5.3: "If they are, LSR1 replies with an Initialization message of
++// its own to propose the parameters it wishes to use and a KeepAlive message to
++// signal acceptance of LSR2's parameters." Ze's KeepAlive is its acceptance of
++// the neighbor's; the drain worker then keeps the session read.
++func (s *ldpNeighborSession) establish() error {
++	var initialization [ldpWirePDUHeaderOctets + ldpWireMessageHdrOctets + ldpWireTLVHeaderOctets + ldpWireCommonSessionLen]byte
++	if err := s.write(initialization[:writeLDPInitialization(initialization[:])]); err != nil {
++		return fmt.Errorf("send the neighbor's Initialization: %w", err)
++	}
++	if err := s.sendKeepAlive(); err != nil {
++		return fmt.Errorf("send the neighbor's KeepAlive: %w", err)
++	}
++	if err := s.awaitKeepAlive(); err != nil {
++		return err
++	}
++	s.drained = make(chan struct{})
++	go s.drain()
++	return nil
++}
++
++// awaitKeepAlive reads until Ze's KeepAlive arrives. A fatal Notification is
++// Ze's refusal of the neighbor's parameters, and is reported with its code.
++func (s *ldpNeighborSession) awaitKeepAlive() error {
++	deadline := time.Now().Add(ldpNeighborReadWait)
++	// Bounded by deadline: each pass reads one PDU, and the read fails past it.
++	for {
++		pdu, err := readLDPPDU(s.conn, deadline)
++		if err != nil {
++			return fmt.Errorf("read Ze's KeepAlive: %w", err)
++		}
++		for _, message := range pdu.messages {
++			switch message.msgType {
++			case ldpWireKeepAlive:
++				return nil
++			case ldpWireNotification:
++				return fmt.Errorf("the neighbor's Initialization was answered with %w", ldpNotificationRefusal(message.body))
++			}
++		}
++	}
++}
++
++// reject refuses Ze's Initialization and closes the connection. RFC 5036
++// Section 2.5.3: "If the parameters are not acceptable, LSR1 responds by
++// sending a Session Rejected/Parameters Error Notification message and closing
++// the TCP connection."
++func (s *ldpNeighborSession) reject() error {
++	var notification [ldpWirePDUHeaderOctets + ldpWireMessageHdrOctets + ldpWireTLVHeaderOctets + 10]byte
++	length := writeLDPNotification(notification[:], ldpWireStatusFatal|ldpWireRejectedMaxPDU, s.zeInitID, ldpWireInitialization)
++	writeErr := s.write(notification[:length])
++	if writeErr != nil {
++		writeErr = fmt.Errorf("send the Session Rejected Notification: %w", writeErr)
++	}
++	return errors.Join(writeErr, s.close())
++}
++
++// drain is the session's worker: it reads every PDU Ze sends and answers each
++// KeepAlive with one, until the connection closes.
++func (s *ldpNeighborSession) drain() {
++	defer close(s.drained)
++	// Bounded by the connection: it ends when close closes it or Ze does.
++	for {
++		pdu, err := readLDPPDU(s.conn, time.Time{})
++		if err != nil {
++			s.drainErr = err
++			return
++		}
++		for _, message := range pdu.messages {
++			if message.msgType != ldpWireKeepAlive {
++				continue
++			}
++			if err := s.sendKeepAlive(); err != nil {
++				s.drainErr = err
++				return
++			}
++		}
++	}
++}
++
++// close closes the connection and waits for the drain worker. A drain that
++// ended on anything but the close, or Ze ending the session, is reported.
++func (s *ldpNeighborSession) close() error {
++	s.closeOnce.Do(func() {
++		if err := s.conn.Close(); err != nil {
++			s.closeErr = fmt.Errorf("close the session: %w", err)
++		}
++		if s.drained == nil {
++			return
++		}
++		<-s.drained
++		if s.drainErr == nil {
++			return
++		}
++		if errors.Is(s.drainErr, net.ErrClosed) {
++			return
++		}
++		if errors.Is(s.drainErr, io.EOF) {
++			return
++		}
++		s.closeErr = errors.Join(s.closeErr, fmt.Errorf("read the operational session: %w", s.drainErr))
++	})
++	return s.closeErr
++}
++
++func (s *ldpNeighborSession) sendKeepAlive() error {
++	var keepalive [ldpWirePDUHeaderOctets + ldpWireMessageHdrOctets]byte
++	return s.write(keepalive[:writeLDPKeepAlive(keepalive[:])])
++}
++
++func (s *ldpNeighborSession) write(pdu []byte) error {
++	if err := s.conn.SetWriteDeadline(time.Now().Add(ldpNeighborReadWait)); err != nil {
++		return err
++	}
++	_, err := s.conn.Write(pdu)
++	return err
++}
++
++// ldpHelloer sends the neighbor's Link Hello every ldpNeighborHelloEvery while
++// it is enabled. It owns one goroutine: startLDPHelloer starts it, and stop
++// MUST be called to end it and close the socket. A Hello is sent only under mu,
++// so once setEnabled(false) returns no Hello is in flight. Safe for concurrent
++// use.
++type ldpHelloer struct {
++	conn   *net.UDPConn
++	target *net.UDPAddr
++	quit   chan struct{}
++	done   chan struct{}
++
++	mu      sync.Mutex
++	enabled bool
++	sent    int
++	failure error // the first send that failed
++}
++
++func startLDPHelloer(conn *net.UDPConn) *ldpHelloer {
++	h := &ldpHelloer{
++		conn:   conn,
++		target: net.UDPAddrFromAddrPort(netip.AddrPortFrom(ldpNeighborGroup, ldpWirePort)),
++		quit:   make(chan struct{}),
++		done:   make(chan struct{}),
++	}
++	go h.run()
++	return h
++}
++
++func (h *ldpHelloer) run() {
++	defer close(h.done)
++	ticker := time.NewTicker(ldpNeighborHelloEvery)
++	defer ticker.Stop()
++	// Bounded by stop: it ends when quit closes.
++	for {
++		select {
++		case <-h.quit:
++			return
++		case <-ticker.C:
++			h.mu.Lock()
++			if h.enabled {
++				h.sendLocked() //nolint:errcheck // the failure is recorded for err()
++			}
++			h.mu.Unlock()
++		}
++	}
++}
++
++// setEnabled turns the cadence on or off. Turning it on sends one Hello at
++// once, so Ze does not wait a full interval for the first one.
++func (h *ldpHelloer) setEnabled(enabled bool) {
++	h.mu.Lock()
++	defer h.mu.Unlock()
++	h.enabled = enabled
++	if enabled {
++		h.sendLocked() //nolint:errcheck // the failure is recorded for err()
++	}
++}
++
++// sendOne sends exactly one Hello whatever the cadence, and answers whether it
++// left.
++func (h *ldpHelloer) sendOne() error {
++	h.mu.Lock()
++	defer h.mu.Unlock()
++	return h.sendLocked()
++}
++
++// err answers the first Hello that failed to leave, so a scenario can tell a
++// neighbor that went silent from a Ze that ignored it.
++func (h *ldpHelloer) err() error {
++	h.mu.Lock()
++	defer h.mu.Unlock()
++	return h.failure
++}
++
++// sendLocked sends one Hello. The caller MUST hold mu.
++func (h *ldpHelloer) sendLocked() error {
++	var hello [ldpWirePDUHeaderOctets + ldpWireMessageHdrOctets + 2*(ldpWireTLVHeaderOctets+4)]byte
++	h.sent++
++	length := writeLDPHello(hello[:], uint32(h.sent))
++	_, err := h.conn.WriteToUDP(hello[:length], h.target)
++	if err != nil {
++		err = fmt.Errorf("send Hello %d: %w", h.sent, err)
++		if h.failure == nil {
++			h.failure = err
++		}
++	}
++	return err
++}
++
++// stop ends the worker, closes the socket and answers the first send failure.
++func (h *ldpHelloer) stop() error {
++	close(h.quit)
++	<-h.done
++	failure := h.err()
++	if err := h.conn.Close(); err != nil {
++		failure = errors.Join(failure, fmt.Errorf("close the Hello socket: %w", err))
++	}
++	return failure
++}
++
++// writeLDPPDUHeader writes the LDP PDU header for a body of bodyOctets after it.
++// RFC 5036 Section 3.1: PDU Length is "the total length of this PDU in octets,
++// excluding the Version and PDU Length fields."
++//
++//	0  Version (2)    2  PDU Length (2)
++//	4  LSR-ID (4)     8  Label Space (2)    10 messages
++func writeLDPPDUHeader(buf []byte, bodyOctets int) int {
++	binary.BigEndian.PutUint16(buf[0:2], ldpWireVersion)
++	binary.BigEndian.PutUint16(buf[2:4], uint16(6+bodyOctets))
++	copy(buf[4:8], ldpNeighborPeerLSR[:])
++	binary.BigEndian.PutUint16(buf[8:10], 0)
++	return ldpWirePDUHeaderOctets
++}
++
++// writeLDPMessageHeader writes a message header at off. RFC 5036 Section 3.5:
++// Message Length is the length "in octets, of Message ID, Mandatory Parameters,
++// and Optional Parameters."
++//
++//	0  U|Message Type (2)    2  Message Length (2)    4  Message ID (4)
++func writeLDPMessageHeader(buf []byte, off int, msgType uint16, parameterOctets int, id uint32) int {
++	binary.BigEndian.PutUint16(buf[off:off+2], msgType)
++	binary.BigEndian.PutUint16(buf[off+2:off+4], uint16(4+parameterOctets))
++	binary.BigEndian.PutUint32(buf[off+4:off+8], id)
++	return off + ldpWireMessageHdrOctets
++}
++
++// writeLDPTLVHeader writes a TLV header at off with the U- and F-bits clear.
++//
++//	0  U|F|Type (2)    2  Length (2)    4  Value
++func writeLDPTLVHeader(buf []byte, off int, tlvType uint16, valueOctets int) int {
++	binary.BigEndian.PutUint16(buf[off:off+2], tlvType)
++	binary.BigEndian.PutUint16(buf[off+2:off+4], uint16(valueOctets))
++	return off + ldpWireTLVHeaderOctets
++}
++
++// writeLDPHello writes the neighbor's Link Hello: a Common Hello Parameters TLV
++// with the T- and R-bits clear (RFC 5036 Section 3.5.2, a Link Hello) and an
++// IPv4 Transport Address TLV naming the neighbor's transport address.
++//
++//	10 Hello header (8)    18 Common Hello TLV: Hold Time (2), T|R|Reserved (2)
++//	26 IPv4 Transport TLV: Address (4)    34 end
++func writeLDPHello(buf []byte, id uint32) int {
++	const parameters = 2 * (ldpWireTLVHeaderOctets + 4)
++	off := writeLDPPDUHeader(buf, ldpWireMessageHdrOctets+parameters)
++	off = writeLDPMessageHeader(buf, off, ldpWireHello, parameters, id)
++	off = writeLDPTLVHeader(buf, off, ldpWireCommonHelloTLV, 4)
++	binary.BigEndian.PutUint16(buf[off:off+2], ldpNeighborHelloHold)
++	binary.BigEndian.PutUint16(buf[off+2:off+4], 0)
++	off = writeLDPTLVHeader(buf, off+4, ldpWireIPv4TransportTLV, 4)
++	copy(buf[off:off+4], ldpNeighborPeerLSR[:])
++	return off + 4
++}
++
++// writeLDPInitialization writes the neighbor's Initialization: one Common
++// Session Parameters TLV proposing protocol version 1, ldpNeighborKeepalive,
++// Downstream Unsolicited with loop detection off, the default Max PDU Length,
++// and Ze's LDP Identifier as the Receiver LDP Identifier.
++//
++//	18 Common Session TLV: Protocol Version (2), KeepAlive Time (2),
++//	   A|D|Reserved (1), PVLim (1), Max PDU Length (2),
++//	   Receiver LSR-ID (4), Receiver Label Space (2)    36 end
++func writeLDPInitialization(buf []byte) int {
++	const parameters = ldpWireTLVHeaderOctets + ldpWireCommonSessionLen
++	off := writeLDPPDUHeader(buf, ldpWireMessageHdrOctets+parameters)
++	off = writeLDPMessageHeader(buf, off, ldpWireInitialization, parameters, 1)
++	off = writeLDPTLVHeader(buf, off, ldpWireCommonSessionTLV, ldpWireCommonSessionLen)
++	binary.BigEndian.PutUint16(buf[off:off+2], ldpWireVersion)
++	binary.BigEndian.PutUint16(buf[off+2:off+4], ldpNeighborKeepalive)
++	buf[off+4] = 0
++	buf[off+5] = 0
++	// RFC 5036 Section 3.5.3: "A value of 255 or less specifies the default
++	// maximum length of 4096 octets."
++	binary.BigEndian.PutUint16(buf[off+6:off+8], 0)
++	copy(buf[off+8:off+12], ldpNeighborZeLSR[:])
++	binary.BigEndian.PutUint16(buf[off+12:off+14], 0)
++	return off + ldpWireCommonSessionLen
++}
++
++// writeLDPKeepAlive writes a KeepAlive, which carries no parameter.
++func writeLDPKeepAlive(buf []byte) int {
++	off := writeLDPPDUHeader(buf, ldpWireMessageHdrOctets)
++	return writeLDPMessageHeader(buf, off, ldpWireKeepAlive, 0, 1)
++}
++
++// writeLDPNotification writes a Notification carrying one Status TLV that names
++// the message it answers (RFC 5036 Section 3.4.6).
++//
++//	18 Status TLV: Status Code (4), Message ID (4), Message Type (2)    32 end
++func writeLDPNotification(buf []byte, status, answeredID uint32, answeredType uint16) int {
++	const parameters = ldpWireTLVHeaderOctets + 10
++	off := writeLDPPDUHeader(buf, ldpWireMessageHdrOctets+parameters)
++	off = writeLDPMessageHeader(buf, off, ldpWireNotification, parameters, 1)
++	off = writeLDPTLVHeader(buf, off, ldpWireStatusTLV, 10)
++	binary.BigEndian.PutUint32(buf[off:off+4], status)
++	binary.BigEndian.PutUint32(buf[off+4:off+8], answeredID)
++	binary.BigEndian.PutUint16(buf[off+8:off+10], answeredType)
++	return off + 10
++}
++
++// ldpReceivedMessage is one message of a PDU Ze sent: its type with the U-bit
++// cleared, its Message ID, and the parameters after the Message ID.
++type ldpReceivedMessage struct {
++	msgType uint16
++	id      uint32
++	body    []byte
++}
++
++// ldpReceivedPDU is one PDU Ze sent. messages holds at least one message.
++type ldpReceivedPDU struct {
++	lsr        [4]byte
++	labelSpace uint16
++	messages   []ldpReceivedMessage
++}
++
++// readLDPPDU reads one whole PDU from conn before deadline (none when zero) and
++// splits it into its messages. A PDU longer than the pre-negotiation maximum,
++// or a message that overruns its PDU, is an error.
++func readLDPPDU(conn net.Conn, deadline time.Time) (ldpReceivedPDU, error) {
++	var pdu ldpReceivedPDU
++	if err := conn.SetReadDeadline(deadline); err != nil {
++		return pdu, err
++	}
++	var header [4]byte
++	if _, err := io.ReadFull(conn, header[:]); err != nil {
++		return pdu, err
++	}
++	if version := binary.BigEndian.Uint16(header[0:2]); version != ldpWireVersion {
++		return pdu, fmt.Errorf("PDU version %d, want %d", version, ldpWireVersion)
++	}
++	length := int(binary.BigEndian.Uint16(header[2:4]))
++	if length < 6+ldpWireMessageHdrOctets {
++		return pdu, fmt.Errorf("PDU Length %d holds no message", length)
++	}
++	if length > ldpWirePDULengthMax {
++		return pdu, fmt.Errorf("PDU Length %d exceeds %d", length, ldpWirePDULengthMax)
++	}
++	rest := make([]byte, length)
++	if _, err := io.ReadFull(conn, rest); err != nil {
++		return pdu, err
++	}
++	copy(pdu.lsr[:], rest[0:4])
++	pdu.labelSpace = binary.BigEndian.Uint16(rest[4:6])
++	body := rest[6:]
++	// Bounded by the PDU Length checked above: each pass consumes one message.
++	for len(body) > 0 {
++		if len(body) < ldpWireMessageHdrOctets {
++			return pdu, fmt.Errorf("a %d-octet tail is shorter than a message header", len(body))
++		}
++		messageLength := int(binary.BigEndian.Uint16(body[2:4]))
++		if messageLength < 4 {
++			return pdu, fmt.Errorf("message length %d is shorter than its Message ID", messageLength)
++		}
++		end := 4 + messageLength
++		if end > len(body) {
++			return pdu, fmt.Errorf("message length %d overruns the PDU", messageLength)
++		}
++		pdu.messages = append(pdu.messages, ldpReceivedMessage{
++			msgType: binary.BigEndian.Uint16(body[0:2]) & ldpWireTypeMask,
++			id:      binary.BigEndian.Uint32(body[4:8]),
++			body:    body[8:end],
++		})
++		body = body[end:]
++	}
++	return pdu, nil
++}
++
++// findLDPTLV answers the value of the first TLV of type tlvType in parameters.
++func findLDPTLV(parameters []byte, tlvType uint16) ([]byte, error) {
++	// Bounded by len(parameters): each pass consumes one TLV.
++	for len(parameters) >= ldpWireTLVHeaderOctets {
++		found := binary.BigEndian.Uint16(parameters[0:2]) & 0x3fff
++		length := int(binary.BigEndian.Uint16(parameters[2:4]))
++		end := ldpWireTLVHeaderOctets + length
++		if end > len(parameters) {
++			return nil, fmt.Errorf("TLV %#04x of length %d overruns its message", found, length)
++		}
++		if found == tlvType {
++			return parameters[ldpWireTLVHeaderOctets:end], nil
++		}
++		parameters = parameters[end:]
++	}
++	return nil, fmt.Errorf("no TLV %#04x", tlvType)
++}
++
++// checkLDPInitialization requires Ze's Common Session Parameters to propose
++// protocol version 1 and to name the neighbor's LDP Identifier as the receiver:
++// Ze opened this session for the neighbor's adjacency.
++func checkLDPInitialization(parameters []byte) error {
++	session, err := findLDPTLV(parameters, ldpWireCommonSessionTLV)
++	if err != nil {
++		return fmt.Errorf("the Initialization Ze sent: %w", err)
++	}
++	if len(session) < ldpWireCommonSessionLen {
++		return fmt.Errorf("the Common Session Parameters Ze sent hold %d octets, want %d", len(session), ldpWireCommonSessionLen)
++	}
++	if version := binary.BigEndian.Uint16(session[0:2]); version != ldpWireVersion {
++		return fmt.Errorf("the Initialization Ze sent proposes protocol version %d, want %d", version, ldpWireVersion)
++	}
++	receiver := [4]byte(session[8:12])
++	if receiver != ldpNeighborPeerLSR {
++		return fmt.Errorf("the Initialization Ze sent names receiver %s, want the neighbor %s",
++			netip.AddrFrom4(receiver), netip.AddrFrom4(ldpNeighborPeerLSR))
++	}
++	if space := binary.BigEndian.Uint16(session[12:14]); space != 0 {
++		return fmt.Errorf("the Initialization Ze sent names receiver label space %d, want 0", space)
++	}
++	return nil
++}
++
++// ldpNotificationRefusal describes a Notification Ze sent: its Status Code, or
++// why no Status Code could be read from it.
++func ldpNotificationRefusal(parameters []byte) error {
++	status, err := findLDPTLV(parameters, ldpWireStatusTLV)
++	if err != nil {
++		return fmt.Errorf("a Notification with no readable status: %w", err)
++	}
++	if len(status) < 4 {
++		return fmt.Errorf("a Notification whose Status TLV holds %d octets", len(status))
++	}
++	return fmt.Errorf("a Notification, status %#08x", binary.BigEndian.Uint32(status[0:4]))
++}
+diff --git a/internal/test/fixture/ldp_session_end_linux.go b/internal/test/fixture/ldp_session_end_linux.go
+new file mode 100644
+index 0000000000..e14ef28eb7
+--- /dev/null
++++ b/internal/test/fixture/ldp_session_end_linux.go
+@@ -0,0 +1,448 @@
++//go:build linux
++
++// Design: docs/functional-tests.md -- an LDP neighbor on a veth pair
++// Related: ldp_neighbor_linux.go -- the neighbor these scenarios drive
++// Related: register_ldp_neighbor_linux.go -- the fixture names
++// Related: routing_fixture.go -- routingRows
++
++package fixture
++
++// ldp_session_end_linux.go holds the two scenarios that judge how Ze treats the
++// end of an LDP session, from outside the daemon: what the neighbor sees on the
++// wire, what `show ldp neighbor` reports, and which `ldp` session events an
++// observer subscribed to the namespace receives.
++//
++// The observer plugin and the neighbor are one process: the plugin is forked by
++// the daemon inside Ze's namespace, and it opens the neighbor's sockets inside
++// the neighbor's namespace (inNamedNetns), so one scenario can order a wire
++// action, a daemon read and an event check without a marker file between two
++// processes.
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"slices"
++	"sync"
++	"time"
++
++	"github.com/ze-software/ze/internal/core/textbuf"
++	"github.com/ze-software/ze/pkg/plugin/rpc"
++	"github.com/ze-software/ze/pkg/plugin/sdk"
++)
++
++const (
++	// ldpObserverName is the fallback plugin name; the daemon assigns the real one.
++	ldpObserverName = "ldp-neighbor"
++	// ldpNeighborStateOperational and ldpNeighborStateDiscovered are the two
++	// `show ldp neighbor` states the scenarios wait on: a session that reached
++	// OPERATIONAL, and an adjacency with no session at all (showNeighbors).
++	ldpNeighborStateOperational = "operational"
++	ldpNeighborStateDiscovered  = "discovered"
++	// ldpFirstDialWait bounds Ze's first dial: daemon start, discovery on the
++	// link, and the neighbor's first Hellos.
++	ldpFirstDialWait = 30 * time.Second
++	// ldpRedialWait bounds the redial after one Hello once an operational
++	// session ended. It sits below the 15 seconds a failed setup waits
++	// (setupRetryDelayMin), so a session end recorded as a failed setup cannot
++	// pass it, and far above the milliseconds a dial takes.
++	ldpRedialWait = 10 * time.Second
++	// ldpSetupBackoffFloor is the least time Ze may wait after a NAK'd
++	// Initialization. RFC 5036 Section 2.5.3: "The session establishment setup
++	// attempt following a NAK'd Initialization message MUST be delayed no less
++	// than 15 seconds, and subsequent delays MUST grow to a maximum delay of no
++	// less than 2 minutes."
++	ldpSetupBackoffFloor = 15 * time.Second
++	// ldpSetupBackoffWait bounds the dial after a rejection: the floor plus a
++	// margin for the Hello cadence and a loaded host.
++	ldpSetupBackoffWait = 40 * time.Second
++	// ldpPollAttempts and ldpPollDelay bound each wait on daemon state or on an
++	// event: 10 seconds.
++	ldpPollAttempts = 100
++	ldpPollDelay    = 100 * time.Millisecond
++)
++
++// ldpSessionEventKind is which `ldp` session event the observer received.
++type ldpSessionEventKind uint8
++
++const (
++	ldpSessionEventUnspecified ldpSessionEventKind = iota
++	ldpSessionEventUp
++	ldpSessionEventDown
++)
++
++func (k ldpSessionEventKind) String() string {
++	switch k {
++	case ldpSessionEventUp:
++		return "session-up"
++	case ldpSessionEventDown:
++		return "session-down"
++	case ldpSessionEventUnspecified:
++		return "unspecified"
++	}
++	panic("BUG: invalid ldpSessionEventKind")
++}
++
++// ldpSessionEventRecord is one session event, as the observer decoded it.
++type ldpSessionEventRecord struct {
++	kind        ldpSessionEventKind
++	peerAddress string
++	identifier  string
++	iface       string
++}
++
++// ldpSessionEventLog records the `ldp` session events the observer receives,
++// in delivery order. Safe for concurrent use: the SDK delivers on its own
++// goroutine and the scenario reads on another.
++type ldpSessionEventLog struct {
++	mu          sync.Mutex
++	records     []ldpSessionEventRecord
++	undecodable []string
++}
++
++// setup subscribes the observer to session-up and session-down, enveloped so
++// each delivery names its event, before the plugin's first stage.
++func (l *ldpSessionEventLog) setup(plugin *sdk.Plugin) error {
++	plugin.SetStartupSubscriptionsIn("ldp", []string{"session-up", "session-down"}, nil, "")
++	plugin.SetEnvelope(true)
++	plugin.OnEvent(l.observe)
++	return nil
++}
++
++// observe records one delivery. One the log cannot read is kept, and fails
++// the scenario's verdict, rather than being skipped.
++func (l *ldpSessionEventLog) observe(event string) error {
++	record, err := decodeLDPSessionEvent(event)
++	l.mu.Lock()
++	defer l.mu.Unlock()
++	if err != nil {
++		l.undecodable = append(l.undecodable, err.Error())
++		return nil
++	}
++	l.records = append(l.records, record)
++	return nil
++}
++
++func decodeLDPSessionEvent(event string) (ldpSessionEventRecord, error) {
++	var record ldpSessionEventRecord
++	envelope, err := rpc.ParseEventEnvelope(event)
++	if err != nil {
++		return record, fmt.Errorf("decode the envelope of %q: %w", event, err)
++	}
++	if envelope.Namespace != "ldp" {
++		return record, fmt.Errorf("event %q from namespace %q, subscribed to ldp only", envelope.Event, envelope.Namespace)
++	}
++	switch envelope.Event {
++	case "session-up":
++		record.kind = ldpSessionEventUp
++	case "session-down":
++		record.kind = ldpSessionEventDown
++	default:
++		return record, fmt.Errorf("event ldp/%s, subscribed to session-up and session-down only", envelope.Event)
++	}
++	var payload struct {
++		PeerAddress   string `json:"peer-address"`
++		LDPIdentifier string `json:"ldp-identifier"`
++		Interface     string `json:"interface"`
++	}
++	if err := json.Unmarshal(envelope.Payload, &payload); err != nil {
++		return record, fmt.Errorf("decode the ldp/%s payload %s: %w", envelope.Event, envelope.Payload, err)
++	}
++	record.peerAddress = payload.PeerAddress
++	record.identifier = payload.LDPIdentifier
++	record.iface = payload.Interface
++	return record, nil
++}
++
++// snapshot answers the neighbor's events so far, and an error for any
++// delivery the log could not read.
++func (l *ldpSessionEventLog) snapshot() ([]ldpSessionEventRecord, error) {
++	l.mu.Lock()
++	defer l.mu.Unlock()
++	if len(l.undecodable) != 0 {
++		return nil, fmt.Errorf("the observer received %d event(s) it could not read: %v", len(l.undecodable), l.undecodable)
++	}
++	var mine []ldpSessionEventRecord
++	for _, record := range l.records {
++		if record.identifier == ldpNeighborIdentifier {
++			mine = append(mine, record)
++		}
++	}
++	return mine, nil
++}
++
++// await waits until the observer holds at least count events for the
++// neighbor, and answers them.
++func (l *ldpSessionEventLog) await(ctx context.Context, count int) ([]ldpSessionEventRecord, error) {
++	var records []ldpSessionEventRecord
++	var readErr error
++	reached := Poll(ctx, ldpPollAttempts, ldpPollDelay, func() bool {
++		records, readErr = l.snapshot()
++		return readErr == nil && len(records) >= count
++	})
++	if readErr != nil {
++		return nil, readErr
++	}
++	if !reached {
++		return nil, fmt.Errorf("the observer holds %d ldp session event(s) for %s, want %d: %s",
++			len(records), ldpNeighborIdentifier, count, describeLDPSessionEvents(records))
++	}
++	return records, nil
++}
++
++// requireLDPSessionEvents compares the neighbor's whole event history with
++// want, and checks that every event names the neighbor and Ze's link.
++func requireLDPSessionEvents(records []ldpSessionEventRecord, want ...ldpSessionEventKind) error {
++	kinds := make([]ldpSessionEventKind, 0, len(records))
++	for _, record := range records {
++		kinds = append(kinds, record.kind)
++	}
++	if !slices.Equal(kinds, want) {
++		return fmt.Errorf("the ldp session events for %s are %s, want %v",
++			ldpNeighborIdentifier, describeLDPSessionEvents(records), want)
++	}
++	for _, record := range records {
++		if record.peerAddress != "10.99.0.1" {
++			return fmt.Errorf("%s names peer-address %q, want 10.99.0.1", record.kind, record.peerAddress)
++		}
++		if record.iface != ldpNeighborZeLink {
++			return fmt.Errorf("%s names interface %q, want %s", record.kind, record.iface, ldpNeighborZeLink)
++		}
++	}
++	return nil
++}
++
++func describeLDPSessionEvents(records []ldpSessionEventRecord) string {
++	var line textbuf.Buffer
++	line.Byte('[')
++	for index, record := range records {
++		if index > 0 {
++			line.Byte(' ')
++		}
++		line.Str(record.kind.String())
++	}
++	return line.Byte(']').String()
++}
++
++// ldpNeighborState answers the state `show ldp neighbor` reports for the
++// neighbor, and an error when the daemon reports no such neighbor.
++func ldpNeighborState(ctx context.Context, plugin *sdk.Plugin) (string, error) {
++	rows, err := routingRows(ctx, plugin, "show ldp neighbor", true)
++	if err != nil {
++		return "", err
++	}
++	for _, row := range rows {
++		if row["lsr-id"] != "10.99.0.1" {
++			continue
++		}
++		state, ok := row["state"].(string)
++		if !ok {
++			return "", fmt.Errorf("show ldp neighbor: the row for 10.99.0.1 has no state: %#v", row)
++		}
++		return state, nil
++	}
++	return "", fmt.Errorf("show ldp neighbor holds no row for 10.99.0.1: %#v", rows)
++}
++
++// awaitLDPNeighborState waits until the daemon reports the neighbor in want.
++func awaitLDPNeighborState(ctx context.Context, plugin *sdk.Plugin, want string) error {
++	var state string
++	var readErr error
++	reached := Poll(ctx, ldpPollAttempts, ldpPollDelay, func() bool {
++		state, readErr = ldpNeighborState(ctx, plugin)
++		return readErr == nil && state == want
++	})
++	if reached {
++		return nil
++	}
++	if readErr != nil {
++		return fmt.Errorf("waiting for show ldp neighbor to report %s: %w", want, readErr)
++	}
++	return fmt.Errorf("show ldp neighbor reports 10.99.0.1 %s, want %s", state, want)
++}
++
++// ldpNeighborNamespace reads the scenario arguments, `netns <name>`: the
++// namespace that holds the neighbor's link.
++func ldpNeighborNamespace(args []string) (string, error) {
++	if len(args) != 2 {
++		return "", fmt.Errorf("want netns <name>, got %d argument(s) %q", len(args), args)
++	}
++	if args[0] != "netns" {
++		return "", fmt.Errorf("want netns <name>, got %q", args[0])
++	}
++	return args[1], nil
++}
++
++// runLDPNeighborScenario opens the neighbor, runs scenario as the observer
++// plugin, and closes the neighbor only after the observer stopped, so a
++// session the scenario leaves operational ends with the daemon.
++func runLDPNeighborScenario(ctx context.Context, args []string, scenario func(context.Context, *sdk.Plugin, *ldpNeighbor, *ldpSessionEventLog) error) error {
++	namespace, err := ldpNeighborNamespace(args)
++	if err != nil {
++		return err
++	}
++	neighbor, err := openLDPNeighbor(ctx, namespace)
++	if err != nil {
++		return err
++	}
++	events := &ldpSessionEventLog{}
++	runErr := observeConfigured(ctx, ldpObserverName, &sdk.Registration{}, events.setup,
++		func(ctx context.Context, plugin *sdk.Plugin) error {
++			return scenario(ctx, plugin, neighbor, events)
++		})
++	return errors.Join(runErr, neighbor.close())
++}
++
++// bringUpLDPSession brings an accepted session to operational on both sides,
++// and waits for the daemon and the observer to say so: Ze's state reads
++// operational and the observer holds eventCount events.
++func bringUpLDPSession(ctx context.Context, plugin *sdk.Plugin, session *ldpNeighborSession, events *ldpSessionEventLog, eventCount int) ([]ldpSessionEventRecord, error) {
++	if err := session.establish(); err != nil {
++		return nil, err
++	}
++	if err := awaitLDPNeighborState(ctx, plugin, ldpNeighborStateOperational); err != nil {
++		return nil, err
++	}
++	return events.await(ctx, eventCount)
++}
++
++// endLDPSession stops the Hellos and ends an operational session from the
++// neighbor's side, then waits until the daemon reports the session gone and
++// the observer holds eventCount events. One daemon read passes between the
++// last Hello and the close, so Ze reads that Hello while the session still
++// exists and nothing dials on it after the end.
++func endLDPSession(ctx context.Context, plugin *sdk.Plugin, neighbor *ldpNeighbor, session *ldpNeighborSession, events *ldpSessionEventLog, eventCount int) ([]ldpSessionEventRecord, error) {
++	neighbor.hellos.setEnabled(false)
++	if err := awaitLDPNeighborState(ctx, plugin, ldpNeighborStateOperational); err != nil {
++		return nil, err
++	}
++	if err := session.close(); err != nil {
++		return nil, err
++	}
++	if err := awaitLDPNeighborState(ctx, plugin, ldpNeighborStateDiscovered); err != nil {
++		return nil, fmt.Errorf("after the neighbor closed the operational session: %w", err)
++	}
++	records, err := events.await(ctx, eventCount)
++	if err != nil {
++		return nil, fmt.Errorf("after the neighbor closed the operational session: %w", err)
++	}
++	return records, nil
++}
++
++// ldpSessionEndClearsBackoffDriver is `ldp/session-end-clears-backoff netns
++// <name>`, the observer of test/ldp/ldp-session-end-clears-backoff.ci.
++func ldpSessionEndClearsBackoffDriver(ctx context.Context, args []string) error {
++	return runLDPNeighborScenario(ctx, args, ldpSessionEndClearsBackoff)
++}
++
++// ldpSessionEndClearsBackoff brings a session to operational, ends it from
++// the neighbor's side, and requires Ze to dial again on the first Hello it
++// receives after the daemon reports the session gone.
++//
++// The neighbor's Hellos pause while the session ends, and exactly one Hello is
++// sent once `show ldp neighbor` reads `discovered` and the observer holds the
++// session-down. onDone deletes the session and settles the backoff under one
++// lock, so a daemon that reports `discovered` has already decided the backoff.
++// A session end recorded as a failed setup leaves a 15-second backoff, and
++// that one Hello then opens nothing.
++func ldpSessionEndClearsBackoff(ctx context.Context, plugin *sdk.Plugin, neighbor *ldpNeighbor, events *ldpSessionEventLog) error {
++	neighbor.hellos.setEnabled(true)
++	first, err := neighbor.acceptSession(time.Now().Add(ldpFirstDialWait))
++	if err != nil {
++		return fmt.Errorf("first session: %w", err)
++	}
++	if _, err := bringUpLDPSession(ctx, plugin, first, events, 1); err != nil {
++		return fmt.Errorf("first session: %w", err)
++	}
++	if _, err := endLDPSession(ctx, plugin, neighbor, first, events, 2); err != nil {
++		return err
++	}
++
++	if err := neighbor.hellos.sendOne(); err != nil {
++		return err
++	}
++	helloAt := time.Now()
++	second, err := neighbor.acceptSession(helloAt.Add(ldpRedialWait))
++	if err != nil {
++		return fmt.Errorf("no session from Ze within %s of the first Hello after the operational session ended, "+
++			"so that end left a setup backoff on the adjacency: %w", ldpRedialWait, err)
++	}
++	redial := time.Since(helloAt)
++	neighbor.hellos.setEnabled(true)
++	records, err := bringUpLDPSession(ctx, plugin, second, events, 3)
++	if err != nil {
++		return fmt.Errorf("second session: %w", err)
++	}
++	// The second session stays operational: it ends with the daemon, after the
++	// Hellos stop, so no later dial can follow it.
++	neighbor.hellos.setEnabled(false)
++	if err := requireLDPSessionEvents(records, ldpSessionEventUp, ldpSessionEventDown, ldpSessionEventUp); err != nil {
++		return err
++	}
++	if err := neighbor.hellos.err(); err != nil {
++		return err
++	}
++	netnsSay("OK: Ze dialled ", ldpNeighborIdentifier, " ", redial.Round(time.Millisecond).String(),
++		" after the first Hello that followed the end of an operational session; events ", describeLDPSessionEvents(records))
++	return nil
++}
++
++// ldpSetupFailurePublishesNoSessionDownDriver is
++// `ldp/setup-failure-publishes-no-session-down netns <name>`, the observer of
++// test/ldp/ldp-setup-failure-publishes-no-session-down.ci.
++func ldpSetupFailurePublishesNoSessionDownDriver(ctx context.Context, args []string) error {
++	return runLDPNeighborScenario(ctx, args, ldpSetupFailurePublishesNoSessionDown)
++}
++
++// ldpSetupFailurePublishesNoSessionDown rejects Ze's first Initialization, then
++// accepts the next session and ends it, and requires the event history to be
++// that one session's up and down alone.
++//
++// The accepted session is the positive control: the observer does receive a
++// session-down when one is owed, so the missing one for the rejected attempt
++// is Ze's silence and not a deaf observer. Delivery to one plugin keeps the
++// order Ze emitted in, and the rejected attempt ended at least 15 seconds
++// before the second session's session-up, so a session-down it published sits
++// first in the history.
++func ldpSetupFailurePublishesNoSessionDown(ctx context.Context, plugin *sdk.Plugin, neighbor *ldpNeighbor, events *ldpSessionEventLog) error {
++	neighbor.hellos.setEnabled(true)
++	first, err := neighbor.acceptSession(time.Now().Add(ldpFirstDialWait))
++	if err != nil {
++		return fmt.Errorf("first attempt: %w", err)
++	}
++	if err := first.reject(); err != nil {
++		return err
++	}
++	rejectedAt := time.Now()
++	if err := awaitLDPNeighborState(ctx, plugin, ldpNeighborStateDiscovered); err != nil {
++		return fmt.Errorf("after the neighbor rejected the Initialization: %w", err)
++	}
++
++	second, err := neighbor.acceptSession(rejectedAt.Add(ldpSetupBackoffWait))
++	if err != nil {
++		return fmt.Errorf("the session after the rejected attempt: %w", err)
++	}
++	waited := time.Since(rejectedAt)
++	if _, err := bringUpLDPSession(ctx, plugin, second, events, 1); err != nil {
++		return fmt.Errorf("the session after the rejected attempt: %w", err)
++	}
++	if waited < ldpSetupBackoffFloor {
++		return fmt.Errorf("a new session %s after the neighbor NAK'd Ze's Initialization, under the %s floor",
++			waited.Round(time.Millisecond), ldpSetupBackoffFloor)
++	}
++
++	records, err := endLDPSession(ctx, plugin, neighbor, second, events, 2)
++	if err != nil {
++		return err
++	}
++	if err := requireLDPSessionEvents(records, ldpSessionEventUp, ldpSessionEventDown); err != nil {
++		return fmt.Errorf("%w: the rejected attempt published a session event", err)
++	}
++	if err := neighbor.hellos.err(); err != nil {
++		return err
++	}
++	netnsSay("OK: the rejected attempt published no session event, Ze dialled again ",
++		waited.Round(time.Millisecond).String(), " later; events ", describeLDPSessionEvents(records))
++	return nil
++}
+diff --git a/internal/test/fixture/register_ldp_neighbor_linux.go b/internal/test/fixture/register_ldp_neighbor_linux.go
+new file mode 100644
+index 0000000000..422d26a9aa
+--- /dev/null
++++ b/internal/test/fixture/register_ldp_neighbor_linux.go
+@@ -0,0 +1,19 @@
++//go:build linux
++
++// register_ldp_neighbor_linux.go names the fixtures of the ldp suite's live
++// neighbor: the launcher that builds the two-namespace veth link and runs the
++// daemon on one side of it, and the two scenarios whose observer plugin plays
++// the LDP neighbor on the other side.
++//
++// Related: ldp_neighbor_linux.go -- the link, the neighbor and its RFC 5036 codec
++// Related: ldp_session_end_linux.go -- the two scenarios
++// Related: test/ldp/ldp-session-end-clears-backoff.ci -- an operational session ends, Ze redials at once
++// Related: test/ldp/ldp-setup-failure-publishes-no-session-down.ci -- a rejected setup is delayed and silent
++
++package fixture
++
++func init() {
++	Register("ldp/neighbor-link", ldpNeighborLinkDriver)
++	Register("ldp/session-end-clears-backoff", ldpSessionEndClearsBackoffDriver, StopsDaemon)
++	Register("ldp/setup-failure-publishes-no-session-down", ldpSetupFailurePublishesNoSessionDownDriver, StopsDaemon)
++}
+diff --git a/internal/test/fixture/ddos_flowspec_exit_linux.go b/internal/test/fixture/ddos_flowspec_exit_linux.go
+new file mode 100644
+index 0000000000..5a08b8fe86
+--- /dev/null
++++ b/internal/test/fixture/ddos_flowspec_exit_linux.go
+@@ -0,0 +1,276 @@
++//go:build linux
++
++// Design: docs/guide/ddos-mitigation.md -- what each end of the FlowSpec plugin does to a live announcement
++// Related: register_ddos_flowspec_exit_linux.go -- registers both drivers
++// Related: plugin_fixture_06_ddos_linux.go -- the transit veth, the remote flood, fixture06ReloadDaemon
++
++package fixture
++
++import (
++	"context"
++	"errors"
++	"fmt"
++	"os"
++	"strings"
++	"time"
++
++	"github.com/ze-software/ze/internal/core/textbuf"
++	"github.com/ze-software/ze/pkg/plugin/sdk"
++)
++
++// ddosFlowspecExitVictim is the remote victim both FlowSpec exit tests flood.
++// The FlowSpec responder defers a box-owned victim to on-host mitigation, so
++// the victim sits behind the transit veth plugin/ddos-transit-forward-drop-setup
++// builds, as for test/plugin/ddos-announce-rate-limit.ci. The detector names
++// it as a host prefix (characterize.go characterizeTarget), so the rule the
++// blackhole fallback announces is destination-ipv4 203.0.113.9/32 and nothing
++// else.
++const ddosFlowspecExitVictim = "203.0.113.9"
++
++// ddosFlowspecExitRecord is the record key the FlowSpec plugin writes for its
++// live announcement (internal/plugins/ddos/flowspec/register.go
++// announcementKey). It is spelled here, not imported: a fixture links no
++// plugin, and the key is a contract an operator reads in `ze data registered`.
++const ddosFlowspecExitRecord = "meta/ddos-flowspec/announcement"
++
++// ddosFlowspecParentRemovedConfig is what the operator commits: the .ci's file
++// with the WHOLE `ddos` block deleted. The bgp block is byte-identical, attach
++// block included, so the peer is neither torn down nor re-added
++// (reactor/delivery_graph.go: a changed attach block travels through
++// RemovePeer and AddPeer) and its session survives the reload: the withdrawal
++// is the only UPDATE the reload can put on it. The probe's plugin block stays,
++// or the reload would stop this driver before it read anything.
++const ddosFlowspecParentRemovedConfig = `traffic {
++	usage {
++		enabled true
++		track-ip true
++		interfaces {
++			interface zdd0p {
++				enabled true
++			}
++			interface zdd0 {
++				enabled true
++			}
++		}
++	}
++}
++
++bgp {
++	filter {
++		import {
++			final accept
++		}
++		export {
++			final accept
++		}
++	}
++	peer peer1 {
++		connection {
++			remote {
++				ip 127.0.0.1
++			}
++			local {
++				ip 127.0.0.2
++				accept false
++			}
++		}
++		session {
++			asn {
++				local 65000
++				remote 65001
++			}
++			router-id 1.2.3.4
++			family {
++				ipv4/unicast { prefix { maximum 10000; } }
++				ipv4/flow { prefix { maximum 10000; } }
++			}
++			capability {
++				graceful-restart disable
++			}
++		}
++
++		attach process ddos-flowspec {
++			send [ update ]
++		}
++	}
++}
++
++plugin {
++	external ddos-flowspec-parent-removed-probe {
++		run "le test fixture plugin/ddos-flowspec-parent-removed-driver"
++		encoder json
++	}
++}
++`
++
++// ddosFlowspecParentRemoved proves that deleting the whole `ddos` block puts
++// the FlowSpec withdrawal on the wire during the reload.
++//
++// It floods the remote victim until `show ddos flowspec` reports the rule live
++// AND the peer's updates-sent counter shows the announcement left, reloads the
++// daemon with the parent block deleted, then waits for updates-sent to step
++// again: nothing else can send this peer an UPDATE, because the bgp block did
++// not change. The bytes of both UPDATEs are the peer's to assert, and which
++// path withdrew is the .ci's log assertions.
++//
++// After the reload `show ddos flowspec` has no answer: the plugin that owns it
++// is stopped by the same reload. The counter is read from the BGP engine,
++// which the reload does not touch.
++func ddosFlowspecParentRemoved(ctx context.Context, args []string) error {
++	return p05Observe(ctx, args, "ddos-flowspec-parent-removed-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
++		if !waitPeerCounter03(ctx, plugin, "eor-sent", 1, 80) {
++			return errors.New("the BGP session to the test peer never sent its End-of-RIB, so no FlowSpec rule could reach it")
++		}
++		established, err := peerCounter03(ctx, plugin, addrLoopback, "updates-sent")
++		if err != nil {
++			return fmt.Errorf("read updates-sent before the flood: %w", err)
++		}
++
++		flood, err := fixture06OpenRemoteFlood(ddosFlowspecExitVictim)
++		if err != nil {
++			return err
++		}
++		defer flood.Close()
++
++		sent := 0
++		announced := Poll(ctx, 200, 250*time.Millisecond, func() bool {
++			sent += flood.blast(4000)
++			row, showErr := p05ShowMap(ctx, plugin, "show ddos flowspec")
++			if showErr != nil || row["active"] != true {
++				return false
++			}
++			updates, countErr := peerCounter03(ctx, plugin, addrLoopback, "updates-sent")
++			return countErr == nil && updates > established
++		})
++		if !announced {
++			return fmt.Errorf("ddos-flowspec announced nothing to the peer for remote victim %s within 50s of an unbroken flood (sent %d packets)",
++				ddosFlowspecExitVictim, sent)
++		}
++		before, err := peerCounter03(ctx, plugin, addrLoopback, "updates-sent")
++		if err != nil {
++			return fmt.Errorf("read updates-sent after the announcement: %w", err)
++		}
++		if err := ddosFlowspecReport("FLOWSPEC-ANNOUNCED " + ddosFlowspecExitVictim); err != nil {
++			return err
++		}
++
++		if err := fixture06ReloadDaemon(ddosFlowspecParentRemovedConfig); err != nil {
++			return err
++		}
++
++		after := before
++		withdrawn := Poll(ctx, 160, 250*time.Millisecond, func() bool {
++			updates, countErr := peerCounter03(ctx, plugin, addrLoopback, "updates-sent")
++			if countErr != nil {
++				return false
++			}
++			after = updates
++			return updates > before
++		})
++		if !withdrawn {
++			return fmt.Errorf("deleting the parent ddos block sent the peer no UPDATE within 40s (updates-sent stayed at %d): the FlowSpec rule for %s is left at the peer with no plugin to withdraw it",
++				after, ddosFlowspecExitVictim)
++		}
++		return ddosFlowspecReport("FLOWSPEC-WITHDRAWAL-SENT " + ddosFlowspecExitVictim)
++	})
++}
++
++// ddosFlowspecOrphanFlood floods the remote victim until the daemon holds the
++// FlowSpec plugin's record of the announcement, read back through the daemon
++// (`show data cat`, internal/component/config/storage/cli dataCat).
++//
++// The record is the state the orphan test needs, and `show ddos flowspec` is
++// not a barrier for it: the responder publishes the live rule before it writes
++// the record (responder.go announce), so a kill between the two would leave no
++// record. The answer is read until it names the victim, never for a time.
++func ddosFlowspecOrphanFlood(ctx context.Context, args []string) error {
++	if len(args) != 0 {
++		return errors.New("usage: plugin/ddos-flowspec-orphan-flood")
++	}
++	flood, err := fixture06OpenRemoteFlood(ddosFlowspecExitVictim)
++	if err != nil {
++		return err
++	}
++	defer flood.Close()
++
++	command := "show data cat " + ddosFlowspecExitRecord
++	want := ddosFlowspecExitVictim + "/32"
++	environment := os.Environ()
++	sent := 0
++	var last awaitAnswerRun
++	recorded := Poll(ctx, 200, 250*time.Millisecond, func() bool {
++		sent += flood.blast(4000)
++		last.code, last.stdout, last.stderr, last.err = runCaptured(ctx, environment, "", "ze", "cli", "-c", command)
++		if last.err != nil {
++			return false
++		}
++		return last.code == 0 && strings.Contains(last.stdout, want)
++	})
++	if !recorded {
++		if last.err != nil {
++			return fmt.Errorf("the daemon never held a FlowSpec record for %s within 50s of an unbroken flood (sent %d packets); the last `ze cli -c %s` did not start: %w",
++				want, sent, command, last.err)
++		}
++		return fmt.Errorf("the daemon never held a FlowSpec record for %s within 50s of an unbroken flood (sent %d packets); the last `ze cli -c %s` exited %d, stdout %q, stderr %q",
++			want, sent, command, last.code, awaitAnswerTail(last.stdout), awaitAnswerTail(last.stderr))
++	}
++	return ddosFlowspecReport("FLOWSPEC-RECORDED " + want)
++}
++
++// ddosFlowspecOrphanCode is the doctor code of a FlowSpec rule no responder
++// owns (internal/core/diagnostic CodeDoctorDDoSFlowspecOrphanAnnouncement),
++// spelled here for the same reason as ddosFlowspecExitRecord: it is what an
++// operator reads in `ze doctor`.
++const ddosFlowspecOrphanCode = "doctor-ddos-flowspec-orphan-announcement"
++
++// ddosFlowspecOrphanCleared waits until the fix `ze doctor` printed has
++// cleared the finding: in one round, the daemon answers `show doctor` with no
++// ddos-flowspec orphan finding AND refuses `show data cat` for the record,
++// which is gone. Both are asked in the same round, and the doctor answer must
++// exit zero, so a daemon that is down never reads as cleared.
++//
++// The restart the fix runs answers once the new process reached its running
++// stage, and the plugin withdraws the record from OnStarted after that, so the
++// clearing is a state to wait for, not one the restart's answer orders.
++func ddosFlowspecOrphanCleared(ctx context.Context, args []string) error {
++	if len(args) != 0 {
++		return errors.New("usage: plugin/ddos-flowspec-orphan-cleared")
++	}
++	environment := os.Environ()
++	doctorCommand := "show doctor | json"
++	recordCommand := "show data cat " + ddosFlowspecExitRecord
++	var doctor, record awaitAnswerRun
++	cleared := Poll(ctx, 120, 250*time.Millisecond, func() bool {
++		doctor.code, doctor.stdout, doctor.stderr, doctor.err = runCaptured(ctx, environment, "", "ze", "cli", "-c", doctorCommand)
++		if doctor.err != nil {
++			return false
++		}
++		if doctor.code != 0 {
++			return false
++		}
++		if strings.Contains(doctor.stdout, ddosFlowspecOrphanCode) {
++			return false
++		}
++		record.code, record.stdout, record.stderr, record.err = runCaptured(ctx, environment, "", "ze", "cli", "-c", recordCommand)
++		if record.err != nil {
++			return false
++		}
++		return record.code != 0
++	})
++	if !cleared {
++		return fmt.Errorf("the fix ze doctor printed did not clear %s within 30s; the last `ze cli -c %s` exited %d, stdout %q (start error %v); the last `ze cli -c %s` exited %d, stdout %q, stderr %q (start error %v)",
++			ddosFlowspecOrphanCode, doctorCommand, doctor.code, awaitAnswerTail(doctor.stdout), doctor.err,
++			recordCommand, record.code, awaitAnswerTail(record.stdout), awaitAnswerTail(record.stderr), record.err)
++	}
++	return ddosFlowspecReport("FLOWSPEC-REPORT-CLEARED " + ddosFlowspecExitVictim + "/32")
++}
++
++// ddosFlowspecReport writes one marker line on stderr. It goes to stderr: a
++// plugin's stdout is the protocol channel the encoder owns.
++func ddosFlowspecReport(marker string) error {
++	var tb textbuf.Buffer
++	if _, err := fmt.Fprintln(os.Stderr, tb.Str(marker).String()); err != nil {
++		return fmt.Errorf("report %s: %w", marker, err)
++	}
++	return nil
++}
+diff --git a/internal/test/fixture/register_ddos_flowspec_exit_linux.go b/internal/test/fixture/register_ddos_flowspec_exit_linux.go
+new file mode 100644
+index 0000000000..ea96f3e506
+--- /dev/null
++++ b/internal/test/fixture/register_ddos_flowspec_exit_linux.go
+@@ -0,0 +1,15 @@
++//go:build linux
++
++// Design: docs/guide/ddos-mitigation.md -- what each end of the FlowSpec plugin does to a live announcement
++// Related: ddos_flowspec_exit_linux.go -- the two drivers' bodies
++
++package fixture
++
++// The drivers of the two daemon-level FlowSpec exit tests:
++// test/reload/ddos-flowspec-parent-removed-withdraws.ci and
++// test/plugin/ddos-flowspec-orphan-doctor.ci.
++func init() {
++	Register("plugin/ddos-flowspec-parent-removed-driver", ddosFlowspecParentRemoved, StopsDaemon)
++	Register("plugin/ddos-flowspec-orphan-flood", ddosFlowspecOrphanFlood)
++	Register("plugin/ddos-flowspec-orphan-cleared", ddosFlowspecOrphanCleared)
++}
+diff --git a/internal/test/fixture/tunnel_fixture_l2tp_session_clear.go b/internal/test/fixture/tunnel_fixture_l2tp_session_clear.go
+new file mode 100644
+index 0000000000..6684279ee6
+--- /dev/null
++++ b/internal/test/fixture/tunnel_fixture_l2tp_session_clear.go
+@@ -0,0 +1,592 @@
++// Design: docs/architecture/l2tp/subscriber-session-model.md -- the order of
++// one L2TP session's notifications: an operator clear of a live session
++// leaves no subscriber, no open accounting record and no session behind
++// (spec-single-owner-lifecycle-5-session-end-locals AC-8, AC-9).
++// Related: register_l2tp_session_clear.go -- registers this peer and its RADIUS mock.
++// Related: tunnel_fixture_l2tp_ppp.go -- tunnelL2TPOpenProxySession and
++// tunnelAccountingPeer, the LAC half of the session this peer drives.
++// Related: tunnel_fixture_l2tp_radius.go -- tunnelRadiusAccounting and
++// tunnelRadiusRXLog, what the RADIUS server decoded.
++// Related: daemon_await_answer_fixture.go -- the `ze cli` barrier this
++// peer's waits follow, and awaitAnswerTail.
++// Related: test/l2tp/session-clear-leaves-no-subscriber.ci -- the only caller.
++
++package fixture
++
++import (
++	"context"
++	"encoding/binary"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"net/netip"
++	"os"
++	"slices"
++	"strings"
++	"sync/atomic"
++	"time"
++
++	"github.com/ze-software/ze/internal/core/textbuf"
++)
++
++// sessionClearDelay spaces the attempts of every wait here, and bounds each
++// read of the link. One CLI attempt is a whole `ze cli` process and an SSH
++// session, as in daemonAwaitAnswer, so a shorter delay only loads the daemon.
++const sessionClearDelay = 250 * time.Millisecond
++
++// sessionClearWaitShare is the share of the test's budget one wait may take,
++// in percent. The peer waits five times, so the five together stay under the
++// budget and a stall ends with this peer's message naming what never came.
++const sessionClearWaitShare = 15
++
++// tunnelTerminateCauseAdminReset is RFC 2866 Section 5.10 value 6, "Admin
++// Reset", described there as "Administrator reset the port or session." Ze
++// reports it for an operator clear (Subsystem.TeardownSession), which is how
++// this peer's session ends.
++const tunnelTerminateCauseAdminReset = "6"
++
++// tunnelL2TPMessageTypeCDN is the RFC 2661 Section 6.12 Call-Disconnect-Notify.
++const tunnelL2TPMessageTypeCDN = 14
++
++// tunnelL2TPAVPAssignedSessionID is the RFC 2661 Assigned Session ID AVP.
++const tunnelL2TPAVPAssignedSessionID = 14
++
++// tunnelL2TPSessionClear is the LAC peer of
++// test/l2tp/session-clear-leaves-no-subscriber.ci. It brings one PPP session
++// up to its IPCP address, waits until the daemon reports that session in every
++// view the clear must empty, has the operator clear it over the CLI, and then
++// reads each view again with no wait: the clear runs every reader of the
++// session-down before it answers (teardownSessionByID delivers before it sends
++// the CDN and returns), so the state the answer leaves is the end state.
++//
++// Arguments: <l2tp-port>. The CLI takes the daemon's SSH address and
++// credentials from the environment the runner gave this process.
++func tunnelL2TPSessionClear(ctx context.Context, args []string) error {
++	port, err := tunnelArgPort(args, 0)
++	if err != nil {
++		return err
++	}
++	peer, err := tunnelL2TPOpenProxySession(ctx, port, 1500, 1500)
++	if err != nil {
++		return err
++	}
++	defer peer.conn.Close() //nolint:errcheck // fixture teardown
++
++	if err := peer.negotiateIPCP(ctx); err != nil {
++		return err
++	}
++	address, ok := netip.AddrFromSlice(peer.negotiatedAddr.To4())
++	if !ok {
++		return fmt.Errorf("IPCP settled on %s, which is not an IPv4 address", peer.negotiatedAddr)
++	}
++
++	link := startSessionClearLink(ctx, peer)
++	defer link.stop()
++
++	acctSessionID, err := link.awaitAccountingStart(ctx)
++	if err != nil {
++		return err
++	}
++	if err := link.awaitListedSession(ctx, peer.zeSID, address); err != nil {
++		return err
++	}
++	if err := link.awaitActiveSubscriber(ctx, address); err != nil {
++		return err
++	}
++	link.clearing.Store(true)
++	if err := clearL2TPSession(ctx, peer.zeSID); err != nil {
++		return err
++	}
++	if err := checkClearedAccounting(acctSessionID); err != nil {
++		return err
++	}
++	if err := checkNoL2TPSession(ctx); err != nil {
++		return err
++	}
++	if err := checkNoSubscriber(ctx); err != nil {
++		return err
++	}
++	return link.awaitCDN(ctx, peer.zeSID)
++}
++
++// sessionClearLink keeps one session's link answered while the driver talks
++// to the daemon over the CLI: LCP echo, CHAP and IPCP, and the CDN the clear
++// brings. startSessionClearLink starts its goroutine, and the driver MUST call
++// stop before it closes the peer's socket; stop returns once the goroutine
++// has. From start to stop the goroutine alone touches the peer, its socket
++// and its sequence numbers. The driver reads only clearing, which it alone
++// writes, and the outcomes serve publishes by closing broken or cdnSeen,
++// after it wrote err or cdnSID.
++type sessionClearLink struct {
++	peer *tunnelAccountingPeer
++	// clearing says the operator's clear is under way, so ze's teardown
++	// messages and its last CDN are expected rather than a failure.
++	clearing atomic.Bool
++	cancel   context.CancelFunc
++	done     chan struct{}
++	// broken is closed once err holds the protocol failure that ended serve.
++	broken chan struct{}
++	err    error
++	// cdnSeen is closed once cdnSID holds the Assigned Session ID of the
++	// first CDN ze sent after the clear.
++	cdnSeen chan struct{}
++	cdnSID  uint16
++}
++
++func startSessionClearLink(ctx context.Context, peer *tunnelAccountingPeer) *sessionClearLink {
++	linkCtx, cancel := context.WithCancel(ctx)
++	link := &sessionClearLink{
++		peer:    peer,
++		cancel:  cancel,
++		done:    make(chan struct{}),
++		broken:  make(chan struct{}),
++		cdnSeen: make(chan struct{}),
++	}
++	go link.serve(linkCtx)
++	return link
++}
++
++// stop ends serve and waits for it. MUST be called before the peer's socket
++// is closed.
++func (link *sessionClearLink) stop() {
++	link.cancel()
++	<-link.done
++}
++
++// serve answers the link until ctx ends or the session breaks. Its loop is
++// bounded by ctx: every read ends within sessionClearDelay.
++func (link *sessionClearLink) serve(ctx context.Context) {
++	defer close(link.done)
++	cdnRecorded := false
++	for ctx.Err() == nil {
++		packet, err := link.peer.readPacket(sessionClearDelay)
++		if err != nil {
++			// A read deadline passing is the normal answer of an idle link.
++			continue
++		}
++		if link.clearing.Load() {
++			// The clear tears the session down: what ze sends from here on
++			// is its teardown, and nothing is owed to keep the link alive.
++			link.peer.silent = true
++		}
++		avps, isCDN := tunnelL2TPCDN(packet)
++		if !isCDN {
++			if err := link.peer.handleAccountingPacket(packet); err != nil {
++				link.fail(err)
++				return
++			}
++			continue
++		}
++		link.acknowledge(packet)
++		if !link.clearing.Load() {
++			link.fail(errors.New("ze sent a CDN before the operator cleared the session"))
++			return
++		}
++		if cdnRecorded {
++			continue
++		}
++		cdnRecorded = true
++		if err := link.recordCDN(avps); err != nil {
++			link.fail(err)
++			return
++		}
++	}
++}
++
++// tunnelL2TPCDN answers the AVPs of packet when it is a control message
++// carrying a Call-Disconnect-Notify, and false for anything else.
++func tunnelL2TPCDN(packet []byte) (map[uint16][]byte, bool) {
++	if len(packet) < 12 {
++		return nil, false
++	}
++	if binary.BigEndian.Uint16(packet[:2])&0x8000 == 0 {
++		return nil, false
++	}
++	avps, err := tunnelL2TPParseAVPs(packet)
++	if err != nil {
++		// Not a well-formed control message, so not a CDN: the accounting
++		// peer's own handler judges it.
++		return nil, false
++	}
++	if tunnelL2TPMessageType(avps) != tunnelL2TPMessageTypeCDN {
++		return nil, false
++	}
++	return avps, true
++}
++
++// acknowledge advances Nr past the control message in packet and sends the
++// ZLB that acknowledges it, so ze stops retransmitting it.
++func (link *sessionClearLink) acknowledge(packet []byte) {
++	peer := link.peer
++	if ns := binary.BigEndian.Uint16(packet[8:10]); ns == peer.nr {
++		peer.nr = ns + 1
++	}
++	// A lost ZLB only makes ze retransmit the CDN, which serve acknowledges
++	// again.
++	_, _ = peer.conn.WriteToUDP(tunnelL2TPControl(peer.localTID, 0, peer.ns, peer.nr, nil), peer.target)
++}
++
++// recordCDN publishes the session the CDN named.
++func (link *sessionClearLink) recordCDN(avps map[uint16][]byte) error {
++	sid := avps[tunnelL2TPAVPAssignedSessionID]
++	if len(sid) != 2 {
++		// RFC 2661 Section 6.12: "The following AVPs MUST be present in the
++		// CDN:" Message Type, Result Code and Assigned Session ID.
++		return fmt.Errorf("ze's CDN carries an Assigned Session ID of %d octets, want 2", len(sid))
++	}
++	link.cdnSID = binary.BigEndian.Uint16(sid)
++	close(link.cdnSeen)
++	return nil
++}
++
++func (link *sessionClearLink) fail(err error) {
++	link.err = err
++	close(link.broken)
++}
++
++// failure answers the error that ended serve, or nil while the link holds.
++func (link *sessionClearLink) failure() error {
++	select {
++	case <-link.broken:
++		return link.err
++	default:
++		return nil
++	}
++}
++
++// The Acct-Status-Type values tunnelRadiusDescribe writes for RFC 2866
++// Section 5.1 values 1 and 2.
++const (
++	accountingStatusStart = "Start"
++	accountingStatusStop  = "Stop"
++)
++
++// await polls probe every sessionClearDelay within its share of the test's
++// budget. probe answers nil once the state holds, and otherwise an error
++// saying what it saw instead: a failed CLI run is "not yet", as in
++// daemonAwaitAnswer. The link breaking ends the wait with its own error, and a
++// state that never came ends it with the last attempt's.
++func (link *sessionClearLink) await(ctx context.Context, what string, probe func() error) error {
++	var broken error
++	last := errors.New("no attempt finished")
++	attempts := WaitAttempts(sessionClearWaitShare, sessionClearDelay, 120)
++	held := Poll(ctx, attempts, sessionClearDelay, func() bool {
++		if err := link.failure(); err != nil {
++			broken = err
++			return true
++		}
++		if err := probe(); err != nil {
++			last = err
++			return false
++		}
++		return true
++	})
++	if broken != nil {
++		return broken
++	}
++	if !held {
++		return fmt.Errorf("%s never came; the last attempt saw: %w", what, last)
++	}
++	return nil
++}
++
++// awaitAccountingStart waits for the Accounting-Start of the session at the
++// RADIUS server and answers its Acct-Session-Id. Accounting starts on its own
++// goroutine after the address is published, so the Start being at the
++// server, before the clear is issued, is this test's precondition: it takes
++// the Start-after-Stop race out of what is asserted.
++func (link *sessionClearLink) awaitAccountingStart(ctx context.Context) (string, error) {
++	var start accountingRecord
++	err := link.await(ctx, "an Accounting-Start at the RADIUS server", func() error {
++		records, err := readAccountingRecords()
++		if err != nil {
++			return err
++		}
++		for _, record := range records {
++			if record.status == accountingStatusStart {
++				start = record
++				return nil
++			}
++		}
++		return fmt.Errorf("%d accounting records, none a Start", len(records))
++	})
++	if err != nil {
++		return "", err
++	}
++	if start.sessionID == "" {
++		// RFC 2866 Section 5.5: "The start and stop records for a given
++		// session MUST have the same Acct-Session-Id."
++		return "", fmt.Errorf("the Accounting-Start carries no Acct-Session-Id: %s", start.line)
++	}
++	var line textbuf.Buffer
++	fmt.Println(line.Str("OK: Accounting-Start with Acct-Session-Id ").Str(start.sessionID).
++		Str(" reached the RADIUS server before the clear").String())
++	return start.sessionID, nil
++}
++
++// The two commands whose answers the clear must empty.
++const (
++	sessionClearShowSessions    = "show l2tp sessions | json"
++	sessionClearShowSubscribers = "show subscriber | json"
++)
++
++// awaitListedSession waits until `show l2tp sessions` lists the session with
++// its address. It is the positive control for checkNoL2TPSession: the same
++// command, in the same run, did list the session.
++func (link *sessionClearLink) awaitListedSession(ctx context.Context, sid uint16, address netip.Addr) error {
++	what := "session " + sessionIDText(sid) + " with address " + address.String()
++	err := link.awaitRow(ctx, what, sessionClearShowSessions, "local-sid", func(row map[string]any) bool {
++		return row["local-sid"] == float64(sid) && row["assigned-addr"] == address.String()
++	})
++	if err != nil {
++		return err
++	}
++	fmt.Println("OK: show l2tp sessions lists " + what)
++	return nil
++}
++
++// awaitActiveSubscriber waits until `show subscriber` lists an active L2TP
++// subscriber holding the address. Active means the session-up reached the
++// registry, so both the address and the session-up of this session were
++// delivered before the clear. It is the positive control for
++// checkNoSubscriber.
++func (link *sessionClearLink) awaitActiveSubscriber(ctx context.Context, address netip.Addr) error {
++	what := "an active l2tp subscriber with address " + address.String()
++	err := link.awaitRow(ctx, what, sessionClearShowSubscribers, "access-type", func(row map[string]any) bool {
++		return row["access-type"] == "l2tp" && row["state"] == "active" && row["ipv4"] == address.String()
++	})
++	if err != nil {
++		return err
++	}
++	fmt.Println("OK: show subscriber lists " + what)
++	return nil
++}
++
++// awaitRow polls command until one object holding key in its answer matches.
++// A CLI run that fails is "not yet", as in daemonAwaitAnswer, and the message
++// for a state that never came quotes the last answer or failure.
++func (link *sessionClearLink) awaitRow(ctx context.Context, what, command, key string, match func(map[string]any) bool) error {
++	return link.await(ctx, what+" in `"+command+"`", func() error {
++		answer, err := sessionClearCLI(ctx, command)
++		if err != nil {
++			return err
++		}
++		if slices.ContainsFunc(jsonObjectsWith(answer, key), match) {
++			return nil
++		}
++		return errors.New("an answer without it: " + describeJSON(answer))
++	})
++}
++
++// clearL2TPSession is the operator's clear of one session, over the CLI.
++func clearL2TPSession(ctx context.Context, sid uint16) error {
++	command := "clear l2tp session id " + sessionIDText(sid) + " | json"
++	answer, err := sessionClearCLI(ctx, command)
++	if err != nil {
++		return err
++	}
++	for _, row := range jsonObjectsWith(answer, "status") {
++		if row["action"] == "session-teardown" && row["session-id"] == float64(sid) && row["status"] == "sent" {
++			fmt.Println("OK: clear l2tp session id " + sessionIDText(sid) + " answered status sent")
++			return nil
++		}
++	}
++	return fmt.Errorf("`ze cli -c %s` answered %s, not a session-teardown of session %d with status sent", command, describeJSON(answer), sid)
++}
++
++// checkClearedAccounting reads, once and right after the clear answered,
++// every accounting record the RADIUS server received. The session must hold
++// exactly one Start and one Stop under the one Acct-Session-Id, and no record
++// of any other session may exist: this run carries one session, so a second
++// Acct-Session-Id is an accounting session a late event started after the
++// teardown. Interim-Updates are not counted; the config asks for none.
++//
++// The order of the two records on the wire is not asserted. The Start is sent
++// from the accounting task's goroutine and the Stop at once on teardown, so
++// for a teardown right after the address the Stop can reach the server first
++// (plan/journal/late-write-lands-on-the-successor.md, 2026-11-12, owned by
++// plan/release/fixes/spec-radius-acct-start-after-stop.md). Here the Start was
++// seen at the server before the clear was issued, so the race cannot occur.
++func checkClearedAccounting(acctSessionID string) error {
++	records, err := readAccountingRecords()
++	if err != nil {
++		return err
++	}
++	starts, stops := 0, 0
++	var stop accountingRecord
++	for _, record := range records {
++		if record.sessionID != acctSessionID {
++			return fmt.Errorf("the RADIUS server holds a record of Acct-Session-Id %q beside the session's %q, and this run carries one session: %s",
++				record.sessionID, acctSessionID, record.line)
++		}
++		if record.status == accountingStatusStart {
++			starts++
++		}
++		if record.status == accountingStatusStop {
++			stops++
++			stop = record
++		}
++	}
++	if starts != 1 {
++		return fmt.Errorf("the RADIUS server holds %d Accounting-Start records for Acct-Session-Id %q after the clear, want 1", starts, acctSessionID)
++	}
++	if stops != 1 {
++		return fmt.Errorf("the RADIUS server holds %d Accounting-Stop records for Acct-Session-Id %q once the clear answered, want 1", stops, acctSessionID)
++	}
++	if stop.cause != tunnelTerminateCauseAdminReset {
++		return fmt.Errorf("the Accounting-Stop reports Acct-Terminate-Cause %q, not %s (Admin Reset) for an operator clear: %s",
++			stop.cause, tunnelTerminateCauseAdminReset, stop.line)
++	}
++	fmt.Println("OK: the RADIUS server holds one Accounting-Start and one Accounting-Stop for Acct-Session-Id " +
++		acctSessionID + ", the Stop with Acct-Terminate-Cause " + tunnelTerminateCauseAdminReset)
++	return nil
++}
++
++// checkNoL2TPSession reads `show l2tp sessions` once, after the clear
++// answered, and refuses any session it lists.
++func checkNoL2TPSession(ctx context.Context) error {
++	const command = sessionClearShowSessions
++	answer, err := sessionClearCLI(ctx, command)
++	if err != nil {
++		return err
++	}
++	if rows := jsonObjectsWith(answer, "local-sid"); len(rows) != 0 {
++		return fmt.Errorf("`ze cli -c %s` still lists %d session(s) after the clear: %s", command, len(rows), describeJSON(answer))
++	}
++	fmt.Println("OK: show l2tp sessions lists no session after the clear")
++	return nil
++}
++
++// checkNoSubscriber reads `show subscriber` once, after the clear answered,
++// and refuses any L2TP subscriber, and a summary whose total is not zero.
++func checkNoSubscriber(ctx context.Context) error {
++	const command = sessionClearShowSubscribers
++	answer, err := sessionClearCLI(ctx, command)
++	if err != nil {
++		return err
++	}
++	if rows := jsonObjectsWith(answer, "access-type"); len(rows) != 0 {
++		return fmt.Errorf("`ze cli -c %s` still lists %d subscriber(s) after the clear: %s", command, len(rows), describeJSON(answer))
++	}
++	summaries := jsonObjectsWith(answer, "total")
++	if len(summaries) != 1 {
++		return fmt.Errorf("`ze cli -c %s` answered %d summaries holding a total, want 1: %s", command, len(summaries), describeJSON(answer))
++	}
++	if summaries[0]["total"] != float64(0) {
++		return fmt.Errorf("`ze cli -c %s` reports a total of %v subscribers after the clear, want 0: %s", command, summaries[0]["total"], describeJSON(answer))
++	}
++	fmt.Println("OK: show subscriber lists no subscriber after the clear, total 0")
++	return nil
++}
++
++// awaitCDN waits for the CDN the clear owes the LAC, and refuses one that
++// names another session.
++func (link *sessionClearLink) awaitCDN(ctx context.Context, sid uint16) error {
++	timer := time.NewTimer(WaitBudget(sessionClearWaitShare, 30*time.Second))
++	defer timer.Stop()
++
++	select {
++	case <-link.cdnSeen:
++	case <-link.broken:
++		return link.err
++	case <-timer.C:
++		return fmt.Errorf("ze sent no CDN for session %d after the clear answered", sid)
++	case <-ctx.Done():
++		return ctx.Err()
++	}
++	if link.cdnSID != sid {
++		return fmt.Errorf("ze's CDN after the clear names session %d, not the cleared session %d", link.cdnSID, sid)
++	}
++	fmt.Println("OK: ze sent a CDN for session " + sessionIDText(sid))
++	return nil
++}
++
++// accountingRecord is one Accounting-Request line of tunnelRadiusRXLog.
++type accountingRecord struct {
++	status    string
++	sessionID string
++	cause     string
++	line      string
++}
++
++// readAccountingRecords answers every complete Accounting-Request line the
++// RADIUS mock wrote. A line the mock is still writing has no newline yet, so
++// the text after the last newline is left for the next read.
++func readAccountingRecords() ([]accountingRecord, error) {
++	contents, err := os.ReadFile(tunnelRadiusRXLog)
++	if err != nil {
++		return nil, fmt.Errorf("read what the RADIUS server received: %w", err)
++	}
++	lines := strings.Split(string(contents), "\n")
++	records := make([]accountingRecord, 0, len(lines))
++	for _, line := range lines[:len(lines)-1] {
++		if !strings.HasPrefix(line, "RADIUS-RX Accounting-Request ") {
++			continue
++		}
++		status, _ := tunnelRadiusValue(line, "Acct-Status-Type")
++		sessionID, _ := tunnelRadiusValue(line, "Acct-Session-Id")
++		cause, _ := tunnelRadiusValue(line, "Acct-Terminate-Cause")
++		records = append(records, accountingRecord{status: status, sessionID: sessionID, cause: cause, line: line})
++	}
++	return records, nil
++}
++
++// sessionClearCLI runs one `ze cli -c` command under the environment the
++// runner gave this process, which names the daemon's SSH address and
++// credentials, and decodes the JSON its `| json` pipe prints. A run that does
++// not start, a nonzero exit and an answer that is not JSON are each an error
++// quoting what the command printed.
++func sessionClearCLI(ctx context.Context, command string) (any, error) {
++	code, stdout, stderr, err := runCaptured(ctx, os.Environ(), "", "ze", "cli", "-c", command)
++	if err != nil {
++		return nil, fmt.Errorf("`ze cli -c %s` did not start: %w", command, err)
++	}
++	if code != 0 {
++		return nil, fmt.Errorf("`ze cli -c %s` exited %d; stdout: %q; stderr: %q", command, code, awaitAnswerTail(stdout), awaitAnswerTail(stderr))
++	}
++	var answer any
++	if err := json.Unmarshal([]byte(stdout), &answer); err != nil {
++		return nil, fmt.Errorf("`ze cli -c %s` printed no JSON document (%w); stdout: %q", command, err, awaitAnswerTail(stdout))
++	}
++	return answer, nil
++}
++
++// jsonObjectsWith answers every JSON object in value that holds key, at any
++// depth. The recursion is bounded by the nesting of one CLI answer, which a
++// Ze command handler builds, so no peer chooses the depth. The answer is
++// walked rather than decoded into a fixed shape so that a list printed bare
++// and a list the CLI wraps read the same; the positive controls prove the
++// walk finds the rows the command prints.
++func jsonObjectsWith(value any, key string) []map[string]any {
++	var found []map[string]any
++	switch typed := value.(type) {
++	case map[string]any:
++		if _, held := typed[key]; held {
++			found = append(found, typed)
++		}
++		for _, member := range typed {
++			found = append(found, jsonObjectsWith(member, key)...)
++		}
++	case []any:
++		for _, element := range typed {
++			found = append(found, jsonObjectsWith(element, key)...)
++		}
++	}
++	return found
++}
++
++// describeJSON renders a decoded answer for an error message, cut to the
++// tail awaitAnswerTail keeps.
++func describeJSON(answer any) string {
++	encoded, err := json.Marshal(answer)
++	if err != nil {
++		return "an answer that does not encode again: " + err.Error()
++	}
++	return awaitAnswerTail(string(encoded))
++}
++
++// sessionIDText renders a session ID for a command or a message.
++func sessionIDText(value uint16) string {
++	var tb textbuf.Buffer
++	return tb.Uint16(value).String()
++}
+diff --git a/internal/test/fixture/register_l2tp_session_clear.go b/internal/test/fixture/register_l2tp_session_clear.go
+new file mode 100644
+index 0000000000..2a13f39183
+--- /dev/null
++++ b/internal/test/fixture/register_l2tp_session_clear.go
+@@ -0,0 +1,16 @@
++// Design: docs/architecture/l2tp/subscriber-session-model.md -- the order of
++// one L2TP session's notifications, proved end to end by an operator clear
++// (spec-single-owner-lifecycle-5-session-end-locals AC-8, AC-9).
++// Related: tunnel_fixture_l2tp_session_clear.go -- tunnelL2TPSessionClear,
++// the LAC peer this registers.
++// Related: tunnel_fixture_l2tp_radius.go -- tunnelRadiusAccounting, the
++// RADIUS mock registered here under this test's name.
++
++package fixture
++
++func init() {
++	// The mock is the radius-acct-wire one: the same function, so the two
++	// tests read one decoder of what the server received.
++	Register("l2tp/session-clear-leaves-no-subscriber/radius", tunnelRadiusAccounting)
++	Register("l2tp/session-clear-leaves-no-subscriber", tunnelL2TPSessionClear)
++}
+diff --git a/internal/le/interoplab/bgp/check_ldp_backoff_clear.go b/internal/le/interoplab/bgp/check_ldp_backoff_clear.go
+new file mode 100644
+index 0000000000..504c07c4e8
+--- /dev/null
++++ b/internal/le/interoplab/bgp/check_ldp_backoff_clear.go
+@@ -0,0 +1,280 @@
++// Design: docs/architecture/testing/interop.md -- concurrent state validation.
++// Related: check_ldp_init_unknown_tlv.go -- ldpTransportAddressAdd and ldpTransportHost, the active-role transport address this scenario shares.
++// Related: check_ldp_keepalive_expiry.go -- the LDP scenario whose FRR state names this one reads.
++// Related: check_special.go -- specialCheckers registry entry.
++package bgp
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"strconv"
++	"strings"
++	"time"
++
++	"github.com/ze-software/ze/internal/core/textbuf"
++	"github.com/ze-software/ze/internal/le/interoplab"
++)
++
++// ldpBackoffClearScenario proves that an LDP session which reached OPERATIONAL
++// leaves no setup backoff behind when it ends: after FRR clears the session,
++// ze dials again on FRR's next Hello rather than after the 15 s that RFC 5036
++// Section 2.5.3 puts after a NAK'd Initialization.
++const ldpBackoffClearScenario = "ldp-backoff-clear-frr"
++
++const (
++	// ldpClearSettled is how long FRR must report the session OPERATIONAL
++	// before the clear. A session that was never cleared then reports an
++	// upTime at least this much longer than the time since the clear, so a
++	// fresh upTime proves a re-establishment (ldpNeighbor.reestablishedWithin).
++	ldpClearSettled = 3 * time.Second
++	// ldpClearRedialBound is the longest the session may take to be OPERATIONAL
++	// again after the clear. ze dials on each Hello it receives from FRR
++	// (processDiscoveryPacket calls startSessionForAdj), and frr.conf sets
++	// FRR's Hello interval to 1 s, so with the backoff released ze dials within
++	// 1 s of the session end; the TCP connect and the Initialization and
++	// KeepAlive exchange on one bridge take milliseconds, and the probe adds at
++	// most ldpClearPoll and one docker exec. That path lands near 2 s. A session
++	// end that records a setup failure (recordSetupFailure) forbids a dial for
++	// setupRetryDelayMin, 15 s, after the end, so that path lands at 15 s or
++	// later. 8 s leaves 6 s above the first and 7 s below the second.
++	ldpClearRedialBound = 8 * time.Second
++	// ldpClearRecoveryWait outlasts the 15 s backoff with margin, so a red run
++	// reports the measured delay rather than a timeout.
++	ldpClearRecoveryWait = 45 * time.Second
++	ldpClearPoll         = 250 * time.Millisecond
++	// ldpClearEstablishWait covers discovery, ze's first dial and FRR's
++	// handling of it.
++	ldpClearEstablishWait = 120 * time.Second
++	// ldpClearLogLinesMax bounds each read of ze's log. The scenario logs a few
++	// hundred lines, so both reads hold its whole history and the counts
++	// compared in requireLDPBackoffReleased see every line.
++	ldpClearLogLinesMax = 20000
++)
++
++// The messages ze's LDP plugin logs, counted in ze's log before and after the
++// clear. Each is the msg of one call: Session.ReadLoop (Warn) on FRR's fatal
++// Shutdown Notification, runSession (Info) when the session ends, and
++// recordSetupFailure (Info) when it records a setup backoff.
++const (
++	ldpZeFatalNotification = "ldp: fatal notification received, closing the session"
++	ldpZeSessionEnded      = "ldp: session ended"
++	ldpZeSetupFailed       = "ldp: session setup failed, next attempt delayed"
++)
++
++var frrShowLDPNeighborJSON = []string{cmdVtysh, "-c", "show mpls ldp neighbor json"}
++
++// checkLDPBackoffClear brings the LDP session with FRR to OPERATIONAL, has FRR
++// clear it, and requires ze to bring it back within ldpClearRedialBound, with
++// no setup backoff recorded for its end.
++//
++// FRR 10.7.1's `clear mpls ldp neighbor <address>` (ldp_vty_clear_nbr, then
++// nbr_clear_ctl) matches the neighbor's transport address and calls
++// session_shutdown with S_SHUTDOWN: FRR sends a Shutdown Notification and
++// closes the TCP connection, the Hello adjacency and the neighbor survive, and
++// FRR arms no initialization delay of its own. FRR holds the passive role, so
++// the redial measured here is ze's.
++//
++// The proof does not rest on wall time alone. ze's own log must show FRR's
++// Shutdown reaching it and the session ending, and must show no setup backoff
++// recorded for that end. FRR's upTime (show_nbr_msg_json, nbr_to_ctl) is 0
++// outside OPERATIONAL and restarts on each entry to it, so a fresh upTime
++// proves FRR saw the session come back.
++func checkLDPBackoffClear(ctx context.Context, check *interoplab.CheckContext) error {
++	if !check.Network.IPv4.IsValid() {
++		return errors.New("the LDP backoff clear scenario has no selected IPv4 network")
++	}
++	zeTransport := networkHostAddress(check.Network, ldpTransportHost)
++	if _, err := check.Lab.Exec(ctx, "ze", ldpTransportAddressAdd(check.Network), nil); err != nil {
++		return fmt.Errorf("add ze's LDP transport address: %w", err)
++	}
++
++	probe := func(probeCtx context.Context) (string, error) {
++		return check.Lab.Query(probeCtx, peerFRR, frrShowLDPNeighborJSON, nil)
++	}
++	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
++		Timeout:     ldpClearEstablishWait,
++		Interval:    time.Second,
++		Description: "FRR's LDP session with ze OPERATIONAL for 3 s",
++	}, probe, func(output string) bool {
++		neighbor, err := frrLDPNeighborAt(output, zeTransport)
++		return err == nil && neighbor.settled()
++	})
++	if err != nil {
++		return fmt.Errorf("the LDP session with ze never stayed OPERATIONAL for %s: %w", ldpClearSettled, err)
++	}
++
++	before, err := readZeLDPLog(ctx, check.Lab)
++	if err != nil {
++		return fmt.Errorf("read ze's log before the clear: %w", err)
++	}
++
++	var clear textbuf.Buffer
++	clearCommand := []string{cmdVtysh, "-c", clear.Str("clear mpls ldp neighbor ").Str(zeTransport).String()}
++	clearStart := time.Now()
++	if _, err := check.Lab.Exec(ctx, peerFRR, clearCommand, nil); err != nil {
++		return fmt.Errorf("clear FRR's LDP session with ze: %w", err)
++	}
++	_, _, recoveryErr := interoplab.Wait(ctx, interoplab.WaitOptions{
++		Timeout:     ldpClearRecoveryWait,
++		Interval:    ldpClearPoll,
++		Description: "FRR's LDP session with ze OPERATIONAL again after the clear",
++	}, probe, func(output string) bool {
++		neighbor, err := frrLDPNeighborAt(output, zeTransport)
++		return err == nil && neighbor.reestablishedWithin(time.Since(clearStart))
++	})
++	redial := time.Since(clearStart)
++
++	after, err := readZeLDPLog(ctx, check.Lab)
++	if err != nil {
++		return fmt.Errorf("read ze's log after the clear: %w", err)
++	}
++	if err := requireLDPBackoffReleased(countZeLDPLog(before), countZeLDPLog(after)); err != nil {
++		return fmt.Errorf("%w (the probes ended %s after the clear)", err, redial.Round(time.Millisecond))
++	}
++	if recoveryErr != nil {
++		return fmt.Errorf("FRR's LDP session with ze was not OPERATIONAL again within %s of the clear: %w", ldpClearRecoveryWait, recoveryErr)
++	}
++	return requireLDPRedialWithin(redial)
++}
++
++// readZeLDPLog reads ze's log, refusing a log Docker could not read: the
++// setup-backoff count is read for its absence, and an unreadable log holds
++// none.
++func readZeLDPLog(ctx context.Context, lab interoplab.CheckerLab) (string, error) {
++	logs, err := lab.Logs(ctx, "ze", ldpClearLogLinesMax)
++	if err != nil {
++		return "", err
++	}
++	if !logs.Available {
++		return "", errors.New("ze's log is not readable, so the setup backoff it records could not be read")
++	}
++	return logs.Text, nil
++}
++
++// zeLDPLogCounts is how many times ze's log carries each LDP message the
++// scenario judges.
++type zeLDPLogCounts struct {
++	fatalNotifications int
++	sessionsEnded      int
++	setupFailures      int
++}
++
++// countZeLDPLog counts the judged messages in a read of ze's log.
++func countZeLDPLog(zeLog string) zeLDPLogCounts {
++	return zeLDPLogCounts{
++		fatalNotifications: strings.Count(zeLog, ldpZeFatalNotification),
++		sessionsEnded:      strings.Count(zeLog, ldpZeSessionEnded),
++		setupFailures:      strings.Count(zeLog, ldpZeSetupFailed),
++	}
++}
++
++// requireLDPBackoffReleased judges ze's log across the clear. ze must log a
++// new fatal Notification, the Shutdown FRR sent, so the clear reached ze; a
++// new session end at info, so the info lines are read and the next count's
++// absence means something; and no new setup failure, because the session that
++// ended had reached OPERATIONAL.
++func requireLDPBackoffReleased(before, after zeLDPLogCounts) error {
++	if after.fatalNotifications <= before.fatalNotifications {
++		return fmt.Errorf("ze logged no %q after FRR's clear, so FRR's Shutdown Notification never reached ze", ldpZeFatalNotification)
++	}
++	if after.sessionsEnded <= before.sessionsEnded {
++		return fmt.Errorf("ze logged no %q at info after FRR's clear, so the absence of a setup backoff in its log proves nothing: the scenario's ze.conf must keep `environment { log { ldp info } }`", ldpZeSessionEnded)
++	}
++	if after.setupFailures > before.setupFailures {
++		return fmt.Errorf("ze logged %q %d time(s) after FRR cleared a session that had reached OPERATIONAL: its end recorded a setup backoff, which delays the redial by 15 s or more", ldpZeSetupFailed, after.setupFailures-before.setupFailures)
++	}
++	return nil
++}
++
++// requireLDPRedialWithin judges the time from the clear to FRR seeing the
++// session OPERATIONAL again. redial is measured from before the clear was sent
++// to after the probe that saw it, so it never undercounts the real delay.
++func requireLDPRedialWithin(redial time.Duration) error {
++	if redial > ldpClearRedialBound {
++		return fmt.Errorf("FRR's LDP session with ze was OPERATIONAL again %s after the clear, beyond the %s bound: ze dials on each FRR Hello (1 s), so a later redial is a setup backoff left by a session that had reached OPERATIONAL", redial.Round(time.Millisecond), ldpClearRedialBound)
++	}
++	return nil
++}
++
++// frrLDPNeighbors is the answer of FRR's `show mpls ldp neighbor json`:
++// show_nbr_msg_json writes one object per neighbor under "neighbors".
++type frrLDPNeighbors struct {
++	Neighbors []frrLDPNeighborJSON `json:"neighbors"`
++}
++
++type frrLDPNeighborJSON struct {
++	State            string `json:"state"`
++	TransportAddress string `json:"transportAddress"`
++	UpTime           string `json:"upTime"`
++}
++
++// ldpNeighbor is one FRR LDP neighbor with its upTime parsed.
++type ldpNeighbor struct {
++	state  string
++	upTime time.Duration
++}
++
++// frrLDPNeighborAt decodes FRR's neighbor list and answers the neighbor whose
++// transport address is transport. It refuses an answer that does not decode,
++// lists no such neighbor, or carries an upTime it cannot read.
++func frrLDPNeighborAt(output, transport string) (ldpNeighbor, error) {
++	var answer frrLDPNeighbors
++	if err := json.Unmarshal([]byte(output), &answer); err != nil {
++		return ldpNeighbor{}, fmt.Errorf("decode FRR's LDP neighbors: %w", err)
++	}
++	for _, neighbor := range answer.Neighbors {
++		if neighbor.TransportAddress != transport {
++			continue
++		}
++		upTime, err := parseFRRUpTime(neighbor.UpTime)
++		if err != nil {
++			return ldpNeighbor{}, err
++		}
++		return ldpNeighbor{state: neighbor.State, upTime: upTime}, nil
++	}
++	return ldpNeighbor{}, fmt.Errorf("FRR lists no LDP neighbor at transport address %s", transport)
++}
++
++// parseFRRUpTime reads ldpd's log_time form for an age under one day,
++// HH:MM:SS. The day and week forms are refused: no session in this scenario
++// lives that long.
++func parseFRRUpTime(upTime string) (time.Duration, error) {
++	fields := strings.Split(upTime, ":")
++	if len(fields) != 3 {
++		return 0, fmt.Errorf("FRR's LDP upTime %q is not HH:MM:SS", upTime)
++	}
++	var seconds time.Duration
++	for index, unit := range []time.Duration{time.Hour, time.Minute, time.Second} {
++		value, err := strconv.Atoi(fields[index])
++		if err != nil {
++			return 0, fmt.Errorf("FRR's LDP upTime %q is not HH:MM:SS: %w", upTime, err)
++		}
++		if value < 0 {
++			return 0, fmt.Errorf("FRR's LDP upTime %q holds a negative field", upTime)
++		}
++		seconds += time.Duration(value) * unit
++	}
++	return seconds, nil
++}
++
++// settled reports whether the session has been OPERATIONAL for ldpClearSettled.
++func (n ldpNeighbor) settled() bool {
++	if n.state != ldpStateOperational {
++		return false
++	}
++	return n.upTime >= ldpClearSettled
++}
++
++// reestablishedWithin reports whether the session is OPERATIONAL with an
++// upTime no longer than sinceClear, the time since the clear was sent. upTime
++// is whole seconds rounded down, so a session that came back after the clear
++// always passes, and one up since before it, settled for ldpClearSettled, is
++// always at least 2 s too old to.
++func (n ldpNeighbor) reestablishedWithin(sinceClear time.Duration) bool {
++	if n.state != ldpStateOperational {
++		return false
++	}
++	return n.upTime <= sinceClear
++}
+diff --git a/internal/le/interoplab/bgp/check_ldp_backoff_clear_test.go b/internal/le/interoplab/bgp/check_ldp_backoff_clear_test.go
+new file mode 100644
+index 0000000000..e27633714d
+--- /dev/null
++++ b/internal/le/interoplab/bgp/check_ldp_backoff_clear_test.go
+@@ -0,0 +1,134 @@
++package bgp
++
++import (
++	"strings"
++	"testing"
++	"time"
++)
++
++// frrLDPNeighborsAnswer is composed from the fields FRR 10.7.1's
++// show_nbr_msg_json writes (ldpd/ldp_vty_exec.c) for ze at its transport
++// address and a second neighbor; it is not a capture of a lab run.
++const frrLDPNeighborsAnswer = `{"neighbors":[` +
++	`{"addressFamily":"ipv4","neighborId":"172.30.0.9","state":"OPERATIONAL","transportAddress":"172.30.0.9","upTime":"01:00:00"},` +
++	`{"addressFamily":"ipv4","neighborId":"172.30.0.2","state":"OPERATIONAL","transportAddress":"172.30.0.250","upTime":"00:00:07"}]}`
++
++// VALIDATES: the checker reads the neighbor at ze's transport address, with
++// its state and its HH:MM:SS upTime.
++// PREVENTS: another neighbor's state or upTime judged as ze's, and an
++// unreadable answer read as a neighbor.
++func TestFRRLDPNeighborAt(t *testing.T) {
++	neighbor, err := frrLDPNeighborAt(frrLDPNeighborsAnswer, "172.30.0.250")
++	if err != nil {
++		t.Fatalf("frrLDPNeighborAt: %v", err)
++	}
++	if neighbor.state != ldpStateOperational {
++		t.Fatalf("state = %q, want %q", neighbor.state, ldpStateOperational)
++	}
++	if neighbor.upTime != 7*time.Second {
++		t.Fatalf("upTime = %s, want 7s", neighbor.upTime)
++	}
++	for name, answer := range map[string]string{
++		"absent":     `{"neighbors":[{"state":"OPERATIONAL","transportAddress":"172.30.0.9","upTime":"00:00:07"}]}`,
++		"empty":      `{"neighbors":[]}`,
++		"not json":   `% Unknown command: show mpls ldp neighbor json`,
++		"day form":   `{"neighbors":[{"state":"OPERATIONAL","transportAddress":"172.30.0.250","upTime":"1d02h03m"}]}`,
++		"bad digits": `{"neighbors":[{"state":"OPERATIONAL","transportAddress":"172.30.0.250","upTime":"00:0x:07"}]}`,
++		"negative":   `{"neighbors":[{"state":"OPERATIONAL","transportAddress":"172.30.0.250","upTime":"00:-1:07"}]}`,
++	} {
++		if _, err := frrLDPNeighborAt(answer, "172.30.0.250"); err == nil {
++			t.Errorf("%s: frrLDPNeighborAt accepted %s", name, answer)
++		}
++	}
++}
++
++// VALIDATES: the session counts as settled only OPERATIONAL for 3 s, and as
++// re-established only OPERATIONAL with an upTime no older than the clear.
++// PREVENTS: the session that was never cleared, still OPERATIONAL, passing as
++// the one ze brought back.
++func TestLDPNeighborReestablishedWithin(t *testing.T) {
++	cases := []struct {
++		name       string
++		neighbor   ldpNeighbor
++		sinceClear time.Duration
++		settled    bool
++		back       bool
++	}{
++		{"fresh session after the clear", ldpNeighbor{ldpStateOperational, time.Second}, 2500 * time.Millisecond, false, true},
++		{"uncleared session, rounded down", ldpNeighbor{ldpStateOperational, 5 * time.Second}, 2500 * time.Millisecond, true, false},
++		{"not operational yet", ldpNeighbor{"OPENSENT", 0}, 2500 * time.Millisecond, false, false},
++		{"present after the clear", ldpNeighbor{"PRESENT", 0}, time.Second, false, false},
++		{"settled boundary", ldpNeighbor{ldpStateOperational, ldpClearSettled}, time.Hour, true, true},
++	}
++	for _, c := range cases {
++		if got := c.neighbor.settled(); got != c.settled {
++			t.Errorf("%s: settled = %v, want %v", c.name, got, c.settled)
++		}
++		if got := c.neighbor.reestablishedWithin(c.sinceClear); got != c.back {
++			t.Errorf("%s: reestablishedWithin(%s) = %v, want %v", c.name, c.sinceClear, got, c.back)
++		}
++	}
++}
++
++// The zeLog lines are composed in the form ze's slog text handler writes; the
++// messages are the literals of Session.ReadLoop, runSession and
++// recordSetupFailure.
++const (
++	zeLogFatal  = `time=2026-11-12T00:00:01Z level=WARN msg="ldp: fatal notification received, closing the session" subsystem=ldp status=2147483658 refers-to=0` + "\n"
++	zeLogEnded  = `time=2026-11-12T00:00:01Z level=INFO msg="ldp: session ended" subsystem=ldp peer=172.30.0.3 reason="ldp: peer sent a fatal notification: status 0x8000000a"` + "\n"
++	zeLogFailed = `time=2026-11-12T00:00:01Z level=INFO msg="ldp: session setup failed, next attempt delayed" subsystem=ldp peer=172.30.0.3:0 delay=15s` + "\n"
++)
++
++// VALIDATES: ze's log across the clear passes only with FRR's Shutdown
++// received, the session end logged at info, and no setup backoff recorded.
++// PREVENTS: a run where the clear never reached ze, or where info lines are not
++// logged, passing on the absence of a setup failure; and the unfixed session
++// end, which records a backoff, passing.
++func TestRequireLDPBackoffReleased(t *testing.T) {
++	startup := zeLogFailed // a failed attempt before the first session is not judged
++	before := countZeLDPLog(startup)
++	cases := []struct {
++		name     string
++		after    string
++		refusal  string
++		accepted bool
++	}{
++		{"backoff released", startup + zeLogFatal + zeLogEnded, "", true},
++		{"backoff recorded", startup + zeLogFatal + zeLogEnded + zeLogFailed, "recorded a setup backoff", false},
++		{"clear never reached ze", startup + zeLogEnded, "never reached ze", false},
++		{"info not logged", startup + zeLogFatal, "proves nothing", false},
++	}
++	for _, c := range cases {
++		err := requireLDPBackoffReleased(before, countZeLDPLog(c.after))
++		if c.accepted {
++			if err != nil {
++				t.Errorf("%s: refused: %v", c.name, err)
++			}
++			continue
++		}
++		if err == nil {
++			t.Errorf("%s: accepted", c.name)
++			continue
++		}
++		if !strings.Contains(err.Error(), c.refusal) {
++			t.Errorf("%s: refusal %q does not say %q", c.name, err, c.refusal)
++		}
++	}
++}
++
++// VALIDATES: the redial bound accepts the Hello-cadence redial and refuses
++// the one a 15 s setup backoff produces.
++// PREVENTS: a redial delayed by the backoff passing the wall-time check.
++func TestRequireLDPRedialWithin(t *testing.T) {
++	if err := requireLDPRedialWithin(2 * time.Second); err != nil {
++		t.Fatalf("a 2 s redial was refused: %v", err)
++	}
++	if err := requireLDPRedialWithin(ldpClearRedialBound); err != nil {
++		t.Fatalf("a redial at the bound was refused: %v", err)
++	}
++	// 15 s is setupRetryDelayMin in internal/plugins/ldp/register.go, the first
++	// delay recordSetupFailure imposes.
++	if err := requireLDPRedialWithin(15 * time.Second); err == nil {
++		t.Fatal("a redial after the 15 s setup backoff was accepted")
++	}
++}
+diff --git a/internal/component/bgp/reactor/peer_initial_sync_join_test.go.pending b/internal/component/bgp/reactor/peer_initial_sync_join_test.go.pending
+new file mode 100644
+index 0000000000..6108d994c9
+--- /dev/null
++++ b/internal/component/bgp/reactor/peer_initial_sync_join_test.go.pending
+@@ -0,0 +1,280 @@
++// Design: docs/architecture/behavior/peer-lifecycle.md -- the initial sync, one goroutine per session, joined when its session ends
++// Related: peer_initial_sync.go -- sendInitialRoutes, the goroutine these tests hold and let go
++// Related: peer_run.go -- runOnce and its session-end defer
++// Related: rfc4271_automatic_start_peer_test.go -- automaticStartNeighbor, the far end each test plays by hand
++// Related: peer_run_backoff_test.go -- backoffCease, the message that ends each session
++
++package reactor
++
++import (
++	"net"
++	"net/netip"
++	"testing"
++	"time"
++
++	"github.com/stretchr/testify/require"
++
++	"github.com/ze-software/ze/internal/core/clock"
++)
++
++// syncJoinProbe is how long a test watches for something that MUST NOT happen
++// while it holds an initial sync: the run loop entering its reconnect wait, or
++// the peer reading as settled. Without the join, either happens within
++// milliseconds of its cause, so the probe sees it on a loaded host. With the
++// join, neither can happen until the test lets the sync go, so the probe can
++// make a test slower and never makes it flaky.
++const syncJoinProbe = 500 * time.Millisecond
++
++// syncJoinClock is the peer clock of these tests. Peer.run's reconnect wait and
++// the peer-up barrier wait (Peer.waitPeerUpBarrier) are the only callers of
++// After on a peer without a reactor. The barrier wait, recognized by its
++// duration peerUpBarrierTimeout, gets a channel only the test fires, so a sync
++// held there stays there until the test says, on any host. Every other After
++// is a reconnect wait: its duration is recorded and it ends when the test
++// releases it. Now, timers and sleeps stay on the real clock, so the session's
++// own timers keep working. Safe for concurrent use.
++type syncJoinClock struct {
++	clock.RealClock
++
++	// waits receives the duration of every reconnect wait, fire ends one.
++	waits chan time.Duration
++	fire  chan time.Time
++
++	// barrierEntered is signalled each time a sync enters the barrier wait,
++	// barrierFire ends that wait as its timeout would.
++	barrierEntered chan struct{}
++	barrierFire    chan time.Time
++}
++
++func newSyncJoinClock() *syncJoinClock {
++	return &syncJoinClock{
++		waits:          make(chan time.Duration, 64),
++		fire:           make(chan time.Time, 1),
++		barrierEntered: make(chan struct{}, 8),
++		barrierFire:    make(chan time.Time, 1),
++	}
++}
++
++// After hands the barrier wait the test's barrier channel, and records every
++// other wait before it hands it the reconnect channel.
++func (c *syncJoinClock) After(d time.Duration) <-chan time.Time {
++	if d == peerUpBarrierTimeout {
++		select {
++		case c.barrierEntered <- struct{}{}:
++		default: // eight barrier waits is more than any test here makes; a dropped signal fails awaitBarrier
++		}
++		return c.barrierFire
++	}
++	select {
++	case c.waits <- d:
++	default: // 64 waits is more than any test here makes; a dropped record fails awaitWait
++	}
++	return c.fire
++}
++
++// awaitWait returns the duration of the next reconnect wait the run loop entered.
++func (c *syncJoinClock) awaitWait(t *testing.T) time.Duration {
++	t.Helper()
++	select {
++	case d := <-c.waits:
++		return d
++	case <-time.After(10 * time.Second):
++		t.Fatal("the peer never entered a reconnect wait")
++		return 0
++	}
++}
++
++// release ends the reconnect wait the run loop is in. MUST be called once per
++// wait awaitWait returned.
++func (c *syncJoinClock) release() {
++	c.fire <- time.Now()
++}
++
++// awaitBarrier returns once a sync has entered the peer-up barrier wait.
++func (c *syncJoinClock) awaitBarrier(t *testing.T) {
++	t.Helper()
++	select {
++	case <-c.barrierEntered:
++	case <-time.After(10 * time.Second):
++		t.Fatal("the initial sync never entered the peer-up barrier wait")
++	}
++}
++
++// fireBarrier ends the barrier wait as its timeout would. It never blocks: a
++// fire still pending is the same release.
++func (c *syncJoinClock) fireBarrier() {
++	select {
++	case c.barrierFire <- time.Now():
++	default: // a release is already pending
++	}
++}
++
++// startSyncJoinNeighbor runs a dial-only Peer on a syncJoinClock against a
++// listener the test accepts on, with the reconnect delay at 5 seconds to one
++// minute (the waits are the clock's, so none is real).
++func startSyncJoinNeighbor(t *testing.T) (*automaticStartNeighbor, *syncJoinClock) {
++	t.Helper()
++	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp4", "127.0.0.1:0")
++	require.NoError(t, err)
++	t.Cleanup(func() { ln.Close() }) //nolint:errcheck // Test cleanup.
++	tcpListener, ok := ln.(*net.TCPListener)
++	require.True(t, ok, "Listen(\"tcp4\") returns a TCPListener")
++	addr, ok := ln.Addr().(*net.TCPAddr)
++	require.True(t, ok, "listener address must be TCP")
++
++	settings := NewPeerSettings(netip.MustParseAddr("127.0.0.1"), 65000, 65001, 0x01010101)
++	settings.Port = uint16(addr.Port) //nolint:gosec // A listener port fits 16 bits.
++	settings.Connection = ConnectionActive
++	peer := NewPeer(settings)
++	clk := newSyncJoinClock()
++	peer.SetClock(clk)
++	peer.setReconnectDelay(5*time.Second, time.Minute)
++	t.Cleanup(startAndStop(t, peer))
++	// Registered after startAndStop, so it runs first: a barrier wait the test
++	// never let go would otherwise hold the stop.
++	t.Cleanup(clk.fireBarrier)
++	return &automaticStartNeighbor{peer: peer, listener: tcpListener}, clk
++}
++
++// staticHold holds the peer's staticMu, the lock the initial sync takes for its
++// static phase (sendInitialRoutes). A sync started while it is held stops at
++// the first statement of that phase and goes no further. Used from the test
++// goroutine only.
++type staticHold struct {
++	peer *Peer
++	held bool
++}
++
++// holdStaticPhase takes staticMu and lets it go at cleanup if the test did not.
++// Registered after startSyncJoinNeighbor's cleanups, so it runs before the stop.
++func holdStaticPhase(t *testing.T, peer *Peer) *staticHold {
++	t.Helper()
++	hold := &staticHold{peer: peer, held: true}
++	peer.staticMu.Lock()
++	t.Cleanup(hold.release)
++	return hold
++}
++
++// release lets the held sync go into its static phase. A second call does
++// nothing.
++func (h *staticHold) release() {
++	if !h.held {
++		return
++	}
++	h.held = false
++	h.peer.staticMu.Unlock()
++}
++
++// awaitSessionsEstablished returns once the peer's FSM history records
++// sessions entries into Established. The record is appended at the end of the
++// Established callback (runOnce), after the peer-up barrier was reset for that
++// session and its initial sync was started, so a test that has seen it may arm
++// the barrier for that sync.
++func awaitSessionsEstablished(t *testing.T, peer *Peer, sessions int) {
++	t.Helper()
++	require.Eventually(t, func() bool {
++		established := 0
++		for _, transition := range peer.fSMHistory() {
++			if transition.Reason == "established" {
++				established++
++			}
++		}
++		return established >= sessions
++	}, 5*time.Second, time.Millisecond, "the Established callback of session %d never finished", sessions)
++}
++
++// TestRunOnceJoinsInitialSyncBeforeReturn is the wiring test of the join, from
++// the FSM callback that starts a session's initial sync to the session-end
++// defer of runOnce that waits for it.
++//
++// VALIDATES: AC-1, its first clause. A session reaches Established while the
++// test holds the static phase of its initial sync, and the far end then ends it
++// with a Cease. runOnce does not return, so Peer.run enters no reconnect wait,
++// until the test lets the sync go. Once it does, the wait follows.
++// PREVENTS: an initial sync that outlives its session. Nothing joined it, so
++// runOnce returned at once and the next session could start while the old
++// goroutine had still to drain the queue and write plugin routes and End-of-RIB
++// on whatever session the peer held by then
++// (plan/journal/late-write-lands-on-the-successor.md, 2026-08-31).
++func TestRunOnceJoinsInitialSyncBeforeReturn(t *testing.T) {
++	n, clk := startSyncJoinNeighbor(t)
++	static := holdStaticPhase(t, n.peer)
++
++	conn := n.accept(t)
++	n.establish(t, conn, 90)
++	awaitSessionsEstablished(t, n.peer, 1)
++	backoffCease(t, conn)
++
++	select {
++	case d := <-clk.waits:
++		t.Fatalf("runOnce returned, and the run loop entered a %s reconnect wait, while the initial sync "+
++			"of the session that ended was still held in its static phase: nothing joins the sync goroutine", d)
++	case <-time.After(syncJoinProbe):
++	}
++
++	static.release()
++	clk.awaitWait(t)
++}
++
++// TestSuccessorPendingSyncUntilOwnMarker pins what `request quiesce` reads
++// across a rapid reconnect: pendingSync, the predicate behind DrainPeerSync
++// (reactor_api.go).
++//
++// VALIDATES: AC-2. The first session's sync is held in the peer-up barrier wait
++// when the far end ends that session with a Cease, and the peer reconnects.
++// While the second session's own sync is held before its static phase, the peer
++// reads as pending for the whole probe; once that sync runs, it reads as
++// settled.
++// PREVENTS: the first session's sync, let go after the second session reached
++// Established, settling the second one. Its last stores cleared the Peer-level
++// queue gate and End-of-RIB-owed fact that the second establishment had set,
++// so `request quiesce` returned before the second session's initial update, and
++// its End-of-RIB went out on the second session's connection.
++func TestSuccessorPendingSyncUntilOwnMarker(t *testing.T) {
++	n, clk := startSyncJoinNeighbor(t)
++
++	// The first sync is held in the barrier wait. The barrier is armed while the
++	// static phase is held, so that sync reads the barrier only once it is armed.
++	first := holdStaticPhase(t, n.peer)
++	firstConn := n.accept(t)
++	n.establish(t, firstConn, 90)
++	awaitSessionsEstablished(t, n.peer, 1)
++	n.peer.SetPeerUpBarrier(1)
++	first.release()
++	clk.awaitBarrier(t)
++
++	// From here on, the second session's sync is held before its static phase.
++	second := holdStaticPhase(t, n.peer)
++	backoffCease(t, firstConn)
++
++	// The first session ends. Without a join the run loop waits at once; with a
++	// join whose barrier wait does not see the session end, it waits only once
++	// the barrier lets the first sync go, which the test then does as the
++	// timeout would.
++	fired := false
++	select {
++	case <-clk.waits:
++	case <-time.After(syncJoinProbe):
++		clk.fireBarrier()
++		fired = true
++		clk.awaitWait(t)
++	}
++	clk.release()
++
++	secondConn := n.accept(t)
++	n.establish(t, secondConn, 90)
++	awaitSessionsEstablished(t, n.peer, 2)
++	if !fired {
++		// Without a join, the first session's sync is still in its barrier wait.
++		// This lets it go while the second session's sync is held.
++		clk.fireBarrier()
++	}
++
++	require.Never(t, func() bool { return !n.peer.pendingSync() }, syncJoinProbe, time.Millisecond,
++		"pendingSync read the peer as settled while the second session's own initial sync had not "+
++			"begun: the first session's sync settled the session that replaced it")
++
++	second.release()
++	require.Eventually(t, func() bool { return !n.peer.pendingSync() }, 5*time.Second, time.Millisecond,
++		"the second session's own initial sync never settled the peer")
++}
+diff --git a/test/interop/scenarios/ldp-backoff-clear-frr/daemons b/test/interop/scenarios/ldp-backoff-clear-frr/daemons
+new file mode 100644
+index 0000000000..8f818192dd
+--- /dev/null
++++ b/test/interop/scenarios/ldp-backoff-clear-frr/daemons
+@@ -0,0 +1,24 @@
++# FRR daemons file — shared across all interop scenarios.
++# zebra (routing table), bgpd (BGP), and bfdd (BFD for scenario
++# bfd-frr). bfdd is lightweight and idle when no scenario
++# configures BFD, so enabling it globally keeps the scenario
++# runner simple.
++zebra=yes
++bgpd=yes
++ospfd=yes
++ospf6d=yes
++ripd=no
++ripngd=no
++isisd=yes
++pimd=no
++pim6d=no
++ldpd=yes
++nhrpd=no
++eigrpd=no
++babeld=no
++sharpd=no
++pbrd=no
++bfdd=yes
++fabricd=no
++vrrpd=no
++pathd=no
+diff --git a/test/interop/scenarios/ldp-backoff-clear-frr/frr.conf b/test/interop/scenarios/ldp-backoff-clear-frr/frr.conf
+new file mode 100644
+index 0000000000..d9c12121ae
+--- /dev/null
++++ b/test/interop/scenarios/ldp-backoff-clear-frr/frr.conf
+@@ -0,0 +1,22 @@
++frr defaults traditional
++hostname frr-ldp-backoff-clear
++log file /tmp/frr.log debugging
++!
++! FRR's transport address (172.30.0.3) is lower than ze's (172.30.0.250), so
++! FRR plays the passive role and ze, which only plays the active one, dials.
++! After the clear FRR waits for ze: ldpd's session_accept closes a connection
++! from a neighbor for which FRR would hold the active role, and FRR dials only
++! when nbr_session_active_role says it holds it.
++!
++! The Hello interval is 1 s because ze dials on each Hello it receives from
++! FRR (processDiscoveryPacket, startSessionForAdj): it is the cadence of ze's
++! redial, and the checker's bound on the redial is derived from it.
++mpls ldp
++ router-id 172.30.0.3
++ !
++ address-family ipv4
++  discovery hello interval 1
++  discovery transport-address 172.30.0.3
++  interface eth0
++ exit-address-family
++!
+diff --git a/test/interop/scenarios/ldp-backoff-clear-frr/ze.conf b/test/interop/scenarios/ldp-backoff-clear-frr/ze.conf
+new file mode 100644
+index 0000000000..2634ea5319
+--- /dev/null
++++ b/test/interop/scenarios/ldp-backoff-clear-frr/ze.conf
+@@ -0,0 +1,26 @@
++# Ze side of the ldp-backoff-clear-frr interop scenario
++# (spec-single-owner-lifecycle-5-session-end-locals, RFC 5036 Section 2.5.3).
++#
++# Ze forms an LDP session with FRR ldpd over eth0. FRR then clears it with
++# `clear mpls ldp neighbor`, and the checker requires ze to dial again on FRR's
++# next Hello: a session that reached OPERATIONAL leaves no setup backoff
++# behind, so its end is not followed by the 15 s delay a failed setup imposes.
++#
++# The transport address 172.30.0.250 is higher than FRR's, which makes ze the
++# active LSR (RFC 5036 Section 2.5.2): ze plays only the active role, so ze is
++# the side that redials. The checker adds it to eth0 once the lab is up.
++#
++# The ldp subsystem logs at info, so the checker reads ze's own record of the
++# session end and of every setup backoff it records.
++
++environment {
++	log {
++		ldp info
++	}
++}
++
++ldp {
++	lsr-id 172.30.0.2
++	transport-address 172.30.0.250
++	interfaces eth0
++}
+diff --git a/test/draft/ldp/ldp-session-end-clears-backoff.ci b/test/draft/ldp/ldp-session-end-clears-backoff.ci
+new file mode 100644
+index 0000000000..ac653df1e2
+--- /dev/null
++++ b/test/draft/ldp/ldp-session-end-clears-backoff.ci
+@@ -0,0 +1,69 @@
++# Test: an LDP session that reached operational and then ended leaves no setup
++# backoff, so Ze dials its neighbor again on the neighbor's next Hello, and
++# publishes exactly one session-down for that session.
++#
++# VALIDATES: spec-single-owner-lifecycle-5-session-end-locals AC-1 and AC-2 --
++#            startSessionForAdj's session-end callback deletes the backoff of
++#            a session that reached OPERATIONAL, and publishes one SessionDown
++#            for it, through the daemon on a real link.
++# PREVENTS:  a session that ran for days being redialled only after 15 seconds,
++#            then 30, up to 2 minutes, because its end was recorded as a failed
++#            setup attempt (plan/journal/state-read-after-teardown-reset-it.md,
++#            2026-10-02).
++#
++# WHY A .ci. internal/plugins/ldp/session_end_test.go drives the same callback
++# over net.Pipe with a test dialer. This test answers whether the daemon does it
++# end to end: a multicast Link Hello on a veth link, discovery, Ze's dial to TCP
++# 646, the Initialization exchange, the session end, and the redial a real
++# neighbor sees.
++#
++# HOW. `ldp/neighbor-link` runs the daemon in its own network namespace, joined
++# by a veth pair to a second one that holds the neighbor's link
++# (internal/test/fixture/ldp_neighbor_linux.go says why both are needed). The
++# observer plugin `ldp/session-end-clears-backoff` is the neighbor: it sends
++# Hellos, accepts Ze's session and brings it to operational, then closes it
++# with its Hellos paused. Once `show ldp neighbor` reads `discovered` and the
++# observer holds the session-down, it sends ONE Hello and requires Ze's next
++# session to open within 10 seconds, below the 15-second floor a failed setup
++# waits. The decision log is the second half: a session end recorded as a
++# failed setup logs `session setup failed, next attempt delayed` for the
++# neighbor, rejected below.
++#
++# The observer requires the neighbor's session events to be exactly
++# session-up, session-down, session-up, each naming peer 10.99.0.1 and
++# interface ldpz0. The second session is left operational and ends with the
++# daemon, after the Hellos stop, so nothing dials after it.
++#
++# STATUS: a Linux/QEMU test. The fixture creates network namespaces and a veth
++# pair, which needs root (`./le test qemu ci test test/ldp/ldp-session-end-clears-backoff.ci`).
++option=needs-linux:caps=net-admin
++option=env:var=ze.log.ldp:value=info
++option=timeout:value=90s
++
++tmpfs=ldp.conf:terminator=EOF_CONF
++plugin {
++	external ldp-neighbor {
++		run "le test fixture ldp/session-end-clears-backoff netns zls$PORT-n"
++		encoder json
++	}
++}
++
++ldp {
++	lsr-id 10.99.0.2
++	transport-address 10.99.0.2
++	hello-interval 5
++	hello-hold-time 15
++	keepalive-time 60
++	interfaces ldpz0
++}
++EOF_CONF
++
++cmd=foreground:seq=1:exec=le test fixture ldp/neighbor-link netns zls$PORT run ze start ldp.conf:timeout=85s
++expect=exit:code=0
++expect=stderr:contains=ldp: discovery started on interface
++expect=stderr:contains=OK: Ze dialled 10.99.0.1:0
++expect=stderr:pattern=OK: .*events \[session-up session-down session-up\]
++reject=stderr:pattern=session setup failed, next attempt delayed.*peer=10\.99\.0\.1:0
++reject=stderr:pattern=ZE-OBSERVER-FAIL
++reject=stderr:pattern=panic
++reject=stderr:pattern=fatal error
+diff --git a/test/draft/ldp/ldp-setup-failure-publishes-no-session-down.ci b/test/draft/ldp/ldp-setup-failure-publishes-no-session-down.ci
+new file mode 100644
+index 0000000000..9d7efd3ca9
+--- /dev/null
++++ b/test/draft/ldp/ldp-setup-failure-publishes-no-session-down.ci
+@@ -0,0 +1,64 @@
++# Test: an LDP setup attempt the neighbor rejects is recorded as a failed setup,
++# delayed 15 seconds, and publishes no session event.
++#
++# VALIDATES: spec-single-owner-lifecycle-5-session-end-locals AC-3 and AC-4 --
++#            startSessionForAdj's session-end callback records a setup failure
++#            for a session that never reached OPERATIONAL, and publishes no
++#            SessionDown for it, through the daemon on a real link.
++# PREVENTS:  a setup attempt that never published a session-up publishing a
++#            session-down, which costs an OSPF LDP-sync interface its link and
++#            re-arms its stuck alert (plan/journal/state-read-after-teardown-reset-it.md,
++#            2026-10-02); and a NAK'd Initialization redialled before the RFC 5036
++#            Section 2.5.3 floor.
++#
++# WHY A .ci. internal/plugins/ldp/session_end_test.go drives the same callback
++# over net.Pipe. This test answers whether the daemon does it end to end, with a
++# neighbor that NAKs Ze's Initialization on the wire and an observer plugin that
++# hears the `ldp` namespace through the engine's event delivery.
++#
++# HOW. `ldp/neighbor-link` runs the daemon in its own network namespace, joined
++# by a veth pair to a second one that holds the neighbor's link. The observer
++# plugin `ldp/setup-failure-publishes-no-session-down` is the neighbor and the
++# observer: subscribed to ldp session-up and session-down, it rejects Ze's
++# first Initialization with a fatal Session Rejected/Parameters Max PDU Length
++# Notification and closes the connection. It keeps sending Hellos, requires
++# Ze's next session to come no sooner than 15 seconds after the rejection,
++# brings that one to operational, and ends it.
++#
++# The second session is the positive control: its session-up and session-down
++# reach the observer, so silence for the rejected attempt is Ze's and not a
++# deaf observer. Delivery to one plugin keeps Ze's emit order, so the history
++# MUST be exactly session-up, session-down. The decision log names the delay.
++#
++# STATUS: a Linux/QEMU test. The fixture creates network namespaces and a veth
++# pair, which needs root (`./le test qemu ci test test/ldp/ldp-setup-failure-publishes-no-session-down.ci`).
++option=needs-linux:caps=net-admin
++option=env:var=ze.log.ldp:value=info
++option=timeout:value=120s
++
++tmpfs=ldp.conf:terminator=EOF_CONF
++plugin {
++	external ldp-neighbor {
++		run "le test fixture ldp/setup-failure-publishes-no-session-down netns zlf$PORT-n"
++		encoder json
++	}
++}
++
++ldp {
++	lsr-id 10.99.0.2
++	transport-address 10.99.0.2
++	hello-interval 5
++	hello-hold-time 15
++	keepalive-time 60
++	interfaces ldpz0
++}
++EOF_CONF
++
++cmd=foreground:seq=1:exec=le test fixture ldp/neighbor-link netns zlf$PORT run ze start ldp.conf:timeout=115s
++expect=exit:code=0
++expect=stderr:contains=ldp: discovery started on interface
++expect=stderr:pattern=session setup failed, next attempt delayed.*peer=10\.99\.0\.1:0.*delay=15s
++expect=stderr:pattern=OK: the rejected attempt published no session event.*events \[session-up session-down\]
++reject=stderr:pattern=ZE-OBSERVER-FAIL
++reject=stderr:pattern=panic
++reject=stderr:pattern=fatal error
+diff --git a/test/draft/l2tp/session-clear-leaves-no-subscriber.ci b/test/draft/l2tp/session-clear-leaves-no-subscriber.ci
+new file mode 100644
+index 0000000000..e7a8177238
+--- /dev/null
++++ b/test/draft/l2tp/session-clear-leaves-no-subscriber.ci
+@@ -0,0 +1,133 @@
++# Test: an operator clear of a live PPP session leaves nothing behind.
++# QUESTION:  when the operator clears one L2TP session that has its address and
++#            is up, does the daemon end it in every place that held it: the
++#            session list, the subscriber registry, and the RADIUS accounting
++#            record, closed once?
++# VALIDATES: spec-single-owner-lifecycle-5-session-end-locals AC-8 (end state
++#            after an operator teardown: no subscriber entry, no accounting
++#            session left open, a Stop for every Start) and AC-9 for the two
++#            readers this test can observe (RADIUS accounting sends exactly one
++#            Stop, the subscriber bridge removes its entry), through the real
++#            entry points: a LAC over UDP, kernel PPP, `clear l2tp session id`
++#            over SSH, a RADIUS server on the wire. User story 3.
++# PREVENTS:  a clear that leaves the subscriber listed, an accounting session a
++#            late event started after the teardown (a second Acct-Session-Id),
++#            a Stop that never reaches the server, or a Stop sent twice.
++#
++# Why not a unit test: the unit tests in internal/component/l2tp
++# (session_event_order_test.go) and authradius (acct_order_test.go) prove each
++# half in isolation over a test bus. Only the daemon joins the reactor, the
++# bridge, the accounting plugin and the CLI, so only a .ci proves an operator
++# reaches the end state.
++#
++# What this test does NOT prove: the race the order ticket fixes, a teardown
++# overtaking the SessionIPAssigned or SessionUp of the same session. No daemon
++# run can force that interleaving (the spec says so of its unit tests' seam).
++# Here the session is up, and seen up, before the clear: this is the ordinary
++# clear's end state, not the ordering. The ordering is the unit tests' job.
++#
++# Every assertion is on state, never on time. The peer waits, before the
++# clear, until the Accounting-Start is at the RADIUS server, `show l2tp
++# sessions` lists the session with its address, and `show subscriber` lists it
++# active: those are the positive controls, so an empty list after the clear is
++# not a broken command. After the clear it reads each view ONCE, with no wait:
++# teardownSessionByID delivers the session-down to every reader before it
++# sends the CDN and before the command answers, so the state the answer leaves
++# is the end state.
++#
++# The accounting assertion is the COUNT of records and their shared
++# Acct-Session-Id, never their order on the wire. The Start is sent from the
++# accounting task's goroutine and the Stop at once on teardown, so a teardown
++# right after the address can put the Stop on the wire first
++# (plan/journal/late-write-lands-on-the-successor.md, 2026-11-12, owned by
++# plan/release/fixes/spec-radius-acct-start-after-stop.md). This test takes
++# that race out of what it asserts by seeing the Start at the server before it
++# issues the clear.
++#
++# A session that reaches an assigned IPv4 needs kernel PPPoL2TP, which needs
++# CAP_NET_ADMIN, so this test is needs-linux and runs in QEMU as root. It SKIPS
++# on an unprivileged dev host. ze.l2tp.skip-kernel-probe is deliberately NOT
++# set, as in test/l2tp/radius-acct-wire.ci, whose LAC half and RADIUS mock this
++# test reuses (internal/test/fixture/tunnel_fixture_l2tp_ppp.go,
++# tunnel_fixture_l2tp_radius.go).
++#
++# Ports: $PORT is the L2TP listener, $PORT2 the RADIUS mock (auth and
++# accounting), $PORT3 the daemon's SSH server, which the peer's `ze cli`
++# reaches through the three ze.ssh.* variables below.
++
++stdin=config:terminator=EOF_CONF
++system {
++    authentication {
++        # bcrypt cost-4 hash of "testpass".
++        user admin {
++            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
++        }
++    }
++}
++l2tp {
++    enabled true
++    shared-secret s3cr3t
++    auth-method chap-md5
++    auth {
++        radius {
++            nas-identifier lns1
++            timeout 5
++            retries 2
++            server mock {
++                address 127.0.0.1
++                port $PORT2
++                accounting-port $PORT2
++                shared-key testing123
++            }
++        }
++    }
++    pool {
++        ipv4 {
++            gateway 10.99.8.1
++            start 10.99.8.10
++            end 10.99.8.10
++        }
++    }
++}
++environment {
++    l2tp {
++        server main {
++            ip 127.0.0.1
++            port $PORT
++        }
++    }
++    ssh {
++        enabled true
++        server main {
++            ip 127.0.0.1
++            port $PORT3
++        }
++    }
++}
++EOF_CONF
++
++option=needs-linux:caps=net-admin
++option=env:var=ze.log.l2tp:value=debug
++option=env:var=ze.log.l2tp.auth.radius:value=debug
++option=env:var=TEST_SECRET:value=s3cr3t
++option=env:var=ze.ssh.username:value=admin
++option=env:var=ze.ssh.password:value=testpass
++option=env:var=ze.ssh.port:value=$PORT3
++
++cmd=background:seq=1:exec=le test fixture l2tp/session-clear-leaves-no-subscriber/radius $PORT2 testing123
++cmd=background:seq=2:exec=ze -:stdin=config
++# 120s bounds the peer's own five waits, each a share of this budget, so a
++# stall ends with the peer naming the state that never came. The happy path
++# takes seconds.
++cmd=foreground:seq=3:exec=le test fixture l2tp/session-clear-leaves-no-subscriber $PORT:timeout=120s:exit=0
++expect=exit:code=0
++expect=stdout:contains=OK: CHAP Success received
++expect=stdout:contains=OK: IPCP opened, ze assigned 10.99.8.10
++expect=stdout:pattern=OK: Accounting-Start with Acct-Session-Id \S+ reached the RADIUS server before the clear
++expect=stdout:pattern=OK: show l2tp sessions lists session [0-9]+ with address 10\.99\.8\.10
++expect=stdout:contains=OK: show subscriber lists an active l2tp subscriber with address 10.99.8.10
++expect=stdout:pattern=OK: clear l2tp session id [0-9]+ answered status sent
++expect=stdout:pattern=OK: the RADIUS server holds one Accounting-Start and one Accounting-Stop for Acct-Session-Id \S+, the Stop with Acct-Terminate-Cause 6
++expect=stdout:contains=OK: show l2tp sessions lists no session after the clear
++expect=stdout:contains=OK: show subscriber lists no subscriber after the clear, total 0
++expect=stdout:pattern=OK: ze sent a CDN for session [0-9]+
+diff --git a/test/draft/reload/ddos-flowspec-parent-removed-withdraws.ci b/test/draft/reload/ddos-flowspec-parent-removed-withdraws.ci
+new file mode 100644
+index 0000000000..298419ce9d
+--- /dev/null
++++ b/test/draft/reload/ddos-flowspec-parent-removed-withdraws.ci
+@@ -0,0 +1,169 @@
++# Test: deleting the PARENT `ddos` config block withdraws the live FlowSpec
++# rule from the BGP peer during the reload, and the withdrawal is the one the
++# config apply sends.
++#
++# QUESTION: does a reload that deletes the whole `ddos` block, with a FlowSpec
++#           rule announced, put the withdrawal of exactly that rule on the
++#           peer's wire before the plugin is stopped? A unit test cannot decide
++#           it: the empty-body apply comes from the reload's ancestor match
++#           (plugin/server/reload.go rootHasChanges), the plugin then sends its
++#           update-route over the transport the daemon gives an internal plugin,
++#           and the bytes are the BGP engine's. The unit pair test
++#           (flowspec/exit_test.go) runs none of the three.
++#
++# VALIDATES: spec-single-owner-lifecycle-5-session-end-locals AC-12 and A-7 --
++#            the reload delivers ddos-flowspec an apply with its section absent
++#            (replaceResponder, configured false -> withdrawForConfig), the log
++#            carries "the ddos flowspec section was removed, withdrawing the
++#            announcement" (responder.go withdrawSectionRemoved), and the peer
++#            receives the MP_UNREACH_NLRI for the NLRI it was announced.
++# PREVENTS:  the parent-block removal leaving the rule at the peer with no plugin
++#            left to withdraw it, and a regression where only the exit path
++#            (the `bye` handler, register.go stopResponder) withdraws: that path
++#            would not log the section-removed line, which is expected below.
++#
++# WHICH PATH WITHDRAWS. The apply runs before the stop (reload.go reloadConfig:
++# verify and apply, then the deferred stopCollectedProcesses), so the apply's
++# withdrawForConfig sends the withdrawal and the `bye` handler then finds
++# nothing live (stopResponder returns on !active, AC-11's survivor). The two
++# rejects below refuse the exit path's failure lines. That the `bye` handler
++# sends NOTHING when the apply withdrew is not judged here: the peer accepts a
++# second identical withdrawal in seq 2 as well as one, so that survivor is
++# TestByeWithNothingAnnouncedSendsNothing's to prove.
++#
++# THE WIRE. The blackhole fallback announces the detector's host prefix with no
++# other component (responder.go renderFlowspecCommand over buildMatch of the
++# AttackDetected target, characterize.go characterizeTarget): FlowSpec NLRI
++# 06 01 20 CB007109, length 6, type 1 destination prefix, /32, 203.0.113.9. The
++# announcement carries the traffic-rate extended community at rate 0, which is
++# discard (RFC 8955 Section 7.1, type 0x80 subtype 0x06, 2-octet AS 0, IEEE
++# float 0). The withdrawal carries the same NLRI in MP_UNREACH_NLRI.
++#
++# WHY THE VICTIM IS REMOTE, WHY blackhole-fallback: test/plugin/ddos-announce-rate-limit.ci.
++# hold-down and max-mitigation-duration are past the run, so neither the leak
++# probe nor the cap can account for the withdrawal: the flood is stopped only
++# after the reload, and the reload is the only remover left.
++#
++# STATUS: a Linux/QEMU integration test; NOT executable on the darwin dev host.
++#   net-admin builds the transit veth pair; bpf is what lets traffic-usage name
++#   the victim (internal/plugins/trafficusage/attach_linux.go).
++option=needs-linux:caps=net-admin,bpf
++# Serialize against every other ddos test: they all flood the same interface
++# set (rationale: test/plugin/ddos-direction.ci).
++option=exclusive:group=ddos-flood
++option=env:var=ze.log.ddos.detect:value=info
++option=env:var=ze.log.ddos.flowspec:value=info
++option=timeout:value=150s
++
++stdin=peer:terminator=EOF_PEER
++option=tcp_connections:value=1
++# The peer never closes: a closed session would drop the rule by itself and
++# make the withdrawal unobservable.
++option=linger:value=true
++# seq 1: the announcement of 203.0.113.9/32 with traffic-rate 0 (discard).
++expect=bgp:conn=1:seq=1:announced=060120CB007109:attribute=16,8006000000000000
++# seq 2: the withdrawal of the same NLRI, in MP_UNREACH_NLRI.
++expect=bgp:conn=1:seq=2:withdrawn=060120CB007109
++EOF_PEER
++
++stdin=ze-bgp:terminator=EOF_CONF
++ddos {
++	detect {
++		enabled true
++		absolute-floor 1000
++		confirm-duration 1
++		clear-consecutive-checks 100
++		startup-grace 0
++		baseline-window 10
++		check-interval 1
++		characterize-enable false
++	}
++	observe {
++		incident-ring-size 100
++	}
++	flowspec {
++		response-level enforce
++		action discard
++		blackhole-fallback true
++		max-mitigation-duration 3600
++		hold-down 3600
++	}
++}
++
++traffic {
++	usage {
++		enabled true
++		track-ip true
++		interfaces {
++			interface zdd0p {
++				enabled true
++			}
++			interface zdd0 {
++				enabled true
++			}
++		}
++	}
++}
++
++bgp {
++	filter {
++		import {
++			final accept
++		}
++		export {
++			final accept
++		}
++	}
++	peer peer1 {
++		connection {
++			remote {
++				ip 127.0.0.1
++			}
++			local {
++				ip 127.0.0.2
++				accept false
++			}
++		}
++		session {
++			asn {
++				local 65000
++				remote 65001
++			}
++			router-id 1.2.3.4
++			family {
++				ipv4/unicast { prefix { maximum 10000; } }
++				ipv4/flow { prefix { maximum 10000; } }
++			}
++			capability {
++				graceful-restart disable
++			}
++		}
++
++		# The responder's update-route is refused for a process no peer
++		# attaches with send [ update ] (reactor/send_permission.go). The
++		# reload keeps this block byte-identical, so the peer is not re-added.
++		attach process ddos-flowspec {
++			send [ update ]
++		}
++	}
++}
++
++plugin {
++	external ddos-flowspec-parent-removed-probe {
++		run "le test fixture plugin/ddos-flowspec-parent-removed-driver"
++		encoder json
++	}
++}
++EOF_CONF
++
++cmd=foreground:seq=1:exec=le test fixture plugin/ddos-transit-forward-drop-setup
++cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
++cmd=foreground:seq=3:exec=ze --plugin ze.bgp-nlri-flowspec -:stdin=ze-bgp:timeout=145s
++expect=exit:code=0
++expect=stderr:contains=FLOWSPEC-ANNOUNCED 203.0.113.9
++expect=stderr:contains=FLOWSPEC-WITHDRAWAL-SENT 203.0.113.9
++expect=stderr:contains=ddos-flowspec: announced
++expect=stderr:contains=ddos-flowspec: the ddos flowspec section was removed, withdrawing the announcement
++expect=stderr:contains=ddos-flowspec: withdrawn
++reject=stderr:contains=ddos-flowspec: withdraw failed
++reject=stderr:contains=ddos-flowspec: the FlowSpec rule could not be withdrawn on the way out
+diff --git a/test/draft/plugin/ddos-flowspec-orphan-doctor.ci b/test/draft/plugin/ddos-flowspec-orphan-doctor.ci
+new file mode 100644
+index 0000000000..0f364c2981
+--- /dev/null
++++ b/test/draft/plugin/ddos-flowspec-orphan-doctor.ci
+@@ -0,0 +1,326 @@
++# Test: a FlowSpec rule recorded by a run that ended without withdrawing it, and
++# not withdrawn by the next start, is reported by `ze doctor` with the victim and
++# the plugin restart as its fix; once the cause of the failed withdrawal is
++# corrected, the fix doctor printed withdraws the rule, removes the record, and
++# clears the report.
++#
++# QUESTION: when the daemon holds a FlowSpec record that its running responder
++#           does not own, does `ze doctor` through the daemon name it under
++#           doctor-ddos-flowspec-orphan-announcement, with the victim prefix and
++#           `ze request plugin restart ddos-flowspec` as the fix, and does
++#           running that fix put the withdrawal on a peer's wire and leave
++#           doctor reporting nothing? A unit test cannot decide it: the record
++#           crosses a daemon death in the disk store, the report travels from
++#           the plugin's runtime check through the daemon's doctor, and the
++#           restart is the daemon's own (handlePluginRestart -> restartPlugin).
++#
++# VALIDATES: spec-single-owner-lifecycle-5-session-end-locals AC-16 (the runtime
++#            half: "a start-time withdrawal that failed", and "the report clears
++#            when the record is removed"), user story 5, and the check's Fix
++#            (ai/rules/user-facing-errors.md, "the exact command that fixes
++#            it"): the command is taken from doctor's own output and run, never
++#            retyped.
++# PREVENTS:  a recorded rule invisible to `ze doctor`, and a fix that leaves the
++#            report standing after the operator ran it.
++#
++# HOW THE DAEMON REACHES THE STATE, with nothing written by hand:
++#   1. The first daemon announces the blackhole-fallback rule for the remote
++#      victim, and the plugin records it (responder.go announce -> Record). The
++#      flood driver waits for the record itself, read back through the daemon
++#      (`show data cat`): the live flag is published before the record is
++#      written, so it is no barrier.
++#   2. The first daemon is KILLED. A killed process withdraws nothing, and the
++#      record stays in the disk store (docs/guide/ddos-mitigation.md, "What
++#      each end of the plugin does"). A SIGTERM would not do: an internal
++#      plugin's stop races the engine's teardown, and a withdrawal that still
++#      reaches the engine removes the record.
++#   3. The second daemon starts on a config that keeps `ddos flowspec` but
++#      whose peer no longer attaches ddos-flowspec. The start-time withdrawal
++#      (withdrawRecordedAnnouncement) is refused by the send permission
++#      (reactor/send_permission.go filterPermittedPeers), so the record stays
++#      and the running responder announces nothing: the runtime check
++#      (doctor.go answerOrphanRuntimeCheck) reports it.
++#   4. The cause is corrected: the operator restores the attach block
++#      (fix-cause.sh copies running.conf over running2.conf and asks for a
++#      reload). A changed attach block travels through RemovePeer and AddPeer
++#      (reactor/delivery_graph.go), so the session to the peer restarts as
++#      connection 3, and the script waits until it is established: a
++#      withdrawal sent before that reaches no peer and fails the same way.
++#   5. The fix doctor printed is run as printed (run-fix.sh). The restarted
++#      plugin's start withdraws the recorded rule through the restored attach
++#      and removes the record (withdrawRecordedAnnouncement), and doctor then
++#      reports nothing (plugin/ddos-flowspec-orphan-cleared).
++#
++# WHAT THE PEER ASSERTS. Connection 1 (first daemon) receives the announcement
++# of 203.0.113.9/32 with traffic-rate 0. Connection 2 (second daemon, no attach)
++# receives no FlowSpec UPDATE: the refused start-time withdrawal sends nothing.
++# Connection 3 (the session the reload restarted) receives the withdrawal the
++# restarted plugin sent. That session never held the rule, so this proves the
++# fix reaches the wire, not what a real peer does with a withdrawal for an NLRI
++# it does not hold (the spec's A-9, which ze-peer does not model).
++#
++# STATUS: a Linux/QEMU integration test; NOT executable on the darwin dev host.
++#   net-admin builds the transit veth pair; bpf lets traffic-usage name the
++#   victim (internal/plugins/trafficusage/attach_linux.go).
++option=needs-linux:caps=net-admin,bpf
++option=exclusive:group=ddos-flood
++# The record has to survive the first daemon: the memory store dies with it.
++option=storage:value=disk
++option=timeout:value=180s
++option=env:var=ze.log.ddos.flowspec:value=info
++option=env:var=ze.ssh.username:value=admin
++option=env:var=ze.ssh.password:value=testpass
++option=env:var=ze.ssh.port:value=$PORT2
++
++stdin=peer:terminator=EOF_PEER
++option=tcp_connections:value=3
++option=linger:value=true
++# First daemon: the announcement of 203.0.113.9/32, traffic-rate 0 (discard).
++expect=bgp:conn=1:seq=1:announced=060120CB007109:attribute=16,8006000000000000
++# Second daemon, after the reload restored the attach: the withdrawal the
++# restarted plugin sent when the operator ran doctor's fix.
++expect=bgp:conn=3:seq=1:withdrawn=060120CB007109
++EOF_PEER
++
++tmpfs=running.conf:terminator=EOF_CONF
++system {
++	authentication {
++		# bcrypt cost-4 hash of "testpass".
++		user admin {
++			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
++		}
++	}
++}
++environment {
++	ssh {
++		enabled true
++		server main {
++			ip 127.0.0.1;
++			port $PORT2;
++		}
++	}
++}
++ddos {
++	detect {
++		enabled true
++		absolute-floor 1000
++		confirm-duration 1
++		clear-consecutive-checks 100
++		startup-grace 0
++		baseline-window 10
++		check-interval 1
++		characterize-enable false
++	}
++	observe {
++		incident-ring-size 100
++	}
++	flowspec {
++		response-level enforce
++		action discard
++		blackhole-fallback true
++		max-mitigation-duration 3600
++		hold-down 3600
++	}
++}
++traffic {
++	usage {
++		enabled true
++		track-ip true
++		interfaces {
++			interface zdd0p {
++				enabled true
++			}
++			interface zdd0 {
++				enabled true
++			}
++		}
++	}
++}
++bgp {
++	filter {
++		import {
++			final accept
++		}
++		export {
++			final accept
++		}
++	}
++	peer peer1 {
++		connection {
++			remote {
++				ip 127.0.0.1
++			}
++			local {
++				ip 127.0.0.2
++				accept false
++			}
++		}
++		session {
++			asn {
++				local 65000
++				remote 65001
++			}
++			router-id 1.2.3.4
++			family {
++				ipv4/unicast { prefix { maximum 10000; } }
++				ipv4/flow { prefix { maximum 10000; } }
++			}
++			capability {
++				graceful-restart disable
++			}
++		}
++		attach process ddos-flowspec {
++			send [ update ]
++		}
++	}
++}
++EOF_CONF
++
++# The second daemon's config: running.conf with the peer's attach block
++# removed, and nothing else changed.
++tmpfs=running2.conf:terminator=EOF_CONF2
++system {
++	authentication {
++		# bcrypt cost-4 hash of "testpass".
++		user admin {
++			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
++		}
++	}
++}
++environment {
++	ssh {
++		enabled true
++		server main {
++			ip 127.0.0.1;
++			port $PORT2;
++		}
++	}
++}
++ddos {
++	detect {
++		enabled true
++		absolute-floor 1000
++		confirm-duration 1
++		clear-consecutive-checks 100
++		startup-grace 0
++		baseline-window 10
++		check-interval 1
++		characterize-enable false
++	}
++	observe {
++		incident-ring-size 100
++	}
++	flowspec {
++		response-level enforce
++		action discard
++		blackhole-fallback true
++		max-mitigation-duration 3600
++		hold-down 3600
++	}
++}
++traffic {
++	usage {
++		enabled true
++		track-ip true
++		interfaces {
++			interface zdd0p {
++				enabled true
++			}
++			interface zdd0 {
++				enabled true
++			}
++		}
++	}
++}
++bgp {
++	filter {
++		import {
++			final accept
++		}
++		export {
++			final accept
++		}
++	}
++	peer peer1 {
++		connection {
++			remote {
++				ip 127.0.0.1
++			}
++			local {
++				ip 127.0.0.2
++				accept false
++			}
++		}
++		session {
++			asn {
++				local 65000
++				remote 65001
++			}
++			router-id 1.2.3.4
++			family {
++				ipv4/unicast { prefix { maximum 10000; } }
++				ipv4/flow { prefix { maximum 10000; } }
++			}
++			capability {
++				graceful-restart disable
++			}
++		}
++	}
++}
++EOF_CONF2
++
++# Runs the fix exactly as `ze doctor` printed it. The text report's `fix:` line
++# is the raw command, quotes included (doctor-local-asks-daemon.ci asserts the
++# form), so eval runs what an operator would paste. The script's `ze` is this
++# run's binary (the runner's shim directory is first on every child's PATH).
++tmpfs=run-fix.sh:terminator=EOF_SCRIPT
++#!/bin/sh
++set -eu
++fix=$(ze doctor | sed -n 's/^[[:space:]]*fix: //p' | grep -F 'plugin restart ddos-flowspec' | head -n 1)
++if [ -z "$fix" ]; then
++	echo "FIX-MISSING: ze doctor printed no FlowSpec plugin restart fix" >&2
++	exit 1
++fi
++echo "FIX-RUN: $fix" >&2
++eval "$fix"
++EOF_SCRIPT
++
++# Corrects the cause of the failed withdrawal: the peer attaches ddos-flowspec
++# again. The daemon reads running2.conf, so the first daemon's file, which holds
++# the attach block, is copied over it and the daemon is asked to reload. The
++# attach change restarts the session, so the script returns only once the peer
++# is established again (show bgp summary, peers-established).
++tmpfs=fix-cause.sh:terminator=EOF_CAUSE
++#!/bin/sh
++set -eu
++cp running.conf running2.conf
++ze request reload
++le test fixture daemon/await-answer '"peers-established": 1' 'show bgp summary | json'
++EOF_CAUSE
++
++cmd=foreground:seq=1:exec=le test fixture plugin/ddos-transit-forward-drop-setup
++cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
++cmd=background:seq=3:exec=ze start running.conf:name=first:ready=Ze running.
++cmd=foreground:seq=4:exec=le test fixture plugin/ddos-flowspec-orphan-flood:timeout=70s:exit=0
++expect=stderr:contains=FLOWSPEC-RECORDED 203.0.113.9/32
++cmd=stop:seq=5:name=first:signal=kill
++
++cmd=background:seq=6:exec=ze start running2.conf:name=second:ready=Ze running.
++expect=stderr:contains=ddos-flowspec: a previous run left a FlowSpec rule announced, withdrawing it
++expect=stderr:contains=ddos-flowspec: the withdrawal of a FlowSpec rule a previous run announced failed, so the rule may still be at the BGP peers and stays recorded
++
++cmd=foreground:seq=7:exec=le test fixture daemon/await-answer doctor-ddos-flowspec-orphan-announcement "show doctor | json":exit=0
++
++cmd=foreground:seq=8:exec=ze cli -c "show doctor | json":exit=0
++expect=stdout:contains="code": "doctor-ddos-flowspec-orphan-announcement"
++expect=stdout:contains=ddos-flowspec holds the record of a FlowSpec rule it announced for 203.0.113.9/32, and no running responder holds that rule as its live announcement
++expect=stdout:contains="fix": "ze request plugin restart ddos-flowspec"
++
++cmd=foreground:seq=9:exec=sh fix-cause.sh:timeout=60s:exit=0
++
++cmd=foreground:seq=10:exec=sh run-fix.sh:exit=0
++expect=stderr:contains=FIX-RUN: ze request plugin restart ddos-flowspec
++reject=stderr:contains=FIX-MISSING
++
++cmd=foreground:seq=11:exec=le test fixture plugin/ddos-flowspec-orphan-cleared:timeout=40s:exit=0
++expect=stderr:contains=FLOWSPEC-REPORT-CLEARED 203.0.113.9/32

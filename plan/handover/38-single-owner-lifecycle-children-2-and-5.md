@@ -83,6 +83,18 @@ his to overturn:
 
 ## Written and not run (uncommitted, in the working tree)
 
+None of this is committed in place: an unrun scenario or functional test in a
+suite is an unproven claim in front of CI and on the interop inventory page,
+and `test/draft/` is ignored by git. All of it is held in
+`plan/handover/38-single-owner-lifecycle-unrun-proofs.patch` (24 files: the
+three fixtures, the interop checker and its tests, the scenario's three files,
+the five drafts, the two parked initial-sync tests, and this run's hunks only
+from six shared files). It applies cleanly to the tree at the commit that added
+it. The files are also still in the working tree where they were written: use
+the patch only for a file that has gone missing (`git apply --include=<path>`),
+never over a file that is present, and delete the patch in the commit that
+lands the last of them.
+
 Every run below builds the daemon or a guest. On 2026-11-12 the shared tree was
 broken three times in ten minutes by other sessions' in-flight edits
 (`plugin/server/enricher.go`, `l2tp/plugins/authradius/coa_transaction.go`,
