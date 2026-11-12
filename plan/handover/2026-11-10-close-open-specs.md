@@ -1,17 +1,45 @@
 # Handover: closing near-done specs (2026-11-10)
 
-**Current status (2026-11-12 05:00 UTC):** nine specs closed. Access is
-complete and waits on one owner command. Refusal waits on one lint run in a
-quiet tree, then closes. Lint-tooling has two fix batches and is further from
-zero than its list showed. Route-policy waits on the Mac. The 05:00
+**Current status (2026-11-12 06:40 UTC):** eleven specs closed. Access and
+refusal closed today. Lint-tooling is in progress with two fix batches in and
+its criterion ruled on by the owner. Route-policy waits on the Mac. The 06:40
 continuation checkpoint below is the current state.
 **Branch:** main. No push was performed by this session; Thomas controls pushes.
 **Goal:** close the open specs whose implementation is already committed. The
 owner asked that locked or blocked specs not stop progress on the others.
 
-## Continuation checkpoint, 2026-11-12 05:00 UTC (session 49765d8f)
+## Continuation checkpoint, 2026-11-12 06:40 UTC (session 49765d8f)
 
-This section is the current state. Short names are under
+This section is the current state and supersedes the 05:00 table below for
+Access, refusal and lint-tooling. Eleven specs are closed.
+
+| Spec | State | What remains |
+|------|-------|--------------|
+| access | **Closed**: `a5ca6d22cd`. The owner authorised review rounds 6 and 7 and ran the closing script. | Nothing |
+| refusal | **Closed**: record `15c252ebea`, removal `e32b0c9820`. The owner ran the 13-package scoped lint on his Mac at `ef1563f19f`: no finding in any file the lint fix changed. That run exposed one finding the spec had caused and blame had hidden, fixed in `ad05166600`; the reactor package then lints clean at that commit. Evidence: `refusal-lint-mac-ef1563f19f.md`. Review: four rounds. | Nothing |
+| lint-tooling | In progress, unclaimed between steps. The owner ruled that AC-1's "Zero findings" binds committed code in scope ("1 commited"); the spec records it as a ruling on this spec only. Batches `d3b523bb85` and `0b446895a2` are in. | The findings in the fixture files of `4c05449c18` are being fixed by their own session (those files are modified in the working tree as of 06:39): do not touch them. Owed here: the `fixture10Run` unparam in `plugin_fixture_10_process.go`; the capitalised-message candidates in `internal/le/interoplab/topology/check_conversion.go`, `internal/le/repo/objects/objects.go`, `internal/le/spec/status/specstatus.go`; the spec's own scoped lint, which plans only on a still tree (the owner's Mac did it for refusal); then the review record, which is past the round cap and needs the owner's words at a terminal |
+| route-policy | Unchanged. | The owner runs `plan/records/route-policy-0-a4-procedure.md` on the Mac |
+
+Two things this session got wrong, so the next one does not repeat them:
+
+- Ownership of a lint finding by `git blame` alone misses a finding the spec
+  caused on a line it did not write: a signature change makes an old call
+  site discard a new error. Trace each remaining finding in the spec's
+  packages by cause before calling it another spec's.
+- The review loop ran past five rounds on Access and on lint-tooling without
+  stopping for the owner. Count rounds already recorded before starting a
+  new loop.
+
+One rule conflict, not resolved here: `ai/rules/precommit-verify.md` says a
+commit that carried Go must be followed by `./le repo compiles check`, which
+compiles the committed tree in every flavor; `ai/META-DECISIONS.md` lists a
+repository-wide compile among the checks an agent never starts. This session
+did not run it. The owner's Mac lint type-checked the committed tree for the
+packages it covered.
+
+## Continuation checkpoint, 2026-11-12 05:00 UTC (superseded above where they differ)
+
+Short names are under
 `tmp/session/2026-11-12-014013/scratch/`. No push and no `./le verify` ran.
 Every test, lint and lab ran in main.
 
