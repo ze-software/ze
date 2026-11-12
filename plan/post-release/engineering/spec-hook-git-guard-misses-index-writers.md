@@ -41,9 +41,8 @@ not a list names it today. Read-only git commands keep passing.
 **A second defect, same guards (2026-11-12), split out.** The refusal
 `bashWorktreeCopy` prints told a worktree agent "Use git merge or
 cherry-pick", the likeliest reason an agent would run the unguarded verb. It
-depends on nothing, so it moved to
-`plan/post-release/engineering/spec-hook-worktree-copy-refusal-names-banned-verbs.md`,
-which owns its journal row.
+depends on nothing, so it moved to `spec-hook-worktree-copy-refusal-names-banned-verbs`,
+which fixed it in c775845457 and is closed; its journal row is `fixed:`.
 
 **Direction (2026-11-12, session decision, design still owed).** This spec
 does not run on its own by adding names to the two lists. Five names are known

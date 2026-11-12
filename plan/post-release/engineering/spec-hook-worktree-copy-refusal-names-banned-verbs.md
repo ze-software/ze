@@ -8,7 +8,7 @@
 | Release reason | Agent tooling: a refusal that recommends two banned git verbs steers a worktree agent into the shared checkout, but no shipped behaviour changes |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 3/3 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -131,7 +131,7 @@ search finds the producer line.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No test or fixture pins the old text | The search in the census | A pinned text goes red and names itself | `./le test unit pkg path ./internal/le/hookruntime/` and `./internal/le/ai/hooks/` after the change | unvalidated |
+| A-1 | No test or fixture pins the old text | The search in the census | A pinned text goes red and names itself | `./le test unit pkg path ./internal/le/hookruntime/` and `./internal/le/ai/hooks/` after the change | confirmed 2026-11-12: both package runs exit 0 after c775845457, so no pinned text went red |
 | A-2 | `./le commit create` is the commit route inside a worktree too | `AGENTS.md`, "git commit, add, rm, mv, and push only through `./le commit`", which makes no exception for a worktree | The advice would name a route that does not work there | Reading `AGENTS.md` and `ai/rules/git-safety.md`: the ban on direct git verbs is unconditional | confirmed 2026-11-12 |
 
 ### Risks
@@ -311,3 +311,143 @@ search finds the producer line.
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + edited spec + the journal row
 - [ ] **Commit B:** the spec removed
+
+## Implementation Summary
+
+### What Was Implemented
+- The refusal of `bashWorktreeCopy` (`internal/le/hookruntime/bash.go`) keeps its first line, says why a copy is harmful, names the worktree branch and the user's `git rebase <branch>`, and ends with the `./le commit create` line (c775845457)
+- `TestWorktreeCopyRefusalNamesTheRouteThatWorks` pins it through the real `pretool-bash` action; `hookSourcesDigest` re-sealed
+
+### Bugs Found/Fixed
+- The refusal recommended `git merge` and cherry-pick, both banned for a worktree agent; covered by the new test, red on all five assertions before the change
+
+### Documentation Updates
+- None: `.claude/hooks/README.md`'s `bashWorktreeCopy` row names no git verb and stays true; no page quotes the refusal (search in the census)
+
+### Deviations from Plan
+- None
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The refusal names the route that works and no banned verb | Done | `bash.go` `bashWorktreeCopy` | |
+| What the guard refuses does not change | Done | `bash.go` `bashWorktreeCopy` | the diff touches only the returned literal |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestWorktreeCopyRefusalNamesTheRouteThatWorks` | exit 2, rebase line, last line the commit route |
+| AC-2 | Done | same test | neither "cherry-pick" nor "Use git merge" |
+| AC-3 | Done | `git show c775845457 -- internal/le/hookruntime/bash.go`: only the `return` literal changes; `BASH_GOLDEN` row `cp .claude/worktrees/a internal/x` still exit 2 under `./le ai hooks unit` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestWorktreeCopyRefusalNamesTheRouteThatWorks` | Done | `internal/le/hookruntime/refusal_messages_test.go` | red before, green after |
+| `BASH_GOLDEN` row `cp .claude/worktrees/a internal/x` | Done | `internal/le/ai/hooks/parity_catalog.go` | unchanged, still exit 2 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/hookruntime/bash.go` | Done | |
+| `internal/le/hookruntime/refusal_messages_test.go` | Done | |
+| `internal/le/ai/hooks/fixtures.go` | Done | |
+| `plan/journal/guard-message-teaches-the-violation.md` | Done | row `fixed:` |
+| `plan/post-release/engineering/spec-hook-git-guard-misses-index-writers.md` | Done | defect moved out; at closure its citation of this spec restated by bare stem |
+
+### Audit Summary
+- **Total items:** 11
+- **Done:** 11
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The refusal names the route that works and no banned verb | test and live hook | `TestWorktreeCopyRefusalNamesTheRouteThatWorks` red on all five assertions before, green after; live on the build of c775845457 a `cp .claude/worktrees/...` line was refused with the new five-line text ending in `./le commit create subject "<subject>" file <path>` |
+| The guard's condition does not change | diff and golden row | only the literal moved; `./le ai hooks unit` exit 0 on that build |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none: every item of the Task is done; `git cherry-pick` staying unrefused was never this spec's | - | `plan/post-release/engineering/spec-hook-git-guard-misses-index-writers.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/hook-worktree-copy-refusal-names-banned-verbs-e82b0d47-98d2-4083-b79e-5838e8b12dd5.md` (5 files, verdict clean) |
+| `./le spec review check` | clean (run before commit A) |
+| Rounds | 1 |
+| Reviewer lenses used | round 1: correctness and guard audit (the condition, the verdict, the advice's safety); message shape and docs (`ai/rules/user-facing-errors.md`, the pages that anchor `bash.go`, citers of this spec) |
+
+### Run 1
+Scope, written before the round: commit c775845457 whole, which is the
+literal in `bashWorktreeCopy` (`internal/le/hookruntime/bash.go`),
+`TestWorktreeCopyRefusalNamesTheRouteThatWorks` and the `Related:` line in
+`refusal_messages_test.go`, the `hookSourcesDigest` re-seal in `fixtures.go`,
+the journal row in `guard-message-teaches-the-violation.md`, the edit to
+`spec-hook-git-guard-misses-index-writers.md`, and this spec; plus the sibling
+surfaces the text reaches: the `bashWorktreeCopy` row of `.claude/hooks/README.md`,
+the `BASH_GOLDEN` row `cp .claude/worktrees/a internal/x`, and `Run`'s joining
+of every refusing check's text (`internal/le/hookruntime/runtime.go`).
+
+Result: 0 BLOCKER, 0 ISSUE, 2 NOTE. The condition of `bashWorktreeCopy` is
+byte-identical and only the returned literal changed, so no verdict moved; the
+golden row still pins exit 2. The text follows `ai/rules/user-facing-errors.md`:
+the problem, why, and the fixing command alone on the last line. The advised
+command is one no guard refuses and it commits only the named paths on the
+caller's own branch. The test drives the real action, asks one question, and
+was red on every assertion before the change; `Run` joins every refusing
+check's text, and on the test's line no later check refuses, so the last line
+is this guard's. The README row stays true, and the only citer that names this
+spec by path, the skeleton, is restated by bare stem in commit A.
+- NOTE: the command text names `.claude/worktrees`, so the usual caller is a
+  main-checkout session copying out of a worktree rather than the worktree
+  agent itself. For that caller the remedy is the user's rebase, which line 3
+  states; the last line addresses the worktree agent. No change needed.
+- NOTE: the test refuses the exact phrase "Use git merge", as AC-2 states it;
+  a reworded merge remedy would pass. Test-only, AC-2 met as written.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| none | - | round 1 found no BLOCKER or ISSUE | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| none to create | N-A | Files to Create is `none`; every modified file is in HEAD (c775845457) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | the new test passes | `./le test unit pkg path ./internal/le/hookruntime/` exit 0 after c775845457 (main thread) |
+| AC-3 | no verdict moved | `./le ai hooks unit` and `./le test unit pkg path ./internal/le/ai/hooks/` exit 0 (main thread); `bash.go` lines 66-78 unchanged by the diff |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Bash call through `pretool-bash` | none: the entry point is the hook action, driven by `runHook` | yes, and live through the real hook on the build of c775845457 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | both package runs green after the change |
+| A-2 | confirmed | `AGENTS.md` and `ai/rules/git-safety.md`: the ban on direct git verbs has no worktree exception |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `.claude/hooks/README.md`, `bashWorktreeCopy` row | names no git verb; matches the comment above `bashWorktreeCopy` | yes |
+| No page quotes the refusal | `git grep` for "merge or cherry-pick" and "copying files from worktree": only `bash.go`, the test comment and this spec | yes |
