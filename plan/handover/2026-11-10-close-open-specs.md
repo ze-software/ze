@@ -112,6 +112,21 @@ the archive (`check` now wraps with the archive's file name, as the Docker
 loop does). The sparse case was observed red before the fix
 (`job-unit-pkg-828c06ab.log`) and the package is green after.
 
+A second granted round judged the fixed bound sound for every input it traced
+(the three sparse formats, old sparse headers, size overrides, long-name and
+global headers, an oversized sparse map) and found two test gaps, both since
+closed: a `ze` entry of exactly the limit whose stream runs out during the
+hash (the only case that reaches the budget check after `readerSum`), and
+sparse entries at the limit and one byte over. Each guarded line was then
+broken in turn and the cases meant to catch it went red, and only those
+(`job-unit-pkg-ab70f935.log`, overwritten by each run): the post-hash budget
+check removed gives a raw "unexpected EOF"; `>` changed to `>=` refuses the
+exact-limit sparse entry; the declared-size check removed accepts the
+one-byte-over sparse entry. The code was restored and the package is green.
+Two notes from that round are applied: an unreachable negative-size guard is
+gone, and `archiveSizeLimit` is now `layerSizeLimit`. These additions have not
+been seen by a reviewer.
+
 The same round named three more unbounded reads of untrusted data in that
 package that predate this work and are not fixed: `scanImageArchive`
 (`docker_archive.go`) hashes a regular entry with the same sparse exposure;
