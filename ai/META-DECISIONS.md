@@ -226,6 +226,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   reaches the engine by registration. A design that has the engine or config
   code name a specific feature, plugin, field or path is wrong, however
   small, and is redone as a registration before it is built.
+- A command path names the subject and stops; scope, presentation and format
+  are pipe operations after it. A command may declare optional pipe operations
+  of its own, such as `| count`, and the engine handles a declared operation
+  for every caller. The command line is never rewritten to carry one as an
+  argument.
 
 ## Ze is pre-release
 
@@ -497,6 +502,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   with freeRtr's source as a further reference.
   The spec moves to ready and is implemented, and any choice only he can make
   waits in a table for his return.
+- Unless Thomas said he is away, a spec's design is put to him and approved
+  before the spec moves to ready, and the main session presents it, never a
+  subagent. The design is presented whole: the choice made, the alternatives
+  set aside, and every owner ruling it was checked against. A spec is never
+  designed and implemented without having read the code and the records of
+  his earlier rulings on the same surface.
 - A hook checks what a command, path or file is, never how a message is worded.
 - An agent never gets past a hook refusal by running the refused command from
   a script file or any other wrapper, even when the refusal is false. It
