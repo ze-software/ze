@@ -2,47 +2,98 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped producers answer a default, a zero or a constant where they cannot answer, so operators and peers act on values Ze never measured; several rows are RFC defects in implemented capabilities (RADIUS, LDP, IS-IS, ADD-PATH, LLGR) |
 | Depends | spec-plugin-optional-dependency-refusal (closed; its refusal is `config.refuseAbsentOptionalProviders` and `registry.MissingDependencyError`, documented in `docs/architecture/plugin/feature-gates.md`; it owned the "not built reads as not configured" rows of the 2026-10-20 dependency census; this spec reuses its refusal for the two build-gated rows it owns) |
 | Phase | 7/7 |
 | Handoff | verify |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Remaining verification
 
-Phase 7 remains open after two independent source-review rounds. Official
-round 2 is CLEAN (zero BLOCKER, zero ISSUE). Main recorded the native artifact
-`tmp/review/refuse-instead-of-defaulting-01a1c842-0a58-7752-bbff-2a3f1633b66f.md`
-and its check passes for all 591 code files, including both promoted fixtures.
-All behavioral proofs are complete. Fresh repository and weakened-test checks
-have zero owned findings; citations pass and planned files exist. Broader
-scoped lint remains blocked as detailed below; commit B must wait for it.
-The current checkpoint below supersedes earlier pending repair queues.
+Phase 7 is open for its last owed runs, all in main. Official round 2 is CLEAN,
+and bounded round 3 over the lint-fix diff is CLEAN (Review Gate). The
+13-package scoped lint produced a plan and ran on 2026-11-12; its nine owned
+findings are fixed in the lint-fix commit (see "Scoped lint result" below).
+After that commit lands, main owes, in order:
 
-## Blocker
+1. `./le repo compiles check` (the lint-fix commit carries Go).
+2. The same scoped lint once more. Pass criterion: zero owned findings and no
+   owned compile-out error; foreign findings stay attributed, never fixed here.
+3. `./le job run label refusal-ntp-forked-after-lint command ./le test bgp plugin system-date-ntp-forked`,
+   because the commit changes its fixture `internal/test/fixture/register_ntp_forked_state.go`.
+4. `./le doc check all`, for the source anchor the commit changes in
+   `docs/guide/command-reference.md`.
+5. `./le spec review record` for the committing session (Review Gate,
+   "Population for the committing session"), then commits A and B, then
+   `./le spec citation`.
 
-The remaining gate is the unchanged 13-package scoped lint run. In
-`internal/le/go/lint/verifylint.go`, `Runner.plan` / `checkPlanningInputs`
-reject changes to reached inputs selected by `planInputs.population.reaches`
-in `internal/le/go/lint/planinputs.go`. The latest main-thread attempt refused
-after host planning because foreign `internal/test/fixture/native_readiness_test.go`
-and one other reached input changed. No plan was produced:
-`tmp/session/2026-11-11-014000/scratch/job-refusal-final-lint-after-known-map-settled-8d7938b4.log`.
-Earlier attempts separately encountered foreign plugin-server and sysctl edits;
-none is a lint pass or a finding against this implementation.
+The spec closes once 1 to 4 pass. Each earlier checkpoint below is history.
 
-Unblock: after the owners finish editing those dependencies, run the native
-`go lint run scope` action once with one space-separated scope value containing
-`./cmd/ze/hub/... ./internal/component/cmd/show/... ./internal/component/plugin/registry/... ./internal/le/arch/refusebydefault/... ./internal/le/rfc/... ./internal/le/interoplab/bgp/... ./internal/component/bgp/reactor/... ./internal/component/bgp/plugins/rib/... ./internal/component/bgp/plugins/bmp/... ./internal/test/fixture/... ./internal/component/config/cli/... ./internal/plugins/iface/netlink/... ./internal/plugins/ntp/...`.
-Run it in main through job admission. Preserve the clean round-2 artifact and
-completed proofs; finish the two closing commits after scoped lint passes.
+## Scoped lint result, 2026-11-12
 
-Fresh main checks: repository check reports 31 foreign findings, all outside
+The run is
+`tmp/session/2026-11-12-014013/scratch/job-refusal-final-scoped-lint-86c7c325.log`,
+over `./cmd/ze/hub/... ./internal/component/cmd/show/... ./internal/component/plugin/registry/... ./internal/le/arch/refusebydefault/... ./internal/le/rfc/... ./internal/le/interoplab/bgp/... ./internal/component/bgp/reactor/... ./internal/component/bgp/plugins/rib/... ./internal/component/bgp/plugins/bmp/... ./internal/test/fixture/... ./internal/component/config/cli/... ./internal/plugins/iface/netlink/... ./internal/plugins/ntp/...`.
+
+| Build | Result | Owned |
+|-------|--------|-------|
+| Host, Linux integration | 134 findings each, the same list | 8. Ownership by `git blame` of each flagged line is in `scratch/refusal-lint-ownership.tsv` (same directory): 8 owned, 105 written by other sessions' commits, 21 in other sessions' untracked files |
+| Darwin, capability, appliance | Stopped on a typecheck error: `HandlerPanicsDropped` in `internal/component/plugin/doctor/checks_delivery.go` and `internal/component/plugin/server/doctor_snapshot.go`, another session's half-written doctor edit | 0 |
+| Compile-out | That same error, plus `TestBuildTag_NTP_AbsentSyncInfoNil` in `cmd/ze/hub/build_tag_ntp_absent_test.go`, which stopped compiling when `2ea5329344` gave `pluginreg.GetNTPSyncInfo` a `CommandQuery` argument | 1: that `!ze_ntp` test proved nothing from `2ea5329344` on |
+
+| Owned finding | Fix |
+|---------------|-----|
+| `nilnil`, `internal/plugins/ntp/register.go` `ntpReplyMetadata` | Split into `ntpReplyEnabled` (bool, error) and `ntpActiveMetadata`. `ntpSyncInfo` keeps the `NTPSyncProvider` contract: nil metadata with no refusal means an explicit inactive answer. `forwardNTPCommand` reads `enabled` itself before `ntpActiveMetadata` |
+| `goconst` `count`, `register_commands.go`; `paramTypeCombine` in `executeNTPCommand` | `fieldPeers` and `fieldPeerCount` constants; parameters combined |
+| `stringXbytes`, `command_active_config_test.go`; `rangeValCopy`, `startup_cleanup_test.go` | `bytes.Equal`; index the stack records |
+| `errorlint` and `goconst` `source`, `internal/test/fixture/register_ntp_forked_state.go` | Wrap the last error with `%w` only when there is one; `ntpForkedSourceField` constant |
+| `misspell`, `internal/component/bgp/plugins/rib/rib_pipeline_refusal_test.go` | `unrecognized-stage`; the asserted refusal text is unchanged in form |
+| Compile-out, `cmd/ze/hub/build_tag_ntp_absent_test.go` | Passes a query that would answer inactive, and asserts the seam reads nothing and refuses when no provider is registered |
+| Unused `jsonKeyError`, `internal/component/bgp/plugins/rib/rib.go`, orphaned by `820476c6ee` | Removed; nothing else in the package names it |
+
+Main's evidence for the fixes, logs in the same scratch directory: NTP and
+`cmd/show` pass under race (`job-unit-pkg-ba291acb.log`). In that log the RIB
+package fails once on `TestSDKEventBusWholeFamilyFrames/best-change` (context
+deadline at load average 32 to 45), and the hub package did not build because
+of another session's `internal/plugins/ddos/flowspec` edit. The RIB rerun passes
+(`job-unit-pkg-1cf6d23e.log`, which shows only the package `ok` line). The three
+`TestBuildTag_NTP_Absent*` tests pass by name in the build without `ze_ntp`
+(`job-unit-pkg-ntp-absent-7525ec60.log`). The six changed packages type-check
+(`job-vet-pkg-7dd5a45b.log`, empty output). `internal/test/fixture` and
+`internal/le/rfc` pass in `job-unit-pkg-e6c8cc4c.log`; their earlier failures in
+`job-unit-pkg-c4a36b2f.log` were `exec: "le": executable file not found in $PATH`.
+
+`TestInfraSSHOwnerDrainsBeforeStoreCloseOnStartupFailure`
+(`cmd/ze/hub/infra_history_owner_test.go`) fails twice the same way in the
+default build (`job-unit-pkg-c4a36b2f.log`, `job-unit-pkg-e6c8cc4c.log`): no
+history publication before store Close after the SSH server's 5 s storage-write
+drain. This spec's change does not reach it. The lint-fix hub change is in a
+`!ze_ntp` file the default build excludes. This spec's committed hub changes
+(`238bdb62e9`: `buildParamMeta` in `command_meta.go`, the web config path in
+`service_web.go`; `cb44713011`: the two NTP build-tag tests) are not on the SSH
+editor history path, and `238bdb62e9` predates the test file's last change
+(`672832444f`, 2026-11-05). The candidates are foreign: `d7b8d92073` changed
+`internal/component/ssh/ssh.go`, `cmd/ze/hub/audit.go` and
+`cmd/ze/hub/main_reload.go` on 2026-11-12, and other sessions hold uncommitted
+edits in `internal/component/plugin/server`. No before/after run in main proves either
+side; that is the comparison that would.
+
+The lint closure criterion is zero owned findings with each foreign finding
+attributed, the same criterion the repository check (31 foreign) and the RFC
+check (73 foreign) closed on. No acceptance criterion, Goal Gate or closure
+checklist item here asks for zero lint findings in these packages whatever
+their author.
+
+At 03:49 `internal/component/plugin/server/enricher.go` (another session's
+uncommitted edit) did not compile (`job-unit-pkg-34a32afe.log`). Owed runs 2
+and 3 link that package and wait until its owner finishes.
+
+Fresh main checks, 2026-11-11: repository check reports 31 foreign findings, all outside
 the complete 846-path review population; weakened-test check reports 21 foreign
 deletions in the concurrent MPLS test move. Citation check passes for 666 specs
 with 65 baselined dangling citations and 15 foreign line-token warnings. The
@@ -1269,8 +1320,16 @@ route, and forked NTP state was mistaken for inactive central state. Source fixe
 are committed in `4a991e513e`, `dfc2863cea` and `2ea5329344`, with main-thread
 negative/clean evidence above. Official round 2 is CLEAN and its native check
 passes all 591 code files. Load-80, unchanged promotion, canonical 2/2, wrapped
-pmacct 1/1 and zero-owned RFC reconciliation are complete. Broader scoped lint
-and fresh precommit checks remain pending; no closure is claimed.
+pmacct 1/1 and zero-owned RFC reconciliation are complete.
+
+The 2026-11-12 scoped lint found nine owned defects, all from this spec's
+commits: seven style findings and a `nilnil` answer in the NTP code of
+`2ea5329344`, one misspelling from `820476c6ee`, and a compile-out test,
+`TestBuildTag_NTP_AbsentSyncInfoNil`, that stopped compiling in the build
+without `ze_ntp` when `2ea5329344` changed `GetNTPSyncInfo`. The unused
+`jsonKeyError` constant that `820476c6ee` orphaned goes with them. All ten are
+fixed in the lint-fix commit ("Scoped lint result" above). The rerun of the
+lint is owed; no closure is claimed before it.
 
 ### Documentation Updates
 
@@ -1285,7 +1344,10 @@ The source anchors name the producing functions. The BMP guide and NTP command
 reference updates accompany their committed fixes and match the reviewed source.
 The current `doc check all` result has only a foreign completion-catalogue
 description drift; other steps validate 447 commands and all source anchors.
-The earlier build-blocked attempts remain retained above.
+The earlier build-blocked attempts remain retained above. The lint-fix commit
+repoints one source anchor in `docs/guide/command-reference.md` (NTP status) from
+`ntpReplyMetadata` to `ntpReplyEnabled, ntpActiveMetadata`; no other page or Go
+file names the removed function. `./le doc check all` is owed after it.
 
 ### Deviations from Plan
 
@@ -1310,6 +1372,7 @@ main's scoped package builds and executions are the applicable evidence.
 | assumption | A-1 expected four checker shapes to cover the population. | Below-WARN error dropping required a fifth shape, and direct state writes required lexical tracking. | Runtime and source audits exposed both gaps. | Add `droppedError` and `stateAssignments`, retain positive/negative fixtures, and require explicit row-level execution rather than treating report output as a semantic proof. |
 | assumption | Attribute-level BMP tests accepted an ORIGIN-only stored fixture and reconstructed the path from a flat summary. | The publisher carries complete stored segment bytes; an empty path is a present mandatory attribute. | Closure round 1 traced `formatASPath`, `storedAttributes` and `buildLocRIBUpdateBody`. | Repair the source and normalize the partial fixtures only after independent judgment; retain segment and empty-path regressions. |
 | assumption | An init-registered NTP provider was treated as proof that central nil state meant inactivity. | A supported fork owns its worker state in another process. | Closure round 1 followed external plugin startup and both central show readers. | Return to implementation for the existing generic command RPC path and accepted-config-based inactive decision. |
+| approach | `2ea5329344` changed the signature of `pluginreg.GetNTPSyncInfo`, and its package runs covered only builds that link NTP. | The `!ze_ntp` file `cmd/ze/hub/build_tag_ntp_absent_test.go` calls the same seam, and it stopped compiling, so the compile-out proof was gone until the lint's compile-out build showed it. | 13-package scoped lint, compile-out build, 2026-11-12. | Fix the caller and run the three `TestBuildTag_NTP_Absent*` tests in the build without `ze_ntp`. A changed seam signature owes a build of every negative-tag file that calls it. |
 
 ## Implementation Audit
 
@@ -1317,7 +1380,7 @@ main's scoped package builds and executions are the applicable evidence.
 
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Repair every owned producer and its callers. | Done; closing checks pending | 54-row retained ledger, 125-entry producer map and changed-carrier census | Round-1 findings, runtime/interop proofs and native round-2 review/check are complete. No waiver or scope reduction. |
+| Repair every owned producer and its callers. | Done; owed lint and NTP functional reruns pending | 54-row retained ledger, 125-entry producer map and changed-carrier census | Round-1 findings, runtime/interop proofs, native round-2 review/check and the nine owned lint findings (bounded round 3 CLEAN) are complete. No waiver or scope reduction. |
 | Prevent the defect shapes in new changes. | Done in source; main evidence retained | `internal/le/arch/refusebydefault/{refusebydefault,state_assignments,dropped,annotation,report,register}.go` | Changed-line, annotation, state and registration controls are named above; no whole-tree verify run is required. |
 
 ### Acceptance Criteria
@@ -1336,7 +1399,7 @@ main's scoped package builds and executions are the applicable evidence.
 | AC-10 | Done | Actual ADD-PATH baseline, omitted-zero expected failure, unmodified clean | Four octets for identifier zero reach FRR; non-ADD-PATH retains no source identifier. |
 | AC-11 | Done | Typed dynamic-AS controls, monitor PTY/forked RPKI, thermal zero and LLGR/DDoS regressions | Compatibility auto-AS zero remains an explicit ExaBGP boundary contract. |
 | AC-12 | Done | Actual-kernel TCX root/non-root, VPP/L2TP/netlink, BMP/pmacct and internal/external runtime proofs | Stored AS_PATH and missing-next-hop repairs pass 273 BMP race roots, zero skips. Load-80, promoted canonical 2/2 and properly wrapped pmacct 1/1 pass. |
-| AC-13 | Done; final closing checks separate | 54-row regression ledger and exact 125-entry producer map | BMP/NTP negatives/clean, load-80 and all 16 committed native RFC tuples are complete. Final 73-finding source/history audit finds zero owned debt. Broader lint and fresh precommit results remain pending process gates. |
+| AC-13 | Done; final closing checks separate | 54-row regression ledger and exact 125-entry producer map | BMP/NTP negatives/clean, load-80 and all 16 committed native RFC tuples are complete. Final 73-finding source/history audit finds zero owned debt. Scoped lint ran: 8 owned findings plus one owned compile-out error, all fixed in the lint-fix commit; its rerun is owed. |
 
 ### Tests from TDD Plan
 
@@ -1364,30 +1427,35 @@ fixed and official round 2 is SOURCE CLEAN. AC-7's final exact-owned checkpoint
 covers 54 rows and 125 producer entries. Runtime load-80 and unchanged promotion
 are complete, as are canonical 2/2, wrapped pmacct 1/1, all 16 committed native
 RFC tuples and zero owned findings in the final individual RFC audit. The native
-round-2 review check passes all 591 code files. Broader scoped lint and fresh
-precommit results remain pending. No in-scope work is skipped or approved for
-deferral. The spec stays open until those gates and the closing commits finish.
+round-2 review check passes all 591 code files. The scoped lint ran on
+2026-11-12; its nine owned defects are fixed and bounded round 3 is CLEAN. The
+lint rerun, the `system-date-ntp-forked` rerun, `./le repo compiles check` and
+`./le doc check all` are owed in main ("Remaining verification"). No in-scope
+work is skipped or approved for deferral. The spec stays open until those runs
+and the closing commits finish.
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| Reject values the producer cannot know, while retaining useful answers. | Functional and interop | Actual ADD-PATH omitted-zero negative/clean, LDP/FRR, RADIUS retained proof, monitor/forked RPKI 2/2 plus 80 stress invocations, pipeline daemon fixture, actual-kernel TCX root/non-root and BMP/NTP results above. New runtime fixtures pass load-80 and promoted canonical 2/2; properly wrapped pmacct passes 1/1 with recording X6KQB2X5XBQFRHNP6ZP5YR44AH and no leftovers. |
+| Reject values the producer cannot know, while retaining useful answers. | Functional and interop | Actual ADD-PATH omitted-zero negative/clean, LDP/FRR, RADIUS retained proof, monitor/forked RPKI 2/2 plus 80 stress invocations, pipeline daemon fixture, actual-kernel TCX root/non-root and BMP/NTP results above. New runtime fixtures pass load-80 and promoted canonical 2/2; properly wrapped pmacct passes 1/1 with recording X6KQB2X5XBQFRHNP6ZP5YR44AH and no leftovers. The lint-fix commit changes the `system-date-ntp-forked` fixture (constant, error wrap) and splits `ntpReplyMetadata` with the inactive answer unchanged; its rerun is owed: `./le job run label refusal-ntp-forked-after-lint command ./le test bgp plugin system-date-ntp-forked`. |
 | Prevent new instances of the defect shapes. | Native checker fixtures and source wiring | `TestRefuseByDefaultRefusesEachRuleFixture`, guard/state/changed-line controls and `TestVerifyStagesIncludeRefuseByDefault`; main race logs above. The checker is syntactic and cannot replace the runtime producer audit. |
 
 ## Work Not Done
 
+No in-scope item is left undone. The owed reruns in "Remaining verification"
+are this closure's evidence, run before commit A, not work handed elsewhere.
+
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| Final broader scoped lint and fresh precommit results, followed by closing commits | All product scope, behavioral proofs and native review/RFC gates are complete; the remaining process gates are pending, not deferred | `plan/release/fixes/spec-refuse-instead-of-defaulting.md` remains open and owns this work. |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/refuse-instead-of-defaulting-01a1c842-0a58-7752-bbff-2a3f1633b66f.md`; clean, rounds=2, 591 code files. Independent source reports remain `scratch/refusal-closure-round2.md` and `.json`. |
-| `./le spec review check` | PASS; main checked the current population of all 591 code files, including both promoted canonical fixtures. Broader lint and fresh precommit results are separate pending gates. |
-| Rounds | 2 official passes; round 1 found three product groups and round 2 found zero BLOCKER and zero ISSUE. Administrative corrections do not add a pass. |
+| Artifact | Previous session: `tmp/review/refuse-instead-of-defaulting-01a1c842-0a58-7752-bbff-2a3f1633b66f.md`; clean, rounds=2, 591 code files. Independent source reports remain `scratch/refusal-closure-round2.md` and `.json`. The record keyed to the committing session is owed after the lint-fix commit ("Population for the committing session"). |
+| `./le spec review check` | PASS for session `01a1c842` over 591 code files. The committing session's check is owed with its record. |
+| Rounds | 3: two official passes and bounded round 3. Round 1 found three product groups; round 2 and round 3 found zero BLOCKER and zero ISSUE. Administrative corrections do not add a pass. |
 | Reviewer lenses used | Correctness and wiring; security and edge cases; ownership and performance; test preservation; Go style; complete task/spec alignment. |
 
 ### Round 1 scope
@@ -1440,6 +1508,54 @@ pending. Expanding abbreviated finding paths to full canonical source paths
 was an administrative correction within round 2, not a third pass. Subsequent
 native proof metadata updates changed no reviewed Go source.
 
+### Round 3, bounded to the lint-fix diff
+
+The diff is the nine files of the lint-fix commit ("Scoped lint result"):
+`internal/plugins/ntp/{register.go,register_commands.go,command_active_config_test.go,startup_cleanup_test.go}`,
+`internal/test/fixture/register_ntp_forked_state.go`,
+`internal/component/bgp/plugins/rib/{rib.go,rib_pipeline_refusal_test.go}`,
+`cmd/ze/hub/build_tag_ntp_absent_test.go` and one anchor line in
+`docs/guide/command-reference.md`. A reviewer that did not write it returned
+CLEAN to main, zero BLOCKER and zero ISSUE, with two comment-wording NOTEs that
+were applied; no report file of that round is retained. The closure agent, also
+not its author, read the same diff and agrees. `ntpSyncInfo` still answers nil
+metadata with no refusal only after `ntpReplyEnabled` reads an explicit false,
+and refuses a missing or non-boolean `enabled`; `forwardNTPCommand` checks
+`enabled` itself before `ntpActiveMetadata`, so no path reaches the active
+projection with an inactive answer. The fixture wraps a real cause with `%w`
+and never formats a nil one. The test changes keep every assertion; the
+misspelling fix changes the probe word and its expected text together. No
+input, lock, goroutine or allocation path changes. No RFC tag or discrimination
+record names any of the nine files.
+
+### Population for the committing session
+
+The closing commit's gate (`specWorkPopulation` and `judgeReviewCoverage`,
+`internal/le/commit/review.go`) demands every code file of every commit whose
+message carries the whole line `Spec-work: refuse-instead-of-defaulting`. Today
+that is 34 commits and 129 code files, listed in
+`tmp/session/2026-11-12-014013/scratch/refusal-gate-population.txt`. The
+lint-fix commit adds `internal/component/bgp/plugins/rib/rib.go`, for 130.
+Original `238bdb62e9` carries no trailer, so the gate does not search it; its
+files stay covered by the round 1 and round 2 source reading but are not
+demanded.
+
+Against the previous session's artifact, HEAD's blob equals the pinned content
+for 127 of the 129 files (per-file table:
+`scratch/refusal-gate-pin-status.tsv`). Seven of those 127 differ in the
+working tree only by the lint-fix hunks, which round 3 read. Two changed after
+the review through other sessions' commits, and the closure agent read both
+deltas:
+
+| File | Foreign commit | What it changed | Reaches what this spec reviewed |
+|------|----------------|-----------------|---------------------------------|
+| `internal/component/plugin/server/startup_autoload.go` | `d7b8d92073` (`spec-doctor-coverage-12-plugin-infra`) | `appendDataPlaneWriter` now calls `registry.DataPlaneWriter`, and `ConfigDataPlane` wraps `iface.BackendNameFromTree` | Yes: the writer refusal `2b90f8864b` added moved into `registry.DataPlaneWriter` (`dataplane_writer.go`). Its gated-writer and no-writer branches and its three message parts are the reviewed text unchanged |
+| `internal/plugins/cos/yang/ze-cos-conf.yang` | `857da9e798` (`spec-rfc-verdict-fix-access`) | Adds the `request class-of-service session` command container | No: `528fdc8fdc` moved the inline `qos-maps` grouping out of this module, and the foreign delta neither restores nor references it |
+
+No population file carries another session's uncommitted hunk, so after the
+lint-fix commit every path takes the `file` form. The argument list is
+`tmp/session/2026-11-12-014013/scratch/refusal-review-record-args.txt`.
+
 ### Findings fixed
 
 | # | Severity | Finding | Location | Fixed by |
@@ -1458,9 +1574,9 @@ fixture migration in `4a991e513e`. No approval command was run by the child.
 
 ## Pre-Commit Verification
 
-This is a live closure record. The native review artifact is recorded and its
-check passes. Pending lint and fresh precommit rows remain blockers to the
-closing commits; no queued result is represented as a pass.
+This is a live closure record. Rows marked OWED name runs main has not made
+since the lint-fix commit; they hold commit A, and none is represented as a
+pass.
 
 ### Files Exist (ls)
 
@@ -1474,8 +1590,9 @@ closing commits; no queued result is represented as a pass.
 |-------|-------|----------------|
 | AC-1–AC-6 | Rule, annotation, direct-assignment and stage controls are implemented. | Main full checker race retry `job-unit-pkg-ef92ffff.log`; selected state/naming `job-refusal-state-and-rfc-green-f471a48b.log`. |
 | AC-7 | Exact owned scope has no refused or annotated matches at the final named checkpoint. | Main `job-refusal-final-named-report-45a00bc9.log`; 54 rows/125 producer entries with actual AST anchors joined against all 2279 matches, zero owned results in `scratch/refusal-ac7-final-125-comparison.json`. |
-| AC-8–AC-13 | Product fixes, behavioral proofs and native review/RFC checks are complete. | BMP/NTP negatives/clean, load-80 and canonical 2/2 pass; wrapped pmacct 1/1 passes with all exits zero. All 16 native tuples are committed; the individual 73-finding RFC audit has zero owned debt. Broader lint and fresh precommit results remain pending. |
-| Final process gates | Broader scoped lint is blocked by concurrent input edits; all fresh precheck findings are foreign. | See Blocker: latest planning refusal names `internal/test/fixture/native_readiness_test.go`; repo31/weakening21 have zero owned findings, citation passes and bounded `ls` passes. No lint pass is claimed. |
+| AC-8–AC-13 | Product fixes, behavioral proofs and native review/RFC checks are complete. | BMP/NTP negatives/clean, load-80 and canonical 2/2 pass; wrapped pmacct 1/1 passes with all exits zero. All 16 native tuples are committed; the individual 73-finding RFC audit has zero owned debt. The lint fixes pass their package tests ("Scoped lint result"). |
+| Scoped lint | Zero owned findings after the lint-fix commit, each foreign finding attributed. | First run `scratch/job-refusal-final-scoped-lint-86c7c325.log` (session `2026-11-12-014013`): 134 findings, 8 owned, plus one owned compile-out error; ownership in `refusal-lint-ownership.tsv`. All nine fixed. OWED: the same scoped lint after the lint-fix commit; this row is not a pass until it runs. |
+| Other process gates | All fresh precheck findings are foreign. | Repository check 31 foreign and weakened check 21 foreign (2026-11-11 logs above), citation check and bounded `ls` pass. OWED after the lint-fix commit: `./le repo compiles check`, `./le doc check all`, the `system-date-ntp-forked` rerun. |
 
 ### Wiring Verified (end-to-end)
 
@@ -1484,7 +1601,7 @@ closing commits; no queued result is represented as a pass.
 | Zero-ID route across native sender/receiver | `test/plugin/addpath-identifier-zero-forwarded.ci` | Existing fixture explicitly checks zero identifier octets; actual FRR baseline/negative/clean is recorded above. |
 | JSON peer identity and actual monitor output | `test/plugin/rpki-event-valid-forked.ci`, `test/plugin/monitor-remote-as-stream.ci` | Main promoted run 2/2; 80 native stress invocations; actual monitor producer-negative observed as recorded above. |
 | Synthesized withdrawal through real appliance kernel | `test/plugin/linklocal-only-multihop-withdraw.ci` | Main QEMU 1/1, `job-refusal-withdrawal-qemu-afde2315.log`, recorded kernel hash above. |
-| Runtime NTP owner and unavailable external BMP feed | `test/plugin/system-date-ntp-forked.ci`, `test/plugin/bmp-locrib-external-refuses.ci` | Main canonical selection passes 2/2 in `job-refusal-promoted-runtime-fixtures-027d40a9.log`; all 80 preceding loaded invocations complete without reproduction. Canonical content hashes above match the reviewed drafts. |
+| Runtime NTP owner and unavailable external BMP feed | `test/plugin/system-date-ntp-forked.ci`, `test/plugin/bmp-locrib-external-refuses.ci` | Main canonical selection passes 2/2 in `job-refusal-promoted-runtime-fixtures-027d40a9.log`; all 80 preceding loaded invocations complete without reproduction. Canonical content hashes above match the reviewed drafts. The lint-fix commit changes the NTP fixture's Go side, so `system-date-ntp-forked` owes one rerun. |
 | Actual BMP collector | Native scenario `bgp-addpath-best-path-pmacct` uses the registered interop checker rather than a `.ci`. | Ze QEMU Docker-host/KVM run passes 1/1 in `job-refusal-bmp-collector-ze-docker-host-59be18bd.log`, recording X6KQB2X5XBQFRHNP6ZP5YR44AH; command/check/lab exits zero, no leftovers. |
 | Rule registration, RADIUS socket, absent-CoS binary and LDP exhaustion | Wiring Test table uses Go/native socket or binary tests rather than `.ci` for these seams. | Exact named tests and retained main evidence above; no invented fixture. |
 
@@ -1503,6 +1620,7 @@ closing commits; no queued result is represented as a pass.
 | Checker contract and stage wiring | `ScanFile`, `stateAssignments`, `droppedError`, `operatorErrorResponse`, `parseGuard`, `judgeFile`, registered actions and stage entry | Source matches style/stage pages; own source anchors pass. Current global documentation result has one foreign catalogue description drift. |
 | Native identity, graph/pipeline and ADD-PATH formats | `appendPeerJSON`, `appendRemoteASText`, `formatMonitorLine`, `commandAnswer`, `applyRegisteredText`, `WriteNLRI` and `HasPathID` | Source-linked API/route/command pages cover changed carriers; current handler/shape checks validate 447 commands and source anchors pass. Citers are repointed; main's whole-tracked-path grep finds only this spec itself. Fresh native citation metadata check remains queued. |
 | RPKI metrics, interface read/zero-counter semantics, CoS and writer dependencies | `SetMetricsRegistry`, `GetStats`, `Resolve`, `appendDataPlaneWriter` | Governing pages name the actual producers and preserve valid-control behavior. |
-| BMP and NTP state authority | `storedAttributes` / `buildLocRIBUpdateBody`, `validateLocRIBRuntimeConfig`, forked `runNTPPlugin` and owner-query show readers | Committed guides, command reference and source contracts match the reviewed source. Load-80, unchanged promotion, canonical 2/2 and actual wrapped pmacct 1/1 pass. |
+| BMP and NTP state authority | `storedAttributes` / `buildLocRIBUpdateBody`, `validateLocRIBRuntimeConfig`, forked `runNTPPlugin` and owner-query show readers | Committed guides, command reference and source contracts match the reviewed source. Load-80, unchanged promotion, canonical 2/2 and actual wrapped pmacct 1/1 pass. The NTP status anchor in `docs/guide/command-reference.md` names `ntpReplyEnabled, ntpActiveMetadata` after the lint-fix split, and the inactive and refusal answers the page describes are unchanged. OWED: `./le doc check all`. |
 | Runtime inventory/RFC generated material | Native registry/RFC generators own derived documents. | Main regenerated 231 RFC shards; its final native check has 73 global findings, individually audited as foreign with zero owned debt in `scratch/refusal-final-rfc-individual-ownership.json` and `.md`. No generated status page was hand-edited. |
-| Operator news | `website/changes/fragments/refuse-instead-of-defaulting.md` follows the six-heading fragment contract. | Ready and untracked for the closing workflow; no news content changed during administrative updates. |
+| Operator news | `website/changes/fragments/refuse-instead-of-defaulting.md` follows the six-heading fragment contract. | Ready and untracked for commit A: front matter `spec`, `topic: Diagnostics` (a family in `website/data/topics.json`), `found-by: review`; the six headings in order. The lint fixes change nothing it states. |
+| Citers of this spec | `git grep` for the spec path over the tracked tree, 2026-11-12 | Five citers are restated as the bare stem in the working tree, uncommitted, for commit A: `plan/handover/22-refuse-by-default-then-yang-source.md`, `plan/handover/23-plugin-optional-dependency-refusal-first.md`, `plan/handover/24-refuse-by-default-implemented-awaiting-closure.md`, `plan/release/fixes/spec-daemon-runtime-one-off-defects.md`, `plan/release/fixes/spec-dropped-error-0-umbrella.md`; each diff is that one line. No tracked file names the full path besides the spec. Every Go and `.ci` citer names the bare stem only. OWED after commit B: `./le spec citation`. |
