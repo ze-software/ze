@@ -2,7 +2,7 @@
   "code": {
     "internal/component/config/yang/module_default.go::canonicalUnionDefault": "6cfa917e5b389c32",
     "internal/component/config/yang/module_default.go::parseModuleInteger": "49846f62995b2104",
-    "internal/component/config/yang/validator.go::validateDecimal64": "b651924246aed6a1",
+    "internal/component/config/yang/validator.go::validateDecimal64": "23b93a8bc39a7ac7",
     "internal/component/config/yang/validator.go::validateUnsigned": "182b1d095f9756b3",
     "internal/component/config/yang/validator_instance.go::canonicalKey": "e4adea85bea6c13d",
     "internal/component/config/yang/validator_instance.go::canonicalValue": "57f663a27e0f8e52",
@@ -14,7 +14,7 @@
     "internal/component/config/yang/validator_reference.go::readInstancePredicates": "a1b8f6f072ade947",
     "internal/component/config/yang/validator_reference.go::validateLeafref": "b1028ac7134c905f"
   },
-  "note": "Independent source rejudgment against RFC 7950 Section 9.1: \"Implementations MUST support all lexical representations specified in this document.\" Read all tagged units, their type/default/reference helpers and cited producers. Integer tags exercise +17/17/-17 and legal signed hexadecimal/octal module defaults, with exact normalized values and malformed-notation refusals. Decimal64 tags require the declared signed/integral/fraction forms and exact error classes for invalid forms and restrictions. Binary and bits tags distinguish accepted defined representations from malformed alphabet/padding, lengths and unknown bit names. Reference tags exercise type loading, leafref lexical validation, union-default member selection and both quoted leaf-list-predicate forms versus absent target. canonicalValue still canonicalizes signed/unsigned decimal integers and decimal64, returning other representations unchanged; canonicalKey, sameValue and referenceWalk.instanceExists use it for comparison. Its current exhaustive-ignore directive documents that deliberately narrow normalization switch; no new grammar is introduced. Canonical-comparison-specific tests under other IDs are not silently counted as 9.1-1 tags. Verdict enforced. No execution or recorded-proof freshness was verified here.",
+  "note": "Independently reread Section 9.1 and the applicable built-in lexical clauses, all fourteen tagged units, and the cited current producers. The tags discriminate selected integer and module-default representations, decimal64 forms, binary padding/length, bit names, leafref target lexical validation, union-default member selection and both quote styles in instance-identifier leaf-list predicates. The changed validateDecimal64 still checks string lexical form and fraction digits before range. This does not justify the previous whole-requirement enforced verdict. TestRFC7950ReferenceTypesLoad resolves declarations without submitting lexical values. TestRFC7950InstanceIdentifierLeafListPredicateAbsent first accepts the lexical value, then rejects its absent target, so its negative proves require-instance rather than Section 9.1 lexical support. The integer runtime control never exercises unsigned negative zero: validateUnsigned removes only a leading plus and passes minus-zero to ParseUint, refusing a representation of zero admitted by Section 9.2.1's optional plus or minus sign. canonicalValue has the same unsigned parsing boundary. The module-default test already accepts unsigned minus-zero because parseModuleInteger removes the sign and CanonicalModuleDefault normalizes zero. This source-level counterexample was not executed by this reviewer and needs a focused main-thread regression and producer correction; it must not be hidden by restamping enforced. The remaining tagged examples establish their specific cases, not all lexical representations required by Section 9.1. No tests executed by this reviewer.",
   "requirement_sha": "75762b5ffc3b2a55",
   "tests": {
     "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultHexAndOctal": "cf3e89ed71ea75d8",
@@ -48,5 +48,5 @@
     "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsAccepted": "457cb8b030ff29aa",
     "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsRefused": "afb283aeba1e4ac5"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

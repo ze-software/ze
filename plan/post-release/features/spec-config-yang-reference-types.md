@@ -9,13 +9,15 @@
 | Depends | - |
 | Phase | 1 |
 | Handoff | - |
-| Updated | 2026-10-21 |
+| Updated | 2026-11-12 |
 
 ## Task
 
 Full YANG coverage and expansion still run after the initial release. The historical implementation of reference types and grouped actions is preserved, not restarted. Own further unsupported YANG forms and full-RFC enrollment. Existing accepted-config validation and applicability of the two remaining goyang observations are owned by the release child. The three older type skeletons remain historical lineage, not duplicate implementation commissions.
 
 This ownership split preserves the original obligations and evidence. Migration alone neither admits implementation nor closes any criterion; original owner pauses and dependency ordering still apply.
+
+The 2026-11-12 enum-refusal audit routes the previously unsupported unsigned `-0` form and incomplete RFC7950-9.1-1 lexical proof here. RFC 7950 Section 9.2.1 states: "An integer value is lexically represented as an optional sign ("+" or "-"), followed by a sequence of decimal digits." Source review, without execution, found `validateUnsigned` (`internal/component/config/yang/validator.go`) and `canonicalValue` (`internal/component/config/yang/validator_instance.go`) pass a leading minus unchanged to `ParseUint`, while module defaults already normalize negative zero. Reproduce that lead, normalize zero consistently, retain rejection of negative nonzero unsigned values, and replace indirect lexical claims with direct proof before whole-requirement rejudgment. The independent rejudgment is `weak`; this unsupported-form expansion remains deferred under the existing ownership split.
 
 ## Acceptance Criteria
 
@@ -26,9 +28,15 @@ This ownership split preserves the original obligations and evidence. Migration 
 - AC-5: an identityref value must name an identity derived from the base, unprefixed or with the defining module's prefix or name; the base itself, an unknown name and a wrong prefix are refused (RFC7950-9.10.2-1, 9.10.3-1, 9.1-2).
 - AC-6: an instance-identifier value must match the Section 14 rule with every node name prefixed, name data nodes, carry one predicate per key of each list it selects; with require-instance true the instance must exist (RFC7950-9.13-1, 9.1-2).
 - AC-7: a union member of one of the three types answers by its own check, in member order.
-- AC-9: `rfc/short/rfc7950.md` rows lose the gap annotations the code now meets; RFC7950-9.1-1 is re-judged by an independent agent; `./le rfc check` clean.
+- AC-9: `rfc/short/rfc7950.md` rows lose the gap annotations the code now meets; RFC7950-9.1-1 is re-judged by an independent agent; `./le rfc check` clean. This includes reproducing the unsigned-minus-zero lead, consistent validation/canonical comparison of zero, negative-nonzero rejection, and direct lexical-value proof instead of relying on declaration loading or missing-target checks.
 
 These criteria govern full coverage and unsupported-form expansion only. For already accepted forms, the release child owns correctness and remaining review; a broad RFC7950-9.1-1 claim must not substitute for its specific evidence.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `valid-lexical-form-refused` | 2026-11-12 | unsigned minus-zero validation/canonical comparison and RFC7950-9.1-1 direct lexical proof |
 
 ## Implementation Ownership
 
