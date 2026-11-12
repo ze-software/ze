@@ -267,6 +267,12 @@ func fullStages() []Stage {
 		stage("repo arch-map", "check"),
 		stage("test health", "check"),
 		stage("site facts", "check"),
+		// The committed size history describes HEAD's first-parent history: its
+		// rules, its recorded commits, no gap, its line arithmetic, and its
+		// newest day measured again at the commit it records. Commits after that
+		// one are reported as lag, so it never fails for age. It reads git
+		// objects, never the published scope, and exits 2 on a shallow clone.
+		stage("site history", "check"),
 		stage("web htmx", "check"),
 		stage("verify deps", "evidence-vet"),
 		stage("ai hooks", "unit"),
