@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Agent tooling: a false refusal costs every session a retry and pushes agents toward wrappers, but no shipped behaviour changes |
@@ -15,6 +15,28 @@
 | Updated | 2026-11-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+Closure review, round 1 (2026-11-12), by a closure agent that did not author
+the change. Scope: the whole change set of ee567a0309 (`gitVerbRun`,
+`gitNameByte` and `bashBranchMove` in `internal/le/hookruntime/bash.go`, the
+four tests in `bash_git_test.go`, the two verdict table rows, the golden row,
+counts and digests in `internal/le/ai/hooks/`, the page, the door line, the
+three journal rows). Lenses: correctness with the guard audit, security
+(bypass and fail-open), and conformance to this spec and its pages.
+
+| # | Severity | Finding | Location | What clears it |
+|---|----------|---------|----------|----------------|
+| 1 | ISSUE | The scan past a skipped longer name is unproven. On an occurrence followed by a name byte, `gitVerbRun` continues the scan, so a real run later on the same line is still refused; its comment cites `git merge-base a b && git merge x`. No test, golden row or recorded verdict holds a line where a longer name precedes the banned verb (searched `bash_git_test.go`, `bash_test.go`, `testdata/guard-verdicts-head.jsonl`, `parity_catalog.go`). Breaking the `continue` into `return false` would pass every test, and both guards would then let that line through | `internal/le/hookruntime/bash.go` `gitVerbRun`; `internal/le/hookruntime/bash_git_test.go` | A test through `runHook` and the `pretool-bash` action: `git merge-base a b && git merge x` exits 2 with the branch guard's text, and `git commit-tree abc -m x; git commit -m y` exits 2 with `./le commit create`. Shown red under the `return false` break, then green |
+| 2 | ISSUE | A false comment. `bashBranchMove` calls `git merge-base`, `git merge-tree` and `git merge-file` "read-only relatives", but `git merge-file` writes the merge into the file it names, and `git merge-tree --write-tree` writes tree objects. Neither writes the index or moves a branch, which is the criterion AC-4 and `docs/contributing/running-commands.md` use. This spec's Key Design Decisions row on the eight backends says the line "is whether the command only reads", which `git merge-file` passing contradicts | `bash.go` `bashBranchMove`, the comment above the eight patterns; this spec, Key Design Decisions, fourth row | The comment says "Their relatives that write neither the index nor a branch", as the page does, and the decision row states that criterion beside Thomas's ruling. `hookSourcesDigest` is re-sealed if the comment edit moves it |
+| 3 | NOTE | `git mergetool--lib` passes the guard. It is the shell library `git mergetool` sources, and running it merges nothing | `bashBranchMove` | none |
+| 4 | NOTE | Neither guard refuses `git cherry-pick`, `git am`, `git read-tree` or `git update-index`, each of which writes the shared index; the first two also add commits to the branch. Present before this change and named in A-2's basis; no journal row records it | `bashDestructiveGit`, `bashBranchMove` | Routed by the main thread |
+
+Clears when findings 1 and 2 land in a fix commit, with the new test shown red
+under the break and then green, `./le test unit pkg path ./internal/le/hookruntime/`,
+`./le test unit pkg path ./internal/le/ai/hooks/` and `./le ai hooks unit`
+green, Status back to `in-progress`, and a closure round 2 over the fix.
 
 ## Task
 
