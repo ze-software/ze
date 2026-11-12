@@ -130,7 +130,7 @@ func MetadataStatus(content string) (string, error) {
 		return "", fmt.Errorf("metadata table has %d Status rows; keep exactly one", count)
 	}
 	if !Declared(status) {
-		return "", fmt.Errorf("Invalid Status '%s' in metadata. Must be: %s", status, strings.Join(Vocabulary, ", "))
+		return "", fmt.Errorf("the metadata Status '%s' is not a declared status; use one of: %s", status, strings.Join(Vocabulary, ", "))
 	}
 	return status, nil
 }

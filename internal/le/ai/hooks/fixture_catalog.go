@@ -96,7 +96,7 @@ var fixtureSites = [...]fixtureSite{
 	{category: categoryValidateSpec, name: "validate-spec-where-data-enters-alone-caught", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: entryPointPlaceholder}}},
 	{category: categoryValidateSpec, name: "validate-spec-undeclared-design-doc-blocks", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: "docs/architecture/fixture.md"}}},
 	{category: categoryValidateSpec, name: "validate-spec-named-design-doc-accepted", expectedExit: 0, messages: []fixtureMessage{{match: matchNotContains, text: "docs/architecture/fixture.md"}}},
-	{category: categoryValidateSpec, name: "validate-spec-verification-status-accepted", expectedExit: 0, messages: []fixtureMessage{{match: matchNotContains, text: "Invalid Status"}}},
+	{category: categoryValidateSpec, name: "validate-spec-verification-status-accepted", expectedExit: 0, messages: []fixtureMessage{{match: matchNotContains, text: "is not a declared status"}}},
 	{category: categoryValidateSpec, name: "validate-spec-verification-placeholder-blocks", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: entryPointPlaceholder}}},
 	{category: categoryValidateSpec, name: "validate-spec-design-missing-doc-checklist-warns", expectedExit: 0, messages: []fixtureMessage{{match: matchContains, text: "Documentation Update Checklist"}}},
 	{category: categoryValidateSpec, name: "validate-spec-skeleton-missing-doc-checklist-warns", expectedExit: 0, messages: []fixtureMessage{{match: matchContains, text: "warning"}}},
