@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
 )
@@ -356,6 +357,22 @@ func TestPolicyRoutesDependsOnFirewall(t *testing.T) {
 // listed, so a new writer is covered with no edit here. The walk must meet
 // at least one writer, or it proved nothing about this build.
 func TestNoRegistrationDependsOnAFIBWriter(t *testing.T) {
+	writers := fibWriters(t)
+	for _, reg := range registry.All() {
+		for _, dep := range reg.Dependencies {
+			if writers[dep] {
+				t.Errorf("%s Dependencies names %q, a ProgramsFIB plugin; declare NeedsDataPlane instead", reg.Name, dep)
+			}
+		}
+	}
+}
+
+// fibWriters answers the names of the plugins whose registration declares
+// ProgramsFIB, asked of the registry so a new writer is covered with no edit
+// here. It fails the test when the composition root links none, because a
+// walk over an empty set proves nothing about this build.
+func fibWriters(t *testing.T) map[string]bool {
+	t.Helper()
 	writers := make(map[string]bool)
 	for _, reg := range registry.All() {
 		if reg.ProgramsFIB {
@@ -365,10 +382,53 @@ func TestNoRegistrationDependsOnAFIBWriter(t *testing.T) {
 	if len(writers) == 0 {
 		t.Fatal("the composition root links no ProgramsFIB plugin, so the walk proves nothing")
 	}
-	for _, reg := range registry.All() {
-		for _, dep := range reg.Dependencies {
-			if writers[dep] {
-				t.Errorf("%s Dependencies names %q, a ProgramsFIB plugin; declare NeedsDataPlane instead", reg.Name, dep)
+	return writers
+}
+
+// TestNoDoctorCheckDependsOnAFIBWriter is the doctor-check twin of
+// TestNoRegistrationDependsOnAFIBWriter: it refuses a doctor check whose
+// Dependencies name a ProgramsFIB plugin other than the check's own owner.
+//
+// VALIDATES: a doctor check names what it reads (its own plugin, the kernel,
+// a component), never the FIB writer of one data plane. A writer's own check
+// may name itself, because it judges that writer.
+// PREVENTS: the geodns, as112 and dns-resolver listener and TLS checks naming
+// fib-kernel, which they never use and which is wrong on a VPP box (journal
+// plugin-list-hardcoded, 2026-11-11).
+// METHOD: walks both declaration routes the doctor runner reads: the
+// registry.DoctorCheckDef rows of every registration (owner: the plugin) and
+// the diagnostic.RegisterDoctorCheck registry in every phase (owner: the
+// check's Component). The walk must meet at least one plugin check, or it
+// proved nothing about this build.
+func TestNoDoctorCheckDependsOnAFIBWriter(t *testing.T) {
+	writers := fibWriters(t)
+
+	pluginChecks := registry.PluginDoctorChecks()
+	if len(pluginChecks) == 0 {
+		t.Fatal("no registration declares a doctor check, so the walk proves nothing")
+	}
+	for _, check := range pluginChecks {
+		for _, dep := range check.Dependencies {
+			if writers[dep] && dep != check.PluginName {
+				t.Errorf("%s doctor check %q Dependencies names %q, a ProgramsFIB plugin; name the plugin that owns the check (%q) or what it reads",
+					check.PluginName, check.Name, dep, check.PluginName)
+			}
+		}
+	}
+
+	// Every phase a check can register in (rpc.DoctorCheckPhase.Valid).
+	phases := []diagnostic.DoctorCheckPhase{
+		diagnostic.DoctorPhasePreConfig, diagnostic.DoctorPhaseMissingConfig,
+		diagnostic.DoctorPhaseParsedConfig, diagnostic.DoctorPhasePostConfig,
+		diagnostic.DoctorPhaseRuntime,
+	}
+	for _, phase := range phases {
+		for _, check := range diagnostic.DoctorChecksForPhase(phase) {
+			for _, dep := range check.Dependencies {
+				if writers[dep] && dep != check.Component {
+					t.Errorf("doctor check %q (component %q) Dependencies names %q, a ProgramsFIB plugin; name the check's owner or what it reads",
+						check.Name, check.Component, dep)
+				}
 			}
 		}
 	}

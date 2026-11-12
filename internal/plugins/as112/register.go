@@ -45,6 +45,10 @@ const (
 	// as112Owner is the registry owner name spec-as112-1's API keys
 	// registrations by.
 	as112Owner = "as112"
+
+	// pluginName is the plugin registry name, which the doctor checks below
+	// also name as the dependency they read.
+	pluginName = "as112"
 )
 
 // hostAddresses returns the /32,/128 CIDR strings to register with
@@ -113,7 +117,7 @@ func init() {
 	registerAS112Sources()
 
 	reg := registry.Registration{
-		Name:        "as112",
+		Name:        pluginName,
 		Description: "AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535)",
 		Features:    "yang",
 		YANG:        as112yang.ZeAs112ConfYANG,
@@ -148,7 +152,7 @@ func init() {
 			Name:         "as112-listen-capability",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        723,
-			Dependencies: []string{"fib-kernel"},
+			Dependencies: []string{pluginName},
 			Platforms:    []string{"any"},
 			Codes:        []string{"doctor-as112-port-unavailable"},
 			Check:        checkAS112ListenCapability,
@@ -157,7 +161,7 @@ func init() {
 			Name:         "as112-tls-cert",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        724,
-			Dependencies: []string{"fib-kernel"},
+			Dependencies: []string{pluginName},
 			Platforms:    []string{"any"},
 			Codes: []string{
 				diagnostic.CodeDoctorTLSMissing, diagnostic.CodeDoctorTLSExpired,

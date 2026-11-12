@@ -21,13 +21,17 @@ import (
 
 const configRootService = "service"
 
+// pluginName is the registry name, which the doctor checks below also name as
+// the dependency they read.
+const pluginName = "geodns"
+
 var loggerPtr atomic.Pointer[slog.Logger]
 
 func init() {
 	loggerPtr.Store(slogutil.DiscardLogger())
 
 	reg := registry.Registration{
-		Name:                    "geodns",
+		Name:                    pluginName,
 		Description:             "GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet)",
 		Features:                "yang",
 		YANG:                    geodnsyang.ZeGeodnsConfYANG,
@@ -53,7 +57,7 @@ func init() {
 			Name:         "geodns-listen-capability",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        722,
-			Dependencies: []string{"fib-kernel"},
+			Dependencies: []string{pluginName},
 			Platforms:    []string{"any"},
 			Codes:        []string{"doctor-geodns-port-unavailable"},
 			Check:        checkGeoDNSListenCapability,
@@ -62,7 +66,7 @@ func init() {
 			Name:         "geodns-tls-cert",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        725,
-			Dependencies: []string{"fib-kernel"},
+			Dependencies: []string{pluginName},
 			Platforms:    []string{"any"},
 			Codes: []string{
 				diagnostic.CodeDoctorTLSMissing, diagnostic.CodeDoctorTLSExpired,

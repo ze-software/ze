@@ -30,6 +30,10 @@ import (
 // the schema path service/dns-resolver/listener.
 const listenerService = "service-dns-resolver-listener"
 
+// pluginName is the registry name, which the doctor checks in doctor.go also
+// name as the dependency they read.
+const pluginName = "dnsresolver"
+
 var loggerPtr atomic.Pointer[slog.Logger]
 
 // activeResolver is the running plugin's resolver, which the show and clear
@@ -40,7 +44,7 @@ func init() {
 	loggerPtr.Store(slogutil.DiscardLogger())
 
 	reg := registry.Registration{
-		Name:                    "dnsresolver",
+		Name:                    pluginName,
 		Description:             "LAN DNS resolver: answers recursive queries from allowed prefixes by forwarding to upstream resolvers (RFC 1035, RFC 2181)",
 		Features:                "yang",
 		YANG:                    resolveryang.ZeDNSResolverConfYANG,
