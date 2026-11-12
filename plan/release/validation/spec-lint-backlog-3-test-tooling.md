@@ -2,64 +2,89 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 58 findings of the full lint in the test harness, `le` and the chaos tooling; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 5/5: closure, handed back; batches 1 and 2 committed (`d3b523bb85`, `0b446895a2`), the scoped lint, the `fixture10Run` fix and two owner decisions owed (see "Blocker") |
+| Phase | 5/5: closure resumed in session `49765d8f`; batches 1, 2 and 3 and change 4 committed (`d3b523bb85`, `0b446895a2`, `c9f53eb9de`, `fead89c459`); next the spec's own scoped lint on a still tree (see "Remaining closure work") |
 | Handoff | - |
 | Updated | 2026-11-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Blocker (2026-11-12)
+## Remaining closure work (2026-11-12)
 
-The closure is handed back. It cannot finish in session `49765d8f` for the
-four reasons below. The main thread sets the spec back to `in-progress` when
-they clear.
+Closure resumed in session `49765d8f` on 2026-11-12. Four fix commits of
+this session are in HEAD: batch 1 `d3b523bb85`, batch 2 `0b446895a2`, batch
+3 `c9f53eb9de` and change 4 `fead89c459` ("Implementation Summary"). Batch 3
+discharged the `fixture10Run` unparam and three of the four ST1005 candidates
+the batch-2 reviewer named; change 4 discharged the fourth, the "Invalid
+Status" message in `MetadataStatus`. No lint run has judged those four
+candidates yet. Five items remain: a to c in order, e whenever a quiet
+machine allows, and d last.
 
-**a. The spec's own scoped lint has not run this session.** The command is
+**a. The spec's own scoped lint, on a still tree.** The command is
 `./le go lint run scope "./internal/test/... ./internal/le/... ./internal/chaos/... ./tools/freertr-entrypoint/..."`.
 The lint planner refuses when a reached input changes while it plans
 (`Runner.plan` and `Runner.checkPlanningInputs`,
 `internal/le/go/lint/verifylint.go`). Planning takes about 3.5 minutes, and
-other sessions write into `internal/le/site`, `internal/test/fixture` and the
-plugin packages about once a minute. Clears when: the lint runs while those
-sessions are idle.
+other sessions write into its trees continuously, so in this checkout the lint
+has not planned once this session. The owner ran the equivalent lint for
+another spec on his Mac. Clears when: the lint plans and runs to its end over
+a tree that holds still.
 
-**b. That lint will report more than its first pass shows.** `.golangci.yml`
-sets `max-same-issues: 10`, so golangci-lint reports at most ten findings with
-the same text and hides the rest. Batch 2 met this: six ST1005 findings were
-hidden behind the ten reported. The batch-2 reviewer named these candidates
-outside the two fixed packages by the ST1005 heuristic. No lint run has
-confirmed them:
+**b. Fix what that lint shows in committed code, in batches.** Under the
+owner's AC-1 ruling ("Owner decisions", decision i), each finding on a line
+of committed code in scope is this spec's, whoever wrote the line; a finding
+only in another session's uncommitted or untracked file is listed by file.
+`.golangci.yml` sets `max-same-issues: 10`, so golangci-lint reports at most
+ten findings with the same text and hides the rest (batch 2 met six hidden
+ST1005 findings). After each batch the lint runs again. Clears when: the lint
+reports no finding on a line of committed code in scope.
 
-| File | Error string start |
-|------|--------------------|
-| `internal/le/interoplab/topology/check_conversion.go` | "Ze started..." |
-| `internal/le/repo/objects/objects.go` | "Git path..." |
-| `internal/le/spec/status/specstatus.go` | "Missing...", "Invalid..." |
+The four fixture files `4c05449c18` committed
+(`internal/test/fixture/deployment_quickstart.go`,
+`deployment_remote_trust.go`, `native_readiness_test.go` and
+`register_native_install.go`) carried 21 findings at `ef1563f19f`; the
+owner's Mac lint for another spec shows them. A later commit has landed that
+touches all four: `b77e8f71bf` ("test: clear lint findings in the registry
+test and fixtures", 2026-11-12, no `Spec-work:` line). Its body says it clears
+the findings with a mechanical fix and that no linter has judged the edited
+files. `git status --short internal/test/fixture` shows none of the four
+modified now. The findings that remain in them are committed code, so they are
+this spec's under the AC-1 ruling, and the lint of item a says how many.
 
-Clears when: the lint of item a runs, and each finding it reports is fixed
-and the lint runs again until it reports zero.
+**c. The closing review record.** The record (`recordReview`,
+`internal/le/spec/review.go`) needs `owner-authorised "<owner's words>"`
+typed by the owner at a terminal ("Owner decisions", decision ii). Clears
+when: the owner types it and the record covers the population of every commit
+carrying `Spec-work: lint-backlog-3-test-tooling`.
 
-**c. The unparam finding on `fixture10Run`
-(`internal/test/fixture/plugin_fixture_10_process.go`) is not fixed.** It is
-in committed code and is this spec's work. It waited for the
-deployment-user-journeys session to commit its hunk in that file. That hunk
-landed in `4c05449c18` (2026-11-12 04:11 UTC), with
-`register_native_install.go`, so the wait is over. Every caller of
-`fixture10Run` still passes `""` for `stdin`. Clears when: the fix is made,
-reviewed and committed.
+**d. Commits A and B.** Commit A carries the closed spec and any rows the work
+owes; commit B removes the spec (`ai/rules/planning.md`, "Spec Lifecycle").
+Clears when: both land from one script, after item e.
 
-**d. Two owner decisions.**
+**e. The whole `internal/le/rfc` package run (AC-2).** The package hit its
+20-minute ceiling twice in this checkout, with no test failed before the cut.
+The first run was at load average 20 to 28 (`job-unit-pkg-c4a36b2f.log`). The
+second, on 2026-11-12 around 12:10 UTC at load average 17 rising to 36, is
+`job-unit-pkg-d25f06c4.log`: `panic: test timed out after 20m0s` while
+`TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` ran, zero `--- FAIL`
+lines, `FAIL` at 1200.302s. The load averages are the main thread's record,
+not the logs'. A quiet-machine run of the package took 1168 s before this
+session, so the run needs a machine that other sessions are not loading. The
+targeted tests over the functions this spec's commits touched in that package
+pass ("Closure batch-1 evidence"). Clears when: `./le test unit pkg path ./internal/le/rfc/`
+passes on a quiet machine.
+
+**Owner decisions: (i) decided, (ii) rounds granted, record open.**
 
 | Decision | Evidence | What each answer changes |
 |----------|----------|--------------------------|
-| Does AC-1's "Zero findings" bind committed code only, or the working tree the lint judges? | The scope held 90 foreign uncommitted entries (`lint3-foreign-dirty-in-scope.txt`); 58 entries in scope are uncommitted at this hand-back. Main thread's reading: AC-1 binds committed code, because the umbrella's AC-2 is CI's lint on a pushed commit and its R-1 gives a new finding to whoever lands it. The earlier closure pass ("AC-1 at closure") held that this reading narrows AC-1, which is the owner's decision | Committed code: the closure owes zero findings in committed code and lists the foreign uncommitted findings by file and owner. Working tree: the closure waits until no foreign uncommitted file in scope carries a finding |
-| May the review loop run past the round cap? | Seven rounds were recorded before this session, and the owner's round-seven authorization says "Round eight is not authorized". This session ran two loop rounds on batch 1 and two on batch 2 ("Review Gate"). `ai/rules/planning.md`: "Five review rounds are the session's to spend. The sixth is Thomas's decision." Those four rounds ran without that authorization. The closing record (`recordReview`, `internal/le/spec/review.go`) needs `owner-authorised "<owner's words>"` typed at a terminal | Yes: the owner types his words and the record is written over the population in "Review record population". No: the owner names how the review is redone |
+| (i) Does AC-1's "Zero findings" bind committed code only, or the working tree the lint judges? | DECIDED 2026-11-12 by the owner. Asked whether this spec's "Zero findings" binds committed code or the working tree where other sessions hold uncommitted files in scope, he answered "1 commited" (the first option: committed code). This is a ruling on this spec's AC-1 only. AC-1's "Zero findings" binds committed code in the spec's scope. A finding that exists only in another session's uncommitted or untracked file is not this spec's until it lands; when it lands, it is this spec's (umbrella R-1) | At closure, AC-1 requires the spec's own scoped lint to show no finding on a line of committed code in scope. The closure lists each finding in an uncommitted foreign file, by file |
+| (ii) May the review loop run past the round cap? | Seven rounds were recorded before this session, and the owner's round-seven authorization says "Round eight is not authorized". This session ran two loop rounds on batch 1 and two on batch 2 ("Review Gate"). `ai/rules/planning.md`: "Five review rounds are the session's to spend. The sixth is Thomas's decision." Those four rounds ran without that authorization. The owner then granted one bounded round on batch 3 and one on change 4, each for that change only. The closing record (`recordReview`, `internal/le/spec/review.go`) still needs `owner-authorised "<owner's words>"` typed at a terminal | Yes: the owner types his words and the record is written over the population of every commit carrying the `Spec-work:` line. No: the owner names how the review is redone |
 
 ## Resolved inventory blocker (2026-11-12)
 
@@ -262,7 +287,7 @@ scoped run (umbrella A-2). Line numbers are the CI run's.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A hook-source edit breaks the hooks for every session | `./le ai hooks unit` red; the stored digests refuse | Run `./le ai hooks unit` after any `internal/le/hookruntime` edit; re-seal the digests through their own procedure |
+| R-1 | A hook-source edit breaks the hooks for every session | `./le ai hooks unit` red; the stored digests refuse | Run `./le ai hooks unit` after an edit to any of the sixteen packages of `hookSourcePackages` (`internal/le/ai/hooks/fixtures.go`), not only `internal/le/hookruntime`; re-seal the digests through their own procedure (Mistake Log, batch 1) |
 | R-2 | The fixture package is edited by other sessions (the peer-wait backlog) | Conflicting hunks in `internal/test/fixture` | Commit only this child's hunks |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -621,13 +646,30 @@ The batch-2 fixes landed in `0b446895a2`. The verdicts are the reviewer's
 report as the main thread relayed it.
 
 These four rounds (two per batch) ran past the round cap without the owner's
-authorization: see "Blocker", item d. No machine artifact is recorded.
+authorization: see "Remaining closure work", "Owner decisions", decision ii.
+
+### Closure review of batch 3 and change 4, session 49765d8f (2026-11-12)
+
+The owner granted one bounded round for each change, because the spec is
+past the round cap. Each grant covers that change only. The reviewer did not
+write either change.
+
+| Round | Scope | Verdict | Findings |
+|-------|-------|---------|----------|
+| Batch 3 | The `c9f53eb9de` diff, six files | 0 BLOCKER, 0 ISSUE in the change; 1 ISSUE about what it left out | The "Invalid Status" message in `MetadataStatus` (`internal/le/spec/status/specstatus.go`) was still a capitalized error string. Batch 3 left it out because rewording it changes a hook fixture row and the fixture catalog seal. Change 4 discharged it |
+| Change 4 | The `fead89c459` diff, three files | CLEAN: 0 BLOCKER, 0 ISSUE | Four NOTEs, none asking for a fix. One confirmed the finding recorded under "Finding met in passing" |
+
+The account of this session's rounds is now: two loop rounds on batch 1, two
+on batch 2, then the two owner-granted rounds above. The verdicts are the
+reviewer's reports as the main thread relayed them. No machine artifact is
+recorded: the closing record still needs the owner's `owner-authorised`
+words at a terminal ("Remaining closure work", item c).
 
 ### Review record population (2026-11-12)
 
-**Superseded.** The population below was computed before `d3b523bb85` and
-`0b446895a2` landed. Both carry the `Spec-work:` line, so nine commits now
-carry it. The closing record recomputes the population at closing with
+**Superseded.** The population below was computed before `d3b523bb85`,
+`0b446895a2`, `c9f53eb9de` and `fead89c459` landed. All four carry the
+`Spec-work:` line, so eleven commits now carry it. The closing record recomputes the population at closing with
 `git log --format=%h --grep='^Spec-work: lint-backlog-3-test-tooling$'`,
 and `lint3-review-population.txt` and
 `lint3-review-population-state.txt` are not used. The text below is kept as
@@ -723,10 +765,12 @@ the fake Docker in `internal/test/fixture/install_fixture.go`:
 `installDockerStub` now refuses a `start` or `rm` whose container ID is not
 the 64 lowercase hex characters `fakeDockerID` accepts, so the new
 `//nolint:gosec` reason on its record read is true. Not fixed: the unparam
-on `fixture10Run` ("Blocker", item c) and goconst literals whose other
+on `fixture10Run` (fixed in batch 3) and goconst literals whose other
 occurrences sat in other sessions' then-untracked `deployment_*.go` files.
 Those files are tracked in HEAD now, so the scoped lint
-of "Blocker", item a, judges those literals as committed code.
+of "Remaining closure work", item a, judges those literals as committed code.
+Batch 1 also changed `reseal_head.go` and `goscope.go` in `internal/le/rfc`
+without re-deriving the hook source seal (Mistake Log); batch 3 repaired it.
 
 Closure batch 2 (2026-11-12, committed as `0b446895a2`, 16 files under
 `internal/le/interoplab/l2tp` and `internal/le/interoplab/pppoe`,
@@ -737,6 +781,34 @@ behind the ten the lint reported; the rerun
 `job-access-scoped-lint-after-fixes-a619dbe1.log` showed them by line.
 Review and tests: "Closure review of the batch-2 lint fixes" and "Closure
 batch-2 evidence".
+
+Closure batch 3 (2026-11-12, committed as `c9f53eb9de`, "lint(tooling): seal
+the hook sources again, clear four findings", six files):
+
+- `fixture10Run` (`internal/test/fixture/plugin_fixture_10_process.go`) no
+  longer takes `stdin`: all nine callers passed it empty, and
+  `fixture10RunWithin` keeps the parameter. This is the `fixture10Run`
+  unparam this spec listed as owed.
+- Three error strings no longer start with a capitalized word, in
+  `internal/le/interoplab/topology/check_conversion.go`,
+  `internal/le/repo/objects/objects.go` and
+  `internal/le/spec/status/specstatus.go` ("Missing metadata table").
+- `hookSourcesDigest` in `internal/le/ai/hooks/fixtures.go` is re-derived,
+  which repairs the red batch 1 left (Mistake Log).
+
+Change 4 (2026-11-12, committed as `fead89c459`, "lint(tooling): reword the
+undeclared-Status refusal, re-seal", three files): the refusal in
+`MetadataStatus` now reads "the metadata Status '%s' is not a declared
+status; use one of: %s". The fixture row
+`validate-spec-verification-status-accepted` in
+`internal/le/ai/hooks/fixture_catalog.go` names the new text, and three seals
+in `fixtures.go` are re-derived (`hookSourcesDigest`, `fixtureCatalogDigest`,
+`fixtureSiteDigest`), with the values read from
+`TestEveryStoredDigestMatchesTheTreeItRatchets`. The change carries no test
+file; its commit states the reason with `no-test`.
+
+Review: "Closure review of batch 3 and change 4". Tests: "Closure batch-3
+and change-4 evidence".
 
 ### Bugs Found/Fixed
 
@@ -793,6 +865,19 @@ The main-thread race run passed all four named authored-page tests in
   structural findings. Native Create tests prove selection, publication and
   pruning, with weakening-first RFC fallback and directory-collision refusal.
 
+### Finding met in passing (2026-11-12)
+
+Change 4 met a defect that is not this spec's to fix, verified at the
+producer: hook fixture message expectations are never compared with hook
+output. `checkFixtureCategory` (`internal/le/ai/hooks/fixtures.go`) judges one
+allow probe and one refuse probe per category by verdict alone; 78 of 401
+sites declare 97 message expectations, and one site is grounded, by
+`TestRenderedRuleNeedleMatchesProducer`. It is not journaled yet: its row
+belongs in `plan/journal/negative-test-asserts-the-verdict-not-the-reason.md`,
+and the spec whose mechanism fits cannot take it until it has an Existing
+Mechanisms section, so the owner decides the owner. The handover
+`plan/handover/2026-11-10-close-open-specs.md` carries it.
+
 ### Documentation Updates
 
 `docs/architecture/testing/interop.md` documents exclusive capture and marker
@@ -819,21 +904,22 @@ still required; the original CI list is not evidence for the current tree.
 | approach | The spec still called round seven pending | `9fffb6b1b3` records independent review and passing race tests | Closure history review | Correct the stale record without inventing another review round |
 | approach | The re-review note under "Next independent re-review scope" still said a re-review was owed | "Round six" records it CLEAN and supersedes that note | Closure read, 2026-11-12 | Corrected in one edit; no new round |
 | approach | Batch 1 removed the directory parameter of `openDaemonTree` and left `docs/functional-tests.md` saying every daemon-store helper takes the directory | The page was stale until the closure's documentation check | Closure documentation check, 2026-11-12 | Page corrected in the closure; the batch-1 commit carries it |
-| assumption | AC-1's "Zero findings" assumed the scope stops changing while the child closes | Other sessions' commits added 131 findings in scope (batches 1 and 2), and their uncommitted files keep adding more | Overlapping scoped lints of the refusal and access specs | Committed findings fixed as closure work; the reading over uncommitted foreign files goes to the owner |
+| assumption | AC-1's "Zero findings" assumed the scope stops changing while the child closes | Other sessions' commits added 131 findings in scope (batches 1 and 2), and their uncommitted files keep adding more | Overlapping scoped lints of the refusal and access specs | Committed findings fixed as closure work; the reading over uncommitted foreign files went to the owner, who ruled on 2026-11-12 that AC-1 binds committed code ("Remaining closure work", "Owner decisions") |
+| assumption | Batch 1 (`d3b523bb85`) changed `reseal_head.go` and `goscope.go` in `internal/le/rfc` and did not re-derive the hook source seal. The spec's reasoning was that the hook unit run was owed only after an `internal/le/hookruntime` edit (R-1 as first written), and no commit touched that directory | The seal covers the sixteen packages of `hookSourcePackages` (`internal/le/ai/hooks/fixtures.go`), `internal/le/rfc` among them, not one directory. `./le ai hooks unit` failed its `hook-source-drift` case at HEAD from `d3b523bb85` until `c9f53eb9de` | The hook self-test's `hook-source-drift` case, named in the `c9f53eb9de` body | `c9f53eb9de` re-derives `hookSourcesDigest`; R-1 now names `hookSourcePackages` |
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Clear the listed tooling scopes | In progress | `5c403f0234`, `bf7d87359f`, `d3b523bb85`, `0b446895a2` | Batch 1 fixed 93 of 98 later findings; batch 2 fixed 39; the `fixture10Run` unparam and the spec's own scoped lint owed ("Blocker") |
+| Clear the listed tooling scopes | In progress | `5c403f0234`, `bf7d87359f`, `d3b523bb85`, `0b446895a2`, `c9f53eb9de`, `fead89c459` | Batch 1 fixed 93 of 98 later findings; batch 2 fixed 39; batch 3 fixed the `fixture10Run` unparam and three ST1005 strings; change 4 fixed the fourth. The spec's own scoped lint and the fixes it shows in committed code are owed ("Remaining closure work", items a and b) |
 | Preserve harness assertions | Reviewed | Fixture constants, equivalent regex classes and cleanup-error branches in `bf7d87359f` | No expected assertion removed |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | Open: owner ruling owed | No scoped lint over this spec's full scope this session | "Blocker", items a, b and d; "AC-1 at closure" |
-| AC-2 | In progress | Batch-1 packages: "Closure batch-1 evidence"; batch-2 packages: "Closure batch-2 evidence" | `internal/le/rfc` whole package not passed this session |
+| AC-1 | Open: scoped lint owed | No scoped lint over this spec's full scope this session | Owner ruling of 2026-11-12: "Zero findings" binds committed code in scope; at closure the spec's own scoped lint shows no finding on a line of committed code, and each finding in an uncommitted foreign file is listed by file ("Remaining closure work", items a and b, "Owner decisions"; "AC-1 at closure") |
+| AC-2 | In progress | Batch-1 packages: "Closure batch-1 evidence"; batch-2 packages: "Closure batch-2 evidence"; batch 3 and change 4: "Closure batch-3 and change-4 evidence" | The whole `internal/le/rfc` package run is owed: it hit the 20-minute ceiling twice under load with no test failed before the cut; the targeted tests over the functions this spec touched pass ("Remaining closure work", item e) |
 | AC-3 | Reviewed | `5c403f0234` and `bf7d87359f` annotations | Each names its linter and trust or result-handling reason |
 
 ### Tests from TDD Plan
@@ -867,8 +953,18 @@ working tree. AC-1 as written is met only by a scoped run over the whole
 scope that reports zero. Closing on "zero findings in committed code, the
 foreign uncommitted findings listed by file and owner" reads AC-1 narrower
 than its text. That changes an acceptance criterion, which is the owner's
-decision (`ai/rules/completion.md`), so the closure carries the question
-to him and does not reword AC-1.
+decision (`ai/rules/completion.md`), so the closure carried the question
+to him and did not reword AC-1.
+
+Decided 2026-11-12: the owner answered "1 commited" (committed code;
+"Remaining closure work", "Owner decisions", decision i). This is a ruling on this
+spec's AC-1. AC-1's "Zero findings" binds committed code in the spec's
+scope, and the second row of the table above stands: a finding only in
+another session's uncommitted or untracked file is not this spec's until it
+lands, and once it lands it is this spec's (umbrella R-1). At closure, AC-1
+requires the spec's own scoped lint to show no finding on a line of committed
+code in scope, with each finding in an uncommitted foreign file listed by
+file.
 
 The scope holds 90 foreign uncommitted entries now (19 modified, 71
 untracked; `lint3-foreign-dirty-in-scope.txt`), `internal/le/build/preview/`
@@ -883,7 +979,7 @@ scoped lint runs.
 Update at hand-back (2026-11-12): those four files are tracked in HEAD now,
 `register_native_install.go` through `4c05449c18`. Any of the 21 findings
 they still carry is in committed code and is this child's under R-1; the
-scoped lint of "Blocker", item a, decides how many remain. 58 entries in
+scoped lint of "Remaining closure work", item a, decides how many remain. 58 entries in
 scope are uncommitted now (modified and untracked, from `git status`).
 
 One committed finding overlaps foreign work: unparam on `fixture10Run` in
@@ -897,7 +993,12 @@ hunk rewrites, so the fix lands after that session commits the hunk.
 
 Update at hand-back (2026-11-12): that hunk landed in `4c05449c18`. Every
 `fixture10Run` caller still passes `""`, so the finding stands and the fix
-is owed now ("Blocker", item c).
+is owed now.
+
+Update (2026-11-12): batch 3, `c9f53eb9de`, removed `stdin` from
+`fixture10Run`; `fixture10RunWithin` keeps it. `b77e8f71bf`, a later commit
+of another spec, touches the four fixture files and lists the unparam as
+still open in its body; at HEAD `fixture10Run` takes no `stdin`.
 
 ### Closure batch-1 evidence (2026-11-12)
 
@@ -926,6 +1027,17 @@ population ("Review record population").
 |-----|--------|
 | `internal/le/interoplab/l2tp` and `internal/le/interoplab/pppoe` on the committed `0b446895a2` code, `job-unit-pkg-1bd5202b.log` | Both `ok` (3.172s, 70.266s). The log is not verbose and holds only the two package lines; that the run used the race detector is the main thread's record |
 | `./le doc check all`, `job-doc-check-all-506ada98.log` | Two steps fail, neither from this spec: the published wiki command catalog (`../wiki/command-catalog.md`) disagrees with the live one, and three `ai/digests/` files link `ai/PACKAGE-MAP.md`, which `7629e90135` removed. Source anchors pass |
+
+### Closure batch-3 and change-4 evidence (2026-11-12)
+
+Main-thread runs, logs under `tmp/session/2026-11-12-014013/scratch/`.
+
+| Run | Result |
+|-----|--------|
+| Batch 3: the five changed packages, `job-unit-pkg-70f11c97.log` | All `ok`: `internal/le/interoplab/topology`, `internal/le/ai/hooks`, `internal/test/fixture` (with a native `le` on PATH), and `internal/le/repo/objects` and `internal/le/spec/status` as cached results. That the run used the race detector is the main thread's record |
+| Batch 3: hook self-test on a build of the working tree | 30/30 passed. Its log, `job-lint3-hooks-unit-named-338dd3bf.log`, was later overwritten by change 4's run, which printed the same result |
+| Change 4: `internal/le/ai/hooks` and `internal/le/spec/status`, race, `job-unit-pkg-d226cde8.log` | Both `ok` (74.948s, 1.237s) |
+| Change 4: hook self-test on a build of the working tree, `job-lint3-hooks-unit-named-338dd3bf.log` | "hook native selftest: 30/30 passed" |
 
 ### Audit Summary
 
@@ -976,31 +1088,31 @@ under race in 297.40s in `job-lint3-focused-corpus-5e2a0f64.log` (exit 0).
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| Zero findings in the tooling scope | Scoped lint | Owed: `./le job run label lint3-scope quiet command ./le go lint run scope "./internal/test/... ./internal/le/... ./internal/chaos/... ./tools/freertr-entrypoint/..."` now that batches 1 and 2 are committed; AC-1's reading over foreign uncommitted files awaits the owner ("Blocker", items a and d) |
-| Preserve test and command behavior | Tagged package tests | Observer, runner, RFC fixture and native-tool repairs passed focused race runs; workflowcheck passed in full; named RFC corpus and all four labs tests passed; unrelated whole-tree site snapshot remains an explicit limitation. Batch 1: `internal/le/interoplab/bgp` ok, `internal/test/fixture` ok with a native `le` on PATH, the touched `internal/le/rfc` tests ok; batch 2: `internal/le/interoplab/l2tp` and `pppoe` ok; the whole `internal/le/rfc` package owed |
+| Zero findings in the tooling scope | Scoped lint | Owed: `./le job run label lint3-scope quiet command ./le go lint run scope "./internal/test/... ./internal/le/... ./internal/chaos/... ./tools/freertr-entrypoint/..."` on a still tree; it must show no finding on a line of committed code in scope, each finding in an uncommitted foreign file listed by file (owner ruling, 2026-11-12; "Remaining closure work", items a and b, "Owner decisions") |
+| Preserve test and command behavior | Tagged package tests | Observer, runner, RFC fixture and native-tool repairs passed focused race runs; workflowcheck passed in full; named RFC corpus and all four labs tests passed; unrelated whole-tree site snapshot remains an explicit limitation. Batch 1: `internal/le/interoplab/bgp` ok, `internal/test/fixture` ok with a native `le` on PATH, the touched `internal/le/rfc` tests ok; batch 2: `internal/le/interoplab/l2tp` and `pppoe` ok; batch 3 and change 4: their packages ok and the hook self-test 30/30; the whole `internal/le/rfc` package owed |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| The spec's full scoped lint | The planner refuses while other sessions write into the scope ("Blocker", item a) | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` (AC-1) |
-| The findings the lint will add beyond its first pass, the named ST1005 candidates included | Hidden by `max-same-issues: 10` until the lint runs ("Blocker", item b) | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` (AC-1) |
-| The `fixture10Run` unparam | It waited for `4c05449c18`, which has landed; the fix is owed now ("Blocker", item c) | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` (AC-1) |
-| The whole `internal/le/rfc` package run | Not passed this session ("Closure batch-1 evidence") | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` (AC-2) |
-| The machine review record | Past the round cap; needs the owner's words ("Blocker", item d) | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` (Review Gate) |
+| The spec's own scoped lint, on a still tree | Other sessions write into its trees continuously, so the planner has refused every attempt in this checkout ("Remaining closure work", item a) | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` (AC-1) |
+| The fixes that lint shows in committed code, in batches, the findings left in the four fixture files of `4c05449c18` included | The lint has not run; `max-same-issues: 10` hides findings past ten per text, so each batch is followed by another run ("Remaining closure work", item b) | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` (AC-1) |
+| The closing review record | Needs the owner's `owner-authorised` words at a terminal ("Remaining closure work", item c) | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` (Review Gate) |
+| The whole `internal/le/rfc` package run | It hit the 20-minute ceiling twice under load, with no test failed before the cut (`job-unit-pkg-c4a36b2f.log`, `job-unit-pkg-d25f06c4.log`); it needs `./le test unit pkg path ./internal/le/rfc/` on a quiet machine ("Remaining closure work", item e) | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` (AC-2) |
+| Commits A and B | Owed once items a, b, c and e clear ("Remaining closure work", item d) | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` (closure) |
 
 ## Pre-Commit Verification
 
 ### Files Exist
 | File | Exists | Evidence |
 |------|--------|----------|
-| Implementation files | Yes | Committed file lists in `5c403f0234`, `bf7d87359f`, `726855e9be`, `9fffb6b1b3`, `d2c19eae5c`, `fc62fd18ec`, `d3b523bb85`, `0b446895a2` |
+| Implementation files | Yes | Committed file lists in `5c403f0234`, `bf7d87359f`, `726855e9be`, `9fffb6b1b3`, `d2c19eae5c`, `fc62fd18ec`, `d3b523bb85`, `0b446895a2`, `c9f53eb9de`, `fead89c459` |
 
 ### AC Verified
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 | Scoped lint reports zero | Not established: the spec's full scoped lint has not run this session; owner ruling owed on foreign uncommitted files ("Blocker") |
-| AC-2 | Changed-package checks pass | Partial: batch-1 runs in "Closure batch-1 evidence", batch-2 runs in "Closure batch-2 evidence"; whole `internal/le/rfc` owed |
+| AC-1 | Scoped lint reports zero on committed code in scope (owner ruling, 2026-11-12) | Not established: the spec's own scoped lint has not planned once this session. At closure it must show no finding on a line of committed code in scope, with each finding in an uncommitted foreign file listed by file ("Remaining closure work", items a and b) |
+| AC-2 | Changed-package checks pass | Partial: batch-1 runs in "Closure batch-1 evidence", batch-2 runs in "Closure batch-2 evidence", batch-3 and change-4 runs (packages `ok`, hook self-test 30/30) in "Closure batch-3 and change-4 evidence". The whole `internal/le/rfc` package run is owed on a quiet machine: two runs under load hit the 20-minute ceiling with no test failed before the cut (`job-unit-pkg-c4a36b2f.log`, `job-unit-pkg-d25f06c4.log`; "Remaining closure work", item e) |
 | AC-3 | Added annotations explain their permission or error handling | Read the annotation diffs in both lint commits |
 
 ### Wiring Verified

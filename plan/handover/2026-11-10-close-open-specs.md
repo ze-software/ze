@@ -17,7 +17,7 @@ Access, refusal and lint-tooling. Eleven specs are closed.
 |------|-------|--------------|
 | access | **Closed**: `a5ca6d22cd`. The owner authorised review rounds 6 and 7 and ran the closing script. | Nothing |
 | refusal | **Closed**: record `15c252ebea`, removal `e32b0c9820`. The owner ran the 13-package scoped lint on his Mac at `ef1563f19f`: no finding in any file the lint fix changed. That run exposed one finding the spec had caused and blame had hidden, fixed in `ad05166600`; the reactor package then lints clean at that commit. Evidence: `refusal-lint-mac-ef1563f19f.md`. Review: four rounds. | Nothing |
-| lint-tooling | In progress, unclaimed between steps. The owner ruled that AC-1's "Zero findings" binds committed code in scope ("1 commited"); the spec records it as a ruling on this spec only. Batches `d3b523bb85` and `0b446895a2` are in. | The findings in the fixture files of `4c05449c18` are being fixed by their own session (those files are modified in the working tree as of 06:39): do not touch them. Batch 3 `c9f53eb9de` cleared the `fixture10Run` unparam and three capitalised messages and re-sealed the hook sources. Owed here: the "Invalid Status" message in `internal/le/spec/status/specstatus.go`; the spec's own scoped lint, which plans only on a still tree (the owner's Mac did it for refusal); then the review record, which is past the round cap and needs the owner's words at a terminal. See the batch 3 paragraphs below |
+| lint-tooling | In progress, unclaimed between steps. The owner ruled that AC-1's "Zero findings" binds committed code in scope ("1 commited"); the spec records it as a ruling on this spec only. Batches `d3b523bb85` and `0b446895a2` are in. | The findings in the fixture files of `4c05449c18` are being fixed by their own session (those files are modified in the working tree as of 06:39): do not touch them. Batch 3 `c9f53eb9de` cleared the `fixture10Run` unparam and three capitalised messages and re-sealed the hook sources. Change 4 `fead89c459` cleared the "Invalid Status" message with its fixture row and three seals. Owed here: the spec's own scoped lint, which plans only on a still tree (the owner's Mac did it for refusal); then the review record, which is past the round cap and needs the owner's words at a terminal. See the batch 3 paragraphs below |
 | route-policy | Unchanged. | The owner runs `plan/records/route-policy-0-a4-procedure.md` on the Mac |
 
 Lint-tooling batch 3 is committed: `c9f53eb9de`. The owner granted one review
@@ -48,8 +48,8 @@ also changes a hook fixture and a second seal, `fixtureCatalogDigest`, whose
 value comes from `TestEveryStoredDigestMatchesTheTreeItRatchets`, and that
 test could not compile here while other sessions edited the tree.
 
-Lint-tooling change 4 is written and tested but **not committed**: it waits
-for the owner to grant a review round. It rewords the "Invalid Status" refusal
+Lint-tooling change 4 is committed: `fead89c459`, after the one review round
+the owner granted for it, which was clean. It rewords the "Invalid Status" refusal
 in `internal/le/spec/status/specstatus.go` `MetadataStatus` to "the metadata
 Status '%s' is not a declared status; use one of: %s", updates the one fixture
 row that names it in `internal/le/ai/hooks/fixture_catalog.go`
@@ -59,8 +59,8 @@ row that names it in `internal/le/ai/hooks/fixture_catalog.go`
 note. The values came from `TestEveryStoredDigestMatchesTheTreeItRatchets`.
 Evidence: `internal/le/ai/hooks` and `internal/le/spec/status` pass under race
 (`job-unit-pkg-d226cde8.log`); the hook self-test passes 30 of 30 on a build of
-the working tree. If another session commits into a sealed package before
-this lands, the seals must be read again.
+the working tree. It carries no test file; its commit states why
+(`no-test`).
 
 A defect met while doing it, verified at the producer and **not yet
 journaled**: hook fixture message expectations are never compared with hook
@@ -77,8 +77,18 @@ section, so it fails its own write gate, and a journal row with no owner is
 refused at commit. The owner decides which way: give that spec its missing
 section so it can own the row, or name another owner.
 
-Next for lint-tooling, in order: land change 4 after its review; record
-batches 2, 3 and 4 in the spec; run the spec's own scoped lint on a still tree
+The spec text now records batches 1 to 4, the seal mistake and the owner's
+ruling (same commit as this paragraph). The fixture files of `4c05449c18` got
+their own session's fix in `b77e8f71bf`; its body says the linter has not
+judged the result.
+
+Three things for lint-tooling need a machine no other session is loading or
+writing to, which today means the owner's Mac: its scoped lint, the whole
+`internal/le/rfc` package run (it hit the 20-minute ceiling twice here with no
+test failed, `job-unit-pkg-c4a36b2f.log` and `job-unit-pkg-d25f06c4.log`; a
+quiet run took 1168 s), and the closing record with the owner's words.
+
+Next for lint-tooling, in order: run the spec's own scoped lint on a still tree
 and fix what the repeat cap had hidden; then the closing review record. Every
 further review round, the closing one included, is the owner's to grant.
 
