@@ -1,0 +1,73 @@
+Provenance: output of the procedure in route-policy-0-a4-procedure.md, run by
+Thomas on his Mac on 2026-11-12 and pasted into the closing session.
+Scope: spec-route-policy-0-umbrella, A-4, matched Loc-RIB insert benchmarks.
+Columns: base is d04aabe5e0019f83369767ebf0d111a1806d5798 (the parent of the
+gate commit), impl is fb94aa04977da6f0cb31f08dd46a8f315af0ffc1 (the gate
+commit), head is c20d1efca738da63b923f0b633f24143c0d711c5.
+Ten interleaved rounds of prebuilt test binaries, 1000000 iterations each.
+
+Two things to read in the provenance below. It holds two environment blocks:
+the first, at 18:58:58Z, shows Homebrew's go1.27.4; the second, at 19:00:37Z,
+shows the patched go1.27.3 the procedure asks for. The three build lines sit
+between them, so the file alone does not say which toolchain built the test
+binaries. The binaries settle it: `go version` on base.test, impl.test and
+head.test answers go1.27.3 for all three (output at the end of this file).
+The machine was on battery power, where the procedure asks for mains.
+
+--- provenance.txt ---
+2026-11-12T18:58:58Z
+go version go1.27.4 darwin/arm64
+/opt/homebrew/Cellar/go/1.27.4/libexec
+Darwin thomasmangin-J44N2XRXNR-770.local 27.2.0 Darwin Kernel Version 27.2.0: Wed Oct 14 23:44:56 PDT 2026; root:xnu-13432.41.4~25/RELEASE_ARM64_T6041 arm64
+Apple M4 Max
+16
+68719476736
+Now drawing from 'Battery Power'
+ -InternalBattery-0 (id=36438115)       79%; discharging; 7:37 remaining present: true
+flags: -test.run ^$ -test.bench ^BenchmarkSharded -test.benchmem -test.benchtime 1000000x, 10 interleaved rounds
+base d04aabe5e0019f83369767ebf0d111a1806d5798
+impl fb94aa04977da6f0cb31f08dd46a8f315af0ffc1
+head c20d1efca738da63b923f0b633f24143c0d711c5
+2026-11-12T19:00:37Z
+go version go1.27.3 darwin/arm64
+/Users/thomas/Unix/cache/ze/stdpatch/815b4523d3dfc620e240b6add4d5efbbf01ea05be8a1ff831d9152de4f123ae0/goroot
+Darwin thomasmangin-J44N2XRXNR-770.local 27.2.0 Darwin Kernel Version 27.2.0: Wed Oct 14 23:44:56 PDT 2026; root:xnu-13432.41.4~25/RELEASE_ARM64_T6041 arm64
+Apple M4 Max
+16
+68719476736
+Now drawing from 'Battery Power'
+ -InternalBattery-0 (id=36438115)       78%; discharging; 7:17 remaining present: true
+flags: -test.run ^$ -test.bench ^BenchmarkSharded -test.benchmem -test.benchtime 1000000x, 10 interleaved rounds
+
+--- benchstat.txt ---
+goos: darwin
+goarch: arm64
+pkg: github.com/ze-software/ze/internal/core/rib/locrib
+cpu: Apple M4 Max
+                                    │    base     │                impl                 │                head                 │
+                                    │   sec/op    │    sec/op     vs base               │    sec/op     vs base               │
+ShardedInsertParallel-16              165.7n ± 1%   154.7n ± 11%       ~ (p=0.089 n=10)   153.7n ± 15%       ~ (p=0.089 n=10)
+ShardedInsertSerial-16                303.8n ± 0%   320.8n ±  1%  +5.61% (p=0.000 n=10)   321.6n ±  1%  +5.86% (p=0.000 n=10)
+ShardedManyWritersDistinctShards-16   180.2n ± 1%   179.6n ±  5%       ~ (p=0.565 n=10)   177.9n ±  2%       ~ (p=0.109 n=10)
+geomean                               208.6n        207.3n        -0.59%                  206.4n        -1.05%
+
+                                    │    base    │                impl                │                head                │
+                                    │    B/op    │    B/op     vs base                │    B/op     vs base                │
+ShardedInsertParallel-16              52.00 ± 0%   21.00 ± 0%  -59.62% (p=0.000 n=10)   21.00 ± 0%  -59.62% (p=0.000 n=10)
+ShardedInsertSerial-16                348.0 ± 0%   332.0 ± 0%   -4.60% (p=0.000 n=10)   332.0 ± 0%   -4.60% (p=0.000 n=10)
+ShardedManyWritersDistinctShards-16   197.0 ± 0%   174.0 ± 0%  -11.68% (p=0.000 n=10)   174.0 ± 0%  -11.68% (p=0.000 n=10)
+geomean                               152.8        106.7       -30.18%                  106.7       -30.18%
+
+                                    │    base    │                  impl                   │                  head                   │
+                                    │ allocs/op  │ allocs/op   vs base                     │ allocs/op   vs base                     │
+ShardedInsertParallel-16              1.000 ± 0%   0.000 ± 0%  -100.00% (p=0.000 n=10)       0.000 ± 0%  -100.00% (p=0.000 n=10)
+ShardedInsertSerial-16                3.000 ± 0%   2.000 ± 0%   -33.33% (p=0.000 n=10)       2.000 ± 0%   -33.33% (p=0.000 n=10)
+ShardedManyWritersDistinctShards-16   2.000 ± 0%   1.000 ± 0%   -50.00% (p=0.000 n=10)       1.000 ± 0%   -50.00% (p=0.000 n=10)
+geomean                               1.817                    ?                       ¹ ²               ?                       ¹ ²
+¹ summaries must be >0 to compute geomean
+² ratios must be >0 to compute geomean
+
+--- go version of the three test binaries (run by the owner after the benchmarks) ---
+/Users/thomas/a4-bench/base.test: go1.27.3
+/Users/thomas/a4-bench/impl.test: go1.27.3
+/Users/thomas/a4-bench/head.test: go1.27.3
