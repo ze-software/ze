@@ -632,7 +632,7 @@ func (patterns compiledPatterns) argDefFor(leaf *gyang.Entry, name string) (comm
 		Description: leaf.Description,            // the YANG description explanation
 		Rest:        hasRestOfLineExtension(leaf),
 	}
-	return patterns.yangTypeToArgDef(name, leaf.Type, entryTypeStatement(leaf), opts)
+	return patterns.yangTypeToArgDef(name, leaf, leaf.Type, entryTypeStatement(leaf), opts)
 }
 
 // hasRestOfLineExtension reports whether leaf carries ze:rest-of-line: it
@@ -646,10 +646,15 @@ func hasRestOfLineExtension(leaf *gyang.Entry) bool {
 	return false
 }
 
-// yangTypeToArgDef converts a goyang YangType into an ArgDef. declared is the
-// type statement goyang resolved yt from (declared.YangType is yt), or nil
-// when no statement is at hand. A range, length or pattern refusal of the
-// definition carries the error-message declared reads (typeConstraintMessages).
+// yangTypeToArgDef converts a goyang YangType into an ArgDef. leaf is the leaf
+// entry yt belongs to (its own type, or one of its union members), or nil when
+// no entry is at hand. declared is the type statement goyang resolved yt from
+// (declared.YangType is yt), or nil when no statement is at hand. A range,
+// length or pattern refusal of the definition carries the error-message
+// declared reads (typeConstraintMessages). A value refusal lists each enum
+// value with the ze:help leaf declares for it (EnumValueSummaries), and a
+// pattern refusal says the format in words (LeafValueFormat), as the config
+// value refusal does.
 //
 // An enumeration's names are read from declared, in the order of the values
 // RFC 7950 assigns them (parseEnumAssignment): goyang's own EnumType numbers
@@ -669,7 +674,7 @@ func hasRestOfLineExtension(leaf *gyang.Entry) bool {
 // so no part reaching here overlaps, descends or exceeds its width; an
 // enumeration lists at least one enum or parseEnumAssignment refuses it; and
 // every name is a leaf name.
-func (patterns compiledPatterns) yangTypeToArgDef(name string, yt *gyang.YangType, declared *gyang.Type, opts command.ArgOptions) (command.ArgDef, bool) {
+func (patterns compiledPatterns) yangTypeToArgDef(name string, leaf *gyang.Entry, yt *gyang.YangType, declared *gyang.Type, opts command.ArgOptions) (command.ArgDef, bool) {
 	var (
 		def command.ArgDef
 		err error
@@ -682,6 +687,9 @@ func (patterns compiledPatterns) yangTypeToArgDef(name string, yt *gyang.YangTyp
 		assigned, assignErr := parseEnumAssignment(declared)
 		if assignErr != nil {
 			return command.ArgDef{}, false
+		}
+		if leaf != nil {
+			opts.EnumHelp = EnumValueSummaries(leaf)
 		}
 		def, err = command.NewEnumArg(name, assigned.namesByValue(), opts)
 
@@ -712,12 +720,16 @@ func (patterns compiledPatterns) yangTypeToArgDef(name string, yt *gyang.YangTyp
 		for i, pattern := range yt.Pattern {
 			opts.PatternMessages[i] = messages.Pattern(pattern)
 		}
+		if leaf != nil {
+			format := LeafValueFormat(leaf, yt)
+			opts.FormatText, opts.FormatType = format.Text(), format.TypeName()
+		}
 		def, err = command.NewStringArg(name, uintRanges(yt.Length), patterns.compiled(name, yt.Pattern), opts)
 
 	case gyang.Yunion:
 		members := make([]command.ArgDef, 0, len(yt.Type))
 		for _, member := range yt.Type {
-			sub, ok := patterns.yangTypeToArgDef(name, member, unionMemberStatement(declared, member), command.ArgOptions{})
+			sub, ok := patterns.yangTypeToArgDef(name, leaf, member, unionMemberStatement(declared, member), command.ArgOptions{})
 			if ok {
 				members = append(members, sub)
 			}

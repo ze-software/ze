@@ -117,7 +117,7 @@ func handleUpdateCursor(ctx *pluginserver.CommandContext, args []string) (*plugi
 				}
 				i += consumed
 			} else {
-				extra, parseErr := parseCommonAttributeText(token, args, i, attrs)
+				extra, parseErr := parseCommonAttributeText(updateCursorCommand, token, args, i, attrs)
 				if parseErr != nil {
 					return nil, parseErr
 				}

@@ -368,10 +368,11 @@ func validateLocalArgs(words, args []string) (ValidatedArgs, error) {
 // its registration declares as its daemon form (ModelPath), since no node can
 // sit at the root itself.
 //
-// A line refused for several faults is restated as every route restates it
+// A line refused with an *ArgumentFaults (several faults, or one value its
+// leaf refuses) is restated as every route restates it
 // (ArgumentFaults.RestatedForLine), with path as the command the operator
-// types, so a line missing only arguments is given the whole command as its
-// fix here as on the daemon dispatcher.
+// types, so a line missing only arguments, or holding a refused value, is
+// given the whole command as its fix here as on the daemon dispatcher.
 func ValidateModelArgs(path string, args []string, preMatched map[string]string) (ValidatedArgs, error) {
 	return validateModelArgsAs(path, path, args, preMatched)
 }
@@ -388,15 +389,15 @@ func validateModelArgsAs(invocation, path string, args []string, preMatched map[
 		return ValidatedArgs{}, fmt.Errorf("argument definitions of %q: %w", path, err)
 	}
 	validated, err := ValidateArgs(args, defs, preMatched)
-	faults, several := errors.AsType[*ArgumentFaults](err)
-	if !several {
+	faults, listed := errors.AsType[*ArgumentFaults](err)
+	if !listed {
 		return validated, err
 	}
 	head, written := modelLineHead(invocation, defs, preMatched)
 	if !written {
 		return validated, err
 	}
-	return validated, faults.RestatedForLine(nil, head, args, "", "")
+	return validated, faults.RestatedForLine(nil, invocation, head, args, "", "")
 }
 
 // modelLineHead writes the command as typed on a model route, then each value

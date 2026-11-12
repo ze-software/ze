@@ -37,7 +37,9 @@ func (e *selectorMissing) Unwrap() error {
 }
 
 // restateArgumentFaults answers faults, the list command.ValidateArgs refused
-// matchedCmd's line with, as the operator should read it.
+// matchedCmd's line with (several faults, or one value its leaf refuses), as
+// the operator should read it. A value fault names matchedCmd's path before its
+// argument, and the fix writes the value that replaces it.
 //
 // The missing selector of a command that requires one is named by the guard's
 // refusal, which gives the line that supplies it. The fix line is chosen by
@@ -89,5 +91,5 @@ func restateArgumentFaults(matchedCmd *Command, faults *command.ArgumentFaults, 
 		}
 		// A fault restated as nil keeps its own line (ArgumentFaults.Restated).
 		return nil
-	}, head.String(), args, placedToken, placedLeaf)
+	}, matchedCmd.Name, head.String(), args, placedToken, placedLeaf)
 }

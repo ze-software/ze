@@ -1,0 +1,52 @@
+# Test: an operational command argument that fails its YANG pattern is refused
+# with the format in words and the whole command as the fix, never the regular
+# expression.
+# QUESTION: does `resolve dns ptr zz` name the argument, say the value is not
+# in the accepted format, give the format the model states, and end with the
+# command retyped with the placeholder? Only the shipped YANG through the real
+# dispatcher proves the format text is read from the model.
+# VALIDATES: AC-38 pattern case (spec-config-enum-refusal-proposes-valid-values).
+# PREVENTS: `invalid value "zz", does not match expected pattern`.
+#
+# Method: the daemon runs one SSH server on 127.0.0.1 $PORT, which the CLI dials.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=refusal.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start refusal.conf:name=daemon:ready=Ze running.
+
+cmd=foreground:seq=3:exec=ze cli -c "resolve dns ptr zz"
+expect=stderr:contains="zz" is not in the accepted format
+expect=stderr:contains=fix: resolve dns ptr <
+reject=stderr:contains=does not match expected pattern
+reject=stderr:contains=[0-9

@@ -66,6 +66,7 @@ import (
 	"github.com/ze-software/ze/internal/core/selector"
 
 	"github.com/ze-software/ze/internal/component/command"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/context"
@@ -382,9 +383,18 @@ func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, bgptypes.RouteNextH
 	return wire, nh, nlriAccum{PathID: a.PathID, HasPathID: a.HasPathID, RD: a.RD, Labels: labels}
 }
 
+// The commands whose arguments parseCommonAttributeText reads, as the operator
+// types them: a refusal names its value under them and retypes them as its fix.
+const (
+	updateTextCommand   = "update text"
+	updateCursorCommand = "update cursor"
+)
+
 // parseCommonAttributeText parses a common BGP attribute by keyword into parsedAttrs.
 // Returns the number of args consumed (0 if keyword not handled), or error.
-func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedAttrs) (int, error) {
+// invoked is the command args were typed after (updateTextCommand,
+// updateCursorCommand), which a value refusal names.
+func parseCommonAttributeText(invoked, key string, args []string, idx int, attrs *parsedAttrs) (int, error) {
 	switch key {
 	case kwOrigin:
 		if idx+1 >= len(args) {
@@ -393,7 +403,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		// YANG validation for origin enum (single source of truth)
 		if plugin.YANGValidator() != nil {
 			if err := plugin.YANGValidator().Validate(yangPathOrigin, args[idx+1]); err != nil {
-				return 0, fmt.Errorf("invalid origin: %w", err)
+				return 0, originRefusal(invoked, args, idx+1, err)
 			}
 		}
 		origin, err := parseOriginText(args[idx+1])
@@ -705,6 +715,34 @@ func parseRouterIDText(s string) (netip.Addr, error) {
 	return addr.Unmap(), nil
 }
 
+// originRefusal answers the schema's refusal of the origin value at index at of
+// args as the operator who typed invoked reads it: the walk names the value
+// under its schema path (bgp peer update attribute origin), which no operator
+// typed, so the refusal is re-rooted to the command words, `update text
+// origin`, and its fix is the command retyped with the correction in place of
+// the value. A refusal that holds no operator error keeps the schema's text.
+func originRefusal(invoked string, args []string, at int, err error) error {
+	refusal, ok := errors.AsType[*configyang.ValidationError](err)
+	if !ok {
+		return fmt.Errorf("invalid origin: %w", err)
+	}
+	if !refusal.HoldsOperatorError() {
+		return fmt.Errorf("invalid origin: %w", err)
+	}
+	path := append(strings.Fields(invoked), kwOrigin)
+	var fix textbuf.Buffer
+	fix.Str(invoked)
+	for i, token := range args {
+		fix.Byte(' ')
+		if i == at {
+			fix.Str(refusal.Correction())
+			continue
+		}
+		command.WriteInvocationValue(&fix, token)
+	}
+	return refusal.WithPath(path).WithFix(fix.String())
+}
+
 // parseOriginText parses origin string to value. The names and their wire
 // values come from the attribute package, which holds the one spelling of them.
 func parseOriginText(s string) (uint8, error) {
@@ -1002,7 +1040,7 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 					return nil, fmt.Errorf("%s keyword removed for attributes; use: %s <value>", args[i+1], token)
 				}
 				// Flat attribute parsing: keyword + value(s).
-				extra, err := parseCommonAttributeText(token, args, i, &attrs)
+				extra, err := parseCommonAttributeText(updateTextCommand, token, args, i, &attrs)
 				if err != nil {
 					return nil, err
 				}

@@ -111,7 +111,11 @@ func TestArgLengthFollowsDeclaredLength(t *testing.T) {
 	require.NoError(t, ValidateArgString(string(value), &long))
 	err := ValidateArgString(string(value)+"aa", &long)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "length 8152 out of range 0..8150: give hex a value of 0..8150 characters")
+	fault, ok := errors.AsType[*ValueArgumentError](err)
+	require.True(t, ok, "a length miss is a value fault: %v", err)
+	assert.Equal(t, `hex: "`+string(value[:echoMax])+`..." is outside the accepted length (8152 characters)`, fault.Problem())
+	assert.Equal(t, "hex accepts 0..8150 characters", fault.Why())
+	assert.Equal(t, "<0..8150 characters>", fault.Correction())
 	assert.Less(t, len(err.Error()), 200, "the refusal quotes a short prefix of the value")
 
 	plain := mustArgDef(NewStringArg("name", nil, nil, ArgOptions{}))

@@ -55,33 +55,42 @@ cmd=background:seq=2:exec=ze start length.conf:name=daemon:ready=Ze running.
 
 # Daemon route, 129 characters: one past the bound, refused before the handler.
 cmd=foreground:seq=3:exec=ze cli -c "show metrics name mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
-expect=stderr:contains=length 129 out of range 1..128
+expect=stderr:contains=is outside the accepted length (129 characters)
+expect=stderr:contains=accepts 1..128 characters
+expect=stderr:contains=<1..128 characters>
 reject=stderr:contains=metrics not available
 
 # Daemon route, 128 characters: at the bound, the value reaches the handler.
 cmd=foreground:seq=4:exec=ze cli -c "show metrics name mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
 expect=stderr:contains=metrics not available
 reject=stderr:contains=out of range
+reject=stderr:contains=is outside the accepted length
 
 # In-process route, 129 characters: refused before the handler runs.
 cmd=foreground:seq=5:exec=ze cli -c "show env get mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
-expect=stderr:contains=length 129 out of range 1..128
+expect=stderr:contains=is outside the accepted length (129 characters)
+expect=stderr:contains=accepts 1..128 characters
+expect=stderr:contains=<1..128 characters>
 reject=stderr:contains=no environment variable named
 
 # In-process route, 128 characters: the value reaches the handler.
 cmd=foreground:seq=6:exec=ze cli -c "show env get mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
 expect=stderr:contains=no environment variable named
 reject=stderr:contains=out of range
+reject=stderr:contains=is outside the accepted length
 
 # Verb route, `ze show env get`, 129 characters: the plain local handler
 # registry.RegisterLocalData builds is refused before the handler runs too.
 cmd=foreground:seq=7:exec=ze show env get mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
-expect=stderr:contains=length 129 out of range 1..128
+expect=stderr:contains=is outside the accepted length (129 characters)
+expect=stderr:contains=accepts 1..128 characters
+expect=stderr:contains=<1..128 characters>
 reject=stderr:contains=no environment variable named
 
 # Verb route, 128 characters: the value reaches the handler.
 cmd=foreground:seq=8:exec=ze show env get mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
 expect=stderr:contains=no environment variable named
 reject=stderr:contains=out of range
+reject=stderr:contains=is outside the accepted length
 
 cmd=stop:seq=9:name=daemon:signal=term

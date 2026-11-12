@@ -65,7 +65,9 @@ cmd=background:seq=2:exec=ze start plugin-route.conf:name=daemon:ready=Ze runnin
 
 # 129 characters: one past the bound, refused before the plugin is asked.
 cmd=foreground:seq=3:exec=ze cli -c "show record-plugin argument ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-expect=stderr:contains=length 129 out of range 1..128
+expect=stderr:contains=is outside the accepted length (129 characters)
+expect=stderr:contains=accepts 1..128 characters
+expect=stderr:contains=<1..128 characters>
 reject=stdout:contains=record-plugin received
 
 # No id: the mandatory leaf is missing, refused before the plugin is asked.
@@ -77,5 +79,6 @@ reject=stdout:contains=record-plugin received
 cmd=foreground:seq=5:exec=ze cli -c "show record-plugin argument cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 expect=stdout:contains=record-plugin received: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 reject=stderr:contains=out of range
+reject=stderr:contains=is outside the accepted length
 
 cmd=stop:seq=6:name=daemon:signal=term

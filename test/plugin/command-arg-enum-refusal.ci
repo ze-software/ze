@@ -1,0 +1,61 @@
+# Test: an operational command argument outside its YANG enumeration is
+# refused with the same refusal as a config value, on the daemon route.
+# QUESTION: does an operator who types `send bgp <peer> raw gzip <hex>` read the
+# argument, the value, every accepted encoding with its help, and the whole
+# command to type with the placeholder in place of gzip? A unit test builds the
+# definitions by hand; only the shipped YANG and the real dispatcher reached
+# through `ze cli -c` prove the help is read from the model and the route
+# restates the one fault.
+# VALIDATES: AC-12 (spec-config-enum-refusal-proposes-valid-values).
+# PREVENTS: `invalid value "gzip", expected one of: hex, b64`.
+#
+# Method: the daemon runs one SSH server on 127.0.0.1 $PORT, which the CLI dials.
+# No BGP peer is configured: the refusal is the dispatcher's, before the handler.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=refusal.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start refusal.conf:name=daemon:ready=Ze running.
+
+# One value fault: the whole command is the fix, the placeholder in place.
+cmd=foreground:seq=3:exec=ze cli -c "send bgp 192.0.2.1 raw gzip DEADBEEF"
+expect=stderr:contains=raw encoding: "gzip" is not an accepted value
+expect=stderr:contains=encoding accepts only these values:
+expect=stderr:contains=fix: send bgp 192.0.2.1 raw <hex|b64> DEADBEEF
+reject=stderr:contains=expected one of
+reject=stderr:contains=faults, so Ze did not run it
+
+# A close value is named and put in the fix.
+cmd=foreground:seq=4:exec=ze cli -c "send bgp 192.0.2.1 raw hx DEADBEEF"
+expect=stderr:contains="hx" is not an accepted value (did you mean hex?)
+expect=stderr:contains=fix: send bgp 192.0.2.1 raw hex DEADBEEF

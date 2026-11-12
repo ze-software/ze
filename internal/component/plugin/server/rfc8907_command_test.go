@@ -1631,7 +1631,9 @@ func TestPositionalErrorNamesTheOneOpenDefinition(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Contains(t, resp.Error, `"not-an-ip"`, "the message names the value the operator typed")
-	assert.Contains(t, resp.Error, "does not match expected pattern", "the message states why it was refused")
+	assert.Contains(t, resp.Error, `"not-an-ip" is not in the accepted format`, "the message states why it was refused")
+	assert.Contains(t, resp.Error, "\nfix: show route lookup <", "the fix is the command with the placeholder in place of the value")
+	assert.NotContains(t, resp.Error, "does not match expected pattern")
 	assert.NotContains(t, resp.Error, "valid keywords", "a bare value slot has no keyword to offer")
 }
 
@@ -1669,6 +1671,8 @@ func TestMissingMandatoryOutranksAnUnplaceableToken(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Contains(t, resp.Error, "required argument missing: direction")
 	assert.NotContains(t, resp.Error, "invalid value", "the handler's own keyword is not a refused value")
+	assert.NotContains(t, resp.Error, "is not an accepted value", "the handler's own keyword is not a refused value")
+	assert.NotContains(t, resp.Error, "is not in the accepted format", "the handler's own keyword is not a refused value")
 
 	accepted, err := d.Dispatch(nil, "show policy test peer test-peer export update FFFF")
 	require.NoError(t, err, "the documented form still reaches the handler")
@@ -2881,7 +2885,9 @@ func TestDispatchNamesTheBoundOfAKeywordBoundValue(t *testing.T) {
 	_, err := d.Dispatch(&CommandContext{}, "show demo name abcde")
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, ErrUnknownCommand)
-	assert.Contains(t, err.Error(), "length 5 out of range 1..4")
+	assert.Contains(t, err.Error(), `"abcde" is outside the accepted length (5 characters)`)
+	assert.Contains(t, err.Error(), "\nname accepts 1..4 characters\n")
+	assert.Contains(t, err.Error(), "<1..4 characters>", "the fix holds the placeholder in place of the value")
 	assert.Nil(t, got, "the over-long value reached the handler")
 
 	_, err = d.Dispatch(&CommandContext{}, "show demo name abcd")

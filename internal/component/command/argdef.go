@@ -8,8 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"maps"
 	"regexp"
 	"slices"
+
+	"github.com/ze-software/ze/internal/core/suggest"
 )
 
 // ErrArgDef is wrapped by every refusal of an argument definition
@@ -48,6 +51,17 @@ type ArgDef struct {
 	rangeMessage    string
 	lengthMessage   string
 	patternMessages []string
+
+	// enumHelp is the one-line ze:help of each enum value, by name, which a
+	// refusal lists beside the value (ArgOptions.EnumHelp); for ArgUnion it is
+	// its enum members' help merged. A value missing from it declares none.
+	enumHelp map[string]string
+
+	// formatText says in words what form a pattern accepts, and formatType
+	// names the typedef the pattern comes from (ArgOptions.FormatText,
+	// FormatType). A pattern refusal reads them, never the expression.
+	formatText string
+	formatType string
 
 	// rest marks a free-text leaf, from its ze:rest-of-line statement: it takes
 	// every word left on the line, joined by one space, and no word it takes is
@@ -98,6 +112,14 @@ type ArgOptions struct {
 	RangeMessage    string   // of the ArgUint range
 	LengthMessage   string   // of the ArgString length
 	PatternMessages []string // of each ArgString pattern, in the patterns' order; nil declares none
+
+	// What a value refusal lists and says (ValueArgumentError). EnumHelp is the
+	// one-line ze:help of each ArgEnum value, by name; nil declares none.
+	// FormatText is the form an ArgString pattern accepts, in words, and
+	// FormatType the name of the typedef that declares the pattern; "" for none.
+	EnumHelp   map[string]string
+	FormatText string
+	FormatType string
 }
 
 // NewStringArg builds an ArgString definition. lengths are character-count
@@ -129,7 +151,20 @@ func NewStringArg(name string, lengths []UintRange, patterns []*regexp.Regexp, o
 	def.lengths = slices.Clone(lengths)
 	def.patterns = slices.Clone(patterns)
 	def.patternMessages = slices.Clone(opts.PatternMessages)
+	def.formatText = opts.FormatText
+	def.formatType = opts.FormatType
 	return def, nil
+}
+
+// acceptedValues answers the enum values of d, an ArgEnum or ArgUnion, with the
+// help each declares, in the order the definition holds them: the list a value
+// refusal writes.
+func acceptedValues(d *ArgDef) []suggest.Value {
+	values := make([]suggest.Value, 0, len(d.enumValues))
+	for _, name := range d.enumValues {
+		values = append(values, suggest.Value{Name: name, Help: d.enumHelp[name]})
+	}
+	return values
 }
 
 // NewUintArg builds an ArgUint definition of the given width. ranges may be
@@ -172,6 +207,7 @@ func NewEnumArg(name string, values []string, opts ArgOptions) (ArgDef, error) {
 	}
 	def := newArgDef(name, ArgEnum, opts)
 	def.enumValues = slices.Clone(values)
+	def.enumHelp = maps.Clone(opts.EnumHelp)
 	return def, nil
 }
 
@@ -185,17 +221,26 @@ func NewUnionArg(name string, members []ArgDef, opts ArgOptions) (ArgDef, error)
 		return ArgDef{}, err
 	}
 	var values []string
+	var help map[string]string
 	for i := range members {
 		if !members[i].constructed {
 			return ArgDef{}, fmt.Errorf("%w: %s: union member %d was not built by a constructor", ErrArgDef, name, i)
 		}
-		if members[i].kind == ArgEnum {
-			values = append(values, members[i].enumValues...)
+		if members[i].kind != ArgEnum {
+			continue
+		}
+		values = append(values, members[i].enumValues...)
+		for value, text := range members[i].enumHelp {
+			if help == nil {
+				help = make(map[string]string)
+			}
+			help[value] = text
 		}
 	}
 	def := newArgDef(name, ArgUnion, opts)
 	def.unionDefs = slices.Clone(members)
 	def.enumValues = values
+	def.enumHelp = help
 	return def, nil
 }
 

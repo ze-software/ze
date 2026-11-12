@@ -46,13 +46,13 @@ func TestUnitVIDBoundIsTheModels(t *testing.T) {
 			path:    "delete interface name unit",
 			handler: handleUnitDel,
 			input:   "delete interface name eth0 unit 4095",
-			refused: "value 4095 out of range 1..4094",
+			refused: `"4095" is outside the accepted range`,
 		},
 		{
 			path:    "delete interface name unit",
 			handler: handleUnitDel,
 			input:   "delete interface name eth0 unit 0",
-			refused: "value 0 out of range 1..4094",
+			refused: `"0" is outside the accepted range`,
 		},
 		{
 			path:    "delete interface name unit",
@@ -63,7 +63,7 @@ func TestUnitVIDBoundIsTheModels(t *testing.T) {
 			path:    "create interface unit",
 			handler: handleUnitAdd,
 			input:   "create interface eth0 unit 4095",
-			refused: "value 4095 out of range 1..4094",
+			refused: `"4095" is outside the accepted range`,
 		},
 		{
 			path:    "create interface unit",
@@ -88,6 +88,8 @@ func TestUnitVIDBoundIsTheModels(t *testing.T) {
 			if c.refused != "" {
 				require.Error(t, dispatchErr)
 				assert.Contains(t, resp.Error, c.refused, "the model's range refuses the value")
+				assert.Contains(t, resp.Error, "<1..4094>", "the fix names the model's bounds in place of the value")
+				assert.NotContains(t, resp.Error, "out of range")
 				return
 			}
 			// The value passed the model, so the handler ran and reached the

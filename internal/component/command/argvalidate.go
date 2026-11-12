@@ -4,13 +4,10 @@
 package command
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 	"strconv"
 	"unicode/utf8"
-
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // maxArgLength is the most bytes a token may hold for a leaf whose model
@@ -51,61 +48,46 @@ func ValidateArgString(arg string, def *ArgDef) error {
 	}
 }
 
+// validateEnum refuses a word outside def's enumeration with the value fault
+// that lists every accepted value (ValueArgumentError).
+//
+// RFC 7950 Section 9.6: "The enumeration built-in type represents values from a set of assigned names."
 func validateEnum(arg string, def *ArgDef) error {
 	if slices.Contains(def.enumValues, arg) {
 		return nil
 	}
-	return fmt.Errorf("invalid value %q, expected one of: %s", arg, joinEnum(def.enumValues))
+	return enumFault(arg, def)
 }
 
+// validateUint refuses a token that is not a number of def's width with the
+// type refusal, and a number outside def's declared ranges with the value
+// fault that names the bounds, or the error-message the range declares
+// (RFC 7950 Section 7.5.4.1).
 func validateUint(arg string, def *ArgDef) error {
 	v, err := strconv.ParseUint(arg, 10, def.uintBits)
 	if err != nil {
 		return fmt.Errorf("invalid value %q, expected unsigned integer", arg)
 	}
-	if len(def.ranges) > 0 {
-		for _, r := range def.ranges {
-			if v >= r.Min && v <= r.Max {
-				return nil
-			}
-		}
-		if len(def.ranges) == 1 {
-			var refusal textbuf.Buffer
-			refusal.Str("value ").Uint(v).Str(" out of range ").Uint(def.ranges[0].Min).Str("..").Uint(def.ranges[0].Max)
-			return refusalWithMessage(refusal.String(), def.rangeMessage)
-		}
-		var refusal textbuf.Buffer
-		refusal.Str("value ").Uint(v).Str(" out of allowed ranges ").Str(joinRanges(def.ranges))
-		return refusalWithMessage(refusal.String(), def.rangeMessage)
+	if len(def.ranges) == 0 {
+		return nil
 	}
-	return nil
-}
-
-// refusalWithMessage is the refusal of a value its YANG restriction refused:
-// the generic refusal, then the error-message the restriction declares.
-//
-// RFC 7950 Section 7.5.4.1: "If the constraint evaluates to "false", the string is passed as <error-message> in the <rpc-error> in NETCONF."
-func refusalWithMessage(refusal, message string) error {
-	if message == "" {
-		return errors.New(refusal)
+	// RFC 7950 Section 9.2.4: "It is used to restrict integer and decimal built-in types, or types derived from them."
+	if inRanges(v, def.ranges) {
+		return nil
 	}
-	return errors.New(refusal + ": " + message)
+	return rangeFault(arg, def)
 }
 
 // validateString judges a string argument against its YANG length and every
-// pattern its type chain declares.
+// pattern its type chain declares, and refuses a miss with the value fault of
+// its kind.
 func validateString(arg string, def *ArgDef) error {
 	if len(def.lengths) > 0 {
 		// RFC 7950 Section 9.4.4: "A "length" statement restricts the number
 		// of Unicode characters in the string."
 		length := uint64(utf8.RuneCountInString(arg))
 		if !inRanges(length, def.lengths) {
-			if def.lengthMessage != "" {
-				var refusal textbuf.Buffer
-				refusal.Str("invalid value ").Str(strconv.Quote(echoValue(arg))).Str(", length ").Uint(length).Str(" out of range ").Str(joinRanges(def.lengths))
-				return refusalWithMessage(refusal.String(), def.lengthMessage)
-			}
-			return fmt.Errorf("invalid value %q, length %d out of range %s: give %s a value of %s characters", echoValue(arg), length, joinRanges(def.lengths), def.name, joinRanges(def.lengths))
+			return lengthFault(arg, def)
 		}
 	}
 	// RFC 7950 Section 9.4.5: "If the type has multiple "pattern" statements,
@@ -115,10 +97,7 @@ func validateString(arg string, def *ArgDef) error {
 		if pattern.MatchString(arg) {
 			continue
 		}
-		if i < len(def.patternMessages) && def.patternMessages[i] != "" {
-			return refusalWithMessage("invalid value "+strconv.Quote(arg), def.patternMessages[i])
-		}
-		return fmt.Errorf("invalid value %q, does not match expected pattern", arg)
+		return patternFault(arg, def, i)
 	}
 	return nil
 }
@@ -175,42 +154,18 @@ func joinRanges(ranges []UintRange) string {
 	return string(buf)
 }
 
+// validateUnion accepts a value any member of def's union accepts, and refuses
+// any other with the value fault that lists the enumeration members' values
+// and names the other member types.
+//
+// RFC 7950 Section 9.12: "When interpreting an XML encoding, a value is validated consecutively against each member type, in the order they are specified in the "type" statement, until a match is found."
 func validateUnion(arg string, def *ArgDef) error {
 	for i := range def.unionDefs {
 		if ValidateArgString(arg, &def.unionDefs[i]) == nil {
 			return nil
 		}
 	}
-	var hint string
-	for i := range def.unionDefs {
-		m := &def.unionDefs[i]
-		if m.kind == ArgEnum {
-			hint = joinEnum(m.enumValues)
-			break
-		}
-	}
-	if hint != "" {
-		return fmt.Errorf("invalid value %q, expected unsigned integer or one of: %s", arg, hint)
-	}
-	return fmt.Errorf("invalid value %q, does not match any accepted type", arg)
-}
-
-func joinEnum(values []string) string {
-	if len(values) == 0 {
-		return ""
-	}
-	n := 2 * (len(values) - 1)
-	for _, v := range values {
-		n += len(v)
-	}
-	buf := make([]byte, 0, n)
-	for i, v := range values {
-		if i > 0 {
-			buf = append(buf, ',', ' ')
-		}
-		buf = append(buf, v...)
-	}
-	return string(buf)
+	return unionFault(arg, def)
 }
 
 // ArgConstraint ranks how much an argument definition constrains its value. A

@@ -1145,12 +1145,13 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 			}
 		}
 
-		// A line with several faults is restated as every route restates it
+		// A line refused with a list of faults (several faults, or one value
+		// its leaf refuses) is restated as every route restates it
 		// (command.ArgumentFaults.RestatedForLine), with what only the
-		// dispatcher knows: where the selector is typed, and the line that
-		// supplies a missing one. The guard below still reads it as a list,
-		// and the held error keeps its place.
-		if faults, several := errors.AsType[*command.ArgumentFaults](argErr); several {
+		// dispatcher knows: the command's path, where the selector is typed,
+		// and the line that supplies a missing one. The guard below still
+		// reads it as a list, and the held error keeps its place.
+		if faults, listed := errors.AsType[*command.ArgumentFaults](argErr); listed {
 			argErr = restateArgumentFaults(matchedCmd, faults, args, selectors[selectorLeaf], adopted)
 		}
 
@@ -1286,14 +1287,15 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 // selector". A line that left several mandatory leaves missing and holds no
 // other fault (*command.ArgumentFaults of missing arguments only) binds the
 // same way, because every one of its missing arguments carries the same
-// binding. Any other refusal binds nothing, a line with several faults of
-// which one is not a missing argument included: that fault sits beside the
-// binding, and the operator must repair it first.
+// binding. Any other refusal binds nothing, a list holding a fault that is not
+// a missing argument included (a lone value its leaf refuses is such a list of
+// one): that fault sits beside the binding, and the operator must repair it
+// first.
 func adoptablePositional(validated command.ValidatedArgs, argErr error) (string, bool) {
 	if argErr == nil {
 		return validated.Positional(selectorLeaf)
 	}
-	if faults, several := errors.AsType[*command.ArgumentFaults](argErr); several {
+	if faults, listed := errors.AsType[*command.ArgumentFaults](argErr); listed {
 		for _, fault := range faults.Faults() {
 			if _, missing := errors.AsType[*command.MissingArgumentError](fault); !missing {
 				return "", false
@@ -1313,7 +1315,8 @@ func adoptablePositional(validated command.ValidatedArgs, argErr error) (string,
 // gets ("delete bgp peer"), and what a line whose values carry no keyword gets,
 // and for both the guard's refusal names the fix. Every other verdict names the
 // token or the leaf the operator must repair. A *command.ArgumentFaults always
-// does, even when every fault it holds is a missing argument: the guard's
+// does, a lone refused value among them, even when every fault it holds is a
+// missing argument: the guard's
 // refusal names the selector alone, while the list (restated by
 // restateArgumentFaults) names each missing leaf, the missing selector by the
 // guard's own form, so an operator who supplies the selector is not refused
@@ -1322,7 +1325,7 @@ func argFaultOutsideSelector(argErr error) bool {
 	if argErr == nil {
 		return false
 	}
-	if _, several := errors.AsType[*command.ArgumentFaults](argErr); several {
+	if _, listed := errors.AsType[*command.ArgumentFaults](argErr); listed {
 		return true
 	}
 	if _, missing := errors.AsType[*command.MissingArgumentError](argErr); missing {

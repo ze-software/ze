@@ -162,7 +162,8 @@ func TestYANGRangeErrorMessageReachesRefusal(t *testing.T) {
 		}
 		for _, refused := range []string{"0", "4095"} {
 			err := command.ValidateArgString(refused, &def)
-			want := "value " + refused + " out of range 1..4094: probe range message."
+			// The declared error-message is the why line (RFC 7950 Section 7.5.4.1).
+			want := `vlan: "` + refused + `" is outside the accepted range` + "\nprobe range message."
 			if err == nil || err.Error() != want {
 				t.Errorf("vlan %s: got %v, want %q", refused, err, want)
 			}
@@ -176,7 +177,7 @@ func TestYANGRangeErrorMessageReachesRefusal(t *testing.T) {
 			t.Fatal("code has no argument definition")
 		}
 		err := command.ValidateArgString("ABC", &def)
-		want := `invalid value "ABC": probe pattern message.`
+		want := `code: "ABC" is not in the accepted format` + "\nprobe pattern message."
 		if err == nil || err.Error() != want {
 			t.Errorf("got %v, want %q", err, want)
 		}

@@ -143,20 +143,23 @@ func TestMonitorPingParseArgsBounds(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		// wantFix is the placeholder the refusal's fix writes in place of the
+		// value: the model's bounds or format.
+		wantFix string
 	}{
 		{name: "interval minimum", args: []string{"interval", "100ms"}},
 		{name: "interval maximum", args: []string{"interval", "30s"}},
 		{name: "interval below", args: []string{"interval", "99ms"}, wantErr: "interval must be"},
 		{name: "interval above", args: []string{"interval", "31s"}, wantErr: "interval must be"},
-		{name: "interval not a duration", args: []string{"interval", "soon"}, wantErr: `invalid value "soon", does not match expected pattern`},
+		{name: "interval not a duration", args: []string{"interval", "soon"}, wantErr: `"soon" is not in the accepted format`, wantFix: "\nfix: "},
 		{name: "count minimum", args: []string{"count", "1"}},
 		{name: "count maximum", args: []string{"count", "100"}},
-		{name: "count zero", args: []string{"count", "0"}, wantErr: "value 0 out of range 1..100"},
-		{name: "count above", args: []string{"count", "101"}, wantErr: "value 101 out of range 1..100"},
+		{name: "count zero", args: []string{"count", "0"}, wantErr: `"0" is outside the accepted range`, wantFix: "<1..100>"},
+		{name: "count above", args: []string{"count", "101"}, wantErr: `"101" is outside the accepted range`, wantFix: "<1..100>"},
 		{name: "size minimum", args: []string{"size", "1"}},
 		{name: "size maximum", args: []string{"size", "65507"}},
-		{name: "size zero", args: []string{"size", "0"}, wantErr: "value 0 out of range 1..65507"},
-		{name: "size above", args: []string{"size", "65508"}, wantErr: "value 65508 out of range 1..65507"},
+		{name: "size zero", args: []string{"size", "0"}, wantErr: `"0" is outside the accepted range`, wantFix: "<1..65507>"},
+		{name: "size above", args: []string{"size", "65508"}, wantErr: `"65508" is outside the accepted range`, wantFix: "<1..65507>"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -164,6 +167,7 @@ func TestMonitorPingParseArgsBounds(t *testing.T) {
 			if tc.wantErr != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
+				assert.Contains(t, err.Error(), tc.wantFix)
 				return
 			}
 			require.NoError(t, err)

@@ -2109,24 +2109,45 @@ The validator reads the whole line before it refuses it, and names every fault
 the line holds: a keyword with no value, a value its leaf refuses, a keyword
 typed twice, a token no definition takes, and each missing mandatory leaf,
 in declaration order. A leaf whose keyword or value is already at fault is not
-also named missing. A line with one fault is refused with that fault alone. A
-line with more is refused with a `*command.ArgumentFaults`, an operator error
-whose problem line counts the faults, whose next lines name each fault in the
-order typed, and whose last line is the fix. Its `Unwrap` answers the operator
+also named missing. A line with one fault is refused with that fault alone,
+except a value its leaf refuses, which is a `*command.ArgumentFaults` of one so
+every route restates it. A line with more is refused with a
+`*command.ArgumentFaults`, an operator error whose problem line counts the
+faults, whose next lines name each fault in the order typed, and whose last line
+is the fix. A refusal of one value fault is that fault, with no count: its
+problem, its why, then the fix. Its `Unwrap` answers the operator
 error and each fault, so `errors.As` finds a `*command.MissingArgumentError`
 inside it as it does on its own. In the list a missing leaf also names the
 words that supply it, written by the usage line's own value form
 (`required argument missing: asn, as in 'asn <asn>'`); alone, it keeps its
-text. The dispatcher asks for an `*command.ArgumentFaults` first. A list that
+text. A refused value (`*command.ValueArgumentError`) reads as the config value
+refusal does: the command path and the argument, the quoted value and its kind
+(`is not an accepted value`, with ` (did you mean X?)` when one value is close,
+`is outside the accepted range`, `is outside the accepted length (N
+characters)`, `is not in the accepted format`), then its why: every accepted
+value on a line of its own with its `ze:help`, in the model's order, through the
+same renderer as the config refusal (`suggest.ValueLines`), the enum members of
+a union then its other member types named, the declared bounds, the format in
+words from the nearest typedef (never the regular expression), or the
+`error-message` the restriction declares. In a list it is its problem with its
+why indented under it, and never a fix line of its own. A number that is not a
+number keeps its type refusal (`invalid value "x", expected unsigned integer`).
+The dispatcher asks for an `*command.ArgumentFaults` first. A list that
 holds only missing arguments binds a positional selector as a lone missing
 argument does, because each of them carries the same binding; a list with any
 other fault binds none. The selector guard speaks only for a lone missing
 argument. Every route then restates the list through one function,
 `ArgumentFaults.RestatedForLine`, so the same line reads the same on all of
-them: when every fault is a missing argument and none was left unlisted, the
-fix line is the whole command, the operator's own tokens completed, each
-missing leaf by its keyword, written before the words of a rest-of-line leaf
-the line typed; any other list keeps each fault's line and the general fix.
+them: when every fault is a missing argument or a value typed in the line,
+and none was left unlisted, the fix line is the whole command, the operator's
+own tokens with each refused value replaced by its correction (the close
+value, the one accepted value, or the placeholder: `<hex|b64>`, `<1..4094>`,
+`<1..4 characters>`, `<value>`), each missing leaf by its keyword, written
+before the words of a rest-of-line leaf the line typed (`send bgp 192.0.2.1 raw
+gzip DEADBEEF` answers `fix: send bgp 192.0.2.1 raw <hex|b64> DEADBEEF`); any
+other list keeps each fault's line and the general fix. A value fault names the
+command path before its argument (`send bgp raw encoding: "gzip" is not an
+accepted value`).
 The routes differ only in the head of that line. The dispatcher writes the
 path with the selector where it reads it, and names a missing selector by the
 guard's own refusal, with the line that supplies it (`fix: create bgp peer
@@ -2138,6 +2159,7 @@ each value it bound out of band by its keyword (`selector 192.0.2.7`); the
 many more it did not list.
 <!-- source: internal/component/command/argbind.go -- ValidateArgs -->
 <!-- source: internal/component/command/argfaults.go -- ArgumentFaults, argumentFaultsMax -->
+<!-- source: internal/component/command/argvalue.go -- ValueArgumentError, enumFault, unionFault, rangeFault, lengthFault, patternFault -->
 <!-- source: internal/component/plugin/server/command.go -- adoptablePositional, argFaultOutsideSelector -->
 <!-- source: internal/component/command/argfaults.go -- RestatedForLine -->
 <!-- source: internal/component/command/local_data.go -- validateModelArgsAs, modelLineHead -->
@@ -2254,8 +2276,8 @@ belong to no definition of its own, and it MUST NOT read one of them as a bad
 value. `ValidateArgs` counts the tokens it could not place against the
 definitions still open. As many tokens as open definitions, or fewer: each token
 can be attributed to a definition, so the first one is refused by that
-definition's own message (`invalid value "not-an-ip", does not match expected
-pattern`). More tokens than open definitions: at least one token is a value for
+definition's own refusal (`show route lookup ip: "not-an-ip" is not in the
+accepted format`). More tokens than open definitions: at least one token is a value for
 nothing, so a missing mandatory argument is reported instead
 (`show policy test peer test-peer update <hex>` answers `required argument
 missing: direction`, and not a complaint about the `update` keyword the handler
@@ -2340,9 +2362,10 @@ goyang resolves the typedef chain before `yangTypeToArgDef` reads it, so
 the lengths are the most restricted `length` along the chain and the patterns
 are every `pattern` of every type in it. `validateString` refuses a value whose
 character count falls outside every length range (RFC 7950 Section 9.4.4
-counts Unicode characters, not bytes), naming the bound (`invalid value "x",
-length 1 out of range 2..4`, or `1..8 | 16..32` for a disjoint length), and a
-value that fails any one pattern. A union member is judged by the same
+counts Unicode characters, not bytes), naming the bound (`"x" is outside the
+accepted length (1 characters)`, why `<leaf> accepts 2..4 characters`, or
+`1..8 | 16..32` for a disjoint length), and a value that fails any one pattern
+(`is not in the accepted format`, why the format in words). A union member is judged by the same
 definition, so its own length and patterns apply to it.
 
 A pattern is translated by `compilePattern` (`config/yang/pattern.go`), the

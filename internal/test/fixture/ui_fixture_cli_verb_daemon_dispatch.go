@@ -272,7 +272,7 @@ func runCLIVerbDaemonDispatch(ctx context.Context) (retErr error) {
 	if !strings.Contains(typed.out, "not-an-ip") {
 		return fmt.Errorf("the refusal does not name the value: %s", typed.out)
 	}
-	if !strings.Contains(typed.out, "does not match expected pattern") {
+	if !strings.Contains(typed.out, `"not-an-ip" is not in the accepted format`) {
 		return fmt.Errorf("the refusal does not say why the value was refused: %s", typed.out)
 	}
 	if strings.Contains(typed.out, "valid keywords") {

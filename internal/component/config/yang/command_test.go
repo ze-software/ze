@@ -1009,7 +1009,7 @@ module test-union-cmd {
 
 // TestArgDefUnionSkipsUnknownKind preserves the supported member when schema metadata adds an unknown kind.
 func TestArgDefUnionSkipsUnknownKind(t *testing.T) {
-	def, ok := compiledPatterns{}.yangTypeToArgDef("limit", &gyang.YangType{
+	def, ok := compiledPatterns{}.yangTypeToArgDef("limit", nil, &gyang.YangType{
 		Kind: gyang.Yunion,
 		Type: []*gyang.YangType{
 			{Kind: gyang.TypeKind(999)},

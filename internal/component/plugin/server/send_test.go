@@ -207,27 +207,45 @@ func TestSendArgumentsAreDeclared(t *testing.T) {
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
 	require.NoError(t, err)
 
+	// A refused value names the argument and the value, lists every accepted
+	// value on a line of its own in the model's order, and ends with the whole
+	// command retyped with the placeholder in its place (AC-12).
 	refusals := []struct {
 		command string
-		says    string
+		says    []string
 	}{
-		{command: "send bgp 192.0.2.1 raw gzip DEADBEEF", says: "expected one of: hex, b64"},
-		{command: "send bgp 192.0.2.1 raw hex DEADBEEF type heartbeat", says: "expected one of: open, update, notification, keepalive, route-refresh"},
-		{command: "send bgp 192.0.2.1 update json", says: "expected one of: text, hex, b64, cursor"},
+		{command: "send bgp 192.0.2.1 raw gzip DEADBEEF", says: []string{
+			`send bgp raw encoding: "gzip" is not an accepted value` + "\n",
+			"\nencoding accepts only these values:\n  hex", "\n  b64",
+			"\nfix: send bgp 192.0.2.1 raw <hex|b64> DEADBEEF",
+		}},
+		{command: "send bgp 192.0.2.1 raw hex DEADBEEF type heartbeat", says: []string{
+			`type: "heartbeat" is not an accepted value` + "\n",
+			"\ntype accepts only these values:\n  open", "\n  update", "\n  notification", "\n  keepalive", "\n  route-refresh",
+			"\nfix: send bgp 192.0.2.1 raw hex DEADBEEF type <open|update|notification|keepalive|route-refresh>",
+		}},
+		{command: "send bgp 192.0.2.1 update json", says: []string{
+			`encoding: "json" is not an accepted value` + "\n",
+			"\nencoding accepts only these values:\n  text", "\n  hex", "\n  b64", "\n  cursor",
+			"\nfix: send bgp 192.0.2.1 update <text|hex|b64|cursor>",
+		}},
 		// The same bad encoding with a route expression behind it. The
 		// dispatcher leaves more tokens over than it leaves definitions open.
 		// It cannot say which token was typed for which leaf, so it names the
 		// declaration instead (command.ValidateArgs). The refusal is still the
 		// model's, and the handler still does not run.
-		{command: "send bgp 192.0.2.1 update json nlri ipv4/unicast add 10.0.0.0/24", says: "required argument missing: encoding"},
+		{command: "send bgp 192.0.2.1 update json nlri ipv4/unicast add 10.0.0.0/24", says: []string{"required argument missing: encoding"}},
 	}
 	for _, refusal := range refusals {
 		t.Run(refusal.command, func(t *testing.T) {
 			ctx := &pluginserver.CommandContext{Server: server}
 			_, dispatchErr := server.Dispatcher().Dispatch(ctx, refusal.command)
 			require.Error(t, dispatchErr)
-			assert.Contains(t, dispatchErr.Error(), refusal.says,
-				"the refusal must come from the model, so it names the declared set or the declaration")
+			for _, says := range refusal.says {
+				assert.Contains(t, dispatchErr.Error(), says,
+					"the refusal must come from the model, so it names the declared set or the declaration")
+			}
+			assert.NotContains(t, dispatchErr.Error(), "expected one of", "the comma-joined list is gone")
 			assert.NotContains(t, dispatchErr.Error(), "reactor",
 				"a refusal that reached the handler would answer about the missing reactor instead")
 		})

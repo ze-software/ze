@@ -79,6 +79,10 @@ reject=stderr:pattern=fatal error
 # `filter` keyword had already taken its value, so the bare `export` was offered
 # to the source-asn4 enum and the documented form never ran.
 reject=stderr:pattern=invalid value
+# The same refusal in the shared value-refusal words (R-11): a bare `export`
+# refused by an enum now reads `is not an accepted value`.
+reject=stderr:pattern=is not an accepted value
+reject=stderr:pattern=is not in the accepted format
 # `required argument missing` is the dispatcher refusing the call that omits the
 # direction. parsePolicyTestArgs answers errMissingDirection without one, so the
 # leaf is mandatory, and this line is what says the model agrees with the

@@ -13,6 +13,7 @@ package command
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -199,7 +200,9 @@ func (e *MissingArgumentError) Positional(leaf string) (value string, found bool
 // The whole line is read before the call is refused, and every fault it holds
 // is named: a keyword with no value, a value its leaf refuses, a keyword typed
 // twice, a token no definition takes, and each missing mandatory argument.
-// A line with one fault is refused with that fault alone; a line
+// A line with one fault is refused with that fault alone, except a value its
+// leaf refuses (*ValueArgumentError), which is an *ArgumentFaults of one so
+// every route restates it with the whole command; a line
 // with more is refused with an *ArgumentFaults, whose Unwrap answers each, so
 // errors.As finds every fault kind on both shapes. The faults are in the order
 // the line was read, so the first one is the one a single-fault refusal named.
@@ -276,7 +279,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 			if from < len(args) {
 				value := textbuf.Join(args[from:], " ")
 				if err := ValidateArgString(value, rest); err != nil {
-					faults.add(err)
+					faults.add(typedAt(err, from, len(args)-from))
 				}
 				keyed = keyedWith(keyed, rest.name, value)
 			} else {
@@ -322,7 +325,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 		i++
 		consumed[i] = true
 		if err := ValidateArgString(args[i], def); err != nil {
-			faults.add(err)
+			faults.add(typedAt(err, i, 1))
 			continue
 		}
 		keyed = keyedWith(keyed, def.name, args[i])
@@ -341,7 +344,8 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 	// alone cannot answer, and a later token can still fill a definition this
 	// one could not.
 	var bound, boundValue string
-	unplaced := make([]string, 0, len(args))
+	unplaced := make([]int, 0, len(args))
+	placed := make(map[int]*ArgDef, spare)
 	positional := make([]string, 0, spare)
 	for i, arg := range args {
 		if consumed[i] {
@@ -350,14 +354,16 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 		positional = append(positional, arg)
 		def := positionalDef(arg, defs, matched)
 		if def == nil {
-			unplaced = append(unplaced, arg)
+			unplaced = append(unplaced, i)
 			continue
 		}
 		matched[def.name] = true
+		placed[i] = def
 		if spare == 1 {
 			bound, boundValue = def.name, arg
 		}
 	}
+	unplaced = reattributeUnplaced(args, defs, matched, placed, unplaced)
 
 	// A token that filled no definition is a bad VALUE only when every such
 	// token can be attributed to a definition of its own: as many tokens left
@@ -371,8 +377,8 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 	// certainly wrong with the call.
 	open := unmatchedDefCount(defs, matched)
 	if len(unplaced) > 0 && open > 0 && len(unplaced) <= open {
-		for _, arg := range unplaced {
-			faults.add(positionalError(arg, defs, matched))
+		for _, at := range unplaced {
+			faults.add(typedAt(positionalError(args[at], defs, matched), at, 1))
 		}
 		return ValidatedArgs{}, faults.verdict()
 	}
@@ -392,8 +398,8 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 	// Every mandatory definition is filled, so each token left over is a
 	// fault of the call.
 	if !missing && len(unplaced) > 0 && open > 0 {
-		for _, arg := range unplaced {
-			faults.add(positionalError(arg, defs, matched))
+		for _, at := range unplaced {
+			faults.add(typedAt(positionalError(args[at], defs, matched), at, 1))
 		}
 	}
 
@@ -401,6 +407,74 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 		return ValidatedArgs{}, err
 	}
 	return ValidatedArgs{tokens: slices.Clone(all), bound: bound, boundValue: boundValue, keyed: keyed, flags: flags, positional: positional}, nil
+}
+
+// reattributeUnplaced answers which tokens are left unplaced once each is read
+// in the order the definitions are declared, which is the order the usage line
+// writes them (`raw <encoding> <data>`). positionalDef offers a token to every
+// open definition, so an earlier token the operator mistyped for an earlier
+// leaf can fill a later, looser leaf instead: in `raw gzip DEADBEEF` the free
+// string data takes gzip, and DEADBEEF, which data was declared to hold, is
+// left over and blamed as the encoding. The operator typed gzip where the
+// encoding goes, so gzip is the token to refuse, and the fix must replace it.
+//
+// For each unplaced token, the earliest token before it that a definition
+// declared after an open definition took is swapped with it, when that
+// definition accepts the unplaced token too: the later definition keeps a
+// value it accepts, and the earlier token is the one left for the open
+// definition to refuse. The count of unplaced tokens and of matched
+// definitions is unchanged, so no refusal is loosened and none is added; only
+// which token is named changes. placed maps a token's index to the definition
+// it filled and is updated in place.
+func reattributeUnplaced(args []string, defs []ArgDef, matched map[string]bool, placed map[int]*ArgDef, unplaced []int) []int {
+	declared := make(map[string]int, len(defs))
+	for i := range defs {
+		declared[defs[i].name] = i
+	}
+	firstOpen := len(defs)
+	for i := range defs {
+		if !matched[defs[i].name] && defs[i].kind != ArgFlag && !defs[i].rest {
+			firstOpen = i
+			break
+		}
+	}
+	out := slices.Clone(unplaced)
+	for n, at := range out {
+		swap := -1
+		for p := range at {
+			def, ok := placed[p]
+			if !ok {
+				continue
+			}
+			if declared[def.name] <= firstOpen {
+				continue
+			}
+			if ValidateArgString(args[at], def) != nil {
+				continue
+			}
+			swap = p
+			break
+		}
+		if swap < 0 {
+			continue
+		}
+		placed[at] = placed[swap]
+		delete(placed, swap)
+		out[n] = swap
+	}
+	slices.Sort(out)
+	return out
+}
+
+// typedAt answers err with the value fault it is recorded as typed at index at
+// of the line, over span tokens, so the whole-command fix writes the value's
+// correction in its place (ArgumentFaults.RestatedForLine). Any other error is
+// answered unchanged.
+func typedAt(err error, at, span int) error {
+	if value, ok := errors.AsType[*ValueArgumentError](err); ok {
+		return value.typedAt(at, span)
+	}
+	return err
 }
 
 // keyedWith answers keyed with leaf bound to value, allocating the map on the

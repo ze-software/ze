@@ -117,7 +117,10 @@ expect=command-error:contains=cannot enumerate the SAD
 # check for a programmatic caller that reaches it directly; that arm is proven by
 # TestShowDataplaneSARejectsSPIZero.
 command=show vpn ipsec dataplane sa spi 0
-expect=command-error:contains=out of range 1..4294967295
+expect=command-error:contains="0" is outside the accepted range
+# One expectation per command: the same refusal again, for its bounds.
+command=show vpn ipsec dataplane sa spi 0
+expect=command-error:contains=<1..4294967295>
 
 expect=exit:code=0
 expect=stderr:contains=engine-steps: all steps passed

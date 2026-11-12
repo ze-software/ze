@@ -52,7 +52,12 @@ func TestValidateArgsNamesEveryFault(t *testing.T) {
 
 		assert.Equal(t, "this command has 5 faults, so Ze did not run it\n"+
 			"Ze runs a command only when every word of it is valid, and each line below is one fault:\n"+
-			"- "+want[0]+"\n- "+want[1]+"\n- "+want[2]+"\n- "+want[3]+"\n- "+want[4]+", as in 'selector <selector>'\n"+
+			"- "+want[0]+"\n"+
+			"- mode: \"eager\" is not an accepted value\n"+
+			"  mode accepts only these values:\n"+
+			"    active\n"+
+			"    passive\n"+
+			"- "+want[2]+"\n- "+want[3]+"\n- "+want[4]+", as in 'selector <selector>'\n"+
 			"fix: correct each fault listed above, then type the command again", err.Error())
 
 		missing, ok := errors.AsType[*MissingArgumentError](err)

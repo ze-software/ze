@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -197,4 +198,58 @@ func TestRoutesRestateArgumentFaultsAlike(t *testing.T) {
 			return err
 		})
 	})
+}
+
+// TestDispatcherRestatesOneValueFault proves a line whose one fault is a value
+// its leaf refuses is restated with the whole command, the same on the daemon
+// dispatcher and on a model route.
+//
+// GOAL: `show demo raw gzip DEADBEEF` names the command and the argument, lists
+// the accepted values with their help, and gives the line to type with the
+// placeholder where gzip was, whichever route judged it.
+// METHOD: register the command with an enum and a hex argument on a
+// dispatcher, and declare the same definitions to the model, then refuse the
+// line through Dispatch and through command.ValidateModelArgs.
+// VALIDATES: AC-12 one-fault case on the dispatcher route (restateArgumentFaults)
+// and a model route (ValidateModelArgs), A-10.
+// PREVENTS: a lone value fault returned bare, which no route restated, so it
+// named no command to type.
+func TestDispatcherRestatesOneValueFault(t *testing.T) {
+	const path = "show demo raw"
+	defs := []command.ArgDef{
+		commandtest.Must(command.NewEnumArg("encoding", []string{"hex", "b64"}, command.ArgOptions{
+			Mandatory: true,
+			EnumHelp:  map[string]string{"hex": "Hexadecimal digits", "b64": "Base64 text"},
+		})),
+		commandtest.Must(command.NewStringArg("data", nil, []*regexp.Regexp{regexp.MustCompile(`^[0-9A-Fa-f]+$`)}, command.ArgOptions{Mandatory: true})),
+	}
+	const want = `show demo raw encoding: "gzip" is not an accepted value` + "\n" +
+		"encoding accepts only these values:\n" +
+		"  hex  Hexadecimal digits\n" +
+		"  b64  Base64 text\n" +
+		"fix: show demo raw <hex|b64> DEADBEEF"
+
+	d := NewDispatcher()
+	require.NoError(t, d.RegisterWithOptions(path, func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
+		t.Fatal("handler must not run on a refused line")
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Demo", RegisterOptions{ArgDefs: defs, ReadOnly: true}))
+
+	resp, err := d.Dispatch(&CommandContext{}, path+" gzip DEADBEEF")
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, want, err.Error(), "the dispatcher restates the one fault")
+	assert.Equal(t, want, resp.Error, "the response carries the refusal the error does")
+
+	var replaced command.ArgDefSource
+	replaced = command.ReplaceArgDefSourceForTest(func(p string) ([]command.ArgDef, error) {
+		if p == path {
+			return defs, nil
+		}
+		return replaced(p)
+	})
+	t.Cleanup(func() { command.ReplaceArgDefSourceForTest(replaced) })
+	_, err = command.ValidateModelArgs(path, []string{"gzip", "DEADBEEF"}, nil)
+	require.Error(t, err)
+	assert.Equal(t, want, err.Error(), "a model route restates the one fault as the dispatcher does")
 }
