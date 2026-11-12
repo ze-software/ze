@@ -240,8 +240,9 @@ func bashBranchMove(ctx context) *verdict {
 		"git merge", "git rebase", "git switch",
 		// Each of these performs a merge into the index and working tree under
 		// a longer name. The verb is matched as a whole word, so `git merge`
-		// no longer covers them, and each is named here. Their read-only
-		// relatives (`git merge-base`, `git merge-tree`, `git merge-file`) pass.
+		// no longer covers them, and each is named here. Their relatives
+		// `git merge-base`, `git merge-tree` and `git merge-file` write
+		// neither the index nor a branch, so they pass.
 		"git merge-recursive", "git merge-octopus", "git merge-resolve",
 		"git merge-ours", "git merge-subtree", "git merge-index",
 		"git merge-one-file", "git mergetool",

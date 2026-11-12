@@ -163,8 +163,9 @@ func TestReadingBranchesIsNotMovingThem(t *testing.T) {
 //
 // VALIDATES: AC-1 and the passing half of AC-4: a longer git command exits 0,
 // bare, behind -C and after a separator.
-// PREVENTS: a read-only git call refused as the verb it begins with, which
-// pushes a session toward a wrapper around the guard.
+// PREVENTS: a git call that writes neither the index nor a branch refused as
+// the verb it begins with, which pushes a session toward a wrapper around the
+// guard.
 func TestALongerGitCommandIsNotTheBannedVerb(t *testing.T) {
 	commands := []string{
 		"git" + " merge-base --is-ancestor abc123 main",
@@ -319,6 +320,45 @@ func TestAMergeBackendIsRefusedByName(t *testing.T) {
 			}
 			if !strings.Contains(message, "the user's to move") {
 				t.Errorf("the refusal of %q is not the branch guard's: %s", command, message)
+			}
+		})
+	}
+}
+
+// TestAVerbAfterALongerCommandIsStillRefused asks whether the matcher keeps
+// scanning after it passes over a longer command name. Each line runs through
+// the whole pretool-bash action, and the refusal must be the text of the guard
+// that holds the verb.
+//
+// The word-boundary test skips an occurrence of `git merge` that continues
+// into `git merge-base`. A matcher that stopped there, rather than looking
+// further along the line, would answer "no run" for the whole command, and a
+// permitted longer command placed first would carry the banned verb behind it.
+//
+// VALIDATES: a banned verb after a separator is refused when an earlier
+// command on the line begins with the same text.
+// PREVENTS: `git merge-base` or `git commit-tree` used as a shield in front of
+// a real merge or commit.
+func TestAVerbAfterALongerCommandIsStillRefused(t *testing.T) {
+	cases := []struct {
+		command string
+		refusal string
+	}{
+		{"git" + " merge-base a b && git" + " merge x", "the user's to move"},
+		{"git" + " commit-tree abc -m x; git" + " commit -m y", "./le commit create"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.command, func(t *testing.T) {
+			root := t.TempDir()
+			code, _, message := runHook(t, root, "pretool-bash", map[string]any{
+				"tool_name":  "Bash",
+				"tool_input": map[string]any{"command": tc.command},
+			})
+			if code != 2 {
+				t.Fatalf("code = %d, want 2 for %q", code, tc.command)
+			}
+			if !strings.Contains(message, tc.refusal) {
+				t.Errorf("the refusal of %q does not carry %q: %s", tc.command, tc.refusal, message)
 			}
 		})
 	}

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Agent tooling: a false refusal costs every session a retry and pushes agents toward wrappers, but no shipped behaviour changes |
@@ -37,6 +37,16 @@ Clears when findings 1 and 2 land in a fix commit, with the new test shown red
 under the break and then green, `./le test unit pkg path ./internal/le/hookruntime/`,
 `./le test unit pkg path ./internal/le/ai/hooks/` and `./le ai hooks unit`
 green, Status back to `in-progress`, and a closure round 2 over the fix.
+
+**Answered (2026-11-12, fix round).** Finding 1: `TestAVerbAfterALongerCommandIsStillRefused`
+(`bash_git_test.go`) drives both lines through the real action; with the scan
+broken on purpose both exited 0 (red), and with it restored they exit 2.
+Finding 2: the comment in `bashBranchMove` and two test comments now say the
+passing relatives write neither the index nor a branch, and the Key Design
+Decisions row says the same. Finding 4 is journaled
+(`gate-excludes-part-of-its-population`, 2026-11-12) and owned by
+`plan/post-release/engineering/spec-hook-git-guard-misses-index-writers.md`.
+Status returned to `in-progress` through `./le spec claim`.
 
 ## Task
 
@@ -358,7 +368,7 @@ and the tree's Markdown on 2026-11-12. Callers: `bashDestructiveGit` and
 | Add the trailing test to the existing text matcher | Move both git guards onto the parsed command words of `commandParse` | The parsed route is the right end state and is already AC-8 of `spec-gates-share-one-semantic-population.md`. It also changes what quoting, `bash -c`, `eval` and an unparsable line mean for two guards that protect the shared index, which is a replacement with its own verdict table work. Three sessions have been refused; the narrow fix lands now and that spec's conversion inherits a correct verdict |
 | The trailing test applies only to a pattern that ends in the verb | Apply it to every pattern | Applied to all, `git checkout --ours`, `git checkout HEAD~1` and `git branch -dr` would pass. The Goal says every other pattern keeps its verdict |
 | A name continues with a letter, a digit or a hyphen; every other byte ends the verb | The verb ends only at whitespace, a separator or the end of the line | The negative form refuses more: a quote, an expansion or a redirect glued to the verb still ends it (R-3) |
-| Keep the eight merge backends refused, each by name | Let the word boundary free them | Decided by Thomas's rule that a read-only command is allowed (A-2): the line between passing and refused is whether the command only reads. They merge into the index and working tree, which is what the `git merge` ban protects. The cost is eight literal patterns in a list. Freed instead, they would join `git cherry-pick` and `git read-tree`, which the guards have never refused |
+| Keep the eight merge backends refused, each by name | Let the word boundary free them | Decided by Thomas's rule that a read-only command is allowed (A-2): the line between passing and refused is whether the command writes the shared index or a branch (`git merge-file` and `git commit-tree` write a file or an object and touch neither, so they pass with the read-only `git merge-base`). They merge into the index and working tree, which is what the `git merge` ban protects. The cost is eight literal patterns in a list. Freed instead, they would join `git cherry-pick` and `git read-tree`, which the guards have never refused |
 
 ## Known Limitations
 - The git guards still read the command text, so a git alias and a script file reach a banned verb as before. The parsed-words conversion is `plan/post-release/engineering/spec-gates-share-one-semantic-population.md` (AC-8)
