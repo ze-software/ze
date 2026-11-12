@@ -8,7 +8,7 @@
 | Release reason | Proposal for smaller VM artifacts and faster native builds; existing deployment correctness remains owned by deployment-user-journeys. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | Proposal drafted; design approval and pinned-source Xen audit outstanding |
+| Phase | Proposal drafted; partial Linux 7.3 Xen audit recorded; design approval and complete boot dependency audit outstanding |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -67,7 +67,7 @@ user installs only the Ze binary. A Docker container uses its host's kernel.
 - [ ] [Xen Project guest handbook](https://handbook.xenproject.org/users/guests/index.html).
   → Decision: propose PVH for Linux domU and test HVM with PV drivers separately. Record the exact Xen release used for proof.
 - [ ] Linux Kconfig and boot code at the release in `internal/appliance/kernel.version`.
-  → Constraint: verify Xen symbols and dependencies at that exact source pin before design approval. Older Linux examples are not the specification.
+  → Constraint: the partial Linux 7.3 audit below identifies guest entry and frontend requirements. Complete the boot dependency closure at the same pin before design approval.
 
 ## Current Behavior
 
@@ -181,6 +181,24 @@ gokrazy startup, are audited. Do not make CONFIG_MODULES=n a shortcut.
 Start with the existing defconfig build and explicit exclusions. An allnoconfig
 baseline requires a complete dependency closure and is a later design alternative.
 Do not use localmodconfig: the build host's loaded drivers do not describe a Ze guest.
+
+### Pinned Xen audit: Linux 7.3
+
+These are candidate built-in requirements, not a complete bootable configuration.
+Their dependencies must survive emitted-config checks and actual Xen boot tests.
+
+| Role | Candidate policy | Pinned source |
+|------|------------------|---------------|
+| PVH entry | `XEN`, `XEN_PVH`, ACPI and the selected PVH dependencies | [x86 Xen Kconfig](https://raw.githubusercontent.com/torvalds/linux/v7.3/arch/x86/xen/Kconfig) |
+| HVM guest | `XEN_PVHVM_GUEST` requires Xen and PCI | [x86 Xen Kconfig](https://raw.githubusercontent.com/torvalds/linux/v7.3/arch/x86/xen/Kconfig) |
+| Frontend block and network | `XEN_BLKDEV_FRONTEND`, `XEN_NETDEV_FRONTEND`, their xenbus dependency and selected network dependencies | [block Kconfig](https://raw.githubusercontent.com/torvalds/linux/v7.3/drivers/block/Kconfig), [network Kconfig](https://github.com/torvalds/linux/blob/v7.3/drivers/net/Kconfig) |
+| Primary console | `HVC_XEN` selects HVC driver and IRQ support; classify multiple-console support separately | [HVC Kconfig](https://raw.githubusercontent.com/torvalds/linux/v7.3/drivers/tty/hvc/Kconfig) |
+| Guest-only exclusions | Explicitly disable legacy PV, dom0 and backend services for the proposed matrix; Xen PV defaults on and dom0 defaults from PV | [x86 Xen Kconfig](https://raw.githubusercontent.com/torvalds/linux/v7.3/arch/x86/xen/Kconfig), [driver Kconfig](https://raw.githubusercontent.com/torvalds/linux/v7.3/drivers/xen/Kconfig) |
+
+Audit userspace Xen interfaces separately from kernel event/grant machinery.
+For example, Xenfs selects the privileged-command interface. Ballooning, memory
+hotplug and multiple consoles also need explicit deployment decisions rather
+than inheriting their defaults. No native Xen proof has run in this session.
 
 ## Risks & Assumptions
 
