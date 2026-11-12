@@ -71,3 +71,7 @@ Three arch stages in the population judge what the change under test added rathe
 <!-- source: internal/le/arch/refusebydefault/actions.go -- runCheck, runReport -->
 <!-- source: internal/le/arch/compoundguard/actions.go -- runCheck -->
 ```
+
+## After closure
+
+The spec closed in 15c252ebea and its file was removed in e32b0c9820. The closing lint run on the owner's Mac (at ef1563f19f) still listed 24 findings in the same 13 packages that were older lint debt, not this spec's lines. They were cleared in b77e8f71bf and 03715d6a22, with one reactor test fix and one fixture signature change other sessions landed. The same 13-package scoped lint, run again on the Mac at 03715d6a22, reports 0 issues in all five builds (default, Linux integration, capability, appliance, compile-out).
