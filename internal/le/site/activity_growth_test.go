@@ -12,7 +12,8 @@ import (
 // TestActivityPageOffersGrowthRepresentation proves the page offers its two
 // views through tabs: repository size, selected first, and the commit calendar,
 // each a tab panel the tabs control, with the size view's charts, date control
-// and readout, and the commits curve under the calendar.
+// and readout, and the cumulative curve under the calendar with its own date
+// control and readout.
 func TestActivityPageOffersGrowthRepresentation(t *testing.T) {
 	window := reporewrite.ActivityWindow{
 		Start: time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC),
@@ -31,7 +32,9 @@ func TestActivityPageOffersGrowthRepresentation(t *testing.T) {
 		`id="activity-change-chart"`,
 		`id="activity-size-day"`,
 		`id="activity-size-readout"`,
-		`id="activity-commits-chart"`,
+		`id="activity-cumulative-chart"`,
+		`id="activity-cumulative-day"`,
+		`id="activity-cumulative-readout"`,
 		`<span data-ze-history="go-production:lines"></span>`,
 		`<span data-ze-history="go-tests:lines"></span>`,
 		`<span data-ze-history="third-party-go:lines"></span>`,

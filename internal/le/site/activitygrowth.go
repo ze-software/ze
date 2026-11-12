@@ -1,12 +1,26 @@
 // Design: website/AI.md -- the activity page's size view, drawn from the committed size history
 // Related: activityhistory.go -- the history markers these views carry and the fill that writes them
-// Related: activity.go -- the calendar view the commits curve sits in
+// Related: activity.go -- the calendar view the Go composition and the cumulative curve sit in
+// Related: activitygrowthstyle.go -- places each date control's track by the plot bounds below
 package site
 
 import (
 	"html"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+// The charts' horizontal coordinates, in viewBox units. Every chart is
+// growthViewWidth wide and plots its first day at growthPlotLeft and its last
+// at growthPlotRight; the space before growthPlotLeft holds the axis figures.
+// The script places points and cursors by them, and the stylesheet places each
+// date control's track by them, so the control's handle stands on the charts'
+// cursor line on every day. They are written once here because both depend on
+// the same numbers.
+const (
+	growthViewWidth = "720"
+	growthPlotLeft  = "72"
+	growthPlotRight = "704"
 )
 
 // activityTabsHTML switches the page between its two views. It ships hidden,
@@ -41,14 +55,11 @@ var activityHistoryGoBuckets = []struct {
 
 // activitySizeHTML renders the size view: the newest recorded day's total and
 // date, one figure for each section of the file, what the figures measure, the
-// charts and their date control, the readout, and the Go composition. Every
-// figure is a history marker the build fills; the charts are drawn by the page
-// script from the published file, whose address the view carries.
-func activitySizeHTML(figures historyFigures) (string, error) {
-	goPanel, err := activityHistoryGoPanelHTML(figures)
-	if err != nil {
-		return "", err
-	}
+// charts and their date control, and the readout. Every figure is a history
+// marker the build fills; the charts are drawn by the page script from the
+// published file, whose address the view carries. The Go composition of the
+// same day sits in the calendar view (activityCalendarViewHTML).
+func activitySizeHTML(figures historyFigures) string {
 	var out textbuf.Buffer
 	out.Reset().Str(`<section class="activity-view activity-size panel" id="activity-size" role="tabpanel" aria-labelledby="activity-tab-size" data-history="`).
 		Str(html.EscapeString(activityRoot + historyDataFile)).Str(`">`).Byte('\n')
@@ -63,20 +74,21 @@ func activitySizeHTML(figures historyFigures) (string, error) {
 	}
 	out.Str("    </div>\n")
 	out.Str(activitySizeExplorerHTML)
-	out.Str(goPanel)
 	out.Str("</section>\n")
-	return out.String(), nil
+	return out.String()
 }
 
 // activitySizeExplorerHTML holds the two charts, the section legend the script
 // fills, the date control and the readout. The charts ship hidden: without the
 // script they hold nothing, and the readout then stays empty, or says why the
-// file could not be read.
+// file could not be read. The date control sits under both charts, and the
+// stylesheet gives it their horizontal inset, so its track spans their time
+// line.
 const activitySizeExplorerHTML = `    <div class="size-explorer" hidden>
         <div class="size-legend" role="group" aria-label="Sections drawn in the charts"></div>
         <div class="growth-charts">
-            <div><h3>Lines per section</h3><svg id="activity-size-chart" class="growth-chart" viewBox="0 0 720 260" tabindex="0" role="img" aria-label="Lines per section on each recorded day. Use arrow keys to select a day, or Home and End."></svg></div>
-            <div><h3>Lines gained above the axis, lines lost below</h3><svg id="activity-change-chart" class="growth-chart" viewBox="0 0 720 260" tabindex="0" role="img" aria-label="Lines the selected sections gained and lost on each recorded day. Use arrow keys to select a day, or Home and End."></svg></div>
+            <div><h3>Lines per section</h3><svg id="activity-size-chart" class="growth-chart" viewBox="0 0 ` + growthViewWidth + ` 260" tabindex="0" role="img" aria-label="Lines per section on each recorded day. Use arrow keys to select a day, or Home and End."></svg></div>
+            <div><h3>Lines gained above the axis, lines lost below</h3><svg id="activity-change-chart" class="growth-chart" viewBox="0 0 ` + growthViewWidth + ` 260" tabindex="0" role="img" aria-label="Lines the selected sections gained and lost on each recorded day. Use arrow keys to select a day, or Home and End."></svg></div>
         </div>
         <label class="growth-date-control" for="activity-size-day">Select a recorded day
             <input id="activity-size-day" type="range" min="0" max="0" value="0" step="1" aria-describedby="activity-size-readout">
@@ -87,9 +99,11 @@ const activitySizeExplorerHTML = `    <div class="size-explorer" hidden>
 
 // activityHistoryGoPanelHTML renders the Go composition of the newest recorded
 // day: the lines of all Go, third-party included, then four buckets of five
-// counts each, and the module count on the third-party bucket. It uses the
-// calendar panel's classes, so it reads the way the deck's composition of the
-// working tree does.
+// counts each, and the module count on the third-party bucket. It sits in the
+// calendar view after the calendar, where the page carried it before it had a
+// size view, and it uses the calendar panel's classes, so it reads the way the
+// deck's composition of the working tree does. Every count is a history marker
+// of the committed size history, never the working tree.
 func activityHistoryGoPanelHTML(figures historyFigures) (string, error) {
 	allGo, err := figures.goSubject()
 	if err != nil {
@@ -132,35 +146,97 @@ func activityHistoryStatHTML(label, subject, field string) string {
 		historyValueHTML(subject, field) + "</strong></div>\n"
 }
 
-// activityCommitsCurveHTML is the cumulative commits curve, under the calendar
-// it is drawn from. It shows whichever metric the calendar's switch selects,
-// and it keeps its own date control and readout.
-const activityCommitsCurveHTML = `<section class="activity-commits panel" aria-labelledby="activity-commits-title">
-    <h2 id="activity-commits-title">Commits within this window</h2>
-    <p>Commits accumulated since the calendar's first day.</p>
-    <svg id="activity-commits-chart" class="growth-chart" viewBox="0 0 720 220" tabindex="0" role="img" aria-label="Cumulative commits. Use arrow keys to select a date, or Home and End."></svg>
-    <label class="growth-date-control" for="activity-commits-day">Select a date
-        <input id="activity-commits-day" type="range" min="0" max="0" value="0" step="1" aria-describedby="activity-commits-readout">
-    </label>
-    <div id="activity-commits-readout" class="growth-readout" aria-live="polite" aria-atomic="true">
-        <strong id="activity-commits-date"></strong>
-        <span>Commits: <strong id="activity-commits-count"></strong></span>
-    </div>
-</section>
-`
+// activityCumulativeWording is what the cumulative curve says while the
+// calendar's switch shows one metric: its title, the sentence under it, the
+// readout's label, the chart's accessible name and the unit the date control
+// reads out.
+type activityCumulativeWording struct {
+	title string
+	note  string
+	label string
+	chart string
+	unit  string
+}
+
+// activityCumulativeLines is the curve's wording under Added Lines. It names
+// the lines as added by commits, so the curve reads as activity and never as
+// the repository's size.
+var activityCumulativeLines = activityCumulativeWording{
+	title: "Lines added within this window",
+	note:  "Lines added by commits, accumulated since the calendar's first day.",
+	label: "Lines added",
+	chart: "Cumulative lines added by commits. Use arrow keys to select a date, or Home and End.",
+	unit:  "lines added",
+}
+
+// activityCumulativeCommits is the curve's wording under Commits.
+var activityCumulativeCommits = activityCumulativeWording{
+	title: "Commits within this window",
+	note:  "Commits accumulated since the calendar's first day.",
+	label: "Commits",
+	chart: "Cumulative commits. Use arrow keys to select a date, or Home and End.",
+	unit:  "commits",
+}
+
+// activityCumulativeCurveHTML renders the cumulative curve under the calendar
+// it is drawn from. It follows the calendar's switch: lines added by commits
+// under Added Lines, commits under Commits, both accumulated over the
+// calendar's window. It ships stating the Added Lines wording, the metric the
+// cards open on, and every element whose words change carries both wordings
+// as data attributes, which the script swaps when the switch moves. It keeps
+// its own date control and readout.
+func activityCumulativeCurveHTML() string {
+	lines, commits := activityCumulativeLines, activityCumulativeCommits
+	var out textbuf.Buffer
+	out.Reset().Str(`<section class="activity-cumulative panel" aria-labelledby="activity-cumulative-title">`).Byte('\n')
+	out.Str(`    <h2 id="activity-cumulative-title"`).Str(activityCumulativeTextAttributes(lines.title, commits.title)).Str(">").
+		Str(html.EscapeString(lines.title)).Str("</h2>\n")
+	out.Str("    <p").Str(activityCumulativeTextAttributes(lines.note, commits.note)).Str(">").
+		Str(html.EscapeString(lines.note)).Str("</p>\n")
+	out.Str(`    <svg id="activity-cumulative-chart" class="growth-chart" viewBox="0 0 `).Str(growthViewWidth).
+		Str(` 220" tabindex="0" role="img" aria-label="`).Str(html.EscapeString(lines.chart)).
+		Str(`" data-aria-lines="`).Str(html.EscapeString(lines.chart)).
+		Str(`" data-aria-commits="`).Str(html.EscapeString(commits.chart)).Str(`"></svg>`).Byte('\n')
+	out.Str(`    <label class="growth-date-control" for="activity-cumulative-day">Select a date`).Byte('\n')
+	out.Str(`        <input id="activity-cumulative-day" type="range" min="0" max="0" value="0" step="1" aria-describedby="activity-cumulative-readout"`).
+		Str(` data-unit-lines="`).Str(html.EscapeString(lines.unit)).
+		Str(`" data-unit-commits="`).Str(html.EscapeString(commits.unit)).Str(`">`).Byte('\n')
+	out.Str("    </label>\n")
+	out.Str(`    <div id="activity-cumulative-readout" class="growth-readout" aria-live="polite" aria-atomic="true">`).Byte('\n')
+	out.Str(`        <strong id="activity-cumulative-date"></strong>`).Byte('\n')
+	out.Str("        <span><span").Str(activityCumulativeTextAttributes(lines.label, commits.label)).Str(">").
+		Str(html.EscapeString(lines.label)).Str(`</span>: <strong id="activity-cumulative-value"></strong></span>`).Byte('\n')
+	out.Str("    </div>\n")
+	out.Str("</section>\n")
+	return out.String()
+}
+
+// activityCumulativeTextAttributes writes the two wordings of one element of
+// the curve, which the script reads when the switch moves.
+func activityCumulativeTextAttributes(lines, commits string) string {
+	return ` data-text-lines="` + html.EscapeString(lines) + `" data-text-commits="` + html.EscapeString(commits) + `"`
+}
 
 // activityGrowthScript drives the page's two views. It opens the size view,
-// reads the published size history, refills every history marker from it and
-// draws the size and daily-change charts; it draws the commits curve from the
-// calendar's cells. Every label and figure enters the page as text content.
+// reads the published size history, refills every history marker of the
+// widget from it (the size view's and the Go composition's in the calendar
+// view), and draws the size and daily-change charts; it draws the cumulative
+// curve from the calendar's cells and redraws it when the calendar's switch
+// moves. Every label and figure enters the page as text content.
+//
+// The switch belongs to activityPageScript, which the deck shares, so this
+// script does not call into it: it observes the body's data-metric attribute,
+// which setMetric writes, and keeps the selected date across a change.
 //
 // Both size charts scale to the largest value of every recorded day of the
 // sections they draw, so an earlier peak and a later decline stay inside the
 // chart. A section's color comes from its position in the file's list, and
-// the legend names each color in text.
+// the legend names each color in text. The readout's table is built once,
+// with one row for every section of the file whatever the legend selects, and
+// a day's selection rewrites only its figures, so its layout never moves.
 const activityGrowthScript = `<script>
 (() => {
-    const left = 72, right = 704;
+    const left = ` + growthPlotLeft + `, right = ` + growthPlotRight + `, viewWidth = ` + growthViewWidth + `;
     const format = value => Number(value).toLocaleString('en-US');
     const x = (index, count) => left + index / Math.max(1, count - 1) * (right - left);
     function svgElement(name, attributes, text) {
@@ -205,7 +281,7 @@ const activityGrowthScript = `<script>
         for (const chart of charts) {
             chart.addEventListener('pointermove', event => {
                 const bounds = chart.getBoundingClientRect();
-                const position = (event.clientX - bounds.left) / bounds.width * 720;
+                const position = (event.clientX - bounds.left) / bounds.width * viewWidth;
                 select(Math.round((position - left) / (right - left) * (count - 1)));
             });
             chart.addEventListener('keydown', event => {
@@ -246,42 +322,71 @@ const activityGrowthScript = `<script>
     document.querySelector('.activity-tabs').hidden = false;
     selectTab(document.getElementById('activity-tab-size'));
 
+    // The cumulative curve accumulates both metrics of the calendar's dated
+    // cells, oldest first, and draws the one the switch shows. The wording of
+    // each metric is written on the elements it changes.
+    const cumulativeKeys = {lines: 'Lines', commits: 'Commits'};
     const cells = Array.from(document.querySelectorAll('.activity-grid .day-cell:not(.outside)'))
         .sort((a, b) => a.dataset.date.localeCompare(b.dataset.date));
-    let commits = 0;
-    const commitDays = cells.map(cell => {
+    let addedLines = 0, commits = 0;
+    const windowDays = cells.map(cell => {
+        addedLines += Number(cell.dataset.lines);
         commits += Number(cell.dataset.commits);
-        return {date: cell.dataset.date, commits};
+        return {date: cell.dataset.date, lines: addedLines, commits};
     });
-    const commitsChart = document.getElementById('activity-commits-chart');
-    const commitsSlider = document.getElementById('activity-commits-day');
-    const commitsTop = 20, commitsBottom = 184;
-    const commitsHigh = commitDays.reduce((high, day) => Math.max(high, day.commits), 0);
-    const commitsY = scale(0, commitsHigh, commitsTop, commitsBottom);
-    if (commitDays.length) {
-        frame(commitsChart, [0, Math.ceil(commitsHigh / 2), commitsHigh], commitsY, commitsTop, commitsBottom,
-            commitDays[0].date, commitDays[commitDays.length - 1].date);
-        commitsChart.append(svgElement('path', {class:'growth-series commits-series',
-            d:'M' + left + ' ' + commitsBottom + commitDays.map((day, index) => 'L' + x(index, commitDays.length) + ' ' + commitsY(day.commits)).join('')}));
-        commitsChart.append(svgElement('circle', {class:'growth-point', cx:left, cy:commitsBottom, r:4}));
+    const curve = document.querySelector('.activity-cumulative');
+    const curveChart = document.getElementById('activity-cumulative-chart');
+    const curveSlider = document.getElementById('activity-cumulative-day');
+    const curveTop = 20, curveBottom = 184;
+    let curveMetric, curveY = scale(0, 0, curveTop, curveBottom);
+    let curveSelected = windowDays.length - 1;
+    function showCurveDay(index) {
+        curveSelected = index;
+        const day = windowDays[index], value = day[curveMetric];
+        document.getElementById('activity-cumulative-date').textContent = day.date;
+        document.getElementById('activity-cumulative-value').textContent = format(value);
+        curveSlider.setAttribute('aria-valuetext', day.date + ': ' + format(value) + ' ' + curveSlider.dataset['unit' + cumulativeKeys[curveMetric]]);
+        placeCursor(curveChart, index, windowDays.length, curveTop, curveBottom);
+        const point = curveChart.querySelector('.growth-point');
+        point.setAttribute('cx', x(index, windowDays.length));
+        point.setAttribute('cy', curveY(value));
     }
-    const selectCommitDay = selector([commitsChart], commitsSlider, commitDays.length, index => {
-        const day = commitDays[index];
-        document.getElementById('activity-commits-date').textContent = day.date;
-        document.getElementById('activity-commits-count').textContent = format(day.commits);
-        commitsSlider.setAttribute('aria-valuetext', day.date + ': ' + format(day.commits) + ' commits');
-        placeCursor(commitsChart, index, commitDays.length, commitsTop, commitsBottom);
-        const point = commitsChart.querySelector('.growth-point');
-        point.setAttribute('cx', x(index, commitDays.length));
-        point.setAttribute('cy', commitsY(day.commits));
-    });
-    if (commitDays.length) selectCommitDay(commitDays.length - 1);
-    else document.getElementById('activity-commits-date').textContent = 'No daily values in this window.';
+    const selectCurveDay = selector([curveChart], curveSlider, windowDays.length, showCurveDay);
+    function drawCurve(metric) {
+        const key = cumulativeKeys[metric];
+        curveMetric = metric;
+        for (const node of curve.querySelectorAll('[data-text-lines]')) node.textContent = node.dataset['text' + key];
+        curveChart.setAttribute('aria-label', curveChart.dataset['aria' + key]);
+        curveChart.replaceChildren();
+        if (!windowDays.length) {
+            document.getElementById('activity-cumulative-date').textContent = 'No daily values in this window.';
+            return;
+        }
+        const high = windowDays.reduce((most, day) => Math.max(most, day[metric]), 0);
+        curveY = scale(0, high, curveTop, curveBottom);
+        frame(curveChart, [0, Math.ceil(high / 2), high], curveY, curveTop, curveBottom,
+            windowDays[0].date, windowDays[windowDays.length - 1].date);
+        curveChart.append(svgElement('path', {class:'growth-series cumulative-series',
+            d:'M' + left + ' ' + curveBottom + windowDays.map((day, index) => 'L' + x(index, windowDays.length) + ' ' + curveY(day[metric])).join('')}));
+        curveChart.append(svgElement('circle', {class:'growth-point', cx:left, cy:curveBottom, r:4}));
+        selectCurveDay(curveSelected);
+    }
+    // The curve opens on the metric the switch shows, or on Added Lines, the
+    // wording its markup ships with, when the switch has not run. A metric the
+    // curve has no wording for leaves it as it is.
+    const switchMetric = () => Object.hasOwn(cumulativeKeys, document.body.dataset.metric) ? document.body.dataset.metric : undefined;
+    drawCurve(switchMetric() || 'lines');
+    new MutationObserver(() => {
+        const metric = switchMetric();
+        if (metric && metric !== curveMetric) drawCurve(metric);
+    }).observe(document.body, {attributes: true, attributeFilter: ['data-metric']});
 
     const sizeView = document.getElementById('activity-size');
+    const widget = sizeView.closest('.activity-widget');
     const sizeReadout = document.getElementById('activity-size-readout');
     const valueFields = ['files', 'lines', 'gained', 'lost'];
     const goFields = ['code', 'blank', 'comment'];
+    const readoutFields = ['lines', 'gained', 'lost'];
     function sectionValues(day, id) {
         const values = day.sections[id] || {};
         return {files: values.files || 0, lines: values.lines || 0, gained: values.gained || 0, lost: values.lost || 0, go: values.go || {}};
@@ -306,12 +411,39 @@ const activityGrowthScript = `<script>
         return format(sum);
     }
     function fillMarkers(file) {
-        for (const marked of sizeView.querySelectorAll('[data-ze-history]')) {
+        for (const marked of widget.querySelectorAll('[data-ze-history]')) {
             const mark = marked.getAttribute('data-ze-history');
             const at = mark.indexOf(':');
             const text = figure(file, mark.slice(0, at), mark.slice(at + 1));
             if (text !== undefined) marked.textContent = text;
         }
+    }
+    // readoutTable builds the readout once: one row per section of the file and
+    // the sum, with fixed columns. The site script gives a table a Columns
+    // control unless it opts out; this one does, because hiding a column of
+    // four gains nothing and the control would change the readout's height.
+    function readoutTable(sections) {
+        const table = htmlElement('table', 'size-table');
+        table.setAttribute('data-column-controls', 'off');
+        const columns = document.createElement('colgroup');
+        columns.append(htmlElement('col', 'size-column-section'));
+        for (const field of readoutFields) columns.append(htmlElement('col', 'size-column-figure size-column-' + field));
+        table.append(columns);
+        const head = table.createTHead().insertRow();
+        for (const name of ['Section', 'Lines', 'Gained', 'Lost']) head.append(htmlElement('th', '', name));
+        const body = table.createTBody();
+        function figureRow(label) {
+            const row = body.insertRow();
+            row.append(htmlElement('th', '', label));
+            return readoutFields.map(() => row.appendChild(htmlElement('td', '')));
+        }
+        const rows = sections.map(section => figureRow(section.label));
+        const total = figureRow('All sections');
+        const date = htmlElement('strong', 'size-readout-date');
+        const wrap = htmlElement('div', 'size-table-wrap');
+        wrap.append(table);
+        sizeReadout.replaceChildren(date, wrap);
+        return {date, rows, total};
     }
     function drawSize(file) {
         const sections = file.sections, days = file.days, count = days.length;
@@ -321,6 +453,7 @@ const activityGrowthScript = `<script>
         const legend = sizeView.querySelector('.size-legend');
         const top = 20, bottom = 224;
         const shown = new Set(sections.map(section => section.id));
+        const readout = readoutTable(sections);
         let sizeY = scale(0, 0, top, bottom), selected = count - 1;
         function show(index) {
             selected = index;
@@ -331,26 +464,16 @@ const activityGrowthScript = `<script>
                 point.setAttribute('cx', x(index, count));
                 point.setAttribute('cy', sizeY(sectionValues(day, point.dataset.section).lines));
             }
-            const table = htmlElement('table', 'size-table');
-            const head = table.createTHead().insertRow();
-            for (const name of ['Section', 'Lines', 'Gained', 'Lost']) head.append(htmlElement('th', '', name));
-            const body = table.createTBody();
+            readout.date.textContent = day.date;
             const total = {lines: 0, gained: 0, lost: 0};
-            for (const section of sections) {
+            sections.forEach((section, row) => {
                 const values = sectionValues(day, section.id);
-                const row = body.insertRow();
-                row.append(htmlElement('th', '', section.label));
-                for (const field of ['lines', 'gained', 'lost']) {
-                    row.append(htmlElement('td', '', format(values[field])));
+                readoutFields.forEach((field, column) => {
+                    readout.rows[row][column].textContent = format(values[field]);
                     total[field] += values[field];
-                }
-            }
-            const sum = body.insertRow();
-            sum.append(htmlElement('th', '', 'All sections'));
-            for (const field of ['lines', 'gained', 'lost']) sum.append(htmlElement('td', '', format(total[field])));
-            const wrap = htmlElement('div', 'size-table-wrap');
-            wrap.append(table);
-            sizeReadout.replaceChildren(htmlElement('strong', 'size-readout-date', day.date), wrap);
+                });
+            });
+            readoutFields.forEach((field, column) => { readout.total[column].textContent = format(total[field]); });
             slider.setAttribute('aria-valuetext', day.date + ': ' + format(total.lines) + ' lines');
         }
         const select = selector([sizeChart, changeChart], slider, count, show);

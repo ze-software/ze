@@ -5,6 +5,11 @@ package site
 // activityPageScript drives the heatmap: it switches the grid and the summary
 // cards between added lines and commits, and it fills the hover tooltip.
 //
+// setMetric also writes the metric to the body's data-metric attribute. The
+// published page's cumulative curve (activityGrowthScript) observes that
+// attribute to follow the switch, so the write MUST stay; the deck has no
+// curve and nothing there reads it.
+//
 // It opens on the line the page's own markup already shows, so a reader with
 // no JavaScript still reads the added-line grid and its four summary cards.
 // The metric summaries are written immediately above it by the producer,

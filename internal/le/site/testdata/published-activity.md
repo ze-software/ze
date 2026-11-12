@@ -20,6 +20,17 @@ The figures count the files committed as of that day. Lines include comments and
 
 Select a recorded day
 
+## Commit calendar
+
+- Lines added by commits in this window:** 4**
+- Days with added lines:** 1**
+- Peak line day:** 4**
+- Days shown:** 365**
+
+Added lines count additions, not net repository size.
+
+ 2025-08-26 to 2026-08-25
+
 ## Go code composition
 
 As committed on 2026-08-23.
@@ -59,17 +70,8 @@ All Go files, third-party included, hold **1,015** lines.
 - Comments:** 65**
 - Modules:** 3**
 
-- Lines added by commits in this window:** 4**
-- Days with added lines:** 1**
-- Peak line day:** 4**
-- Days shown:** 365**
+## Lines added within this window
 
-Added lines count additions, not net repository size.
+Lines added by commits, accumulated since the calendar's first day.
 
- 2025-08-26 to 2026-08-25
-
-## Commits within this window
-
-Commits accumulated since the calendar's first day.
-
-Select a date Commits:
+Select a date Lines added:

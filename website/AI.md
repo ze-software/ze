@@ -821,30 +821,45 @@ stay hidden and both views show, the size view first.
 
 The size view reads `data/repo-history.json`, the committed size history. Its
 headline is the newest recorded day's total lines and that day's date, followed
-by one figure for each section the file lists, a sentence on what the figures
-count, and the Go composition of that day: the lines of all Go, third-party
-included, summed over every section the file splits into Go lines, then
-first-party Go, production, tests and third-party Go, each with files, lines,
-code, blank and comment lines, and the module count. Every figure is a `data-ze-history` marker that the build fills
-and the page script refills from the published file. One chart draws each
+by one figure for each section the file lists and a sentence on what the
+figures count. One chart draws each
 section's lines over every recorded day, in a color taken from the section's
 place in the file and named in a legend whose buttons add or remove the section.
 A second chart draws the lines the selected sections gained, above the axis, and
 lost, below it, on each day. Both scales come from every recorded day, so an
-earlier peak stays inside the chart. A day is chosen with the pointer, the
-arrow, Home and End keys, or the slider, and the readout lists each section's
-lines, gained and lost lines for that day. When the file cannot be read, the
-readout says so and the figures of the last build stand.
+earlier peak stays inside the chart. Both charts plot their days over the same
+span, and the slider under them is exactly as long as that time line: its track
+starts at the first recorded day and ends at the last, so its handle always
+stands on the charts' cursor line. A day is chosen with the pointer, the arrow,
+Home and End keys, or the slider, and the readout lists each section's lines,
+gained and lost lines for that day. The readout's table keeps one size: every
+section of the file has a row whichever sections the legend draws, and its
+columns are fixed, so neither the day nor the selection moves it. It carries no
+Columns control. When the file cannot be read, the readout says so and the
+figures of the last build stand.
 
-The calendar view keeps the four summary cards and the Added Lines/Commits
+The calendar view opens with its own "Commit calendar" heading, so a reader
+without JavaScript, who sees both views one after the other, finds the second
+titled. It keeps the four summary cards and the Added Lines/Commits
 switch, which show only with it. The first card counts the lines added by
 commits in the window, and the note under the cards says added lines are not
 repository size. The date range sits to the left of the calendar's Less/More
-legend. Under the calendar, the cumulative commits curve sums the daily commits
-the calendar cells carry, from the first day of the window, whichever metric the
-switch shows, with its own slider and readout. The deck embed retains its
-calendar.
-<!-- source: internal/le/site/activitygrowth.go -- activitySizeHTML, activityHistoryGoPanelHTML, activityGrowthScript -->
+legend. After the calendar comes the Go composition of the newest recorded day
+in the size history: the lines of all Go, third-party included, summed over
+every section the file splits into Go lines, then first-party Go, production,
+tests and third-party Go, each with files, lines, code, blank and comment
+lines, and the module count. It does not read the working tree. Under it, the
+cumulative curve follows the switch: under Added Lines it sums the lines added
+by commits that the calendar cells carry, under Commits their commits, from
+the first day of the window. Its title, sentence, readout and slider say which
+of the two it shows, and the selected date stays when the switch changes. Its
+slider spans the curve's time line the way the size view's does.
+
+Every size figure on the page, the Go composition's included, is a
+`data-ze-history` marker that the build fills and the page script refills from
+the published file. The deck embed retains its calendar.
+<!-- source: internal/le/site/activitygrowth.go -- activitySizeHTML, activityHistoryGoPanelHTML, activityCumulativeCurveHTML, activityGrowthScript -->
+<!-- source: internal/le/site/activitygrowthstyle.go -- activityGrowthStyle -->
 <!-- source: internal/le/site/activity.go -- activityPageBody, activityCalendarViewHTML -->
 
 ## Adding a new presentation

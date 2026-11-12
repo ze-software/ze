@@ -341,7 +341,8 @@ const activityStyle = `        <style>
             display: inline-block;
             vertical-align: middle;
         }
-        .activity-widget .panel h2 {
+        .activity-widget .panel h2,
+        .activity-widget #activity-calendar > h2 {
             margin: 0 0 0.75rem;
             color: var(--activity-ink);
             font-size: 1.05rem;

@@ -255,19 +255,21 @@ func TestActivityPageRefusesMissingHistory(t *testing.T) {
 }
 
 // TestEveryActivitySizeFigureIsAHistoryMarkedValue proves no number in the size
-// view stands outside a history marker, so the page script can refresh every
-// size the page states and none goes stale.
+// view or in the Go composition stands outside a history marker, so the page
+// script can refresh every size the page states and none goes stale.
 //
 // The method walks every text node and every text attribute of the rendered
-// size view and refuses a digit outside an element marked data-ze-history; a
-// positive control requires every marker to hold a figure.
+// size view and of the Go composition, which sits in the calendar view, and
+// refuses a digit outside an element marked data-ze-history; a positive
+// control requires every marker to hold a figure, and the two together to
+// carry at least one marker for each figure the fixture's newest day states.
 //
 // VALIDATES: AC-10: each size figure is a history-marked element.
 func TestEveryActivitySizeFigureIsAHistoryMarkedValue(t *testing.T) {
 	document := activityParse(t, activityRenderedBody(t, activityFixturePaths(t)))
-	view := activityElementByID(t, document, "activity-size")
+	views := []*xhtml.Node{activityElementByID(t, document, "activity-size"), activityElementByClass(t, document, "go-panel")}
 	markers := 0
-	stack := []*xhtml.Node{view}
+	stack := views
 	for len(stack) != 0 {
 		node := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
@@ -279,12 +281,12 @@ func TestEveryActivitySizeFigureIsAHistoryMarkedValue(t *testing.T) {
 			continue
 		}
 		if node.Type == xhtml.TextNode && strings.ContainsFunc(node.Data, unicode.IsDigit) {
-			t.Errorf("the size view states %q outside a history marker", strings.TrimSpace(node.Data))
+			t.Errorf("a size figure %q stands outside a history marker", strings.TrimSpace(node.Data))
 		}
 		if node.Type == xhtml.ElementNode {
 			for _, attribute := range node.Attr {
 				if figureAttribute(node.Data, attribute.Key) && strings.ContainsFunc(attribute.Val, unicode.IsDigit) {
-					t.Errorf("the size view's %s %s states %q outside a history marker", node.Data, attribute.Key, attribute.Val)
+					t.Errorf("the %s %s states %q outside a history marker", node.Data, attribute.Key, attribute.Val)
 				}
 			}
 		}
@@ -293,7 +295,7 @@ func TestEveryActivitySizeFigureIsAHistoryMarkedValue(t *testing.T) {
 		}
 	}
 	if markers < len(activityHistoryNewest) {
-		t.Errorf("the size view carries %d markers, fewer than the %d figures it states", markers, len(activityHistoryNewest))
+		t.Errorf("the size view and the Go composition carry %d markers, fewer than the %d figures they state", markers, len(activityHistoryNewest))
 	}
 }
 
@@ -302,9 +304,10 @@ func TestEveryActivitySizeFigureIsAHistoryMarkedValue(t *testing.T) {
 // leave it stand outside both views.
 //
 // VALIDATES: AC-10, R-12 and R-16: cells, metric switch, four cards, the note
-// on added lines and the commits curve sit in the calendar view; the first card
-// says its lines were added by commits; the tabs reach both views and sit in
-// neither; the cumulative added-lines curve and the working-tree block are gone.
+// on added lines, the Go composition and the cumulative curve sit in the
+// calendar view; the first card says its lines were added by commits; the
+// tabs reach both views and sit in neither; the cumulative added-lines curve
+// of the old growth view and the working-tree block are gone.
 func TestActivityPageKeepsCalendarAndCommitViews(t *testing.T) {
 	body := activityRenderedBody(t, activityFixturePaths(t))
 	document := activityParse(t, body)
@@ -317,7 +320,8 @@ func TestActivityPageKeepsCalendarAndCommitViews(t *testing.T) {
 		`id="total-value"`, `id="active-value"`, `id="peak-value"`, "Days shown",
 		"Lines added by commits in this window",
 		"Added lines count additions, not net repository size.",
-		`id="activity-commits-chart"`, `id="activity-commits-day"`, `id="activity-commits-readout"`,
+		`class="panel go-panel"`,
+		`id="activity-cumulative-chart"`, `id="activity-cumulative-day"`, `id="activity-cumulative-readout"`,
 		`class="legend"`,
 	} {
 		if !strings.Contains(view, want) {
@@ -362,6 +366,53 @@ func activityAttributeSet(node *xhtml.Node, key string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// TestTheActivityMirrorStartsEveryBlockOnItsOwnLine proves the Markdown mirror
+// of the activity page keeps the calendar view's first card a bullet of its
+// own, and holds no bullet or heading marker with nothing after it.
+//
+// The method renders the fixture page, reads the mirror the render wrote, as
+// TestTheActivityMirrorReadsAsThePublishedMirror does, and reads its lines
+// rather than its shape. The first card's label must open its line, after
+// nothing but spaces, as "- Lines added by commits in this window": when the
+// element before the calendar view ends in inline text (the size view's day
+// selector), the card's bullet joins that text's line and stops being a list
+// item. No line may be a bare "-", "*" or "+", or a run of "#" alone.
+//
+// VALIDATES: the mirror a reader with no browser gets carries every card of
+// the calendar view as a bullet, and every heading and bullet it opens says
+// something.
+func TestTheActivityMirrorStartsEveryBlockOnItsOwnLine(t *testing.T) {
+	paths := activityFixturePaths(t)
+	if _, err := renderActivityPage(paths); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	raw, err := os.ReadFile(filepath.Join(paths.Output, activityDirectory, pageMirrorFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const firstCard = "- Lines added by commits in this window"
+	label := strings.TrimPrefix(firstCard, "- ")
+	opens, holder := false, ""
+	for number, line := range strings.Split(string(raw), "\n") {
+		if strings.HasPrefix(strings.TrimLeft(line, " "), firstCard) {
+			opens = true
+		}
+		if holder == "" && strings.Contains(line, label) {
+			holder = line
+		}
+		marker := strings.TrimSpace(line)
+		if marker == "-" || marker == "*" || marker == "+" {
+			t.Errorf("mirror line %d is a bullet with nothing after its marker: %q", number+1, line)
+		}
+		if marker != "" && strings.Trim(marker, "#") == "" {
+			t.Errorf("mirror line %d is a heading with nothing after its marker: %q", number+1, line)
+		}
+	}
+	if !opens {
+		t.Errorf("the first calendar card does not start its own line as %q; the line that holds its label is %q", firstCard, holder)
+	}
 }
 
 // TestAllGoNamesEveryGoSection proves the all-Go figure sums every section the
@@ -428,4 +479,152 @@ func TestHistoryFillRefusesUnknownMarker(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestActivityGoCompositionSitsInTheCalendarView proves the Go composition
+// sits in the Commit calendar view, after the calendar and before the
+// cumulative curve, and not in the Repository size view, and that it still
+// states the committed size history's newest day.
+//
+// The method parses the rendered body, finds the one panel by its class,
+// checks its ancestors and its place in document order, then requires a
+// marker of each kind the panel carries to hold the fixture's value.
+//
+// VALIDATES: the owner's correction that the Go composition belongs to the
+// calendar view; AC-10: its figures stay history markers read from the file.
+func TestActivityGoCompositionSitsInTheCalendarView(t *testing.T) {
+	document := activityParse(t, activityRenderedBody(t, activityFixturePaths(t)))
+	size := activityElementByID(t, document, "activity-size")
+	calendar := activityElementByID(t, document, "activity-calendar")
+	panel := activityElementByClass(t, document, "go-panel")
+	if activityWithin(panel, size) {
+		t.Error("the Go composition still sits in the size view")
+	}
+	if !activityWithin(panel, calendar) {
+		t.Error("the Go composition does not sit in the calendar view")
+	}
+	order := activityDocumentOrder(document)
+	grid := activityElementByClass(t, document, "activity-grid")
+	curve := activityElementByClass(t, document, "activity-cumulative")
+	if order[panel] < order[grid] {
+		t.Error("the Go composition comes before the calendar, so a reader with no JavaScript meets it first")
+	}
+	if order[curve] < order[panel] {
+		t.Error("the Go composition comes after the cumulative curve; it belongs between the calendar and the curve")
+	}
+	view := activityOuterHTML(t, panel)
+	if !strings.Contains(view, "As committed on ") {
+		t.Error("the Go composition no longer says which committed day it states")
+	}
+	for _, mark := range []string{
+		"day:date", "day:modules",
+		"third-party-go+go-tests+go-production:lines",
+		"go-production+go-tests:files", "go-production:code", "go-tests:blank", "third-party-go:comment",
+	} {
+		want := `<span data-ze-history="` + mark + `">` + activityHistoryNewest[mark] + `</span>`
+		if !strings.Contains(view, want) {
+			t.Errorf("the Go composition does not state %s as %q", mark, activityHistoryNewest[mark])
+		}
+	}
+}
+
+// TestActivityCumulativeCurveCarriesBothWordings proves the cumulative curve
+// ships able to say which of the switch's two metrics it shows. It opens on
+// the Added Lines wording, the metric the cards open on, and every element
+// whose words change carries the Commits wording beside its own; the chart's
+// accessible name and the slider's unit carry both as well. No wording calls
+// the added lines a size.
+//
+// VALIDATES: the owner's correction that the curve follows the Added Lines
+// and Commits switch; AC-11: commit activity stays labeled as activity.
+func TestActivityCumulativeCurveCarriesBothWordings(t *testing.T) {
+	document := activityParse(t, activityRenderedBody(t, activityFixturePaths(t)))
+	curve := activityElementByClass(t, document, "activity-cumulative")
+	if !activityWithin(curve, activityElementByID(t, document, "activity-calendar")) {
+		t.Error("the cumulative curve does not sit in the calendar view")
+	}
+	wordings := map[string]string{}
+	stack := []*xhtml.Node{curve}
+	for len(stack) != 0 {
+		node := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			stack = append(stack, child)
+		}
+		lines, carries := activityAttributeSet(node, "data-text-lines")
+		if !carries {
+			continue
+		}
+		commits := activityAttribute(node, "data-text-commits")
+		wordings[lines] = commits
+		text := node.FirstChild
+		if text == nil || text.Type != xhtml.TextNode || text.NextSibling != nil || text.Data != lines {
+			t.Errorf("the element worded %q does not ship stating it", lines)
+		}
+	}
+	for lines, commits := range map[string]string{
+		"Lines added within this window":                                      "Commits within this window",
+		"Lines added by commits, accumulated since the calendar's first day.": "Commits accumulated since the calendar's first day.",
+		"Lines added": "Commits",
+	} {
+		if wordings[lines] != commits {
+			t.Errorf("the curve words %q as %q under Commits, want %q", lines, wordings[lines], commits)
+		}
+	}
+	if len(wordings) != 3 {
+		t.Errorf("the curve carries %d switchable wordings, want the title, the sentence and the readout label: %v", len(wordings), wordings)
+	}
+	chart := activityElementByID(t, document, "activity-cumulative-chart")
+	if label := activityAttribute(chart, "aria-label"); label != activityAttribute(chart, "data-aria-lines") || !strings.Contains(label, "lines added by commits") {
+		t.Errorf("the chart ships named %q, not by its Added Lines wording", label)
+	}
+	if !strings.HasPrefix(activityAttribute(chart, "data-aria-commits"), "Cumulative commits.") {
+		t.Errorf("the chart's Commits name is %q", activityAttribute(chart, "data-aria-commits"))
+	}
+	slider := activityElementByID(t, document, "activity-cumulative-day")
+	if activityAttribute(slider, "data-unit-lines") != "lines added" || activityAttribute(slider, "data-unit-commits") != "commits" {
+		t.Errorf("the slider reads out %q and %q, want \"lines added\" and \"commits\"",
+			activityAttribute(slider, "data-unit-lines"), activityAttribute(slider, "data-unit-commits"))
+	}
+	if strings.Contains(strings.ToLower(activityOuterHTML(t, curve)), "size") {
+		t.Error("the cumulative curve's wording calls the added lines a size")
+	}
+}
+
+// activityElementByClass answers the one element of document whose class list
+// holds class, and refuses a document with none or with several.
+func activityElementByClass(t *testing.T, document *xhtml.Node, class string) *xhtml.Node {
+	t.Helper()
+	var found []*xhtml.Node
+	stack := []*xhtml.Node{document}
+	for len(stack) != 0 {
+		node := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if node.Type == xhtml.ElementNode && slices.Contains(strings.Fields(activityAttribute(node, "class")), class) {
+			found = append(found, node)
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			stack = append(stack, child)
+		}
+	}
+	if len(found) != 1 {
+		t.Fatalf("the page holds %d elements of class %q, want one", len(found), class)
+	}
+	return found[0]
+}
+
+// activityDocumentOrder numbers every node of document in the order a reader
+// meets it, which is the order a page with no JavaScript shows it in.
+func activityDocumentOrder(document *xhtml.Node) map[*xhtml.Node]int {
+	order := map[*xhtml.Node]int{}
+	stack := []*xhtml.Node{document}
+	for len(stack) != 0 {
+		node := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		order[node] = len(order)
+		for child := node.LastChild; child != nil; child = child.PrevSibling {
+			stack = append(stack, child)
+		}
+	}
+	return order
 }

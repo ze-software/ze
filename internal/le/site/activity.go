@@ -144,18 +144,25 @@ const (
 )
 
 // activityPageBody renders the published page's body: the hero, then one
-// widget holding the view tabs, the size view and the calendar view, then the
-// script that draws the size view and the commits curve.
+// widget holding the view tabs, the size view, the calendar view and the
+// tooltip, then the script that switches the calendar's metric and the script
+// that draws the size view and the cumulative curve.
 //
 // The shipped markup shows both views, the size view first, and hides the
-// tabs, so a reader with no JavaScript reads everything in order; the script
-// shows the tabs and opens the size view. The size figures are history
-// markers, which renderActivityPage fills after the shell is drawn.
+// tabs, so a reader with no JavaScript reads everything in order: the size
+// view, then the calendar view with its cards, note, calendar, Go composition
+// and curve. The script shows the tabs and opens the size view. The size
+// figures and the Go composition are history markers, which
+// renderActivityPage fills after the shell is drawn.
+//
+// The calendar view is rendered here rather than through activityBody, because
+// its Go composition states the size history, which only the page reads.
 func activityPageBody(window *reporewrite.ActivityWindow, figures historyFigures) (string, error) {
-	size, err := activitySizeHTML(figures)
+	goPanel, err := activityHistoryGoPanelHTML(figures)
 	if err != nil {
 		return "", err
 	}
+	lines := activityPageLineMetric(window)
 	var body textbuf.Buffer
 	body.Reset().Str(`            <section class="activity-page" aria-labelledby="activity-title">`).Byte('\n')
 	body.Str(`                <div class="activity-hero journey-hero reveal">`).Byte('\n')
@@ -168,35 +175,35 @@ func activityPageBody(window *reporewrite.ActivityWindow, figures historyFigures
 	// is what the reveal class marks.
 	body.Str(`                <div class="activity-widget reveal" aria-label="Repository size and commit activity">`).Byte('\n')
 	body.Str(activityTabsHTML)
-	body.Str(size)
-	body.Str(activityBody(window, activitySurfacePage))
+	body.Str(activitySizeHTML(figures))
+	body.Str(activityCalendarViewHTML(window, lines, goPanel))
+	body.Str(activityTooltipHTML)
+	body.Str(activityScriptHTML(lines, activityCommitMetric(window)))
 	body.Str("                </div>\n")
 	body.Str("            </section>\n")
 	body.Str(activityGrowthScript)
 	return body.String(), nil
 }
 
-// activityBody renders what each surface draws from the calendar measurement.
+// activityBody renders the slide's document body from the calendar
+// measurement: the widget with the summary cards, the calendar, the working
+// tree's Go inventory and the tooltip, then the script that switches the cards
+// and the grid between the two metrics.
 //
-// On the slide that is the whole document body: the widget with the summary
-// cards, the calendar, the working tree's Go inventory and the tooltip. On the
-// page it is the calendar view alone, which activityPageBody places after the
-// size view inside the page's widget: the summary cards, the metric switch, the
-// calendar and the commits curve, then the tooltip. Both close with the script
-// that switches the cards and the grid between the two metrics.
+// The page draws its calendar view in activityPageBody instead, because that
+// view's Go composition states the committed size history, which this
+// function does not hold; a page surface here is a Ze defect.
 func activityBody(window *reporewrite.ActivityWindow, surface activitySurface) string {
 	var body textbuf.Buffer
 	body.Reset()
 	lines := activityLineMetric(window)
 	switch surface {
-	case activitySurfacePage:
-		lines = activityPageLineMetric(window)
-		body.Str(activityCalendarViewHTML(window, lines))
-		body.Str(activityTooltipHTML)
 	case activitySurfaceSlide:
 		body.Str(`        <main class="activity-slide">`).Byte('\n')
 		body.Str(activitySlideWidgetHTML(window))
 		body.Str("        </main>\n")
+	case activitySurfacePage:
+		panic("BUG: site.activityBody: the page's calendar view is drawn by activityPageBody, which holds the size history")
 	case activitySurfaceUnspecified:
 		panic("BUG: site.activityBody: the caller named no activity surface")
 	default:
@@ -225,22 +232,32 @@ func activitySlideWidgetHTML(window *reporewrite.ActivityWindow) string {
 	return out.String()
 }
 
-// activityCalendarViewHTML renders the page's calendar view: the four cards
-// and the metric switch, the note on what added lines count, the calendar, and
-// the cumulative commits curve drawn from the calendar's own cells. The cards
-// and the switch live inside the view, so they show only with it, while the
-// tabs that leave it sit outside.
-func activityCalendarViewHTML(window *reporewrite.ActivityWindow, lines activityMetric) string {
+// activityCalendarViewHTML renders the page's calendar view: its heading, the
+// four cards and the metric switch, the note on what added lines count, the
+// calendar, the Go composition of the newest recorded day (goPanel, from
+// activityHistoryGoPanelHTML), and the cumulative curve drawn from the
+// calendar's own cells. The cards and the switch live inside the view, so
+// they show only with it, while the tabs that leave it sit outside.
+//
+// The heading repeats the tab's name, as the size view's does. A reader with
+// no JavaScript meets both views one after the other, and the heading is what
+// tells them the second has begun; it is also the block boundary that keeps
+// the first card's bullet off the size view's last line in the Markdown
+// mirror. The panel stays named by its tab, which names it whenever the tabs
+// show.
+func activityCalendarViewHTML(window *reporewrite.ActivityWindow, lines activityMetric, goPanel string) string {
 	var out textbuf.Buffer
 	out.Reset().Str(`<div class="activity-view" id="activity-calendar" role="tabpanel" aria-labelledby="activity-tab-calendar">`).Byte('\n')
+	out.Str("    <h2>Commit calendar</h2>\n")
 	out.Str(activitySummaryHTML(lines, activityRangeText(window), activityDaysShown(window), activitySurfacePage))
 	out.Str(`    <p class="activity-note">Added lines count additions, not net repository size.</p>`).Byte('\n')
 	out.Str(`                    <div class="dashboard-grid">`).Byte('\n')
 	out.Str(`                        <div class="left-stack">`).Byte('\n')
 	out.Str(activityChartHTML(window, activitySurfacePage))
+	out.Str(goPanel)
 	out.Str("                        </div>\n")
 	out.Str("                    </div>\n")
-	out.Str(activityCommitsCurveHTML)
+	out.Str(activityCumulativeCurveHTML())
 	out.Str("</div>\n")
 	return out.String()
 }
