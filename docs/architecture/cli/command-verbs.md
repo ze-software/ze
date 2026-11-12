@@ -360,6 +360,19 @@ reaches every command below that container, while each of those commands
 carries its own guard.
 <!-- source: internal/component/config/yang/command.go -- inheritArgDefs -->
 
+`RequiresSelector` is the guard of the leaf named `selector` and of no other:
+it is satisfied only by a value the dispatcher bound to that leaf, or by a peer
+the caller supplied out of band. A command that addresses one member of a set
+by a typed keyword (`name`, `id`, ...) does not set it. Its mandatory leaf is
+its guard: `command.ValidateArgs` binds the lone value typed after the action,
+or the keyword and value pair, and refuses a line with neither as
+`required argument missing: <leaf>` before the handler runs.
+`request plugin restart <name>` and `system command help <name>` are declared
+that way. Set on such a command, `RequiresSelector` refuses every line, because
+the value is bound to the typed leaf and never to `selector`.
+<!-- source: internal/component/plugin/server/command.go -- Dispatch, adoptablePositional, selectorLeaf -->
+<!-- source: internal/component/command/argbind.go -- ValidateArgs, MissingArgumentError -->
+
 When the guard refuses, the refusal names the line that supplies a selector
 and what the selector leaf's `ze:help` says the value is. `<selector>` sits
 where the dispatcher reads it: after the key token the selector leaf is

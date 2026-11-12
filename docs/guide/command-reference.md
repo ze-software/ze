@@ -721,6 +721,9 @@ too. The command runs in the daemon.
 ze request plugin restart <name>     # <name> is the plugin's configured name
 ```
 
+The name may also follow its keyword, `ze request plugin restart name <name>`,
+which is the form the web admin page posts. Both forms are the same command.
+
 Restarting a running plugin stops it, which cuts the commands it was serving,
 and starts it again; its failure policy is not applied, so a plugin whose
 failure stops ze does not stop ze here. The order lifts a respawn-limit disable
@@ -732,20 +735,23 @@ running: stopped and started again` (the `was-running` field says which).
 
 | Refusal | When |
 |---------|------|
-| `request plugin restart needs exactly one plugin name` | no name, or more than one, was given |
+| `required argument missing: name` | no name was given. The daemon refuses the line against the command's schema, before the command runs |
+| `request plugin restart needs exactly one plugin name` | more than one name was given |
 | `plugin <name> is not a configured plugin` | neither the configuration nor its auto-load started a plugin of that name. The name is refused, never guessed |
 | `plugin <name> was not restarted: a config transaction is in flight` | a reload or commit is running and talks to the plugin's process; run the command again once it has answered |
 | `plugin <name> cannot be restarted: no plugin server runs here` | the process that answered holds no plugin server; the fix is `ze start` |
 | `plugin <name> cannot be restarted: plugin startup has not begun` | the daemon has not handed its plugins to a process manager yet |
 | `plugin <name> did not start again` | the restart itself failed. The plugin stays down, and `ze doctor` names it with the error |
 
-Each refusal says why and names the command that helps, `ze show doctor` for
-all but the missing server.
+Each refusal the command itself answers says why and names the command that
+helps: `ze show doctor`, except for the missing server (`ze start`) and for a
+transaction in flight, which names the same restart command to run again.
 
 In the interactive CLI (SSH and `ze cli`), Tab after `request plugin restart`
-offers the configured plugins that are not running: exactly the names the
-command accepts. The candidates are asked of the running daemon at each Tab,
-so a plugin that came back up drops out of the list. Shell completion
+offers every configured plugin, exactly the names the command accepts, each
+marked `configured plugin, running: the restart stops it first` or
+`configured plugin, not running`. The candidates are asked of the running
+daemon at each Tab, so the marks follow the plugin's state. Shell completion
 (`ze completion`) has no daemon to ask and offers no plugin names.
 
 <!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal, completePluginRestart -->

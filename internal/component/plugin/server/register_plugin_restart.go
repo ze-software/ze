@@ -22,12 +22,19 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
+// The registration carries no RequiresSelector. That guard is the peer
+// selector's: it waits for a value bound to the leaf named `selector`
+// (selectorLeaf), which a non-peer command never declares, because
+// ai/rules/cli.md types a named member with `name`. The mandatory `name` leaf
+// in ze-system-cmd.yang is this command's guard: command.ValidateArgs binds
+// the lone value typed after `restart`, or the `name <value>` pair, and
+// refuses a line with neither before the handler runs, as it does for
+// `system command help <name>`.
 func init() {
 	RegisterRPCs(RPCRegistration{
-		WireMethod:       "ze-plugin:system-plugin-restart",
-		Handler:          handlePluginRestart,
-		RequiresSelector: true,
-		Complete:         completePluginRestart,
+		WireMethod: "ze-plugin:system-plugin-restart",
+		Handler:    handlePluginRestart,
+		Complete:   completePluginRestart,
 	})
 }
 

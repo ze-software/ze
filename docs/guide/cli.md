@@ -178,8 +178,8 @@ In `ze cli` interactive mode:
 
 - **Tab completion** for commands, peer names, address families, and log levels.
   A command whose argument only the running daemon knows asks the daemon at
-  each Tab: `request plugin restart` offers the configured plugins that are not
-  running
+  each Tab: `request plugin restart` offers every configured plugin, each
+  marked as running or not running
   <!-- source: internal/component/cli/client/inject.go -- wireDaemonArgCompletion -->
 
 - **Pipe operators** with per-command availability. `match <text>` keeps rows

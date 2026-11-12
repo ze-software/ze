@@ -1,0 +1,126 @@
+# Test: an operator's `request plugin restart <name>` over SSH stops a RUNNING
+#       external (forked, connect-back) plugin and brings a new process of it
+#       back running, and the answer says a running plugin was stopped.
+# Spec: spec-doctor-coverage-12-plugin-infra R-11
+# VALIDATES: handlePluginRestart
+#   (internal/component/plugin/server/register_plugin_restart.go) reads
+#   was-running from the slot's process, then restartPlugin
+#   (server/reload_tx.go) runs ProcessManager.Respawn
+#   (plugin/process/manager.go), which stops and joins the forked process and
+#   forks its replacement, and restartHandshake (server/restart.go) brings the
+#   replacement to StageRunning before the answer. applyFailurePolicy
+#   (server/failure_policy.go) applies no policy to the stopped generation,
+#   because the slot already holds the replacement, so the operator's restart
+#   raises neither doctor-plugin-crashed nor doctor-plugin-stopped. An unknown
+#   name is refused (pluginRestartRefusal) with a nonzero exit.
+# PREVENTS: a restart answered "stopped and started again" while the forked
+#   process was never replaced, or replaced by one that never serves; and an
+#   operator's restart reported as a crash or a stop.
+# Why not a unit test: the unit tests drive the handler with internal
+#   plugins. Only the daemon route proves the command reaches the handler over
+#   SSH and that a forked plugin's process is really replaced.
+#
+# No `ze init`: the store is not part of the question. The daemon starts from
+# the file on the runner's default in-memory store and authenticates the
+# config's own user; the client takes its credentials and the daemon's port
+# from the environment (resolveUsername, resolvePassword, resolveHostPort,
+# internal/component/cli/sshclient/client.go), exactly as
+# test/plugin/doctor-plugin-stopped.ci does, which carries the full reasoning.
+#
+# The fixture, plugin/restart-generation
+# (internal/test/fixture/plugin_fixture_restart_generation.go), serves one
+# command, `show restart-generation status`, until the daemon closes its
+# connection, and answers restart-generation-<N>: N counts the processes that
+# answered, kept in a marker file in the plugin's working directory because a
+# restart is a new process. That count is what tells the replacement from the
+# process it replaced; the product prints no plugin pid on any CLI command
+# (`show plugin list` lists the binary's registry, not processes).
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external restart-generation {
+		run "le test fixture plugin/restart-generation"
+		encoder json
+	}
+}
+EOF_CONF
+
+# "Ze running." is printed after the standalone SSH server's Start returned,
+# which is after its listener reached Accept (serveListener,
+# internal/component/ssh/listener_start.go), and after
+# WaitForStartupComplete, as test/plugin/doctor-plugin-stopped.ci relies on.
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# Barrier, state 1: the first generation runs and serves. The daemon
+# dispatching the plugin's own command to it, and the plugin answering, is the
+# state "running" means to an operator; it also makes this process count
+# itself as generation 1 before the restart (the count is taken at the first
+# answer). daemon/await-answer retries until the command exits zero with the
+# needle, so a refused connection or a not-yet-registered command is "not
+# yet", never a failure.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer restart-generation-1 "show restart-generation status":exit=0
+
+# The command under test. Its answer is the handler's Data map: message,
+# plugin, was-running (fieldMessage, fieldRestartedPlugin,
+# fieldRestartWasRunning). was-running is true because the slot's process
+# reported Running() when the handler read it, before Respawn.
+cmd=foreground:seq=3:exec=ze cli -c "request plugin restart restart-generation | json":exit=0
+expect=stdout:contains=plugin restart-generation was running: stopped and started again
+expect=stdout:pattern="was-running":\s*true
+expect=stdout:pattern="plugin":\s*"restart-generation"
+
+# A new process serves now, with no barrier: restartHandshake returns only once
+# the replacement reached StageRunning, and handlePluginRestart answers after
+# it, so a plain dispatch right after the answer must reach the replacement.
+# Generation 2 is a second process counting itself; generation 1 answering
+# here would mean the old process still serves.
+cmd=foreground:seq=4:exec=ze cli -c "show restart-generation status":exit=0
+expect=stdout:contains=restart-generation-2
+reject=stdout:contains=restart-generation-1
+
+# The operator's restart is not a crash and leaves no stop record.
+# ReportCrash (doctor-plugin-crashed, an error on the bus) and RecordStopped
+# (doctor-plugin-stopped, a warning) are both reached only past
+# applyFailurePolicy's slot check, which returns because the name holds the
+# replacement: Respawn stores it under pm.mu, the same lock GetProcess takes.
+# Ordering: restartPluginProcess releases the old registrations, which waits
+# for the old generation's handleSingleProcessCommandsRPC cleanup, before the
+# answer; the old superviseProcess then runs applyFailurePolicy with no further
+# wait. No product output marks that call's return, so these rejects are
+# ordered against the RPC loop's end, not against applyFailurePolicy itself.
+cmd=foreground:seq=5:exec=ze cli -c "show errors | json":exit=0
+reject=stdout:contains=doctor-plugin-crashed
+cmd=foreground:seq=6:exec=ze cli -c "show warnings | json":exit=0
+reject=stdout:contains=doctor-plugin-stopped
+
+# The one refusal an operator reaches here: a name nothing configured.
+# pluginRestartRefusal answers an opererr through OperatorErrorResponse
+# (Status error, Error set); the standalone SSH executor's
+# CommandDispatcher.Answer (internal/component/plugin/dispatch.go) turns that
+# into an error, so the exec channel exits nonzero and `ze cli` prints the
+# error on stderr, as test/ui/show-config-running.ci asserts for its refusal.
+cmd=foreground:seq=7:exec=ze cli -c "request plugin restart no-such-plugin":exit=1
+expect=stderr:contains=plugin no-such-plugin is not a configured plugin
+expect=stderr:contains=only a plugin the configuration or its auto-load started can be restarted
+expect=stderr:contains=ze show doctor, which names every configured plugin

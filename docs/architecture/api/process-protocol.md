@@ -827,8 +827,9 @@ Every path that leaves a configured plugin down records why and raises the
 
 The warning clears when the plugin runs again, and when a reload removes it from
 the configuration. `request plugin restart <name>` starts a configured plugin
-that is not running; the operator's order lifts a respawn-limit disable, and
-the command refuses a running plugin and a name nothing configured.
+again, stopping it first when it runs; the operator's order lifts a
+respawn-limit disable, and the command refuses a name nothing configured and a
+restart while a config transaction is in flight.
 
 A process exit also clears every warning and error the plugin raised itself
 through `report-issue`: their owner is gone and nothing else can clear them.
