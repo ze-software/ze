@@ -2949,8 +2949,9 @@ handler or plugin process runs, and the plugin's request is logged as refused
 error gives the line to send instead. When the chain is only filters the
 command registered, that line is the folded form, such as
 `show bgp rib received count` for `show bgp rib received` piped to `count`.
-Otherwise it names the command part alone, so the plugin selects from the data
-itself, and the `ze cli -c` form an operator uses to apply the chain. A pipe
+Otherwise that line is the command part alone, so the plugin selects from the
+data itself, and the error's why names the `ze cli -c` form an operator uses to
+apply the chain. A pipe
 inside double quotes stays an argument value.
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch -->
 <!-- source: internal/component/command/pipe.go -- foldFilters -->

@@ -869,8 +869,9 @@ func pipeChainBridge(s *Server, proc *process.Process) *rpc.DirectBridge {
 // requirePipeChainOperatorError checks the refusal an in-process caller holds:
 // an opererr.Error whose problem names the command part and the chain, whose
 // why says the dispatcher answers data and the chain belongs to the surface
-// that renders the answer, and whose fix carries every wanted fragment.
-func requirePipeChainOperatorError(t *testing.T, err error, commandPart, chain string, fixParts ...string) {
+// that renders the answer and carries every wanted fragment, and whose fix is
+// exactly wantFix, the one command the caller sends instead.
+func requirePipeChainOperatorError(t *testing.T, err error, commandPart, chain, wantFix string, whyParts ...string) {
 	t.Helper()
 	require.Error(t, err, "a pipe chain outside quotes must be refused, never answered")
 	refusal, ok := errors.AsType[*opererr.Error](err)
@@ -879,8 +880,9 @@ func requirePipeChainOperatorError(t *testing.T, err error, commandPart, chain s
 	assert.Contains(t, refusal.Problem(), chain, "the problem names the chain")
 	assert.Contains(t, refusal.Why(), "data", "the why says the dispatcher answers data")
 	assert.Contains(t, refusal.Why(), "render", "the why says the surface that renders the answer applies the chain")
-	for _, part := range fixParts {
-		assert.Contains(t, refusal.Fix(), part, "the fix names the line to send instead")
+	assert.Equal(t, wantFix, refusal.Fix(), "the fix is the one line to send instead")
+	for _, part := range whyParts {
+		assert.Contains(t, refusal.Why(), part, "the why names the operator form that applies the chain")
 	}
 }
 
@@ -891,8 +893,9 @@ func requirePipeChainOperatorError(t *testing.T, err error, commandPart, chain s
 // code for a refused plugin request.
 //
 // Method: one builtin command whose handler counts its calls and has no pipe
-// filters registered, so the chain cannot fold and the fix is the AC-1b form
-// (the command part alone, and the `ze cli -c` form of the original line). The
+// filters registered, so the chain cannot fold and the refusal takes the AC-1b
+// form (the fix is the command part alone, and the why names the `ze cli -c`
+// form of the original line). The
 // socket case runs the real engine-op loop (handleSingleProcessCommandsRPC) and
 // reads the answer the way a forked plugin does; the bridge case wires the
 // typed slots from engineOps as wireBridgeDispatch does.
@@ -940,8 +943,8 @@ func TestDispatchCommandRefusesPipeChain(t *testing.T) {
 		lines := strings.Split(message, "\n")
 		fix := lines[len(lines)-1]
 		assert.True(t, strings.HasPrefix(fix, "fix: "), "the fix is the last line of the refusal, got %q", message)
-		assert.Contains(t, fix, "test command", "the fix names the command part to dispatch")
-		assert.Contains(t, fix, "ze cli -c", "the fix names the operator form that applies the chain")
+		assert.Equal(t, "fix: test command", fix, "the fix is the command part alone, the one line to dispatch")
+		assert.Contains(t, message, "ze cli -c '"+line+"'", "the why names the operator form that applies the chain")
 
 		raised := false
 		for _, issue := range report.Errors(0) {
@@ -973,7 +976,7 @@ func TestDispatchCommandRefusesPipeChain(t *testing.T) {
 
 		proc := process.NewProcess(plugin.PluginConfig{Name: "pipe-chain-bridge"})
 		out, err := pipeChainBridge(s, proc).DispatchCommand(t.Context(), line)
-		requirePipeChainOperatorError(t, err, "test command", "count", "test command", "ze cli -c")
+		requirePipeChainOperatorError(t, err, "test command", "count", "test command", "ze cli -c '"+line+"'")
 		if out != nil {
 			assert.NotEqual(t, plugin.StatusDone, out.Status, "a refused chain never answers done")
 		}
@@ -988,8 +991,8 @@ func TestDispatchCommandRefusesPipeChain(t *testing.T) {
 //
 // Method: the typed slots are wired from engineOps as wireBridgeDispatch does,
 // and the line pipes to a format operator, which never folds into a command's
-// own filters, so the fix names the command part alone and the `ze cli -c`
-// form holding the original line.
+// own filters, so the fix is the command part alone and the why names the
+// `ze cli -c` form holding the original line.
 //
 // VALIDATES: AC-1, AC-1b of spec-plugin-dispatch-pipe-chain-reaches-the-handler.
 // PREVENTS: an in-process plugin reading the unfiltered answer of a piped line.
@@ -1014,6 +1017,6 @@ func TestDispatchCommandAnswerRefusesPipeChain(t *testing.T) {
 		}
 		t.Errorf("a refused chain carries no answer, got %d rows ending %q", rows, answer.Verdict())
 	}
-	requirePipeChainOperatorError(t, err, "test command", "json", "test command", "ze cli -c", line)
+	requirePipeChainOperatorError(t, err, "test command", "json", "test command", "ze cli -c '"+line+"'")
 	assert.Equal(t, int32(0), calls.Load(), "no handler may run for a refused chain")
 }

@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Shipped daemon behaviour: MCP, REST and gRPC answer a piped command without applying its chain, and every surface that does apply one splits a quoted pipe value as a chain. Both are wrong answers on shipped operator surfaces (`plan/README.md`, `release/fixes/`), not tooling |
 | RFC gaps | - |
-| Depends | `plan/release/fixes/spec-plugin-dispatch-pipe-chain-reaches-the-handler.md` (its quote-aware scan, and the refusal `Dispatch` answers for an unsplit chain) |
+| Depends | - (spec-plugin-dispatch-pipe-chain-reaches-the-handler, closed, landed the quote-aware `scanCommand` in `internal/component/plugin/server/command.go` and the refusal `Dispatch` answers for an unsplit chain, `pipeChainRefusal`) |
 | Phase | - |
 | Handoff | - |
 | Design tier | development tier |

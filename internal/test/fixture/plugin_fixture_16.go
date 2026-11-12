@@ -682,8 +682,9 @@ func plugin16SayRefused(command, fix string) {
 // populated). The piped form of the same request must then be refused, with a
 // problem naming the command and the chain and a fix that is exactly the
 // folded line; that fix line is dispatched and must count 5. A chain whose
-// operator does not fold (a format) must be refused with the command part and
-// the `ze cli -c` form of the original line, while the command itself answers.
+// operator does not fold (a format) must be refused with the command part
+// alone as its fix and the `ze cli -c` form of the original line in its why,
+// while the command itself answers.
 func plugin16DispatchPipeChainRefused(ctx context.Context, p *sdk.Plugin) error {
 	const folded = "show bgp rib received count"
 	var settled map[string]any
@@ -729,14 +730,16 @@ func plugin16DispatchPipeChainRefused(ctx context.Context, p *sdk.Plugin) error 
 		return err
 	}
 	const unfoldable = "show system platform | json"
-	fix, err = plugin16PipeRefusalFix(plugin16Dispatch(ctx, p, unfoldable), unfoldable)
+	refused = plugin16Dispatch(ctx, p, unfoldable)
+	fix, err = plugin16PipeRefusalFix(refused, unfoldable)
 	if err != nil {
 		return err
 	}
-	for _, want := range []string{"show system platform", "ze cli -c", unfoldable} {
-		if !strings.Contains(fix, want) {
-			return fmt.Errorf("%q refusal fix %q does not name %q", unfoldable, fix, want)
-		}
+	if fix != "show system platform" {
+		return fmt.Errorf("%q refusal fix is %q, expected the command part alone %q", unfoldable, fix, "show system platform")
+	}
+	if cliForm := "ze cli -c '" + unfoldable + "'"; !strings.Contains(refused.err.Error(), cliForm) {
+		return fmt.Errorf("%q refusal does not name the operator form %q: %q", unfoldable, cliForm, refused.err.Error())
 	}
 	plugin16SayRefused(unfoldable, fix)
 

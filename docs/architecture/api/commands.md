@@ -2057,9 +2057,10 @@ The error names the command part and the chain, says why the chain is not
 applied there, and gives the line to send instead. When every operator of the
 chain is a filter the command registered (`RegisterPipeFilters`), that line is
 the folded form `foldFilters` writes, which the command reads as its own
-arguments. Otherwise the fix names the command part alone, so the caller selects
-from its data, and the `ze cli -c` form of the original line, which applies the
-chain for an operator.
+arguments. Otherwise the fix is the command part alone, so the caller selects
+from its data, and the why names the `ze cli -c` form of the original line,
+which applies the chain for an operator. The fix line stays one exact command
+either way.
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch, scanCommand, pipeChainRefusal -->
 <!-- source: internal/component/command/pipe.go -- FoldPipeChain, foldFilters -->
 

@@ -8,7 +8,7 @@
 | Release reason | Shipped daemon behaviour: a command a plugin dispatches with a pipe chain gets a silently wrong answer (the whole answer, unfiltered, or a refusal naming the pipe as an argument), which `ai/rules/principles.md` forbids. That is incorrect shipped behaviour (`plan/README.md`, `release/fixes/`), not tooling |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 2/3 |
+| Phase | 3/3 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -207,7 +207,7 @@ alternatives and the producer functions that decide it.
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | A plugin dispatches a known command followed by a pipe chain outside quotes (`show bgp rib received`, a pipe, `count`) | The plugin receives an error answer; no handler, subsystem or plugin process runs. The message is an `opererr` error: the problem names the command part and the chain; the why says the dispatcher answers data and a pipe chain is applied by the surface that renders the answer; the fix names the exact line to send. When every operator folds into the command's own filters, the fix is the folded line (`show bgp rib received count`) | none: the unfiltered answer is the defect |
-| AC-1b | The chain holds an operator that does not fold (a format, `display`, `match` on a command that owns no such filter) | Same refusal; the fix names the command part alone, to dispatch and select from its data, and the `ze cli -c` form with the original line that applies the chain for an operator | none |
+| AC-1b | The chain holds an operator that does not fold (a format, `display`, `match` on a command that owns no such filter) | Same refusal; the fix is the command part alone, the one exact line to dispatch and select from its data, and the why names the `ze cli -c` form with the original line (single-quoted for a shell) that applies the chain for an operator | none |
 | AC-2 | A plugin dispatches a command whose argument is a quoted pipe character, or a quoted value holding one | The handler receives the pipe character (or the whole value) as its argument, as today | the quoted value, because it is data |
 | AC-3 | Any other caller hands `Dispatch` an unsplit line with a pipe outside quotes (MCP `ze_execute`, REST execute, gRPC, `Reactor.ExecuteCommand`) | The caller receives the same refusal as AC-1 | none: the check is in `Dispatch`, the one entry they share |
 | AC-4 | A line with no pipe outside quotes, from any caller | Dispatches exactly as today, with the raw answer | every existing dispatch, because the scan changes no token |
@@ -410,3 +410,144 @@ alternatives and the producer functions that decide it.
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `scanCommand` (`internal/component/plugin/server/command.go`): one quote-aware pass answering the tokens `tokenize` answered before and the offset of the first pipe outside double quotes; `tokenize` now calls it and drops the offset
+- `Dispatcher.Dispatch`: after the accounting defer and before builtin, subsystem or plugin resolution, a line with a pipe outside quotes is answered `plugin.OperatorErrorResponse(pipeChainRefusal(...))` with the error beside it
+- `pipeChainRefusal`: an `opererr` error; problem names the command part and the chain, why says the dispatcher answers data and the rendering surface applies a chain, fix is the folded line (`command.FoldPipeChain`) or, when the chain does not fold whole, the command part alone with the `ze cli -c` form in the why (`zeCLIForm`, shell single-quoted)
+- `command.FoldPipeChain` (`internal/component/command/pipe.go`): `parsePipeOps`, `expandAliases`, `bindAddressFields`, `foldFilters` over the separated command and chain; whole only when no operator remains
+- Fixture `plugin16DispatchPipeChainRefused` and `test/plugin/dispatch-pipe-chain-refused.ci`
+- Commits: 2616478e64 (refusal, tests, fixture, docs), 8647c73422 (`.ci`), 9731b192f4 (journal rows and the follow-up spec), plus the closure fix below
+
+### Bugs Found/Fixed
+- Closure review: the AC-1b fix line was prose naming two alternatives (`dispatch "X" and select from its data, or run ze cli -c '...'`), which `ai/rules/user-facing-errors.md` forbids (the fix is the exact command alone). Now the fix is the command part and the `ze cli -c` form sits in the why. Covered by `TestDispatchRefusesUnquotedPipeChain`, `TestDispatchPipeRefusalNamesFoldedForm`, `TestDispatchPipeRefusalRedactsSecrets`, `TestDispatchCommandRefusesPipeChain`, `TestDispatchCommandAnswerRefusesPipeChain` and the fixture, each now asserting the fix by equality
+- Closure review: the `ze cli -c '<line>'` form broke for a line holding a single quote; `zeCLIForm` writes it `'\''`. Covered by the new subtest `single quote in the line`
+
+### Documentation Updates
+- `docs/architecture/api/commands.md` "The surface splits the pipe chain; the dispatcher refuses one" and the surface-table note (2616478e64; closure edit: fix is the command alone, the why names `ze cli -c`)
+- `docs/architecture/api/process-protocol.md` "Inter-Plugin Communication" (2616478e64; same closure edit)
+- `docs/plugin-development/handlers.md` "DispatchCommand" (2616478e64, unchanged at closure: it says only that the error names the line to send)
+- `./le doc check all`: no finding on these three pages (the run fails on other sessions' pages only)
+
+### Deviations from Plan
+- AC-1b reworded at closure: the `ze cli -c` form moved from the fix line to the why, so the fix stays one exact command (`ai/rules/user-facing-errors.md` outranks the AC's wording; no information was dropped)
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The design put two alternatives on the opererr fix line | The fix line is the exact command alone; `./le arch operator-error check` does not judge the fix text, so it passed | closure review against `ai/rules/user-facing-errors.md` | fixed in the closure commit |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A piped dispatched line works as on operator surfaces or is refused naming the chain and the fix | Done | `command.go` `Dispatcher.Dispatch`, `pipeChainRefusal` | refused |
+| A quoted pipe stays an argument | Done | `command.go` `scanCommand` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDispatchRefusesUnquotedPipeChain`, `TestDispatchPipeRefusalNamesFoldedForm`, `.ci` | |
+| AC-1b | Changed | same tests, fixture `show system platform \| json` case | Deviations |
+| AC-2 | Done | `TestDispatchKeepsQuotedPipeArgument` | |
+| AC-3 | Done | `TestDispatchPipeRefusalReachesNoPluginProcess`; check sits in `Dispatch`, the entry `serverDispatcher` calls | |
+| AC-4 | Done | existing `TestTokenize`, `TestDispatcherTokenize`, `TestScanCommandReportsUnquotedPipe` | |
+| AC-5 | Done | `TestDispatchPipeRefusalIsAccounted` | |
+| AC-6 | Done | `TestDispatchCommandRefusesPipeChain` socket case | |
+| AC-7 | Done | `TestDispatchPipeRefusalRedactsSecrets` | |
+| AC-8 | Done | `TestDispatchRefusesUnquotedPipeChain` joined cases | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestScanCommandReportsUnquotedPipe` | Done | `plugin_rpc_test.go` | |
+| `command_pipe_refusal_test.go` (six tests) | Done | `internal/component/plugin/server/` | |
+| `TestDispatchCommandRefusesPipeChain`, `TestDispatchCommandAnswerRefusesPipeChain` | Done | `dispatch_test.go` | |
+| `TestFoldPipeChain` | Done | `pipe_fold_test.go` | |
+| `dispatch-pipe-chain-refused` | Done | `test/plugin/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify and Files to Create | Done | `git show --stat 2616478e64 8647c73422`; journal row marked fixed at closure |
+
+### Audit Summary
+- **Total items:** 9 ACs, 2 requirements, 11 tests
+- **Done:** all but AC-1b
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-1b (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A piped line a plugin dispatches is refused with the chain and the fix, never answered as if the chain were absent | functional | `test/plugin/dispatch-pipe-chain-refused.ci`: a forked plugin over a populated adj-rib-in reads the refusal whose fix is exactly `show bgp rib received count`, which then counts 5; red with the refusal removed (the pipe reached bgp-rib as "unknown keyword: \|"), 80 stress runs green (8647c73422 body) |
+| A quoted pipe stays data | unit | `TestDispatchKeepsQuotedPipeArgument` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| MCP, REST and gRPC apply the chain at their edge instead of refusing it | surface work outside this spec's goal (Known Limitations) | `plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md` |
+| `ParsePipe` splitting a quoted pipe on SSH, web and `ze cli` | met while designing; journal row | `plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record`, verdict CLEAN, `hunks` for `command.go`, `commands.md`, `silent-fall-through.md` |
+| `./le spec review check` | pass (run at closure, before `./le commit create`) |
+| Rounds | 3: round 1 two ISSUEs, round 2 one ISSUE (comment only), round 3 clean |
+| Reviewer lenses used | logic+wiring, user-facing errors, security, docs drift, style pass |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | AC-1b fix line is prose with two alternatives, not the exact command (`ai/rules/user-facing-errors.md`) | `command.go` `pipeChainRefusal` | fix is the command part; `ze cli -c` form moved to the why |
+| 2 | ISSUE | `ze cli -c '<line>'` not shell-safe when the line holds a single quote | `command.go` `pipeChainRefusal` | `zeCLIForm` escapes `'` as `'\''`; subtest added |
+| 3 | ISSUE (round 2) | `zeCLIForm` doc comment named the wrong escape: gofmt rewrites a doubled `'` in doc-comment text into a typographic closing quote, so the comment read `'\` followed by U+201D | `command.go` `zeCLIForm` comment | comment states the escape in words with no doubled quote; comment only, no behavior change |
+
+### Run 2
+Over round 1's fixes: `pipeChainRefusal`, `zeCLIForm`, `dispatch_test.go`, `command_pipe_refusal_test.go`, `plugin_fixture_16.go`, `commands.md`, `process-protocol.md`, spec, fragment, journal row, sibling spec. Main-thread reruns after round 1: `./le test unit pkg path ./internal/component/plugin/server/` exit 0, `./le --name session test bgp plugin --pattern dispatch-pipe-chain-refused` PASS. The test edits replace `Contains` on the fix with `Equal` on the one command and move the `ze cli -c` check to the why: they prove more. Findings: 1 ISSUE (row 3), 0 BLOCKER. Style pass: no panic, no allocating formatter, textbuf used.
+
+### Run 3
+Over the row 3 comment edit: `gofmt -l` clean, no typographic quote left in the changed Go files. 0 BLOCKER, 0 ISSUE.
+
+NOTEs: the empty-command fix keeps the placeholder `ze cli -c '<command> \| ...'` (no command exists to name; placeholders are precedent in `register_plugin_restart.go`); the refusal runs before authorization and tells an unauthorized caller only its own line and the folded grammar help already publishes; `FoldPipeChain` repeats `parsePipeChain`'s two-call body after its own parse, by design (the quote-blind `ParsePipe` must not run).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/dispatch-pipe-chain-refused.ci`, `command_pipe_refusal_test.go`, `pipe_fold_test.go` | yes | `git show --stat 2616478e64 8647c73422` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-8 | refusal in `Dispatch` before resolution | `command.go` lines 1081-1099 read at closure; after the round 1 fixes `./le test unit pkg path ./internal/component/plugin/server/` exit 0 and `./le --name session test bgp plugin --pattern dispatch-pipe-chain-refused` PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| forked plugin `dispatch-command` | `test/plugin/dispatch-pipe-chain-refused.ci` | read: `run "le test fixture plugin/dispatch-pipe-chain-refused"`, fixture dispatches through the SDK over TLS |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | census grep in the spec; no in-tree dispatched literal holds a pipe |
+| A-2 | confirmed | `ParsePipe` cuts at the first pipe; pipe `.ci` tests green except `rib-pipe-filter` (foreign 820476c6ee, no piped command) |
+| A-3 | confirmed | `.ci` fix line equals the folded form bgp-rib's registered filters produce |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| commands.md, process-protocol.md: fix is folded line or command alone, why names `ze cli -c` | `pipeChainRefusal` | yes |
+| No for categories 1-3, 5-7, 9-15 | no config, CLI, wire or feature-level change | yes |

@@ -56,7 +56,8 @@ func requirePipeRefusal(t *testing.T, d *Dispatcher, calls *atomic.Int32, line s
 // carries a pipe outside quotes before the matched builtin's handler runs, with
 // a problem naming the command part and the chain from the first pipe, a why
 // naming data and rendering, and, with no filter registered to fold into, the
-// fix that names the command part and the `ze cli -c` form of the line.
+// fix that is the command part alone, with the `ze cli -c` form of the line in
+// the why.
 //
 // Method: one counting builtin ("test command") and a chain of each shape:
 // a folding operator, a format, several operators, and a pipe joined to a word
@@ -95,8 +96,8 @@ func TestDispatchRefusesUnquotedPipeChain(t *testing.T) {
 				assert.Equal(t, "test command", refusal.Fix())
 				return
 			}
-			assert.Contains(t, refusal.Fix(), `dispatch "test command"`, "the fix names the command part to dispatch")
-			assert.Contains(t, refusal.Fix(), "ze cli -c '"+tt.line+"'", "the fix names the operator form of the line")
+			assert.Equal(t, "test command", refusal.Fix(), "the fix is the command part alone, one exact line")
+			assert.Contains(t, refusal.Why(), "ze cli -c '"+tt.line+"'", "the why names the operator form of the line")
 			lines := strings.Split(refusal.Error(), "\n")
 			assert.Equal(t, "fix: "+refusal.Fix(), lines[len(lines)-1], "the fix is alone on the last line")
 		})
@@ -108,6 +109,17 @@ func TestDispatchRefusesUnquotedPipeChain(t *testing.T) {
 		refusal := requirePipeRefusal(t, d, calls, "| count")
 		assert.Contains(t, refusal.Problem(), "names no command")
 		assert.Equal(t, "ze cli -c '<command> | count'", refusal.Fix())
+	})
+
+	t.Run("single quote in the line", func(t *testing.T) {
+		// The `ze cli -c` form single-quotes the line for a shell, so an
+		// embedded single quote is written '\'' and the copied command reaches
+		// ze cli unchanged.
+		t.Parallel()
+		d, calls := pipeChainTarget(t)
+		refusal := requirePipeRefusal(t, d, calls, "test command | match it's")
+		assert.Equal(t, "test command", refusal.Fix())
+		assert.Contains(t, refusal.Why(), `ze cli -c 'test command | match it'\''s'`)
 	})
 }
 
@@ -150,7 +162,8 @@ func TestDispatchPipeRefusalNamesFoldedForm(t *testing.T) {
 	t.Run("a format stays in the chain", func(t *testing.T) {
 		d, calls := pipeChainTarget(t)
 		refusal := requirePipeRefusal(t, d, calls, "test command | count | json")
-		assert.Contains(t, refusal.Fix(), "ze cli -c 'test command | count | json'", "a partial fold is never offered")
+		assert.Equal(t, "test command", refusal.Fix(), "a partial fold is never offered")
+		assert.Contains(t, refusal.Why(), "ze cli -c 'test command | count | json'", "the why names the operator form")
 	})
 
 	t.Run("the folded line dispatches", func(t *testing.T) {
@@ -290,7 +303,8 @@ func TestDispatchPipeRefusalRedactsSecrets(t *testing.T) {
 	refusal := requirePipeRefusal(t, d, calls, line)
 	assert.NotContains(t, refusal.Error(), secret, "the generic refusal masks the secret")
 	assert.Contains(t, refusal.Problem(), redact.Placeholder)
-	assert.Contains(t, refusal.Fix(), "ze cli -c 'test command password "+redact.Placeholder+" | count'")
+	assert.Equal(t, "test command password "+redact.Placeholder, refusal.Fix())
+	assert.Contains(t, refusal.Why(), "ze cli -c 'test command password "+redact.Placeholder+" | count'")
 
 	command.RegisterPipeFilters([]string{"test command"}, command.PipeFilter{Name: "count", Description: "count rows"})
 	refusal = requirePipeRefusal(t, d, calls, line)

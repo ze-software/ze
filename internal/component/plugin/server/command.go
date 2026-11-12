@@ -1358,9 +1358,9 @@ func flagRefusal(path, flag, input string) error {
 // The fix is the line the caller sends instead. When every operator of the
 // chain folds into the command's own filters, that is the folded line
 // (command.FoldPipeChain, which runs the fold the operator surfaces run), the
-// dispatch grammar a plugin already uses. Otherwise it names the command part
-// alone, to dispatch and select from its data, and the `ze cli -c` form of the
-// original line, which applies the chain for an operator.
+// dispatch grammar a plugin already uses. Otherwise the fix is the command part
+// alone, whose data the caller selects from, and the why names the `ze cli -c`
+// form of the original line, which applies the chain for an operator.
 //
 // Every echoed part passes through config.DisplayCommand, so a secret value on
 // the line reads as the placeholder.
@@ -1371,10 +1371,9 @@ func pipeChainRefusal(commandPart, chain, line string) *opererr.Error {
 	const why = "the dispatcher answers data, and a pipe chain is applied by the surface that renders the answer"
 
 	if commandPart == "" {
-		var problem, fix textbuf.Buffer
+		var problem textbuf.Buffer
 		problem.Str("the line ").Quoted(shownLine).Str(" starts with a pipe chain and names no command")
-		fix.Str("ze cli -c '<command> | ").Str(shownChain).Byte('\'')
-		return opererr.New(problem.String(), why, fix.String())
+		return opererr.New(problem.String(), why, zeCLIForm("<command> | "+shownChain))
 	}
 
 	shownCommand := config.DisplayCommand(commandPart)
@@ -1386,10 +1385,22 @@ func pipeChainRefusal(commandPart, chain, line string) *opererr.Error {
 		return opererr.New(problem.String(), why, config.DisplayCommand(folded))
 	}
 
-	var fix textbuf.Buffer
-	fix.Str("dispatch ").Quoted(shownCommand).Str(" and select from its data, or run ze cli -c '").
-		Str(shownLine).Byte('\'')
-	return opererr.New(problem.String(), why, fix.String())
+	// The fix line is one exact command (ai/rules/user-facing-errors.md), so the
+	// operator form that applies the chain goes in the why.
+	var unfolded textbuf.Buffer
+	unfolded.Str(why).Str("; send the command alone and select from its data, or run ").
+		Str(zeCLIForm(shownLine)).Str(" to apply the chain")
+	return opererr.New(problem.String(), unfolded.String(), shownCommand)
+}
+
+// zeCLIForm answers the `ze cli -c` command that applies line's pipe chain,
+// with line single-quoted for a POSIX shell: an embedded single quote closes
+// the quoted string, is written escaped as \', and opens a new quoted string,
+// so the copied command reaches ze cli unchanged.
+func zeCLIForm(line string) string {
+	var tb textbuf.Buffer
+	tb.Str("ze cli -c '").Str(strings.ReplaceAll(line, "'", `'\''`)).Byte('\'')
+	return tb.String()
 }
 
 // firstFlagToken returns the first flag-shaped token in args, or "" if there is
