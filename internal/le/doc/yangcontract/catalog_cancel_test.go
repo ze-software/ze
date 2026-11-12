@@ -277,6 +277,13 @@ func (p *catalogCancellationProbe) waitFile(t *testing.T, path string, bound tim
 		if _, err := os.Stat(path); err == nil {
 			return
 		}
+		early, err := catalogAnsweredBefore(path, p.result, catalogFileWritten)
+		if err != nil {
+			t.Fatalf("look for the catalog answer while waiting for %s: %v", filepath.Base(path), err)
+		}
+		if early {
+			p.failAnsweredEarly(t, path)
+		}
 		select {
 		case <-p.done:
 			t.Fatalf("catalog helper exited before %s: %s", filepath.Base(path), p.output.String())
@@ -301,6 +308,66 @@ func (p *catalogCancellationProbe) waitFile(t *testing.T, path string, bound tim
 		case <-tick.C:
 		}
 	}
+}
+
+// catalogAnsweredBefore reports whether the action's answer exists while the
+// awaited marker does not. Answer returns only after it has joined the leader
+// of each process group it started and killed the rest of that group, and the
+// helper writes the answer after that return, so no later stage can still write
+// the marker: waiting on would delay the failure and lose the answer that
+// explains it. Waiting for the answer itself is never early. written looks at
+// one path, and a look that fails is returned as an error, never read as "not
+// written".
+func catalogAnsweredBefore(awaited, answer string, written func(string) (bool, error)) (bool, error) {
+	if awaited == answer {
+		return false, nil
+	}
+	answered, err := written(answer)
+	if err != nil {
+		return false, err
+	}
+	if !answered {
+		return false, nil
+	}
+	// The marker is looked for after the answer. A gate that wrote it since the
+	// caller's own look was reached, so the answer is not early.
+	reached, err := written(awaited)
+	if err != nil {
+		return false, err
+	}
+	return !reached, nil
+}
+
+// catalogFileWritten reports whether path exists. Absence is its only "no":
+// every other failure to look is returned as the error it is.
+func catalogFileWritten(path string) (bool, error) {
+	_, err := os.Stat(path)
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, os.ErrNotExist):
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
+// failAnsweredEarly ends the test with the answer the action gave without
+// writing the marker at path. The answer file is read here because cleanup
+// removes it, and it alone names why the marker was never written: the helper's
+// output holds no report.
+func (p *catalogCancellationProbe) failAnsweredEarly(t *testing.T, path string) {
+	t.Helper()
+	if err := p.abortAndJoin(); err != nil {
+		t.Error(err)
+	}
+	answer, err := os.ReadFile(p.result)
+	if err != nil {
+		t.Fatalf("catalog action answered without writing %s, the marker this test waits for, and its answer could not be read: %v; output: %s",
+			filepath.Base(path), err, p.output.String())
+	}
+	t.Fatalf("catalog action answered without writing %s, the marker this test waits for; its answer: %s; output: %s",
+		filepath.Base(path), answer, p.output.String())
 }
 
 func (p *catalogCancellationProbe) pids(t *testing.T) []int {
@@ -488,4 +555,104 @@ func (o *catalogProbeOutput) String() string {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	return o.buffer.String()
+}
+
+// TestCatalogAnsweredBeforeItsGate proves the predicate the wait loop asks, not
+// the loop's use of it. It writes the answer and the gate marker in each
+// combination and reads the verdict: only an answer with no marker is early,
+// and an awaited answer is never early against itself. It then lands both files
+// between the predicate's two looks, which a marker-first order would read as
+// early, and refuses a look that fails on either path.
+func TestCatalogAnsweredBeforeItsGate(t *testing.T) {
+	cases := []struct {
+		name                 string
+		marker, answer, self bool
+		want                 bool
+	}{
+		{name: "neither written", want: false},
+		{name: "marker only", marker: true, want: false},
+		{name: "marker then answer", marker: true, answer: true, want: false},
+		{name: "answer without marker", answer: true, want: true},
+		{name: "awaiting the answer itself", answer: true, self: true, want: false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			marker, answer := filepath.Join(dir, "ready"), filepath.Join(dir, "result")
+			if c.marker {
+				if err := os.WriteFile(marker, nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if c.answer {
+				if err := os.WriteFile(answer, []byte("{}"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			awaited := marker
+			if c.self {
+				awaited = answer
+			}
+			got, err := catalogAnsweredBefore(awaited, answer, catalogFileWritten)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != c.want {
+				t.Fatalf("answered-before verdict: got %v, want %v", got, c.want)
+			}
+		})
+	}
+	// The gate and the answer land right after the first look, whichever path
+	// it took. A predicate that looked at the marker first would hold a stale
+	// "not written" beside a fresh answer and call a reached gate early.
+	t.Run("marker and answer land between the two looks", func(t *testing.T) {
+		dir := t.TempDir()
+		marker, answer := filepath.Join(dir, "ready"), filepath.Join(dir, "result")
+		looks := 0
+		landAfterFirstLook := func(path string) (bool, error) {
+			written, err := catalogFileWritten(path)
+			if err != nil {
+				return false, err
+			}
+			looks++
+			if looks > 1 {
+				return written, nil
+			}
+			if err := os.WriteFile(marker, nil, 0o600); err != nil {
+				return false, err
+			}
+			if err := os.WriteFile(answer, []byte("{}"), 0o600); err != nil {
+				return false, err
+			}
+			return written, nil
+		}
+		got, err := catalogAnsweredBefore(marker, answer, landAfterFirstLook)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got {
+			t.Fatal("a gate reached between the two looks was read as an early answer")
+		}
+	})
+	// A marker that cannot be looked at is an error, never "not written": a
+	// path below a regular file fails with ENOTDIR, which is not absence.
+	t.Run("marker that cannot be looked at", func(t *testing.T) {
+		answer := filepath.Join(t.TempDir(), "result")
+		if err := os.WriteFile(answer, []byte("{}"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		got, err := catalogAnsweredBefore(filepath.Join(answer, "below"), answer, catalogFileWritten)
+		if err == nil {
+			t.Fatalf("an unreadable marker answered %v with no error", got)
+		}
+	})
+	// A failed look at the answer is handed on too, never read as "no answer
+	// yet", which would send the loop back to waiting on a broken directory.
+	t.Run("answer that cannot be looked at", func(t *testing.T) {
+		refused := errors.New("look refused")
+		got, err := catalogAnsweredBefore("ready", "result", func(string) (bool, error) { return false, refused })
+		if !errors.Is(err, refused) {
+			t.Fatalf("a refused look at the answer gave verdict %v and error %v", got, err)
+		}
+	})
 }
