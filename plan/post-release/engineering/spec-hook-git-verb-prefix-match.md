@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Agent tooling: a false refusal costs every session a retry and pushes agents toward wrappers, but no shipped behaviour changes |
@@ -150,7 +150,7 @@ and the tree's Markdown on 2026-11-12. Callers: `bashDestructiveGit` and
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A git command name is made of ASCII letters, digits and hyphens, so those three classes are exactly the bytes that continue one | The command list of git 2.43 on this host (`git --exec-path`): every name sharing a prefix with a banned verb continues with a hyphen or a letter (`merge-base`, `mergetool`, `commit-tree`) | A banned verb followed by some other byte would be read as a longer command and pass | The boundary test rows of the TDD plan: the verb followed by each shell byte that can end a word is still refused | unvalidated |
-| A-2 | The merge strategy backends and index writers that share the `git merge` prefix were never refused on purpose | Neither guard's list names them, and no test or recorded verdict row holds one; the guards also do not refuse `git cherry-pick`, `git read-tree` or `git update-index`, which write the same index | If Thomas wants them refused, AC-4 is where they stay refused and the rest of the design stands | Thomas's answer at the design gate | unvalidated |
+| A-2 | The merge strategy backends and index writers that share the `git merge` prefix were never refused on purpose | Neither guard's list names them, and no test or recorded verdict row holds one; the guards also do not refuse `git cherry-pick`, `git read-tree` or `git update-index`, which write the same index | If Thomas wants them refused, AC-4 is where they stay refused and the rest of the design stands | Thomas's answer at the design gate | confirmed 2026-11-12: Thomas ruled that a read-only command is allowed. The eight that perform a merge are not read-only, so they stay refused by name (AC-4) |
 | A-3 | No recorded verdict flips | Search of `guard-verdicts-head.jsonl` on 2026-11-12 for a refused line with a name byte after a verb-ending pattern: none | `TestGuardVerdictsOfHeadStand` goes red and names the line | That test, run after the change | unvalidated |
 
 ### Risks
@@ -324,7 +324,7 @@ and the tree's Markdown on 2026-11-12. Callers: `bashDestructiveGit` and
 | Add the trailing test to the existing text matcher | Move both git guards onto the parsed command words of `commandParse` | The parsed route is the right end state and is already AC-8 of `spec-gates-share-one-semantic-population.md`. It also changes what quoting, `bash -c`, `eval` and an unparsable line mean for two guards that protect the shared index, which is a replacement with its own verdict table work. Three sessions have been refused; the narrow fix lands now and that spec's conversion inherits a correct verdict |
 | The trailing test applies only to a pattern that ends in the verb | Apply it to every pattern | Applied to all, `git checkout --ours`, `git checkout HEAD~1` and `git branch -dr` would pass. The Goal says every other pattern keeps its verdict |
 | A name continues with a letter, a digit or a hyphen; every other byte ends the verb | The verb ends only at whitespace, a separator or the end of the line | The negative form refuses more: a quote, an expansion or a redirect glued to the verb still ends it (R-3) |
-| Keep the eight merge backends refused, each by name | Let the word boundary free them | Proposed, pending Thomas's answer (A-2). They merge into the index and working tree, which is what the `git merge` ban protects. The cost is eight literal patterns in a list. Freed instead, they would join `git cherry-pick` and `git read-tree`, which the guards have never refused |
+| Keep the eight merge backends refused, each by name | Let the word boundary free them | Decided by Thomas's rule that a read-only command is allowed (A-2): the line between passing and refused is whether the command only reads. They merge into the index and working tree, which is what the `git merge` ban protects. The cost is eight literal patterns in a list. Freed instead, they would join `git cherry-pick` and `git read-tree`, which the guards have never refused |
 
 ## Known Limitations
 - The git guards still read the command text, so a git alias and a script file reach a banned verb as before. The parsed-words conversion is `plan/post-release/engineering/spec-gates-share-one-semantic-population.md` (AC-8)
