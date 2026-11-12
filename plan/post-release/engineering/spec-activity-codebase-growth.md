@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Correct public project-size reporting; no shipped routing or lifecycle behavior changes. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | design reworked 2026-11-12 for the owner's wider objective: every section, a ranged tool, committed data |
+| Phase | design approved by the owner 2026-11-12; implementation phase 1 of 5 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -90,14 +90,16 @@ design in three ways: every section is counted, a ranged command measures, and
 one committed file carries the result. The homepage unit wording correction
 recorded in the first design landed in `e8780328d4` and is not owned here.
 
-### Owner decisions pending
+### Owner decisions
 
-None of these blocks the design. Each row states the reading this spec
-proceeds under until he says otherwise.
+Put to him on 2026-11-12 with the committed design (`f94de21043`). His answer,
+the same day: "cap exception granted, go ahead with your readings". That
+grants O-1 for this spec alone and confirms the readings of O-2 to O-4, the
+gained-and-lost meaning of "additions" (A-4) included.
 
 | # | Decision | Evidence | Reading taken |
 |---|----------|----------|---------------|
-| O-1 | A one-off WIP cap exception to start implementation | `./le spec claim` refuses: 16 specs in progress against a cap of 12 | Design completes; the claim that starts implementation waits for his word |
+| O-1 | A one-off WIP cap exception to start implementation | `./le spec claim` refuses: 16 specs in progress against a cap of 12 | Granted for this spec: the claim sets the cap one above the in-progress count |
 | O-2 | A growth chart on the front page | The front page shows three true size figures and no churn figure; he removed its inventory note himself on 2026-11-11 | No chart is added there |
 | O-3 | The front page's three line figures read the history's newest day | They come from `website/data/repo-facts.json`, a separate recorded snapshot, so the two pages can state sizes measured at different commits | They keep their own writer |
 | O-4 | The section table | See "Sections" below; 0.10M of 7.89M lines fall in the catch-all | The twelve sections as listed |
@@ -388,7 +390,7 @@ style rule, the stage population test and the generation lists.
 | A-2 | The whole history is cheap enough to re-measure | Prototype: 84 seconds, 158,845 blobs | A whole-history run becomes a burden and rule changes get avoided | The first real `update all`, timed on this development VM as a works-or-not check only | Prototype confirmed; real run pending |
 | A-3 | Twelve sections describe the repository at every point of its history | Prototype: 0.10M of 7.89M lines fall in Other today, 0.03M of 0.05M on the first day | A large unexplained Other section | The Other section's share in the real file, day by day; owner decision O-4 | Prototype confirmed |
 | A-6 | No commit of this history is authored after it was committed | Measured on 16,558 first-parent commits: none has an author day after its committer day, none an author instant after its committer instant | The refusal of step 2 would stop the tool on a real commit | The first real whole-history run | Measured on the real history |
-| A-4 | Gained and lost per file between recorded days is what "the additions" means for growth | Owner: "the growth of the codebase NOT the change over time" | He wanted commit additions per section | The page labels the two figures; his review of the preview | Awaiting his review |
+| A-4 | Gained and lost per file between recorded days is what "the additions" means for growth | Owner: "the growth of the codebase NOT the change over time" | He wanted commit additions per section | Put to him as a decision on 2026-11-12 | Confirmed by the owner, 2026-11-12 |
 | A-5 | The existing chart treatment carries several series without being a new treatment | `website/AI.md`: a new treatment needs owner approval | A style-guide change and his approval are owed first | His review of the preview before the canonical build | Awaiting his review |
 
 ### Risks
