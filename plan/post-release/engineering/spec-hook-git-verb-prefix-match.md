@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Agent tooling: a false refusal costs every session a retry and pushes agents toward wrappers, but no shipped behaviour changes |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 3/3 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -37,8 +37,19 @@ refused. Every other pattern the guards carry keeps its verdict.
 
 The 2026-09-02 row stays listed in
 `plan/post-release/engineering/spec-gates-share-one-semantic-population.md`;
-the fix here closes all three rows, and that spec's entry is dropped in the
-same commit.
+the fix here closes all three rows.
+
+**Correction (2026-11-12, implementation).** This section first said that
+spec's owned-rows entry would be dropped in the same commit. It is not: the
+spec edit gate refuses any edit of that spec until it carries its own
+`## Existing Mechanisms` section, which is that spec's design work (R-4). The
+entry stays there, naming a row that is now `fixed:`, until that spec is next
+edited.
+
+**WIP cap (2026-11-12).** Thomas ordered this spec implemented at once, with
+19 specs in progress against a cap of 12. The claim was taken one above the
+count for this spec alone; it is a permission for this work, not a change of
+the cap.
 
 ## Required Reading
 
@@ -149,9 +160,9 @@ and the tree's Markdown on 2026-11-12. Callers: `bashDestructiveGit` and
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A git command name is made of ASCII letters, digits and hyphens, so those three classes are exactly the bytes that continue one | The command list of git 2.43 on this host (`git --exec-path`): every name sharing a prefix with a banned verb continues with a hyphen or a letter (`merge-base`, `mergetool`, `commit-tree`) | A banned verb followed by some other byte would be read as a longer command and pass | The boundary test rows of the TDD plan: the verb followed by each shell byte that can end a word is still refused | unvalidated |
+| A-1 | A git command name is made of ASCII letters, digits and hyphens, so those three classes are exactly the bytes that continue one | The command list of git 2.43 on this host (`git --exec-path`): every name sharing a prefix with a banned verb continues with a hyphen or a letter (`merge-base`, `mergetool`, `commit-tree`) | A banned verb followed by some other byte would be read as a longer command and pass | The boundary test rows of the TDD plan: the verb followed by each shell byte that can end a word is still refused | confirmed 2026-11-12: `TestTheVerbEndsAtEveryByteThatCannotContinueAName` green over eleven forms |
 | A-2 | The merge strategy backends and index writers that share the `git merge` prefix were never refused on purpose | Neither guard's list names them, and no test or recorded verdict row holds one; the guards also do not refuse `git cherry-pick`, `git read-tree` or `git update-index`, which write the same index | If Thomas wants them refused, AC-4 is where they stay refused and the rest of the design stands | Thomas's answer at the design gate | confirmed 2026-11-12: Thomas ruled that a read-only command is allowed. The eight that perform a merge are not read-only, so they stay refused by name (AC-4) |
-| A-3 | No recorded verdict flips | Search of `guard-verdicts-head.jsonl` on 2026-11-12 for a refused line with a name byte after a verb-ending pattern: none | `TestGuardVerdictsOfHeadStand` goes red and names the line | That test, run after the change | unvalidated |
+| A-3 | No recorded verdict flips | Search of `guard-verdicts-head.jsonl` on 2026-11-12 for a refused line with a name byte after a verb-ending pattern: none | `TestGuardVerdictsOfHeadStand` goes red and names the line | That test, run after the change | confirmed 2026-11-12: `TestGuardVerdictsOfHeadStand` green after the change; its update run added two rows and changed none |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -159,7 +170,7 @@ and the tree's Markdown on 2026-11-12. Callers: `bashDestructiveGit` and
 | R-1 | The trailing test is applied to an argument pattern, and `git checkout --ours`, `git checkout HEAD~1` or `git branch -dr` stops being refused | `TestAnArgumentPatternKeepsItsPrefix` red | The test exists before the change and names each form |
 | R-2 | A git alias whose name extends a banned verb (`merge-ff`) runs that verb | None from the hook: an alias under any name already bypasses a guard that reads the command text | Unchanged exposure, not introduced here. Recorded so the argv conversion in `spec-gates-share-one-semantic-population.md` does not assume the text match covered it |
 | R-3 | A banned verb directly followed by a quote or an expansion (`git merge"" main`) is read as a longer command | The boundary rows | The test is negative: only a letter, a digit or a hyphen continues a name, so every other byte ends the verb and the command is refused |
-| R-4 | Dropping the row from the other spec's owned-rows table needs that spec's doors read first, and it names many subsystems | The spec edit hook refuses the edit | The implementing session reads the doors the refusal names before that edit; the edit is one table row |
+| R-4 | Dropping the row from the other spec's owned-rows table needs that spec's doors read first, and it names many subsystems | The spec edit hook refuses the edit | The implementing session reads the doors the refusal names before that edit; the edit is one table row. Happened 2026-11-12, and reading was not enough: the gate also refused because that spec (Status design) has no `## Existing Mechanisms` section. Writing that section is that spec's design, so the edit was not made and the entry stays |
 | R-5 | Another session edits `bash.go` at the same time | `git status` shows the file dirty before the first edit | Commit this spec's hunks alone (`hunks` in `./le commit create`) |
 
 ## Blast Radius
@@ -217,7 +228,8 @@ and the tree's Markdown on 2026-11-12. Callers: `bashDestructiveGit` and
 - `docs/contributing/running-commands.md` - "The Bash guard matches your command text"
 - `ai/doors/le-tooling.md` - the Traps line
 - `plan/journal/hook-existing-patterns-false-positive.md` - the three rows marked fixed
-- `plan/post-release/engineering/spec-gates-share-one-semantic-population.md` - the 2026-09-02 row leaves its owned-rows table
+- `plan/post-release/engineering/spec-gates-share-one-semantic-population.md` - not modified: the gate refuses the edit (R-4)
+- `internal/le/ai/hooks/parity.go`, `parity_test.go`, `fixtures.go` - found in implementation: the golden population count, its exit-code populations and two stored digests (`parityCatalogDigest`, `hookSourcesDigest`) mirror the catalog and the hook sources, and move with them
 
 ## Files to Create
 - none
@@ -290,7 +302,7 @@ and the tree's Markdown on 2026-11-12. Callers: `bashDestructiveGit` and
 | `git merge-base` passes the hook | `./le ai hooks unit`, the new golden row |
 | The banned verb and the argument forms stay refused | `./le test unit pkg path ./internal/le/hookruntime/ run 'TestTheVerbEnds|TestAnArgumentPattern|TestAMergeBackend|TestEveryBranchMoving|TestEveryForbiddenGit'` |
 | No recorded refusal cleared | `./le test unit pkg path ./internal/le/hookruntime/ run TestGuardVerdictsOfHeadStand` |
-| Three journal rows closed, one owned-rows entry dropped | `./le spec journal report` no longer counts them as open |
+| Three journal rows closed | `./le spec journal report` no longer counts them as open |
 
 ### Security Review Checklist
 | Check | What to look for |

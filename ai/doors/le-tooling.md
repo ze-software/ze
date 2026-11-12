@@ -91,7 +91,9 @@ launcher, and the test trees it runs. Here "outside" does not mean a customer. I
 
 - **A hook pattern matched a prefix.** `gitVerbRun` (`hookruntime/bash.go`)
   refused `git merge-base` as `git merge`
-  (`plan/journal/hook-existing-patterns-false-positive.md`, 2026-09-02).
+  (`plan/journal/hook-existing-patterns-false-positive.md`, 2026-09-02). Now a
+  pattern that ends in the verb matches a whole word, and a pattern with an
+  argument (`git checkout --`) stays a prefix on purpose.
 - **A guard blocked its own author's repair**: the test-weakening check refused
   edits to an untracked new test file
   (`plan/journal/guard-blocks-its-own-authors-repair.md`).

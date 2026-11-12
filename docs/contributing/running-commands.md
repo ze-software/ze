@@ -2320,6 +2320,23 @@ Git's pre-verb options are stripped before the comparison (`gitInvocation`), so
 `git -C /other/tree commit` and `git -c commit.gpgsign=false commit` are refused
 exactly as the bare verb is.
 
+A verb ends where a git command name cannot continue, and only an ASCII letter,
+a digit or a hyphen continues one. A pattern that ends in the verb, such as
+`git merge` or `git commit`, matches only when the next byte is none of those,
+so `git merge-base` and `git commit-tree` are other commands and pass, while
+`git merge --ff-only` and `git merge;ls` are still the banned verb. A pattern
+that continues past the verb with an argument, such as `git checkout --`,
+`git checkout HEAD` or `git branch -d`, stays a prefix on purpose: its tail
+covers a family of destructive forms, so `git checkout --ours`,
+`git checkout HEAD~1` and `git branch -dr` stay refused. The git commands that
+perform a merge into the index and working tree under a longer name
+(`git merge-recursive`, `git merge-octopus`, `git merge-resolve`,
+`git merge-ours`, `git merge-subtree`, `git merge-index`, `git merge-one-file`
+and `git mergetool`) are named one by one in `bashBranchMove`. Their relatives
+that write neither the index nor a branch, such as `git merge-tree`,
+`git merge-file` and `git commit-graph`, pass.
+<!-- source: internal/le/hookruntime/bash.go -- gitVerbRun -->
+
 Two guards read the result. `bashDestructiveGit` refuses the verbs that discard
 work or publish it, staging included, and names `./le commit create` as the route
 that works. `bashBranchMove` refuses the verbs that create, switch, rename, delete

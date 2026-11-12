@@ -1,4 +1,4 @@
-// Related: bash.go -- bashDestructiveGit, the forbidden-git-verb guard
+// Related: bash.go -- bashDestructiveGit and bashBranchMove, the git verb guards, and gitVerbRun, their matcher
 //
 // VALIDATES: every git verb CLAUDE.md forbids as a direct Bash call is refused,
 // the refusal names the route that works, and a read-only git call and the
@@ -146,6 +146,179 @@ func TestReadingBranchesIsNotMovingThem(t *testing.T) {
 			})
 			if code != 0 {
 				t.Fatalf("code = %d, want 0 for %q: %s", code, command, message)
+			}
+		})
+	}
+}
+
+// TestALongerGitCommandIsNotTheBannedVerb asks whether a git command whose
+// name begins with a banned verb passes. It drives the whole pretool-bash
+// action with each line, as TestTheCommitRouteAndReadsAreNotBlocked does.
+//
+// The matcher tested only the byte before a verb, so every pattern that ends
+// in the verb matched as a prefix: `git merge-base --is-ancestor`, which only
+// reads history, was refused as `git merge`, three times, to three sessions.
+// `git merge-tree`, `git merge-file`, `git commit-tree` and `git commit-graph`
+// write neither the shared index nor a branch, so they pass too.
+//
+// VALIDATES: AC-1 and the passing half of AC-4: a longer git command exits 0,
+// bare, behind -C and after a separator.
+// PREVENTS: a read-only git call refused as the verb it begins with, which
+// pushes a session toward a wrapper around the guard.
+func TestALongerGitCommandIsNotTheBannedVerb(t *testing.T) {
+	commands := []string{
+		"git" + " merge-base --is-ancestor abc123 main",
+		"git" + " merge-base HEAD origin/main",
+		"git" + " -C /other/tree merge-base a b",
+		"ls && git" + " merge-base a b",
+		"git" + " merge-tree a b",
+		"git" + " merge-file a b c",
+		"git" + " commit-tree abc -m x",
+		"git" + " commit-graph verify",
+	}
+	for _, command := range commands {
+		t.Run(command, func(t *testing.T) {
+			root := t.TempDir()
+			code, _, message := runHook(t, root, "pretool-bash", map[string]any{
+				"tool_name":  "Bash",
+				"tool_input": map[string]any{"command": command},
+			})
+			if code != 0 {
+				t.Fatalf("code = %d, want 0 for %q: %s", code, command, message)
+			}
+		})
+	}
+}
+
+// TestTheVerbEndsAtEveryByteThatCannotContinueAName asks whether the banned
+// verb stays refused whatever byte follows it, so long as that byte cannot
+// continue a git command name. Each line runs through the whole pretool-bash
+// action, and the refusal must be the branch guard's own.
+//
+// A git command name is letters, digits and hyphens. Any other byte ends the
+// verb: an option, a separator, a pipe, a closing subshell, a newline, a
+// redirect, a quote or an expansion glued to the word. A matcher that ended
+// the verb only at a space or the end of the line would read `git merge;ls` or
+// `git merge"" other` as a longer command and let the merge run.
+//
+// VALIDATES: AC-2: `git merge` followed by each word-ending byte exits 2 with
+// the branch-move refusal.
+// PREVENTS: a spelling of the banned verb passing the guard because the byte
+// after it is not a space.
+func TestTheVerbEndsAtEveryByteThatCannotContinueAName(t *testing.T) {
+	commands := []string{
+		"git" + " merge",
+		"git" + " merge --ff-only",
+		"git" + " merge other",
+		"git" + " merge;ls",
+		"git" + " merge&",
+		"git" + " merge|cat",
+		"(git" + " merge)",
+		"git" + " merge\nls",
+		"git" + " merge>tmp/x.log",
+		"git" + " merge\"\" other",
+		"git" + " merge$BRANCH",
+	}
+	for _, command := range commands {
+		t.Run(command, func(t *testing.T) {
+			root := t.TempDir()
+			code, _, message := runHook(t, root, "pretool-bash", map[string]any{
+				"tool_name":  "Bash",
+				"tool_input": map[string]any{"command": command},
+			})
+			if code != 2 {
+				t.Fatalf("code = %d, want 2 for %q", code, command)
+			}
+			if !strings.Contains(message, "the user's to move") {
+				t.Errorf("the refusal of %q is not the branch guard's: %s", command, message)
+			}
+		})
+	}
+}
+
+// TestAnArgumentPatternKeepsItsPrefix asks whether a pattern that continues
+// past the verb still matches as a prefix. Each line runs through the whole
+// pretool-bash action, and the refusal must be the text of the guard that
+// holds the pattern.
+//
+// In `git checkout --` the pattern's own space already ends the verb, and its
+// tail is a prefix on purpose: `--` covers every long option, `HEAD` covers
+// `HEAD~1`, `-f` covers the combined `-fq`, and `git branch -d` covers `-dr`.
+// A word boundary applied to these patterns too would stop refusing each of
+// those destructive forms.
+//
+// VALIDATES: AC-3: each long, relative or combined form of an argument
+// pattern exits 2 with its guard's refusal.
+// PREVENTS: the whole-word fix for a verb clearing the refusal of a
+// destructive checkout or a branch deletion.
+func TestAnArgumentPatternKeepsItsPrefix(t *testing.T) {
+	const destructive = "./le commit create"
+	const branch = "the user's to move"
+	cases := []struct {
+		command string
+		refusal string
+	}{
+		{"git" + " checkout --ours f.go", destructive},
+		{"git" + " checkout --theirs f.go", destructive},
+		{"git" + " checkout HEAD~1 f.go", destructive},
+		{"git" + " checkout -fq", destructive},
+		{"git" + " branch -dr origin/x", branch},
+	}
+	for _, tc := range cases {
+		t.Run(tc.command, func(t *testing.T) {
+			root := t.TempDir()
+			code, _, message := runHook(t, root, "pretool-bash", map[string]any{
+				"tool_name":  "Bash",
+				"tool_input": map[string]any{"command": tc.command},
+			})
+			if code != 2 {
+				t.Fatalf("code = %d, want 2 for %q", code, tc.command)
+			}
+			if !strings.Contains(message, tc.refusal) {
+				t.Errorf("the refusal of %q does not carry %q: %s", tc.command, tc.refusal, message)
+			}
+		})
+	}
+}
+
+// TestAMergeBackendIsRefusedByName asks whether each git command that performs
+// a merge into the index and working tree stays refused once the verb is
+// matched as a whole word. Each line runs through the whole pretool-bash
+// action.
+//
+// The prefix match refused these eight only because their names begin with
+// `merge`, and no list named them: a guard nobody declared. A whole-word
+// match alone would have freed them with no line deleted and no test red.
+// They write the shared index, which is what the ban on `git merge` protects,
+// so each is refused as a pattern of its own.
+//
+// VALIDATES: AC-4: each merge backend and `git mergetool` exits 2 with the
+// branch-move refusal.
+// PREVENTS: the word-boundary fix silently letting a merge into the shared
+// checkout through under the name of its backend.
+func TestAMergeBackendIsRefusedByName(t *testing.T) {
+	commands := []string{
+		"git" + " merge-recursive base -- HEAD other",
+		"git" + " merge-octopus",
+		"git" + " merge-resolve",
+		"git" + " merge-ours",
+		"git" + " merge-subtree",
+		"git" + " merge-index -a",
+		"git" + " merge-one-file",
+		"git" + " mergetool",
+	}
+	for _, command := range commands {
+		t.Run(command, func(t *testing.T) {
+			root := t.TempDir()
+			code, _, message := runHook(t, root, "pretool-bash", map[string]any{
+				"tool_name":  "Bash",
+				"tool_input": map[string]any{"command": command},
+			})
+			if code != 2 {
+				t.Fatalf("code = %d, want 2 for %q", code, command)
+			}
+			if !strings.Contains(message, "the user's to move") {
+				t.Errorf("the refusal of %q is not the branch guard's: %s", command, message)
 			}
 		})
 	}

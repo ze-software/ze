@@ -1228,6 +1228,8 @@
 {"line":"git log -p $_ 'go build ./cmd/z'","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"git merge main","caller":"main","refused-by":["bashBranchMove"],"reader-line":false}
 {"line":"git merge main","caller":"subagent","refused-by":["bashBranchMove","bashAgentIdentity"],"reader-line":false}
+{"line":"git merge-base --is-ancestor abc main","caller":"main","refused-by":[],"reader-line":false}
+{"line":"git merge-base --is-ancestor abc main","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"git reset --hard","caller":"main","refused-by":["bashDestructiveGit"],"reader-line":false}
 {"line":"git reset --hard","caller":"subagent","refused-by":["bashDestructiveGit","bashAgentIdentity"],"reader-line":false}
 {"line":"git restore --staged f","caller":"main","refused-by":["bashDestructiveGit"],"reader-line":false}

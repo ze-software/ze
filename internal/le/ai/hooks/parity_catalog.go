@@ -7,13 +7,16 @@ package aihooks
 // the former producer and is part of the structured answer contract.
 var parityCatalog = [...]parityTable{
 	{
-		key: "BASH_GOLDEN", name: "bash-dispatcher-golden", expected: 92, judge: bashHookVerdict,
+		key: "BASH_GOLDEN", name: "bash-dispatcher-golden", expected: 93, judge: bashHookVerdict,
 		fixtures: []parityFixture{
 			{name: "cat /tmp/x", expectedCode: 2},
 			{name: "cat tmp/x", expectedCode: 0},
 			{name: "cp .claude/worktrees/a internal/x", expectedCode: 2},
 			{name: "git commit -m x", expectedCode: 2},
 			{name: "git merge main", expectedCode: 2},
+			// spec-hook-git-verb-prefix-match: a longer git command is not the
+			// banned verb it begins with. `git merge-base` only reads history.
+			{name: "git merge-base --is-ancestor abc main", expectedCode: 0},
 			{name: "git reset --hard", expectedCode: 2},
 			{name: "git restore --staged f", expectedCode: 2},
 			{name: "go build -o bin/ze ./cmd/ze", expectedCode: 0},

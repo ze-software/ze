@@ -112,8 +112,21 @@ func insideQuotes(command string, offset int) bool {
 // about the rule it was obeying. The verb has to sit where a command starts:
 // at the beginning, or after a separator, a pipe, an opening subshell, or a
 // newline. Quoting it, as `git add`, is then how prose names it safely.
+//
+// The end of the match is judged by the pattern's shape. A pattern that ends
+// in the verb (`git merge`, the word `git` and one more) matches only where the
+// verb ends too: at the end of the command, or before a byte that cannot
+// continue a git command name (gitNameByte). Without that test every such
+// pattern was a prefix, and `git merge-base`, which only reads history, was
+// refused as `git merge`. Any other byte ends the verb, so a quote, an
+// expansion, a redirect or a separator glued to it (`git merge;ls`) is still
+// the verb. A pattern that continues past the verb with an argument
+// (`git checkout --`, `git branch -d`) is a prefix on purpose: its own space
+// already ends the verb, and its tail covers a family of forms (`--ours`,
+// `HEAD~1`, the combined flag `-dr`).
 func gitVerbRun(command, verb string) bool {
 	prose := !shellInvoker.MatchString(command)
+	verbEnding := strings.Count(verb, " ") == 1
 	for offset := 0; ; {
 		at := strings.Index(command[offset:], verb)
 		if at < 0 {
@@ -121,6 +134,13 @@ func gitVerbRun(command, verb string) bool {
 		}
 		at += offset
 		offset = at + len(verb)
+		// A longer command name that begins with the verb is another command,
+		// so this occurrence is not a run of the verb. The scan goes on, so a
+		// real run later in the line (`git merge-base a b && git merge x`) is
+		// still found.
+		if verbEnding && offset < len(command) && gitNameByte(command[offset]) {
+			continue
+		}
 		// A verb inside quotes is being NAMED. The separator test alone cannot
 		// see that, and the pipe is where it showed: `grep "a\|git me`+`rge" docs/`
 		// puts a separator directly before the verb, so a search for the rule
@@ -155,6 +175,13 @@ func gitVerbRun(command, verb string) bool {
 			return true
 		}
 	}
+}
+
+// gitNameByte reports whether b can continue a git command name. Git's command
+// names are ASCII letters, digits and hyphens (`merge-base`, `mergetool`), so
+// every other byte ends the verb.
+func gitNameByte(b byte) bool {
+	return b == '-' || ('a' <= b && b <= 'z') || ('A' <= b && b <= 'Z') || ('0' <= b && b <= '9')
 }
 
 // gitGlobalOptions matches the options git accepts BEFORE its verb. Every
@@ -211,6 +238,13 @@ func bashBranchMove(ctx context) *verdict {
 	command := gitInvocation(stringInput(ctx.input, "command"))
 	for _, pattern := range []string{
 		"git merge", "git rebase", "git switch",
+		// Each of these performs a merge into the index and working tree under
+		// a longer name. The verb is matched as a whole word, so `git merge`
+		// no longer covers them, and each is named here. Their read-only
+		// relatives (`git merge-base`, `git merge-tree`, `git merge-file`) pass.
+		"git merge-recursive", "git merge-octopus", "git merge-resolve",
+		"git merge-ours", "git merge-subtree", "git merge-index",
+		"git merge-one-file", "git mergetool",
 		"git checkout -b", "git checkout -B",
 		"git branch -d", "git branch -D", "git branch --delete",
 		"git branch -m", "git branch -M", "git branch --move",
