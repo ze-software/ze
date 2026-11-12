@@ -1,0 +1,64 @@
+# Test: show doctor on a running daemon names an environment value ze could
+#       not use, with the default ze used and the corrected export.
+# Spec: spec-doctor-coverage-12-plugin-infra AC-35
+# VALIDATES: the env-values runtime check
+#   (internal/component/doctor/checks_env_values.go) reads env.InvalidValues
+#   in the daemon process, whose environment holds ze.metrics.interval set to
+#   text no duration parses, and answers doctor-env-invalid-value naming the
+#   key, the value, the type and the default 10s, with the export as its fix.
+# PREVENTS: a mistyped export running the daemon on a default with no row on
+#   the surface an operator or AI reads to debug the box.
+# Why not a unit test: the units prove the record and the row; only the
+#   daemon route proves the check runs in the process whose environment the
+#   operator set, and not in the local ze doctor process, which never saw it.
+#
+# No `ze init`: the store is not part of the question, and seeding it is a
+# whole ze process that was killed after 98 s under the stress run. The daemon
+# starts from the file (`ze start running.conf`, as test/plugin/
+# drain-show-answers.ci does) on the runner's default in-memory store, and
+# authenticates the config's own user. The client takes its credentials from
+# the environment, as test/policy/policy-interface-list-counters.ci does:
+# ze.ssh.username and ze.ssh.password stand in for the store's super-admin
+# (resolveUsername and resolvePassword, internal/component/cli/sshclient/
+# client.go), and ze.ssh.port names the daemon's listener (resolveHostPort).
+# No store sits in the work directory, so the client reads it as unavailable
+# rather than failing (openStoreIfReadable). 127.0.0.1 needs no host-key
+# check (hostKeyCallback), so ze.ssh.insecure is not set.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+option=env:var=ze.metrics.interval:value=tenseconds
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+# "Ze running." is printed after the SSH server started (sshBuildStandalone
+# and sshBuild run earlier in cmd/ze/hub), and its Start returns only once the
+# listener accepts (serveListener, internal/component/ssh/listener_start.go).
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+cmd=foreground:seq=2:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-env-invalid-value"
+expect=stdout:contains=environment variable ze.metrics.interval holds
+expect=stdout:contains=tenseconds
+expect=stdout:contains=which is not a valid duration
+expect=stdout:contains=default 10s
+expect=stdout:contains="fix": "export ZE_METRICS_INTERVAL=10s"
