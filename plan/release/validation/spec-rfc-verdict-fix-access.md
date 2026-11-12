@@ -8,7 +8,7 @@
 | Scope | tooling |
 | Depends | `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the access group before any row edit, parent R-11) |
 | Phase | 13/13 — D-8 existing-scenario acceptance and closure |
-| Handoff | `plan/handover/2026-11-10-close-open-specs.md`, active Access checkpoint 2026-11-12 |
+| Handoff | `857da9e798`; claim released. `plan/handover/2026-11-10-close-open-specs.md`, active Access checkpoint 2026-11-12 |
 | Blocker | Guest compilation: foreign `internal/plugins/fib/vpp/routesource.go:32` imports missing vendor package `go.fd.io/govpp/binapi/fib`; all five pending cases stop before assertions. Scoped lint: foreign `internal/plugins/fib/vpp/mpls.go` changed during planning after host; exit 2, no plan. Both belong to active `spec-fib-depth.md` owner `f5ef1144-6c05-40fc-8506-68a94ded2a6f`; preserve its work. |
 | Updated | 2026-11-12 |
 

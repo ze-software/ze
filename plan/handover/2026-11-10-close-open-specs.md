@@ -10,7 +10,7 @@ owner asked that locked or blocked specs not stop progress on the others.
 
 ## Current Access blocked checkpoint, 2026-11-12
 
-Native commit preparation refused two owned error-reporting sites and produced
+Native commit preparation initially refused two owned error-reporting sites and produced
 no script. Main corrected duplicate literal `tc` startup registration to a
 programmer-BUG panic and CoS unknown-command reporting to an operator refusal
 with the supplied command and `ze show class-of-service` recovery. Independent
@@ -19,8 +19,9 @@ skips in `job-access-final-error-surface-controls-8c7f5c5b.log`. The historical
 240-carrier artifact predates these two corrections; refresh its affected pins
 before closure. This note adds no fourth whole-source review pass.
 
-Access remains open; no tenth spec has closed. Root currently holds its claim
-`01a1c842-0a58-7752-bbff-2a3f1633b66f`. All source findings are repaired;
+Access remains open; no tenth spec has closed. Blocked handback `857da9e798`
+landed, and `01a1c842-0a58-7752-bbff-2a3f1633b66f` released its claim.
+All source findings are repaired;
 independent Review 3 is CLEAN with zero BLOCKER/ISSUE, and main observed the
 native artifact/check PASS over 240 carriers at the completed source checkpoint.
 The owned diagnostic-only patch retains reviewed SHA
@@ -55,9 +56,10 @@ and `radius-coa-disconnect-freeradius` under the Ze Docker-host VM. Rerun the
 13-directory scoped lint once inputs settle and validate the five Dockerfile
 allowlists through the normal native build path. Preserve both completed passes.
 
-The prior commit-create was cancelled before publication to preserve sixteen
-foreign diagnostic lines; no commit is pending or landed at this checkpoint.
-The next single blocked-handback commit uses the 48-file manifest
+The blocked handback `857da9e798` landed through the exact generated script
+`tmp/commit-8b5d7643-a-2b514c.sh`: 91 paths, including only seven added
+diagnostic lines and one added selector-journal row. Foreign hunks remain
+uncommitted and intact. It uses the 48-file manifest
 `scratch/access-coa-source-commit-files-with-hunks.txt`, diagnostic-only hunks
 from `scratch/access-coa-diagnostic-owned.patch`, the 29 audit JSON files in
 `scratch/access-audit-metadata-files.txt`, five Docker ignore files, two traffic
