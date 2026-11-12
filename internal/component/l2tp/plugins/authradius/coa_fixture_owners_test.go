@@ -110,7 +110,10 @@ func coaFixtureDispatch(t *testing.T) coaCommandDispatch {
 		t.Cleanup(func() { coaFixtureOwnersByTest.Delete(t) })
 		value = owners
 	}
-	owners := value.(*coaFixtureOwners)
+	owners, ok := value.(*coaFixtureOwners)
+	if !ok {
+		t.Fatalf("authorization owners for this test are %T, want *coaFixtureOwners", value)
+	}
 	if service := l2tp.LookupService(); service != nil {
 		snapshot := service.Snapshot()
 		for i := range snapshot.Tunnels {

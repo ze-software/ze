@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -178,7 +179,7 @@ func (h *cosHandler) executeSessionTransaction(args []string, peer string) (stri
 		if err != nil {
 			return sessionCommandFailure(err)
 		}
-		return "done", result, nil
+		return rpc.StatusDone, result, nil
 	}
 	operations := map[string]func(string, netip.Addr) error{
 		"apply": h.applySessionChange, "rollback": h.rollbackSessionToken, "commit": h.commitSessionChange,
@@ -190,7 +191,7 @@ func (h *cosHandler) executeSessionTransaction(args []string, peer string) (stri
 	if err := operation(request.Token, address); err != nil {
 		return sessionCommandFailure(err)
 	}
-	return "done", sessionTransactionResult{Token: request.Token}, nil
+	return rpc.StatusDone, sessionTransactionResult{Token: request.Token}, nil
 }
 
 func (h *cosHandler) prepareSessionChange(request sessionTransactionRequest, peer netip.Addr) (sessionTransactionResult, error) {

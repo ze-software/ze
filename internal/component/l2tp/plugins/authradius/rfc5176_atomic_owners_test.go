@@ -18,7 +18,10 @@ func coaMixedFixture(t *testing.T) (string, []byte, *coaFixtureOwners) {
 	if !loaded {
 		t.Fatal("registered authorization owners did not start")
 	}
-	owners := value.(*coaFixtureOwners)
+	owners, ok := value.(*coaFixtureOwners)
+	if !ok {
+		t.Fatalf("registered authorization owners are %T, want *coaFixtureOwners", value)
+	}
 	session := &subscriber.Session{
 		ID: "coa-mixed-owners", AccessType: subscriber.AccessL2TP, Username: "alice",
 		TunnelID: 10, SessionID: 20, AcctSessionID: "10-20-1",

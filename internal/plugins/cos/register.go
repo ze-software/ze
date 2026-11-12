@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/plugins/cos/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -185,27 +186,26 @@ func runPlugin(conn net.Conn) int {
 // without starting an engine, and the runner sends it in the Stage 1
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
-	decls := []sdk.CommandDecl{
+	return slices.Concat([]sdk.CommandDecl{
 		{
 			Name:      "show class-of-service",
 			ShortHelp: "Show each class-of-service profile with its ingress and egress marking maps.",
 		},
-	}
-	return append(decls, sessionCommandDecls()...)
+	}, sessionCommandDecls())
 }
 
 // executeCommand admits only commands this plugin declares. The session owner
 // route uses the same handler for DirectBridge and socket command callbacks.
-func executeCommand(_ string, command string, args []string, peer string) (string, any, error) {
+func executeCommand(_, command string, args []string, peer string) (string, any, error) {
 	handlers := map[string]func([]string, string) (string, any, error){
 		"show class-of-service": func([]string, string) (string, any, error) {
-			return "done", showProfiles(), nil
+			return rpc.StatusDone, showProfiles(), nil
 		},
 	}
 	registerSessionCommand(handlers)
 	handler, found := handlers[command]
 	if !found {
-		return "error", "", opererr.New("unknown class-of-service command: "+command,
+		return rpc.StatusError, "", opererr.New("unknown class-of-service command: "+command,
 			"This plugin serves the class-of-service commands declared by the running binary.",
 			"ze show class-of-service")
 	}

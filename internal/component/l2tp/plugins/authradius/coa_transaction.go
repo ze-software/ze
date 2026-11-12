@@ -65,7 +65,7 @@ func (cl *coaListener) confirmCoA(sub *subscriber.Session, change *coaChange, pe
 	rollback := func(cause error) error {
 		errs := []error{cause}
 		// The owner set is bounded by the two authorization controls above.
-		for i := len(owners) - 1; i >= 0; i-- {
+		for i := len(owners) - 1; i >= 0; i-- { //nolint:modernize // the producer-sha of three RFC 5176 discrimination records covers confirmCoA's code; rewriting this loop stales them
 			_, err := cl.callCoAOwner(owners[i].command, coaOwnerRequest{Operation: "rollback", Token: owners[i].token}, peer)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("restore authorization owner %q: %w", owners[i].command, err))

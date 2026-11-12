@@ -23,6 +23,10 @@ const rateCommand = "request l2tp shaper rate"
 
 const rateTransactionLifetime = time.Minute
 
+// rateAnswerTokenKey is the JSON key under which every transaction answer
+// carries the owner token; it matches rateRequest.Token's tag.
+const rateAnswerTokenKey = "token"
+
 // rateRequest is the command's raw boundary value. Only prepare consumes the
 // requested rate; every later operation consumes the peer-bound owner token.
 type rateRequest struct {
@@ -161,7 +165,7 @@ func (s *shaperPlugin) prepareRate(request rateRequest, peer netip.Addr) (any, e
 	if s.ratePending != nil {
 		tx := s.ratePending.transaction()
 		if tx.peer == peer && tx.request == request {
-			return map[string]string{"token": tx.token}, nil
+			return map[string]string{rateAnswerTokenKey: tx.token}, nil
 		}
 		return nil, errors.New("another subscriber rate transaction is pending")
 	}
@@ -206,7 +210,7 @@ func (s *shaperPlugin) prepareRate(request rateRequest, peer netip.Addr) (any, e
 	tx := &rateTransaction{request: request, token: rand.Text(), peer: peer, before: before, after: after,
 		expires: s.rateTime().Add(rateTransactionLifetime)}
 	s.ratePending = tx
-	return map[string]string{"token": tx.token}, nil
+	return map[string]string{rateAnswerTokenKey: tx.token}, nil
 }
 
 func (s *shaperPlugin) rateToken(request rateRequest, peer netip.Addr) (rateChange, error) {
@@ -233,7 +237,7 @@ func (s *shaperPlugin) applyRate(request rateRequest, peer netip.Addr) (any, err
 	}
 	tx := change.transaction()
 	if _, applied := change.(*rateAppliedChange); applied {
-		return map[string]string{"token": tx.token}, nil
+		return map[string]string{rateAnswerTokenKey: tx.token}, nil
 	}
 	if _, prepared := change.(*rateTransaction); !prepared {
 		return nil, errors.New("rate transaction is no longer prepared")
@@ -253,7 +257,7 @@ func (s *shaperPlugin) applyRate(request rateRequest, peer netip.Addr) (any, err
 	s.rememberQoS(tx.after)
 	s.publishRate(tx, tx.after)
 	s.ratePending = &rateAppliedChange{tx}
-	return map[string]string{"token": tx.token}, nil
+	return map[string]string{rateAnswerTokenKey: tx.token}, nil
 }
 
 func (s *shaperPlugin) rollbackRate(request rateRequest, peer netip.Addr) (any, error) {
@@ -262,7 +266,7 @@ func (s *shaperPlugin) rollbackRate(request rateRequest, peer netip.Addr) (any, 
 		return nil, err
 	}
 	if _, restored := change.(*rateRolledBackChange); restored {
-		return map[string]string{"token": change.transaction().token}, nil
+		return map[string]string{rateAnswerTokenKey: change.transaction().token}, nil
 	}
 	return s.restoreRate(change)
 }
@@ -281,7 +285,7 @@ func (s *shaperPlugin) restoreRate(change rateChange) (any, error) {
 		s.publishRate(tx, tx.before)
 	}
 	s.rateLast, s.ratePending = &rateRolledBackChange{tx}, nil
-	return map[string]string{"token": tx.token}, nil
+	return map[string]string{rateAnswerTokenKey: tx.token}, nil
 }
 
 func (s *shaperPlugin) commitRate(request rateRequest, peer netip.Addr) (any, error) {
@@ -291,13 +295,13 @@ func (s *shaperPlugin) commitRate(request rateRequest, peer netip.Addr) (any, er
 	}
 	tx := change.transaction()
 	if _, committed := change.(*rateCommittedChange); committed {
-		return map[string]string{"token": tx.token}, nil
+		return map[string]string{rateAnswerTokenKey: tx.token}, nil
 	}
 	if _, applied := change.(*rateAppliedChange); !applied {
 		return nil, errors.New("rate transaction has not been applied")
 	}
 	s.rateLast, s.ratePending = &rateCommittedChange{tx}, nil
-	return map[string]string{"token": tx.token}, nil
+	return map[string]string{rateAnswerTokenKey: tx.token}, nil
 }
 
 func (s *shaperPlugin) publishRate(tx *rateTransaction, qos traffic.InterfaceQoS) {
