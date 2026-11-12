@@ -523,6 +523,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   presents a design: before and after examples of what a user sees, the
   alternatives, and the documentation it contradicts. Once he agrees, the
   documentation is corrected in the same work.
+- A design decision Thomas makes is written into the design page that
+  documents its subject, never into a separate register of decisions. Before
+  an agent edits a file, or writes a spec that touches it, it reads the design
+  page the file's `// Design:` header links.
 - A hook checks what a command, path or file is, never how a message is worded.
 - An agent never gets past a hook refusal by running the refused command from
   a script file or any other wrapper, even when the refusal is false. It
