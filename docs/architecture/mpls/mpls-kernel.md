@@ -49,8 +49,21 @@ writes the key, so the sysctl registration refuses 0 from config verify, a
 transient `set sysctl` and a plugin default alike, with an error that names the
 RFC section (`refuseMPLSTTLNoPropagate`).
 
+That refusal covers only what Ze writes. Another program (`sysctl -w`, a boot
+script) can still write 0, so fib-kernel registers the `post-config` doctor
+check `mpls-ttl-propagate`, which reads the key back through `sysctl.Read`.
+It asks only when the config makes the kernel FIB push labels
+(`kernelcap.MPLSInUse`, the predicate the MPLS capability rows use), so a box
+with no MPLS, or one whose labels go to VPP, is never asked. A 0 is
+`doctor-mpls-ttl-propagate-off`, an error that names RFC 3032 Section 2.4.3,
+with the fix `sysctl -w net.mpls.ip_ttl_propagate=1`. A key it cannot read,
+or a value other than 0 or 1, is `doctor-mpls-ttl-propagate-unknown`, a
+warning that carries the reason: a read that fails is never taken as a pass.
+
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildMPLSEncap -->
 <!-- source: internal/core/sysctl/known_linux.go -- refuseMPLSTTLNoPropagate -->
+<!-- source: internal/plugins/fib/kernel/doctor_mplsttl_linux.go -- checkMPLSTTLPropagate -->
+<!-- test: internal/plugins/fib/kernel/doctor_mplsttl_linux_test.go TestCheckMPLSTTLPropagateReportsZero -->
 
 ## Constraint: the push shares the FIB with other writers
 
@@ -356,9 +369,10 @@ to the label table:
 VPP carries no owner mark on a label route, so every unreserved unicast label
 route in table 0 counts as Ze's: `fib-vpp` is the only writer of MPLS table 0
 on the VPP Ze supervises. The sweep reads table 0 only. A push is a labeled IP
-route, not a label route, so one a previous run left stays until its source
-installs or withdraws the FEC again, as an IP route a previous run left does:
-`fib-vpp` reconciles no IP table at open.
+route, not a label route: it is installed under fib-vpp's own VPP FIB source
+like every other IP route fib-vpp installs, and the stale IP route sweep
+removes one a previous run left
+(`docs/architecture/fib/fib-vpp-route-ownership.md`).
 
 A route VPP refuses to remove, and a table 0 that could not be read, are
 reported by the runtime doctor check below, which a successful re-claim of the
@@ -379,6 +393,7 @@ forked:
 | `bgp-epe-label-entries` | `bgp-epe` | each PeerNode SID label no writer installed, a removal no writer carried out, or a label a replay did not restore, until the data plane holds what EPE wants | `doctor-fib-mpls-no-writer` (error) |
 | `fib-vpp-label-entries` | `fib-vpp` | label entries installed without their path MTU | `doctor-fib-vpp-mpls-path-mtu` (warning) |
 | `fib-vpp-label-entries` | `fib-vpp` | a label route a previous run left that VPP refused to remove, or a table 0 the writer could not read | `doctor-fib-vpp-mpls-stale-label` (error) |
+| `fib-vpp-stale-routes` | `fib-vpp` | an IP route or labeled push a previous run left that VPP refused to remove, IP tables the writer could not read, or no FIB source to mark routes with (`docs/architecture/fib/fib-vpp-route-ownership.md`) | `doctor-fib-vpp-stale-route` (error) |
 
 The four label sources keep one shared record, `mplsfib.Refusals`: an entry
 per data-plane slot (a push by FEC and table, a swap or pop by in-label) with
@@ -418,16 +433,40 @@ already enables the kernel.
 
 ## Operator surface
 
-`show mpls forwarding` reads the kernel table on Linux, and only that table: on
-VPP it does not show the labels `fib-vpp` installed. The non-Linux build
-carries a stub so the command exists everywhere, and the stub refuses with an
-error naming the host's OS: an empty table would read as "no MPLS routes" on a
-host where Ze cannot read the table at all. OpenBSD's kernel has MPLS, but Ze
-does not read its table.
+`show mpls forwarding` reads the data plane that the accepted config selects
+at `interface { backend }`. It reads that data plane's table, never a daemon's
+memory. The owner of each data plane registers a reader in
+`internal/core/mplsfib` under the backend's name, and the command looks the
+reader up by that name, so the command names no FIB plugin:
 
-<!-- source: internal/component/mpls/show_forwarding.go -- the show mpls forwarding command -->
+| Data plane | Reader | What it reads |
+|------------|--------|---------------|
+| `netlink` | `internal/component/mpls` | The kernel AF_MPLS table (swap, pop), and the IP routes with `rtm_protocol` 250 that carry an MPLS encap (push) |
+| `vpp` | `fib-vpp` | VPP MPLS table 0 (swap, pop), and every IP table's routes whose path carries a label stack (push) |
+
+The rows have the same shape on both data planes. Under VPP, one Ze entry is
+two VPP routes, one per value of the S bit, and the reader shows it as one row
+built from the S=1 route. An egress pop has no next hop, because its path is
+a lookup in an IP table. A path that fib-vpp writes names no interface, so its
+`device` is empty. A path that names one shows VPP's interface name. VPP marks
+no route with an owner, so the reader shows every unicast label route with an
+unreserved in-label, and every labeled IP route, as Ze's, which is the same
+assumption the restart sweep makes.
+
+A reader that cannot read its table refuses with the cause and the fix. Such a
+reader is the VPP one when the vpp component has no connection or a dump
+fails, or the non-Linux kernel stub. The command also refuses when the build
+has no reader for the selected data plane, or when the accepted configuration
+cannot be read. It never falls back to the kernel table, and it never answers
+an empty table: an empty table would read as "no MPLS routes" on a box where
+Ze could not read the table at all. OpenBSD's kernel has MPLS, but Ze does not
+read its table.
+
+<!-- source: internal/component/mpls/show_forwarding.go -- configuredDataPlane, readerForDataPlane -->
+<!-- source: internal/core/mplsfib/forwarding.go -- RegisterForwardingReader, ForwardingReaderFor, LabelOperation -->
 <!-- source: internal/component/mpls/forwarding_linux.go -- the kernel AF_MPLS table reader -->
 <!-- source: internal/component/mpls/forwarding_other.go -- the non-Linux refusal -->
+<!-- source: internal/plugins/fib/vpp/mplsforwarding.go -- readMPLSForwarding, dumpLabelForwarding, dumpPushForwarding -->
 
 Per-interface MPLS input is enabled through the iface YANG (`mpls { enable }`,
 which sets `net.mpls.conf.<iface>.input`), not through a standalone MPLS module.

@@ -99,6 +99,8 @@ const (
 	CodeDoctorKernelCapabilityDenied               = "doctor-kernel-capability-denied"
 	CodeDoctorMPLSTransitMTUUnenforced             = "doctor-mpls-transit-mtu-unenforced"
 	CodeDoctorMPLSTransitMTUUnknown                = "doctor-mpls-transit-mtu-unknown"
+	CodeDoctorMPLSTTLPropagateOff                  = "doctor-mpls-ttl-propagate-off"
+	CodeDoctorMPLSTTLPropagateUnknown              = "doctor-mpls-ttl-propagate-unknown"
 	CodeDoctorModuleMissing                        = "doctor-module-missing"
 	CodeDoctorPPPoEUnavailable                     = "doctor-pppoe-unavailable"
 	CodeDoctorPPPoEUnknown                         = "doctor-pppoe-unknown"
@@ -679,6 +681,20 @@ var builtinCodes = append([]CodeMeta{
 		Description:  "ze could not tell whether the kernel accepts a path MTU on an AF_MPLS route. The probe sends two non-creating route requests for label 16 and needs CAP_NET_ADMIN and a non-empty MPLS label space (/proc/sys/net/mpls/platform_labels); an unprivileged `ze doctor`, or one run before the daemon enabled the label space, cannot ask. This is a WARNING and never refuses a start. The daemon asks again when it installs its first transit route that carries a path MTU, and installs that route without the MTU unless the kernel answered that it accepts one. Remedy: run `ze doctor` as root after the daemon has started.",
 		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-mpls-transit-mtu-unknown"},
 		RelatedCodes: []string{CodeDoctorMPLSTransitMTUUnenforced},
+	},
+	{
+		Code:         CodeDoctorMPLSTTLPropagateOff,
+		Title:        "Pushed MPLS labels do not carry the IP TTL",
+		Description:  "The configuration makes the kernel FIB push MPLS labels, and the kernel holds net.mpls.ip_ttl_propagate 0. ze writes no TTL into the labels it pushes, so the kernel chooses it: the packet's IP TTL while the key is 1, and net.mpls.default_ttl while it is 0. RFC 3032 Section 2.4.3 requires a label pushed onto an IP packet to carry the packet's IP TTL. ze refuses 0 on every write it makes, so another program (sysctl -w, a boot script) wrote it. This is an ERROR: `ze doctor` reports the box not ready. Remedy: run `sysctl -w net.mpls.ip_ttl_propagate=1`, and remove what wrote 0.",
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-mpls-ttl-propagate-off"},
+		RelatedCodes: []string{CodeDoctorMPLSTTLPropagateUnknown},
+	},
+	{
+		Code:         CodeDoctorMPLSTTLPropagateUnknown,
+		Title:        "TTL of pushed MPLS labels unknown",
+		Description:  "The configuration makes the kernel FIB push MPLS labels, and ze could not read net.mpls.ip_ttl_propagate, or read a value other than 0 or 1, so it cannot tell whether the labels it pushes carry the IP TTL that RFC 3032 Section 2.4.3 requires. A read that fails is reported, never taken as a pass. An absent key means the kernel holds no MPLS table, which doctor-mpls-unavailable also reports. This is a WARNING. Remedy: load mpls_router when the key is absent, run `ze doctor` as root when the read was refused, or run `sysctl -w net.mpls.ip_ttl_propagate=1` for an unexpected value.",
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-mpls-ttl-propagate-unknown"},
+		RelatedCodes: []string{CodeDoctorMPLSTTLPropagateOff, CodeDoctorMPLSUnavailable},
 	},
 	{
 		Code:         "doctor-bgp-capture-directory",
