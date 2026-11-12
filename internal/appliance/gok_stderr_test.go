@@ -26,8 +26,9 @@ const gokExitMessage = "ERROR:\n  copyGlobsToBoot: fake gok failure"
 // PREVENTS: exit status 1 with no error at all, which is what an arm64 build
 // answered on 2026-10-10.
 //
-// Method: gok's packer.Main writes its error to os.Stderr and calls os.Exit(1),
-// so control never returns to runGokBuild. crashlog.Init has pointed os.Stderr
+// Method: a fake packing dependency writes an error and calls os.Exit(1),
+// unlike the current patched packer, which returns errors. This checks the
+// diagnostic fallback for an unexpected nested exit. crashlog.Init points os.Stderr
 // at a relay pipe, and os.Exit kills the relay goroutines before they copy the
 // line out. The behavior needs a process that dies, so the test re-runs its own
 // binary: the child arms crashlog exactly as `ze` does, runs runGokInProcess
@@ -65,7 +66,7 @@ func TestGokExitReachesStderr(t *testing.T) {
 }
 
 // runGokExitChild is the child half: it never returns, because the fake gok
-// ends the process the way packer.Main does.
+// simulates an unexpected dependency exit before the CLI can return.
 func runGokExitChild() {
 	if err := os.MkdirAll(filepath.Join("gokrazy", "modcache"), 0o750); err != nil {
 		os.Exit(3)

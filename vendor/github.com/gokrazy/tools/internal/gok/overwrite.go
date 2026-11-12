@@ -154,7 +154,5 @@ func (r *overwriteImplConfig) run(ctx context.Context, args []string, stdout, st
 		Output:  &output,
 	}
 
-	pack.Main(ctx)
-
-	return nil
+	return pack.Main(ctx)
 }

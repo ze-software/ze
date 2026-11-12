@@ -151,7 +151,9 @@ func (pack *Pack) logicBuild(bindir string) error {
 
 		initPath := filepath.Join(tmpdir, "init")
 
-		fileIsELFOrFatal(initPath)
+		if err := fileIsELF(initPath); err != nil {
+			return err
+		}
 
 		gokrazy := root.mustFindDirent("gokrazy")
 		gokrazy.Dirents = append(gokrazy.Dirents, &FileInfo{

@@ -28,6 +28,10 @@ func ExecuteGok(ctx context.Context, args []string) error {
 	})
 }
 
+// IsGokHelperCompletion recognizes a completed partitioning helper from
+// ExecuteGok. It must reach the command boundary before becoming exit success.
+func IsGokHelperCompletion(err error) bool { return gok.IsHelperCompletion(err) }
+
 // keepWorkingDir runs run, then returns this process to the directory it was
 // in. gok's commands chdir into the instance directory and never chdir back
 // (gokrazy/tools internal/gok, overwrite.go), and `le build gokrazy` builds

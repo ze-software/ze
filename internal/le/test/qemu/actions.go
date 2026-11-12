@@ -28,6 +28,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -131,6 +132,13 @@ var actions = leaction.New(area,
 		Summary: "test the installer over HTTP in QEMU",
 		Why:     "build the installer initrd and appliance image, install over HTTP, then prove the installed ZeFS power user over SSH",
 		Answer:  runInstallHTTPHere,
+	},
+	leaction.Action{
+		Verb:    "appliance-ota",
+		Does:    doesRun,
+		Summary: "test an appliance image update and recovery",
+		Why:     "build two native-architecture named appliance images, upload the new root and boot files through ze appliance push, then verify the changed runtime, persistent configuration, login and previous root slot in QEMU",
+		Answer:  runApplianceOTAHere,
 	},
 	leaction.Action{
 		Verb:    "installer-iso",
@@ -458,6 +466,36 @@ func runInstallHTTPHere() (any, int)      { return runInstallerHere(InstallKindH
 func runInstallISOHere() (any, int)       { return runInstallerHere(InstallKindISO) }
 func runInstallScenariosHere() (any, int) { return runInstallerHere(InstallKindScenarios) }
 func runInstallVentoyHere() (any, int)    { return runInstallerHere(InstallKindVentoy) }
+
+func runApplianceOTAHere() (any, int) {
+	options, err := DefaultInstallOptions(InstallKindHTTP)
+	if err != nil {
+		leaction.ReportError(opererr.Wrap(err,
+			"cannot configure the appliance OTA proof",
+			"a ZE_INSTALL setting is invalid; correct the named setting before retrying the two-image update proof",
+			"./le test qemu appliance-ota"))
+		return nil, 1
+	}
+	root, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(opererr.Wrap(err,
+			"cannot find the Ze checkout for the appliance OTA proof",
+			"the proof builds its images from the source checkout; set ZE_REPO_ROOT to that checkout before retrying",
+			"ZE_REPO_ROOT=/path/to/ze ./le test qemu appliance-ota"))
+		return nil, 1
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	defer stop()
+	report, err := NewInstaller(root, options).executeApplianceOTA(ctx)
+	if err != nil {
+		leaction.ReportError(opererr.Wrap(err,
+			"the appliance OTA proof did not finish",
+			"the image build, update or recovery checks failed; correct the reported phase failure, then rerun while retaining the guest disk and serial log for diagnosis",
+			"ZE_INSTALL_KEEP=1 ./le test qemu appliance-ota"))
+		return &report, 1
+	}
+	return &report, installExitCode(&report)
+}
 
 func runInstallerHere(kind InstallKind) (any, int) {
 	options, err := DefaultInstallOptions(kind)

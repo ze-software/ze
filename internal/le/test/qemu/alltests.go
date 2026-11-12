@@ -297,6 +297,7 @@ var integrationPackages = []string{
 	"./internal/component/doctor/...",
 	"./internal/component/host/...",
 	"./internal/component/iface/...",
+	"./internal/component/config/storage",
 	"./internal/component/config/system/...",
 	"./internal/core/routewatch/...",
 	"./internal/core/network/...",

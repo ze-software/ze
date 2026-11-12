@@ -17,3 +17,7 @@ func ExecuteGok(context.Context, []string) error {
 	return errors.New("building a gokrazy image is not supported on " + runtime.GOOS +
 		": gokrazy's packer reads block device sizes only on Linux and macOS; build the appliance image on a Linux or macOS host")
 }
+
+// IsGokHelperCompletion is false on unsupported build hosts: ExecuteGok cannot
+// start a partitioning helper on this platform.
+func IsGokHelperCompletion(error) bool { return false }

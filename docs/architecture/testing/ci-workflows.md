@@ -30,6 +30,14 @@ developer host.
 | CodeQL | `codeql.yml` | push, pull_request, schedule `21 16 * * 3` | as configured by the action |
 | Re-applying the vendor patches (`internal/le/vendorpatch/patches`) that a Dependabot Go update drops, then dispatching `verify.yml` on the patched commit | `dependabot-vendor-patches.yml`, job `apply` | push to `dependabot/go_modules/**` by Dependabot | yes: a patch that no longer applies fails it |
 
+`./le test qemu appliance-ota` is a manual appliance-delivery proof, outside
+the scheduled populations above. It builds two credentialed images, performs
+a real update and reboot, and checks persistent configuration and previous-slot
+recovery. Run it for changes to the appliance update path; a reboot-only
+crash-capture result does not cover this behavior.
+<!-- source: internal/le/test/qemu/actions.go -- runApplianceOTAHere -->
+<!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA -->
+
 "Advisory" means only that the job does not block a push. A job that fails
 before its first test is broken, not advisory: nothing it would have run is
 judged until it is fixed. A step a job cannot run without (a binary it builds,

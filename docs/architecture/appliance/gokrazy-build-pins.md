@@ -104,6 +104,26 @@ counts needed their own map. 64 pages would otherwise report as 65536.
 
 ## Why a module cache is checked in
 
+The pinned runtime source also carries `gokrazy/patches/reboot-ack.patch`.
+Its synchronous reboot handler acknowledges the request before stopping services
+that can remove management connectivity, and still completes shutdown before
+the power operation. The canonical diff includes HTTP and retained-extent tests.
+The patch guard checks both instance pins and compares the complete maintained
+runtime source and assets with upstream after reversing that diff. It excludes
+only the upstream top-level `docs/` and `website/` directories, which
+`gokrazy/modcache/.gitignore` intentionally leaves out of the tracked runtime.
+Embedded assets and nested directories named `docs` remain checked. A pin change
+requires a patch review against the new source.
+<!-- source: gokrazy/patches/reboot-ack.patch -- pinned runtime change -->
+<!-- source: internal/le/vendorpatch/gokrazy_runtime_patch_test.go -- TestPinnedGokrazyRuntimeMatchesUpstream -->
+
+Go subprocesses use `GODEBUG=goindex=0` while building from this tracked module
+cache. These sources can change after a reviewed patch, so Go must scan them
+instead of reusing its immutable-module file index. Other debug settings remain
+in place.
+<!-- source: internal/appliance/cmd_build.go -- SetGokGoEnv -->
+
+
 `gok` (`./le build gokrazy`, wrapping `github.com/gokrazy/tools`) compiles every
 appliance package in module mode and fetches with `go get`. It has no vendor
 support: a `vendor/` tree in a builddir is ignored. The system and kernel

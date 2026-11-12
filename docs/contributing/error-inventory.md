@@ -106,6 +106,16 @@ variable of type `error` cannot be seen from the syntax, and reads as plain.
 
 ### Adding a writer
 
+The inventory contains errors, refusals and warnings. Fixed positive progress
+messages on stderr need no recovery command. The closed `progressMessages`
+table names the exact source file, function, writer and single string literal
+of each reviewed non-error, with its reason. These two OTA boot-stream phase
+announcements are omitted from error rows. Another site, changed text, a
+dynamic message or an added operand still receives the ordinary error checks.
+`TestDeclaredOTAProgressIsNotAnError` holds these boundaries; adding a table
+entry requires source review and a corresponding positive and error control.
+<!-- source: internal/le/arch/errorinventory/progress.go -- progressMessages, declaredProgress -->
+
 A new helper that hands a message to a user (an answer function on a new
 surface, a refusal type in `./le`) is one row in `writers`, and nothing
 else in the package changes. The row says:

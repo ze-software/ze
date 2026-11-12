@@ -1147,6 +1147,47 @@ store for diagnosis. A skipped action is not storage-import evidence.
 <!-- source: internal/le/test/qemu/install_storage.go -- seedInterruptedImport, assertImportedSeed, installSeedTLS -->
 <!-- source: internal/le/test/qemu/install_build.go -- buildHostZeEnv, buildImage -->
 
+## Appliance image update and recovery
+
+`./le test qemu appliance-ota` is a manual deployment proof. It builds two named
+images for the host's architecture, boots the first disk, and publishes a host
+name through Ze's authenticated HTTPS configuration upload API. The upload
+validates and commits the complete configuration; its port 8080 forward is
+bound to host loopback, alongside the SSH and updater forwards. It then uploads
+the second image through the real `ze appliance push --testboot` command and
+requires the authenticated gokrazy status to name a different runtime build.
+The persistent partition UUID, Ze login and committed host name must survive.
+Finally it reboots without switching slots and checks the original runtime and
+the same persistent configuration again. Testboot retains the original root as
+the next boot selection; calling the updater's switch endpoint would instead
+promote the tested root.
+<!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA, otaGuest.await, otaGuest.assertHost -->
+
+Status requests have a ten-second ceiling. Configuration publication has a
+two-minute ceiling to allow synchronous reload, and recovery reboot has a
+five-minute ceiling to allow gokrazy's two 100-second service shutdown waits
+and filesystem unmount. Every phase also obeys the parent context. SSH probes
+close their connection when that context ends and join their cancellation
+watcher before returning. The image's configured Ze username is set from
+`ZE_INSTALL_SSH_USER` before credential assembly, alongside the proof password.
+<!-- source: internal/le/test/qemu/install_ota.go -- uploadConfig, post, ssh -->
+<!-- source: internal/le/test/qemu/install_build.go -- setApplianceArch, applianceEnv -->
+
+```bash
+ZE_INSTALL_QEMU_ACCEL=kvm ZE_INSTALL_IMAGE_SIZE=1610612736 \
+ZE_INSTALL_KEEP=1 ./le --name appliance-ota test qemu appliance-ota
+```
+
+The proof boots the images' own runtime kernel and needs no separate installer
+kernel. It needs the named appliance build prerequisites, QEMU and native KVM
+or HVF access. It builds its own credentials and images; unset
+`ZE_INSTALL_IMAGE`. `ZE_INSTALL_KEEP=1` retains the target disk and serial log
+for diagnosis. A build or boot failure is a failed proof. The crash-capture
+`ota-unaffected` action below checks reboot only and is not image-update
+evidence.
+<!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA, launchOTAGuest -->
+<!-- source: internal/le/test/qemu/actions.go -- runApplianceOTAHere -->
+
 ## Appliance kernel crash capture
 
 Two host-side actions prove kernel crash capture

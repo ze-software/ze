@@ -21,6 +21,14 @@ type filePathAndModTime struct {
 	modTime time.Time
 }
 
+// HelperCompletion reports that a privileged partitioning helper completed.
+// It is not a completed image; callers must skip subsequent build or VM work
+// and preserve this result until the command boundary has run its cleanup.
+type HelperCompletion struct{}
+
+func (*HelperCompletion) Error() string { return "partitioning helper completed" }
+func (*HelperCompletion) HelperCompletion() {}
+
 func findPackageFiles(fileType string) ([]filePathAndModTime, error) {
 	var packageFilePaths []filePathAndModTime
 	err := filepath.Walk(fileType, func(path string, info os.FileInfo, err error) error {
@@ -101,10 +109,9 @@ func (pack *Pack) logicPrepare(ctx context.Context) error {
 
 	if os.Getenv("GOKR_PACKER_FD") != "" { // partitioning child process
 		if _, err := pack.SudoPartition(cfg.InternalCompatibilityFlags.Overwrite); err != nil {
-			log.Printf("%s", err)
-			os.Exit(1)
+			return err
 		}
-		os.Exit(0)
+		return &HelperCompletion{}
 	}
 
 	log.Printf("%s %s on GOARCH=%s GOOS=%s",

@@ -1,0 +1,35 @@
+Ze-Reviewed-Against: github.com/gokrazy/internal v0.0.0-20260625065634-6994f9152c44
+
+Upstream pull request: none opened yet.
+
+The named updater identity contract in docs/architecture/appliance/builder.md
+states: "The updater token stays unchanged in the image configuration."
+Keep that password raw in Update.HTTPPassword.
+Parse the credential-free destination first, then assign net/url.UserPassword.
+Reserved password bytes therefore cannot alter the URL authority or path,
+and destination parse errors never include the password.
+
+Design: docs/architecture/appliance/builder.md, named updater identity.
+
+diff --git a/vendor/github.com/gokrazy/internal/updateflag/updateflag.go b/vendor/github.com/gokrazy/internal/updateflag/updateflag.go
+--- a/vendor/github.com/gokrazy/internal/updateflag/updateflag.go
++++ b/vendor/github.com/gokrazy/internal/updateflag/updateflag.go
+@@ -45,10 +45,15 @@ func (v Value) BaseURL(httpPort, httpsPort, schema, hostname, pw string) (*url.URL,
+ 	if strings.HasPrefix(v.Update, ":") {
+ 		port = strings.TrimPrefix(v.Update, ":")
+ 	}
+-	v.Update = schema + "://gokrazy:" + pw + "@" + hostname
++	v.Update = schema + "://" + hostname
+ 	if port != defaultPort {
+ 		v.Update += ":" + port
+ 	}
+ 	v.Update += "/"
+-	return url.Parse(v.Update)
++	base, err := url.Parse(v.Update)
++	if err != nil {
++		return nil, err
++	}
++	base.User = url.UserPassword("gokrazy", pw)
++	return base, nil
+ }
+

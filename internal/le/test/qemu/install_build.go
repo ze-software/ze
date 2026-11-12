@@ -221,6 +221,14 @@ func (installer *Installer) setApplianceArch(name string) error {
 	if err := json.Unmarshal(data, &document); err != nil {
 		return fmt.Errorf("decode appliance config %s: %w", name, err)
 	}
+	// assembleZeFS reads this identity for both SSH and the local web account.
+	// Set it even when the requested architecture already matches the default.
+	credentials, ok := document["credentials"].(map[string]any)
+	if !ok {
+		credentials = make(map[string]any)
+		document["credentials"] = credentials
+	}
+	credentials["username"] = installer.Options.SSHUser
 	image, ok := document["image"].(map[string]any)
 	if !ok {
 		image = make(map[string]any)

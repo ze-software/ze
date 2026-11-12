@@ -18,6 +18,7 @@ import (
 
 	"github.com/ze-software/ze/internal/appliance/instance"
 	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -45,6 +46,27 @@ var (
 	gokBuildFn    = runGokInProcess
 	gokExecuteFn  = ExecuteGok
 )
+
+// buildOutcome preserves the builders' established 0/1 success/failure
+// contract while carrying helper completion without claiming an image exists.
+// Only runBuild may map the helper outcome to process exit success.
+type buildOutcome int
+
+const (
+	buildImageReady     buildOutcome = exitOK
+	buildImageFailed    buildOutcome = exitError
+	buildHelperComplete buildOutcome = 2
+)
+
+func buildCommandExit(result buildOutcome) int {
+	switch result {
+	case buildImageReady, buildHelperComplete:
+		return exitOK
+	case buildImageFailed:
+		return exitError
+	}
+	return exitError
+}
 
 // e2fsSearchDirs are the directories searched for each e2fsprogs tool, in order.
 //
@@ -123,7 +145,7 @@ func runBuild(args []string) int {
 	}
 
 	if *allFlag {
-		return buildAll()
+		return buildCommandExit(buildAll())
 	}
 
 	if fs.NArg() < 1 {
@@ -132,10 +154,10 @@ func runBuild(args []string) int {
 		return exitError
 	}
 
-	return buildOne(fs.Arg(0))
+	return buildCommandExit(buildOne(fs.Arg(0)))
 }
 
-func buildOne(name string) int {
+func buildOne(name string) buildOutcome {
 	dir := getBaseDir()
 
 	// Validate the appliance name before it flows into filesystem paths and,
@@ -208,7 +230,7 @@ func buildOne(name string) int {
 
 	dbPath := databasePath(dir, name)
 	if code := assembleZeFS(dir, name, cfg, passphrase, dbPath); code != exitOK {
-		return code
+		return buildOutcome(code)
 	}
 	defer os.Remove(dbPath) //nolint:errcheck // cleanup after build
 
@@ -216,7 +238,17 @@ func buildOne(name string) int {
 	imgName := imageFileName(ts)
 	imgPath := filepath.Join(AppliancePath(dir, name), imgName)
 
-	if code := runGokBuild(cfg, imgPath); code != exitOK {
+	update, err := readGokUpdate(dir, name, cfg, passphrase)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, opererr.Wrap(err,
+			"cannot read updater credentials for appliance "+name,
+			"the image needs its existing update token, certificate and private key; restore the missing or unreadable identity files from this appliance's backup, then retry the build",
+			"./ze-host appliance --dir "+shellArg(dir)+" build "+shellArg(name))) //nolint:errcheck // CLI diagnostic.
+		return exitError
+	}
+	// readGokUpdate transfers this key to the build; clear it on every return.
+	defer ZeroBytes(update.key)
+	if code := runGokBuild(cfg, imgPath, update); code != exitOK {
 		return code
 	}
 
@@ -242,7 +274,7 @@ func buildOne(name string) int {
 
 	if code := injectZeFS(context.Background(), imgPath, dbPath, bakedPath, runExternalFn); code != exitOK {
 		os.Remove(imgPath) //nolint:errcheck // cleanup failed image
-		return code
+		return buildOutcome(code)
 	}
 
 	var tbChk textbuf.Buffer
@@ -303,6 +335,8 @@ func ensureModcacheRW() error {
 //
 //   - GOMODCACHE is the checked-in gokrazy/modcache at modcache.
 //   - GOFLAGS gains -modcacherw (ensureModcacheRW).
+//   - GODEBUG disables the immutable-module index: the tracked runtime source
+//     in this module cache changes when a reviewed patch changes.
 //   - GOPROXY is off unless set explicitly. gok reads the ambient GOPROXY and
 //     does not force offline, so a module missing from the builddir/modcache
 //     would silently resolve to a NEWER version than the pins choose. off makes
@@ -324,6 +358,20 @@ func SetGokGoEnv(modcache string) error {
 	}
 	if err := ensureModcacheRW(); err != nil {
 		return fmt.Errorf("set GOFLAGS: %w", err)
+	}
+	var debug textbuf.Buffer
+	for setting := range strings.SplitSeq(os.Getenv("GODEBUG"), ",") {
+		if strings.HasPrefix(setting, "goindex=") {
+			continue
+		}
+		if setting == "" {
+			continue
+		}
+		debug.Str(setting).Byte(',')
+	}
+	debug.Str("goindex=0")
+	if err := os.Setenv("GODEBUG", debug.String()); err != nil {
+		return fmt.Errorf("set GODEBUG for mutable runtime sources: %w", err)
 	}
 	if os.Getenv("GOPROXY") == "" {
 		if err := os.Setenv("GOPROXY", "off"); err != nil {
@@ -393,17 +441,17 @@ func runGokInProcess(args []string) error {
 		return setErr
 	}
 
-	// gok does not return its error: packer.Main prints "ERROR:" to os.Stderr
-	// and calls os.Exit(1). crashlog.Init pointed os.Stderr at a relay pipe, and
-	// os.Exit kills the relay before it copies that line out, so the build ended
-	// with status 1 and no error at all. Flush puts the real stderr back first,
-	// as crashlog.Exec does before an execve.
+	// The patched packer returns errors, so our callers can restore their
+	// working directory and remove prepared credentials. Flush still sends
+	// upstream progress and diagnostics directly to the real stderr before
+	// the enclosing CLI exits, as crashlog.Exec does before an execve.
 	crashlog.Flush()
 	return gokExecuteFn(ctx, args)
 }
 
-func runGokBuild(cfg *applianceConfig, imgPath string) int {
+func runGokBuild(cfg *applianceConfig, imgPath string, update *gokUpdate) buildOutcome {
 	fmt.Fprintf(os.Stderr, "building gokrazy image...\n")
+	retry := "./ze-host appliance --dir " + shellArg(filepath.Dir(filepath.Dir(imgPath))) + " build " + shellArg(filepath.Base(filepath.Dir(imgPath)))
 
 	// gok resolves modules from the repo-local gokrazy/modcache, so relative
 	// paths would resolve against the wrong root. Pass absolute paths.
@@ -412,6 +460,15 @@ func runGokBuild(cfg *applianceConfig, imgPath string) int {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: resolve gokrazy parent dir: %v\n", err)
 		return exitError
+	}
+	if update != nil {
+		if err := writeGokUpdate(parentDir, update); err != nil {
+			fmt.Fprintln(os.Stderr, opererr.Wrap(errors.New(gokBuildFailure(err, update)),
+				"cannot prepare updater credentials for the appliance image",
+				"the temporary build instance could not receive its authenticated updater identity; correct the reported file or configuration failure, then retry the build",
+				retry)) //nolint:errcheck // CLI diagnostic.
+			return exitError
+		}
 	}
 	absImg, err := filepath.Abs(imgPath)
 	if err != nil {
@@ -452,7 +509,13 @@ func runGokBuild(cfg *applianceConfig, imgPath string) int {
 		"--full", absImg,
 		"--target_storage_bytes", gokSizeArg(cfg.Image.SizeBytes),
 	}); err != nil {
-		fmt.Fprintf(os.Stderr, "error: gok build failed: %v\n", err)
+		if IsGokHelperCompletion(err) {
+			return buildHelperComplete
+		}
+		fmt.Fprintln(os.Stderr, opererr.Wrap(errors.New(gokBuildFailure(err, update)),
+			"cannot build the appliance image",
+			"gokrazy did not finish producing the image; correct the reported build failure, then retry the same appliance build",
+			retry)) //nolint:errcheck // CLI diagnostic.
 		return exitError
 	}
 
@@ -689,7 +752,7 @@ func uniformArch(dir string, names []string) (string, error) {
 	return arch, nil
 }
 
-func buildAll() int {
+func buildAll() buildOutcome {
 	dir := getBaseDir()
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -722,7 +785,11 @@ func buildAll() int {
 	succeeded, failed := 0, 0
 	for _, name := range names {
 		fmt.Fprintf(os.Stderr, "building %s...\n", name)
-		if code := buildOne(name); code == exitOK {
+		code := buildOne(name)
+		if code == buildHelperComplete {
+			return code
+		}
+		if code == exitOK {
 			succeeded++
 		} else {
 			fmt.Fprintf(os.Stderr, "FAILED: %s\n", name)

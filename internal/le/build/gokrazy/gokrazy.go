@@ -190,7 +190,7 @@ func imageArch() string {
 const name = "build gokrazy"
 
 // Run runs gok with args using the supplied source root and answers the exit code.
-// It sets GOMODCACHE, CGO_ENABLED, GOFLAGS and GOPROXY in this process's
+// It sets GOMODCACHE, CGO_ENABLED, GOFLAGS, GOPROXY and GODEBUG in this process's
 // environment for the Go subprocesses gok spawns, and gok applies the instance's
 // Environment there too, so the caller MUST either exit after one gok command, as `le build
 // gokrazy` does, or restore the environment afterwards, as
@@ -239,12 +239,9 @@ func Run(root string, args []string) int {
 	// Build from a prepared copy of the instance under project tmp/, so an image
 	// build never runs from, or writes to, the tracked gokrazy dir.
 	//
-	// The deferred cleanup does NOT run across gok's own os.Exit: gok's
-	// pack.Main calls os.Exit(1) on a build failure
-	// (vendor/.../internal/packer/packer.go) from inside Execute below, so on a
-	// failed build control never returns here and the prepared dir is left
-	// behind. instance.Prepare reaps such stale dirs on the next run, which
-	// bounds the leak; there is no way to run a cleanup across a callee's os.Exit.
+	// The patched packer returns both failures and distinct helper completion
+	// through ExecuteGok. Deferred cleanup runs before this command returns,
+	// including when a successful helper must skip all further build work.
 	prepared, cleanup, err := prepareArgs(root, args)
 	if err != nil {
 		return fail(err)
@@ -256,6 +253,9 @@ func Run(root string, args []string) int {
 	}
 
 	if err := appliance.ExecuteGok(context.Background(), prepared); err != nil {
+		if appliance.IsGokHelperCompletion(err) {
+			return 0
+		}
 		return fail(err)
 	}
 	return 0

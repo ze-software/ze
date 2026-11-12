@@ -47,8 +47,8 @@ const (
 	preparedPrefix = "appliance-build-"
 
 	// preparedStaleAge is how old a prepared dir must be before reapStalePrepared
-	// removes it. It bounds the leak from gok's os.Exit build-failure path (which
-	// skips both the deferred and explicit cleanup) without racing a concurrent
+	// removes it. It bounds leftovers from a process killed before deferred
+	// cleanup can run, without racing a concurrent
 	// build, whose dir is only ever minutes old. No real image build runs anywhere
 	// near this long.
 	preparedStaleAge = 2 * time.Hour
@@ -286,10 +286,9 @@ func replaceKernel(buildDir, pkg string) error {
 }
 
 // reapStalePrepared best-effort removes prepared instance dirs under tmpRoot that
-// a dead build left behind. gok's pack.Main calls os.Exit(1) on a build failure
-// from inside gok.Execute, which skips both the deferred cleanup in runGokBuild
-// and the deferred cleanup in internal/le/build/gokrazy; there is no way to run cleanup
-// across a callee's os.Exit, so the leaked dir is reclaimed here on the next run.
+// an abruptly terminated build left behind. Ordinary packing failures return
+// through the embedded boundary and run deferred cleanup; a killed process
+// cannot run those defers, so its leftover dir is reclaimed on the next run.
 //
 // Only dirs matching the prepared prefix AND older than preparedStaleAge are
 // removed, so a concurrent build's dir (always minutes old) and any unrelated

@@ -452,7 +452,7 @@ func filterGoEnv(env []string) []string {
 const programName = "gokrazy gok"
 
 func (pack *Pack) logic(ctx context.Context) error {
-	dnsCheck := make(chan error)
+	dnsCheck := make(chan error, 1)
 	go func() {
 		defer close(dnsCheck)
 		host, err := os.Hostname()
@@ -489,11 +489,8 @@ func (pack *Pack) logic(ctx context.Context) error {
 	return nil
 }
 
-func (pack *Pack) Main(ctx context.Context) {
-	if err := pack.logic(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR:\n  %s\n", err)
-		os.Exit(1)
-	}
+func (pack *Pack) Main(ctx context.Context) error {
+	return pack.logic(ctx)
 }
 
 func (pack *Pack) GenerateSBOM(ctx context.Context) ([]byte, SBOMWithHash, error) {

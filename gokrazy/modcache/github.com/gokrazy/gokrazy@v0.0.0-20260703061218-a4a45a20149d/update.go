@@ -66,6 +66,9 @@ func modifyCmdlineFile(f *os.File, offset, length int64, replace func([]byte) []
 	}
 
 	rep := replace(b)
+	if len(rep) > len(b) {
+		return fmt.Errorf("updated boot command line needs %d bytes but its reserved FAT extent has %d; rebuild the boot image before retrying", len(rep), len(b))
+	}
 	if pad := len(b) - len(rep); pad > 0 {
 		// The file content length can shrink when switching from PARTUUID= (the
 		// default) to /dev/mmcblk0p[23], on an older gokrazy installation.
@@ -73,9 +76,11 @@ func modifyCmdlineFile(f *os.File, offset, length int64, replace func([]byte) []
 		// it to a smaller length, we pad the command line with spaces instead.
 		// Note that we need to insert spaces before the trailing newline,
 		// otherwise the system won’t boot:
-		rep = bytes.ReplaceAll(rep,
-			[]byte{'\n'},
-			append(bytes.Repeat([]byte{' '}, pad), '\n'))
+		content := bytes.TrimSuffix(rep, []byte{'\n'})
+		padded := make([]byte, 0, len(b))
+		padded = append(padded, content...)
+		padded = append(padded, bytes.Repeat([]byte{' '}, pad)...)
+		rep = append(padded, rep[len(content):]...)
 	}
 
 	if _, err := f.Write(rep); err != nil {
@@ -124,11 +129,17 @@ func switchRootPartition(newRootPartition int) error {
 }
 
 func enableTestboot() error {
-	return modifyCmdline(func(b []byte) []byte {
-		return bytes.ReplaceAll(b,
-			[]byte{'\n'},
-			[]byte(" gokrazy.try_boot_inactive=1\n"))
-	})
+	return modifyCmdline(testbootCmdline)
+}
+
+func testbootCmdline(b []byte) []byte {
+	content := bytes.TrimRight(b, " \t\r\n\v\f")
+	for _, argument := range bytes.Fields(content) {
+		if bytes.Equal(argument, []byte("gokrazy.try_boot_inactive=1")) {
+			return append(content, '\n')
+		}
+	}
+	return append(content, []byte(" gokrazy.try_boot_inactive=1\n")...)
 }
 
 func streamRequestTo(path string, offset int64, r io.Reader) error {
@@ -347,6 +358,12 @@ func initUpdate() error {
 }
 
 func powerHandler(w http.ResponseWriter, r *http.Request, operationName, powerMsg string, powerFunc func() error) {
+	powerHandlerWithShutdown(w, r, operationName, powerMsg, powerFunc, killSupervisedServicesAndUmountPerm)
+}
+
+// powerHandlerWithShutdown separates service shutdown from the power operation.
+// A synchronous request MUST finish shutdown before scheduling powerFunc.
+func powerHandlerWithShutdown(w http.ResponseWriter, r *http.Request, operationName, powerMsg string, powerFunc func() error, shutdown func(time.Duration)) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "expected a POST request", http.StatusBadRequest)
 		return
@@ -368,13 +385,17 @@ func powerHandler(w http.ResponseWriter, r *http.Request, operationName, powerMs
 		log.Printf("Asynchronous %s requested", operationName)
 		go func() {
 			start := time.Now()
-			killSupervisedServicesAndUmountPerm(signalDelay)
+			shutdown(signalDelay)
 			log.Printf("All services killed in %s\n", time.Since(start))
 		}()
 	} else {
 		log.Printf("Synchronous %s requested", operationName)
+		// A supervised service can own the management interface. Accept the
+		// request before stopping it, but finish shutdown before powerFunc.
+		fmt.Fprintf(w, "%s accepted; stopping services\n", operationName)
+		rc.Flush()
 		start := time.Now()
-		killSupervisedServicesAndUmountPerm(signalDelay)
+		shutdown(signalDelay)
 		fmt.Fprintf(w, "All services killed in %s\n", time.Since(start))
 	}
 

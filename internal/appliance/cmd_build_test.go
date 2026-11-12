@@ -124,7 +124,7 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 	cfg.Image.SizeBytes = 1073741824
 
 	imgPath := filepath.Join(root, "test.img")
-	runGokBuild(cfg, imgPath)
+	runGokBuild(cfg, imgPath, nil)
 
 	if !called {
 		t.Fatal("gokBuildFn was not called")
@@ -272,7 +272,7 @@ func TestBuildNoGokBinaryCheck(t *testing.T) {
 
 	useE2FSDir(t, "/usr/sbin")
 
-	code := runGokBuild(cfg, filepath.Join(appDir, "test.img"))
+	code := runGokBuild(cfg, filepath.Join(appDir, "test.img"), nil)
 	if code != exitOK {
 		t.Errorf("runGokBuild returned %d, want %d", code, exitOK)
 	}
@@ -288,7 +288,7 @@ func TestBuildGokFailure(t *testing.T) {
 	cfg := &applianceConfig{}
 	cfg.Image.SizeBytes = 1073741824
 
-	code := runGokBuild(cfg, "/tmp/test.img")
+	code := runGokBuild(cfg, "/tmp/test.img", nil)
 	if code != exitError {
 		t.Errorf("runGokBuild returned %d on failure, want %d", code, exitError)
 	}

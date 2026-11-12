@@ -1,0 +1,457 @@
+Ze-Reviewed-Against: github.com/gokrazy/tools v0.0.0-20261026191944-942a8faaca93
+
+Upstream pull request: none opened yet.
+
+Ze embeds gok through gok.Context.Execute. Host-side os.Exit and log.Fatal
+skip the caller's deferred working-directory restoration and removal of the
+prepared instance, leaving the update token and private TLS material behind.
+The requirement is stated by writeGokUpdate in internal/appliance/build_update.go:
+"The caller MUST remove that instance after gok returns, including on build failure."
+
+Return packing, ELF validation and privileged-helper errors through every Main
+caller. Preserve successful helper completion as a distinct typed result through
+the public embedded API and all image/VM postwork; only the enclosing command
+may map it to success after deferred cleanup. Join the sudo child in the
+ordinary return path. Buffer the single DNS result so a packing error cannot
+strand its sender. Runtime log.Fatal calls inside the generated appliance init
+template are unchanged.
+
+The interaction hint redacts URL passwords rather than printing the updater
+credential to the build log, including after successful image preparation.
+
+Terminate both packed kernel command-line formats with a newline after their
+reserved space, so runtime boot-file edits have a complete final line. The
+regression reads both actual FAT files and preserves their reserved padding.
+
+Design: docs/contributing/patching-the-standard-library.md, "Patching a vendored module".
+
+diff --git a/vendor/github.com/gokrazy/tools/internal/gok/overwrite.go b/vendor/github.com/gokrazy/tools/internal/gok/overwrite.go
+index 052681a279..c5219d47ff 100644
+--- a/vendor/github.com/gokrazy/tools/internal/gok/overwrite.go
++++ b/vendor/github.com/gokrazy/tools/internal/gok/overwrite.go
+@@ -154,7 +154,5 @@ func (r *overwriteImplConfig) run(ctx context.Context, args []string, stdout, st
+ 		Output:  &output,
+ 	}
+ 
+-	pack.Main(ctx)
+-
+-	return nil
++	return pack.Main(ctx)
+ }
+diff --git a/vendor/github.com/gokrazy/tools/internal/gok/update.go b/vendor/github.com/gokrazy/tools/internal/gok/update.go
+index 54abf70f40..2cb02372bb 100644
+--- a/vendor/github.com/gokrazy/tools/internal/gok/update.go
++++ b/vendor/github.com/gokrazy/tools/internal/gok/update.go
+@@ -93,7 +93,5 @@ func (r *updateImplConfig) run(ctx context.Context, args []string, stdout, stder
+ 		Cfg:     cfg,
+ 	}
+ 
+-	pack.Main(ctx)
+-
+-	return nil
++	return pack.Main(ctx)
+ }
+diff --git a/vendor/github.com/gokrazy/tools/internal/gok/vmrun.go b/vendor/github.com/gokrazy/tools/internal/gok/vmrun.go
+index 369067a27c..74dff62952 100644
+--- a/vendor/github.com/gokrazy/tools/internal/gok/vmrun.go
++++ b/vendor/github.com/gokrazy/tools/internal/gok/vmrun.go
+@@ -130,9 +130,7 @@ func (r *vmRunConfig) buildFullDiskImage(ctx context.Context, dest string, fileC
+ 		Output:  &output,
+ 	}
+ 
+-	pack.Main(ctx)
+-
+-	return nil
++	return pack.Main(ctx)
+ }
+ 
+ func (r *vmRunConfig) runQEMU(ctx context.Context, fullDiskImage string, extraArgs []string) error {
+diff --git a/vendor/github.com/gokrazy/tools/internal/packer/elf.go b/vendor/github.com/gokrazy/tools/internal/packer/elf.go
+index 62a3c07868..a05ebb25ff 100644
+--- a/vendor/github.com/gokrazy/tools/internal/packer/elf.go
++++ b/vendor/github.com/gokrazy/tools/internal/packer/elf.go
+@@ -2,15 +2,16 @@ package packer
+ 
+ import (
+ 	"debug/elf"
+-	"log"
++	"fmt"
+ )
+ 
+-func fileIsELFOrFatal(filePath string) {
++func fileIsELF(filePath string) error {
+ 	f, err := elf.Open(filePath)
+ 	if err != nil {
+-		log.Fatalf("%s is not an ELF binary! %v (perhaps running into https://github.com/golang/go/issues/53804?)", filePath, err)
++		return fmt.Errorf("%s is not an ELF binary: %w (perhaps running into https://github.com/golang/go/issues/53804?)", filePath, err)
+ 	}
+ 	if err := f.Close(); err != nil {
+-		log.Fatalf("%s is not an ELF binary! Close: %v (perhaps running into https://github.com/golang/go/issues/53804?)", filePath, err)
++		return fmt.Errorf("close ELF binary %s: %w", filePath, err)
+ 	}
++	return nil
+ }
+diff --git a/vendor/github.com/gokrazy/tools/internal/packer/packer.go b/vendor/github.com/gokrazy/tools/internal/packer/packer.go
+index 7a4b41a92b..e200e7e840 100644
+--- a/vendor/github.com/gokrazy/tools/internal/packer/packer.go
++++ b/vendor/github.com/gokrazy/tools/internal/packer/packer.go
+@@ -452,7 +452,7 @@ func filterGoEnv(env []string) []string {
+ const programName = "gokrazy gok"
+ 
+ func (pack *Pack) logic(ctx context.Context) error {
+-	dnsCheck := make(chan error)
++	dnsCheck := make(chan error, 1)
+ 	go func() {
+ 		defer close(dnsCheck)
+ 		host, err := os.Hostname()
+@@ -489,11 +489,8 @@ func (pack *Pack) logic(ctx context.Context) error {
+ 	return nil
+ }
+ 
+-func (pack *Pack) Main(ctx context.Context) {
+-	if err := pack.logic(ctx); err != nil {
+-		fmt.Fprintf(os.Stderr, "ERROR:\n  %s\n", err)
+-		os.Exit(1)
+-	}
++func (pack *Pack) Main(ctx context.Context) error {
++	return pack.logic(ctx)
+ }
+ 
+ func (pack *Pack) GenerateSBOM(ctx context.Context) ([]byte, SBOMWithHash, error) {
+diff --git a/vendor/github.com/gokrazy/tools/internal/packer/packerbuild.go b/vendor/github.com/gokrazy/tools/internal/packer/packerbuild.go
+index 48c1b90152..9b3e7c5d36 100644
+--- a/vendor/github.com/gokrazy/tools/internal/packer/packerbuild.go
++++ b/vendor/github.com/gokrazy/tools/internal/packer/packerbuild.go
+@@ -151,7 +151,9 @@ func (pack *Pack) logicBuild(bindir string) error {
+ 
+ 		initPath := filepath.Join(tmpdir, "init")
+ 
+-		fileIsELFOrFatal(initPath)
++		if err := fileIsELF(initPath); err != nil {
++			return err
++		}
+ 
+ 		gokrazy := root.mustFindDirent("gokrazy")
+ 		gokrazy.Dirents = append(gokrazy.Dirents, &FileInfo{
+diff --git a/vendor/github.com/gokrazy/tools/internal/packer/packerprepare.go b/vendor/github.com/gokrazy/tools/internal/packer/packerprepare.go
+index ca70ef973c..6a28f70eec 100644
+--- a/vendor/github.com/gokrazy/tools/internal/packer/packerprepare.go
++++ b/vendor/github.com/gokrazy/tools/internal/packer/packerprepare.go
+@@ -21,6 +21,14 @@ type filePathAndModTime struct {
+ 	modTime time.Time
+ }
+ 
++// HelperCompletion reports that a privileged partitioning helper completed.
++// It is not a completed image; callers must skip subsequent build or VM work
++// and preserve this result until the command boundary has run its cleanup.
++type HelperCompletion struct{}
++
++func (*HelperCompletion) Error() string { return "partitioning helper completed" }
++func (*HelperCompletion) HelperCompletion() {}
++
+ func findPackageFiles(fileType string) ([]filePathAndModTime, error) {
+ 	var packageFilePaths []filePathAndModTime
+ 	err := filepath.Walk(fileType, func(path string, info os.FileInfo, err error) error {
+@@ -101,10 +109,9 @@ func (pack *Pack) logicPrepare(ctx context.Context) error {
+ 
+ 	if os.Getenv("GOKR_PACKER_FD") != "" { // partitioning child process
+ 		if _, err := pack.SudoPartition(cfg.InternalCompatibilityFlags.Overwrite); err != nil {
+-			log.Printf("%s", err)
+-			os.Exit(1)
++			return err
+ 		}
+-		os.Exit(0)
++		return &HelperCompletion{}
+ 	}
+ 
+ 	log.Printf("%s %s on GOARCH=%s GOOS=%s",
+diff --git a/vendor/github.com/gokrazy/tools/internal/packer/packerwrite.go b/vendor/github.com/gokrazy/tools/internal/packer/packerwrite.go
+index eed09287c7..bf26afa76e 100644
+--- a/vendor/github.com/gokrazy/tools/internal/packer/packerwrite.go
++++ b/vendor/github.com/gokrazy/tools/internal/packer/packerwrite.go
+@@ -403,7 +403,7 @@ func (pack *Pack) printHowToInteract(cfg *config.Struct) error {
+ 	log.Printf("")
+ 	log.Printf("To interact with the device, gokrazy provides a web interface reachable at:")
+ 	log.Printf("")
+-	log.Printf("\t%s", updateBaseUrl.String())
++	log.Printf("\t%s", updateBaseUrl.Redacted())
+ 	log.Printf("")
+ 	log.Printf("In addition, the following Linux consoles are set up:")
+ 	log.Printf("")
+diff --git a/vendor/github.com/gokrazy/tools/internal/packer/parttable.go b/vendor/github.com/gokrazy/tools/internal/packer/parttable.go
+index f77a305855..85c466eb16 100644
+--- a/vendor/github.com/gokrazy/tools/internal/packer/parttable.go
++++ b/vendor/github.com/gokrazy/tools/internal/packer/parttable.go
+@@ -1,6 +1,7 @@
+ package packer
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"log"
+ 	"net"
+@@ -26,12 +27,24 @@ func (p *Pack) partitionDevice(o *os.File, path string) error {
+ 	return p.RereadPartitions(o)
+ }
+ 
+-func mustUnixConn(fd uintptr) *net.UnixConn {
+-	fc, err := net.FileConn(os.NewFile(fd, ""))
++func unixConn(fd uintptr) (*net.UnixConn, error) {
++	file := os.NewFile(fd, "")
++	if file == nil {
++		return nil, fmt.Errorf("invalid socket descriptor %d", fd)
++	}
++	fc, err := net.FileConn(file)
++	closeErr := file.Close()
+ 	if err != nil {
+-		panic(err)
++		return nil, errors.Join(err, closeErr)
++	}
++	if closeErr != nil {
++		return nil, errors.Join(closeErr, fc.Close())
++	}
++	conn, ok := fc.(*net.UnixConn)
++	if !ok {
++		return nil, errors.Join(fmt.Errorf("descriptor %d is not a Unix socket", fd), fc.Close())
+ 	}
+-	return fc.(*net.UnixConn)
++	return conn, nil
+ }
+ 
+ func (p *Pack) partition(path string) (*os.File, error) {
+diff --git a/vendor/github.com/gokrazy/tools/internal/packer/parttable_unix.go b/vendor/github.com/gokrazy/tools/internal/packer/parttable_unix.go
+index 750bad0d67..a88d874783 100644
+--- a/vendor/github.com/gokrazy/tools/internal/packer/parttable_unix.go
++++ b/vendor/github.com/gokrazy/tools/internal/packer/parttable_unix.go
+@@ -3,63 +3,83 @@
+ package packer
+ 
+ import (
++	"errors"
+ 	"fmt"
+-	"log"
+ 	"os"
+ 	"os/exec"
+ 	"strconv"
+ 	"syscall"
+ )
+ 
+-func (p *Pack) SudoPartition(path string) (*os.File, error) {
++func (p *Pack) SudoPartition(path string) (result *os.File, resultErr error) {
+ 	if fd, err := strconv.Atoi(os.Getenv("GOKR_PACKER_FD")); err == nil {
+ 		// child process
+-		conn := mustUnixConn(uintptr(fd))
++		conn, err := unixConn(uintptr(fd))
++		if err != nil {
++			return nil, err
++		}
++		defer conn.Close()
+ 		f, err := os.Create(path)
+ 		if err != nil {
+ 			return nil, err
+ 		}
++		defer f.Close()
+ 		if err := p.partitionDevice(f, path); err != nil {
+ 			return nil, err
+ 		}
+ 		_, _, err = conn.WriteMsgUnix(nil, syscall.UnixRights(int(f.Fd())), nil)
+ 		return nil, err
+ 	}
+ 
+ 	pair, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	syscall.CloseOnExec(pair[0]) // used in the parent process
++	conn, err := unixConn(uintptr(pair[0]))
++	if err != nil {
++		syscall.Close(pair[1])
++		return nil, err
++	}
++	defer conn.Close()
++	output := os.NewFile(uintptr(pair[1]), "")
++	defer output.Close()
+ 
+ 	// Use absolute path because $PATH might not be the same when using sudo:
+ 	if exe, err := os.Executable(); err == nil {
+ 		os.Args[0] = exe
+ 	}
+ 
+ 	cmd := exec.Command("sudo", append([]string{"--preserve-env"}, os.Args...)...)
+ 	// We cannot use cmd.ExtraFiles with sudo, as sudo closes all file
+ 	// descriptors but stdin, stdout and stderr.
+ 	cmd.Env = []string{
+ 		"GOKR_PACKER_FD=1",
+ 		fmt.Sprintf("HOME=%s", os.Getenv("HOME")), // for instance config detection
+ 		fmt.Sprintf("GOKRAZY_PARENT_DIR=%s", os.Getenv("GOKRAZY_PARENT_DIR")), // ditto
+ 	}
+-	cmd.Stdout = os.NewFile(uintptr(pair[1]), "")
++	cmd.Stdout = output
+ 	cmd.Stderr = os.Stderr
+ 	if err := cmd.Start(); err != nil {
+ 		return nil, err
+ 	}
+ 
+-	go func() {
+-		err := cmd.Wait()
+-		if err != nil {
+-			log.Fatal(err)
++	// Close the parent's copy so a failed child produces EOF rather than
++	// leaving ReadMsgUnix waiting on a descriptor the parent still holds.
++	if err := output.Close(); err != nil {
++		return nil, errors.Join(err, cmd.Process.Kill(), cmd.Wait())
++	}
++	defer func() {
++		if err := cmd.Wait(); err != nil {
++			if result != nil {
++				err = errors.Join(err, result.Close())
++				result = nil
++			}
++			resultErr = errors.Join(resultErr, err)
+ 		}
+ 	}()
+ 
+ 	// receive file descriptor
+-	conn := mustUnixConn(uintptr(pair[0]))
+ 	// 32 bytes as per
+ 	// https://github.com/golang/go/blob/21d2e15ee1bed44a7a1b8f775aff4a57cae9533a/src/syscall/syscall_unix_test.go#L177
+ 	oob := make([]byte, 32)
+diff --git a/vendor/github.com/gokrazy/tools/internal/packer/write.go b/vendor/github.com/gokrazy/tools/internal/packer/write.go
+index a822521484..b7266883ea 100644
+--- a/vendor/github.com/gokrazy/tools/internal/packer/write.go
++++ b/vendor/github.com/gokrazy/tools/internal/packer/write.go
+@@ -106,6 +106,7 @@ func (p *Pack) writeCmdline(fw *fat.Writer, src string) error {
+ 	// gokrazy update process:
+ 	const pad = 64
+ 	padded := append([]byte(cmdline), bytes.Repeat([]byte{' '}, pad)...)
++	padded = append(padded, '\n')
+ 
+ 	w, err := fw.File("/cmdline.txt", time.Now())
+ 	if err != nil {
+@@ -597,7 +598,9 @@ func findBins(cfg *config.Struct, buildEnv *packer.BuildEnv, bindir string, base
+ 	gokrazy := FileInfo{Filename: "gokrazy"}
+ 	for _, pkg := range gokrazyMainPkgs {
+ 		binPath := filepath.Join(bindir, pkg.Basename())
+-		fileIsELFOrFatal(binPath)
++		if err := fileIsELF(binPath); err != nil {
++			return nil, nil, err
++		}
+ 		gokrazy.Dirents = append(gokrazy.Dirents, &FileInfo{
+ 			Filename: pkg.Basename(),
+ 			FromHost: binPath,
+@@ -619,7 +622,9 @@ func findBins(cfg *config.Struct, buildEnv *packer.BuildEnv, bindir string, base
+ 				continue
+ 			}
+ 			binPath := filepath.Join(bindir, pkg.Basename())
+-			fileIsELFOrFatal(binPath)
++			if err := fileIsELF(binPath); err != nil {
++				return nil, nil, err
++			}
+ 			gokrazy.Dirents = append(gokrazy.Dirents, &FileInfo{
+ 				Filename: pkg.Basename(),
+ 				FromHost: binPath,
+@@ -643,7 +648,9 @@ func findBins(cfg *config.Struct, buildEnv *packer.BuildEnv, bindir string, base
+ 			basename = basenameOverride
+ 		}
+ 		binPath := filepath.Join(bindir, basename)
+-		fileIsELFOrFatal(binPath)
++		if err := fileIsELF(binPath); err != nil {
++			return nil, nil, err
++		}
+ 		user.Dirents = append(user.Dirents, &FileInfo{
+ 			Filename: basename,
+ 			FromHost: binPath,
+diff --git a/vendor/github.com/gokrazy/tools/gok/helper.go b/vendor/github.com/gokrazy/tools/gok/helper.go
+new file mode 100644
+--- /dev/null
++++ b/vendor/github.com/gokrazy/tools/gok/helper.go
+@@ -0,0 +1,16 @@
++package gok
++
++import "github.com/gokrazy/tools/internal/packer"
++
++// HelperCompletion identifies a successful privileged partitioning helper.
++// Context.Execute preserves it so embedded callers can skip image or VM
++// postwork, run deferred cleanup, and return success at their command boundary.
++type HelperCompletion = packer.HelperCompletion
++
++// IsHelperCompletion recognizes a pure helper-completion result. A joined or
++// wrapped cleanup failure must remain an error, even if it contains a helper
++// result. Main and the command implementations preserve completion unchanged.
++func IsHelperCompletion(err error) bool {
++	_, complete := err.(interface{ HelperCompletion() })
++	return complete
++}
+diff --git a/vendor/github.com/gokrazy/tools/internal/packer/write_cmdline_test.go b/vendor/github.com/gokrazy/tools/internal/packer/write_cmdline_test.go
+new file mode 100644
+--- /dev/null
++++ b/vendor/github.com/gokrazy/tools/internal/packer/write_cmdline_test.go
+@@ -0,0 +1,68 @@
++package packer
++
++import (
++	"bytes"
++	"io"
++	"os"
++	"path/filepath"
++	"testing"
++
++	"github.com/gokrazy/internal/config"
++	"github.com/gokrazy/internal/fat"
++)
++
++// TestPackedCmdlineSupportsTestboot reads the actual packed FAT files. Both
++// command-line formats need their newline delimiter and reserved update space;
++// the runtime's retained-extent tests separately prove safe in-place mutation.
++func TestPackedCmdlineSupportsTestboot(t *testing.T) {
++	source := filepath.Join(t.TempDir(), "cmdline.txt")
++	if err := os.WriteFile(source, []byte("root=/dev/sda2 quiet\n"), 0o600); err != nil {
++		t.Fatal(err)
++	}
++	var image bytes.Buffer
++	writer, err := fat.NewWriter(&image)
++	if err != nil {
++		t.Fatal(err)
++	}
++	pack := &Pack{Cfg: &config.Struct{SerialConsole: "disabled"}, Env: Osenv{Stdout: io.Discard, Stderr: io.Discard}}
++	pack.UseGPTPartuuid = true
++	if err := pack.writeCmdline(writer, source); err != nil {
++		t.Fatal(err)
++	}
++	if err := writer.Flush(); err != nil {
++		t.Fatal(err)
++	}
++	reader, err := fat.NewReader(bytes.NewReader(image.Bytes()))
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, path := range []string{"/cmdline.txt", "/loader/entries/gokrazy.conf"} {
++		t.Run(path, func(t *testing.T) {
++			offset, length, err := reader.Extents(path)
++			if err != nil {
++				t.Fatal(err)
++			}
++			data := image.Bytes()[offset : offset+length]
++			if !bytes.HasSuffix(data, []byte{'\n'}) {
++				t.Fatalf("packed %s has no trailing newline for the runtime testboot edit", path)
++			}
++			if !bytes.Contains(data, bytes.Repeat([]byte{' '}, 64)) {
++				t.Fatalf("packed %s lost the reserved command-line space", path)
++			}
++			// Exercise the newline append position on both packed formats. This
++			// checks the file delimiter, not the runtime's retained-extent update.
++			marked := bytes.ReplaceAll(data, []byte{'\n'}, []byte(" gokrazy.try_boot_inactive=1\n"))
++			line := bytes.TrimSpace(marked)
++			if path != "/cmdline.txt" {
++				at := bytes.LastIndex(line, []byte("options "))
++				if at < 0 {
++					t.Fatal("packed loader entry lost its options line")
++				}
++				line = line[at:]
++			}
++			if !bytes.Contains(line, []byte("gokrazy.try_boot_inactive=1")) {
++				t.Fatalf("newline insertion did not reach %s's kernel arguments", path)
++			}
++		})
++	}
++}

@@ -1,5 +1,19 @@
 # Appliance builder
 
+The packer terminates both boot command-line files with a newline after their
+reserved whitespace. The runtime's testboot edit inserts its inactive-root flag
+at that newline. Without it, the update endpoint can accept testboot while the
+next kernel receives no testboot flag and starts the original root again.
+<!-- source: vendor/github.com/gokrazy/tools/internal/packer/write.go -- writeCmdline -->
+<!-- source: gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/update.go -- enableTestboot -->
+
+The runtime consumes the reserved trailing whitespace when it adds testboot.
+Repeated requests keep one flag. In-place boot-file edits retain the FAT file
+length, pad only the final line, and refuse an edit that exceeds that extent
+before writing. Loader titles and kernel filenames remain unchanged.
+<!-- source: gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/update.go -- testbootCmdline, modifyCmdlineFile -->
+
+
 `ze appliance` is the build-host tooling for gokrazy-based Ze appliance images.
 It replaced a retired workflow that exposed credentials on the command line.
 `ze appliance build <name>` reads them without putting them in process arguments.
@@ -7,6 +21,49 @@ It replaced a retired workflow that exposed credentials on the command line.
 The build host is Linux or macOS. gokrazy's packer reads block device sizes
 only on those two systems, so on any other host `ze appliance build` and
 `le build gokrazy` refuse with that reason rather than failing to compile.
+
+A named image build reads its existing `update.token` and TLS certificate/key.
+It puts the token into the prepared gokrazy instance's `Update` object and
+sets `Update.UseTLS` to private temporary certificate/key paths. The device
+therefore uses the same credentials and HTTPS port as `ze appliance push`.
+The prepared configuration and TLS files use mode `0600`. Normal builder
+return, including failure, removes the prepared instance and TLS files. The tracked
+instance configuration is unchanged. These settings are for the named appliance
+build; the lower-level gokrazy development builder retains its supplied instance
+configuration.
+<!-- source: internal/appliance/build_update.go -- readGokUpdate, writeGokUpdate -->
+<!-- source: internal/appliance/cmd_build.go -- buildOne, runGokBuild -->
+
+The updater token stays unchanged in the image configuration. URL construction
+escapes it as user information, so reserved characters cannot change the
+destination. Named-build errors and the connection hint redact the token.
+<!-- source: vendor/github.com/gokrazy/internal/updateflag/updateflag.go -- Value.BaseURL -->
+<!-- source: internal/appliance/build_update.go -- gokBuildFailure -->
+<!-- source: vendor/github.com/gokrazy/tools/internal/packer/packerwrite.go -- Pack.printHowToInteract -->
+
+The embedded gokrazy host packer returns errors through `gok.Context.Execute`.
+Ze carries that change as the stamped `gokrazy-packer-return-errors.patch`,
+including ELF validation and the privileged partition-helper path. An ordinary
+packing failure therefore reaches deferred working-directory restoration and
+prepared-credential cleanup. The cleanup regression invokes the actual packer
+in a child test process and checks cleanup before the test framework can remove
+its temporary directory.
+<!-- source: internal/appliance/gok_execute.go -- ExecuteGok, keepWorkingDir -->
+<!-- source: internal/appliance/gok_failure_cleanup_test.go -- TestGokPackingFailureReturnsAndCleansIdentity -->
+<!-- source: internal/le/vendorpatch/patches/gokrazy-packer-return-errors.patch -- embedded packer error boundary -->
+
+A successful privileged partitioning helper returns a distinct typed
+completion through the public embedded API. It is not a completed image.
+`runGokBuild`, `buildOne` and `buildAll` preserve that distinction, so helper
+completion cannot trigger manifest generation, persistent-partition injection
+or another batch build. Only `runBuild` converts it to process exit success,
+after the cleanup owners have returned. The `le build gokrazy` command applies
+the same rule at its boundary; a VM build propagates the result before QEMU can
+start.
+<!-- source: internal/appliance/cmd_build.go -- buildOutcome, buildCommandExit, runGokBuild, buildOne, buildAll -->
+<!-- source: internal/appliance/gok_execute.go -- IsGokHelperCompletion -->
+<!-- source: internal/le/build/gokrazy/gokrazy.go -- Run -->
+<!-- source: vendor/github.com/gokrazy/tools/gok/helper.go -- HelperCompletion, IsHelperCompletion -->
 
 gok's go subprocesses compile the image's ze, which links the EAP-TLS
 authenticator and compiles only against Ze's patched `crypto/tls`. So
@@ -133,6 +190,12 @@ the agent expires after a bounded duration.
   distributed keeps working. The root key goes through the appliance
   passphrase, exactly as `key.pem` does, and `ze appliance rekey` re-encrypts
   both keys.
+- Generated serving certificates include `device.address` as an additional DNS
+  or IP subject alternative name. Push verifies the configured destination with
+  the normal TLS hostname check, including when it uses a numeric address.
+  After changing the destination of an existing appliance, use
+  `ze appliance replace-cert <name>` and rebuild before deploying that material.
+  <!-- source: internal/appliance/ca.go -- issueWebLeaf -->
 - `cert.pem` holds the device certificate FIRST and the root SECOND. Four
   readers take the first block only: `certExpiry`, `validateTLSPair`,
   `checkCertExpiry` and `selfcert.NewTLSConfig` on the device itself. The

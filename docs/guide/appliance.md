@@ -401,15 +401,27 @@ fill `/perm`.
 
 ## Updating
 
-Gokrazy supports atomic A/B partition updates over the network:
+Push a rebuilt image to the running appliance over authenticated HTTPS:
 
 ```bash
-ze appliance push <name>
+./ze-host appliance build <name>
+./ze-host appliance push --testboot <name>
 ```
 
-This pushes the most recent image to the device. The system reboots into the new version. If the update fails mid-flight, the previous root partition is still intact.
+Push validates the disk image, sends its root filesystem to the inactive root
+slot, updates the shared boot filesystem and boot code, then reboots. It keeps
+the device's disk identities and persistent configuration. `--testboot` asks
+gokrazy for a temporary boot of the new root, with the previous root selected
+for a subsequent reboot. It does not verify routing health. Use `--no-reboot`
+to schedule the restart separately.
+<!-- source: internal/appliance/cmd_push.go -- runPush, doPushUpdater -->
+<!-- source: internal/appliance/push_image.go -- readPushImage -->
 
-For full image rebuilds (when you also want to update the kernel or partition layout), use `ze appliance build <name>` again and re-flash.
+The two root slots protect the previous root filesystem. The boot filesystem
+is shared, so keep installer media and a configuration/secret backup for an
+interrupted boot write. A partition-layout change requires reinstalling the
+disk image rather than an OTA push.
+<!-- source: internal/appliance/push_image.go -- bounded boot/root/MBR payloads -->
 
 ## Architecture notes
 

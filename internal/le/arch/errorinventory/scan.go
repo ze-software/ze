@@ -134,6 +134,9 @@ func (sc scope) rowsUnder(root ast.Node) ([]Row, error) {
 			if !isWriter {
 				return true
 			}
+			if sc.declaredProgress(w, expression) {
+				return false
+			}
 			row, err := sc.row(w, w.label(), expression, w.message.of(expression.Args))
 			if err != nil {
 				failed = err

@@ -1,0 +1,306 @@
+Ze-Reviewed-Against: github.com/gokrazy/gokrazy v0.0.0-20260703061218-a4a45a20149d
+
+Upstream pull request: none opened yet.
+
+Ze can own the interface that carries the management request. A synchronous
+power request must acknowledge and flush before service termination removes
+that interface, then complete shutdown before scheduling the power operation.
+The runtime helper states the requirement:
+"A synchronous request MUST finish shutdown before scheduling powerFunc."
+
+Testboot consumes reserved trailing whitespace and keeps one inactive-root
+flag across retries. In-place FAT edits refuse growth beyond the existing
+extent and add padding only before the final newline, preserving loader
+metadata and adjacent file bytes.
+
+The HTTP regression holds shutdown behind a barrier and observes acceptance
+on an actual client connection before releasing it. Retained-extent tests
+cover new and legacy command-line formats, loader headers, retries and an
+exhausted extent with adjacent data.
+
+Design: docs/architecture/appliance/ota-push.md and
+docs/architecture/appliance/gokrazy-build-pins.md.
+
+diff --git a/gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/update.go b/gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/update.go
+index 7701c60973..8300bddb47 100644
+--- a/gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/update.go
++++ b/gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/update.go
+@@ -66,16 +66,21 @@ func modifyCmdlineFile(f *os.File, offset, length int64, replace func([]byte) []
+ 	}
+ 
+ 	rep := replace(b)
++	if len(rep) > len(b) {
++		return fmt.Errorf("updated boot command line needs %d bytes but its reserved FAT extent has %d; rebuild the boot image before retrying", len(rep), len(b))
++	}
+ 	if pad := len(b) - len(rep); pad > 0 {
+ 		// The file content length can shrink when switching from PARTUUID= (the
+ 		// default) to /dev/mmcblk0p[23], on an older gokrazy installation.
+ 		// Because we overwrite the file in place and have no means to truncate
+ 		// it to a smaller length, we pad the command line with spaces instead.
+ 		// Note that we need to insert spaces before the trailing newline,
+ 		// otherwise the system won’t boot:
+-		rep = bytes.ReplaceAll(rep,
+-			[]byte{'\n'},
+-			append(bytes.Repeat([]byte{' '}, pad), '\n'))
++		content := bytes.TrimSuffix(rep, []byte{'\n'})
++		padded := make([]byte, 0, len(b))
++		padded = append(padded, content...)
++		padded = append(padded, bytes.Repeat([]byte{' '}, pad)...)
++		rep = append(padded, rep[len(content):]...)
+ 	}
+ 
+ 	if _, err := f.Write(rep); err != nil {
+@@ -124,11 +129,17 @@ func switchRootPartition(newRootPartition int) error {
+ }
+ 
+ func enableTestboot() error {
+-	return modifyCmdline(func(b []byte) []byte {
+-		return bytes.ReplaceAll(b,
+-			[]byte{'\n'},
+-			[]byte(" gokrazy.try_boot_inactive=1\n"))
+-	})
++	return modifyCmdline(testbootCmdline)
++}
++
++func testbootCmdline(b []byte) []byte {
++	content := bytes.TrimRight(b, " \t\r\n\v\f")
++	for _, argument := range bytes.Fields(content) {
++		if bytes.Equal(argument, []byte("gokrazy.try_boot_inactive=1")) {
++			return append(content, '\n')
++		}
++	}
++	return append(content, []byte(" gokrazy.try_boot_inactive=1\n")...)
+ }
+ 
+ func streamRequestTo(path string, offset int64, r io.Reader) error {
+@@ -347,6 +358,12 @@ func initUpdate() error {
+ }
+ 
+ func powerHandler(w http.ResponseWriter, r *http.Request, operationName, powerMsg string, powerFunc func() error) {
++	powerHandlerWithShutdown(w, r, operationName, powerMsg, powerFunc, killSupervisedServicesAndUmountPerm)
++}
++
++// powerHandlerWithShutdown separates service shutdown from the power operation.
++// A synchronous request MUST finish shutdown before scheduling powerFunc.
++func powerHandlerWithShutdown(w http.ResponseWriter, r *http.Request, operationName, powerMsg string, powerFunc func() error, shutdown func(time.Duration)) {
+ 	if r.Method != http.MethodPost {
+ 		http.Error(w, "expected a POST request", http.StatusBadRequest)
+ 		return
+@@ -368,13 +385,17 @@ func powerHandler(w http.ResponseWriter, r *http.Request, operationName, powerMs
+ 		log.Printf("Asynchronous %s requested", operationName)
+ 		go func() {
+ 			start := time.Now()
+-			killSupervisedServicesAndUmountPerm(signalDelay)
++			shutdown(signalDelay)
+ 			log.Printf("All services killed in %s\n", time.Since(start))
+ 		}()
+ 	} else {
+ 		log.Printf("Synchronous %s requested", operationName)
++		// A supervised service can own the management interface. Accept the
++		// request before stopping it, but finish shutdown before powerFunc.
++		fmt.Fprintf(w, "%s accepted; stopping services\n", operationName)
++		rc.Flush()
+ 		start := time.Now()
+-		killSupervisedServicesAndUmountPerm(signalDelay)
++		shutdown(signalDelay)
+ 		fmt.Fprintf(w, "All services killed in %s\n", time.Since(start))
+ 	}
+ 
+
+diff --git a/gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/reboot_ack_test.go b/gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/reboot_ack_test.go
+new file mode 100644
+--- /dev/null
++++ b/gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/reboot_ack_test.go
+@@ -0,0 +1,99 @@
++package gokrazy
++
++import (
++	"context"
++	"net/http"
++	"net/http/httptest"
++	"sync"
++	"testing"
++	"time"
++)
++
++// TestSynchronousPowerAcknowledgesBeforeShutdown crosses a real HTTP exchange.
++// The shutdown callback stands in for service termination and interface removal.
++// Acceptance must reach the client before it blocks, and power must wait for it.
++func TestSynchronousPowerAcknowledgesBeforeShutdown(t *testing.T) {
++	entered, release := make(chan struct{}), make(chan struct{})
++	returned, powered := make(chan struct{}), make(chan struct{})
++	var releaseOnce sync.Once
++	stopShutdown := func() { releaseOnce.Do(func() { close(release) }) }
++	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		powerHandlerWithShutdown(w, r, "reboot", "Rebooting", func() error {
++			close(powered)
++			return nil
++		}, func(time.Duration) {
++			close(entered)
++			<-release
++			close(returned)
++		})
++	}))
++	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
++	defer cancel()
++	request, err := http.NewRequestWithContext(ctx, http.MethodPost, server.URL, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	type answer struct {
++		response *http.Response
++		err      error
++	}
++	result := make(chan answer, 1)
++	clientDone := make(chan struct{})
++	go func() {
++		defer close(clientDone)
++		response, err := server.Client().Do(request)
++		result <- answer{response: response, err: err}
++	}()
++	t.Cleanup(func() {
++		cancel()
++		stopShutdown()
++		server.Close()
++		<-clientDone
++		select {
++		case <-entered:
++			<-powered
++		default:
++		}
++	})
++	select {
++	case <-entered:
++	case <-ctx.Done():
++		stopShutdown()
++		t.Fatal("synchronous shutdown callback did not start")
++	}
++	select {
++	case result := <-result:
++		if result.err != nil {
++			stopShutdown()
++			t.Fatalf("no reboot acceptance before shutdown: %v", result.err)
++		}
++		if result.response.StatusCode != http.StatusOK {
++			stopShutdown()
++			t.Fatalf("reboot acceptance status = %d", result.response.StatusCode)
++		}
++		if err := result.response.Body.Close(); err != nil {
++			stopShutdown()
++			t.Fatal(err)
++		}
++	case <-ctx.Done():
++		stopShutdown()
++		t.Fatal("reboot acceptance waited for service shutdown")
++	}
++	select {
++	case <-powered:
++		stopShutdown()
++		t.Fatal("power operation ran before service shutdown returned")
++	default:
++	}
++	stopShutdown()
++	select {
++	case <-returned:
++	case <-ctx.Done():
++		t.Fatal("controlled shutdown did not return")
++	}
++	select {
++	case <-powered:
++	case <-ctx.Done():
++		t.Fatal("accepted reboot never reached its power operation")
++	}
++}
+
+diff --git a/gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/testboot_cmdline_test.go b/gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/testboot_cmdline_test.go
+new file mode 100644
+--- /dev/null
++++ b/gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/testboot_cmdline_test.go
+@@ -0,0 +1,87 @@
++package gokrazy
++
++import (
++	"bytes"
++	"io"
++	"os"
++	"strings"
++	"testing"
++)
++
++// TestTestbootFitsTheRetainedFATExtent exercises the runtime's actual raw
++// in-place update. The FAT directory retains its original file length, and the
++// loader entry's title and kernel filename must not acquire command-line flags.
++func TestTestbootFitsTheRetainedFATExtent(t *testing.T) {
++	const arguments = "root=PARTUUID=fixture/PARTNROFF=1 quiet"
++	const loaderHeader = "title gokrazy\nlinux /vmlinuz\noptions "
++	for _, test := range []struct{ name, prefix, ending string }{
++		{"kernel command line", "", "\n"},
++		{"legacy command line without newline", "", ""},
++		{"loader entry", loaderHeader, "\n"},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			original := []byte(test.prefix + arguments + strings.Repeat(" ", 64) + test.ending)
++			file, err := os.CreateTemp(t.TempDir(), "boot-file-")
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer file.Close()
++			if _, err := file.Write(original); err != nil {
++				t.Fatal(err)
++			}
++			for range 3 {
++				if err := modifyCmdlineFile(file, 0, int64(len(original)), testbootCmdline); err != nil {
++					t.Fatal(err)
++				}
++			}
++			info, err := file.Stat()
++			if err != nil {
++				t.Fatal(err)
++			}
++			if info.Size() != int64(len(original)) {
++				t.Errorf("testboot wrote %d bytes beyond the retained FAT extent", info.Size()-int64(len(original)))
++			}
++			retained, err := io.ReadAll(io.NewSectionReader(file, 0, int64(len(original))))
++			if err != nil {
++				t.Fatal(err)
++			}
++			if !bytes.HasPrefix(retained, []byte(test.prefix+arguments)) {
++				t.Errorf("testboot changed boot metadata or the selected root: %q", retained)
++			}
++			if bytes.Count(retained, []byte("gokrazy.try_boot_inactive=1")) != 1 {
++				t.Errorf("retained kernel arguments do not contain one complete testboot flag: %q", retained)
++			}
++		})
++	}
++}
++
++func TestTestbootRejectsAnExhaustedFATExtent(t *testing.T) {
++	original := []byte("root=PARTUUID=fixture quiet\n")
++	const adjacent = "ADJACENT-FAT-FILE-MUST-SURVIVE"
++	file, err := os.CreateTemp(t.TempDir(), "boot-boundary-")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer file.Close()
++	before := append(bytes.Clone(original), []byte(adjacent)...)
++	if _, err := file.Write(before); err != nil {
++		t.Fatal(err)
++	}
++	if err := modifyCmdlineFile(file, 0, int64(len(original)), testbootCmdline); err == nil {
++		t.Error("testboot accepted a command line with no reserved space")
++	}
++	after, err := io.ReadAll(io.NewSectionReader(file, 0, int64(len(before))))
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(after, before) {
++		t.Fatalf("refused testboot changed the boot file or adjacent data: %q", after)
++	}
++	info, err := file.Stat()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if info.Size() != int64(len(before)) {
++		t.Fatalf("refused testboot grew the containing device to %d", info.Size())
++	}
++}

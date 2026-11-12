@@ -149,6 +149,9 @@ func issueWebLeaf(baseDir, name string, cfg *applianceConfig, passphrase []byte)
 	if cfg.TLS.CertName != "" {
 		extraNames = []string{cfg.TLS.CertName}
 	}
+	if cfg.Device.Address != "" {
+		extraNames = append(extraNames, cfg.Device.Address)
+	}
 
 	// The common name names the device in the subject and is never matched
 	// against a hostname; the SANs are what a client verifies.

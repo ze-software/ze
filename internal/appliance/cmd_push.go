@@ -20,6 +20,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gokrazy/updater"
 
@@ -357,34 +358,47 @@ func (a *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// http.RoundTripper must not modify the request it receives. Clone before
 	// injecting auth so a retried or redirected request keeps a clean original.
 	req = req.Clone(req.Context())
-	req.SetBasicAuth("", a.token)
+	req.SetBasicAuth("gokrazy", a.token)
 	return a.base.RoundTrip(req) //nolint:wrapcheck // pass through
 }
 
 func doPushUpdater(baseURL string, img *os.File, updateToken string, tlsConfig *tls.Config, opts pushOpts) error {
+	image, err := readPushImage(img)
+	if err != nil {
+		return &protocolError{msg: "invalid appliance image: " + err.Error() + "; rebuild it with ze appliance build <name>"}
+	}
+	network := &http.Transport{TLSClientConfig: tlsConfig}
+	defer network.CloseIdleConnections()
 	transport := &authTransport{
-		base: &http.Transport{
-			TLSClientConfig: tlsConfig,
-		},
+		base:  network,
 		token: updateToken,
 	}
-	client := &http.Client{Transport: transport}
+	client := &http.Client{Transport: transport, CheckRedirect: refusePushRedirect}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
 
 	target, err := updater.NewTarget(ctx, baseURL, client)
 	if err != nil {
 		return err
 	}
 
-	// The caller owns img and already verified its checksum from this handle;
-	// rewind to the start before streaming.
-	if _, err := img.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("seek image: %w", err)
+	fmt.Fprintf(os.Stderr, "streaming root image...\n")
+	if err := target.StreamTo(ctx, "root", image.root); err != nil {
+		return mapUpdaterError(err)
 	}
 
-	fmt.Fprintf(os.Stderr, "streaming root image...\n")
-	if err := target.StreamTo(ctx, "root", img); err != nil {
+	// bootonly rewrites both kernel command-line files using the running
+	// device's active PARTUUID. This MUST precede Switch or Testboot: the
+	// freshly built image has its own disk identities and always boots root A.
+	fmt.Fprintln(os.Stderr, "streaming boot image...") //nolint:errcheck // CLI progress.
+	if err := target.StreamTo(ctx, "bootonly", image.boot); err != nil {
+		return mapUpdaterError(err)
+	}
+	// Boot code carries the kernel/cmdline LBAs from the new FAT layout. The
+	// disk signature, partition table and GPT MUST remain the device's own.
+	fmt.Fprintln(os.Stderr, "streaming boot code...") //nolint:errcheck // CLI progress.
+	if err := target.StreamTo(ctx, "mbr", image.mbr); err != nil {
 		return mapUpdaterError(err)
 	}
 
@@ -408,6 +422,11 @@ func doPushUpdater(baseURL string, img *os.File, updateToken string, tlsConfig *
 	}
 
 	return nil
+}
+
+func refusePushRedirect(_ *http.Request, _ []*http.Request) error {
+	// The update credential MUST NOT be forwarded to a redirected endpoint.
+	return http.ErrUseLastResponse
 }
 
 func mapUpdaterError(err error) error {

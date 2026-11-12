@@ -452,7 +452,7 @@ file is not in the tree, so that patch is applied at build time.
 | The patches | `internal/le/vendorpatch/patches/*.patch` | The set is the files present: adding a patch needs no edit anywhere else (`vendorpatch.Patches`) |
 | The re-vendor | `./le setup install` (`internal/le/setup`, `vendorGoDeps`) | Runs `go mod tidy`, then `go mod vendor -o <owned-stage>/vendor`. It checks every stamp against the staged module versions and applies every patch there before publishing the replacement. A command or patch refusal leaves the current `vendor/` untouched |
 | The upstream check | `TestPatchedVendorModulesMatchUpstream` (`internal/le/vendorpatch`) | For each module a patch names, reverts its patches in a copy of `vendor/<module>` and requires every file to equal the module at the vendored version, as `go mod download` fetches it. A hand edit no patch records, a dropped patch and a half-applied one all turn it red. It reads the module from the Go module cache, which `./le setup install` fills; on a cold cache it needs network access to download the module |
-| The guard tests | `TestNetlinkXFRMPatchApplied`, `TestBubblesCursorPatchApplied` | Older per-patch guards (`assertVendorPatchApplied`), which check that each hunk is present with `git apply --reverse --check` and need no module cache |
+| The guard tests | `TestNetlinkXFRMPatchApplied`, `TestBubblesCursorPatchApplied`, `TestGokrazyPackerReturnsErrorsPatchApplied` | Per-patch guards (`assertVendorPatchApplied`), which check that each hunk is present with `git apply --reverse --check` and need no module cache |
 
 A plain `go mod vendor` drops every patch. Run `./le setup install` instead.
 Its owned dot-prefixed stage sits beside `vendor/`, on the same filesystem.

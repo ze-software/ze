@@ -51,7 +51,7 @@ func TestUnsupportedArchRefusedBeforeAnyHost(t *testing.T) {
 	if err := saveConfig(ConfigPath(baseDir, "lab"), &cfg); err != nil {
 		t.Fatal(err)
 	}
-	image := captureStderr(t, func() { code = buildOne("lab") })
+	image := captureStderr(t, func() { code = int(buildOne("lab")) })
 	if code != exitError {
 		t.Errorf("buildOne with image.arch %s = %d, want %d", unsupported, code, exitError)
 	}

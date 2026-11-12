@@ -30,6 +30,7 @@ import (
 func updaterMux(t *testing.T, opts *mockOpts) http.Handler {
 	t.Helper()
 	mux := http.NewServeMux()
+	addPushMetadataHandlers(mux)
 
 	mux.HandleFunc("GET /update/features", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
@@ -110,7 +111,7 @@ func setupPushTestAppliance(t *testing.T, name, serverAddr string, serverPort in
 
 	os.WriteFile(filepath.Join(tlsDir, "cert.pem"), certPEM, 0o600) //nolint:errcheck // test
 
-	imgData := []byte("fake-disk-image-content")
+	imgData, _, _ := pushDiskFixture("fake-disk-image-content")
 	os.WriteFile(filepath.Join(appDir, "ze-20260510-120000.img"), imgData, 0o644) //nolint:errcheck,gosec // test
 
 	return dir
@@ -157,12 +158,13 @@ func TestPushSendsImage(t *testing.T) {
 		t.Fatalf("push returned %d, want 0", code)
 	}
 
-	if string(receivedBody) != "fake-disk-image-content" {
-		t.Errorf("received body = %q, want fake-disk-image-content", string(receivedBody))
+	_, wantRoot, _ := pushDiskFixture("fake-disk-image-content")
+	if !bytes.Equal(receivedBody, wantRoot) {
+		t.Errorf("received root payload = %q, want %q", receivedBody, wantRoot)
 	}
 
 	expectedToken := base64.StdEncoding.EncodeToString([]byte("test-update-token"))
-	expectedAuth := "Basic " + base64.StdEncoding.EncodeToString([]byte(":"+expectedToken))
+	expectedAuth := "Basic " + base64.StdEncoding.EncodeToString([]byte("gokrazy:"+expectedToken))
 	if receivedAuth != expectedAuth {
 		t.Errorf("auth = %q, want %q", receivedAuth, expectedAuth)
 	}
@@ -239,7 +241,8 @@ func TestPushSpecificImage(t *testing.T) {
 	baseDir = dir
 
 	appDir := filepath.Join(dir, "lab")
-	os.WriteFile(filepath.Join(appDir, "ze-20260101-000000.img"), []byte("older-image"), 0o644) //nolint:errcheck,gosec // test
+	olderDisk, olderRoot, _ := pushDiskFixture("older-image")
+	os.WriteFile(filepath.Join(appDir, "ze-20260101-000000.img"), olderDisk, 0o644) //nolint:errcheck,gosec // test
 
 	env.ResetCache()
 	code := runPush([]string{"--image", "ze-20260101-000000.img", "lab"})
@@ -247,8 +250,8 @@ func TestPushSpecificImage(t *testing.T) {
 		t.Fatalf("push returned %d, want 0", code)
 	}
 
-	if string(receivedBody) != "older-image" {
-		t.Errorf("received body = %q, want older-image", string(receivedBody))
+	if !bytes.Equal(receivedBody, olderRoot) {
+		t.Errorf("received root payload = %q, want %q", receivedBody, olderRoot)
 	}
 }
 
@@ -319,6 +322,7 @@ func TestPushAllParallelPartialFailure(t *testing.T) {
 	var mu sync.Mutex
 
 	mux := http.NewServeMux()
+	addPushMetadataHandlers(mux)
 	mux.HandleFunc("GET /update/features", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
@@ -428,7 +432,8 @@ func TestPushAllIteratesAppliances(t *testing.T) {
 	}
 
 	for _, name := range []string{"dev1", "dev2", "dev3"} {
-		if !received["img-"+name] {
+		_, wantRoot, _ := pushDiskFixture("img-" + name)
+		if !received[string(wantRoot)] {
 			t.Errorf("device %s was not pushed to", name)
 		}
 	}
@@ -487,6 +492,7 @@ func TestPushNoReboot(t *testing.T) {
 
 func TestPushHashVerification(t *testing.T) {
 	mux := http.NewServeMux()
+	addPushMetadataHandlers(mux)
 	mux.HandleFunc("GET /update/features", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
@@ -524,6 +530,7 @@ func TestAuthTransport(t *testing.T) {
 	var mu sync.Mutex
 
 	mux := http.NewServeMux()
+	addPushMetadataHandlers(mux)
 	captureAuth := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			mu.Lock()
@@ -622,9 +629,10 @@ func setupFleetDevice(t *testing.T, dir, name, host string, port int, certPEM []
 	os.WriteFile(filepath.Join(appDir, "appliance.json"), append(data, '\n'), 0o644) //nolint:errcheck,gosec // test
 
 	token := base64.StdEncoding.EncodeToString([]byte("tok"))
-	os.WriteFile(filepath.Join(secretsDir, "update.token"), []byte(token), 0o600)             //nolint:errcheck // test
-	os.WriteFile(filepath.Join(tlsDir, "cert.pem"), certPEM, 0o600)                           //nolint:errcheck // test
-	os.WriteFile(filepath.Join(appDir, "ze-20260510-120000.img"), []byte("img-"+name), 0o644) //nolint:errcheck,gosec // test
+	os.WriteFile(filepath.Join(secretsDir, "update.token"), []byte(token), 0o600) //nolint:errcheck // test
+	os.WriteFile(filepath.Join(tlsDir, "cert.pem"), certPEM, 0o600)               //nolint:errcheck // test
+	disk, _, _ := pushDiskFixture("img-" + name)
+	os.WriteFile(filepath.Join(appDir, "ze-20260510-120000.img"), disk, 0o644) //nolint:errcheck,gosec // test
 }
 
 func fleetDeviceName(i int) string {
@@ -677,7 +685,8 @@ func startDeviceServer(t *testing.T, dir, name string, served tls.Certificate) {
 	}
 
 	imgPath := filepath.Join(dir, name, "ze-20260510-120000.img")
-	if writeErr := os.WriteFile(imgPath, []byte("image"), 0o600); writeErr != nil {
+	disk, _, _ := pushDiskFixture("image")
+	if writeErr := os.WriteFile(imgPath, disk, 0o600); writeErr != nil {
 		t.Fatalf("write image: %v", writeErr)
 	}
 }
