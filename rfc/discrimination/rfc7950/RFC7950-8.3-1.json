@@ -40,8 +40,8 @@
     "claim-sha": "3dc41dada0d99db7",
     "route": "revert",
     "producer": "internal/component/config/validate_sections.go::refuseInvalidCustomSections",
-    "producer-sha": "6fd82cf98d14978e",
-    "break": "body of refuseInvalidCustomSections replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "27694d2c0b824c14",
+    "break": "body of refuseInvalidCustomSections replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7950-8.3-1",

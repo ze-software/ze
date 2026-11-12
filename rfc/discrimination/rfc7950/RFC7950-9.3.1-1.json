@@ -7,8 +7,8 @@
     "claim-sha": "9ffecc9a896a42f1",
     "route": "revert",
     "producer": "internal/component/config/yang/validator.go::validateDecimal64",
-    "producer-sha": "cd62816afe0e3b7f",
-    "break": "body of validateDecimal64 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "be775a5c90df7c98",
+    "break": "body of validateDecimal64 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7950-9.3.1-1",
@@ -18,7 +18,7 @@
     "claim-sha": "0db2dfadae51a922",
     "route": "revert",
     "producer": "internal/component/config/yang/validator.go::validateDecimal64",
-    "producer-sha": "cd62816afe0e3b7f",
-    "break": "body of validateDecimal64 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "be775a5c90df7c98",
+    "break": "body of validateDecimal64 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

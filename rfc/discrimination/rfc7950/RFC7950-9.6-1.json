@@ -8,7 +8,7 @@
     "route": "revert",
     "producer": "internal/component/config/yang/validator.go::validateEnumeration",
     "producer-sha": "a947d5562bbda847",
-    "break": "body of validateEnumeration replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of validateEnumeration replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7950-9.6-1",
@@ -19,6 +19,6 @@
     "route": "revert",
     "producer": "internal/component/config/yang/validator.go::validateEnumeration",
     "producer-sha": "a947d5562bbda847",
-    "break": "body of validateEnumeration replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of validateEnumeration replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
