@@ -210,7 +210,9 @@ func (s *Server) SubscribeEngineEvent(namespace, eventType string, handler Engin
 	}
 	if handler == nil {
 		logger().Error("SubscribeEngineEvent called with nil handler",
-			"namespace", namespace, "event-type", eventType)
+			"namespace", namespace, "event-type", eventType,
+			"code", diagnostic.CodeDoctorInternalDefect)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, namespace+" "+eventType, "SubscribeEngineEvent called with nil handler", fixShowErrors)
 		return func() {}
 	}
 	nsID := events.LookupNamespaceID(namespace)

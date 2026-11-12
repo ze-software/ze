@@ -16,6 +16,7 @@ import (
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -168,11 +169,15 @@ func parseForwardDestinations(plugin string, dst []string) []netip.AddrPort {
 			continue
 		}
 		logger().Warn("forward-cached: dropping malformed destination",
-			"plugin", plugin, "destination", s)
+			"plugin", plugin, "destination", s,
+			"code", diagnostic.CodeDoctorPluginRequestRefused)
+		raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, plugin, "forward-cached: dropping malformed destination", fixShowErrors)
 	}
 	if len(out) == 0 {
 		logger().Warn("forward-cached: every destination was malformed, refusing to broadcast",
-			"plugin", plugin, "count", len(dst))
+			"plugin", plugin, "count", len(dst),
+			"code", diagnostic.CodeDoctorPluginRequestRefused)
+		raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, plugin, "forward-cached: every destination was malformed, refusing to broadcast", fixShowErrors)
 	}
 	return out
 }

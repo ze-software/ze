@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -224,7 +225,7 @@ func (s *Server) SetRebootFunc(fn func()) {
 func handleDaemonQuit(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	buf := make([]byte, 1<<20) // 1MB
 	n := runtime.Stack(buf, true)
-	slog.Warn("goroutine dump (quit)", "stacks", string(buf[:n]))
+	slog.Info("goroutine dump (quit)", "stacks", string(buf[:n]))
 
 	if ctx.Server == nil || ctx.Server.shutdownFunc == nil {
 		return &plugin.Response{
@@ -640,7 +641,13 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 
 	if err := ctx.Dispatcher().Pending().Complete(serial, completion); err != nil {
 		slog.Warn("plugin completion: answer not delivered",
-			"command", cmd.Name, "serial", serial, "error", err)
+			"command", cmd.Name, "serial", serial, "error", err,
+			"code", diagnostic.CodeDoctorPluginAnswerUndelivered)
+		// deliver raised an answer the caller did not take; a serial the timeout
+		// already removed reached no raise.
+		if !errors.Is(err, ErrPendingUndeliverable) {
+			raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, cmd.Name, "plugin completion: answer not delivered: "+err.Error(), fixShowErrors)
+		}
 	}
 
 	// The pending request holds respCh, so the answer is already in it: the one

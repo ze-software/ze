@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // StreamingHandler handles streaming commands (e.g., monitor).
@@ -138,11 +139,14 @@ func RegisterPluginStreamingHandler(prefix string, oneShot OneShot, pluginComman
 // for a stream the daemon produces itself.
 func registerStreaming(prefix string, oneShot OneShot, pluginCommand string, h StreamingHandler) {
 	if strings.TrimSpace(prefix) == "" {
-		logger().Error("RegisterStreamingHandler called with empty prefix, ignoring")
+		logger().Error("RegisterStreamingHandler called with empty prefix, ignoring", "code", diagnostic.CodeDoctorInternalDefect)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, streamingHandlerSubject, "RegisterStreamingHandler called with empty prefix, ignoring", fixShowErrors)
 		return
 	}
 	if h == nil {
-		logger().Error("RegisterStreamingHandler called with nil handler", "prefix", prefix)
+		logger().Error("RegisterStreamingHandler called with nil handler", "prefix", prefix,
+			"code", diagnostic.CodeDoctorInternalDefect)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, prefix, "RegisterStreamingHandler called with nil handler", fixShowErrors)
 		return
 	}
 	if oneShot != OneShotSample && oneShot != OneShotStreamingOnly {
@@ -151,7 +155,9 @@ func registerStreaming(prefix string, oneShot OneShot, pluginCommand string, h S
 	key := strings.ToLower(prefix)
 	streamingHandlersMu.Lock()
 	if _, exists := streamingHandlers[key]; exists {
-		logger().Warn("duplicate streaming handler prefix, overwriting", "prefix", prefix)
+		logger().Warn("duplicate streaming handler prefix, overwriting", "prefix", prefix,
+			"code", diagnostic.CodeDoctorInternalDefect)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, prefix, "duplicate streaming handler prefix, overwriting", fixShowErrors)
 	}
 	streamingHandlers[key] = streamingRegistration{handler: h, oneShot: oneShot, pluginCommand: pluginCommand}
 	streamingHandlersMu.Unlock()

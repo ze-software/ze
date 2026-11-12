@@ -23,6 +23,7 @@ import (
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -1627,7 +1628,9 @@ func pluginAnswerRows(command string, answer *rpc.Answer, release func()) iter.S
 			return
 		}
 		logger().Warn("plugin answer ended before its terminator",
-			"command", command, "records", produced, "error", err)
+			"command", command, "records", produced, "error", err,
+			"code", diagnostic.CodeDoctorPluginAnswerUndelivered)
+		raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, command, "plugin answer ended before its terminator: "+err.Error(), fixShowErrors)
 		forwarded = rpc.RawRow(answerTruncatedFault(produced))
 		yield(rpc.RowRecord{Fault: &forwarded})
 	}

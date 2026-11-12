@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -96,7 +97,9 @@ func (c *Coordinator) RegisterReactor(name string, r any) {
 			err = c.DetachReactor(current)
 		}
 		if err != nil {
-			coordinatorLogger().Error("coordinator: bgp reactor rejected by RegisterReactor", "error", err)
+			coordinatorLogger().Error("coordinator: bgp reactor rejected by RegisterReactor", "error", err, "code", report.CodeInternalDefect)
+			report.RaiseErrorFix(pluginEventSource, report.CodeInternalDefect, name,
+				"coordinator: bgp reactor rejected by RegisterReactor: "+err.Error(), "ze show errors")
 		}
 		return
 	}

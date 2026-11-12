@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // PluginType represents the type of plugin resolution.
@@ -152,16 +153,26 @@ func RegisterPluginEventTypes() {
 			for _, et := range reg.EventTypes {
 				if namespace == "" {
 					slog.Error("register plugin event type failed: no default event namespace registered (call plugin.RegisterDefaultEventNamespace from the protocol component's register.go)",
-						"plugin", reg.Name, "event", et)
+						"plugin", reg.Name, "event", et, "code", report.CodeInternalDefect)
+					report.RaiseErrorFix(pluginEventSource, report.CodeInternalDefect, reg.Name,
+						"register plugin event type "+et+" failed: no default event namespace registered", "ze show errors")
 					continue
 				}
 				if err := events.RegisterEventType(namespace, et); err != nil {
-					slog.Error("register plugin event type failed", "plugin", reg.Name, "event", et, "error", err)
+					slog.Error("register plugin event type failed", "plugin", reg.Name, "event", et, "error", err, "code", report.CodeInternalDefect)
+					report.RaiseErrorFix(pluginEventSource, report.CodeInternalDefect, reg.Name,
+						"register plugin event type "+et+" failed: "+err.Error(), "ze show errors")
 				}
 			}
 		}
 	})
 }
+
+// pluginEventSource is the report-bus source of a fault the plugin package
+// meets: a registration refused at startup, or a reactor the coordinator
+// could not attach. Each is a state only a defect produces, raised under
+// report.CodeInternalDefect because this package cannot import diagnostic.
+const pluginEventSource = "plugin-registry"
 
 // registerSendTypesOnce ensures plugin send types are registered exactly once.
 var registerSendTypesOnce sync.Once
@@ -175,7 +186,9 @@ func RegisterPluginSendTypes() {
 		for _, reg := range registry.All() {
 			for _, st := range reg.SendTypes {
 				if err := events.RegisterSendType(st); err != nil {
-					slog.Error("register plugin send type failed", "plugin", reg.Name, "send-type", st, "error", err)
+					slog.Error("register plugin send type failed", "plugin", reg.Name, "send-type", st, "error", err, "code", report.CodeInternalDefect)
+					report.RaiseErrorFix(pluginEventSource, report.CodeInternalDefect, reg.Name,
+						"register plugin send type "+st+" failed: "+err.Error(), "ze show errors")
 				}
 			}
 		}

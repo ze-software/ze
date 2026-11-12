@@ -455,13 +455,17 @@ func buildEventEnvelope(namespace, eventType, bareJSON string) (string, error) {
 //
 // When payload is nil but the event has a registered non-signal payload
 // type, this is a publisher bug (engine code emitted nil for a typed
-// event); log a warn so external plugin processes do not silently
-// receive "null" JSON the consumer cannot make sense of.
+// event); log a warn and raise doctor-internal-defect so external plugin
+// processes do not silently receive "null" JSON the consumer cannot make
+// sense of.
 func payloadToJSON(namespace, eventType string, payload any) (string, error) {
 	if payload == nil {
 		if typ, isSignal := events.PayloadInfo(namespace, eventType); typ != nil && !isSignal {
 			logger().Warn("eventbus: typed event emitted with nil payload, external subs will receive \"null\"",
-				"namespace", namespace, "event-type", eventType, "want", typ.String())
+				"namespace", namespace, "event-type", eventType, "want", typ.String(),
+				"code", diagnostic.CodeDoctorInternalDefect)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, namespace+" "+eventType,
+				"eventbus: typed event emitted with nil payload, want "+typ.String(), fixShowErrors)
 		}
 		return "null", nil
 	}
@@ -482,8 +486,8 @@ func payloadToJSON(namespace, eventType string, payload any) (string, error) {
 // into the registered Go type when one exists. Returns (decoded, true) on
 // success, (nil, false) otherwise (unknown event, signal event, empty
 // payload, or unmarshal failure). Unmarshal failures and empty-payload
-// arrivals on registered typed events log a warn so silent drops do not
-// mask publisher / consumer drift; the caller forwards the raw string so
+// arrivals on registered typed events log a warn and raise
+// doctor-internal-defect so drops do not mask publisher / consumer drift; the caller forwards the raw string so
 // the typed-handle wrapper can also log its drop and the engine
 // subscriber still has a chance to handle the string if it registered for
 // strings.
@@ -497,7 +501,9 @@ func tryDecodeTypedPayload(namespace, eventType, raw string) (any, bool) {
 	}
 	if raw == "" {
 		logger().Warn("eventbus: typed event arrived with empty payload, dropping decode",
-			"namespace", namespace, "event-type", eventType, "want", typ.String())
+			"namespace", namespace, "event-type", eventType, "want", typ.String(),
+			"code", diagnostic.CodeDoctorInternalDefect)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, namespace+" "+eventType, "eventbus: typed event arrived with empty payload, dropping decode", fixShowErrors)
 		return nil, false
 	}
 	// reflect.New(T) yields *T. For payloads declared as *S, typ is *S, so
@@ -508,7 +514,9 @@ func tryDecodeTypedPayload(namespace, eventType, raw string) (any, bool) {
 	if err := json.Unmarshal([]byte(raw), ptr.Interface()); err != nil {
 		logger().Warn("eventbus: typed event JSON unmarshal failed, dropping decode",
 			"namespace", namespace, "event-type", eventType,
-			"want", typ.String(), "error", err)
+			"want", typ.String(), "error", err,
+			"code", diagnostic.CodeDoctorInternalDefect)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, namespace+" "+eventType, "eventbus: typed event JSON unmarshal failed, dropping decode: "+err.Error(), fixShowErrors)
 		return nil, false
 	}
 	return ptr.Elem().Interface(), true
@@ -670,7 +678,9 @@ func (s *Server) dispatchCommandArgsResponse(ctx context.Context, proc *process.
 		if s.ctx.Err() != nil {
 			logger().Debug("dispatch-command-args failed (shutting down)", "plugin", proc.Name(), "command", authInput, "error", dispatchErr)
 		} else {
-			logger().Error("dispatch-command-args failed", "plugin", proc.Name(), "command", authInput, "error", dispatchErr)
+			logger().Error("dispatch-command-args failed", "plugin", proc.Name(), "command", authInput, "error", dispatchErr,
+				"code", diagnostic.CodeDoctorPluginRequestRefused)
+			raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, proc.Name(), "dispatch-command-args failed: "+dispatchErr.Error(), fixShowErrors)
 		}
 		return nil, dispatchErr
 	}
@@ -734,7 +744,9 @@ func (s *Server) dispatchCommandResponse(ctx context.Context, proc *process.Proc
 		if s.ctx.Err() != nil {
 			logger().Debug("dispatch-command failed (shutting down)", "plugin", proc.Name(), "command", command, "error", dispatchErr)
 		} else {
-			logger().Error("dispatch-command failed", "plugin", proc.Name(), "command", command, "error", dispatchErr)
+			logger().Error("dispatch-command failed", "plugin", proc.Name(), "command", command, "error", dispatchErr,
+				"code", diagnostic.CodeDoctorPluginRequestRefused)
+			raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, proc.Name(), "dispatch-command failed: "+dispatchErr.Error(), fixShowErrors)
 		}
 		return nil, dispatchErr
 	}

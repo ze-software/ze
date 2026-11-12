@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/transaction"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -728,7 +729,9 @@ func buildDiffSections(diff *config.ConfigDiff, declaredRoots []string) []rpc.Co
 		if len(data.added) > 0 {
 			j, err := json.Marshal(data.added)
 			if err != nil {
-				logger().Error("config reload: marshal diff added", "root", root, "error", err)
+				logger().Error("config reload: marshal diff added", "root", root, "error", err,
+					"code", diagnostic.CodeDoctorInternalDefect)
+				raiseServerEvent(diagnostic.CodeDoctorInternalDefect, root, "config reload: marshal diff added: "+err.Error(), fixShowErrors)
 			} else {
 				s.Added = string(j)
 			}
@@ -736,7 +739,9 @@ func buildDiffSections(diff *config.ConfigDiff, declaredRoots []string) []rpc.Co
 		if len(data.removed) > 0 {
 			j, err := json.Marshal(data.removed)
 			if err != nil {
-				logger().Error("config reload: marshal diff removed", "root", root, "error", err)
+				logger().Error("config reload: marshal diff removed", "root", root, "error", err,
+					"code", diagnostic.CodeDoctorInternalDefect)
+				raiseServerEvent(diagnostic.CodeDoctorInternalDefect, root, "config reload: marshal diff removed: "+err.Error(), fixShowErrors)
 			} else {
 				s.Removed = string(j)
 			}
@@ -744,7 +749,9 @@ func buildDiffSections(diff *config.ConfigDiff, declaredRoots []string) []rpc.Co
 		if len(data.changed) > 0 {
 			j, err := json.Marshal(data.changed)
 			if err != nil {
-				logger().Error("config reload: marshal diff changed", "root", root, "error", err)
+				logger().Error("config reload: marshal diff changed", "root", root, "error", err,
+					"code", diagnostic.CodeDoctorInternalDefect)
+				raiseServerEvent(diagnostic.CodeDoctorInternalDefect, root, "config reload: marshal diff changed: "+err.Error(), fixShowErrors)
 			} else {
 				s.Changed = string(j)
 			}

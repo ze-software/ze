@@ -30,7 +30,8 @@ func safeBridgeCall(fn func() error) (err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			err = fmt.Errorf("plugin panic: %v", rec)
-			logger().Error("DirectBridge panic", "panic", rec, "stack", string(debug.Stack()))
+			logger().Error("DirectBridge panic", "panic", rec, "stack", string(debug.Stack()),
+				"code", diagnostic.CodeDoctorPluginPanic)
 		}
 	}()
 	return fn()

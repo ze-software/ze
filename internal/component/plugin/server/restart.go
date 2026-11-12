@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // releasePluginRegistrations removes every engine-side registration a stopped
@@ -98,7 +99,7 @@ func (s *Server) restartHandshake(proc *process.Process) error {
 	if proc.Stage() < plugin.StageRunning {
 		err := startupFailureError(proc)
 		logger().Error("plugin restart failed during handshake",
-			"plugin", proc.Name(), "stage", proc.Stage(), "error", err)
+			"plugin", proc.Name(), "stage", proc.Stage(), "error", err, "code", diagnostic.CodeDoctorPluginStopped)
 		return errors.Join(err, s.rollbackStartupProcess(proc))
 	}
 

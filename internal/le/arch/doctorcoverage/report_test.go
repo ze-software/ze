@@ -9,6 +9,7 @@
 package archdoctorcoverage
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -192,4 +193,83 @@ func TestDoctorCoverageScansTheCheckout(t *testing.T) {
 	}
 	t.Logf("checkout: %d sites, %d covered, %d uncovered, %d health rows, %d door groups",
 		report.Sites, report.Covered, report.Uncovered, report.HealthRows, len(report.Doors))
+}
+
+// notProblemPackages are the plugin infrastructure packages whose every problem
+// site spec-doctor-coverage-12-plugin-infra AC-44 makes covered.
+var notProblemPackages = []string{
+	"internal/component/plugin",
+	"internal/component/plugin/ipc",
+	"internal/component/plugin/process",
+	"internal/component/plugin/server",
+}
+
+// notProblemSurvivor is the one file whose uncovered sites AC-44 permits: the
+// five-stage startup-failure lines that
+// plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md owns until
+// it lands.
+const notProblemSurvivor = "internal/component/plugin/server/startup.go"
+
+// pluginsHealthCode is the code the `plugins` health row's probe reads
+// (process/register.go, report.HealthProbeDown).
+const pluginsHealthCode = "doctor-plugin-stopped"
+
+// TestNotProblemLinesCarryCodes scans the real checkout and proves that every
+// problem site in the plugin infrastructure packages, the not-problem lines
+// included, names a code a doctor check declares, apart from the startup
+// lines another spec owns; and that the `plugins` health row's code is
+// declared. Method: Scan the checkout, keep the sites whose package is one of
+// the four, list each uncovered one; read the covered set from the same tree.
+//
+// VALIDATES: AC-36 to AC-42 and AC-44 of spec-doctor-coverage-12-plugin-infra.
+// PREVENTS: a Warn or Error line in the plugin infrastructure that `ze doctor`
+// cannot name, or a code on a line that no check declares.
+func TestNotProblemLinesCarryCodes(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("checkout root: %v", err)
+	}
+	doorsOf, err := hookruntime.DoorsCovering(root)
+	if err != nil {
+		t.Fatalf("doors: %v", err)
+	}
+	inventory, err := Scan(root, coveredCodesFloor, doorsOf)
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	var judged, healthRows int
+	for i := range inventory.Sites {
+		site := &inventory.Sites[i]
+		if !slices.Contains(notProblemPackages, site.Package) {
+			continue
+		}
+		judged++
+		if site.Kind == KindHealthRow {
+			healthRows++
+			if site.Message != "plugins" {
+				t.Errorf("%s:%d: health row %s is not the plugins row this test maps", site.File, site.Line, site.Message)
+			}
+			continue
+		}
+		if site.Status.Covered() {
+			continue
+		}
+		if site.File == notProblemSurvivor {
+			continue
+		}
+		t.Errorf("%s:%d: %s %q is %s (code %q)", site.File, site.Line, site.Call, site.Message, site.Status, site.CodeExpr)
+	}
+	if judged == 0 {
+		t.Fatal("no site in the plugin infrastructure packages: the scan read nothing")
+	}
+	if healthRows != 1 {
+		t.Errorf("found %d plugins health rows, want 1", healthRows)
+	}
+	index, err := indexTree(root, nil)
+	if err != nil {
+		t.Fatalf("index: %v", err)
+	}
+	if _, declared := index.coveredCodes()[pluginsHealthCode]; !declared {
+		t.Errorf("the plugins health row reads %s, which no doctor check declares", pluginsHealthCode)
+	}
 }

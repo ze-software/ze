@@ -30,6 +30,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -104,8 +105,9 @@ func (e *Event[T]) Emit(bus ze.EventBus, payload T) (int, error) {
 // Subscribe registers a typed handler. The bus dispatches `any`; the wrapper
 // here type-asserts to T once per event. A type mismatch (publisher emitted
 // a value that does not match the registered T, or the bus received an
-// undecoded RPC string for a typed event) logs a warn so silent drops do
-// not mask publisher / consumer drift. Returns an unsubscribe function.
+// undecoded RPC string for a typed event) logs a warn and raises
+// doctor-internal-defect on the report bus (raiseDrop), so a drop does not
+// mask publisher / consumer drift. Returns an unsubscribe function.
 func (e *Event[T]) Subscribe(bus ze.EventBus, handler func(T)) func() {
 	if handler == nil {
 		return func() {}
@@ -117,7 +119,10 @@ func (e *Event[T]) Subscribe(bus ze.EventBus, handler func(T)) func() {
 				"namespace", e.namespace,
 				"event-type", e.eventType,
 				"want", reflect.TypeFor[T]().String(),
-				"got", reflect.TypeOf(p))
+				"got", reflect.TypeOf(p),
+				"code", report.CodeInternalDefect)
+			raiseDrop(e.namespace+" "+e.eventType, "payload type mismatch, dropping: want "+
+				reflect.TypeFor[T]().String()+", got "+PayloadTypeName(p))
 			return
 		}
 		handler(v)
@@ -267,7 +272,8 @@ func PayloadInfo(namespace, eventType string) (typ reflect.Type, isSignal bool) 
 }
 
 // AsString adapts a legacy string-payload handler to the typed-bus
-// signature. Wraps fn in a type assertion to string. The wrapper logs
+// signature. Wraps fn in a type assertion to string. The wrapper logs, and
+// raises doctor-internal-defect for,
 // the first non-string drop for each distinct dynamic payload type seen
 // on the wrapper — so a producer migrating to Event[T] does not vanish
 // silently, and a cascade of distinct wrong types each surfaces once
@@ -295,6 +301,29 @@ func AsString(fn func(string)) func(any) {
 			return // this dynamic type already logged once
 		}
 		logger().Warn("eventbus: AsString wrapper received non-string payload, dropping (further drops of this type on this wrapper suppressed)",
-			"got", typ)
+			"got", typ, "code", report.CodeInternalDefect)
+		raiseDrop("AsString wrapper", "non-string payload, dropping: got "+PayloadTypeName(p))
 	}
+}
+
+// eventBusSource is the report-bus source of a typed event the bus dropped.
+const eventBusSource = "event-bus"
+
+// raiseDrop raises a dropped typed event as an error event under
+// doctor-internal-defect, beside the log line that records it: only a defect
+// makes a publisher emit a payload its registered type does not match, and a
+// log line alone never reaches `ze doctor` (the recent-events check reads the
+// bus). subject names the event or the wrapper that dropped it.
+func raiseDrop(subject, message string) {
+	report.RaiseErrorFix(eventBusSource, report.CodeInternalDefect, subject, message, "ze show errors")
+}
+
+// PayloadTypeName names a payload's dynamic type for a message: reflect.TypeOf
+// answers nil for a nil payload, whose String method would panic.
+func PayloadTypeName(p any) string {
+	typ := reflect.TypeOf(p)
+	if typ == nil {
+		return "nil"
+	}
+	return typ.String()
 }

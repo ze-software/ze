@@ -607,6 +607,14 @@ func (s *store) mayHaveEvicted(codes []string) bool {
 // TestReportBusFullRow (internal/component/plugin/doctor) compares the two.
 const CodeReportBusFull = "doctor-report-bus-full"
 
+// CodeInternalDefect is the doctor code of a state only a defect in Ze
+// produces, for a raiser that diagnostic imports and so cannot import
+// diagnostic itself (internal/core/events, internal/component/plugin). It is
+// the spelling diagnostic.CodeDoctorInternalDefect declares;
+// TestInternalDefectCodeMatchesDiagnostic (internal/component/plugin/server)
+// compares the two.
+const CodeInternalDefect = "doctor-internal-defect"
+
 // Loss is what the bus has dropped since it started: the active warnings
 // evicted at the warning cap, and the error events the ring overwrote. The
 // caps travel with the counts, so a reader names both, and so do the largest

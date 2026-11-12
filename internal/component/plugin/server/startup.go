@@ -21,6 +21,7 @@ import (
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -512,7 +513,9 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 		for _, name := range tierNames {
 			proc := pm.GetProcess(name)
 			if proc == nil {
-				logger().Error("tier process not found in PM", "plugin", name, "tier", tierIdx)
+				logger().Error("tier process not found in PM", "plugin", name, "tier", tierIdx,
+					"code", diagnostic.CodeDoctorInternalDefect)
+				raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "tier process not found in PM", fixShowErrors)
 				continue
 			}
 			tierProcs = append(tierProcs, proc)

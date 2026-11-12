@@ -14,6 +14,10 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// fixShowHealth is the fix of a row that cannot read the state it judges:
+// the command that shows what the daemon reports instead.
+const fixShowHealth = "ze show health"
+
 // pluginStoppedTimeLayout is how the row writes when the plugin went down.
 const pluginStoppedTimeLayout = time.RFC3339
 
@@ -34,7 +38,7 @@ func checkPluginStopped(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 			Code:     diagnostic.CodeDoctorPluginStopped,
 			Severity: diagnostic.SeverityWarning,
 			Message:  message.String(),
-			Fix:      "ze show health",
+			Fix:      fixShowHealth,
 		}}
 	}
 	return pluginStoppedRows(&snapshot)

@@ -35,7 +35,7 @@ func snapshotCheck(code string, rows func(*server.DoctorSnapshot) []diagnostic.D
 				Code:     code,
 				Severity: diagnostic.SeverityWarning,
 				Message:  message.String(),
-				Fix:      "ze show health",
+				Fix:      fixShowHealth,
 			}}
 		}
 		return rows(&snapshot)

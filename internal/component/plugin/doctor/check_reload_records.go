@@ -42,7 +42,7 @@ func checkCapabilitiesNotRestored(diagnostic.DoctorCheckContext) []diagnostic.Di
 func reloadRecordsUnread(code string, err error) diagnostic.Diagnostic {
 	var message textbuf.Buffer
 	message.Str("cannot tell whether a refused reload left plugin state unrestored: ").Err(err)
-	return diagnostic.Diagnostic{Code: code, Severity: diagnostic.SeverityWarning, Message: message.String(), Fix: "ze show health"}
+	return diagnostic.Diagnostic{Code: code, Severity: diagnostic.SeverityWarning, Message: message.String(), Fix: fixShowHealth}
 }
 
 // removalUnrecoveredRows builds one row per unrestored removal.

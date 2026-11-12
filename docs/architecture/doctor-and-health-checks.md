@@ -852,6 +852,26 @@ what makes this check report it. Registering a code whose sites only log, and
 never raise, would declare a row this check never shows: every site carrying
 a registered event code raises it.
 
+The plugin infrastructure's faults that had only a log line follow that rule.
+Each line carries its code and its site raises an error event under it, with
+`ze show errors` as the fix:
+
+| Code | Raised by (bus source) | What happened |
+|------|------------------------|---------------|
+| `doctor-internal-defect` | the plugin server (`plugin-server`): a config transaction payload it could not decode or an ack it could not emit, an engine subscription or streaming registration with no handler or prefix, a typed event payload that did not decode, a config diff it could not marshal, a tier process missing from the process manager | a state only a defect produces |
+| `doctor-internal-defect` | the plugin package (`plugin-registry`): a plugin event or send type refused at startup, a reactor the coordinator could not attach; the event bus (`event-bus`): a typed event dropped because its payload is not the registered type | the same, raised under `report.CodeInternalDefect`, the bus's copy of the code for packages `internal/core/diagnostic` depends on |
+| `doctor-plugin-request-refused` | `plugin-server`: a plugin's dispatched command failed, or its `forward-cached` request named a malformed destination | the plugin did not get what it asked for |
+| `doctor-plugin-answer-undelivered` | `plugin-server`: an answer, refusal or completion its caller never took, or a plugin answer that ended before its terminator | the caller waits or goes on without it |
+| `doctor-plugin-drain-incomplete` | `plugin-server`: a drain round with a failed or late plugin, or one a signal aborted | queued work was dropped |
+
+The operator's goroutine dump (`request quit`) reports nothing wrong, so it
+logs at `Info`.
+<!-- source: internal/component/plugin/server/server_events.go -- raiseServerEvent, serverEventSource -->
+<!-- source: internal/component/plugin/resolve.go -- pluginEventSource, RegisterPluginEventTypes -->
+<!-- source: internal/core/events/typed.go -- raiseDrop, eventBusSource -->
+<!-- source: internal/core/report/report.go -- CodeInternalDefect -->
+<!-- test: internal/component/plugin/server/server_events_test.go TestNotProblemSitesRaiseEvents -->
+
 A plugin raises through `sdk.Plugin.RaiseIssue`, which sends `report-issue`
 to the daemon, never through `internal/core/report` directly: a forked
 plugin's own bus is a copy in its process that this check never reads. The
