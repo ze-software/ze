@@ -36,7 +36,7 @@ found and the hardening did not fix. Each item is one journal row
 | # | Defect | Where |
 |---|--------|-------|
 | 1 | "Configured" never shrinks. A plugin a committed reload removed is still offered and accepted by the restart and respawned from its old config. A plugin with no process when its roots go keeps its `doctor-plugin-stopped` row | `ProcessManager.configs`, `ConfiguredNames`, `Respawn`; `completePluginRestart`, `pluginRestartRefusal`; `stopCollectedProcesses` |
-| 2 | Diagnosis from source, not reproduced: a rejected reload's recovery may stop a dependency that ran before the reload | `restoreRemovedPlugin` -> `stopOrphanedDependencies` -> `collectOrphanedDependencies` |
+| 2 | Seen under full-package load, not reproduced on demand: a rejected reload's recovery may stop a dependency that ran before the reload | `restoreRemovedPlugin` -> `stopOrphanedDependencies` -> `collectOrphanedDependencies` |
 | 3 | `Respawn` holds the manager's write lock across the old process's join and the replacement's start, connect-back included | `ProcessManager.Respawn`, `Process.StopJoinBound`, the 30 s connect-back wait in `process.go` |
 | 4 | A failure-policy restart runs without the transaction lock, and the cleanup-owed record keeps one process per name | `applyFailurePolicy` -> `restartPlugin`; `lateCleanupRecord.owe`, `owed` |
 | 5 | The respawn-limit path deletes the status label while the process stays live | `Respawn`, `clearProcessCallbacks`, `deletePluginStatusLabel`, `clearMetricHooks` |
@@ -44,6 +44,7 @@ found and the hardening did not fix. Each item is one journal row
 | 7 | A refused restart still lifts the respawn-limit disable | `handlePluginRestart`, `ProcessManager.Reenable` |
 | 8 | The 3 s cleanup bound may be too short for a plugin with a large route table. Unmeasured | `awaitReplacedCleanup`, `restartCleanupGrace`, `withdrawPluginRoutes` |
 | 9 | Unverified: a restart during the boot window, before step (d) starts the runtime handler | `awaitReplacedCleanup`, `runPluginPhaseWithin` |
+| 10 | Same family as item 1: a plugin that a refused reload auto-loaded, and whose handshake failed, keeps its stop record. The record is written after the rollback removed its process, and the reload's stop skips a name with no process | `runPluginPhaseWithin` (`RecordStopped` with `StopHandshakeFailed`); `startAutoLoaded` -> `autoStopPluginNames` -> `stopCollectedProcesses` |
 
 For item 1, a fix was tried in `stopCollectedProcesses` and withdrawn: that
 function also stops the plugins a failed or rolled-back reload started, and
@@ -83,13 +84,14 @@ This is a skeleton: idea capture. No design is written here.
 - [ ] `internal/component/plugin/server/register_plugin_restart.go` - `completePluginRestart` offers every `ConfiguredNames` entry. `pluginRestartRefusal` accepts any of them. `handlePluginRestart` refuses a wrong count, no server, no manager, an unconfigured name, its own caller, a held `txLock` and a pending removal, then calls `pm.Reenable(name)`, then `restartPlugin`
 - [ ] `internal/component/plugin/server/reload_tx.go` - `restartPlugin` records `StopRestartFailed` on any error. `restartPluginProcess` refuses when `lateCleanups.owed`, then calls `Respawn`, `awaitReplacedCleanup` (on expiry it rolls the replacement back), `releasePluginRegistrations` and `restartHandshake`. `reloadAcceptance.complete` calls `finishRemovalScope`
 - [ ] `internal/component/plugin/server/restart.go` - `restartCleanupGrace` is `txShutdownGrace` (3 s). `awaitReplacedCleanup` returns at once below `StageRunning`, and otherwise waits and calls `lateCleanups.owe(old)` on expiry. `lateCleanupRecord` is a map from name to one process. `owe` overwrites. `owed` probes that one process and forgets it once its cleanup ran
-- [ ] `internal/component/plugin/server/failure_policy.go` - `applyFailurePolicy` returns when `GetProcess(name) != proc` and calls `restartPlugin` for `restart` with no `txLock`
+- [ ] `internal/component/plugin/server/failure_policy.go` - `applyFailurePolicy` returns when `GetProcess(name) != proc`, and for `restart` calls `restartPluginAfterExit` (`reload_tx.go`), which takes no `txLock` and lets the replacement's handshake run as long as the daemon does
 - [ ] `internal/component/plugin/server/startup_removal.go` - `finishRemovalScope` deletes the accepted, stopped removals of the scope and sends the rest to `recoverPluginRemoval`, whose goroutine waits for the attempt and the scope, takes `txLock` and runs `restoreRemovedPlugin`. That function calls `stopOrphanedDependencies` when the process's roots are gone from the tree and no block configures it
 - [ ] `internal/component/plugin/server/startup_autoload.go` - `stopCollectedProcesses` skips a name whose `GetProcess` is nil. `collectOrphanedDependencies` adds a dependency that is not configured, has a process, and has no live dependent outside the set. It does not ask whether that dependency predates the reload
 - [ ] `internal/component/plugin/server/startup.go` - `runPluginPhaseWithin` refuses a phase for a name with a cleanup owed. Step (d), after the last tier, starts `superviseProcess` for every process of `allProcesses` at `StageRunning` or above
 - [ ] `internal/component/plugin/server/dispatch_route.go` - `withdrawPluginRoutes` calls `rib.Remove` once per installed route
-- [ ] `internal/component/plugin/doctor/checks_runtime.go` - `pluginStoppedRow` names a different fix (`... once that call has returned, or ze signal restart if it never does`) when `cleanupOwed`
-- [ ] `internal/component/plugin/server/reload_test.go` - `TestReloadFailureKeepsPreExistingDependency`: a pre-existing, unconfigured dependency added with `AddProcess`, and a dependent auto-loaded by the reload that another plugin rejects. It failed once in a full-package run; 200 isolated runs passed
+- [ ] `internal/component/plugin/doctor/checks_runtime.go` - when `cleanupOwed`, `pluginStoppedRow` says the restart is refused until the cleanup has finished, and names the daemon restart as the last resort (`daemonRestartLastResort`)
+- [ ] `internal/component/plugin/server/startup.go` - on a failed handshake, `runPluginPhaseWithin` and `rollbackNonRunningStartupProcesses` call `RecordStopped` with `StopHandshakeFailed` after `rollbackStartupProcess` has removed the process. `startup_autoload.go` `startAutoLoaded` then calls `autoStopPluginNames`, whose `stopCollectedProcesses` skips a name whose `GetProcess` is nil (item 10)
+- [ ] `internal/component/plugin/server/reload_test.go` - `TestReloadFailureKeepsPreExistingDependency`: a pre-existing, unconfigured dependency added with `AddProcess`, and a dependent auto-loaded by the reload that another plugin rejects. It failed in two full-package `-race` runs with all feature tags on 2026-11-12 (`tmp/session/2026-11-12-005413/scratch/job-harden1-d1f3dd49.log`, `job-round3-e71f6e7a.log`) and passed 200 of 200 runs alone
 
 **Behavior to preserve:**
 - The refusals `handlePluginRestart` makes today, and the restart of a running plugin
@@ -155,7 +157,7 @@ This is a skeleton: idea capture. No design is written here.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Item 2 is a real path, not a test artefact | Source reading of `collectOrphanedDependencies`; one red in a full-package run, 200 green isolated runs | Item 2 closes as refuted, with the evidence | Reproduction, or a test that drives the path deterministically | unvalidated |
+| A-1 | Item 2 follows the path `collectOrphanedDependencies` takes, and is not a test artefact | Source reading of `collectOrphanedDependencies`; two reds in full-package `-race` runs with all feature tags on 2026-11-12 ("failed reload must keep pre-existing dependency"), 200 of 200 green alone | The fix lands where the reproduction shows the real cause | An on-demand reproduction that drives the path deterministically | unvalidated |
 | A-2 | Step (d) of `runPluginPhaseWithin` runs the old process's cleanup after a boot-window restart | `allProcesses` holds the old pointer, and its stage stays at or above running | A cleanup owed forever, which refuses every later restart | Reproduce or refute (item 9) | unvalidated |
 | A-3 | The 3 s cleanup bound can be too short | `withdrawPluginRoutes` removes one route per call | Item 8 closes as measured and sufficient | Measure the cleanup on a large table | unvalidated |
 
@@ -184,13 +186,14 @@ This is a skeleton: idea capture. No design is written here.
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | A committed reload removes plugin X, with X running, and again with X already down and holding no process | Completion offers the names still configured. `request plugin restart X` answers that X is not configured. `ze doctor` reports no stopped row for X | A plugin stopped by a failed or rolled-back reload stays configured and restartable, because the configuration still names it |
-| AC-2 | Item 2 | First, the path is reproduced or refuted, with the evidence recorded. If reproduced: a dependency that ran before a rejected reload runs after its recovery | A dependency that the rejected reload itself started is stopped, because nothing configured needs it |
+| AC-2 | Item 2 | First, the failure is reproduced on demand (it fails under full-package load and passes alone), and the reproduction is recorded. Then it is fixed: a dependency that ran before a rejected reload runs after its recovery | A dependency that the rejected reload itself started is stopped, because nothing configured needs it |
 | AC-3 | A restart of a forked plugin while its replacement waits for connect-back | The doctor snapshot and every `GetProcess`, `AllProcesses` and `ConfiguredNames` caller answer within a bound that does not include the connect-back wait. The old generation's failure policy still sees it was replaced. An in-daemon engine that reads the manager on its exit raises no `doctor-plugin-restart-overlap` | A reader that needs the replaced slot itself waits for the swap, because the generation test depends on it |
 | AC-4 | A failure-policy restart and an operator restart of the same plugin at once | One restart runs and the other is refused or follows it. The cleanup-owed refusal holds while any stopped process of the name still owes its cleanup | The second request is answered with its refusal, because two generations cannot take one name |
 | AC-5 | The respawn limit disables a live plugin | The status gauge label stays deleted whatever stage transition was in flight | The `restarts` and `delivered` counters stay, as the existing comment requires |
 | AC-6 | A restart failed because a cleanup is owed | The bus warning and the doctor row name the same fix, from one declaration | None: both surfaces say the same thing |
 | AC-7 | A restart refused after the operator's order (cleanup owed, daemon stopping) | The respawn-limit disable and the respawn counters are as they were before the command. A restart that runs lifts them | None: lifting them belongs to a restart that runs |
 | AC-8 | Restart of a plugin holding a large route table | The cleanup time is measured and recorded. The restart answers within its bound and succeeds with one command | A restart whose old process holds a call that never returns fails with the cleanup-owed answer, because that call ends only when ze restarts |
+| AC-10 | A reload auto-loads a plugin whose handshake fails, and the reload is refused | `ze doctor` reports the refused reload and no `doctor-plugin-stopped` row for that plugin, and the restart command answers that it is not configured | A plugin the running configuration names, whose handshake failed, keeps its row, because the configuration still runs it |
 | AC-9 | `request plugin restart` during the boot window | First, reproduced or refuted. The restart answers within its bound, and once boot completes no cleanup is owed for the name | The restart may be refused during boot with a message naming when to retry, if the design chooses that |
 
 ## 🧪 TDD Test Plan
@@ -279,6 +282,7 @@ N-A: no wire-visible change.
 | `record-written-before-the-operation-succeeds.md` | 2026-11-12 | item 7: `Reenable` before the restart's refusals |
 | `bound-too-small-for-its-own-burst.md` | 2026-11-12 | item 8: 3 s cleanup bound against a large route table |
 | `new-caller-assumes-the-old-callers-timing.md` | 2026-11-12 | item 9: restart in the boot window |
+| `retained-entry-still-answers-lookups.md` | 2026-11-12 | item 10, same family as item 1: a refused reload's failed auto-load keeps its stop record |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

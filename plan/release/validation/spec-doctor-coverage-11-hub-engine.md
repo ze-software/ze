@@ -464,6 +464,7 @@ Gates each phase owes, run by the main thread: the scoped package tests (`./le j
 | `one-failure-skips-independent-startup-work.md` | 2026-11-10 | REST or gRPC bind failure stops the daemon, other listeners do not |
 | `silent-fall-through.md` | 2026-11-10 | gNMI with an unreadable TLS file serves clear text |
 | `unwired-feature.md` | 2026-11-10 | plugin hub binds only the first configured server |
+| `guard-added-to-one-half-of-a-pair.md` | 2026-11-12 | managed hub rejection record keeps raw ack text and rows of clients a reload removed |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
