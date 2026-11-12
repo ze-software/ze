@@ -451,6 +451,37 @@ and deployment checks completed so far.
 <!-- source: internal/appliance/cmd_push.go -- doPushUpdater -->
 <!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA -->
 
+## Removing an appliance
+
+Before retiring an appliance, back up its live store using the
+[Operations guide](operations.md#offline-data-access) and keep the backup outside
+the disk you will remove. Also [export the named appliance directory](#disaster-recovery-exportimport)
+to retain its build configuration and secrets. Appliance exports exclude disk
+images and ZeFS databases, so keep the live-store backup separately.
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup -->
+<!-- source: internal/appliance/cmd_export.go -- exportAppliance, tarApplianceInto, shouldExcludeFromExport -->
+
+Use the [graceful stop procedure](lifecycle.md#choose-the-right-action), then
+power off the VM or physical device. Wait for shutdown to finish before removing
+its storage.
+<!-- source: cmd/ze/hub/drain.go -- runStopDrain -->
+
+For a VM, remove its definition through the hypervisor and explicitly choose
+whether to retain or delete the associated disks. The QEMU command uses the
+selected `.img` file as its writable disk; retaining that file keeps the device's
+stored state. For dedicated hardware, boot the replacement system's installer
+and identify the appliance disk before overwriting it. Follow the storage
+device's erasure procedure before disposing of it or transferring it to another
+owner.
+<!-- source: internal/appliance/cmd_run.go -- buildQEMUCommand -->
+
+Retained disks, appliance directories, seeded images and installer ISOs contain
+configuration and authentication material. Protect any copies kept for recovery,
+and revoke credentials that should no longer grant access after retirement.
+<!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS -->
+<!-- source: internal/appliance/cmd_build.go -- injectZeFS -->
+<!-- source: internal/appliance/cmd_iso.go -- stageISO -->
+
 ## Architecture notes
 
 ### Internal plugins only

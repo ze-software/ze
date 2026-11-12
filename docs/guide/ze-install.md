@@ -22,8 +22,10 @@ pre-release software; start with an isolated lab.
 Completed deployment checks covered native systemd installation and removal,
 two-peer route exchange, and container configuration retention after recreation.
 The container check used a prepared runtime image without verified source
-identity; a complete preview bundle with binaries and container exports remains
-unverified. Build instructions and private preview preparation are available;
+identity. A separate private preview run prepared and checked Linux amd64 and
+arm64 binaries and archives, plus amd64 deployment and lab container exports,
+with source identity and checksums. That artifact check does not extend the
+container recreation proof to those images. See [preview preparation](../contributing/preview-artifacts.md);
 these pages do not provide a public release download.
 <!-- source: internal/test/fixture/register_native_install.go -- nativeInstallLifecycle -->
 <!-- source: internal/plugins/systemd/native.go -- nativeService.installSelected, nativeService.Uninstall -->
