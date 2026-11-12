@@ -67,7 +67,7 @@ func startGuardedSession(t *testing.T, sess *Session, key string) <-chan struct{
 	done := make(chan struct{})
 	go runSession(ctx, slogutil.DiscardLogger(), sess, sess.lib, key,
 		newLDPFIB(nil, slogutil.DiscardLogger()), &SessionEvent{LDPIdentifier: key},
-		func() { close(done) })
+		func(bool) { close(done) })
 	t.Cleanup(func() {
 		cancel()
 		sess.Stop()

@@ -518,7 +518,7 @@ func runSessionForTest(t *testing.T, sess *Session) func() {
 	done := make(chan struct{})
 	go runSession(ctx, slogutil.DiscardLogger(), sess, sess.lib, "10.0.0.2:0",
 		newLDPFIB(nil, slogutil.DiscardLogger()), sessionUpEvent(testAdjacency(), "10.0.0.2:0"),
-		func() { close(done) })
+		func(bool) { close(done) })
 	return func() {
 		cancel()
 		sess.Stop()

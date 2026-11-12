@@ -493,6 +493,14 @@ func ldpSessionDialer(localTransport netip.Addr) *network.RealDialer {
 	return dialer
 }
 
+// dialSession opens the TCP connection of an outbound LDP session to address,
+// from localTransport when it is valid. It is a package var so tests can
+// substitute an in-memory connection and drive startSessionForAdj end to end
+// without the privileged port 646, as listenDiscovery does for discovery.
+var dialSession = func(ctx context.Context, localTransport netip.Addr, address string) (net.Conn, error) {
+	return ldpSessionDialer(localTransport).DialContext(ctx, "tcp", address)
+}
+
 // sessionConfigForAdj builds the parameters a session with adj is created with.
 // lsrID and keepalive come from the LDP config, the rest from the neighbor's
 // Hello. Label space 0 is the platform-wide label space: ze runs no per-interface
@@ -508,15 +516,22 @@ func sessionConfigForAdj(lsrID [4]byte, keepalive time.Duration, adj *Adjacency)
 	}
 }
 
-// Session setup backoff, RFC 5036 Section 2.5.3: "An LSR MUST throttle its
-// session setup retry attempts with an exponential backoff in situations where
-// Initialization messages are being NAK'd. The session establishment setup
-// attempt following a NAK'd Initialization message MUST be delayed no less than
-// 15 seconds, and subsequent delays MUST grow to a maximum delay of no less than
-// 2 minutes." Ze applies the same backoff to every setup attempt that ends
-// before the session is operational, a refused TCP connect included: the RFC
-// binds the NAK case and permits the rest, and one rule keeps a dead peer from
-// being dialed on every Hello.
+// Session setup backoff.
+//
+// RFC 5036 Section 2.5.3: "An LSR MUST throttle its session setup retry
+// attempts with an exponential backoff in situations where Initialization
+// messages are being NAK'd."
+//
+// RFC 5036 Section 2.5.3: "The session establishment setup attempt following a
+// NAK'd Initialization message MUST be delayed no less than 15 seconds, and
+// subsequent delays MUST grow to a maximum delay of no less than 2 minutes."
+//
+// Ze applies the same backoff to every setup attempt that ends before the
+// session is operational, a refused TCP connect included: the RFC binds the NAK
+// case and permits the rest, and one rule keeps a dead peer from being dialed on
+// every Hello. A session that reached operational releases it (the onDone
+// closure in startSessionForAdj), and so does the adjacency expiring
+// (expireAdjacencies).
 const (
 	setupRetryDelayMin = 15 * time.Second
 	setupRetryDelayMax = 2 * time.Minute
@@ -524,7 +539,7 @@ const (
 
 // setupRetry is the backoff state of one adjacency's session setup attempts.
 // The engine keeps one per adjacency key while attempts fail and drops it when
-// a session reaches operational or the adjacency expires.
+// a session that reached operational ends, or when the adjacency expires.
 type setupRetry struct {
 	delay     time.Duration // the delay the last failure imposed; 0 before the first
 	notBefore time.Time     // the earliest time the next attempt is allowed
@@ -593,8 +608,7 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 		IP:   adj.TransportAddr.AsSlice(),
 		Port: ldpSessionPort,
 	}
-	dialer := ldpSessionDialer(localTransport)
-	tcpConn, err := dialer.DialContext(ctx, "tcp", tcpAddr.String())
+	tcpConn, err := dialSession(ctx, localTransport, tcpAddr.String())
 	if err != nil {
 		log.Warn("ldp: TCP connect failed", "peer", adj.TransportAddr, "error", err)
 		recordSetupFailure(log, retries, key, time.Now())
@@ -613,15 +627,25 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 
 	peerAddr := adj.TransportAddr
 	ifName := adj.Interface
-	go runSession(ctx, log, sess, lib, key, fib, sessionUpEvent(adj, key), func() {
+	go runSession(ctx, log, sess, lib, key, fib, sessionUpEvent(adj, key), func(operational bool) {
 		sessionsMu.Lock()
 		delete(sessions, key)
-		// A session that ended before it was operational is a failed setup
-		// attempt: an Initialization NAK'd by either side, or a transport that
-		// closed during the exchange. One that was operational resets the backoff.
-		if sess.State() == StateOperational {
+		switch {
+		case operational:
+			// RFC 5036 Section 2.5.3: "After such a configuration action, there
+			// is no further need to throttle subsequent session establishment
+			// attempts (until their Initialization messages are NAK'd)."
+			// The session's Initialization was accepted, so the backoff its
+			// failed predecessors built is released and the next Hello dials at once.
 			delete(retries, key)
-		} else {
+		case sess.endedByAdjacencyExpiry():
+			// Not a failed attempt: expireAdjacencies already dropped the backoff,
+			// which belongs to the adjacency, and writing it back would delay a
+			// neighbor rediscovered later.
+		default:
+			// A session that ended before it was operational is a failed setup
+			// attempt: an Initialization NAK'd by either side, or a transport that
+			// closed during the exchange.
 			recordSetupFailure(log, retries, key, time.Now())
 		}
 		if m := ldpMetricsPtr.Load(); m != nil {
@@ -631,15 +655,23 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 
 		// Remove the peer's bindings and reconcile each affected FEC (re-point to a
 		// surviving peer, or withdraw the push). reconcilePeerDown takes the reconcile
-		// lock per FEC so a large peer's teardown does not stall other sessions.
+		// lock per FEC so a large peer's teardown does not stall other sessions. It
+		// runs on every end: for a session that never reached operational it finds
+		// no binding and withdraws nothing.
 		removed := reconcilePeerDown(fib, lib, key, log)
 		eb := getEventBus()
-		emitSessionEvent(eb, log, SessionDown, &SessionEvent{
-			PeerAddress:   peerAddr.String(),
-			LDPIdentifier: key,
-			SessionState:  StateNonExistent.String(),
-			Interface:     ifName,
-		})
+		// SessionDown answers the SessionUp the session published when it became
+		// operational, and nothing else: an attempt that never published one ends
+		// silently, so a reader such as OSPF LDP-IGP synchronization, which keys
+		// its state by interface, never loses a link for a setup that failed.
+		if operational {
+			emitSessionEvent(eb, log, SessionDown, &SessionEvent{
+				PeerAddress:   peerAddr.String(),
+				LDPIdentifier: key,
+				SessionState:  StateNonExistent.String(),
+				Interface:     ifName,
+			})
+		}
 		for _, b := range removed {
 			emitLabelEvent(eb, log, &labelBindEvent{
 				FEC:      b.FEC.String(),
@@ -928,15 +960,23 @@ func sendHello(conn *net.UDPConn, dest *net.UDPAddr, lsrID [4]byte, cfg ldpConfi
 }
 
 // runSession plays the active role on the connection ze dialed for one adjacency
-// and serves the session until it ends, then calls onDone. up is the SessionUp it
-// publishes when, and only when, the session reaches OPERATIONAL.
+// and serves the session until it ends, then calls onDone with whether the
+// session reached OPERATIONAL. up is the SessionUp it publishes when, and only
+// when, the session reaches OPERATIONAL.
+//
+// The fact comes from the on-operational callback, not from sess.State: Stop
+// resets the state to non-existent, and Stop runs before onDone here and may
+// already have run from expireAdjacencies or a failed KeepAlive send. The
+// callback runs on this goroutine, inside ReadLoop, so the local needs no lock,
+// and the deferred call reads it when it runs, not when it is registered.
 //
 // The session task's panic guard runs first among the defers: a Ze defect the
 // peer's input reaches ends this session alone, with an Internal Error
 // Notification, then Stop closes the transport and onDone runs the same
-// session-down teardown as any other end.
-func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, peerKey string, fib *ldpFIB, up *SessionEvent, onDone func()) {
-	defer onDone()
+// session-end teardown as any other end.
+func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, peerKey string, fib *ldpFIB, up *SessionEvent, onDone func(operational bool)) {
+	operational := false
+	defer func() { onDone(operational) }()
 	defer sess.Stop()
 	defer ldpPanics().session.Contain(sess.describeSession, sess.notifyInternalError)
 
@@ -1059,7 +1099,10 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 			// Initialization message and a KeepAlive message, the session is
 			// operational from LSR1's point of view." Only now is the session that
 			// RFC 5443 Section 2 waits for established, so only now does an IGP
-			// running LDP-IGP synchronization hear of it.
+			// running LDP-IGP synchronization hear of it. The flag is set before
+			// the publication, so a reader that panics inside it still leaves a
+			// session whose end is answered with SessionDown.
+			operational = true
 			emitSessionEvent(eb, log, SessionUp, up)
 
 			// AC-3: session reached operational -- advertise our local FEC
@@ -1115,6 +1158,12 @@ func expireAdjacencies(log *slog.Logger, adjTable *AdjacencyTable, sessions map[
 		// The backoff belongs to the adjacency: a peer rediscovered later starts
 		// its first attempt undelayed.
 		delete(retries, key)
+		// Marked under sessionsMu before Stop, so the session's onDone, which
+		// reads it under the same lock, records no setup failure that would put
+		// the entry just deleted back.
+		if ok {
+			sess.markAdjacencyExpired()
+		}
 		sessionsMu.Unlock()
 		if ok {
 			sess.Stop()

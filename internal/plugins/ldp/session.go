@@ -102,7 +102,11 @@ type Session struct {
 	// the session operational: an OPENREC reached without ze's Initialization is
 	// not a session the peer can have confirmed.
 	initAccepted bool
-	conn         net.Conn
+	// adjacencyExpired records that expireAdjacencies ended this session because
+	// its Hello adjacency timed out, so the end is not a failed setup attempt.
+	// Guarded by mu; set once, never cleared.
+	adjacencyExpired bool
+	conn             net.Conn
 	// writeMu serializes every PDU ze writes on conn, so no two PDUs interleave
 	// and a fatal Notification is the last PDU of the session. Lock order for a
 	// Notification: arm the write deadline FIRST, then take writeMu
@@ -278,6 +282,25 @@ func (s *Session) PeerAddr() netip.Addr {
 // PeerLSRID returns the peer's LSR ID.
 func (s *Session) PeerLSRID() [4]byte {
 	return s.peerLSRID
+}
+
+// markAdjacencyExpired records that the session is being ended because its Hello
+// adjacency expired. The caller MUST call it before Stop, so the session's end
+// already carries the reason when the end-of-session work reads it with
+// endedByAdjacencyExpiry. Safe for concurrent use.
+func (s *Session) markAdjacencyExpired() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.adjacencyExpired = true
+}
+
+// endedByAdjacencyExpiry reports whether markAdjacencyExpired was called. It is
+// read once the session has ended, and markAdjacencyExpired MUST have been
+// called before Stop for the answer to cover that end. Safe for concurrent use.
+func (s *Session) endedByAdjacencyExpiry() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.adjacencyExpired
 }
 
 // Stop terminates the session.

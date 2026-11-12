@@ -41,3 +41,27 @@ func TestExpireAdjacenciesStopsSession(t *testing.T) {
 
 	assert.True(t, sess.stopped(), "session must be stopped when its adjacency expires")
 }
+
+// AC-5: an adjacency that expires while its session is still in setup leaves no
+// backoff entry once the session has ended, so a neighbor rediscovered later is
+// dialed on its first Hello. The session is opened by startSessionForAdj, so the
+// end-of-session closure that runs after the expiry is the engine's own.
+func TestAdjacencyExpiryLeavesNoBackoffEntry(t *testing.T) {
+	h := newSessionEndHarness(t)
+	adj := testAdjacency()
+	key := AdjacencyKey(adj.PeerLSRID, adj.PeerLabelSpace)
+
+	adjTable := newAdjacencyTable()
+	entry, _ := adjTable.Update(PDUHeader{LSRID: adj.PeerLSRID, LabelSpace: adj.PeerLabelSpace},
+		HelloMessage{TransportAddr: adj.TransportAddr}, adj.Interface)
+
+	remote := h.mustStart(adj)
+	h.readInitialization(remote) // the session is in OPENSENT, never operational
+	entry.LastSeen = time.Now().Add(-time.Hour)
+	expireAdjacencies(slogutil.DiscardLogger(), adjTable, h.sessions, h.retries, &h.mu)
+	h.awaitSessionEnded(key)
+
+	if r := h.backoff(key); r != nil {
+		t.Errorf("backoff entry after the adjacency expired: delay %s; want none, so a neighbor rediscovered later is dialed at once", r.delay)
+	}
+}

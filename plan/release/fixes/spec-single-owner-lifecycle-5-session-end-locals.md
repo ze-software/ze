@@ -2,17 +2,17 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Three shipped-daemon defects an operator meets in production: an LDP session that ended cleanly is retried as if it had failed and costs an OSPF link out, an L2TP subscriber that hung up stays in the subscriber table with an accounting record nobody stops, and a FlowSpec discard rule stays at every peer after the plugin that announced it is gone. |
 | RFC gaps | - |
 | Depends | `plan/release/fixes/spec-single-owner-lifecycle.md` (parent: decision record and row routing; no code dependency). No dependency on children 1 to 4: this child edits no file they edit |
-| Phase | - |
+| Phase | 1/3 |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

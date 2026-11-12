@@ -83,7 +83,14 @@ forwarding`, independent of either engine's in-memory state.
    `reconcilePeerDown` (`ldp/fib.go`), which removes every FEC binding from
    that peer and re-reconciles each FEC, re-pointing to a surviving peer or
    withdrawing the push, per-FEC locked so one large peer's teardown does not
-   stall other sessions' label processing.
+   stall other sessions' label processing. `runSession` hands `onDone` whether
+   the session reached OPERATIONAL, from a local its on-operational callback
+   sets (the state is unreadable by then: `Session.Stop` resets it). Operational:
+   `onDone` deletes the adjacency's setup backoff entry and publishes one
+   `(ldp, session-down)`. Not operational: `recordSetupFailure` (15 s doubling
+   to 2 min) and no SessionDown, unless `expireAdjacencies` marked the session
+   (`Session.markAdjacencyExpired`), which leaves the backoff entry it deleted
+   gone.
 
 ### RSVP-TE: LSP setup, label allocation, tunnel state
 9. **Registration and transport.** `registerRSVPTE` (`rsvpte/register.go`) registers

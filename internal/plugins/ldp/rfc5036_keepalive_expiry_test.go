@@ -201,7 +201,7 @@ func startRunSession(t *testing.T, sess *Session) <-chan struct{} {
 	done := make(chan struct{})
 	go runSession(t.Context(), slogutil.DiscardLogger(), sess, sess.lib, "10.0.0.2:0",
 		newLDPFIB(nil, slogutil.DiscardLogger()), sessionUpEvent(testAdjacency(), "10.0.0.2:0"),
-		func() { close(done) })
+		func(bool) { close(done) })
 	t.Cleanup(func() {
 		sess.Stop()
 		select {

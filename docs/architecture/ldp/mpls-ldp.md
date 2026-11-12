@@ -188,7 +188,7 @@ Two LDP tasks read network input, and each defers the shared panic guard
 
 | Task | Entry | A contained panic |
 |------|-------|-------------------|
-| `session` | `runSession`, the goroutine `startSessionForAdj` starts for each dialed adjacency | Sends one Notification carrying Internal Error (Status Code 0x80000019, E set), then `runSession`'s deferred `Stop` closes the connection and `onDone` runs the usual session-down teardown: the session leaves the table, its bindings are withdrawn, and SessionDown is published. The neighbor's next Hello sets the session up again, after the setup backoff when it never reached OPERATIONAL |
+| `session` | `runSession`, the goroutine `startSessionForAdj` starts for each dialed adjacency | Sends one Notification carrying Internal Error (Status Code 0x80000019, E set), then `runSession`'s deferred `Stop` closes the connection and `onDone` runs the usual session-end teardown: the session leaves the table and its bindings are withdrawn. SessionDown is published only when the session had reached OPERATIONAL, so it answers a SessionUp. The neighbor's next Hello sets the session up again, at once when the session had reached OPERATIONAL and after the setup backoff when it had not |
 | `discovery` | `readDiscoveryLoop` around each `readDiscovery` pass | Drops the Hello being applied. `readDiscoveryLoop` starts the next pass at once on the same socket, so discovery never sends Hellos from a socket nobody reads |
 
 RFC 5036 section 3.5.1.2.7 names the code: "When such a condition prevents an
@@ -215,13 +215,37 @@ session is operational (an Initialization NAK'd by either side, a transport that
 closed during the exchange, a refused TCP connect) records a backoff for the
 adjacency: the next attempt waits 15 seconds, then double that on each further
 failure up to 2 minutes, which is what RFC 5036 section 2.5.3 requires for a
-NAK'd Initialization. A session that reaches operational clears the backoff, and
-so does the adjacency expiring, so a peer rediscovered later starts undelayed.
+NAK'd Initialization. Such an attempt publishes no SessionDown: it never
+published a SessionUp, so a reader such as OSPF LDP-IGP synchronization, which
+keys its state by interface, keeps the state it had, even on a link where
+another neighbor's session is up.
+
+A session that reached operational clears the backoff when it ends, whatever
+ended it, and publishes exactly one SessionDown, carrying the neighbor's address,
+its LDP Identifier and the adjacency's interface. The neighbor's next Hello then
+dials at once. RFC 5036 section 2.5.3 releases the throttle once Initialization
+messages stop being NAK'd: "After such a configuration action, there is no
+further need to throttle subsequent session establishment attempts (until their
+Initialization messages are NAK'd)."
+
+`onDone` cannot read whether the session was operational from the session: Stop
+resets the state to non-existent, and Stop runs before `onDone` and may already
+have run from `expireAdjacencies` or a failed KeepAlive send. `runSession` keeps
+the fact in a local that its on-operational callback sets, on the same
+goroutine, and hands it to `onDone` from a deferred call that reads it when it
+runs.
+
+An adjacency that expires drops its backoff entry, so a neighbor rediscovered
+later is dialed on its first Hello. `expireAdjacencies` marks the session as
+ended by the expiry before it stops it, and `onDone` records no setup failure
+for such a session, so the entry stays gone whatever state the session was in.
 
 No timer goroutine exists for this: the Hello is the tick, and an adjacency that
 stops sending Hellos retries nothing.
 
-<!-- source: internal/plugins/ldp/register.go -- startSessionForAdj, setupRetry, recordSetupFailure, processDiscoveryPacket -->
+<!-- source: internal/plugins/ldp/register.go -- startSessionForAdj, runSession, setupRetry, recordSetupFailure, expireAdjacencies, processDiscoveryPacket -->
+<!-- source: internal/plugins/ldp/session.go -- markAdjacencyExpired, endedByAdjacencyExpiry, ReadLoop -->
+<!-- source: internal/plugins/ldp/session_end_test.go -- TestSessionEndAfterOperationalClearsBackoff, TestSessionEndBeforeOperationalPublishesNoSessionDown, TestRunSessionReportsOperationalToOnDone -->
 
 ## Decision: LDP names no forwarding writer
 

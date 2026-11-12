@@ -3,7 +3,7 @@
   "requirement_sha": "400b56f09eddd61f",
   "tests": {
     "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleInitiatesNegotiation": "ae9e641bab4b2401",
-    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036SessionNotOperationalWithoutOwnInit": "0c099031be03877f"
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036SessionNotOperationalWithoutOwnInit": "9915169e2b09a485"
   },
   "units": {
     "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleInitiatesNegotiation": "9139382b9fa32164",
