@@ -104,6 +104,14 @@ type ActivityOptions struct {
 	Excludes   []string
 	Author     string
 	Open       bool
+	// Committed measures every committed file outside the third-party trees
+	// ThirdPartyPath names, the population of the size history's first-party
+	// sections, in place of the one AllFiles, Extensions and Excludes choose.
+	Committed bool
+	// MonthStart opens the window on the first day of a month: the first one
+	// on or after the day Days would open it on, or the first day of the month
+	// of the repository's first commit when that is later.
+	MonthStart bool
 }
 
 // activityReport names the static dashboard written by writeActivity.
@@ -115,9 +123,19 @@ func (r activityReport) Text() string {
 	return "wrote " + r.File + "\n"
 }
 
+// activityTotals is one numstat pass over the window, day by day. Additions
+// and Deletions read the two numstat columns of the same lines, so both obey
+// one set of path rules and stay comparable. ThirdPartyAdditions and
+// ThirdPartyDeletions read the same columns for the paths ThirdPartyPath
+// names, and only the committed population fills them: Additions and
+// Deletions never hold those paths, so the two pairs sum to every committed
+// text file.
 type activityTotals struct {
-	Additions map[time.Time]int
-	Commits   map[time.Time]int
+	Additions           map[time.Time]int
+	Deletions           map[time.Time]int
+	Commits             map[time.Time]int
+	ThirdPartyAdditions map[time.Time]int
+	ThirdPartyDeletions map[time.Time]int
 }
 
 // ActivityGoBucket counts one class of Go file: how many files it holds, and
@@ -320,9 +338,9 @@ func runGit(repo string, check bool, arguments ...string) (string, error) {
 	return stdout.String(), nil
 }
 
-func collectActivity(options ActivityOptions, today time.Time) (activityTotals, error) {
-	today = dateOnly(today)
-	start := today.AddDate(0, 0, -(options.Days - 1))
+// collectActivity reads one numstat pass over the days from start to today,
+// both inclusive UTC dates, which measureActivity chooses.
+func collectActivity(options ActivityOptions, start, today time.Time) (activityTotals, error) {
 	// today closes the window as well as opening it. Bounded by --since alone,
 	// a measurement pinned to a past day still read every commit made after it:
 	// those commits fall outside the drawn grid, but they set the heat scale
@@ -332,9 +350,23 @@ func collectActivity(options ActivityOptions, today time.Time) (activityTotals, 
 	// The clock of each bound is appended rather than formatted, because a Go
 	// layout spells 23:59:59 as 15:04:05: a literal "23:59:59" in the layout
 	// reads as a day and a 12-hour clock, and git answers nothing for it.
-	arguments := []string{"log", "--date=short", "--pretty=format:@@@%ad", "--numstat",
+	//
+	// The committed population reads every path on its own, a rename being its
+	// old path's lines deleted and its new path's lines added, and with no text
+	// conversion, so its sums add up to the lines each file holds; it dates a
+	// commit by the UTC day of its author time, as the size history does. The
+	// source population keeps git's rename pairing and the author's own
+	// calendar day, which the slide and the dashboard are drawn with.
+	format := "--pretty=format:@@@%ad"
+	if options.Committed {
+		format = "--pretty=format:@@@%at"
+	}
+	arguments := []string{"log", "--date=short", format, "--numstat",
 		"--since=" + start.Format(dayLayout) + "T00:00:00Z",
 		"--until=" + today.Format(dayLayout) + "T23:59:59Z"}
+	if options.Committed {
+		arguments = append(arguments, "--no-renames", "--no-textconv")
+	}
 	if options.Author != "" {
 		arguments = append(arguments, "--author="+options.Author)
 	}
@@ -348,11 +380,12 @@ func collectActivity(options ActivityOptions, today time.Time) (activityTotals, 
 	if err != nil {
 		return activityTotals{}, err
 	}
-	totals := activityTotals{Additions: make(map[time.Time]int), Commits: make(map[time.Time]int)}
+	totals := activityTotals{Additions: make(map[time.Time]int), Deletions: make(map[time.Time]int), Commits: make(map[time.Time]int),
+		ThirdPartyAdditions: make(map[time.Time]int), ThirdPartyDeletions: make(map[time.Time]int)}
 	var current time.Time
 	for line := range strings.SplitSeq(output, "\n") {
 		if strings.HasPrefix(line, "@@@") {
-			current, err = time.Parse("2006-01-02", line[3:])
+			current, err = activityCommitDay(line[3:], options.Committed)
 			if err != nil {
 				return activityTotals{}, err
 			}
@@ -366,17 +399,59 @@ func collectActivity(options ActivityOptions, today time.Time) (activityTotals, 
 		if len(parts) < 3 || !allDigits(parts[0]) {
 			continue
 		}
+		// A change where either version is binary prints "-" in both
+		// columns, which the guard above already skipped, so it counts no
+		// lines; a text change prints digits in both.
+		if !allDigits(parts[1]) {
+			continue
+		}
+		// The committed population counts the third-party trees on their own,
+		// so the curve can draw every committed file beside the first-party
+		// ones; the source population's path rules never name them apart.
+		if options.Committed && ThirdPartyPath(parts[2]) {
+			added, deleted, err := numstatLines(parts)
+			if err != nil {
+				return activityTotals{}, err
+			}
+			totals.ThirdPartyAdditions[current] += added
+			totals.ThirdPartyDeletions[current] += deleted
+			continue
+		}
 		if !isActivitySourcePath(parts[2], options) {
 			continue
 		}
-		added, _ := strconv.Atoi(parts[0])
+		added, deleted, err := numstatLines(parts)
+		if err != nil {
+			return activityTotals{}, err
+		}
 		totals.Additions[current] += added
+		totals.Deletions[current] += deleted
 	}
 	return totals, nil
 }
 
+// activityCommitDay reads the day one commit line of collectActivity names:
+// the author's own calendar day for the source population, and the UTC day of
+// the author time for the committed one.
+func activityCommitDay(stamp string, committed bool) (time.Time, error) {
+	if !committed {
+		return time.Parse(dayLayout, stamp)
+	}
+	seconds, err := strconv.ParseInt(stamp, 10, 64)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("read the author time %q of a commit: %w", stamp, err)
+	}
+	return dateOnly(time.Unix(seconds, 0).UTC()), nil
+}
+
+// firstActivityCommit answers the day of the repository's earliest commit,
+// dated the way collectActivity dates a commit of the same population.
 func firstActivityCommit(options ActivityOptions) (*time.Time, error) {
-	arguments := []string{"log", "--date=short", "--pretty=format:%ad"}
+	format := "--pretty=format:%ad"
+	if options.Committed {
+		format = "--pretty=format:%at"
+	}
+	arguments := []string{"log", "--date=short", format}
 	if options.AllRefs {
 		arguments = append(arguments, "--all")
 	} else {
@@ -389,7 +464,7 @@ func firstActivityCommit(options ActivityOptions) (*time.Time, error) {
 	}
 	var earliest *time.Time
 	for line := range strings.FieldsSeq(output) {
-		day, parseErr := time.Parse("2006-01-02", line)
+		day, parseErr := activityCommitDay(line, options.Committed)
 		if parseErr != nil {
 			return nil, parseErr
 		}
@@ -401,34 +476,12 @@ func firstActivityCommit(options ActivityOptions) (*time.Time, error) {
 	return earliest, nil
 }
 
-func allDigits(value string) bool {
-	if value == "" {
-		return false
-	}
-	for _, character := range value {
-		if character < '0' || character > '9' {
-			return false
-		}
-	}
-	return true
-}
-
-func numstatTargetPath(path string) string {
-	path = strings.TrimSpace(path)
-	if !strings.Contains(path, "=>") {
-		return path
-	}
-	if close := strings.IndexByte(path, '}'); close >= 0 && strings.Contains(path[:close], "{") {
-		prefix, suffix := path[:close], path[close+1:]
-		if _, target, ok := strings.Cut(prefix, "=>"); ok {
-			return strings.TrimSpace(target) + suffix
-		}
-	}
-	_, target, _ := strings.Cut(path, "=>")
-	return strings.TrimSpace(target)
-}
-
 func isActivitySourcePath(path string, options ActivityOptions) bool {
+	// The committed population reads no rename pairs, so the path is the
+	// file's own, and the third-party trees are its one exclusion.
+	if options.Committed {
+		return !ThirdPartyPath(path)
+	}
 	path = numstatTargetPath(path)
 	for _, pattern := range options.Excludes {
 		if fnmatch(pattern, path) {
@@ -789,27 +842,40 @@ func weeksBetween(start, end time.Time) [][]time.Time {
 	return weeks
 }
 
+// monthLabelGap is how many week columns two month labels need between their
+// starts to both fit: a three-letter name is wider than one column.
+const monthLabelGap = 4
+
+// monthLabels answers one label span per week column. A month is named over
+// the column that holds its first day. The first column names the month the
+// window opens in, which is usually a partial month; when the next month
+// starts too close for both names to fit, the partial month's name gives way,
+// so the first full month of the grid is never the one left unnamed.
 func monthLabels(weeks [][]time.Time) string {
-	seen := make(map[string]bool)
-	lastColumn := -10
+	labels := make([]string, len(weeks))
+	lastColumn := -1
+	opening := false
+	for column, week := range weeks {
+		for _, day := range week {
+			if day.Day() != 1 {
+				continue
+			}
+			if lastColumn >= 0 && column-lastColumn < monthLabelGap {
+				if !opening {
+					break
+				}
+				labels[lastColumn] = ""
+			}
+			labels[column], lastColumn, opening = day.Format("Jan"), column, false
+			break
+		}
+		if column == 0 && labels[0] == "" {
+			labels[0], lastColumn, opening = week[0].Format("Jan"), 0, true
+		}
+	}
 	var out textbuf.Buffer
 	out.Reset()
-	for column, week := range weeks {
-		label := ""
-		for _, day := range week {
-			key := day.Format("2006-01")
-			if day.Day() == 1 && !seen[key] {
-				if column+1-lastColumn >= 4 {
-					label, lastColumn = day.Format("Jan"), column+1
-				}
-				seen[key] = true
-				break
-			}
-		}
-		if column == 0 && label == "" {
-			label, lastColumn = week[0].Format("Jan"), 1
-			seen[week[0].Format("2006-01")] = true
-		}
+	for column, label := range labels {
 		out.Str(`<span class="month-label" style="grid-column:`).Int(int64(column + 1)).
 			Str(`">`).Str(label).Str(`</span>` + "\n")
 	}

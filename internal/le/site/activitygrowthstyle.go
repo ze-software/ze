@@ -141,6 +141,28 @@ const activityGrowthStyle = `<style>
     .size-swatch { flex: none; width: 0.8rem; height: 0.8rem; border-radius: 0.2rem; background: var(--series); }
     .growth-series.size-line { stroke: var(--series); stroke-width: 2; }
     .growth-point.size-point { fill: var(--series); }
+    .size-legend-total, .cumulative-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.65rem;
+        color: var(--text);
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+    .cumulative-legend { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .cumulative-legend[hidden] { display: none; }
+    .size-swatch.size-total-swatch, .cumulative-swatch {
+        flex: none;
+        width: 1.2rem;
+        height: 0;
+        border-radius: 0;
+        border-top: 3px dashed var(--text);
+        background: none;
+    }
+    .cumulative-swatch.cumulative-swatch-first { border-top-style: solid; border-top-color: var(--sky-deep); }
+    .growth-series.size-total, .growth-series.cumulative-series.cumulative-total { stroke: var(--text); stroke-width: 3; stroke-dasharray: 6 3; }
+    .growth-point.size-total-point { fill: var(--text); }
     .change-gained { fill: var(--teal-deep); }
     .change-lost { fill: var(--coral); }
     .activity-widget .growth-readout.size-readout {
@@ -173,6 +195,8 @@ const activityGrowthStyle = `<style>
     .growth-charts h3 { margin: 0 0 0.5rem; color: var(--text); font-size: 0.95rem; }
     .growth-chart { display: block; width: 100%; height: auto; overflow: visible; }
     .growth-grid { fill: none; stroke: var(--activity-border); stroke-width: 1; }
+    .growth-grid.growth-grid-minor { stroke-dasharray: 2 4; opacity: 0.6; }
+    .growth-grid.growth-baseline { stroke: var(--muted); stroke-width: 2; }
     .growth-axis { fill: var(--muted); font-size: 14px; }
     .growth-series { fill: none; stroke: var(--activity-level-4); stroke-width: 3; }
     .growth-series.cumulative-series { stroke: var(--sky-deep); }

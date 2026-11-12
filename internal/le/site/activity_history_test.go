@@ -318,8 +318,9 @@ func TestActivityPageKeepsCalendarAndCommitViews(t *testing.T) {
 		`class="activity-grid"`, `class="day-cell`,
 		`data-metric="lines"`, `data-metric="commits"`,
 		`id="total-value"`, `id="active-value"`, `id="peak-value"`, "Days shown",
-		"Lines added in this window",
-		"Added lines count additions, not net repository size.",
+		"Total commits",
+		"The lines count every file committed outside the third-party trees",
+		"added 4 lines and deleted 0 lines, a net change of 4 lines",
 		`class="panel go-panel"`,
 		`id="activity-cumulative-chart"`, `id="activity-cumulative-day"`, `id="activity-cumulative-readout"`,
 		`class="legend"`,
@@ -375,7 +376,7 @@ func activityAttributeSet(node *xhtml.Node, key string) (string, bool) {
 // The method renders the fixture page, reads the mirror the render wrote, as
 // TestTheActivityMirrorReadsAsThePublishedMirror does, and reads its lines
 // rather than its shape. The first card's label must open its line, after
-// nothing but spaces, as "- Lines added in this window": when the
+// nothing but spaces, as "- Total commits": when the
 // element before the calendar view ends in inline text (the size view's day
 // selector), the card's bullet joins that text's line and stops being a list
 // item. No line may be a bare "-", "*" or "+", or a run of "#" alone.
@@ -392,7 +393,7 @@ func TestTheActivityMirrorStartsEveryBlockOnItsOwnLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const firstCard = "- Lines added in this window"
+	const firstCard = "- Total commits"
 	label := strings.TrimPrefix(firstCard, "- ")
 	opens, holder := false, ""
 	for number, line := range strings.Split(string(raw), "\n") {
@@ -530,10 +531,10 @@ func TestActivityGoCompositionSitsInTheCalendarView(t *testing.T) {
 
 // TestActivityCumulativeCurveCarriesBothWordings proves the cumulative curve
 // ships able to say which of the switch's two metrics it shows. It opens on
-// the Added Lines wording, the metric the cards open on, and every element
-// whose words change carries the Commits wording beside its own; the chart's
-// accessible name and the slider's unit carry both as well. No wording calls
-// the added lines a size.
+// the Commits wording, the metric the cards open on, and every element whose
+// words change carries the Added Lines wording beside its own, which names the
+// net lines, added minus deleted; the chart's accessible name and the slider's
+// unit carry both as well. No wording calls the lines a size.
 //
 // VALIDATES: the owner's correction that the curve follows the Added Lines
 // and Commits switch; AC-11: commit activity stays labeled as activity.
@@ -558,13 +559,15 @@ func TestActivityCumulativeCurveCarriesBothWordings(t *testing.T) {
 		commits := activityAttribute(node, "data-text-commits")
 		wordings[lines] = commits
 		text := node.FirstChild
-		if text == nil || text.Type != xhtml.TextNode || text.NextSibling != nil || text.Data != lines {
-			t.Errorf("the element worded %q does not ship stating it", lines)
+		if text == nil || text.Type != xhtml.TextNode || text.NextSibling != nil || text.Data != commits {
+			t.Errorf("the element worded %q under Commits does not ship stating it", commits)
 		}
 	}
 	for lines, commits := range map[string]string{
-		"Lines added by commits, accumulated since the calendar's first day.": "Commits accumulated since the calendar's first day.",
-		"Lines added": "Commits",
+		"Lines added minus lines deleted by commits, accumulated since the calendar's first day. " +
+			"The curve falls on a day whose commits deleted more lines than they added. " +
+			"A second line draws the same figure over every committed file, the third-party trees included.": "Commits accumulated since the calendar's first day.",
+		"Net lines": "Commits",
 	} {
 		if wordings[lines] != commits {
 			t.Errorf("the curve words %q as %q under Commits, want %q", lines, wordings[lines], commits)
@@ -574,15 +577,18 @@ func TestActivityCumulativeCurveCarriesBothWordings(t *testing.T) {
 		t.Errorf("the curve carries %d switchable wordings, want the sentence and the readout label: %v", len(wordings), wordings)
 	}
 	chart := activityElementByID(t, document, "activity-cumulative-chart")
-	if label := activityAttribute(chart, "aria-label"); label != activityAttribute(chart, "data-aria-lines") || !strings.Contains(label, "lines added by commits") {
-		t.Errorf("the chart ships named %q, not by its Added Lines wording", label)
+	if label := activityAttribute(chart, "aria-label"); label != activityAttribute(chart, "data-aria-commits") {
+		t.Errorf("the chart ships named %q, not by its Commits wording", label)
+	}
+	if !strings.HasPrefix(activityAttribute(chart, "data-aria-lines"), "Cumulative lines added minus lines deleted by commits.") {
+		t.Errorf("the chart's Added Lines name is %q", activityAttribute(chart, "data-aria-lines"))
 	}
 	if !strings.HasPrefix(activityAttribute(chart, "data-aria-commits"), "Cumulative commits.") {
 		t.Errorf("the chart's Commits name is %q", activityAttribute(chart, "data-aria-commits"))
 	}
 	slider := activityElementByID(t, document, "activity-cumulative-day")
-	if activityAttribute(slider, "data-unit-lines") != "lines added" || activityAttribute(slider, "data-unit-commits") != "commits" {
-		t.Errorf("the slider reads out %q and %q, want \"lines added\" and \"commits\"",
+	if activityAttribute(slider, "data-unit-lines") != "net lines" || activityAttribute(slider, "data-unit-commits") != "commits" {
+		t.Errorf("the slider reads out %q and %q, want \"net lines\" and \"commits\"",
 			activityAttribute(slider, "data-unit-lines"), activityAttribute(slider, "data-unit-commits"))
 	}
 	if strings.Contains(strings.ToLower(activityOuterHTML(t, curve)), "size") {

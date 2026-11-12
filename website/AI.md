@@ -802,9 +802,13 @@ only the standalone bundle should change. The lower-level
 
 The activity page is one standalone document that carries its own stylesheet
 inside it, because a deck embeds it as an iframe where no link to the site's
-assets resolves. It shares the commit calendar with `/project/activity/`: the
-same measurement, the same cards and the same Added Lines/Commits switch, with
-the working tree's Go composition beside it. Only the published page has the
+assets resolves. It shares the commit calendar's drawing with
+`/project/activity/`: the same grid, the same cards and the same Added
+Lines/Commits switch, with the working tree's Go composition beside it. Its
+measurement is its own (`MeasureActivity`): code files by extension, vendor
+directories left out by glob, git's rename pairing, and the full year back from
+its pinned day. Its cells and tooltip carry no deleted lines, so a deck renders
+the bytes it always rendered. Only the published page has the
 repository size view, which it reads from the committed size history. The two
 present the calendar differently: the published page follows the site's theme, is full size, and opens on a
 hero, while the deck embed is dark and sized in viewport units so the whole
@@ -827,6 +831,11 @@ by one figure for each section the file lists and a sentence on what the
 figures count. One chart draws each
 section's lines over every recorded day, in a color taken from the section's
 place in the file and named in a legend whose buttons add or remove the section.
+The same chart draws a dashed total line, each day's sum of the sections the
+legend shows, and its scale covers that sum. The legend names the line "Sum of
+the sections shown" without making it a button. The readout's "All sections"
+row stays the sum of every section, so the line and the row agree whenever
+every section is shown.
 A second chart draws the lines the selected sections gained, above the axis, and
 lost, below it, on each day. Both scales come from every recorded day, so an
 earlier peak stays inside the chart. Both charts plot their days over the same
@@ -843,26 +852,80 @@ figures of the last build stand.
 The calendar view opens with its own "Commit calendar" heading, so a reader
 without JavaScript, who sees both views one after the other, finds the second
 titled. It keeps the four summary cards and the Added Lines/Commits
-switch, which show only with it. The first card counts the lines added by
-commits in the window, and the note under the cards says added lines are not
-repository size. The date range sits to the left of the calendar's Less/More
-legend. After the calendar comes the Go composition of the newest recorded day
+switch, which show only with it, and opens on Commits.
+
+The page's calendar measures a different population from the deck's
+(`MeasureCommittedActivity`). It counts every committed file outside the
+third-party trees `ThirdPartyPath` names (`vendor/`, `third_party/`,
+`website/assets/vendor/`): code, tests, documentation, plans, the RFC corpus
+and the rest, which are the size view's sections other than its two third-party
+ones. It reads both numstat columns of one `git log` pass, so added and deleted
+lines follow the same rules, and counts the third-party trees' lines in the same
+pass apart from them, for the cumulative curve's all-files line. Lines include comments and blank lines. A change
+in which either version of a file is binary counts no lines. A rename counts as
+the old path's lines deleted and the new path's added (`--no-renames`). A merge
+commit counts as a commit, and the lines it changes itself are not counted.
+Each commit falls on the UTC day of its author time. The window opens on the
+first day of a month: the first month start on or after the day a year back,
+or the first day of the first commit's month when that is later. "Days shown"
+counts the days from there to the build day.
+
+The first card counts the lines added in the window. The note under the cards
+states that population, then the lines the window's commits added and deleted
+and their net change. When the window reaches back to the first commit, the
+note adds that the net change is the number of lines these files hold at the
+newest commit the calendar reads. That is the size view's figure for the same
+files on the same commit, apart from the lines of a file that turned between
+text and binary and any lines a merge changed itself. Each square's color still follows the lines that day added, so a day that rewrote as
+much as it removed does not read as idle. Each square's tooltip and accessible
+name state the lines added and deleted. The date range sits to the left of the
+calendar's Less/More legend. After the calendar comes the Go composition of the newest recorded day
 in the size history: the lines of all Go, third-party included, summed over
 every section the file splits into Go lines, then first-party Go, production,
 tests and third-party Go, each with files, lines, code, blank and comment
 lines, and the module count. It does not read the working tree. Under it, the
-cumulative curve follows the switch: under Added Lines it sums the lines added
-by commits that the calendar cells carry, under Commits their commits, from
-the first day of the window. It has no heading: its sentence, readout and slider say which
-of the two it shows, and the selected date stays when the switch changes. Its
-slider spans the curve's time line the way the size view's does.
+cumulative curve follows the switch. Under Added Lines it sums the net lines
+the calendar cells carry, added minus deleted, so it falls on a day whose
+commits deleted more lines than they added and can fall below zero. A second,
+dashed line draws the same net over every committed file, the third-party trees
+included, from the third-party added and deleted lines each cell also carries
+(`data-third-party-added`, `data-third-party-deleted`, counted in the same
+numstat pass). A legend shown only under Added Lines names the two lines,
+"Without third-party" and "All files", and the scale covers both. Its readout
+and slider then show the net beside the added and deleted lines it is made of
+and the all-files figure. The cards, each square's color and its tooltip still
+count first-party lines only. Over the whole history the all-files line ends
+near the size view's total for the same commit, apart from the lines of a file
+that turned between text and binary and commits newer than the size history's
+last recorded day.
+Under Commits it sums their commits and draws one line. Both count from the first day of the
+window. It has no heading: its sentence, readout and slider say which of the
+two it shows, and the selected date stays when the switch changes. Its slider
+spans the curve's time line the way the size view's does.
+
+The three charts share one vertical axis rule (`activityAxisTicks`). The axis
+helps the eye judge size in units of ten, and the readouts carry the exact
+figures. Its step is the power of ten below the range. The step is doubled when
+that would draw more than eleven lines and halved when it would draw fewer than
+three, but it never goes below one, so commit counts stay whole. The lines run
+from the step at or below the smallest value to the step at or above the
+largest, and zero is always one of them. When an axis has values on both sides
+of zero, the zero line is drawn as the baseline. An axis of five lines or fewer,
+with a step of ten or more, gets an unlabeled dashed line halfway between each
+pair. Labels are compact (`activityAxisLabel`): every tick on an axis takes the
+unit its largest tick sets, M from a million and K from ten thousand, and the
+figure is written in full below that. No data value is printed on the axis.
 
 Every size figure on the page, the Go composition's included, is a
 `data-ze-history` marker that the build fills and the page script refills from
 the published file. The deck embed retains its calendar.
 <!-- source: internal/le/site/activitygrowth.go -- activitySizeHTML, activityHistoryGoPanelHTML, activityCumulativeCurveHTML, activityGrowthScript -->
 <!-- source: internal/le/site/activitygrowthstyle.go -- activityGrowthStyle -->
-<!-- source: internal/le/site/activity.go -- activityPageBody, activityCalendarViewHTML -->
+<!-- source: internal/le/site/activity.go -- activityPageBody, activityCalendarViewHTML, activityCalendarNoteHTML, activityScriptHTML -->
+<!-- source: internal/le/repo/rewrite/activitymeasure.go -- MeasureCommittedActivity, activityWindowStart, measureCells -->
+<!-- source: internal/le/repo/rewrite/activity.go -- collectActivity, isActivitySourcePath -->
+<!-- source: internal/le/repo/rewrite/activitynumstat.go -- numstatLines -->
+<!-- source: internal/le/site/history/measure.go -- countBlob, dayRecord -->
 
 ## Adding a new presentation
 

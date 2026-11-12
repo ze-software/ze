@@ -26,9 +26,21 @@ import (
 // artifact's data directory, as the published page does; the fixture holds five
 // sections, one of which (Go production) peaks on its third day and declines,
 // and one of which (Plans) shrinks. The calendar fixture carries padding with
-// activity, an idle day and cells out of date order, so the cumulative curve
-// must read the dated window: 10, 0 and 7 lines added and 2, 0 and 1 commits,
-// with the padding cell's 999 lines and 99 commits outside it.
+// activity, a day that only deleted lines and cells out of date order, so the
+// cumulative curve must read the dated window: 10, 0 and 7 lines added, 4, 13
+// and 2 deleted, so 6, -7 and -2 net lines, and 2, 0 and 1 commits, with the
+// padding cell's 999 lines and 99 commits outside it. The third-party trees
+// add 14, delete 4 and add 1 on those days, so the all-files line reads 20, 3
+// and 9: above the first-party net's -10 to 10 axis, which must grow to 20.
+//
+// The size chart's total line is the sum of the sections shown. With every
+// section shown its largest day is 2,344 lines (2026-08-23), so the axis runs
+// 0, 1,000, 2,000, 3,000: activityAxisTicks takes the power of ten below the
+// span, 1,000, which leaves four lines. With Other hidden the largest sum is
+// 1,110 lines, also on 2026-08-23 (650 + 175 + 190 + 95), so the axis runs 0,
+// 1,000, 2,000 and stops below 3,000. Without the total in the scale, the
+// largest drawn section, Third-party Go at 650, would give an axis of 0 to 700
+// in hundreds.
 //
 // The page is served with two markers stating figures the file contradicts,
 // the size view's total and one count of the Go composition in the calendar
@@ -53,10 +65,13 @@ import (
 // on every chart's cursor on the first, a middle and the last day; the size
 // readout's table keeps its width, position, column widths, row heights and
 // row count across days and section selection, and carries no Columns
-// control; the cumulative curve shows lines added under Added Lines and
-// commits under Commits, says which in its sentence, readout label, slider
-// and chart name, carries no heading, and keeps the selected date across the
-// switch.
+// control; the cumulative curve opens on Commits, shows net lines (added
+// minus deleted, falling below zero) with the added and deleted figures under
+// Added Lines and commits under Commits, says which in its sentence, readout
+// label, slider and chart name, carries no heading, and keeps the selected
+// date across the switch. The calendar note states the window's added,
+// deleted and net lines, and the tooltip a day's added and deleted lines. The
+// axis helper draws round ticks that hold zero and cover their range.
 func TestActivitySizeChartFollowsTheHistoryFile(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {
@@ -80,11 +95,12 @@ func TestActivitySizeChartFollowsTheHistoryFile(t *testing.T) {
 		Start:   time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC),
 		End:     time.Date(2026, time.August, 3, 0, 0, 0, 0, time.UTC),
 		Lines:   reporewrite.ActivitySeries{Total: 17, ActiveDays: 2, Peak: 10},
+		Deleted: reporewrite.ActivitySeries{Total: 19, ActiveDays: 3, Peak: 13},
 		Commits: reporewrite.ActivitySeries{Total: 3, ActiveDays: 2, Peak: 2},
-		Cells: `<div class="day-cell outside" data-date="2026-07-31" data-lines="999" data-commits="99"></div>
-<div class="day-cell" data-date="2026-08-03" data-date-label="Mon 03 Aug 2026" data-lines="7" data-lines-display="7" data-lines-level="4" data-commits="1" data-commits-display="1" data-commits-level="4"></div>
-<div class="day-cell" data-date="2026-08-01" data-date-label="Sat 01 Aug 2026" data-lines="10" data-lines-display="10" data-lines-level="5" data-commits="2" data-commits-display="2" data-commits-level="5"></div>
-<div class="day-cell" data-date="2026-08-02" data-date-label="Sun 02 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0"></div>`,
+		CellsWithDeleted: `<div class="day-cell outside" data-date="2026-07-31" data-lines="999" data-deleted="999" data-commits="99"></div>
+<div class="day-cell" data-date="2026-08-03" data-date-label="Mon 03 Aug 2026" data-lines="7" data-lines-display="7" data-lines-level="4" data-deleted="2" data-deleted-display="2" data-third-party-added="1" data-third-party-deleted="0" data-commits="1" data-commits-display="1" data-commits-level="4"></div>
+<div class="day-cell" data-date="2026-08-01" data-date-label="Sat 01 Aug 2026" data-lines="10" data-lines-display="10" data-lines-level="5" data-deleted="4" data-deleted-display="4" data-third-party-added="14" data-third-party-deleted="0" data-commits="2" data-commits-display="2" data-commits-level="5"></div>
+<div class="day-cell" data-date="2026-08-02" data-date-label="Sun 02 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="13" data-deleted-display="13" data-third-party-added="0" data-third-party-deleted="4" data-commits="0" data-commits-display="0" data-commits-level="0"></div>`,
 	}
 	figures := activityHistoryFigures(t)
 	content, err := activityPageBody(&window, figures)
@@ -272,6 +288,23 @@ window.addEventListener('load', async () => {
     for (const line of lines) {
       for (const y of ys(line)) check(y >= 19.5 && y <= 224.5, line.dataset.section + ' leaves the chart at y=' + y);
     }
+    // The total line sums the sections shown: 2,344 lines on the last day, on
+    // an axis of 0 to 3,000 over the plot's 204 pixels from y=20 to y=224.
+    const sizeTotal = chart.querySelector('.size-total');
+    check(!!sizeTotal && sizeTotal.querySelector('title').textContent === 'Sum of the sections shown',
+      'The size chart must draw the sum of the sections shown as a line of its own');
+    const totalY = sizeTotal ? ys(sizeTotal) : [];
+    check(totalY.length === 5 && totalY.every(y => y >= 19.5 && y <= 224.5), 'The total line must stay inside the chart: ' + totalY);
+    check(Math.abs(totalY[4] - (224 - 2344 / 3000 * 204)) < 0.5, 'The total line must end on 2,344 lines: y=' + totalY[4]);
+    for (const line of lines) {
+      const lineY = ys(line);
+      check(totalY[4] <= lineY[lineY.length - 1] + 0.01, 'The total line must end at or above ' + line.dataset.section + ': ' + totalY[4] + ' and ' + lineY[lineY.length - 1]);
+    }
+    const allLevels = Array.from(chart.querySelectorAll('.growth-axis')).map(label => label.textContent);
+    check(allLevels.includes('3,000') && !allLevels.includes('4,000'), 'The scale must cover the total of every section: ' + allLevels);
+    const totalEntry = document.querySelector('.size-legend .size-legend-total');
+    check(!!totalEntry && totalEntry.textContent === 'Sum of the sections shown' && totalEntry.closest('button') === null,
+      'The legend must name the total line, and not as a toggle');
     const production = chart.querySelector('.size-line[data-section="go-production"]');
     const productionY = ys(production);
     check(productionY.length === 5 && Math.min(...productionY) === productionY[2] && productionY[4] > productionY[2],
@@ -316,7 +349,11 @@ window.addEventListener('load', async () => {
     other.click();
     check(other.getAttribute('aria-pressed') === 'false' && chart.querySelectorAll('.size-line').length === 4, 'Deselecting a section must remove its line');
     const levels = Array.from(chart.querySelectorAll('.growth-axis')).map(label => label.textContent);
-    check(levels.includes('650') && !levels.includes('1,234'), 'The scale must follow the drawn sections: ' + levels);
+    check(levels.includes('2,000') && !levels.includes('3,000') && !levels.includes('700'), 'The scale must follow the sum of the drawn sections: ' + levels);
+    const hiddenTotalY = ys(chart.querySelector('.size-total'));
+    check(Math.abs(hiddenTotalY[4] - (224 - 1110 / 2000 * 204)) < 0.5, 'Without Other the total line must end on 1,110 lines: y=' + hiddenTotalY[4]);
+    const totalPoint = Number(chart.querySelector('.size-total-point').getAttribute('cy'));
+    check(Math.abs(totalPoint - (224 - 1050 / 2000 * 204)) < 0.5, 'Without Other the total point must stand on 1,050 lines on 2026-08-21: y=' + totalPoint);
     selected('2026-08-21', 'Go production', '300', '120', '30');
     selected('2026-08-21', 'Other', '25', '15', '0');
     sameLayout('with a section deselected');
@@ -338,51 +375,112 @@ window.addEventListener('load', async () => {
     check(shown(curve), 'The cumulative curve must show under the calendar');
     const curveSeries = curve.querySelector('.growth-series');
     check(!!curveSeries && curveSeries.getAttribute('d').length > 12, 'The cumulative curve must plot the calendar days');
-    function curveReads(metric, date, value, what) {
+    // Under Added Lines the curve reads the net lines, added minus deleted,
+    // and its readout the two figures the net is made of; under Commits the
+    // readout carries no such detail.
+    function curveReads(metric, date, value, what, detail) {
       const lines = metric === 'lines';
-      const sentence = lines ? "Lines added by commits, accumulated since the calendar's first day." : "Commits accumulated since the calendar's first day.";
-      const label = lines ? 'Lines added' : 'Commits';
-      const unit = lines ? 'lines added' : 'commits';
-      const name = lines ? 'Cumulative lines added by commits.' : 'Cumulative commits.';
+      const sentence = lines ? "Lines added minus lines deleted by commits, accumulated since the calendar's first day. " +
+        'The curve falls on a day whose commits deleted more lines than they added. ' +
+        'A second line draws the same figure over every committed file, the third-party trees included.' : "Commits accumulated since the calendar's first day.";
+      const label = lines ? 'Net lines' : 'Commits';
+      const unit = lines ? 'net lines' : 'commits';
+      const name = lines ? 'Cumulative lines added minus lines deleted by commits.' : 'Cumulative commits.';
+      const spoken = date + ': ' + value + ' ' + unit + (lines ? ', ' + detail : '');
+      const shownDetail = document.getElementById('activity-cumulative-detail');
       check(text('activity-cumulative-date') === date && text('activity-cumulative-value') === value,
         what + ': the curve must read ' + date + ' ' + value + ', reads ' + text('activity-cumulative-date') + ' ' + text('activity-cumulative-value'));
+      check(lines ? !shownDetail.hidden && shownDetail.textContent === detail : shownDetail.hidden,
+        what + ': the readout detail must ' + (lines ? 'read ' + detail : 'hide') + ', reads ' + shownDetail.textContent + (shownDetail.hidden ? ' (hidden)' : ''));
       check(document.querySelector('.activity-cumulative h2') === null, what + ': the curve must carry no heading');
       check(document.querySelector('.activity-cumulative p').textContent === sentence, what + ': the curve must say ' + sentence);
       check(document.querySelector('#activity-cumulative-readout span span').textContent === label, what + ': the readout must be labeled ' + label);
-      check(curveDay.getAttribute('aria-valuetext') === date + ': ' + value + ' ' + unit, what + ': the slider must read out ' + date + ': ' + value + ' ' + unit + ', reads ' + curveDay.getAttribute('aria-valuetext'));
+      check(curveDay.getAttribute('aria-valuetext') === spoken, what + ': the slider must read out ' + spoken + ', reads ' + curveDay.getAttribute('aria-valuetext'));
       check(curve.getAttribute('aria-label').startsWith(name), what + ': the chart must be named ' + name);
+      // Under Added Lines the curve draws the first-party net and, over it,
+      // the all-files line, and the legend names the two; under Commits it
+      // draws one line and hides the legend.
+      const paths = Array.from(curve.querySelectorAll('.growth-series'));
+      const curveLegend = document.querySelector('.activity-cumulative .cumulative-legend');
+      if (lines) {
+        check(paths.length === 2 && !paths[0].classList.contains('cumulative-total') && paths[1].classList.contains('cumulative-total'),
+          what + ': the curve must draw the first-party line and the all-files line: ' + paths.map(path => path.getAttribute('class')));
+        check(!!curveLegend && !curveLegend.hidden && shown(curveLegend) &&
+          Array.from(curveLegend.children).map(entry => entry.textContent).join('|') === 'Without third-party|All files',
+          what + ': the legend must name the two lines');
+      } else {
+        check(paths.length === 1, what + ': the curve must draw one line under Commits: ' + paths.length);
+        check(!!curveLegend && curveLegend.hidden && !shown(curveLegend), what + ': the legend must hide under Commits');
+      }
     }
     function curveLevels() { return Array.from(curve.querySelectorAll('.growth-axis')).map(label => label.textContent); }
-    check(document.body.dataset.metric === 'lines', 'The calendar must open on Added Lines');
-    curveReads('lines', '2026-08-03', '17', 'Under Added Lines');
-    check(curveLevels().includes('17'), 'The curve must scale to the lines added in the window: ' + curveLevels());
+    check(document.body.dataset.metric === 'commits', 'The calendar must open on Commits');
+    curveReads('commits', '2026-08-03', '3', 'Under Commits');
+    check(curveLevels().includes('3') && !curveLevels().includes('0.5'), 'The curve must scale to the commits in the window, in whole commits: ' + curveLevels());
     const curveX = xs(curveSeries);
     trackOnTimeLine(curveDay, curve, curveX[1], curveX[curveX.length - 1], 'The calendar curve date control');
     handleOnCursor(curveDay, [curve], 'The calendar curve on its last date');
     curveDay.value = '1'; curveDay.dispatchEvent(new Event('input', {bubbles:true}));
-    curveReads('lines', '2026-08-02', '10', 'The scrubber under Added Lines');
+    curveReads('commits', '2026-08-02', '2', 'The scrubber under Commits');
     handleOnCursor(curveDay, [curve], 'The calendar curve on its middle date');
-    document.querySelector('[data-metric="commits"]').click();
-    await settle();
-    check(shown(curve) && text('total-value') === '3', 'The curve and the commit cards must show while the switch says Commits');
-    curveReads('commits', '2026-08-02', '2', 'After switching to Commits');
-    check(curveLevels().includes('3') && !curveLevels().includes('17'), 'The curve must scale to the commits in the window: ' + curveLevels());
-    curveDay.value = '0'; curveDay.dispatchEvent(new Event('input', {bubbles:true}));
-    curveReads('commits', '2026-08-01', '2', 'The scrubber under Commits');
-    handleOnCursor(curveDay, [curve], 'The calendar curve on its first date');
-    curve.focus(); key(curve, 'ArrowRight');
-    curveReads('commits', '2026-08-02', '2', 'The keyboard under Commits');
-    const curveRect = curve.getBoundingClientRect();
-    curve.dispatchEvent(new PointerEvent('pointermove', {clientX:curveRect.left + curveRect.width * 0.07, clientY:curveRect.top + curveRect.height / 2}));
-    curveReads('commits', '2026-08-01', '2', 'The pointer under Commits');
-    key(curve, 'End'); curveReads('commits', '2026-08-03', '3', 'The End key under Commits'); key(curve, 'Home'); curveReads('commits', '2026-08-01', '2', 'The Home key under Commits');
     document.querySelector('[data-metric="lines"]').click();
     await settle();
-    check(shown(curve), 'The curve must show while the switch says Added Lines');
-    curveReads('lines', '2026-08-01', '10', 'After switching back to Added Lines');
+    check(shown(curve) && text('total-value') === '17', 'The curve and the line cards must show while the switch says Added Lines');
+    check(document.querySelectorAll('.activity-note')[1].textContent.startsWith('Commits in this window added 17 lines and deleted 19 lines, a net change of -2 lines.'),
+      'The note must state the lines the window added and deleted and their net: ' + document.querySelectorAll('.activity-note')[1].textContent);
+    curveReads('lines', '2026-08-02', '-7', 'After switching to Added Lines', '10 added, 17 deleted · All files: 3');
+    check(curveLevels().includes('-10') && curveLevels().includes('10'), 'The net curve must scale to round lines on both sides of zero: ' + curveLevels());
+    check(curveLevels().includes('20') && !curveLevels().includes('30'), 'The scale must cover the all-files line, which reaches 20: ' + curveLevels());
+    const allY = ys(curve.querySelector('.cumulative-total'));
+    check(allY.length === 4 && allY.every(y => y >= 19.5 && y <= 184.5) && allY[1] < allY[2] && allY[3] < allY[2],
+      'The all-files line must read 20, 3 and 9 inside the chart: ' + allY);
+    const netY = ys(curve.querySelector('.growth-series'));
+    const baseline = curve.querySelector('.growth-baseline');
+    check(!!baseline, 'The zero line must read as the baseline of a curve on both sides of it');
+    check(netY[2] > netY[1] && !!baseline && netY[2] > ys(baseline)[0],
+      'The net curve must fall below zero on a day that deleted more than it added: ' + netY);
+    curveDay.value = '0'; curveDay.dispatchEvent(new Event('input', {bubbles:true}));
+    curveReads('lines', '2026-08-01', '6', 'The scrubber under Added Lines', '10 added, 4 deleted · All files: 20');
+    handleOnCursor(curveDay, [curve], 'The calendar curve on its first date');
+    curve.focus(); key(curve, 'ArrowRight');
+    curveReads('lines', '2026-08-02', '-7', 'The keyboard under Added Lines', '10 added, 17 deleted · All files: 3');
+    const curveRect = curve.getBoundingClientRect();
+    curve.dispatchEvent(new PointerEvent('pointermove', {clientX:curveRect.left + curveRect.width * 0.07, clientY:curveRect.top + curveRect.height / 2}));
+    curveReads('lines', '2026-08-01', '6', 'The pointer under Added Lines', '10 added, 4 deleted · All files: 20');
+    key(curve, 'End'); curveReads('lines', '2026-08-03', '-2', 'The End key under Added Lines', '17 added, 19 deleted · All files: 9');
+    key(curve, 'Home'); curveReads('lines', '2026-08-01', '6', 'The Home key under Added Lines', '10 added, 4 deleted · All files: 20');
+    const firstCell = document.querySelector('.activity-grid .day-cell[data-date="2026-08-01"]');
+    firstCell.dispatchEvent(new FocusEvent('focus'));
+    check(document.querySelector('#activity-tooltip .tooltip-primary').textContent === '10 lines added, 4 deleted',
+      'The tooltip must state the day\'s added and deleted lines: ' + document.querySelector('#activity-tooltip .tooltip-primary').textContent);
+    firstCell.dispatchEvent(new FocusEvent('blur'));
+    document.querySelector('[data-metric="commits"]').click();
+    await settle();
+    check(shown(curve), 'The curve must show while the switch says Commits');
+    curveReads('commits', '2026-08-01', '2', 'After switching back to Commits');
+    check(!curveLevels().includes('-10'), 'The commit curve must leave the net scale: ' + curveLevels());
     key(curve, 'End');
-    curveReads('lines', '2026-08-03', '17', 'The End key under Added Lines');
+    curveReads('commits', '2026-08-03', '3', 'The End key under Commits');
     handleOnCursor(curveDay, [curve], 'The calendar curve on its last date, by keyboard');
+    // The axis helper, asked directly: round steps of one, two or five times
+    // a power of ten, zero among the ticks, the range covered, and few enough
+    // lines to read at a glance.
+    function axisFor(minimum, maximum, want) {
+      const ticks = activityAxisTicks(minimum, maximum), step = ticks[1] - ticks[0];
+      const what = 'The axis for ' + minimum + ' to ' + maximum + ' (' + ticks + ')';
+      check(String(ticks) === want, what + ' must be ' + want);
+      check(ticks.includes(0) && ticks[0] <= minimum && ticks[ticks.length - 1] >= maximum, what + ' must hold zero and cover the range');
+      check(ticks.length >= 3 && ticks.length <= 11, what + ' must hold three to eleven lines');
+      check(/^[125]0*$/.test(String(step)) && ticks.every(tick => Number.isInteger(tick / step)), what + ' must step by a round figure');
+      return ticks;
+    }
+    axisFor(0, 7, '0,1,2,3,4,5,6,7');
+    const millions = axisFor(0, 1999700, '0,1000000,2000000');
+    check(millions.map(tick => activityAxisLabel(tick, millions)).join('|') === '0|1M|2M', 'Million ticks must read 0, 1M and 2M');
+    const history = axisFor(-4411807, 10003978, '-10000000,0,10000000,20000000');
+    check(history.map(tick => activityAxisLabel(tick, history)).join('|') === '-10M|0|10M|20M', 'The whole history must read -10M to 20M');
+    check(activityAxisTicks(0, 0).join(',') === '0,1', 'An empty chart must still draw one step above zero');
+    check(activityAxisTicks(-0, 3).every(tick => !Object.is(tick, -0)), 'No tick may be negative zero');
     fits('The calendar view');
     calendarTab.focus(); key(calendarTab, 'Home');
     check(document.activeElement === sizeTab && !sizePanel.hidden && calendarPanel.hidden, 'Home must return to the size view');

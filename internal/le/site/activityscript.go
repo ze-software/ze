@@ -2,25 +2,33 @@
 // Related: activity.go writes the metric summaries this script reads.
 package site
 
-// activityPageScript drives the heatmap: it switches the grid and the summary
-// cards between added lines and commits, and it fills the hover tooltip.
+// activityScriptHead begins the script that drives the heatmap: it switches
+// the grid and the summary cards between added lines and commits, and it fills
+// the hover tooltip.
 //
 // setMetric also writes the metric to the body's data-metric attribute. The
 // published page's cumulative curve (activityGrowthScript) observes that
 // attribute to follow the switch, so the write MUST stay; the deck has no
 // curve and nothing there reads it.
 //
-// It opens on the line the page's own markup already shows, so a reader with
-// no JavaScript still reads the added-line grid and its four summary cards.
+// It opens on the metric whose button the markup ships pressed, so the script
+// and a reader with no JavaScript agree on the grid and its four summary
+// cards: commits on the published page, added lines on the slide.
 // The metric summaries are written immediately above it by the producer,
 // because they are the page's own numbers rather than shared code.
 //
-// It is a raw string because it holds quotation marks of both kinds and no
-// backtick, and because a reader comparing it against the page it ships to
-// should meet the same characters in both. The published page spelled four
+// It is written in raw strings because it holds quotation marks of both kinds
+// and no backtick, and because a reader comparing it against the page it ships
+// to should meet the same characters in both. The published page spelled four
 // values as template literals; they are written here as concatenation, which
-// answers the same strings and keeps this constant one raw string.
-const activityPageScript = `let currentMetric = "lines";
+// answers the same strings.
+//
+// The script is three pieces: this head, one of the two endings of the
+// tooltip's line wording (activityScriptAddedLine for the slide,
+// activityScriptAddedDeletedLine for the published page), and
+// activityScriptTail. activityScriptHTML joins them, so the slide ships the
+// same characters it shipped before the page counted deleted lines.
+const activityScriptHead = `let currentMetric = "";
 const cells = Array.from(document.querySelectorAll(".activity-grid .day-cell"));
 const buttons = Array.from(document.querySelectorAll(".metric-switch button"));
 const tooltip = document.getElementById("activity-tooltip");
@@ -38,8 +46,21 @@ function valueLine(metric, cell) {
         return cell.dataset.commitsDisplay + " " + plural(value, "commit", "commits");
     }
     const value = Number(cell.dataset.lines || "0");
-    return cell.dataset.linesDisplay + " " + plural(value, "line", "lines") + " added";
-}
+`
+
+// activityScriptAddedLine ends the tooltip's line wording on the slide, whose
+// cells carry no deleted lines: the day's added lines alone.
+const activityScriptAddedLine = `    return cell.dataset.linesDisplay + " " + plural(value, "line", "lines") + " added";
+`
+
+// activityScriptAddedDeletedLine ends it on the published page, whose cells
+// carry the day's deleted lines too, so a reader of the tooltip sees both.
+const activityScriptAddedDeletedLine = `    return cell.dataset.linesDisplay + " " + plural(value, "line", "lines") + " added, " +
+        cell.dataset.deletedDisplay + " deleted";
+`
+
+// activityScriptTail is the rest of the script, after the line wording.
+const activityScriptTail = `}
 
 function setEl(id, text) {
     var el = document.getElementById(id);
@@ -119,6 +140,6 @@ for (const cell of cells) {
     cell.addEventListener("focus", () => showFocusTooltip(cell));
     cell.addEventListener("blur", hideTooltip);
 }
-setMetric("lines");
+setMetric((buttons.find((button) => button.getAttribute("aria-pressed") === "true") || buttons[0]).dataset.metric);
 </script>
 `

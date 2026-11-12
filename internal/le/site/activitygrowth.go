@@ -97,6 +97,13 @@ const activitySizeExplorerHTML = `    <div class="size-explorer" hidden>
     <div id="activity-size-readout" class="growth-readout size-readout" aria-live="polite" aria-atomic="true"></div>
 `
 
+// activityGoCompositionNote says how the panel's figures contain one another,
+// so no reader takes a part for a second count of the whole: a group's total
+// is its three line kinds added together, the first group is the two after
+// it, and the headline is the first group plus third-party Go.
+const activityGoCompositionNote = "No line is counted twice. In each group, total lines include its code, blank and comment lines, which add up to it. " +
+	"Go production and Go tests is the sum of the two groups after it, and with third-party Go it makes the figure above."
+
 // activityHistoryGoPanelHTML renders the Go composition of the newest recorded
 // day: the lines of all Go, third-party included, then four buckets of five
 // counts each, and the module count on the third-party bucket. It sits in the
@@ -115,6 +122,7 @@ func activityHistoryGoPanelHTML(figures historyFigures) (string, error) {
 	out.Str("        <p>As committed on ").Str(historyValueHTML(historySubjectDay, historyFieldDate)).Str(".</p>\n")
 	out.Str("        <p>All Go files, third-party included, hold <strong>").Str(historyValueHTML(allGo, historyFieldLines)).
 		Str("</strong> lines.</p>\n")
+	out.Str("        <p>").Str(activityGoCompositionNote).Str("</p>\n")
 	out.Str(`        <div class="go-breakdown">`).Byte('\n')
 	for _, bucket := range activityHistoryGoBuckets {
 		title, err := figures.label(bucket.subject)
@@ -126,9 +134,9 @@ func activityHistoryGoPanelHTML(figures historyFigures) (string, error) {
 		out.Str(`            <div class="go-stats">`).Byte('\n')
 		out.Str(activityHistoryStatHTML("Files", bucket.subject, historyFieldFiles))
 		out.Str(activityHistoryStatHTML("Total lines", bucket.subject, historyFieldLines))
-		out.Str(activityHistoryStatHTML("Code", bucket.subject, historyFieldCode))
-		out.Str(activityHistoryStatHTML("Blank", bucket.subject, historyFieldBlank))
-		out.Str(activityHistoryStatHTML("Comments", bucket.subject, historyFieldComment))
+		out.Str(activityHistoryStatHTML("of which code", bucket.subject, historyFieldCode))
+		out.Str(activityHistoryStatHTML("of which blank", bucket.subject, historyFieldBlank))
+		out.Str(activityHistoryStatHTML("of which comments", bucket.subject, historyFieldComment))
 		if bucket.modules {
 			out.Str(activityHistoryStatHTML("Modules", historySubjectDay, historyFieldModules))
 		}
@@ -157,14 +165,18 @@ type activityCumulativeWording struct {
 	unit  string
 }
 
-// activityCumulativeLines is the curve's wording under Added Lines. It names
-// the lines as added by commits, so the curve reads as activity and never as
-// the repository's size.
+// activityCumulativeLines is the curve's wording under Added Lines. The curve
+// draws the net lines, added minus deleted, so it is balanced: it falls on a
+// day whose commits deleted more lines than they added. A second line draws
+// the net over every committed file, third-party trees included. The readout
+// adds the two figures the net is made of and the all-files figure.
 var activityCumulativeLines = activityCumulativeWording{
-	note:  "Lines added by commits, accumulated since the calendar's first day.",
-	label: "Lines added",
-	chart: "Cumulative lines added by commits. Use arrow keys to select a date, or Home and End.",
-	unit:  "lines added",
+	note: "Lines added minus lines deleted by commits, accumulated since the calendar's first day. " +
+		"The curve falls on a day whose commits deleted more lines than they added. " +
+		"A second line draws the same figure over every committed file, the third-party trees included.",
+	label: "Net lines",
+	chart: "Cumulative lines added minus lines deleted by commits. Use arrow keys to select a date, or Home and End.",
+	unit:  "net lines",
 }
 
 // activityCumulativeCommits is the curve's wording under Commits.
@@ -176,22 +188,28 @@ var activityCumulativeCommits = activityCumulativeWording{
 }
 
 // activityCumulativeCurveHTML renders the cumulative curve under the calendar
-// it is drawn from. It follows the calendar's switch: lines added by commits
-// under Added Lines, commits under Commits, both accumulated over the
-// calendar's window. It ships stating the Added Lines wording, the metric the
+// it is drawn from. It follows the calendar's switch: lines added minus lines
+// deleted under Added Lines, commits under Commits, both accumulated over the
+// calendar's window. It ships stating the Commits wording, the metric the
 // cards open on, and every element whose words change carries both wordings
 // as data attributes, which the script swaps when the switch moves. It keeps
-// its own date control and readout.
+// its own date control and readout; the readout's detail, which the script
+// fills under Added Lines with the added and deleted lines the net is made
+// of and the all-files figure, ships hidden, and so does the legend naming
+// the two lines the curve draws under Added Lines.
 func activityCumulativeCurveHTML() string {
 	lines, commits := activityCumulativeLines, activityCumulativeCommits
 	var out textbuf.Buffer
 	out.Reset().Str(`<section class="activity-cumulative panel">`).Byte('\n')
 	out.Str("    <p").Str(activityCumulativeTextAttributes(lines.note, commits.note)).Str(">").
-		Str(html.EscapeString(lines.note)).Str("</p>\n")
+		Str(html.EscapeString(commits.note)).Str("</p>\n")
 	out.Str(`    <svg id="activity-cumulative-chart" class="growth-chart" viewBox="0 0 `).Str(growthViewWidth).
-		Str(` 220" tabindex="0" role="img" aria-label="`).Str(html.EscapeString(lines.chart)).
+		Str(` 220" tabindex="0" role="img" aria-label="`).Str(html.EscapeString(commits.chart)).
 		Str(`" data-aria-lines="`).Str(html.EscapeString(lines.chart)).
 		Str(`" data-aria-commits="`).Str(html.EscapeString(commits.chart)).Str(`"></svg>`).Byte('\n')
+	out.Str(`    <div class="cumulative-legend" hidden>`).
+		Str(`<span><span class="cumulative-swatch cumulative-swatch-first"></span>Without third-party</span>`).
+		Str(`<span><span class="cumulative-swatch"></span>All files</span></div>`).Byte('\n')
 	out.Str(`    <label class="growth-date-control" for="activity-cumulative-day">Select a date`).Byte('\n')
 	out.Str(`        <input id="activity-cumulative-day" type="range" min="0" max="0" value="0" step="1" aria-describedby="activity-cumulative-readout"`).
 		Str(` data-unit-lines="`).Str(html.EscapeString(lines.unit)).
@@ -200,7 +218,8 @@ func activityCumulativeCurveHTML() string {
 	out.Str(`    <div id="activity-cumulative-readout" class="growth-readout" aria-live="polite" aria-atomic="true">`).Byte('\n')
 	out.Str(`        <strong id="activity-cumulative-date"></strong>`).Byte('\n')
 	out.Str("        <span><span").Str(activityCumulativeTextAttributes(lines.label, commits.label)).Str(">").
-		Str(html.EscapeString(lines.label)).Str(`</span>: <strong id="activity-cumulative-value"></strong></span>`).Byte('\n')
+		Str(html.EscapeString(commits.label)).Str(`</span>: <strong id="activity-cumulative-value"></strong></span>`).Byte('\n')
+	out.Str(`        <span id="activity-cumulative-detail" hidden></span>`).Byte('\n')
 	out.Str("    </div>\n")
 	out.Str("</section>\n")
 	return out.String()
@@ -219,17 +238,59 @@ func activityCumulativeTextAttributes(lines, commits string) string {
 // curve from the calendar's cells and redraws it when the calendar's switch
 // moves. Every label and figure enters the page as text content.
 //
-// The switch belongs to activityPageScript, which the deck shares, so this
+// The switch belongs to the calendar script (activityScriptHead and
+// activityScriptTail in activityscript.go), which the deck shares, so this
 // script does not call into it: it observes the body's data-metric attribute,
 // which setMetric writes, and keeps the selected date across a change.
 //
 // Both size charts scale to the largest value of every recorded day of the
 // sections they draw, so an earlier peak and a later decline stay inside the
-// chart. A section's color comes from its position in the file's list, and
+// chart. The size chart also draws a total line, each day's sum of the
+// sections the legend shows, and its scale covers that sum; the legend names
+// the line without making it a toggle. Under Added Lines the cumulative curve
+// draws a second line, the same net figure over every committed file with the
+// third-party trees included, and its scale covers both. Every chart's vertical axis comes from activityAxisTicks: round grid
+// lines in units of ten, from the step at or below the smallest value to the
+// step at or above the largest, zero among them, labeled compactly by
+// activityAxisLabel; the exact figures stay in the readouts. A section's color comes from its position in the file's list, and
 // the legend names each color in text. The readout's table is built once,
 // with one row for every section of the file whatever the legend selects, and
 // a day's selection rewrites only its figures, so its layout never moves.
 const activityGrowthScript = `<script>
+// activityAxisTicks answers the labeled grid lines of one chart whose values,
+// all counts, run from minimum to maximum. The axis is a visual aid in units
+// of ten, and the readouts carry the exact figures: the step is the power of
+// ten below the range's span, doubled when that leaves more than eleven lines
+// and halved when it leaves fewer than three (never below one, so a count
+// axis keeps whole numbers). The lines run from the step at or below the
+// minimum to the step at or above the maximum, and zero is always one of them.
+// It is pure, and global so a test can ask it directly.
+function activityAxisTicks(minimum, maximum) {
+    const low = Math.min(0, minimum), high = Math.max(0, maximum);
+    const span = Math.max(1, high - low);
+    let power = Math.pow(10, Math.floor(Math.log10(span)));
+    if (power * 10 <= span) power *= 10;
+    const lines = step => Math.ceil(high / step) - Math.floor(low / step) + 1;
+    let step = power;
+    if (lines(step) > 11) step = power * 2;
+    else if (lines(step) < 3 && power >= 10) step = power / 2;
+    const first = Math.floor(low / step), last = Math.max(Math.ceil(high / step), first + 1);
+    const ticks = [];
+    // Adding zero turns a negative zero into zero, so no label reads -0.
+    for (let index = first; index <= last; index++) ticks.push(index * step + 0);
+    return ticks;
+}
+// activityAxisLabel writes one tick of ticks compactly, in the unit the
+// axis's largest tick sets for every tick on it: M from a million, K from ten
+// thousand, the figure in full below that, with only the decimals the step
+// needs. Zero carries no unit.
+function activityAxisLabel(value, ticks) {
+    const largest = Math.max(...ticks.map(Math.abs));
+    const unit = largest >= 1e6 ? 1e6 : largest >= 1e4 ? 1e3 : 1;
+    const suffix = unit === 1e6 ? 'M' : unit === 1e3 ? 'K' : '';
+    const digits = Math.max(0, -Math.floor(Math.log10((ticks[1] - ticks[0]) / unit) + 1e-9));
+    return (value / unit).toLocaleString('en-US', {maximumFractionDigits: digits}) + (value === 0 ? '' : suffix);
+}
 (() => {
     const left = ` + growthPlotLeft + `, right = ` + growthPlotRight + `, viewWidth = ` + growthViewWidth + `;
     const format = value => Number(value).toLocaleString('en-US');
@@ -250,10 +311,27 @@ const activityGrowthScript = `<script>
         const span = Math.max(1, high - low);
         return value => bottom - (value - low) / span * (bottom - top);
     }
-    function frame(chart, levels, y, top, bottom, first, last) {
-        for (const level of new Set(levels)) {
-            chart.append(svgElement('path', {class:'growth-grid', d:'M' + left + ' ' + y(level) + 'H' + right}));
-            chart.append(svgElement('text', {class:'growth-axis', x:left - 10, y:y(level) + 4, 'text-anchor':'end'}, format(level)));
+    // axisScale maps the span the ticks cover onto the plot, so the top and
+    // bottom lines are round figures and the series stays inside them.
+    function axisScale(ticks, top, bottom) {
+        return scale(ticks[0], ticks[ticks.length - 1], top, bottom);
+    }
+    // frame draws the ticks as labeled grid lines, the zero line as the
+    // baseline when the axis runs both sides of it, and, when an axis holds
+    // five lines or fewer of a step of ten or more, one unlabeled minor line
+    // halfway between each pair.
+    function frame(chart, ticks, y, top, bottom, first, last) {
+        const step = ticks[1] - ticks[0];
+        if (ticks.length <= 5 && step >= 10) {
+            for (let index = 1; index < ticks.length; index++) {
+                chart.append(svgElement('path', {class:'growth-grid growth-grid-minor', d:'M' + left + ' ' + y(ticks[index] - step / 2) + 'H' + right}));
+            }
+        }
+        const twoSided = ticks[0] < 0 && ticks[ticks.length - 1] > 0;
+        for (const tick of ticks) {
+            const kind = twoSided && tick === 0 ? 'growth-grid growth-baseline' : 'growth-grid';
+            chart.append(svgElement('path', {class:kind, d:'M' + left + ' ' + y(tick) + 'H' + right}));
+            chart.append(svgElement('text', {class:'growth-axis', x:left - 10, y:y(tick) + 4, 'text-anchor':'end'}, activityAxisLabel(tick, ticks)));
         }
         chart.append(svgElement('path', {class:'growth-cursor', d:'M' + left + ' ' + top + 'V' + bottom}));
         chart.append(svgElement('text', {class:'growth-axis', x:left, y:bottom + 27}, first));
@@ -317,18 +395,30 @@ const activityGrowthScript = `<script>
     document.querySelector('.activity-tabs').hidden = false;
     selectTab(document.getElementById('activity-tab-size'));
 
-    // The cumulative curve accumulates both metrics of the calendar's dated
-    // cells, oldest first, and draws the one the switch shows. The wording of
-    // each metric is written on the elements it changes.
+    // The cumulative curve accumulates the calendar's dated cells, oldest
+    // first, and draws the metric the switch shows: under Added Lines the net
+    // lines, added minus deleted, which fall on a day that deleted more than
+    // it added, and under Commits the commits. Under Added Lines a second line,
+    // all, draws the same net over every committed file: the first-party net
+    // plus what the third-party trees added less what they deleted. The
+    // wording of each metric is written on the elements it changes; the
+    // readout's added, deleted and all-files figures and the legend naming
+    // the two lines show under Added Lines only.
     const cumulativeKeys = {lines: 'Lines', commits: 'Commits'};
+    const cumulativeSeries = {lines: ['lines', 'all'], commits: ['commits']};
     const cells = Array.from(document.querySelectorAll('.activity-grid .day-cell:not(.outside)'))
         .sort((a, b) => a.dataset.date.localeCompare(b.dataset.date));
-    let addedLines = 0, commits = 0;
+    let addedLines = 0, deletedLines = 0, commits = 0, thirdPartyNet = 0;
     const windowDays = cells.map(cell => {
         addedLines += Number(cell.dataset.lines);
+        deletedLines += Number(cell.dataset.deleted);
         commits += Number(cell.dataset.commits);
-        return {date: cell.dataset.date, lines: addedLines, commits};
+        thirdPartyNet += Number(cell.dataset.thirdPartyAdded) - Number(cell.dataset.thirdPartyDeleted);
+        const lines = addedLines - deletedLines;
+        return {date: cell.dataset.date, lines, all: lines + thirdPartyNet, added: addedLines, deleted: deletedLines, commits};
     });
+    const curveDetail = document.getElementById('activity-cumulative-detail');
+    const curveLegend = document.querySelector('.cumulative-legend');
     const curve = document.querySelector('.activity-cumulative');
     const curveChart = document.getElementById('activity-cumulative-chart');
     const curveSlider = document.getElementById('activity-cumulative-day');
@@ -340,11 +430,17 @@ const activityGrowthScript = `<script>
         const day = windowDays[index], value = day[curveMetric];
         document.getElementById('activity-cumulative-date').textContent = day.date;
         document.getElementById('activity-cumulative-value').textContent = format(value);
-        curveSlider.setAttribute('aria-valuetext', day.date + ': ' + format(value) + ' ' + curveSlider.dataset['unit' + cumulativeKeys[curveMetric]]);
+        const detail = curveMetric === 'lines'
+            ? format(day.added) + ' added, ' + format(day.deleted) + ' deleted · All files: ' + format(day.all) : '';
+        curveDetail.textContent = detail;
+        curveDetail.hidden = detail === '';
+        curveSlider.setAttribute('aria-valuetext', day.date + ': ' + format(value) + ' ' + curveSlider.dataset['unit' + cumulativeKeys[curveMetric]] +
+            (detail === '' ? '' : ', ' + detail));
         placeCursor(curveChart, index, windowDays.length, curveTop, curveBottom);
-        const point = curveChart.querySelector('.growth-point');
-        point.setAttribute('cx', x(index, windowDays.length));
-        point.setAttribute('cy', curveY(value));
+        for (const point of curveChart.querySelectorAll('.growth-point')) {
+            point.setAttribute('cx', x(index, windowDays.length));
+            point.setAttribute('cy', curveY(day[point.dataset.key]));
+        }
     }
     const selectCurveDay = selector([curveChart], curveSlider, windowDays.length, showCurveDay);
     function drawCurve(metric) {
@@ -353,24 +449,37 @@ const activityGrowthScript = `<script>
         for (const node of curve.querySelectorAll('[data-text-lines]')) node.textContent = node.dataset['text' + key];
         curveChart.setAttribute('aria-label', curveChart.dataset['aria' + key]);
         curveChart.replaceChildren();
+        const series = cumulativeSeries[metric];
+        curveLegend.hidden = series.length < 2;
         if (!windowDays.length) {
             document.getElementById('activity-cumulative-date').textContent = 'No daily values in this window.';
             return;
         }
-        const high = windowDays.reduce((most, day) => Math.max(most, day[metric]), 0);
-        curveY = scale(0, high, curveTop, curveBottom);
-        frame(curveChart, [0, Math.ceil(high / 2), high], curveY, curveTop, curveBottom,
+        // The scale covers every line drawn, so the all-files line, which a
+        // third-party import lifts above the first-party one, stays inside it.
+        const values = windowDays.flatMap(day => series.map(name => day[name]));
+        const ticks = activityAxisTicks(Math.min(...values), Math.max(...values));
+        curveY = axisScale(ticks, curveTop, curveBottom);
+        frame(curveChart, ticks, curveY, curveTop, curveBottom,
             windowDays[0].date, windowDays[windowDays.length - 1].date);
-        curveChart.append(svgElement('path', {class:'growth-series cumulative-series',
-            d:'M' + left + ' ' + curveBottom + windowDays.map((day, index) => 'L' + x(index, windowDays.length) + ' ' + curveY(day[metric])).join('')}));
-        curveChart.append(svgElement('circle', {class:'growth-point', cx:left, cy:curveBottom, r:4}));
+        // Each line starts from zero on the window's first day, which a net
+        // curve below zero no longer draws at the plot's bottom. The metric's
+        // own line is drawn first, and the all-files line over it.
+        for (const name of series) {
+            const kind = name === 'all' ? 'growth-series cumulative-series cumulative-total' : 'growth-series cumulative-series';
+            curveChart.append(svgElement('path', {class:kind,
+                d:'M' + left + ' ' + curveY(0) + windowDays.map((day, index) => 'L' + x(index, windowDays.length) + ' ' + curveY(day[name])).join('')}));
+        }
+        for (const name of series) {
+            curveChart.append(svgElement('circle', {class:'growth-point', cx:left, cy:curveY(0), r:4, 'data-key':name}));
+        }
         selectCurveDay(curveSelected);
     }
-    // The curve opens on the metric the switch shows, or on Added Lines, the
+    // The curve opens on the metric the switch shows, or on Commits, the
     // wording its markup ships with, when the switch has not run. A metric the
     // curve has no wording for leaves it as it is.
     const switchMetric = () => Object.hasOwn(cumulativeKeys, document.body.dataset.metric) ? document.body.dataset.metric : undefined;
-    drawCurve(switchMetric() || 'lines');
+    drawCurve(switchMetric() || 'commits');
     new MutationObserver(() => {
         const metric = switchMetric();
         if (metric && metric !== curveMetric) drawCurve(metric);
@@ -440,6 +549,7 @@ const activityGrowthScript = `<script>
         sizeReadout.replaceChildren(date, wrap);
         return {date, rows, total};
     }
+    const sizeTotalLabel = 'Sum of the sections shown';
     function drawSize(file) {
         const sections = file.sections, days = file.days, count = days.length;
         const sizeChart = document.getElementById('activity-size-chart');
@@ -449,15 +559,20 @@ const activityGrowthScript = `<script>
         const top = 20, bottom = 224;
         const shown = new Set(sections.map(section => section.id));
         const readout = readoutTable(sections);
-        let sizeY = scale(0, 0, top, bottom), selected = count - 1;
+        let sizeY = scale(0, 0, top, bottom), selected = count - 1, drawn = [];
+        // drawnLines is one day's sum of the sections the legend shows, which
+        // the total line plots. The readout's All sections row stays the sum of
+        // every section, so the two agree whenever every section is shown.
+        const drawnLines = day => drawn.reduce((sum, entry) => sum + sectionValues(day, entry.section.id).lines, 0);
         function show(index) {
             selected = index;
             const day = days[index];
             placeCursor(sizeChart, index, count, top, bottom);
             placeCursor(changeChart, index, count, top, bottom);
             for (const point of sizeChart.querySelectorAll('.size-point')) {
+                const value = point.classList.contains('size-total-point') ? drawnLines(day) : sectionValues(day, point.dataset.section).lines;
                 point.setAttribute('cx', x(index, count));
-                point.setAttribute('cy', sizeY(sectionValues(day, point.dataset.section).lines));
+                point.setAttribute('cy', sizeY(value));
             }
             readout.date.textContent = day.date;
             const total = {lines: 0, gained: 0, lost: 0};
@@ -475,21 +590,25 @@ const activityGrowthScript = `<script>
         function redraw() {
             sizeChart.replaceChildren();
             changeChart.replaceChildren();
-            const drawn = sections.map((section, index) => ({section, series: String(index % 12 + 1)}))
+            drawn = sections.map((section, index) => ({section, series: String(index % 12 + 1)}))
                 .filter(entry => shown.has(entry.section.id));
+            // The scale covers the total line too, the sum of the drawn
+            // sections, which stands at or above each of them.
             let high = 0, gainedHigh = 0, lostHigh = 0;
             const change = days.map(day => {
-                let gained = 0, lost = 0;
+                let gained = 0, lost = 0, lines = 0;
                 for (const entry of drawn) {
                     const values = sectionValues(day, entry.section.id);
-                    high = Math.max(high, values.lines);
+                    lines += values.lines;
                     gained += values.gained; lost += values.lost;
                 }
+                high = Math.max(high, lines);
                 gainedHigh = Math.max(gainedHigh, gained); lostHigh = Math.max(lostHigh, lost);
                 return {gained, lost};
             });
-            sizeY = scale(0, high, top, bottom);
-            frame(sizeChart, [0, Math.ceil(high / 2), high], sizeY, top, bottom, days[0].date, days[count - 1].date);
+            const sizeTicks = activityAxisTicks(0, high);
+            sizeY = axisScale(sizeTicks, top, bottom);
+            frame(sizeChart, sizeTicks, sizeY, top, bottom, days[0].date, days[count - 1].date);
             for (const entry of drawn) {
                 const d = days.map((day, index) => (index ? 'L' : 'M') + x(index, count) + ' ' + sizeY(sectionValues(day, entry.section.id).lines)).join('');
                 const line = svgElement('path', {class:'growth-series size-line', d, 'data-series':entry.series, 'data-section':entry.section.id});
@@ -498,8 +617,14 @@ const activityGrowthScript = `<script>
                 sizeChart.append(svgElement('circle', {class:'growth-point size-point', cx:left, cy:bottom, r:4,
                     'data-series':entry.series, 'data-section':entry.section.id}));
             }
-            const changeY = scale(-lostHigh, gainedHigh, top, bottom);
-            frame(changeChart, [-lostHigh, 0, gainedHigh], changeY, top, bottom, days[0].date, days[count - 1].date);
+            const totalPath = days.map((day, index) => (index ? 'L' : 'M') + x(index, count) + ' ' + sizeY(drawnLines(day))).join('');
+            const totalLine = svgElement('path', {class:'growth-series size-total', d:totalPath});
+            totalLine.append(svgElement('title', {}, sizeTotalLabel));
+            sizeChart.append(totalLine);
+            sizeChart.append(svgElement('circle', {class:'growth-point size-point size-total-point', cx:left, cy:bottom, r:4}));
+            const changeTicks = activityAxisTicks(-lostHigh, gainedHigh);
+            const changeY = axisScale(changeTicks, top, bottom);
+            frame(changeChart, changeTicks, changeY, top, bottom, days[0].date, days[count - 1].date);
             const width = Math.max(1, (right - left) / count * 0.8);
             const bars = sign => change.map((entry, index) => {
                 const base = changeY(0), end = changeY(sign > 0 ? entry.gained : -entry.lost);
@@ -528,6 +653,11 @@ const activityGrowthScript = `<script>
             });
             legend.append(button);
         });
+        // The total line's entry names it and toggles nothing: it follows the
+        // sections the buttons select.
+        const totalEntry = htmlElement('span', 'size-legend-total');
+        totalEntry.append(htmlElement('span', 'size-swatch size-total-swatch'), document.createTextNode(sizeTotalLabel));
+        legend.append(totalEntry);
         redraw();
         select(count - 1);
     }

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"html"
+	"strconv"
 	"strings"
 	"time"
 
@@ -78,7 +79,11 @@ func renderActivityPage(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	window, err := reporewrite.MeasureActivity(paths.Repository, reporewrite.ActivityDaysDefault, "", buildClock())
+	// The page counts every committed file outside the third-party trees, the
+	// population the size view's first-party sections hold, over a window
+	// that opens on the first day of a month; the talk slide keeps
+	// MeasureActivity's code files and its full year.
+	window, err := reporewrite.MeasureCommittedActivity(paths.Repository, reporewrite.ActivityDaysDefault, buildClock())
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +99,7 @@ func renderActivityPage(paths Paths) ([]string, error) {
 	shell := pageShell{
 		Title: "Repository Size and Activity - Ze",
 		Description: "How many lines each part of Ze's repository held on every recorded day, " +
-			"read from the committed size history, beside a year of commits and added lines as a calendar heatmap.",
+			"read from the committed size history, beside up to a year of commits and the lines they added and deleted as a calendar heatmap.",
 		Root:      activityRoot,
 		Path:      activityDest,
 		ExtraHead: activityStyle,
@@ -162,6 +167,7 @@ func activityPageBody(window *reporewrite.ActivityWindow, figures historyFigures
 	if err != nil {
 		return "", err
 	}
+	note := activityCalendarNoteHTML(window)
 	lines := activityPageLineMetric(window)
 	var body textbuf.Buffer
 	body.Reset().Str(`            <section class="activity-page" aria-labelledby="activity-title">`).Byte('\n')
@@ -169,16 +175,16 @@ func activityPageBody(window *reporewrite.ActivityWindow, figures historyFigures
 	body.Str(`                    <span class="activity-eyebrow journey-eyebrow">Git telemetry</span>`).Byte('\n')
 	body.Str(`                    <h1 id="activity-title">Repository size and activity</h1>`).Byte('\n')
 	body.Str(`                    <p>How many lines each part of the repository held on every recorded day, `).
-		Str(`and a year of commits and added lines, both read from the repository's history.</p>`).Byte('\n')
+		Str(`and up to a year of commits with the lines they added and deleted, both read from the repository's history.</p>`).Byte('\n')
 	body.Str("                </div>\n")
 	// The site script fades the widget in as the reader scrolls to it, which
 	// is what the reveal class marks.
 	body.Str(`                <div class="activity-widget reveal" aria-label="Repository size and commit activity">`).Byte('\n')
 	body.Str(activityTabsHTML)
 	body.Str(activitySizeHTML(figures))
-	body.Str(activityCalendarViewHTML(window, lines, goPanel))
+	body.Str(activityCalendarViewHTML(window, activityCommitMetric(window), note, goPanel))
 	body.Str(activityTooltipHTML)
-	body.Str(activityScriptHTML(lines, activityCommitMetric(window)))
+	body.Str(activityScriptHTML(lines, activityCommitMetric(window), activitySurfacePage))
 	body.Str("                </div>\n")
 	body.Str("            </section>\n")
 	body.Str(activityGrowthScript)
@@ -209,7 +215,7 @@ func activityBody(window *reporewrite.ActivityWindow, surface activitySurface) s
 	default:
 		panic("BUG: site.activityBody: invalid activity surface")
 	}
-	body.Str(activityScriptHTML(lines, activityCommitMetric(window)))
+	body.Str(activityScriptHTML(lines, activityCommitMetric(window), activitySurfaceSlide))
 	return body.String()
 }
 
@@ -233,7 +239,8 @@ func activitySlideWidgetHTML(window *reporewrite.ActivityWindow) string {
 }
 
 // activityCalendarViewHTML renders the page's calendar view: its heading, the
-// four cards and the metric switch, the note on what added lines count, the
+// four cards and the metric switch, the note on what the lines count and how
+// many were added and deleted (note, from activityCalendarNoteHTML), the
 // calendar, the Go composition of the newest recorded day (goPanel, from
 // activityHistoryGoPanelHTML), and the cumulative curve drawn from the
 // calendar's own cells. The cards and the switch live inside the view, so
@@ -245,12 +252,12 @@ func activitySlideWidgetHTML(window *reporewrite.ActivityWindow) string {
 // the first card's bullet off the size view's last line in the Markdown
 // mirror. The panel stays named by its tab, which names it whenever the tabs
 // show.
-func activityCalendarViewHTML(window *reporewrite.ActivityWindow, lines activityMetric, goPanel string) string {
+func activityCalendarViewHTML(window *reporewrite.ActivityWindow, opening activityMetric, note, goPanel string) string {
 	var out textbuf.Buffer
 	out.Reset().Str(`<div class="activity-view" id="activity-calendar" role="tabpanel" aria-labelledby="activity-tab-calendar">`).Byte('\n')
 	out.Str("    <h2>Commit calendar</h2>\n")
-	out.Str(activitySummaryHTML(lines, activityRangeText(window), activityDaysShown(window), activitySurfacePage))
-	out.Str(`    <p class="activity-note">Added lines count additions, not net repository size.</p>`).Byte('\n')
+	out.Str(activitySummaryHTML(opening, activityRangeText(window), activityDaysShown(window), activitySurfacePage))
+	out.Str(note)
 	out.Str(`                    <div class="dashboard-grid">`).Byte('\n')
 	out.Str(`                        <div class="left-stack">`).Byte('\n')
 	out.Str(activityChartHTML(window, activitySurfacePage))
@@ -270,6 +277,40 @@ func activityPageLineMetric(window *reporewrite.ActivityWindow) activityMetric {
 	metric := activityLineMetric(window)
 	metric.TotalLabel = "Lines added in this window"
 	return metric
+}
+
+// activityCalendarNoteHTML says what the calendar's lines count, then how many
+// lines the window's commits added and deleted and the net of the two. Both
+// views of the page then name one population: the size view's sections other
+// than its third-party ones, whose trees reporewrite.ThirdPartyPath names for
+// both measurements. The note also says that the cumulative curve draws every
+// committed file as a second line under Added Lines.
+//
+// When the window reaches back to the first commit, the net is the lines
+// those files hold at the newest commit the calendar reads, apart from the
+// two kinds of change the calendar cannot count, which the note names.
+func activityCalendarNoteHTML(window *reporewrite.ActivityWindow) string {
+	added, deleted := window.Lines.Total, window.Deleted.Total
+	var out textbuf.Buffer
+	out.Reset().Str(`    <p class="activity-note">The lines count every file committed outside the third-party trees (`).
+		Str(html.EscapeString(strings.Join(reporewrite.ThirdPartyTrees(), ", "))).
+		Str(`): the files the Repository size view counts in every section but its third-party ones. `).
+		Str(`Lines include comments and blank lines. A change to a binary file, or one that turns a file between text and binary, counts no lines. `).
+		Str(`A renamed file counts its lines as deleted under the old name and added under the new one. `).
+		Str(`A merge commit counts as a commit, and the lines it changes itself are not counted. `).
+		Str(`Each commit counts on the UTC day of its author date. `).
+		Str(`Under Added Lines, the cumulative curve also draws every committed file, the third-party trees included, as a second line.</p>`).Byte('\n')
+	out.Str(`    <p class="activity-note">Commits in this window added `).Str(groupThousands(added)).
+		Str(` lines and deleted `).Str(groupThousands(deleted)).
+		Str(` lines, a net change of `).Str(groupThousands(added - deleted)).
+		Str(` lines. Under Added Lines, a day's color counts only the lines it added.`)
+	if window.FromFirstCommit {
+		out.Str(` The window reaches back to the first commit, so the net change is the number of lines these files hold `).
+			Str(`at the newest commit the calendar reads, apart from the lines of a file that turned between text and binary `).
+			Str(`and the lines a merge commit changed itself.`)
+	}
+	out.Str("</p>\n")
+	return out.String()
 }
 
 // activityLineMetric labels the added-line series, which the calendar opens on.
@@ -327,20 +368,25 @@ func activityDaysShown(window *reporewrite.ActivityWindow) int {
 // calendar.
 //
 // The cards carry the ids the script writes into, and they open on the values
-// of the added-line metric, so a reader with no JavaScript still reads a
-// complete summary of the grid the page draws.
-func activitySummaryHTML(lines activityMetric, rangeText string, days int, surface activitySurface) string {
+// of the metric the surface opens on, so a reader with no JavaScript still
+// reads a complete summary of the grid the page draws. The published page
+// opens on commits and the slide on added lines; the switch ships with that
+// metric's button pressed, and the script reads the pressed button to learn
+// which one it is.
+func activitySummaryHTML(opening activityMetric, rangeText string, days int, surface activitySurface) string {
+	commitsOpen := surface == activitySurfacePage
+	linesPressed, commitsPressed := strconv.FormatBool(!commitsOpen), strconv.FormatBool(commitsOpen)
 	var out textbuf.Buffer
 	out.Reset().Str(`<section class="stats" aria-label="Summary">`).Byte('\n')
-	out.Str(activityStatHTML("total", lines.TotalLabel, lines.TotalValue))
-	out.Str(activityStatHTML("active", lines.ActiveLabel, lines.ActiveValue))
-	out.Str(activityStatHTML("peak", lines.PeakLabel, lines.PeakValue))
+	out.Str(activityStatHTML("total", opening.TotalLabel, opening.TotalValue))
+	out.Str(activityStatHTML("active", opening.ActiveLabel, opening.ActiveValue))
+	out.Str(activityStatHTML("peak", opening.PeakLabel, opening.PeakValue))
 	out.Str(`        <div class="stat"><span>Days shown</span><strong>`).
 		Str(groupThousands(days)).Str("</strong></div>\n")
 	out.Str(`        <div class="metric-control">`).Byte('\n')
 	out.Str(`            <div class="metric-switch" aria-label="Activity metric">`).Byte('\n')
-	out.Str(`                <button type="button" data-metric="lines" aria-pressed="true">Added Lines</button>`).Byte('\n')
-	out.Str(`                <button type="button" data-metric="commits" aria-pressed="false">Commits</button>`).Byte('\n')
+	out.Str(`                <button type="button" data-metric="lines" aria-pressed="`).Str(linesPressed).Str(`">Added Lines</button>`).Byte('\n')
+	out.Str(`                <button type="button" data-metric="commits" aria-pressed="`).Str(commitsPressed).Str(`">Commits</button>`).Byte('\n')
 	out.Str("            </div>\n")
 	if surface == activitySurfaceSlide {
 		out.Str(`            <div class="pill">`).Str(html.EscapeString(rangeText)).Str("</div>\n")
@@ -377,7 +423,13 @@ func activityChartHTML(window *reporewrite.ActivityWindow, surface activitySurfa
 		Str(`<span>Fri</span><span></span></div>`).Byte('\n')
 	out.Str(`                    <div class="activity-grid" role="img" aria-label="Daily activity from `).
 		Str(html.EscapeString(activityRangeText(window))).Str(`">`).Byte('\n')
-	out.Str(window.Cells)
+	// The page's cells also carry each day's deleted lines, which its tooltip
+	// and its cumulative curve read; the slide keeps the grid it was given.
+	if surface == activitySurfacePage {
+		out.Str(window.CellsWithDeleted)
+	} else {
+		out.Str(window.Cells)
+	}
 	out.Str("                    </div>\n")
 	out.Str("                </div>\n")
 	out.Str("            </div>\n")
@@ -461,7 +513,10 @@ const activityTooltipHTML = `<div id="activity-tooltip" class="activity-tooltip"
 // the code is a constant and only the numbers are composed here. The encoder is
 // given the same escaping the config browser's payload takes, because a
 // "</script>" inside the JSON would close the element early.
-func activityScriptHTML(lines, commits activityMetric) string {
+//
+// The surface picks the tooltip's line wording: the page's cells carry deleted
+// lines and the slide's do not (activityChartHTML).
+func activityScriptHTML(lines, commits activityMetric, surface activitySurface) string {
 	payload, err := json.Marshal(map[string]activityMetric{"lines": lines, "commits": commits})
 	if err != nil {
 		// Every field of activityMetric is a string, so the encoder has no
@@ -469,5 +524,17 @@ func activityScriptHTML(lines, commits activityMetric) string {
 		// operating error.
 		panic("BUG: site.activityScriptHTML: the metric summaries do not encode: " + err.Error())
 	}
-	return "<script>\nconst metricSummaries = " + escapeEmbeddedJSON(payload) + ";\n" + activityPageScript
+	var lineWording string
+	switch surface {
+	case activitySurfacePage:
+		lineWording = activityScriptAddedDeletedLine
+	case activitySurfaceSlide:
+		lineWording = activityScriptAddedLine
+	case activitySurfaceUnspecified:
+		panic("BUG: site.activityScriptHTML: the caller named no activity surface")
+	default:
+		panic("BUG: site.activityScriptHTML: invalid activity surface")
+	}
+	return "<script>\nconst metricSummaries = " + escapeEmbeddedJSON(payload) + ";\n" +
+		activityScriptHead + lineWording + activityScriptTail
 }

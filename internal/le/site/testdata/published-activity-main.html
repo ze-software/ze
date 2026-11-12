@@ -3,7 +3,7 @@
                 <div class="activity-hero journey-hero reveal">
                     <span class="activity-eyebrow journey-eyebrow">Git telemetry</span>
                     <h1 id="activity-title">Repository size and activity</h1>
-                    <p>How many lines each part of the repository held on every recorded day, and a year of commits and added lines, both read from the repository's history.</p>
+                    <p>How many lines each part of the repository held on every recorded day, and up to a year of commits with the lines they added and deleted, both read from the repository's history.</p>
                 </div>
                 <div class="activity-widget reveal" aria-label="Repository size and commit activity">
 <div class="activity-tabs" role="tablist" aria-label="Activity view" hidden>
@@ -36,18 +36,19 @@
 <div class="activity-view" id="activity-calendar" role="tabpanel" aria-labelledby="activity-tab-calendar">
     <h2>Commit calendar</h2>
 <section class="stats" aria-label="Summary">
-        <div class="stat"><span id="total-label">Lines added in this window</span><strong id="total-value">4</strong></div>
-        <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">1</strong></div>
-        <div class="stat"><span id="peak-label">Peak line day</span><strong id="peak-value">4</strong></div>
-        <div class="stat"><span>Days shown</span><strong>365</strong></div>
+        <div class="stat"><span id="total-label">Total commits</span><strong id="total-value">1</strong></div>
+        <div class="stat"><span id="active-label">Days with commits</span><strong id="active-value">1</strong></div>
+        <div class="stat"><span id="peak-label">Peak commit day</span><strong id="peak-value">1</strong></div>
+        <div class="stat"><span>Days shown</span><strong>25</strong></div>
         <div class="metric-control">
             <div class="metric-switch" aria-label="Activity metric">
-                <button type="button" data-metric="lines" aria-pressed="true">Added Lines</button>
-                <button type="button" data-metric="commits" aria-pressed="false">Commits</button>
+                <button type="button" data-metric="lines" aria-pressed="false">Added Lines</button>
+                <button type="button" data-metric="commits" aria-pressed="true">Commits</button>
             </div>
         </div>
     </section>
-    <p class="activity-note">Added lines count additions, not net repository size.</p>
+    <p class="activity-note">The lines count every file committed outside the third-party trees (vendor/, third_party/, website/assets/vendor/): the files the Repository size view counts in every section but its third-party ones. Lines include comments and blank lines. A change to a binary file, or one that turns a file between text and binary, counts no lines. A renamed file counts its lines as deleted under the old name and added under the new one. A merge commit counts as a commit, and the lines it changes itself are not counted. Each commit counts on the UTC day of its author date. Under Added Lines, the cumulative curve also draws every committed file, the third-party trees included, as a second line.</p>
+    <p class="activity-note">Commits in this window added 4 lines and deleted 0 lines, a net change of 4 lines. Under Added Lines, a day's color counts only the lines it added. The window reaches back to the first commit, so the net change is the number of lines these files hold at the newest commit the calendar reads, apart from the lines of a file that turned between text and binary and the lines a merge commit changed itself.</p>
                     <div class="dashboard-grid">
                         <div class="left-stack">
 <div class="chart-scroll">
@@ -58,450 +59,67 @@
 <span class="month-label" style="grid-column:3"></span>
 <span class="month-label" style="grid-column:4"></span>
 <span class="month-label" style="grid-column:5"></span>
-<span class="month-label" style="grid-column:6">Oct</span>
-<span class="month-label" style="grid-column:7"></span>
-<span class="month-label" style="grid-column:8"></span>
-<span class="month-label" style="grid-column:9"></span>
-<span class="month-label" style="grid-column:10">Nov</span>
-<span class="month-label" style="grid-column:11"></span>
-<span class="month-label" style="grid-column:12"></span>
-<span class="month-label" style="grid-column:13"></span>
-<span class="month-label" style="grid-column:14"></span>
-<span class="month-label" style="grid-column:15">Dec</span>
-<span class="month-label" style="grid-column:16"></span>
-<span class="month-label" style="grid-column:17"></span>
-<span class="month-label" style="grid-column:18"></span>
-<span class="month-label" style="grid-column:19">Jan</span>
-<span class="month-label" style="grid-column:20"></span>
-<span class="month-label" style="grid-column:21"></span>
-<span class="month-label" style="grid-column:22"></span>
-<span class="month-label" style="grid-column:23"></span>
-<span class="month-label" style="grid-column:24">Feb</span>
-<span class="month-label" style="grid-column:25"></span>
-<span class="month-label" style="grid-column:26"></span>
-<span class="month-label" style="grid-column:27"></span>
-<span class="month-label" style="grid-column:28">Mar</span>
-<span class="month-label" style="grid-column:29"></span>
-<span class="month-label" style="grid-column:30"></span>
-<span class="month-label" style="grid-column:31"></span>
-<span class="month-label" style="grid-column:32">Apr</span>
-<span class="month-label" style="grid-column:33"></span>
-<span class="month-label" style="grid-column:34"></span>
-<span class="month-label" style="grid-column:35"></span>
-<span class="month-label" style="grid-column:36">May</span>
-<span class="month-label" style="grid-column:37"></span>
-<span class="month-label" style="grid-column:38"></span>
-<span class="month-label" style="grid-column:39"></span>
-<span class="month-label" style="grid-column:40"></span>
-<span class="month-label" style="grid-column:41">Jun</span>
-<span class="month-label" style="grid-column:42"></span>
-<span class="month-label" style="grid-column:43"></span>
-<span class="month-label" style="grid-column:44"></span>
-<span class="month-label" style="grid-column:45">Jul</span>
-<span class="month-label" style="grid-column:46"></span>
-<span class="month-label" style="grid-column:47"></span>
-<span class="month-label" style="grid-column:48"></span>
-<span class="month-label" style="grid-column:49">Aug</span>
-<span class="month-label" style="grid-column:50"></span>
-<span class="month-label" style="grid-column:51"></span>
-<span class="month-label" style="grid-column:52"></span>
-<span class="month-label" style="grid-column:53"></span>
                 </div>
                 <div class="chart-body">
                     <div class="weekday-labels" aria-hidden="true"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>
-                    <div class="activity-grid" role="img" aria-label="Daily activity from 2025-08-26 to 2026-08-25">
-<div class="day-cell outside pre-repo" data-date="2025-08-24" data-date-label="Sun 24 Aug 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 24 Aug 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell outside pre-repo" data-date="2025-08-25" data-date-label="Mon 25 Aug 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 25 Aug 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-08-26" data-date-label="Tue 26 Aug 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 26 Aug 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-08-27" data-date-label="Wed 27 Aug 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 27 Aug 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-08-28" data-date-label="Thu 28 Aug 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 28 Aug 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-08-29" data-date-label="Fri 29 Aug 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 29 Aug 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-08-30" data-date-label="Sat 30 Aug 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 30 Aug 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-08-31" data-date-label="Sun 31 Aug 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 31 Aug 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-01" data-date-label="Mon 01 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 01 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-02" data-date-label="Tue 02 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 02 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-03" data-date-label="Wed 03 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 03 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-04" data-date-label="Thu 04 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 04 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-05" data-date-label="Fri 05 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 05 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-06" data-date-label="Sat 06 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 06 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-07" data-date-label="Sun 07 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 07 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-08" data-date-label="Mon 08 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 08 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-09" data-date-label="Tue 09 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 09 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-10" data-date-label="Wed 10 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 10 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-11" data-date-label="Thu 11 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 11 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-12" data-date-label="Fri 12 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 12 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-13" data-date-label="Sat 13 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 13 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-14" data-date-label="Sun 14 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 14 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-15" data-date-label="Mon 15 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 15 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-16" data-date-label="Tue 16 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 16 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-17" data-date-label="Wed 17 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 17 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-18" data-date-label="Thu 18 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 18 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-19" data-date-label="Fri 19 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 19 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-20" data-date-label="Sat 20 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 20 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-21" data-date-label="Sun 21 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 21 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-22" data-date-label="Mon 22 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 22 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-23" data-date-label="Tue 23 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 23 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-24" data-date-label="Wed 24 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 24 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-25" data-date-label="Thu 25 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 25 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-26" data-date-label="Fri 26 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 26 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-27" data-date-label="Sat 27 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 27 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-28" data-date-label="Sun 28 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 28 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-29" data-date-label="Mon 29 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 29 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-09-30" data-date-label="Tue 30 Sep 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 30 Sep 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-01" data-date-label="Wed 01 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 01 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-02" data-date-label="Thu 02 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 02 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-03" data-date-label="Fri 03 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 03 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-04" data-date-label="Sat 04 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 04 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-05" data-date-label="Sun 05 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 05 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-06" data-date-label="Mon 06 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 06 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-07" data-date-label="Tue 07 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 07 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-08" data-date-label="Wed 08 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 08 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-09" data-date-label="Thu 09 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 09 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-10" data-date-label="Fri 10 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 10 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-11" data-date-label="Sat 11 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 11 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-12" data-date-label="Sun 12 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 12 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-13" data-date-label="Mon 13 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 13 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-14" data-date-label="Tue 14 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 14 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-15" data-date-label="Wed 15 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 15 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-16" data-date-label="Thu 16 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 16 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-17" data-date-label="Fri 17 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 17 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-18" data-date-label="Sat 18 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 18 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-19" data-date-label="Sun 19 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 19 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-20" data-date-label="Mon 20 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 20 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-21" data-date-label="Tue 21 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 21 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-22" data-date-label="Wed 22 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 22 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-23" data-date-label="Thu 23 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 23 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-24" data-date-label="Fri 24 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 24 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-25" data-date-label="Sat 25 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 25 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-26" data-date-label="Sun 26 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 26 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-27" data-date-label="Mon 27 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 27 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-28" data-date-label="Tue 28 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 28 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-29" data-date-label="Wed 29 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 29 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-30" data-date-label="Thu 30 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 30 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-10-31" data-date-label="Fri 31 Oct 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 31 Oct 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-01" data-date-label="Sat 01 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 01 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-02" data-date-label="Sun 02 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 02 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-03" data-date-label="Mon 03 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 03 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-04" data-date-label="Tue 04 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 04 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-05" data-date-label="Wed 05 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 05 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-06" data-date-label="Thu 06 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 06 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-07" data-date-label="Fri 07 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 07 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-08" data-date-label="Sat 08 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 08 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-09" data-date-label="Sun 09 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 09 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-10" data-date-label="Mon 10 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 10 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-11" data-date-label="Tue 11 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 11 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-12" data-date-label="Wed 12 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 12 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-13" data-date-label="Thu 13 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 13 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-14" data-date-label="Fri 14 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 14 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-15" data-date-label="Sat 15 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 15 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-16" data-date-label="Sun 16 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 16 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-17" data-date-label="Mon 17 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 17 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-18" data-date-label="Tue 18 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 18 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-19" data-date-label="Wed 19 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 19 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-20" data-date-label="Thu 20 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 20 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-21" data-date-label="Fri 21 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 21 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-22" data-date-label="Sat 22 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 22 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-23" data-date-label="Sun 23 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 23 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-24" data-date-label="Mon 24 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 24 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-25" data-date-label="Tue 25 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 25 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-26" data-date-label="Wed 26 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 26 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-27" data-date-label="Thu 27 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 27 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-28" data-date-label="Fri 28 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 28 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-29" data-date-label="Sat 29 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 29 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-30" data-date-label="Sun 30 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 30 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-01" data-date-label="Mon 01 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 01 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-02" data-date-label="Tue 02 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 02 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-03" data-date-label="Wed 03 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 03 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-04" data-date-label="Thu 04 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 04 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-05" data-date-label="Fri 05 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 05 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-06" data-date-label="Sat 06 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 06 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-07" data-date-label="Sun 07 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 07 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-08" data-date-label="Mon 08 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 08 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-09" data-date-label="Tue 09 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 09 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-10" data-date-label="Wed 10 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 10 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-11" data-date-label="Thu 11 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 11 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-12" data-date-label="Fri 12 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 12 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-13" data-date-label="Sat 13 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 13 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-14" data-date-label="Sun 14 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 14 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-15" data-date-label="Mon 15 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 15 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-16" data-date-label="Tue 16 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 16 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-17" data-date-label="Wed 17 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 17 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-18" data-date-label="Thu 18 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 18 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-19" data-date-label="Fri 19 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 19 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-20" data-date-label="Sat 20 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 20 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-21" data-date-label="Sun 21 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 21 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-22" data-date-label="Mon 22 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 22 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-23" data-date-label="Tue 23 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 23 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-24" data-date-label="Wed 24 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 24 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-25" data-date-label="Thu 25 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 25 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-26" data-date-label="Fri 26 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 26 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-27" data-date-label="Sat 27 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 27 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-28" data-date-label="Sun 28 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 28 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-29" data-date-label="Mon 29 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 29 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-30" data-date-label="Tue 30 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 30 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-12-31" data-date-label="Wed 31 Dec 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 31 Dec 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-01" data-date-label="Thu 01 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 01 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-02" data-date-label="Fri 02 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 02 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-03" data-date-label="Sat 03 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 03 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-04" data-date-label="Sun 04 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 04 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-05" data-date-label="Mon 05 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 05 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-06" data-date-label="Tue 06 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 06 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-07" data-date-label="Wed 07 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 07 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-08" data-date-label="Thu 08 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 08 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-09" data-date-label="Fri 09 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 09 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-10" data-date-label="Sat 10 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 10 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-11" data-date-label="Sun 11 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 11 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-12" data-date-label="Mon 12 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 12 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-13" data-date-label="Tue 13 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 13 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-14" data-date-label="Wed 14 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 14 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-15" data-date-label="Thu 15 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 15 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-16" data-date-label="Fri 16 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 16 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-17" data-date-label="Sat 17 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 17 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-18" data-date-label="Sun 18 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 18 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-19" data-date-label="Mon 19 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 19 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-20" data-date-label="Tue 20 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 20 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-21" data-date-label="Wed 21 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 21 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-22" data-date-label="Thu 22 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 22 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-23" data-date-label="Fri 23 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 23 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-24" data-date-label="Sat 24 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 24 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-25" data-date-label="Sun 25 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 25 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-26" data-date-label="Mon 26 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 26 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-27" data-date-label="Tue 27 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 27 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-28" data-date-label="Wed 28 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 28 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-29" data-date-label="Thu 29 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 29 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-30" data-date-label="Fri 30 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 30 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-01-31" data-date-label="Sat 31 Jan 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 31 Jan 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-01" data-date-label="Sun 01 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 01 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-02" data-date-label="Mon 02 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 02 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-03" data-date-label="Tue 03 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 03 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-04" data-date-label="Wed 04 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 04 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-05" data-date-label="Thu 05 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 05 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-06" data-date-label="Fri 06 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 06 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-07" data-date-label="Sat 07 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 07 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-08" data-date-label="Sun 08 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 08 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-09" data-date-label="Mon 09 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 09 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-10" data-date-label="Tue 10 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 10 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-11" data-date-label="Wed 11 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 11 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-12" data-date-label="Thu 12 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 12 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-13" data-date-label="Fri 13 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 13 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-14" data-date-label="Sat 14 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 14 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-15" data-date-label="Sun 15 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 15 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-16" data-date-label="Mon 16 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 16 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-17" data-date-label="Tue 17 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 17 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-18" data-date-label="Wed 18 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 18 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-19" data-date-label="Thu 19 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 19 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-20" data-date-label="Fri 20 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 20 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-21" data-date-label="Sat 21 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 21 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-22" data-date-label="Sun 22 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 22 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-23" data-date-label="Mon 23 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 23 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-24" data-date-label="Tue 24 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 24 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-25" data-date-label="Wed 25 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 25 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-26" data-date-label="Thu 26 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 26 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-27" data-date-label="Fri 27 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 27 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-02-28" data-date-label="Sat 28 Feb 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 28 Feb 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-01" data-date-label="Sun 01 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 01 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-02" data-date-label="Mon 02 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 02 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-03" data-date-label="Tue 03 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 03 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-04" data-date-label="Wed 04 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 04 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-05" data-date-label="Thu 05 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 05 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-06" data-date-label="Fri 06 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 06 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-07" data-date-label="Sat 07 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 07 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-08" data-date-label="Sun 08 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 08 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-09" data-date-label="Mon 09 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 09 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-10" data-date-label="Tue 10 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 10 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-11" data-date-label="Wed 11 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 11 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-12" data-date-label="Thu 12 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 12 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-13" data-date-label="Fri 13 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 13 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-14" data-date-label="Sat 14 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 14 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-15" data-date-label="Sun 15 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 15 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-16" data-date-label="Mon 16 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 16 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-17" data-date-label="Tue 17 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 17 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-18" data-date-label="Wed 18 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 18 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-19" data-date-label="Thu 19 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 19 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-20" data-date-label="Fri 20 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 20 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-21" data-date-label="Sat 21 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 21 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-22" data-date-label="Sun 22 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 22 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-23" data-date-label="Mon 23 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 23 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-24" data-date-label="Tue 24 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 24 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-25" data-date-label="Wed 25 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 25 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-26" data-date-label="Thu 26 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 26 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-27" data-date-label="Fri 27 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 27 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-28" data-date-label="Sat 28 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 28 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-29" data-date-label="Sun 29 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 29 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-30" data-date-label="Mon 30 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 30 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-03-31" data-date-label="Tue 31 Mar 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 31 Mar 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-01" data-date-label="Wed 01 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 01 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-02" data-date-label="Thu 02 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 02 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-03" data-date-label="Fri 03 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 03 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-04" data-date-label="Sat 04 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 04 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-05" data-date-label="Sun 05 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 05 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-06" data-date-label="Mon 06 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 06 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-07" data-date-label="Tue 07 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 07 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-08" data-date-label="Wed 08 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 08 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-09" data-date-label="Thu 09 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 09 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-10" data-date-label="Fri 10 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 10 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-11" data-date-label="Sat 11 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 11 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-12" data-date-label="Sun 12 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 12 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-13" data-date-label="Mon 13 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 13 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-14" data-date-label="Tue 14 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 14 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-15" data-date-label="Wed 15 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 15 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-16" data-date-label="Thu 16 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 16 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-17" data-date-label="Fri 17 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 17 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-18" data-date-label="Sat 18 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 18 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-19" data-date-label="Sun 19 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 19 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-20" data-date-label="Mon 20 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 20 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-21" data-date-label="Tue 21 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 21 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-22" data-date-label="Wed 22 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 22 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-23" data-date-label="Thu 23 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 23 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-24" data-date-label="Fri 24 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 24 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-25" data-date-label="Sat 25 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 25 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-26" data-date-label="Sun 26 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 26 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-27" data-date-label="Mon 27 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 27 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-28" data-date-label="Tue 28 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 28 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-29" data-date-label="Wed 29 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 29 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-04-30" data-date-label="Thu 30 Apr 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 30 Apr 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-01" data-date-label="Fri 01 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 01 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-02" data-date-label="Sat 02 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 02 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-03" data-date-label="Sun 03 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 03 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-04" data-date-label="Mon 04 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 04 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-05" data-date-label="Tue 05 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 05 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-06" data-date-label="Wed 06 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 06 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-07" data-date-label="Thu 07 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 07 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-08" data-date-label="Fri 08 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 08 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-09" data-date-label="Sat 09 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 09 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-10" data-date-label="Sun 10 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 10 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-11" data-date-label="Mon 11 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 11 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-12" data-date-label="Tue 12 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 12 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-13" data-date-label="Wed 13 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 13 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-14" data-date-label="Thu 14 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 14 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-15" data-date-label="Fri 15 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 15 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-16" data-date-label="Sat 16 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 16 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-17" data-date-label="Sun 17 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 17 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-18" data-date-label="Mon 18 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 18 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-19" data-date-label="Tue 19 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 19 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-20" data-date-label="Wed 20 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 20 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-21" data-date-label="Thu 21 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 21 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-22" data-date-label="Fri 22 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 22 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-23" data-date-label="Sat 23 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 23 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-24" data-date-label="Sun 24 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 24 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-25" data-date-label="Mon 25 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 25 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-26" data-date-label="Tue 26 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 26 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-27" data-date-label="Wed 27 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 27 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-28" data-date-label="Thu 28 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 28 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-29" data-date-label="Fri 29 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 29 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-30" data-date-label="Sat 30 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 30 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-05-31" data-date-label="Sun 31 May 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 31 May 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-01" data-date-label="Mon 01 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 01 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-02" data-date-label="Tue 02 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 02 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-03" data-date-label="Wed 03 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 03 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-04" data-date-label="Thu 04 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 04 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-05" data-date-label="Fri 05 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 05 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-06" data-date-label="Sat 06 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 06 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-07" data-date-label="Sun 07 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 07 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-08" data-date-label="Mon 08 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 08 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-09" data-date-label="Tue 09 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 09 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-10" data-date-label="Wed 10 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 10 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-11" data-date-label="Thu 11 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 11 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-12" data-date-label="Fri 12 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 12 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-13" data-date-label="Sat 13 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 13 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-14" data-date-label="Sun 14 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 14 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-15" data-date-label="Mon 15 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 15 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-16" data-date-label="Tue 16 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 16 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-17" data-date-label="Wed 17 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 17 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-18" data-date-label="Thu 18 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 18 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-19" data-date-label="Fri 19 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 19 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-20" data-date-label="Sat 20 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 20 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-21" data-date-label="Sun 21 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 21 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-22" data-date-label="Mon 22 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 22 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-23" data-date-label="Tue 23 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 23 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-24" data-date-label="Wed 24 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 24 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-25" data-date-label="Thu 25 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 25 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-26" data-date-label="Fri 26 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 26 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-27" data-date-label="Sat 27 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 27 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-28" data-date-label="Sun 28 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 28 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-29" data-date-label="Mon 29 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 29 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-06-30" data-date-label="Tue 30 Jun 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 30 Jun 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-01" data-date-label="Wed 01 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 01 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-02" data-date-label="Thu 02 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 02 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-03" data-date-label="Fri 03 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 03 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-04" data-date-label="Sat 04 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 04 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-05" data-date-label="Sun 05 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 05 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-06" data-date-label="Mon 06 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 06 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-07" data-date-label="Tue 07 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 07 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-08" data-date-label="Wed 08 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 08 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-09" data-date-label="Thu 09 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 09 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-10" data-date-label="Fri 10 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 10 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-11" data-date-label="Sat 11 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 11 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-12" data-date-label="Sun 12 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 12 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-13" data-date-label="Mon 13 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 13 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-14" data-date-label="Tue 14 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 14 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-15" data-date-label="Wed 15 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 15 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-16" data-date-label="Thu 16 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 16 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-17" data-date-label="Fri 17 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 17 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-18" data-date-label="Sat 18 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 18 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-19" data-date-label="Sun 19 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 19 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-20" data-date-label="Mon 20 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 20 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-21" data-date-label="Tue 21 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 21 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-22" data-date-label="Wed 22 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 22 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-23" data-date-label="Thu 23 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 23 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-24" data-date-label="Fri 24 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 24 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-25" data-date-label="Sat 25 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 25 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-26" data-date-label="Sun 26 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 26 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-27" data-date-label="Mon 27 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 27 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-28" data-date-label="Tue 28 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 28 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-29" data-date-label="Wed 29 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 29 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-30" data-date-label="Thu 30 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 30 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-07-31" data-date-label="Fri 31 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 31 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-01" data-date-label="Sat 01 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 01 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-02" data-date-label="Sun 02 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 02 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-03" data-date-label="Mon 03 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 03 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-04" data-date-label="Tue 04 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 04 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-05" data-date-label="Wed 05 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 05 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-06" data-date-label="Thu 06 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 06 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-07" data-date-label="Fri 07 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 07 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-08" data-date-label="Sat 08 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 08 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-09" data-date-label="Sun 09 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 09 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-10" data-date-label="Mon 10 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 10 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-11" data-date-label="Tue 11 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 11 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-12" data-date-label="Wed 12 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 12 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-13" data-date-label="Thu 13 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 13 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-14" data-date-label="Fri 14 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 14 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-15" data-date-label="Sat 15 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 15 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-16" data-date-label="Sun 16 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 16 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-17" data-date-label="Mon 17 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 17 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-18" data-date-label="Tue 18 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 18 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2026-08-19" data-date-label="Wed 19 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 19 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell" data-date="2026-08-20" data-date-label="Thu 20 Aug 2026" data-lines="4" data-lines-display="4" data-lines-level="5" data-commits="1" data-commits-display="1" data-commits-level="5" data-level="5" aria-label="Thu 20 Aug 2026: 4 lines added, 1 commits" tabindex="0"></div>
-<div class="day-cell" data-date="2026-08-21" data-date-label="Fri 21 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 21 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell" data-date="2026-08-22" data-date-label="Sat 22 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 22 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell" data-date="2026-08-23" data-date-label="Sun 23 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 23 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell" data-date="2026-08-24" data-date-label="Mon 24 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 24 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell" data-date="2026-08-25" data-date-label="Tue 25 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 25 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-08-26" data-date-label="Wed 26 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 26 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-08-27" data-date-label="Thu 27 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 27 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-08-28" data-date-label="Fri 28 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 28 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-08-29" data-date-label="Sat 29 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 29 Aug 2026: 0 lines added, 0 commits" tabindex="0"></div>
+                    <div class="activity-grid" role="img" aria-label="Daily activity from 2026-08-01 to 2026-08-25">
+<div class="day-cell outside pre-repo" data-date="2026-07-26" data-date-label="Sun 26 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 26 Jul 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell outside pre-repo" data-date="2026-07-27" data-date-label="Mon 27 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 27 Jul 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell outside pre-repo" data-date="2026-07-28" data-date-label="Tue 28 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 28 Jul 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell outside pre-repo" data-date="2026-07-29" data-date-label="Wed 29 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 29 Jul 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell outside pre-repo" data-date="2026-07-30" data-date-label="Thu 30 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 30 Jul 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell outside pre-repo" data-date="2026-07-31" data-date-label="Fri 31 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 31 Jul 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-01" data-date-label="Sat 01 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 01 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-02" data-date-label="Sun 02 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 02 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-03" data-date-label="Mon 03 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 03 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-04" data-date-label="Tue 04 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 04 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-05" data-date-label="Wed 05 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 05 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-06" data-date-label="Thu 06 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 06 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-07" data-date-label="Fri 07 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 07 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-08" data-date-label="Sat 08 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 08 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-09" data-date-label="Sun 09 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 09 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-10" data-date-label="Mon 10 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 10 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-11" data-date-label="Tue 11 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 11 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-12" data-date-label="Wed 12 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 12 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-13" data-date-label="Thu 13 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 13 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-14" data-date-label="Fri 14 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 14 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-15" data-date-label="Sat 15 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 15 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-16" data-date-label="Sun 16 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 16 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-17" data-date-label="Mon 17 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 17 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-18" data-date-label="Tue 18 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 18 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell pre-repo" data-date="2026-08-19" data-date-label="Wed 19 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 19 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-08-20" data-date-label="Thu 20 Aug 2026" data-lines="4" data-lines-display="4" data-lines-level="5" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="1" data-commits-display="1" data-commits-level="5" data-level="5" aria-label="Thu 20 Aug 2026: 4 lines added, 0 lines deleted, 1 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-08-21" data-date-label="Fri 21 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 21 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-08-22" data-date-label="Sat 22 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 22 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-08-23" data-date-label="Sun 23 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 23 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-08-24" data-date-label="Mon 24 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 24 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-08-25" data-date-label="Tue 25 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 25 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell outside" data-date="2026-08-26" data-date-label="Wed 26 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 26 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell outside" data-date="2026-08-27" data-date-label="Thu 27 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 27 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell outside" data-date="2026-08-28" data-date-label="Fri 28 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 28 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
+<div class="day-cell outside" data-date="2026-08-29" data-date-label="Sat 29 Aug 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-deleted="0" data-deleted-display="0" data-third-party-added="0" data-third-party-deleted="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 29 Aug 2026: 0 lines added, 0 lines deleted, 0 commits" tabindex="0"></div>
                     </div>
                 </div>
             </div>
         </div>
 <div class="activity-calendar-footer">
-<div class="pill">2025-08-26 to 2026-08-25</div>
+<div class="pill">2026-08-01 to 2026-08-25</div>
         <div class="legend"><span>Less</span><span class="day-cell" data-level="0"></span><span class="day-cell" data-level="1"></span><span class="day-cell" data-level="2"></span><span class="day-cell" data-level="3"></span><span class="day-cell" data-level="4"></span><span class="day-cell" data-level="5"></span><span>More</span></div>
 </div>
 <section class="panel go-panel" aria-label="Go code stats">
         <h2>Go code composition</h2>
         <p>As committed on <span data-ze-history="day:date">2026-08-23</span>.</p>
         <p>All Go files, third-party included, hold <strong><span data-ze-history="third-party-go+go-tests+go-production:lines">1,015</span></strong> lines.</p>
+        <p>No line is counted twice. In each group, total lines include its code, blank and comment lines, which add up to it. Go production and Go tests is the sum of the two groups after it, and with third-party Go it makes the figure above.</p>
         <div class="go-breakdown">
 <div class="go-bucket">
             <h3>Go production and Go tests</h3>
             <div class="go-stats">
 <div class="stat"><span>Files</span><strong><span data-ze-history="go-production+go-tests:files">10</span></strong></div>
 <div class="stat"><span>Total lines</span><strong><span data-ze-history="go-production+go-tests:lines">365</span></strong></div>
-<div class="stat"><span>Code</span><strong><span data-ze-history="go-production+go-tests:code">276</span></strong></div>
-<div class="stat"><span>Blank</span><strong><span data-ze-history="go-production+go-tests:blank">46</span></strong></div>
-<div class="stat"><span>Comments</span><strong><span data-ze-history="go-production+go-tests:comment">43</span></strong></div>
+<div class="stat"><span>of which code</span><strong><span data-ze-history="go-production+go-tests:code">276</span></strong></div>
+<div class="stat"><span>of which blank</span><strong><span data-ze-history="go-production+go-tests:blank">46</span></strong></div>
+<div class="stat"><span>of which comments</span><strong><span data-ze-history="go-production+go-tests:comment">43</span></strong></div>
             </div>
         </div>
 <div class="go-bucket">
@@ -509,9 +127,9 @@
             <div class="go-stats">
 <div class="stat"><span>Files</span><strong><span data-ze-history="go-production:files">4</span></strong></div>
 <div class="stat"><span>Total lines</span><strong><span data-ze-history="go-production:lines">190</span></strong></div>
-<div class="stat"><span>Code</span><strong><span data-ze-history="go-production:code">148</span></strong></div>
-<div class="stat"><span>Blank</span><strong><span data-ze-history="go-production:blank">21</span></strong></div>
-<div class="stat"><span>Comments</span><strong><span data-ze-history="go-production:comment">21</span></strong></div>
+<div class="stat"><span>of which code</span><strong><span data-ze-history="go-production:code">148</span></strong></div>
+<div class="stat"><span>of which blank</span><strong><span data-ze-history="go-production:blank">21</span></strong></div>
+<div class="stat"><span>of which comments</span><strong><span data-ze-history="go-production:comment">21</span></strong></div>
             </div>
         </div>
 <div class="go-bucket">
@@ -519,9 +137,9 @@
             <div class="go-stats">
 <div class="stat"><span>Files</span><strong><span data-ze-history="go-tests:files">6</span></strong></div>
 <div class="stat"><span>Total lines</span><strong><span data-ze-history="go-tests:lines">175</span></strong></div>
-<div class="stat"><span>Code</span><strong><span data-ze-history="go-tests:code">128</span></strong></div>
-<div class="stat"><span>Blank</span><strong><span data-ze-history="go-tests:blank">25</span></strong></div>
-<div class="stat"><span>Comments</span><strong><span data-ze-history="go-tests:comment">22</span></strong></div>
+<div class="stat"><span>of which code</span><strong><span data-ze-history="go-tests:code">128</span></strong></div>
+<div class="stat"><span>of which blank</span><strong><span data-ze-history="go-tests:blank">25</span></strong></div>
+<div class="stat"><span>of which comments</span><strong><span data-ze-history="go-tests:comment">22</span></strong></div>
             </div>
         </div>
 <div class="go-bucket">
@@ -529,9 +147,9 @@
             <div class="go-stats">
 <div class="stat"><span>Files</span><strong><span data-ze-history="third-party-go:files">5</span></strong></div>
 <div class="stat"><span>Total lines</span><strong><span data-ze-history="third-party-go:lines">650</span></strong></div>
-<div class="stat"><span>Code</span><strong><span data-ze-history="third-party-go:code">520</span></strong></div>
-<div class="stat"><span>Blank</span><strong><span data-ze-history="third-party-go:blank">65</span></strong></div>
-<div class="stat"><span>Comments</span><strong><span data-ze-history="third-party-go:comment">65</span></strong></div>
+<div class="stat"><span>of which code</span><strong><span data-ze-history="third-party-go:code">520</span></strong></div>
+<div class="stat"><span>of which blank</span><strong><span data-ze-history="third-party-go:blank">65</span></strong></div>
+<div class="stat"><span>of which comments</span><strong><span data-ze-history="third-party-go:comment">65</span></strong></div>
 <div class="stat"><span>Modules</span><strong><span data-ze-history="day:modules">3</span></strong></div>
             </div>
         </div>
@@ -540,14 +158,16 @@
                         </div>
                     </div>
 <section class="activity-cumulative panel">
-    <p data-text-lines="Lines added by commits, accumulated since the calendar&#39;s first day." data-text-commits="Commits accumulated since the calendar&#39;s first day.">Lines added by commits, accumulated since the calendar&#39;s first day.</p>
-    <svg id="activity-cumulative-chart" class="growth-chart" viewBox="0 0 720 220" tabindex="0" role="img" aria-label="Cumulative lines added by commits. Use arrow keys to select a date, or Home and End." data-aria-lines="Cumulative lines added by commits. Use arrow keys to select a date, or Home and End." data-aria-commits="Cumulative commits. Use arrow keys to select a date, or Home and End."></svg>
+    <p data-text-lines="Lines added minus lines deleted by commits, accumulated since the calendar&#39;s first day. The curve falls on a day whose commits deleted more lines than they added. A second line draws the same figure over every committed file, the third-party trees included." data-text-commits="Commits accumulated since the calendar&#39;s first day.">Commits accumulated since the calendar&#39;s first day.</p>
+    <svg id="activity-cumulative-chart" class="growth-chart" viewBox="0 0 720 220" tabindex="0" role="img" aria-label="Cumulative commits. Use arrow keys to select a date, or Home and End." data-aria-lines="Cumulative lines added minus lines deleted by commits. Use arrow keys to select a date, or Home and End." data-aria-commits="Cumulative commits. Use arrow keys to select a date, or Home and End."></svg>
+    <div class="cumulative-legend" hidden><span><span class="cumulative-swatch cumulative-swatch-first"></span>Without third-party</span><span><span class="cumulative-swatch"></span>All files</span></div>
     <label class="growth-date-control" for="activity-cumulative-day">Select a date
-        <input id="activity-cumulative-day" type="range" min="0" max="0" value="0" step="1" aria-describedby="activity-cumulative-readout" data-unit-lines="lines added" data-unit-commits="commits">
+        <input id="activity-cumulative-day" type="range" min="0" max="0" value="0" step="1" aria-describedby="activity-cumulative-readout" data-unit-lines="net lines" data-unit-commits="commits">
     </label>
     <div id="activity-cumulative-readout" class="growth-readout" aria-live="polite" aria-atomic="true">
         <strong id="activity-cumulative-date"></strong>
-        <span><span data-text-lines="Lines added" data-text-commits="Commits">Lines added</span>: <strong id="activity-cumulative-value"></strong></span>
+        <span><span data-text-lines="Net lines" data-text-commits="Commits">Commits</span>: <strong id="activity-cumulative-value"></strong></span>
+        <span id="activity-cumulative-detail" hidden></span>
     </div>
 </section>
 </div>
@@ -559,7 +179,7 @@
 </div>
 <script>
 const metricSummaries = {"commits":{"totalLabel":"Total commits","totalValue":"1","activeLabel":"Days with commits","activeValue":"1","peakLabel":"Peak commit day","peakValue":"1","thresholdLabel":"Commit thresholds","thresholdValue":"0, 0, 0, 0"},"lines":{"totalLabel":"Lines added in this window","totalValue":"4","activeLabel":"Days with added lines","activeValue":"1","peakLabel":"Peak line day","peakValue":"4","thresholdLabel":"Line thresholds","thresholdValue":"1, 2, 3, 3"}};
-let currentMetric = "lines";
+let currentMetric = "";
 const cells = Array.from(document.querySelectorAll(".activity-grid .day-cell"));
 const buttons = Array.from(document.querySelectorAll(".metric-switch button"));
 const tooltip = document.getElementById("activity-tooltip");
@@ -577,7 +197,8 @@ function valueLine(metric, cell) {
         return cell.dataset.commitsDisplay + " " + plural(value, "commit", "commits");
     }
     const value = Number(cell.dataset.lines || "0");
-    return cell.dataset.linesDisplay + " " + plural(value, "line", "lines") + " added";
+    return cell.dataset.linesDisplay + " " + plural(value, "line", "lines") + " added, " +
+        cell.dataset.deletedDisplay + " deleted";
 }
 
 function setEl(id, text) {
@@ -658,11 +279,45 @@ for (const cell of cells) {
     cell.addEventListener("focus", () => showFocusTooltip(cell));
     cell.addEventListener("blur", hideTooltip);
 }
-setMetric("lines");
+setMetric((buttons.find((button) => button.getAttribute("aria-pressed") === "true") || buttons[0]).dataset.metric);
 </script>
                 </div>
             </section>
 <script>
+// activityAxisTicks answers the labeled grid lines of one chart whose values,
+// all counts, run from minimum to maximum. The axis is a visual aid in units
+// of ten, and the readouts carry the exact figures: the step is the power of
+// ten below the range's span, doubled when that leaves more than eleven lines
+// and halved when it leaves fewer than three (never below one, so a count
+// axis keeps whole numbers). The lines run from the step at or below the
+// minimum to the step at or above the maximum, and zero is always one of them.
+// It is pure, and global so a test can ask it directly.
+function activityAxisTicks(minimum, maximum) {
+    const low = Math.min(0, minimum), high = Math.max(0, maximum);
+    const span = Math.max(1, high - low);
+    let power = Math.pow(10, Math.floor(Math.log10(span)));
+    if (power * 10 <= span) power *= 10;
+    const lines = step => Math.ceil(high / step) - Math.floor(low / step) + 1;
+    let step = power;
+    if (lines(step) > 11) step = power * 2;
+    else if (lines(step) < 3 && power >= 10) step = power / 2;
+    const first = Math.floor(low / step), last = Math.max(Math.ceil(high / step), first + 1);
+    const ticks = [];
+    // Adding zero turns a negative zero into zero, so no label reads -0.
+    for (let index = first; index <= last; index++) ticks.push(index * step + 0);
+    return ticks;
+}
+// activityAxisLabel writes one tick of ticks compactly, in the unit the
+// axis's largest tick sets for every tick on it: M from a million, K from ten
+// thousand, the figure in full below that, with only the decimals the step
+// needs. Zero carries no unit.
+function activityAxisLabel(value, ticks) {
+    const largest = Math.max(...ticks.map(Math.abs));
+    const unit = largest >= 1e6 ? 1e6 : largest >= 1e4 ? 1e3 : 1;
+    const suffix = unit === 1e6 ? 'M' : unit === 1e3 ? 'K' : '';
+    const digits = Math.max(0, -Math.floor(Math.log10((ticks[1] - ticks[0]) / unit) + 1e-9));
+    return (value / unit).toLocaleString('en-US', {maximumFractionDigits: digits}) + (value === 0 ? '' : suffix);
+}
 (() => {
     const left = 72, right = 704, viewWidth = 720;
     const format = value => Number(value).toLocaleString('en-US');
@@ -683,10 +338,27 @@ setMetric("lines");
         const span = Math.max(1, high - low);
         return value => bottom - (value - low) / span * (bottom - top);
     }
-    function frame(chart, levels, y, top, bottom, first, last) {
-        for (const level of new Set(levels)) {
-            chart.append(svgElement('path', {class:'growth-grid', d:'M' + left + ' ' + y(level) + 'H' + right}));
-            chart.append(svgElement('text', {class:'growth-axis', x:left - 10, y:y(level) + 4, 'text-anchor':'end'}, format(level)));
+    // axisScale maps the span the ticks cover onto the plot, so the top and
+    // bottom lines are round figures and the series stays inside them.
+    function axisScale(ticks, top, bottom) {
+        return scale(ticks[0], ticks[ticks.length - 1], top, bottom);
+    }
+    // frame draws the ticks as labeled grid lines, the zero line as the
+    // baseline when the axis runs both sides of it, and, when an axis holds
+    // five lines or fewer of a step of ten or more, one unlabeled minor line
+    // halfway between each pair.
+    function frame(chart, ticks, y, top, bottom, first, last) {
+        const step = ticks[1] - ticks[0];
+        if (ticks.length <= 5 && step >= 10) {
+            for (let index = 1; index < ticks.length; index++) {
+                chart.append(svgElement('path', {class:'growth-grid growth-grid-minor', d:'M' + left + ' ' + y(ticks[index] - step / 2) + 'H' + right}));
+            }
+        }
+        const twoSided = ticks[0] < 0 && ticks[ticks.length - 1] > 0;
+        for (const tick of ticks) {
+            const kind = twoSided && tick === 0 ? 'growth-grid growth-baseline' : 'growth-grid';
+            chart.append(svgElement('path', {class:kind, d:'M' + left + ' ' + y(tick) + 'H' + right}));
+            chart.append(svgElement('text', {class:'growth-axis', x:left - 10, y:y(tick) + 4, 'text-anchor':'end'}, activityAxisLabel(tick, ticks)));
         }
         chart.append(svgElement('path', {class:'growth-cursor', d:'M' + left + ' ' + top + 'V' + bottom}));
         chart.append(svgElement('text', {class:'growth-axis', x:left, y:bottom + 27}, first));
@@ -750,18 +422,30 @@ setMetric("lines");
     document.querySelector('.activity-tabs').hidden = false;
     selectTab(document.getElementById('activity-tab-size'));
 
-    // The cumulative curve accumulates both metrics of the calendar's dated
-    // cells, oldest first, and draws the one the switch shows. The wording of
-    // each metric is written on the elements it changes.
+    // The cumulative curve accumulates the calendar's dated cells, oldest
+    // first, and draws the metric the switch shows: under Added Lines the net
+    // lines, added minus deleted, which fall on a day that deleted more than
+    // it added, and under Commits the commits. Under Added Lines a second line,
+    // all, draws the same net over every committed file: the first-party net
+    // plus what the third-party trees added less what they deleted. The
+    // wording of each metric is written on the elements it changes; the
+    // readout's added, deleted and all-files figures and the legend naming
+    // the two lines show under Added Lines only.
     const cumulativeKeys = {lines: 'Lines', commits: 'Commits'};
+    const cumulativeSeries = {lines: ['lines', 'all'], commits: ['commits']};
     const cells = Array.from(document.querySelectorAll('.activity-grid .day-cell:not(.outside)'))
         .sort((a, b) => a.dataset.date.localeCompare(b.dataset.date));
-    let addedLines = 0, commits = 0;
+    let addedLines = 0, deletedLines = 0, commits = 0, thirdPartyNet = 0;
     const windowDays = cells.map(cell => {
         addedLines += Number(cell.dataset.lines);
+        deletedLines += Number(cell.dataset.deleted);
         commits += Number(cell.dataset.commits);
-        return {date: cell.dataset.date, lines: addedLines, commits};
+        thirdPartyNet += Number(cell.dataset.thirdPartyAdded) - Number(cell.dataset.thirdPartyDeleted);
+        const lines = addedLines - deletedLines;
+        return {date: cell.dataset.date, lines, all: lines + thirdPartyNet, added: addedLines, deleted: deletedLines, commits};
     });
+    const curveDetail = document.getElementById('activity-cumulative-detail');
+    const curveLegend = document.querySelector('.cumulative-legend');
     const curve = document.querySelector('.activity-cumulative');
     const curveChart = document.getElementById('activity-cumulative-chart');
     const curveSlider = document.getElementById('activity-cumulative-day');
@@ -773,11 +457,17 @@ setMetric("lines");
         const day = windowDays[index], value = day[curveMetric];
         document.getElementById('activity-cumulative-date').textContent = day.date;
         document.getElementById('activity-cumulative-value').textContent = format(value);
-        curveSlider.setAttribute('aria-valuetext', day.date + ': ' + format(value) + ' ' + curveSlider.dataset['unit' + cumulativeKeys[curveMetric]]);
+        const detail = curveMetric === 'lines'
+            ? format(day.added) + ' added, ' + format(day.deleted) + ' deleted · All files: ' + format(day.all) : '';
+        curveDetail.textContent = detail;
+        curveDetail.hidden = detail === '';
+        curveSlider.setAttribute('aria-valuetext', day.date + ': ' + format(value) + ' ' + curveSlider.dataset['unit' + cumulativeKeys[curveMetric]] +
+            (detail === '' ? '' : ', ' + detail));
         placeCursor(curveChart, index, windowDays.length, curveTop, curveBottom);
-        const point = curveChart.querySelector('.growth-point');
-        point.setAttribute('cx', x(index, windowDays.length));
-        point.setAttribute('cy', curveY(value));
+        for (const point of curveChart.querySelectorAll('.growth-point')) {
+            point.setAttribute('cx', x(index, windowDays.length));
+            point.setAttribute('cy', curveY(day[point.dataset.key]));
+        }
     }
     const selectCurveDay = selector([curveChart], curveSlider, windowDays.length, showCurveDay);
     function drawCurve(metric) {
@@ -786,24 +476,37 @@ setMetric("lines");
         for (const node of curve.querySelectorAll('[data-text-lines]')) node.textContent = node.dataset['text' + key];
         curveChart.setAttribute('aria-label', curveChart.dataset['aria' + key]);
         curveChart.replaceChildren();
+        const series = cumulativeSeries[metric];
+        curveLegend.hidden = series.length < 2;
         if (!windowDays.length) {
             document.getElementById('activity-cumulative-date').textContent = 'No daily values in this window.';
             return;
         }
-        const high = windowDays.reduce((most, day) => Math.max(most, day[metric]), 0);
-        curveY = scale(0, high, curveTop, curveBottom);
-        frame(curveChart, [0, Math.ceil(high / 2), high], curveY, curveTop, curveBottom,
+        // The scale covers every line drawn, so the all-files line, which a
+        // third-party import lifts above the first-party one, stays inside it.
+        const values = windowDays.flatMap(day => series.map(name => day[name]));
+        const ticks = activityAxisTicks(Math.min(...values), Math.max(...values));
+        curveY = axisScale(ticks, curveTop, curveBottom);
+        frame(curveChart, ticks, curveY, curveTop, curveBottom,
             windowDays[0].date, windowDays[windowDays.length - 1].date);
-        curveChart.append(svgElement('path', {class:'growth-series cumulative-series',
-            d:'M' + left + ' ' + curveBottom + windowDays.map((day, index) => 'L' + x(index, windowDays.length) + ' ' + curveY(day[metric])).join('')}));
-        curveChart.append(svgElement('circle', {class:'growth-point', cx:left, cy:curveBottom, r:4}));
+        // Each line starts from zero on the window's first day, which a net
+        // curve below zero no longer draws at the plot's bottom. The metric's
+        // own line is drawn first, and the all-files line over it.
+        for (const name of series) {
+            const kind = name === 'all' ? 'growth-series cumulative-series cumulative-total' : 'growth-series cumulative-series';
+            curveChart.append(svgElement('path', {class:kind,
+                d:'M' + left + ' ' + curveY(0) + windowDays.map((day, index) => 'L' + x(index, windowDays.length) + ' ' + curveY(day[name])).join('')}));
+        }
+        for (const name of series) {
+            curveChart.append(svgElement('circle', {class:'growth-point', cx:left, cy:curveY(0), r:4, 'data-key':name}));
+        }
         selectCurveDay(curveSelected);
     }
-    // The curve opens on the metric the switch shows, or on Added Lines, the
+    // The curve opens on the metric the switch shows, or on Commits, the
     // wording its markup ships with, when the switch has not run. A metric the
     // curve has no wording for leaves it as it is.
     const switchMetric = () => Object.hasOwn(cumulativeKeys, document.body.dataset.metric) ? document.body.dataset.metric : undefined;
-    drawCurve(switchMetric() || 'lines');
+    drawCurve(switchMetric() || 'commits');
     new MutationObserver(() => {
         const metric = switchMetric();
         if (metric && metric !== curveMetric) drawCurve(metric);
@@ -873,6 +576,7 @@ setMetric("lines");
         sizeReadout.replaceChildren(date, wrap);
         return {date, rows, total};
     }
+    const sizeTotalLabel = 'Sum of the sections shown';
     function drawSize(file) {
         const sections = file.sections, days = file.days, count = days.length;
         const sizeChart = document.getElementById('activity-size-chart');
@@ -882,15 +586,20 @@ setMetric("lines");
         const top = 20, bottom = 224;
         const shown = new Set(sections.map(section => section.id));
         const readout = readoutTable(sections);
-        let sizeY = scale(0, 0, top, bottom), selected = count - 1;
+        let sizeY = scale(0, 0, top, bottom), selected = count - 1, drawn = [];
+        // drawnLines is one day's sum of the sections the legend shows, which
+        // the total line plots. The readout's All sections row stays the sum of
+        // every section, so the two agree whenever every section is shown.
+        const drawnLines = day => drawn.reduce((sum, entry) => sum + sectionValues(day, entry.section.id).lines, 0);
         function show(index) {
             selected = index;
             const day = days[index];
             placeCursor(sizeChart, index, count, top, bottom);
             placeCursor(changeChart, index, count, top, bottom);
             for (const point of sizeChart.querySelectorAll('.size-point')) {
+                const value = point.classList.contains('size-total-point') ? drawnLines(day) : sectionValues(day, point.dataset.section).lines;
                 point.setAttribute('cx', x(index, count));
-                point.setAttribute('cy', sizeY(sectionValues(day, point.dataset.section).lines));
+                point.setAttribute('cy', sizeY(value));
             }
             readout.date.textContent = day.date;
             const total = {lines: 0, gained: 0, lost: 0};
@@ -908,21 +617,25 @@ setMetric("lines");
         function redraw() {
             sizeChart.replaceChildren();
             changeChart.replaceChildren();
-            const drawn = sections.map((section, index) => ({section, series: String(index % 12 + 1)}))
+            drawn = sections.map((section, index) => ({section, series: String(index % 12 + 1)}))
                 .filter(entry => shown.has(entry.section.id));
+            // The scale covers the total line too, the sum of the drawn
+            // sections, which stands at or above each of them.
             let high = 0, gainedHigh = 0, lostHigh = 0;
             const change = days.map(day => {
-                let gained = 0, lost = 0;
+                let gained = 0, lost = 0, lines = 0;
                 for (const entry of drawn) {
                     const values = sectionValues(day, entry.section.id);
-                    high = Math.max(high, values.lines);
+                    lines += values.lines;
                     gained += values.gained; lost += values.lost;
                 }
+                high = Math.max(high, lines);
                 gainedHigh = Math.max(gainedHigh, gained); lostHigh = Math.max(lostHigh, lost);
                 return {gained, lost};
             });
-            sizeY = scale(0, high, top, bottom);
-            frame(sizeChart, [0, Math.ceil(high / 2), high], sizeY, top, bottom, days[0].date, days[count - 1].date);
+            const sizeTicks = activityAxisTicks(0, high);
+            sizeY = axisScale(sizeTicks, top, bottom);
+            frame(sizeChart, sizeTicks, sizeY, top, bottom, days[0].date, days[count - 1].date);
             for (const entry of drawn) {
                 const d = days.map((day, index) => (index ? 'L' : 'M') + x(index, count) + ' ' + sizeY(sectionValues(day, entry.section.id).lines)).join('');
                 const line = svgElement('path', {class:'growth-series size-line', d, 'data-series':entry.series, 'data-section':entry.section.id});
@@ -931,8 +644,14 @@ setMetric("lines");
                 sizeChart.append(svgElement('circle', {class:'growth-point size-point', cx:left, cy:bottom, r:4,
                     'data-series':entry.series, 'data-section':entry.section.id}));
             }
-            const changeY = scale(-lostHigh, gainedHigh, top, bottom);
-            frame(changeChart, [-lostHigh, 0, gainedHigh], changeY, top, bottom, days[0].date, days[count - 1].date);
+            const totalPath = days.map((day, index) => (index ? 'L' : 'M') + x(index, count) + ' ' + sizeY(drawnLines(day))).join('');
+            const totalLine = svgElement('path', {class:'growth-series size-total', d:totalPath});
+            totalLine.append(svgElement('title', {}, sizeTotalLabel));
+            sizeChart.append(totalLine);
+            sizeChart.append(svgElement('circle', {class:'growth-point size-point size-total-point', cx:left, cy:bottom, r:4}));
+            const changeTicks = activityAxisTicks(-lostHigh, gainedHigh);
+            const changeY = axisScale(changeTicks, top, bottom);
+            frame(changeChart, changeTicks, changeY, top, bottom, days[0].date, days[count - 1].date);
             const width = Math.max(1, (right - left) / count * 0.8);
             const bars = sign => change.map((entry, index) => {
                 const base = changeY(0), end = changeY(sign > 0 ? entry.gained : -entry.lost);
@@ -961,6 +680,11 @@ setMetric("lines");
             });
             legend.append(button);
         });
+        // The total line's entry names it and toggles nothing: it follows the
+        // sections the buttons select.
+        const totalEntry = htmlElement('span', 'size-legend-total');
+        totalEntry.append(htmlElement('span', 'size-swatch size-total-swatch'), document.createTextNode(sizeTotalLabel));
+        legend.append(totalEntry);
         redraw();
         select(count - 1);
     }

@@ -145,12 +145,14 @@ func TestTheActivityPageCarriesTheDayCellGrid(t *testing.T) {
 		t.Errorf("grid holds %d day cells, want a non-zero multiple of seven", cells)
 	}
 
-	// The one commit landed on 2026-08-20 and added four lines, so that day is
-	// the only colored square on the grid and it carries both counts.
+	// The one commit landed on 2026-08-20, added four lines and deleted none,
+	// so that day is the only colored square on the grid and it carries all
+	// three counts, beside the third-party lines of the day, which are none.
 	const commitDay = `<div class="day-cell" data-date="2026-08-20" data-date-label="Thu 20 Aug 2026"` +
-		` data-lines="4" data-lines-display="4" data-lines-level="5" data-commits="1"` +
-		` data-commits-display="1" data-commits-level="5" data-level="5"` +
-		` aria-label="Thu 20 Aug 2026: 4 lines added, 1 commits" tabindex="0"></div>`
+		` data-lines="4" data-lines-display="4" data-lines-level="5" data-deleted="0" data-deleted-display="0"` +
+		` data-third-party-added="0" data-third-party-deleted="0"` +
+		` data-commits="1" data-commits-display="1" data-commits-level="5" data-level="5"` +
+		` aria-label="Thu 20 Aug 2026: 4 lines added, 0 lines deleted, 1 commits" tabindex="0"></div>`
 	if !strings.Contains(grid, commitDay) {
 		t.Errorf("grid carries no cell for the commit day; want\n%s", commitDay)
 	}
@@ -174,14 +176,17 @@ func TestTheActivityPageStatesTheLabelsAReaderCannotSee(t *testing.T) {
 		`<section class="activity-view activity-size panel" id="activity-size" role="tabpanel" aria-labelledby="activity-tab-size"`,
 		`<div class="size-legend" role="group" aria-label="Sections drawn in the charts">`,
 		`<section class="activity-cumulative panel">`,
-		`role="img" aria-label="Cumulative lines added by commits. Use arrow keys to select a date, or Home and End."`,
+		`role="img" aria-label="Cumulative commits. Use arrow keys to select a date, or Home and End."`,
+		`data-aria-lines="Cumulative lines added minus lines deleted by commits. Use arrow keys to select a date, or Home and End."`,
 		`<section class="stats" aria-label="Summary">`,
 		`<div class="metric-switch" aria-label="Activity metric">`,
-		`<button type="button" data-metric="lines" aria-pressed="true">Added Lines</button>`,
-		`<button type="button" data-metric="commits" aria-pressed="false">Commits</button>`,
+		`<button type="button" data-metric="lines" aria-pressed="false">Added Lines</button>`,
+		`<button type="button" data-metric="commits" aria-pressed="true">Commits</button>`,
 		`<div class="months" aria-hidden="true">`,
 		`<div class="weekday-labels" aria-hidden="true">`,
-		`<div class="activity-grid" role="img" aria-label="Daily activity from 2025-08-26 to 2026-08-25">`,
+		// The window opens on the first day of the month of the fixture's one
+		// commit, 2026-08-20, which is later than a year back from the build day.
+		`<div class="activity-grid" role="img" aria-label="Daily activity from 2026-08-01 to 2026-08-25">`,
 		`<section class="panel go-panel" aria-label="Go code stats">`,
 		`<div id="activity-tooltip" class="activity-tooltip" role="tooltip" hidden>`,
 	} {
