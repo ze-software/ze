@@ -80,15 +80,21 @@ for a value of up to four characters, within a third of its length beyond
 that, tighter than the bound an unknown key uses because the suggestion becomes
 the fix, so `color true;` proposes no `blue`). The lines after it list every accepted value with its `ze:help`, in YANG
 declaration order, or give the accepted bounds or format, or the
-`error-message` the constraint declares. The last line is the fix:
+`error-message` the constraint declares. The last line is the fix
+(`test/parse/enum-refusal-proposes-valid-values.ci`):
 
 ```text
-line 5: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+line 18: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
 route-refresh accepts only these values:
-  enable   ...
-  require  ...
+  enable   Advertise the capability; no enforcement
+  disable  Do not advertise the capability; no enforcement
+  require  Advertise the capability; refuse the session when the peer does not offer it
+  refuse   Do not advertise the capability; refuse the session when the peer offers it
 fix: route-refresh require;
 ```
+
+The refusal's shape for every kind and every surface, with its JSON form, is
+"Value refusals" in [YANG Configuration System](yang-config-design.md#value-refusals).
 
 The hierarchical parser builds the refusal where it reads the value, every
 value arm and list-key arm alike, and names the path once, at the parse root,

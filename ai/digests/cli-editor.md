@@ -38,7 +38,13 @@ to in-process registry handlers.
    against the `cmd*` name constants (`model.go`): `set/delete/activate/insert/rename/copy`
    → editor tree mutation (`model_commands_edit.go`), `edit/top/up` → context navigation,
    `show/option` → viewport render. Each returns a `commandResult` (`model.go`) applied by
-   `handleCommandResult` (`model.go`).
+   `handleCommandResult` (`model.go`). `top <command>` (`cmdTop`, `lineBehindTop` in
+   `model_commands.go`, stripped in `handleEnter`) runs the rest of the line at the root and
+   keeps the position unless the inner command moves it. A value refusal is a
+   `configyang.ValidationError`; its fix line is reframed for `Model.operatorPosition` by
+   `FrameFix` (`fix_frame.go`: relative, root, or `top set <full path> ...`), and an error of
+   several lines goes whole to the viewport (`setError`, `model_render.go`) while the feedback
+   row keeps its first line.
 4. **Completion (YANG-driven).** `updateCompletions` (`model.go`) picks the source by mode:
    config completion `Completer.Complete` (`cli/completer.go`) walks the editor's `*config.Tree`;
    leaf values come from `valueCompletions` (`cli/completer.go`), `ze:validate` `CompleteFn`

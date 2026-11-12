@@ -4833,6 +4833,26 @@ ze config validate myconfig.conf
 
 Unknown keys are rejected with a suggestion for the closest valid key.
 
+A value the schema does not accept is refused the same way wherever it is
+written: a config file, `ze start`, a reload, the editor, the web, REST, gRPC
+and gNMI. The refusal names the setting's full path and the value, lists what
+the leaf accepts, proposes the closest value when one is close, and ends with
+the exact line that fixes it:
+
+```text
+line 18: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+route-refresh accepts only these values:
+  enable   Advertise the capability; no enforcement
+  disable  Do not advertise the capability; no enforcement
+  require  Advertise the capability; refuse the session when the peer does not offer it
+  refuse   Do not advertise the capability; refuse the session when the peer offers it
+fix: route-refresh require;
+```
+
+A range gives its bounds and a pattern the format in words, never a regular
+expression. The forms each surface prints are in
+[Value refusals](../architecture/config/yang-config-design.md#value-refusals).
+
 ### Upgrading from a release that validated only on demand
 
 The daemon now applies the same value rules at startup that `ze config validate`

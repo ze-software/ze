@@ -107,6 +107,24 @@ back with Set leaves the config file unchanged.
 <!-- source: internal/component/cli/editor_commands.go -- decodeSecretValue, keepStoredSecret -->
 <!-- source: internal/component/config/secret_text.go -- EncodeSecrets, SecretValueAtPath, DecodeSecretText -->
 
+### When Set is refused
+
+An update the session refuses (a path the schema does not hold, a list key
+outside its type) ends the Set with status `InvalidArgument`, and nothing it
+carried is applied. A refused key's message is the refusal Ze prints on every
+surface, unchanged, so its last line is the fix. A session refusal that carries
+no fix of its own is answered with the path, the cause, and a fix that says to
+send the Set again with a path and a value the schema accepts.
+
+A value the schema refuses (outside an enumeration, a range, a length or a
+format) is refused when the Set commits: the status is `Aborted`, the message
+starts `commit: config validation failed:`, and each refusal follows as its own
+block, ending with the `set` command from the root that fixes it. The shape of
+each block is
+[Value refusals](../architecture/config/yang-config-design.md#value-refusals).
+<!-- source: internal/component/gnmi/set.go -- Set, applyUpdate, updateRefusal -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- ValidateContent -->
+
 ### When a call meets an internal defect
 
 Every call and every Subscribe stream runs behind a panic boundary, outside the

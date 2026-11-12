@@ -243,6 +243,53 @@ a writer call on a handler's return line to this one.
 <!-- source: internal/le/arch/operatorerror/report.go -- addedSites, checkLines, SitesOnSide -->
 <!-- source: internal/le/arch/operatorerror/operatorerror.go -- Sites -->
 
+## A refusal of several lines in the editor
+
+Row 1 holds one line, and a value refusal holds several: the problem, the
+accepted values with their help, and the fix (its shape is "Value refusals" in
+`docs/architecture/config/yang-config-design.md`). `Model.setError` writes an
+error whose text holds a newline whole into the viewport, and
+`Model.feedbackLine` puts only its first line on row 1, after `Error: `. The
+operator reads the problem where every error appears and the fix in full
+above it, and the prompt row stays where the view counted it.
+
+A refused commit splits the same way: row 1 carries the header (how many
+errors and warnings block the commit), and the viewport carries the header
+and then each issue as its own block of lines, each ending with its `fix:`
+line (`CommitRefusal`).
+
+<!-- source: internal/component/cli/model_render.go -- setError, feedbackLine -->
+<!-- source: internal/component/cli/model_commands_commit.go -- CommitRefusal, commitValidationRefusal -->
+
+## A fix is framed for where the operator types it
+
+A fix is the exact text the operator types, so it depends on where they type
+it. The editor's refusals carry the command they propose as a
+`cli.FixCommand` (the verb, the position its words are relative to, the
+words), and `cli.FrameFix` writes it for the operator's position, once, for
+every editor surface (the SSH editor, `ze config edit`, the web terminal and
+the web CLI bar):
+
+| Operator's position | Fix line |
+|---------------------|----------|
+| the position the command's words are relative to | the command as typed, corrected: `fix: set session capability route-refresh require` inside `edit bgp peer peer1` |
+| the root | the command from the root: `fix: set bgp peer peer1 session capability route-refresh require` |
+| any other context | `top`, then the command from the root: `fix: top set bgp peer peer1 session capability route-refresh require` |
+
+`top <command>` runs one command as if at the root and leaves the operator
+where they were, so a `top set ...` line is exact from any position. A
+refused `set`, `insert`, `rename` or `copy` keeps the form the operator typed
+(`FramedSetRefusal`, `FramedKeyRefusal`, `FramedWordRefusal`); a commit
+refusal names the leaf from the root, behind `top` inside a context. A web
+form and the commit modal hold no position, so their fix is the command from
+the root. The position a fix is framed for is the one the operator stands at
+(`Model.operatorPosition`), never the root a `top` line ran at.
+
+<!-- source: internal/component/cli/fix_frame.go -- FixCommand, FrameFix, FramedSetRefusal -->
+<!-- source: internal/component/cli/key_refusal.go -- FramedKeyRefusal, FramedWordRefusal -->
+<!-- source: internal/component/cli/model_commands.go -- cmdTop -->
+<!-- source: internal/component/cli/model.go -- operatorPosition -->
+
 ## A value carries no marker
 
 State is a field or a column. It is never a character glued to a value: no `*`,

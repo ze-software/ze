@@ -248,12 +248,16 @@ and ends with the command that fixes it:
 ```text
 bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
 route-refresh accepts only these values:
-  enable   ...
-  disable  ...
-  require  ...
-  refuse   ...
+  enable   Advertise the capability; no enforcement
+  disable  Do not advertise the capability; no enforcement
+  require  Advertise the capability; refuse the session when the peer does not offer it
+  refuse   Do not advertise the capability; refuse the session when the peer offers it
 fix: set bgp peer peer1 session capability route-refresh require
 ```
+
+The same refusal reads the same on every surface; the range, length, pattern
+and union forms are in
+[Value refusals](../architecture/config/yang-config-design.md#value-refusals).
 
 A form or the commit modal holds no editor position, so its fix is the `set`
 from the root. The terminal and the CLI bar frame the fix for the position the

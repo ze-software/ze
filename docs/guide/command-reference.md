@@ -120,6 +120,25 @@ ze cli -c "show config validation <config-file> | json"   # the same verdict as 
 
 Exit codes: 0 = valid, 1 = invalid, 2 = file not found.
 
+A value the schema does not accept (outside an enumeration, a range, a length
+or a format, a list key included) is refused with the line, the setting's full
+path, the value, the accepted values with their help or the bounds or the
+format in words, a closest match when one is close, and a last line that is
+the file line to write:
+
+```text
+line 11: ospf interfaces interface eth0 cost: "0" is outside the accepted range
+cost accepts a value in 1..65535
+fix: cost <1..65535>;
+```
+
+In a set-format file the fix is the `set` line, corrected. In the JSON form
+each such refusal is one diagnostic whose `code` names its kind
+(`config-yang-enum`, `config-yang-range`, `config-yang-length`,
+`config-yang-pattern`) and whose `fix` holds the fix line. Every kind, with
+examples: [Value refusals](../architecture/config/yang-config-design.md#value-refusals).
+<!-- source: internal/component/config/cli/cmd_validate.go -- refusalDiagnostic, yangErrorCode -->
+
 Validation includes the commit-time backend capability gate: a config whose
 active `backend` leaf does not implement a feature it uses (e.g. `backend vpp`
 with a `bridge`, `tunnel`, `wireguard`, `veth`, or `mirror` entry) is
@@ -184,6 +203,17 @@ ze config activate <file> <path>    # Clear the inactive flag on a node
 `deactivate` and `activate` accept any node type: leaf, container, list entry,
 or leaf-list value. The deactivated node round-trips through save/load and is
 skipped at apply time. See `docs/guide/config-deactivate.md`.
+
+Inside the editor (`ze config edit`, the SSH session, the web terminal and the
+web CLI bar), `top` alone moves to the root, and `top <command>` runs that one
+command as if at the root and leaves you where you are: `top set bgp router-id
+192.0.2.9`, `top show`, `top show | errors`, `top delete <path>`,
+`top run <command>`, `top load terminal relative merge`. Only a command that
+moves you keeps its move, so `top edit bgp` goes to `bgp`. A fix line the
+editor prints inside an `edit` context reads `top set <full path> ...`, which
+is exact from any position. The editor commands are in
+[Configuration Editor](config-editor.md#editor-commands).
+<!-- source: internal/component/cli/model_commands.go -- cmdTop, lineBehindTop -->
 
 **Storage:**
 

@@ -468,18 +468,19 @@ substatement, and Ze speaks it when that restriction refuses a value.
 
 RFC 7950 Section 7.5.4.1: "If the constraint evaluates to "false", the string is passed as <error-message> in the <rpc-error> in NETCONF."
 
-On the tree walk the message is the why line of the value refusal ("Value
-refusals" below), and `Message` keeps the text in this table. The parsers and
-the command argument refusal keep what was refused and add the module
-author's reason and fix:
+On every path (the tree walk, the parsers, the `set` path and the command
+argument refusal) the message is the why line of the value refusal ("Value
+refusals" below), in place of the generic `<leaf> accepts ...` line; the
+problem line and the fix line stay as they are. The tree walk's `Message`
+field also keeps the older text, which `speakConstraintMessage` writes:
 
-| Restriction | The refusal the operator reads |
-|-------------|--------------------------------|
+| Restriction | The tree walk's `Message` |
+|-------------|---------------------------|
 | `range` | the out-of-range text, then `: ` and the message |
 | `length` | the length text, then `: ` and the message |
 | `pattern` | `invalid value "<value>": ` and the message, with no regular expression |
 
-A restriction with no `error-message` keeps its generic text. goyang parses the
+A restriction with no `error-message` keeps its generic why line. goyang parses the
 statement but drops it from the resolved type, so
 `LeafConstraintMessages` reads it from the type statements: the leaf's own
 type, a typedef it derives from, or a union member. Along a typedef chain a
@@ -509,7 +510,8 @@ IS-IS `system-id` pattern and `zt:vlan-id` are the worked examples.
 <!-- source: internal/component/config/leaf_value.go -- validateLeafPatterns, validateLengths, MultiLeafNode.memberLeaf -->
 <!-- source: internal/component/config/yang_schema.go -- yangToNodeOfAnyOS, yangToLeaf, unionMembersFromType -->
 <!-- test: internal/component/config/leaflist_pattern_message_test.go TestLeafListPatternRefusalSpeaksTheMessage -->
-<!-- source: internal/component/command/argvalidate.go -- refusalWithMessage -->
+<!-- source: internal/component/config/yang/refusal.go -- attachRefusal, refusalFacts.why -->
+<!-- source: internal/component/command/argvalue.go -- rangeFault, lengthFault, patternFault -->
 
 #### Value refusals
 
@@ -527,6 +529,78 @@ reference, cardinality, unknown) holds none and keeps
 | problem | `<path>: "<value>" is not an accepted value`, ` (did you mean X?)` when one value is close | `... is outside the accepted range` | `... is outside the accepted length (N characters)` | `... is not in the accepted format` |
 | why | `<leaf> accepts only these values:`, then one line per value in declared order with its `ze:help` | `<leaf> accepts a value in <bounds>` | `<leaf> accepts <bounds> characters` | `<leaf> accepts <format>` |
 | fix | `set <path> <suggestion>`, else the alternation `<a\|b\|c>` | `set <path> <bounds>` | `set <path> <bounds characters>` | `set <path> <typedef-name>` or `<value>` |
+
+This section is the one description of the refusal; the operator guides and
+the other architecture pages link here rather than restate it. What
+`ze config validate` prints for a mistyped enum value in a hierarchical file
+(`test/parse/enum-refusal-proposes-valid-values.ci`):
+
+```text
+line 18: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+route-refresh accepts only these values:
+  enable   Advertise the capability; no enforcement
+  disable  Do not advertise the capability; no enforcement
+  require  Advertise the capability; refuse the session when the peer does not offer it
+  refuse   Do not advertise the capability; refuse the session when the peer offers it
+fix: route-refresh require;
+```
+
+A value close to no accepted value (`banana`) gets no hint, and its fix is the
+alternation: `fix: route-refresh <enable|disable|require|refuse>;`. Close
+means `suggest.Correction`: within one edit for a value of up to four
+characters, within a third of its length beyond. A range, a length and a
+pattern read the same way (`test/parse/range-length-pattern-refusal.ci`):
+
+```text
+line 11: ospf interfaces interface eth0 cost: "0" is outside the accepted range
+cost accepts a value in 1..65535
+fix: cost <1..65535>;
+```
+
+```text
+line 3: l2tp shaper default-rate: "fast" is not in the accepted format
+default-rate accepts Traffic rate string (for example 10mbit, 100kbit, 1gbps)
+fix: default-rate <rate>;
+```
+
+A union lists the values of its enumeration members, then names its other
+member types, and the alternation names them too
+(`test/parse/enum-refusal-union.ci`):
+
+```text
+line 9: bgp peer peer1 connection local ip: "autoo" is not an accepted value (did you mean auto?)
+ip accepts one of these values:
+  auto  Let the operating system choose the source address of the connection.
+or a value of type ip-address
+fix: ip auto;
+```
+
+The problem and the why are the same on every surface. Only the head of the
+first line and the fix line change, each framed for where the operator types
+the correction:
+
+| Surface | Head of the first line | Fix line |
+|---------|------------------------|----------|
+| `ze config validate` of a hierarchical file | `line N: ` | the file line, `route-refresh require;`; a refused list key `redistribute <connected\|static\|kernel\|bgp\|isis> { ... }` |
+| `ze config validate` of a set-format file | `line N: ` | the line with the value replaced, `set ospf interfaces interface eth0 cost <1..65535>` |
+| `ze start` and a reload of a file | `error: load config: parse config: line N: `, `reload error: reload: parse config: line N: ` | the file line |
+| SSH editor and web terminal `set`, `insert`, `rename`, `copy`; commit, `commit verify`, `commit confirmed` | none | `FrameFix`: the command as typed, corrected, at the position it was typed at; `set <full path> ...` from the root; `top set <full path> ...` inside an `edit` context |
+| Web forms, the add form, the commit modal | none | `set <full path> ...` from the root |
+| REST, gRPC and gNMI commit (`ValidateContent`) | `config validation failed:`, then each refusal as a block indented two spaces; gNMI answers `Aborted` with `commit: ` before it | each block's own `set <full path> ...` from the root |
+| gNMI `Set` update whose list key the session refuses | none; the status is `InvalidArgument` and the message is the refusal whole | the refusal's own fix line, unchanged |
+| Operational command argument | the command path and the argument | the whole command restated ("YANG-Typed Command Arguments" in `docs/architecture/api/commands.md`) |
+
+`show config validation <file> | json`, the JSON form of `ze config validate`,
+carries the refusal as one diagnostic: `code` names the kind
+(`config-yang-enum`, `config-yang-range`, `config-yang-length`,
+`config-yang-pattern`), `message` is the refusal without its `line N:`, `line`
+holds the line, `path` the walk's slash path, `expected` the accepted values
+or bounds, `actual` the refused value (absent on a secret leaf), and `fix`
+the fix line alone, with no label. A parser refusal and a tree walk refusal of
+the same leaf carry the same fields.
+<!-- source: internal/component/config/cli/cmd_validate.go -- refusalDiagnostic, refusalFix, walkFormPath, yangErrorCode, ValidateContent, sessionFixRefusal -->
+<!-- source: internal/component/cli/fix_frame.go -- FrameFix, FramedSetRefusal -->
+<!-- source: internal/component/gnmi/set.go -- applyUpdate, updateRefusal -->
 
 The path is the setting path as an operator types it, words separated by
 spaces, list keys included. A declared `error-message` is the why line in

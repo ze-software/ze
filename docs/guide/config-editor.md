@@ -155,12 +155,17 @@ answer with the same text, the CLI bar as an error notification, and a
 refused commit leaves your changes pending there too.
 
 A `set` or `insert` the schema refuses (a value outside an enumeration, a
-range, a length or a format) names the setting path, lists what the leaf
+range, a length or a format), and a `rename` or `copy` whose new key the list
+refuses, names the setting path, lists what the leaf
 accepts, and ends with the command you typed, corrected, in the form you typed
 it: relative inside an `edit` context, and behind `top` when you typed it
 behind `top`. A refusal of several lines is shown whole in the viewport, and
-the line above the prompt keeps its first line.
-<!-- source: internal/component/cli/fix_frame.go -- FrameFix, framedSetRefusal -->
+the line above the prompt keeps its first line. Inside `edit bgp peer peer1`,
+a mistyped `set session capability route-refresh requre` ends with
+`fix: set session capability route-refresh require`.
+The refusal's full shape, for every kind of value and every surface, is
+[Value refusals](../architecture/config/yang-config-design.md#value-refusals).
+<!-- source: internal/component/cli/fix_frame.go -- FrameFix, FramedSetRefusal -->
 <!-- source: internal/component/cli/model_render.go -- setError, feedbackLine -->
 <!-- source: internal/component/cli/validator.go -- ConfigValidationError.Text, refusalIssue, missingFieldIssue -->
 <!-- source: internal/component/cli/model_commands_commit.go -- CommitRefusal, commitValidationRefusal, WithSkippedWarnings, cmdCommitVerify -->
