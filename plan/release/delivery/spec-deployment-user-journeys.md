@@ -2,17 +2,17 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | cli, tooling, docs |
 | Priority | P2 |
 | Release reason | Essential installation, appliance boot, and onboarding paths must work before users can evaluate a release. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | Remaining live netlab and source-bound bundle proofs blocked by concurrent IKE edits |
+| Phase | Completed deployment documentation and website updated; resume live netlab and source-bound bundle proofs |
 | Handoff | `tmp/session/2026-11-10-225434/scratch/deployment-runtime-handoff.md` |
 | Updated | 2026-11-12 |
 
-## Blocker
+## Last verification blocker
 
 Actual own-kernel rerun `68552` finished before the topology could start. The
 kernel check and fresh Linux Ze build passed, then `runContainerLab` reached
@@ -43,13 +43,38 @@ start another blind compile loop or change foreign code to force this proof.
 The committed `b914eb1a0b` initial-method fix has unit and post-commit compile
 PASS but remains unverified live. Final local canonical site build `53669`
 and check `13463` passed after that commit's guide paragraph. No own jobs
-remain pending. Main does not plan another code build while IKE edits continue.
+remain pending from that attempt. The owner has since requested documentation
+and website updates for completed paths, followed by continued verification.
+The recorded failures remain historical evidence until fresh runs establish
+the current result.
+
+## Documentation continuation, 2026-11-12
+
+The resumed documentation phase added the deployment chooser and completed-proof
+limits in `docs/guide/ze-install.md`, device-targeted SSH checks after updates
+and recovery in `docs/guide/appliance.md`, and matching homepage/navigation copy
+in `website/data/audience.json` and `website/data/nav.json`. Selected patches
+exclude other sessions' edits in the shared guide files. Independent review
+found one missing systemd producer reference; that reference was added and the
+narrow re-review was clear.
+
+JSON validation passed. The fresh named tool build passed in `16648` after the
+earlier activity-options and IKE declarations appeared. Canonical site build
+`67925` and check `38826` passed with 24 producers and 1,107 declared/written
+routes. The generated HTML and Markdown contain the chooser, explicit appliance
+SSH checks, updated deployment descriptions and pending netlab status.
+
+`doc check all` ran twice: the final run `31368` still failed on four digest
+references to the missing generated `ai/PACKAGE-MAP.md`. Native regeneration
+had succeeded, but the file was absent again by the final check. Eight reported
+symbol warnings belong to other documentation; none names these two changed
+guides. No global documentation pass, public publication or release is claimed.
 
 ## Current acceptance evidence, 2026-11-12
 
 This section records the latest results reported by the main thread and
 supersedes the historical execution notes below. The specification remains
-blocked with the full scope open. Passing source, unit or filesystem-context checks is not a
+in progress with the full scope open. Passing source, unit or filesystem-context checks is not a
 substitute for the outstanding actual deployment proofs.
 
 | Criterion | Current evidence | Remaining proof or limit |
@@ -62,10 +87,10 @@ substitute for the outstanding actual deployment proofs.
 | AC-6: live containerlab/netlab | Initial-method correction `b914eb1a0b` explicitly selects `clab.node_config.initial` value `:sh`, with production export regression, accurate guide and narrow review clear. Semantic RED `2438` preceded focused GREEN `49686`; full package `61909` and all-five-flavor post-commit `67612` passed. | Actual `68552` failed before topology startup while staging fresh Linux LE on foreign IKE compile errors. Own-kernel check and fresh Linux Ze passed; outer VM stopped and left nothing behind, lab exit 1. New method remains unverified live; no protocol/route/traffic PASS exists. The failing IKE source has since changed, so the retained log is not a claim that identical errors persist. |
 | AC-7: installer ISO and installed disk | `66cc2f7abb` landed the ISO corrections. Actual native amd64/KVM proof passed optical boot, selected-disk installation, clean poweroff, unchanged extra disk, installed-disk boot and authenticated SSH/version. Final module-bound ISO assembly passed. | This is amd64/KVM evidence; arm64 boot was not run. The retained ISO image does not establish OTA credentials or update recovery. |
 | AC-8: appliance image update and recovery | OTA implementation landed in `d5ac4d3249`. Actual run `19822` passed: two images, changed runtime after update, retained persistent UUID/configuration/login/hostname, previous-slot recovery and owned cleanup. The committed source passed all-five-flavor compilation. | This actual OTA/recovery proof supersedes the earlier failed host-push run `44967`; that failure remains historical evidence below. It does not extend the amd64 proof to arm64. |
-| AC-9: website deployment journeys | Final canonical local build `53669` and check `13463` exited 0 after the `b914eb1a0b` guide change: 24 producers, 1,107 declared published routes and 1,107 written routes in sibling `../gh-pages`. | Baseline stale-supported warnings persisted; no feature-proof refresh occurred. “Published routes” is a local inventory term; no remote publication or push occurred. |
+| AC-9: website deployment journeys | Resumed completed-path documentation, homepage and navigation updates passed canonical local build `67925` and check `38826`: 24 producers and 1,107 declared/written routes in sibling `../gh-pages`. Generated HTML and Markdown were inspected. | Baseline stale-supported warnings persisted; no feature-proof refresh occurred. No remote publication or push occurred; the broad doc gate's generated-index failure is recorded above. |
 | AC-10: identified preview delivery | Preview and phase-binding commits passed units, review and committed compilation; a binary-only bundle passed earlier. Two image-bundle attempts refused source changes. Last source-bound attempt `69132` failed on foreign IKE `echoRequestType`; that producing function has since changed. | No fresh source-bound attempt started amid the repeated IKE compile changes; no complete current bundle passed. Runtime image `252f5936…` remains explicitly source-unbound. No public artifact, release, push or publication is claimed. |
-| AC-11: production-evaluator guidance | Remote SSH/trust work landed in `92257b5347`; earlier site/docs work distinguishes pre-release and demonstrated behavior. | Final documentation consistency and outstanding actual deployment evidence remain required. The work does not declare Ze production-ready. |
-| Source/runtime troubleshooting | Actual `68552` failed staging Linux LE on foreign IKE doctor-code names after kernel/fresh-Ze success; cleanup succeeded. Source has already changed to qualified diagnostic references. Earlier IKE/config failures remain retained evidence of the changing checkout. | Finish the owning refactor before another actual attempt; do not claim the old fault remains current, repair foreign code, weaken proofs or close the specification. See the exact blocker and clearance conditions above. |
+| AC-11: production-evaluator guidance | The resumed chooser and update guidance distinguish demonstrated paths, tested architecture, source-unbound container evidence, pending live lab proof and unavailable public images. Independent source review cleared the selected guide and website changes. | Outstanding actual deployment evidence remains required; the work does not declare Ze production-ready. |
+| Source/runtime troubleshooting | Historical actual `68552` failed staging Linux LE during foreign IKE edits, with successful cleanup. In the resumed phase, a fresh named tool build first failed on activity/IKE declarations, then passed after those producers changed. | Documentation and site updates are complete locally. Fresh actual netlab and source-bound bundle checks remain required; older failures do not establish the current source result. |
 
 Cross-cutting changes also landed: dependency-gate correction `b3da8d6b01`,
 coordination-lock correction `9e3c0ab9c0`, and contention-factor correction
@@ -103,8 +128,8 @@ runtime job built fresh Linux Ze/LE and both images, passed Compose persistence,
 then exposed the netlab namespace failure. Do not repeat source-bound builds
 blindly. Since that failure, the IKE producing function has changed and no
 longer references `echoRequestType`. That does not prove the changing IKE tree
-is coherent; no new attempt has started or passed, and main will not repeat
-code builds while those edits continue.
+is coherent. The resumed phase subsequently built the current named tool and
+updated the site; the fresh source-bound bundle result remains owed.
 The committed phase binding validates the full selected source after native
 binary/archive work, before image work, then compares each staged runtime
 recipe with its captured hash before Docker builds it. Later source edits do
@@ -136,6 +161,10 @@ review records remain history; no final clean Review Gate or overall completion
 is recorded here.
 
 ## Task
+
+Owner continuation, 2026-11-12:
+
+> ok update the documentation and website for the part we have completed and then continue
 
 Owner request, 2026-11-11:
 

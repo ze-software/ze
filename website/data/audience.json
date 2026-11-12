@@ -5,7 +5,7 @@
             "label": "Lab",
             "category": "routing",
             "chips": ["netlab", "containerlab", "Docker", "FRR", "BIRD", "GoBGP"],
-            "body": "Use supplied netlab templates for a three-node topology under containerlab. The guide distinguishes template checks from live routing proof. The BGP interop harness runs Ze beside FRR, BIRD, and GoBGP and checks routes through each peer's own CLI.",
+            "body": "Use supplied netlab templates for a three-node topology under containerlab. Live netlab routing and traffic validation is still pending. The separate BGP interop harness runs Ze beside FRR, BIRD, and GoBGP and checks routes through each peer's own CLI.",
             "link": {"href": "labs/netlab/", "label": "Run a topology", "sublabel": "netlab and containerlab"}
         },
         {
@@ -13,7 +13,7 @@
             "label": "Daemon",
             "category": "operate",
             "chips": ["Existing Linux", "systemd-ready"],
-            "body": "Install Ze on an existing Linux host with its own command line. The Ubuntu guide covers the build, private store, systemd service, authenticated operator access and removal. The host keeps its existing interface configuration.",
+            "body": "Install Ze on an existing Linux host with ze install, then connect through authenticated management. Repeat installation preserves configuration and credentials. Ordinary removal keeps that state, while explicit purge removes it. The guide covers the source build and systemd service. The host keeps its existing interface configuration.",
             "link": {"href": "guides/ubuntu-build-install/", "label": "Install on Linux", "sublabel": "native daemon and systemd"}
         },
         {
@@ -21,7 +21,7 @@
             "label": "Container",
             "category": "platform",
             "chips": ["Docker", "Compose", "Persistent state"],
-            "body": "Build the deployment image, initialize its persistent volume, and run Ze with Compose. The guide covers management access, networking, capabilities, updates and removal. Lab tools use a separate image with a shell.",
+            "body": "Build the deployment image, initialize its persistent volume, and run Ze with Compose. Authenticate over SSH and commit configuration changes that survive container recreation on the same volume. The guide covers networking, capabilities, updates and removal. Lab tools use a separate image with a shell.",
             "link": {"href": "guides/docker/", "label": "Run a container", "sublabel": "deployment and lab images"}
         },
         {
@@ -29,8 +29,8 @@
             "label": "Appliance",
             "category": "platform",
             "chips": ["gokrazy image", "Read-only root filesystem"],
-            "body": "Build an immutable gokrazy system for QEMU, Proxmox or dedicated hardware. It has a read-only root, persistent configuration and process supervision. Source builds produce disk images and installer ISOs; no public image release is available yet.",
-            "link": {"href": "guides/appliance/", "label": "Build and boot", "sublabel": "VM, ISO, PXE or Ventoy"}
+            "body": "Build an immutable gokrazy system for QEMU, Proxmox or dedicated hardware. It has a read-only root, persistent configuration and process supervision. The guide covers ISO installation, authenticated SSH, image updates and previous-slot recovery. Source builds produce disk images and installer ISOs. No public image release is available yet.",
+            "link": {"href": "guides/appliance/", "label": "Build and install", "sublabel": "VM, ISO, PXE or Ventoy"}
         }
     ],
     "who": [

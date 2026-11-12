@@ -1,6 +1,46 @@
 # Installation
 
-Ze provides commands for local installation, remote PXE provisioning, and appliance ISO installer media.
+Choose a deployment path for the environment you want to evaluate. Ze is
+pre-release software; start with an isolated lab.
+
+## Choose a deployment path
+
+| Goal | Guide | Success check |
+|------|-------|---------------|
+| Exchange routes on one Linux host | [Two-peer quickstart](quickstart.md#local-two-peer-lab) | Both peers establish and each received RIB contains the other peer's prefix. This checks the control plane. |
+| Run a Linux service | [Local installation](#local-installation) and [build prerequisites](ubuntu-build-install.md) | The service is active, authenticated management connects, and repeat installation retains configuration and credentials. |
+| Run a daemon in Docker | [Docker Compose](docker.md) | A committed configuration change and the same login survive container recreation on the same named volume. |
+| Install a VM or dedicated router | [Appliance build](appliance.md#build-an-image) and [ISO installation](#appliance-iso-install) | After removing installer media, the written disk boots and authenticated SSH reports the selected image. |
+| Run a protocol topology | [netlab and containerlab](netlab.md) | The live check must pass adjacencies, kernel routes, traffic and teardown. Live verification remains pending. |
+<!-- source: examples/quickstart/r1.conf -- local lab endpoints and originated prefix -->
+<!-- source: examples/quickstart/r2.conf -- local lab endpoints and originated prefix -->
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+<!-- source: docker/compose.yaml -- named volume and bare start -->
+<!-- source: internal/le/test/qemu/install_iso.go -- executeISO -->
+<!-- source: internal/le/test/netlab/live.go -- RunLive -->
+
+Completed deployment checks covered native systemd installation and removal,
+two-peer route exchange, and container configuration retention after recreation.
+The container check used a prepared runtime image without verified source
+identity; a complete preview bundle with binaries and container exports remains
+unverified. Build instructions and private preview preparation are available;
+these pages do not provide a public release download.
+<!-- source: internal/test/fixture/register_native_install.go -- nativeInstallLifecycle -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.installSelected, nativeService.Uninstall -->
+<!-- source: internal/plugins/systemd/cmd_uninstall.go -- serviceRuntime.cmdUninstall -->
+<!-- source: internal/test/fixture/deployment_quickstart.go -- deploymentQuickstart -->
+<!-- source: docker/compose.yaml -- named volume and bare start -->
+<!-- source: docker/Dockerfile.runtime -- prepared runtime images -->
+<!-- source: internal/le/build/preview/preview.go -- prepare -->
+
+The appliance installation and update checks passed on amd64 with KVM. They
+covered selected-disk installation, preservation of an extra disk, installed-disk
+SSH access, and an image update followed by recovery to the previous root slot.
+Configuration and login survived the update and recovery. Arm64 boot and physical
+hardware installation remain unverified by these checks. See
+[appliance updates](appliance.md#updating) for retention and recovery checks.
+<!-- source: internal/le/test/qemu/install_iso.go -- executeISO -->
+<!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA -->
 
 ## Local Installation
 

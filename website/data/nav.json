@@ -7,11 +7,11 @@
                 [
                     {"label_only": "Install"},
                     {"href": "guides/quickstart/", "icon": "🚀", "title": "Quickstart", "desc": "Two local BGP peers and a received route", "feature": true},
-                    {"href": "guides/ze-install/", "icon": "💿", "title": "Install Ze", "desc": "Run Ze on Linux or as a bootable appliance"},
-                    {"href": "guides/ubuntu-build-install/", "icon": "\ud83d\udc27", "title": "Linux installation", "desc": "Build, install, manage and remove the daemon"},
-                    {"href": "guides/docker/", "icon": "📦", "title": "Docker", "desc": "Initialize persistent state and run with Compose"},
-                    {"href": "guides/appliance/", "icon": "💿", "title": "VM and gokrazy", "desc": "Build and boot a disk image or installer ISO"},
-                    {"href": "labs/netlab/", "icon": "🧪", "title": "containerlab and netlab", "desc": "Run Ze as a netlab daemon node in the supplied three-node topology"}
+                    {"href": "guides/ze-install/", "icon": "💿", "title": "Install Ze", "desc": "Choose a Linux, Docker or appliance deployment"},
+                    {"href": "guides/ubuntu-build-install/", "icon": "\ud83d\udc27", "title": "Linux installation", "desc": "Install, reinstall or remove Ze with its own CLI"},
+                    {"href": "guides/docker/", "icon": "📦", "title": "Docker", "desc": "Keep configuration and login across container recreation"},
+                    {"href": "guides/appliance/", "icon": "💿", "title": "VM and gokrazy", "desc": "ISO installation, image updates and previous-slot recovery"},
+                    {"href": "labs/netlab/", "icon": "🧪", "title": "containerlab and netlab", "desc": "Three-node templates with live routing proof still pending"}
                 ],
                 [
                     {"label_only": "Learn"},

@@ -423,6 +423,34 @@ interrupted boot write. A partition-layout change requires reinstalling the
 disk image rather than an OTA push.
 <!-- source: internal/appliance/push_image.go -- bounded boot/root/MBR payloads -->
 
+Before the update, record the running version and archive the active configuration
+using the [lifecycle guide](lifecycle.md). Keep the named appliance's secrets and
+the previous image. After reboot, query the appliance through its SSH management
+endpoint, using its provisioned address, SSH port and credentials:
+
+```bash
+ssh -p <ssh-port> <username>@<device-address> "show version --extended"
+ssh -p <ssh-port> <username>@<device-address> "show doctor"
+```
+<!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
+<!-- source: internal/component/cmd/show/show.go -- handleShowVersion -->
+<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor -->
+
+Compare the returned version with the selected image, then verify the hostname,
+committed configuration, peers and routes. A completed upload alone does not
+establish that the new runtime is reachable or routing correctly.
+<!-- source: internal/appliance/cmd_push.go -- pushOne, doPushUpdater -->
+<!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA -->
+
+For a `--testboot` update, a subsequent reboot selects the previous root slot.
+Check the version and retained configuration again after recovery. Ordinary
+`push` selects the new root persistently. Both modes leave the persistent store
+in place; a root-slot recovery does not undo configuration edits. The
+[installation guide](ze-install.md#choose-a-deployment-path) states the architecture
+and deployment checks completed so far.
+<!-- source: internal/appliance/cmd_push.go -- doPushUpdater -->
+<!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA -->
+
 ## Architecture notes
 
 ### Internal plugins only
