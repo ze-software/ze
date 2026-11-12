@@ -1,4 +1,4 @@
-// Design: plan/post-release/features/spec-route-policy-0-umbrella.md -- Key Design Decisions, the Loc-RIB route evaluator
+// Design: docs/architecture/rib/unified-locrib.md -- the in-process route evaluator a filter type runs at the gate
 // Related: fields.go -- the field check a RIB chain passes beside the evaluator check
 // Related: rib_compile.go -- the compiler that turns the attachments' config into a snapshot
 //

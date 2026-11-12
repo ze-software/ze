@@ -8,9 +8,11 @@ package locrib
 // best Path. Best is stored as an index, not a pointer, so mutating the
 // underlying slice does not leave a dangling reference.
 //
-// PathGroup is stored by VALUE in store.Store; Manager uses store.Modify to
-// mutate in place. The Paths slice is heap-allocated, so in-place append
-// works across Modify calls as long as the backing array is retained.
+// PathGroup is stored by VALUE in store.Store. Remove and Reselect mutate it
+// in place through store.Modify; insert reads it with Lookup and writes it
+// back with Insert, under the same shard lock. The Paths slice is
+// heap-allocated, so an append keeps working across both as long as the
+// backing array is retained.
 type PathGroup struct {
 	// Paths are the per-source route contributions for this prefix.
 	// Typical cardinality is 1-3 (one or two protocols per prefix).

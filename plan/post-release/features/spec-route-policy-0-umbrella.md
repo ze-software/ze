@@ -8,38 +8,29 @@
 | Release reason | New capability: a protocol-neutral route policy and a gate on every source entering the Loc-RIB. No shipped behavior is defective without it; the two defects it owns (journal rows below) are post-release quality, not release blockers. |
 | RFC gaps | - |
 | Depends | `spec-fixit-redistribution-chain-drops-silently` (closed 2026-10-31; phase 3 needs a working redistribution chain to prove anything); `plan/release/fixes/spec-single-owner-reload-reconcile.md` (its AC-9 tests the redistribute evaluator phase 3 replaces); phase 4 sequenced with `spec-filter-wire-0-umbrella`, which implemented it and is closing |
-| Phase | 4/4 (phases 1-3 landed and reviewed clean after three rounds; phase 4 is the filter-wire redesign, which `spec-filter-wire-0-umbrella` implemented to the owner's two-path, parse-on-demand requirements, A-6 confirmed, and is closing) |
+| Phase | 4/4 (phases 1-3 landed and reviewed clean after three rounds; phase 4 is the filter-wire redesign, which `spec-filter-wire-0-umbrella` implemented and closed at 54c5e8af0c; the 2026-11-12 closure, review round 4, handed back three ISSUE findings, see Blocker) |
 | Handoff | verify |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Blocker
 
-A-4 still owes the owner's matched before/after Mac performance evidence.
-The implementation commit `fb94aa0497` explicitly records: "Owed: A-4 perf
-on the Mac (locrib shard_bench_test.go)." No matching result was found in
-the spec or the committed owner benchmark records on 2026-11-10. The
-filter-wire A-6 record measures its SDK transport workload, not Loc-RIB
-insertion, and cannot clear this obligation.
+The A-4 blocker of 2026-11-10 is cleared: the owner's matched Mac run is
+`plan/records/route-policy-0-a4-mac.bench.txt`, and he accepted its cost
+(Assumptions, A-4). The 2026-11-12 closure review (round 4, Review Gate
+below) found three ISSUEs. Each needs implementation, so the spec goes
+back to `/ze-implement`:
 
-The affected producer is `internal/core/rib/locrib/manager.go::RIB.insert`,
-which calls `policy.go::admit` and stores the enlarged `candidate.go::Path`.
-`policy_test.go::TestLocRIBInsertNoChainZeroAlloc` proves allocation counts
-for updates to an existing prefix; it does not measure throughput or prove
-the promised before/after result. The existing harness is
-`shard_bench_test.go::BenchmarkShardedInsertSerial`,
-`BenchmarkShardedInsertParallel` and
-`BenchmarkShardedManyWritersDistinctShards`. Compare the same workload on
-the owner's Mac before the gate (`fb94aa0497^`) and after (`fb94aa0497`),
-preserving revisions, Go version, hardware and complete output. Reconcile
-later producer changes before treating that pair as evidence for current
-HEAD. This closure ran no performance measurement.
+| # | What blocks | Producer | What clears it |
+|---|-------------|----------|----------------|
+| B-1 | No daemon test proves a Loc-RIB import chain on static, connected or the central `rib filter import` chain, or `show rib candidates` outside the two interop scenarios. `test/plugin/rib-import-central-bogons.ci` (AC-7, story 2, Deliverables, Integration "Functional test for new RPC/API") and `test/plugin/static-import-filter-distance.ci` (AC-6) were never committed: dfa96ffa2e lists them as owed drafts under the ignored `test/draft/plugin/`, and neither file exists. AC-11 is proven by units only | `internal/core/rib/locrib/policy.go` `admit`, reached from `internal/plugins/static/locrib.go` and `internal/component/sysrib/candidates.go` `showRIBCandidates` | Write and promote both `.ci` tests through `/ze-test` (the static one needs Linux), with AC-11's in-process static case in the static test; run each green, red with `admit`'s reject ignored, green |
+| B-2 | A-2 is broken. When sysrib runs forked, `locrib.Default()` is nil and sysrib takes the EventBus input, whose BGP bests never pass the central chain, so `rib filter import` does not judge them. A-2 named the fix: delete that input or gate it | `internal/component/sysrib/sysrib.go` `run` (the `ribevents.BestChange.Subscribe` branch); `register.go` `runSysRIBPlugin` documents the forked case | Delete the EventBus input and refuse a forked sysrib with an operator error, or put the central chain on it, with a test that fails on the old path |
+| B-3 | Documentation Update Checklist rows 1 and 11 are unmet: no `features/` declaration for route policy, and `docs/comparison.md` has no per-protocol import and export policy row | `features/`, `docs/comparison.md` | Write the declaration (`docs/contributing/feature-maturity.md`) and the comparison row, each with source anchors |
 
-Clear this blocker with that matched owner evidence, or an explicit owner
-decision changing the performance obligation. The owner is away and asked
-that blocked specs be handed back while work continues on the next one.
-The final closure Review Gate and closing commits remain owed.
+The closure work that needs no implementation is done (Implementation
+Audit, Pre-Commit Verification). Round 5 reviews only the fixes for B-1 to
+B-3. It is the last round a session may spend.
 
 ### Independent closure findings retained
 
@@ -85,29 +76,24 @@ zero reseal refusals. These are source-audit updates, not new runtime or mutatio
 results. No code or test expectation changed. The fresh closure context checks
 these records with the main-thread RFC check before continuing.
 
-The closure review and closing commits have not run. The next pass also needs
-these record reconciliations:
+The 2026-11-12 closure reconciled the records this section listed:
 
-- AC-12, AC-13 and AC-14 status cells and their test-table cells are superseded
-  by the Phase 3 record below.
-- AC-17 can use the committed filter-wire closure at `0c3c86b319`, including
-  its BGP policy interop green/red/green evidence; reconcile the complete
-  promised functional population before marking it complete.
-- The owned `ze:filter` journal row is already fixed in code:
-  `policy.BuildRegistry` reads `config.ListNode.Filter`, which
-  `config.hasFilterExtension` supplies. Record the implementation provenance
-  when resolving that row.
-- AC-2's Ze syntax migration was removed by `e396a2e360` under the owner's
-  pre-release config decision. Reconcile its retired tests as changed scope
-  under that decision, not missing implementation.
-- Repoint the `Design` headers in `policy/fields.go` and `policy/rib.go` to
-  durable architecture documentation before removing this spec.
+| Item | Reconciled as |
+|------|---------------|
+| AC-12, AC-13, AC-14 cells | Rewritten from the Phase 3 record, in the AC table and the test tables |
+| AC-17 | Done through `spec-filter-wire-0-umbrella` AC-10 (Implementation Audit) |
+| `ze:filter` journal row | `fixed:` with dc6fb631f3, the commit that added `hasFilterExtension` and `BuildRegistry` |
+| AC-2 migration | Changed scope: e396a2e360 removed it under the owner's pre-release config rule, with a `Weakening-approved:` line per retired test |
+| `// Design:` headers | `policy/fields.go` names `docs/guide/route-policy.md`, `policy/rib.go` names `docs/architecture/rib/unified-locrib.md` |
 
 ## Mistake Log
 
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
 | approach | Earlier RFC audit evidence was assumed sufficient for closure | The changed interop checker no longer matched the RFC3101-2.4-5 audit pin | Main-thread RFC check on 2026-11-10 | Separate audit phase re-judged the seven tagged units; main thread stamped the verdict and resealed shifted records |
+| assumption | A-2: sysrib's EventBus input was assumed unreachable in a shipped build | It is the input a forked sysrib takes, and the central chain does not see it | Closure review round 4, reading `sysrib.go` `run` | Blocker B-2 |
+| assumption | A-5: the stage-1 `Attributes` declaration was to become the fields an external filter reads at every attachment | The route-evaluator decision (Key Design Decisions) refuses a `<plugin>:<filter>` at a Loc-RIB attachment, so no external declaration is read there; BGP chains carry it through filter-wire | Closure review round 4 | Deviation recorded under Implementation Summary |
+| approach | Phase 2 closed with two of its functional tests left as ignored drafts | `test/draft/plugin/` is ignored, so the drafts never reached git and no daemon test proves the static and central chains | Closure review round 4 (`git log --all` finds no commit of either file) | Blocker B-1 |
 
 ## Task
 
@@ -351,14 +337,14 @@ import, and is refused on connected import because connected carries no tag.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every Loc-RIB write passes through `(*RIB).insert`/`Remove`, forked plugins included | research; `dispatch_route.go` `applyRouteInstall` calls `InsertForward` | a producer bypasses the gate | grep for every caller of the locrib write methods in phase 2's wiring test, plus a test per producer | unvalidated |
-| A-2 | sysrib's second input (`ribevents.BestChange` when it has no Loc-RIB) is not reachable in any shipped build | research: sysrib.go subscribes to BestChange only without a Loc-RIB | routes reach the FIB around the gate | read sysrib startup; if reachable, delete that input or gate it (phase 2) | unvalidated |
-| A-3 | Filtering IGP routes from the local RIB is local policy and violates no requirement of RFC 2328, RFC 5340 or the IS-IS RFCs Ze implements, provided LSDB and flooding are untouched | Junos IS-IS/OSPF `import`; BIRD and FRR source read 2026-10-29 (Key Design Decisions, "Interop evidence") | an RFC MUST forbids it | implementation: read RFC 2328 Section 16 and RFC 1195 Section 3.10 text and quote; implementations: BIRD and FRR confirmed below | partly validated: BIRD and FRR confirmed, RFC text read owed in phase 2 |
-| A-4 | Adding three fields to `locrib.Path` keeps the insert path allocation-free | Path is value-typed; fields are scalars | Path grows past a cache line and the BGP full-table benchmark regresses | `./le perf` on Thomas's Mac before and after phase 2 (harness prepared, owner runs it) | unvalidated |
-| A-5 | `FilterRegistration.Attributes` can be generalised into the "fields this filter reads" declaration | research: stage-1 registration already declares attribute names | external plugins need a new registration field | phase 1 test over an external filter's declaration | unvalidated |
-| A-6 | No shipped filter type is named `route`, so sharing `policy` with policy routing cannot collide | the ten augmenting modules list their types | a name clash | phase 1 load test with both present | unvalidated |
+| A-1 | Every Loc-RIB write passes through `(*RIB).insert`/`Remove`, forked plugins included | research; `dispatch_route.go` `applyRouteInstall` calls `InsertForward` | a producer bypasses the gate | grep for every caller of the locrib write methods in phase 2's wiring test, plus a test per producer | confirmed: the RIB's only mutators are `Insert`, `InsertForward`, `Remove` and `Reselect`, and its store is unexported; the forked route-install path is `TestRouteInstallTagReachesGate` |
+| A-2 | sysrib's second input (`ribevents.BestChange` when it has no Loc-RIB) is not reachable in any shipped build | research: sysrib.go subscribes to BestChange only without a Loc-RIB | routes reach the FIB around the gate | read sysrib startup; if reachable, delete that input or gate it (phase 2) | broken: `sysrib.go` `run` subscribes to `ribevents.BestChange` when `locrib.Default()` is nil, which is the forked case; Blocker B-2 |
+| A-3 | Filtering IGP routes from the local RIB is local policy and violates no requirement of RFC 2328, RFC 5340 or the IS-IS RFCs Ze implements, provided LSDB and flooding are untouched | Junos IS-IS/OSPF `import`; BIRD and FRR source read 2026-10-29 (Key Design Decisions, "Interop evidence") | an RFC MUST forbids it | implementation: read RFC 2328 Section 16 and RFC 1195 Section 3.10 text and quote; implementations: BIRD and FRR confirmed below | confirmed: RFC 2328 Section 16 builds the OSPF routing table from the LSDB ("Using its attached areas' link state databases as input, a router runs the following algorithm, building its routing table step by step.") and RFC 1195 Section 3.10 says "The Dijkstra calculation must calculate routes to each distinct IP reachability entry."; neither text governs what the router installs locally afterwards. Ze's gate runs after SPF on the Loc-RIB, and interop `isis-import-policy-frr` proves the LSDB keeps and floods the hidden prefix |
+| A-4 | Adding three fields to `locrib.Path` keeps the insert path allocation-free | Path is value-typed; fields are scalars | Path grows past a cache line and the BGP full-table benchmark regresses | `./le perf` on Thomas's Mac before and after phase 2 (harness prepared, owner runs it) | confirmed, with a cost the owner accepted. What ran is not `./le perf`: it is the Loc-RIB shard benchmarks (`shard_bench_test.go` `BenchmarkShardedInsertSerial`, `BenchmarkShardedInsertParallel`, `BenchmarkShardedManyWritersDistinctShards`), which the gate commit fb94aa0497 named as owed, because they call the changed producer `manager.go` `RIB.insert` directly and nothing else. Record `plan/records/route-policy-0-a4-mac.bench.txt` (procedure `plan/records/route-policy-0-a4-procedure.md`): Apple M4 Max on battery, all three test binaries go1.27.3, ten interleaved rounds of 1000000 iterations, columns d04aabe5e0 (gate parent), fb94aa0497 (gate), c20d1efca7 (after dfa96ffa2e added `accountStored` to `upsert`). Single-writer insert costs about 17 ns more: 303.8 ns to 320.8 ns, +5.61% (p=0.000), and +5.86% at c20d1efca7. Parallel and distinct-shard inserts show no significant change. Allocations per insert fall by one in all three (1 to 0, 3 to 2, 2 to 1), with fewer bytes. Owner, 2026-11-12, asked whether that single-writer cost is accepted as the gate's price: "accept" |
+| A-5 | `FilterRegistration.Attributes` can be generalised into the "fields this filter reads" declaration | research: stage-1 registration already declares attribute names | external plugins need a new registration field | phase 1 test over an external filter's declaration | broken: superseded by the route-evaluator decision; `rib_compile.go` refuses a `<plugin>:<filter>` at a Loc-RIB attachment, and BGP chains read external declarations through filter-wire (Mistake Log) |
+| A-6 | No shipped filter type is named `route`, so sharing `policy` with policy routing cannot collide | the ten augmenting modules list their types | a name clash | phase 1 load test with both present | confirmed: `TestPolicyRegistryDiscoversByMarker` and `test/parse/policy-root-shared-with-pbr.ci` |
 | A-8 | IS-IS routes carry no tag, because Ze implements no RFC 5130 administrative tag | grep 2026-10-29: no `5130` under `internal/plugins/isis`, no `rfc/short/rfc5130.md` | if Ze later implements RFC 5130, `tag` becomes carried for IS-IS import and settable on IS-IS export by a registration, not a redesign | the field declaration test refuses a tag filter on IS-IS (`TestPolicyFieldMismatchRefused`) | validated: not carried; RFC 5130 is outside every release profile, so adding it is the owner's scope call |
-| A-7 | Static routes in named tables stay outside the Loc-RIB (they never enter it), so `static filter import` covers MAIN-table routes only | `unified-locrib.md` | operators expect named tables filtered | stated in the static guide; refused nothing | unvalidated |
+| A-7 | Static routes in named tables stay outside the Loc-RIB (they never enter it), so `static filter import` covers MAIN-table routes only | `unified-locrib.md` | operators expect named tables filtered | stated in the static guide; refused nothing | confirmed: `static/locrib.go` `inMainTable` keeps a named-table route out of the Loc-RIB, and `docs/guide/static-routes.md` says a named-table route is programmed directly |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -408,11 +394,11 @@ import, and is refused on connected import because connected carries no tag.
 | AC-9 | A `modify` instance with `match { tag [ 100 ]; } set { distance 90; }` on `ospf filter import` | OSPF external routes tagged 100 rank at distance 90; others at the declared OSPF distance; removing the filter returns them to the declared distance. The same instance on `isis filter import` is refused at load (IS-IS carries no tag, A-8) |
 | AC-10 | A community-match filter referenced from `isis filter import` | load fails naming the filter, the field it reads (community), and that IS-IS routes do not carry it |
 | AC-11 | A static route with `tag 4242`, `rib filter import` with a `match { tag [ 4242 ]; }` reject | the static route is hidden, whether static runs in-process or forked |
-| AC-12 | `isis filter export` accepts only /32 loopbacks; IS-IS redistributes connected | the IS-IS LSP carries only the loopback /32s; an FRR neighbour installs those and nothing else. Status: Ze side landed (acd97e232f chain, 948f3d642a reload re-judge and no settable level, 397e72b530 parse refusals, 6934ae5bff attachment fields, 7489fc84df daemon `.ci`); the FRR half is interop `isis-export-policy-frr`, not yet written, owed in package 3c on Linux |
-| AC-13 | `ospf filter export` sets metric 50 and metric-type 1 for static routes matching a tag | the OSPF AS-external LSA carries metric 50, E1; `ospf redistribute { metric ... }` no longer exists and is refused with the migrate command. Status: landed in c356b97d17, reload re-judge in 50e1e87c4f, proofs re-recorded in 4ed13dbde3; the daemon `.ci` `test/ospf/ospf-multiaf-v4-route.ci` and the interop scenarios `ospf-redist-static-tag-frr`, `ospf-multiaf-v4-frr` (both exist, configs edited in c356b97d17) and `ospf-export-policy-frr` (not yet written) run in package 3c on Linux |
-| AC-14 | `redistribute { destination ospf { import bgp { filters [ P ]; final accept; } } }`, where `match` filter P rejects any route that misses its conditions (a filter's accept means "continue", so the chain's `final` decides only routes every filter passed; `final reject` would reject everything) | only prefixes P accepts move into OSPF; a route that was held and is now rejected after a reload is withdrawn. Status: landed through fakeredist (10715039f1, 2a4138f6ef); the static-into-OSPF test `test/plugin/redistribute-chain-static-ospf.ci` landed unrun in 06a2f8e130, and its green run and red proof are owed on Linux in package 3c. 51b38fde18 carries a chain's set metric to every consumer |
+| AC-12 | `isis filter export` accepts only /32 loopbacks; IS-IS redistributes connected | the IS-IS LSP carries only the loopback /32s; an FRR neighbour installs those and nothing else. Status: done (acd97e232f chain, 948f3d642a reload re-judge and no settable level, 397e72b530 parse refusals, 6934ae5bff attachment fields, 7489fc84df daemon `.ci`); interop `isis-export-policy-frr` (31c324c2f0) green, red and green at 697dc6a618 (Phase 3 record) |
+| AC-13 | `ospf filter export` sets metric 50 and metric-type 1 for static routes matching a tag | the OSPF AS-external LSA carries metric 50, E1; `ospf redistribute { metric ... }` no longer exists and is refused with the migrate command. Status: done (c356b97d17, reload re-judge 50e1e87c4f, proofs 4ed13dbde3); interop `ospf-export-policy-frr` (31c324c2f0) green, red and green at 697dc6a618, `ospf-redist-static-tag-frr` green (Phase 3 record). The "refused with the migrate command" half changed scope: e396a2e360 removed the migrate hint under the owner's pre-release config rule, and the old leaf now gets the plain unknown-field refusal. `test/ospf/ospf-multiaf-v4-route.ci` is red before and after phase 3 (fixture connect-back delay, owned by `plan/post-release/engineering/spec-fixit-netns-test-dut-tags.md`) |
+| AC-14 | `redistribute { destination ospf { import bgp { filters [ P ]; final accept; } } }`, where `match` filter P rejects any route that misses its conditions (a filter's accept means "continue", so the chain's `final` decides only routes every filter passed; `final reject` would reject everything) | only prefixes P accepts move into OSPF; a route that was held and is now rejected after a reload is withdrawn. Status: done (10715039f1, 2a4138f6ef, 51b38fde18); `test/plugin/redistribute-chain-static-ospf.ci` (06a2f8e130, netns subset 173420f21f) PASS under Ze's kernel, red with the verdict forced accepted and red with `withdrawRejectedHeld` removed, PASS restored (Phase 3 record) |
 | AC-15 | `redistribute { destination ospf { import ebgp } }` | only eBGP-learned best paths move; iBGP-learned ones do not (fixes the journal row). Status: landed in 17a4d10511 (incremental path, BGP producer class) and 72ecbeef90 (replay path) |
-| AC-16 | A source with no chain and no central chain configured | insert performs zero allocations and the gate is one pointer load (alloc test) |
+| AC-16 | A source with no chain and no central chain configured | insert performs zero allocations and the gate is one pointer load (alloc test). Closure reading: `manager.go` `RIB.insert` loads the snapshot twice, once before the shard lock and once under it, and judges again when they differ. The second load is the correctness fence that stops an insert from missing a Reselect for a snapshot published in between, so the no-chain cost is two atomic loads and `admit`'s nil check, still with zero allocations |
 | AC-18 | A config with only a `policy {}` section; a config with only `isis {}` (no policy section); a build without the `policy` plugin and an `isis filter import` | the first auto-loads `policy`; the second loads `policy` as a dependency of `isis`; the third is refused at load and by `ze config validate` with the missing-dependency message naming `policy` and the rebuild fix. A registry-derived test asserts every plugin with a filter attachment lists `policy` in `Dependencies` |
 | AC-17 | Phase 4: BGP import and export chains compile from the shared registry | every existing BGP policy `.ci` and interop scenario passes unchanged in expectation; BGP filters follow the two-transport plugin filter pattern, one evaluator per filter, called through a typed `DirectBridge` slot when its plugin runs internal and over the protocol when forked (`spec-filter-wire-0-umbrella`, D-12) |
 
@@ -470,26 +456,26 @@ import, and is refused on connected import because connected carries no tag.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `policy-root-bgp-import` | `test/plugin/policy-root-bgp-import.ci` | AC-1 | |
-| `policy-root-old-path-refused` | `test/parse/policy-root-old-path-refused.ci` | AC-2 refusal | |
-| `policy-root-migrate` | `test/parse/policy-root-migrate.ci` | AC-2 migrate | |
+| `policy-root-old-path-refused` | `test/parse/policy-root-old-path-refused.ci` | AC-2 refusal | retired by e396a2e360 (owner's pre-release config rule; the plain unknown-field refusal stays covered by `TestParserUnknownField`) |
+| `policy-root-migrate` | `test/parse/policy-root-migrate.ci` | AC-2 migrate | retired by e396a2e360 (no `ze config migrate` rewrite for a form no release shipped) |
 | `policy-root-shared-with-pbr` | `test/parse/policy-root-shared-with-pbr.ci` | AC-3 | |
 | `isis-import-filter-hides-prefix` | `test/isis/isis-import-filter-hides-prefix.ci` | AC-4, AC-5 | |
 | `rib-import-central-bogons` | `test/plugin/rib-import-central-bogons.ci` | AC-7 | |
 | `static-import-filter-distance` | `test/plugin/static-import-filter-distance.ci` | AC-6 | |
 | `redistribute-chain-narrow-reload` | `test/plugin/redistribute-chain-narrow-reload.ci` | AC-14 through fakeredist (accepted prefixes only; a narrowing reload withdraws) | landed, red both ways under an overlay |
-| `redistribute-chain-static-ospf` | `test/plugin/redistribute-chain-static-ospf.ci` | AC-14 with a real OSPF consumer; needs Linux, so it runs on `claude` in package 3c | written 06a2f8e130, skips on darwin; green run and red proof owed in 3c |
+| `redistribute-chain-static-ospf` | `test/plugin/redistribute-chain-static-ospf.ci` | AC-14 with a real OSPF consumer; needs Linux | PASS under Ze's kernel in the netns subset (173420f21f), red both ways, green restored (Phase 3 record) |
 | `isis-export-chain` | `test/isis/isis-export-chain.ci` | AC-12: the own LSP carries the accepted /32 and not the rejected /24 | landed 7489fc84df, red under an overlay ignoring the export verdict |
 | `isis-export-filter-undefined` | `test/parse/isis-export-filter-undefined.ci` | AC-12 refusals: an undefined filter name, `match level` | landed 397e72b530 |
-| `ospf-multiaf-v4-route` | `test/ospf/ospf-multiaf-v4-route.ci` | AC-13 config change (default metric leaves removed); needs Linux | edited c356b97d17, run owed in 3c |
+| `ospf-multiaf-v4-route` | `test/ospf/ospf-multiaf-v4-route.ci` | AC-13 config change (default metric leaves removed); needs Linux | edited c356b97d17; red in the netns guest before and after phase 3 (fixture connect-back delay, Phase 3 record) |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `isis-import-policy-frr` | `test/interop/scenarios/` | FRR | AC-4: FRR's prefix is in Ze's LSDB, flooded on to a second FRR, and absent from Ze's FIB | green at f99da3eeef on `claude`; red at assertion 5 with `ribChain.Evaluate` reject disabled; green restored. Needed b77067bc31 (TLV 240 circuit-ID echo) |
-| `isis-export-policy-frr` | `test/interop/scenarios/` | FRR | AC-12 | not yet written; owed in package 3c on Linux |
-| `ospf-export-policy-frr` | `test/interop/scenarios/` | FRR | AC-13 | not yet written; owed in package 3c on Linux |
-| `ospf-redist-static-tag-frr` | `test/interop/scenarios/` | FRR | AC-13: the export chain sets the tag | exists, config edited in c356b97d17; run owed in 3c |
-| `ospf-multiaf-v4-frr` | `test/interop/scenarios/` | FRR | AC-13 config change | exists, config edited in c356b97d17; run owed in 3c |
+| `isis-export-policy-frr` | `test/interop/scenarios/` | FRR | AC-12 | written 31c324c2f0; green, red with `exportVerdict` answering the default metric, green at 697dc6a618 |
+| `ospf-export-policy-frr` | `test/interop/scenarios/` | FRR | AC-13 | written 31c324c2f0; green, red with `applyExportSets` returning the external unchanged, green at 697dc6a618 |
+| `ospf-redist-static-tag-frr` | `test/interop/scenarios/` | FRR | AC-13: the export chain sets the tag | green (Phase 3 record) |
+| `ospf-multiaf-v4-frr` | `test/interop/scenarios/` | FRR | AC-13 config change | config edited c356b97d17; the scenario waits on an FRR it never starts (journal 7f20553535), not a phase 3 result |
 | `ospf-import-policy-bird` | `test/interop/scenarios/` | BIRD 3 | AC-9 with tagged OSPF externals learned from BIRD: the tagged prefix is installed at the set distance and loses to a static route it would otherwise beat | green at 2e08f27eb5 on `claude`; red at assertion 2 with the Loc-RIB `admit` gate skipped; green restored |
 
 ## Files to Modify
@@ -713,3 +699,147 @@ the encoding sites they change.
 | AC-15 | Units `TestRedistributeEBGPClass`, `TestBGPProducerBridgeCarriesPeerClass`, `TestReplayEBGPClass` (17a4d10511, 72ecbeef90) | `TestRedistributeEBGPClass` red before the fix (eBGP and iBGP routes both moved); `TestBGPProducerBridgeCarriesPeerClass` red under an overlay forcing the class to Unspecified; `TestReplayEBGPClass` red under an overlay on the replay path |
 
 Review rounds 1-3 ended with 0 BLOCKER and 0 ISSUE once the round 3 fixes landed in a5222773e4 and 8b458ffafe.
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1: the top-level `policy` root and the protocol-neutral registry, discovering filter types from `ze:filter` (dc6fb631f3, cabb706c11, faf7c5c380, 1cf6f7e692).
+- Phase 2: the Loc-RIB import gate with hidden paths (fb94aa0497), import chains on every Loc-RIB source and the central chain (a887a669e8), the `match` type, set actions and route fields (265f181267), `show rib candidates`, the policy metrics and the IGP blackhole doctor check (dfa96ffa2e).
+- Phase 3: redistribute import chains replacing `family` and `tag` (10715039f1), the eBGP and iBGP class (17a4d10511, 72ecbeef90), IS-IS and OSPF export chains (acd97e232f, c356b97d17) with reload re-judge, rollback and replay (a5222773e4 and the commits before it).
+- Phase 4: implemented and closed under `spec-filter-wire-0-umbrella` (closure 54c5e8af0c, evidence 0c3c86b319).
+
+### Bugs Found/Fixed
+- `import ibgp` and `import ebgp` never matched: fixed by 17a4d10511, `TestRedistributeEBGPClass` (journal `silent-fall-through.md`, already `fixed:`).
+- `ze:filter` documented as the discovery marker and never read: fixed by dc6fb631f3, `TestPolicyRegistryDiscoversByMarker` (journal row now `fixed:`).
+
+### Documentation Updates
+- Closure edits: the `// Design:` headers of `internal/component/policy/fields.go` and `rib.go`, and the stale `PathGroup` comment in `internal/core/rib/locrib/entry.go` (it named `store.Modify` as the only mutation path; `insert` now uses Lookup then Insert). No page under `docs/` changed, so `./le doc check all` is not owed by this pass.
+
+### Deviations from Plan
+- AC-2's `ze config migrate` rewrite and migrate hint were removed by e396a2e360 under the owner's pre-release config rule. Six of its tests were retired with `Weakening-approved:` lines; AC-13's "refused with the migrate command" half changed the same way.
+- A-5's external declaration was not generalized: a `<plugin>:<filter>` is refused at a Loc-RIB attachment (Key Design Decisions, route evaluator).
+- AC-16's "one pointer load" is two loads with a fence (AC-16 row).
+- AC-4's end-to-end proof is the interop `isis-import-policy-frr` (two FRRs, owner decision 2026-10-30), not the planned `test/isis/isis-import-filter-hides-prefix.ci`.
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Import per protocol (`isis`, `ospf`, `static`, `connected`) | Partial | `policy/rib.go` `MustRegisterRIBImport`, `locrib/policy.go` `admit` | IS-IS and OSPF proven at interop; static and connected units only (B-1) |
+| Import, central `rib filter import` | Partial | `sysrib/register.go`, `locrib/policy.go` `admit` | Units only (B-1); bypassed when sysrib runs forked (B-2) |
+| Import, BGP per peer | Done | `bgp/config/library_chains.go` `compileLibraryChain` | Filter-wire AC-10 |
+| Export, IS-IS and OSPF | Done | `isis/redistribute/consumer.go`, `ospf/redistribute/consumer.go` | Interop green, red, green |
+| Redistribution chains | Done | `config/redistribute/route.go`, `plugins/redistribute/redistribute.go` | AC-14, AC-15 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/plugin/policy-root-bgp-import.ci` | |
+| AC-2 | Changed | e396a2e360 | Owner's pre-release config rule; old path gets the unknown-field refusal |
+| AC-3 | Done | `test/parse/policy-root-shared-with-pbr.ci`, `TestPolicyRegistryDiscoversByMarker` | |
+| AC-4 | Done | interop `isis-import-policy-frr` | Green, red with the reject disabled, green |
+| AC-5 | Partial | `TestLocRIBReselectReadmitsHidden` | No daemon test relaxes a filter by reload (B-1) |
+| AC-6 | Partial | units | `static-import-filter-distance.ci` never committed (B-1) |
+| AC-7 | Partial | `TestLocRIBCentralChainAllSources` | `rib-import-central-bogons.ci` never committed (B-1); B-2 |
+| AC-8 | Done | `TestLocRIBAllHiddenDispatchesRemove` | |
+| AC-9 | Done | `TestLocRIBSetDistanceByTag`, interop `ospf-import-policy-bird` | |
+| AC-10 | Done | `TestPolicyFieldMismatchRefused` | |
+| AC-11 | Partial | `TestRouteInstallTagReachesGate` | Forked path by unit; no daemon test (B-1) |
+| AC-12 | Done | Phase 3 record | |
+| AC-13 | Done | Phase 3 record | Migrate half changed (AC-2) |
+| AC-14 | Done | Phase 3 record | |
+| AC-15 | Done | Phase 3 record | |
+| AC-16 | Done | `TestLocRIBInsertNoChainZeroAlloc`, `TestLocRIBHiddenInsertZeroAlloc`, A-4 record | Two loads (AC-16 row) |
+| AC-17 | Done | `spec-filter-wire-0-umbrella` AC-10, "Reconciled" at 0c3c86b319 | Its BGP policy interop scenarios green at 8c7196ea9e, red under the `sets` and `prefix` breaks. Its `.ci` half rests on that spec's per-phase runs; this closure reran nothing |
+| AC-18 | Done | `internal/component/plugin/all/policy_dependency_test.go` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every unit in the Unit Tests table | Done | the file each row names | All 24 found by name at HEAD |
+| `TestMigrateOSPFRedistributeToExportFilter`, `TestMigrateOSPFRedistributeRefusesNameClash` | Changed | - | Retired by e396a2e360 |
+| `isis-import-filter-hides-prefix`, `rib-import-central-bogons`, `static-import-filter-distance` | Skipped | - | Never committed (B-1); the first is replaced by the interop |
+| `policy-root-old-path-refused`, `policy-root-migrate`, `ospf-redistribute-retired-metric` | Changed | - | Retired by e396a2e360 |
+| Interop rows | Done | `test/interop/scenarios/` | `ospf-multiaf-v4-frr` is not a phase 3 result |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/policy/`, `internal/core/rib/policy/` | Done | |
+| `internal/component/policy/plugins/match/` | Changed | The `match` type lives in `bgp/policychain/match.go` and the per-type evaluators (`docs/guide/route-policy.md`) |
+| `cmd/ze/config/migrate` | Changed | Removed by e396a2e360 |
+
+### Audit Summary
+- **Total items:** 18 AC, 5 task requirements
+- **Done:** 13 AC
+- **Partial:** AC-5, AC-6, AC-7, AC-11 (Blocker B-1, B-2)
+- **Skipped:** two functional tests (B-1)
+- **Changed:** AC-2 (owner rule), A-5, AC-16 wording
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| "only install these IS-IS prefixes" | interop | `isis-import-policy-frr`: hidden at Ze, kept in the LSDB, learned by FRR-B; red with the reject disabled |
+| "never install a bogon from any protocol" | functional | Missing: `rib-import-central-bogons.ci` (B-1) |
+| "advertise only loopbacks into IS-IS" | interop | `isis-export-policy-frr`, green, red, green at 697dc6a618 |
+| One policy library for every protocol and BGP | interop | Filter-wire AC-10 BGP policy scenarios; `ospf-import-policy-bird` |
+| The gate keeps the insert path cheap | benchmark | `plan/records/route-policy-0-a4-mac.bench.txt`; owner accepted +5.6% single-writer |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| B-1, B-2, B-3 | Need implementation | This spec, handed back to `/ze-implement` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | none: round 4 is not clean |
+| `./le spec review check` | not run |
+| Rounds | 4 (round 5, over the B-1 to B-3 fixes, is the last a session may spend) |
+| Reviewer lenses used | generic (fail-open, wiring), spec (every AC and Wiring row against its test and entry point), style (the closure's Go comment edits) |
+
+Round 4 scope: the producers this closure's claims rest on (`locrib/manager.go` `RIB.insert`, `policy.go` `admit`, `entry.go` `upsert`, `policy_metrics.go` `accountStored`, `sysrib.go` `run`), every AC, Wiring, Deliverables and Documentation row against the tree, and the closure's three Go comment edits. Phase 4 code was not re-reviewed: `spec-filter-wire-0-umbrella` reviewed and closed it. The `Spec-work: route-policy-0-umbrella` population is 72 commits and 643 reviewable files at HEAD, including the config-reference completion work done under this claim.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R4-1 | ISSUE | No entry-point test for the static, connected and central import chains | `test/plugin/` | Open: B-1 |
+| R4-2 | ISSUE | A forked sysrib reads BGP bests the central chain never judged | `sysrib/sysrib.go` `run` | Open: B-2 |
+| R4-3 | ISSUE | Documentation rows 1 and 11 unmet | `features/`, `docs/comparison.md` | Open: B-3 |
+
+NOTEs: the `PathGroup` comment named only `store.Modify` (fixed in `entry.go`); `docs/guide/static-routes.md` does not say a named-table route escapes `static filter import` (the file holds another session's hunks, left alone).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/policy-root-bgp-import.ci`, `test/parse/policy-root-shared-with-pbr.ci`, `test/isis/isis-export-chain.ci`, `test/plugin/redistribute-chain-static-ospf.ci` | Yes | `ls` on 2026-11-12 |
+| `test/plugin/rib-import-central-bogons.ci`, `test/plugin/static-import-filter-distance.ci`, `test/isis/isis-import-filter-hides-prefix.ci` | No | `ls` fails; `git log --all` names no commit of them |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-15 | The class reaches the rule | `entrySource` (`plugins/redistribute/redistribute.go`) reads `BGPClass.SourceName`; `bgpClassOf` in `bgp/redistribute/producer.go` |
+| AC-16 | Two loads, fenced | `manager.go` `RIB.insert` calls `ribpolicy.Current` before `sh.mu.Lock` and again under it |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `isis filter import` | interop `isis-import-policy-frr` | Yes, in place of the planned `.ci` |
+| `rib filter import` | none | No (B-1) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-3, A-4, A-6, A-7, A-8 | confirmed | Assumptions table |
+| A-2, A-5 | broken | Assumptions table, Mistake Log |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 4, route-install fields | `docs/architecture/api/process-protocol.md` lists `tag`, `has-tag`, `ospf-route-type` | Yes |
+| Row 3, `show rib candidates` | `docs/guide/command-reference.md` row, anchor `sysrib/candidates.go` `showRIBCandidates` | Yes |
+| Rows 1 and 11 | `grep` over `features/*.md` and `docs/comparison.md` finds no route policy entry | No (B-3) |

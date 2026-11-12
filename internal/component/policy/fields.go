@@ -1,4 +1,4 @@
-// Design: plan/post-release/features/spec-route-policy-0-umbrella.md -- Route Field Vocabulary
+// Design: docs/guide/route-policy.md -- the fields each attachment carries, and the check a chain passes
 // Related: registry.go -- the filter instances a chain names
 // Related: register.go -- the vocabulary registrations
 //
