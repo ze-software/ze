@@ -105,12 +105,14 @@ Verified in source by the supervising session: items 1 and 2 and the
 
 ### Decision 1 is taken
 
-The owner has decided decision 1: the website's RFC data is recorded once,
-saved with the published website, and the pages are generated from it. The
-build regenerates the recording only when its saved timestamp is more than a
-week old, or when it is absent, and a command regenerates it on demand. The
-rule is in `ai/META-DECISIONS.md`, "Website design". The design and its open
-questions are in
+The owner has decided decision 1: the website's RFC data is recorded once, in
+a git-ignored folder of the website source tree (`website/recorded/`), so it is
+never pushed, and every RFC page and published RFC data file is generated from
+it. The whole recording is regenerated in three cases: a build finds it absent
+or more than a week old by the saved time it records, `./le site rfc-data` is
+run, or the weekly update runs, which calls `./le site rfc-data` before its
+site build. The rule is in `ai/META-DECISIONS.md`, "Website design". The design
+and its open questions are in
 `plan/post-release/engineering/spec-site-rfc-recorded-data.md`, which is the
 home of decision 1. Reading the source for that spec found eight RFC corpus
 collections per full build, not seven: the docs producer's `rfc.StatusPage` is
