@@ -77,21 +77,35 @@ func fatalStopRows(record *server.LastStop) []diagnostic.Diagnostic {
 
 // fatalStopRow writes one recorded stop: which plugin, why and when, and the
 // fix: the plugin's own log lines before the stop, then the config change.
+//
+// A boot refusal that is not a missing dependency records no plugin
+// (settleLastStop), because the refusal's own text is the whole cause. Its
+// row then names no plugin, and its fix reads ze's log up to that time with
+// no grep, because no name narrows it.
 func fatalStopRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 	at := entry.Time.UTC().Format(time.RFC3339)
-	plugin := entry.Plugin
-	if plugin == "" {
-		plugin = "an unnamed plugin"
-	}
 	var message, fix textbuf.Buffer
 	if entry.Reason == server.LastStopBootRefused {
-		message.Str("ze refused to start at ").Str(at).Str(" (").Str(plugin).Str("): ").Str(entry.Detail)
+		message.Str("ze refused to start at ").Str(at)
+		if entry.Plugin != "" {
+			message.Str(" (").Str(entry.Plugin).Byte(')')
+		}
+		message.Str(": ").Str(entry.Detail)
 	} else {
-		message.Str("ze stopped itself at ").Str(at).Str(" because plugin ").Str(plugin).
+		subject := "a plugin ze did not record"
+		if entry.Plugin != "" {
+			subject = "plugin " + entry.Plugin
+		}
+		message.Str("ze stopped itself at ").Str(at).Str(" because ").Str(subject).
 			Str(" failed and its failure policy stops ze: ").Str(entry.Detail)
 	}
-	fix.Str("journalctl -u ze --until ").Str(at).Str(" | grep ").Str(plugin).
-		Str(", then change that plugin's configuration and start ze")
+	fix.Str("journalctl -u ze --until ").Str(at)
+	if entry.Plugin == "" {
+		fix.Str(", then change the configuration the refusal names and start ze")
+	} else {
+		fix.Str(" | grep ").Str(entry.Plugin).
+			Str(", then change that plugin's configuration and start ze")
+	}
 	return diagnostic.Diagnostic{
 		Code:     diagnostic.CodeDoctorPluginFatalStop,
 		Severity: diagnostic.SeverityError,

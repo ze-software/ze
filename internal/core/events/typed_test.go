@@ -101,7 +101,7 @@ func TestSetLoggerRaceFree(t *testing.T) {
 // typed events return (typ, false), registered signal events return
 // (signalType, true), and unregistered pairs return (nil, false).
 // PREVENTS: a future refactor breaking the (nil, false) for-unregistered
-// contract that callers like tryDecodeTypedPayload rely on as their
+// contract that callers like decodeTypedPayload rely on as their
 // "no typed contract here" signal.
 func TestPayloadInfo(t *testing.T) {
 	type testStruct struct{ X int }

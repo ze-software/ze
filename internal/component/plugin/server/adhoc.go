@@ -13,6 +13,7 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -31,6 +32,9 @@ func (s *Server) HandleAdHocPluginSession(reader io.ReadCloser, writer io.WriteC
 		Name:     name,
 		Internal: true, // No external process to manage.
 	})
+	// An ad-hoc session is never in the process manager, so nothing else
+	// clears what it raised: every return ends the session.
+	defer s.endAdHocSession(name)
 
 	// Build PluginConn from the raw reader/writer — same stack as InitConns
 	// but without requiring net.Conn (SSH channels are not net.Conn).
@@ -54,6 +58,18 @@ func (s *Server) HandleAdHocPluginSession(reader io.ReadCloser, writer io.WriteC
 	// Enter runtime command loop (blocks until disconnect).
 	s.handleSingleProcessCommandsRPC(proc)
 	return nil
+}
+
+// endAdHocSession forgets an ad-hoc session that ended. Its active warnings
+// leave the report bus: a managed plugin's go when the process manager
+// removes it or records its crash (report.ClearSource), and an ad-hoc
+// session's name is random and never comes back, so they would outlive the
+// session and fill the bus as sessions come and go. Its report-issue rate
+// window goes too (forgetPluginReports), on every return, a failed handshake
+// included.
+func (s *Server) endAdHocSession(name string) {
+	report.ClearSource(name)
+	s.forgetPluginReports(name)
 }
 
 // generateAdHocName creates a unique name for an ad-hoc plugin session.

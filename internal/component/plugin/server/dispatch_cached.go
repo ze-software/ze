@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/netip"
+	"strconv"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -151,6 +152,11 @@ func (s *Server) releaseCached(proc *process.Process, ids []uint64) error {
 // fires so the operator sees "all destinations dropped" as a distinct
 // signal from the per-entry drops. The caller propagates the reactor's
 // ErrNoDestinations back to the plugin.
+//
+// The plugin's request drives the bus events, so they go through the
+// refusal bound (refusePluginRequest): at most one per plugin in a window,
+// however many destinations or requests are malformed. The log keeps a line
+// for each.
 func parseForwardDestinations(plugin string, dst []string) []netip.AddrPort {
 	if len(dst) == 0 {
 		return nil
@@ -171,13 +177,15 @@ func parseForwardDestinations(plugin string, dst []string) []netip.AddrPort {
 		logger().Warn("forward-cached: dropping malformed destination",
 			"plugin", plugin, "destination", s,
 			"code", diagnostic.CodeDoctorPluginRequestRefused)
-		raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, plugin, "forward-cached: dropping malformed destination")
+		refusePluginRequest(plugin,
+			"plugin "+plugin+" sent forward-cached a malformed destination "+strconv.Quote(s)+", which was dropped: a destination is an address or address:port")
 	}
 	if len(out) == 0 {
 		logger().Warn("forward-cached: every destination was malformed, refusing to broadcast",
 			"plugin", plugin, "count", len(dst),
 			"code", diagnostic.CodeDoctorPluginRequestRefused)
-		raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, plugin, "forward-cached: every destination was malformed, refusing to broadcast")
+		refusePluginRequest(plugin,
+			"plugin "+plugin+" sent forward-cached only malformed destinations, so nothing was forwarded rather than broadcast")
 	}
 	return out
 }

@@ -872,9 +872,12 @@ func (p *Process) stopExitGrace() time.Duration {
 // StopJoinBound is how long a caller waits, after Stop, for this process to
 // end: its exit grace (stopExitGrace) plus respawnJoinMargin, 2s for a forked
 // plugin on Linux and 1s for one that runs in the daemon. Respawn joins the
-// process it replaces for this long, and a caller that waits for what follows
-// the end of this process (WaitRuntimeCleanupContext) bounds that wait with it
-// rather than with a number of its own. Safe for concurrent use.
+// process it replaces for this long, and the server's restart waits this long
+// for a replacement it stopped (rollbackReplacement). It bounds the end of the
+// process only: the runtime cleanup that follows waits for the process's calls
+// into the engine, which its exit does not end, so a caller of
+// WaitRuntimeCleanupContext picks its own bound, as the server's restart does
+// with restartCleanupGrace. Safe for concurrent use.
 func (p *Process) StopJoinBound() time.Duration {
 	return p.stopExitGrace() + respawnJoinMargin
 }

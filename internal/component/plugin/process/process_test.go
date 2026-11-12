@@ -750,7 +750,7 @@ func TestPluginCrashReportBus(t *testing.T) {
 	defer pm.Stop()
 
 	// First crash: doctor-plugin-crashed error should appear.
-	pm.ReportCrash("crash", "exit code 1", "ignore")
+	pm.ReportCrash("crash", ExitedWith("exit code 1"), "ignore")
 
 	errs := report.Errors(0)
 	found := false

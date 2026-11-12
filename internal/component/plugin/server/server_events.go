@@ -12,6 +12,7 @@ package server
 
 import (
 	"errors"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -35,7 +36,46 @@ const configTxSubject = "config-transaction"
 // empty field, so a caller that holds no plugin or command name passes the
 // area it works in.
 func raiseServerEvent(code, subject, message string) {
-	report.RaiseErrorFix(serverEventSource, code, subject, report.FitMessage(message), fixShowErrors)
+	report.RaiseErrorFix(serverEventSource, code, fitSubject(subject), report.FitMessage(message), fixShowErrors)
+}
+
+// subjectCutMark ends a subject fitSubject cut, so the reader knows the name
+// is not whole.
+const subjectCutMark = "..."
+
+// fitSubject answers subject cut to the longest subject the bus accepts, at a
+// UTF-8 rune boundary and ending in subjectCutMark when it was cut. The bus
+// refuses a longer subject and the whole event is lost with only a debug
+// line, and a subject that carries a name the operator or a plugin chose
+// (a command line with its selectors, a command name) can be of any length.
+// A subject is a name, so a cut one still reads as that name. Two subjects
+// that differ only past the cut name one warning.
+func fitSubject(subject string) string {
+	if len(subject) <= report.SubjectMax {
+		return subject
+	}
+	cut := report.SubjectMax - len(subjectCutMark)
+	for cut > 0 && !utf8.RuneStart(subject[cut]) {
+		cut--
+	}
+	return subject[:cut] + subjectCutMark
+}
+
+// fixShowWarnings is the fix of a warning whose own command does not fit the
+// bus: the operator reads it in the list it is in.
+const fixShowWarnings = "ze show warnings"
+
+// busFix answers fix when the bus can carry it, and fallback when it cannot:
+// the command that lists the event, fixShowErrors for an error and
+// fixShowWarnings for a warning. A fix is one command, so cutting it would
+// print a command that does not run. The caller's log line keeps the whole
+// command, and a caller whose event's message has room carries it there too
+// (ensureRollbackFailed), so the operator reading the event still has it.
+func busFix(fix, fallback string) string {
+	if len(fix) <= report.FixMax {
+		return fix
+	}
+	return fallback
 }
 
 // configReloadSubject names a configuration reload in an event that no one
@@ -55,7 +95,10 @@ func raiseReloadRefused(message string, refusal error) {
 // carries, the producer's own command for its own refusal (a plugin
 // dependency this build does not hold names the build that does), and
 // fixShowErrors when the chain carries none. A plugin's verify or apply
-// refusal arrives as text over the plugin connection, so it carries none.
+// refusal arrives as text over the plugin connection, so it carries none. A
+// refusal's fix longer than the bus carries also gives fixShowErrors
+// (busFix): the refusal's text, which the event's message carries when it
+// fits and every caller logs beside the raise, ends in the whole command.
 //
 // `ze config validate` is not the fallback: it takes a file path, reads the
 // file system and never the store a daemon may load from, and runs no live
@@ -63,7 +106,7 @@ func raiseReloadRefused(message string, refusal error) {
 // (ai/doors/config-yang.md, "Traps").
 func reloadRefusalFix(refusal error) string {
 	if operatorError, ok := errors.AsType[*opererr.Error](refusal); ok {
-		return operatorError.Fix()
+		return busFix(operatorError.Fix(), fixShowErrors)
 	}
 	return fixShowErrors
 }

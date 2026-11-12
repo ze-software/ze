@@ -31,8 +31,10 @@ type Issue struct {
 // a copy nothing reads, so a problem raised there reaches no operator. Like
 // the state methods it is sent after the handshake, from OnStarted or a later
 // callback: the engine accepts only the stage methods until then. The engine
-// refuses a code it does not describe, a field past its bound and a raise
-// past rpc.ReportRaisesPerWindow, with an error naming the cause.
+// refuses a code it does not describe, a field past its bound, a raise past
+// rpc.ReportRaisesPerWindow, and a new warning past the plugin's share of
+// active warnings (rpc.ReportActiveWarningsShare), with an error naming the
+// cause.
 func (p *Plugin) RaiseIssue(ctx context.Context, issue Issue) error {
 	in := rpc.ReportIssueInput{
 		Action:   rpc.ReportRaise,

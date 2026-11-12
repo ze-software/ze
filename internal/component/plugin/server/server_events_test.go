@@ -47,7 +47,7 @@ func TestNotProblemSitesRaiseEvents(t *testing.T) {
 	t.Run("request-refused", func(t *testing.T) {
 		report.ResetForTest()
 		t.Cleanup(report.ResetForTest)
-		// Red: the raiseServerEvent call after "forward-cached: dropping
+		// Red: the refusePluginRequest call after "forward-cached: dropping
 		// malformed destination" in parseForwardDestinations.
 		got := parseForwardDestinations("bgp-rs", []string{"10.0.0.1", "not-an-address"})
 		if len(got) != 1 {

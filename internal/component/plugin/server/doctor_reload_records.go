@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
@@ -61,7 +62,10 @@ func PluginReloadRecords() (ReloadDoctorRecords, error) {
 }
 
 // removalsUnrecovered reads every removal whose last restore failed, a retry
-// in progress included: until it succeeds the plugin is still removed.
+// in progress included: until it succeeds the plugin is still removed. The
+// error's text is answered bounded (process.BoundDoctorDetail), because its
+// chain can carry what a plugin answered; the error stays whole on the
+// removal, one per configured plugin, for the retry and the log.
 func (s *Server) removalsUnrecovered() []RemovalUnrecovered {
 	s.removalMu.Lock()
 	defer s.removalMu.Unlock()
@@ -70,7 +74,7 @@ func (s *Server) removalsUnrecovered() []RemovalUnrecovered {
 		if attempt.recoveryErr == nil {
 			continue
 		}
-		records = append(records, RemovalUnrecovered{Plugin: proc.Name(), Err: attempt.recoveryErr.Error()})
+		records = append(records, RemovalUnrecovered{Plugin: proc.Name(), Err: process.BoundDoctorDetail(attempt.recoveryErr.Error())})
 	}
 	slices.SortFunc(records, func(a, b RemovalUnrecovered) int { return strings.Compare(a.Plugin, b.Plugin) })
 	return records
@@ -91,13 +95,15 @@ type capabilityRestoreRecord struct {
 }
 
 // failed records and logs a restore that did not put the running
-// configuration's declarations back after a refused reload.
+// configuration's declarations back after a refused reload. The log line
+// keeps the whole error; the record keeps its text bounded
+// (process.BoundDoctorDetail), because the chain can carry a plugin's answer.
 func (r *capabilityRestoreRecord) failed(err error) {
 	logger().Error("config tx: restore plugin capabilities failed after a refused reload",
 		"code", diagnostic.CodeDoctorPluginCapabilitiesNotRestored, "error", err)
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.failure = []CapabilityRestoreFailure{{Err: err.Error(), Time: time.Now().UTC()}}
+	r.failure = []CapabilityRestoreFailure{{Err: process.BoundDoctorDetail(err.Error()), Time: time.Now().UTC()}}
 }
 
 // clear drops the record. A committed reload calls it: the declarations in

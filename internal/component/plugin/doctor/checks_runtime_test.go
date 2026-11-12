@@ -29,8 +29,8 @@ func TestPluginStoppedEveryDownPath(t *testing.T) {
 		want []string
 	}{
 		{"limit", process.PluginStop{Cause: process.StopRespawnLimit, Detail: "it was started 5 times within 1m0s"}, []string{"respawn limit", "5 times"}},
-		{"ignore", process.PluginStop{Cause: process.StopPolicyExit, Policy: "ignore", ExitStatus: "exit code 1"}, []string{"failure policy ignore", "exit code 1"}},
-		{"unspecified", process.PluginStop{Cause: process.StopPolicyExit, Policy: "unspecified", ExitStatus: "signal: killed"}, []string{"failure policy unspecified", "signal: killed"}},
+		{"ignore", process.PluginStop{Cause: process.StopPolicyExit, Policy: "ignore", ExitStatus: process.ExitedWith("exit code 1")}, []string{"failure policy ignore", "exit code 1"}},
+		{"unspecified", process.PluginStop{Cause: process.StopPolicyExit, Policy: "unspecified", ExitStatus: process.ExitedWith("signal: killed")}, []string{"failure policy unspecified", "signal: killed"}},
 		{"restart", process.PluginStop{Cause: process.StopRestartFailed, Detail: "restart handshake restart: stage 1 timed out"}, []string{"could not be started again", "stage 1 timed out"}},
 		{"handshake", process.PluginStop{Cause: process.StopHandshakeFailed, Detail: "stage 2 (configure): refused"}, []string{"startup handshake failed", "stage 2"}},
 	}

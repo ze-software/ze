@@ -14,6 +14,7 @@ package process
 import (
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
@@ -25,6 +26,64 @@ import (
 // reached only by a plugin declaring far more than any in the tree; the
 // entries past it are counted, never kept.
 const doctorRecordMax = 16
+
+// DoctorNameMax bounds, in octets, a name a doctor record keeps that the
+// plugin chose: a command or alias it declared, a namespace it subscribed
+// to. It is the bound the Stage 1 declaration already holds a plugin's
+// declared doctor check name to (validateDoctorCheckDecls in plugin/server), the
+// same kind of name. Exported because the Stage 1 declaration also holds an
+// enricher's command to it (validateEnricherDecls in plugin/server), so the
+// cut BoundDoctorName makes of a declared command never runs and two
+// commands never cut to one record.
+const DoctorNameMax = 128
+
+// doctorTextMax bounds, in octets, a text a doctor record keeps that can
+// carry what the plugin sent: a refusal reason, a parse error, a failed
+// callback's or batch's error. It is the bound the managed config server
+// keeps of a client's error text (managedDetailMax in plugin/server), the
+// same kind of text.
+const doctorTextMax = 1024
+
+// DoctorCutMark ends a string boundDoctorText cut, so a row never presents a
+// cut name or text as the whole one.
+const DoctorCutMark = "...(cut)"
+
+// boundDoctorText answers text when it fits in octetsMax, and otherwise its
+// longest prefix that fits with DoctorCutMark after it, cut at a UTF-8 rune
+// boundary so a valid text stays valid. A plugin chooses these strings and
+// one message can be 16 MiB (rpc.MaxMessageSize), so the entry count bound
+// alone does not bound what a record keeps.
+func boundDoctorText(text string, octetsMax int) string {
+	if len(text) <= octetsMax {
+		return text
+	}
+	cut := octetsMax - len(DoctorCutMark)
+	for cut > 0 && !utf8.RuneStart(text[cut]) {
+		cut--
+	}
+	return text[:cut] + DoctorCutMark
+}
+
+// boundDoctorError is boundDoctorText of err's text at doctorTextMax.
+func boundDoctorError(err error) string {
+	return boundDoctorText(err.Error(), doctorTextMax)
+}
+
+// BoundDoctorName is boundDoctorText at DoctorNameMax, for a doctor record
+// kept outside this package that holds a name of the same kind: the plugin
+// server's records keep an enricher's command and key. Safe for concurrent
+// use.
+func BoundDoctorName(name string) string {
+	return boundDoctorText(name, DoctorNameMax)
+}
+
+// BoundDoctorDetail is boundDoctorText at doctorTextMax, for a doctor record
+// kept outside this package that holds a text of the same kind: the plugin
+// server's records keep an enricher's error, a recovered panic, a failed
+// restore. Safe for concurrent use.
+func BoundDoctorDetail(text string) string {
+	return boundDoctorText(text, doctorTextMax)
+}
 
 // DeliverySlowThreshold is the batch delivery time over which a batch is
 // slow: a batch of exactly this long is not.
@@ -180,8 +239,13 @@ type doctorRecords struct {
 	configCommit      ConfigCommit
 }
 
-// RecordCommandRefusal records a command or alias the registry refused.
+// RecordCommandRefusal records a command or alias the registry refused. The
+// name and the reason, which quotes the name, are the plugin's choice, so each
+// is kept bounded (boundDoctorText). The owner is a plugin name or "builtin",
+// both of ze's own bound, and is kept whole.
 func (p *Process) RecordCommandRefusal(refusal CommandRefusal) {
+	refusal.Command = boundDoctorText(refusal.Command, DoctorNameMax)
+	refusal.Reason = boundDoctorText(refusal.Reason, doctorTextMax)
 	r := &p.doctor
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -192,8 +256,12 @@ func (p *Process) RecordCommandRefusal(refusal CommandRefusal) {
 	r.commandRefusals = append(r.commandRefusals, refusal)
 }
 
-// RecordSubscriptionDrop records a dropped subscription block.
+// RecordSubscriptionDrop records a dropped subscription block. The namespace
+// is the one the plugin sent and the detail can carry a parse error of what
+// it sent, so each is kept bounded (boundDoctorText).
 func (p *Process) RecordSubscriptionDrop(drop SubscriptionDrop) {
+	drop.Namespace = boundDoctorText(drop.Namespace, DoctorNameMax)
+	drop.Detail = boundDoctorText(drop.Detail, doctorTextMax)
 	r := &p.doctor
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -205,7 +273,8 @@ func (p *Process) RecordSubscriptionDrop(drop SubscriptionDrop) {
 }
 
 // SetPostStartup records where the post-startup callback stands; err is the
-// cause of PostStartupUndelivered and is ignored otherwise.
+// cause of PostStartupUndelivered and is ignored otherwise. Its text can
+// carry the plugin's answer, so it is kept bounded (boundDoctorError).
 func (p *Process) SetPostStartup(outcome PostStartupOutcome, err error) {
 	r := &p.doctor
 	r.mu.Lock()
@@ -213,17 +282,19 @@ func (p *Process) SetPostStartup(outcome PostStartupOutcome, err error) {
 	r.postStartup = outcome
 	r.postStartupErr = ""
 	if outcome == PostStartupUndelivered && err != nil {
-		r.postStartupErr = err.Error()
+		r.postStartupErr = boundDoctorError(err)
 	}
 }
 
 // RecordConfigCommit records the outcome of the config-committed callback for
 // transaction tx: a nil err is a plugin that was told. The latest call
-// replaces the record, so a later confirmed commit clears a failure.
+// replaces the record, so a later confirmed commit clears a failure. The
+// error's text can carry the plugin's answer, so it is kept bounded
+// (boundDoctorError); tx is ze's own transaction id.
 func (p *Process) RecordConfigCommit(tx string, err error) {
 	commit := ConfigCommit{Transaction: tx, Time: time.Now()}
 	if err != nil {
-		commit.Error = err.Error()
+		commit.Error = boundDoctorError(err)
 	}
 	r := &p.doctor
 	r.mu.Lock()
@@ -233,13 +304,15 @@ func (p *Process) RecordConfigCommit(tx string, err error) {
 
 // recordProjectionErr keeps the first failed event application for the
 // doctor. The delivery goroutine's own projectionErr stays the source of the
-// barrier answers; this is its copy for a reader on another goroutine.
+// barrier answers; this is its copy for a reader on another goroutine. The
+// error's text can carry the plugin's answer, so the copy is kept bounded
+// (boundDoctorError).
 func (p *Process) recordProjectionErr(err error) {
 	r := &p.doctor
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.projectionErr == "" {
-		r.projectionErr = err.Error()
+		r.projectionErr = boundDoctorError(err)
 	}
 }
 
@@ -247,6 +320,11 @@ func (p *Process) recordProjectionErr(err error) {
 // and no caller waits for its result (unwaited): a waiting caller receives
 // the error and reports it itself. It logs the problem with its doctor code
 // and counts it in the plugin's metrics.
+//
+// The problem keeps the error only when it counts the batch as failed, so the
+// row's last error is always one of the failures it counts: a slow batch whose
+// error went to a waiting caller is kept as slow, with no error. The text can
+// carry the plugin's answer, so it is kept bounded (boundDoctorError).
 func (p *Process) noteBatch(elapsed time.Duration, events int, err error, unwaited bool) {
 	slow := DeliverySlow(elapsed)
 	failed := err != nil && unwaited
@@ -264,8 +342,8 @@ func (p *Process) noteBatch(elapsed time.Duration, events int, err error, unwait
 		return
 	}
 	problem := DeliveryProblem{Time: time.Now(), Failed: failed, Elapsed: elapsed, Events: events}
-	if err != nil {
-		problem.Error = err.Error()
+	if failed {
+		problem.Error = boundDoctorError(err)
 	}
 	r := &p.doctor
 	r.mu.Lock()
@@ -369,8 +447,11 @@ func raiseRelayStopped(name string, cause error) {
 	var message textbuf.Buffer
 	message.Str("the stderr relay of plugin ").Str(name).
 		Str(" stopped, so its later output is not logged: ").Err(cause)
+	// The cause is an error's text of any length, so the message is fitted to
+	// the bus bound rather than refused; the subject and the fix carry only
+	// the plugin name, at most 64 characters (ipc.PluginNameForm).
 	report.RaiseErrorFix(reportSourcePlugin, diagnostic.CodeDoctorPluginStderrRelayStopped, name,
-		message.String(), RestartCommand(name))
+		report.FitMessage(message.String()), RestartCommand(name))
 }
 
 // DoctorRecord answers a copy of the process's records, with the delivery

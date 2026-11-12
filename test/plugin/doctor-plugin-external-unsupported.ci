@@ -10,10 +10,17 @@
 #
 # Revert checkExternalInProcess (internal/component/plugin/doctor/check_external.go)
 # or the field on the fixture and the code leaves stdout.
+#
+# The block is named in-process-probe, not after the plugin, so the registry
+# holds only the name the `run` line resolves to (ResolvePlugin: `ze plugin X`
+# answers X). A check that looked the registration up by the block name would
+# find none and print no row. The row names both, the block in its message and
+# its fix, the registration after "runs" (externalInProcessRow), and the
+# expectations read both.
 
 tmpfs=in-process.conf:terminator=EOF_CONF
 plugin {
-	external fake-in-process-only {
+	external in-process-probe {
 		run "ze plugin fake-in-process-only"
 	}
 }
@@ -35,4 +42,5 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze doctor --json config in-process.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-plugin-external-unsupported
-expect=stdout:contains=move it to an internal block
+expect=stdout:contains=runs fake-in-process-only, which works only inside the daemon
+expect=stdout:contains=move it to an internal block: plugin { internal in-process-probe { use fake-in-process-only; } }

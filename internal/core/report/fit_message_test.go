@@ -18,16 +18,16 @@ func TestFitMessageKeepsAnOverlongEventOnTheBus(t *testing.T) {
 	t.Cleanup(ResetForTest)
 
 	// One byte short of the bound, then a three-byte rune that crosses it.
-	long := strings.Repeat("a", maxMessageLen-1) + "€" + "tail"
+	long := strings.Repeat("a", MessageMax-1) + "€" + "tail"
 	fitted := FitMessage(long)
-	if len(fitted) > maxMessageLen {
-		t.Fatalf("fitted message holds %d bytes, the bus accepts %d", len(fitted), maxMessageLen)
+	if len(fitted) > MessageMax {
+		t.Fatalf("fitted message holds %d bytes, the bus accepts %d", len(fitted), MessageMax)
 	}
 	if !utf8.ValidString(fitted) {
 		t.Fatalf("fitted message is cut inside a rune: %q", fitted[len(fitted)-3:])
 	}
-	if fitted != long[:maxMessageLen-1] {
-		t.Fatalf("fitted message is %d bytes, want the %d bytes before the rune", len(fitted), maxMessageLen-1)
+	if fitted != long[:MessageMax-1] {
+		t.Fatalf("fitted message is %d bytes, want the %d bytes before the rune", len(fitted), MessageMax-1)
 	}
 
 	RaiseErrorFix("src", "code", "subject", fitted, "ze show errors")

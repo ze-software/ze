@@ -7,7 +7,9 @@
 // late. Nothing else survives the stop, so the next `ze doctor` reads this
 // record to name the cause. It is written to the daemon's store before the
 // stop, and deleted when the next start completes cleanly, so it never names a
-// stale reason after a clean restart.
+// stale reason after a clean restart. It names the run that wrote it, so a
+// run that stops again without a clean start replaces it rather than adding
+// to the earlier run's reasons.
 
 package server
 
@@ -21,6 +23,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -41,14 +44,17 @@ const (
 	LastStopCleanupLate
 )
 
-// lastStopEntriesMax bounds the record. The first entries are kept, because
-// the first stop reason is the cause and later ones are usually its effects;
-// the rest are counted in Dropped.
+// lastStopEntriesMax bounds the record. The first entries of the run are
+// kept, because the run's first stop reason is the cause and later ones are
+// usually its effects; the rest are counted in Dropped.
 const lastStopEntriesMax = 16
 
-// lastStopDetailMax bounds one entry's detail, as the report bus bounds a
-// message.
-const lastStopDetailMax = 1024
+// lastStopRun names this run of ze in the record: the moment this process
+// loaded the package, to the nanosecond. It is a process value, because the
+// record says why the ze process stopped, and every server the process holds
+// writes the same record. One run's stop reasons share it, and a later
+// process gets its own.
+var lastStopRun = time.Now().UTC()
 
 // Code is the doctor code that reports an entry of this reason.
 func (r LastStopReason) Code() string {
@@ -106,9 +112,11 @@ type LastStopEntry struct {
 	Time   time.Time `json:"time"`
 }
 
-// LastStop is the whole record: its entries in the order they were written,
-// and how many more were written past lastStopEntriesMax.
+// LastStop is the whole record: the run that wrote it (lastStopRun), its
+// entries in the order they were written, and how many more were written past
+// lastStopEntriesMax.
 type LastStop struct {
+	Run     time.Time       `json:"run"`
 	Entries []LastStopEntry `json:"entries"`
 	Dropped int             `json:"dropped,omitempty"`
 }
@@ -116,20 +124,27 @@ type LastStop struct {
 // lastStopMu serializes the record's read-modify-write within this process.
 var lastStopMu sync.Mutex
 
-// RecordLastStop appends entry to the record in the daemon's store, stamped
-// with the current time. It refuses an unspecified reason and an empty detail,
-// and answers statestore.ErrUnavailable when the daemon has no store. Safe for
-// concurrent use.
+// RecordLastStop appends entry to this run's record in the daemon's store,
+// stamped with the current time, and replaces a record an earlier run wrote.
+// It refuses an unspecified reason and an empty detail, and answers
+// statestore.ErrUnavailable when the daemon has no store. Safe for concurrent
+// use.
 func RecordLastStop(entry LastStopEntry) error {
+	return recordLastStopIn(lastStopRun, entry)
+}
+
+// recordLastStopIn is RecordLastStop for the run named run, which a test
+// passes to play two runs in one process.
+func recordLastStopIn(run time.Time, entry LastStopEntry) error {
 	if entry.Reason == LastStopUnspecified {
 		return errors.New("last-stop entry has no reason")
 	}
 	if entry.Detail == "" {
 		return errors.New("last-stop entry has no detail")
 	}
-	if len(entry.Detail) > lastStopDetailMax {
-		entry.Detail = entry.Detail[:lastStopDetailMax]
-	}
+	// The detail is bounded as the report bus bounds a message, and cut at a
+	// rune boundary: the doctor row carries it.
+	entry.Detail = report.FitMessage(entry.Detail)
 	entry.Time = time.Now().UTC()
 
 	lastStopMu.Lock()
@@ -137,6 +152,13 @@ func RecordLastStop(entry LastStopEntry) error {
 	record, _, err := ReadLastStop()
 	if err != nil {
 		return err
+	}
+	// Within a run the first reason is the cause and the later ones are its
+	// effects, so they append. A record another run wrote names an earlier
+	// stop, which is not why ze stops now, so this run's first reason starts
+	// a new record, with its own bound and its own drop count.
+	if !record.Run.Equal(run) {
+		record = LastStop{Run: run}
 	}
 	if len(record.Entries) < lastStopEntriesMax {
 		record.Entries = append(record.Entries, entry)
@@ -230,20 +252,22 @@ func (s *Server) recordStop(entry LastStopEntry) {
 	recordLastStopLogged(entry)
 }
 
-// settleLastStop runs when startup completes. A startup that ended with an
-// error is a boot refusal and is recorded; a clean start deletes the record of
-// the previous stop, unless this server already recorded a stop of its own
-// (a fatal plugin that failed during startup).
+// settleLastStop runs when startup completes. A server that already recorded
+// a stop of its own (a fatal plugin that failed during startup) leaves the
+// record as it is: that stop is the cause, and the startup error it brought
+// is its effect, so recording the refusal too would give one fault two rows.
+// Otherwise a startup that ended with an error is a boot refusal and is
+// recorded, and a clean start deletes the record of the previous stop.
 func (s *Server) settleLastStop() {
+	if s.lastStopRecorded.Load() {
+		return
+	}
 	if s.startupErr != nil {
 		entry := LastStopEntry{Reason: LastStopBootRefused, Detail: s.startupErr.Error()}
 		if missing, ok := errors.AsType[*registry.MissingDependencyError](s.startupErr); ok {
 			entry.Plugin = missing.Plugin
 		}
 		s.recordStop(entry)
-		return
-	}
-	if s.lastStopRecorded.Load() {
 		return
 	}
 	if err := clearLastStop(); err != nil {

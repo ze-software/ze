@@ -31,7 +31,7 @@ func TestStoppedRecordRaisesAndClears(t *testing.T) {
 	defer report.ResetForTest()
 
 	pm := NewProcessManager([]plugin.PluginConfig{{Name: "p1", Internal: true}})
-	pm.RecordStopped("p1", PluginStop{Cause: StopPolicyExit, Policy: "ignore", ExitStatus: "exit code 3"})
+	pm.RecordStopped("p1", PluginStop{Cause: StopPolicyExit, Policy: "ignore", ExitStatus: ExitedWith("exit code 3")})
 
 	stop, down := pm.Stopped("p1")
 	if !down {
@@ -89,7 +89,7 @@ func TestPluginExitClearsItsOwnWarnings(t *testing.T) {
 	report.RaiseWarning("other", diagnostic.CodeDoctorInternalDefect, "p1", "someone else's warning")
 
 	pm := NewProcessManager([]plugin.PluginConfig{{Name: "p1", Internal: true}})
-	pm.ReportCrash("p1", "exit code 2", "ignore")
+	pm.ReportCrash("p1", ExitedWith("exit code 2"), "ignore")
 
 	if activeWarning("p1", diagnostic.CodeDoctorInternalDefect, "state") {
 		t.Error("the plugin's own warning outlived its process")

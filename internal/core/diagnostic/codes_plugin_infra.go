@@ -91,7 +91,8 @@ var pluginInfraCodes = []CodeMeta{
 		Code:  CodeDoctorPluginConfigUnapplied,
 		Title: "Plugin was not told a config change committed",
 		Description: "The daemon committed a config transaction and the commit notice did not reach a plugin, so the plugin still runs the configuration it had before. " +
-			"The row names the plugin, the last transaction it was told of and the daemon's. Reload the configuration so the plugin receives it again.",
+			"The row names the plugin, the last transaction it was told of and the daemon's. Restart the plugin (ze request plugin restart <name>), which starts it again with the running configuration; " +
+			"a reload does not clear the row, because a reload of an unchanged configuration starts no transaction.",
 		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-config-unapplied"},
 	},
 	{
@@ -129,8 +130,10 @@ var pluginInfraCodes = []CodeMeta{
 	{
 		Code:  CodeDoctorPluginRequestRefused,
 		Title: "Plugin request refused",
-		Description: "The daemon refused a request a plugin sent: its payload did not decode, it named something the daemon does not know, or it arrived before the plugin's startup allowed it. " +
-			"The plugin did not get what it asked for and runs without it. The event names the plugin and the reason.",
+		Description: "The daemon refused a request a plugin sent: its payload did not decode (a typed event whose payload is not its registered type among them), it named something the daemon does not know, " +
+			"it arrived before the plugin's startup allowed it, a command it ran failed, or it raised more problems on the report bus than its rate or its share of active warnings allows. " +
+			"The plugin did not get what it asked for and runs without it. The event names the plugin and the reason; " +
+			"it is raised at most once per plugin in a minute, so a plugin that repeats a bad request cannot fill the error ring.",
 		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-request-refused"},
 	},
 	{
@@ -333,7 +336,7 @@ var pluginInfraCodes = []CodeMeta{
 	{
 		Code:  CodeDoctorEnvInvalidValue,
 		Title: "Environment value cannot be used",
-		Description: "An environment variable holds a value its registered type cannot parse, so ze used the default instead, or a value above its maximum, so ze clamped it. " +
+		Description: "An environment variable holds a value its registered type cannot parse, so ze used the default instead, or a value outside its range: below its minimum, so ze used the default, or above its maximum, so ze clamped it. " +
 			"The row names the key, the value, the type and the value used; a secret key's value is not shown. Correct the export and restart ze.",
 		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-env-invalid-value"},
 	},

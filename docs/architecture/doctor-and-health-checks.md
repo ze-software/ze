@@ -702,10 +702,32 @@ package and name, a method by its name in its package, and an exported
 method by its name anywhere. A method named `Warn`, `Error` or `Log` is
 judged by its own shape instead. A `Log` whose level the source does not
 spell (`x.Log(ctx, level, msg)`) is no site, and neither is a wrapper that
-forwards one. A function stored in a field and called through it (`seg.warn
-= r.warnWithheld`, then `seg.warn(...)`) is not followed.
-<!-- source: internal/le/arch/doctorcoverage/wrappers.go -- findWrappers, candidateOf, forwardsOf, passesOn, stringValued, stringName -->
+forwards one. A call through a function value (`seg.warn = r.warnWithheld`,
+then `seg.warn(...)`) names no wrapper, so the line would be judged nowhere.
+A wrapper under the site roots whose name is used other than as the callee
+of a judged call (stored in a field, passed as an argument, returned, or used
+at all from a file outside the site roots) escapes, and it is judged in two
+places. Each direct call of it stays a site, judged for the code that call
+passes, as for any wrapper. Its forwarding call is a site too, standing for
+the calls made through the value. A forward passes its caller's attributes
+on and spells no code of its own, so that site is always uncovered: it is
+listed once in the report as an uncovered site, and a commit is refused for
+it only when the commit carries the file that holds the forward and that file
+held no such site before it. The gate judges only the files a commit carries,
+so a commit that adds the escaping use in another file, without the
+wrapper's, is admitted, and so is a commit that adds a direct call with a
+declared code. dhcpserver's
+`warnWithheld` escapes, and its call of `warnLimited` is a site. Names are
+matched without types, so a field or a local of the same name also makes a
+wrapper escape, which adds its forward as a site and never loses a line. A
+wrapper outside the site roots is judged only at its callers, since its
+forward is in no judged file. The forwards are
+marked once every wrapper is found, so a wrapper's call of another found in a
+later pass is a forward too, whatever the file and declaration order.
+<!-- source: internal/le/arch/doctorcoverage/wrappers.go -- findWrappers, candidateOf, forwardsOf, passesOn, escapedRefs, holds, stringValued, stringName -->
 <!-- test: internal/le/arch/doctorcoverage/judge_test.go TestGateSeesWrapperAndNonLiteralWarn -->
+<!-- test: internal/le/arch/doctorcoverage/judge_test.go TestGateJudgesEscapingWrapperAtItsForward -->
+<!-- test: internal/le/arch/doctorcoverage/judge_test.go TestGateMarksEveryForwardWhateverThePassOrder -->
 <!-- test: internal/le/arch/doctorcoverage/report_test.go TestDoctorCoverageReportListsPluginFindings -->
 <!-- test: internal/le/arch/doctorcoverage/judge_test.go TestDoctorCoverageCheckRefusesPluginFindingWithoutFix -->
 
@@ -827,8 +849,11 @@ still holds. The bus keeps each evicted key until its owner clears it
 (`ClearWarning`, `ClearSource`) or raises it again, and a probe with none of its
 codes active reads degraded "report bus full" while one of them is in that set.
 The set is bounded by the warning cap; past that bound every probe reads
-degraded until the store is replaced. A bus that never reached its caps reads
-as it always did.
+degraded until the store is replaced. A plugin cannot drive the bus there on
+its own: the `report-issue` route refuses a plugin's new warning past its
+share of the cap (`rpc.ReportActiveWarningsShare`), so one plugin never evicts
+another owner's warnings. A bus that never reached its caps reads as it
+always did.
 <!-- source: internal/core/report/report.go -- evictOldestWarning, mayHaveEvicted, Losses, evictionDoubt -->
 <!-- source: internal/core/report/health_probe.go -- probe -->
 <!-- source: internal/component/plugin/doctor/check_report_bus.go -- checkReportBusFull, busFullRow -->
@@ -863,9 +888,9 @@ Each line carries its code and its site raises an error event under it, with
 
 | Code | Raised by (bus source) | What happened |
 |------|------------------------|---------------|
-| `doctor-internal-defect` | the plugin server (`plugin-server`): a config transaction payload it could not decode or an ack it could not emit, an engine subscription or streaming registration with no handler or prefix, a typed event payload that did not decode, a config diff it could not marshal, a tier process missing from the process manager | a state only a defect produces |
-| `doctor-internal-defect` | the plugin package (`plugin-registry`): a plugin event or send type refused at startup, a reactor the coordinator could not attach; the event bus (`event-bus`): a typed event dropped because its payload is not the registered type | the same, raised under `report.CodeInternalDefect`, the bus's copy of the code for packages `internal/core/diagnostic` depends on |
-| `doctor-plugin-request-refused` | `plugin-server`: a plugin's dispatched command failed, or its `forward-cached` request named a malformed destination | the plugin did not get what it asked for |
+| `doctor-internal-defect` | the plugin server (`plugin-server`): a config transaction payload it could not decode or an ack it could not emit, an engine subscription or streaming registration with no handler or prefix, a typed event payload engine code emitted that did not decode (once per event), a config diff it could not marshal, a tier process missing from the process manager | a state only a defect produces |
+| `doctor-internal-defect` | the plugin package (`plugin-registry`): a plugin event or send type refused at startup, a reactor the coordinator could not attach; the event bus (`event-bus`): a typed event dropped because its payload is not the registered type (once per subscription and payload type, as `AsString` does) | the same, raised under `report.CodeInternalDefect`, the bus's copy of the code for packages `internal/core/diagnostic` depends on |
+| `doctor-plugin-request-refused` | `plugin-server`, subject the plugin: a command it dispatched failed, its `forward-cached` request named a malformed destination, a typed event it emitted carries a payload that does not decode as the registered type (the emit is refused and reaches nobody, whether its subscribers run in the daemon or forked), or its `report-issue` raises passed the rate or its share of active warnings | the plugin did not get what it asked for; a plugin's own requests drive these events, so `refusePluginRequest` raises at most one per plugin in `rpc.ReportRaiseWindow`, reading the error ring as its ledger (`report.RaiseErrorFixOnce`); the log keeps a line for each refused emit, command and destination, and one per plugin in each report-issue rate window for each kind of `report-issue` refusal, whether or not that refusal raised the event |
 | `doctor-plugin-answer-undelivered` | `plugin-server`: an answer, refusal or completion its caller never took, or a plugin answer that ended before its terminator | the caller waits or goes on without it |
 | `doctor-plugin-drain-incomplete` | `plugin-server`: a drain round with a failed or late plugin, or one a signal aborted | queued work was dropped |
 | `doctor-config-reload-refused` | `plugin-server`, subject `config-reload`: a configuration transaction that did not commit, the plugins a new configuration needs that could not be resolved or did not start, or a configuration refused once they started | the reload is refused and ze keeps the configuration it was running; raised while ze restored that configuration, the event says the restore did not complete |
@@ -931,6 +956,9 @@ logs at `Info`.
 <!-- source: internal/component/plugin/server/server_events.go -- raiseServerEvent, serverEventSource -->
 <!-- source: internal/component/plugin/resolve.go -- pluginEventSource, RegisterPluginEventTypes -->
 <!-- source: internal/core/events/typed.go -- raiseDrop, eventBusSource -->
+<!-- source: internal/component/plugin/server/dispatch_report.go -- refusePluginRequest -->
+<!-- source: internal/core/report/report.go -- RaiseErrorFixOnce, raiseErrorOnce -->
+<!-- source: internal/component/plugin/server/dispatch.go -- refuseUndecodedPayload, decodeTypedPayload -->
 <!-- source: internal/core/report/report.go -- CodeInternalDefect -->
 <!-- test: internal/component/plugin/server/server_events_test.go TestNotProblemSitesRaiseEvents -->
 
@@ -970,15 +998,19 @@ being fine.
 
 Why ze last stopped itself survives the stop in the `meta/plugin/last-stop`
 key (`docs/architecture/zefs-format.md`). `stopDaemonForPlugin` writes a
-`fatal-policy` entry before it stops ze, a startup that ends with an error
-writes `boot-refused`, and `RecordStopCleanupLate` writes `stop-cleanup-late`
-for an owner whose stop-time cleanup ran late. Each entry carries the reason,
-the plugin, a detail and the time; the record keeps the first 16 and counts the
-rest. A start that completes cleanly deletes it, unless that same run recorded
-a stop. The daemon reads it with `ReadLastStop`; the local checks, whose
+`fatal-policy` entry before it stops ze, and `RecordStopCleanupLate` writes
+`stop-cleanup-late` for an owner whose stop-time cleanup ran late. A startup
+that ends with an error writes `boot-refused`, unless the server already
+recorded a `fatal-policy` stop during it: that stop is the cause and the
+startup error its effect, so one fault gives one entry. Each entry carries the
+reason, the plugin, a detail and the time. The record names the run that wrote
+it (`Run`, the start time of the ze process) and keeps that run's first 16
+entries, counting the rest. A later run's first entry replaces the previous
+run's record rather than appending to it. A start that completes cleanly
+deletes the record, unless that same run recorded a stop. The daemon reads it with `ReadLastStop`; the local checks, whose
 process registers no statestore, read it from the store they are handed with
 `ReadLastStopFrom`.
-<!-- source: internal/component/plugin/server/last_stop.go -- RecordLastStop, RecordStopCleanupLate, ReadLastStop, ReadLastStopFrom, settleLastStop -->
+<!-- source: internal/component/plugin/server/last_stop.go -- LastStop, lastStopRun, recordLastStopIn, RecordLastStop, RecordStopCleanupLate, ReadLastStop, ReadLastStopFrom, settleLastStop -->
 
 ### Plugin lifecycle checks
 
@@ -987,9 +1019,13 @@ process manager (`ProcessManager.RecordStopped`): its failure policy
 (`ignore`, or none declared) after an exit, the respawn limit, a failed
 restart, and a startup handshake that did not reach running. The record holds
 the cause, the policy applied, the exit status (an internal plugin's runner
-code, a fork's reaped state) and the detail, and it raises
-`doctor-plugin-stopped` on the bus, so the `plugins` health row reads down on
-every one of those paths. A generation that reaches running clears it
+code, a fork's reaped state, or, when no exit was recorded within
+`exitStatusWaitMax` of the connection closing, that the process had not
+ended, a value of its own that no message calls an exit) and the detail, and
+it raises `doctor-plugin-stopped` on the bus, so the `plugins` health row reads
+down on every one of those paths. The detail is an error's text of any
+length, so the bus message is fitted to the bus bound (`report.FitMessage`)
+rather than refused; the doctor row prints it whole. A generation that reaches running clears it
 (`superviseProcess`), and so does taking the process out of its slot
 (`RemoveProcess`), after which a failed handshake records the plugin down
 again. A reload's removal (`stopCollectedProcesses`) takes the process out of
@@ -1028,8 +1064,8 @@ only the plugin could clear them.
 | Check | Phase | Code | Reports | Fix |
 |-------|-------|------|---------|-----|
 | `plugin-stopped` | runtime | `doctor-plugin-stopped` (error) | each configured plugin recorded down, with the cause, policy, exit status and time | `ze request plugin restart <name>`; while a stopped process of it owes its cleanup, the same command once that cleanup has finished, with a restart of the ze daemon named in the row as the last resort |
-| `recent-events` | runtime | `doctor-plugin-crashed` (event) | each unasked exit, with its exit status and the policy ze applied | `ze show errors` |
-| `plugin-fatal-stop` | pre-config | `doctor-plugin-fatal-stop` (error) | each `fatal-policy` or `boot-refused` entry of the last-stop record, with plugin, detail and time | the plugin's log lines before that time, then its config change |
+| `recent-events` | runtime | `doctor-plugin-crashed` (event) | each unasked exit, with its exit status (or, for a plugin that closed its connection and whose process had not ended within the wait, that it had not ended) and the policy ze applied | `ze show errors` |
+| `plugin-fatal-stop` | pre-config | `doctor-plugin-fatal-stop` (error) | each `fatal-policy` or `boot-refused` entry of the last-stop record, with plugin, detail and time | the plugin's log lines before that time, then its config change; for an entry that names no plugin (a boot refusal other than a missing dependency), ze's log before that time, with no grep |
 | `plugin-fatal-stop` | pre-config | `doctor-plugin-stop-cleanup-late` (warning) | each `stop-cleanup-late` entry of the last-stop record: the stop went on before that plugin finished its cleanup, so state it installs may remain | `journalctl -u ze --until <time> \| grep <plugin>` |
 | `plugin-autoload` | post-config | `doctor-plugin-autoload-unresolved` (error) | the config's auto-load set that `registry.ResolveDependencies` refuses, with the boot refusal's text | the fix the refusal names |
 | `plugin-setup` | pre-config | `doctor-plugin-setup-failed` (error for hard, warning for soft) | each `registry.SetupResults` failure, with the recorded reason | the remedy after the reason's last `; `, else `ze show plugin list` |
@@ -1099,7 +1135,12 @@ The managed server authenticates with per-client secrets and no shared
 secret. `AuthenticateWithLookup` refuses an empty expected token, so a name
 with no client entry is refused whatever token it sends; before that guard, an
 unknown name that sent an empty token authenticated. The refusal is recorded
-under the claimed name, bounded to 64 characters, and never with the token. A
+under the claimed name and never with the token. A name of the plugin name
+form is shown unchanged. Any other name is escaped the way `strconv.Quote`
+escapes it (control characters, non-printable and bidirectional runes,
+invalid bytes, the quote mark and the backslash), without the outer quote
+marks, and cut to 64 octets of escaped text with `...` after the cut. An empty
+claim is shown as `""`. A
 configured name is recorded beside the other refusals of that client; an
 unknown name is chosen by whoever connects, so only the 16 most recent are
 kept.
@@ -1118,6 +1159,12 @@ Nine runtime checks read what a plugin was refused or never received after it
 started. Each per-plugin record lives on the plugin's `process.Process`
 (`DoctorRecord`, bounded at 16 entries per list, the rest counted), so a
 respawn or restart starts clean; `PluginDoctorState.Records` carries the copy.
+Each string a record keeps that the plugin chose is bounded at the recorder
+(`boundDoctorText`): a declared command or alias and a subscribed namespace at
+128 octets, the bound of a declared doctor check name, and a refusal reason,
+a parse detail and every kept error at 1024, the bound the managed config
+server keeps of a client's error. A longer one is cut at a UTF-8 rune
+boundary and ends `...(cut)`, so a row never presents a cut name as whole.
 What has no process to live on is on the server: the recovered engine handler
 panics, the enricher failures per plugin name (cleared with the plugin's
 process cleanup and again when its next process registers its enrichers, and
@@ -1145,7 +1192,7 @@ also carries every finding of `deliveryDisagreements(nil)` and every role
 check answers one warning saying it could not read the plugin state.
 <!-- source: internal/component/plugin/doctor/register_delivery.go -- init -->
 <!-- source: internal/component/plugin/doctor/checks_delivery.go -- snapshotCheck -->
-<!-- source: internal/component/plugin/process/doctor_records.go -- DoctorRecord, noteBatch -->
+<!-- source: internal/component/plugin/process/doctor_records.go -- DoctorRecord, noteBatch, boundDoctorText -->
 <!-- source: internal/component/plugin/server/doctor_delivery.go -- registerProcessCommands, recordHandlerPanic, recordEnricherFailure -->
 <!-- source: internal/component/plugin/server/doctor_snapshot.go -- DeliveryDisagreement, UnbackedClaim -->
 <!-- test: internal/component/plugin/doctor/checks_delivery_test.go TestDoctorClassChecks -->
@@ -1158,7 +1205,7 @@ check answers one warning saying it could not read the plugin state.
 | `plugin-claims` | `doctor-plugin-claim-unbacked` (error) | each exclusive role with no claimant running, naming the claimants | computed at the snapshot | `ze request plugin restart <claimant>` |
 | `plugin-poststartup` | `doctor-plugin-poststartup-undelivered` (error) | each running plugin whose post-startup callback failed; one still starting, or whose callback is in flight, is not reported | `recordPostStartupOutcome` | `ze request plugin restart <name>` |
 | `plugin-panic` | `doctor-plugin-panic` (error) | a plugin's first failed event application (`projectionErr`), and each recovered engine handler panic with its namespace and event type | `deliverBatch`, `safeDeliverBatch`, `invokeHandler` | the restart, or `ze show log recent level err component plugin.server` for an engine handler, whose panics are logged and not raised on the report bus |
-| `plugin-delivery` | `doctor-plugin-delivery-failed` (warning) | the batches that failed with no caller waiting, and the batches over 500 ms, in the last five minutes (`DeliveryWindow`) | `noteBatch`, timed in `deliverBatch` for every transport | `ze request plugin restart <name>` |
+| `plugin-delivery` | `doctor-plugin-delivery-failed` (warning) | the batches that failed with no caller waiting, and the batches over 500 ms, in the last five minutes (`DeliveryWindow`), with the last error of a failure it counts (a slow batch whose error went to a waiting caller keeps none) | `noteBatch`, timed in `deliverBatch` for every transport | `ze request plugin restart <name>` |
 | `plugin-enrichers` | `doctor-plugin-enricher-unavailable` (warning) | each `show` enricher that failed to register, or whose last call failed | `registerProxyEnrichers`, `makeProxyCall` | remove the plugin holding the same field, or the restart |
 | `plugin-config-commit` | `doctor-plugin-config-unapplied` (warning) | each running plugin whose last config-committed callback failed or had no connection to go on, with the daemon's last committed transaction | `dispatchCommitted`, `subscribeCommitted` | `ze request plugin restart <name>` |
 

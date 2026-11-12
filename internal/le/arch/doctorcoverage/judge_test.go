@@ -5,7 +5,9 @@
 // set is admitted without reading either side; and a thin scan is an error.
 // It also validates spec-doctor-coverage-12-plugin-infra AC-43 (a Warn whose
 // message is not a literal, and a call through a wrapper that forwards its
-// message and attributes to Warn, are sites judged at the caller) and AC-46's
+// message and attributes to Warn, are sites judged at the caller, while a
+// wrapper used as a value is judged at its forward as well as at each direct
+// caller, and a forward found in a later pass is still no site) and AC-46's
 // check form (a plugin's rpc.DoctorCheckDiagnostic with no Fix is refused).
 // PREVENTS: `./le commit create` landing a Warn line no doctor check answers
 // for, and a commit refused for the uncovered sites the tree already holds.
@@ -398,6 +400,222 @@ func TestGateSeesWrapperAndNonLiteralWarn(t *testing.T) {
 			t.Errorf("%q: code %q, want doctor-fixture-covered", tc.message, site.Code)
 		}
 	}
+}
+
+// escapeFile is a file a commit fixture adds beside the fixture's sites, in
+// the same package. Only the After side holds it.
+const escapeFile = "internal/plugins/fixture/escape.go"
+
+// escapeSource is escapeFile's text: a wrapper stored in a struct field and
+// called through it (dhcpserver's seg.warn = r.warnWithheld), a wrapper
+// passed as an argument, and a wrapper only ever called directly.
+const escapeSource = `package fixture
+
+import "log/slog"
+
+// segment holds the warning function its owner gives it.
+type segment struct{ warn func(msg string, attrs ...any) }
+
+// server owns the logger its warnings go to.
+type server struct{ log *slog.Logger }
+
+// warnHeld forwards to Warn, and is stored in a field.
+func (s *server) warnHeld(msg string, attrs ...any) {
+	s.log.Warn(msg, attrs...)
+}
+
+// warnDirect forwards to Warn, and is only ever called.
+func warnDirect(log *slog.Logger, msg string, attrs ...any) {
+	log.Warn(msg, attrs...)
+}
+
+// warnPassed forwards to warnDirect, and is passed as an argument.
+func (s *server) warnPassed(text string, attrs ...any) {
+	warnDirect(s.log, text, attrs...)
+}
+
+// wire hands two wrappers out and calls the others.
+func (s *server) wire(seg *segment, register func(func(string, ...any))) {
+	seg.warn = s.warnHeld
+	register(s.warnPassed)
+	s.warnHeld("fixture: held and called", "code", "doctor-fixture-covered")
+	s.warnHeld("fixture: held uncovered")
+	warnDirect(s.log, "fixture: direct uncovered")
+	warnDirect(s.log, "fixture: direct covered", "code", "doctor-fixture-covered")
+}
+
+// run warns through the field, a call the scan cannot follow.
+func (seg *segment) run() {
+	seg.warn("fixture: through the field")
+}
+`
+
+// addedFileChange answers the change of a commit that adds path, holding
+// source, to the fixture tree: only the After side holds it.
+func addedFileChange(t *testing.T, path, source string) changecheck.Change {
+	t.Helper()
+	unchanged := fixtureSide(t, "", "", "")
+	before := func(read string) (string, bool, error) {
+		if read == path {
+			return "", false, nil
+		}
+		return unchanged(read)
+	}
+	after := func(read string) (string, bool, error) {
+		if read == path {
+			return source, true, nil
+		}
+		return unchanged(read)
+	}
+	return changecheck.Change{Root: fixtureTree, Paths: []string{path}, Before: before, After: after}
+}
+
+// refusesExactly fails unless the judge's text names, among path's lines,
+// the line of each refused needle, none of the admitted ones, and nothing
+// else.
+func refusesExactly(t *testing.T, text, path, source string, refused, admitted []string) {
+	t.Helper()
+	for _, needle := range refused {
+		where := path + ":" + strconv.Itoa(lineOf(t, source, needle)) + ":"
+		if !strings.Contains(text, where) {
+			t.Errorf("refusal does not name %s (%s):\n%s", where, needle, text)
+		}
+	}
+	for _, needle := range admitted {
+		where := path + ":" + strconv.Itoa(lineOf(t, source, needle)) + ":"
+		if strings.Contains(text, where) {
+			t.Errorf("refusal names %s (%s), which is no uncovered site:\n%s", where, needle, text)
+		}
+	}
+	if got := strings.Count(text, path+":"); got != len(refused) {
+		t.Errorf("refusal names %d sites of %s, want %d:\n%s", got, path, len(refused), text)
+	}
+}
+
+// TestGateJudgesEscapingWrapperAtItsForward guards the lines a wrapper writes
+// when one of its uses is no call the gate judges. Goal: a wrapper stored in a
+// struct field and called through it, or passed as an argument, writes a line
+// for a caller the gate cannot see (seg.warn(...) names no wrapper), so its
+// forwarding call is a site standing for those calls; each direct call of it
+// stays a site judged for the code it passes, exactly as for a wrapper that
+// never escapes, so no line the gate judged is lost. A wrapper only ever
+// called stays judged at each caller, its forward no site. Method: a commit
+// adds escapeFile; the judge must refuse exactly the two escaping forwards
+// and the two uncovered direct calls, one of the escaping wrapper and one of
+// the other, and admit the covered direct calls and the call through the
+// field; the scan must read each site's kind, call and status.
+func TestGateJudgesEscapingWrapperAtItsForward(t *testing.T) {
+	text, err := judgeChangeAt(addedFileChange(t, escapeFile, escapeSource), fixtureCodesFloor, 1)
+	if err != nil {
+		t.Fatalf("judgeChangeAt: %v", err)
+	}
+	refused := []string{
+		"\ts.log.Warn(msg, attrs...)",
+		"\twarnDirect(s.log, text, attrs...)",
+		`"fixture: held uncovered"`,
+		`"fixture: direct uncovered"`,
+	}
+	admitted := []string{
+		"\tlog.Warn(msg, attrs...)",
+		`"fixture: held and called"`,
+		`"fixture: direct covered"`,
+		`"fixture: through the field"`,
+	}
+	refusesExactly(t, text, escapeFile, escapeSource, refused, admitted)
+
+	inventory, err := scan(fixtureTree, map[string]overlayFile{escapeFile: {text: escapeSource, present: true}}, fixtureCodesFloor, fixtureDoors)
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	cases := []struct {
+		message string
+		kind    Kind
+		call    string
+		status  Status
+	}{
+		{"msg", KindLogWarn, "s.log.Warn", StatusNoCode},
+		{"text", KindLogWarn, "warnDirect", StatusNoCode},
+		{"fixture: held and called", KindLogWarn, "s.warnHeld", StatusCovered},
+		{"fixture: held uncovered", KindLogWarn, "s.warnHeld", StatusNoCode},
+		{"fixture: direct uncovered", KindLogWarn, "warnDirect", StatusNoCode},
+		{"fixture: direct covered", KindLogWarn, "warnDirect", StatusCovered},
+	}
+	var inFile int
+	for i := range inventory.Sites {
+		if inventory.Sites[i].File == escapeFile {
+			inFile++
+		}
+	}
+	if inFile != len(cases) {
+		t.Errorf("scan found %d sites in %s, want %d: %+v", inFile, escapeFile, len(cases), inventory.Sites)
+	}
+	for _, tc := range cases {
+		site := siteWith(t, inventory.Sites, tc.message)
+		if site.File != escapeFile {
+			t.Errorf("%q: file %s, want %s", tc.message, site.File, escapeFile)
+		}
+		if site.Kind != tc.kind {
+			t.Errorf("%q: kind %s, want %s", tc.message, site.Kind, tc.kind)
+		}
+		if site.Call != tc.call {
+			t.Errorf("%q: call %q, want %q", tc.message, site.Call, tc.call)
+		}
+		if site.Status != tc.status {
+			t.Errorf("%q: status %s, want %s", tc.message, site.Status, tc.status)
+		}
+	}
+}
+
+// orderFile is a file a commit fixture adds beside the fixture's sites, in
+// the same package. Only the After side holds it.
+const orderFile = "internal/plugins/fixture/order.go"
+
+// orderSource is orderFile's text: warnTwice forwards to Warn, found in the
+// first pass, and to warnRelayed, which forwards to warnLast declared after
+// it and so is found only in the second pass.
+const orderSource = `package fixture
+
+import "log/slog"
+
+// warnTwice forwards to Warn and to warnRelayed.
+func warnTwice(log *slog.Logger, msg string, attrs ...any) {
+	log.Warn(msg, attrs...)
+	warnRelayed(log, msg, attrs...)
+}
+
+// warnRelayed forwards to warnLast, declared after it.
+func warnRelayed(log *slog.Logger, msg string, attrs ...any) {
+	warnLast(log, msg, attrs...)
+}
+
+// warnLast forwards to Warn.
+func warnLast(log *slog.Logger, msg string, attrs ...any) {
+	log.Warn(msg, attrs...)
+}
+
+// order calls the outer wrapper.
+func order(log *slog.Logger) {
+	warnTwice(log, "fixture: twice uncovered")
+}
+`
+
+// TestGateMarksEveryForwardWhateverThePassOrder guards a wrapper's forward to
+// a wrapper the scan finds in a later pass than its own. Goal: that call is a
+// forward like any other, so it is no site, whatever order the files and
+// declarations put the wrappers in. Method: a commit adds orderFile; the judge
+// must refuse only the uncovered call of warnTwice, never warnTwice's call of
+// warnRelayed.
+func TestGateMarksEveryForwardWhateverThePassOrder(t *testing.T) {
+	text, err := judgeChangeAt(addedFileChange(t, orderFile, orderSource), fixtureCodesFloor, 1)
+	if err != nil {
+		t.Fatalf("judgeChangeAt: %v", err)
+	}
+	refused := []string{`"fixture: twice uncovered"`}
+	admitted := []string{
+		"\twarnRelayed(log, msg, attrs...)",
+		"\twarnLast(log, msg, attrs...)",
+	}
+	refusesExactly(t, text, orderFile, orderSource, refused, admitted)
 }
 
 // pluginFindingCopp is a plugin answering its findings as rpc literals.

@@ -710,7 +710,7 @@ and merges the response into the base map. Proxy enrichers are cleaned up via
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `enrichers[].command` | string | Show command path (e.g., `show subscriber detail`) |
+| `enrichers[].command` | string | Show command path (e.g., `show subscriber detail`), 1-128 octets, the bound the doctor record keeps a failing enricher's command at |
 | `enrichers[].key` | string | Unique enricher key within command (kebab-case, 1-128 chars) |
 
 <!-- source: pkg/plugin/rpc/types.go -- EnricherDecl -->
@@ -1732,7 +1732,12 @@ The engine names the source itself, from the plugin's configured name, so a
 plugin cannot raise or clear under another owner; the request has no source
 field. It refuses, with an error answer naming the field and the bound:
 
-- a request above 4 KiB, or one that does not decode
+- a request longer than the framing plus every string field at its bound
+  with each octet written as a six-octet JSON escape (`<`, as
+  `json.Marshal` writes `<`, `>`, `&`, a control character or an invalid
+  UTF-8 octet), about 9.5 KiB, or one that does not decode. The bound is
+  derived from the field bounds, so every request the SDK validates and
+  encodes passes it
 - a missing or oversized field, an unknown action or severity, and a clear
   of an error
 - a request from a plugin that has not finished its startup handshake
@@ -1745,13 +1750,35 @@ field. It refuses, with an error answer naming the field and the bound:
   logged at WARN and raised once as the error event
   `doctor-plugin-request-refused`, subject the plugin, so the operator learns
   that the plugin flooded the bus. A clear is never refused by this bound
+- a new warning that would take the plugin past its share of the bus's
+  active warnings: the warning cap (`ze.report.warnings.max`) divided by
+  `rpc.ReportActiveWarningsShare` (16), so 64 at the default cap of 1024.
+  The answer names the share and says to clear a warning first. A raise that
+  refreshes a warning already active adds none and is accepted, and the
+  first refusal in a window is raised once as `doctor-plugin-request-refused`.
+  The count is read from the bus itself, so a clear frees a slot at once
 
-The field bounds are the report bus's own, so a raise the engine accepts is
-never dropped by the bus.
+The field bounds are the report bus's own (`report.CodeMax` and the rest,
+from which the `rpc` bounds are declared), so a raise the engine accepts is
+never dropped by the bus. The YANG leaf lengths of `report-issue` repeat
+them, and a test compares the two.
 
-<!-- source: pkg/plugin/rpc/report.go -- MethodReportIssue, ReportIssueInput, ValidateReportIssue, ReportRaisesPerWindow -->
+A plugin's active warnings leave the bus when its process goes: the process
+manager clears its source when it removes the plugin or records its crash.
+An ad-hoc plugin session (`HandleAdHocPluginSession`, an SSH channel) is never
+in the process manager, so its warnings are cleared, and its raise window
+forgotten, when the session ends. Every plugin's rate window is forgotten
+when its process is cleaned up, so the windows hold only processes that are
+alive.
+
+<!-- source: pkg/plugin/rpc/report.go -- MethodReportIssue, ReportIssueInput, ValidateReportIssue, ReportRaisesPerWindow, ReportActiveWarningsShare -->
 <!-- source: pkg/plugin/sdk/report.go -- Issue, RaiseIssue, ClearIssue -->
-<!-- source: internal/component/plugin/server/dispatch_report.go -- opReportIssue, raiseReported, pluginReportRate -->
+<!-- source: internal/component/plugin/server/dispatch_report.go -- opReportIssue, raiseReported, reportIssueEncodedMax, pluginReportRate, raiseWarningWithin, activeWarningsMax, forgetPluginReports -->
+<!-- source: internal/component/plugin/server/adhoc.go -- endAdHocSession -->
+<!-- source: internal/core/report/report.go -- SourceWarnings, CodeMax -->
+<!-- test: internal/component/plugin/server/dispatch_report_test.go TestReportRaiseEscapedAtBoundsBothTransports -->
+<!-- test: internal/component/plugin/server/dispatch_report_test.go TestReportActiveWarningsSharePerPlugin -->
+<!-- test: internal/component/plugin/server/dispatch_report_test.go TestAdHocSessionEndClearsItsReports -->
 <!-- test: internal/component/plugin/server/dispatch_report_test.go TestReportRaiseRouteBothTransports -->
 
 #### Panic containment
@@ -2625,9 +2652,15 @@ hyphens, the first a letter or a digit (the form the commit also requires of a
 name, and any request when no token is bound to the name and no shared secret
 exists: an empty expected token never authenticates. The acceptor logs each
 refusal at WARN and raises `doctor-plugin-connect-back-refused` on the report
-bus, where `show doctor` lists it. The event names the claimed name, bounded
-to 64 characters, or the remote address when the request named none; it never
-carries the token. The plugin whose start waited for that connection fails as
+bus, where `show doctor` lists it. The event names the claimed name, or the
+remote address when the request was not an auth request and so named none;
+an auth request whose claimed name is empty is shown as `""`. It never
+carries the token. A
+claimed name of the plugin name form is shown unchanged. Any other name is
+escaped the way `strconv.Quote` escapes it (control characters, non-printable
+and bidirectional runes, invalid bytes, the quote mark and the backslash),
+without the outer quote marks, and cut to 64 octets of escaped text with
+`...` after the cut. An empty claim is shown as `""`. The plugin whose start waited for that connection fails as
 one that never connected.
 <!-- source: internal/component/plugin/ipc/tls.go -- AuthenticateWithLookup -->
 <!-- source: internal/component/plugin/ipc/connect_back_refusal.go -- AuthRefusal, reportConnectBackRefused -->

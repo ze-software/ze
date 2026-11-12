@@ -131,20 +131,24 @@ const (
 	maxErrorCap   = 10000
 )
 
-// Field length limits. Producers passing strings beyond these limits have
-// their raise call rejected at the boundary, the same way empty fields are
-// rejected. This prevents a buggy producer (or malicious caller in a future
-// API surface) from filling the bus with multi-megabyte entries. Detail map
-// size is also bounded; values are not length-checked but the entry count
-// cap prevents pathological detail payloads.
+// Field length limits, in octets. Producers passing strings beyond these
+// limits have their raise call rejected at the boundary, the same way empty
+// fields are rejected. This prevents a buggy producer (or a plugin through
+// report-issue) from filling the bus with multi-megabyte entries. They are
+// exported because they are the one declaration of the bounds: the plugin
+// wire type (pkg/plugin/rpc, ReportCodeMax and the rest) and the report-issue
+// route derive theirs from them, so a raise the route accepts is never
+// dropped here. Detail map size is also bounded; values are not
+// length-checked but the entry count cap prevents pathological detail
+// payloads.
 const (
-	maxSourceLen  = 64
-	maxCodeLen    = 64
-	maxSubjectLen = 256
-	maxMessageLen = 1024
+	SourceMax     = 64
+	CodeMax       = 64
+	SubjectMax    = 256
+	MessageMax    = 1024
 	maxDetailKeys = 16
-	// maxFixLen bounds a fix: one command line, never a paragraph.
-	maxFixLen = 256
+	// FixMax bounds a fix: one command line, never a paragraph.
+	FixMax = 256
 )
 
 // Env var keys.
@@ -293,19 +297,19 @@ func validFields(source, code, subject, message, fix string, detail map[string]a
 	if source == "" || code == "" || subject == "" {
 		return false
 	}
-	if len(fix) > maxFixLen {
+	if len(fix) > FixMax {
 		return false
 	}
-	if len(source) > maxSourceLen {
+	if len(source) > SourceMax {
 		return false
 	}
-	if len(code) > maxCodeLen {
+	if len(code) > CodeMax {
 		return false
 	}
-	if len(subject) > maxSubjectLen {
+	if len(subject) > SubjectMax {
 		return false
 	}
-	if len(message) > maxMessageLen {
+	if len(message) > MessageMax {
 		return false
 	}
 	if len(detail) > maxDetailKeys {
@@ -320,10 +324,10 @@ func validFields(source, code, subject, message, fix string, detail map[string]a
 // refuses a longer message and the event would then be lost with only a debug
 // line. Safe for concurrent use.
 func FitMessage(message string) string {
-	if len(message) <= maxMessageLen {
+	if len(message) <= MessageMax {
 		return message
 	}
-	cut := maxMessageLen
+	cut := MessageMax
 	for cut > 0 && !utf8.RuneStart(message[cut]) {
 		cut--
 	}
@@ -389,6 +393,17 @@ func RaiseErrorFix(source, code, subject, message, fix string, detail ...map[str
 	pkg.Load().raiseError(source, code, subject, message, fix, firstDetail(detail))
 }
 
+// RaiseErrorFixOnce is RaiseErrorFix for an event a third party can drive,
+// such as a plugin's refused request: it raises unless the error ring already
+// holds an event of the same source, code and subject raised less than
+// window ago, and answers whether it raised. The ring is the ledger, so one
+// looping producer leaves one event per window instead of overwriting every
+// other owner's events, and the bound needs no state of its own. Safe for
+// concurrent use; it is rejected like RaiseErrorFix on an invalid field.
+func RaiseErrorFixOnce(source, code, subject, message, fix string, window time.Duration) bool {
+	return pkg.Load().raiseErrorOnce(source, code, subject, message, fix, window)
+}
+
 // Warnings returns a snapshot of all active warnings, ordered most-recently-
 // updated first. The returned slice and Issues (including Detail maps) are
 // copies; mutating them does not affect bus state. Detail map values are
@@ -406,6 +421,26 @@ func Warnings() []Issue {
 // Returns an empty (non-nil) slice when no errors have been raised.
 func Errors(limit int) []Issue {
 	return pkg.Load().snapshotErrors(limit)
+}
+
+// SourceWarnings answers, in one read of the bus, how many active warnings
+// carry source, whether the warning of source, code and subject is one of
+// them (a raise of it refreshes and adds nothing), and the bus's warning cap.
+// The report-issue route bounds each plugin's share of the cap with it, so
+// one plugin cannot evict every other owner's warnings. Safe for concurrent
+// use; the count is a snapshot, so a caller that must not race a second raise
+// serializes its raises itself.
+func SourceWarnings(source, code, subject string) (active int, present bool, warningCap int) {
+	s := pkg.Load()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for k := range s.warnings {
+		if k.source == source {
+			active++
+		}
+	}
+	_, present = s.warnings[warningKey{source: source, code: code, subject: subject}]
+	return active, present, s.warningCap
 }
 
 // firstDetail returns the first map from a variadic detail argument, or nil.
@@ -514,7 +549,6 @@ func (s *store) raiseError(source, code, subject, message, fix string, detail ma
 			"message_len", len(message), "fix_len", len(fix), "detail_keys", len(detail))
 		return
 	}
-	now := time.Now()
 	issue := &Issue{
 		Source:   source,
 		Code:     code,
@@ -523,13 +557,60 @@ func (s *store) raiseError(source, code, subject, message, fix string, detail ma
 		Message:  message,
 		Detail:   copyDetail(detail),
 		Fix:      fix,
-		Raised:   now,
-		Updated:  now,
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// The time is read under the lock, so the ring's append order is the
+	// order of Raised, which raiseErrorOnce's scan relies on.
+	now := time.Now()
+	issue.Raised = now
+	issue.Updated = now
+	s.appendErrorLocked(issue)
+}
 
+// raiseErrorOnce is raiseError unless the ring already holds an event of
+// source, code and subject raised less than window ago; it answers whether
+// it raised. The look and the append share one hold of the lock, so two
+// concurrent calls raise one event.
+func (s *store) raiseErrorOnce(source, code, subject, message, fix string, window time.Duration) bool {
+	if !validFields(source, code, subject, message, fix, nil) {
+		s.logger.Debug("rejected RaiseErrorFixOnce: invalid fields",
+			"source", source, "code", code, "subject_len", len(subject),
+			"message_len", len(message), "fix_len", len(fix))
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// Every append reads its time under this lock, so the ring is in order of
+	// Raised: the scan runs newest to oldest and stops at the first event
+	// older than window, because every event before it is older still.
+	now := time.Now()
+	for i := range s.errorCount {
+		held := s.errors[(s.errorHead-1-i+s.errorCap)%s.errorCap]
+		if now.Sub(held.Raised) >= window {
+			break
+		}
+		if held.Source == source && held.Code == code && held.Subject == subject {
+			return false
+		}
+	}
+	s.appendErrorLocked(&Issue{
+		Source:   source,
+		Code:     code,
+		Severity: SeverityError,
+		Subject:  subject,
+		Message:  message,
+		Fix:      fix,
+		Raised:   now,
+		Updated:  now,
+	})
+	return true
+}
+
+// appendErrorLocked writes issue at the ring's head. Caller MUST hold s.mu
+// (write lock).
+func (s *store) appendErrorLocked(issue *Issue) {
 	if s.errorCount == s.errorCap {
 		// The ring is full, so this write overwrites the oldest event.
 		s.errorsOverwritten++

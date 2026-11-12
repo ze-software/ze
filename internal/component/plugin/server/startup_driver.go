@@ -272,14 +272,21 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	}
 	// Startup subscriptions ride in the ready params. A parse failure is
 	// non-fatal: startup proceeds with a zero-value ReadyInput (no subscription,
-	// no bridge transport), matching the pre-refactor engine behavior.
+	// no bridge transport), matching the pre-refactor engine behavior. The
+	// params decode into their own value, published only on success:
+	// encoding/json goes on past a field of the wrong type, so a failed decode
+	// still holds every field that did parse, and registering those would
+	// contradict the drop the refusal records.
 	var readyInput rpc.ReadyInput
 	if req.Params != nil {
-		if perr := json.Unmarshal(req.Params, &readyInput); perr != nil {
+		var decoded rpc.ReadyInput
+		if perr := json.Unmarshal(req.Params, &decoded); perr != nil {
 			logger().Warn("rpc startup: invalid ready params, the plugin's startup subscriptions are dropped",
 				"plugin", sink.pluginName(), "error", perr,
 				"code", diagnostic.CodeDoctorPluginSubscriptionDropped)
 			sink.readyParamsRefused(perr)
+		} else {
+			readyInput = decoded
 		}
 	}
 	// Publish the callback transport before onReady makes this plugin a

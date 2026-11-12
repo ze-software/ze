@@ -5,8 +5,11 @@
 package server
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/show"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -125,6 +128,34 @@ func TestValidateEnricherDeclsTooMany(t *testing.T) {
 	err := validateEnricherDecls(decls)
 	if err == nil {
 		t.Fatal("expected error for too many enrichers")
+	}
+}
+
+// TestValidateEnricherDeclsCommandBound proves the Stage 1 declaration holds
+// an enricher's command to the bound the doctor record keeps it at: a command
+// of process.DoctorNameMax octets is accepted, and one octet more is refused
+// with an answer naming its length and the bound.
+//
+// PREVENTS: two declared commands that agree on the prefix the record keeps
+// cutting to one doctor record, so a success of one clears the other's
+// failure. Red: the length check in validateEnricherDecls.
+func TestValidateEnricherDeclsCommandBound(t *testing.T) {
+	atBound := strings.Repeat("c", process.DoctorNameMax)
+	if err := validateEnricherDecls([]rpc.EnricherDecl{{Command: atBound, Key: "cos"}}); err != nil {
+		t.Fatalf("a command at the bound was refused: %v", err)
+	}
+	if process.BoundDoctorName(atBound) != atBound {
+		t.Fatal("the doctor record cuts a command at the declaration bound, so the bound does not prevent the collision")
+	}
+
+	err := validateEnricherDecls([]rpc.EnricherDecl{{Command: atBound + "c", Key: "cos"}})
+	if err == nil {
+		t.Fatal("a command one octet past the bound was accepted")
+	}
+	for _, part := range []string{strconv.Itoa(process.DoctorNameMax + 1), strconv.Itoa(process.DoctorNameMax)} {
+		if !strings.Contains(err.Error(), part) {
+			t.Errorf("the refusal %q does not name %s", err, part)
+		}
 	}
 }
 

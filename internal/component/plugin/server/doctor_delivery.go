@@ -119,12 +119,14 @@ type handlerPanicRecord struct {
 	overwrittenNewest time.Time
 }
 
-// recordHandlerPanic records one recovered engine handler panic.
+// recordHandlerPanic records one recovered engine handler panic. The panic's
+// text is kept bounded (process.BoundDoctorDetail): a panic value can carry
+// an error chain or a payload a plugin sent.
 func (e *engineEventSubscribers) recordHandlerPanic(ns events.NamespaceID, et events.EventTypeID, value any) {
 	panicked := EngineHandlerPanic{
 		Namespace: ns.String(),
 		EventType: et.String(),
-		Panic:     fmt.Sprint(value),
+		Panic:     process.BoundDoctorDetail(fmt.Sprint(value)),
 		Time:      time.Now(),
 	}
 	r := &e.panics
@@ -204,8 +206,17 @@ var (
 
 // recordEnricherFailure records a failure, replacing an earlier one of the
 // same command, key and kind. Past serverRecordMax kept per plugin, the
-// failing enricher is counted once, however often it fails.
+// failing enricher is counted once, however often it fails. The command, key
+// and error the plugin chose are kept bounded (process.BoundDoctorName,
+// process.BoundDoctorDetail): the error is the plugin's answer, which can be
+// one 16 MiB message, and the entry bound alone does not bound what an entry
+// keeps. validateEnricherDecls already holds a declared command and key to
+// process.DoctorNameMax, so their cut never runs and two enrichers never share
+// one identity; it stays as this record's own bound.
 func recordEnricherFailure(pluginName string, failure EnricherFailure) {
+	failure.Command = process.BoundDoctorName(failure.Command)
+	failure.Key = process.BoundDoctorName(failure.Key)
+	failure.Error = process.BoundDoctorDetail(failure.Error)
 	failure.Time = time.Now()
 	enricherFailureMu.Lock()
 	defer enricherFailureMu.Unlock()
@@ -243,7 +254,8 @@ func sameEnricher(a, b *EnricherFailure) bool {
 }
 
 // clearEnricherCallFailure removes the call failure of one enricher, kept or
-// counted, once a call succeeded.
+// counted, once a call succeeded. command and key are bounded as
+// recordEnricherFailure keeps them, so a long name still matches its record.
 func clearEnricherCallFailure(pluginName, command, key string) {
 	enricherFailureMu.Lock()
 	defer enricherFailureMu.Unlock()
@@ -251,7 +263,7 @@ func clearEnricherCallFailure(pluginName, command, key string) {
 	if list == nil {
 		return
 	}
-	call := EnricherFailure{Command: command, Key: key}
+	call := EnricherFailure{Command: process.BoundDoctorName(command), Key: process.BoundDoctorName(key)}
 	isCall := func(f EnricherFailure) bool { return sameEnricher(&f, &call) }
 	list.kept = slices.DeleteFunc(list.kept, isCall)
 	list.dropped = slices.DeleteFunc(list.dropped, isCall)

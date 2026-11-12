@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -315,7 +316,9 @@ func (s *Server) emitEvent(emitter *process.Process, params json.RawMessage) (*r
 //     one plugin-process subscriber exists.
 //   - A `string` payload (emitted via plugin RPC) is the JSON form;
 //     engine-side typed subscribers receive the unmarshaled Go value if the
-//     event has a registered payload type, otherwise the raw string.
+//     event has a registered payload type, otherwise the raw string. A typed
+//     payload that does not decode refuses the emit, whoever subscribes, and
+//     reaches nobody (refuseUndecodedPayload).
 //
 // The emitting process is excluded from plugin-process delivery to prevent
 // self-delivery loops.
@@ -330,33 +333,46 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 		return 0, &rpc.RPCCallError{Message: tb.Str("unknown event: ").Str(namespace).Byte('/').Str(eventType).String()}
 	}
 
-	if s.eventRing != nil {
-		s.eventRing.Append(namespace, eventType)
-	}
-
 	// Convert strings to typed IDs once; all internal matching uses integers.
 	nsID := events.LookupNamespaceID(namespace)
 	etID := events.LookupEventTypeID(eventType)
 	dirID := events.ParseDirection(direction)
 
-	// Compute the engine payload lazily. If the raw payload is a string,
-	// the event has a registered typed payload, AND at least one engine
-	// subscriber is listening, unmarshal once so typed engine subscribers
-	// receive a native Go value. The hasSubscribers gate avoids decoding
-	// for events that nobody on the engine side has registered for.
+	// A string payload on an event with a registered payload type is
+	// unmarshaled once, whoever subscribes, so typed engine subscribers
+	// receive a native Go value and every emit is judged the same way.
 	//
-	// The gate is best-effort: a subscriber that registers between this
-	// check and the deferred dispatchEngineEvent below would receive the
-	// undecoded raw string, and its typed-handle wrapper would log a
-	// type-mismatch drop. Eliminating that race would require decoding
-	// unconditionally whenever PayloadType != nil, losing most of the
-	// lazy-decode benefit on events emitted only to external plugins.
+	// A typed payload that does not decode refuses the whole emit, and
+	// nobody receives it: a typed subscriber drops anything but its
+	// registered type, and a string-taking subscriber cannot sit on a typed
+	// event, because every decoded emit hands it a value that is not a
+	// string. A forked subscriber would get JSON it cannot decode either: the
+	// SDK hands it the string as sent, its own handler's decode fails, and
+	// nothing on the daemon's bus names the emitter that caused it. Only an
+	// event with no registered type reaches the engine as the raw string.
+	//
+	// The decode is not gated on an engine subscriber listening. Gated, the
+	// refusal depended on where the consumer ran, and a subscriber that
+	// registered between the gate and the deferred dispatchEngineEvent below
+	// received the undecoded string. The cost is one unmarshal per string
+	// emit of a typed event, paid even when only forked subscribers listen
+	// and nothing in the engine reads the decoded value. Over the connection
+	// it is a second parse of a payload the RPC layer already parsed as part
+	// of the request; over DirectBridge (SetEmitEvent hands the Go string
+	// over, with no RPC parse) it is the only one.
 	enginePayload := payload
-	if raw, ok := payload.(string); ok && s.engineSubscribers != nil &&
-		s.engineSubscribers.hasSubscribers(nsID, etID) {
-		if decoded, decodedOK := tryDecodeTypedPayload(namespace, eventType, raw); decodedOK {
+	if raw, ok := payload.(string); ok {
+		decoded, typed, err := decodeTypedPayload(namespace, eventType, raw)
+		if err != nil {
+			return 0, refuseUndecodedPayload(emitter, namespace, eventType, err)
+		}
+		if typed {
 			enginePayload = decoded
 		}
+	}
+
+	if s.eventRing != nil {
+		s.eventRing.Append(namespace, eventType)
 	}
 
 	// Engine-side subscribers fire regardless of whether the plugin
@@ -490,44 +506,69 @@ func payloadToJSON(namespace, eventType string, payload any) (string, error) {
 	return string(b), nil
 }
 
-// tryDecodeTypedPayload inspects the event registry and unmarshals raw JSON
-// into the registered Go type when one exists. Returns (decoded, true) on
-// success, (nil, false) otherwise (unknown event, signal event, empty
-// payload, or unmarshal failure). Unmarshal failures and empty-payload
-// arrivals on registered typed events log a warn and raise
-// doctor-internal-defect so drops do not mask publisher / consumer drift; the caller forwards the raw string so
-// the typed-handle wrapper can also log its drop and the engine
-// subscriber still has a chance to handle the string if it registered for
-// strings.
-func tryDecodeTypedPayload(namespace, eventType, raw string) (any, bool) {
+// decodeTypedPayload inspects the event registry and unmarshals raw JSON
+// into the registered Go type when one exists. typed is false, with no
+// error, for an event with no registered payload type or a signal event: the
+// caller hands the raw string on. For a typed event it answers the decoded
+// value, or an error saying why raw is not that type (empty, or JSON that
+// does not unmarshal into it). It logs and raises nothing: who sent raw
+// decides whether the failure is a plugin's refused request or a defect in
+// ze (refuseUndecodedPayload).
+func decodeTypedPayload(namespace, eventType, raw string) (decoded any, typed bool, err error) {
 	typ, isSignal := events.PayloadInfo(namespace, eventType)
 	if typ == nil {
-		return nil, false
+		return nil, false, nil
 	}
 	if isSignal {
-		return nil, false
+		return nil, false, nil
 	}
 	if raw == "" {
-		logger().Warn("eventbus: typed event arrived with empty payload, dropping decode",
-			"namespace", namespace, "event-type", eventType, "want", typ.String(),
-			"code", diagnostic.CodeDoctorInternalDefect)
-		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, namespace+" "+eventType, "eventbus: typed event arrived with empty payload, dropping decode")
-		return nil, false
+		return nil, true, errors.New("the payload is empty, and the event carries a " + typ.String())
 	}
 	// reflect.New(T) yields *T. For payloads declared as *S, typ is *S, so
 	// reflect.New(typ) gives **S and Unmarshal populates a fresh *S inside.
 	// Calling Elem() once returns the *S (or S for value-typed payloads)
 	// that engine subscribers expect.
 	ptr := reflect.New(typ)
-	if err := json.Unmarshal([]byte(raw), ptr.Interface()); err != nil {
-		logger().Warn("eventbus: typed event JSON unmarshal failed, dropping decode",
-			"namespace", namespace, "event-type", eventType,
-			"want", typ.String(), "error", err,
-			"code", diagnostic.CodeDoctorInternalDefect)
-		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, namespace+" "+eventType, "eventbus: typed event JSON unmarshal failed, dropping decode: "+err.Error())
-		return nil, false
+	if unmarshalErr := json.Unmarshal([]byte(raw), ptr.Interface()); unmarshalErr != nil {
+		return nil, true, errors.New("the payload does not decode as " + typ.String() + ": " + unmarshalErr.Error())
 	}
-	return ptr.Elem().Interface(), true
+	return ptr.Elem().Interface(), true, nil
+}
+
+// engineDecodeDefects holds each event an engine emitter sent an undecodable
+// typed payload for, so that defect is raised once per event, as the typed
+// handles bound theirs (events.Event.Subscribe). It is bounded by the
+// registered events.
+var engineDecodeDefects sync.Map // "<namespace>/<event-type>" -> struct{}
+
+// refuseUndecodedPayload answers the refusal of an emit whose typed payload
+// did not decode (cause), after recording it. A plugin's payload is that
+// plugin's refused request, logged at each one and raised under
+// doctor-plugin-request-refused naming the plugin, at most once per window
+// (refusePluginRequest), because a plugin looping on a bad emit would
+// otherwise overwrite the whole error ring. Only engine code emits with no
+// process, so a nil emitter's payload is a defect in ze, raised under
+// doctor-internal-defect once per event.
+func refuseUndecodedPayload(emitter *process.Process, namespace, eventType string, cause error) error {
+	event := namespace + "/" + eventType
+	if emitter == nil {
+		logger().Warn("eventbus: engine emitted a typed event whose payload does not decode, dropping it",
+			"namespace", namespace, "event-type", eventType, "error", cause,
+			"code", diagnostic.CodeDoctorInternalDefect)
+		if _, seen := engineDecodeDefects.LoadOrStore(event, struct{}{}); !seen {
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, namespace+" "+eventType,
+				"eventbus: the engine emitted "+event+" and "+cause.Error()+"; nobody received it")
+		}
+		return &rpc.RPCCallError{Message: "emit " + event + " dropped: " + cause.Error()}
+	}
+	name := emitter.Name()
+	logger().Warn("emit-event refused: the typed payload does not decode",
+		"plugin", name, "namespace", namespace, "event-type", eventType, "error", cause,
+		"code", diagnostic.CodeDoctorPluginRequestRefused)
+	refusePluginRequest(name, "plugin "+name+" emitted "+event+" and "+cause.Error()+"; nobody received it")
+	return &rpc.RPCCallError{Message: "emit-event " + event + " refused: " + cause.Error() +
+		"; nobody received it. Send the event as the JSON of its registered type"}
 }
 
 // handleCodecRPC is a shared helper for plugin->engine codec RPCs (decode-nlri, encode-nlri).
@@ -688,7 +729,8 @@ func (s *Server) dispatchCommandArgsResponse(ctx context.Context, proc *process.
 		} else {
 			logger().Error("dispatch-command-args failed", "plugin", proc.Name(), "command", authInput, "error", dispatchErr,
 				"code", diagnostic.CodeDoctorPluginRequestRefused)
-			raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, proc.Name(), "dispatch-command-args failed: "+dispatchErr.Error())
+			refusePluginRequest(proc.Name(),
+				"dispatch-command-args failed for plugin "+proc.Name()+", which ran "+strconv.Quote(authInput)+": "+dispatchErr.Error())
 		}
 		return nil, dispatchErr
 	}
@@ -754,7 +796,8 @@ func (s *Server) dispatchCommandResponse(ctx context.Context, proc *process.Proc
 		} else {
 			logger().Error("dispatch-command failed", "plugin", proc.Name(), "command", command, "error", dispatchErr,
 				"code", diagnostic.CodeDoctorPluginRequestRefused)
-			raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, proc.Name(), "dispatch-command failed: "+dispatchErr.Error())
+			refusePluginRequest(proc.Name(),
+				"dispatch-command failed for plugin "+proc.Name()+", which ran "+strconv.Quote(command)+": "+dispatchErr.Error())
 		}
 		return nil, dispatchErr
 	}
@@ -841,6 +884,10 @@ func (s *Server) cleanupProcess(proc *process.Process) {
 		// route-install RPC (AC-8): a forked OSPF/IS-IS that dies without withdrawing
 		// must not leave stale routes in the kernel.
 		s.withdrawPluginRoutes(proc.Name())
+
+		// Forget the plugin's report-issue rate window, so the windows hold
+		// only processes that are alive (dispatch_report.go).
+		s.forgetPluginReports(proc.Name())
 
 		runProcessCleanupHooks(proc.Name())
 	})

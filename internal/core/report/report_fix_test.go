@@ -63,15 +63,15 @@ func TestIssueFixCarriedAndOmitted(t *testing.T) {
 // TestIssueFixBounded raises a warning whose fix is one byte over the bound,
 // then one exactly at it.
 //
-// VALIDATES: a fix longer than maxFixLen is refused like any other oversized
+// VALIDATES: a fix longer than FixMax is refused like any other oversized
 // field, and one at the bound is kept.
 // PREVENTS: a producer filling the bus through an unbounded fix field.
 func TestIssueFixBounded(t *testing.T) {
 	reset()
 	t.Cleanup(reset)
 
-	RaiseWarningFix("bgp", "code", "over", "message", strings.Repeat("f", maxFixLen+1))
-	RaiseWarningFix("bgp", "code", "at", "message", strings.Repeat("f", maxFixLen))
+	RaiseWarningFix("bgp", "code", "over", "message", strings.Repeat("f", FixMax+1))
+	RaiseWarningFix("bgp", "code", "at", "message", strings.Repeat("f", FixMax))
 	warnings := Warnings()
 	if len(warnings) != 1 || warnings[0].Subject != "at" {
 		t.Fatalf("want only the fix at the bound kept, got %+v", warnings)

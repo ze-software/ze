@@ -35,10 +35,15 @@
 # kill in a working product (about 1s after the stop); in a broken one the
 # 60s hold, and the plugin's Pdeathsig SIGKILL when the daemon dies.
 #
-# Budget: the restart costs the 1s exit grace, the reap, a fork and a TLS
-# connect-back and handshake. The restart step carries its own 30s bound so a
-# hang reads as that step's failure; the await-answer barrier is bounded by
-# half the test's budget; the gone check is bounded by 10s. All fit in 60s.
+# Budget: option=timeout below is the one budget. A `timeout=` on a
+# cmd=foreground line would replace it rather than bound that step
+# (resolveOrchestratedTimeout, runner_exec_util.go: a foreground command's
+# timeout wins over option=timeout), so no cmd= line carries one. The restart
+# costs the 1s exit grace, the reap, a fork and a TLS connect-back and
+# handshake. A restart that hangs is bounded by the test's 60s deadline, which
+# kills the `ze cli` process group, so its exit=0 fails naming seq=3. The
+# await-answer barrier is bounded by half the test's budget
+# (WaitBudget(50), 30s); the gone check by 10s. All fit in 60s.
 
 option=timeout:value=60s
 option=env:var=ze.ssh.username:value=admin
@@ -78,12 +83,13 @@ cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
 # not exit on its own.
 cmd=foreground:seq=2:exec=le test fixture daemon/await-answer restart-generation-1 "show restart-generation status":exit=0
 
-# The command under test, bounded. Its answer is the handler's Data map:
+# The command under test, bounded by the test's deadline. Its answer is the
+# handler's Data map:
 # message, plugin, was-running (fieldMessage, fieldRestartedPlugin,
 # fieldRestartWasRunning, register_plugin_restart.go). It comes only after
 # Respawn's join and the replacement's handshake, so an answer at all proves
 # the ignored stop did not hang the command.
-cmd=foreground:seq=3:exec=ze cli -c "request plugin restart restart-generation | json":timeout=30s:exit=0
+cmd=foreground:seq=3:exec=ze cli -c "request plugin restart restart-generation | json":exit=0
 expect=stdout:contains=plugin restart-generation was running: stopped and started again
 expect=stdout:pattern="was-running":\s*true
 expect=stdout:pattern="plugin":\s*"restart-generation"

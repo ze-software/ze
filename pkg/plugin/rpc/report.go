@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // MethodReportIssue raises or clears one problem on the daemon's report bus,
@@ -16,15 +18,17 @@ import (
 const MethodReportIssue = "ze-plugin-engine:report-issue"
 
 // Bounds of one report-issue request, enforced by the SDK and the engine
-// alike. The field bounds are the report bus's own (internal/core/report,
-// validFields), so a request the engine accepts is never dropped by the bus;
-// the engine's TestReportRaiseRouteBothTransports raises at every bound to
-// prove it.
+// alike. The field bounds are the report bus's own, taken from its one
+// declaration (internal/core/report, CodeMax and the rest), so a request the
+// engine accepts is never dropped by the bus; the engine's
+// TestReportRaiseRouteBothTransports raises at every bound to prove it, and
+// TestReportIssueYANGLengthsMatchTheBus (internal/component/config/yang)
+// compares the YANG leaf lengths of report-issue with them.
 const (
-	ReportCodeMax    = 64   // octets in a code
-	ReportSubjectMax = 256  // octets in a subject
-	ReportMessageMax = 1024 // octets in a message
-	ReportFixMax     = 256  // octets in a fix: one command line
+	ReportCodeMax    = report.CodeMax    // octets in a code
+	ReportSubjectMax = report.SubjectMax // octets in a subject
+	ReportMessageMax = report.MessageMax // octets in a message
+	ReportFixMax     = report.FixMax     // octets in a fix: one command line
 
 	// ReportRaisesPerWindow raises are accepted from one plugin in each
 	// ReportRaiseWindow; a raise past it is refused. A problem is raised once
@@ -33,6 +37,16 @@ const (
 	// every problem it has, and one past it is flooding the bus.
 	ReportRaisesPerWindow = 60
 	ReportRaiseWindow     = time.Minute
+
+	// ReportActiveWarningsShare divides the daemon's active warning cap
+	// (ze.report.warnings.max, 1024 by default) into the most warnings one
+	// plugin keeps active: 64 at the default cap. A raise of a new warning
+	// past that share is refused until the plugin clears one; a raise that
+	// refreshes a warning already active is not. The bound is a share of
+	// the cap rather than a fixed count so it holds at any cap the operator
+	// sets: no single plugin can fill the bus and evict every other owner's
+	// warnings.
+	ReportActiveWarningsShare = 16
 )
 
 // ReportAction is what a report-issue request does.

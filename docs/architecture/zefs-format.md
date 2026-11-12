@@ -234,7 +234,7 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 | Namespace | Purpose | Example |
 |-----------|---------|---------|
 | `meta/` | Instance metadata (credentials, identity, flags) | `meta/auth/local/username`, `meta/instance/managed` |
-| `meta/plugin/last-stop` | Why ze last stopped itself because of a plugin (a `fatal` failure policy, a boot refusal) or ran a stop-time cleanup late: JSON entries of reason, plugin, detail and time, written by the plugin server before the stop, deleted on the next clean start, read by the next `ze doctor` | `meta/plugin/last-stop` |
+| `meta/plugin/last-stop` | Why ze last stopped itself because of a plugin (a `fatal` failure policy, a boot refusal) or ran a stop-time cleanup late: JSON entries of reason, plugin, detail and time, with `run`, the start time of the ze process that wrote the record, written by the plugin server before the stop, deleted on the next clean start, read by the next `ze doctor` | `meta/plugin/last-stop` |
 | `file/active/` | Current committed config files | `file/active/router.conf` |
 | `file/draft/` | Live edits in progress | `file/draft/router.conf` |
 | `file/<date>/` | Historical config version entries, each holding `sha256:<hex>` | `file/20260318-100000.000/router.conf` |

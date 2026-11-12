@@ -17,8 +17,16 @@
 //
 // The line the operator reads is the wrapper's caller's, and so is the `code`
 // attribute that names its doctor code: each call of a wrapper is a site of the
-// wrapper's level, and the forwarding call inside the wrapper is none. The
-// wrapper is found from its body, never from its name. A name is matched as Go
+// wrapper's level, and the forwarding call inside the wrapper is none. A
+// wrapper under the site roots whose name is also used as a value (stored in
+// a field, passed as an argument) or from a file outside the site roots
+// escapes: a call through the field names no wrapper, so the gate cannot see
+// it. Such a wrapper's direct calls stay sites, judged at each caller as for
+// any wrapper, and its forwarding call is a site too, standing for the calls
+// made through the value. A forward passes its caller's attributes on and
+// spells no code of its own, so that site is always uncovered, and it is
+// refused only by the commit that adds it. The wrapper is found from its
+// body, never from its name. A name is matched as Go
 // scopes it, since the scan holds no types: a function by its package and name,
 // a method by its name within its package, and an exported method by its name
 // anywhere in the tree.
@@ -69,7 +77,13 @@ type wrapperCandidate struct {
 // so each pass adds the candidates whose body forwards to a log call or to a
 // wrapper already found, and the passes stop when one adds none: a pass that
 // does not stop adds a candidate, so there are at most as many passes as
-// candidates.
+// candidates. Forwards are marked after the last pass, against the whole
+// set: a wrapper found in an earlier pass than a wrapper it also forwards to
+// did not see that call as a forward when it was added. A wrapper that
+// escapes (escapedRefs) is a wrapper like any other, so each of its direct
+// calls stays a site, but its forwarding calls are left unmarked: each is
+// then an ordinary site, the one judgement the calls made through the value
+// can have.
 func (index *treeIndex) findWrappers() wrapperSet {
 	set := wrapperSet{
 		funcs:    make(map[funcRef]wrapper),
@@ -85,6 +99,8 @@ func (index *treeIndex) findWrappers() wrapperSet {
 			}
 		}
 	}
+	escaped := index.escapedRefs(candidates)
+	var found []wrapperCandidate
 	for added := true; added; {
 		added = false
 		remaining := candidates[:0]
@@ -95,14 +111,131 @@ func (index *treeIndex) findWrappers() wrapperSet {
 				continue
 			}
 			set.add(candidate, forwarded)
-			for _, call := range calls {
-				set.forwards[call] = true
-			}
+			found = append(found, candidate)
 			added = true
 		}
 		candidates = remaining
 	}
+	for _, candidate := range found {
+		if escaped.holds(candidate) {
+			continue
+		}
+		calls, _ := index.forwardsOf(&set, candidate)
+		for _, call := range calls {
+			set.forwards[call] = true
+		}
+	}
 	return set
+}
+
+// escapes holds the candidate names the tree uses other than as the callee
+// of a call the gate judges, keyed as wrapperSet.of looks a call up: a
+// function by its directory and name, a method by its name in the directory
+// of the use, and an exported method by its name anywhere.
+type escapes struct {
+	funcs    map[funcRef]bool
+	methods  map[funcRef]bool
+	exported map[string]bool
+}
+
+// escapedRefs answers the uses of the candidates' names that no judged call
+// covers: a name taken as a value (stored in a field, passed as an argument,
+// returned, assigned), and any use, a call included, in a file outside the
+// site roots, whose calls sitesOf does not judge. Each such use is a line the
+// wrapper writes for a caller the gate never reads. Names are matched without
+// types, so a field or local of the same name counts as a use: that adds the
+// wrapper's forward as a site beside its callers, and never loses a line.
+func (index *treeIndex) escapedRefs(candidates []wrapperCandidate) escapes {
+	refs := escapes{
+		funcs:    make(map[funcRef]bool),
+		methods:  make(map[funcRef]bool),
+		exported: make(map[string]bool),
+	}
+	names := make(map[string]bool, len(candidates))
+	for _, candidate := range candidates {
+		names[candidate.decl.Name.Name] = true
+	}
+	for _, file := range index.files {
+		refs.addFile(file, names, underAny(file.path, siteRoots))
+	}
+	return refs
+}
+
+// addFile records the uses of names in one file that escape: in a judged
+// file every use but a call's callee and a declaration's own name, in any
+// other file every use.
+func (refs escapes) addFile(file *sourceFile, names map[string]bool, judged bool) {
+	callees := make(map[ast.Expr]bool)
+	var visit func(ast.Node) bool
+	visit = func(node ast.Node) bool {
+		switch node := node.(type) {
+		case *ast.FuncDecl:
+			// The declared name is no use of it.
+			if node.Recv != nil {
+				ast.Inspect(node.Recv, visit)
+			}
+			ast.Inspect(node.Type, visit)
+			if node.Body != nil {
+				ast.Inspect(node.Body, visit)
+			}
+			return false
+		case *ast.CallExpr:
+			if judged {
+				callees[ast.Unparen(node.Fun)] = true
+			}
+		case *ast.Ident:
+			if names[node.Name] && !callees[node] {
+				refs.funcs[funcRef{dir: file.dir, name: node.Name}] = true
+			}
+		case *ast.SelectorExpr:
+			if names[node.Sel.Name] && !callees[node] {
+				refs.addSelector(file, node)
+			}
+			// Sel is the name just judged: only X holds further uses.
+			ast.Inspect(node.X, visit)
+			return false
+		}
+		return true
+	}
+	ast.Inspect(file.ast, visit)
+}
+
+// addSelector records an escaping x.name: a function of another tree package
+// when x is its import name, else a method.
+func (refs escapes) addSelector(file *sourceFile, selector *ast.SelectorExpr) {
+	name := selector.Sel.Name
+	if receiver, isIdent := selector.X.(*ast.Ident); isIdent {
+		if path, imported := file.imports[receiver.Name]; imported {
+			if dir, inTree := cutModule(path); inTree {
+				refs.funcs[funcRef{dir: dir, name: name}] = true
+			}
+			return
+		}
+	}
+	refs.methods[funcRef{dir: file.dir, name: name}] = true
+	if selector.Sel.IsExported() {
+		refs.exported[name] = true
+	}
+}
+
+// holds reports whether a candidate escapes. One outside the site roots never
+// does: its file is read for no sites, so an unmarked forward there would be
+// judged nowhere, and its callers under the site roots are its judgement.
+func (refs escapes) holds(candidate wrapperCandidate) bool {
+	if !underAny(candidate.file.path, siteRoots) {
+		return false
+	}
+	ref := funcRef{dir: candidate.file.dir, name: candidate.decl.Name.Name}
+	if candidate.decl.Recv == nil {
+		return refs.funcs[ref]
+	}
+	if refs.methods[ref] {
+		return true
+	}
+	if !candidate.decl.Name.IsExported() {
+		return false
+	}
+	return refs.exported[ref.name]
 }
 
 // candidateOf answers the wrapper candidate a declaration is: a function with

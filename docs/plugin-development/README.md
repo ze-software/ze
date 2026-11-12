@@ -281,7 +281,8 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 A plugin reports a problem with `RaiseIssue`, never with
 `internal/core/report` directly: a forked plugin's own report bus is a copy in
 its process that nothing reads. `Issue.Code` is a registered event code, and
-the engine refuses any other, a field past its bound and a raise flood
+the engine refuses any other, a field past its bound, a raise flood and a new
+warning past the plugin's share of active warnings
 (`docs/architecture/api/process-protocol.md`, "Plugin problems").
 
 ### Lifecycle

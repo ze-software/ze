@@ -71,9 +71,10 @@ type PluginStop struct {
 	// Policy is the failure policy ze applied, empty where none was applied
 	// (the respawn limit, a failed handshake).
 	Policy string
-	// ExitStatus is how the last process ended, empty where no process ended
-	// (a handshake that never started one).
-	ExitStatus string
+	// ExitStatus is how the last process ended. Its zero value is no process
+	// exit, for a stop where no process ended (a handshake that never started
+	// one).
+	ExitStatus ProcessExit
 	// Time is when the stop was recorded.
 	Time time.Time
 }
@@ -116,8 +117,13 @@ func (pm *ProcessManager) recordStoppedLocked(name string, stop PluginStop) {
 		stop.Time = time.Now()
 	}
 	pm.stopped[name] = stop
+	// The message carries the stop's detail, an error's text of any length, so
+	// it is fitted: the bus refuses a longer message, and the warning, the
+	// `plugins` health row and `show warnings` would then miss this plugin. The
+	// subject and the fix carry only the plugin name, which is within the bus
+	// bounds: a configured name is at most 64 characters (ipc.PluginNameForm).
 	report.RaiseWarningFix(reportSourcePlugin, diagnostic.CodeDoctorPluginStopped, name,
-		StoppedMessage(name, &stop), RestartCommand(name))
+		report.FitMessage(StoppedMessage(name, &stop)), RestartCommand(name))
 	logger().Warn("configured plugin is not running; start it again with the fix command",
 		"plugin", name, "cause", stop.Cause.String(), "detail", stop.Detail,
 		"code", diagnostic.CodeDoctorPluginStopped, "fix", RestartCommand(name))
@@ -131,8 +137,14 @@ func StoppedMessage(name string, stop *PluginStop) string {
 	if stop.Policy != "" {
 		tb.Str(" (failure policy ").Str(stop.Policy).Byte(')')
 	}
-	if stop.ExitStatus != "" {
-		tb.Str("; its process ended with ").Str(stop.ExitStatus)
+	switch stop.ExitStatus.kind {
+	case exitNone:
+		// No process ended, so there is no exit to name.
+	case exitRecorded:
+		tb.Str("; its process ended with ").Str(stop.ExitStatus.status)
+	case exitUnrecorded:
+		tb.Str("; its connection closed, and its process had not ended ").
+			Str(exitStatusWaitMax.String()).Str(" later")
 	}
 	if stop.Detail != "" {
 		tb.Str("; ").Str(stop.Detail)
@@ -216,16 +228,65 @@ func (r *exitRecord) wait(ctx context.Context) (string, bool) {
 // this wait.
 const exitStatusWaitMax = 2 * time.Second
 
+// exitKind is which of the three states a ProcessExit holds.
+type exitKind uint8
+
+const (
+	// exitNone: no process ended, so no exit applies. The zero value.
+	exitNone exitKind = iota
+	// exitRecorded: the process ended, and its status says how.
+	exitRecorded
+	// exitUnrecorded: no exit was recorded within exitStatusWaitMax of the
+	// plugin's connection closing, so the process may still run.
+	exitUnrecorded
+)
+
+// ProcessExit is how a plugin's process ended: no process exit (the zero
+// value, for a stop where no process ran), a recorded exit status
+// (ExitedWith), or no exit recorded within exitStatusWaitMax (ExitStatus,
+// when its wait gives up). They are distinct values so that each message
+// says what is true: a process with no recorded exit is never said to have
+// ended with something. It is a value type.
+type ProcessExit struct {
+	kind   exitKind
+	status string
+}
+
+// ExitedWith is the exit of a process that ended as status says ("exit code
+// 3", "signal: killed"). status MUST NOT be empty: only ze code builds one,
+// and an empty status would read as a clean exit.
+func ExitedWith(status string) ProcessExit {
+	if status == "" {
+		panic("BUG: process.ExitedWith: empty exit status")
+	}
+	return ProcessExit{kind: exitRecorded, status: status}
+}
+
+// String says how the process ended, for a log line or an event detail.
+func (e ProcessExit) String() string {
+	switch e.kind {
+	case exitNone:
+		return "no process exit"
+	case exitRecorded:
+		return e.status
+	case exitUnrecorded:
+		var tb textbuf.Buffer
+		tb.Str("no exit recorded within ").Str(exitStatusWaitMax.String()).Str(" of its connection closing")
+		return tb.String()
+	}
+	return "unknown process exit"
+}
+
 // ExitStatus answers how this plugin's process ended: "exit code N" or
 // "panic" for an internal plugin, the reaped process state ("exit status 1",
 // "signal: killed") for a forked one. When no exit is recorded within
-// exitStatusWaitMax it says so, rather than answering an empty status that
-// reads as a clean exit. Safe for concurrent use.
-func (p *Process) ExitStatus() string {
+// exitStatusWaitMax it answers that no exit was recorded, a value of its own,
+// rather than a status that reads as an exit. Safe for concurrent use.
+func (p *Process) ExitStatus() ProcessExit {
 	ctx, cancel := context.WithTimeout(context.Background(), exitStatusWaitMax)
 	defer cancel()
 	if status, ok := p.exit.wait(ctx); ok {
-		return status
+		return ExitedWith(status)
 	}
-	return "no recorded exit: the process had not ended 2s after its connection closed"
+	return ProcessExit{kind: exitUnrecorded}
 }

@@ -519,10 +519,10 @@ func TestRaiseRejectsOversizedFields(t *testing.T) {
 		subject string
 		message string
 	}{
-		{"long source", strings.Repeat("a", maxSourceLen+1), "code", "subj", "msg"},
-		{"long code", "src", strings.Repeat("a", maxCodeLen+1), "subj", "msg"},
-		{"long subject", "src", "code", strings.Repeat("a", maxSubjectLen+1), "msg"},
-		{"long message", "src", "code", "subj", strings.Repeat("a", maxMessageLen+1)},
+		{"long source", strings.Repeat("a", SourceMax+1), "code", "subj", "msg"},
+		{"long code", "src", strings.Repeat("a", CodeMax+1), "subj", "msg"},
+		{"long subject", "src", "code", strings.Repeat("a", SubjectMax+1), "msg"},
+		{"long message", "src", "code", "subj", strings.Repeat("a", MessageMax+1)},
 	}
 	for _, tc := range cases {
 		t.Run("warning/"+tc.name, func(t *testing.T) {
@@ -559,10 +559,10 @@ func TestRaiseRejectsLargeDetail(t *testing.T) {
 func TestRaiseAcceptsFieldsAtLimit(t *testing.T) {
 	reset()
 	RaiseWarning(
-		strings.Repeat("a", maxSourceLen),
-		strings.Repeat("b", maxCodeLen),
-		strings.Repeat("c", maxSubjectLen),
-		strings.Repeat("d", maxMessageLen),
+		strings.Repeat("a", SourceMax),
+		strings.Repeat("b", CodeMax),
+		strings.Repeat("c", SubjectMax),
+		strings.Repeat("d", MessageMax),
 		nil,
 	)
 	if got := Warnings(); len(got) != 1 {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/show"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -31,6 +32,13 @@ func validateEnricherDecls(enrichers []rpc.EnricherDecl) error {
 	for _, e := range enrichers {
 		if e.Command == "" {
 			return fmt.Errorf("enricher command must not be empty")
+		}
+		// The doctor record keeps a failing enricher's command bounded
+		// (recordEnricherFailure); a command past that bound would be cut, and
+		// two commands with one prefix would share one record, so a success of
+		// one clears the other's failure.
+		if len(e.Command) > process.DoctorNameMax {
+			return fmt.Errorf("enricher command of %d octets is too long (max %d)", len(e.Command), process.DoctorNameMax)
 		}
 		if e.Key == "" || len(e.Key) > maxKeyLen {
 			return fmt.Errorf("invalid enricher key %q (must be 1-%d chars)", e.Key, maxKeyLen)

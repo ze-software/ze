@@ -619,15 +619,32 @@ const reportSourcePlugin = "plugin"
 // here: their owner is gone and nothing else can clear them, so they would
 // outlive it as stale faults. doctor-plugin-crashed and doctor-plugin-stopped
 // then report the down.
-func (pm *ProcessManager) ReportCrash(name, exitStatus, policy string) {
+//
+// A process with no exit recorded within the wait is not said to have ended:
+// the event says its connection closed and its process had not ended, and
+// carries no exit-status detail.
+func (pm *ProcessManager) ReportCrash(name string, exit ProcessExit, policy string) {
 	report.ClearSource(name)
 	var message textbuf.Buffer
-	message.Str("plugin process exited unexpectedly: ").Str(name).
-		Str("; it ended with ").Str(exitStatus).
-		Str(", and ze applies its failure policy ").Str(policy)
+	detail := map[string]any{"policy": policy}
+	switch exit.kind {
+	case exitNone:
+		message.Str("plugin process exited unexpectedly: ").Str(name)
+	case exitRecorded:
+		message.Str("plugin process exited unexpectedly: ").Str(name).
+			Str("; it ended with ").Str(exit.status)
+		detail["exit-status"] = exit.status
+	case exitUnrecorded:
+		message.Str("plugin ").Str(name).
+			Str(" closed its connection unexpectedly, and its process had not ended ").
+			Str(exitStatusWaitMax.String()).Str(" later")
+	}
+	message.Str(", and ze applies its failure policy ").Str(policy)
+	// A fork's exit status can carry a wait error's text, so the message is
+	// fitted to the bus bound rather than refused. The subject is the plugin
+	// name, at most 64 characters (ipc.PluginNameForm), and the fix is fixed.
 	report.RaiseErrorFix(reportSourcePlugin, diagnostic.CodeDoctorPluginCrashed, name,
-		message.String(), "ze show errors",
-		map[string]any{"exit-status": exitStatus, "policy": policy})
+		report.FitMessage(message.String()), "ze show errors", detail)
 }
 
 // Respawn restarts a process, enforcing respawn limits. It returns the NEW

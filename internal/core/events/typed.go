@@ -103,19 +103,30 @@ func (e *Event[T]) Emit(bus ze.EventBus, payload T) (int, error) {
 }
 
 // Subscribe registers a typed handler. The bus dispatches `any`; the wrapper
-// here type-asserts to T once per event. A type mismatch (publisher emitted
-// a value that does not match the registered T, or the bus received an
-// undecoded RPC string for a typed event) logs a warn and raises
-// doctor-internal-defect on the report bus (raiseDrop), so a drop does not
-// mask publisher / consumer drift. Returns an unsubscribe function.
+// here type-asserts to T once per event. A type mismatch (engine code emitted
+// a value that does not match the registered T) is a defect in ze: the
+// plugin server refuses a plugin's typed payload that does not decode before
+// it reaches a subscriber, so only an engine publisher drifting from its
+// consumer gets here. The wrapper logs a warn and raises
+// doctor-internal-defect on the report bus (raiseDrop) for the first drop of
+// each distinct dynamic payload type, as AsString does, so a drop does not
+// mask the drift, and a publisher that emits per route cannot fill the error
+// ring with one defect. Returns an unsubscribe function.
 func (e *Event[T]) Subscribe(bus ze.EventBus, handler func(T)) func() {
 	if handler == nil {
 		return func() {}
 	}
+	// seen holds the dynamic payload types already reported on this
+	// subscription; bounded by the payload types publishers emit on one
+	// event, as AsString's is.
+	var seen sync.Map // reflect.Type -> struct{}
 	return bus.Subscribe(e.namespace, e.eventType, func(p any) {
 		v, ok := p.(T)
 		if !ok {
-			logger().Warn("eventbus: payload type mismatch, dropping",
+			if _, loaded := seen.LoadOrStore(reflect.TypeOf(p), struct{}{}); loaded {
+				return // this dynamic type already reported once
+			}
+			logger().Warn("eventbus: payload type mismatch, dropping (further drops of this type on this subscription suppressed)",
 				"namespace", e.namespace,
 				"event-type", e.eventType,
 				"want", reflect.TypeFor[T]().String(),

@@ -115,16 +115,6 @@ func (e *engineEventSubscribers) dispatch(ns events.NamespaceID, et events.Event
 	}
 }
 
-// hasSubscribers reports whether any handler is registered for the given
-// (namespace, eventType). Used by deliverEvent to skip the typed-payload
-// decode when no engine subscriber would consume it.
-func (e *engineEventSubscribers) hasSubscribers(ns events.NamespaceID, et events.EventTypeID) bool {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	m, ok := e.handlers[engineSubKey{Namespace: ns, EventType: et}]
-	return ok && len(m) > 0
-}
-
 // invokeHandler runs a single handler with panic recovery, and records a
 // recovered panic for the doctor. Extracted so the dispatch loop is
 // straight-line and the deferred recover scope is exactly one handler

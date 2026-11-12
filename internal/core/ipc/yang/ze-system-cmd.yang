@@ -179,8 +179,11 @@ one whose restart or startup handshake failed. A running one is stopped first,
 which cuts the commands it was serving, and started again with the running
 configuration; its failure policy is not applied. ze doctor names this command
 as the fix of doctor-plugin-stopped and of the rows a new process clears. A name
-no configuration or auto-load started is refused, and so is a restart while a
-config transaction is in flight.";
+no configuration or auto-load started is refused, and so is a restart a plugin
+asks for itself (its own request would never end), a restart while a config
+transaction is in flight, and a restart of a plugin whose removal by a reload
+is still pending. A restart whose old process has not finished its cleanup
+fails and leaves the plugin down until that cleanup ends.";
                 ze:help "Restart a plugin, stopping it first if it runs.";
 
                 leaf name {
