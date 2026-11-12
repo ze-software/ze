@@ -5,24 +5,32 @@
             "label": "Lab",
             "category": "routing",
             "chips": ["netlab", "containerlab", "Docker", "FRR", "BIRD", "GoBGP"],
-            "body": "The netlab integration brings up a three-node Ze topology under containerlab. The BGP interop lab also runs Ze beside FRR, BIRD, and GoBGP and checks routes through each peer's own CLI.",
-            "link": {"href": "labs/bgp-interop/", "label": "Run BGP lab", "sublabel": "BGP interop"}
+            "body": "Use supplied netlab templates for a three-node topology under containerlab. The guide distinguishes template checks from live routing proof. The BGP interop harness runs Ze beside FRR, BIRD, and GoBGP and checks routes through each peer's own CLI.",
+            "link": {"href": "labs/netlab/", "label": "Run a topology", "sublabel": "netlab and containerlab"}
         },
         {
             "title": "Run as a daemon",
             "label": "Daemon",
             "category": "operate",
             "chips": ["Existing Linux", "systemd-ready"],
-            "body": "Ze runs on any existing Linux distro, managed by systemd or your chosen process manager. This is the easiest route when Ze has to fit into infrastructure you already run.",
-            "link": {"href": "guides/quickstart/", "label": "Quickstart", "sublabel": "two BGP peers"}
+            "body": "Install Ze on an existing Linux host with its own command line. The Ubuntu guide covers the build, private store, systemd service, authenticated operator access and removal. The host keeps its existing interface configuration.",
+            "link": {"href": "guides/ubuntu-build-install/", "label": "Install on Linux", "sublabel": "native daemon and systemd"}
         },
         {
-            "title": "Run as an appliance",
+            "title": "Run in Docker",
+            "label": "Container",
+            "category": "platform",
+            "chips": ["Docker", "Compose", "Persistent state"],
+            "body": "Build the deployment image, initialize its persistent volume, and run Ze with Compose. The guide covers management access, networking, capabilities, updates and removal. Lab tools use a separate image with a shell.",
+            "link": {"href": "guides/docker/", "label": "Run a container", "sublabel": "deployment and lab images"}
+        },
+        {
+            "title": "Run a VM or appliance",
             "label": "Appliance",
             "category": "platform",
             "chips": ["gokrazy image", "Read-only root filesystem"],
-            "body": "A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision. The current amd64 installation ISO is under 150 MB.",
-            "link": {"href": "guides/ze-install/", "label": "Install guide", "sublabel": "PXE, ISO, or Ventoy"}
+            "body": "Build an immutable gokrazy system for QEMU, Proxmox or dedicated hardware. It has a read-only root, persistent configuration and process supervision. Source builds produce disk images and installer ISOs; no public image release is available yet.",
+            "link": {"href": "guides/appliance/", "label": "Build and boot", "sublabel": "VM, ISO, PXE or Ventoy"}
         }
     ],
     "who": [

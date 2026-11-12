@@ -71,7 +71,13 @@ if [ ! -x "$binary" ]; then
 		ZE_REPO_ROOT=$root "$root/bin/le" job run label ze-build command \
 			go build -tags "$tags" -o "$binary" ./cmd/ze
 	else
-		(cd "$root" && go build -tags "$tags" -o "$binary" ./cmd/ze)
+		# A fresh checkout has no le to select the patched standard library.
+		# Use the same bootstrap generator as le and the Docker image builds.
+		tree=$(cd "$root" && go run ./internal/le/go/stdpatch/goroot) || {
+			echo "ze: the patched standard library could not be built; the message above says how to repair it" >&2
+			exit 1
+		}
+		(cd "$root" && GOROOT="$tree" GOTOOLCHAIN=local PATH="$tree/bin:$PATH" "$tree/bin/go" build -tags "$tags" -o "$binary" ./cmd/ze)
 	fi
 fi
 

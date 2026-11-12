@@ -455,23 +455,26 @@ const homeTemplate = `        <div class="site-home">
                         <div class="terminal-body">
                             <pre><span class="term-comment"># build from source</span>
 <span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
-<span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze && <span class="term-cmd">make</span> build
+<span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze && ./ze version
 
-<span class="term-comment"># set up credentials and configure</span>
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">init</span>
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">config import</span> router.conf
+<span class="term-comment"># copy the supplied local lab configuration</span>
+<span class="term-prompt">$</span> mkdir -p lab/r1 lab/r2
+<span class="term-prompt">$</span> cp examples/quickstart/r1.conf lab/r1/ze.conf
+<span class="term-prompt">$</span> cp examples/quickstart/r2.conf lab/r2/ze.conf
 
-<span class="term-comment"># start</span>
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">start</span>
+<span class="term-comment"># one peer in each terminal</span>
+<span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r1/ze.conf
+<span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r2/ze.conf
 
-<span class="term-comment"># from another terminal</span>
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "show bgp peer list"
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "monitor event"</pre>
+<span class="term-comment"># inspect received routes from a third terminal</span>
+<span class="term-prompt">$</span> ZE_SSH_PASSWORD=lab ./ze <span class="term-cmd">cli</span> --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
                         <span class="tag">Good starting points</span>
                         <p>
+                            The <a href="guides/quickstart/">complete two-peer tutorial</a>
+                            explains the local lab credentials, success checks and cleanup.
                             If you already run BGP, trying a lab peer, an ExaBGP
                             configuration or a looking glass can help you judge
                             how Ze fits your network. Reports of what went wrong

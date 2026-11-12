@@ -5,7 +5,6 @@ This page starts from a blank Ubuntu server and leaves you with an installed `ze
 The commands assume Ubuntu 24.04 or newer, `sudo`, and an `amd64` or `arm64` host. Replace `edge-01` and every password before running them on a real box.
 
 <!-- source: internal/le/setup/actions.go -- Answer -->
-<!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/repo/featuretags/daemontags.go -- DaemonTags -->
 <!-- source: internal/plugins/init/main.go -- Run, runInit, runInitPublished -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
@@ -26,10 +25,12 @@ sudo apt-get install -y \
   protobuf-compiler
 ```
 
-Install Go 1.27, the version `go.mod` requires. Pick the current 1.27 patch release from <https://go.dev/dl/> if a newer patch exists.
+Install the exact Go version pinned in this checkout's `go.mod`. The commands
+below use `go1.27.3`; update that value when building a checkout with another pin.
+<!-- source: go.mod -- Go version -->
 
 ```bash
-GO_VERSION=1.27.2
+GO_VERSION=1.27.3
 GO_ARCH="$(dpkg --print-architecture)"
 case "$GO_ARCH" in
   amd64|arm64) ;;
@@ -54,9 +55,9 @@ Optional tools for appliance and ISO work:
 sudo apt-get install -y qemu-system-x86 e2fsprogs xorriso grub-efi-amd64-bin
 ```
 
-On an arm64 host, ask for `grub-efi-arm64-bin` instead: Debian packages one GRUB
-module set per architecture, and the amd64 one has no installation candidate
-there.
+On an arm64 host, use `qemu-system-arm` and `grub-efi-arm64-bin` in place of
+the two amd64 packages. Debian packages one GRUB module set per architecture;
+the amd64 one has no installation candidate on arm64.
 
 Ze also ships a setup checker. It uses the same tool list as the developer and appliance checks.
 
@@ -70,11 +71,14 @@ The `check` action lists anything missing as `[missing] <tool>` and exits non-ze
 
 ## 2. Build Ze
 
-Build the daemon directly with Go:
+From the cloned repository, run the daemon launcher. Its first run builds
+`bin/ze` with the feature gates and patched standard library this checkout
+requires. Run from the directory where you cloned Ze, rather than assuming it
+is under your home directory.
+<!-- source: ze -- toolchain pin, feature gates and bootstrap build -->
 
 ```bash
-cd ~/ze
-CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' -o bin/ze ./cmd/ze
+./ze version
 ```
 
 The default feature-tag list is derived from `feature-gates.txt`.
@@ -84,15 +88,71 @@ The default feature-tag list is derived from `feature-gates.txt`.
 For a deliberately smaller custom binary, name its feature tags explicitly:
 
 ```bash
-go build -tags 'ze_core ze_ssh ze_lg ze_web' -o bin/ze ./cmd/ze
+GOROOT="$(./le go stdpatch goroot)"
+export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
+CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_ssh ze_lg ze_web' -o ze-custom ./cmd/ze
+```
+<!-- source: internal/le/go/stdpatch/gen/stdpatch.go -- patched standard library -->
+
+Install that custom build with `sudo ./ze-custom install`. The `ze_distro` base
+keeps native installation and service management available in the smaller build.
+<!-- source: cmd/ze/setup_features_distro.go -- native local and systemd imports -->
+
+## 3. Install and start Ze
+
+The default install command copies the binary to `/usr/local/bin/ze`, initializes
+absent state, and installs and starts its systemd service. Choose your operator
+username and password when prompted. Keep the default loopback address and port
+`2222` for initial access. This installs a daemon on the host; it does not take
+over the host's network interfaces.
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+<!-- source: internal/plugins/init/main.go -- runInstallInit and runInitPublishedProfile -->
+
+```bash
+sudo ./ze install
+systemctl status ze.service --no-pager
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze /usr/local/bin/ze status
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze /usr/local/bin/ze cli -c "help"
+ssh -p 2222 YOUR_USERNAME@127.0.0.1
 ```
 
-## 3. Install the binary
+Use the SSH editor to add peers and review and commit configuration. For a
+complete routing example before changing this service, follow the
+[local two-peer quickstart](quickstart.md). For additional operator accounts,
+use [SSH and RBAC](operator-access-rbac.md).
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer configuration -->
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- operator profiles -->
+
+To update a standalone installation, retain the previous binary and a compatible
+configuration backup, build the selected revision, then repeat the install
+command during a maintenance window. Existing state and credentials remain.
+Verify login and routing after the restart. Package-managed binaries must be
+updated through their package manager.
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+
+```bash
+# Remove the service and executable, retaining configuration and credentials.
+sudo /usr/local/bin/ze uninstall
+```
+
+Removal stops the service before deleting the executable. State is retained by
+default; add `--purge` only when you intend to discard the selected installation's
+state. For reloads, backups and recovery, see [Lifecycle](lifecycle.md).
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+
+## Manual setup: install only the binary
+
+The remaining sections explain the separate steps for operators who need to
+control bootstrap and RBAC before first service start. Use this workflow instead
+of the default installation above. Do not run fresh `ze init` against an already
+initialized service store.
+<!-- source: internal/plugins/local/cmd_install.go -- local-only installation -->
+<!-- source: internal/plugins/init/main.go -- refusal to replace an existing store -->
 
 Install the built binary into `/usr/local/bin/ze` and create the default config directory.
 
 ```bash
-sudo ./bin/ze install local --prefix /usr/local
+sudo ./ze install local --prefix /usr/local
 /usr/local/bin/ze version
 ```
 

@@ -560,7 +560,7 @@ independent status colors. "Decision" is the colored badge; "Reasons to consider
 Ze" is a plain heading. Badge text, headings and card bodies use neutral colors.
 Do not put a colored background behind the heading. Category selection controls
 use the matching tint and neutral text across both themes. The homepage's
-"Run reproducible labs", "Run as a daemon" and "Run as an appliance" cards
+deployment cards (netlab/containerlab, native Linux, Docker, and VM/gokrazy)
 share the existing daemon blue as an approved section exception; their category
 metadata stays unchanged. Card borders, body surfaces and body text stay neutral.
 Explicit compact software labels use `concept-software` (blue); evidence,

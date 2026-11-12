@@ -45,16 +45,17 @@
                     <span class="journey-eyebrow">Appliance lab</span>
                     <h1 id="lab-title">Appliance Installer Evidence</h1>
                     <p>
-                        The installer boots and completes for real in QEMU
-                        across HTTP/PXE, ISO, and Ventoy-on-FAT paths, plus
-                        failure-path and rescue scenarios.
+                        Run the installer in QEMU through HTTP/PXE, ISO, or
+                        Ventoy-on-FAT paths, with separate failure-path and
+                        rescue scenarios. A successful action verifies its
+                        selected path; a skipped action supplies no boot evidence.
                     </p>
                 </div>
                 <div class="status-panel reveal">
                     <div class="status-copy">
                         <span class="tag">Appliance</span>
                         <p>
-                            Four native QEMU actions cover the installer end
+                            Four native QEMU actions exercise the installer end
                             to end: the PXE/HTTP chain boots the installer
                             kernel and initrd, serves the image over HTTP, and
                             asserts serial success markers before rebooting
@@ -71,30 +72,37 @@
                             console access.
                         </p>
                         <p>
-                            The current amd64 installation ISO is <span data-ze-stat="release.iso.size_display">under 150 MB</span>.
+                            No public appliance image release is available yet.
+                            Build instructions are in the appliance guide. For size
+                            context, the measured amd64 installation ISO was
+                            <span data-ze-stat="release.iso.size_display">under 150 MB</span>.
                             The <code>prod</code> build with the hardware kernel
                             profile on October 1, 2026 produced
                             <code>ze-20261001-142644.iso</code>: 128,933,888 bytes
                             (128.93 MB) for the complete ISO.
                         </p>
                         <p>
-                            <code>ze appliance kernel</code> builds the installer
-                            kernel. Set <code>ZE_INSTALL_KERNEL</code> to its
-                            path for these QEMU tests.
+                            From the source checkout, prepare the build-host
+                            command with <code>./le build host-driver</code>,
+                            then use <code>./ze-host appliance kernel</code>
+                            to build the installer kernel. Set
+                            <code>ZE_INSTALL_KERNEL</code> to its printed path
+                            for these QEMU tests. The appliance guide covers
+                            the image and native-architecture build prerequisites.
                         </p>
                     </div>
                     <div class="status-table" aria-label="Lab facts">
                         <div class="status-row">
                             <strong>Proves</strong>
-                            <span>Installer boots and completes for real across HTTP/PXE, ISO, and Ventoy paths, plus fault, pinning, and rescue scenarios</span>
+                            <span>A passing action verifies its selected install, fault, pinning, or rescue path in QEMU</span>
                         </div>
                         <div class="status-row">
                             <strong>Environment</strong>
-                            <span>QEMU only, no Docker (the installer initrd is pure Go, no BusyBox)</span>
+                            <span>The boot checks use QEMU; building their kernel or image also needs a supported build backend. The installer initrd is pure Go.</span>
                         </div>
                         <div class="status-row">
                             <strong>Requires</strong>
-                            <span>An operator-supplied installer kernel with IP_PNP_DHCP, VIRTIO_NET, VIRTIO_BLK, EXT4 built in</span>
+                            <span>A matching native-architecture installer kernel with the selected media, network, and disk drivers built in; see the installer profiles in the guide</span>
                         </div>
                         <div class="status-row">
                             <strong>Source</strong>

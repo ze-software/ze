@@ -1,29 +1,131 @@
 # Quick Start
 
-Get Ze running with two BGP peers in under 5 minutes.
+Run two Ze peers on one Linux host and verify that each receives a route. The
+supplied lab uses loopback addresses and ports above 1024. It needs no external
+router or development test peer. Ze is pre-release software; use an isolated lab.
+<!-- source: examples/quickstart/r1.conf -- local lab endpoints and originated prefix -->
+<!-- source: examples/quickstart/r2.conf -- local lab endpoints and originated prefix -->
 
 ## Build
 
 ```bash
 git clone https://github.com/ze-software/ze.git
 cd ze
-CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' -o bin/ze ./cmd/ze
+./ze version
 ```
 
-Requires **Go 1.27+** on a macOS or Linux development host. Windows is not a supported development platform.
+Install Go and Git first. The Go version in `go.mod` is the supported toolchain;
+the launcher selects that version and builds `bin/ze` with Ze's patched standard
+library when the binary is absent. A first build takes longer than starting an
+existing binary. Windows is not a supported runtime platform.
+<!-- source: ze -- first-build bootstrap, toolchain pin and patched GOROOT -->
+<!-- source: go.mod -- Go version -->
 
-### Or: go install
+### Optional: install the built command on PATH
 
-To get a `ze` binary without cloning the repository, use `go install` with the
-default feature tags derived from `feature-gates.txt`:
+From the same checkout, select the patched toolchain before using `go install`.
+This installs the daemon on your Go binary path; it does not create a system
+service. The default feature tags below are derived from `feature-gates.txt`.
 <!-- source: internal/le/repo/featuretags/daemontags.go -- DaemonTags -->
+<!-- source: internal/le/go/stdpatch/gen/stdpatch.go -- patched toolchain generation -->
 
 ```bash
-CGO_ENABLED=0 go install -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' github.com/ze-software/ze/cmd/ze@latest
+GOROOT="$(go run ./internal/le/go/stdpatch/goroot)"
+export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
+CGO_ENABLED=0 go install -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' ./cmd/ze
 ```
 
-This tracks the module's default branch (development version), not a
-tagged release -- there are no tagged releases yet.
+The remaining commands use `./ze` from the checkout. For a Linux service, follow
+[Linux installation](ubuntu-build-install.md). For a container, use
+[Docker](docker.md). For an immutable VM or hardware image, use
+[VM Appliance](appliance.md).
+<!-- source: ze -- checkout launcher and executable path -->
+
+## Local two-peer lab
+
+The files `examples/quickstart/r1.conf` and `r2.conf` declare both ends of the
+session, explicit import/export policy, and a BGP RIB. Each announces one prefix:
+`192.0.2.0/24` from r1 and `198.51.100.0/24` from r2. SSH listens on
+`127.0.0.1:2221` and `127.0.0.1:2222`. Both peers use AS 65001 for iBGP.
+The BGP transport uses `127.0.0.1:1179` and `127.0.0.2:2179`; advertised
+next hops are the documentation addresses `192.0.2.1` and `192.0.2.2`.
+These next hops support route inspection in this control-plane lab; they do
+not establish forwarding connectivity.
+<!-- source: examples/quickstart/r1.conf -- r1 endpoints, policy and update -->
+<!-- source: examples/quickstart/r2.conf -- r2 endpoints, policy and update -->
+
+These files contain the known lab username and password `lab` / `lab`. They bind
+management to loopback. Do not use these credentials on a production system.
+Explicit-file startup creates the private store beside each file, so each peer
+must have its own directory. No `ze init` step is needed for this configured-user
+lab; the later initialization section covers a real installation.
+<!-- source: examples/quickstart/r1.conf -- lab authentication and management binding -->
+<!-- source: cmd/ze/ze_core_start.go -- explicit configuration path -->
+
+Run the following from the repository root in one shell:
+
+```bash
+mkdir -p tmp
+ZE_LAB_DIR="$(mktemp -d "$PWD/tmp/quickstart.XXXXXX")"
+mkdir "$ZE_LAB_DIR/r1" "$ZE_LAB_DIR/r2"
+cp examples/quickstart/r1.conf "$ZE_LAB_DIR/r1/ze.conf"
+cp examples/quickstart/r2.conf "$ZE_LAB_DIR/r2/ze.conf"
+./ze config validate "$ZE_LAB_DIR/r1/ze.conf"
+./ze config validate "$ZE_LAB_DIR/r2/ze.conf"
+
+./ze start "$ZE_LAB_DIR/r1/ze.conf" >"$ZE_LAB_DIR/r1.log" 2>&1 &
+R1_PID=$!
+./ze start "$ZE_LAB_DIR/r2/ze.conf" >"$ZE_LAB_DIR/r2.log" 2>&1 &
+R2_PID=$!
+```
+<!-- source: examples/quickstart/r1.conf -- first peer configuration -->
+<!-- source: examples/quickstart/r2.conf -- second peer configuration -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate -->
+
+On Linux, both loopback addresses are available. On macOS, add the second
+address once before starting the peers: `sudo ifconfig lo0 alias 127.0.0.2`.
+<!-- source: internal/le/setup/system.go -- loopbackAddArgv -->
+
+### Verify a session and received routes
+
+Run these commands in the same shell. If a listener is still starting, inspect
+the log files and retry the command after it is ready.
+
+```bash
+ZE_SSH_PASSWORD=lab ./ze cli --remote 127.0.0.1:2221 --user lab -c "show bgp peer list"
+ZE_SSH_PASSWORD=lab ./ze cli --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"
+ZE_SSH_PASSWORD=lab ./ze cli --remote 127.0.0.1:2222 --user lab -c "show bgp rib | received"
+```
+<!-- source: internal/component/cli/client/main.go -- remote SSH command execution -->
+<!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- show bgp rib -->
+
+The peer list must show an established session. The r1 received RIB must contain
+`198.51.100.0/24`; r2 must contain `192.0.2.0/24`. A configured peer or an open
+management port alone is not this success check. This lab verifies control-plane
+route exchange; it does not install forwarding routes on the host.
+<!-- source: examples/quickstart/r1.conf -- r1 advertised documentation prefix -->
+<!-- source: examples/quickstart/r2.conf -- r2 advertised documentation prefix -->
+
+### Stop and keep or remove the lab
+
+```bash
+kill -TERM "$R1_PID" "$R2_PID"
+wait "$R1_PID" "$R2_PID"
+printf 'Lab files and stores: %s\n' "$ZE_LAB_DIR"
+```
+
+SIGTERM uses Ze's normal shutdown path. Keep the directory if you want to inspect
+the stores and logs or restart the lab. To discard this lab after both processes
+stop, remove the directory printed above. It contains only this run's copies.
+<!-- source: cmd/ze/hub/main.go -- daemon shutdown signal handling -->
+
+## Use an existing router as the peer
+
+The remainder shows initialization and a configuration for an external peer.
+Replace the addresses and ASNs with your network's values and configure the
+other router's BGP session as well. The local lab above supplies both ends when
+you do not have another router.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer connection and session settings -->
 
 ## Initialize
 
@@ -38,7 +140,7 @@ This prompts for username, password, SSH host (default `127.0.0.1`), port (defau
 <!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, bcrypt hashing -->
 
 ```bash
-echo -e "admin\nsecret" | bin/ze init
+printf 'admin\nREPLACE_WITH_A_STRONG_PASSWORD\n' | ./ze init
 ```
 
 Initialization creates a private `database/` tree in the selected folder.
@@ -119,6 +221,12 @@ bgp {
             }
         }
 
+        filter {
+            export {
+                final accept
+            }
+        }
+
         update {
             attribute {
                 origin igp
@@ -146,6 +254,11 @@ a prefix into BGP:
   not a plugin's session-ready route report (owner ruling, 2026-09-18).
   `behavior { manual-eor true }` suppresses that automatic marker, not the routes.
   <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, the marker follows the routes the peer owns -->
+
+The `filter { export { final accept } }` block is required: `test-peer` is an EBGP peer
+(AS 65001), and with no export policy Ze sends an EBGP peer no routes at all (RFC 8212
+Section 3), originated ones included. See [BGP policy](bgp-policy.md).
+<!-- source: internal/component/bgp/reactor/peer_run.go -- egressFinalAccepts -->
 
 > Advanced: a `process` binding attaches a plugin or your own external program to a peer (the
 > ExaBGP-style event API), including making a peer RIB-backed so it stores and re-advertises
@@ -217,20 +330,17 @@ In another terminal:
 
 ## Test Without a Real Peer
 
-Use the built-in test peer to accept any BGP session:
+Use the local two-peer lab above for route verification. Developers who only need
+a protocol sink can start the repository's test peer through the `le` launcher:
 
 ```bash
 # Terminal 1: start a sink peer (accepts sessions, replies keepalive)
-bin/le test peer --mode sink --port 1179 --asn 65001
-
-# Terminal 2: start ze with config pointing to localhost:1179
-./ze start example-local.conf
+./le test peer --mode sink --port 1179 --asn 65001
 ```
 <!-- source: internal/test/cli/cmd_peer.go -- le test peer command -->
 
-Where `example-local.conf` is the config above with the peer's `connection`
-block pointed at the local sink, so ze dials `127.0.0.1:1179` instead of
-`10.0.0.2`:
+For this optional sink, copy the external-peer configuration to its own directory
+and change its peer's `connection` block to dial `127.0.0.1:1179`:
 
 ```
         connection {
