@@ -471,6 +471,43 @@ untransformed: under `unmatched bypass` the catch-all does; under
 `unmatched discard` it blocks the error first. The VPP backend reads no ICMP payload on either path and refuses
 both requests (`vppUnsupportedSA`, `vppICMPErrorReturnError`).
 
+Both flags override an operator SPD entry, so config verify refuses the pair
+rather than install an entry the kernel does not honour (`verifyICMPOverlap`,
+`icmp_overlap.go`, the last step of `validateIPsecSections`, the offline
+verifier that `ze config validate`, every commit door and `OnConfigVerify` run).
+`icmp_route_lookup` maps an error whose normal lookup answered the plain route,
+and a template-free allow policy (a BYPASS entry) answers that route as no
+policy does, so `refuseICMPErrorBypass` refuses a peer with the check on beside
+`unmatched bypass`, or beside a bypass entry that is out or both, protocol 0 or
+the family's ICMP protocol, ICMP type any or an error type the kernel sends
+(`icmpErrorTypesV4`, `icmpErrorTypesV6`, which name their kernel callers),
+and whose remote prefix overlaps the peer's remote selectors. `icmp_rcv`
+delivers what an inbound discard entry refused whenever the reversed embedded
+header matches the SA, whatever the type, so `refuseICMPCheckDiscard` refuses
+an in or both discard entry matching ICMP in a family the peer's selectors
+carry. Both are conservative: neither narrows on the entry's local prefix or
+order, because the Ze address of the ICMP message is unknown at commit. An
+entry below the peer's protect policy is overridden for every triggering
+packet whose Ze address is outside the local selectors; a protocol-0 bypass
+above it may not be overridden for every triggering packet, but it is for
+some.
+
+A `vti bind` peer is skipped by both. Its policies carry the xfrm interface's
+if_id, and an operator entry if_id 0. The reverse lookup of
+`icmp_route_lookup` and `icmpv6_route_lookup` is `xfrm_lookup`, which is
+`xfrm_lookup_with_ifid` with if_id 0, and `xfrm_policy_match` refuses a policy
+whose if_id differs, so that peer's out policy is never the mapping target;
+ICMP decrypted on the interface is policy-checked at its if_id
+(`xfrmi_decode_session`), where no operator entry is consulted.
+
+The start is never verified, so `warnICMPOverlapAtStart` logs the same refusal
+at Error level under `config-plugin-verify`, the code under which the
+`config-semantics` doctor check reports it: that check runs every plugin's
+offline verifier over the running configuration, so the IPsec plugin carries
+no doctor check of its own for it.
+
+<!-- source: internal/component/ike/engine/icmp_overlap.go -- refuseICMPErrorBypass, refuseICMPCheckDiscard, verifyICMPOverlap, warnICMPOverlapAtStart -->
+<!-- source: internal/component/ike/engine/config.go -- validateIPsecSections -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
 <!-- source: internal/component/ike/engine/child.go -- childPairPolicy -->
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppICMPErrorReturnError -->

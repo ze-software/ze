@@ -91,6 +91,11 @@ vpn {
 		}
 		site-to-site {
 			peer branch {
+				# Beside `unmatched bypass` or an ICMP SPD entry, the default
+				# icmp-error-check true is refused by `ze config validate` and a commit,
+				# and only logged at a start (verifyICMPOverlap); false keeps
+				# this test's subject.
+				icmp-error-check false
 				ike-group IKE-1
 				esp-group ESP-1
 				remote-address 198.51.100.2
@@ -173,6 +178,11 @@ vpn {
 		}
 		site-to-site {
 			peer branch {
+				# Beside `unmatched bypass` or an ICMP SPD entry, the default
+				# icmp-error-check true is refused by `ze config validate` and a commit,
+				# and only logged at a start (verifyICMPOverlap); false keeps
+				# this test's subject.
+				icmp-error-check false
 				ike-group IKE-1
 				esp-group ESP-1
 				remote-address 198.51.100.2

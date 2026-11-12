@@ -1,0 +1,138 @@
+# Test: a reload that puts an inbound ICMP discard entry beside a peer whose
+#       icmp-error-check is true is refused
+# Goal: prove the refusal of an SPD discard entry the kernel overrides reaches the
+#       operator through the real reload pipeline. A unit test
+#       (rfc4301_icmp_overlap_test.go) decides the predicate; only a daemon run
+#       proves the ike plugin's OnConfigVerify calls it and the reload is not
+#       reported complete.
+# Method: the daemon starts with `vpn ipsec policy drop-icmp` (discard, direction
+#       in, protocol 1) and the peer's icmp-error-check false, which carries no
+#       conflict. After SIGHUP the same block drops the leaf, so the peer takes the
+#       default true: Linux icmp_rcv would then deliver ICMP that arrives on the
+#       peer's Child SA and that the entry refuses, whenever the packet it carries
+#       matches the SA.
+# Expected: the verify refuses the reload, naming the peer, the entry and the
+#       fixes; the reload is not reported complete.
+#
+# VALIDATES: refuseICMPCheckDiscard (internal/component/ike/engine/icmp_overlap.go)
+#            reached through config file, SIGHUP, the ike plugin's OnConfigVerify
+#            (validateIPsecSections, the offline verifier it runs first).
+# PREVENTS: a commit that installs an operator discard entry for ICMP which the
+#           kernel ignores for the peer's tunnel traffic.
+#
+# `unmatched discard` is written so the default-discard refusal
+# (refuseImplicitDiscard) does not answer first. The noop dataplane holds every
+# entry without CAP_NET_ADMIN (internal/component/ike/dataplane/noop.go), so the
+# test runs unprivileged. The peer responds and nobody initiates.
+
+option=env:var=ze_test_ike_dataplane:value=noop
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=30s
+
+stdin=ze-bgp:terminator=EOF_CONF
+vpn {
+	ipsec {
+		unmatched discard
+		policy drop-icmp {
+			action discard
+			direction in
+			protocol 1
+			local {
+				prefix 0.0.0.0/0
+			}
+			remote {
+				prefix 0.0.0.0/0
+			}
+		}
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer site {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				icmp-error-check false
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:refused=config-plugin-verify:terminator=EOF_CONF2
+vpn {
+	ipsec {
+		unmatched discard
+		policy drop-icmp {
+			action discard
+			direction in
+			protocol 1
+			local {
+				prefix 0.0.0.0/0
+			}
+			remote {
+				prefix 0.0.0.0/0
+			}
+		}
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer site {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+
+await=stderr:contains=reload error:then=stop
+expect=stderr:contains=has icmp-error-check true and `vpn ipsec policy drop-icmp` discards inbound ICMP
+expect=stderr:contains=Linux delivers ICMP that arrives on the peer's Child SA and that the discard entry refuses
+expect=stderr:contains=set vpn ipsec site-to-site peer site icmp-error-check false, or delete vpn ipsec policy drop-icmp
+reject=stderr:contains=set vpn ipsec policy drop-icmp direction out
+reject=stderr:contains=sighup reload complete
+reject=stderr:pattern=panic

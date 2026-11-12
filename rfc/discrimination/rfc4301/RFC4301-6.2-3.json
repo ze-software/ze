@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4301-6.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_icmp_overlap_test.go::TestICMPOverlapBypassCatchAll",
+    "unit-sha": "364b10826d1eb1ed",
+    "claim-sha": "5a4f8ecc262a2acf",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/icmp_overlap.go::refuseICMPErrorBypass",
+    "producer-sha": "938b898194539f42",
+    "break": "line 110: \"cfg.Unmatched == dataplane.SPActionBypass\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4301-6.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_icmp_overlap_test.go::TestICMPOverlapBypassEntryAccepted",
+    "unit-sha": "83b02a1c6df98564",
+    "claim-sha": "c222c8ee888fc86d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/icmp_overlap.go::refuseICMPErrorBypass",
+    "producer-sha": "938b898194539f42",
+    "break": "line 120: \"!bypassCarriesICMPError(\u0026policy)\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4301-6.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_icmp_overlap_test.go::TestICMPOverlapBypassEntryRefused",
+    "unit-sha": "90431ebeaa3ed80c",
+    "claim-sha": "cc643db194389195",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/icmp_overlap.go::refuseICMPErrorBypass",
+    "producer-sha": "938b898194539f42",
+    "break": "line 120: \"!bypassCarriesICMPError(\u0026policy)\" -\u003e \"true\""
+  }
+]

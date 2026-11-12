@@ -82,6 +82,7 @@ func TestImplicitDiscardRefusedAtCommit(t *testing.T) {
 		"the 2 `vpn ipsec policy` bypass entries",
 		"set vpn ipsec unmatched discard",
 		"set vpn ipsec unmatched bypass",
+		"set vpn ipsec site-to-site peer <name> icmp-error-check false",
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal does not say %q: %v", want, err)
@@ -231,6 +232,7 @@ func TestImplicitDiscardSaidAtStart(t *testing.T) {
 			"`icmp6` entry with protocol 58 and prefix ::/0",
 			"set vpn ipsec unmatched discard",
 			"set vpn ipsec unmatched bypass",
+			"set vpn ipsec site-to-site peer <name> icmp-error-check false",
 			"bypass-entries=1",
 		} {
 			if !strings.Contains(out.String(), want) {

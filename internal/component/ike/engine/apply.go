@@ -425,8 +425,10 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 		return interfaceErr
 	}
 	if phase == applyStartup {
-		// The start is never verified, so refuseImplicitDiscard cannot run here.
+		// The start is never verified, so refuseImplicitDiscard and verifyICMPOverlap
+		// cannot run here.
 		warnImplicitDiscardAtStart(cfg, s.log)
+		warnICMPOverlapAtStart(cfg, s.log)
 	}
 	installSPDPolicies(dataplane.Get(), s.installedSPD, cfg.Policies, s.log)
 	s.installedSPD = cfg.Policies

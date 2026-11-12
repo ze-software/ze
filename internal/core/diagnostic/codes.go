@@ -75,6 +75,7 @@ const (
 	CodeDoctorIPsecCertURL                         = "doctor-ipsec-cert-url"
 	CodeDoctorIPsecCertURLDenied                   = "doctor-ipsec-cert-url-denied"
 	CodeDoctorIPsecCookieThreshold                 = "doctor-ipsec-cookie-threshold"
+	CodeDoctorIPsecImplicitDiscard                 = "doctor-ipsec-implicit-discard"
 	CodeDoctorIPsecOverrideGuard                   = "doctor-ipsec-override-guard"
 	CodeDoctorIPsecSocketPolicy                    = "doctor-ipsec-socket-policy"
 	CodeDoctorIPsecSPDWriter                       = "doctor-ipsec-spd-writer"
@@ -1042,6 +1043,19 @@ var builtinCodes = append([]CodeMeta{
 			"source addresses is off. Lower cookie-threshold to the responding-peer count or " +
 			"below, or leave it at the default of 0 to challenge every inbound initiation.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-cookie-threshold"},
+	},
+	{
+		Code:  CodeDoctorIPsecImplicitDiscard,
+		Title: "The IPsec SPD catch-all discards because vpn ipsec unmatched is not set",
+		Description: "The running configuration leaves `vpn ipsec unmatched` unset, and its default is " +
+			"discard (RFC 4301 Section 4.4.1), so every packet this router sends, receives or forwards " +
+			"that no SPD entry names is dropped: its own BGP, SSH, DNS and NTP traffic, its ICMP and " +
+			"its IPv6 neighbor discovery outside a tunnel. A commit that turns this on without saying " +
+			"so is refused, but a configuration the daemon starts with is not verified. Add a " +
+			"`vpn ipsec policy <name>` bypass entry for each flow that must stay in the clear, then " +
+			"`set vpn ipsec unmatched discard` to confirm, or `set vpn ipsec unmatched bypass` to pass " +
+			"that traffic.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-implicit-discard"},
 	},
 	{
 		Code:  CodeDoctorIPsecNoPMTUDisc,

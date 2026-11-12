@@ -58,6 +58,11 @@ vpn {
 				connection-type respond
 				local-address 127.0.0.2
 				remote-address 127.0.0.1
+				# The leaf is local and never negotiated. Beside `unmatched bypass`,
+				# true is refused by `ze config validate` (verifyICMPOverlap) and,
+				# since this responder starts from stdin, which no commit verifies,
+				# logged at start.
+				icmp-error-check false
 				authentication {
 					mode pre-shared-secret
 					pre-shared-secret test-key-1234
@@ -146,6 +151,9 @@ vpn {
 				connection-type initiate
 				local-address 127.0.0.1
 				remote-address 127.0.0.2
+				# Beside `unmatched bypass`, the default icmp-error-check true is
+				# refused at commit (verifyICMPOverlap); false keeps this test's subject.
+				icmp-error-check false
 				authentication {
 					mode pre-shared-secret
 					pre-shared-secret test-key-1234

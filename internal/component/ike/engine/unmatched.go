@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // unmatchedDirections are the three halves of the database the catch-all joins.
@@ -228,7 +229,7 @@ func refuseImplicitDiscard(cfg *ipsec.IPsecConfig, discardInForce bool) error {
 		"Fix: add a `vpn ipsec policy <name>` bypass entry for each flow that must stay in the clear "+
 		"("+implicitDiscardICMPExample+"), "+
 		"then `set vpn ipsec unmatched discard` to confirm; "+
-		"or `set vpn ipsec unmatched bypass` to keep passing that traffic", countBypassEntries(cfg))
+		"or `set vpn ipsec unmatched bypass` to keep passing that traffic"+implicitBypassICMPClause, countBypassEntries(cfg))
 }
 
 // implicitDiscardCuts names the router's own traffic the discard catch-all drops
@@ -246,10 +247,22 @@ const implicitDiscardCuts = "own BGP, SSH, DNS and NTP traffic, its ICMP (ping, 
 // implicitDiscardICMPExample is the bypass that keeps ICMP and IPv6 neighbor
 // discovery working under the discard catch-all. Order 3000 ranks it after a
 // tunnel's default 2000, so ICMP a tunnel's selectors cover still takes the tunnel.
+// The entries carry ICMP errors in clear, which verifyICMPOverlap (icmp_overlap.go)
+// refuses beside a site-to-site peer whose icmp-error-check is true and that has no
+// `vti bind`, so the recipe names that leaf too: without it, the commit the recipe
+// leads to is refused.
 const implicitDiscardICMPExample = "for ICMP: `set vpn ipsec policy icmp4 action bypass`, " +
 	"`set vpn ipsec policy icmp4 protocol 1`, `set vpn ipsec policy icmp4 order 3000`, " +
 	"`set vpn ipsec policy icmp4 local prefix 0.0.0.0/0`, `set vpn ipsec policy icmp4 remote prefix 0.0.0.0/0`, " +
-	"and the same `icmp6` entry with protocol 58 and prefix ::/0 for ICMPv6 and neighbor discovery"
+	"and the same `icmp6` entry with protocol 58 and prefix ::/0 for ICMPv6 and neighbor discovery, " +
+	"with `set vpn ipsec site-to-site peer <name> icmp-error-check false` on each peer that has no `vti bind`, " +
+	"because these entries carry ICMP errors in clear"
+
+// implicitBypassICMPClause completes the `unmatched bypass` way forward: the bypass
+// catch-all carries ICMP errors in clear, which verifyICMPOverlap refuses beside a
+// site-to-site peer whose icmp-error-check is true and that has no `vti bind`.
+const implicitBypassICMPClause = ", with `set vpn ipsec site-to-site peer <name> icmp-error-check false` " +
+	"on each peer that has no `vti bind`"
 
 // warnImplicitDiscardAtStart is the start-time half of refuseImplicitDiscard. The
 // configuration the daemon starts with is never verified, so a box booting a file
@@ -257,22 +270,35 @@ const implicitDiscardICMPExample = "for ICMP: `set vpn ipsec policy icmp4 action
 // commit to refuse. Such a file may mean the RFC default, and installing bypass
 // for it would make the default dead at every boot. So the discard is installed,
 // and the start says it, at Error level, with the same facts and commands as the
-// refusal.
+// refusal. `ze doctor` reports the same state under the same code
+// (checkIPsecImplicitDiscard).
 func warnImplicitDiscardAtStart(cfg *ipsec.IPsecConfig, log *slog.Logger) {
-	if !cfg.UnmatchedByDefault {
+	if !implicitDiscardInForce(cfg) {
 		return
 	}
-	if cfg.Unmatched != dataplane.SPActionDiscard {
-		return
-	}
-	log.Error("ike: the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set "+
-		"and its default is discard (RFC 4301 Section 4.4.1): every packet no SPD entry names is dropped, "+
-		"including this router's "+implicitDiscardCuts+"; "+
-		"fix: add a `vpn ipsec policy <name>` bypass entry for each flow that must stay in the clear "+
-		"("+implicitDiscardICMPExample+"), "+
-		"then `set vpn ipsec unmatched discard` to confirm, or `set vpn ipsec unmatched bypass` to pass that traffic",
-		"bypass-entries", countBypassEntries(cfg))
+	log.Error("ike: "+implicitDiscardInForceText,
+		"bypass-entries", countBypassEntries(cfg),
+		"code", diagnostic.CodeDoctorIPsecImplicitDiscard)
 }
+
+// implicitDiscardInForce reports whether cfg runs the discard catch-all only because
+// `unmatched` is unset: the state refuseImplicitDiscard refuses to enter by commit,
+// which a configuration the daemon starts with enters unverified.
+func implicitDiscardInForce(cfg *ipsec.IPsecConfig) bool {
+	if !cfg.UnmatchedByDefault {
+		return false
+	}
+	return cfg.Unmatched == dataplane.SPActionDiscard
+}
+
+// implicitDiscardInForceText is the one statement of that state, with its fix, which
+// the start log and the doctor finding both carry.
+const implicitDiscardInForceText = "the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set " +
+	"and its default is discard (RFC 4301 Section 4.4.1): every packet no SPD entry names is dropped, " +
+	"including this router's " + implicitDiscardCuts + "; " +
+	"fix: add a `vpn ipsec policy <name>` bypass entry for each flow that must stay in the clear " +
+	"(" + implicitDiscardICMPExample + "), " +
+	"then `set vpn ipsec unmatched discard` to confirm, or `set vpn ipsec unmatched bypass` to pass that traffic" + implicitBypassICMPClause
 
 // countBypassEntries counts the operator's `vpn ipsec policy` entries whose action
 // is bypass: the flows that stay open under the discard catch-all.

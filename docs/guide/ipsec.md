@@ -1233,11 +1233,52 @@ maps an outbound error to the return SA only "if no SPD entry would allow
 carriage of this outbound ICMP error message", but the kernel cannot tell a
 bypass entry from no entry: whenever the lookup on the error's own headers
 finds no Child SA, it sends the error through the SA that carries the return
-traffic. So with a `vpn ipsec policy` bypass entry that covers ICMP towards
-hosts behind a peer and outranks that peer's Child SA policy, or with
-`unmatched bypass`, an error about a tunnelled packet goes into the tunnel
-rather than out in clear. `icmp-error-check false` on the peer stops that
-mapping, along with the rest of the Section 6.2 processing.
+traffic. So with a `vpn ipsec policy` bypass entry that covers ICMP errors
+towards hosts behind a peer, or with `unmatched bypass`, an error about a
+tunnelled packet would go into the tunnel rather than out in clear.
+
+Commit refuses that pair rather than installing an entry the kernel does not
+honour. A peer whose `icmp-error-check` is true is refused beside
+`unmatched bypass`, and beside a bypass entry that is `out` or `both`, has
+protocol 0 or the ICMP protocol of its family, has `icmp-type any` or an ICMP
+error type (IPv4 3, 4, 5, 11 and 12; IPv6 1, 2, 3 and 4, the types Linux 7.3
+sends through its return-SA lookup, listed with their kernel callers in
+`icmp_overlap.go`), and has a remote prefix that overlaps the peer's remote
+traffic selectors. A peer with no traffic selector accepts any selector, so
+every such entry overlaps it. The refusal is conservative about the entry's
+local prefix and its order, and looks at neither. The kernel picks the address
+an error leaves from, so no commit can know it. An entry ranked below the
+peer's own policy is overridden for every error whose address falls outside
+the peer's local selectors. A protocol 0 entry ranked above it may not be
+overridden for every error, but it is overridden for some, so it is refused
+too.
+
+A route-based peer (`vti bind`) is exempt. Its Child SA policies carry the
+xfrm interface's `if_id`, and the kernel's return-SA lookup only looks at
+policies whose `if_id` is 0 (`xfrm_lookup` in `net/xfrm/xfrm_policy.c`), so it
+never maps an error into that peer's tunnel. ICMP that arrives on the
+interface is checked against that `if_id` too (`xfrmi_decode_session`), where
+no `vpn ipsec policy` entry applies.
+
+The refusal names the peer and the entry, and one of these fixes it:
+
+```
+set vpn ipsec site-to-site peer branch icmp-error-check false
+set vpn ipsec unmatched discard
+```
+
+For an entry, the refusal prints the exact command: `set vpn ipsec policy
+<name> remote prefix <prefix>` with a prefix that does not overlap the peer's
+remote selectors, which it lists (not offered when a remote selector covers a
+whole family, as a peer with no selector does), then
+`set vpn ipsec policy <name> icmp-type <type>` with a type that is not an
+error, such as 8, for a protocol 1 or 58 entry, or `set vpn ipsec policy
+<name> protocol <protocol>` for a protocol 0 entry.
+
+`ze config validate` refuses the same configuration, because the check is part
+of the IPsec plugin's offline verifier. A configuration the daemon starts with
+is not verified, so the same conflict is logged at start at Error level and
+reported by `ze doctor` under `config-plugin-verify`.
 
 The VPP dataplane performs neither check. VPP is reached only through the test
 override `ze.test.ike.dataplane`, and there commit refuses a peer whose
@@ -1245,6 +1286,8 @@ override `ze.test.ike.dataplane`, and there commit refuses a peer whose
 processing on Linux), naming `icmp-error-check false` as the fix.
 
 <!-- source: internal/component/ike/ipsec/config.go -- parseSiteToSitePeer -->
+<!-- source: internal/component/ike/engine/icmp_overlap.go -- refuseICMPErrorBypass, refuseICMPCheckDiscard, bypassEntryFix, warnICMPOverlapAtStart -->
+<!-- source: internal/component/ike/engine/config.go -- validateIPsecSections -->
 <!-- source: internal/component/ike/engine/child.go -- installChildDataplane, childPairPolicy -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
 <!-- source: internal/component/ike/dataplane/vpp.go -- vppUnsupportedSA -->
@@ -1477,12 +1520,23 @@ refuses the message, Linux reads the header the message carries after its ICMP
 header, reverses its addresses and ports, and delivers the message when that
 header matches the SA it arrived on. The type plays no part: the kernel does not
 check that the message is an error, so a message of any type whose following
-bytes read as such a header is admitted, whatever the discard entry says. With
-`icmp-error-check false` on that peer, the entry decides. `icmp_rcv`
+bytes read as such a header would be admitted, whatever the discard entry
+says. With `icmp-error-check false` on that peer, the entry decides. `icmp_rcv`
 (`net/ipv4/icmp.c`) and `icmpv6_rcv` (`net/ipv6/icmp.c`) make this check when
 the last state that decrypted the message carries `XFRM_STATE_ICMP`, the flag
 `icmp-error-check true` sets; `LL-XFRM-ICMP-TRANSIT` in
 [Linux limitations](../architecture/linux-limitations.md) records it.
+
+So commit refuses a discard entry that is `in` or `both`, has protocol 0 or
+the ICMP protocol of its family, any `icmp-type`, and a family the selectors of
+a peer with `icmp-error-check true` can carry. Its prefixes and its order do
+not matter, because the kernel's second check reads neither the message's own
+source nor the address it arrived at. A peer with `vti bind` is exempt: ICMP
+that arrives on its xfrm interface is checked at the interface's `if_id`,
+where no `vpn ipsec policy` entry applies. The refusal names the peer and the
+entry; set `icmp-error-check false` on the peer, or delete the entry. The
+`unmatched discard` catch-all is not refused: delivering an error whose
+payload matches the SA is the Section 6.2 processing itself.
 
 These entries install inbound and outbound policies only. ICMP that Ze forwards
 between two other hosts is decided by the Child SA forward policies and the
@@ -1568,10 +1622,16 @@ set vpn ipsec policy icmp6 remote prefix ::/0
 ```
 
 Order 3000 ranks these entries after a tunnel's default 2000, so ICMP that a
-tunnel's traffic selectors cover still goes through the tunnel. The refusal and
-the start-up log below print the same ICMP example.
+tunnel's traffic selectors cover still goes through the tunnel. These entries
+carry ICMP errors in clear, so commit refuses them beside a site-to-site peer
+whose `icmp-error-check` is true and that has no `vti bind` (see ICMP error
+messages above): set `icmp-error-check false` on each such peer, and the
+entries then decide where an error goes. The refusal and the start-up log below print the same ICMP
+example.
 
-Or write `set vpn ipsec unmatched bypass` to pass all of that traffic.
+Or write `set vpn ipsec unmatched bypass` to pass all of that traffic, with
+the same `icmp-error-check false` on each site-to-site peer that has no
+`vti bind`.
 
 Ze cannot list those flows for you: they live in every other part of the
 configuration and in the routing table, and an exemption list that missed one
@@ -1601,8 +1661,13 @@ error level, with the same facts and commands as the refusal, so the console
 says why BGP or SSH went quiet:
 
 ```
-ike: the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1): ... bypass-entries=0
+ike: the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1): ... bypass-entries=0 code=doctor-ipsec-implicit-discard
 ```
+
+`ze doctor` reports the same state for as long as it lasts, as the error
+`doctor-ipsec-implicit-discard` with the same text, and names
+`set vpn ipsec unmatched discard` as the fix that confirms the default.
+<!-- source: internal/component/ike/engine/doctor_implicit_discard.go -- checkIPsecImplicitDiscard -->
 
 A box with no `vpn ipsec` block keeps a `bypass` catch-all: it configured no
 IPsec boundary.

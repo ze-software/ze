@@ -435,6 +435,18 @@ func init() {
 			Platforms:    []string{doctorPlatformAny},
 			Codes:        []string{diagnostic.CodeDoctorIPsecPeerMalformedMessage},
 			Check:        checkIPsecPeerMalformedMessage,
+		}, {
+			// RFC 4301 Section 4.4.1: the discard catch-all in force only because
+			// `unmatched` is unset drops the router's own clear traffic. A commit that
+			// enters the state is refused, but a start is never verified
+			// (doctor_implicit_discard.go).
+			Name:         "ipsec-implicit-discard",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        741,
+			Dependencies: []string{doctorDepConfigLoaded},
+			Platforms:    []string{doctorPlatformAny},
+			Codes:        []string{diagnostic.CodeDoctorIPsecImplicitDiscard},
+			Check:        checkIPsecImplicitDiscard,
 		}},
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }

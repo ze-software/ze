@@ -128,8 +128,9 @@ func (c *candidatePKISet) caCert(name string) *x509.Certificate {
 // site-to-site cross-reference checks: the certificate and ca-certificate each
 // peer's mode needs (including the RFC 5216 Section 5.3 trust-anchor
 // requirement for EAP-TLS peers), the x509 local-id binding to the certificate
-// CN, the certificate chain bound, the intermediate CA flags, and the
-// remote-access pool and user credentials. The ike-group and esp-group names
+// CN, the certificate chain bound, the intermediate CA flags, the
+// remote-access pool and user credentials, and a peer's icmp-error-check against
+// the operator's SPD entries (verifyICMPOverlap). The ike-group and esp-group names
 // are YANG leafrefs, and every PKI name leaf carries a ze:reference
 // ("pki-certificate" or "pki-ca"), so config validation refuses a dangling name
 // before this runs, at every commit door (config.LoadConfig), and no Go check
@@ -209,7 +210,15 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err := cfg.ValidateRemoteAccess(); err != nil {
 		return err
 	}
-	return cfg.ValidateVirtualIPPoolBindings()
+	if err := cfg.ValidateVirtualIPPoolBindings(); err != nil {
+		return err
+	}
+	// RFC 4301 Section 6.2: a peer's icmp-error-check beside a bypass entry that would
+	// carry an ICMP error in clear, or beside an inbound discard entry that matches ICMP,
+	// is refused here, after the entries and selectors passed their own checks, because
+	// Linux overrides either entry for that peer's Child SAs (verifyICMPOverlap,
+	// icmp_overlap.go). It is an operator error naming both entries and the fix.
+	return verifyICMPOverlap(cfg)
 }
 
 // validateTransportOnePair refuses a transport-mode peer configured with more than one

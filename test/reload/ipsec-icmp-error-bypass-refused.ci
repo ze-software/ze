@@ -1,0 +1,113 @@
+# Test: a reload that puts `vpn ipsec unmatched bypass` beside a peer whose
+#       icmp-error-check is true is refused
+# Goal: prove the RFC 4301 Section 6.2 refusal reaches the operator through the
+#       real reload pipeline. A unit test (rfc4301_icmp_overlap_test.go) decides
+#       the predicate; only a daemon run proves the ike plugin's OnConfigVerify
+#       calls it and the reload is not reported complete.
+# Method: the daemon starts with `unmatched bypass` and the peer's
+#       icmp-error-check false, which carries no conflict. After SIGHUP the same
+#       block drops the leaf, so the peer takes the default true: Linux would then
+#       send an ICMP error the bypass catch-all carries in clear into the peer's
+#       Child SA (icmp_route_lookup), which Section 6.2 maps only "if no SPD entry
+#       would allow carriage of this outbound ICMP error message".
+# Expected: the verify refuses the reload, naming the peer, the catch-all and
+#       both fixes; the reload is not reported complete.
+#
+# VALIDATES: refuseICMPErrorBypass (internal/component/ike/engine/icmp_overlap.go)
+#            reached through config file, SIGHUP, the ike plugin's OnConfigVerify
+#            (validateIPsecSections, the offline verifier it runs first).
+# PREVENTS: a commit that leaves the operator's bypass catch-all in place while the
+#           kernel sends the errors it covers into a tunnel.
+#
+# The noop dataplane holds every entry without CAP_NET_ADMIN
+# (internal/component/ike/dataplane/noop.go), so the test runs unprivileged. The
+# peer responds and nobody initiates, so no Child SA is negotiated.
+
+option=env:var=ze_test_ike_dataplane:value=noop
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=30s
+
+stdin=ze-bgp:terminator=EOF_CONF
+vpn {
+	ipsec {
+		unmatched bypass
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer site {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				icmp-error-check false
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:refused=config-plugin-verify:terminator=EOF_CONF2
+vpn {
+	ipsec {
+		unmatched bypass
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer site {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+
+await=stderr:contains=reload error:then=stop
+expect=stderr:contains=has icmp-error-check true and `vpn ipsec unmatched bypass` carries ICMP errors in clear
+expect=stderr:contains=RFC 4301 Section 6.2 maps an error into the return SA only when no SPD entry would carry it
+expect=stderr:contains=set vpn ipsec site-to-site peer site icmp-error-check false, or set vpn ipsec unmatched discard
+reject=stderr:contains=sighup reload complete
+reject=stderr:pattern=panic

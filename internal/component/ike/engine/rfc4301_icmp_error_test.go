@@ -3,7 +3,7 @@
 // `icmp-error-check false` takes it off.
 // PREVENTS: the return-SA mapping set on an inbound or forward policy, where the backend
 // refuses it and the Child SA never installs, or left off by default.
-// RFC naming: untagged -- RFC4301-6.2-3 is a gap while the owner decides its BYPASS condition, so this unit proves the state Ze installs and carries no tag for it.
+// RFC naming: untagged -- RFC4301-6.2-3's BYPASS condition is met by refusing at verify a bypass entry the kernel's mapping would override (icmp_overlap.go, proven in rfc4301_icmp_overlap_test.go), so this unit proves the state Ze installs and carries no tag for it.
 
 package engine
 

@@ -130,7 +130,16 @@ module ze-ipsec-conf {
                              bypass to pass all of it. A commit that would turn the discard
                              on while this leaf is unset is refused until the leaf is
                              written. The IKE control plane keeps its own bypass at order 100
-                             either way.";
+                             either way.
+
+                             bypass carries ICMP errors in clear, and Linux would still send
+                             one about a tunnelled packet into the Child SA of a site-to-site
+                             peer whose icmp-error-check is true, so commit refuses bypass
+                             beside such a peer; set icmp-error-check false on it. An ICMP
+                             bypass entry under policy meets the same refusal. A peer with
+                             vti bind is exempt: its Child SA policies carry the xfrm
+                             interface's if_id, which the kernel's error mapping never
+                             looks up.";
                 ze:help "Disposition of traffic no SPD entry matches: discard or bypass.";
             }
 
@@ -317,12 +326,22 @@ module ze-ipsec-conf {
                                  RFC 4301 Sections 6.1.1 and 6.1.2.
 
                                  An ICMP message arriving on a Child SA is decided by that SA's peer
-                                 on Linux. When its icmp-error-check is true (the default) and this
-                                 entry refuses the message, the kernel reads the header the message
-                                 carries after its ICMP header, reverses its addresses and ports, and
-                                 delivers the message when that header matches the SA it arrived on,
-                                 whatever this entry says and whatever the ICMP type. With
-                                 icmp-error-check false on that peer, this entry decides.
+                                 on Linux. When its icmp-error-check is true (the default), the
+                                 kernel delivers a message this entry refuses whenever the header the
+                                 message carries after its ICMP header, with addresses and ports
+                                 reversed, matches the SA it arrived on, whatever the ICMP type. So
+                                 commit refuses a discard entry, in or both, matching ICMP in a family
+                                 such a peer's selectors carry, whatever its type and prefixes. In the
+                                 other direction the kernel sends an ICMP error this router generates
+                                 into a Child SA of such a peer even where a bypass entry would carry
+                                 it in clear, so commit refuses a bypass entry, out or both, with type
+                                 any or an ICMP error type (IPv4 3, 4, 5, 11, 12; IPv6 1, 2, 3, 4:
+                                 the types Linux 7.3 sends through its return-SA lookup, listed in
+                                 icmp_overlap.go) and a remote prefix overlapping that peer's remote
+                                 selectors. With icmp-error-check false on that peer, this entry
+                                 decides. A peer with vti bind meets neither refusal: its Child SA
+                                 policies carry the xfrm interface's if_id, which neither kernel
+                                 path compares with this entry.
 
                                  The VPP dataplane compares no ICMP type or code, so it refuses an
                                  entry that names one rather than matching every ICMP message.
@@ -1201,7 +1220,17 @@ module ze-ipsec-conf {
                                      error that a vpn ipsec policy bypass entry, or the catch-all under
                                      `unmatched bypass`, would carry in clear is still mapped to the
                                      return SA, although Section 6.2 maps it only 'if no SPD entry would
-                                     allow carriage of this outbound ICMP error message'. The VPP
+                                     allow carriage of this outbound ICMP error message'. And an ICMP
+                                     message arriving on a Child SA that an inbound discard entry
+                                     refuses is delivered whenever its embedded header matches the SA.
+                                     So while this leaf is true, commit refuses `unmatched bypass`, a
+                                     bypass entry that would carry an ICMP error to this peer's remote
+                                     selectors, and an inbound discard entry matching ICMP in a family
+                                     the selectors carry, naming this leaf false as one fix; a
+                                     configuration the daemon starts with logs the conflict at start
+                                     instead. A peer with vti bind is exempt from these refusals:
+                                     its Child SA policies carry the xfrm interface's if_id, which
+                                     neither kernel path compares with an operator entry. The VPP
                                      dataplane, reached only through the test override
                                      ze.test.ike.dataplane, performs neither, so commit refuses this
                                      leaf true there and names icmp-error-check false as the fix.";
