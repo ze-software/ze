@@ -101,6 +101,7 @@ type mockPluginResponder struct {
 	opCommitResp     *rpc.ConfigOperationCommitOutput
 	rollbackErr      error  // non-nil → SendError on rollback (CodeBroken path)
 	beforeVerifyRsp  func() // Called BEFORE verify response is sent (blocks coordinator)
+	beforeApplyRsp   func() // Called BEFORE apply response is sent (blocks coordinator)
 	verifyCalls      int
 	applyCalls       int
 	opDecomposeCalls int
@@ -195,6 +196,15 @@ func (m *mockPluginResponder) start(ctx context.Context) {
 				resp := m.applyResp
 				if resp == nil {
 					resp = &rpc.ConfigApplyOutput{Status: rpc.StatusOK}
+				}
+				// Hook runs BEFORE sending the response, as beforeVerifyRsp:
+				// the bridge installed the staged capabilities before this
+				// apply's RPC, so the hook sees the installed store.
+				if m.beforeApplyRsp != nil {
+					fn := m.beforeApplyRsp
+					m.mu.Unlock()
+					fn()
+					m.mu.Lock()
 				}
 				_ = m.pluginConn.SendResult(ctx, req.ID, resp)
 

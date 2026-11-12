@@ -93,10 +93,17 @@ func newDriverPipe(t *testing.T) (*ipc.PluginConn, *rpc.MuxConn) {
 // the three plugin-initiated requests and answers the two engine-initiated
 // callbacks. Runs in its own goroutine.
 func drivePluginHandshake(ctx context.Context, pluginMux *rpc.MuxConn) {
-	if _, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{
+	drivePluginHandshakeWith(ctx, pluginMux, &rpc.DeclareRegistrationInput{
 		ProtocolVersion: rpc.ProtocolVersion,
 		Commands:        []rpc.CommandDecl{{Name: "widget show"}},
-	}); err != nil {
+	}, nil)
+}
+
+// drivePluginHandshakeWith plays the plugin side of the handshake as
+// drivePluginHandshake does, declaring registration at Stage 1 and sending
+// readyParams as the Stage 5 ready parameters. Runs in its own goroutine.
+func drivePluginHandshakeWith(ctx context.Context, pluginMux *rpc.MuxConn, registration *rpc.DeclareRegistrationInput, readyParams any) {
+	if _, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, registration); err != nil {
 		return
 	}
 	// Stage 2: receive configure, respond OK.
@@ -120,7 +127,7 @@ func drivePluginHandshake(ctx context.Context, pluginMux *rpc.MuxConn) {
 	case <-ctx.Done():
 		return
 	}
-	if _, err := pluginMux.CallRPC(ctx, methodReady, nil); err != nil {
+	if _, err := pluginMux.CallRPC(ctx, methodReady, readyParams); err != nil {
 		return
 	}
 }

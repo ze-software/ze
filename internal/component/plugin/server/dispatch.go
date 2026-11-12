@@ -255,6 +255,14 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 // empty namespace falls back to the default registered by the owning protocol
 // component ("bgp" today) -- the exact pre-Gap-A behavior; a missing default
 // is logged but still returns ok=true to preserve that legacy warn-and-continue.
+// defaultEventNamespace answers the namespace a block that names none resolves
+// to. It is a var rather than a direct call so a test can drive the branch
+// where no protocol component registered one: every server test binary links
+// the composition root, whose BGP component registers "bgp" from init(), and
+// the registry has no reset. Same test seam as pluginStopGrace in
+// process/manager.go: never written outside a test.
+var defaultEventNamespace = plugin.DefaultEventNamespace
+
 func (s *Server) resolveSubscriptionNamespace(proc *process.Process, requested string) (events.NamespaceID, string, bool) {
 	if requested != "" {
 		if !events.IsValidNamespace(requested) {
@@ -271,7 +279,7 @@ func (s *Server) resolveSubscriptionNamespace(proc *process.Process, requested s
 		return events.LookupNamespaceID(requested), requested, true
 	}
 
-	namespace := plugin.DefaultEventNamespace()
+	namespace := defaultEventNamespace()
 	if namespace == "" {
 		logger().Warn("rpc event subscription: no default event namespace registered, subscriptions will not match (call plugin.RegisterDefaultEventNamespace from the protocol component's register.go)",
 			"plugin", proc.Name(), "code", diagnostic.CodeDoctorPluginSubscriptionDropped)
