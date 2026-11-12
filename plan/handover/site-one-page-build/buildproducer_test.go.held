@@ -1,0 +1,295 @@
+// Design: website/AI.md -- one producer re-rendered over a full artifact, for a page under review
+package site
+
+import (
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+)
+
+// The publication times the producer-run tests stamp with. Both fall in one
+// year, so the copyright line of the footer is the same on either side and only
+// the stamp span tells the two apart.
+var (
+	producerRunPublished = time.Date(2026, time.March, 1, 9, 30, 0, 0, time.UTC)
+	producerRunNow       = time.Date(2026, time.November, 12, 12, 0, 0, 0, time.UTC)
+)
+
+// stubBuildClock makes every build in one test publish at the given time.
+func stubBuildClock(t *testing.T, at time.Time) {
+	t.Helper()
+	previous := buildClock
+	buildClock = func() time.Time { return at }
+	t.Cleanup(func() { buildClock = previous })
+}
+
+// writeFooterPage writes one page at an artifact-relative directory, with the
+// footer a published page carries, stamped at the given time.
+func writeFooterPage(t *testing.T, output, directory, body string, published time.Time) {
+	t.Helper()
+	page := filepath.ToSlash(filepath.Join(directory, pageIndexFile))
+	content := "<!doctype html><html><body><main>" + body + "</main>\n" +
+		footerHTML(pageRoot(page), published) + "\n</body></html>\n"
+	path := filepath.Join(output, filepath.FromSlash(page))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// readArtifact answers one artifact file's content.
+func readArtifact(t *testing.T, output, name string) string {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join(output, filepath.FromSlash(name)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(content)
+}
+
+// fullArtifactFixture lays out a checkout and an artifact a full build of it
+// wrote: one page for every claim, stamped when it was published, and the
+// producer record naming each claim.
+func fullArtifactFixture(t *testing.T, claims []Claim) (root, output string) {
+	t.Helper()
+	root, output = siteFixture(t)
+	for _, claim := range claims {
+		directory := strings.Trim(claim.Route, "/")
+		writeFooterPage(t, output, directory, "published "+directory, producerRunPublished)
+	}
+	if err := writeProducerRecord(Paths{Repository: root, Output: output}, claims); err != nil {
+		t.Fatal(err)
+	}
+	return root, output
+}
+
+// VALIDATES: a producer run renders only the producer it names, leaves every
+// other producer's page byte for byte as published, stamps a page it changed
+// with this run's time and gives a page it rewrote to the same bytes its
+// previous stamp back, and merges the record: the claims of the producer that
+// ran are what it wrote now, every other producer's claims stand, and a page it
+// stopped writing is reported unclaimed.
+// PREVENTS: a one-page preview that rewrites the whole site, restamps pages it
+// did not change, or leaves a record that reads every other page as unclaimed
+// so `./le site check` refuses a whole artifact.
+func TestAProducerRunRendersOnlyTheNamedProducer(t *testing.T) {
+	var ran []string
+	stubProducers(t,
+		Producer{Name: "labs", Render: func(paths Paths) ([]string, error) {
+			ran = append(ran, "labs")
+			writeFooterPage(t, paths.Output, "labs", "rendered labs", producerRunNow)
+			return []string{"/labs/"}, nil
+		}},
+		Producer{Name: "guides", Render: func(paths Paths) ([]string, error) {
+			ran = append(ran, "guides")
+			// The same body the artifact published, a changed body, and a new page.
+			writeFooterPage(t, paths.Output, "guides", "published guides", time.Time{})
+			writeFooterPage(t, paths.Output, "guides/changed", "edited text", time.Time{})
+			writeFooterPage(t, paths.Output, "guides/new", "a new page", time.Time{})
+			return []string{"/guides/", "/guides/changed/", "/guides/new/"}, nil
+		}},
+	)
+	root, output := fullArtifactFixture(t, []Claim{
+		{Route: "/guides/", Producers: []string{"guides"}},
+		{Route: "/guides/changed/", Producers: []string{"guides"}},
+		{Route: "/guides/gone/", Producers: []string{"guides"}},
+		{Route: "/labs/", Producers: []string{"labs"}},
+	})
+	labsBefore := readArtifact(t, output, "labs/index.html")
+	stubBuildClock(t, producerRunNow)
+
+	report, err := BuildProducers(ProducerBuildOptions{Repository: root, Output: output, Producers: []string{"guides"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Equal(ran, []string{"guides"}) {
+		t.Fatalf("producers ran as %v, want guides alone", ran)
+	}
+	if got := readArtifact(t, output, "labs/index.html"); got != labsBefore {
+		t.Fatalf("the page of a producer that did not run changed:\n%s", got)
+	}
+	if !slices.Equal(report.Routes, []string{"/guides/", "/guides/changed/", "/guides/new/"}) {
+		t.Fatalf("the report names routes %v", report.Routes)
+	}
+	if report.Carried != 1 {
+		t.Fatalf("carried %d stamps, want 1 for the page rewritten to the same bytes", report.Carried)
+	}
+	wasPublished, now := publishedDisplay(producerRunPublished), publishedDisplay(producerRunNow)
+	if page := readArtifact(t, output, "guides/index.html"); !strings.Contains(page, wasPublished) {
+		t.Errorf("an unchanged page lost the stamp it was published with:\n%s", page)
+	}
+	for _, name := range []string{"guides/changed/index.html", "guides/new/index.html"} {
+		if page := readArtifact(t, output, name); !strings.Contains(page, now) {
+			t.Errorf("%s is not stamped with this run's time:\n%s", name, page)
+		}
+	}
+	if report.Published != now {
+		t.Errorf("the report says published %q, want %q", report.Published, now)
+	}
+
+	claims, err := readProducerRecord(Paths{Repository: root, Output: output})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Claim{
+		{Route: "/guides/", Producers: []string{"guides"}},
+		{Route: "/guides/changed/", Producers: []string{"guides"}},
+		{Route: "/guides/new/", Producers: []string{"guides"}},
+		{Route: "/labs/", Producers: []string{"labs"}},
+	}
+	if !slices.EqualFunc(claims, want, func(left, right Claim) bool {
+		return left.Route == right.Route && slices.Equal(left.Producers, right.Producers)
+	}) {
+		t.Fatalf("the merged record is %v, want %v", claims, want)
+	}
+	if !slices.Equal(report.Coverage.Unclaimed, []string{"/guides/gone/"}) || len(report.Coverage.Doubled) != 0 {
+		t.Fatalf("coverage %#v, want only the page guides stopped writing unclaimed", report.Coverage)
+	}
+	checked, err := checkCoverage(Paths{Repository: root, Output: output})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(checked.Unclaimed, report.Coverage.Unclaimed) {
+		t.Fatalf("the check reads unclaimed %v from the record, the run reported %v", checked.Unclaimed, report.Coverage.Unclaimed)
+	}
+}
+
+// VALIDATES: a producer that reads the finished artifact runs after the page
+// producers a run names, whatever order they were named in, and reads the page
+// this run wrote rather than the published one.
+// PREVENTS: a search index or llms-full.txt rendered from the page as it was
+// before the edit under review.
+func TestAProducerRunRunsTheFinishedPassAfterThePages(t *testing.T) {
+	var ran []string
+	stubProducers(t, Producer{Name: "guides", Render: func(paths Paths) ([]string, error) {
+		ran = append(ran, "guides")
+		writeFooterPage(t, paths.Output, "guides", "edited text", time.Time{})
+		return []string{"/guides/"}, nil
+	}})
+	derivedProducers = append(derivedProducers, Producer{Name: "finder", Render: func(paths Paths) ([]string, error) {
+		ran = append(ran, "finder")
+		page := readArtifact(t, paths.Output, "guides/index.html")
+		return nil, writeNamedArtifact(paths.Output, "finder.txt", page)
+	}})
+	root, output := fullArtifactFixture(t, []Claim{{Route: "/guides/", Producers: []string{"guides"}}})
+	stubBuildClock(t, producerRunNow)
+
+	report, err := BuildProducers(ProducerBuildOptions{Repository: root, Output: output, Producers: []string{"finder", "guides"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(ran, []string{"guides", "finder"}) {
+		t.Fatalf("producers ran as %v, want the page producer before the one that reads the artifact", ran)
+	}
+	if !slices.Equal(report.Producers, []string{"guides", "finder"}) {
+		t.Fatalf("the report names producers %v, in the order they ran", report.Producers)
+	}
+	if found := readArtifact(t, output, "finder.txt"); !strings.Contains(found, "edited text") {
+		t.Fatalf("the finished pass read the published page rather than this run's:\n%s", found)
+	}
+}
+
+// VALIDATES: a name the registry does not hold is refused before anything is
+// written, and the refusal lists every registered name and the command that
+// fixes it; the keyword's help page and completion list the same names, read
+// from the registry, with the pass each runs in.
+// PREVENTS: a hand-written list of producers that drifts from the registry, and
+// a typo that silently renders nothing.
+func TestAProducerRunRefusesANameTheRegistryDoesNotHold(t *testing.T) {
+	ran := 0
+	stubProducers(t, Producer{Name: "guides", Render: func(Paths) ([]string, error) { ran++; return nil, nil }})
+	derivedProducers = append(derivedProducers, Producer{Name: "finder", Render: func(Paths) ([]string, error) { ran++; return nil, nil }})
+	root, output := fullArtifactFixture(t, []Claim{{Route: "/guides/", Producers: []string{"guides"}}})
+	record := producerRecordPath(Paths{Repository: root, Output: output})
+	recordBefore, err := os.ReadFile(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = BuildProducers(ProducerBuildOptions{Repository: root, Output: output, Producers: []string{"guides", "guide"}})
+	if err == nil {
+		t.Fatal("an unknown producer name was accepted")
+	}
+	for _, want := range []string{`"guide"`, "guides, finder", "./le site build producer <name>"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal lacks %q: %v", want, err)
+		}
+	}
+	if ran != 0 {
+		t.Errorf("a refused run ran %d producer(s)", ran)
+	}
+	if recordAfter, err := os.ReadFile(record); err != nil || string(recordAfter) != string(recordBefore) {
+		t.Errorf("a refused run changed the record (%v)", err)
+	}
+
+	candidates := producerCandidates()
+	if len(candidates) != 2 || candidates[0].Value != "guides" || candidates[1].Value != "finder" {
+		t.Fatalf("the candidates are %v, want guides then finder", candidates)
+	}
+	if candidates[0].Summary == candidates[1].Summary {
+		t.Errorf("the candidates do not say which pass each runs in: %v", candidates)
+	}
+	page, err := actions.Actions().KeywordPage("le", "build", keywordProducer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(page.Description, "guides: ") || !strings.Contains(page.Description, "finder: ") {
+		t.Errorf("the producer keyword's help page does not list the registry:\n%s", page.Description)
+	}
+}
+
+// VALIDATES: a run over an output with no full artifact is refused naming the
+// full build that makes one, with the output keyword when one was given: an
+// absent directory, and a directory this checkout holds no build record for.
+// PREVENTS: a few fresh pages written into an empty tree, and a record that
+// claims them alone.
+func TestAProducerRunRefusesAnOutputNoFullBuildWrote(t *testing.T) {
+	stubProducers(t, Producer{Name: "guides", Render: func(Paths) ([]string, error) {
+		t.Error("a producer ran over an output no full build wrote")
+		return nil, nil
+	}})
+	root, output := siteFixture(t)
+
+	_, err := BuildProducers(ProducerBuildOptions{Repository: root, Output: output, Producers: []string{"guides"}})
+	if err == nil || !strings.Contains(err.Error(), "does not exist") || !strings.Contains(err.Error(), "run ./le site build output "+output) {
+		t.Fatalf("an absent artifact was answered %v, want a refusal naming the full build", err)
+	}
+	if err := os.MkdirAll(output, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err = BuildProducers(ProducerBuildOptions{Repository: root, Output: output, Producers: []string{"guides"}})
+	if err == nil || !strings.Contains(err.Error(), "no record of a full build") || !strings.Contains(err.Error(), "./le site build") {
+		t.Fatalf("an artifact with no record was answered %v, want a refusal naming the full build", err)
+	}
+	if _, err := os.Stat(producerRecordPath(Paths{Repository: root, Output: output})); !os.IsNotExist(err) {
+		t.Fatalf("a refused run wrote a record: %v", err)
+	}
+	if err := notAFullArtifact(Paths{Output: output}, "", "it does not exist"); strings.Contains(err.Error(), " output ") {
+		t.Errorf("the default output names an output keyword: %v", err)
+	}
+}
+
+// VALIDATES: producer combined with partial or refresh is refused as a usage
+// mistake, with code 2, before anything is built.
+// PREVENTS: a preview that silently restages every source or skips the
+// evidence refresh it was asked for.
+func TestAProducerRunRefusesAWholeSiteKeyword(t *testing.T) {
+	stubProducers(t, Producer{Name: "guides", Render: func(Paths) ([]string, error) {
+		t.Error("a refused line ran a producer")
+		return nil, nil
+	}})
+	for _, keyword := range []string{keywordPartial, keywordRefresh} {
+		arguments := leaction.Arguments{keywordProducer: {"guides"}, keyword: {""}}
+		if _, code := runProducerBuild(t.TempDir(), arguments); code != 2 {
+			t.Errorf("producer with %s answered %d, want 2", keyword, code)
+		}
+	}
+}
