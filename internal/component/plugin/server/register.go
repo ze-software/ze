@@ -36,4 +36,6 @@ func init() {
 			panic("BUG: plugin server event code registration refused: " + err.Error())
 		}
 	}
+	// A plugin's proxy enrichers and their doctor failures go with its process.
+	RegisterProcessCleanup(unregisterProxyEnrichers)
 }

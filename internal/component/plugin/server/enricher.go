@@ -46,10 +46,12 @@ func validateEnricherDecls(enrichers []rpc.EnricherDecl) error {
 	return nil
 }
 
+// proxyRegistry holds the enrichers each plugin registered through this
+// proxy. unregisterProxyEnrichers, a process cleanup hook registered from
+// init() (register.go), removes a plugin's entries when its process ends.
 var (
 	proxyMu       sync.Mutex
 	proxyRegistry = map[string][]proxyEntry{}
-	proxyInitOnce sync.Once
 )
 
 type proxyEntry struct {
@@ -58,10 +60,6 @@ type proxyEntry struct {
 }
 
 func registerProxyEnrichers(pluginName string, enrichers []rpc.EnricherDecl, conn *plugipc.PluginConn) {
-	proxyInitOnce.Do(func() {
-		RegisterProcessCleanup(unregisterProxyEnrichers)
-	})
-
 	proxyMu.Lock()
 	defer proxyMu.Unlock()
 
@@ -111,6 +109,8 @@ func makeProxyCall(pluginName, command, key, mode string, conn *plugipc.PluginCo
 	}
 }
 
+// unregisterProxyEnrichers runs for every process that ends: one that
+// registered no enricher has no entry and no failure, so it does nothing.
 func unregisterProxyEnrichers(processName string) {
 	proxyMu.Lock()
 	entries, ok := proxyRegistry[processName]

@@ -5,7 +5,9 @@ package server
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/callsite"
@@ -93,17 +95,32 @@ func testPluginSubsystem(parts []string) string {
 // Receives the process name for scoped cleanup.
 type ProcessCleanupFunc func(processName string)
 
-var processCleanupHooks []ProcessCleanupFunc
+// processCleanupHooks is guarded by processCleanupMu: cleanupProcess runs on
+// each exiting plugin's goroutine, so the list is read concurrently with
+// itself and with any registration.
+var (
+	processCleanupMu    sync.Mutex
+	processCleanupHooks []ProcessCleanupFunc
+)
 
 // RegisterProcessCleanup registers a callback invoked during cleanupProcess.
-// Called from init() to avoid import cycles between server and command packages.
+// Callers register from init() (register.go files), which avoids import
+// cycles between server and command packages and means every process's
+// cleanup runs every hook. Safe for concurrent use with runProcessCleanupHooks.
 func RegisterProcessCleanup(fn ProcessCleanupFunc) {
+	processCleanupMu.Lock()
+	defer processCleanupMu.Unlock()
 	processCleanupHooks = append(processCleanupHooks, fn)
 }
 
-// runProcessCleanupHooks calls all registered cleanup hooks for a process.
+// runProcessCleanupHooks calls all registered cleanup hooks for a process. It
+// calls them on a copy taken under the lock, so a hook never runs with the
+// lock held.
 func runProcessCleanupHooks(processName string) {
-	for _, fn := range processCleanupHooks {
+	processCleanupMu.Lock()
+	hooks := slices.Clone(processCleanupHooks)
+	processCleanupMu.Unlock()
+	for _, fn := range hooks {
 		fn(processName)
 	}
 }
