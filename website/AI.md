@@ -508,6 +508,8 @@ take their width from their content and wrap as whole cards when space runs out.
 The introduction presents IPsec VPN or WireGuard as tunnel options and FIB or
 VPP as forwarding options. The management clause describes interfaces and
 services.
+Links in the left hero column keep their existing colors without underlines;
+keyboard focus remains outlined.
 The release group has a Planned release title, followed by the linked bird
 beside two lines: Initial version and Q4 2026. The separator before this group
 remains vertical on desktop and horizontal when the group stacks on mobile.
