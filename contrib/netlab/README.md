@@ -64,8 +64,37 @@ netlab searches both by default (`netsim/defaults/paths.yml`,
 
 ## Running the reference topology
 
+Export a complete working directory from a source checkout. The export includes
+the local daemon definition and templates, so the installed netlab package needs
+no changes. The destination must not already exist:
+
+    ./le test netlab package directory /tmp/ze-lab
     docker build -f docker/Dockerfile.lab -t netlab/ze:latest .
-    netlab up -t contrib/netlab/topology.yml
+    cd /tmp/ze-lab
+    netlab up topology.yml
+
+Use networklab 26.10 and containerlab 0.83.0 with Docker on a Linux host. The
+exported directory also works away from the source checkout once the lab image
+has been built or loaded into that host's Docker daemon. Stop it with
+`netlab down --cleanup` from the same directory.
+
+For the automated live proof, run `./le test netlab run` against the Ze Docker
+host. It builds the local lab image and a tool container carrying those pinned
+upstream versions. Host Python and containerlab installations are unnecessary.
+The tools run in the Docker host's PID and network namespaces, so a forwarded
+socket works through Ze's QEMU Docker host transport. A tool process running on
+another host with only a remote Docker socket does not have those namespaces.
+
+The native runner checks all configured BGP, OSPF, IS-IS and BFD adjacencies,
+the two static routes in the kernel, and sourced loopback pings between every
+pair of nodes. It polls state with bounded deadlines and always attempts
+teardown, including partial startup. A failed assertion or cleanup fails the
+command. Generated configuration and topology snapshots remain under the
+session's scratch directory for diagnosis.
+Each run uses its build's retained image tag, checked against the immutable image
+ID before startup. Concurrent runs cannot change the selected node image by
+moving `netlab/ze:latest`. A directory lease prevents a second host-runtime run
+from starting or cleaning up an existing deployment.
 
 The topology is three ze nodes:
 
@@ -111,10 +140,9 @@ ze still RUNS what they emitted.
 
 ## Known limitations
 
-- **No lab run.** `netlab up` and `netlab validate` were never run here. The
-  machine that wrote this integration has no containerlab. The artifacts are
-  rendered and parsed, and no declared feature is validated by netlab's own
-  integration suite.
+- **Validation scope.** `./le test netlab check` proves rendering and parsing.
+  `./le test netlab run` performs the live protocol, route and traffic checks
+  above. A render check alone provides no evidence that adjacencies formed.
 - **No LLDP.** Ze sends and receives no LLDP frame, so a netlab validation that
   reads an LLDP table cannot pass. containerlab does not need LLDP. Its links
   are veths the topology names.

@@ -58,6 +58,7 @@ RUN apk add --no-cache tini iproute2 ca-certificates
 
 COPY --from=builder /ze /usr/local/bin/ze
 
-EXPOSE 179 1790 8080
+EXPOSE 179 2222 8080
 
-ENTRYPOINT ["tini", "--", "ze"]
+ENTRYPOINT ["tini", "--"]
+CMD ["ze", "start", "/etc/ze/ze.conf"]

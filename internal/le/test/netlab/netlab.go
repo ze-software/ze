@@ -24,9 +24,10 @@ var errNoRenderedConfiguration = errors.New("netlab create rendered no ze config
 // Command is one child process invocation. Env is the complete inherited
 // environment. An empty Dir means the caller's current directory.
 type Command struct {
-	Argv []string
-	Env  []string
-	Dir  string
+	Context context.Context
+	Argv    []string
+	Env     []string
+	Dir     string
 }
 
 // CommandResult is the complete captured result of one child process.
@@ -410,7 +411,7 @@ func (c *Checker) fail(report *Report, message string, hints ...string) (*Report
 	return report, 1
 }
 
-func sortedNames(rendered map[string]string) []string {
+func sortedNames[T any](rendered map[string]T) []string {
 	names := make([]string, 0, len(rendered))
 	for name := range rendered {
 		names = append(names, name)
@@ -433,7 +434,11 @@ func execute(spec Command) CommandResult {
 	if len(spec.Argv) == 0 {
 		return CommandResult{Code: -1, Err: errors.New("empty command")}
 	}
-	command := exec.CommandContext(context.Background(), spec.Argv[0], spec.Argv[1:]...) //nolint:gosec // argv comes from repository paths and fixed keywords
+	ctx := spec.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	command := exec.CommandContext(ctx, spec.Argv[0], spec.Argv[1:]...) //nolint:gosec // argv comes from repository paths and fixed keywords
 	command.Dir = spec.Dir
 	command.Env = append([]string(nil), spec.Env...)
 	var stdout, stderr bytes.Buffer

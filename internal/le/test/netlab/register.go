@@ -9,8 +9,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		Description: "The netlab daemon integration: render contrib/netlab with the installed netlab, compare every node with its golden file, or rewrite the goldens from a real render.",
-		ShortHelp:   "render and validate the netlab integration",
+		Description: "Render and validate the netlab integration, export a self-contained lab, or prove its live protocols, routes and traffic on the Ze Docker host.",
+		ShortHelp:   "render, package and run the netlab integration",
 		Mode:        "offline",
 		Section:     registry.SectionTest,
 		SubsFunc:    Subs,

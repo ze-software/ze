@@ -148,6 +148,11 @@ type ImageResult struct {
 	retainedTag string
 }
 
+// OwnedTag names the unique tag Build retains until ReleaseImage. Consumers
+// that require a repository/tag name can use it while checking Reference for
+// content identity; a shared cache Tag does not have that ownership guarantee.
+func (i ImageResult) OwnedTag() string { return i.retainedTag }
+
 // Subnet is one network candidate. IPv6 is invalid when the network is IPv4-only.
 type Subnet struct {
 	IPv4 netip.Prefix `json:"ipv4"`

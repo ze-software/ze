@@ -1,0 +1,10 @@
+# Upstream lab tools run in the Docker host's PID/network namespaces. The
+# native le binary owns validation and teardown; no separate verifier exists.
+# Pins: networklab release 26.10; containerlab release 0.83 (2026-11-06).
+FROM ghcr.io/srl-labs/clab:0.83.0
+RUN apk add --no-cache python3 py3-pip iproute2 docker-cli bash sudo && \
+    python3 -m venv /opt/netlab && \
+    /opt/netlab/bin/pip install --no-cache-dir networklab==26.10 ansible-core==2.20.0
+ENV PATH="/opt/netlab/bin:${PATH}"
+COPY le /usr/local/bin/le
+ENTRYPOINT []

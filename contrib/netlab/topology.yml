@@ -20,7 +20,9 @@
 #
 # Run it (needs netlab, containerlab, docker, and the local lab image first):
 #     docker build -f docker/Dockerfile.lab -t netlab/ze:latest .
-#     netlab up -t contrib/netlab/topology.yml
+#     ./le test netlab package directory /tmp/ze-lab
+#     cd /tmp/ze-lab
+#     netlab up topology.yml
 
 provider: clab
 defaults.device: ze

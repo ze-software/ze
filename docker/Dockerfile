@@ -53,6 +53,6 @@ FROM scratch
 COPY --from=builder /ze /ze
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-EXPOSE 179 1790 8080
+EXPOSE 179 2222 8080
 
 ENTRYPOINT ["/ze"]

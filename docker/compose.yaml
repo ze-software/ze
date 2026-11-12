@@ -1,17 +1,24 @@
 services:
   ze:
+    image: ze:local
+    hostname: ze
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    # The image ENTRYPOINT is ["/ze"], so this is `ze start /etc/ze/ze.conf`. The
-    # bare `ze <config>` launch form was removed from the CLI (learned 1248) and
-    # now dies with "unknown command".
-    command: ["start", "/etc/ze/ze.conf"]
+    # init, config import, and the daemon all use this one persistent store.
+    command: ["start"]
+    environment:
+      ZE_CONFIG_DIR: /etc/ze
     ports:
       - "179:179"
-      - "1790:1790"
-      - "8080:8080"
+      - "127.0.0.1:2222:2222"
     volumes:
-      - ./ze-data:/etc/ze
-      - ./myconfig.conf:/etc/ze/ze.conf
+      - ze-data:/etc/ze
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
     restart: unless-stopped
+
+volumes:
+  ze-data:

@@ -15,12 +15,13 @@
   ze, which is the config-push contract, and iproute2 supplies the `ip` netlab
   runs inside the node to assign the addresses the topology declares.
 #}
-FROM alpine:3.21
+FROM alpine:3.24.3
 
 RUN apk add --no-cache tini iproute2
 
 COPY ze /usr/local/bin/ze
 
-EXPOSE 179 1790 8080
+EXPOSE 179 2222 8080
 
-ENTRYPOINT ["tini", "--", "ze"]
+ENTRYPOINT ["tini", "--"]
+CMD ["ze", "start", "/etc/ze/ze.conf"]
