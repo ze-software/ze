@@ -173,12 +173,15 @@ configuration.";
             container restart {
                 config false;
                 ze:command "ze-plugin:system-plugin-restart";
-                description "Starts a configured plugin that is not running again: one its failure
+                description "Starts a configured plugin again. A stopped one starts: one its failure
 policy left stopped, one the respawn limit disabled (the order lifts the limit),
-one whose restart or startup handshake failed. ze doctor names each such plugin
-under doctor-plugin-stopped with this command as its fix. A running plugin, and a
-name no configuration or auto-load started, are refused.";
-                ze:help "Start a stopped plugin again.";
+one whose restart or startup handshake failed. A running one is stopped first,
+which cuts the commands it was serving, and started again with the running
+configuration; its failure policy is not applied. ze doctor names this command
+as the fix of doctor-plugin-stopped and of the rows a new process clears. A name
+no configuration or auto-load started is refused, and so is a restart while a
+config transaction is in flight.";
+                ze:help "Restart a plugin, stopping it first if it runs.";
 
                 leaf name {
                     type string;

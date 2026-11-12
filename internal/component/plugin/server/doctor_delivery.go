@@ -100,37 +100,77 @@ type EngineHandlerPanic struct {
 	Time      time.Time
 }
 
-// handlerPanicRecord keeps the first serverRecordMax recovered panics and
-// counts the rest. Safe for concurrent use.
+// HandlerPanicWindow is how far back the recovered engine handler panics the
+// doctor reports reach. An engine handler has no process a restart replaces,
+// so a panic stops being reported once it is older than the window, the way a
+// delivery problem leaves process.DeliveryWindow.
+const HandlerPanicWindow = 5 * time.Minute
+
+// handlerPanicRecord keeps the serverRecordMax newest recovered panics: the
+// newest overwrite the oldest, and the time of the newest overwritten one says
+// whether the window lost any. Safe for concurrent use.
 type handlerPanicRecord struct {
-	mu      sync.Mutex
-	panics  []EngineHandlerPanic
-	dropped int
+	mu     sync.Mutex
+	panics [serverRecordMax]EngineHandlerPanic
+	next   int
+	count  int
+	// overwrittenNewest is the time of the newest panic the ring overwrote,
+	// zero while it overwrote none.
+	overwrittenNewest time.Time
 }
 
 // recordHandlerPanic records one recovered engine handler panic.
 func (e *engineEventSubscribers) recordHandlerPanic(ns events.NamespaceID, et events.EventTypeID, value any) {
-	r := &e.panics
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if len(r.panics) >= serverRecordMax {
-		r.dropped++
-		return
-	}
-	r.panics = append(r.panics, EngineHandlerPanic{
+	panicked := EngineHandlerPanic{
 		Namespace: ns.String(),
 		EventType: et.String(),
 		Panic:     fmt.Sprint(value),
 		Time:      time.Now(),
-	})
-}
-
-// handlerPanics answers a copy of the recovered engine handler panics.
-func (e *engineEventSubscribers) handlerPanics() []EngineHandlerPanic {
+	}
 	r := &e.panics
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return slices.Clone(r.panics)
+	if r.count == serverRecordMax {
+		if victim := r.panics[r.next].Time; victim.After(r.overwrittenNewest) {
+			r.overwrittenNewest = victim
+		}
+	}
+	r.panics[r.next] = panicked
+	r.next = (r.next + 1) % serverRecordMax
+	if r.count < serverRecordMax {
+		r.count++
+	}
+}
+
+// handlerPanics answers the recovered engine handler panics inside the
+// HandlerPanicWindow that ends now.
+func (e *engineEventSubscribers) handlerPanics() []EngineHandlerPanic {
+	panics, _ := e.handlerPanicsAt(time.Now())
+	return panics
+}
+
+// handlerPanicsAt answers a copy of the recovered engine handler panics inside
+// the HandlerPanicWindow that ends at now, oldest first, and whether the ring
+// overwrote a panic that would still be inside it.
+func (e *engineEventSubscribers) handlerPanicsAt(now time.Time) ([]EngineHandlerPanic, bool) {
+	since := now.Add(-HandlerPanicWindow)
+	r := &e.panics
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	truncated := false
+	if !r.overwrittenNewest.IsZero() {
+		truncated = !r.overwrittenNewest.Before(since)
+	}
+	panics := make([]EngineHandlerPanic, 0, r.count)
+	start := (r.next - r.count + serverRecordMax) % serverRecordMax
+	for i := range r.count {
+		panicked := r.panics[(start+i)%serverRecordMax]
+		if panicked.Time.Before(since) {
+			continue
+		}
+		panics = append(panics, panicked)
+	}
+	return panics, truncated
 }
 
 // EnricherFailure is one `show` enricher a plugin declared that could not be
@@ -143,31 +183,51 @@ type EnricherFailure struct {
 	Time         time.Time
 }
 
+// enricherFailureList is one plugin's enricher failures: the first
+// serverRecordMax kept whole, then the identity alone (command, key, kind) of
+// each failing enricher past that bound, so the doctor row counts them. The
+// identities are bounded by the enrichers the plugin declared (maxEnrichers,
+// validateEnricherDecls), each failing in one kind per lifetime.
+type enricherFailureList struct {
+	kept    []EnricherFailure
+	dropped []EnricherFailure
+}
+
 // enricherFailureRecord holds the enricher failures per plugin name. A call
-// that succeeds clears its own call failure; the plugin's process cleanup
-// clears them all (unregisterProxyEnrichers).
+// that succeeds clears its own call failure, kept or counted; the plugin's
+// process cleanup clears them all (unregisterProxyEnrichers).
 var (
 	enricherFailureMu  sync.Mutex
-	enricherFailureMap = map[string][]EnricherFailure{}
+	enricherFailureMap = map[string]*enricherFailureList{}
 )
 
 // recordEnricherFailure records a failure, replacing an earlier one of the
-// same command, key and kind, bounded per plugin at serverRecordMax.
+// same command, key and kind. Past serverRecordMax kept per plugin, the
+// failing enricher is counted once, however often it fails.
 func recordEnricherFailure(pluginName string, failure EnricherFailure) {
 	failure.Time = time.Now()
 	enricherFailureMu.Lock()
 	defer enricherFailureMu.Unlock()
 	list := enricherFailureMap[pluginName]
-	for i := range list {
-		if sameEnricher(&list[i], &failure) {
-			list[i] = failure
+	if list == nil {
+		list = &enricherFailureList{}
+		enricherFailureMap[pluginName] = list
+	}
+	for i := range list.kept {
+		if sameEnricher(&list.kept[i], &failure) {
+			list.kept[i] = failure
 			return
 		}
 	}
-	if len(list) >= serverRecordMax {
+	if len(list.kept) < serverRecordMax {
+		list.kept = append(list.kept, failure)
 		return
 	}
-	enricherFailureMap[pluginName] = append(list, failure)
+	identity := EnricherFailure{Command: failure.Command, Key: failure.Key, Registration: failure.Registration}
+	if slices.ContainsFunc(list.dropped, func(f EnricherFailure) bool { return sameEnricher(&f, &identity) }) {
+		return
+	}
+	list.dropped = append(list.dropped, identity)
 }
 
 // sameEnricher reports whether two failures are of one enricher and kind.
@@ -181,19 +241,22 @@ func sameEnricher(a, b *EnricherFailure) bool {
 	return a.Registration == b.Registration
 }
 
-// clearEnricherCallFailure removes the call failure of one enricher, once a
-// call succeeded.
+// clearEnricherCallFailure removes the call failure of one enricher, kept or
+// counted, once a call succeeded.
 func clearEnricherCallFailure(pluginName, command, key string) {
 	enricherFailureMu.Lock()
 	defer enricherFailureMu.Unlock()
 	list := enricherFailureMap[pluginName]
-	call := EnricherFailure{Command: command, Key: key}
-	list = slices.DeleteFunc(list, func(f EnricherFailure) bool { return sameEnricher(&f, &call) })
-	if len(list) == 0 {
-		delete(enricherFailureMap, pluginName)
+	if list == nil {
 		return
 	}
-	enricherFailureMap[pluginName] = list
+	call := EnricherFailure{Command: command, Key: key}
+	isCall := func(f EnricherFailure) bool { return sameEnricher(&f, &call) }
+	list.kept = slices.DeleteFunc(list.kept, isCall)
+	list.dropped = slices.DeleteFunc(list.dropped, isCall)
+	if len(list.kept) == 0 && len(list.dropped) == 0 {
+		delete(enricherFailureMap, pluginName)
+	}
 }
 
 // forgetEnricherFailures drops every failure of a plugin whose process ended.
@@ -203,11 +266,29 @@ func forgetEnricherFailures(pluginName string) {
 	delete(enricherFailureMap, pluginName)
 }
 
-// enricherFailures answers a copy of one plugin's enricher failures.
+// enricherFailures answers a copy of one plugin's kept enricher failures.
 func enricherFailures(pluginName string) []EnricherFailure {
 	enricherFailureMu.Lock()
 	defer enricherFailureMu.Unlock()
-	return slices.Clone(enricherFailureMap[pluginName])
+	list := enricherFailureMap[pluginName]
+	// refuse-by-default: guards pluginDoctorState -- a plugin with no entry has no enricher failure: recordEnricherFailure creates the entry on the first one, and the clears delete it once empty
+	if list == nil {
+		return nil
+	}
+	return slices.Clone(list.kept)
+}
+
+// enricherFailuresDropped answers how many of one plugin's enrichers fail
+// past the serverRecordMax kept whole.
+func enricherFailuresDropped(pluginName string) int {
+	enricherFailureMu.Lock()
+	defer enricherFailureMu.Unlock()
+	list := enricherFailureMap[pluginName]
+	// refuse-by-default: guards pluginDoctorState -- a plugin with no entry has no enricher failure, so none past the bound
+	if list == nil {
+		return 0
+	}
+	return len(list.dropped)
 }
 
 // committedRecord is the daemon's last committed config transaction. Safe

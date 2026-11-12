@@ -124,8 +124,8 @@ func TestDoctorClassChecks(t *testing.T) {
 		}
 		row := oneRow(t, configUnappliedRows(snapshot), diagnostic.CodeDoctorPluginConfigUnapplied,
 			diagnostic.SeverityWarning, "rib", "tx-9", "deadline exceeded")
-		if !strings.Contains(row.Fix, "reload") {
-			t.Fatalf("fix %q does not name the reload", row.Fix)
+		if want := process.RestartCommand("rib"); row.Fix != want {
+			t.Fatalf("fix %q, want %q", row.Fix, want)
 		}
 	})
 	t.Run("an empty snapshot answers nothing", func(t *testing.T) {

@@ -35,7 +35,8 @@ const DeliverySlowThreshold = 500 * time.Millisecond
 const DeliveryWindow = 5 * time.Minute
 
 // deliveryProblemMax bounds the delivery problems kept: the newest overwrite
-// the oldest.
+// the oldest, and the summary says so (DeliveryWindowSummary.Truncated) while
+// an overwritten one would still be inside the window.
 const deliveryProblemMax = 64
 
 // DeliverySlow reports whether a batch that took elapsed to deliver is slow.
@@ -130,6 +131,10 @@ type DeliveryWindowSummary struct {
 	Slowest   time.Duration
 	LastError string
 	Window    time.Duration
+	// Truncated is true when the ring overwrote a problem that is still
+	// inside the window: Failures and Slow count the kept problems only, so
+	// the plugin had at least that many.
+	Truncated bool
 }
 
 // ConfigCommit is the last config-committed callback sent to the plugin: the
@@ -169,7 +174,10 @@ type doctorRecords struct {
 	problems                 [deliveryProblemMax]DeliveryProblem
 	problemNext              int
 	problemCount             int
-	configCommit             ConfigCommit
+	// overwrittenNewest is the time of the newest problem the ring
+	// overwrote, zero while it overwrote none.
+	overwrittenNewest time.Time
+	configCommit      ConfigCommit
 }
 
 // RecordCommandRefusal records a command or alias the registry refused.
@@ -266,6 +274,12 @@ func (p *Process) noteBatch(elapsed time.Duration, events int, err error, unwait
 	r := &p.doctor
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.problemCount == deliveryProblemMax {
+		victim := r.problems[r.problemNext].Time
+		if victim.After(r.overwrittenNewest) {
+			r.overwrittenNewest = victim
+		}
+	}
 	r.problems[r.problemNext] = problem
 	r.problemNext = (r.problemNext + 1) % deliveryProblemMax
 	if r.problemCount < deliveryProblemMax {
@@ -304,6 +318,9 @@ func (p *Process) DoctorRecord(now time.Time) DoctorRecord {
 		Delivery:                 DeliveryWindowSummary{Window: DeliveryWindow},
 	}
 	since := now.Add(-DeliveryWindow)
+	if !r.overwrittenNewest.IsZero() {
+		record.Delivery.Truncated = !r.overwrittenNewest.Before(since)
+	}
 	var newest time.Time
 	for i := range r.problemCount {
 		problem := &r.problems[i]

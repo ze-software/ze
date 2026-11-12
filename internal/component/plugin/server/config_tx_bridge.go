@@ -833,15 +833,19 @@ func (b *configTxBridge) subscribeCommitted(parentCtx context.Context) {
 }
 
 // dispatchCommitted calls config-committed on one plugin. A plugin that has
-// gone away has no gate left to close, so a missing process is not an error.
+// gone away has no gate left to close, so a missing or replaced process is
+// not an error; the manager's current process with no connection to send on
+// records the commit it was not told of.
 func (b *configTxBridge) dispatchCommitted(ctx context.Context, txID, name string) {
-	proc := b.lookupProcess(name)
-	if proc == nil {
+	proc, conn, ok := b.committedTarget(name)
+	if !ok {
 		return
 	}
-	conn := b.participants[name].conn
 	if conn == nil {
 		proc.RecordConfigCommit(txID, errConfigCommittedNoConn)
+		logger().Error("config tx bridge: config-committed",
+			"plugin", name, "transaction-id", txID, "error", errConfigCommittedNoConn,
+			"code", diagnostic.CodeDoctorPluginConfigUnapplied)
 		return
 	}
 	ctx, cancel := context.WithTimeout(ctx, configCommittedTimeout)
@@ -860,6 +864,41 @@ func (b *configTxBridge) dispatchCommitted(ctx context.Context, txID, name strin
 // errConfigCommittedNoConn is the config-committed outcome of a participant
 // with no connection to send it on.
 var errConfigCommittedNoConn = errors.New("the plugin has no connection to send config-committed on")
+
+// committedTarget answers the process to tell of a commit and the connection
+// to tell it on, false when there is nobody to tell. lookupProcess answers
+// the lifetime that applied the transaction. Past it, a participant captured
+// with no connection whose process the manager still runs, still with no
+// connection, answers its process and a nil connection: that plugin was not
+// told, and the doctor reads that process. A replaced process or connection
+// answers false: the new lifetime's records start clean, and it holds no
+// undo set of this transaction.
+func (b *configTxBridge) committedTarget(name string) (*process.Process, *ipc.PluginConn, bool) {
+	if proc := b.lookupProcess(name); proc != nil {
+		return proc, b.participants[name].conn, true
+	}
+	participant, ok := b.participants[name]
+	if !ok {
+		return nil, nil, false
+	}
+	if participant.proc == nil {
+		return nil, nil, false
+	}
+	if participant.conn != nil {
+		return nil, nil, false
+	}
+	pm := b.server.procManager.Load()
+	if pm == nil {
+		return nil, nil, false
+	}
+	if pm.GetProcess(name) != participant.proc {
+		return nil, nil, false
+	}
+	if participant.proc.Conn() != nil {
+		return nil, nil, false
+	}
+	return participant.proc, nil, true
+}
 
 // dispatchRollback calls config-rollback on one plugin and emits the ack.
 // Missing processes or closed connections surface as CodeBroken so the

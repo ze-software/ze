@@ -26,8 +26,10 @@ import (
 // producers, and asks registry.DataPlaneWriter, the judgement the daemon
 // makes (Server.appendDataPlaneWriter).
 func checkDataPlaneWriter(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	tree, ok := ctx.Tree.(*config.Tree)
-	if !ok || tree == nil {
+	// A context holding no *config.Tree, and a nil one, are both no parsed
+	// config: one fact, one guard.
+	tree, _ := ctx.Tree.(*config.Tree)
+	if tree == nil {
 		return []diagnostic.Diagnostic{{
 			Code:     diagnostic.CodeDoctorPluginNoDataPlaneWriter,
 			Severity: diagnostic.SeverityWarning,

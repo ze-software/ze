@@ -968,12 +968,14 @@ for every engine `ProcessManager.CleanupLate` names.
 <!-- source: internal/component/plugin/server/stop_cleanup_late.go -- stopTransactionLate, recordLateEngines -->
 <!-- source: internal/component/doctor/checks_audit.go -- checkAuditRecordFailed -->
 
-`request plugin restart <name>` starts a configured plugin that is not running
-again, lifting a respawn-limit disable because the operator asked for this
-restart; a running plugin and an unknown name are refused. Tab after the
-command offers the configured plugins that are not running, the names it
-accepts (`completePluginRestart`, served through `system command complete
-args`; `docs/architecture/cli/command-completion.md`).
+`request plugin restart <name>` restarts a configured plugin, lifting a
+respawn-limit disable because the operator asked for this restart. A running
+plugin is stopped first through `Respawn`, which joins the process it replaces,
+and its failure policy is not applied because the name already holds the
+replacement; the restart holds the config transaction lock, so one in flight
+refuses it, and an unknown name is refused. Tab after the command offers every
+configured plugin, saying which run (`completePluginRestart`, served through
+`system command complete args`; `docs/architecture/cli/command-completion.md`).
 <!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal, completePluginRestart -->
 <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- checkPluginFatalStop, cleanupLateRow -->
 <!-- source: internal/component/plugin/doctor/register_lifecycle.go -- init -->
@@ -1030,7 +1032,17 @@ started. Each per-plugin record lives on the plugin's `process.Process`
 respawn or restart starts clean; `PluginDoctorState.Records` carries the copy.
 What has no process to live on is on the server: the recovered engine handler
 panics, the enricher failures per plugin name (cleared with the plugin's
-process cleanup) and the daemon's last committed transaction. The snapshot
+process cleanup) and the daemon's last committed transaction. The server
+lists are bounded at 16 too. Each bounded list carries its count of the rest
+into the snapshot (`EnrichersDropped`, and the `...Dropped` fields of
+`DoctorRecord`), and its check adds one row naming that count, with `ze show
+warnings` as the fix, where each one was logged with its code. A failing
+enricher past the bound is counted once however often it fails, and leaves the
+count when a call succeeds. An engine handler has no process a restart
+replaces, so its panics are kept the way delivery problems are: the 16 newest,
+reported while inside `HandlerPanicWindow` (five minutes), with
+`HandlerPanicsTruncated` and one more row when the ring overwrote a panic still
+inside it. The snapshot
 also carries every finding of `deliveryDisagreements(nil)` and every role
 `unbackedClaims` returns, with its claimants. With no server published each
 check answers one warning saying it could not read the plugin state.
@@ -1051,17 +1063,31 @@ check answers one warning saying it could not read the plugin state.
 | `plugin-panic` | `doctor-plugin-panic` (error) | a plugin's first failed event application (`projectionErr`), and each recovered engine handler panic with its namespace and event type | `deliverBatch`, `safeDeliverBatch`, `invokeHandler` | the restart, or `ze show errors` for an engine handler |
 | `plugin-delivery` | `doctor-plugin-delivery-failed` (warning) | the batches that failed with no caller waiting, and the batches over 500 ms, in the last five minutes (`DeliveryWindow`) | `noteBatch`, timed in `deliverBatch` for every transport | `ze request plugin restart <name>` |
 | `plugin-enrichers` | `doctor-plugin-enricher-unavailable` (warning) | each `show` enricher that failed to register, or whose last call failed | `registerProxyEnrichers`, `makeProxyCall` | remove the plugin holding the same field, or the restart |
-| `plugin-config-commit` | `doctor-plugin-config-unapplied` (warning) | each running plugin whose last config-committed callback failed, with the daemon's last committed transaction | `dispatchCommitted`, `subscribeCommitted` | `ze signal reload` |
+| `plugin-config-commit` | `doctor-plugin-config-unapplied` (warning) | each running plugin whose last config-committed callback failed or had no connection to go on, with the daemon's last committed transaction | `dispatchCommitted`, `subscribeCommitted` | `ze request plugin restart <name>` |
 
 A batch of exactly 500 ms is not slow; one of 501 ms is (`DeliverySlow`). The
 window keeps the 64 newest problems and counts only those inside it, so a
-failure at boot stops counting five minutes later. A stopped stderr relay is an
+failure at boot stops counting five minutes later. While a problem the ring
+overwrote would still be inside the window, the summary is `Truncated` and the
+row says "at least" before each count. A stopped stderr relay is an
 event, not a state: the relay logs it at ERROR and raises
 `doctor-plugin-stderr-relay-stopped` naming the plugin and the cause, with the
 restart as its fix; the end where a descendant holds stderr after the plugin
 exited stays at Debug.
-<!-- source: internal/component/plugin/process/doctor_records.go -- DeliverySlow, raiseRelayStopped -->
+<!-- source: internal/component/plugin/process/doctor_records.go -- DeliverySlow, raiseRelayStopped, noteBatch -->
 <!-- test: internal/component/plugin/process/doctor_records_test.go TestDeliverySlowBoundary -->
+<!-- test: internal/component/plugin/process/doctor_records_bounds_test.go TestDeliveryWindowSaysWhenTheRingOverwrote -->
+
+A `plugin-config-commit` record clears when the plugin is told of a later
+transaction (`RecordConfigCommit` replaces it) or when a restart replaces its
+process. A reload is no fix: `reloadConfig` answers "no changes" for an
+unchanged config before any transaction starts, and a changed one tells only
+the plugins whose roots it changes. The restart runs the startup handshake on
+the replacement, whose Stage 2 delivers the daemon's config.
+<!-- source: internal/component/plugin/server/reload.go -- reloadConfig -->
+<!-- source: internal/component/plugin/server/config_tx_bridge.go -- dispatchCommitted, committedTarget -->
+<!-- test: internal/component/plugin/server/doctor_delivery_bounds_test.go TestConfigUnappliedClearsOnLaterCommitNotOnUnchangedReload -->
+<!-- test: internal/component/plugin/server/doctor_delivery_bounds_test.go TestRestartClearsConfigUnappliedRecord -->
 
 ## Environment values ze could not use
 

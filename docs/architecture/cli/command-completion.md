@@ -191,8 +191,8 @@ plugin a later reload added.
    values a command's argument may take now. A builtin whose argument names
    something only the running daemon knows declares an `ArgCompleter` in the
    `Complete` field of its `RPCRegistration`, beside its handler
-   (`request plugin restart` offers the configured plugins that are not
-   running). `handleArgComplete` asks that completer first and falls back to a
+   (`request plugin restart` offers every configured plugin, saying which
+   run). `handleArgComplete` asks that completer first and falls back to a
    `Completable` plugin command's own process. `args "<cmd>"` with no partial
    lists every candidate, and `system command list` marks each such command
    `completable`. The interactive trees use it: the SSH session's tree, built

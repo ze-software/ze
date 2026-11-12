@@ -43,6 +43,7 @@ func checkPluginFatalStop(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagno
 			Fix:      "ze data list",
 		}}
 	}
+	// refuse-by-default: guards fatalStopRows -- no record is no stop to report: the server writes one before each fatal stop and a clean start deletes it
 	if !found {
 		return nil
 	}
@@ -125,8 +126,10 @@ func cleanupLateRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 // (appendDataPlaneWriter); plugin-dataplane-writer reports that refusal
 // (check_dataplane_writer.go), so it is not repeated here.
 func checkPluginAutoload(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	tree, ok := ctx.Tree.(*config.Tree)
-	if !ok || tree == nil {
+	// A context holding no *config.Tree, and a nil one, are both no parsed
+	// config: one fact, one guard.
+	tree, _ := ctx.Tree.(*config.Tree)
+	if tree == nil {
 		return nil // No parsed config: config validation's verdict, not this one.
 	}
 	_, err := registry.ResolveDependencies(autoloadSet(tree, ctx.Plugins), nil, config.ConfigNeedHolds(tree.ToMap()))

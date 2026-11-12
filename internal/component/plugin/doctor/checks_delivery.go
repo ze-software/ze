@@ -19,8 +19,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// fixReload is the fix of a plugin that missed a committed transaction.
-const fixReload = "ze signal reload"
+// fixShowWarnings is the fix of a row that counts entries past a record's
+// bound: each one was logged at WARN with its doctor code.
+const fixShowWarnings = "ze show warnings"
 
 // snapshotCheck adapts a row builder into a runtime check. When the snapshot
 // cannot be read it says so under the check's code, as a warning, rather
@@ -68,7 +69,7 @@ func commandRefusalRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic
 				Str(" more refused commands than the doctor keeps; the log lists them")
 			rows = append(rows, diagnostic.Diagnostic{
 				Code: diagnostic.CodeDoctorPluginCommandNotRegistered, Severity: diagnostic.SeverityWarning,
-				Message: message.String(), Fix: "ze show warnings",
+				Message: message.String(), Fix: fixShowWarnings,
 			})
 		}
 	})
@@ -120,6 +121,15 @@ func subscriptionDropRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnost
 			rows = append(rows, diagnostic.Diagnostic{
 				Code: diagnostic.CodeDoctorPluginSubscriptionDropped, Severity: diagnostic.SeverityError,
 				Message: message.String(), Fix: subscriptionDropFix(state.Name, drop.Cause),
+			})
+		}
+		if dropped := state.Records.SubscriptionDropsDropped; dropped != 0 {
+			var message textbuf.Buffer
+			message.Str("plugin ").Str(state.Name).Str(" had ").Int(int64(dropped)).
+				Str(" more dropped subscriptions than the doctor keeps, and receives none of their events; the log lists them")
+			rows = append(rows, diagnostic.Diagnostic{
+				Code: diagnostic.CodeDoctorPluginSubscriptionDropped, Severity: diagnostic.SeverityError,
+				Message: message.String(), Fix: fixShowWarnings,
 			})
 		}
 	})
@@ -228,8 +238,18 @@ func panicRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic {
 	for i := range snapshot.HandlerPanics {
 		p := &snapshot.HandlerPanics[i]
 		var message textbuf.Buffer
-		message.Str("the engine handler for ").Str(p.Namespace).Str(" event ").Str(p.EventType).
+		message.Str("in the last ").Str(server.HandlerPanicWindow.String()).Str(", the engine handler for ").
+			Str(p.Namespace).Str(" event ").Str(p.EventType).
 			Str(" panicked and was recovered, so it missed that event: ").Str(p.Panic)
+		rows = append(rows, diagnostic.Diagnostic{
+			Code: diagnostic.CodeDoctorPluginPanic, Severity: diagnostic.SeverityError,
+			Message: message.String(), Fix: "ze show errors",
+		})
+	}
+	if snapshot.HandlerPanicsTruncated {
+		var message textbuf.Buffer
+		message.Str("in the last ").Str(server.HandlerPanicWindow.String()).
+			Str(", engine event handlers panicked more times than the doctor keeps (the newest are listed), each missing its event; the log lists them")
 		rows = append(rows, diagnostic.Diagnostic{
 			Code: diagnostic.CodeDoctorPluginPanic, Severity: diagnostic.SeverityError,
 			Message: message.String(), Fix: "ze show errors",
@@ -247,10 +267,16 @@ func deliveryFailedRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic
 		if window.Failures == 0 && window.Slow == 0 {
 			return
 		}
+		// A truncated window counts the problems the ring kept, so each
+		// count is a floor.
+		floor := ""
+		if window.Truncated {
+			floor = "at least "
+		}
 		var message textbuf.Buffer
 		message.Str("plugin ").Str(state.Name).Str(" in the last ").Str(window.Window.String()).Str(": ").
-			Int(int64(window.Failures)).Str(" event batches failed with no caller waiting, ").
-			Int(int64(window.Slow)).Str(" took over ").Str(process.DeliverySlowThreshold.String())
+			Str(floor).Int(int64(window.Failures)).Str(" event batches failed with no caller waiting, ").
+			Str(floor).Int(int64(window.Slow)).Str(" took over ").Str(process.DeliverySlowThreshold.String())
 		if window.Slow != 0 {
 			message.Str(" (slowest ").Str(window.Slowest.String()).Str(")")
 		}
@@ -266,11 +292,21 @@ func deliveryFailedRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic
 }
 
 // enricherRows answers one warning per `show` enricher of a plugin that
-// failed to register or whose last call failed (AC-21).
+// failed to register or whose last call failed (AC-21), and one naming how
+// many more fail past the ones the record keeps.
 func enricherRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic {
 	var rows []diagnostic.Diagnostic
 	for i := range snapshot.Plugins {
 		state := &snapshot.Plugins[i]
+		if dropped := state.EnrichersDropped; dropped != 0 {
+			var message textbuf.Buffer
+			message.Str("plugin ").Str(state.Name).Str(" has ").Int(int64(dropped)).
+				Str(" more failing `show` enrichers than the doctor lists, so those commands answer without their fields; the log names each one")
+			rows = append(rows, diagnostic.Diagnostic{
+				Code: diagnostic.CodeDoctorPluginEnricherUnavailable, Severity: diagnostic.SeverityWarning,
+				Message: message.String(), Fix: fixShowWarnings,
+			})
+		}
 		for j := range state.Enrichers {
 			failure := &state.Enrichers[j]
 			var message textbuf.Buffer
@@ -293,7 +329,11 @@ func enricherRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic {
 }
 
 // configUnappliedRows answers one warning per running plugin that was not
-// told its last transaction committed (AC-22).
+// told its last transaction committed (AC-22). The record clears when the
+// plugin is told of a later transaction, or when a restart replaces its
+// process; a reload clears it only by committing a transaction that changes
+// one of the plugin's roots (an unchanged config sends nothing), so the fix
+// is the restart.
 func configUnappliedRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic {
 	var rows []diagnostic.Diagnostic
 	withProcess(snapshot, func(state *server.PluginDoctorState) {
@@ -311,7 +351,7 @@ func configUnappliedRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnosti
 			Str(", and the plugin keeps the undo set of the one it missed")
 		rows = append(rows, diagnostic.Diagnostic{
 			Code: diagnostic.CodeDoctorPluginConfigUnapplied, Severity: diagnostic.SeverityWarning,
-			Message: message.String(), Fix: fixReload,
+			Message: message.String(), Fix: process.RestartCommand(state.Name),
 		})
 	})
 	return rows

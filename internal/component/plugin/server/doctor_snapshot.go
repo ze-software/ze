@@ -50,8 +50,12 @@ type DoctorSnapshot struct {
 	// UnbackedClaims is every exclusive role advertised with no claimant
 	// running (unbackedClaims), with the plugins that claimed it.
 	UnbackedClaims []UnbackedClaim
-	// HandlerPanics is every recovered engine event handler panic.
+	// HandlerPanics is the recovered engine event handler panics inside
+	// HandlerPanicWindow, the newest serverRecordMax.
 	HandlerPanics []EngineHandlerPanic
+	// HandlerPanicsTruncated is true when more panicked inside the window than
+	// HandlerPanics keeps.
+	HandlerPanicsTruncated bool
 	// LastCommittedTransaction is the daemon's last committed config
 	// transaction, empty when none committed since the server started.
 	LastCommittedTransaction string
@@ -125,9 +129,12 @@ type PluginDoctorState struct {
 	// (process.DoctorRecord), with delivery problems over the window ending
 	// at the snapshot; zero when HasProcess is false.
 	Records process.DoctorRecord
-	// Enrichers is every `show` enricher of the plugin that failed to
-	// register or whose last call failed.
+	// Enrichers is the `show` enrichers of the plugin that failed to
+	// register or whose last call failed, the first serverRecordMax kept.
 	Enrichers []EnricherFailure
+	// EnrichersDropped counts the plugin's failing enrichers past the ones
+	// Enrichers keeps.
+	EnrichersDropped int
 }
 
 // doctorSnapshotSource is the server PluginDoctorSnapshot reads, or nil.
@@ -188,7 +195,7 @@ func (s *Server) doctorSnapshot() (DoctorSnapshot, error) {
 		}
 	}
 	if s.engineSubscribers != nil {
-		snapshot.HandlerPanics = s.engineSubscribers.handlerPanics()
+		snapshot.HandlerPanics, snapshot.HandlerPanicsTruncated = s.engineSubscribers.handlerPanicsAt(time.Now())
 	}
 	snapshot.LastCommittedTransaction = s.lastCommittedTransaction()
 	return snapshot, nil
@@ -200,11 +207,12 @@ func (s *Server) pluginDoctorState(name string, configured bool) PluginDoctorSta
 	state := PluginDoctorState{Name: name, Configured: configured, Disabled: pm.Disabled(name)}
 	state.Stop, state.Down = pm.Stopped(name)
 	state.Enrichers = enricherFailures(name)
+	state.EnrichersDropped = enricherFailuresDropped(name)
 	proc := pm.GetProcess(name)
-	if proc == nil {
+	state.HasProcess = proc != nil
+	if !state.HasProcess {
 		return state
 	}
-	state.HasProcess = true
 	state.Records = proc.DoctorRecord(time.Now())
 	state.Running = proc.Running()
 	state.Stage = proc.Stage()

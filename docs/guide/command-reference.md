@@ -707,27 +707,34 @@ started.
 
 ### request plugin restart
 
-Starts a configured plugin that is not running again, without restarting ze.
+Restarts a configured plugin without restarting ze, whether it runs or not.
 A plugin can stop for good on several paths: its failure policy left it
 stopped, the respawn limit disabled it, a restart failed, or its startup
 handshake failed. `ze doctor` names each such plugin under
-`doctor-plugin-stopped`, with this command as its fix. The command runs in the
-daemon.
+`doctor-plugin-stopped`, with this command as its fix. A running plugin can
+hold state only a new process clears: a config-committed it was never told of,
+an event it failed to apply, a post-startup callback it never received, a
+dropped subscription. `ze doctor` names this command as the fix of those rows
+too. The command runs in the daemon.
 
 ```
 ze request plugin restart <name>     # <name> is the plugin's configured name
 ```
 
-The order lifts a respawn-limit disable and resets the plugin's respawn count,
-because the limit guards against a crash loop nobody asked for and this restart
-was asked for. The daemon then respawns the plugin and runs its startup
-handshake again, and answers `plugin <name> started again`.
+Restarting a running plugin stops it, which cuts the commands it was serving,
+and starts it again; its failure policy is not applied, so a plugin whose
+failure stops ze does not stop ze here. The order lifts a respawn-limit disable
+and resets the plugin's respawn count, because the limit guards against a crash
+loop nobody asked for and this restart was asked for. The daemon then respawns
+the plugin and runs its startup handshake again, which delivers the running
+configuration, and answers `plugin <name> started again`, or `plugin <name> was
+running: stopped and started again` (the `was-running` field says which).
 
 | Refusal | When |
 |---------|------|
 | `request plugin restart needs exactly one plugin name` | no name, or more than one, was given |
 | `plugin <name> is not a configured plugin` | neither the configuration nor its auto-load started a plugin of that name. The name is refused, never guessed |
-| `plugin <name> is running` | the plugin is up: restarting it would stop a working plugin |
+| `plugin <name> was not restarted: a config transaction is in flight` | a reload or commit is running and talks to the plugin's process; run the command again once it has answered |
 | `plugin <name> cannot be restarted: no plugin server runs here` | the process that answered holds no plugin server; the fix is `ze start` |
 | `plugin <name> cannot be restarted: plugin startup has not begun` | the daemon has not handed its plugins to a process manager yet |
 | `plugin <name> did not start again` | the restart itself failed. The plugin stays down, and `ze doctor` names it with the error |

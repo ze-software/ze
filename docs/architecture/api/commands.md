@@ -1059,7 +1059,7 @@ request shutdown         # Gracefully shutdown
 request reboot           # Gracefully shutdown then reboot the system
 show status              # Show process status
 request reload           # Reload the configuration
-request plugin restart <name>   # Start a configured plugin that is not running again (lifts a respawn-limit disable)
+request plugin restart <name>   # Restart a configured plugin, stopping it first if it runs (lifts a respawn-limit disable)
 request data backup path <file> [spare <n>] [force]   # Back up the store to a file on the daemon host
 request data restore path <file> config [name <n>]    # Restore the config from a backup through the reload
 show reload-status       # Show how many config reloads have been processed
