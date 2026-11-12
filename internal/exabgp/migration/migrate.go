@@ -81,10 +81,10 @@ func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 	}
 
 	// Migrate processes -> plugins (wrapped with bridge)
-	processMap := migrateProcesses(tree, result)
+	processMap, bridgeNames := migrateProcesses(tree, result)
 
 	// Migrate neighbors -> peers (with template expansion)
-	if err := migrateNeighbors(tree, result, processMap, needsRIB, templates); err != nil {
+	if err := migrateNeighbors(tree, result, processMap, bridgeNames, needsRIB, templates); err != nil {
 		return nil, err
 	}
 
@@ -209,9 +209,21 @@ const bridgePluginName = bridge.PluginName
 // `run` (the program and all its arguments), `respawn`, `encoder` and `on-exit`. `encoder` was read by nothing until
 // 2026-09-06, so a config asking for the text event format was migrated into a
 // bridge that answered JSON, with no error and no log line.
-func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]string {
-	processMap := make(map[string]string)
+//
+// It answers two maps keyed by the ExaBGP process name: the plugin a peer
+// binding attaches (always the bridge), and the name the process block carries
+// in the bridge, which bridgeProcessNames chooses and which differs from the
+// ExaBGP name only where the bridge cannot hold that name.
+func migrateProcesses(tree *config.Tree, result *MigrateResult) (processMap, bridgeNames map[string]string) {
+	processMap = make(map[string]string)
 	processes := make([]bridgeProcess, 0, 2)
+	carried := make([]string, 0, 2)
+	for _, entry := range tree.GetListOrdered("process") {
+		if len(entry.Value.GetSlice("run")) > 0 {
+			carried = append(carried, entry.Key)
+		}
+	}
+	bridgeNames = bridgeProcessNames(carried)
 	for _, entry := range tree.GetListOrdered("process") {
 		// ExaBGP runs the program with every word after it as its argv, with no
 		// shell; the bridge `run` leaf is one string, so the argv is written as
@@ -229,8 +241,12 @@ func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]strin
 		if err != nil {
 			result.Warnings = append(result.Warnings, fmt.Sprintf("process %s: %v", entry.Key, err))
 		}
+		bridgeName := bridgeNames[entry.Key]
+		if bridgeName != entry.Key {
+			result.Warnings = append(result.Warnings, renamedProcessWarning(entry.Key, bridgeName))
+		}
 		processes = append(processes, bridgeProcess{
-			Name:    entry.Key,
+			Name:    bridgeName,
 			RunCmd:  runCmd,
 			Respawn: exabgpRespawn(entry.Value),
 			Encoder: encoder,
@@ -239,10 +255,10 @@ func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]strin
 		processMap[entry.Key] = bridgePluginName
 	}
 	if len(processes) == 0 {
-		return processMap
+		return processMap, bridgeNames
 	}
 	injectBridgePlugin(result.Tree, processes)
-	return processMap
+	return processMap, bridgeNames
 }
 
 // bridgeProcess is one ExaBGP process block, in the form the bridge declares.
@@ -355,7 +371,7 @@ func injectBridgePlugin(dst *config.Tree, processes []bridgeProcess) {
 // migrateNeighbors converts ExaBGP neighbors to ZeBGP peers inside groups.
 // Peers are grouped by their ExaBGP template name. Peers without a template
 // go into a "default" group.
-func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[string]string, needsRIB bool, templates map[string]*config.Tree) error {
+func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap, bridgeNames map[string]string, needsRIB bool, templates map[string]*config.Tree) error {
 	// Track which group each peer belongs to.
 	groups := make(map[string]*config.Tree) // group name -> group tree
 
@@ -364,7 +380,7 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 	// events each of them granted it. Every process reaches ze as the one
 	// exabgp-bridge plugin, so the relation is written back into the process
 	// block rather than read off the attachment.
-	scriptFeeds := newScriptFeeds()
+	scriptFeeds := newScriptFeeds(bridgeNames)
 
 	// Counter for generating peer names when no description is available.
 	peerCounter := 0
@@ -482,12 +498,16 @@ type processGrant struct {
 // neighbor's api block has been read.
 type scriptFeeds struct {
 	// byProcess holds each process's peers, in the order the neighbors were
-	// migrated, so the written config is deterministic.
+	// migrated, so the written config is deterministic. It is keyed by the
+	// name the process block carries in the bridge, the key write reads.
 	byProcess map[string][]scriptFeed
 	// unscoped names the processes some binding stated no selection for. Such a
 	// process keeps the every-peer-every-event default rather than a feed list
-	// built from the bindings that did state one.
+	// built from the bindings that did state one. Keyed as byProcess is.
 	unscoped map[string]bool
+	// bridgeNames maps the ExaBGP process name a grant carries to the name
+	// its block carries in the bridge (migrateProcesses).
+	bridgeNames map[string]string
 }
 
 // scriptFeed is one neighbor's grant to one process.
@@ -496,21 +516,29 @@ type scriptFeed struct {
 	Events []string
 }
 
-func newScriptFeeds() *scriptFeeds {
+func newScriptFeeds(bridgeNames map[string]string) *scriptFeeds {
 	return &scriptFeeds{
-		byProcess: make(map[string][]scriptFeed),
-		unscoped:  make(map[string]bool),
+		byProcess:   make(map[string][]scriptFeed),
+		unscoped:    make(map[string]bool),
+		bridgeNames: bridgeNames,
 	}
 }
 
-// record stores what one neighbor's bindings granted.
+// record stores what one neighbor's bindings granted, under the bridge name
+// of each process the grant names.
 func (f *scriptFeeds) record(peer string, grants []processGrant) {
 	for _, grant := range grants {
+		bridgeName, carried := f.bridgeNames[grant.Name]
+		if !carried {
+			// migrateProcessBindings grants only a name processMap holds, and
+			// migrateProcesses names in bridgeNames every name it puts there.
+			panic("BUG: a process grant names a process the bridge does not carry")
+		}
 		if !grant.Selected {
-			f.unscoped[grant.Name] = true
+			f.unscoped[bridgeName] = true
 			continue
 		}
-		f.byProcess[grant.Name] = append(f.byProcess[grant.Name],
+		f.byProcess[bridgeName] = append(f.byProcess[bridgeName],
 			scriptFeed{Peer: peer, Events: grant.Events})
 	}
 }

@@ -153,6 +153,16 @@ what becomes of an exited script's routes as ExaBGP 6.0 does
 (`docs/architecture/exabgp-bridge.md`).
 <!-- source: internal/exabgp/migration/migrate.go -- exabgpOnExit -->
 
+A process keeps its ExaBGP name in the `exabgp { bridge { process <name> } }`
+block, underscores and dots included: every process binds the in-process
+bridge, so no ExaBGP name becomes a `plugin external` name, the one key that
+allows only letters, digits and hyphens. The bridge holds a name of at most 64
+characters, and ExaBGP sets no limit, so a longer name is cut to its first 64
+characters. A cut that another process already holds is cut shorter and given
+`-2`, then `-3`. The migration prints one warning for each name it changed,
+and the process's feed blocks follow the new name.
+<!-- source: internal/exabgp/migration/migrate_process_name.go -- bridgeProcessNames, renamedProcessWarning -->
+
 A neighbor with `shutdown true` migrates to the peer `shutdown {}` container,
 so the migrated peer stays held down as it was under ExaBGP, and `request peer
 <selector> enable` releases it (`docs/guide/configuration.md`, "Holding a peer
