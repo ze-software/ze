@@ -7,8 +7,8 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md`, "Goal and scope": `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of `spec-doctor-coverage-1-audit-and-gate` makes every area child release work |
 | RFC gaps | - |
-| Depends | `spec-doctor-coverage-1-audit-and-gate`: the `runtime` doctor phase, `Diagnostic.Fix`, the `recent-events` check (code `doctor-recent-events`, `internal/component/doctor/checks_recent_events.go`) and the doctor-coverage gate, landed in commits ce58dddf53 and fc96556110; commit 149497ce12 then made a plugin's runtime check run only through its Stage 1 callback (`validateDoctorCheckDef` refuses a `registry.DoctorCheckDef` at `runtime`, `refuseDoctorCheckDeclaredTwice` refuses a check declared on both routes), so every runtime check here registers through `diagnostic.RegisterDoctorCheck`. `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` owns the five-stage startup-failure classes (`doctor-plugin-startup-phase-failed`, see Task); this spec registers their code and owns the `init()` setup-failure class (`doctor-plugin-setup-failed`, AC-45). This spec relies on no sibling area child for its checks; AC-40 waits on child 11 AC-34 for `doctor-config-reload-refused` (A-5). Every other area child depends on this spec's phase P0a (shared codes, event-code registration, fix convention) and cites it by this spec's path: children 3 to 11 and 13 to 15 (`plan/release/validation/spec-doctor-coverage-3-access-security.md` to `spec-doctor-coverage-11-hub-engine.md`, `spec-doctor-coverage-13-routing-protocols.md`, `spec-doctor-coverage-14-system-plugins.md`, `spec-doctor-coverage-15-system.md`). Phase P0b (plugin report route) is needed only by a child whose producers run inside a plugin that can be forked; children 4, 8 and 11 need only P0a, because their producers run in the daemon process and raise through `internal/core/report` directly |
-| Phase | P0a to P8 committed; functional tests promoted; R-8, R-9, R-10, R-11 and R-12 resolved; the restart command is reachable from the CLI (ce86ac4a64) and was hardened after two independent reviews (325ec5d0d6); open: AC-40 (owner asked 2026-11-12; default is to wait on child 11 AC-34), the Review Gate and closure |
+| Depends | `spec-doctor-coverage-1-audit-and-gate`: the `runtime` doctor phase, `Diagnostic.Fix`, the `recent-events` check (code `doctor-recent-events`, `internal/component/doctor/checks_recent_events.go`) and the doctor-coverage gate, landed in commits ce58dddf53 and fc96556110; commit 149497ce12 then made a plugin's runtime check run only through its Stage 1 callback (`validateDoctorCheckDef` refuses a `registry.DoctorCheckDef` at `runtime`, `refuseDoctorCheckDeclaredTwice` refuses a check declared on both routes), so every runtime check here registers through `diagnostic.RegisterDoctorCheck`. `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` owns the five-stage startup-failure classes (`doctor-plugin-startup-phase-failed`, see Task); this spec registers their code and owns the `init()` setup-failure class (`doctor-plugin-setup-failed`, AC-45). This spec relies on no sibling area child for its checks: the owner decided on 2026-11-12 that it declares `doctor-config-reload-refused` itself (AC-40, 3ce015b3ff), which A-5 had assigned to child 11. Every other area child depends on this spec's phase P0a (shared codes, event-code registration, fix convention) and cites it by this spec's path: children 3 to 11 and 13 to 15 (`plan/release/validation/spec-doctor-coverage-3-access-security.md` to `spec-doctor-coverage-11-hub-engine.md`, `spec-doctor-coverage-13-routing-protocols.md`, `spec-doctor-coverage-14-system-plugins.md`, `spec-doctor-coverage-15-system.md`). Phase P0b (plugin report route) is needed only by a child whose producers run inside a plugin that can be forked; children 4, 8 and 11 need only P0a, because their producers run in the daemon process and raise through `internal/core/report` directly |
+| Phase | closing: all acceptance criteria demonstrated, Review Gate clean over the whole change set (3 rounds) |
 | Handoff | - |
 | Updated | 2026-11-12 |
 
@@ -224,7 +224,7 @@ Rows not re-specified here:
 | A-2 | No command restarts one plugin today | grep of every YANG for a plugin restart RPC finds none | the AC-9 fix line names the existing command instead of adding one | grep in P2 (2026-11-11) | confirmed: no `.yang` held a plugin restart RPC; `request plugin restart <name>` was added (`internal/component/plugin/server/register_plugin_restart.go`, YANG in `internal/core/ipc/yang/ze-system-cmd.yang`), commit aa6ebb8d15; it was unreachable from the command line until ce86ac4a64 (Design Insights) |
 | A-3 | `static-fib-writer` and the boot and reload refusal in `appendDataPlaneWriter` judge one operator problem (no writer for the selected data plane) | `internal/plugins/static/doctor.go`, `startup_autoload.go` `appendDataPlaneWriter` | keep static's check and add only epe's through the same registration | read static's check function in P5 (2026-11-11) | confirmed, with a difference: static's `fibWriterDiagnostics` judged only a main-table static route with no `fib` container, while the boot and reload refusal covers every selected `NeedsDataPlane` producer. The generic check (`plugin-dataplane-writer`, over `registry.DataPlaneWriter`, the one condition and text `appendDataPlaneWriter` now calls) follows boot's wider condition, so it also reports a named-table-only static config, `bgp-epe`, a compiled-out writer (`UnloadedDependencyError`) and an empty data plane, which the old check was silent on |
 | A-4 | The command audit is written only through `audit.Log.Record` | `internal/component/plugin/server/command.go` | AC-33 covers each writer | grep `Record(` callers in P5 (2026-11-11) | confirmed: the only non-test `Recorder` is `(*audit.Log).Record`; its writers (REST, gRPC twice, web twice, SSH, MCP, `cli/model.go`, the hub reload, `plugin/server/command.go`) all reach the log's own last write outcome, so the two that discard the error (MCP, `cli/model.go`) are reported by the doctor row too |
-| A-5 | The hub-engine area child registers `doctor-config-reload-refused`, and `config-plugin-verify` has a declaring check | inventory "Canonical codes" assigns it to hub-engine | AC-40 waits on that child; this spec registers neither | read child 11 and `internal/component/config/doctor.go` (2026-11-11) | confirmed: `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` AC-34 registers `doctor-config-reload-refused`, declared by `hub-runtime`; `config-plugin-verify` is already declared today by `config-semantics` (`semanticsDoctorCheck`, whose `Codes` holds `diagnostic.CodeConfigPluginVerify`; re-read 2026-11-11), so only `doctor-config-reload-refused` waits on child 11 |
+| A-5 | The hub-engine area child registers `doctor-config-reload-refused`, and `config-plugin-verify` has a declaring check | inventory "Canonical codes" assigns it to hub-engine | AC-40 waits on that child; this spec registers neither | read child 11 and `internal/component/config/doctor.go` (2026-11-11) | confirmed: `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` AC-34 registers `doctor-config-reload-refused`, declared by `hub-runtime`; `config-plugin-verify` is already declared today by `config-semantics` (`semanticsDoctorCheck`, whose `Codes` holds `diagnostic.CodeConfigPluginVerify`; re-read 2026-11-11), so only `doctor-config-reload-refused` waits on child 11. Broken (2026-11-12), superseded by the owner's decision that this spec declares `doctor-config-reload-refused`: 3ce015b3ff registers it (`CodeDoctorConfigReloadRefused`, `internal/core/diagnostic/codes_plugin_infra.go`) as an event code of the plugin server (`serverEventCodes`, `internal/component/plugin/server/register.go`), and child 11 AC-34 now builds on that code instead of registering it |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -342,10 +342,10 @@ Every row: severity, code, the fix line, the state read, and the route. "Event" 
 | AC-37 | a plugin's request refused (4) | each line carries `doctor-plugin-request-refused` and raises an error event under it, declared the same way (R-7) | none |
 | AC-38 | an answer not delivered (6) | each line carries `doctor-plugin-answer-undelivered` and raises an error event under it, declared the same way (R-7) | none |
 | AC-39 | a drain incomplete (5) | each line carries `doctor-plugin-drain-incomplete` and raises an error event under it, declared the same way (R-7) | none |
-| AC-40 | a reload refused and rolled back (5) | each line carries `config-plugin-verify` where a verifier refused, else `doctor-config-reload-refused` (A-5) | none. **Status (2026-11-12): open, waits on child 11 AC-34 (A-5); owner asked 2026-11-12 whether this spec waits on child 11 or declares the code here.** `doctor-config-reload-refused` is declared nowhere in the tree, so the five lines carry no code: `reload.go` `Server.reloadConfig` ("config reload: transaction failed"); `startup_autoload.go` `Server.selectAutoLoad` (dependency resolution failed) and `Server.startAutoLoaded` (auto-load startup failed; the reactor refused the config after the auto-loaded plugins started); `failure_policy.go` `Server.stopDaemonOnStartupFailure` (a fatal plugin's startup ended by its tier or caller during a reload). None is purely a verifier refusal, so none takes `config-plugin-verify` |
+| AC-40 | a reload refused and rolled back (5) | the owner decided on 2026-11-12 that this spec declares `doctor-config-reload-refused` (A-5 superseded; 3ce015b3ff): it is described in `codes_plugin_infra.go` and registered as an event code of the plugin server (`serverEventCodes`). Four lines carry it and raise an error event under it on the bus, source `plugin-server`, subject `config-reload` (`raiseReloadRefused`, `server_events.go`): `reload.go` `Server.reloadConfig` ("config reload: transaction failed"), `startup_autoload.go` `Server.selectAutoLoad` (dependency resolution failed) and `Server.startAutoLoaded` twice (auto-load startup failed; the reactor refused the config after the auto-loaded plugins started). Each event says what refused the change and that ze keeps the configuration it was running, or, for a recovery start, that the restore did not complete (`autoLoadRefusalProblem`); its fix is the refusal's own fix command when the error chain carries an operator error (`reloadRefusalFix`), else `ze show errors`; its message is cut to the bus bound (`report.FitMessage`). The fifth line, `failure_policy.go` `Server.stopDaemonOnStartupFailure` (a fatal plugin's startup ended by its tier or caller during a reload), carries `doctor-plugin-stopped`, which the startup phase already records and raises (`RecordStopped`, `startup.go`), and raises nothing more | two departures from the wording, each forced by the code: no line carries `config-plugin-verify`, because a verifier's refusal reaches the server as text and cannot be told from a timeout, a cancelled context or a lost connection without a typed refusal carried from the plugin's answer, which no code builds (Known Limitations; owned by `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` AC-13 and AC-34); and the fifth line takes `doctor-plugin-stopped`, because the fault it reports is a plugin left not running, already one row |
 | AC-41 | the operator's goroutine dump (`request quit`) | logged at Info | none: it is the operator's own action |
 | AC-42 | core typed-event payload mismatch drops and the report cap clamp | the drops carry `doctor-internal-defect` and raise an error event under it (R-7); the clamp carries `doctor-env-invalid-value`, which AC-35's runtime check declares and reports | none |
-| AC-44 | `./le arch doctor-coverage report` after P7 | zero uncovered sites in `internal/component/plugin`, `plugin/ipc`, `plugin/process`, `plugin/server`, and the `plugins` health row covered; every not-problem site is covered by a code doctor reports (R-7) | the startup.go sites owned by `spec-doctor-reports-failed-plugin-startup` until it lands. **Status (2026-11-12): met except the five AC-40 lines, on which `TestNotProblemLinesCarryCodes` is red (29f5ce89ed); open until AC-40 closes** |
+| AC-44 | `./le arch doctor-coverage report` after P7 | zero uncovered sites in `internal/component/plugin`, `plugin/ipc`, `plugin/process`, `plugin/server`, and the `plugins` health row covered; every not-problem site is covered by a code doctor reports (R-7) | the startup.go sites owned by `spec-doctor-reports-failed-plugin-startup` until it lands |
 
 ### Gate (P8)
 
@@ -449,7 +449,27 @@ Every row: severity, code, the fix line, the state read, and the route. "Event" 
 | `TestCapClampRecordedForDoctor` | `internal/core/report/report_clamp_test.go` | AC-42 (env half) | pass |
 | `TestNotProblemSitesRaiseEvents`, `TestInternalDefectCodeMatchesDiagnostic` | `internal/component/plugin/server/server_events_test.go` | AC-36 to AC-39 | pass |
 | `TestTypedDropRaisesInternalDefect` | `internal/core/events/typed_drop_test.go` | AC-42 | pass |
-| `TestNotProblemLinesCarryCodes` | `internal/le/arch/doctorcoverage/report_test.go` | AC-36 to AC-42, AC-44 | red on exactly the five AC-40 lines (no code until `doctor-config-reload-refused` is declared, A-5), green otherwise (29f5ce89ed) |
+| `TestNotProblemLinesCarryCodes` | `internal/le/arch/doctorcoverage/report_test.go` | AC-36 to AC-42, AC-44 | pass (green at 3ce015b3ff, `job-ac40-4697af4e.log`) |
+| `TestRefusedReloadRaisesEvent` | `internal/component/plugin/server/reload_refused_events_test.go` | AC-40 (the `reloadConfig` and `selectAutoLoad` raises, the operator error's fix) | pass (3ce015b3ff) |
+| `TestRefusedAutoLoadStartRaisesEvent` | `internal/component/plugin/server/reload_refused_events_test.go` | AC-40 (the two `startAutoLoaded` raises, and the recovery text) | pass, added at closure (Review Gate finding 1); three subtests PASS under `-race` with the full feature tags (`job-closure1-0fa9f175.log`) |
+| `TestFitMessageKeepsAnOverlongEventOnTheBus` | `internal/core/report/fit_message_test.go` | AC-40 (an overlong refusal still reaches the bus) | pass (3ce015b3ff) |
+| `TestReportIssueYANGLengthsMatchTheBus` | `internal/component/config/yang/report_issue_lengths_test.go` | AC-4, AC-7 (751f7c82a9) | pass |
+| `TestRaiseErrorFixOnce` | `internal/core/report/raise_once_test.go` | AC-4, AC-7 (751f7c82a9) | pass |
+| `TestReportRaiseEscapedAtBoundsBothTransports`, `TestReportActiveWarningsSharePerPlugin`, `TestUndecodablePluginEmitIsRefusedAndBounded`, `TestUndecodablePluginEmitToForkedSubscriberIsRefused`, `TestReportRefusalsLogOncePerWindow`, `TestReportRefusalsLogAgainInNextWindow`, `TestFailingDispatchCommandIsBounded`, `TestMalformedForwardDestinationsAreBounded`, `TestAdHocSessionEndClearsItsReports` | `internal/component/plugin/server/dispatch_report_test.go` | AC-4, AC-7; the undecodable-emit, dispatch-command and forward-destination bounds AC-36, AC-37 (751f7c82a9) | pass |
+| `TestUndecodableEngineEmitIsADefectRaisedOnce` | `internal/component/plugin/server/dispatch_engine_decode_test.go` | AC-36 (751f7c82a9) | pass |
+| `TestShownClaimIsSafeToPrint`, `TestShownClaimKeepsTheNameForm`, `TestConnectBackRefusedHostileClaim` | `internal/component/plugin/ipc/connect_back_claim_test.go` | AC-23 (751f7c82a9) | pass |
+| `TestManagedRefusedClaimIsSafeToPrint` | `internal/component/plugin/server/managed_claim_shown_test.go` | AC-23, AC-26 (751f7c82a9) | pass |
+| `TestStopWithLongDetailStillRaises`, `TestCrashAndRelayEventsWithLongTextStillRaise`, `TestExitNotRecordedIsNotAnExit` | `internal/component/plugin/process/stopped_bounds_test.go` | AC-9, AC-10 (751f7c82a9) | pass |
+| `TestBoundDoctorTextCutsAtRuneBoundary`, `TestDoctorRecordsCutPluginChosenStrings`, `TestSlowWaitedBatchKeepsNoError` | `internal/component/plugin/process/doctor_records_cut_test.go` | AC-13 to AC-22 (751f7c82a9) | pass |
+| `TestServerDoctorRecordsKeepPluginTextBounded` | `internal/component/plugin/server/doctor_record_bounds_test.go` | AC-13 to AC-22 (751f7c82a9) | pass |
+| `TestValidateEnricherDeclsCommandBound` | `internal/component/plugin/server/enricher_test.go` | AC-21 (751f7c82a9) | pass |
+| `TestReadyParamsPartlyParsedSubscribeNothing` | `internal/component/plugin/server/ready_params_partial_test.go` | AC-14 (751f7c82a9) | pass |
+| `TestLastStopNewRunReplacesRecord`, `TestFatalBootFailureRecordsOneEntry`, `TestLastStopDetailCutAtRuneBoundary` | `internal/component/plugin/server/last_stop_run_test.go` | AC-8, AC-11 (751f7c82a9) | pass |
+| `TestFatalStopRowUnnamedBootRefusalFixRuns` | `internal/component/plugin/doctor/check_lifecycle_local_unnamed_test.go` | AC-8, AC-11 (751f7c82a9) | pass |
+| `TestEnsureRollbackLongErrorStillRaises`, `TestReloadRefusedLongFixStillRaises`, `TestEventFieldFitHelpers`, `TestLongFixFallsBackToItsOwnList` | `internal/component/plugin/server/event_field_bounds_test.go` | AC-30, AC-31, AC-40 (751f7c82a9) | pass |
+| `TestTypedSubscribeDropRaisesOncePerType` | `internal/core/events/typed_drop_test.go` | AC-42 (751f7c82a9) | pass |
+| `TestGateJudgesEscapingWrapperAtItsForward`, `TestGateMarksEveryForwardWhateverThePassOrder` | `internal/le/arch/doctorcoverage/judge_test.go` | AC-43 (751f7c82a9) | pass |
+| `TestBridgeProcessNamesCutAndDisambiguate`, `TestMigrateProcessNamesZeLoads` | `internal/exabgp/migration/migrate_process_name_test.go` | none of this spec's: found by the review (2966b4d1e0) | pass |
 | `TestGateSeesWrapperAndNonLiteralWarn` | `internal/le/arch/doctorcoverage/judge_test.go` | AC-43 | pass |
 | `TestDoctorCoverageCheckRefusesPluginFindingWithoutFix` | `internal/le/arch/doctorcoverage/judge_test.go` | AC-46 | pass |
 | `TestDoctorCoverageReportListsPluginFindings` | `internal/le/arch/doctorcoverage/report_test.go` | AC-46 | pass |
@@ -465,12 +485,12 @@ Every row: severity, code, the fix line, the state read, and the route. "Event" 
 |------|----------|-------------------|--------|
 | `doctor-plugin-stopped` | `test/plugin/doctor-plugin-stopped.ci` | an `ignore` plugin exits; `show doctor` names it, `plugins` row down | pass, promoted (c3692ce544) |
 | `doctor-plugin-report-raise-external` | `test/plugin/doctor-plugin-report-raise-external.ci` | a forked plugin raises; `show doctor` shows it with its fix | pass, promoted (c1a939ebea) |
-| `doctor-plugin-external-unsupported` | `test/plugin/doctor-plugin-external-unsupported.ci` | `ze doctor` reports an external in-process-only plugin | pass, promoted (c1a939ebea) |
+| `doctor-plugin-external-unsupported` | `test/plugin/doctor-plugin-external-unsupported.ci` | `ze doctor` reports an external in-process-only plugin | pass, promoted (c1a939ebea); corrected by the review, rerun and stressed 80 of 80 (751f7c82a9) |
 | `doctor-plugin-fatal-stop` | `test/plugin/doctor-plugin-fatal-stop.ci` | a fatal plugin stops ze; the next `ze doctor` names it | pass, promoted (c3692ce544) |
 | `doctor-env-invalid-value` | `test/plugin/doctor-env-invalid-value.ci` | a bad duration env; `show doctor` names key and default | pass, promoted (eb6e1d9a80) |
 | `plugin-external-bad-name` | `test/parse/plugin-external-bad-name.ci` | commit refuses `plugin external a_b` | pass, promoted (c1a939ebea) |
 | `plugin-restart-external-running` | `test/plugin/plugin-restart-external-running.ci` | an operator restarts a running external plugin with `ze cli`; the answer says it was stopped and started again, a new process serves, no crashed or stopped event follows, an unknown name is refused | pass, promoted (ce86ac4a64): red on the selector refusal before the fix, 80 of 80 stress invocations and one live run after it; rerun green after 325ec5d0d6 |
-| `plugin-restart-external-ignores-stop` | `test/plugin/plugin-restart-external-ignores-stop.ci` | an operator restarts a running external plugin that ignores its stop; the restart answers, the old process is gone, the replacement serves, and no crashed, stopped or restart-overlap event follows | pass, promoted (9325dde3da) |
+| `plugin-restart-external-ignores-stop` | `test/plugin/plugin-restart-external-ignores-stop.ci` | an operator restarts a running external plugin that ignores its stop; the restart answers, the old process is gone, the replacement serves, and no crashed, stopped or restart-overlap event follows | pass, promoted (9325dde3da); corrected by the review, rerun and stressed 80 of 80 (751f7c82a9) |
 | `doctor-static-no-fib-block` | `test/ui/doctor-static-no-fib-block.ci` (existing, converted by P5) | `ze doctor` on a static route with no `fib` block reports `doctor-plugin-no-dataplane-writer` where it reported `doctor-static-no-fib-writer` (AC-34) | pass |
 
 ### Interop Tests (Scope: protocol)
@@ -612,6 +632,7 @@ Each phase: failing test, implement, pass, page edit in the same phase, commit.
 - **Letting an operator command reach a path written for an internal caller needs that path's waits audited for bounds under whatever lock the command holds.** The restart path had three unbounded waits (the old process's cleanup, the replacement's handshake, the rollback's join) that were harmless while only a dead process reached them, and each could hang the command with the config transaction lock held (325ec5d0d6).
 - **Independent review found what four rounds of authoring agents and green tests did not, twice:** first the unbounded cleanup wait and the self-restart hang, then the unbounded handshake left by the fix.
 - **A text buffer's `String()` read twice bit this spec a second time:** the restart-overlap event's message and fix were empty on the bus while the log line was right (0becf0044f), caught by a test asserting on the raised event, not the log line.
+- **The closure gate's demand for a review of the whole change set, not only of the last commits, found eighteen issues in code that had passed its tests and its phase reviews.** Most were of one class: text a plugin or a peer controls reaching a record or the bus unbounded, unfitted or unescaped (751f7c82a9).
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
@@ -639,6 +660,7 @@ Each phase: failing test, implement, pass, page edit in the same phase, commit.
 - Scan roots outside the gate (`internal/appliance`, `internal/install`, `cmd/ze-installer`) and judging `internal/core/report` are child 1's and the owner's decision (inventory, "Shared mechanisms", item 5).
 - Nine defects around restarting a plugin that two independent reviews found and this spec does not fix (the configured set never shrinks, the manager's lock held across the replacement's start, and seven more) are owned by `plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md` (105d71fa11).
 - A command registered as requiring a selector whose leaf is not named `selector` refuses every line, and nothing at registration refuses that declaration: owned by `plan/release/fixes/spec-requires-selector-needs-a-selector-leaf.md` (ad304d17e4).
+- No reload-refused line carries `config-plugin-verify` (AC-40). A plugin's verify refusal reaches `reloadConfig` as text in the transaction's error, beside a timeout, a cancelled context or a lost connection, so telling a verifier's refusal apart needs a typed refusal carried from the plugin's answer, which no code builds. Owned by `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` (AC-13, AC-34), whose `hub-runtime` row reports a reload a plugin's verify refused under that code.
 
 ## Checklist
 
@@ -681,3 +703,233 @@ Each phase: failing test, implement, pass, page edit in the same phase, commit.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- P0a (76f62afb59): the cross-cutting codes with metadata, the event-code registration (`diagnostic.RegisterEventCode`, declared by `recent-events` through `DeclaresEventCodes`, read by the gate from `diagnostic.EventCode` literals), and a fix carried on each raise (`report.Issue.Fix`, rendered by `recentEventsDiagnostic`).
+- P0b (d19b10fa01): the plugin report route, one `engineOps` entry `report-issue` (`opReportIssue`, `dispatch_report.go`), `rpc.ReportIssueInput`, `sdk.Plugin.RaiseIssue`/`ClearIssue`, the YANG RPC, a per-plugin raise rate.
+- P1 and P2 (aa6ebb8d15): the published plugin snapshot (`PluginDoctorSnapshot`), the renamed bus codes and the `plugins` health row, the report-bus-full row, the last-stop zefs record, the stopped, crashed, fatal-stop, autoload-unresolved and setup-failed checks, and `request plugin restart <name>`.
+- P3 (ecfbbdfed3), P4 (4e7c1d25fa), P5 (d7b8d92073), P6 (5e8f16a5a2), P7 (29f5ce89ed), P8 (84199c459d): the per-plugin delivery and registration records and checks, the external-name refusal and the in-process-only field, the managed rows, the reload, command, stop, audit and data-plane rows, the env invalid-value record and check, the codes on every not-problem line, and the gate's two site shapes and the plugin-finding Fix judge.
+- After the phases: functional tests promoted (c1a939ebea, eb6e1d9a80, c3692ce544), producer-line tests (e329b99f01), the restart of a running plugin and the bounded records (909da87de2), the restart reachable from the CLI (ce86ac4a64), the enricher restart guard (ae5d1d84fd), the restart-overlap event (0becf0044f), the restart hardening (325ec5d0d6), the ignores-stop proof (9325dde3da) and AC-40 (3ce015b3ff).
+
+### Bugs Found/Fixed
+- The managed fleet server let an unknown name in with an empty token (75e0f5565e; `TestEmptyExpectedTokenNeverAuthenticates`, `TestManagedUnknownNameEmptyTokenRefused`).
+- The plugin cleanup hook list raced (e442cb88c0; `TestProcessCleanupHooksRegisterWhileRunning`).
+- The show enricher registry sorted a list a reader held (029401af1b; `TestRegisterNeverMovesAListAReaderHolds`).
+- `request plugin restart` was refused by the dispatcher before its handler ran (ce86ac4a64; `TestRestartCommandRunsFromTheOperatorLine`, `plugin-restart-external-running.ci`).
+- The restart held the config transaction lock across three unbounded waits and hung on a self-restart (325ec5d0d6; `plugin_restart_guard_test.go`).
+- The no-connection branch of `dispatchCommitted` was unreachable (e329b99f01; `TestConfigCommittedWithNoConnectionRecorded`).
+- The restart-overlap event carried an empty message and fix (0becf0044f; `TestRestartOverlapTextNamesWhatWasUnfinished`).
+- An event message longer than the bus bound was dropped with only a debug line (3ce015b3ff; `TestFitMessageKeepsAnOverlongEventOnTheBus`).
+- `TestDrainCallerLifecycle` sampled its flags before the in-respawn check ran (115b64f109, no assertion changed).
+
+### Documentation Updates
+- Pages edited by the phase commits: `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/api/commands.md`, `docs/architecture/cli/command-completion.md`, `docs/architecture/cli/command-verbs.md`, `docs/architecture/config/environment.md`, `docs/architecture/zefs-format.md`, `docs/architecture/static-routes.md`, `docs/architecture/show-enricher.md`, `docs/architecture/plugin/show-enrichers.md`, `docs/architecture/fleet-config.md`, `docs/architecture/firewall/firewall-irr.md`, `docs/features/ai-first.md`, `docs/features/plugins.md`, `docs/functional-tests.md`, `docs/guide/health-checks.md`, `docs/guide/command-reference.md`, `docs/guide/plugins.md`, `docs/guide/cli.md`, `docs/guide/audit.md`, `docs/guide/fleet-config.md`, `docs/guide/operational-reports.md`, `docs/guide/static-routes.md`, `docs/plugin-development/README.md`, `docs/plugin-development/protocol.md`, `docs/plugin-development/metrics.md`, `docs/plugin-overview.md`. AC-40's page edits (`doctor-and-health-checks.md` "Event codes", `docs/guide/health-checks.md`) carry `raiseReloadRefused`, `reloadRefusalFix`, `FitMessage` anchors.
+- `./le doc check all` (closure, `tmp/session/2026-11-12-005413/scratch/closure/doccheck.txt`): one finding, `../wiki/command-catalog.md` disagrees with the live command catalog, in the wiki checkout, which no commit of this spec edits; every other stage passes.
+
+### Deviations from Plan
+- AC-40: `doctor-config-reload-refused` is declared here, not by child 11, by the owner's decision of 2026-11-12 (A-5 broken); no line carries `config-plugin-verify`, and the fifth line carries `doctor-plugin-stopped` (the AC-40 row says why).
+- Decision recorded, not a finding: `request plugin restart` restarts a running plugin (909da87de2), a choice the main thread made without the owner so that five doctor fix lines (AC-14, AC-17, AC-18, AC-21, AC-22) are true; the owner was told and has not reversed it.
+- AC-6 to AC-8 (P1) and AC-9 to AC-12, AC-45 (P2) landed in one commit (Design Insights).
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: the gate was taken to read the linked registry | it reads declaration literals from the parsed source | reading `coveredCodes` in P0a | AC-2 added `diagnostic.EventCode` to `checkDeclarations` |
+| assumption | A-5: the hub-engine child was to register `doctor-config-reload-refused` | the owner decided this spec declares it | owner decision, 2026-11-12 | AC-40 landed here (3ce015b3ff); child 11 AC-34 builds on it |
+| approach | every restart test called the handler directly, so the command was refused by the dispatcher for weeks | a command owes a test through the dispatcher or the CLI | the functional test of ce86ac4a64 | `plugin_restart_dispatch_test.go`, `plugin-restart-external-running.ci`; the registration defect class is owned by `plan/release/fixes/spec-requires-selector-needs-a-selector-leaf.md` |
+| approach | two of the four reload-refused raises had no test driving them | each raise owes a test that goes red without it | the closure Review Gate | `TestRefusedAutoLoadStartRaisesEvent` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every plugin-infra and core problem class reported with cause and fix | Done | `internal/component/plugin/doctor/`, `internal/component/doctor/`, `internal/component/plugin/server/doctor_snapshot.go` | AC-5 to AC-35 |
+| Every Warn and Error line in the area names its doctor code | Done | `TestNotProblemLinesCarryCodes` green (3ce015b3ff) | AC-36 to AC-44 |
+| Shared codes, event-code registration, fix convention (P0a) | Done | `internal/core/diagnostic`, `internal/core/report`, `checks_recent_events.go` | AC-1 to AC-3 |
+| Plugin report route (P0b) | Done | `dispatch_report.go`, `pkg/plugin/sdk/report.go` | AC-4 |
+| In-process-only registration field and its check | Done | `registry.Registration.RunsInProcessOnly`, `check_external.go` | AC-24 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCrossCuttingCodesDescribed` | |
+| AC-2 | Done | `TestEventCodeRegistrationDeclared`, `TestRegisterEventCodeRefusesUndescribed`, `TestDoctorCoverageReadsCodesFromSource` | |
+| AC-3 | Done | `TestRecentEventsRendersRaiseFix`, `TestIssueFixCarriedAndOmitted` | |
+| AC-4 | Done | `TestReportRaiseRouteBothTransports`, `doctor-plugin-report-raise-external.ci` | |
+| AC-5 | Done | `TestPluginSnapshotNotPublished`, `TestDoctorSnapshotCarriesRecords` | |
+| AC-6 | Done | `TestPluginsHealthRowReadsRenamedCode`, `TestPluginCrashReportBus` | |
+| AC-7 | Done | `TestEvictionDegradesProbe`, `TestReportBusFullRow` | |
+| AC-8 | Done | `TestLastStopRecordWrittenAndCleared` | |
+| AC-9 | Done | `TestPluginStoppedEveryDownPath`, the restart tests, `doctor-plugin-stopped.ci`, `plugin-restart-external-running.ci`, `plugin-restart-external-ignores-stop.ci` | |
+| AC-10 | Done | `TestPluginExitClearsItsOwnWarnings`, `TestExitRecordFirstStatusStands` | |
+| AC-11 | Done | `TestPluginFatalStopRowsNameRecord`, `doctor-plugin-fatal-stop.ci` | |
+| AC-12 | Done | `TestPluginAutoloadRowCarriesRefusal` | |
+| AC-13 to AC-22 | Done | `TestDoctorClassChecks` subtests, the record tests in the TDD table | |
+| AC-23 | Done | `TestExternalPluginNameRefusedAtCommit`, `plugin-external-bad-name.ci` | |
+| AC-24 | Done | `TestExternalUnsupportedCheckReadsField`, `doctor-plugin-external-unsupported.ci` | |
+| AC-25 to AC-27 | Done | `TestManagedListenerUnboundRecorded`, `TestManagedClientRejectedRow`, `TestManagedNotifyDroppedRaises` | |
+| AC-28 to AC-33 | Done | `TestReloadDoctorRecords`, `TestReloadRecordRows`, `command_events_test.go`, `TestStopTransactionLateWritesRecord`, `TestAuditRecordFailedRow` | |
+| AC-34 | Done | `TestDataPlaneWriterRowMatchesRefusal`, `TestDataPlaneWriterCheckFromTree`, `doctor-static-no-fib-block.ci` | |
+| AC-35 | Done | `TestEnvInvalidValueRecorded`, `TestEnvValuesCheckReportsUnusableValue`, `doctor-env-invalid-value.ci` | |
+| AC-36 to AC-39 | Done | `TestNotProblemSitesRaiseEvents` | |
+| AC-40 | Changed | `TestRefusedReloadRaisesEvent`, `TestRefusedAutoLoadStartRaisesEvent`, `TestNotProblemLinesCarryCodes` | two departures, in Deviations |
+| AC-41, AC-42 | Done | `TestTypedDropRaisesInternalDefect`, `TestCapClampRecordedForDoctor` | |
+| AC-43 | Done | `TestGateSeesWrapperAndNonLiteralWarn` | |
+| AC-44 | Done | `TestNotProblemLinesCarryCodes`; `./le arch doctor-coverage report` (closure) | |
+| AC-45 | Done | `TestPluginSetupFailedReportsRecordedOutcome` | |
+| AC-46 | Done | `TestDoctorCoverageCheckRefusesPluginFindingWithoutFix`, `TestDoctorCoverageReportListsPluginFindings` | |
+| AC-47 | Done | `TestRunMarksStartupFailure`, `TestRunPostReadyFailureUnmarked` | |
+| AC-48 | Done | `TestRespawnRecordsAnExpiredJoin`, `TestRestartOverlapTextNamesWhatWasUnfinished` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every unit test in the TDD table | Done | the files the table names | green in the main thread's scoped runs (Pre-Commit Verification) |
+| `TestRefusedAutoLoadStartRaisesEvent` | Done | `internal/component/plugin/server/reload_refused_events_test.go` | added at closure; PASS (`job-closure1-0fa9f175.log`) |
+| the nine functional tests | Done | `test/plugin/`, `test/parse/`, `test/ui/` | each PASS; five also 80 of 80 under stress |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify | Done | every listed file changed by the phase commits; `internal/plugins/static/doctor.go` lost `static-fib-writer` (P5) |
+| Files to Create | Done | `dispatch_report.go`, `doctor_snapshot.go`, `checks_runtime.go`, `check_setup.go`, `last_stop.go` and their tests, the `.ci` files |
+
+### Audit Summary
+- **Total items:** 45 acceptance criteria, 5 task requirements
+- **Done:** all, AC-40 as Changed
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** AC-40 (Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| `ze doctor` reports a plugin that is down, with the command that starts it | functional | `test/plugin/doctor-plugin-stopped.ci` PASS, 80 of 80 stress (`promoted-*.log`, `stress-*.log`) |
+| The fix line works for a running plugin, through the CLI | functional | `test/plugin/plugin-restart-external-running.ci` and `plugin-restart-external-ignores-stop.ci` PASS, 80 of 80 stress each; red under the group-kill break (R-11) |
+| A forked plugin's raise reaches `show doctor` with its fix | functional | `test/plugin/doctor-plugin-report-raise-external.ci` PASS (c1a939ebea) |
+| A cause that ends ze is named by the next `ze doctor` | functional | `test/plugin/doctor-plugin-fatal-stop.ci` PASS, 80 of 80 stress |
+| A bad env value is named with the default used | functional | `test/plugin/doctor-env-invalid-value.ci` PASS, 80 of 80 stress |
+| Every Warn and Error line in the area names its doctor code | gate | `TestNotProblemLinesCarryCodes` green (`job-ac40-4697af4e.log`); twelve producer lines red under `./le test redwalk check` (`redwalk-results.txt`) |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `config-plugin-verify` on a reload a plugin's verify refused (AC-40 wording) | needs a typed refusal carried from the plugin's verify answer, which no code builds | `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` (AC-13, AC-34) |
+| The nine restart defects two reviews found | separable fixes of `Respawn`, `restartPlugin`, the stop records | `plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md` |
+| A registration that claims a selector its leaf is not named for | a registration-time refusal, outside this spec's area | `plan/release/fixes/spec-requires-selector-needs-a-selector-leaf.md` |
+| The five-stage startup-failure classes, and the check that declares `doctor-plugin-startup-phase-failed`, whose metadata this spec registers (review finding 15) | owned there since before this spec | `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` |
+| The uncovered site the corrected gate now shows: `internal/plugins/dhcpserver/register.go` `warnWithheld` (review findings 16 and 23) | dhcpserver's doctor coverage is another area child's | `plan/release/validation/spec-doctor-coverage-14-system-plugins.md` |
+| The stopped row left after a failed reload auto-load (review finding 19) | a fix of the reload's auto-load and stop records | `plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md` |
+| The managed rejection record's raw ack text and its rows for clients no longer served | found by the closing review as a note; the second half needs the managed server to follow a reload, which is the hub's | `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` |
+| The rejected-reload race `TestReloadFailureKeepsPreExistingDependency` exposes (failed in two full-package runs, passes 200 times alone) | code older than this spec | `plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md` |
+| R-12 for a forked plugin (a `show` in flight through a forked plugin's enricher during a restart) | no test drives the forked path | `plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/doctor-coverage-12-plugin-infra-60b1f499-1774-42a0-9485-4efbb605bdec.md` (232 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 3 |
+| Reviewers | round 1: six independent slice reviewers (0 BLOCKER, 18 ISSUE); round 2: two reviewers of the round-1 fixes (0 BLOCKER, 5 ISSUE); round 3: one reviewer of the round-2 fixes and then of the round-3 fixes (0 BLOCKER, 1 ISSUE) |
+| Reviewer lenses used | the brief's six: wrong behavior of rows and events; concurrency; the principles; the security checklist; tests that prove less than their name; stale comments. Pre-checks: `./le test weakened check base 76f62afb59~1` finds no weakening in this spec's commits (its five `[DELETED]` rows are another session's staged, uncommitted removal of `managed_auth_refused_test.go`, which HEAD holds); `./le repo check` names nothing in this spec's packages |
+
+The review read every code file of every commit carrying `Spec-work: doctor-coverage-12-plugin-infra`, as committed, in slices, then each round of fixes. The earlier closure review of the restart path (325ec5d0d6's handshake bound and rollback wait) and of 3ce015b3ff stands beside it, with the two independent reviews of the restart work (R-8).
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Two of the four `doctor-config-reload-refused` raises had no test driving them, so deleting either left every test green, the class R-10 closed for the other producer lines; the recovery text (`autoLoadRefusalProblem` with recovery set) was undriven too | `internal/component/plugin/server/startup_autoload.go` `Server.startAutoLoaded` | `TestRefusedAutoLoadStartRaisesEvent` (three subtests: plugin did not start, recovery start failed, reactor refused after start) |
+| 2 | ISSUE | A refused connect-back's claimed name reached the bus and doctor rows unescaped (terminal control characters from an unauthenticated peer) | `internal/component/plugin/ipc/connect_back_refusal.go` | 751f7c82a9: escaped at the producer |
+| 3 | ISSUE | A plugin's undecodable typed payload raised one error per event and was labelled an internal defect | `internal/component/plugin/server/dispatch.go` | 751f7c82a9: refused, one event per plugin per window under `doctor-plugin-request-refused` |
+| 4 | ISSUE | Malformed forward destinations and a failing dispatch-command raised per occurrence | `internal/component/plugin/server/dispatch_cached.go` | 751f7c82a9: the same shared bound |
+| 5 | ISSUE | The typed-subscribe mismatch raised per dropped event | `internal/core/events/typed.go` | 751f7c82a9: once per type |
+| 6 | ISSUE | The report route bounded the raise rate but not a plugin's active warnings; its size bound ignored JSON escaping; its rate map grew with debug sessions | `internal/component/plugin/server/dispatch_report.go` | 751f7c82a9: a per-plugin share of the cap; the bound derived from the field bounds; windows forgotten at process end |
+| 7 | ISSUE | A debug plugin session's warnings outlived it | `internal/component/plugin/server/adhoc.go` | 751f7c82a9: cleared when the session ends |
+| 8 | ISSUE | The bus bounds were declared several times; over-long event text was dropped silently | `internal/core/report/report.go` | 751f7c82a9: bounds exported once; `FitMessage`, `RaiseErrorFixOnce` |
+| 9 | ISSUE | The stopped-plugin warning was raised unfitted, so a down plugin could read healthy; "no exit recorded" was worded as an exit | `internal/component/plugin/process/stopped.go` | 751f7c82a9: fitted; `ProcessExit` tells the states apart |
+| 10 | ISSUE | Doctor record strings chosen by a plugin were unbounded | `internal/component/plugin/process/doctor_records.go` | 751f7c82a9: bounded and marked when cut |
+| 11 | ISSUE | A failed ready-params parse still registered what had decoded | `internal/component/plugin/server/startup_driver.go` | 751f7c82a9: registers nothing |
+| 12 | ISSUE | The last-stop record kept a stale cause across runs, was cut mid-rune, and held two entries for one boot fault | `internal/component/plugin/server/last_stop.go` | 751f7c82a9: replaced per run, cut at a rune boundary, one entry |
+| 13 | ISSUE | The ensure-rollback event's message was unfitted | `internal/component/plugin/server/command_events.go` | 751f7c82a9: fitted; the fix falls back when it does not fit |
+| 14 | ISSUE | A reload-refused event with an over-long fix was dropped | `internal/component/plugin/server/server_events.go` | 751f7c82a9: `busFix`, `fitSubject` |
+| 15 | ISSUE | `doctor-plugin-config-unapplied`'s description told the operator to reload; `doctor-plugin-startup-phase-failed` has metadata and no declaring check | `internal/core/diagnostic/codes_plugin_infra.go` | 751f7c82a9 corrected the description; the declaring check is owned by `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` (Work Not Done) |
+| 16 | ISSUE | The gate skipped an escaping wrapper's forwarding call, so calls through the value were judged nowhere | `internal/le/arch/doctorcoverage/wrappers.go` | 751f7c82a9: the forward and the direct callers are both judged |
+| 17 | ISSUE | A step timeout replaced the test budget | `test/plugin/plugin-restart-external-ignores-stop.ci` | 751f7c82a9: removed |
+| 18 | ISSUE | The finding as stated was false (the migration writes no external blocks); beside it, a bridge process name over 64 characters was refused | `internal/exabgp/migration/migrate.go` | 2966b4d1e0 fixed the neighboring defect |
+| 19 | ISSUE | A stopped row is left after a failed reload auto-load | `internal/component/plugin/server/startup.go` | not fixed here: owned by `plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md` (Work Not Done) |
+| 20 | ISSUE | Round 2: the undecodable-emit refusal depended on an engine subscriber listening | `internal/component/plugin/server/dispatch.go` | 751f7c82a9: unconditional |
+| 21 | ISSUE | Round 2: report-route refusals lost their per-window log line | `internal/component/plugin/server/dispatch_report.go` | 751f7c82a9: restored |
+| 22 | ISSUE | Round 2: the server-side enricher failure record kept plugin text unbounded | `internal/component/plugin/server/doctor_delivery.go` | 751f7c82a9: bounded with the shared helper |
+| 23 | ISSUE | Round 2: the first gate fix dropped an escaping wrapper's direct callers as sites | `internal/le/arch/doctorcoverage/wrappers.go` | 751f7c82a9: both judged |
+| 24 | ISSUE | Round 2: two pages still described the claimed name as it was before escaping | `internal/component/plugin/ipc/connect_back_refusal.go` | 751f7c82a9: pages corrected |
+| 25 | ISSUE | Round 3: the engine-side arm of the undecodable-emit refusal had no test | `internal/component/plugin/server/dispatch.go` | 751f7c82a9: `TestUndecodableEngineEmitIsADefectRaisedOnce` |
+| 26 | NOTE | Round 3: an enricher command name was unbounded, so two long names could cut to one identity | `internal/component/plugin/server/enricher.go` | 751f7c82a9: bounded at declaration |
+| 27 | NOTE | Round 3: nothing tested the refused bits resetting when the window rolls | `internal/component/plugin/server/dispatch_report_test.go` | 751f7c82a9: `TestReportRefusalsLogAgainInNextWindow` |
+
+Round 2 of the closure review read the fix for row 1: the test drives `autoLoadForNewConfigPaths` (the reload's auto-load step), swaps the reactor before the server runs anything, snapshots and restores the plugin registry, and asserts code, subject and the message fragments each raise writes. 0 BLOCKER, 0 ISSUE.
+
+NOTEs (no block):
+- `reloadConfig` returns six refusals with no log line of its own (reactor verify, the calling plugin's stop, `reloadConfigSections`, two `ApplyConfigDiff`, two `stopCollectedProcesses`); its caller, `cmd/ze/hub/main_reload.go`, logs them, which is child 11's area (AC-13).
+- `restartHandshake` nils the coordinator for the whole bounded handshake, so a tiered phase running at the same time sees no barrier; this is the boot-window restart row 9 of `plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md` owns.
+- `handlePluginRestart` lifts the respawn-limit disable before a restart that may be refused: row 7 of the same spec.
+- `report.FitMessage` is applied to the plugin server's events only; other producers that put an error's text in a bus message still lose an overlong event. None is in this spec's area.
+- `internal/core/report/report.go`: `evictedUntracked` is sticky once set; a plugin's own report-issue error raises are bounded by rate only.
+- `internal/core/report/health_probe.go`: the health probes match a code without its source.
+- `internal/component/plugin/process/manager.go`: `ClearSource` clears daemon-raised warnings under a plugin's name.
+- `internal/component/doctor/checks_recent_events.go`: `warningsNoCheckOwns` hides a plugin's own warning under a state-check code.
+- `internal/component/plugin/ipc/tls.go`: `Authenticate` and `authenticateWithName` (test-only callers) lack the empty-token guard; an auth request whose params do not decode is shown by its remote address.
+- `internal/component/plugin/server/managed_doctor.go`: the managed rejection record keeps an authenticated client's ack text raw and never forgets a removed client.
+- `internal/component/plugin/doctor/check_lifecycle_local.go`: the fatal-stop row's fix names journalctl, which the appliance does not have.
+- `internal/component/config/yang/report_issue_lengths_test.go`: YANG lengths count characters, the bus bounds octets.
+- `internal/component/plugin/server/dispatch.go`: whether the `BestChangeBatch` JSON codecs round-trip at their bounds is unverified; it matters because every typed emit is now decoded.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/plugin/server/dispatch_report.go`, `doctor_snapshot.go`, `last_stop.go` | yes | read at closure (159, 229 and 257 lines) |
+| `internal/component/plugin/doctor/checks_runtime.go`, `check_setup.go` | yes | read at closure (101 and 69 lines) |
+| the nine `.ci` files of the Functional Tests table | yes | `git show --name-only` over the spec's commits lists each (`tmp/session/2026-11-12-005413/scratch/closure/allfiles.txt`) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-3, AC-40 | codes, event registration, fix, reload-refused raises | `internal/core/diagnostic`, `internal/core/report`, `internal/component/doctor`, `internal/component/plugin/server` ok under `-race` with the feature tags at 3ce015b3ff (`job-ac40-4697af4e.log`) |
+| AC-9 and the restart rows | restart of a running plugin, refusals, bounds | `internal/component/plugin/process` ok except `TestRecoveryQueuedDeliveryTransport/ipc/*` and `TestRSFastReceiptRecipientExactlyOnce/ipc` (owned by `spec-registry-run-engine-test-seam`), `plugin/doctor` ok at 325ec5d0d6 (`job-harden3-d1f3dd49.log`) |
+| AC-36 to AC-44 | every line coded | `TestNotProblemLinesCarryCodes` green at 3ce015b3ff (`job-ac40-4697af4e.log`) |
+| AC-21 | show registry race | `internal/core/show` ok at 029401af1b (`job-showpkg-d210203e.log`) |
+| AC-40 closure test | the two `startAutoLoaded` raises | `TestRefusedAutoLoadStartRaisesEvent` PASS (plugin-did-not-start, recovery-plugin-did-not-start, reactor-refused-after-start) and `TestRefusedReloadRaisesEvent` PASS, under `-race` with the full feature tags (`tmp/session/2026-11-12-005413/scratch/job-closure1-0fa9f175.log`) |
+| every AC, after the review fixes (751f7c82a9, 2966b4d1e0) | the whole change set still holds | under `-race` with the full feature tags, logs under `tmp/session/2026-11-12-005413/scratch/`: `job-round4-90214505.log` (`plugin/server`, `plugin/doctor`, `core/report` ok; `plugin/process` red only on the two known IPC fixtures; `doctorcoverage` red only on the known IKE check-name test); `job-round3-e71f6e7a.log` (`core/events`, `core/diagnostic`, `pkg/plugin/rpc`, `pkg/plugin/sdk`, `plugin/ipc`, `component/doctor`, `exabgp/migration` ok); `job-round2-3698321c.log` (`config/yang` ok) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `show doctor` with an `ignore` plugin stopped | `test/plugin/doctor-plugin-stopped.ci` | PASS, 80 of 80 stress |
+| `ze cli -c "request plugin restart <name>"` | `test/plugin/plugin-restart-external-running.ci`, `plugin-restart-external-ignores-stop.ci` | PASS, 80 of 80 stress each |
+| `ze doctor` after a fatal stop | `test/plugin/doctor-plugin-fatal-stop.ci` | PASS, 80 of 80 stress |
+| `show doctor` with a bad env value | `test/plugin/doctor-env-invalid-value.ci` | PASS, 80 of 80 stress |
+| a forked plugin's SDK raise; an external in-process-only plugin | `doctor-plugin-report-raise-external.ci`, `doctor-plugin-external-unsupported.ci` | PASS (c1a939ebea) |
+| the live plugin suite after the review fixes (751f7c82a9) | `doctor-plugin-report-raise-external`, `doctor-plugin-external-unsupported`, `doctor-plugin-stopped`, `doctor-plugin-fatal-stop`, `plugin-restart-external-running`, `plugin-restart-external-ignores-stop`, `doctor-env-invalid-value` | all PASS; the two the review corrected (`plugin-restart-external-ignores-stop`, `doctor-plugin-external-unsupported`) 80 of 80 stress each; the change to `doctor-plugin-external-unsupported`'s expectations approved by an independent judge |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | `coveredCodes` reads source literals; AC-2 adapted |
+| A-2 | confirmed | no YANG restart RPC before aa6ebb8d15 |
+| A-3 | confirmed | `fibWriterDiagnostics` against `appendDataPlaneWriter` (P5) |
+| A-4 | confirmed | the only non-test `Recorder` is `(*audit.Log).Record` |
+| A-5 | broken | superseded by the owner's decision of 2026-11-12 (3ce015b3ff) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `doctor-config-reload-refused` row, "Event codes" | `server_events.go` `raiseReloadRefused`, `reloadRefusalFix`; `startup_autoload.go` `autoLoadRefusalProblem` | yes |
+| `request plugin restart` in the command reference | `docs/guide/command-reference.md` line 708; `register_plugin_restart.go` `handlePluginRestart` | yes |
+| `report-issue` in the process protocol | `process-protocol.md` line 1655; `dispatch_registry.go` `engineOps` | yes |
+| The doctor guide page | `docs/guide/health-checks.md` carries the doctor codes; `docs/guide/monitoring.md` has no doctor section, so row 6 of the checklist landed on `health-checks.md` | yes |
+| A `features/` doctor entry | `features/` holds no doctor entry (`health-registry.md` is the health registry) | no update owed |
