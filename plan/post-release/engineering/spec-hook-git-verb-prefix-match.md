@@ -114,3 +114,4 @@ commit.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `hook-existing-patterns-false-positive` | 2026-11-11 | `gitVerbRun` prefix match: `git merge-base --is-ancestor` refused as `git merge` (second occurrence) |
+| `hook-existing-patterns-false-positive` | 2026-11-12 | `gitVerbRun` prefix match: `git merge-base --is-ancestor` refused as `git merge` (third occurrence) |
