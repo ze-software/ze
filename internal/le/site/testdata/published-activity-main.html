@@ -36,7 +36,7 @@
 <div class="activity-view" id="activity-calendar" role="tabpanel" aria-labelledby="activity-tab-calendar">
     <h2>Commit calendar</h2>
 <section class="stats" aria-label="Summary">
-        <div class="stat"><span id="total-label">Lines added by commits in this window</span><strong id="total-value">4</strong></div>
+        <div class="stat"><span id="total-label">Lines added in this window</span><strong id="total-value">4</strong></div>
         <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">1</strong></div>
         <div class="stat"><span id="peak-label">Peak line day</span><strong id="peak-value">4</strong></div>
         <div class="stat"><span>Days shown</span><strong>365</strong></div>
@@ -558,7 +558,7 @@
     <span class="tooltip-value tooltip-secondary"></span>
 </div>
 <script>
-const metricSummaries = {"commits":{"totalLabel":"Total commits","totalValue":"1","activeLabel":"Days with commits","activeValue":"1","peakLabel":"Peak commit day","peakValue":"1","thresholdLabel":"Commit thresholds","thresholdValue":"0, 0, 0, 0"},"lines":{"totalLabel":"Lines added by commits in this window","totalValue":"4","activeLabel":"Days with added lines","activeValue":"1","peakLabel":"Peak line day","peakValue":"4","thresholdLabel":"Line thresholds","thresholdValue":"1, 2, 3, 3"}};
+const metricSummaries = {"commits":{"totalLabel":"Total commits","totalValue":"1","activeLabel":"Days with commits","activeValue":"1","peakLabel":"Peak commit day","peakValue":"1","thresholdLabel":"Commit thresholds","thresholdValue":"0, 0, 0, 0"},"lines":{"totalLabel":"Lines added in this window","totalValue":"4","activeLabel":"Days with added lines","activeValue":"1","peakLabel":"Peak line day","peakValue":"4","thresholdLabel":"Line thresholds","thresholdValue":"1, 2, 3, 3"}};
 let currentMetric = "lines";
 const cells = Array.from(document.querySelectorAll(".activity-grid .day-cell"));
 const buttons = Array.from(document.querySelectorAll(".metric-switch button"));

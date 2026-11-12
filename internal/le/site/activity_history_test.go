@@ -318,7 +318,7 @@ func TestActivityPageKeepsCalendarAndCommitViews(t *testing.T) {
 		`class="activity-grid"`, `class="day-cell`,
 		`data-metric="lines"`, `data-metric="commits"`,
 		`id="total-value"`, `id="active-value"`, `id="peak-value"`, "Days shown",
-		"Lines added by commits in this window",
+		"Lines added in this window",
 		"Added lines count additions, not net repository size.",
 		`class="panel go-panel"`,
 		`id="activity-cumulative-chart"`, `id="activity-cumulative-day"`, `id="activity-cumulative-readout"`,
@@ -375,7 +375,7 @@ func activityAttributeSet(node *xhtml.Node, key string) (string, bool) {
 // The method renders the fixture page, reads the mirror the render wrote, as
 // TestTheActivityMirrorReadsAsThePublishedMirror does, and reads its lines
 // rather than its shape. The first card's label must open its line, after
-// nothing but spaces, as "- Lines added by commits in this window": when the
+// nothing but spaces, as "- Lines added in this window": when the
 // element before the calendar view ends in inline text (the size view's day
 // selector), the card's bullet joins that text's line and stops being a list
 // item. No line may be a bare "-", "*" or "+", or a run of "#" alone.
@@ -392,7 +392,7 @@ func TestTheActivityMirrorStartsEveryBlockOnItsOwnLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const firstCard = "- Lines added by commits in this window"
+	const firstCard = "- Lines added in this window"
 	label := strings.TrimPrefix(firstCard, "- ")
 	opens, holder := false, ""
 	for number, line := range strings.Split(string(raw), "\n") {

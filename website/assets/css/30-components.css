@@ -1283,12 +1283,14 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .hero-start-points { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; max-width: none; margin: 0 0 1.1rem; color: var(--hero-muted); font-size: 0.75rem; line-height: 1.6; font-weight: 400; }
 .site-home .hero-start-points span { display: inline; margin: 0; padding: 0; color: var(--hero-muted); background: none; -webkit-background-clip: border-box; background-clip: border-box; -webkit-text-fill-color: currentColor; }
 .site-home .hero-intro { color: var(--hero-text); font-size: 1.2rem; line-height: 1.6; margin-bottom: 1.1rem; }
-.site-home .hero-intro a { color: #b8def6; text-decoration: none; }
+.site-home .hero-intro a { color: #6ccbf7; text-decoration: none; }
+.site-home .hero-intro a:hover { color: #fff; }
 .site-home .hero-status { margin: 0.75rem 0 0; color: var(--hero-muted); font-size: 0.78rem; line-height: 1.5; }
 .site-home .hero-status span { color: var(--hero-text); white-space: nowrap; }
 .site-home .hero-capabilities { grid-area: details; min-width: 0; padding: 1rem 0 0; border-top: 1px solid #2c4564; color: var(--hero-muted); font-size: 0.88rem; line-height: 1.65; }
 .site-home .hero-capabilities p { margin: 0; color: var(--hero-muted); font-size: inherit; }
-.site-home .hero-capabilities a { color: #b8def6; text-decoration: none; }
+.site-home .hero-capabilities a { color: #6ccbf7; text-decoration: none; }
+.site-home .hero-capabilities a:hover { color: #fff; }
 .site-home .hero :is(a, button):focus-visible { outline-color: #8fcff4; }
 .site-home .hero-actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 1.6rem 0 0; }
 .site-home .hero-actions .button { min-height: 2.8rem; padding: 0.7rem 1rem; gap: 1rem; border: 1px solid #467090; border-radius: 0.45rem; font-size: 0.8rem; }

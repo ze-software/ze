@@ -513,8 +513,10 @@ with the same gap after the release group as between metrics.
 The introduction presents IPsec VPN or WireGuard as tunnel options and FIB or
 VPP as forwarding options. The management clause describes interfaces and
 services.
-Links in the left hero column keep their existing colors without underlines;
-keyboard focus remains outlined.
+Links in the hero are never underlined. In the introduction and the
+capabilities paragraph they are a brighter blue than the muted text around
+them, so a reader can tell them apart by color alone, and turn white on
+hover; keyboard focus remains outlined.
 The release text has a Planned release title above two lines: Initial version
 and Q4 2026. The separator between release and counters is vertical on desktop
 and horizontal when the counters stack below release at tablet widths and below.

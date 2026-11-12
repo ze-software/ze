@@ -264,11 +264,11 @@ func activityCalendarViewHTML(window *reporewrite.ActivityWindow, lines activity
 
 // activityPageLineMetric labels the added-line series on the published page,
 // where the size view beside it states the repository's size: the first card
-// says the lines were added by commits in the window, so it never reads as a
-// size. The slide keeps activityLineMetric's labels.
+// says the lines were added in the window, so it never reads as a size. The
+// slide keeps activityLineMetric's labels.
 func activityPageLineMetric(window *reporewrite.ActivityWindow) activityMetric {
 	metric := activityLineMetric(window)
-	metric.TotalLabel = "Lines added by commits in this window"
+	metric.TotalLabel = "Lines added in this window"
 	return metric
 }
 

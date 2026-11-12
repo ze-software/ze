@@ -22,7 +22,7 @@ Select a recorded day
 
 ## Commit calendar
 
-- Lines added by commits in this window:** 4**
+- Lines added in this window:** 4**
 - Days with added lines:** 1**
 - Peak line day:** 4**
 - Days shown:** 365**
