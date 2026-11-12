@@ -4,7 +4,9 @@
 refusal closed today; Access's RFC 5176 proofs were found stale after closure
 and are repaired. Lint-tooling is in progress with five fix batches in and
 about 167 known findings left. Route-policy has its benchmark, accepted by the
-owner, and is blocked on three findings of its closure review. Read the dated
+owner; the three findings of its closure review now belong to a new spec
+(`plan/handover/2026-11-12-route-policy-findings-spec.md`), so the umbrella
+can close. Read the dated
 sections below from the bottom of this block up; the latest ones are the
 Access proof repair and the route-policy section.
 **Branch:** main. No push was performed by this session; Thomas controls pushes.
@@ -236,6 +238,17 @@ then these findings live here.
    names a testing method as a commented-out assertion; a read-only
    `git merge-base --is-ancestor` is refused as `git merge`. The second is
    already journaled twice in `plan/journal/hook-existing-patterns-false-positive.md`.
+
+## Route-policy's three findings moved to their own spec, 2026-11-12
+
+The owner moved B-1, B-2 and B-3 out of the umbrella: "route-policy's three
+review findings get in a new spec". The spec is
+`plan/release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md`, at
+Status `design`, waiting on his approval of its design. The umbrella can now
+close without them. Its five pointer edits and its closure steps are in
+`plan/handover/2026-11-12-route-policy-findings-spec.md`, which replaces the
+section below for everything about what happens next. The section below
+stays as the record of the benchmark and the review.
 
 ## Route-policy after the owner's benchmark, 2026-11-12
 
