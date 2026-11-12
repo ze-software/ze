@@ -11,6 +11,21 @@ most of it. Start here, then the spec, then the per-spec state file.
 - Why it matters beyond itself: `spec-bmp-route-action-redistribute-acts-as-monitor.md`
   (Phase 4/4, proven) can only close after this spec closes.
 
+## Claims
+
+The session released every claim it held on 2026-11-12, so the next session
+claims what it works on:
+
+| Spec | State left |
+|------|------------|
+| `spec-config-enum-refusal-proposes-valid-values.md` | `in-progress`, unclaimed. Phases 1, 2, 5 and 6 are complete; phases 3 and 4 are committed except the items under "Left to do". The `Phase` field reads 3/6, the count of phases with nothing owed being four |
+| `spec-bmp-route-action-redistribute-acts-as-monitor.md` | `in-progress`, Phase 4/4, proven, unclaimed. Closes after the spec above |
+| `spec-fib-depth.md` | `in-progress`, unclaimed. Phase 13 and its follow-up fixes are committed and recorded in the spec; one open defect it owns: fib-vpp programs no IP route without a persistent store |
+
+Claiming the first two again needs the owner's cap exception to be restated or
+the WIP count to be under the cap: the exception recorded in each spec was
+for this session's work.
+
 ## What the spec delivers
 
 A value Ze does not accept is refused the same way on every surface: the

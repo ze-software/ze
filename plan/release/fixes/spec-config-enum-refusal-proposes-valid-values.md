@@ -7,7 +7,7 @@
 | Release reason | Honor the approved consistent schema-derived enum refusal across operator entry points. |
 | Scope | config |
 | Depends | - |
-| Phase | 2/6 |
+| Phase | 3/6 |
 | Handoff | - |
 | Updated | 2026-11-12 |
 
