@@ -14,7 +14,7 @@ import (
 // VALIDATES: a packaged netlab node waits for successful interface configuration
 // before its root process execs Ze, preserving the daemon's exit status and logs.
 // Authority: netlab release_26.10 templates/provider/clab/dataplane-wait.j2 and
-// ansible/templates/initial/linux-clab.j2.
+// ansible/templates/initial/linux/vanilla.j2.
 func TestPackagedZeStartsAfterInitialInterfaceConfiguration(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "..")
 	directory := t.TempDir()
@@ -59,8 +59,15 @@ func TestPackagedZeStartsAfterInitialInterfaceConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	setup := strings.Index(string(initial), "include 'initial/linux-clab.j2'")
+	if !strings.HasPrefix(string(initial), "#!/bin/sh\n") {
+		t.Error("initial template must execute as a shell script inside the node")
+	}
+	stopOnFailure := strings.Index(string(initial), "\nset -e\n")
+	setup := strings.Index(string(initial), "include 'initial/linux/vanilla.j2'")
 	ready := strings.Index(string(initial), "touch /var/run/initial.done")
+	if stopOnFailure < 0 || setup <= stopOnFailure {
+		t.Errorf("initial template must stop on failure before Linux interface setup: %s", initial)
+	}
 	if setup < 0 || ready <= setup {
 		t.Fatalf("initial template must complete Linux interface setup before signaling startup: %s", initial)
 	}

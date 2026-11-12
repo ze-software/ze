@@ -8,7 +8,7 @@
 | Release reason | Essential installation, appliance boot, and onboarding paths must work before users can evaluate a release. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | Completed-path docs/site committed; netlab startup ordering and diagnostics passed scoped tests, actual rerun owed |
+| Phase | Completed-path docs/site committed; corrected netlab template passes actual rendering and scoped tests, live rerun owed |
 | Handoff | `tmp/session/2026-11-10-225434/scratch/deployment-runtime-handoff.md` |
 | Updated | 2026-11-12 |
 
@@ -94,6 +94,24 @@ actual cause of the old exits remains unobserved, and the fixed live topology
 is not yet a pass. Fresh live proof and the current source-bound bundle remain
 required.
 
+## Netlab template correction, 2026-11-12
+
+Actual `57720` failed before container creation: the Ze initial template found
+the upstream Linux wrapper, but that wrapper's nested relative include could
+not resolve in the daemon template search paths. Private diagnostics survived;
+outer VM cleanup left nothing behind. No fixed live topology PASS was produced.
+
+The same error was reproduced without a VM by the existing native netlab check,
+using private pinned netlab 26.10/Ansible 2.20 tools (`95514`). The corrected
+template supplies its own shell header and `set -e`, then includes the same
+upstream Linux setup through its package-qualified path. Actual render check
+`1416` passed: all three node configurations match goldens and validate with Ze.
+The stronger regression failed before this correction (`21559`) and passed
+after it (`14762`); the full netlab package also passed (`82091`). An independent
+test judge approved and personally recorded the updated assertion, preserving
+all YAML/startup checks while adding explicit shell and failure-stop checks.
+The next actual topology run remains required.
+
 ## Current acceptance evidence, 2026-11-12
 
 This section records the latest results reported by the main thread and
@@ -108,7 +126,7 @@ substitute for the outstanding actual deployment proofs.
 | AC-3: source build and named executables | The patched-toolchain build path is implemented. All five shipped flavors compiled after the preview, OTA, container and phase-binding commits; committed-build job `98028` exited 0 with all five OK at HEAD `94e8a7de6383`. Kernel/build documentation landed in `be5381db9c`. | Each compilation result belongs to its recorded source revision. Recurrent foreign API changes caused earlier failed builds; a passed committed build does not establish the pending source-bound artifact bundle. |
 | AC-4: supplied two-peer quickstart | Real basic route-exchange/authentication checks passed. The quickstart completed all 80 unchanged stress invocations in the approved private tmpfs context. Functional fixtures landed in `4c05449c18`; all three deployment tests also passed the live CI-path run associated with `eb28da8d95`. | This proves the supplied control-plane tutorial, with its explicit forwarding limits; it does not add production forwarding evidence. The whole-UI run was not green, as recorded below. |
 | AC-5: deployment container persistence | Container/netlab code landed in `ef6e1c9806`; runtime correction `adf359f08c` includes noninteractive import and `/tmp` mode `1777`. Actual Compose portion of finished job `84344` printed `DEPLOYMENT-COMPOSE: PASS authenticated edit retained across a new container on the same persistent volume`, including the corrected metadata-aware subtree oracle. Final outer cleanup stopped the VM and left nothing behind. | This proves the authenticated edit/recreation path for the explicitly source-unbound runtime image. The combined job's separate netlab portion failed; it is not an overall runtime PASS. |
-| AC-6: live containerlab/netlab | Actual `38376` reached initial configuration through the corrected shell method but found all three containers stopped. Startup ordering and private pre-teardown diagnostics now pass focused regressions, the full netlab package and independent source review. | Fixed live topology, declared adjacencies, kernel routes and six directed sourced pings remain unverified. Actual `38376` teardown and outer VM cleanup passed; no protocol/traffic PASS is claimed. |
+| AC-6: live containerlab/netlab | Startup ordering and retained diagnostics passed units and committed compilation. Actual `57720` exposed a nested template include failure; its correction now passes direct actual rendering, all three golden/config checks, the stronger regression and full netlab package. | Fixed live topology, declared adjacencies, kernel routes and six directed sourced pings remain unverified. Actual VM cleanup left nothing behind; no protocol/traffic PASS is claimed. |
 | AC-7: installer ISO and installed disk | `66cc2f7abb` landed the ISO corrections. Actual native amd64/KVM proof passed optical boot, selected-disk installation, clean poweroff, unchanged extra disk, installed-disk boot and authenticated SSH/version. Final module-bound ISO assembly passed. | This is amd64/KVM evidence; arm64 boot was not run. The retained ISO image does not establish OTA credentials or update recovery. |
 | AC-8: appliance image update and recovery | OTA implementation landed in `d5ac4d3249`. Actual run `19822` passed: two images, changed runtime after update, retained persistent UUID/configuration/login/hostname, previous-slot recovery and owned cleanup. The committed source passed all-five-flavor compilation. | This actual OTA/recovery proof supersedes the earlier failed host-push run `44967`; that failure remains historical evidence below. It does not extend the amd64 proof to arm64. |
 | AC-9: website deployment journeys | Resumed completed-path documentation, homepage and navigation updates passed canonical local build `67925` and check `38826`: 24 producers and 1,107 declared/written routes in sibling `../gh-pages`. Generated HTML and Markdown were inspected. | Baseline stale-supported warnings persisted; no feature-proof refresh occurred. No remote publication or push occurred; the broad doc gate's generated-index failure is recorded above. |
