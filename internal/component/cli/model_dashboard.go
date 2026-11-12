@@ -335,7 +335,7 @@ func (m *Model) startDashboard() tea.Cmd {
 
 	poller, err := factory()
 	if err != nil {
-		m.err = err
+		m.setError(err)
 		return nil
 	}
 

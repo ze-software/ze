@@ -142,9 +142,9 @@ func DisplayCommand(input string) string {
 // value it rejected at path. It is DisplayValueAtPath for the other shape a
 // value reaches a terminal in: inside a sentence.
 //
-// A refusal names what it refused. Completer.ValidateValueAtPath writes
-// `invalid value %q for %s`, and ValidateValue writes `invalid uint16: %q`, so
-// the message carries the credential the operator just typed.
+// A refusal names what it refused. A type refusal (ValidateValue writes
+// `invalid uint16: %q`) carries the credential the operator just typed; the
+// schema's value refusal masks its own value where it is built.
 func DisplayMessageAtPath(schema *Schema, path []string, message, value string) string {
 	if !secretAtPath(schema, path) {
 		return message

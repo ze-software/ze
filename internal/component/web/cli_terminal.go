@@ -100,6 +100,7 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 
 		mode := normalizeTerminalMode(r.FormValue("mode"))
 		cmd := parseCLICommand(commandText)
+		cmd.Operator = contextPath
 		if authCommand := terminalAuthCommandForMode(mode, cmd); authCommand != "" {
 			if !authorizeWebConfigMutation(w, r, authorizer, username, authCommand) {
 				return
@@ -142,8 +143,13 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 // terminalAuthCommand maps only state-changing verbs to RBAC commands.
 // Navigation verbs like edit/up/top are intentionally ungated here: in the web
 // CLI bar they only change the visible subtree, unlike the API's "config edit"
-// session creation which opens a mutable config session.
+// session creation which opens a mutable config session. `top <command>` is
+// authorized as the command it runs, so `top` never carries a mutation past
+// the gate.
 func terminalAuthCommand(cmd cliCommand) string {
+	if inner, underTop := commandBehindTop(cmd); underTop {
+		return terminalAuthCommand(inner)
+	}
 	switch cmd.Verb {
 	case verbSet, verbActivate:
 		return webCommandConfigSet
@@ -177,6 +183,10 @@ type terminalCommandResult struct {
 	mode       string
 	output     string
 	completion *plugin.RenderedResponse
+	// navigated is set when the command answered a new position (edit, up,
+	// top), so `top <command>` keeps the operator's position unless the
+	// command behind it moved it.
+	navigated bool
 	// discarded is set by a discard that dropped changes, and only by it, so
 	// the audit row follows the editor's answer and never the output text: a
 	// refusal and a path discard each print their own line.
@@ -196,6 +206,18 @@ func executeTerminalCommand(ctx context.Context, schema *config.Schema, viewTree
 }
 
 func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, cmd cliCommand, dispatch CommandDispatcher) terminalCommandResult {
+	// `top <command>` runs the command once at the root, whatever it is, and
+	// answers the operator's position unless the command navigated (Q-9). It
+	// is taken before executeTerminalNav splits a pipe, so `top show | ...`
+	// runs `show | ...` at the root. The recursion is bounded by the words of
+	// the line, which maxCommandLength caps.
+	if inner, underTop := commandBehindTop(cmd); underTop {
+		answer := executeTerminalConfigMode(ctx, schema, viewTree, mgr, username, remoteAddr, nil, inner, dispatch)
+		if !answer.navigated {
+			answer.path = contextPath
+		}
+		return answer
+	}
 	result := terminalCommandResult{path: contextPath, mode: terminalModeConfig}
 	switch cmd.Verb {
 	case verbRun:
@@ -234,6 +256,7 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 	result.output = output
 	if newPath != nil {
 		result.path = append([]string{}, newPath...)
+		result.navigated = true
 		if cmd.Verb == verbEdit || cmd.Verb == verbUp || cmd.Verb == verbTop {
 			result.output = serializeTreeAtPath(displayTree(viewTree, mgr, username), schema, newPath)
 		}
@@ -312,6 +335,9 @@ func terminalOperationalHelp() string {
 }
 
 func terminalAuditContext(mgr *EditorManager, username string, cmd cliCommand, raw string) (string, string) {
+	if inner, underTop := commandBehindTop(cmd); underTop {
+		return terminalAuditContext(mgr, username, inner, raw)
+	}
 	switch cmd.Verb {
 	case verbCommit:
 		detail := mgr.Diff(username)
@@ -328,6 +354,9 @@ func terminalAuditContext(mgr *EditorManager, username string, cmd cliCommand, r
 // terminalAuditSucceeded reports whether the command terminalAuditContext
 // prepared a row for succeeded, so the row is owed.
 func terminalAuditSucceeded(cmd cliCommand, result terminalCommandResult) bool {
+	if inner, underTop := commandBehindTop(cmd); underTop {
+		return terminalAuditSucceeded(inner, result)
+	}
 	switch cmd.Verb {
 	case verbCommit:
 		return result.output == terminalOutputCommitSuccessful
@@ -341,6 +370,9 @@ func terminalAuditSucceeded(cmd cliCommand, result terminalCommandResult) bool {
 
 // terminalFeedback returns the message-area feedback line for a command.
 func terminalFeedback(cmd cliCommand, output string) string {
+	if inner, underTop := commandBehindTop(cmd); underTop {
+		return terminalFeedback(inner, output)
+	}
 	var tb textbuf.Buffer
 	switch cmd.Verb {
 	case verbSet:
@@ -384,7 +416,7 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 	// Check for pipe in args: split into command args and pipe filters.
 	allTokens := append([]string{cmd.Verb}, cmd.Args...)
 	if pipeIdx := cli.FindPipeIndex(allTokens); pipeIdx > 0 {
-		baseCmd := cliCommand{Verb: allTokens[0], Args: allTokens[1:pipeIdx]}
+		baseCmd := cliCommand{Verb: allTokens[0], Args: allTokens[1:pipeIdx], Operator: cmd.Operator}
 		filters := cli.ParsePipeFilters(allTokens[pipeIdx+1:])
 		opts, classErr := cli.ClassifyShowPipes(filters)
 		if classErr != nil {
@@ -441,11 +473,11 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		showPath := append(append([]string{}, contextPath...), cmd.Args...)
 		return nil, serializeTreeAtPath(displayTree(viewTree, mgr, username), schema, showPath)
 	case verbSet:
-		return nil, executeTerminalSet(mgr, username, contextPath, cmd.Args)
+		return nil, executeTerminalSet(mgr, username, contextPath, cmd)
 	case verbDelete:
 		return nil, executeTerminalDelete(mgr, username, contextPath, cmd.Args)
 	case verbCommit:
-		return nil, executeTerminalCommit(mgr, username, cmd.Args)
+		return nil, executeTerminalCommit(mgr, username, cmd)
 	case verbWho:
 		sessions := mgr.ActiveSessions()
 		if len(sessions) == 0 {
@@ -508,11 +540,11 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		var tb textbuf.Buffer
 		return nil, tb.Str("rolled back to ").Str(backups[n-1].Path).String()
 	case verbRename:
-		return execListEntryOp(schema, cmd.Args, contextPath, listEntryRename, func(parent []string, list, src string, dst []string) error {
+		return execListEntryOp(schema, cmd.Args, contextPath, cmd.Operator, listEntryRename, func(parent []string, list, src string, dst []string) error {
 			return mgr.RenameListEntry(username, parent, list, src, dst)
 		})
 	case verbCopy:
-		return execListEntryOp(schema, cmd.Args, contextPath, listEntryCopy, func(parent []string, list, src string, dst []string) error {
+		return execListEntryOp(schema, cmd.Args, contextPath, cmd.Operator, listEntryCopy, func(parent []string, list, src string, dst []string) error {
 			return mgr.CopyListEntry(username, parent, list, src, dst)
 		})
 	case verbInsert:
@@ -521,8 +553,11 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		}
 		insertPath := append(append([]string{}, contextPath...), cmd.Args...)
 		if err := mgr.CreateEntry(username, insertPath); err != nil {
+			// The creator refused a new entry's key on the way: the fix is this
+			// insert with that key corrected, framed for the operator's
+			// position, as the SSH editor's cmdInsert frames it (AC-29).
 			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(err).String()
+			return nil, tb.Str("error: ").Err(cli.FramedKeyRefusal(err, verbInsert, contextPath, cmd.Args, cmd.Operator)).String()
 		}
 		var tb textbuf.Buffer
 		return nil, tb.Str("inserted entry at ").Join(cmd.Args, " ").String()
@@ -533,8 +568,10 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		fullPath := append(append([]string{}, contextPath...), cmd.Args...)
 		msg, err := mgr.ApplyActivation(username, fullPath, false)
 		if err != nil {
+			// A refused key on the way: the fix is this line with the key
+			// corrected, framed for the operator's position (AC-31).
 			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(err).String()
+			return nil, tb.Str("error: ").Err(cli.FramedKeyRefusal(err, verbDeactivate, contextPath, cmd.Args, cmd.Operator)).String()
 		}
 		return nil, msg
 	case verbActivate:
@@ -544,8 +581,10 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		fullPath := append(append([]string{}, contextPath...), cmd.Args...)
 		msg, err := mgr.ApplyActivation(username, fullPath, true)
 		if err != nil {
+			// A refused key on the way: the fix is this line with the key
+			// corrected, framed for the operator's position (AC-31).
 			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(err).String()
+			return nil, tb.Str("error: ").Err(cli.FramedKeyRefusal(err, verbActivate, contextPath, cmd.Args, cmd.Operator)).String()
 		}
 		return nil, msg
 	case verbErrors:
@@ -567,6 +606,7 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		return nil, `commands:
   edit <path>          Enter a subsection context
   top                  Return to root context
+  top <command>        Run one command as if at the root context
   up                   Go up one level
   show [path]          Display configuration
   set <path> <value>   Set a configuration value
@@ -861,27 +901,20 @@ func serializeSetAtPath(tree *config.Tree, schema *config.Schema, path []string)
 	return config.FilterSetByPath(config.SerializeSet(tree, schema), schema, path)
 }
 
-// executeTerminalSet handles the set command in terminal mode.
-func executeTerminalSet(mgr *EditorManager, username string, contextPath, args []string) string {
-	if len(args) < 2 { //nolint:mnd // set requires key and value
+// executeTerminalSet handles the set command in terminal mode: the words
+// after `set` relative to contextPath, refused with the fix framed for the
+// operator's position (applyWebSet).
+func executeTerminalSet(mgr *EditorManager, username string, contextPath []string, cmd cliCommand) string {
+	if len(cmd.Args) < 2 { //nolint:mnd // set requires key and value
 		return "error: usage: set <leaf> <value>"
 	}
 
-	var tb textbuf.Buffer
-	setPath, key, value, err := splitSetArgs(mgr.schema, contextPath, args)
+	answer, err := applyWebSet(mgr, mgr.schema, username, contextPath, cmd.Operator, cmd.Args)
 	if err != nil {
+		var tb textbuf.Buffer
 		return tb.Str("error: ").Err(err).String()
 	}
-	leafPath := append(append([]string{}, setPath...), key)
-
-	if err := mgr.SetValue(username, setPath, key, value); err != nil {
-		return tb.Reset().Str("error: ").Str(config.DisplayMessageAtPath(mgr.schema, leafPath, err.Error(), value)).String()
-	}
-
-	// The acknowledgement travels to the browser in the response body, so a
-	// credential in it reaches view-source, the disk cache and any proxy that
-	// reads the document.
-	return tb.Reset().Str("set ").Join(args[:len(args)-1], " ").Byte(' ').Str(config.DisplayValueAtPath(mgr.schema, leafPath, value)).String()
+	return answer
 }
 
 // executeTerminalDelete handles the delete command in terminal mode.
@@ -911,9 +944,10 @@ func webCommitRequest(args []string) (contract.CommitRequest, error) {
 	return contract.ParseCommit(args)
 }
 
-// executeTerminalCommit handles the commit command in terminal mode.
-func executeTerminalCommit(mgr *EditorManager, username string, args []string) string {
-	answer, err := runWebCommit(mgr, username, args)
+// executeTerminalCommit handles the commit command in terminal mode, a
+// refusal's fixes framed for the operator's position (cmd.Operator).
+func executeTerminalCommit(mgr *EditorManager, username string, cmd cliCommand) string {
+	answer, err := runWebCommit(mgr, username, cmd.Args, cmd.Operator)
 	if err != nil {
 		var tb textbuf.Buffer
 		return tb.Str("error: ").Err(err).String()
@@ -927,14 +961,14 @@ func executeTerminalCommit(mgr *EditorManager, username string, args []string) s
 	return answer.message
 }
 
-// runWebCommit parses and runs one commit subcommand for the terminal and the
-// CLI bar alike.
-func runWebCommit(mgr *EditorManager, username string, args []string) (webCommitAnswer, error) {
+// runWebCommit parses and runs one commit subcommand for the terminal, its
+// refusal's fixes framed for operator, the position the commit was typed at.
+func runWebCommit(mgr *EditorManager, username string, args, operator []string) (webCommitAnswer, error) {
 	req, err := webCommitRequest(args)
 	if err != nil {
 		return webCommitAnswer{}, err
 	}
-	return mgr.runCommit(username, req)
+	return mgr.runCommit(username, req, operator)
 }
 
 // errDiscardPipe refuses `discard ... | <filter>`: discard prints no output a
@@ -1208,7 +1242,8 @@ func listEntryUsage(verb listEntryVerb) string {
 
 // execListEntryOp runs the web terminal's rename or copy: <path...>
 // <source address> to <destination address>, relative to contextPath.
-func execListEntryOp(schema *config.Schema, args, contextPath []string, verb listEntryVerb, op func(parent []string, list, src string, dst []string) error) ([]string, string) {
+// operator is the position a refusal's fix is framed for.
+func execListEntryOp(schema *config.Schema, args, contextPath, operator []string, verb listEntryVerb, op func(parent []string, list, src string, dst []string) error) ([]string, string) {
 	fullPath := append(append([]string{}, contextPath...), args...)
 	// The source address is read by the codec's one target walk, which the
 	// SSH editor and the web rename form call too; `to` must stand where it
@@ -1226,8 +1261,13 @@ func execListEntryOp(schema *config.Schema, args, contextPath []string, verb lis
 	}
 	dst := fullPath[target.End+1:]
 	if err := op(target.ParentPath, target.ListName, target.Address.Key, dst); err != nil {
+		// The destination key refused (config.ListEntryDestination): the fix
+		// is this rename or copy with that key corrected, framed for the
+		// operator's position, as the SSH editor's listEntryMove frames it
+		// (AC-26). Any other error keeps its own text.
+		framed := cli.FramedWordRefusal(err, verb.name, contextPath, args, target.End+1-len(contextPath), operator)
 		var tb textbuf.Buffer
-		return nil, tb.Str("error: ").Err(err).String()
+		return nil, tb.Str("error: ").Err(framed).String()
 	}
 	var tb textbuf.Buffer
 	return nil, tb.Str(verb.done).Byte(' ').Str(target.ListName).Byte(' ').

@@ -212,15 +212,35 @@ func TestModelCommitBlockedOnErrors(t *testing.T) {
 	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
-	// Commit should fail — status message reports the block, config stays in viewport
+	// Commit should fail. The header alone is on the status row, and the
+	// viewport carries the header then every issue, one block per issue with
+	// every line indented, the refusal's fix on a line of its own (Q-7 (a)).
 	result, err := model.cmdCommit()
 	require.NoError(t, err)
-	assert.Contains(t, result.statusMessage, "blocked")
-	assert.True(t, result.refreshConfig, "a refused commit asks for the config to be redrawn")
-	// The redraw happens when the result is applied, at the operator's
-	// position: the config stays visible, with the refused line in it.
+	header := "commit blocked: 1 error(s), 0 warning(s)"
+	assert.Equal(t, header, result.statusMessage, "the header alone on the status row")
 	model.applyResult(result)
-	assert.True(t, model.showingConfig, "config should stay visible on commit failure")
+	assert.False(t, model.showingConfig, "the issues replace the config view")
+	lines := strings.Split(strings.TrimRight(model.viewportContent, "\n"), "\n")
+	require.Greater(t, len(lines), 2)
+	assert.Equal(t, header, lines[0], "the header first in the viewport")
+	for _, line := range lines[1:] {
+		assert.True(t, strings.HasPrefix(line, "  "), "every issue line indented: %q", line)
+	}
+	assert.Contains(t, model.viewportContent, `bgp peer peer1 timer receive-hold-time: "2" is outside the accepted range`)
+	assert.Contains(t, lines, "  fix: set bgp peer peer1 timer receive-hold-time <0, 3..65535>")
+
+	// Nothing was applied: the file holds what it held, and the candidate
+	// still carries the refused value.
+	onDisk, err := os.ReadFile(configPath) //nolint:gosec // the test's own temp file
+	require.NoError(t, err)
+	assert.Equal(t, content, string(onDisk), "a refused commit writes nothing")
+	assert.Contains(t, ed.WorkingContent(), "receive-hold-time 2")
+
+	// The next command that redraws brings the config view back, with the
+	// refused line in it.
+	model.applyResult(commandResult{refreshConfig: true})
+	assert.True(t, model.showingConfig, "the config view is back on the next refresh")
 	assert.Contains(t, model.viewportContent, "receive-hold-time 2")
 }
 
@@ -1025,8 +1045,11 @@ func TestCommandModelHistoryPersistOnEnter(t *testing.T) {
 // TestTabOnListKeyShowsChildrenImmediately verifies that pressing Tab on a typed
 // list key value accepts it and immediately shows the next-level completions.
 //
-// VALIDATES: Tab on "set bgp peer 10.0.0.1" adds space and shows peer children.
+// VALIDATES: Tab on "set bgp peer peer2" adds space and shows peer children.
 // PREVENTS: User needing to press Tab twice — once to accept key, once to see children.
+// The key is one the creator accepts: completion judges a typed new key with
+// config.ValidateListKey, and a standalone peer name starts with a letter or
+// an underscore, so "10.0.0.1" is offered as an invalid key instead.
 func TestTabOnListKeyShowsChildrenImmediately(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
@@ -1042,8 +1065,8 @@ func TestTabOnListKeyShowsChildrenImmediately(t *testing.T) {
 	model.width = 80
 	model.height = 24
 
-	// Simulate typing "set bgp peer 10.0.0.1"
-	model.textInput.SetValue("set bgp peer 10.0.0.1")
+	// Simulate typing "set bgp peer peer2"
+	model.textInput.SetValue("set bgp peer peer2")
 	model.updateCompletions()
 
 	// Press Tab — should accept the key

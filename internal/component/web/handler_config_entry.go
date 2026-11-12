@@ -11,7 +11,9 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -182,18 +184,24 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		// produces e.g. "bgp peer lab-peer name lab-peer", which the hierarchical
 		// parser rejects as "unknown field in peer: name" (the key leaf is not a
 		// settable child of its own entry) -- the F8 add-peer commit failure.
+		//
+		// Every field is judged before the entry exists, so a refused value
+		// refuses the add whole, its refusal shown, rather than being dropped
+		// after the entry was created (Q-6).
+		for _, f := range fields {
+			if valErr := mgr.judgeValue(addFieldSetPath(path, f.parentSuffix), f.leaf, f.value); valErr != nil {
+				returnAddError(w, r, renderer, schema, mgr, username, listPath, refusalMessage(valErr))
+				return
+			}
+		}
+		// The creator judges the new entry's key (Q-8a).
 		if createErr := mgr.CreateEntry(username, path); createErr != nil {
 			var tb textbuf.Buffer
-			returnAddError(w, r, renderer, schema, mgr, username, listPath, tb.Str("create entry: ").Err(createErr).String())
+			returnAddError(w, r, renderer, schema, mgr, username, listPath, tb.Str("create entry: ").Str(refusalMessage(createErr)).String())
 			return
 		}
 		for _, f := range fields {
-			setPath := make([]string, len(path))
-			copy(setPath, path)
-			if f.parentSuffix != "" {
-				setPath = append(setPath, strings.Split(f.parentSuffix, "/")...)
-			}
-			if setErr := mgr.SetValue(username, setPath, f.leaf, f.value); setErr != nil {
+			if setErr := mgr.SetValue(username, addFieldSetPath(path, f.parentSuffix), f.leaf, f.value); setErr != nil {
 				serverLogger.Warn("add-entry set field failed", "field", f.fieldPath, "error", setErr)
 			}
 		}
@@ -341,7 +349,13 @@ func HandleConfigRenameWithAuthorizer(mgr *EditorManager, schema *config.Schema,
 			if strings.Contains(err.Error(), "already exists") {
 				status = http.StatusConflict
 			}
-			http.Error(w, err.Error(), status)
+			// A refused destination key (config.ListEntryDestination): the fix
+			// is the `rename` the form stands for, from the root (the form holds
+			// no editor position), with that key corrected, as the terminal's
+			// rename frames it. The rename overlay shows the body as it is.
+			typed := slices.Concat(parsed.Path, []string{"to"}, dst)
+			framed := cli.FramedWordRefusal(err, verbRename, nil, typed, len(parsed.Path)+1, nil)
+			http.Error(w, renameRefusal(framed, parsed.Path, dst).Error(), status)
 			return
 		}
 
@@ -568,4 +582,30 @@ func resolveInheritedValue(tree *config.Tree, field string) string {
 		current = child
 	}
 	return ""
+}
+
+// addFieldSetPath answers the container path an add-form field is set under:
+// the new entry's path, extended by the field's parent suffix (`timer/hold`
+// sets `hold` under `timer`). It copies, so no field writes into path.
+func addFieldSetPath(path []string, parentSuffix string) []string {
+	setPath := slices.Clone(path)
+	if parentSuffix != "" {
+		setPath = append(setPath, strings.Split(parentSuffix, "/")...)
+	}
+	return setPath
+}
+
+// renameRefusal answers the operator error a refused form rename is sent back
+// as. A refused destination key is one already, with its corrected `rename`
+// as the fix; any other refusal (the destination exists, the entry is gone)
+// gets the rename it refused and the form of the command that works.
+func renameRefusal(err error, entryPath, dst []string) *opererr.Error {
+	if refusal, ok := errors.AsType[*opererr.Error](err); ok {
+		return refusal
+	}
+	entry := strings.Join(entryPath, " ")
+	return opererr.Wrap(err,
+		"rename "+entry+" to "+strings.Join(dst, " ")+": the rename was refused",
+		err.Error(),
+		"rename "+entry+" to <a key this list does not hold>")
 }

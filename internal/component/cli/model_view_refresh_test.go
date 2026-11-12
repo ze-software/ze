@@ -20,8 +20,11 @@ import (
 // when no `top` emptied the copy's position.
 //
 // VALIDATES: AC-54, A-14, for the incidental sites a typed line reaches here:
-// set, delete, deactivate, activate, commit verify, discard all, option
-// errors hints and hide, load file (applyLoad).
+// set, delete, deactivate, activate, discard all, option errors hints and
+// hide, load file (applyLoad). `commit verify` with issues and a refused
+// commit are not incidental views: they show their issues in the viewport
+// (Q-7 a), which TestCommitVerifyShowsIssuesInTheViewport and
+// TestCommitFixUsesTopInsideAContext prove.
 // PREVENTS: an operator seeing a different view after a change with no `top`
 // once the sites stop building their own view.
 func TestIncidentalViewUnchangedWithoutTop(t *testing.T) {
@@ -40,13 +43,6 @@ func TestIncidentalViewUnchangedWithoutTop(t *testing.T) {
 		{
 			name: "activate", setup: []string{"deactivate bgp peer peer1 timer"},
 			atRoot: "activate bgp peer peer1 timer", inPeer: "activate timer",
-		},
-		{
-			// A peer with no remote ASN raises the warning TestCommitRefusal
-			// uses, so commit verify reaches its view rather than its
-			// "the candidate is valid" early answer.
-			name: "commit verify", setup: []string{"set bgp peer peer9 connection remote ip 9.9.9.9"},
-			atRoot: "commit verify", inPeer: "commit verify",
 		},
 		{
 			name: "discard all", setup: []string{"set bgp router-id 9.9.9.9"},

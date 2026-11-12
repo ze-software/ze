@@ -77,7 +77,7 @@ func TestSSHCLISetNeverEchoesASecret(t *testing.T) {
 		_, err := model.dispatchCommand(
 			"set ospf address-family ipv6 interfaces interface eth0 ipsec key " + typedCLISecret)
 		require.Error(t, err, "an OSPFv3 integrity key is hex, so this value must be refused")
-		require.Contains(t, err.Error(), "invalid value",
+		require.Contains(t, err.Error(), "is outside the accepted length",
 			"the refusal must be the value validator's, or this case proves nothing")
 		assert.NotContains(t, err.Error(), typedCLISecretTail, "the refusal published the tail of the value")
 		assert.Contains(t, err.Error(), config.SecretDataPlaceholder, "the refusal wrote no placeholder")

@@ -6,15 +6,11 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"net"
-	"slices"
-	"strconv"
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -107,88 +103,29 @@ func (c *Completer) getListKeyEntry(listPath []string) *gyang.Entry {
 	return keyLeaf
 }
 
-// validateLeafValue checks if a value is valid for a given YANG leaf type.
-// Returns true if the value passes type validation, false if it's clearly invalid.
-// Used to prevent Tab from accepting invalid list keys or set values.
-func validateLeafValue(entry *gyang.Entry, value string) bool {
-	if entry == nil || entry.Type == nil {
-		return true // No type info — accept anything
-	}
-	return validateYangType(entry.Type, value)
+// valueSchema answers the config schema over the completer's own module set
+// (config.SchemaOf), built once. The value and key checks judge with it, so a
+// completer built over another set (a test's probe module) finds that set's
+// nodes rather than the shipped schema's.
+func (c *Completer) valueSchema() (*config.Schema, error) {
+	c.valuesOnce.Do(func() {
+		c.values, c.valuesErr = config.SchemaOf(c.schema)
+	})
+	return c.values, c.valuesErr
 }
 
-// validateYangType checks a value against a resolved YANG type.
-// Types not explicitly handled are accepted (completer assists, validator enforces).
-func validateYangType(t *gyang.YangType, value string) bool {
-	if t == nil {
-		return true
-	}
-
-	// Completion checks selected types; authoritative validation handles the rest.
-	//exhaustive:ignore
-	switch t.Kind {
-	case gyang.Yunion:
-		// Union: valid if any member type accepts it
-		for _, member := range t.Type {
-			if validateYangType(member, value) {
-				return true
-			}
-		}
-		return false
-
-	case gyang.Ystring:
-		if len(t.Pattern) > 0 {
-			return validateStringPatterns(t, value)
-		}
-
-	case gyang.Yuint8:
-		return validateUintRange(value, 0, 255)
-	case gyang.Yuint16:
-		return validateUintRange(value, 0, 65535)
-	case gyang.Yuint32:
-		// An AS number leaf takes the asdot spellings beside the decimal one
-		// (asn.Parse). Every other uint32 leaf keeps rejecting a period.
-		if asn.IsTypedef(t.Name) {
-			_, err := asn.Parse(value)
-			return err == nil
-		}
-		return validateUintRange(value, 0, 4294967295)
-
-	case gyang.Ybool:
-		return value == boolTrue || value == boolFalse
-
-	case gyang.Yenum:
-		if t.Enum == nil {
-			return true
-		}
-		return slices.Contains(t.Enum.Names(), value)
-	}
-
-	return true // Unrecognized types accepted — completer is best-effort, validator is authoritative
-}
-
-// validateStringPatterns checks if a value could match any of the YANG patterns.
-// For IP address types specifically, uses net.ParseIP for robust validation.
-func validateStringPatterns(t *gyang.YangType, value string) bool {
-	// Check if any pattern looks like an IP address pattern.
-	// YANG ip-address typedef resolves to union of string-with-pattern types.
-	// Rather than implementing full regex (YANG uses XSD patterns, not Go regex),
-	// detect IP types by their pattern structure and use net.ParseIP.
-	for _, p := range t.Pattern {
-		if strings.Contains(p, "25[0-5]") || strings.Contains(p, "[0-9a-fA-F]") {
-			// IPv4 or IPv6 pattern — validate with net.ParseIP
-			return net.ParseIP(value) != nil
-		}
-	}
-	// Non-IP string patterns: accept (full XSD regex validation is complex)
-	return true
-}
-
-// validateUintRange validates a string as an unsigned integer within [min, max].
-func validateUintRange(value string, minVal, maxVal uint64) bool {
-	n, err := strconv.ParseUint(value, 10, 64)
+// keyRefusal answers the refusal of key as the first key of a new entry of
+// the list at listPath, by the check the creator applies (EnsureListEntry,
+// config.ValidateListKey), or nil when the list takes it. Completion offers a
+// typed key as a new entry only when the creator would accept it.
+func (c *Completer) keyRefusal(listPath []string, key string) error {
+	schema, err := c.valueSchema()
 	if err != nil {
-		return false
+		return err
 	}
-	return n >= minVal && n <= maxVal
+	list, isList := schema.LookupTokenPath(listPath).(*config.ListNode)
+	if !isList {
+		return fmt.Errorf("unknown list: %s", textbuf.Join(listPath, " "))
+	}
+	return config.ValidateListKey(list, listPath, key)
 }

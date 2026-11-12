@@ -2,7 +2,7 @@
 # VALIDATES: home-cpe-16d AC-1..AC-3 through the real config validation command.
 # PREVENTS: accepting an IPv6 link smaller than 1280, or rejecting IPv4-only 68.
 
-stdin=ipv4-low:refused=config-parse:terminator=EOF_LOW
+stdin=ipv4-low:refused=config-yang-range:terminator=EOF_LOW
 l2tp {
     mru 67;
     ncp { enable-ipv6cp false; }

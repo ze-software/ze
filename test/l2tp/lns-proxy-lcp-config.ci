@@ -15,7 +15,7 @@ EOF_RENEGOTIATE
 stdin=accept:terminator=EOF_ACCEPT
 l2tp { proxy-lcp accept; }
 EOF_ACCEPT
-stdin=unknown:refused=config-parse:terminator=EOF_UNKNOWN
+stdin=unknown:refused=config-yang-enum:terminator=EOF_UNKNOWN
 l2tp { proxy-lcp trust; }
 EOF_UNKNOWN
 

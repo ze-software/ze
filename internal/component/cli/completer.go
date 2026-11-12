@@ -59,6 +59,13 @@ type Completer struct {
 	// model declares, which is fixed once the loader resolves.
 	enumSummaries   map[*gyang.Entry]map[string]string
 	enumSummariesMu sync.Mutex
+
+	// values is the config schema over schema, the nodes the value and key
+	// checks judge with (valueSchema), built once on first use so a completer
+	// over its own module set judges with that set's nodes.
+	values     *config.Schema
+	valuesErr  error
+	valuesOnce sync.Once
 }
 
 // NewCompleter creates a completer over the resolved YANG schema of every
@@ -375,7 +382,10 @@ func (c *completion) completeSetPath(tokens, contextPath []string, endsWithSpace
 			listPath := make([]string, len(currentPath))
 			copy(listPath, currentPath)
 			keyEntry := c.getListKeyEntry(listPath)
-			if !validateLeafValue(keyEntry, token) {
+			// Only a new key is judged: a stored key is read back unjudged,
+			// as the lookup walk reads it, so an entry the tree holds is
+			// always navigable.
+			if keyEntry != nil && !c.holdsListKey(listPath, token) && c.keyRefusal(listPath, token) != nil {
 				listName := currentPath[len(currentPath)-1]
 				hint := c.TypeHint(keyEntry.Type)
 				return []Completion{{
@@ -725,6 +735,35 @@ func completeCommit(tokens []string, endsWithSpace bool) []Completion {
 	}, prefix)
 }
 
+// holdsListKey reports whether the call's tree holds an entry of the list at
+// listPath that token names: by its key's first value, or by the positional
+// id (#N) listKeyCompletions offers for an unnamed entry.
+func (c *completion) holdsListKey(listPath []string, token string) bool {
+	if c.tree == nil {
+		return false
+	}
+	tree := c.navigateTreeToPath(listPath[:len(listPath)-1])
+	if tree == nil {
+		return false
+	}
+	var keyLeaves []string
+	if listEntry := c.getEntry(listPath); listEntry != nil {
+		keyLeaves = strings.Fields(listEntry.Key)
+	}
+	for i, entry := range tree.GetListOrdered(listPath[len(listPath)-1]) {
+		if isDefaultKey(entry.Key) {
+			if token == textbuf.StrInt("#", int64(i+1)) {
+				return true
+			}
+			continue
+		}
+		if config.ListKeyFirstValue(keyLeaves, entry.Key) == token {
+			return true
+		}
+	}
+	return false
+}
+
 // listKeyCompletions returns completions for list keys.
 // contextPath is used to navigate to the correct container in the config tree.
 // Single-entry lists return nil (auto-selected, no key needed).
@@ -830,7 +869,7 @@ func (c *completion) listKeyCompletions(listName, prefix string, contextPath []s
 		// User typed a value that doesn't match any existing key —
 		// validate against YANG key type before offering as completion.
 		var tb textbuf.Buffer
-		if validateLeafValue(keyEntry, prefix) {
+		if keyEntry == nil || c.keyRefusal(listPath, prefix) == nil {
 			completions = append(completions, Completion{
 				Text:      prefix,
 				ShortHelp: tb.Str("New ").Str(listName).Str(" key").String(),
@@ -1748,9 +1787,22 @@ func (c *Completer) ValidateValueAtPath(path []string, value string) error {
 			return fmt.Errorf("%s is the list key (already set as the identifier)", path[len(path)-1])
 		}
 	}
-	if !validateLeafValue(entry, value) {
-		hint := c.TypeHint(entry.Type)
-		return fmt.Errorf("invalid value %q for %s (expected %s)", value, path[len(path)-1], hint)
+	// The value is judged by the checks the parsers apply, so a value refused
+	// here is one a file holding it would be refused for, and the refusal is
+	// the same operator error: the path as typed, the accepted values or
+	// bounds, and a root-form `set` fix a frame may replace (FramedSetRefusal).
+	schema, err := c.valueSchema()
+	if err != nil {
+		return err
 	}
-	return nil
+	err = config.ValidateNodeValue(schema.LookupTokenPath(path), path, value)
+	if err == nil {
+		return nil
+	}
+	if _, refused := valueRefusal(err); refused {
+		return err
+	}
+	// A type miss keeps the parser's own text, which names neither the leaf
+	// nor the type it takes: the path as typed and the type hint say both.
+	return fmt.Errorf("%s: %w (expected %s)", textbuf.Join(path, " "), err, c.TypeHint(entry.Type))
 }

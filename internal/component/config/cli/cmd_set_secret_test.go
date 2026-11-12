@@ -116,7 +116,7 @@ func TestConfigSetRefusalNeverEchoesASecret(t *testing.T) {
 	})
 
 	require.Equal(t, exitError, code, "the value must be refused, or this case proves nothing; stderr: %s", stderr)
-	require.Contains(t, stderr, "invalid value",
+	require.Contains(t, stderr, "is outside the accepted length",
 		"the refusal must be the value validator's, or this case proves nothing")
 	assert.NotContains(t, stderr, typedSecretTail, "the refusal published the tail of the value")
 	assert.Contains(t, stderr, config.SecretDataPlaceholder, "the refusal wrote no placeholder")

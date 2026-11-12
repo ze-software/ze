@@ -320,6 +320,25 @@ func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, *Sche
 	return tree, schema, nil
 }
 
+// ParseSetFormat parses a set or set-meta config as the loader does
+// (parseSetConfig) and answers the parser's own refusal, with no "parse
+// config" context: that segment is the loader's (parseConfigError), written
+// for daemon start and reload. `ze config validate` names the line and the
+// refusal alone, as it does for a hierarchical file, which it parses with
+// Parser.Parse directly. format MUST be FormatSet or FormatSetMeta, the
+// answer of DetectFormat for input.
+func ParseSetFormat(schema *Schema, input string, format ConfigFormat) (*Tree, error) {
+	switch format {
+	case FormatSet:
+		return parseSetConfig(schema, input, false)
+	case FormatSetMeta:
+		return parseSetConfig(schema, input, true)
+	case FormatHierarchical:
+		panic("BUG: ParseSetFormat called with a hierarchical config")
+	}
+	panic("BUG: ParseSetFormat called with an unknown config format")
+}
+
 // parseSetConfig parses set-format config and fails closed on every field the
 // schema does not know.
 //

@@ -5,6 +5,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -22,6 +23,7 @@ const (
 
 // Config key constants used in validation.
 const (
+	keyBGP   = "bgp"
 	keyPeer  = "peer"
 	keyGroup = "group"
 	keyName  = "name"
@@ -31,8 +33,45 @@ const (
 type ConfigValidationError struct {
 	Line     int    // 1-based line number (0 if unknown)
 	Column   int    // 1-based column (0 if unknown)
-	Message  string // Human-readable message
+	Message  string // Human-readable message, its fix written for the root
 	Severity string // severityError or severityWarning
+
+	// Fix is the editor command that resolves the issue, nil when the issue
+	// proposes none. Validation runs apart from navigation, so the issue
+	// holds the command typed, never a string: Message carries it in its root
+	// form at fixStart..fixEnd, and Text writes it for the operator's
+	// position when the issue is shown (FrameFix).
+	Fix      *FixCommand
+	fixStart int
+	fixEnd   int
+}
+
+// issueWithFix answers an issue whose Message is before, then fix as typed at
+// the root, then after.
+func issueWithFix(line int, severity, before string, fix FixCommand, after string) ConfigValidationError {
+	root := FrameFix(fix, nil)
+	var tb textbuf.Buffer
+	tb.Str(before).Str(root).Str(after)
+	return ConfigValidationError{
+		Line:     line,
+		Message:  tb.String(),
+		Severity: severity,
+		Fix:      &fix,
+		fixStart: len(before),
+		fixEnd:   len(before) + len(root),
+	}
+}
+
+// Text answers Message with its fix written as the operator types it at
+// operator, their position (FrameFix): Message itself at the root, and with
+// `top` in front of the fix inside a context. Every surface that shows an
+// issue to an operator at a position reads it here.
+func (e ConfigValidationError) Text(operator []string) string {
+	if e.Fix == nil {
+		return e.Message
+	}
+	var tb textbuf.Buffer
+	return tb.Str(e.Message[:e.fixStart]).Str(FrameFix(*e.Fix, operator)).Str(e.Message[e.fixEnd:]).String()
 }
 
 // ConfigValidationResult contains all validation errors and warnings.
@@ -310,6 +349,10 @@ func (v *ConfigValidator) validateCore(content string) (ConfigValidationResult, 
 
 // parseError converts a parser error to ConfigValidationError.
 func (v *ConfigValidator) parseError(err error) ConfigValidationError {
+	if refusal, isValue := valueRefusal(err); isValue {
+		line, _ := config.SplitLine(err)
+		return v.refusalIssue(line, refusal)
+	}
 	msg := err.Error()
 
 	// Extract line number from "line N: message" format
@@ -329,6 +372,42 @@ func (v *ConfigValidator) parseError(err error) ConfigValidationError {
 		Message:  msg,
 		Severity: severityError,
 	}
+}
+
+// refusalIssue answers the parser's refusal of a value in the candidate as an
+// issue whose fix is an editor command, never the file line the parser wrote
+// (a candidate is corrected at the editor prompt): `set <path> <correction>`,
+// or `delete <path> <member>` for a refused member of a leaf-list, which no
+// `set` replaces. The path is the one the parser named, from the root.
+func (v *ConfigValidator) refusalIssue(line int, refusal *yang.ValidationError) ConfigValidationError {
+	path := refusal.Segments()
+	fix := FixCommand{Verb: cmdSet, Args: append(slices.Clone(path), refusal.Correction())}
+	if holdsMembers(v.schema.LookupTokenPath(path)) {
+		member := refusal.Got
+		if refusal.Secret() {
+			member = config.SecretDataPlaceholder
+		}
+		fix = FixCommand{Verb: cmdDelete, Args: append(slices.Clone(path), member)}
+	}
+	root := FrameFix(fix, nil)
+	body := refusal.WithFix(root).Error()
+	before, found := strings.CutSuffix(body, root)
+	if !found {
+		// The operator error always ends with its fix; a body that does not
+		// is shown as it is, with no command to frame.
+		return ConfigValidationError{Line: line, Message: body, Severity: severityError}
+	}
+	return issueWithFix(line, severityError, before, fix, "")
+}
+
+// holdsMembers reports whether node is a leaf-list, whose refused value is
+// one member among others.
+func holdsMembers(node config.Node) bool {
+	switch node.(type) {
+	case *config.ValueOrArrayNode, *config.BracketLeafListNode:
+		return true
+	}
+	return false
 }
 
 // ValidateWithYANG validates the parsed tree using YANG constraints.
@@ -435,11 +514,8 @@ func (v *ConfigValidator) validatePeer(peerAddr, groupName string, peerTree, gro
 		if yangErrs[i].Type == yang.ErrTypeMissing {
 			severity = severityWarning
 		}
-		ve := ConfigValidationError{
-			Line:     findErrorLine(lines, peerAddr, field, yangErrs[i].Type),
-			Message:  formatPeerError(peerAddr, groupName, field, yangErrs[i]),
-			Severity: severity,
-		}
+		line := findErrorLine(lines, peerAddr, field, yangErrs[i].Type)
+		ve := v.peerIssue(line, severity, peerAddr, groupName, &yangErrs[i])
 		if severity == severityWarning {
 			*warns = append(*warns, ve)
 		} else {
@@ -455,21 +531,29 @@ func (v *ConfigValidator) validatePeer(peerAddr, groupName string, peerTree, gro
 			if hasResolvedValue(resolved, reqPath) || hasResolvedValue(bgpTree, reqPath) {
 				continue
 			}
-			fieldStr := textbuf.Join(reqPath, "/")
-			var tb textbuf.Buffer
-			if groupName == "" {
-				tb.Str("set bgp peer ").Str(peerAddr).Byte(' ').Join(reqPath, " ").Str(" <value>")
-			} else {
-				tb.Str("set bgp group ").Str(groupName).Str(" peer ").Str(peerAddr).Byte(' ').Join(reqPath, " ").Str(" <value>")
-			}
-			setHint := tb.String()
-			*warns = append(*warns, ConfigValidationError{
-				Line:     findDeepestParentLine(lines, peerAddr, reqPath, peerTree),
-				Message:  tb.Reset().Str("peer ").Str(peerAddr).Str(": missing required field \"").Str(fieldStr).Str("\" (").Str(setHint).Byte(')').String(),
-				Severity: severityWarning,
-			})
+			*warns = append(*warns, missingFieldIssue(findDeepestParentLine(lines, peerAddr, reqPath, peerTree),
+				peerAddr, groupName, reqPath))
 		}
 	}
+}
+
+// peerIssue answers the issue the walk's refusal yerr of a field under the
+// peer peerAddr (a member of groupName, or standalone when it is empty) is
+// shown as, at line. A missing mandatory field names the `set` that adds it
+// (missingFieldIssue). An enum, range, length or pattern refusal is the
+// schema's own, passed through with the peer it was found under in its path,
+// and its fix the `set` of that path (refusalIssue). Any other refusal keeps
+// the peer framing formatPeerError writes.
+func (v *ConfigValidator) peerIssue(line int, severity, peerAddr, groupName string, yerr *yang.ValidationError) ConfigValidationError {
+	if under, inPeer := missingUnderPeer(*yerr); inPeer {
+		return missingFieldIssue(line, peerAddr, groupName, strings.Split(under, config.PathSep))
+	}
+	if yerr.HoldsOperatorError() {
+		if under, inPeer := strings.CutPrefix(yerr.Path, peerYANGPath+config.PathSep); inPeer {
+			return v.refusalIssue(line, yerr.WithPath(peerFieldPath(peerAddr, groupName, strings.Split(under, config.PathSep))))
+		}
+	}
+	return ConfigValidationError{Line: line, Message: formatPeerError(peerAddr, yangLeafName(yerr.Path), *yerr), Severity: severity}
 }
 
 // peerListNode returns the ListNode for bgp > peer from the config schema.
@@ -601,33 +685,46 @@ const peerYANGPath = "bgp/peer"
 
 // formatPeerError formats a YANG validation error for a peer with clear, non-redundant messaging.
 //
-// A missing mandatory field names its path under the peer and the editor
-// command that sets it, in the editor's own spelling: words separated by
-// spaces, the peer's key after `peer`, and `group <name>` before it for a peer
-// inside a group. The walk's paths are slash-separated (validateContainerEntry),
-// so the hint is built from the path's segments, never by rewriting the path.
-func formatPeerError(peerAddr, groupName, field string, yerr yang.ValidationError) string {
+// A missing mandatory field under the peer is missingFieldIssue, which carries
+// the editor command that sets it; one outside the peer walk has no editor
+// form to propose, so it is named alone.
+func formatPeerError(peerAddr, field string, yerr yang.ValidationError) string {
 	var tb textbuf.Buffer
 	if yerr.Type == yang.ErrTypeMissing {
-		under, found := strings.CutPrefix(yerr.Path, peerYANGPath+config.PathSep)
-		if !found {
-			// A path outside the peer walk has no editor form to propose.
-			return tb.Str("peer ").Str(peerAddr).Str(": missing required field \"").Str(yerr.Path).Byte('"').String()
-		}
-		tb.Str("peer ").Str(peerAddr).Str(": missing required field \"").Str(under).Str("\" (set bgp ")
-		if groupName != "" {
-			tb.Str(keyGroup).Byte(' ').Str(groupName).Byte(' ')
-		}
-		return tb.Str(keyPeer).Byte(' ').Str(peerAddr).Byte(' ').
-			Str(strings.ReplaceAll(under, config.PathSep, " ")).Str(" <value>)").String()
-	}
-	if yerr.Type == yang.ErrTypeEnum {
-		if yerr.Expected != "" {
-			return tb.Str("peer ").Str(peerAddr).Str(": \"").Str(field).Str("\" must be one of: ").Str(yerr.Expected).Str(" (got \"").Str(yerr.Got).Str("\")").String()
-		}
-		return tb.Str("peer ").Str(peerAddr).Str(": \"").Str(field).Str("\" has invalid value \"").Str(yerr.Got).Byte('"').String()
+		return tb.Str("peer ").Str(peerAddr).Str(": missing required field \"").Str(yerr.Path).Byte('"').String()
 	}
 	return tb.Str("peer ").Str(peerAddr).Str(": \"").Str(field).Str("\" - ").Str(yerr.Message).String()
+}
+
+// missingUnderPeer answers the path under the peer of a missing mandatory
+// field the peer walk reported, and whether it lies under the peer, where the
+// editor has a command that sets it.
+func missingUnderPeer(yerr yang.ValidationError) (string, bool) {
+	if yerr.Type != yang.ErrTypeMissing {
+		return "", false
+	}
+	return strings.CutPrefix(yerr.Path, peerYANGPath+config.PathSep)
+}
+
+// missingFieldIssue answers the warning for a mandatory field under a peer
+// that holds no value, with the `set` that gives it one as a typed fix, so a
+// hint computed before an `edit` is written for the position it is read at
+// (Text): `set bgp [group <name>] peer <peer> <field> <value>` from the root.
+func missingFieldIssue(line int, peerAddr, groupName string, field []string) ConfigValidationError {
+	args := append(peerFieldPath(peerAddr, groupName, field), "<value>")
+	var tb textbuf.Buffer
+	tb.Str("peer ").Str(peerAddr).Str(": missing required field \"").Join(field, config.PathSep).Str("\" (")
+	return issueWithFix(line, severityWarning, tb.String(), FixCommand{Verb: cmdSet, Args: args}, ")")
+}
+
+// peerFieldPath answers the setting path of field under a peer, from the
+// root: `bgp [group <name>] peer <peer> <field...>`.
+func peerFieldPath(peerAddr, groupName string, field []string) []string {
+	path := []string{keyBGP}
+	if groupName != "" {
+		path = append(path, keyGroup, groupName)
+	}
+	return append(append(path, keyPeer, peerAddr), field...)
 }
 
 // findErrorLine returns the source line for a YANG error.

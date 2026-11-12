@@ -34,6 +34,33 @@ func ValidateLeafValue(node *LeafNode, path []string, value string) error {
 	return validateLeafRestrictions(node, leafSubject(node, path, lastWord(path), value))
 }
 
+// ValidateNodeValue judges value typed at path for the leaf or leaf-list node
+// at path, with the checks the parsers apply: a leaf by its own restrictions
+// (ValidateLeafValue, union arm included), each member of a leaf-list node by
+// its member leaf (validateMembers). The set surfaces call it, so a value is
+// refused at set exactly where a file holding it would be refused. A presence
+// container, a flex node, a freeform node and an inline list carry no value
+// restriction, so there is nothing here to judge: whether such a node may be
+// set, and to what, is the editor's own verdict, as it was before this check
+// existed (`set firewall ... then accept true` sets a presence container). A
+// path the schema does not resolve refuses, because no check can answer for it.
+func ValidateNodeValue(node Node, path []string, value string) error {
+	switch n := node.(type) {
+	case *LeafNode:
+		return ValidateLeafValue(n, path, value)
+	case *ValueOrArrayNode:
+		return validateMembers(n.memberLeaf(), path, inlineValueItems(value))
+	case *MultiLeafNode:
+		return validateMembers(n.memberLeaf(), path, inlineValueItems(value))
+	case *BracketLeafListNode:
+		return validateMembers(n.memberLeaf(), path, inlineValueItems(value))
+	case *ContainerNode, *FlexNode, *FreeformNode, *InlineListNode, *ListNode:
+		// refuse-by-default: guards ValidateLeafValue -- these kinds hold no leaf restriction, so the leaf checks have no verdict to give and the editor's own set decides
+		return nil
+	}
+	return fmt.Errorf("%s holds no value", lastWord(path))
+}
+
 // ValidateListKey validates a list key against the restrictions of the
 // list's first key leaf. listPath is the setting path of the list, ending
 // with its name; the refusal names it followed by the key, and its why names

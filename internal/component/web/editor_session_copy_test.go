@@ -145,10 +145,10 @@ func TestWebTerminalListEntryOpWording(t *testing.T) {
 	args := []string{"bgp", "peer", "a", "to", "b"}
 	schema, _ := buildTestSchemaAndTree()
 
-	_, copied := execListEntryOp(schema, args, nil, listEntryCopy, ok)
+	_, copied := execListEntryOp(schema, args, nil, nil, listEntryCopy, ok)
 	assert.Equal(t, "Copied peer a to b", copied)
 
-	_, renamed := execListEntryOp(schema, args, nil, listEntryRename, ok)
+	_, renamed := execListEntryOp(schema, args, nil, nil, listEntryRename, ok)
 	assert.Equal(t, "Renamed peer a to b", renamed)
 }
 

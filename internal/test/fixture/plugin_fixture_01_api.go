@@ -206,6 +206,107 @@ func plugin01APIConfigCommitReject(ctx context.Context, plugin *sdk.Plugin) erro
 	return nil
 }
 
+// plugin01RESTRefusal answers the error text of a REST call the daemon must
+// refuse with HTTP 400, decoded from the JSON envelope, or an error naming
+// what the call answered instead.
+func plugin01RESTRefusal(ctx context.Context, method, path string, body any) (string, error) {
+	_, err := plugin01REST(ctx, method, path, body)
+	if err == nil {
+		return "", fmt.Errorf("%s %s was accepted, a refusal was expected", method, path)
+	}
+	var httpErr *plugin01HTTPError
+	if !errors.As(err, &httpErr) {
+		return "", err
+	}
+	if httpErr.status != http.StatusBadRequest {
+		return "", fmt.Errorf("%s %s answered HTTP %d, want 400: %s", method, path, httpErr.status, httpErr.body)
+	}
+	var envelope struct {
+		Error string `json:"error"`
+	}
+	if decodeErr := json.Unmarshal(httpErr.body, &envelope); decodeErr != nil {
+		return "", fmt.Errorf("%s %s refusal is not the JSON envelope: %w: %s", method, path, decodeErr, httpErr.body)
+	}
+	return envelope.Error, nil
+}
+
+// plugin01RefusalHolds answers an error naming the first of want the refusal
+// text does not hold, or the first of banned it holds.
+func plugin01RefusalHolds(label, text string, want, banned []string) error {
+	for _, piece := range want {
+		if !strings.Contains(text, piece) {
+			return fmt.Errorf("%s refusal lacks %q: %q", label, piece, text)
+		}
+	}
+	for _, piece := range banned {
+		if strings.Contains(text, piece) {
+			return fmt.Errorf("%s refusal holds %q: %q", label, piece, text)
+		}
+	}
+	return nil
+}
+
+// plugin01APIConfigEnumRefusal drives a REST config session through the two
+// refusals a session meets (spec-config-enum-refusal-proposes-valid-values):
+// a list key outside its enumeration, refused at set (AC-43), and a value
+// outside an enumeration, refused at commit (AC-8). Each answers HTTP 400
+// with the shared refusal text, whose fix is the root `set` form.
+func plugin01APIConfigEnumRefusal(ctx context.Context, plugin *sdk.Plugin) error {
+	if !Poll(ctx, 20, 500*time.Millisecond, func() bool {
+		return plugin01RESTReady(ctx)
+	}) {
+		return errors.New("REST API did not respond")
+	}
+	created, err := plugin01REST(ctx, http.MethodPost, "/config/sessions", nil)
+	if err != nil {
+		return err
+	}
+	sessionID, _ := created["session-id"].(string)
+	if sessionID == "" {
+		return fmt.Errorf("create session response=%v", created)
+	}
+	session := "/config/sessions/" + sessionID
+
+	keyText, err := plugin01RESTRefusal(ctx, http.MethodPut, session,
+		map[string]string{fieldPath: "ospf.redistribute.bogus.nssa-propagate", fieldValue: "true"})
+	if err != nil {
+		return err
+	}
+	if err := plugin01RefusalHolds("key", keyText,
+		[]string{`"bogus" is not an accepted value`, "fix: set ospf redistribute <connected|static|kernel|bgp|isis>"},
+		[]string{"line "}); err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stderr, "OK: REST session set refused the list key bogus with HTTP 400 and the set fix")
+
+	if _, err := plugin01REST(ctx, http.MethodPut, session,
+		map[string]string{fieldPath: "bgp.peer.peer1.session.capability.route-refresh", fieldValue: "requre"}); err != nil {
+		return err
+	}
+	valueText, err := plugin01RESTRefusal(ctx, http.MethodPost, session+"/commit", nil)
+	if err != nil {
+		return err
+	}
+	if err := plugin01RefusalHolds("commit", valueText,
+		[]string{
+			`bgp peer peer1 session capability route-refresh: "requre" is not an accepted value`,
+			"route-refresh accepts only these values:",
+			"fix: set bgp peer peer1 session capability route-refresh require",
+		},
+		[]string{"line ", "route-refresh require;"}); err != nil {
+		return err
+	}
+	if !strings.HasSuffix(strings.TrimRight(valueText, "\n"), "fix: set bgp peer peer1 session capability route-refresh require") {
+		return fmt.Errorf("commit refusal does not end with its fix: %q", valueText)
+	}
+	fmt.Fprintln(os.Stderr, "OK: REST session commit refused route-refresh requre with HTTP 400 and the set fix last")
+
+	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
+		return err
+	}
+	return nil
+}
+
 func plugin01APIDoctorProvider(ctx context.Context, _ []string) error {
 	plugin, err := newObserver("doctor-provider")
 	if err != nil {

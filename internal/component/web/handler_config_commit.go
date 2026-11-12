@@ -124,7 +124,8 @@ type commitModalData struct {
 // assuming it keeps the answer correct if those two commands ever differ.
 func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager, renderer *Renderer, username string, broker *EventBroker, authorizer aaa.Authorizer, recorder audit.Recorder) {
 	detail := mgr.Diff(username)
-	answer, err := mgr.runCommit(username, contract.CommitRequest{Action: contract.CommitNow})
+	// The modal holds no editor position, so a refusal's fixes are the root form.
+	answer, err := mgr.runCommit(username, contract.CommitRequest{Action: contract.CommitNow}, nil)
 	if err != nil {
 		writeCommitFailure(w, r, mgr, renderer, username, err.Error())
 		return

@@ -628,8 +628,10 @@ func TestValidateConfigNamesABadArgumentCount(t *testing.T) {
 // TestValidateNamesParseLineOnce verifies a parse refusal's line is held in
 // the diagnostic's field and nowhere in its message, for both file formats.
 //
-// VALIDATES: the operator reads the line number once, and a set-format file's
-// "parse config" once (spec-operator-errors-name-the-fix AC-5).
+// VALIDATES: the operator reads the line number once, and no "parse config"
+// on either format: that segment is the loader's, for daemon start and
+// reload (spec-operator-errors-name-the-fix AC-5,
+// spec-config-enum-refusal-proposes-valid-values AC-24).
 // PREVENTS: "line 18: line 18: ..." (every parse error until 2026-10-11) and
 // "line 1: parse config: line 1: ..." (a set-format file until this spec).
 func TestValidateNamesParseLineOnce(t *testing.T) {
@@ -639,7 +641,7 @@ func TestValidateNamesParseLineOnce(t *testing.T) {
 		line    int
 		message string
 	}{
-		{"set format", "set zzqqxx 1\n", 1, "parse config: config contains fields unknown to this build\n"},
+		{"set format", "set zzqqxx 1\n", 1, "config contains fields unknown to this build\n"},
 		{"stray brace", "system {\n}\n}\n", 3, "this '}' closes no section\n" +
 			"every '}' ends a block that a '{' before it opened, and no block is open at this point\n" +
 			"fix: delete this '}'"},
@@ -654,6 +656,6 @@ func TestValidateNamesParseLineOnce(t *testing.T) {
 		assert.Equal(t, tt.line, d.Line, "%s: line", tt.name)
 		assert.True(t, strings.HasPrefix(d.Message, tt.message), "%s: message %q does not open with %q", tt.name, d.Message, tt.message)
 		assert.NotContains(t, d.Message, "line ", "%s: message names a line", tt.name)
-		assert.LessOrEqual(t, strings.Count(d.Message, "parse config"), 1, "%s: parse config repeated", tt.name)
+		assert.NotContains(t, d.Message, "parse config", "%s: the loader's context is daemon start's, not validate's", tt.name)
 	}
 }

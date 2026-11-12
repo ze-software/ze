@@ -8,9 +8,11 @@
 package web
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/ze-software/ze/internal/core/errorfragment"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -56,4 +58,18 @@ func WriteOOBError(w http.ResponseWriter, renderer *Renderer, path, message stri
 	if _, err := w.Write([]byte(html)); err != nil {
 		return // client disconnected
 	}
+}
+
+// refusalMessage answers the text a web notice shows for err. An operator
+// error, found through errors.As under any wrap (a schema refusal holds one),
+// is shown as itself: the problem, the why (with its cause), and
+// `fix: <command>` alone on the last line, so a layer's wording around it
+// never splits the fix off the end. Any other error shows its own text. The
+// notice renders the lines intact (white-space in style.css).
+func refusalMessage(err error) string {
+	var refusal *opererr.Error
+	if !errors.As(err, &refusal) {
+		return err.Error()
+	}
+	return refusal.Error()
 }

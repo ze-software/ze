@@ -603,7 +603,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case errorMsg:
-		m.err = msg.err
+		m.setError(msg.err)
 		return m, nil
 
 	case outputMsg:
@@ -678,7 +678,7 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	if msg.err != nil {
-		m.err = msg.err
+		m.setError(msg.err)
 		m.statusMessage = "" // Clear status on error
 		return m, complete
 	}

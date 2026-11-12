@@ -63,25 +63,12 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 	// per-keystroke answer, and using it here let a config the daemon refuses
 	// reach .conf and fail one step later at reload.
 	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
-	if force {
-		// Force mode: only errors block, warnings are skipped.
-		if len(result.Errors) > 0 {
-			return commandResult{}, fmt.Errorf("cannot commit: %s", formatValidationErrors(result.Errors))
-		}
-	} else {
-		// Normal mode: both errors and warnings block.
-		issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
-		issues = append(issues, result.Errors...)
-		issues = append(issues, result.Warnings...)
-		if len(issues) > 0 {
-			var b textbuf.Buffer
-			b.Str("cannot commit: ").Str(formatValidationErrors(issues))
-			if len(result.Errors) == 0 {
-				b.Str("\n'").Str(contract.ForcedCommand(contract.CommitRequest{Action: contract.CommitConfirmed, Seconds: seconds})).
-					Str("' commits over the warnings")
-			}
-			return commandResult{}, errors.New(b.String())
-		}
+	forced := contract.ForcedCommand(contract.CommitRequest{Action: contract.CommitConfirmed, Seconds: seconds})
+	// The refusal is CommitRefusal's, which `commit now` gives too; it is the
+	// command's error, so the issues reach the viewport and the header the
+	// feedback row (setError).
+	if refusal, blocked := CommitRefusal(result, force, forced, m.operatorPosition()); blocked {
+		return commandResult{}, errors.New(refusal)
 	}
 
 	// The auto-revert restores .conf from the backup this commit records in
@@ -242,7 +229,7 @@ func (m Model) handleConfirmCountdown() (tea.Model, tea.Cmd) {
 		// Timeout — auto-revert
 		result, err := m.rollbackConfirmed()
 		if err != nil {
-			m.err = err
+			m.setError(err)
 		}
 		m.applyResult(result)
 		m.statusMessage = contract.CommitTimedOut

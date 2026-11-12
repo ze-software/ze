@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -44,28 +45,6 @@ func (m *Model) cmdHistory() (commandResult, error) {
 		b.Int(int64(i + 1)).Str(". ").Str(backup.Timestamp.Format("2006-01-02 15:04:05")).Str("  ").Str(backup.Path).Byte('\n')
 	}
 	return commandResult{output: b.String()}, nil
-}
-
-// formatValidationErrors formats a slice of validation errors into a human-readable string.
-func formatValidationErrors(errs []ConfigValidationError) string {
-	if len(errs) == 1 {
-		e := errs[0]
-		if e.Line > 0 {
-			var b textbuf.Buffer
-			return b.Reset().Str("line ").Int(int64(e.Line)).Str(": ").Str(e.Message).String()
-		}
-		return e.Message
-	}
-	var b textbuf.Buffer
-	b.Int(int64(len(errs))).Str(" validation error(s):")
-	for _, e := range errs {
-		if e.Line > 0 {
-			b.Str("\n  line ").Int(int64(e.Line)).Str(": ").Str(e.Message)
-		} else {
-			b.Str("\n  ").Str(e.Message)
-		}
-	}
-	return b.String()
 }
 
 func (m *Model) cmdRollback(args []string) (commandResult, error) {
@@ -213,40 +192,69 @@ func (m *Model) cmdCommitVerify() (commandResult, error) {
 	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
 	issues = append(issues, result.Errors...)
 	issues = append(issues, result.Warnings...)
-	var b textbuf.Buffer
-	b.Str("commit verify: nothing was applied; ").Int(int64(len(result.Errors))).Str(" error(s), ").
-		Int(int64(len(result.Warnings))).Str(" warning(s): ")
-	appendIssueSummary(&b, issues)
-	return commandResult{statusMessage: b.String(), refreshConfig: true}, nil
+	var header textbuf.Buffer
+	header.Str("commit verify: nothing was applied; ").Int(int64(len(result.Errors))).Str(" error(s), ").
+		Int(int64(len(result.Warnings))).Str(" warning(s)")
+	return issuesInViewport(header.String(), issues, m.operatorPosition()), nil
 }
 
-// commitValidationRefusal is CommitRefusal as this session's status, with the
-// config kept in the viewport with its issue markers.
+// issuesInViewport answers a refusal or a report of issues as the conflicts
+// refusal is shown (Q-7 a): the header alone on the status row, and the
+// header then every issue in the viewport, since an issue holds several lines
+// (problem, why, fix) the status row cannot.
+func issuesInViewport(header string, issues []ConfigValidationError, operator []string) commandResult {
+	var b textbuf.Buffer
+	b.Str(header)
+	appendIssueSummary(&b, issues, operator)
+	return commandResult{statusMessage: header, output: b.Byte('\n').String()}
+}
+
+// commitValidationRefusal is CommitRefusal as this session shows it: the
+// header on the status row, the header and every issue in the viewport, each
+// fix written for the operator's position (operatorPosition).
 func (m *Model) commitValidationRefusal(result ConfigValidationResult, force bool, forced string) (commandResult, bool) {
-	refusal, blocked := CommitRefusal(result, force, forced)
+	issues, blocked := blockingIssues(result, force)
 	if !blocked {
 		return commandResult{}, false
 	}
-	return commandResult{statusMessage: refusal, refreshConfig: true}, true
+	return issuesInViewport(commitRefusalHeader(result, issues, force, forced), issues, m.operatorPosition()), true
 }
 
-// CommitRefusal answers whether validation blocks a commit, and the line that
-// says why: every error blocks, and a warning blocks unless force. The line
-// counts what blocks, names forced (the command that commits over the
-// warnings) when only warnings block (AC-12), then lists every blocking issue,
-// the list `commit verify` gives. The hint comes before the list, so a status
-// line the terminal cuts short still carries it. Every editor that refuses a
-// commit over validation words it here: the SSH and file-mode Model and the
-// web terminal (AC-29).
-func CommitRefusal(result ConfigValidationResult, force bool, forced string) (string, bool) {
+// CommitRefusal answers whether validation blocks a commit, and the text that
+// says why: every error blocks, and a warning blocks unless force. The header
+// counts what blocks and names forced (the command that commits over the
+// warnings) when only warnings block (AC-12); then every blocking issue
+// follows on its own lines, the list `commit verify` gives, each fix written
+// for operator, the position the operator commits at (FrameFix). The hint is
+// on the header, so a surface that shows one line still carries it. Every
+// editor that refuses a commit over validation words it here: the SSH and
+// file-mode Model and the web terminal (AC-29).
+func CommitRefusal(result ConfigValidationResult, force bool, forced string, operator []string) (string, bool) {
+	issues, blocked := blockingIssues(result, force)
+	if !blocked {
+		return "", false
+	}
+	var b textbuf.Buffer
+	b.Str(commitRefusalHeader(result, issues, force, forced))
+	appendIssueSummary(&b, issues, operator)
+	return b.String(), true
+}
+
+// blockingIssues answers the issues that block a commit, every error and,
+// unless force, every warning, and whether any does.
+func blockingIssues(result ConfigValidationResult, force bool) ([]ConfigValidationError, bool) {
 	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
 	issues = append(issues, result.Errors...)
 	if !force {
 		issues = append(issues, result.Warnings...)
 	}
-	if len(issues) == 0 {
-		return "", false
-	}
+	blocked := len(issues) > 0
+	return issues, blocked
+}
+
+// commitRefusalHeader is the first line of a commit refusal: the counts and
+// how force acts on them.
+func commitRefusalHeader(result ConfigValidationResult, issues []ConfigValidationError, force bool, forced string) string {
 	var b textbuf.Buffer
 	b.Str("commit blocked: ").Int(int64(len(result.Errors))).Str(" error(s), ").
 		Int(int64(len(issues) - len(result.Errors))).Str(" warning(s)")
@@ -256,22 +264,20 @@ func CommitRefusal(result ConfigValidationResult, force bool, forced string) (st
 	case len(result.Errors) == 0:
 		b.Str("; '").Str(forced).Str("' commits over the warnings")
 	}
-	b.Str(": ")
-	appendIssueSummary(&b, issues)
-	return b.String(), true
+	return b.String()
 }
 
-// appendIssueSummary writes issues on one line, each as formatIssueList
-// words it, separated by "; ".
-func appendIssueSummary(b *textbuf.Buffer, issues []ConfigValidationError) {
-	for i, e := range issues {
-		if i > 0 {
-			b.Str("; ")
-		}
+// appendIssueSummary writes each issue after a newline as a block whose every
+// line is indented two spaces, the line it sits at first, its fix written
+// for operator (ConfigValidationError.Text). An issue's own fix line ends its
+// block, so the blocks need no separator.
+func appendIssueSummary(b *textbuf.Buffer, issues []ConfigValidationError, operator []string) {
+	for _, e := range issues {
+		b.Str("\n  ")
 		if e.Line > 0 {
 			b.Str("line ").Int(int64(e.Line)).Str(": ")
 		}
-		b.Str(e.Message)
+		b.Str(strings.ReplaceAll(e.Text(operator), "\n", "\n  "))
 	}
 }
 
@@ -598,7 +604,7 @@ func (m *Model) cmdErrors(_ []string) (commandResult, error) { //nolint:unparam 
 
 	var parts []string
 	if len(issues) > 0 {
-		parts = append(parts, formatIssueList(issues))
+		parts = append(parts, formatIssueList(issues, m.operatorPosition()))
 	}
 	if len(m.reloadErrors) > 0 {
 		parts = append(parts, "Reload errors:")
@@ -610,19 +616,14 @@ func (m *Model) cmdErrors(_ []string) (commandResult, error) { //nolint:unparam 
 	return commandResult{output: textbuf.Join(parts, "\n")}, nil
 }
 
-// formatIssueList formats validation issues for viewport display.
-// Used by both cmdErrors and cmdCommit failure output.
-func formatIssueList(issues []ConfigValidationError) string {
+// formatIssueList formats validation issues for viewport display, each as a
+// block CommitRefusal also writes (appendIssueSummary), its fix written for
+// operator. Used by `show | errors`.
+func formatIssueList(issues []ConfigValidationError, operator []string) string {
 	var b textbuf.Buffer
-	b.Int(int64(len(issues))).Str(" issue(s):\n")
-	for _, e := range issues {
-		if e.Line > 0 {
-			b.Str("  line ").Int(int64(e.Line)).Str(": ").Str(e.Message).Byte('\n')
-		} else {
-			b.Str("  ").Str(e.Message).Byte('\n')
-		}
-	}
-	return b.String()
+	b.Int(int64(len(issues))).Str(" issue(s):")
+	appendIssueSummary(&b, issues, operator)
+	return b.Byte('\n').String()
 }
 
 // commitConflictsText renders the conflicts that refused a session commit:

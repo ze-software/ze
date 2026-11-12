@@ -46,7 +46,7 @@ environment {
 }
 EOF_UNDECLARED
 
-stdin=at:refused=config-parse:terminator=EOF_AT
+stdin=at:refused=config-yang-pattern:terminator=EOF_AT
 l2tp {
     enabled true;
     remote lns-a { address 203.0.113.10; }
@@ -57,7 +57,7 @@ environment {
 }
 EOF_AT
 
-stdin=long:refused=config-parse:terminator=EOF_LONG
+stdin=long:refused=config-yang-length:terminator=EOF_LONG
 l2tp {
     enabled true;
     remote lns-a { address 203.0.113.10; }

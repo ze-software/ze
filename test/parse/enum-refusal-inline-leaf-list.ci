@@ -1,0 +1,78 @@
+# Test: enum-refusal-inline-leaf-list
+#
+# QUESTION: does `ze config validate` refuse a leaf-list member outside the
+# enumeration, written alone or inside a bracket, with the enum refusal for
+# that member: the full path named once, the values with help in declared
+# order, and the file-form fix, never `(valid: ...)`?
+# A unit test drives storeValueOrArray over a test schema; this proves the
+# shipped YANG leaf-list reaches the same arm through the real entry point.
+#
+# Leaf: ospf router-information scope, a YANG leaf-list of an enumeration
+#   (internal/plugins/ospf/yang/ze-ospf-conf.yang: link, area, as, each with a
+#   ze:help). A leaf-list with no ze:syntax is a ValueOrArrayNode, so both the
+#   single-value and the bracket spelling end in storeValueOrArray
+#   (internal/component/config/parser_list.go), whose fix is `scope <...>;`.
+#
+# No shipped leaf is an enum-typed inline-list child, MultiLeafNode,
+# BracketLeafListNode or freeform attribute: those arms are proven on the test
+# schema by TestInlineLeafListEnumRefusal and TestEveryValueArmNamesTheFullPath
+# (internal/component/config/value_refusal_test.go).
+#
+# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-5 (the shipped
+#   leaf-list arms), with the accepted control.
+# PREVENTS: `(valid: link, area, as)`, `invalid enum`, a refusal naming the
+#   leaf-list without its path, or one with no fix line.
+
+stdin=single:terminator=EOF_SINGLE
+ospf {
+	router-id 10.0.0.1
+	router-information {
+		scope bogus
+	}
+}
+EOF_SINGLE
+
+stdin=bracket:terminator=EOF_BRACKET
+ospf {
+	router-id 10.0.0.1
+	router-information {
+		scope [ link bogus ]
+	}
+}
+EOF_BRACKET
+
+stdin=accepted:terminator=EOF_ACCEPTED
+ospf {
+	router-id 10.0.0.1
+	router-information {
+		scope [ link area ]
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+}
+EOF_ACCEPTED
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=single
+expect=exit:code=1
+expect=stdout:contains=line 4: ospf router-information scope: "bogus" is not an accepted value
+expect=stdout:pattern=scope accepts only these values:\n +link  Link-local \(OSPFv2 opaque type 9\)\.\n +area  Area \(OSPFv2 opaque type 10, OSPFv3 0xA00C\)\.\n +as    AS-wide \(OSPFv2 opaque type 11, OSPFv3 0xC00C\)\.\n *fix: scope <link\|area\|as>;
+reject=stdout:contains=(valid:
+reject=stdout:contains=invalid enum
+reject=stdout:contains=expected one of
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=bracket
+expect=exit:code=1
+expect=stdout:contains=line 4: ospf router-information scope: "bogus" is not an accepted value
+expect=stdout:pattern=scope accepts only these values:\n +link  Link-local
+expect=stdout:contains=fix: scope <link|area|as>;
+reject=stdout:contains=(valid:
+reject=stdout:contains=invalid enum
+reject=stdout:contains=expected one of
+
+# The control declares an area, as the committed OSPF parse configs do
+# (test/parse/redistribute-tag-filter.ci), so only the scope members decide it.
+cmd=foreground:seq=3:exec=ze config validate -:stdin=accepted
+expect=exit:code=0
+reject=stdout:contains=is not an accepted value

@@ -724,7 +724,9 @@ func TestSetCommandRejectsInvalidValue(t *testing.T) {
 	// Set receive-hold-time to invalid string — should fail
 	_, err = model.dispatchCommand("set timer receive-hold-time abc")
 	require.Error(t, err, "should reject non-numeric receive-hold-time")
-	assert.Contains(t, err.Error(), "invalid value")
+	// The type refusal keeps the parser's text, named by the path as typed.
+	assert.Contains(t, err.Error(), `bgp peer peer1 timer receive-hold-time: invalid uint16: "abc"`)
+	assert.NotContains(t, ed.WorkingContent(), "receive-hold-time abc", "a refused value is not stored")
 
 	// Set receive-hold-time to valid value — should succeed
 	_, err = model.dispatchCommand("set timer receive-hold-time 180")
@@ -2798,7 +2800,7 @@ system {
 	// before it reaches the tree.
 	_, err = model.cmdInsert([]string{"system", "name-server", "not-an-ip", "last"})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid value")
+	assert.Contains(t, err.Error(), `system name-server: invalid IP: "not-an-ip"`)
 	assert.NotContains(t, ed.WorkingContent(), "not-an-ip")
 
 	// A valid IP is accepted at the requested position.
@@ -3137,8 +3139,39 @@ func TestSetCLIFormatInvalid(t *testing.T) {
 	m := modelWithSchema(t)
 	ok := handleSetCLIFormat("set cli format bogus", m)
 	assert.True(t, ok, "should handle set cli format")
-	assert.Contains(t, m.statusMessage, "invalid format")
-	assert.Contains(t, m.statusMessage, "valid: json, ndjson, table, text, yaml")
+	require.Error(t, m.err, "the value is refused")
+	assert.Contains(t, m.err.Error(), `cli format: "bogus" is not an accepted value`)
+	assert.Contains(t, m.err.Error(), "\nformat accepts only these values:\n")
+	assert.NotContains(t, m.err.Error(), "(valid: ")
+}
+
+// TestCliFormatRefusalUsesSharedBody proves `set cli format` refuses with the
+// shared refusal: every format on its own line in declared order, and the
+// fix the command itself, with the alternation in declared order.
+//
+// VALIDATES: AC-20 -- the Set frame, path `cli format`, values in declared
+// order with help, `fix: set cli format <text|table|json|yaml|ndjson>`; the
+// whole refusal in the viewport; completion keeps sorted order.
+// PREVENTS: the one-line `invalid format: x (valid: ...)` in success color.
+func TestCliFormatRefusalUsesSharedBody(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	m := modelWithSchema(t)
+	require.True(t, handleSetCLIFormat("set cli format bogus", m))
+	require.Error(t, m.err)
+	text := m.err.Error()
+	lines := strings.Split(text, "\n")
+	assert.Equal(t, "fix: set cli format <text|table|json|yaml|ndjson>", lines[len(lines)-1])
+	order := []string{"text", "table", "json", "yaml", "ndjson"}
+	at := -1
+	for _, name := range order {
+		next := strings.Index(text, "\n  "+name)
+		require.Greater(t, next, at, "%s is listed after the formats declared before it", name)
+		at = next
+	}
+	assert.Contains(t, m.viewportContent, lines[len(lines)-1], "the whole refusal is in the viewport")
+	assert.Equal(t, []string{"json", "ndjson", "table", "text", "yaml"}, m.cliFormatNames(), "completion keeps sorted order")
 }
 
 // TestSetCLIFormatShow verifies `set cli format` (no value) shows current setting.

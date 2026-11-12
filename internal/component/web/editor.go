@@ -8,6 +8,7 @@ package web
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -156,6 +157,8 @@ func (m *EditorManager) CreateEntry(username string, path []string) error {
 }
 
 // SetValue sets a leaf value at the given path in the user's working tree.
+// The value is judged first (judgeValue), so every web surface that sets a
+// value refuses at set what a commit would refuse (Q-6).
 func (m *EditorManager) SetValue(username string, path []string, key, value string) error {
 	// Never write the display placeholder back onto a secret leaf: the web form
 	// prefills one with SecretDataPlaceholder (secret.go), so submitting the
@@ -165,6 +168,9 @@ func (m *EditorManager) SetValue(username string, path []string, key, value stri
 	// it covers every secret leaf this one does.
 	if m.untouchedSecret(path, key, value) {
 		return nil
+	}
+	if err := m.judgeValue(path, key, value); err != nil {
+		return err
 	}
 
 	us, err := m.GetOrCreate(username)
@@ -176,6 +182,24 @@ func (m *EditorManager) SetValue(username string, path []string, key, value stri
 	defer us.mu.Unlock()
 
 	return us.editor.SetValue(path, key, value)
+}
+
+// judgeValue refuses value for the leaf or leaf-list at path+key with the
+// checks the parsers apply (config.ValidateNodeValue: type, union, enum,
+// range, length, pattern, each leaf-list member), the check the SSH editor's
+// `set` makes (cli.Completer.ValidateValueAtPath). The refusal is the
+// schema's operator error, masked on a secret leaf where it is built, with
+// the root-form `set` fix a caller holding a position frames again
+// (framedWebSetRefusal). A path the schema does not resolve is not judged
+// here: the editor refuses it in its own words.
+func (m *EditorManager) judgeValue(path []string, key, value string) error {
+	leafPath := slices.Concat(path, []string{key})
+	node := m.schema.LookupTokenPath(leafPath)
+	if node == nil {
+		// refuse-by-default: guards SetValue -- the editor refuses a path the schema does not resolve, in its own words
+		return nil
+	}
+	return config.ValidateNodeValue(node, leafPath, value)
 }
 
 // untouchedSecret reports whether value is the display placeholder posted back
@@ -230,7 +254,10 @@ func (m *EditorManager) ApplyFormEdits(username string, edits []configFormField)
 			if m.untouchedSecret(f.path, f.leaf, f.value) {
 				continue
 			}
-			editErr = us.editor.SetValue(f.path, f.leaf, f.value)
+			editErr = m.judgeValue(f.path, f.leaf, f.value)
+			if editErr == nil {
+				editErr = us.editor.SetValue(f.path, f.leaf, f.value)
+			}
 		}
 		if editErr != nil {
 			return f, editErr

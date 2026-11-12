@@ -301,6 +301,21 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 	return schemaFromResolved(loader)
 }
 
+// SchemaOf answers the config schema built over resolved, so a caller that
+// holds its own module set (the editor's completer) judges values with the
+// nodes of that set. The set DefaultLoader answers shares YANGSchema's cached
+// build; any other set is built for this call, as YANGSchemaWithPlugins does.
+func SchemaOf(resolved *yang.Resolved) (*Schema, error) {
+	shipped, err := yang.DefaultLoader()
+	if err != nil {
+		return nil, err
+	}
+	if shipped == resolved {
+		return YANGSchema()
+	}
+	return schemaFromResolved(resolved)
+}
+
 // schemaFromResolved builds the config schema over one resolved module set.
 func schemaFromResolved(loader *yang.Resolved) (*Schema, error) {
 	resetSchemaBuildErrors()

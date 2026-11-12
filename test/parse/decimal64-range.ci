@@ -1,0 +1,134 @@
+# Test: decimal64-range
+#
+# QUESTION: does `ze config validate` enforce the declared range of a ranged
+# decimal64 leaf, accepting a value inside it and refusing one outside it with
+# the range refusal naming the decimal bounds, while a value with too many
+# fraction digits or no number at all keeps its type refusal? Before Phase 2 a
+# decimal64 range was not enforced at all; a unit test proves the arm, this
+# proves the shipped leaves reach it through the real entry point.
+#
+# Leaves, all `type zt:decimal-2` (decimal64, fraction-digits 2,
+# internal/component/config/yang/modules/ze-types.yang) with a range:
+#   ddos detect threshold-multiplier      1.00..100.00
+#   ddos detect bps-threshold-multiplier  1.00..100.00
+#   ddos detect entropy-threshold         0.00..16.00
+#     (internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang)
+#   anomaly detect deviation-threshold    1.00..100.00
+#   anomaly detect corroboration-weight   0.00..1.00
+#     (internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang)
+#
+# Producers: validateDecimal64 and ParseDecimal64
+# (internal/component/config/yang/validator.go), the range arm of
+# refusalFacts (internal/component/config/yang/refusal.go).
+#
+# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-41 (the five
+#   in-range values accepted; 500.00, 500.00, 16.01, 0.99, 1.01 refused with
+#   the decimal bounds; 5.001 and abc keep the type refusals).
+# PREVENTS: a decimal64 range left unenforced, or a range refusal that names
+#   integer bounds or no fix.
+
+stdin=inrange:terminator=EOF_INRANGE
+ddos {
+	detect {
+		threshold-multiplier 5.00
+		bps-threshold-multiplier 5.00
+		entropy-threshold 2.50
+	}
+}
+anomaly {
+	detect {
+		deviation-threshold 5.00
+		corroboration-weight 0.25
+	}
+}
+EOF_INRANGE
+
+stdin=threshold:terminator=EOF_THRESHOLD
+ddos {
+	detect {
+		threshold-multiplier 500.00
+	}
+}
+EOF_THRESHOLD
+
+stdin=bps:terminator=EOF_BPS
+ddos {
+	detect {
+		bps-threshold-multiplier 500.00
+	}
+}
+EOF_BPS
+
+stdin=entropy:terminator=EOF_ENTROPY
+ddos {
+	detect {
+		entropy-threshold 16.01
+	}
+}
+EOF_ENTROPY
+
+stdin=deviation:terminator=EOF_DEVIATION
+anomaly {
+	detect {
+		deviation-threshold 0.99
+	}
+}
+EOF_DEVIATION
+
+stdin=weight:terminator=EOF_WEIGHT
+anomaly {
+	detect {
+		corroboration-weight 1.01
+	}
+}
+EOF_WEIGHT
+
+stdin=digits:terminator=EOF_DIGITS
+ddos {
+	detect {
+		threshold-multiplier 5.001
+	}
+}
+EOF_DIGITS
+
+stdin=word:terminator=EOF_WORD
+ddos {
+	detect {
+		threshold-multiplier abc
+	}
+}
+EOF_WORD
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=inrange
+expect=exit:code=0
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=threshold
+expect=exit:code=1
+expect=stdout:pattern=line 3: ddos detect threshold-multiplier: "500\.00" is outside the accepted range\n *threshold-multiplier accepts a value in 1\.00\.\.100\.00\n *fix: threshold-multiplier <1\.00\.\.100\.00>;
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=bps
+expect=exit:code=1
+expect=stdout:pattern=line 3: ddos detect bps-threshold-multiplier: "500\.00" is outside the accepted range\n *bps-threshold-multiplier accepts a value in 1\.00\.\.100\.00\n *fix: bps-threshold-multiplier <1\.00\.\.100\.00>;
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=entropy
+expect=exit:code=1
+expect=stdout:pattern=line 3: ddos detect entropy-threshold: "16\.01" is outside the accepted range\n *entropy-threshold accepts a value in 0\.00\.\.16\.00\n *fix: entropy-threshold <0\.00\.\.16\.00>;
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=deviation
+expect=exit:code=1
+expect=stdout:pattern=line 3: anomaly detect deviation-threshold: "0\.99" is outside the accepted range\n *deviation-threshold accepts a value in 1\.00\.\.100\.00\n *fix: deviation-threshold <1\.00\.\.100\.00>;
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=weight
+expect=exit:code=1
+expect=stdout:pattern=line 3: anomaly detect corroboration-weight: "1\.01" is outside the accepted range\n *corroboration-weight accepts a value in 0\.00\.\.1\.00\n *fix: corroboration-weight <0\.00\.\.1\.00>;
+
+cmd=foreground:seq=7:exec=ze config validate -:stdin=digits
+expect=exit:code=1
+expect=stdout:contains=expected decimal64 with at most 2 fraction digits
+reject=stdout:contains=is outside the accepted range
+
+cmd=foreground:seq=8:exec=ze config validate -:stdin=word
+expect=exit:code=1
+expect=stdout:contains=expected decimal64, got "abc"
+reject=stdout:contains=fraction digits
+reject=stdout:contains=is outside the accepted range

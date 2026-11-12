@@ -6,6 +6,8 @@ package gnmi
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -15,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/api"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -146,7 +149,28 @@ func (s *Server) applyUpdate(schema *zeconfig.Schema, sessionID string, update *
 		return status.Errorf(codes.InvalidArgument, "update path: %v", addrErr)
 	}
 
-	return s.sessions.SetSegments(gnmiUsername, sessionID, segments, value)
+	// The session refuses what the update carries (a list key outside its
+	// type, a malformed path), so the client is told its argument is wrong. A
+	// raw error reaches the client as Unknown. The refusal's own text is the
+	// message, unprefixed, so its fix stays the last line.
+	if err := s.sessions.SetSegments(gnmiUsername, sessionID, segments, value); err != nil {
+		return status.Error(codes.InvalidArgument, updateRefusal(err, segments).Error())
+	}
+	return nil
+}
+
+// updateRefusal answers the operator error a refused update is sent back as. A
+// value or key refusal is one already and is sent as built, so its own fix
+// stays the last line; any other refusal of the session gets the path it was
+// refused at and what the client does next.
+func updateRefusal(err error, segments []string) *opererr.Error {
+	if refusal, ok := errors.AsType[*opererr.Error](err); ok {
+		return refusal
+	}
+	return opererr.Wrap(err,
+		"gnmi set "+strings.Join(segments, " ")+": the update was refused",
+		err.Error(),
+		"send the Set again with a path and a value the schema accepts for "+strings.Join(segments, " "))
 }
 
 // typedValueToString extracts a string value from a gNMI TypedValue.

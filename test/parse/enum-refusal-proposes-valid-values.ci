@@ -1,0 +1,223 @@
+# Test: enum-refusal-proposes-valid-values
+#
+# QUESTION: does `ze config validate` of a hierarchical file refuse a value
+# outside a YANG enumeration with the one operator error the schema builds:
+# the line, the full setting path written once with spaces, the value, a close
+# match only when one is close, every accepted value with its help in YANG
+# declaration order, and a last `fix:` line the operator writes in the file?
+# A unit test over the parser holds a test schema; this drives the shipped
+# YANG through the real `ze config validate` entry point and its printer.
+#
+# Leaves:
+#   bgp peer <name> session capability route-refresh, type capability-mode
+#     (internal/component/bgp/yang/ze-bgp-conf.yang, typedef capability-mode:
+#     enable, disable, require, refuse, each with a ze:help).
+#   ospf redistribute <source>, list key `source`, an enumeration
+#     (internal/plugins/ospf/yang/ze-ospf-conf.yang: connected, static,
+#     kernel, bgp, isis, each with a ze:help).
+#
+# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-1 (maybe, no
+#   close match: the alternation fix), AC-2 (requre: did you mean require,
+#   fix route-refresh require;), AC-3 (banana: no hint, the alternation),
+#   AC-18 (route-refresh; needs a value), AC-25 file case (a refused list key
+#   at the list-key arm, the file-form fix), and the accepted control.
+# PREVENTS: the old `invalid enum: ... (expected one of: ...)` text, a slash
+#   path, a refusal with no fix line, or a hint steering to an unrelated value.
+#
+# Producers: ValidateLeafValue enum arm (internal/component/config/schema.go),
+# refusalFacts problem/why/correction (internal/component/config/yang/
+# refusal.go), valueRefusal and namedRefusal (parser_diagnostics.go), leafFix
+# and fileFix (parser.go), listKeyRefusal (parser_list.go), suggest.Correction
+# and suggest.ValueLines (internal/core/suggest).
+#
+# The value lines are pinned in declared order by one pattern each: the name,
+# padded two columns past the longest name (require, disable: 7), then the
+# help. ` *` before each continuation tolerates the printer's indent.
+
+stdin=maybe:terminator=EOF_MAYBE
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				route-refresh maybe
+			}
+		}
+	}
+}
+EOF_MAYBE
+
+stdin=requre:terminator=EOF_REQURE
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				route-refresh requre
+			}
+		}
+	}
+}
+EOF_REQURE
+
+stdin=banana:terminator=EOF_BANANA
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				route-refresh banana
+			}
+		}
+	}
+}
+EOF_BANANA
+
+stdin=missing:terminator=EOF_MISSING
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				route-refresh;
+			}
+		}
+	}
+}
+EOF_MISSING
+
+stdin=key:terminator=EOF_KEY
+ospf {
+	router-id 10.0.0.1
+	redistribute bogus {
+		nssa-propagate true
+	}
+}
+EOF_KEY
+
+stdin=accepted:terminator=EOF_ACCEPTED
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				route-refresh disable
+			}
+		}
+	}
+}
+EOF_ACCEPTED
+
+# AC-1: no close match, so no hint and the alternation fix.
+cmd=foreground:seq=1:exec=ze config validate -:stdin=maybe
+expect=exit:code=1
+expect=stdout:contains=line 18: bgp peer peer1 session capability route-refresh: "maybe" is not an accepted value
+expect=stdout:pattern=route-refresh accepts only these values:\n +enable   Advertise the capability; no enforcement\n +disable  Do not advertise the capability; no enforcement\n +require  Advertise the capability; refuse the session when the peer does not offer it\n +refuse   Do not advertise the capability; refuse the session when the peer offers it\n *fix: route-refresh <enable\|disable\|require\|refuse>;
+reject=stdout:contains=did you mean
+reject=stdout:contains=invalid enum
+reject=stdout:contains=expected one of
+reject=stdout:contains=write:
+reject=stdout:contains=bgp/peer
+
+# AC-2: one edit from require, so the hint and the corrected fix.
+cmd=foreground:seq=2:exec=ze config validate -:stdin=requre
+expect=exit:code=1
+expect=stdout:contains=line 18: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+expect=stdout:pattern=route-refresh accepts only these values:\n +enable   Advertise the capability; no enforcement\n +disable  Do not advertise the capability; no enforcement\n +require  Advertise the capability; refuse the session when the peer does not offer it\n +refuse   Do not advertise the capability; refuse the session when the peer offers it\n *fix: route-refresh require;
+reject=stdout:contains=invalid enum
+reject=stdout:contains=expected one of
+reject=stdout:contains=bgp/peer
+
+# AC-3: far from every value: no hint, every value listed, the alternation.
+cmd=foreground:seq=3:exec=ze config validate -:stdin=banana
+expect=exit:code=1
+expect=stdout:contains=line 18: bgp peer peer1 session capability route-refresh: "banana" is not an accepted value
+expect=stdout:contains=fix: route-refresh <enable|disable|require|refuse>;
+reject=stdout:contains=did you mean
+reject=stdout:contains=invalid enum
+
+# AC-18: no value is the enum refusal with "needs a value".
+cmd=foreground:seq=4:exec=ze config validate -:stdin=missing
+expect=exit:code=1
+expect=stdout:contains=line 18: bgp peer peer1 session capability route-refresh: needs a value
+expect=stdout:pattern=route-refresh accepts only these values:\n +enable   Advertise
+expect=stdout:contains=fix: route-refresh <enable|disable|require|refuse>;
+reject=stdout:contains=needs a value, one of
+reject=stdout:contains=invalid enum
+
+# AC-25 file case: the list-key arm refuses the key with the key leaf's
+# values and the file-form fix.
+cmd=foreground:seq=5:exec=ze config validate -:stdin=key
+expect=exit:code=1
+expect=stdout:contains=line 3: ospf redistribute bogus: "bogus" is not an accepted value
+expect=stdout:pattern=source accepts only these values:\n +connected  Routes of the addresses configured on local interfaces\.\n +static     Routes the static plugin installs\.\n +kernel     Routes read from the kernel routing table\.\n +bgp        Routes learned by BGP\.\n +isis       Routes learned by IS-IS\.\n *fix: redistribute <connected\|static\|kernel\|bgp\|isis> \{ \.\.\. \}
+reject=stdout:contains=invalid key for
+reject=stdout:contains=invalid enum
+
+# The accepted value still validates, so the refusal never widens. The value
+# is `disable`: `enable` and `require` advertise route-refresh, which the BGP
+# peer check (internal/component/bgp/config/peers.go) refuses without an
+# attached process that may send updates, a refusal this test is not about.
+cmd=foreground:seq=6:exec=ze config validate -:stdin=accepted
+expect=exit:code=0
+reject=stdout:contains=is not an accepted value

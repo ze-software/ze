@@ -1,0 +1,130 @@
+# Test: range-length-pattern-refusal
+#
+# QUESTION: does `ze config validate` refuse a value outside a YANG range,
+# length or pattern with the operator error of its kind: the full path, the
+# value, the kind's marker, the declared bounds (or the format in words, never
+# the regular expression), and a fix with the kind's placeholder, in the file
+# form and the set form? A unit test drives ValidateLeafValue over a test
+# schema; this drives the shipped leaves through the real entry point.
+#
+# Leaves:
+#   ospf interfaces interface <name> cost, `uint16 { range "1..65535"; }`
+#     (internal/plugins/ospf/yang/ze-ospf-conf.yang).
+#   exabgp bridge process <name> run, `string { length "1..4096"; }`
+#     (internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang).
+#   l2tp shaper default-rate, typedef zt:rate (pattern, no ze:help, description
+#     "Traffic rate string (for example 10mbit, 100kbit, 1gbps)")
+#     (internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang,
+#     internal/component/config/yang/modules/ze-types.yang).
+#
+# Producers: the range, length and pattern arms of refusalFacts
+# (internal/component/config/yang/refusal.go), LeafValueFormat for the format
+# text, fileFix and framedRefusal for the fix.
+#
+# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-35 (cost 0 and
+#   cost 70000 past the width, file and set form), AC-36 (run ""), AC-37
+#   (default-rate fast: the format text, no regular expression).
+# PREVENTS: `outside range`, `outside allowed`, `does not match`, the regular
+#   expression in the output, or a refusal with no fix line.
+
+stdin=costzero:terminator=EOF_COSTZERO
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			cost 0
+		}
+	}
+}
+EOF_COSTZERO
+
+stdin=costwide:terminator=EOF_COSTWIDE
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			cost 70000
+		}
+	}
+}
+EOF_COSTWIDE
+
+stdin=costset:terminator=EOF_COSTSET
+set ospf router-id 10.0.0.1
+set ospf interfaces interface eth0 cost 0
+EOF_COSTSET
+
+stdin=runempty:terminator=EOF_RUNEMPTY
+exabgp {
+	bridge {
+		process p1 {
+			run ""
+		}
+	}
+}
+EOF_RUNEMPTY
+
+stdin=ratefast:terminator=EOF_RATEFAST
+l2tp {
+	shaper {
+		default-rate fast
+	}
+}
+EOF_RATEFAST
+
+stdin=rateset:terminator=EOF_RATESET
+set l2tp shaper default-rate fast
+EOF_RATESET
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=costzero
+expect=exit:code=1
+expect=stdout:pattern=line 11: ospf interfaces interface eth0 cost: "0" is outside the accepted range\n *cost accepts a value in 1\.\.65535\n *fix: cost <1\.\.65535>;
+reject=stdout:contains=outside range
+reject=stdout:contains=outside allowed
+
+# 70000 is past uint16's width; the declared bounds are still the ones named.
+cmd=foreground:seq=2:exec=ze config validate -:stdin=costwide
+expect=exit:code=1
+expect=stdout:pattern=line 11: ospf interfaces interface eth0 cost: "70000" is outside the accepted range\n *cost accepts a value in 1\.\.65535\n *fix: cost <1\.\.65535>;
+reject=stdout:contains=outside range
+reject=stdout:contains=65536
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=costset
+expect=exit:code=1
+expect=stdout:contains=line 2: ospf interfaces interface eth0 cost: "0" is outside the accepted range
+expect=stdout:contains=fix: set ospf interfaces interface eth0 cost <1..65535>
+reject=stdout:contains=invalid value for
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=runempty
+expect=exit:code=1
+expect=stdout:pattern=line 4: exabgp bridge process p1 run: "" is outside the accepted length \(0 characters\)\n *run accepts 1\.\.4096 characters\n *fix: run <1\.\.4096 characters>;
+reject=stdout:contains=outside allowed
+reject=stdout:contains=length must be
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ratefast
+expect=exit:code=1
+expect=stdout:contains=line 3: l2tp shaper default-rate: "fast" is not in the accepted format
+expect=stdout:contains=default-rate accepts Traffic rate string (for example 10mbit, 100kbit, 1gbps)
+expect=stdout:contains=fix: default-rate <rate>;
+reject=stdout:contains=does not match
+reject=stdout:contains=kbit|mbit
+reject=stdout:contains=[0-9]+
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=rateset
+expect=exit:code=1
+expect=stdout:contains=line 1: l2tp shaper default-rate: "fast" is not in the accepted format
+expect=stdout:contains=fix: set l2tp shaper default-rate <rate>
+reject=stdout:contains=does not match
+reject=stdout:contains=kbit|mbit

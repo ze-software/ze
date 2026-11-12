@@ -220,6 +220,20 @@ func (m *Model) setViewportText(content string) {
 	m.err = nil
 }
 
+// setError is the one place a failure reaches m.err. An error of several
+// lines (an operator error: problem, why, fix) is shown whole in the
+// viewport, as the conflicts refusal is, because the feedback row holds one
+// line and a longer error pushed the prompt off the frame; the row then shows
+// its first line (feedbackLine). A nil err clears the row.
+func (m *Model) setError(err error) {
+	if err != nil {
+		if text := err.Error(); strings.Contains(text, "\n") {
+			m.setViewportText(text)
+		}
+	}
+	m.err = err
+}
+
 // setViewportTextBottom sets content bottom-aligned in the viewport.
 // Prepends blank lines so content hugs the bottom when shorter than the viewport.
 func (m *Model) setViewportTextBottom(content string) {
@@ -520,8 +534,11 @@ func (m Model) feedbackLine() string {
 		if line, refused := plugin.RefusalLine(m.err); refused {
 			return errorStyle.Render(line)
 		}
+		// The row holds the first line; an error of several lines is whole in
+		// the viewport (setError).
+		problem, _, _ := strings.Cut(m.err.Error(), "\n")
 		var tb textbuf.Buffer
-		return errorStyle.Render(tb.Str("Error: ").Err(m.err).String())
+		return errorStyle.Render(tb.Str("Error: ").Str(problem).String())
 	}
 	if m.statusMessage != "" {
 		if strings.HasPrefix(m.statusMessage, "welcome") {

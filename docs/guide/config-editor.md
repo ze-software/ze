@@ -138,15 +138,31 @@ over no change would revert nothing.
 <!-- source: internal/component/cli/contract/commit.go -- NothingToCommit -->
 <!-- source: internal/component/cli/contract/commit.go -- ParseCommit, commitSubcommands -->
 
-A commit that validation refuses says so on the status line: how many errors
-and warnings block it, then each one. When only warnings block it, the line
-names the forced form of what you typed (`commit now force`, or
+A commit that validation refuses says on the status line how many errors and
+warnings block it. When only warnings block it, that line names the forced
+form of what you typed (`commit now force`, or
 `commit confirmed <seconds> force`), and a forced commit reports how many
-warnings it skipped. `force` never commits over an error. `commit verify`
-gives the same list and applies nothing. The configuration stays on screen with
-each issue marked. The web terminal and the web CLI bar run the same validation
-and answer with the same text, the CLI bar as an error notification, and a
+warnings it skipped. `force` never commits over an error. The viewport shows
+the same header, then each issue on its own lines, indented: the problem, why,
+and a `fix:` line you can type where you are. At the root the fix is
+`set <full path> <value>`; inside an `edit` context it is
+`top set <full path> <value>`, which works from any position. A refused member
+of a leaf-list gets `delete <path> <member>` instead. A missing mandatory leaf
+names its `set` in brackets the same way, with `top` in front inside a
+context. `commit verify` and `show | errors` give the same list and apply
+nothing. The web terminal and the web CLI bar run the same validation and
+answer with the same text, the CLI bar as an error notification, and a
 refused commit leaves your changes pending there too.
+
+A `set` or `insert` the schema refuses (a value outside an enumeration, a
+range, a length or a format) names the setting path, lists what the leaf
+accepts, and ends with the command you typed, corrected, in the form you typed
+it: relative inside an `edit` context, and behind `top` when you typed it
+behind `top`. A refusal of several lines is shown whole in the viewport, and
+the line above the prompt keeps its first line.
+<!-- source: internal/component/cli/fix_frame.go -- FrameFix, framedSetRefusal -->
+<!-- source: internal/component/cli/model_render.go -- setError, feedbackLine -->
+<!-- source: internal/component/cli/validator.go -- ConfigValidationError.Text, refusalIssue, missingFieldIssue -->
 <!-- source: internal/component/cli/model_commands_commit.go -- CommitRefusal, commitValidationRefusal, WithSkippedWarnings, cmdCommitVerify -->
 <!-- source: internal/component/cli/contract/commit.go -- ForcedCommand -->
 <!-- source: internal/component/web/editor_commit_window.go -- runCommit, validateTransition -->

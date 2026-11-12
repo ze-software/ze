@@ -29,10 +29,10 @@ EOF_NONE
 stdin=omitted-method:refused=config-validator-unavailable:terminator=EOF_OMITTED
 pppoe { auth-method chap-md5; authentication-allow [ pap ]; }
 EOF_OMITTED
-stdin=none-member:refused=config-parse:terminator=EOF_NONE_MEMBER
+stdin=none-member:refused=config-yang-enum:terminator=EOF_NONE_MEMBER
 pppoe { authentication-allow [ chap-md5 none ]; }
 EOF_NONE_MEMBER
-stdin=unknown-member:refused=config-parse:terminator=EOF_UNKNOWN
+stdin=unknown-member:refused=config-yang-enum:terminator=EOF_UNKNOWN
 pppoe { authentication-allow [ chap-md5 bogus ]; }
 EOF_UNKNOWN
 stdin=none-with-list:refused=config-validator-unavailable:terminator=EOF_NONE_LIST

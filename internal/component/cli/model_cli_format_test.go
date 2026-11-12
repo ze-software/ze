@@ -75,7 +75,8 @@ func TestCLIFormatRefusesAnUndeclaredValue(t *testing.T) {
 	require.NotContains(t, model.cliFormatNames(), "raw", "the leaf must not declare raw, or this test proves nothing")
 
 	require.True(t, handleSetCLIFormat("set cli format raw", model))
-	assert.Contains(t, model.statusMessage, "invalid format")
+	require.Error(t, model.err, "the value is refused")
+	assert.Contains(t, model.err.Error(), `cli format: "raw" is not an accepted value`)
 	assert.Empty(t, model.cliFormat, "a refused value must not reach the session")
 }
 

@@ -1,0 +1,120 @@
+# Test: enum-refusal-union
+#
+# QUESTION: does the config parser refuse a value that no member of a union
+# accepts, where one member is an enumeration, with the enum refusal: the
+# enumeration's values with help in member order, then the other member types
+# named in words, a close match when one is close, and the fix? A unit test
+# holds a test union; this drives the shipped union through the real
+# `ze config validate` entry point, hierarchical and set format.
+#
+# Leaf: bgp peer <name> connection local ip, `type union { type zt:ip-address;
+#   type enumeration { enum auto } }`
+#   (internal/component/bgp/yang/ze-bgp-conf.yang, container local).
+#
+# Producers: validateUnionValue (internal/component/config/schema.go), the
+# union arm of refusalFacts.why ("accepts one of these values:" then "or a
+# value of type ...", internal/component/config/yang/refusal.go),
+# unionMembersFromType (internal/component/config/yang_schema.go).
+#
+# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-13 (parser and
+#   set-format cases), with the accepted control.
+# PREVENTS: `matches no member type`, `or one of`, `invalid enum`, or a union
+#   refusal that lists no accepted value.
+
+stdin=autoo:terminator=EOF_AUTOO
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip autoo
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+	}
+}
+EOF_AUTOO
+
+stdin=far:terminator=EOF_FAR
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip zzzzzz
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+	}
+}
+EOF_FAR
+
+stdin=setform:terminator=EOF_SETFORM
+set bgp router-id 203.0.113.253
+set bgp peer peer1 connection remote ip 192.0.2.1
+set bgp peer peer1 connection local ip autoo
+EOF_SETFORM
+
+stdin=accepted:terminator=EOF_ACCEPTED
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+	}
+}
+EOF_ACCEPTED
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=autoo
+expect=exit:code=1
+expect=stdout:contains=line 9: bgp peer peer1 connection local ip: "autoo" is not an accepted value (did you mean auto?)
+expect=stdout:pattern=ip accepts one of these values:\n +auto  Let the operating system choose the source address of the connection\.\n *or a value of type ip-address\n *fix: ip auto;
+reject=stdout:contains=matches no member type
+reject=stdout:contains=or one of
+reject=stdout:contains=invalid enum
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=far
+expect=exit:code=1
+expect=stdout:contains=line 9: bgp peer peer1 connection local ip: "zzzzzz" is not an accepted value
+expect=stdout:contains=or a value of type ip-address
+expect=stdout:contains=fix: ip <auto|ip-address>;
+reject=stdout:contains=did you mean
+reject=stdout:contains=matches no member type
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=setform
+expect=exit:code=1
+expect=stdout:contains=line 3: bgp peer peer1 connection local ip: "autoo" is not an accepted value (did you mean auto?)
+expect=stdout:contains=fix: set bgp peer peer1 connection local ip auto
+reject=stdout:contains=matches no member type
+reject=stdout:contains=invalid value for
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=accepted
+expect=exit:code=0

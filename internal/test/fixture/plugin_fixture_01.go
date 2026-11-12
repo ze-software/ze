@@ -42,6 +42,7 @@ func init() {
 		"plugin/api-commit-lifecycle":               {"commit-lifecycle-test", plugin01APICommitLifecycle},
 		"plugin/api-commit-workflow":                {"commit-workflow-test", plugin01APICommitWorkflow},
 		"plugin/api-config-commit-reject":           {"api-commit-reject", plugin01APIConfigCommitReject},
+		"plugin/api-config-enum-refusal":            {"api-enum-refusal", plugin01APIConfigEnumRefusal},
 		"plugin/api-doctor-check-checker":           {"doctor-checker", plugin01APIDoctorChecker},
 		"plugin/api-peer-capabilities":              {"peer-caps-test", plugin01APIPeerCapabilities},
 		"plugin/api-peer-list":                      {"peer-list-test", plugin01APIPeerList},

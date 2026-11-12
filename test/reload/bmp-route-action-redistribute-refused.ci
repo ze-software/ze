@@ -91,7 +91,7 @@ bgp {
 }
 EOF_CONF
 
-tmpfs=redistribute.conf:refused=config-parse:terminator=EOF_REDIST
+tmpfs=redistribute.conf:refused=config-yang-enum:terminator=EOF_REDIST
 environment {
 	bmp {
 		enabled true

@@ -210,7 +210,7 @@ func TestEditorErrorsRefreshesPeerPipelineRefusal(t *testing.T) {
 			refused := run("commit now force")
 			assert.Contains(t, refused.statusMessage, "commit blocked: 1 error(s)")
 			assert.Contains(t, refused.statusMessage, "never errors")
-			assert.Contains(t, refused.statusMessage, refusal)
+			assert.Contains(t, refused.output, refusal, "the issue is in the viewport")
 			assert.False(t, reloaded)
 			assert.True(t, model.editor.Dirty())
 			run("show | errors")

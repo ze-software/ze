@@ -885,6 +885,15 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 .error-item b { color: var(--error); white-space: nowrap; }
 
+/* A refusal is several lines (problem, why, accepted values, fix), so every
+   surface that shows one keeps its line breaks and indentation. */
+.error-item span,
+.error-fragment-message,
+.notification-message,
+.notification-bar.notification-error {
+  white-space: pre-wrap;
+}
+
 .error-dismiss {
   margin-left: auto;
   padding: 0.2rem 0.5rem;

@@ -717,7 +717,7 @@ func (m Model) finishPasteMode() (tea.Model, tea.Cmd) {
 	at.contextPath = m.pasteModePosition
 	result, err := at.applyLoad(m.pasteModeLocation, m.pasteModeAction, content, "terminal")
 	if err != nil {
-		m.err = err
+		m.setError(err)
 		return m, nil
 	}
 
@@ -765,6 +765,16 @@ const cliFormatLeafPath = "environment/cli/format/default"
 // every value, never as "every format is valid": the set is the guard, so an
 // unread schema has to close it (ai/rules/principles.md).
 func (m *Model) cliFormatNames() []string {
+	leaf := m.cliFormatLeaf()
+	if leaf == nil {
+		return nil
+	}
+	return slices.Sorted(slices.Values(leaf.Enums))
+}
+
+// cliFormatLeaf answers the schema leaf `set cli format` sets, nil when this
+// session's schema does not declare it.
+func (m *Model) cliFormatLeaf() *config.LeafNode {
 	if m.validator == nil || m.validator.schema == nil {
 		return nil
 	}
@@ -776,8 +786,12 @@ func (m *Model) cliFormatNames() []string {
 	if !isLeaf {
 		return nil
 	}
-	return slices.Sorted(slices.Values(leaf.Enums))
+	return leaf
 }
+
+// cliFormatCommandPath is the setting path `set cli format` names, as the
+// operator types it.
+var cliFormatCommandPath = []string{"cli", "format"}
 
 // appendCLIFormatCompletions offers `set cli format` and the formats names
 // holds. An empty names offers the command alone, so a session whose schema did
@@ -838,9 +852,12 @@ func handleSetCLIFormat(input string, m *Model) bool {
 		m.statusMessage = "cli format unavailable: the schema declares no output formats"
 		return true
 	}
-	if !slices.Contains(names, rest) {
-		var tb textbuf.Buffer
-		m.statusMessage = tb.Str("invalid format: ").Str(rest).Str(" (valid: ").Str(textbuf.Join(names, ", ")).Byte(')').String()
+	// The value is judged by the leaf's own check, so the refusal is the
+	// schema's: the accepted formats with their help in declared order, and
+	// `fix: set cli format <...>`, shown whole in the viewport (setError).
+	if err := config.ValidateLeafValue(m.cliFormatLeaf(), cliFormatCommandPath, rest); err != nil {
+		m.statusMessage = ""
+		m.setError(err)
 		return true
 	}
 

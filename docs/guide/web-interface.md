@@ -237,6 +237,40 @@ Each authenticated user gets an independent editor session with its own working 
 Field values are validated server-side against YANG types before being accepted:
 <!-- source: internal/component/config/schema.go -- ValidateValue -->
 
+Every value set from the web (a form field, the add form, the CLI bar and the
+terminal `set`) is then judged with the checks a config file gets: the
+enumeration, range, length and pattern the YANG declares, a union's members,
+and each member of a leaf-list. A value outside them is refused when it is set,
+not at commit. The refusal names the setting path and the value, lists the
+accepted values (each with its one-line help) or the accepted bounds or format,
+and ends with the command that fixes it:
+
+```text
+bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+route-refresh accepts only these values:
+  enable   ...
+  disable  ...
+  require  ...
+  refuse   ...
+fix: set bgp peer peer1 session capability route-refresh require
+```
+
+A form or the commit modal holds no editor position, so its fix is the `set`
+from the root. The terminal and the CLI bar frame the fix for the position the
+line was typed at: the `set` as typed, corrected, for a refused `set`, and
+`top set <full path> ...` for a commit refusal inside a context. A new list key
+is judged where its entry is created, and the add form judges every field
+before it creates the entry, so a refused field never leaves a partial entry.
+A key refused by the terminal's `rename`, `copy`, `insert`, `activate` or
+`deactivate` gets that same command as its fix, with the key corrected and
+framed for the position, and the Rename button's refusal ends with
+`fix: rename <full path> to <corrected key>`.
+<!-- source: internal/component/web/editor.go -- EditorManager.SetValue, judgeValue -->
+<!-- source: internal/component/web/cli_terminal.go -- execListEntryOp -->
+<!-- source: internal/component/web/handler_config_entry.go -- HandleConfigRenameWithAuthorizer -->
+<!-- source: internal/component/web/cli.go -- applyWebSet, framedWebSetRefusal -->
+<!-- source: internal/component/web/handler_config_entry.go -- addFieldSetPath -->
+
 | Type | Validation |
 |------|-----------|
 | IP address | Must be a valid IPv4 or IPv6 address |
@@ -305,6 +339,7 @@ In integrated mode, CLI commands update the page content directly:
 | `delete <leaf>` | Delete a value at the current context path |
 | `show [path]` | Display config text at the current or specified path |
 | `top` | Navigate to root |
+| `top <command>` | Run one command as if at the root context, whatever the command is (`top set ospf router-id 192.0.2.9`, `top show`). The position stays where it was unless the command moves it (`top edit ospf`). The terminal reads `top` before it splits a pipe, so `top show \| format config` shows the root |
 | `up` | Navigate one level up |
 | `commit now` | Commit pending changes. `commit now force` commits over another user's conflicting change and discards it from theirs (see the config editor guide). `commit` without a subcommand is refused with the list of subcommands. `commit confirmed <seconds>`, `commit accept`, `commit abort` and `commit verify` follow the config editor guide. A commit that validation refuses answers with the SSH editor's text, listing each error and warning; when only warnings block it, the answer names the forced form, and the CLI bar shows it as an error |
 | `discard` | Discard pending changes. `discard` alone or `discard all` drops every change; `discard <path>` drops only the changes at or under that path, the command a commit conflict's `fix:` line prints, and a path holding none of your pending changes is refused, as is a pipe (`discard | match x`), since discard prints nothing to filter. The message line repeats the answer (the refusal, the path dropped, or `changes discarded`), and each discard writes a `config-discard` audit record whose detail lists only the changes it dropped (empty for a whole discard with nothing pending; see the audit guide) |

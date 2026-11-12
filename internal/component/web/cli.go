@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/aaa"
@@ -19,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -79,9 +81,30 @@ const (
 )
 
 // cliCommand holds the parsed verb and arguments from a CLI bar input.
+// Operator is the position the operator typed the line at, the request's
+// `path`: every fix a refusal proposes is framed for it (cli.FrameFix), never
+// for the position a command resolves at, which `top <command>` empties. Each
+// editor sets it where it parses the line, and commandBehindTop keeps it.
 type cliCommand struct {
-	Verb string
-	Args []string
+	Verb     string
+	Args     []string
+	Operator []string
+}
+
+// commandBehindTop answers the command `top <command>` runs once at the root:
+// the words after `top`, with the operator's position kept, so a fix the inner
+// command proposes is exact from where the operator stands (Q-9). Bare `top`
+// answers false: it moves to the root. The web terminal and the CLI bar both
+// read `top` here, so one line means one thing in both editors, as on the SSH
+// editor (cli.Model cmdTop).
+func commandBehindTop(cmd cliCommand) (cliCommand, bool) {
+	if cmd.Verb != verbTop {
+		return cliCommand{}, false
+	}
+	if len(cmd.Args) == 0 {
+		return cliCommand{}, false
+	}
+	return cliCommand{Verb: cmd.Args[0], Args: cmd.Args[1:], Operator: cmd.Operator}, true
 }
 
 // parseCLICommand splits raw command text into a verb and argument list.
@@ -269,6 +292,7 @@ func HandleCLICommandWithAuthorizerAndAudit(mgr *EditorManager, schema *config.S
 		if cmd.Verb != verbUp && cmd.Verb != verbTop {
 			contextPath = adjustListContext(schema, contextPath)
 		}
+		cmd.Operator = contextPath
 
 		dispatchCLICommand(w, r, cmd, contextPath, mgr, schema, renderer, username, recorder)
 	}
@@ -286,7 +310,11 @@ var knownCLIVerbs = map[string]bool{
 }
 
 // dispatchCLICommand routes a parsed CLI command to the appropriate handler.
-// Returns an error notification for unrecognized verbs.
+// Returns an error notification for unrecognized verbs. `top <command>` runs
+// the command again here with the root as its position; the page's position
+// changes only when a navigation handler answers one (writeCLIResponse), so
+// the inner command keeps it unless it navigates. The recursion is bounded by
+// the words of the line, which maxCommandLength caps.
 func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, contextPath []string, mgr *EditorManager, schema *config.Schema, renderer *Renderer, username string, recorder audit.Recorder) {
 	if !knownCLIVerbs[cmd.Verb] {
 		writeCLINotification(w, renderer, "unknown command: "+cmd.Verb, "error")
@@ -297,23 +325,27 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 	case verbEdit:
 		handleCLIEdit(w, contextPath, cmd.Args, schema, renderer, mgr, username)
 	case verbSet:
-		handleCLISet(w, r, contextPath, cmd.Args, schema, renderer, mgr, username)
+		handleCLISet(w, r, contextPath, cmd, schema, renderer, mgr, username)
 	case verbDelete:
 		handleCLIDelete(w, r, contextPath, cmd.Args, renderer, mgr, username)
 	case verbShow:
 		handleCLIShow(w, contextPath, cmd.Args, renderer, mgr, username)
 	case verbTop:
+		if inner, underTop := commandBehindTop(cmd); underTop {
+			dispatchCLICommand(w, r, inner, nil, mgr, schema, renderer, username, recorder)
+			return
+		}
 		handleCLITop(w, schema, renderer, mgr, username)
 	case verbUp:
 		handleCLIUp(w, contextPath, schema, renderer, mgr, username)
 	case verbCommit:
-		handleCLICommit(w, r, renderer, mgr, username, cmd.Args)
+		handleCLICommit(w, r, renderer, mgr, username, cmd)
 	case verbDiscard:
 		handleCLIDiscard(w, r, renderer, mgr, username, cmd.Args, recorder)
 	case verbWho:
 		handleCLIWho(w, renderer, mgr)
 	case verbHelp:
-		writeCLINotification(w, renderer, "commands: edit, set, delete, show, top, up, commit now, discard [path|all], who, help", "info")
+		writeCLINotification(w, renderer, "commands: edit, set, delete, show, top [command], up, commit now, discard [path|all], who, help", "info")
 	}
 }
 
@@ -377,24 +409,112 @@ func splitSetArgs(schema *config.Schema, contextPath, args []string) (setPath []
 	return setPath, key, value, nil
 }
 
-func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []string, schema *config.Schema, renderer *Renderer, mgr *EditorManager, username string) {
-	if len(args) < 2 { //nolint:mnd // set requires key and value
+func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath []string, cmd cliCommand, schema *config.Schema, renderer *Renderer, mgr *EditorManager, username string) {
+	if len(cmd.Args) < 2 { //nolint:mnd // set requires key and value
 		writeCLINotification(w, renderer, "usage: set <leaf> <value>", "error")
 		return
 	}
 
-	setPath, key, value, err := splitSetArgs(schema, contextPath, args)
-	if err != nil {
-		writeCLINotification(w, renderer, err.Error(), "error")
-		return
-	}
-
-	if err := mgr.SetValue(username, setPath, key, value); err != nil {
+	if _, err := applyWebSet(mgr, schema, username, contextPath, cmd.Operator, cmd.Args); err != nil {
 		writeCLINotification(w, renderer, "set error: "+err.Error(), "error")
 		return
 	}
 
 	htmxRedirect(w, r, buildConfigEditURL(contextPath))
+}
+
+// applyWebSet runs one `set` for the web terminal and the CLI bar alike, with
+// the checks the SSH editor's `set` makes (cli.Model cmdSet), so a line is
+// judged the same in every editor (Q-6, Q-8b). args are the words after `set`,
+// relative to at; operator is the position the fix of a refusal is framed for.
+// It answers the acknowledgement, a credential in it masked.
+//
+//   - A path ending at a list's key leaf (`set ospf redistribute source
+//     connected`) names the entry to create, which the creator judges and
+//     stores under its key, never as a leaf of an anonymous entry.
+//   - A path ending at the key leaf of an entry it names is refused: only
+//     rename changes the key of an entry that exists (AC-33).
+//   - Otherwise the value is judged where it is set (EditorManager.SetValue)
+//     and a new list key on the way where its entry is created.
+//
+// MUST be called with at least two arguments.
+func applyWebSet(mgr *EditorManager, schema *config.Schema, username string, at, operator, args []string) (string, error) {
+	setPath, key, value, err := splitSetArgs(schema, at, args)
+	if err != nil {
+		return "", err
+	}
+	leafPath := slices.Concat(setPath, []string{key})
+
+	var tb textbuf.Buffer
+	if listName, keyForm := keyLeafList(schema, setPath, key); keyForm {
+		if err := mgr.CreateEntry(username, slices.Concat(setPath, []string{value})); err != nil {
+			// The key is the last word typed, so the fix is this `set` with the
+			// key corrected.
+			return "", cli.FramedSetRefusal(err, at, args, operator)
+		}
+		return tb.Str("created ").Str(listName).Byte(' ').Str(value).String(), nil
+	}
+	if schema != nil {
+		if err := cli.InEntryKeyLeafRefusal(schema, leafPath, at, operator); err != nil {
+			return "", err
+		}
+	}
+	if err := mgr.SetValue(username, setPath, key, value); err != nil {
+		framed := framedWebSetRefusal(err, at, args, leafPath, operator)
+		// A value refusal is built masked; any other refusal names what it
+		// refused, so it is masked here.
+		return "", errors.New(config.DisplayMessageAtPath(schema, leafPath, framed.Error(), value))
+	}
+	// The acknowledgement travels to the browser in the response body, so a
+	// credential in it reaches view-source, the disk cache and any proxy that
+	// reads the document.
+	return tb.Str("set ").Join(args[:len(args)-1], " ").Byte(' ').Str(config.DisplayValueAtPath(schema, leafPath, value)).String(), nil
+}
+
+// keyLeafList answers the list whose entry `set <setPath> <key> <value>` names
+// when key is that list's first key leaf and setPath ends at the list's own
+// name, the form `set <list> <key-leaf> <key>` (the SSH editor's
+// Editor.isListKeyLeafPath). A setPath ending at an entry of the list is the
+// in-entry form, which answers false here.
+func keyLeafList(schema *config.Schema, setPath []string, key string) (string, bool) {
+	if schema == nil {
+		return "", false
+	}
+	if len(setPath) == 0 {
+		return "", false
+	}
+	listName := setPath[len(setPath)-1]
+	var holder config.ChildProvider = schema
+	if len(setPath) > 1 {
+		parent, isHolder := schema.LookupTokenPath(setPath[:len(setPath)-1]).(config.ChildProvider)
+		if !isHolder {
+			return "", false
+		}
+		holder = parent
+	}
+	list, isList := holder.Get(listName).(*config.ListNode)
+	if !isList {
+		return "", false
+	}
+	return listName, list.FirstKeyLeafName() == key
+}
+
+// framedWebSetRefusal answers the refusal of a `set` with its fix replaced by
+// the line the operator typed, corrected: the value when the refusal names the
+// leaf set (its path is leafPath), else the list key the creator refused on
+// the way. An error that holds no schema refusal is answered as it is.
+func framedWebSetRefusal(err error, at, args, leafPath, operator []string) error {
+	var refusal *configyang.ValidationError
+	if !errors.As(err, &refusal) {
+		return err
+	}
+	if !refusal.HoldsOperatorError() {
+		return err
+	}
+	if slices.Equal(refusal.Segments(), leafPath) {
+		return cli.FramedSetRefusal(err, at, args, operator)
+	}
+	return cli.FramedKeyRefusal(err, verbSet, at, args, operator)
 }
 
 // handleCLIDelete processes the "delete" verb: removes the node named by the
@@ -487,14 +607,16 @@ func handleCLIUp(w http.ResponseWriter, contextPath []string, schema *config.Sch
 	writeCLIResponse(w, renderer, newPath, viewData)
 }
 
-// handleCLICommit processes the "commit" verb.
-func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, args []string) {
-	req, err := webCommitRequest(args)
+// handleCLICommit processes the "commit" verb. A refusal's fixes are framed
+// for the position the operator typed the commit at (cmd.Operator), so inside
+// a context they read `top set <full path> ...` (AC-23, AC-51).
+func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, cmd cliCommand) {
+	req, err := webCommitRequest(cmd.Args)
 	if err != nil {
 		writeCLINotification(w, renderer, "commit error: "+err.Error(), "error")
 		return
 	}
-	answer, err := mgr.runCommit(username, req)
+	answer, err := mgr.runCommit(username, req, cmd.Operator)
 	if err != nil {
 		writeCLINotification(w, renderer, "commit error: "+err.Error(), "error")
 		return

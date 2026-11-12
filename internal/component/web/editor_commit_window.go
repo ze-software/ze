@@ -59,7 +59,10 @@ type webCommitAnswer struct {
 // (cli.CommitRefusal): a warning blocks unless force, an error always does.
 // The commit is in flight for WindowNotices until its answer has updated
 // username's watch, so the notices never misreport the user's own commit.
-func (m *EditorManager) runCommit(username string, req contract.CommitRequest) (webCommitAnswer, error) {
+// operator is the editor position the commit was typed at, the one its
+// refusal's fixes are framed for (cli.CommitRefusal); a caller that holds no
+// position (the commit modal, CommitNow) passes nil and gets the root form.
+func (m *EditorManager) runCommit(username string, req contract.CommitRequest, operator []string) (webCommitAnswer, error) {
 	if req.Action == contract.CommitVerify {
 		return m.verifyCommit(username)
 	}
@@ -74,7 +77,7 @@ func (m *EditorManager) runCommit(username string, req contract.CommitRequest) (
 		if err != nil {
 			return err
 		}
-		if text, blocked := cli.CommitRefusal(validation, req.Force, forced); blocked {
+		if text, blocked := cli.CommitRefusal(validation, req.Force, forced, operator); blocked {
 			refusal = text
 			return cli.ErrCommitNotApplied
 		}
@@ -122,10 +125,11 @@ func (m *EditorManager) runCommit(username string, req contract.CommitRequest) (
 // CommitNow commits username's changes as the "Review & Commit" button does:
 // `commit now` through runCommit, the daemon window and the SSH editor's
 // validation included. It answers the line shown, and an error naming why
-// when nothing was applied.
+// when nothing was applied. It holds no editor position, so a refusal's fixes
+// are the root form.
 func (m *EditorManager) CommitNow(username string) (string, error) {
 	req := contract.CommitRequest{Action: contract.CommitNow}
-	answer, err := m.runCommit(username, req)
+	answer, err := m.runCommit(username, req, nil)
 	if err != nil {
 		return "", err
 	}

@@ -173,7 +173,8 @@ func TestWebTerminalCommitRefusesWarnings(t *testing.T) {
 	require.NoError(t, mgr.SetValue("alice", []string{"system", "authentication", "user", "bob"}, "password", "notahash"))
 
 	output := webCommit(schema, mgr, "alice", "now")
-	assert.Contains(t, output, "commit blocked: 0 error(s), 1 warning(s); 'commit now force' commits over the warnings: ")
+	// One issue per line under the header, each indented.
+	assert.Contains(t, output, "commit blocked: 0 error(s), 1 warning(s); 'commit now force' commits over the warnings\n  system.authentication.user.bob.password: ")
 	assert.Contains(t, output, "bcrypt")
 	requireCommitted(t, mgr, "", "notahash")
 
@@ -246,7 +247,7 @@ func TestWebReviewCommitObeysDaemonWindow(t *testing.T) {
 // handleCommitPost makes. A validation refusal comes back as an error, the way
 // the handler shows it.
 func commitNow(mgr *EditorManager, user string) (webCommitAnswer, error) {
-	answer, err := mgr.runCommit(user, contract.CommitRequest{Action: contract.CommitNow})
+	answer, err := mgr.runCommit(user, contract.CommitRequest{Action: contract.CommitNow}, nil)
 	if err == nil && answer.refusal != "" {
 		return answer, errors.New(answer.refusal)
 	}

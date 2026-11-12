@@ -133,7 +133,7 @@ func TestWebRenameOfMultiLeafKeyEntryChangesOnlyTheFirstValue(t *testing.T) {
 	assert.Len(t, sessionList(t, mgr.Tree("alice")), 2, "the refusals change nothing")
 
 	_, out := execListEntryOp(schema, []string{"bfd", "single-hop-session", "fe80::b", "interface", "zbl1", "to", "fe80::b", "interface", "zbl2"},
-		nil, listEntryCopy, func(parent []string, list, src string, dst []string) error {
+		nil, nil, listEntryCopy, func(parent []string, list, src string, dst []string) error {
 			return mgr.CopyListEntry("alice", parent, list, src, dst)
 		})
 	assert.Contains(t, out, "copy refused: interface is part of the key of single-hop-session")
@@ -196,9 +196,9 @@ func TestWebRenameAndTerminalRefuseAKeylessListEntry(t *testing.T) {
 		assert.Contains(t, rec.Body.String(), "rename refused: rule has no key, so its entries cannot be renamed or copied.", "%v", path)
 
 		args := append(append([]string{}, path...), "to", "2")
-		_, out := execListEntryOp(schema, args, nil, listEntryRename, op)
+		_, out := execListEntryOp(schema, args, nil, nil, listEntryRename, op)
 		assert.Equal(t, "error: rename refused: rule has no key, so its entries cannot be renamed or copied.", out, "%v", path)
-		_, out = execListEntryOp(schema, args, nil, listEntryCopy, op)
+		_, out = execListEntryOp(schema, args, nil, nil, listEntryCopy, op)
 		assert.Equal(t, "error: copy refused: rule has no key, so its entries cannot be renamed or copied.", out, "%v", path)
 	}
 	assert.False(t, called, "a refused rename or copy never reaches the editor")

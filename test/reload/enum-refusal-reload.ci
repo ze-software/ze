@@ -1,0 +1,88 @@
+# Test: enum-refusal-reload
+#
+# QUESTION: does a reload of a file holding an enum value outside the
+# enumeration refuse with the operator error after `reload: parse config:`
+# (one `parse config:`, one `line N:`), keep the daemon on the config it runs,
+# and apply the next valid reload? Only a running daemon proves the reload
+# path wraps the parser's refusal once; a unit test stops at the parser.
+#
+# Leaf: bgp peer <name> session capability route-refresh, typedef
+#   capability-mode (internal/component/bgp/yang/ze-bgp-conf.yang).
+#
+# Shape: test/reload/reload-parse-error-single-prefix.ci. The live-stages
+# fixture drives the reloads and asserts reload-status between them, so each
+# step waits on state, never on time.
+#
+# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-10 (reload).
+# PREVENTS: `reload: parse config: parse config:`, `line 21: line 21:`, the
+#   old `invalid enum` text, or a refused reload that takes the daemon down.
+
+option=timeout:value=40s
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:refused=config-parse:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				route-refresh requre
+			}
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=config3.conf:terminator=EOF_CONF3
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+EOF_CONF3
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+reload config2.conf
+has show reload-status => "last-outcome":"failed"
+say ENUM-REFUSAL-RELOAD: refused reload processed, daemon still answering
+reload config3.conf
+has show reload-status => "last-outcome":"applied"
+say ENUM-REFUSAL-RELOAD: valid reload applied
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=40s
+
+expect=stderr:contains=reload error: reload: parse config: line 21: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+expect=stderr:contains=route-refresh accepts only these values:
+expect=stderr:contains=fix: route-refresh require;
+reject=stderr:contains=parse config: parse config
+reject=stderr:contains=line 21: line 21
+reject=stderr:contains=invalid enum
+expect=stderr:contains=ENUM-REFUSAL-RELOAD: refused reload processed, daemon still answering
+expect=stderr:contains=ENUM-REFUSAL-RELOAD: valid reload applied
+reject=stderr:pattern=LIVE-STAGES line
+reject=stderr:pattern=panic

@@ -36,8 +36,8 @@ func TestCommitRefusesMissingMandatoryInSection(t *testing.T) {
 
 			result, err := model.dispatchCommand("commit verify")
 			require.NoError(t, err)
-			assert.Contains(t, result.statusMessage, "system/authentication/tacacs/server[192.0.2.9]/key")
-			assert.Contains(t, result.statusMessage, "`set system authentication tacacs server 192.0.2.9 key <value>`")
+			assert.Contains(t, result.output, "system/authentication/tacacs/server[192.0.2.9]/key")
+			assert.Contains(t, result.output, "`set system authentication tacacs server 192.0.2.9 key <value>`")
 			assert.Contains(t, result.statusMessage, "nothing was applied")
 
 			result, err = model.dispatchCommand("commit now")

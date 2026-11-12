@@ -1,0 +1,65 @@
+# Test: enum-refusal-daemon-start
+#
+# QUESTION: does the daemon's own config load refuse an enum value outside the
+# enumeration in a hierarchical file with the same operator error
+# `ze config validate` prints, after `error: load config:` and one
+# `parse config:`, and exit 1 before any session? A unit test reaches the
+# parser; only the daemon's start path proves the loader wraps the refusal
+# once and keeps `fix:` as the last line.
+#
+# The set-format file at daemon start is test/plugin/enum-refusal-daemon-start-set.ci:
+# the runner compares one exit code per test, the foreground daemon's
+# (internal/test/runner/record.go, ExitCode), so each start is its own test.
+#
+# Leaf: bgp peer <name> session capability route-refresh, typedef
+#   capability-mode (internal/component/bgp/yang/ze-bgp-conf.yang).
+#
+# Producers: cmd/ze/hub/main.go ("error: load config: %v"), the loader's
+# "parse config: " (internal/component/config/line_error.go parseConfigError,
+# built in loader.go), the parser refusal
+# (internal/component/config/parser_diagnostics.go).
+#
+# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-10 (start).
+# PREVENTS: `parse config: parse config:`, `line N: line N:`, `invalid enum`,
+#   a start that reaches the peers, or a start refusal whose fix is not the
+#   line the operator writes.
+#
+# Nothing reaches the wire: the daemon refuses the file before the reactor is
+# built, so no peer process is started.
+
+stdin=hier:terminator=EOF_HIER
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			capability {
+				route-refresh requre
+			}
+		}
+	}
+}
+EOF_HIER
+
+cmd=foreground:seq=1:exec=ze -:stdin=hier:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=error: load config: parse config: line 19: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+expect=stderr:pattern=route-refresh accepts only these values:\n +enable   Advertise the capability; no enforcement\n +disable  Do not advertise the capability; no enforcement\n +require  Advertise the capability; refuse the session when the peer does not offer it\n +refuse   Do not advertise the capability; refuse the session when the peer offers it\n *fix: route-refresh require;
+reject=stderr:contains=bgp peers started
+reject=stderr:pattern=parse config: parse config
+reject=stderr:pattern=line [0-9]+: line [0-9]+
+reject=stderr:pattern=invalid enum
+reject=stderr:pattern=expected one of
+reject=stderr:pattern=panic

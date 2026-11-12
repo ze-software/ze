@@ -71,7 +71,7 @@ func (m *Model) startMonitorSessionFromInput(args []string, fullInput string) te
 	session, err := m.monitorFactory(ctx, args)
 	if err != nil {
 		cancel()
-		m.err = err
+		m.setError(err)
 		return nil
 	}
 
@@ -95,7 +95,7 @@ func (m *Model) startProviderMonitor(provider *pluginserver.MonitorProvider, arg
 	eventCh, renderFn, provCancel, err := provider.CreateFn(ctx, args)
 	if err != nil {
 		cancel()
-		m.err = err
+		m.setError(err)
 		return nil
 	}
 

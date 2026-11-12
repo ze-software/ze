@@ -41,16 +41,16 @@ EOF_UPPER
 stdin=none:terminator=EOF_NONE
 l2tp { auth-method none; allow-no-auth true; }
 EOF_NONE
-stdin=low:refused=config-parse:terminator=EOF_LOW
+stdin=low:refused=config-yang-range:terminator=EOF_LOW
 l2tp { mru 63; }
 EOF_LOW
-stdin=high:refused=config-parse:terminator=EOF_HIGH
+stdin=high:refused=config-yang-range:terminator=EOF_HIGH
 l2tp { mru 1501; }
 EOF_HIGH
 stdin=omitted-method:refused=config-validator-unavailable:terminator=EOF_OMITTED
 l2tp { auth-method chap-md5; authentication { allow [ pap ]; } }
 EOF_OMITTED
-stdin=none-member:refused=config-parse:terminator=EOF_NONE_MEMBER
+stdin=none-member:refused=config-yang-enum:terminator=EOF_NONE_MEMBER
 l2tp { authentication { allow [ chap-md5 none ]; } }
 EOF_NONE_MEMBER
 stdin=none-with-list:refused=config-validator-unavailable:terminator=EOF_NONE_LIST

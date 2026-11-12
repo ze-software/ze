@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
 
@@ -18,12 +19,20 @@ import (
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ValidateContent runs the same validation as `ze config validate` and returns
 // an error containing all validation errors. Warnings do not fail validation,
 // matching the CLI command exit-code semantics.
+//
+// Each error is a block of its own, every line indented two spaces. An enum,
+// range, length or pattern refusal is written for a session, which holds no
+// file and no position: no line number, and its fix the `set` command from
+// the root (sessionFixRefusal), so each block ends with its own `fix:` line.
+// errors.As on the answer finds the first refusal's ValidationError and
+// operator error (contentRefusal).
 func ValidateContent(input, path string) error {
 	result := runValidation(input, path)
 	if result.Valid {
@@ -31,26 +40,156 @@ func ValidateContent(input, path string) error {
 	}
 	var b textbuf.Buffer
 	b.Str("config validation failed:")
+	var refusals []error
 	for i := range result.Diagnostics {
 		d := &result.Diagnostics[i]
 		if d.Severity != diagnostic.SeverityError {
 			continue
 		}
-		b.Str("\n  ")
-		if d.Line > 0 {
-			b.Str("line ").Int(int64(d.Line)).Str(": ")
+		if refusal, ok := result.refusals[i]; ok {
+			framed := sessionFixRefusal(refusal)
+			refusals = append(refusals, framed)
+			writeIndentedBlock(&b, framed.Unwrap().Error())
+			continue
 		}
-		b.Str(d.Message)
+		var block textbuf.Buffer
+		if d.Line > 0 {
+			block.Str("line ").Int(int64(d.Line)).Str(": ")
+		}
+		writeIndentedBlock(&b, block.Str(d.Message).String())
 	}
-	return errors.New(b.String())
+	return &contentRefusal{text: b.String(), refusals: refusals}
 }
 
+// sessionFixRefusal answers refusal with the fix a session types: `set`, the
+// full setting path and the correction. A parser refusal carries the
+// file-form fix of the line it refused, which a session cannot type.
+func sessionFixRefusal(refusal *configyang.ValidationError) *configyang.ValidationError {
+	var fix textbuf.Buffer
+	fix.Str("set ").Str(textbuf.Join(refusal.Segments(), " ")).Byte(' ').Str(refusal.Correction())
+	return refusal.WithFix(fix.String())
+}
+
+// writeIndentedBlock writes text on its own lines after b, each line indented
+// two spaces, so an accepted-value line (already two) reads four.
+func writeIndentedBlock(b *textbuf.Buffer, text string) {
+	for line := range strings.SplitSeq(text, "\n") {
+		b.Str("\n  ").Str(line)
+	}
+}
+
+// contentRefusal is ValidateContent's answer: the rendered blocks, and the
+// refusals among them in order, so errors.As reaches the first one's typed
+// facts and operator error.
+type contentRefusal struct {
+	text     string
+	refusals []error
+}
+
+func (e *contentRefusal) Error() string { return e.text }
+
+// Unwrap answers the refusals the text holds, first one first.
+func (e *contentRefusal) Unwrap() []error { return e.refusals }
+
 // validationResult holds validation results with structured diagnostics.
+// refusals maps the index of an error diagnostic to the enum, range, length
+// or pattern refusal it reports, for the surfaces that render the refusal
+// again for themselves (ValidateContent).
 type validationResult struct {
 	Valid       bool
 	Path        string
 	Diagnostics []diagnostic.Diagnostic
 	Config      *validationSummary
+	refusals    map[int]*configyang.ValidationError
+}
+
+// refusalDiagnostic answers the diagnostic of a parser refusal: the walk's
+// code for its kind, message (the refusal with its line left out, SplitLine)
+// and line, the accepted values or bounds as expected, the refused value as
+// actual unless the leaf is sensitive, and the path in the walk's form.
+func refusalDiagnostic(schema *config.Schema, refusal *configyang.ValidationError, message string, line int) diagnostic.Diagnostic {
+	d := diagnostic.Diagnostic{
+		Code:     yangErrorCode(refusal.Type),
+		Severity: diagnostic.SeverityError,
+		Message:  message,
+		Line:     line,
+		Path:     walkFormPath(schema, refusal.Segments()),
+		Fix:      refusalFix(refusal),
+	}
+	if refusal.Expected != "" {
+		d.Expected = refusal.Expected
+	}
+	if refusal.Got != "" && !refusal.Secret() {
+		d.Actual = refusal.Got
+	}
+	if r, s := yangRepair(refusal.Type); r != nil {
+		d.Repair = r
+		d.FixSafety = s
+	}
+	return d
+}
+
+// refusalFix answers the line that clears refusal, alone and with no label,
+// as every finding carries it: the fix the refusal's operator error holds.
+func refusalFix(refusal *configyang.ValidationError) string {
+	held, ok := errors.AsType[*opererr.Error](error(refusal))
+	if !ok {
+		// refuse-by-default: guards refusalDiagnostic -- a refusal with no operator error holds no fix line to carry
+		return ""
+	}
+	return held.Fix()
+}
+
+// walkFormPath answers segments, a setting path as the operator types it, in
+// the form the tree walk's diagnostics name a leaf: the section, a dot, then
+// the slash path with each list entry's address in brackets
+// (`bgp.bgp/peer[peer1]/session/capability/route-refresh`). It answers "" when
+// a word names no schema node, so the diagnostic omits a path it cannot name.
+// The loop is bounded by len(segments): every pass consumes one word or more.
+func walkFormPath(schema *config.Schema, segments []string) string {
+	if len(segments) == 0 {
+		return ""
+	}
+	var path textbuf.Buffer
+	path.Str(segments[0]).Byte('.')
+	var current config.ChildProvider = schema
+	for i := 0; i < len(segments); {
+		node := current.Get(segments[i])
+		if node == nil {
+			return ""
+		}
+		if i > 0 {
+			path.Byte('/')
+		}
+		path.Str(segments[i])
+		i++
+		if list, isList := node.(*config.ListNode); isList {
+			if n := config.ListAddressLen(list, segments[i:]); n > 0 {
+				path.Byte('[').Str(textbuf.Join(segments[i:i+n], " ")).Byte(']')
+				i += n
+			}
+		}
+		if i == len(segments) {
+			break
+		}
+		next, hasChildren := node.(config.ChildProvider)
+		if !hasChildren {
+			return ""
+		}
+		current = next
+	}
+	return path.String()
+}
+
+// addRefusal appends d, an error diagnostic, and records the refusal it
+// reports.
+func (r *validationResult) addRefusal(d diagnostic.Diagnostic, refusal *configyang.ValidationError) {
+	r.Valid = false
+	if r.refusals == nil {
+		r.refusals = make(map[int]*configyang.ValidationError)
+	}
+	r.refusals[len(r.Diagnostics)] = refusal
+	r.Diagnostics = append(r.Diagnostics, d)
 }
 
 func (r *validationResult) addError(code, message string) {
@@ -228,9 +367,12 @@ func runValidation(input, path string) *validationResult {
 	// set", so `ze config validate` disagreed with what `ze start` actually loads.
 	var tree *config.Tree
 	var warnings []string
-	switch config.DetectFormat(input) {
+	switch format := config.DetectFormat(input); format {
 	case config.FormatSet, config.FormatSetMeta:
-		tree, err = config.ParseTreeForValidation(input)
+		// The set parser's own refusal, like the hierarchical arm's: the
+		// loader's "parse config" segment belongs to daemon start and reload,
+		// so `line N: ` is followed by the path directly (AC-24).
+		tree, err = config.ParseSetFormat(schema, input, format)
 	case config.FormatHierarchical:
 		p := config.NewParser(schema)
 		tree, err = p.Parse(input)
@@ -245,6 +387,13 @@ func runValidation(input, path string) *validationResult {
 		// holds it in its own field and every printer writes it back, so the
 		// message is the refusal with that line left out.
 		line, message := config.SplitLine(err)
+		// An enum, range, length or pattern refusal carries the walk's code
+		// and typed fields, so a script reads a parser refusal and a walk
+		// refusal of one leaf the same way (AC-11).
+		if refusal, ok := errors.AsType[*configyang.ValidationError](err); ok && refusal.HoldsOperatorError() {
+			result.addRefusal(refusalDiagnostic(schema, refusal, message, line), refusal)
+			return result
+		}
 		// A node the schema carries only on another OS (ze:os) is a verdict
 		// about this host, not about the config, so it carries its own code.
 		code := "config-parse"
@@ -312,6 +461,13 @@ func runValidation(input, path string) *validationResult {
 		// Every failure refuses, a missing mandatory node included: LoadConfig
 		// refuses the same set, so this verdict is the daemon's.
 		d.Severity = diagnostic.SeverityError
+		// A refusal is rendered again by ValidateContent only where it masks
+		// a sensitive value itself, the rule SectionValidationError.Message
+		// applies; otherwise the redacted message stands.
+		if ve.HoldsOperatorError() && (ve.Secret() || !f.Sensitive) {
+			result.addRefusal(d, &ve)
+			continue
+		}
 		result.Valid = false
 		result.Diagnostics = append(result.Diagnostics, d)
 	}

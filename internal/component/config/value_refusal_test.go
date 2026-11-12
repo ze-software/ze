@@ -587,3 +587,24 @@ func TestParseListAddressPairRefusal(t *testing.T) {
 	assert.True(t, strings.HasPrefix(msg, "line 1: top session 192.0.2.1 vrf: \"pink\" is not an accepted value\n"), msg)
 	assert.True(t, strings.HasSuffix(msg, "\nfix: set top session 192.0.2.1 vrf <red|blue> label x"), msg)
 }
+
+// TestValidateNodeValueLeavesNonLeafNodesToTheEditor pins that the shared
+// set-time value check judges only what carries a value restriction.
+//
+// Goal: `set firewall ... then accept true` sets a presence container, and a
+// value check that refused every non-leaf node refused it with "accept holds
+// no value" on the SSH editor and the web.
+// Prevents: the value check turning away a setting it has no restriction for.
+func TestValidateNodeValueLeavesNonLeafNodesToTheEditor(t *testing.T) {
+	path := []string{"firewall", "table", "filter", "chain", "input", "term", "t", "then", "accept"}
+	for name, node := range map[string]Node{
+		"presence container": &ContainerNode{},
+		"flex":               &FlexNode{},
+		"freeform":           &FreeformNode{},
+		"inline list":        &InlineListNode{},
+	} {
+		require.NoError(t, ValidateNodeValue(node, path, "true"), name)
+	}
+	// A path the schema does not resolve still has no answer.
+	require.Error(t, ValidateNodeValue(nil, path, "true"))
+}

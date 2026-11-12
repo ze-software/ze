@@ -134,9 +134,11 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 				return
 			}
 
+			// A value the schema refuses is refused here, at set, with the
+			// refusal's problem, why and root-form fix (EditorManager.SetValue).
 			if err := mgr.SetValue(username, path, leaf, value); err != nil {
 				errPath := textbuf.Join(append(path, leaf), "/")
-				message := maskSecretInMessage(leafNode, err.Error(), value)
+				message := maskSecretInMessage(leafNode, refusalMessage(err), value)
 				if renderer != nil {
 					WriteOOBError(w, renderer, errPath, message, http.StatusBadRequest)
 				} else {
@@ -234,9 +236,9 @@ func HandleConfigFormWithAuthorizer(mgr *EditorManager, schema *config.Schema, r
 		if refused, setErr := mgr.ApplyFormEdits(username, fields); setErr != nil {
 			errPath := textbuf.Join(append(refused.path, refused.leaf), "/")
 			if renderer != nil {
-				WriteOOBError(w, renderer, errPath, setErr.Error(), http.StatusBadRequest)
+				WriteOOBError(w, renderer, errPath, refusalMessage(setErr), http.StatusBadRequest)
 			} else {
-				http.Error(w, setErr.Error(), http.StatusBadRequest)
+				http.Error(w, refusalMessage(setErr), http.StatusBadRequest)
 			}
 			return
 		}

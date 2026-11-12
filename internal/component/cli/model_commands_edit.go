@@ -6,6 +6,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -41,7 +42,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("set failed: %w", err)
 	}
 	if endsAtEntry && entry.End == len(fullPath) && len(entry.Address.Pairs) > 0 {
-		return m.createListEntry(entry, fullPath[len(entry.ParentPath)+1:])
+		return m.createListEntry(entry, fullPath[len(entry.ParentPath)+1:], args)
 	}
 
 	value := fullPath[len(fullPath)-1]
@@ -62,19 +63,39 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 		listName := containerPath[len(containerPath)-1]
 		listParent := containerPath[:len(containerPath)-1]
 		if err := m.editor.ensureListEntry(listParent, listName, []string{value}); err != nil {
+			// The key is the last word typed, so the fix is this `set`
+			// with the key corrected (AC-33).
+			if _, isValue := valueRefusal(err); isValue {
+				return commandResult{}, FramedSetRefusal(err, m.contextPath, args, m.operatorPosition())
+			}
 			return commandResult{}, fmt.Errorf("set failed: %w", err)
 		}
 	} else {
+		// A path ending at an entry's own key leaf would store the key as a
+		// second value; only rename changes an entry's key (AC-33, AC-34).
+		if err := InEntryKeyLeafRefusal(m.editor.schema, path, m.contextPath, m.operatorPosition()); err != nil {
+			return commandResult{}, err
+		}
 		// Validate the full token path (with list keys) against schema.
 		if err := m.completer.validateTokenPath(path); err != nil {
 			return commandResult{}, err
 		}
-		// Validate value against YANG type before applying. A refusal names
-		// what it refused, so the message carries the value the operator typed.
+		// Validate value against YANG type before applying. A value refusal
+		// is the schema's operator error, masked on a secret leaf where it is
+		// built, and its fix is this `set` as typed here, corrected; any other
+		// refusal names what it refused, so it is masked here.
 		if err := m.completer.ValidateValueAtPath(path, value); err != nil {
+			if _, isValue := valueRefusal(err); isValue {
+				return commandResult{}, FramedSetRefusal(err, m.contextPath, args, m.operatorPosition())
+			}
 			return commandResult{}, errors.New(m.editor.DisplayMessageAtPath(path, err.Error(), value))
 		}
 		if err := m.editor.SetValue(containerPath, key, value); err != nil {
+			// The creator refused a new entry's key on the way (AC-25,
+			// AC-30): the fix is this `set` with that key corrected.
+			if _, isValue := valueRefusal(err); isValue {
+				return commandResult{}, FramedKeyRefusal(err, cmdSet, m.contextPath, args, m.operatorPosition())
+			}
 			return commandResult{}, fmt.Errorf("set failed: %w", err)
 		}
 	}
@@ -106,9 +127,13 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 }
 
 // createListEntry creates the entry a `set` path names by its full address
-// (a multi-leaf key's first value and pairs) and reports it.
-func (m *Model) createListEntry(entry config.ListEntryTarget, address []string) (commandResult, error) {
+// (a multi-leaf key's first value and pairs) and reports it. args are the
+// words typed after `set`, for the fix of a refused key.
+func (m *Model) createListEntry(entry config.ListEntryTarget, address, args []string) (commandResult, error) {
 	if err := m.editor.ensureListEntry(entry.ParentPath, entry.ListName, address); err != nil {
+		if _, isValue := valueRefusal(err); isValue {
+			return commandResult{}, FramedKeyRefusal(err, cmdSet, m.contextPath, args, m.operatorPosition())
+		}
 		return commandResult{}, fmt.Errorf("set failed: %w", err)
 	}
 	m.refreshActiveBackends()
@@ -189,7 +214,7 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 	}
 	msg, err := m.editor.ApplyActivation(fullPath, activate)
 	if err != nil {
-		return commandResult{}, err
+		return commandResult{}, m.activationRefusal(err, verb, args)
 	}
 	m.refreshActiveBackends()
 	var tb textbuf.Buffer
@@ -200,6 +225,19 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 		refreshConfig: true,
 		revalidate:    true,
 	}, nil
+}
+
+// activationRefusal answers the error ApplyActivation gave for verb (activate
+// or deactivate) and args, the words the operator typed after it. A key the
+// list refuses (a session write-through that would create the entry) answers
+// the shared key refusal, with the line typed as its fix and the key
+// corrected (FramedKeyRefusal, AC-31), as the web terminal answers it; any
+// other error is answered as it is.
+func (m *Model) activationRefusal(err error, verb string, args []string) error {
+	if _, refused := valueRefusal(err); refused {
+		return FramedKeyRefusal(err, verb, m.contextPath, args, m.operatorPosition())
+	}
+	return err
 }
 
 // resolveLeafListValue is a thin wrapper around Editor.ResolveLeafListValue.
@@ -266,11 +304,24 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 
 	// Validate value against the leaf-list's YANG type before applying,
 	// the same gate cmdSet applies to scalar leaves.
+	// A value refusal's fix is this `insert` as typed here, the value
+	// corrected.
 	if err := m.completer.ValidateValueAtPath(fullPath, value); err != nil {
-		return commandResult{}, errors.New(m.editor.DisplayMessageAtPath(fullPath, err.Error(), value))
+		refusal, isValue := valueRefusal(err)
+		if !isValue {
+			return commandResult{}, errors.New(m.editor.DisplayMessageAtPath(fullPath, err.Error(), value))
+		}
+		fixArgs := append(append(slices.Clone(pathTokens), refusal.Correction()), args[len(pathAndValue):]...)
+		fix := FixCommand{Verb: cmdInsert, At: m.contextPath, Args: fixArgs}
+		return commandResult{}, refusal.WithFix(FrameFix(fix, m.operatorPosition()))
 	}
 
 	if err := m.editor.InsertLeafListValue(containerPath, leafListName, value, position, ref); err != nil {
+		// The creator refused a new entry's key on the way (AC-29): the fix
+		// is this insert with that key corrected.
+		if _, isValue := valueRefusal(err); isValue {
+			return commandResult{}, FramedKeyRefusal(err, cmdInsert, m.contextPath, args, m.operatorPosition())
+		}
 		return commandResult{}, fmt.Errorf("insert failed: %w", err)
 	}
 
@@ -361,6 +412,12 @@ func (m *Model) listEntryMove(args []string, verb listEntryMoveVerb) (commandRes
 	}
 
 	if err := verb.apply(m.editor, target.ParentPath, target.ListName, target.Address.Key, dst); err != nil {
+		// The destination key refused (ListEntryDestination): the fix is
+		// this rename or copy with that key corrected (AC-26).
+		if _, isValue := valueRefusal(err); isValue {
+			return commandResult{}, FramedWordRefusal(err, verb.name, m.contextPath, args,
+				target.End+1-len(m.contextPath), m.operatorPosition())
+		}
 		return commandResult{}, fmt.Errorf("%s failed: %w", verb.name, err)
 	}
 

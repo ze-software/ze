@@ -7,8 +7,11 @@ import (
 	"time"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 func TestTypedValueToString(t *testing.T) {
@@ -83,9 +86,15 @@ func TestSetPathUsesDotSeparator(t *testing.T) {
 type configSessionEditor struct {
 	values           map[string]string
 	committedContent string
+	// refusal, when set, is what every SetValue answers, as the session
+	// editor answers a refused list key; nothing is stored then.
+	refusal error
 }
 
 func (e *configSessionEditor) SetValue(path []string, key, value string) error {
+	if e.refusal != nil {
+		return e.refusal
+	}
 	e.values[strings.Join(path, ".")+"."+key] = value
 	return nil
 }
@@ -151,5 +160,43 @@ func TestGNMISetCommitsConfigSession(t *testing.T) {
 	}
 	if !strings.Contains(editor.committedContent, "bgp.router-id = 10.0.0.1") {
 		t.Fatalf("committed content %q does not contain router-id update", editor.committedContent)
+	}
+}
+
+// TestSetUpdateRefusalIsInvalidArgument sends a gNMI Set whose update the
+// config session refuses, as it refuses a list key outside its type.
+//
+// VALIDATES: AC-43 gNMI code -- the Set answers InvalidArgument, never
+// Unknown; the status message is the refusal's own text (problem, why, and
+// the fix on the last line); nothing is committed.
+// PREVENTS: applyUpdate returning the SetSegments error raw, which gRPC
+// delivers to the client as Unknown.
+func TestSetUpdateRefusalIsInvalidArgument(t *testing.T) {
+	refusal := opererr.New(`ospf redistribute: "bogus" is not an accepted value`,
+		"source accepts only these values: connected, static, kernel, bgp, isis",
+		"set ospf redistribute <connected|static|kernel|bgp|isis> nssa-propagate true")
+	editor := &configSessionEditor{values: make(map[string]string), refusal: refusal}
+	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
+		return editor, nil
+	})
+	srv := NewServer(Config{}, nil, sessions, nil, nil)
+
+	_, err := srv.Set(t.Context(), &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{Elem: []*gpb.PathElem{
+				{Name: "bgp"},
+				{Name: "router-id"},
+			}},
+			Val: &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: "10.0.0.1"}},
+		}},
+	})
+	if got := status.Code(err); got != codes.InvalidArgument {
+		t.Fatalf("Set code = %v (%v), want InvalidArgument", got, err)
+	}
+	if got := status.Convert(err).Message(); got != refusal.Error() {
+		t.Fatalf("Set message = %q, want the refusal text %q", got, refusal.Error())
+	}
+	if editor.committedContent != "" {
+		t.Fatalf("a refused Set committed %q", editor.committedContent)
 	}
 }
