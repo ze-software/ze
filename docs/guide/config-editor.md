@@ -396,6 +396,15 @@ An offline writer refuses while the daemon owns that store.
 <!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig, noticeUnrecordedVersion -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff -->
 
+An offline `ze config set` refuses an invalid value or a new list key before
+it writes the file. It exits with code 2 and prints the
+[value refusal](../architecture/config/yang-config-design.md#value-refusals)
+on stderr. The last line gives the corrected `set` command from the root,
+including the words after a refused key. For example,
+`ze config set router.conf ospf redistribute bogus nssa-propagate true`
+ends with `fix: set ospf redistribute <connected|static|kernel|bgp|isis> nssa-propagate true`.
+<!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
+
 `ze config import --dir <folder> <file>...` selects a destination independently
 of its input files. Without `--dir`, the destination follows `ze.config.dir`
 and then the default config folder. `--name` supplies the destination name for

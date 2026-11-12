@@ -4,13 +4,16 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -116,6 +119,16 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 
 	// Apply the set
 	if err := ed.SetValue(containerPath, key, value); err != nil {
+		// A key refusal keeps the rest of the command, including a secret
+		// assignment. Mask that operand before building the typed fix.
+		displayArgs := slices.Clone(setArgs)
+		displayArgs[len(displayArgs)-1] = ed.DisplayValueAtPath(path, value)
+		framed := cli.FramedKeyRefusal(err, "set", nil, displayArgs, nil)
+		var refusal *opererr.Error
+		if errors.As(framed, &refusal) {
+			fmt.Fprintln(os.Stderr, "error:", refusal)
+			return exitError
+		}
 		fmt.Fprintf(os.Stderr, "error: set failed: %v\n", err)
 		return exitError
 	}
