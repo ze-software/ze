@@ -1,16 +1,63 @@
 # Handover: closing near-done specs (2026-11-10)
 
-**Current status (2026-11-12 03:10 UTC):** nine specs closed. Refusal's lint
-ran and its owned findings are fixed, uncommitted, with tests owed. Lint-tooling
-is unblocked and its known findings are fixed, uncommitted. Access has five of
-seven acceptance cases. Route-policy still owes matched Mac measurements and
-has a written procedure. No claim is held. The continuation checkpoint below
-is the current state.
+**Current status (2026-11-12 05:00 UTC):** nine specs closed. Access is
+complete and waits on one owner command. Refusal waits on one lint run in a
+quiet tree, then closes. Lint-tooling has two fix batches and is further from
+zero than its list showed. Route-policy waits on the Mac. The 05:00
+continuation checkpoint below is the current state.
 **Branch:** main. No push was performed by this session; Thomas controls pushes.
 **Goal:** close the open specs whose implementation is already committed. The
 owner asked that locked or blocked specs not stop progress on the others.
 
-## Continuation checkpoint, 2026-11-12 03:10 UTC (session 49765d8f)
+## Continuation checkpoint, 2026-11-12 05:00 UTC (session 49765d8f)
+
+This section is the current state. Short names are under
+`tmp/session/2026-11-12-014013/scratch/`. No push and no `./le verify` ran.
+Every test, lint and lab ran in main.
+
+| Spec | State | What clears it |
+|------|-------|----------------|
+| access | Handed back `blocked` in `9e38af2dd7`. All seven acceptance cases pass. Lint fixes `0551906c9f`; the rerun shows no finding on a line Access wrote (`access-lint-after-ownership.tsv`). The review ran seven rounds. | Thomas, at a terminal: `bash tmp/session/2026-11-12-014013/scratch/access-owner-close.sh "<his words authorising review rounds 6 and 7>"`. It records the review, checks it and makes the commit that removes the spec |
+| refusal | Lint fixes `14d0fa156d` (nine owned defects). `test/plugin/system-date-ntp-forked.ci` passes. Closure text is in the working tree, uncommitted. The review record is prepared: 130 files, three rounds (`refusal-review-record-args.txt`, `refusal-closure-round3.md`). | The 13-package scoped lint once more, to confirm no owned finding remains. Six attempts were refused in planning: planning takes about 3.5 minutes and the doctor-coverage session writes into `internal/component/plugin` every minute. Run it when that session is idle, then record, then commits A and B (drafts in the spec's closure agent report are restated below) |
+| lint-tooling | Batch 1 `d3b523bb85` (93 findings, 71 files). Batch 2 `0b446895a2` (39 findings, 16 files under `internal/le/interoplab/{l2tp,pppoe}`: 33 the lint showed and six the repeat cap hid). Each batch's review ended clean at round 2, and its packages pass. The spec text is committed with batch 1; it does not yet record batch 2's review or commit. The reviewer named further hidden candidates outside these two packages: `internal/le/topology/check_conversion.go`, `internal/le/repo/objects/objects.go`, `internal/le/spec/status/specstatus.go`. | Record batch 2 in the spec, run the spec's own scoped lint (expect more than it shows on the first pass), the `fixture10Run` unparam in `plugin_fixture_10_process.go` once deployment-user-journeys commits that file, and two owner decisions (below) |
+| route-policy | Unchanged. The procedure is `plan/records/route-policy-0-a4-procedure.md`. | Thomas runs it on the Mac |
+
+Owner decisions that wait:
+
+| Decision | Evidence | What each answer changes |
+|----------|----------|--------------------------|
+| Authorise Access review rounds 6 and 7 | `access-closure-rounds5-7.md`: round 5 caught a fix that would have staled three RFC 5176 records; rounds 6 and 7 re-read one comment line each | Yes closes Access with the script. No means `review-override`, which holds the push |
+| Lint-tooling AC-1 reads "Zero findings" over trees where other sessions hold about 90 uncommitted files, and the lint judges the working tree | Umbrella AC-2 is CI's lint on a pushed commit, which sees committed code only; umbrella R-1 gives a new finding to whoever lands it | "Committed code" lets the spec close once its own lint shows none in committed files. "Working tree" means it waits until those sessions commit |
+| Lint-tooling review is past seven rounds already; the spec says round eight is not authorised | This session's batch reviews are further rounds | The closing record needs `owner-authorised` at a terminal, as Access does |
+
+Refusal closing commits, once the lint confirms: claim the spec; run
+`./le spec review record spec refuse-instead-of-defaulting verdict CLEAN rounds 3 reviewers independent_bounded findings-file tmp/session/2026-11-12-014013/scratch/refusal-closure-round3.md`
+followed by the 130 `file <path>` pairs; then commit A (the spec,
+`website/changes/fragments/refuse-instead-of-defaulting.md`, and the five citer
+files the spec's Pre-Commit table names) and commit B (`remove` the spec, no
+`no-news`, because A carries the fragment). The record is keyed to the
+session that commits.
+
+What this session learned about running here:
+
+- Other sessions leave the tree uncompilable for minutes at a time. A job that
+  links the daemon, which is every test, lint and lab, fails in under two
+  minutes when it does. Find whose edit it is, then run again when it is gone.
+- A scoped lint whose scope reaches `cmd/ze/hub` or `internal/test/fixture`
+  has nearly the whole daemon in its inputs. It plans only while no session
+  writes there. Do not let your own agents edit Go while it plans.
+- golangci-lint reports at most ten findings with the same text
+  (`.golangci.yml`, `max-same-issues`). A fixed batch uncovers the next.
+- An agent is capped near 100 tool calls. Give a closure agent the spec text
+  work only, and a continuation the exact remaining edits.
+- The source-edit hook refuses an agent's Go edit when the session's claim is
+  on a spec that is not in-progress. Hold the claim of the spec the edits
+  belong to.
+- `TestInfraSSHOwnerDrainsBeforeStoreCloseOnStartupFailure` (`cmd/ze/hub`)
+  fails in the default build with the working tree as it stands; none of this
+  session's changes is in that build's path. Not investigated.
+
+## Continuation checkpoint, 2026-11-12 03:10 UTC (superseded above)
 
 This section supersedes the blocker statements below where they differ. Short
 log names are under `tmp/session/2026-11-12-014013/scratch/`. No push and no
