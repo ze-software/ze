@@ -31,9 +31,10 @@ and 3 are covered by the same words but were not claimed.
 | `0de757b33c` | child 2 phase 4: a listener for a passive peer added in the start window |
 | `5d4d269afa` | not spec work: the LLGR reactor test's harness loads the `policy` plugin `bgp-gr` now needs |
 | `30bcf7988d` | five journal rows and three skeleton specs for defects met on the way |
+| `650bccc707` | child 2 phase 3: `test/plugin/reconnect-backoff-stable-reset.ci` (green twice, red observed through an overlay, no failure in 80 stress invocations; `prefix-teardown-reconnect-backoff.ci` re-run and passing) |
+| `2219d0d7b5` | three lint findings fixed in the backoff and listener tests |
 
-`./le repo compiles check` passed after the first four Go commits. It is owed
-again for `bae3903dbb` and `bec9096156`.
+`./le repo compiles check` passed with all seven code commits in.
 
 ## Decisions needed from Thomas
 
@@ -69,11 +70,15 @@ honour, so a mutation never touches the shared tree.
 
 | Package | Files | Run, then |
 |---------|-------|-----------|
-| 2.3b backoff `.ci` | `test/plugin/reconnect-backoff-stable-reset.ci` (promoted) | Green observed twice (98 s). Red observed with `cycleStayedEstablished` forced false: step 6 fails, steps 3 to 5 pass. Owed: `./le test stress-repro run suite plugin test reconnect-backoff-stable-reset any-failure iterations 80 timeout 300 minutes 40` (about 15 minutes, 16 daemons), then commit. Also re-run `prefix-teardown-reconnect-backoff.ci` |
 | 5.1b LDP `.ci` | `internal/test/fixture/ldp_neighbor_linux.go`, `ldp_session_end_linux.go`, `register_ldp_neighbor_linux.go`; `test/draft/ldp/ldp-session-end-clears-backoff.ci`, `ldp-setup-failure-publishes-no-session-down.ci`; one subsection in `docs/functional-tests.md` | `./le --name session test qemu ci test test/draft/ldp/<file>` for each. Red proofs in `register.go`'s session-end callback: `case operational:` to `case false:` (test 1), `if operational {` to `if true {` (test 2). Then stress, move to `test/ldp/`, re-run. Also re-run `test/ospf/ospf-ldp-sync-restore.ci` |
 | 5.1c LDP interop | `test/interop/scenarios/ldp-backoff-clear-frr/`, `internal/le/interoplab/bgp/check_ldp_backoff_clear.go` and its test, one row in `check_special.go`, a row in `docs/architecture/testing/interop.md`, two sentences in `docs/architecture/ldp/mpls-ldp.md` | `INTEROP_SCENARIO=ldp-backoff-clear-frr ./le test integration interop`, then the red walk with the overlay the agent left under `tmp/session/2026-11-12-000937/scratch/ldp-backoff-red/` (regenerate it: `register.go` changed since), then green again, then write both image ids and the red text into the interop page's row |
 | 5.2b L2TP `.ci` | `internal/test/fixture/tunnel_fixture_l2tp_session_clear.go`, `register_l2tp_session_clear.go`, a constant in `tunnel_fixture_l2tp_radius.go` and `tunnel_fixture_l2tp_ppp.go`; `test/draft/l2tp/session-clear-leaves-no-subscriber.ci` | `./le test qemu ci test test/draft/l2tp/session-clear-leaves-no-subscriber.ci`. Red proof: in `teardown.go` `notifySessionDowns`, `if r.eventBus == nil {` to `!= nil`. No QEMU form of the stress tool was found: decide what the test-writing rule then asks |
 | 5.3b FlowSpec `.ci` | `internal/test/fixture/ddos_flowspec_exit_linux.go`, `register_ddos_flowspec_exit_linux.go`; `test/draft/reload/ddos-flowspec-parent-removed-withdraws.ci`, `test/draft/plugin/ddos-flowspec-orphan-doctor.ci` | `./le --name session test qemu ci test <file>` for each. The orphan test runs the fix command `ze doctor` prints: a refusal at its step 9 means the CLI does not take `*` for a flow `del`, which is a defect in the fix text. Red proofs are in the 5.3b handoff |
+
+One guest run was tried (`ldp-session-end-clears-backoff.ci`, 04:25): it never
+reached the test, because the guest's `le` did not build on another session's
+in-flight edit of `internal/le/site/history/update.go`. None of the five
+packages below has been run.
 
 The fixture package and the interop checker package type-check with all of this
 in (`./le test unit pkg path ./internal/test/fixture/ path ./internal/le/interoplab/bgp/ vet`,
@@ -143,9 +148,12 @@ which holds them, writes from the state files:
   the plugins in its process table for their declared doctor checks, so a
   removed plugin's check vanishes) with its consequence built; the accounting
   test's wrong assumption; the L2TP behaviour changes above; AC-16 open.
-- Both: the scoped lint of `./internal/component/bgp/reactor/...` never ran (it
-  refuses to plan while a package it depends on is being edited). The LDP and
-  FlowSpec lints report 0 issues. The L2TP lint reports four issues, all in
+- Both: the scoped lint of `./internal/component/bgp/reactor/...` ran once and
+  reported four findings; the three in this work's test files are fixed in
+  `2219d0d7b5`, and the fourth (an unchecked error in `forward_build_test.go`)
+  is not from this work. The re-run after the fix was refused (the lint will
+  not plan while a package it depends on is being edited), so a clean result on
+  those two files is still owed. The LDP and FlowSpec lints report 0 issues. The L2TP lint reports four issues, all in
   files `857da9e798` added.
 
 ## Known reds this work did not cause
