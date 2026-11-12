@@ -457,7 +457,7 @@ func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, pa
 		meta.Pattern = `^[0-9a-fA-F.:]+/\d{1,3}$`
 	case config.TypeString, config.TypeBool, config.TypeInt,
 		config.TypeIPv6, config.TypeIP, config.TypeDuration, config.TypeEmpty,
-		config.TypeASN:
+		config.TypeASN, config.TypeDecimal64:
 		// No extra metadata needed. An ASN carries no Min or Max because the
 		// asdot form (1.10) is not a number the browser can range check.
 	}
@@ -494,7 +494,7 @@ func valueTypeToFieldType(vt config.ValueType) string {
 		return "duration"
 	case config.TypeASN:
 		return "asn"
-	case config.TypeString, config.TypeEmpty:
+	case config.TypeString, config.TypeEmpty, config.TypeDecimal64:
 		return fieldTypeString
 	default:
 		// Schema registrations are open; unknown leaf types retain the text editor.

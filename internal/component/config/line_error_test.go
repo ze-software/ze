@@ -74,15 +74,16 @@ func TestSplitLineNamesEachUnknownFieldOnce(t *testing.T) {
 }
 
 // TestSplitLineKeepsAnUnlinedError proves the loader's wrap keeps its segment
-// and hint once around a line error, and an error no parser layer built is
-// handed back whole with line 0, so nothing is cut from it.
+// and hint once around a line error, the hint before the refusal so a
+// refusal's fix: line stays the last line (AC-10), and an error no parser
+// layer built is handed back whole with line 0, so nothing is cut from it.
 func TestSplitLineKeepsAnUnlinedError(t *testing.T) {
 	err := lineErrorf(4, "x")
 	wrapped := &parseConfigError{cause: err, hint: "hint"}
-	if line, message := SplitLine(wrapped); line != 4 || message != "parse config: x\n\nhint" {
+	if line, message := SplitLine(wrapped); line != 4 || message != "parse config: hint\n\nx" {
 		t.Errorf("SplitLine(parse config wrap) = %d, %q", line, message)
 	}
-	if got := wrapped.Error(); got != "parse config: line 4: x\n\nhint" {
+	if got := wrapped.Error(); got != "parse config: hint\n\nline 4: x" {
 		t.Errorf("Error() = %q", got)
 	}
 	if line, message := SplitLine(errPluginAutoNotYetImplemented); line != 0 || message != errPluginAutoNotYetImplemented.Error() {

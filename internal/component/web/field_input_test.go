@@ -41,15 +41,15 @@ var fieldEditorMarkers = map[string]string{
 // It reads valueTypeToFieldType for the leaf's type, and it overwrites the
 // answer with "enum" when the leaf declares enums.
 //
-// The walk is over config.ValueType, an iota run from TypeString to TypeASN.
+// The walk is over config.ValueType, an iota run from TypeString to TypeDecimal64.
 // A constant added past the end would fall outside that walk. The guard below
-// therefore reads the value after TypeASN, and fails when the String method
+// therefore reads the value after TypeDecimal64, and fails when the String method
 // recognizes it.
 func producedFieldTypes(t *testing.T) []string {
 	t.Helper()
 
-	if next := config.ValueType(int(config.TypeASN) + 1); next.String() != "unknown" {
-		t.Fatalf("config.ValueType gained %q past TypeASN; extend this walk", next.String())
+	if next := config.ValueType(int(config.TypeDecimal64) + 1); next.String() != "unknown" {
+		t.Fatalf("config.ValueType gained %q past TypeDecimal64; extend this walk", next.String())
 	}
 
 	seen := map[string]bool{
@@ -57,7 +57,7 @@ func producedFieldTypes(t *testing.T) []string {
 		"enum": true,
 	}
 
-	for vt := config.TypeString; vt <= config.TypeASN; vt++ {
+	for vt := config.TypeString; vt <= config.TypeDecimal64; vt++ {
 		seen[valueTypeToFieldType(vt)] = true
 	}
 

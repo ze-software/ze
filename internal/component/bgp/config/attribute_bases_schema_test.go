@@ -75,12 +75,12 @@ func TestAttributeDefaultLeafRangeHoldsAtTheBoundaries(t *testing.T) {
 				t.Fatal("the leaf states its bound rather than leaving it to the type")
 			}
 			for _, valid := range []string{"0", "4294967295"} {
-				if err := config.ValidateLeafValue(leaf, valid); err != nil {
+				if err := config.ValidateLeafValue(leaf, nil, valid); err != nil {
 					t.Fatalf("%s refused: %v", valid, err)
 				}
 			}
 			for _, invalid := range []string{"4294967296", "-1"} {
-				if err := config.ValidateLeafValue(leaf, invalid); err == nil {
+				if err := config.ValidateLeafValue(leaf, nil, invalid); err == nil {
 					t.Fatalf("%s accepted", invalid)
 				}
 			}

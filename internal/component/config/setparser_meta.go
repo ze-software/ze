@@ -292,8 +292,8 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		if err != nil {
 			return lineErrorf(lineNum, "previous value: %w", err)
 		}
-		if err := ValidateLeafValue(leaf, value); err != nil {
-			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
+		if err := ValidateLeafValue(leaf, p.lineAt(tokens), value); err != nil {
+			return p.valueLineRefusal(lineNum, name, tokens, err)
 		}
 		setLeafMeta(NormalizeLeafValue(leaf.Type, value))
 		return nil
@@ -304,8 +304,8 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 			return lineErrorf(lineNum, "multi-leaf %s expects at least one value", name)
 		}
 		value := textbuf.Join(tokens, " ")
-		if err := validateValuePatterns(multi.Type, multi.Patterns, multi.Constraint, value); err != nil {
-			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
+		if err := ValidateLeafValue(multi.memberLeaf(), p.lineAt(tokens), value); err != nil {
+			return p.valueLineRefusal(lineNum, name, tokens, err)
 		}
 		setLeafMeta(value)
 		return nil
@@ -322,9 +322,9 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		// Each token is one member, a quoted one included, as walkAndSet
 		// reads it. A contested entry's line spells its value in brackets
 		// (bracketValue), so it reads back as members too.
-		items, err := bracketMembers(bracket, tokens)
+		items, err := bracketMembers(bracket, p.lineAt(tokens), tokens)
 		if err != nil {
-			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
+			return p.valueLineRefusal(lineNum, name, tokens, err)
 		}
 		// Members plus the scalar mirror, as walkAndSet stores them. A later
 		// line for the same leaf replaces an earlier one: a committed file
@@ -344,7 +344,7 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 			return nil // structural-only: no value to set
 		}
 		items := bracketItems(tokens)
-		if err := validateValueOrArrayItems(valueOrArray, name, items, lineNum); err != nil {
+		if err := p.validateValueOrArrayItems(valueOrArray, name, tokens, items, lineNum); err != nil {
 			return err
 		}
 		for _, item := range items {
@@ -387,14 +387,19 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		if len(tokens) == 0 {
 			return nil // structural-only: list node declared, no entries
 		}
-		if err := ValidateListKey(list, tokens[0]); err != nil {
-			return lineErrorf(lineNum, "invalid key for %s: %w", name, err)
+		if err := p.lineKeyRefusal(lineNum, list, name, tokens); err != nil {
+			return err
 		}
 		addr, err := ParseListAddress(name, list, tokens)
 		if err != nil {
-			return newLineError(lineNum, err)
+			return p.addressLineRefusal(lineNum, tokens, err)
 		}
-		treeEntry := EnsureListEntry(tree, name, addr)
+		// The creator judges the first key value as typed, `default` and
+		// `x#3` included.
+		treeEntry, err := EnsureListEntry(tree, p.lineAt(tokens), list, addr)
+		if err != nil {
+			return p.keyLineRefusal(lineNum, name, tokens, err)
+		}
 		if len(tokens) == addr.Tokens {
 			// Address only: create the entry (incomplete config tolerance).
 			return nil

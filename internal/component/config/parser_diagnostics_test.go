@@ -9,7 +9,10 @@ import (
 )
 
 // TestSchemaRefusalCarriesOriginalPath exercises a keyed ancestor and checks
-// schema-derived corrections without pinning the entire error message.
+// schema-derived corrections without pinning the entire error message. A
+// presence container given a value keeps its slash path and write: line; an
+// enumeration leaf's refusal names the same path, keyed ancestor included, in
+// the words the operator types, and its fix: line is the corrected line.
 func TestSchemaRefusalCarriesOriginalPath(t *testing.T) {
 	policy := &ContainerNode{
 		Presence: true,
@@ -30,14 +33,14 @@ func TestSchemaRefusalCarriesOriginalPath(t *testing.T) {
 		path  string
 		fix   string
 	}{
-		{"peer edge { policy [ one ]; }", "peer/edge/policy", "policy { filters [ VALUE ]; final <accept|reject>; }"},
-		{"peer edge { policy { final permit; } }", "peer/edge/policy/final", "final <accept|reject>;"},
+		{"peer edge { policy [ one ]; }", "peer/edge/policy", "write: policy { filters [ VALUE ]; final <accept|reject>; }"},
+		{"peer edge { policy { final permit; } }", "peer edge policy final: \"permit\" is not an accepted value", "\nfix: final <accept|reject>;"},
 	} {
 		_, err := NewParser(schema).Parse(tc.input)
 		if err == nil {
 			t.Fatalf("invalid input accepted: %s", tc.input)
 		}
-		for _, want := range []string{tc.path, "write:", tc.fix} {
+		for _, want := range []string{tc.path, tc.fix} {
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("refusal %q lacks %q", err, want)
 			}
@@ -53,9 +56,9 @@ func TestSchemaRefusalCarriesOriginalPath(t *testing.T) {
 	if !strings.Contains(err.Error(), "peer/edge/policy") {
 		t.Fatalf("relative refusal lost editor context: %v", err)
 	}
-	for _, input := range []string{
-		"set peer edge policy [ one ]",
-		"set peer edge policy final permit",
+	for input, wants := range map[string][]string{
+		"set peer edge policy [ one ]":      {"peer/edge/policy", "write:", "accept|reject"},
+		"set peer edge policy final permit": {"peer edge policy final: \"permit\" is not an accepted value", "\nfix: set peer edge policy final <accept|reject>"},
 	} {
 		_, plainErr := NewSetParser(schema).Parse(input)
 		_, _, metaErr := NewSetParser(schema).ParseWithMeta(input)
@@ -63,7 +66,7 @@ func TestSchemaRefusalCarriesOriginalPath(t *testing.T) {
 			if refusal == nil {
 				t.Fatalf("invalid set input accepted: %s", input)
 			}
-			for _, want := range []string{"peer/edge/policy", "write:", "accept|reject"} {
+			for _, want := range wants {
 				if !strings.Contains(refusal.Error(), want) {
 					t.Errorf("set refusal %q lacks %q", refusal, want)
 				}

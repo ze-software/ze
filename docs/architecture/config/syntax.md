@@ -62,13 +62,58 @@ uses for a mistyped command, `suggest.Command`.
 <!-- source: internal/component/config/retired.go -- UnknownKeywordHint -->
 <!-- source: internal/core/suggest/suggest.go -- Command -->
 
-An enumeration refusal includes its original path, the values it accepts, and
-the leaf statement to write. A bracket list where the schema expects a container
-names that path and renders the container's immediate fields instead, including
-enum choices. Hierarchical, set and set-meta parsing derive these corrections
-from schema nodes rather than a separate list of feature-specific hints.
+A bracket list where the schema expects a container names that path and
+renders the container's immediate fields instead, including enum choices.
+Hierarchical, set and set-meta parsing derive these corrections from schema
+nodes rather than a separate list of feature-specific hints.
 <!-- source: internal/component/config/parser.go -- parseNode, parseLeaf, parseContainer -->
 <!-- source: internal/component/config/parser_diagnostics.go -- prependSyntaxPath, containerValueFix, setSyntaxRefusal -->
+
+### Enumeration values
+
+A value outside a leaf's YANG enumeration, range, length or pattern is refused
+with an operator error built from the schema alone. Its first line names the
+setting path as the operator types it, words separated by spaces and list keys
+included, then the quoted value and what is wrong with it, with ` (did you mean
+X?)` when one accepted value is close (`suggest.Correction`: within one edit
+for a value of up to four characters, within a third of its length beyond
+that, tighter than the bound an unknown key uses because the suggestion becomes
+the fix, so `color true;` proposes no `blue`). The lines after it list every accepted value with its `ze:help`, in YANG
+declaration order, or give the accepted bounds or format, or the
+`error-message` the constraint declares. The last line is the fix:
+
+```text
+line 5: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+route-refresh accepts only these values:
+  enable   ...
+  require  ...
+fix: route-refresh require;
+```
+
+The hierarchical parser builds the refusal where it reads the value, every
+value arm and list-key arm alike, and names the path once, at the parse root,
+from the names each caller added on the way back (`namedRefusal`); a snippet
+loaded at an editor context names the context first. Its fix is the file line
+to write. The set parsers name the path the line consumed, and their fix is the
+line with the value replaced, `nop` on a `nop` line. A union value no member
+accepts lists the values of the enumeration members, then names the other
+member types. A leaf-list member, a multi-word value and a list key are judged
+the same way, and a ranged `decimal64` leaf is compared as a decimal of its
+`fraction-digits` (RFC 7950 Section 9.3). A type refusal (not a number, not an
+address) keeps its own text.
+
+A new list key is judged where the entry is created: `EnsureListEntry`, the one
+creator, refuses a first key value its key leaf refuses before it stores
+anything, so `set ospf redistribute bogus metric 30` creates nothing and its
+fix keeps `metric 30`. Only an address the operator typed is judged. The
+anonymous entry and a key read back from a session change file are not, and an
+entry already stored is returned as it is, so every stored entry stays
+reachable.
+<!-- source: internal/component/config/leaf_value.go -- ValidateLeafValue, ValidateListKey, validateUnionValue, validateDecimal64Leaf -->
+<!-- source: internal/component/config/parser_diagnostics.go -- valueRefusal, namedRefusal -->
+<!-- source: internal/component/config/setparser_refusal.go -- framedRefusal, keyLineRefusal -->
+<!-- source: internal/component/config/list_key.go -- EnsureListEntry, ListEntryDestination -->
+<!-- source: internal/core/suggest/suggest.go -- Correction -->
 
 ---
 

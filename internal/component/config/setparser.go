@@ -52,6 +52,9 @@ type SetParser struct {
 	// reads `nop <path> <member>` as the deactivation of a member the list
 	// line already set (nopBracketMember), never as a new list.
 	nopLine bool
+	// inactiveLine is true while an `inactive` line is walked, so a refusal's
+	// fix is an `inactive` line, the line the operator typed (lineVerb).
+	inactiveLine bool
 	// lineTokens is the path of the line being parsed, its verb left out, so
 	// an unknown keyword's refusal can name the keywords before it
 	// (keywordsBefore) and ask KeywordHint whether a compiled-out plugin owns
@@ -137,22 +140,17 @@ func (p *SetParser) parseLine(tree *Tree, line string, lineNum int) error {
 
 // bracketMembers answers the members a set-format line gives a bracket
 // leaf-list, each token one member, every member validated against the leaf's
-// type.
+// type. path is the setting path of the leaf-list, which a refusal names.
 //
 // One older spelling is still read: a draft written before each token became a
 // member spelled a contested entry as one quoted value, `address "a/24 b/30"`.
 // When a lone value fails as one member but every word of it passes, it is
 // that spelling, and it answers the words. A value that is one valid member,
 // such as a quoted description holding a space, stays one member.
-func bracketMembers(bracket *BracketLeafListNode, tokens []string) ([]string, error) {
+func bracketMembers(bracket *BracketLeafListNode, path, tokens []string) ([]string, error) {
 	items := bracketItems(tokens)
-	var firstErr error
-	for _, item := range items {
-		if err := validateValuePatterns(bracket.Type, bracket.Patterns, bracket.Constraint, item); err != nil {
-			firstErr = err
-			break
-		}
-	}
+	member := bracket.memberLeaf()
+	firstErr := validateMembers(member, path, items)
 	if firstErr == nil {
 		return items, nil
 	}
@@ -164,7 +162,7 @@ func bracketMembers(bracket *BracketLeafListNode, tokens []string) ([]string, er
 		return nil, firstErr
 	}
 	for _, word := range words {
-		if err := validateValuePatterns(bracket.Type, bracket.Patterns, bracket.Constraint, word); err != nil {
+		if err := ValidateLeafValue(member, path, word); err != nil {
 			return nil, firstErr
 		}
 	}
@@ -236,8 +234,8 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if err != nil {
 			return newLineError(lineNum, err)
 		}
-		if err := ValidateLeafValue(leaf, value); err != nil {
-			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
+		if err := ValidateLeafValue(leaf, p.lineAt(tokens), value); err != nil {
+			return p.valueLineRefusal(lineNum, name, tokens, err)
 		}
 		tree.Set(name, NormalizeLeafValue(leaf.Type, value))
 		return nil
@@ -248,8 +246,8 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 			return lineErrorf(lineNum, "multi-leaf %s expects at least one value", name)
 		}
 		value := textbuf.Join(tokens, " ")
-		if err := validateValuePatterns(multi.Type, multi.Patterns, multi.Constraint, value); err != nil {
-			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
+		if err := ValidateLeafValue(multi.memberLeaf(), p.lineAt(tokens), value); err != nil {
+			return p.valueLineRefusal(lineNum, name, tokens, err)
 		}
 		tree.Set(name, value)
 		return nil
@@ -264,9 +262,9 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		}
 		// Each token is one member, a quoted one included, as the hierarchical
 		// parser reads `[ a "b c" ]`, so the two parsers agree on the members.
-		items, err := bracketMembers(bracket, tokens)
+		items, err := bracketMembers(bracket, p.lineAt(tokens), tokens)
 		if err != nil {
-			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
+			return p.valueLineRefusal(lineNum, name, tokens, err)
 		}
 		// Members plus the scalar mirror, the store the hierarchical parser
 		// fills (storeBracketLeafList), so a set-format load hands the editor
@@ -287,7 +285,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		// marker (same accepted input form as the hierarchical parser), so the
 		// stored member value stays clean and is validated clean.
 		clean, deactivated := stripInactiveMemberPrefix(bracketItems(tokens))
-		if err := validateValueOrArrayItems(valueOrArray, name, clean, lineNum); err != nil {
+		if err := p.validateValueOrArrayItems(valueOrArray, name, tokens, clean, lineNum); err != nil {
 			return err
 		}
 		// Add-member merge: each line appends missing members (JunOS set
@@ -316,14 +314,18 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 			return nil // structural-only: list node declared, no entries
 		}
 		if len(tokens) == 1 {
-			// Key-only: create empty list entry (incomplete config tolerance).
-			key := tokens[0]
-			if err := ValidateListKey(list, key); err != nil {
-				return lineErrorf(lineNum, "invalid key for %s: %w", name, err)
+			// Key-only: create the empty entry (incomplete config tolerance)
+			// through the one creator. The typed key is judged first, as the
+			// line types it, whether or not its entry is stored.
+			if err := p.lineKeyRefusal(lineNum, list, name, tokens); err != nil {
+				return err
 			}
-			entries := tree.GetList(name)
-			if entries == nil || entries[key] == nil {
-				tree.AddListEntry(name, key, NewTree())
+			addr, err := ParseListAddress(name, list, tokens)
+			if err != nil {
+				return p.addressLineRefusal(lineNum, tokens, err)
+			}
+			if _, err := EnsureListEntry(tree, p.lineAt(tokens), list, addr); err != nil {
+				return p.keyLineRefusal(lineNum, name, tokens, err)
 			}
 			return nil
 		}
@@ -397,7 +399,7 @@ func (p *SetParser) nopBracketMember(tree *Tree, bracket *BracketLeafListNode, n
 	if !present {
 		// An invalid value, or a joined value that holds several members,
 		// is left to the list path, which reports or reads it.
-		items, err := bracketMembers(bracket, tokens)
+		items, err := bracketMembers(bracket, p.lineAt(tokens), tokens)
 		if err != nil {
 			return false, nil //nolint:nilerr // The list path reports the error with its line number.
 		}
@@ -540,7 +542,10 @@ func (p *SetParser) parseInactive(tree *Tree, tokens []string, lineNum int) erro
 	if len(tokens) < 1 {
 		return lineErrorf(lineNum, "inactive requires a path")
 	}
-	return p.walkAndMarkInactive(tree, p.schema.root, tokens, lineNum)
+	p.inactiveLine = true
+	err := p.walkAndMarkInactive(tree, p.schema.root, tokens, lineNum)
+	p.inactiveLine = false
+	return err
 }
 
 // walkAndMarkInactive walks the path through schema and tree and sets
@@ -631,9 +636,12 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 		}
 		addr, err := ParseListAddress(name, list, tokens)
 		if err != nil {
-			return newLineError(lineNum, err)
+			return p.addressLineRefusal(lineNum, tokens, err)
 		}
-		entry := EnsureListEntry(tree, name, addr)
+		entry, err := EnsureListEntry(tree, p.lineAt(tokens), list, addr)
+		if err != nil {
+			return p.keyLineRefusal(lineNum, name, tokens, err)
+		}
 		if len(tokens) == addr.Tokens {
 			entry.SetInactive(true)
 			return nil
@@ -764,14 +772,9 @@ func isLeafLike(node Node) bool {
 // validateValueOrArrayItems checks every leaf-list item against the node's
 // enum values and type patterns. Shared by the plain and metadata-aware
 // set parsers.
-func validateValueOrArrayItems(node *ValueOrArrayNode, name string, items []string, lineNum int) error {
-	for _, item := range items {
-		if node.ValidValues != nil && !containsString(node.ValidValues, item) {
-			return lineErrorf(lineNum, "invalid value for %s: %q (valid: %s)", name, item, textbuf.Join(node.ValidValues, ", "))
-		}
-		if err := validateValuePatterns(node.Type, node.Patterns, node.Constraint, item); err != nil {
-			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
-		}
+func (p *SetParser) validateValueOrArrayItems(node *ValueOrArrayNode, name string, rest, items []string, lineNum int) error {
+	if err := validateMembers(node.memberLeaf(), p.lineAt(rest), items); err != nil {
+		return p.valueLineRefusal(lineNum, name, rest, err)
 	}
 	return nil
 }
@@ -789,7 +792,7 @@ func (p *SetParser) deleteFromList(tree *Tree, list *ListNode, name string, toke
 	}
 	addr, err := ParseListAddress(name, list, tokens)
 	if err != nil {
-		return newLineError(lineNum, err)
+		return p.addressLineRefusal(lineNum, tokens, err)
 	}
 	tokens = tokens[addr.Tokens:]
 	entries := tree.GetList(name)

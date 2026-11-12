@@ -22,13 +22,13 @@ func TestValidateLeafValueLength(t *testing.T) {
 	}
 
 	t.Run("last valid length is accepted", func(t *testing.T) {
-		if err := ValidateLeafValue(node, strings.Repeat("a", 255)); err != nil {
+		if err := ValidateLeafValue(node, nil, strings.Repeat("a", 255)); err != nil {
 			t.Fatalf("255 characters must be accepted: %v", err)
 		}
 	})
 
 	t.Run("one over the maximum is rejected", func(t *testing.T) {
-		err := ValidateLeafValue(node, strings.Repeat("a", 256))
+		err := ValidateLeafValue(node, nil, strings.Repeat("a", 256))
 		if err == nil {
 			t.Fatal("256 characters must be rejected")
 		}
@@ -38,14 +38,14 @@ func TestValidateLeafValueLength(t *testing.T) {
 	})
 
 	t.Run("empty is rejected below the minimum", func(t *testing.T) {
-		if err := ValidateLeafValue(node, ""); err == nil {
+		if err := ValidateLeafValue(node, nil, ""); err == nil {
 			t.Fatal("an empty value must be rejected by length 1..255")
 		}
 	})
 
 	t.Run("a leaf with no length constraint is unbounded", func(t *testing.T) {
 		free := &LeafNode{Type: TypeString}
-		if err := ValidateLeafValue(free, strings.Repeat("a", 4096)); err != nil {
+		if err := ValidateLeafValue(free, nil, strings.Repeat("a", 4096)); err != nil {
 			t.Fatalf("an unconstrained leaf must accept any length: %v", err)
 		}
 	})
@@ -55,7 +55,7 @@ func TestValidateLeafValueLength(t *testing.T) {
 		// multi-byte value must not be rejected by a 1..4 constraint just
 		// because its UTF-8 encoding is longer.
 		short := &LeafNode{Type: TypeString, Lengths: []NumericRange{{Min: "1", Max: "4"}}}
-		if err := ValidateLeafValue(short, "héé"); err != nil {
+		if err := ValidateLeafValue(short, nil, "héé"); err != nil {
 			t.Fatalf("a 3-character value must fit 1..4: %v", err)
 		}
 	})
@@ -78,7 +78,7 @@ func TestCertificateLeafLengthFromYANG(t *testing.T) {
 	if node.Lengths[0].Min != "1" || node.Lengths[0].Max != "255" {
 		t.Fatalf("length = %v, want 1..255", node.Lengths)
 	}
-	if err := ValidateLeafValue(node, strings.Repeat("a", 256)); err == nil {
+	if err := ValidateLeafValue(node, nil, strings.Repeat("a", 256)); err == nil {
 		t.Fatal("a 256-character certificate name must be rejected by the built schema")
 	}
 }
@@ -120,10 +120,10 @@ func TestCertificateLeafLengthFromYANGLG(t *testing.T) {
 	if node.Lengths[0].Min != "1" || node.Lengths[0].Max != "255" {
 		t.Fatalf("length = %v, want 1..255", node.Lengths)
 	}
-	if err := ValidateLeafValue(node, strings.Repeat("a", 256)); err == nil {
+	if err := ValidateLeafValue(node, nil, strings.Repeat("a", 256)); err == nil {
 		t.Fatal("a 256-character certificate name must be rejected by the built schema")
 	}
-	if err := ValidateLeafValue(node, "lan/../etc"); err == nil {
+	if err := ValidateLeafValue(node, nil, "lan/../etc"); err == nil {
 		t.Fatal("the YANG pattern must refuse a path separator in a store name")
 	}
 }

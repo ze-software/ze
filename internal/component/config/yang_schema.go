@@ -784,6 +784,7 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	node.Lengths = lengthRangesFromType(entry.Type)
 	node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
 	node.Union = unionMembersFromType(entry, entry.Type)
+	markDecimal64(node, entry.Type)
 	for _, ext := range entry.Exts {
 		if ext.Keyword == "ze:required" || strings.HasSuffix(ext.Keyword, ":required") {
 			recordSchemaBuildError(fmt.Errorf("at %s: ze:required on a leaf is invalid (use mandatory true instead)", path))
@@ -994,6 +995,7 @@ func unionMembersFromType(leaf *gyang.Entry, typ *gyang.YangType) []UnionMember 
 	members := make([]UnionMember, 0, len(typ.Type))
 	for _, member := range typ.Type {
 		node := Leaf(yangTypeToValueType(member))
+		markDecimal64(node, member)
 		node.Ranges = numericRangesFromType(member, "")
 		node.Patterns = patternsFromType(member)
 		node.Lengths = lengthRangesFromType(member)
@@ -1300,6 +1302,26 @@ func yangToInlineListWithKey(entry *gyang.Entry, path string, keyType ValueType)
 	l := InlineList(keyType, fields...)
 	l.Backend = getBackendExtension(entry)
 	return l
+}
+
+// markDecimal64 makes node, a leaf or a union member of type typ, a decimal64
+// number when typ is decimal64, so its range is compared as a decimal of the
+// type's fraction digits rather than refused as text (ValidateLeafValue). A
+// leaf-list and a list key keep the string type yangTypeToValueType answers:
+// no parser judged their decimal64 range before, and none is declared.
+//
+// RFC 7950 Section 9.3.4: "The "fraction-digits" statement, which is a
+// substatement to the "type" statement, MUST be present if the type is
+// "decimal64"."
+func markDecimal64(node *LeafNode, typ *gyang.YangType) {
+	if typ == nil {
+		return
+	}
+	if typ.Kind != gyang.Ydecimal64 {
+		return
+	}
+	node.Type = TypeDecimal64
+	node.FractionDigits = typ.FractionDigits
 }
 
 // yangTypeToValueType converts YANG type to config ValueType.

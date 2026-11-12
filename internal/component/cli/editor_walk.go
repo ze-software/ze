@@ -55,7 +55,10 @@ func walkOrCreateTree(tree *config.Tree, schema *config.Schema, path []string) (
 			if err != nil {
 				return nil, err
 			}
-			currentTree = config.EnsureListEntry(currentTree, name, addr)
+			currentTree, err = config.EnsureListEntry(currentTree, path[:i+1], listNode, addr)
+			if err != nil {
+				return nil, err
+			}
 			currentSchema = listNode
 			i += 1 + addr.Tokens
 			continue

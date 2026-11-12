@@ -777,12 +777,15 @@ bgp {
 `
 
 	_, err := loadReactor(input)
-	// The list key "10.0.0.1" contains dots, which triggers peer name validation.
-	// If the resolve layer validates the list key, this should error.
-	// If not yet wired, loadReactor may succeed (validation gap).
-	if err != nil {
-		assert.Contains(t, err.Error(), "invalid peer name")
-	}
+	// The list key "10.0.0.1" starts with a digit, which the YANG pattern of
+	// the peer name leaf refuses, so the parser's list-key arm refuses it
+	// before the resolve layer's validatePeerName runs: the refusal is the
+	// pattern kind's, naming the key after its list and ending with a fix.
+	require.Error(t, err, "a peer name the name pattern refuses must not load")
+	msg := err.Error()
+	assert.Contains(t, msg, `bgp peer 10.0.0.1: "10.0.0.1" is not in the accepted format`)
+	assert.Contains(t, msg, "\nfix: ")
+	assert.NotContains(t, msg, "does not match pattern")
 }
 
 // TestMergeCliPlugins verifies CLI plugin merging with config plugins.

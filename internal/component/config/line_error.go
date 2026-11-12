@@ -66,7 +66,8 @@ func (e *LineError) Unwrap() error { return e.cause }
 // parseConfigError is the loader's context on a parse refusal: "parse config"
 // is added here and by no other layer, so a caller that holds a further fact
 // (a reload) adds only that fact (docs/contributing/ze-go-style.md, "Every
-// error is handled"). hint, when set, follows the refusal after a blank line.
+// error is handled"). hint, when set, comes before the refusal, followed by a
+// blank line, so a refusal's "fix:" line stays the last line printed.
 type parseConfigError struct {
 	cause error
 	hint  string
@@ -76,11 +77,18 @@ const parseConfigSegment = "parse config: "
 
 func (e *parseConfigError) Error() string {
 	var b textbuf.Buffer
-	b.Str(parseConfigSegment).Err(e.cause)
-	if e.hint != "" {
-		b.Str("\n\n").Str(e.hint)
+	b.Str(parseConfigSegment)
+	writeHint(&b, e.hint)
+	return b.Err(e.cause).String()
+}
+
+// writeHint writes hint and the blank line that parts it from the refusal
+// after it, nothing for no hint.
+func writeHint(b *textbuf.Buffer, hint string) {
+	if hint == "" {
+		return
 	}
-	return b.String()
+	b.Str(hint).Str("\n\n")
 }
 
 func (e *parseConfigError) Unwrap() error { return e.cause }
@@ -154,11 +162,9 @@ func SplitLine(err error) (line int, message string) {
 	case *parseConfigError:
 		line, message = SplitLine(e.cause)
 		var b textbuf.Buffer
-		b.Str(parseConfigSegment).Str(message)
-		if e.hint != "" {
-			b.Str("\n\n").Str(e.hint)
-		}
-		return line, b.String()
+		b.Str(parseConfigSegment)
+		writeHint(&b, e.hint)
+		return line, b.Str(message).String()
 	case *unknownFieldsError:
 		line, message = SplitLine(e.strict)
 		var b textbuf.Buffer

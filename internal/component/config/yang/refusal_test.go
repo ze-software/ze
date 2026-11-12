@@ -108,9 +108,11 @@ func walkRefusal(t *testing.T, v *Validator, leaf, value string) *ValidationErro
 	return refusal
 }
 
-// TestEnumRefusalSuggestion validates A-1: suggest.Command's bound suits enum
-// values. Method: a one-letter typo gets the hint and the corrected fix; a
-// word far from every value gets neither, and its fix is the alternation.
+// TestEnumRefusalSuggestion validates A-1: a value refusal suggests through
+// suggest.Correction, whose bound is tighter than suggest.Command's. Method: a
+// one-letter typo gets the hint and the corrected fix; a word far from every
+// value, or only within Command's bound, gets neither, and its fix is the
+// alternation.
 func TestEnumRefusalSuggestion(t *testing.T) {
 	v := refusalProbe(t)
 
@@ -128,6 +130,18 @@ func TestEnumRefusalSuggestion(t *testing.T) {
 	}
 	if got := far.Correction(); got != "<enable|disable|require|refuse>" {
 		t.Errorf("banana: correction %q, want the alternation in declared order", got)
+	}
+
+	// "rqure" is five characters and two edits from "require": within
+	// Command's half-length bound, past the third of its length a value may
+	// be corrected by (suggest.Correction), so no hint and the alternation,
+	// never a guessed value in the fix line.
+	guess := walkRefusal(t, v, "mode", "rqure")
+	if strings.Contains(guess.Error(), "did you mean") {
+		t.Errorf("rqure: a hint was offered:\n%s", guess.Error())
+	}
+	if got := guess.Correction(); got != "<enable|disable|require|refuse>" {
+		t.Errorf("rqure: correction %q, want the alternation in declared order", got)
 	}
 }
 

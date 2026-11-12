@@ -118,8 +118,16 @@ type SectionValidationError struct {
 // prints a password or a key into a startup log. A missing leaf holds no value
 // to leak, so its reason, which names the leaf and the command that sets it,
 // is kept.
+//
+// An enum, range, length or pattern refusal renders as its operator error
+// after the section: it names the path itself and already masks a secret
+// value, so its accepted values stay listed on a sensitive leaf too. Only a
+// refusal that does not mask the value the walk calls sensitive is redacted.
 func (e SectionValidationError) Message() string {
 	var tb textbuf.Buffer
+	if e.Err.HoldsOperatorError() && (e.Err.Secret() || !e.Sensitive) {
+		return tb.Str(e.Section).Str(": ").Str(e.Err.Error()).String()
+	}
 	msg := e.Err.Message
 	if e.Sensitive && e.Err.Type != yang.ErrTypeMissing {
 		msg = tb.Str(e.Err.Type.String()).Str(" validation failed (sensitive value redacted)").String()
@@ -262,7 +270,8 @@ func mandatoryFailures(validator *yang.Validator, tree *Tree) []SectionValidatio
 }
 
 // refuseInvalidCustomSections turns the walk into LoadConfig's verdict: an error
-// naming every blocking failure, or nil.
+// naming every blocking failure, or nil. Each failure starts on a line of its
+// own, since a value refusal spans several lines and ends with its own fix.
 func refuseInvalidCustomSections(tree *Tree) error {
 	found, err := ValidateCustomSections(tree)
 	if err != nil {
@@ -271,11 +280,19 @@ func refuseInvalidCustomSections(tree *Tree) error {
 	if len(found) == 0 {
 		return nil
 	}
+	return joinSectionRefusals(found)
+}
+
+// joinSectionRefusals answers the verdict of a walk that found failures: an
+// ErrCustomValidation whose text puts each failure's Message on a line of its
+// own, after the header line, never joined with "; ". found MUST hold at least
+// one failure.
+func joinSectionRefusals(found []SectionValidationError) error {
 	refusals := make([]string, 0, len(found))
 	for _, f := range found {
 		refusals = append(refusals, f.Message())
 	}
-	return fmt.Errorf("%w: %s", ErrCustomValidation, textbuf.Join(refusals, "; "))
+	return fmt.Errorf("%w:\n%s", ErrCustomValidation, textbuf.Join(refusals, "\n"))
 }
 
 // isSensitiveLeaf reports whether the last element of a validation error's path

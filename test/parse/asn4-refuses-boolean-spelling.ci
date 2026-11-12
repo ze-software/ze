@@ -61,8 +61,13 @@ expect=exit:code=1
 # message is the discriminator, and it comes from ValidateLeafValue's enum arm
 # (internal/component/config/schema.go), which lists the enumeration. The
 # needle carries no ':' because the directive splits on it.
-expect=stdout:contains=invalid value for asn4
-expect=stdout:contains=expected one of
-expect=stdout:contains=enable, disable, require, refuse
+expect=stdout:contains=bgp peer test-peer session capability asn4: "true" is not an accepted value
+expect=stdout:contains=asn4 accepts only these values:
+expect=stdout:contains=  enable
+expect=stdout:contains=  disable
+expect=stdout:contains=  require
+expect=stdout:contains=  refuse
+expect=stdout:contains=fix: asn4 enable;
+reject=stdout:pattern=expected one of
 cmd=foreground:seq=2:exec=ze config validate -:stdin=mode
 expect=exit:code=0

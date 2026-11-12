@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,28 +70,23 @@ module ze-pattern-test-conf {
 
 	_, err = NewParser(schema).Parse(`pattern-test { slug Bad; }`)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "slug")
-	assert.Contains(t, err.Error(), "does not match pattern")
+	assertPatternRefusal(t, err, `pattern-test slug: "Bad"`, "slug", "\nfix: slug <value>;")
 
 	_, err = NewParser(schema).Parse(`pattern-test { alt goodx; }`)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "alt")
-	assert.Contains(t, err.Error(), "does not match pattern")
+	assertPatternRefusal(t, err, `pattern-test alt: "goodx"`, "alt", "\nfix: alt <value>;")
 
 	_, err = NewParser(schema).Parse(`pattern-test { peer 1bad { description test; } }`)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "peer")
-	assert.Contains(t, err.Error(), "does not match pattern")
+	assertPatternRefusal(t, err, `pattern-test peer 1bad: "1bad"`, "name", "")
 
 	_, err = NewParser(schema).Parse(`pattern-test { tag [ good Bad ]; }`)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "tag")
-	assert.Contains(t, err.Error(), "does not match pattern")
+	assertPatternRefusal(t, err, `pattern-test tag: "Bad"`, "tag", "")
 
 	_, err = NewParser(schema).Parse(`pattern-test { inline item Bad text; }`)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "inline.code")
-	assert.Contains(t, err.Error(), "does not match pattern")
+	assertPatternRefusal(t, err, `pattern-test inline item code: "Bad"`, "code", "")
 
 	_, err = NewParser(schema).Parse(`pattern-test { slug good-name; alt good; peer good_1 { description test; } inline item good text; tag [ good other-1 ]; }`)
 	require.NoError(t, err)
@@ -175,27 +171,40 @@ module ze-pattern-set-test-conf {
 
 	_, err = NewSetParser(schema).Parse(`set pattern-set-test slug Bad`)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "slug")
-	assert.Contains(t, err.Error(), "does not match pattern")
+	assertPatternRefusal(t, err, `pattern-set-test slug: "Bad"`, "slug", "\nfix: set pattern-set-test slug <value>")
 
 	_, err = NewSetParser(schema).Parse(`set pattern-set-test peer 1bad description test`)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "peer")
-	assert.Contains(t, err.Error(), "does not match pattern")
+	assertPatternRefusal(t, err, `pattern-set-test peer 1bad: "1bad"`, "name", "\nfix: set pattern-set-test peer <value> description test")
 
 	_, err = NewSetParser(schema).Parse(`set pattern-set-test tag [ good Bad ]`)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "tag")
-	assert.Contains(t, err.Error(), "does not match pattern")
+	assertPatternRefusal(t, err, `pattern-set-test tag: "Bad"`, "tag", "\nfix: set pattern-set-test tag <value>")
 
 	_, err = NewSetParser(schema).Parse(`set pattern-set-test label [ good Bad ]`)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "label")
-	assert.Contains(t, err.Error(), "does not match pattern")
+	assertPatternRefusal(t, err, `pattern-set-test label: "Bad"`, "label", "\nfix: set pattern-set-test label <value>")
 
 	_, err = NewSetParser(schema).Parse(`set pattern-set-test slug good-name
 set pattern-set-test tag [ good other-1 ]
 set pattern-set-test label [ good other-1 ]
 set pattern-set-test peer good_1 description test`)
 	require.NoError(t, err)
+}
+
+// assertPatternRefusal asserts err is the pattern refusal of one value: the
+// problem names the path and the refused value, the why names the leaf with no
+// regular expression (the test patterns are inline and carry no ze:help, so
+// the why is that the leaf does not accept the value, AC-40), and the last
+// line is a fix: line, fix itself when given (AC-37, AC-39).
+func assertPatternRefusal(t *testing.T, err error, problem, leaf, fix string) {
+	t.Helper()
+	require.Error(t, err)
+	msg := err.Error()
+	assert.Contains(t, msg, problem+" is not in the accepted format\n"+leaf+" does not accept this value\nfix: ")
+	if fix != "" {
+		assert.True(t, strings.HasSuffix(msg, fix), "refusal %q, want it to end with %q", msg, fix)
+	}
+	assert.NotContains(t, msg, "does not match pattern")
+	assert.NotContains(t, msg, "[a-")
 }

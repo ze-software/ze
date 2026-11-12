@@ -118,7 +118,8 @@ EOF_BAD_COST
 
 cmd=foreground:seq=5:exec=ze config validate -:stdin=ospf-bad-cost-zero:exit=1
 expect=exit:code=1
-expect=stdout:contains=invalid value for cost
+expect=stdout:contains=interface eth0 cost: "0" is outside the accepted range
+expect=stdout:contains=fix: cost <
 
 # --- Invalid interface transmit-delay 0: RFC 2328 InfTransDelay must be > 0. ---
 # The YANG range (1..3600) rejects 0 before the semantic verifier; either way
@@ -142,7 +143,8 @@ EOF_BAD_TXDELAY
 
 cmd=foreground:seq=6:exec=ze config validate -:stdin=ospf-bad-transmit-delay-zero:exit=1
 expect=exit:code=1
-expect=stdout:contains=invalid value for transmit-delay
+expect=stdout:contains=interface eth0 transmit-delay: "0" is outside the accepted range
+expect=stdout:contains=fix: transmit-delay <
 
 # --- Invalid AuType 2 key-id 256: a non-extended-sequence key id must fit one octet. ---
 # Without extended-sequence the key chain is RFC 5709 AuType 2, whose on-wire Key ID

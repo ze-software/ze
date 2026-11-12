@@ -403,8 +403,9 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 				if leaf, ok := fieldNode.(*LeafNode); ok {
 					// Only validate non-array simple values
 					if tok.kind != tokenLBracket {
-						if err := ValidateLeafValue(leaf, attrValue); err != nil {
-							return p.errorf(tok, "invalid value for %s.%s: %v", name, attrName, err)
+						if err := ValidateLeafValue(leaf, []string{attrName}, attrValue); err != nil {
+							return p.valueRefusal(tok, err, fileFix(attrName+" ", ";"), []string{key, attrName},
+								"invalid value for %s.%s: %v", name, attrName, err)
 						}
 					}
 				}

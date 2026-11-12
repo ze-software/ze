@@ -81,17 +81,21 @@ cmd=foreground:seq=2:exec=ze config validate -:stdin=lowest
 expect=exit:code=0
 cmd=foreground:seq=3:exec=ze config validate -:stdin=windowzero
 expect=exit:code=1
-expect=stdout:contains=invalid value for max-windowsize
-expect=stdout:contains=set a value in 1..65535
+expect=stdout:contains=max-windowsize: "0" is outside the accepted range
+expect=stdout:contains=max-windowsize accepts a value in 1..65535
+expect=stdout:contains=fix: max-windowsize <1..65535>;
 cmd=foreground:seq=4:exec=ze config validate -:stdin=windowabove
 expect=exit:code=1
-expect=stdout:contains=invalid value for max-windowsize
-expect=stdout:contains=set a value in 1..65535
+expect=stdout:contains=max-windowsize: "65536" is outside the accepted range
+expect=stdout:contains=max-windowsize accepts a value in 1..65535
+expect=stdout:contains=fix: max-windowsize <1..65535>;
 cmd=foreground:seq=5:exec=ze config validate -:stdin=timeoutzero
 expect=exit:code=1
-expect=stdout:contains=invalid value for timeout
-expect=stdout:contains=set a value in 1..255
+expect=stdout:contains=timeout: "0" is outside the accepted range
+expect=stdout:contains=timeout accepts a value in 1..255
+expect=stdout:contains=fix: timeout <1..255>;
 cmd=foreground:seq=6:exec=ze config validate -:stdin=timeoutabove
 expect=exit:code=1
-expect=stdout:contains=invalid value for timeout
-expect=stdout:contains=set a value in 1..255
+expect=stdout:contains=timeout: "256" is outside the accepted range
+expect=stdout:contains=timeout accepts a value in 1..255
+expect=stdout:contains=fix: timeout <1..255>;

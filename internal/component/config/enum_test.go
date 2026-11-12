@@ -128,13 +128,15 @@ module ze-restriction-test-conf {
 
 	_, err = NewParser(schema).Parse(`restriction-test { mode turbo; }`)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "mode")
-	assert.Contains(t, err.Error(), "invalid enum")
+	assert.Equal(t, "line 1: restriction-test mode: \"turbo\" is not an accepted value\n"+
+		"mode accepts only these values:\n  fast\n  slow\n"+
+		"fix: mode <fast|slow>;", err.Error())
 
 	_, err = NewParser(schema).Parse(`restriction-test { poll-interval 0; }`)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "poll-interval")
-	assert.Contains(t, err.Error(), "outside range")
+	assert.Equal(t, "line 1: restriction-test poll-interval: \"0\" is outside the accepted range\n"+
+		"poll-interval accepts a value in 1..10\n"+
+		"fix: poll-interval <1..10>;", err.Error())
 
 	_, err = NewParser(schema).Parse(`restriction-test { mode fast; poll-interval 10; }`)
 	require.NoError(t, err)

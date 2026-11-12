@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"slices"
 
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -47,8 +48,8 @@ func (p *Parser) Parse(input string) (*Tree, error) {
 	p.warnings = nil
 	p.stmtTree = nil
 	p.path = nil
-	tree, err := p.parseRoot()
-	return p.refuseUnterminated(tree, err)
+	tree, err := p.refuseUnterminated(p.parseRoot())
+	return tree, namedRefusal(err)
 }
 
 // refuseUnterminated answers the tokenizer's unterminated-quote refusal in
@@ -100,7 +101,7 @@ func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
 		return p.schema.LookupTokenPath(append(context, name))
 	}))
 	if err != nil {
-		return nil, prependSyntaxPath(err, textbuf.Join(contextPath, "/"))
+		return nil, namedRefusal(prependSyntaxPath(err, contextPath...))
 	}
 	return tree, nil
 }
@@ -195,12 +196,16 @@ func (p *Parser) parseBody(unknown string, hint func(name string, known []string
 // member answers the leaf-list member a member-level statement named, so the
 // statement's comments belong to that line; it is empty for a whole-node one.
 func (p *Parser) parseNodeInactive(tree *Tree, name string, node Node, line int) (member string, err error) {
+	// These two arms read the leaf outside parseNode, so they name it on the
+	// way back to the root themselves.
 	if vn, ok := node.(*ValueOrArrayNode); ok {
-		return p.parseInactiveValueOrArray(tree, name, vn, line)
+		member, err := p.parseInactiveValueOrArray(tree, name, vn, line)
+		return member, prependSyntaxPath(err, name)
 	}
 	if bn, ok := node.(*BracketLeafListNode); ok {
 		if tok := p.tok.peek(); tok.kind != tokenLBracket {
-			return p.parseInactiveBracketMember(tree, name, bn)
+			member, err := p.parseInactiveBracketMember(tree, name, bn)
+			return member, prependSyntaxPath(err, name)
 		}
 	}
 	if err := p.parseNode(tree, name, node); err != nil {
@@ -266,8 +271,8 @@ func (p *Parser) parseInactiveBracketMember(tree *Tree, name string, node *Brack
 		return member, nil
 	}
 	if !present {
-		if err := validateValuePatterns(node.Type, node.Patterns, node.Constraint, member); err != nil {
-			return "", p.errorf(tok, "invalid value for %s: %v", name, err)
+		if err := ValidateLeafValue(node.memberLeaf(), []string{name}, member); err != nil {
+			return "", p.valueRefusal(tok, err, fileFix("inactive: "+name+" ", ";"), nil, "invalid value for %s: %v", name, err)
 		}
 		tree.AddMultiValueMember(name, member)
 	}
@@ -393,9 +398,9 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 
 	var value string
 	if tok.kind != tokenWord && tok.kind != tokenString {
-		if fix := leafValueFix(node, name, ""); fix != "" {
-			return &syntaxRefusal{cause: p.errorf(tok, "%s needs a value, one of %s, and is not a block or a bare word\n  write: %s",
-				name, textbuf.Join(node.Enums, ", "), fix)}
+		if len(node.Enums) > 0 {
+			missing := configyang.MissingEnumValue([]string{name}, name, enumValues(node.Enums, node.EnumHelp))
+			return p.valueRefusal(tok, missing, fileFix(name+" ", ";"), nil, "")
 		}
 		return p.errorf(tok, "expected value for %s, got %s", name, tok.kind)
 	}
@@ -412,11 +417,8 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	value = decoded
 
 	// Validate value type and YANG restrictions (works on decoded plaintext too).
-	if err := ValidateLeafValue(node, value); err != nil {
-		if fix := leafValueFix(node, name, value); fix != "" {
-			return &syntaxRefusal{cause: p.errorf(tok, "invalid value for %s: %v\n  write: %s", name, err, fix)}
-		}
-		return p.errorf(tok, "invalid value for %s: %v", name, err)
+	if err := ValidateLeafValue(node, []string{name}, value); err != nil {
+		return p.valueRefusal(tok, err, leafFix(node, name, value), nil, "invalid value for %s: %v", name, err)
 	}
 
 	// Rewrite the accepted value into the one spelling the tree stores
@@ -586,16 +588,42 @@ func leafValueFix(node *LeafNode, name, given string) string {
 	}
 	var b textbuf.Buffer
 	b.Str(name).Byte(' ')
-	switch {
-	case (given == "" || given == configTrue) && slices.Contains(node.Enums, "enable"):
-		b.Str("enable")
-	case given == configFalse && slices.Contains(node.Enums, "disable"):
-		b.Str("disable")
-	default:
+	if word := legacyEnumWord(node, given); word == "" {
 		b.Byte('<').Str(textbuf.Join(node.Enums, "|")).Byte('>')
+	} else {
+		b.Str(word)
 	}
 	b.Byte(';')
 	return b.String()
+}
+
+// legacyEnumWord answers the value an old spelling of a capability meant:
+// enable for a bare, block or true spelling, disable for false, when the
+// enumeration offers it; "" for any other value.
+func legacyEnumWord(node *LeafNode, given string) string {
+	switch {
+	case (given == "" || given == configTrue) && slices.Contains(node.Enums, "enable"):
+		return "enable"
+	case given == configFalse && slices.Contains(node.Enums, "disable"):
+		return "disable"
+	}
+	return ""
+}
+
+// fileFix answers the fix line of a file statement: before, the correction,
+// then after ("route-refresh ", "require", ";").
+func fileFix(before, after string) func(correction string) string {
+	return func(correction string) string { return before + correction + after }
+}
+
+// leafFix answers the fix line of a refused enumeration leaf in a file: the
+// value an old capability spelling meant (legacyEnumWord), else the
+// refusal's own correction, the close value or the accepted values.
+func leafFix(node *LeafNode, name, given string) func(correction string) string {
+	if word := legacyEnumWord(node, given); word != "" {
+		return func(string) string { return name + " " + word + ";" }
+	}
+	return fileFix(name+" ", ";")
 }
 
 // parseUnknownField parses an unknown field as a string value.

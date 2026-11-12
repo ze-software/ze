@@ -213,39 +213,39 @@ EOF_MODES
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=rrbare
 expect=exit:code=1
-expect=stdout:contains=route-refresh needs a value
-expect=stdout:contains=route-refresh enable;
+expect=stdout:contains=capability route-refresh: needs a value
+expect=stdout:contains=fix: route-refresh <enable|disable|require|refuse>;
 reject=stdout:pattern=line [0-9]+. line [0-9]+
 cmd=foreground:seq=2:exec=ze config validate -:stdin=rrblock
 expect=exit:code=1
-expect=stdout:contains=route-refresh needs a value
-expect=stdout:contains=route-refresh enable;
+expect=stdout:contains=capability route-refresh: needs a value
+expect=stdout:contains=fix: route-refresh <enable|disable|require|refuse>;
 reject=stdout:pattern=line [0-9]+. line [0-9]+
 cmd=foreground:seq=3:exec=ze config validate -:stdin=rrtrue
 expect=exit:code=1
-expect=stdout:contains=invalid value for route-refresh
-expect=stdout:contains=enable, disable, require, refuse
-expect=stdout:contains=route-refresh enable;
+expect=stdout:contains=capability route-refresh: "true" is not an accepted value
+expect=stdout:contains=route-refresh accepts only these values:
+expect=stdout:contains=fix: route-refresh enable;
 reject=stdout:pattern=line [0-9]+. line [0-9]+
 cmd=foreground:seq=4:exec=ze config validate -:stdin=rrfalse
 expect=exit:code=1
-expect=stdout:contains=invalid value for route-refresh
-expect=stdout:contains=route-refresh disable;
+expect=stdout:contains=capability route-refresh: "false" is not an accepted value
+expect=stdout:contains=fix: route-refresh disable;
 reject=stdout:pattern=line [0-9]+. line [0-9]+
 cmd=foreground:seq=5:exec=ze config validate -:stdin=embare
 expect=exit:code=1
-expect=stdout:contains=extended-message needs a value
-expect=stdout:contains=extended-message enable;
+expect=stdout:contains=capability extended-message: needs a value
+expect=stdout:contains=fix: extended-message <enable|disable
 reject=stdout:pattern=line [0-9]+. line [0-9]+
 cmd=foreground:seq=6:exec=ze config validate -:stdin=llnhblock
 expect=exit:code=1
-expect=stdout:contains=link-local-nexthop needs a value
-expect=stdout:contains=link-local-nexthop enable;
+expect=stdout:contains=capability link-local-nexthop: needs a value
+expect=stdout:contains=fix: link-local-nexthop <enable|disable>;
 reject=stdout:pattern=line [0-9]+. line [0-9]+
 cmd=foreground:seq=7:exec=ze config validate -:stdin=llnhrequire
 expect=exit:code=1
-expect=stdout:contains=invalid value for link-local-nexthop
-expect=stdout:contains=link-local-nexthop <enable|disable>;
+expect=stdout:contains=capability link-local-nexthop: "require" is not an accepted value
+expect=stdout:contains=fix: link-local-nexthop <enable|disable>;
 reject=stdout:pattern=line [0-9]+. line [0-9]+
 cmd=foreground:seq=8:exec=ze config validate -:stdin=modes
 expect=exit:code=0

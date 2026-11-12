@@ -46,14 +46,27 @@ func TestPolicyFinalConfiguration(t *testing.T) {
 				}
 			})
 		}
-		for _, body := range []string{direction + " [ test:one ];", direction + " { final permit; }"} {
-			_, err := config.LoadConfig("bgp { filter { "+body+" } }", "", nil)
-			if err == nil {
-				t.Fatalf("obsolete or unknown-final policy loaded: %s", body)
-			}
-			if !strings.Contains(err.Error(), "bgp/filter/"+direction) || !strings.Contains(err.Error(), "write:") || !strings.Contains(err.Error(), "accept|reject") {
-				t.Fatalf("refusal lacks path and schema-driven correction: %v", err)
-			}
+		_, err := config.LoadConfig("bgp { filter { "+direction+" [ test:one ]; } }", "", nil)
+		if err == nil {
+			t.Fatalf("obsolete %s policy loaded", direction)
+		}
+		if !strings.Contains(err.Error(), "bgp/filter/"+direction) || !strings.Contains(err.Error(), "write:") || !strings.Contains(err.Error(), "accept|reject") {
+			t.Fatalf("refusal lacks path and schema-driven correction: %v", err)
+		}
+		// An unknown final is the one value refusal: the setting path with
+		// spaces, the value, both accepted values with their help in declared
+		// order, and the line to write in the file.
+		_, err = config.LoadConfig("bgp { filter { "+direction+" { final permit; } } }", "", nil)
+		if err == nil {
+			t.Fatalf("unknown-final %s policy loaded", direction)
+		}
+		want := "parse config: line 1: bgp filter " + direction + " final: \"permit\" is not an accepted value\n" +
+			"final accepts only these values:\n" +
+			"  accept  Accept a route that passes every filter\n" +
+			"  reject  Reject a route that passes every filter\n" +
+			"fix: final <accept|reject>;"
+		if err.Error() != want {
+			t.Fatalf("unknown-final refusal:\n got: %q\nwant: %q", err.Error(), want)
 		}
 	}
 }
@@ -217,7 +230,6 @@ func TestPolicySetSyntaxRefusals(t *testing.T) {
 	for _, statement := range []string{
 		"set bgp filter import [ ext:one ]",
 		"set bgp filter import ext:one",
-		"set bgp filter export final permit",
 	} {
 		_, err := config.LoadConfig(statement+"\n", "", nil)
 		if err == nil {
@@ -228,6 +240,20 @@ func TestPolicySetSyntaxRefusals(t *testing.T) {
 				t.Fatalf("set refusal lacks %q: %v", want, err)
 			}
 		}
+	}
+	// An unknown final is the one value refusal, its fix the set line with
+	// the value replaced.
+	_, err := config.LoadConfig("set bgp filter export final permit\n", "", nil)
+	if err == nil {
+		t.Fatal("invalid set policy loaded: set bgp filter export final permit")
+	}
+	want := "parse config: line 1: bgp filter export final: \"permit\" is not an accepted value\n" +
+		"final accepts only these values:\n" +
+		"  accept  Accept a route that passes every filter\n" +
+		"  reject  Reject a route that passes every filter\n" +
+		"fix: set bgp filter export final <accept|reject>"
+	if err.Error() != want {
+		t.Fatalf("unknown-final set refusal:\n got: %q\nwant: %q", err.Error(), want)
 	}
 }
 

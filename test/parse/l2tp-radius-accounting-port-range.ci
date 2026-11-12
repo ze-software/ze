@@ -20,5 +20,7 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=stdout:contains=invalid value for accounting-port
-expect=stdout:contains=outside range 1..65535
+expect=stdout:contains=l2tp auth radius server main accounting-port: "0" is outside the accepted range
+expect=stdout:contains=accounting-port accepts a value in 1..65535
+expect=stdout:contains=fix: accounting-port <1..65535>;
+reject=stdout:pattern=outside range

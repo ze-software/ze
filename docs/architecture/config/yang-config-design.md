@@ -446,10 +446,14 @@ The parsers and the `set` path judge a leaf before the tree is walked, through
 leaf carries its member types, each with its own range, length, pattern and
 enum set, and a value is accepted at the first member that accepts it
 (Section 9.12). A union list key, such as the prefix of a `prefix-list` entry,
-is therefore refused at parse when no member accepts it, with each member's
-reason in the message.
+is therefore refused at parse when no member accepts it: the refusal lists the
+values the enumeration members accept and names every other member type in
+words. A ranged `decimal64` leaf is compared as a decimal of its declared
+`fraction-digits` (Section 9.3), so an in-range value is accepted and an
+out-of-range one gets the range refusal with the decimal bounds, while a value
+that is not a decimal of that form keeps its type refusal.
 
-<!-- source: internal/component/config/schema.go -- ValidateLeafValue, validateUnionValue, ValidateListKey -->
+<!-- source: internal/component/config/leaf_value.go -- ValidateLeafValue, validateUnionValue, ValidateListKey, validateDecimal64Leaf -->
 <!-- source: internal/component/config/yang_schema.go -- unionMembersFromType -->
 <!-- source: internal/component/config/yang/validator.go -- ValidateTree, walkTree, validateLeafValue -->
 <!-- source: internal/component/config/yang/validator_lexical.go -- validateEmpty, validateBinary, validateBits, uncheckedKindError -->
@@ -489,7 +493,7 @@ All three validators speak it:
 |------|---------------------------|
 | The tree walk (`ze config validate`, the daemon load, the editor commit) | `validateLeafValue` in `config/yang/validator.go` |
 | The parsers and the `set` path, a single leaf and each union member | `LeafNode.Constraint`, filled by `yangToLeaf` and `unionMembersFromType` |
-| The parsers and the `set` path, each member of a leaf-list, a multi-value leaf or a bracket leaf-list | the node's `Constraint` (`ValueOrArrayNode`, `MultiLeafNode`, `BracketLeafListNode`), filled in `yangToNodeOfAnyOS`, read by `validateValuePatterns` |
+| The parsers and the `set` path, each member of a leaf-list, a multi-value leaf or a bracket leaf-list | the node's `Constraint` (`ValueOrArrayNode`, `MultiLeafNode`, `BracketLeafListNode`), filled in `yangToNodeOfAnyOS`, read through the node's `memberLeaf` by `ValidateLeafValue` |
 | Command arguments, through the RPC validator | `ArgOptions.RangeMessage`, `LengthMessage` and `PatternMessages`, filled by `yangTypeToArgDef` |
 
 
@@ -501,7 +505,8 @@ IS-IS `system-id` pattern and `zt:vlan-id` are the worked examples.
 
 <!-- source: internal/component/config/yang/constraint_message.go -- ConstraintMessages, LeafConstraintMessages, typeConstraintMessages, WithConstraintMessage -->
 <!-- source: internal/component/config/yang/validator.go -- validateLeafValue, speakConstraintMessage -->
-<!-- source: internal/component/config/schema.go -- LeafNode.Constraint, MultiLeafNode.Constraint, BracketLeafListNode.Constraint, ValueOrArrayNode.Constraint, validateLeafPatterns, validateValuePatterns, validateLengths -->
+<!-- source: internal/component/config/schema.go -- LeafNode.Constraint, MultiLeafNode.Constraint, BracketLeafListNode.Constraint, ValueOrArrayNode.Constraint -->
+<!-- source: internal/component/config/leaf_value.go -- validateLeafPatterns, validateLengths, MultiLeafNode.memberLeaf -->
 <!-- source: internal/component/config/yang_schema.go -- yangToNodeOfAnyOS, yangToLeaf, unionMembersFromType -->
 <!-- test: internal/component/config/leaflist_pattern_message_test.go TestLeafListPatternRefusalSpeaksTheMessage -->
 <!-- source: internal/component/command/argvalidate.go -- refusalWithMessage -->

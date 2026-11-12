@@ -422,7 +422,9 @@ func ParseChangeFile(content string, parser *SetParser) (*Tree, *MetaTree, []Str
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	materializeMetaPaths(tree, meta, parser.schema)
+	if err := materializeMetaPaths(tree, meta, parser.schema); err != nil {
+		return nil, nil, nil, err
+	}
 	return tree, meta, ops, nil
 }
 
@@ -439,9 +441,15 @@ func ParseChangeFile(content string, parser *SetParser) (*Tree, *MetaTree, []Str
 // any other route created. A nil schema (a name the schema does not know)
 // creates the entry with no pairs.
 //
+// Every address is built with Tokens == 0: the keys are read back as stored,
+// judged when they were written, "default" for an edit under an anonymous
+// entry among them, so the creator judges none (EnsureListEntry) and every
+// stored change file reads back. The creator's error is still answered,
+// never dropped.
+//
 // A metadata branch that holds no entry creates no node. The recursion is bounded by the YANG schema
 // depth the trees mirror.
-func materializeMetaPaths(tree *Tree, meta *MetaTree, schema ChildProvider) {
+func materializeMetaPaths(tree *Tree, meta *MetaTree, schema ChildProvider) error {
 	for name, child := range meta.Containers() {
 		childSchema := schemaChild(schema, name)
 		if lists := child.Lists(); len(lists) > 0 {
@@ -454,15 +462,24 @@ func materializeMetaPaths(tree *Tree, meta *MetaTree, schema ChildProvider) {
 				if listNode != nil {
 					addr.First, addr.Pairs = SplitListKey(listNode, key)
 				}
-				materializeMetaPaths(EnsureListEntry(tree, name, addr), entryMeta, providerOf(listNode))
+				entry, err := EnsureListEntry(tree, []string{name}, listNode, addr)
+				if err != nil {
+					return err
+				}
+				if err := materializeMetaPaths(entry, entryMeta, providerOf(listNode)); err != nil {
+					return err
+				}
 			}
 			continue
 		}
 		if !metaHoldsEntry(child) {
 			continue
 		}
-		materializeMetaPaths(tree.GetOrCreateContainer(name), child, providerOf(childSchema))
+		if err := materializeMetaPaths(tree.GetOrCreateContainer(name), child, providerOf(childSchema)); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // schemaChild returns the schema node name names under schema, nil when the

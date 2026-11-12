@@ -115,9 +115,12 @@ EOF_ALLOW
 cmd=foreground:seq=1:exec=ze config validate -:stdin=bad
 expect=exit:code=1
 # The needles carry no ':' because the directive splits on it.
-expect=stdout:contains=application-override
-expect=stdout:contains=expected one of
-expect=stdout:contains=deny, allow
+expect=stdout:contains=vpn ipsec application-override: "permit" is not an accepted value
+expect=stdout:contains=application-override accepts only these values:
+expect=stdout:contains=  deny
+expect=stdout:contains=  allow
+expect=stdout:contains=fix: application-override <deny|allow>;
+reject=stdout:pattern=expected one of
 cmd=foreground:seq=2:exec=ze config validate -:stdin=deny
 expect=exit:code=0
 cmd=foreground:seq=3:exec=ze config validate -:stdin=allow

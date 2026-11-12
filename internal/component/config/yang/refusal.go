@@ -47,7 +47,34 @@ type refusalFacts struct {
 	format     ValueFormat     // pattern: the format in words
 	message    string          // the error-message the constraint declares
 	fix        string          // the fix a frame set, "" for the set form
-	refusal    *opererr.Error
+	// others names the union member types that are not enumerations, in
+	// member order (UnionRefusal); nil for a plain enumeration.
+	others  []string
+	refusal *opererr.Error
+}
+
+// UnionRefusal builds the refusal of a value no member type of a union
+// accepts (RFC 7950 Section 9.12). values are the accepted values of the
+// enumeration members, in member order, each with its ze:help; others names
+// every other member type ("ip-address", "uint16"). The refusal is of the
+// enum kind: the why lists the values, then names the other types in words,
+// and the fix offers a value or a type ("<auto|ip-address>").
+func UnionRefusal(subject RefusedValue, values []suggest.Value, others []string) *ValidationError {
+	facts := &refusalFacts{kind: ErrTypeEnum, subject: subject, values: values, others: slices.Clone(others)}
+	return newRefusal(facts)
+}
+
+// alternation is the placeholder of an enum refusal: the accepted values,
+// then the other member types of a union, "<a|b|ip-address>".
+func (f *refusalFacts) alternation() string {
+	if len(f.others) == 0 {
+		return suggest.Alternation(f.values)
+	}
+	choices := slices.Clone(f.values)
+	for _, other := range f.others {
+		choices = append(choices, suggest.Value{Name: other})
+	}
+	return suggest.Alternation(choices)
 }
 
 // EnumRefusal builds the refusal of a value outside an enumeration. values
@@ -118,10 +145,12 @@ func newRefusal(facts *refusalFacts) *ValidationError {
 }
 
 // build computes the suggestion and the operator error from the other facts.
+// The suggestion is suggest.Correction, the bound for a value that goes into
+// a fix line, not the looser one command suggestions use.
 func (f *refusalFacts) build() {
 	f.suggestion = ""
 	if f.kind == ErrTypeEnum && !f.missing && !f.subject.Secret {
-		f.suggestion = suggest.Command(f.subject.Value, suggest.Names(f.values))
+		f.suggestion = suggest.Correction(f.subject.Value, suggest.Names(f.values))
 	}
 	fix := f.fix
 	if fix == "" {
@@ -173,7 +202,14 @@ func (f *refusalFacts) why() string {
 	b.Str(f.subject.Leaf)
 	switch f.kind {
 	case ErrTypeEnum:
-		return b.Str(" accepts only these values:\n").Str(suggest.ValueLines(f.values, "  ")).String()
+		if len(f.others) == 0 {
+			return b.Str(" accepts only these values:\n").Str(suggest.ValueLines(f.values, "  ")).String()
+		}
+		if len(f.values) == 0 {
+			return b.Str(" accepts a value of type ").Join(f.others, " or ").String()
+		}
+		return b.Str(" accepts one of these values:\n").Str(suggest.ValueLines(f.values, "  ")).
+			Str("\nor a value of type ").Join(f.others, " or ").String()
 	case ErrTypeRange:
 		return b.Str(" accepts a value in ").Str(f.bounds).String()
 	case ErrTypeLength:
@@ -200,7 +236,12 @@ func (f *refusalFacts) correction() string {
 		if f.suggestion != "" {
 			return f.suggestion
 		}
-		return suggest.Alternation(f.values)
+		// A leaf that accepts one value has one correction, the value itself:
+		// the fix line is then the exact text to type, not a choice of one.
+		if len(f.values) == 1 && len(f.others) == 0 {
+			return f.values[0].Name
+		}
+		return f.alternation()
 	case ErrTypeRange:
 		return "<" + f.bounds + ">"
 	case ErrTypeLength:

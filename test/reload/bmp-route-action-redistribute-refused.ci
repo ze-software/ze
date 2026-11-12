@@ -153,5 +153,7 @@ expect=stderr:contains=reload error
 expect=stderr:contains=route-action
 expect=stderr:contains=redistribute
 expect=stderr:contains=monitor
+expect=stderr:contains=bmp route-action: "redistribute" is not an accepted value
+expect=stderr:contains=fix: route-action monitor;
 # ... and was still there afterwards to take the SIGTERM and shut down cleanly.
 expect=exit:code=0

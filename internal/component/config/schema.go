@@ -11,18 +11,14 @@ package config
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"net/netip"
-	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
-	"unicode/utf8"
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (
@@ -53,6 +49,11 @@ const (
 	// internal/core/bgp/asn defines is accepted HERE and nowhere else. A leaf
 	// holding a bare 32-bit number keeps rejecting "1.10".
 	TypeASN
+	// TypeDecimal64 is a YANG decimal64 leaf (RFC 7950 Section 9.3): a
+	// number with LeafNode.FractionDigits digits after the point, whose range
+	// is compared as a decimal. Only a leaf and a union member take it
+	// (markDecimal64); the value is stored as written.
+	TypeDecimal64
 )
 
 func (t ValueType) String() string {
@@ -81,6 +82,8 @@ func (t ValueType) String() string {
 		return valueTypeEmpty
 	case TypeASN:
 		return valueTypeASN
+	case TypeDecimal64:
+		return "decimal64"
 	default:
 		// Caller-supplied schema types are open; unnamed values render as unknown.
 		return "unknown"
@@ -171,8 +174,11 @@ type LeafNode struct {
 	Lengths  []NumericRange // Valid string lengths from YANG length statements (characters, RFC 7950 Section 9.4.4)
 	Patterns []string       // Valid string patterns from YANG pattern statements
 	Union    []UnionMember  // Member types of a YANG union, in declared order; nil for any other type
-	Backend  []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
-	Related  []*RelatedTool // ze:related — operator tools attached to this leaf (see related.go)
+	// FractionDigits is the fraction-digits of a TypeDecimal64 leaf, the
+	// digits a value may hold after the point; 0 for every other type.
+	FractionDigits int
+	Backend        []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
+	Related        []*RelatedTool // ze:related — operator tools attached to this leaf (see related.go)
 
 	// Constraint holds the error-message of the range, the length and each
 	// pattern (RFC 7950 Section 7.5.4.1), which their refusals speak.
@@ -937,250 +943,18 @@ func ValidateValue(typ ValueType, value string) error {
 		}
 		return nil
 
+	case TypeDecimal64:
+		// The type alone fixes no fraction digits; a leaf's are judged by
+		// ValidateLeafValue, which holds them.
+		if !configyang.IsDecimal64Lexical(value) {
+			return fmt.Errorf("expected decimal64, got %q", value)
+		}
+		return nil
+
 	default:
 		// Caller-supplied schema types are open; reject types without a validator.
 		return fmt.Errorf("unknown type: %v", typ)
 	}
-}
-
-// ValidateLeafValue validates a leaf value against its type and any YANG
-// restrictions carried by the schema node.
-func ValidateLeafValue(node *LeafNode, value string) error {
-	if err := ValidateValue(node.Type, value); err != nil {
-		// A whole number too large for the type is outside every range the
-		// leaf declares, and the range is what the operator can write.
-		if len(node.Ranges) > 0 && allDigits(value) {
-			return outsideRange(value, node.Ranges, node.Constraint.Range())
-		}
-		return err
-	}
-	if len(node.Union) > 0 {
-		return validateUnionValue(node.Union, value)
-	}
-	if len(node.Enums) > 0 && !stringIn(node.Enums, value) {
-		expected := textbuf.Join(node.Enums, ", ")
-		return fmt.Errorf("invalid enum: %q (expected one of: %s)", value, expected)
-	}
-	if len(node.Ranges) > 0 {
-		if err := validateNumericRanges(node.Type, value, node.Ranges, node.Constraint.Range()); err != nil {
-			return err
-		}
-	}
-	if err := validateLengths(value, node.Lengths, node.Constraint.Length()); err != nil {
-		return err
-	}
-	if err := validateLeafPatterns(value, node.Patterns, node.Constraint); err != nil {
-		return err
-	}
-	return nil
-}
-
-// validateLeafPatterns enforces a leaf's YANG patterns, and a refusal by a
-// pattern that declares an error-message speaks that message in place of the
-// regular expression the operator cannot read.
-//
-// RFC 7950 Section 7.5.4.1: "If the constraint evaluates to "false", the string is passed as <error-message> in the <rpc-error> in NETCONF."
-func validateLeafPatterns(value string, patterns []string, messages configyang.ConstraintMessages) error {
-	for _, pattern := range patterns {
-		matched, err := configyang.MatchPattern(pattern, value)
-		if err != nil {
-			return fmt.Errorf("invalid pattern %q: %w", pattern, err)
-		}
-		if matched {
-			continue
-		}
-		message := messages.Pattern(pattern)
-		if message == "" {
-			return fmt.Errorf("value %q does not match pattern %q", value, pattern)
-		}
-		return errors.New(configyang.WithConstraintMessage("invalid value "+strconv.Quote(value), message))
-	}
-	return nil
-}
-
-// validateUnionValue judges a value against each member type of a union, in
-// declared order, and accepts it at the first member that does. A union carries
-// no restriction of its own, so the members are the whole check.
-//
-// RFC 7950 Section 9.12: "When interpreting an XML encoding, a value is
-// validated consecutively against each member type, in the order they are
-// specified in the "type" statement, until a match is found."
-func validateUnionValue(members []UnionMember, value string) error {
-	var reasons textbuf.Buffer
-	for i, member := range members {
-		err := ValidateLeafValue(member.Leaf, value)
-		if err == nil {
-			return nil
-		}
-		if i > 0 {
-			reasons.Str("; ")
-		}
-		reasons.Str(member.TypeName).Str(": ").Str(err.Error())
-	}
-	return fmt.Errorf("invalid value %q: it matches no member type of the union (%s); "+
-		"write a value one member type accepts", value, reasons.String())
-}
-
-// validateLengths enforces YANG `length` on a string value. The length is
-// counted in CHARACTERS, not bytes (RFC 7950 Section 9.4.4), so a multi-byte
-// value is not rejected for its encoding.
-//
-// Length is checked BEFORE pattern: for an over-long value the length is the
-// operator's actual mistake, and a pattern message about a 4096-character
-// string is unreadable.
-//
-// message is the error-message the length declares, "" for none; it replaces
-// the generic fix, because the module author wrote it for this leaf.
-func validateLengths(value string, lengths []NumericRange, message string) error {
-	if len(lengths) == 0 {
-		return nil
-	}
-	n := int64(utf8.RuneCountInString(value))
-	for _, r := range lengths {
-		low, ok := new(big.Int).SetString(r.Min, 10)
-		if !ok {
-			continue
-		}
-		high, ok := new(big.Int).SetString(r.Max, 10)
-		if !ok {
-			continue
-		}
-		got := big.NewInt(n)
-		if got.Cmp(low) >= 0 && got.Cmp(high) <= 0 {
-			return nil
-		}
-	}
-	allowed := formatNumericRanges(lengths)
-	if message != "" {
-		return errors.New(configyang.WithConstraintMessage(
-			textbuf.StrIntStr("value length ", n, " is outside allowed length ")+allowed, message))
-	}
-	return fmt.Errorf("value length %d is outside allowed length %s; write a value of %s characters",
-		n, allowed, allowed)
-}
-
-// ValidateListKey validates a list key against the full key leaf restrictions
-// when YANG provided a key leaf, falling back to the legacy key type check for
-// manually-built schemas.
-func ValidateListKey(node *ListNode, key string) error {
-	if node.KeyLeaf != nil {
-		return ValidateLeafValue(node.KeyLeaf, key)
-	}
-	return ValidateValue(node.KeyType, key)
-}
-
-// validateValuePatterns judges one value of a leaf-list, multi-leaf or
-// bracket node against the node's type and patterns; a pattern refusal speaks
-// the pattern's error-message from messages, as a single leaf's does
-// (validateLeafPatterns).
-func validateValuePatterns(typ ValueType, patterns []string, messages configyang.ConstraintMessages, value string) error {
-	if err := ValidateValue(typ, value); err != nil {
-		return err
-	}
-	return validateLeafPatterns(value, patterns, messages)
-}
-
-func stringIn(values []string, value string) bool {
-	return slices.Contains(values, value)
-}
-
-func validateNumericRanges(typ ValueType, value string, ranges []NumericRange, message string) error {
-	parsed, err := parseNumericRangeValue(typ, value)
-	if err != nil {
-		return err
-	}
-	for _, r := range ranges {
-		// SetString fails for decimal64 strings ("3.14"); those ranges
-		// are silently skipped. No current YANG uses decimal64 ranges.
-		min, ok := new(big.Int).SetString(r.Min, 10)
-		if !ok {
-			continue
-		}
-		max, ok := new(big.Int).SetString(r.Max, 10)
-		if !ok {
-			continue
-		}
-		if parsed.Cmp(min) >= 0 && parsed.Cmp(max) <= 0 {
-			return nil
-		}
-	}
-	return outsideRange(value, ranges, message)
-}
-
-// outsideRange is the refusal of value for a leaf whose ranges it is outside.
-// It names the ranges as the fix, or speaks message, the error-message the
-// range declares (RFC 7950 Section 7.5.4.1), when the module wrote one.
-func outsideRange(value string, ranges []NumericRange, message string) error {
-	allowed := formatNumericRanges(ranges)
-	if message != "" {
-		return errors.New(configyang.WithConstraintMessage(
-			"value "+strconv.Quote(value)+" outside range "+allowed, message))
-	}
-	return fmt.Errorf("value %q outside range %s: set a value in %s", value, allowed, allowed)
-}
-
-// allDigits reports whether value is one or more ASCII decimal digits.
-func allDigits(value string) bool {
-	if value == "" {
-		return false
-	}
-	for i := range len(value) {
-		if value[i] < '0' {
-			return false
-		}
-		if value[i] > '9' {
-			return false
-		}
-	}
-	return true
-}
-
-func parseNumericRangeValue(typ ValueType, value string) (*big.Int, error) {
-	// Only numeric leaf types project to integer range values.
-	//exhaustive:ignore
-	switch typ {
-	case TypeUint16:
-		v, err := strconv.ParseUint(value, 10, 16)
-		if err != nil {
-			return nil, fmt.Errorf("invalid uint16: %q", value)
-		}
-		return new(big.Int).SetUint64(v), nil
-	case TypeUint32:
-		v, err := strconv.ParseUint(value, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid uint: %q", value)
-		}
-		return new(big.Int).SetUint64(v), nil
-	case TypeASN:
-		// The YANG `range "1..4294967295"` on the asn typedef is compared
-		// against the NUMBER, so a dotted value is read first. Without this
-		// case a range check would refuse every asdot value it was given.
-		v, err := asn.Parse(value)
-		if err != nil {
-			return nil, err
-		}
-		return new(big.Int).SetUint64(uint64(v)), nil
-	case TypeInt:
-		v, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid int: %q", value)
-		}
-		return big.NewInt(v), nil
-	default:
-		return nil, fmt.Errorf("range validation not supported for type %s", typ)
-	}
-}
-
-func formatNumericRanges(ranges []NumericRange) string {
-	parts := make([]string, 0, len(ranges))
-	for _, r := range ranges {
-		if r.Min == r.Max {
-			parts = append(parts, r.Min)
-			continue
-		}
-		parts = append(parts, r.Min+".."+r.Max)
-	}
-	return textbuf.Join(parts, ", ")
 }
 
 // parseDuration parses a duration string like "100ms", "5s", "0.5s".

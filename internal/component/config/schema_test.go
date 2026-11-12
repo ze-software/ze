@@ -336,12 +336,12 @@ func TestValidateASNLeafRange(t *testing.T) {
 	leaf := &LeafNode{Type: TypeASN, Ranges: []NumericRange{{Min: "1", Max: "4294967295"}}}
 
 	for _, value := range []string{"1.10", "65546", "1", "0.1"} {
-		if err := ValidateLeafValue(leaf, value); err != nil {
+		if err := ValidateLeafValue(leaf, nil, value); err != nil {
 			t.Errorf("ValidateLeafValue(%q): unexpected error %v", value, err)
 		}
 	}
 	for _, value := range []string{"0", "0.0"} {
-		if err := ValidateLeafValue(leaf, value); err == nil {
+		if err := ValidateLeafValue(leaf, nil, value); err == nil {
 			t.Errorf("ValidateLeafValue(%q) accepted AS 0, which the range refuses", value)
 		}
 	}

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -76,7 +77,9 @@ bgp {
 // parseCapMode in the reactor reads what the operator wrote.
 //
 // VALIDATES: enable, disable, require and refuse each parse and are stored
-// as written; true and false are refused as an invalid enum.
+// as written; true and false are refused as values outside the enumeration,
+// the refusal naming the leaf's path and offering the mode each old boolean
+// spelling meant (true enable, false disable) as the fix line.
 // PREVENTS: asn4 silently degrading to a boolean again.
 func TestASN4IsACapabilityMode(t *testing.T) {
 	schema, schemaErr := YANGSchema()
@@ -92,10 +95,13 @@ func TestASN4IsACapabilityMode(t *testing.T) {
 		require.Equal(t, mode, val)
 	}
 
-	for _, value := range []string{"true", "false"} {
+	for value, mode := range map[string]string{"true": "enable", "false": "disable"} {
 		_, err := p.Parse(capabilityModeConfig("asn4 " + value))
 		require.Error(t, err, "asn4 %s must be refused", value)
-		require.Contains(t, err.Error(), "invalid enum")
+		msg := err.Error()
+		require.Contains(t, msg, "bgp peer peer1 session capability asn4: \""+value+"\" is not an accepted value")
+		require.Contains(t, msg, "\nasn4 accepts only these values:\n")
+		require.True(t, strings.HasSuffix(msg, "\nfix: asn4 "+mode+";"), msg)
 	}
 }
 
@@ -104,7 +110,8 @@ func TestASN4IsACapabilityMode(t *testing.T) {
 // reaches it through a module import (ze-softver.yang, bgp:capability-mode).
 //
 // VALIDATES: require parses on each leaf, and a word outside the set is
-// refused as an invalid enum on each leaf.
+// refused on each leaf as a value outside the one enumeration, which the
+// refusal lists in full and offers as the fix.
 // PREVENTS: a sibling leaf keeping a private copy of the set that drifts.
 func TestCapabilityModeLeavesShareOneTypedef(t *testing.T) {
 	schema, schemaErr := YANGSchema()
@@ -112,14 +119,14 @@ func TestCapabilityModeLeavesShareOneTypedef(t *testing.T) {
 	p := NewParser(schema)
 
 	leaves := []struct {
-		name string
-		line func(mode string) string
+		name, problem string
+		line          func(mode string) string
 	}{
-		{"software-version mode", func(m string) string { return "software-version { mode " + m + "; }" }},
-		{"add-path family mode", func(m string) string {
+		{"software-version mode", "capability software-version mode: \"bogus\"", func(m string) string { return "software-version { mode " + m + "; }" }},
+		{"add-path family mode", "capability add-path family ipv4/unicast mode: \"bogus\"", func(m string) string {
 			return "add-path { family { ipv4/unicast { mode " + m + "; } } }"
 		}},
-		{"nexthop mode", func(m string) string { return "nexthop { ipv4/unicast ipv6 " + m + "; }" }},
+		{"nexthop mode", "\"bogus\"", func(m string) string { return "nexthop { ipv4/unicast ipv6 " + m + "; }" }},
 	}
 	for _, leaf := range leaves {
 		_, err := p.Parse(capabilityModeConfig(leaf.line("require")))
@@ -127,6 +134,12 @@ func TestCapabilityModeLeavesShareOneTypedef(t *testing.T) {
 
 		_, err = p.Parse(capabilityModeConfig(leaf.line("bogus")))
 		require.Error(t, err, "%s bogus must be refused", leaf.name)
-		require.Contains(t, err.Error(), "invalid enum", leaf.name)
+		msg := err.Error()
+		require.Contains(t, msg, leaf.problem+" is not an accepted value", leaf.name)
+		for _, mode := range []string{"enable", "disable", "require", "refuse"} {
+			require.Contains(t, msg, "\n  "+mode, "%s lists %s", leaf.name, mode)
+		}
+		require.Contains(t, msg, "<enable|disable|require|refuse>", leaf.name)
+		require.Contains(t, msg, "\nfix: ", leaf.name)
 	}
 }

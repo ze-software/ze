@@ -86,8 +86,13 @@ func TestHubCARejectsAnUnusableName(t *testing.T) {
 	bad := strings.Replace(hubTrustConfig, "ca fleet-hub-root", `ca "fleet hub/root"`, 1)
 	_, err := LoadConfig(bad, filepath.Join(t.TempDir(), "hub-bad.conf"), nil)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `value "fleet hub/root" does not match pattern "[A-Za-z0-9._-]+"`)
-	assert.NotContains(t, err.Error(), "is configured")
+	msg := err.Error()
+	assert.Contains(t, msg, "plugin hub client edge-01 ca: \"fleet hub/root\" is not in the accepted format\n")
+	assert.Contains(t, msg, "\nca accepts Name of the pki ca entry holding the hub certificate authority root.\n")
+	// An inline pattern has no typedef name, so the placeholder is <value>.
+	assert.Contains(t, msg, "\nfix: ca <value>;")
+	assert.NotContains(t, msg, "[A-Za-z0-9._-]+", "the refusal shows the format in words, not the pattern")
+	assert.NotContains(t, msg, "is configured")
 }
 
 // TestFingerprintConfigIsRefused: AC-5 -- a config still carrying the retired

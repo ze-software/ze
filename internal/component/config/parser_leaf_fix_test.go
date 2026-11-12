@@ -11,26 +11,37 @@ import (
 // route-refresh, extended-message and link-local-nexthop were presence
 // containers until 2026-10-11, so their old spellings (bare, a block, true,
 // false) reach this path. The method parses each spelling against a schema that
-// holds the two enumerations the capabilities use, and asserts the error names
-// the leaf, the words it takes, and the exact line to write instead.
+// holds the two enumerations the capabilities use, and asserts the whole
+// refusal by equality: the line, the leaf named as the problem, every word it
+// takes one per line in declared order, and the exact line to write instead
+// as the last line. true still means enable and false disable where the
+// enumeration offers them; a bare or block spelling, which says nothing about
+// the value, offers the alternation (AC-18).
 func TestEnumLeafRefusalNamesTheReplacementLine(t *testing.T) {
 	schema := NewSchema()
 	schema.Define("route-refresh", &LeafNode{Type: TypeString, Enums: []string{"enable", "disable", "require", "refuse"}})
 	schema.Define("link-local-nexthop", &LeafNode{Type: TypeString, Enums: []string{"enable", "disable"}})
 	schema.Define("color", &LeafNode{Type: TypeString, Enums: []string{"red", "blue"}})
 
+	routeRefresh := "route-refresh accepts only these values:\n  enable\n  disable\n  require\n  refuse\n"
 	tests := []struct {
 		input string
-		want  []string
+		want  string
 	}{
-		{"route-refresh;", []string{"route-refresh needs a value, one of enable, disable, require, refuse", "write: route-refresh enable;"}},
-		{"route-refresh { }", []string{"route-refresh needs a value", "write: route-refresh enable;"}},
-		{"route-refresh true;", []string{`invalid value for route-refresh: invalid enum: "true"`, "write: route-refresh enable;"}},
-		{"route-refresh false;", []string{`invalid enum: "false"`, "write: route-refresh disable;"}},
-		{"route-refresh maybe;", []string{`invalid enum: "maybe"`, "write: route-refresh <enable|disable|require|refuse>;"}},
-		{"link-local-nexthop require;", []string{`invalid enum: "require"`, "write: link-local-nexthop <enable|disable>;"}},
-		{"color;", []string{"color needs a value, one of red, blue", "write: color <red|blue>;"}},
-		{"color true;", []string{"write: color <red|blue>;"}},
+		{"route-refresh;", "line 1: route-refresh: needs a value\n" + routeRefresh + "fix: route-refresh <enable|disable|require|refuse>;"},
+		{"route-refresh { }", "line 1: route-refresh: needs a value\n" + routeRefresh + "fix: route-refresh <enable|disable|require|refuse>;"},
+		{"route-refresh true;", "line 1: route-refresh: \"true\" is not an accepted value\n" + routeRefresh + "fix: route-refresh enable;"},
+		{"route-refresh false;", "line 1: route-refresh: \"false\" is not an accepted value\n" + routeRefresh + "fix: route-refresh disable;"},
+		{"route-refresh maybe;", "line 1: route-refresh: \"maybe\" is not an accepted value\n" + routeRefresh + "fix: route-refresh <enable|disable|require|refuse>;"},
+		{"link-local-nexthop require;", "line 1: link-local-nexthop: \"require\" is not an accepted value\nlink-local-nexthop accepts only these values:\n  enable\n  disable\nfix: link-local-nexthop <enable|disable>;"},
+		{"color;", "line 1: color: needs a value\ncolor accepts only these values:\n  red\n  blue\nfix: color <red|blue>;"},
+		// true is no legacy word where the enumeration holds no enable, and
+		// two edits from blue is past the one a four-character value may be
+		// corrected by (suggest.Correction): no hint, and the fix is the
+		// alternation, never a value the operator did not mean.
+		{"color true;", "line 1: color: \"true\" is not an accepted value\ncolor accepts only these values:\n  red\n  blue\nfix: color <red|blue>;"},
+		// One edit from red is within that bound, so the suggestion is the fix.
+		{"color rad;", "line 1: color: \"rad\" is not an accepted value (did you mean red?)\ncolor accepts only these values:\n  red\n  blue\nfix: color red;"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
@@ -38,10 +49,11 @@ func TestEnumLeafRefusalNamesTheReplacementLine(t *testing.T) {
 			if err == nil {
 				t.Fatalf("%q accepted, want a refusal", tt.input)
 			}
-			for _, want := range tt.want {
-				if !strings.Contains(err.Error(), want) {
-					t.Errorf("%q refused with %q, want it to contain %q", tt.input, err.Error(), want)
-				}
+			if err.Error() != tt.want {
+				t.Errorf("%q refused with\n%s\nwant\n%s", tt.input, err.Error(), tt.want)
+			}
+			if strings.Contains(err.Error(), "write:") {
+				t.Errorf("%q refusal still carries the old write: line: %q", tt.input, err.Error())
 			}
 		})
 	}

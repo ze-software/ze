@@ -102,14 +102,19 @@ func ensureFlexListEntry(tree *Tree, name, key string) *Tree {
 
 // walkAndSetListEntry creates or finds a list entry and recurses.
 func (p *SetParser) walkAndSetListEntry(tree *Tree, list *ListNode, name string, tokens []string, lineNum int) error {
-	if err := ValidateListKey(list, tokens[0]); err != nil {
-		return lineErrorf(lineNum, "invalid key for %s: %w", name, err)
+	if err := p.lineKeyRefusal(lineNum, list, name, tokens); err != nil {
+		return err
 	}
 	addr, err := ParseListAddress(name, list, tokens)
 	if err != nil {
-		return newLineError(lineNum, err)
+		return p.addressLineRefusal(lineNum, tokens, err)
 	}
-	entry := EnsureListEntry(tree, name, addr)
+	// The creator judges the first key value as typed, `default` and `x#3`
+	// included.
+	entry, err := EnsureListEntry(tree, p.lineAt(tokens), list, addr)
+	if err != nil {
+		return p.keyLineRefusal(lineNum, name, tokens, err)
+	}
 	return p.walkAndSet(entry, list, tokens[addr.Tokens:], lineNum)
 }
 

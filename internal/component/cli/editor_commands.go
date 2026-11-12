@@ -94,7 +94,10 @@ func (e *Editor) walkOrCreate(path []string) (*config.Tree, error) {
 			if err != nil {
 				return nil, err
 			}
-			currentTree = config.EnsureListEntry(currentTree, name, addr)
+			currentTree, err = config.EnsureListEntry(currentTree, path[:i+1], n, addr)
+			if err != nil {
+				return nil, err
+			}
 			currentSchema = n
 			i += 1 + addr.Tokens
 		case *config.FlexNode:
@@ -600,9 +603,12 @@ func (e *Editor) ensureListEntry(parentPath []string, listName string, address [
 		return fmt.Errorf("missing key for %s", listName)
 	}
 	addr := config.ListAddress{Key: address[0], First: address[0], Tokens: 1}
+	listPath := append(append([]string{}, parentPath...), listName)
+	var listNode *config.ListNode
 	if e.schema != nil {
-		if listNode := e.resolveListNode(parentPath, listName); listNode != nil {
-			if err := config.ValidateListKey(listNode, address[0]); err != nil {
+		listNode = e.resolveListNode(parentPath, listName)
+		if listNode != nil {
+			if err := config.ValidateListKey(listNode, listPath, address[0]); err != nil {
 				return fmt.Errorf("invalid %s key %q: %w", listName, address[0], err)
 			}
 			parsed, err := config.ParseListAddress(listName, listNode, address)
@@ -629,7 +635,9 @@ func (e *Editor) ensureListEntry(parentPath []string, listName string, address [
 	if target.GetList(listName)[addr.Key] != nil {
 		return nil
 	}
-	config.EnsureListEntry(target, listName, addr)
+	if _, err := config.EnsureListEntry(target, listPath, listNode, addr); err != nil {
+		return err
+	}
 	e.dirty.Store(true)
 	return nil
 }

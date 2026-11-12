@@ -73,7 +73,10 @@ expect=exit:code=0
 expect=stdout:contains=configuration valid
 cmd=foreground:seq=2:exec=ze config validate -:stdin=toolong
 expect=exit:code=1
-expect=stdout:contains=invalid key for pppoe-client: value length 16 is outside allowed length 1..15; write a value of 1..15 characters
+expect=stdout:contains=interface pppoe-client pppoe-0123456789: "pppoe-0123456789" is outside the accepted length (16 characters)
+expect=stdout:contains=accepts 1..15 characters
+expect=stdout:contains=fix: 
 cmd=foreground:seq=3:exec=ze config validate -:stdin=slash
 expect=exit:code=1
-expect=stdout:contains=invalid key for pppoe-client: value "pppoe/0" does not match pattern
+expect=stdout:contains=interface pppoe-client pppoe/0: "pppoe/0" is not in the accepted format
+reject=stdout:pattern=does not match pattern

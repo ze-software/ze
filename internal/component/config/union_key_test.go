@@ -49,17 +49,21 @@ func unionKeyList(t *testing.T) *ListNode {
 // TestUnionListKeyJudgedAgainstEachMemberType converts the list and asks the
 // key validator every parser calls about a value each member accepts and about
 // values no member accepts. A value that matches neither pattern, and an
-// integer outside the member's range, are refused; the refusal names the union.
+// integer outside the member's range, are refused; the refusal names the key
+// after its list, and its why and fix name every member type of the union in
+// declared order (AC-13).
 func TestUnionListKeyJudgedAgainstEachMemberType(t *testing.T) {
 	list := unionKeyList(t)
 
 	for _, ok := range []string{"10.0.0.0/8", "2001:db8::/32", "5"} {
-		assert.NoError(t, ValidateListKey(list, ok), "key %q matches a member type", ok)
+		assert.NoError(t, ValidateListKey(list, nil, ok), "key %q matches a member type", ok)
 	}
 	for _, bad := range []string{"not-a-prefix", "11", "0"} {
-		err := ValidateListKey(list, bad)
+		err := ValidateListKey(list, []string{"entry"}, bad)
 		if assert.Error(t, err, "key %q matches no member type and must be refused", bad) {
-			assert.Contains(t, err.Error(), "union")
+			assert.Equal(t, "entry "+bad+": \""+bad+"\" is not an accepted value\n"+
+				"prefix accepts a value of type v4 or v6 or uint8\n"+
+				"fix: set entry <v4|v6|uint8>", err.Error())
 		}
 	}
 }

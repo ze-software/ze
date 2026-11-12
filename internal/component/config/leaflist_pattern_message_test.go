@@ -1,4 +1,4 @@
-// Design: schema.go -- validateValuePatterns speaks a pattern's error-message
+// Design: leaf_value.go -- validateLeafPatterns speaks a pattern's error-message
 //
 // VALIDATES: AC-12 of spec-operator-errors-name-the-fix for a leaf-list: a
 // value refused by the pattern of a leaf-list's type is refused in the words
@@ -55,10 +55,12 @@ func leafListPatternSchema(t *testing.T) *Schema {
 // TestLeafListPatternRefusalSpeaksTheMessage parses a leaf-list member that
 // breaks the pattern, through the set parser and the hierarchical parser,
 // and a member that keeps it. Method: the refusal is compared with the
-// message the pattern declares, and must not show the regular expression.
+// message the pattern declares, spoken as the refusal's why after the problem
+// that names the leaf-list's path and the member, and must not show the
+// regular expression.
 func TestLeafListPatternRefusalSpeaksTheMessage(t *testing.T) {
 	schema := leafListPatternSchema(t)
-	const want = `invalid value "Core": ` + leafListPatternMessage
+	const want = `top tags: "Core" is not in the accepted format` + "\n" + leafListPatternMessage + "\nfix: "
 
 	refusals := map[string]func() error{
 		"set parser": func() error {

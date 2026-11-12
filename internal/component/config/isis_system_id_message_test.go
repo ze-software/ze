@@ -29,6 +29,10 @@ func TestISISSystemIDRefusalSpeaksThePatternMessage(t *testing.T) {
 	const want = `invalid value "zzzz.0000.0001": ` + isisSystemIDMessage
 
 	t.Run("parse path", func(t *testing.T) {
+		// The parser's refusal is the pattern kind's operator error: the
+		// problem names the path and the value, the error-message is the why,
+		// and the fix line is the leaf written again.
+		const want = "isis system-id: \"zzzz.0000.0001\" is not in the accepted format\n" + isisSystemIDMessage + "\nfix: system-id <"
 		const src = "isis {\n\tnet 49.0001.0000.0000.0001.00\n\tsystem-id zzzz.0000.0001\n}\n"
 		_, err := LoadConfig(src, "test.conf", nil)
 		if err == nil {

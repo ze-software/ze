@@ -153,7 +153,12 @@ func ParseListAddress(listName string, node *ListNode, tokens []string) (ListAdd
 			}
 		}
 		if leaf, ok := node.Get(leafName).(*LeafNode); ok {
-			if err := ValidateLeafValue(leaf, value); err != nil {
+			// The refusal names the list, its first key value and the key
+			// leaf; a caller that holds the path before the list names it.
+			if err := ValidateLeafValue(leaf, []string{listName, addr.First, leafName}, value); err != nil {
+				if _, isValueRefusal := operatorRefusal(err); isValueRefusal {
+					return ListAddress{}, err
+				}
 				return ListAddress{}, errors.New("invalid " + leafName + " for " + listName + ": " + err.Error())
 			}
 		}
@@ -230,16 +235,35 @@ func ListKeyTokens(node *ListNode, key string) []string {
 // names. Writing onto an existing entry changes no key leaf: an equal key
 // means equal pairs, and a pair at its default (an explicit `vrf default`)
 // only keeps the leaf explicit, as written.
-func EnsureListEntry(tree *Tree, listName string, addr ListAddress) *Tree {
+//
+// listPath is the setting path of the list, ending with its name, and node
+// its schema. Before it creates an entry from an address read from tokens the
+// operator typed (Tokens of one or more), the first key value is judged
+// against the list's first key leaf (ValidateListKey), with no `#N` suffix
+// stripped, so a typed `default` or `x#3` on a typed key is refused; the
+// refusal is answered and nothing is created. An entry already stored is
+// returned unjudged, as is every address with Tokens == 0: only the anonymous
+// step (ListPathStep) and a stored key read back (materializeMetaPaths) build
+// one, and judging them would hide an anonymous or `#N` entry, or lock a
+// session whose change file holds a key judged when it was written. A nil
+// node is a tree an editor built with no schema, where no key leaf restricts
+// a key.
+func EnsureListEntry(tree *Tree, listPath []string, node *ListNode, addr ListAddress) (*Tree, error) {
+	listName := lastWord(listPath)
 	entry := tree.GetList(listName)[addr.Key]
 	if entry == nil {
+		if addr.Tokens > 0 && node != nil {
+			if err := ValidateListKey(node, listPath, addr.First); err != nil {
+				return nil, err
+			}
+		}
 		entry = NewTree()
 		tree.AddListEntry(listName, addr.Key, entry)
 	}
 	for _, pair := range addr.Pairs {
 		entry.Set(pair.Leaf, pair.Value)
 	}
-	return entry
+	return entry, nil
 }
 
 // setFormEntry returns the address tokens a set-form line writes for a stored
@@ -596,6 +620,21 @@ func ListEntryDestination(verb string, parentPath []string, listName string, nod
 	}
 	if addr.Tokens != len(dst) {
 		return "", errors.New("invalid destination for " + listName + ": " + dst[addr.Tokens] + " is not a key leaf of " + listName)
+	}
+	// The destination creates an entry, so its key is judged as the creator
+	// judges one (EnsureListEntry); the fix is the command with the key
+	// replaced, written from the root.
+	listPath := append(slices.Clip(parentPath), listName)
+	if err := ValidateListKey(node, listPath, addr.First); err != nil {
+		refusal, ok := operatorRefusal(err)
+		if !ok {
+			return "", err
+		}
+		var fix textbuf.Buffer
+		fix.Str(verb).Byte(' ')
+		writeListAddress(&fix, append(slices.Clip(listPath), ListKeyTokens(node, oldKey)...))
+		fix.Str(" to ").Str(refusal.Correction())
+		return "", refusal.WithFix(fix.String())
 	}
 	_, srcPairs := SplitListKey(node, oldKey)
 	source := ListAddress{Pairs: srcPairs}

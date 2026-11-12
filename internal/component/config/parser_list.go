@@ -5,8 +5,6 @@
 package config
 
 import (
-	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -49,8 +47,8 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 		key := tok.value
 		p.tok.next()
 
-		if err := ValidateListKey(node, key); err != nil {
-			return p.invalidListKeyError(tok, name, err)
+		if err := ValidateListKey(node, []string{name}, key); err != nil {
+			return p.listKeyRefusal(tok, name, key, err)
 		}
 
 		tok = p.tok.peek()
@@ -148,8 +146,8 @@ func (p *Parser) parseListInlineBlock(tree *Tree, name string, node *ListNode) e
 		key := tok.value
 		p.tok.next()
 
-		if err := ValidateListKey(node, key); err != nil {
-			return p.invalidListKeyError(tok, name, err)
+		if err := ValidateListKey(node, []string{name}, key); err != nil {
+			return p.listKeyRefusal(tok, name, key, err)
 		}
 
 		// Disambiguate: key { ... } = named block entry, key [values] ; = inline entry.
@@ -240,7 +238,7 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 			// stored it where no printer reads a leaf-list, so `ze config fmt`
 			// dropped it (FuzzFormatRoundTrip, `pppoe { interface 0 0 }`).
 			if err := p.setInlineLastChild(entry, name, node, children[childIdx], []string{tok.value}); err != nil {
-				return err
+				return prependSyntaxPath(err, key)
 			}
 			childIdx++
 		case childIdx < lastIdx:
@@ -252,7 +250,8 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 				return p.errorf(tok, "%v", err)
 			}
 			if err := validateInlineListChildValue(node, children[childIdx], value); err != nil {
-				return p.errorf(tok, "invalid value for %s.%s: %v", name, children[childIdx], err)
+				return p.valueRefusal(tok, err, fileFix(children[childIdx]+" ", ";"), []string{key, children[childIdx]},
+					"invalid value for %s.%s: %v", name, children[childIdx], err)
 			}
 			entry.Set(children[childIdx], value)
 			childIdx++
@@ -266,7 +265,7 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 	// Store collected values in the last child
 	if lastIdx >= 0 && len(lastParts) > 0 {
 		if err := p.setInlineLastChild(entry, name, node, children[lastIdx], lastParts); err != nil {
-			return err
+			return prependSyntaxPath(err, key)
 		}
 	}
 
@@ -323,11 +322,13 @@ func isInlineLeafListChild(child Node) bool {
 func (p *Parser) setInlineLastChild(entry *Tree, name string, node *ListNode, childName string, parts []string) error {
 	tok := token{line: p.tok.line}
 
+	// The two stores leave the leaf's name to parseNode, which this path
+	// does not cross, so it is named here.
 	switch child := node.Get(childName).(type) {
 	case *BracketLeafListNode:
-		return p.storeBracketLeafList(entry, childName, child, parts, tok)
+		return prependSyntaxPath(p.storeBracketLeafList(entry, childName, child, parts, tok), childName)
 	case *ValueOrArrayNode:
-		return p.storeValueOrArray(entry, childName, child, parts, tok)
+		return prependSyntaxPath(p.storeValueOrArray(entry, childName, child, parts, tok), childName)
 	}
 
 	// A $9$ key decodes here as it does in the block form (parseLeaf), which
@@ -338,7 +339,7 @@ func (p *Parser) setInlineLastChild(entry *Tree, name string, node *ListNode, ch
 		return p.errorf(tok, "%v", err)
 	}
 	if err := validateInlineListChildValue(node, childName, value); err != nil {
-		return p.errorf(tok, "invalid value for %s.%s: %v", name, childName, err)
+		return p.valueRefusal(tok, err, fileFix(childName+" ", ";"), []string{childName}, "invalid value for %s.%s: %v", name, childName, err)
 	}
 	entry.Set(childName, value)
 	return nil
@@ -391,11 +392,12 @@ func allowsDuplicateParsedListEntries(node *ListNode, key string) bool {
 	return ok
 }
 
-func (p *Parser) invalidListKeyError(tok token, name string, err error) error {
-	if name == "peer" {
-		return p.errorf(tok, "invalid peer name: %v", err)
-	}
-	return p.errorf(tok, "invalid key for %s: %v", name, err)
+// listKeyRefusal answers the refusal of key, the entry key of list name read
+// at tok. The refusal names the key after the list (the list's caller names
+// the list itself), and its fix is the entry line with the key replaced. A
+// key refused by its type alone, on a list with no key leaf, keeps its text.
+func (p *Parser) listKeyRefusal(tok token, name, key string, err error) error {
+	return p.valueRefusal(tok, err, fileFix(name+" ", " { ... }"), []string{key}, "invalid key for %s: %v", name, err)
 }
 
 // parseMultiLeaf parses multiple words until semicolon: `name word word;`.
@@ -427,8 +429,8 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, node *MultiLeafNode) er
 		return p.errorf(token{line: p.tok.line}, "expected value for %s, got ';'", name)
 	}
 	joined := textbuf.Join(words, " ")
-	if err := validateValuePatterns(node.Type, node.Patterns, node.Constraint, joined); err != nil {
-		return p.errorf(token{line: p.tok.line}, "invalid value for %s: %v", name, err)
+	if err := ValidateLeafValue(node.memberLeaf(), []string{name}, joined); err != nil {
+		return p.valueRefusal(token{line: p.tok.line}, err, fileFix(name+" ", ";"), nil, "invalid value for %s: %v", name, err)
 	}
 	tree.SetSlice(name, words)
 	return nil
@@ -484,10 +486,8 @@ func (p *Parser) parseBracketLeafList(tree *Tree, name string, node *BracketLeaf
 // `[ a b ]` as the single value "a b" -- which is why a unit could not carry
 // two addresses. An ordered SEQUENCE (ze:ordered) preserves duplicates.
 func (p *Parser) storeBracketLeafList(tree *Tree, name string, node *BracketLeafListNode, items []string, tok token) error {
-	for _, item := range items {
-		if err := validateValuePatterns(node.Type, node.Patterns, node.Constraint, item); err != nil {
-			return p.errorf(tok, "invalid value for %s: %v", name, err)
-		}
+	if err := validateMembers(node.memberLeaf(), []string{name}, items); err != nil {
+		return p.valueRefusal(tok, err, fileFix(name+" [ ", " ];"), nil, "invalid value for %s: %v", name, err)
 	}
 
 	if node.Ordered {
@@ -569,18 +569,10 @@ func (p *Parser) collectValueOrArrayItems(name string) (items []string, bracket 
 func (p *Parser) storeValueOrArray(tree *Tree, name string, node *ValueOrArrayNode, items []string, tok token) error {
 	clean, deactivated := stripInactiveMemberPrefix(items)
 
-	// Validate enum values if the schema defines valid values
-	if node.ValidValues != nil {
-		for _, item := range clean {
-			if !containsString(node.ValidValues, item) {
-				return p.errorf(tok, "invalid value for %s: %q (valid: %s)", name, item, textbuf.Join(node.ValidValues, ", "))
-			}
-		}
-	}
-	for _, item := range clean {
-		if err := validateValuePatterns(node.Type, node.Patterns, node.Constraint, item); err != nil {
-			return p.errorf(tok, "invalid value for %s: %v", name, err)
-		}
+	// Each member is judged against the leaf-list's enumeration, type and
+	// patterns, the refusal naming the member it refused.
+	if err := validateMembers(node.memberLeaf(), []string{name}, clean); err != nil {
+		return p.valueRefusal(tok, err, fileFix(name+" ", ";"), nil, "invalid value for %s: %v", name, err)
 	}
 
 	// Store clean members; AppendSlice (not SetSlice) so repeated `name value;`
@@ -628,27 +620,30 @@ func stripInactiveMemberPrefix(items []string) (clean, deactivated []string) {
 	return clean, deactivated
 }
 
+// validateInlineListChildValue judges the value a one-line list entry gives
+// childName, each member of a leaf-list child on its own.
 func validateInlineListChildValue(list *ListNode, childName, value string) error {
+	path := []string{childName}
 	child := list.Get(childName)
 	switch n := child.(type) {
 	case *LeafNode:
-		return ValidateLeafValue(n, value)
+		return ValidateLeafValue(n, path, value)
 	case *MultiLeafNode:
-		return validateValuePatterns(n.Type, n.Patterns, n.Constraint, value)
+		return ValidateLeafValue(n.memberLeaf(), path, value)
 	case *BracketLeafListNode:
-		for _, item := range inlineValueItems(value) {
-			if err := validateValuePatterns(n.Type, n.Patterns, n.Constraint, item); err != nil {
-				return err
-			}
-		}
+		return validateMembers(n.memberLeaf(), path, inlineValueItems(value))
 	case *ValueOrArrayNode:
-		for _, item := range inlineValueItems(value) {
-			if n.ValidValues != nil && !containsString(n.ValidValues, item) {
-				return fmt.Errorf("invalid enum: %q (expected one of: %s)", item, textbuf.Join(n.ValidValues, ", "))
-			}
-			if err := validateValuePatterns(n.Type, n.Patterns, n.Constraint, item); err != nil {
-				return err
-			}
+		return validateMembers(n.memberLeaf(), path, inlineValueItems(value))
+	}
+	return nil
+}
+
+// validateMembers judges each member of a leaf-list against member, the
+// restrictions of one member, and answers the first refusal.
+func validateMembers(member *LeafNode, path, items []string) error {
+	for _, item := range items {
+		if err := ValidateLeafValue(member, path, item); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -660,9 +655,4 @@ func inlineValueItems(value string) []string {
 		return items[1 : len(items)-1]
 	}
 	return items
-}
-
-// containsString checks if a string slice contains a value.
-func containsString(slice []string, val string) bool {
-	return slices.Contains(slice, val)
 }

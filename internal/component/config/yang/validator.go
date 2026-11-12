@@ -282,26 +282,12 @@ func (v *Validator) validateDecimal64(path string, yangType *yang.YangType, valu
 			Got:      fmt.Sprintf("%T", value),
 		}
 	}
-	if !decimal64Lexical.MatchString(str) {
-		return &ValidationError{
-			Path:     path,
-			Type:     ErrTypeType,
-			Message:  fmt.Sprintf("expected decimal64, got %q", str),
-			Expected: yangType.Name,
-			Got:      str,
-		}
-	}
-	// RFC 7950 Section 9.3.4: "The "fraction-digits" statement ... restricts
-	// the value space of the type by defining the total number of digits
-	// after the decimal point". goyang holds the count on the type, parse
-	// refuses a value with more digits than that.
-	// #nosec G115 -- goyang bounds FractionDigits to 1..18 at module load
-	num, err := yang.ParseDecimal(str, uint8(yangType.FractionDigits))
+	num, err := ParseDecimal64(str, yangType.FractionDigits)
 	if err != nil {
 		return &ValidationError{
 			Path:     path,
 			Type:     ErrTypeType,
-			Message:  fmt.Sprintf("expected decimal64 with at most %d fraction digits, got %q", yangType.FractionDigits, str),
+			Message:  err.Error(),
 			Expected: yangType.Name,
 			Got:      str,
 		}
@@ -316,6 +302,50 @@ func (v *Validator) validateDecimal64(path string, yangType *yang.YangType, valu
 		}
 	}
 	return nil
+}
+
+// IsDecimal64Lexical reports whether value is written as a decimal64 is, with
+// no regard to a type's fraction digits.
+func IsDecimal64Lexical(value string) bool {
+	return decimal64Lexical.MatchString(value)
+}
+
+// ParseDecimal64 reads value as a decimal64 of a type whose fraction-digits
+// is fractionDigits. Its refusals are the type refusals every surface prints:
+// "expected decimal64, got ..." for a value not written as a number, and
+// "expected decimal64 with at most N fraction digits, got ..." for a number
+// with more digits after the point than the type allows. The tree walk and
+// the config parsers read a decimal64 through this one function.
+func ParseDecimal64(value string, fractionDigits int) (yang.Number, error) {
+	if !decimal64Lexical.MatchString(value) {
+		return yang.Number{}, fmt.Errorf("expected decimal64, got %q", value)
+	}
+	// RFC 7950 Section 9.3.4: "The "fraction-digits" statement ... restricts
+	// the value space of the type by defining the total number of digits
+	// after the decimal point". goyang holds the count on the type, parse
+	// refuses a value with more digits than that.
+	// #nosec G115 -- goyang bounds FractionDigits to 1..18 at module load
+	num, err := yang.ParseDecimal(value, uint8(fractionDigits))
+	if err != nil {
+		return yang.Number{}, fmt.Errorf("expected decimal64 with at most %d fraction digits, got %q", fractionDigits, value)
+	}
+	return num, nil
+}
+
+// Decimal64InRange reports whether value, a decimal64 of fractionDigits
+// fraction digits, sits inside the range from low to high, each written as a
+// decimal64 of the same type. A bound that does not read as one is no answer,
+// so the error names it.
+func Decimal64InRange(value yang.Number, low, high string, fractionDigits int) (bool, error) {
+	lowNum, err := ParseDecimal64(low, fractionDigits)
+	if err != nil {
+		return false, fmt.Errorf("range bound %q: %w", low, err)
+	}
+	highNum, err := ParseDecimal64(high, fractionDigits)
+	if err != nil {
+		return false, fmt.Errorf("range bound %q: %w", high, err)
+	}
+	return checkYangRangeDecimal(value, yang.YangRange{{Min: lowNum, Max: highNum}}), nil
 }
 
 // checkYangRangeDecimal reports whether num sits inside one of the ranges.
