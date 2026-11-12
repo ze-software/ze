@@ -197,6 +197,46 @@ RFC5176-2.3-6 the mutation records prove the CoA-NAK half of the claim, while
 the "no event reaches the bus" half is guarded twice and no single break
 reaches it.
 
+## Findings that could not be journaled, with their rows ready
+
+A journal row needs an owning spec, and a commit that adds an unowned row is
+refused. Twice the spec whose mechanism fits could not be edited: it is in
+`design` status and has no `## Existing Mechanisms` section, so its own write
+gate refuses every edit, an owned-row line included. Giving each its section is
+design work for an agent that has read that spec's doors and producers. Until
+then these findings live here.
+
+1. Weak RFC 5176 tests. Owner: `plan/release/fixes/spec-rfc5176-remaining-defect-classes.md`
+   (its "Tagged tests that change" table already lists all four tests and it
+   owns the RFC5176-2.3-6 atomicity work). Class file
+   `plan/journal/negative-test-asserts-the-verdict-not-the-reason.md`, newest
+   first. Row: 2026-11-12, met in the RFC 5176 proof repair after
+   `rfc-verdict-fix-access` closed; surface `TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed`,
+   `TestRFC5176NoSessionIdNotActedOn`, `TestRFC5176CoANAKMakesNoPartialChange`,
+   `TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange`. A CoA
+   panic is answered NAK 506 since `857da9e798`, so these stayed green under a
+   halt. The 2.3-5 test asserts the CoA-NAK code only, where the producer sends
+   407. The 3.3-1 test sends a Disconnect-Request and asserts Disconnect-NAK
+   and no teardown, where the producer sends 503. Both 2.3-6 tests already
+   assert 506, which a recovered panic also sends, so the cause cannot separate
+   them; another observation is needed, such as the task-panic counter staying
+   at zero. Rate and CoS events are emitted only after `confirmCoA` succeeds,
+   so the bus count sees notices, not application, and the no-change half has
+   no proof. Open: assert 407 and 503; tell 2.3-6 from a crash; prove or
+   judge-narrow its no-change half.
+2. Hook fixture messages never compared with hook output. Owner:
+   `plan/post-release/engineering/spec-harness-cannot-pass-on-its-own-failure.md`.
+   Same class file. The substance is in the lint-tooling change 4 paragraphs
+   above (78 of 401 sites declare 97 expectations; one site is grounded).
+3. Three unbounded reads of untrusted data in `internal/le/build/preview`
+   (`scanImageArchive`, `regularFile`, `layer`), named in the batch 5
+   paragraphs above. Owner: `deployment-user-journeys`, which is in progress
+   in another session.
+4. Two hook false positives: the weakened-test check reads a doc comment that
+   names a testing method as a commented-out assertion; a read-only
+   `git merge-base --is-ancestor` is refused as `git merge`. The second is
+   already journaled twice in `plan/journal/hook-existing-patterns-false-positive.md`.
+
 ## Route-policy after the owner's benchmark, 2026-11-12
 
 The owner ran the A-4 procedure on his Mac
