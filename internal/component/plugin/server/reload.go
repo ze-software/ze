@@ -731,7 +731,7 @@ func buildDiffSections(diff *config.ConfigDiff, declaredRoots []string) []rpc.Co
 			if err != nil {
 				logger().Error("config reload: marshal diff added", "root", root, "error", err,
 					"code", diagnostic.CodeDoctorInternalDefect)
-				raiseServerEvent(diagnostic.CodeDoctorInternalDefect, root, "config reload: marshal diff added: "+err.Error(), fixShowErrors)
+				raiseServerEvent(diagnostic.CodeDoctorInternalDefect, root, "config reload: marshal diff added: "+err.Error())
 			} else {
 				s.Added = string(j)
 			}
@@ -741,7 +741,7 @@ func buildDiffSections(diff *config.ConfigDiff, declaredRoots []string) []rpc.Co
 			if err != nil {
 				logger().Error("config reload: marshal diff removed", "root", root, "error", err,
 					"code", diagnostic.CodeDoctorInternalDefect)
-				raiseServerEvent(diagnostic.CodeDoctorInternalDefect, root, "config reload: marshal diff removed: "+err.Error(), fixShowErrors)
+				raiseServerEvent(diagnostic.CodeDoctorInternalDefect, root, "config reload: marshal diff removed: "+err.Error())
 			} else {
 				s.Removed = string(j)
 			}
@@ -751,7 +751,7 @@ func buildDiffSections(diff *config.ConfigDiff, declaredRoots []string) []rpc.Co
 			if err != nil {
 				logger().Error("config reload: marshal diff changed", "root", root, "error", err,
 					"code", diagnostic.CodeDoctorInternalDefect)
-				raiseServerEvent(diagnostic.CodeDoctorInternalDefect, root, "config reload: marshal diff changed: "+err.Error(), fixShowErrors)
+				raiseServerEvent(diagnostic.CodeDoctorInternalDefect, root, "config reload: marshal diff changed: "+err.Error())
 			} else {
 				s.Changed = string(j)
 			}

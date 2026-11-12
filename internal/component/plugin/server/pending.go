@@ -73,7 +73,7 @@ func (p *PendingRequests) Add(req *PendingRequest) string {
 				slog.Warn("plugin pending: refusal undelivered, caller is not reading",
 					"command", req.Command, "limit", MaxPendingPerProcess,
 					"code", diagnostic.CodeDoctorPluginAnswerUndelivered)
-				raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, req.Command, "plugin pending: refusal undelivered, caller is not reading", fixShowErrors)
+				raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, req.Command, "plugin pending: refusal undelivered, caller is not reading")
 			}
 			return ""
 		}
@@ -189,7 +189,7 @@ func deliver(req *PendingRequest, resp *plugin.Response) error {
 		slog.Warn("plugin pending: response undelivered, caller is not reading",
 			"serial", req.Serial, "command", req.Command, "timeout", req.Timeout,
 			"code", diagnostic.CodeDoctorPluginAnswerUndelivered)
-		raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, req.Command, "plugin pending: response undelivered, caller is not reading", fixShowErrors)
+		raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, req.Command, "plugin pending: response undelivered, caller is not reading")
 		return ErrPendingUndeliverable
 	}
 }

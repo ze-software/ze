@@ -140,13 +140,13 @@ func RegisterPluginStreamingHandler(prefix string, oneShot OneShot, pluginComman
 func registerStreaming(prefix string, oneShot OneShot, pluginCommand string, h StreamingHandler) {
 	if strings.TrimSpace(prefix) == "" {
 		logger().Error("RegisterStreamingHandler called with empty prefix, ignoring", "code", diagnostic.CodeDoctorInternalDefect)
-		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, streamingHandlerSubject, "RegisterStreamingHandler called with empty prefix, ignoring", fixShowErrors)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, streamingHandlerSubject, "RegisterStreamingHandler called with empty prefix, ignoring")
 		return
 	}
 	if h == nil {
 		logger().Error("RegisterStreamingHandler called with nil handler", "prefix", prefix,
 			"code", diagnostic.CodeDoctorInternalDefect)
-		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, prefix, "RegisterStreamingHandler called with nil handler", fixShowErrors)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, prefix, "RegisterStreamingHandler called with nil handler")
 		return
 	}
 	if oneShot != OneShotSample && oneShot != OneShotStreamingOnly {
@@ -157,7 +157,7 @@ func registerStreaming(prefix string, oneShot OneShot, pluginCommand string, h S
 	if _, exists := streamingHandlers[key]; exists {
 		logger().Warn("duplicate streaming handler prefix, overwriting", "prefix", prefix,
 			"code", diagnostic.CodeDoctorInternalDefect)
-		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, prefix, "duplicate streaming handler prefix, overwriting", fixShowErrors)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, prefix, "duplicate streaming handler prefix, overwriting")
 	}
 	streamingHandlers[key] = streamingRegistration{handler: h, oneShot: oneShot, pluginCommand: pluginCommand}
 	streamingHandlersMu.Unlock()

@@ -295,7 +295,7 @@ func (b *configTxBridge) subscribePhase(parentCtx context.Context, name string, 
 			logger().Error("config tx bridge: non-string phase payload",
 				"plugin", name, "event-type", eventType, "got", reflect.TypeOf(p),
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: non-string phase payload: got "+events.PayloadTypeName(p), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: non-string phase payload: got "+events.PayloadTypeName(p))
 			return
 		}
 		raw := []byte(event)
@@ -308,7 +308,7 @@ func (b *configTxBridge) subscribePhase(parentCtx context.Context, name string, 
 			logger().Error("config tx bridge: extract tx id",
 				"plugin", name, "event-type", eventType, "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: extract tx id: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: extract tx id: "+err.Error())
 			return
 		}
 
@@ -317,7 +317,7 @@ func (b *configTxBridge) subscribePhase(parentCtx context.Context, name string, 
 			logger().Error("config tx bridge: unmarshal phase event",
 				"plugin", name, "event-type", eventType, "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: unmarshal phase event: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: unmarshal phase event: "+err.Error())
 			ph.emitFailed(b, probe.TransactionID, name, "unmarshal phase event: "+err.Error())
 			return
 		}
@@ -395,7 +395,7 @@ func (b *configTxBridge) subscribeOperationDecompose(parentCtx context.Context, 
 			logger().Error("config tx bridge: non-string operation decompose payload",
 				"plugin", name, "event-type", eventType, "got", reflect.TypeOf(p),
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: non-string operation decompose payload: got "+events.PayloadTypeName(p), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: non-string operation decompose payload: got "+events.PayloadTypeName(p))
 			return
 		}
 		raw := []byte(event)
@@ -405,7 +405,7 @@ func (b *configTxBridge) subscribeOperationDecompose(parentCtx context.Context, 
 			logger().Error("config tx bridge: extract operation decompose tx id",
 				"plugin", name, "event-type", eventType, "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: extract operation decompose tx id: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: extract operation decompose tx id: "+err.Error())
 			return
 		}
 
@@ -414,7 +414,7 @@ func (b *configTxBridge) subscribeOperationDecompose(parentCtx context.Context, 
 			logger().Error("config tx bridge: unmarshal operation decompose event",
 				"plugin", name, "event-type", eventType, "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: unmarshal operation decompose event: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: unmarshal operation decompose event: "+err.Error())
 			b.emitOperationDecomposeFailed(probe.TransactionID, name, probe.Root, "unmarshal operation decompose event: "+err.Error())
 			return
 		}
@@ -470,7 +470,7 @@ func (b *configTxBridge) subscribeOperationVerify(parentCtx context.Context, nam
 			logger().Error("config tx bridge: non-string operation verify payload",
 				"plugin", name, "event-type", eventType, "got", reflect.TypeOf(p),
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: non-string operation verify payload: got "+events.PayloadTypeName(p), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: non-string operation verify payload: got "+events.PayloadTypeName(p))
 			return
 		}
 		raw := []byte(event)
@@ -480,7 +480,7 @@ func (b *configTxBridge) subscribeOperationVerify(parentCtx context.Context, nam
 			logger().Error("config tx bridge: extract operation verify tx id",
 				"plugin", name, "event-type", eventType, "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: extract operation verify tx id: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: extract operation verify tx id: "+err.Error())
 			return
 		}
 
@@ -489,7 +489,7 @@ func (b *configTxBridge) subscribeOperationVerify(parentCtx context.Context, nam
 			logger().Error("config tx bridge: unmarshal operation verify event",
 				"plugin", name, "event-type", eventType, "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: unmarshal operation verify event: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: unmarshal operation verify event: "+err.Error())
 			b.emitOperationVerifyFailed(probe.TransactionID, name, probe.Operation.ID, "unmarshal operation verify event: "+err.Error())
 			return
 		}
@@ -533,7 +533,7 @@ func (b *configTxBridge) subscribeOperationApply(parentCtx context.Context, name
 			logger().Error("config tx bridge: non-string operation apply payload",
 				"plugin", name, "event-type", eventType, "got", reflect.TypeOf(p),
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: non-string operation apply payload: got "+events.PayloadTypeName(p), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: non-string operation apply payload: got "+events.PayloadTypeName(p))
 			return
 		}
 		raw := []byte(event)
@@ -543,7 +543,7 @@ func (b *configTxBridge) subscribeOperationApply(parentCtx context.Context, name
 			logger().Error("config tx bridge: extract operation apply tx id",
 				"plugin", name, "event-type", eventType, "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: extract operation apply tx id: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: extract operation apply tx id: "+err.Error())
 			return
 		}
 
@@ -552,7 +552,7 @@ func (b *configTxBridge) subscribeOperationApply(parentCtx context.Context, name
 			logger().Error("config tx bridge: unmarshal operation apply event",
 				"plugin", name, "event-type", eventType, "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: unmarshal operation apply event: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: unmarshal operation apply event: "+err.Error())
 			b.emitOperationApplyFailed(probe.TransactionID, name, probe.Operation.ID, "unmarshal operation apply event: "+err.Error())
 			return
 		}
@@ -606,7 +606,7 @@ func (b *configTxBridge) subscribeOperationRollback(parentCtx context.Context, n
 			logger().Error("config tx bridge: non-string operation rollback payload",
 				"plugin", name, "event-type", eventType, "got", reflect.TypeOf(p),
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: non-string operation rollback payload: got "+events.PayloadTypeName(p), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: non-string operation rollback payload: got "+events.PayloadTypeName(p))
 			return
 		}
 		raw := []byte(event)
@@ -616,7 +616,7 @@ func (b *configTxBridge) subscribeOperationRollback(parentCtx context.Context, n
 			logger().Error("config tx bridge: extract operation rollback tx id",
 				"plugin", name, "event-type", eventType, "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: extract operation rollback tx id: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: extract operation rollback tx id: "+err.Error())
 			return
 		}
 		operationID := firstOperationID(probe.Operations)
@@ -626,7 +626,7 @@ func (b *configTxBridge) subscribeOperationRollback(parentCtx context.Context, n
 			logger().Error("config tx bridge: unmarshal operation rollback event",
 				"plugin", name, "event-type", eventType, "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: unmarshal operation rollback event: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: unmarshal operation rollback event: "+err.Error())
 			b.emitOperationRollbackFailed(probe.TransactionID, name, operationID, "unmarshal operation rollback event: "+err.Error())
 			return
 		}
@@ -673,7 +673,7 @@ func (b *configTxBridge) subscribeOperationCommit(parentCtx context.Context, nam
 			logger().Error("config tx bridge: non-string operation commit payload",
 				"plugin", name, "event-type", eventType, "got", reflect.TypeOf(p),
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: non-string operation commit payload: got "+events.PayloadTypeName(p), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: non-string operation commit payload: got "+events.PayloadTypeName(p))
 			return
 		}
 		raw := []byte(event)
@@ -683,7 +683,7 @@ func (b *configTxBridge) subscribeOperationCommit(parentCtx context.Context, nam
 			logger().Error("config tx bridge: extract operation commit tx id",
 				"plugin", name, "event-type", eventType, "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: extract operation commit tx id: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: extract operation commit tx id: "+err.Error())
 			return
 		}
 
@@ -692,7 +692,7 @@ func (b *configTxBridge) subscribeOperationCommit(parentCtx context.Context, nam
 			logger().Error("config tx bridge: unmarshal operation commit event",
 				"plugin", name, "event-type", eventType, "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: unmarshal operation commit event: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: unmarshal operation commit event: "+err.Error())
 			b.emitOperationCommitFailed(probe.TransactionID, name, "unmarshal operation commit event: "+err.Error())
 			return
 		}
@@ -769,14 +769,14 @@ func (b *configTxBridge) subscribeRollback(parentCtx context.Context) {
 			logger().Error("config tx bridge: non-string rollback payload",
 				"got", reflect.TypeOf(p),
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, configTxSubject, "config tx bridge: non-string rollback payload: got "+events.PayloadTypeName(p), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, configTxSubject, "config tx bridge: non-string rollback payload: got "+events.PayloadTypeName(p))
 			return
 		}
 		var ev transaction.RollbackEvent
 		if err := json.Unmarshal([]byte(event), &ev); err != nil {
 			logger().Error("config tx bridge: unmarshal rollback event", "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, configTxSubject, "config tx bridge: unmarshal rollback event: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, configTxSubject, "config tx bridge: unmarshal rollback event: "+err.Error())
 			return
 		}
 		// Fan out to every participant. Each plugin dispatches in the
@@ -814,14 +814,14 @@ func (b *configTxBridge) subscribeCommitted(parentCtx context.Context) {
 			logger().Error("config tx bridge: non-string committed payload",
 				"got", reflect.TypeOf(p),
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, configTxSubject, "config tx bridge: non-string committed payload: got "+events.PayloadTypeName(p), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, configTxSubject, "config tx bridge: non-string committed payload: got "+events.PayloadTypeName(p))
 			return
 		}
 		var ev transaction.CommittedEvent
 		if err := json.Unmarshal([]byte(event), &ev); err != nil {
 			logger().Error("config tx bridge: unmarshal committed event", "error", err,
 				"code", diagnostic.CodeDoctorInternalDefect)
-			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, configTxSubject, "config tx bridge: unmarshal committed event: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, configTxSubject, "config tx bridge: unmarshal committed event: "+err.Error())
 			return
 		}
 		b.server.recordCommitted(ev.TransactionID)
@@ -1112,14 +1112,14 @@ func (b *configTxBridge) emitAck(eventType string, payload any, txID, name strin
 		logger().Error("config tx bridge: marshal ack",
 			"event-type", eventType, "plugin", name, "tx", txID, "error", err,
 			"code", diagnostic.CodeDoctorInternalDefect)
-		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: marshal ack: "+err.Error(), fixShowErrors)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: marshal ack: "+err.Error())
 		return
 	}
 	if _, err := b.gateway.EmitConfigEvent(eventType, data); err != nil {
 		logger().Error("config tx bridge: emit ack",
 			"event-type", eventType, "plugin", name, "tx", txID, "error", err,
 			"code", diagnostic.CodeDoctorInternalDefect)
-		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: emit ack: "+err.Error(), fixShowErrors)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "config tx bridge: emit ack: "+err.Error())
 	}
 }
 

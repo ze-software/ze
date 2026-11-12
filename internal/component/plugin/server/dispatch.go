@@ -473,7 +473,7 @@ func payloadToJSON(namespace, eventType string, payload any) (string, error) {
 				"namespace", namespace, "event-type", eventType, "want", typ.String(),
 				"code", diagnostic.CodeDoctorInternalDefect)
 			raiseServerEvent(diagnostic.CodeDoctorInternalDefect, namespace+" "+eventType,
-				"eventbus: typed event emitted with nil payload, want "+typ.String(), fixShowErrors)
+				"eventbus: typed event emitted with nil payload, want "+typ.String())
 		}
 		return "null", nil
 	}
@@ -511,7 +511,7 @@ func tryDecodeTypedPayload(namespace, eventType, raw string) (any, bool) {
 		logger().Warn("eventbus: typed event arrived with empty payload, dropping decode",
 			"namespace", namespace, "event-type", eventType, "want", typ.String(),
 			"code", diagnostic.CodeDoctorInternalDefect)
-		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, namespace+" "+eventType, "eventbus: typed event arrived with empty payload, dropping decode", fixShowErrors)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, namespace+" "+eventType, "eventbus: typed event arrived with empty payload, dropping decode")
 		return nil, false
 	}
 	// reflect.New(T) yields *T. For payloads declared as *S, typ is *S, so
@@ -524,7 +524,7 @@ func tryDecodeTypedPayload(namespace, eventType, raw string) (any, bool) {
 			"namespace", namespace, "event-type", eventType,
 			"want", typ.String(), "error", err,
 			"code", diagnostic.CodeDoctorInternalDefect)
-		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, namespace+" "+eventType, "eventbus: typed event JSON unmarshal failed, dropping decode: "+err.Error(), fixShowErrors)
+		raiseServerEvent(diagnostic.CodeDoctorInternalDefect, namespace+" "+eventType, "eventbus: typed event JSON unmarshal failed, dropping decode: "+err.Error())
 		return nil, false
 	}
 	return ptr.Elem().Interface(), true
@@ -688,7 +688,7 @@ func (s *Server) dispatchCommandArgsResponse(ctx context.Context, proc *process.
 		} else {
 			logger().Error("dispatch-command-args failed", "plugin", proc.Name(), "command", authInput, "error", dispatchErr,
 				"code", diagnostic.CodeDoctorPluginRequestRefused)
-			raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, proc.Name(), "dispatch-command-args failed: "+dispatchErr.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, proc.Name(), "dispatch-command-args failed: "+dispatchErr.Error())
 		}
 		return nil, dispatchErr
 	}
@@ -754,7 +754,7 @@ func (s *Server) dispatchCommandResponse(ctx context.Context, proc *process.Proc
 		} else {
 			logger().Error("dispatch-command failed", "plugin", proc.Name(), "command", command, "error", dispatchErr,
 				"code", diagnostic.CodeDoctorPluginRequestRefused)
-			raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, proc.Name(), "dispatch-command failed: "+dispatchErr.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, proc.Name(), "dispatch-command failed: "+dispatchErr.Error())
 		}
 		return nil, dispatchErr
 	}

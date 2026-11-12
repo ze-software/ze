@@ -22,12 +22,13 @@ const fixShowErrors = "ze show errors"
 // configTxSubject names the config transaction in an event that no plugin owns.
 const configTxSubject = "config-transaction"
 
-// raiseServerEvent raises code as an error event about subject. The caller
-// logs the same code on the line beside the call. The bus refuses an empty
-// field, so a caller that holds no plugin or command name passes the area it
-// works in.
-func raiseServerEvent(code, subject, message, fix string) {
-	report.RaiseErrorFix(serverEventSource, code, subject, message, fix)
+// raiseServerEvent raises code as an error event about subject, with
+// fixShowErrors as its fix: no server event has a command that clears it. The
+// caller logs the same code on the line beside the call. The bus refuses an
+// empty field, so a caller that holds no plugin or command name passes the
+// area it works in.
+func raiseServerEvent(code, subject, message string) {
+	report.RaiseErrorFix(serverEventSource, code, subject, message, fixShowErrors)
 }
 
 // drainSubject names a drain round in an event that no one plugin owns.

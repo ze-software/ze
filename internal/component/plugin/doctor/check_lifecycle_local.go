@@ -163,8 +163,7 @@ func autoloadRow(err error) diagnostic.Diagnostic {
 	var message textbuf.Buffer
 	message.Str("the plugins this config auto-loads do not resolve in this build, so ze refuses to start: ").Err(err)
 	fix := "ze show plugin list"
-	var refusal *opererr.Error
-	if errors.As(err, &refusal) {
+	if refusal, ok := errors.AsType[*opererr.Error](err); ok {
 		fix = refusal.Fix()
 	}
 	return diagnostic.Diagnostic{

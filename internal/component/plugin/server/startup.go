@@ -515,7 +515,7 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 			if proc == nil {
 				logger().Error("tier process not found in PM", "plugin", name, "tier", tierIdx,
 					"code", diagnostic.CodeDoctorInternalDefect)
-				raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "tier process not found in PM", fixShowErrors)
+				raiseServerEvent(diagnostic.CodeDoctorInternalDefect, name, "tier process not found in PM")
 				continue
 			}
 			tierProcs = append(tierProcs, proc)

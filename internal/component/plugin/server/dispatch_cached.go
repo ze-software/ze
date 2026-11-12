@@ -171,13 +171,13 @@ func parseForwardDestinations(plugin string, dst []string) []netip.AddrPort {
 		logger().Warn("forward-cached: dropping malformed destination",
 			"plugin", plugin, "destination", s,
 			"code", diagnostic.CodeDoctorPluginRequestRefused)
-		raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, plugin, "forward-cached: dropping malformed destination", fixShowErrors)
+		raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, plugin, "forward-cached: dropping malformed destination")
 	}
 	if len(out) == 0 {
 		logger().Warn("forward-cached: every destination was malformed, refusing to broadcast",
 			"plugin", plugin, "count", len(dst),
 			"code", diagnostic.CodeDoctorPluginRequestRefused)
-		raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, plugin, "forward-cached: every destination was malformed, refusing to broadcast", fixShowErrors)
+		raiseServerEvent(diagnostic.CodeDoctorPluginRequestRefused, plugin, "forward-cached: every destination was malformed, refusing to broadcast")
 	}
 	return out
 }

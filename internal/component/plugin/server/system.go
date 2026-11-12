@@ -646,7 +646,7 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 		// deliver raised an answer the caller did not take; a serial the timeout
 		// already removed reached no raise.
 		if !errors.Is(err, ErrPendingUndeliverable) {
-			raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, cmd.Name, "plugin completion: answer not delivered: "+err.Error(), fixShowErrors)
+			raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, cmd.Name, "plugin completion: answer not delivered: "+err.Error())
 		}
 	}
 

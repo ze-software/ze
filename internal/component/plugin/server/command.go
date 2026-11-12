@@ -1630,7 +1630,7 @@ func pluginAnswerRows(command string, answer *rpc.Answer, release func()) iter.S
 		logger().Warn("plugin answer ended before its terminator",
 			"command", command, "records", produced, "error", err,
 			"code", diagnostic.CodeDoctorPluginAnswerUndelivered)
-		raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, command, "plugin answer ended before its terminator: "+err.Error(), fixShowErrors)
+		raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, command, "plugin answer ended before its terminator: "+err.Error())
 		forwarded = rpc.RawRow(answerTruncatedFault(produced))
 		yield(rpc.RowRecord{Fault: &forwarded})
 	}
