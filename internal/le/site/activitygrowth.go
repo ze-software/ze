@@ -147,11 +147,10 @@ func activityHistoryStatHTML(label, subject, field string) string {
 }
 
 // activityCumulativeWording is what the cumulative curve says while the
-// calendar's switch shows one metric: its title, the sentence under it, the
-// readout's label, the chart's accessible name and the unit the date control
-// reads out.
+// calendar's switch shows one metric: the sentence above it, the readout's
+// label, the chart's accessible name and the unit the date control reads out.
+// The curve carries no heading: the sentence says what it draws.
 type activityCumulativeWording struct {
-	title string
 	note  string
 	label string
 	chart string
@@ -162,7 +161,6 @@ type activityCumulativeWording struct {
 // the lines as added by commits, so the curve reads as activity and never as
 // the repository's size.
 var activityCumulativeLines = activityCumulativeWording{
-	title: "Lines added within this window",
 	note:  "Lines added by commits, accumulated since the calendar's first day.",
 	label: "Lines added",
 	chart: "Cumulative lines added by commits. Use arrow keys to select a date, or Home and End.",
@@ -171,7 +169,6 @@ var activityCumulativeLines = activityCumulativeWording{
 
 // activityCumulativeCommits is the curve's wording under Commits.
 var activityCumulativeCommits = activityCumulativeWording{
-	title: "Commits within this window",
 	note:  "Commits accumulated since the calendar's first day.",
 	label: "Commits",
 	chart: "Cumulative commits. Use arrow keys to select a date, or Home and End.",
@@ -188,9 +185,7 @@ var activityCumulativeCommits = activityCumulativeWording{
 func activityCumulativeCurveHTML() string {
 	lines, commits := activityCumulativeLines, activityCumulativeCommits
 	var out textbuf.Buffer
-	out.Reset().Str(`<section class="activity-cumulative panel" aria-labelledby="activity-cumulative-title">`).Byte('\n')
-	out.Str(`    <h2 id="activity-cumulative-title"`).Str(activityCumulativeTextAttributes(lines.title, commits.title)).Str(">").
-		Str(html.EscapeString(lines.title)).Str("</h2>\n")
+	out.Reset().Str(`<section class="activity-cumulative panel">`).Byte('\n')
 	out.Str("    <p").Str(activityCumulativeTextAttributes(lines.note, commits.note)).Str(">").
 		Str(html.EscapeString(lines.note)).Str("</p>\n")
 	out.Str(`    <svg id="activity-cumulative-chart" class="growth-chart" viewBox="0 0 `).Str(growthViewWidth).

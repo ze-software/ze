@@ -70,8 +70,6 @@ All Go files, third-party included, hold **1,015** lines.
 - Comments:** 65**
 - Modules:** 3**
 
-## Lines added within this window
-
 Lines added by commits, accumulated since the calendar's first day.
 
 Select a date Lines added:

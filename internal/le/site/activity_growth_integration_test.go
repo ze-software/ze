@@ -54,8 +54,9 @@ import (
 // readout's table keeps its width, position, column widths, row heights and
 // row count across days and section selection, and carries no Columns
 // control; the cumulative curve shows lines added under Added Lines and
-// commits under Commits, says which in its title, sentence, readout label,
-// slider and chart name, and keeps the selected date across the switch.
+// commits under Commits, says which in its sentence, readout label, slider
+// and chart name, carries no heading, and keeps the selected date across the
+// switch.
 func TestActivitySizeChartFollowsTheHistoryFile(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {
@@ -339,14 +340,13 @@ window.addEventListener('load', async () => {
     check(!!curveSeries && curveSeries.getAttribute('d').length > 12, 'The cumulative curve must plot the calendar days');
     function curveReads(metric, date, value, what) {
       const lines = metric === 'lines';
-      const title = lines ? 'Lines added within this window' : 'Commits within this window';
       const sentence = lines ? "Lines added by commits, accumulated since the calendar's first day." : "Commits accumulated since the calendar's first day.";
       const label = lines ? 'Lines added' : 'Commits';
       const unit = lines ? 'lines added' : 'commits';
       const name = lines ? 'Cumulative lines added by commits.' : 'Cumulative commits.';
       check(text('activity-cumulative-date') === date && text('activity-cumulative-value') === value,
         what + ': the curve must read ' + date + ' ' + value + ', reads ' + text('activity-cumulative-date') + ' ' + text('activity-cumulative-value'));
-      check(text('activity-cumulative-title') === title, what + ': the curve must be titled ' + title + ', is ' + text('activity-cumulative-title'));
+      check(document.querySelector('.activity-cumulative h2') === null, what + ': the curve must carry no heading');
       check(document.querySelector('.activity-cumulative p').textContent === sentence, what + ': the curve must say ' + sentence);
       check(document.querySelector('#activity-cumulative-readout span span').textContent === label, what + ': the readout must be labeled ' + label);
       check(curveDay.getAttribute('aria-valuetext') === date + ': ' + value + ' ' + unit, what + ': the slider must read out ' + date + ': ' + value + ' ' + unit + ', reads ' + curveDay.getAttribute('aria-valuetext'));

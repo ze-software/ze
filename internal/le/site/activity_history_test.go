@@ -563,7 +563,6 @@ func TestActivityCumulativeCurveCarriesBothWordings(t *testing.T) {
 		}
 	}
 	for lines, commits := range map[string]string{
-		"Lines added within this window":                                      "Commits within this window",
 		"Lines added by commits, accumulated since the calendar's first day.": "Commits accumulated since the calendar's first day.",
 		"Lines added": "Commits",
 	} {
@@ -571,8 +570,8 @@ func TestActivityCumulativeCurveCarriesBothWordings(t *testing.T) {
 			t.Errorf("the curve words %q as %q under Commits, want %q", lines, wordings[lines], commits)
 		}
 	}
-	if len(wordings) != 3 {
-		t.Errorf("the curve carries %d switchable wordings, want the title, the sentence and the readout label: %v", len(wordings), wordings)
+	if len(wordings) != 2 {
+		t.Errorf("the curve carries %d switchable wordings, want the sentence and the readout label: %v", len(wordings), wordings)
 	}
 	chart := activityElementByID(t, document, "activity-cumulative-chart")
 	if label := activityAttribute(chart, "aria-label"); label != activityAttribute(chart, "data-aria-lines") || !strings.Contains(label, "lines added by commits") {

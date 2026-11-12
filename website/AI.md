@@ -851,7 +851,7 @@ tests and third-party Go, each with files, lines, code, blank and comment
 lines, and the module count. It does not read the working tree. Under it, the
 cumulative curve follows the switch: under Added Lines it sums the lines added
 by commits that the calendar cells carry, under Commits their commits, from
-the first day of the window. Its title, sentence, readout and slider say which
+the first day of the window. It has no heading: its sentence, readout and slider say which
 of the two it shows, and the selected date stays when the switch changes. Its
 slider spans the curve's time line the way the size view's does.
 
