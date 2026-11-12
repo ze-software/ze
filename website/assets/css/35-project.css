@@ -4,11 +4,15 @@
 .project-overview h2 { margin: 0 0 0.85rem; font-size: clamp(1.5rem, 2.2vw, 2rem); }
 .project-overview p { max-width: 72ch; }
 .project-overview .project-eyebrow { margin: 0 0 0.65rem; color: var(--muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-.project-state { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2rem; }
+.project-state { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2rem; padding: clamp(1.25rem, 3vw, 2.5rem); border: 1px solid var(--line); border-left: 4px solid var(--brand); border-radius: var(--radius-lg); background: var(--brand-section-gradient); }
+.project-state > div { min-width: 0; }
+.project-state h2 { margin-bottom: 1rem; }
+.project-state p:first-of-type { font-size: 1.05rem; line-height: 1.8; }
+.project-state p:last-child { margin-bottom: 0; color: var(--muted); font-size: 0.9rem; }
+.project-state > .project-text-link { padding: 0.8rem 1rem; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--panel); text-underline-offset: 0.2em; }
 .project-text-link, .project-links a { color: var(--blue); font-weight: 700; }
 .project-progress { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 1.5rem; }
-.project-latest, .project-release { padding: clamp(1.25rem, 2.5vw, 2rem); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel); min-width: 0; }
-.project-latest { background: var(--brand-surface); }
+.project-latest, .project-release { padding: clamp(1.25rem, 2.5vw, 2rem); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--brand-surface); min-width: 0; }
 .project-report-date { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 .project-links, .project-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.85rem 1.5rem; }
 .project-overview .project-secondary-link { margin: 1rem 0 0; font-size: 0.85rem; }
