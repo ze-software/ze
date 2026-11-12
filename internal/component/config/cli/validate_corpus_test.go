@@ -719,16 +719,6 @@ func parseAnyFormat(schema *config.Schema, body string) (*config.Tree, error) {
 	return config.NewParser(schema).Parse(body)
 }
 
-// migrateConfig answers `ze config migrate`'s output for body.
-func (s *sweepContext) migrateConfig(body string) (string, error) {
-	input := filepath.Join(s.t.TempDir(), "input.conf")
-	if err := os.WriteFile(input, []byte(body), 0o600); err != nil {
-		return "", err
-	}
-	output, _, err := configMigrateWithWarnings(input, "", formHierarchical)
-	return output, err
-}
-
 // checkBody validates one body and records each error and each RFC 8212
 // absence the carrying test is not about.
 func (s *sweepContext) checkBody(c sweepCarrier) {
