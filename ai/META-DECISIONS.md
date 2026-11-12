@@ -423,10 +423,13 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   issues and the figures the RFC pages need) comes from a recorded data file,
   and the pages are generated from that file. The site build does not run
   the RFC check to render a page. It regenerates the file only when the file
-  is more than a week old, and then it regenerates all of it; a command
-  regenerates it on demand, so Thomas can update it when he needs to. The
-  week is measured from the time the file was saved. The file lives in a
-  git-ignored folder of the website, so it is never pushed.
+  is more than a week old; a command regenerates it on demand, so Thomas
+  can update it when he needs to. Producing the weekly update always
+  regenerates the file, whatever its age, and regenerates the site from it:
+  by timing the file can be slightly under a week old then, and the update
+  must not publish RFC data that old. The week is measured from the time the
+  file was saved. The file lives in a git-ignored folder of the website, so
+  it is never pushed.
 - CI does not generate the website. The site is always generated on request.
 - Website screenshots use WebP, alongside lightweight terminal-event playback
   for application demonstrations. Encoded video assets are not published on the
