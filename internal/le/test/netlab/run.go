@@ -116,13 +116,7 @@ func runContainerLab(ctx context.Context, root string) (directory string, err er
 	}
 	// The generated name isolates node/container names between simultaneous
 	// jobs. The package is retained with snapshots and rendered configuration.
-	topology := filepath.Join(directory, "topology.yml")
-	file, err := os.OpenFile(topology, os.O_APPEND|os.O_WRONLY, 0)
-	if err != nil {
-		return directory, err
-	}
-	_, writeErr := fmt.Fprintf(file, "\nname: %s\n", filepath.Base(work))
-	if err := errors.Join(writeErr, file.Close()); err != nil {
+	if err := writeLiveTopologyName(filepath.Join(directory, "topology.yml")); err != nil {
 		return directory, err
 	}
 	docker := interoplab.NewDocker()
