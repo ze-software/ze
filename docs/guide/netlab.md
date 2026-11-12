@@ -137,7 +137,10 @@ that nothing reads.
 
 The node starts with `ze start /etc/ze/ze.conf`. netlab assigns the interface addresses
 with `ip` inside the container, so the rendered configuration carries no interface
-block.
+block. The explicit `clab.node_config.initial` shell method runs that setup
+through `docker exec`. It overrides the Linux parent's host-namespace method;
+setting the default configuration mode alone does not replace an inherited method.
+<!-- source: contrib/netlab/ze.yml -- clab.node_config.initial -->
 
 After changing that bind-mounted file, send SIGHUP to reload it.
 `handleSIGHUPReload` runs `signalReload`,

@@ -37,6 +37,10 @@ daemon_config:
   routing: /etc/ze/routing.ignore
 
 clab:
+  # Ze inherits initial=:ns from Linux. The default config mode does not replace an
+  # inherited method, so explicitly run the script inside our shell-equipped node.
+  node_config:
+    initial: :sh
   group_vars:
     # `ze cli -c "show ... | json compact"` is what `netlab validate` parses.
     netlab_show_command: [ ze, cli, '-c', 'show $@ | json compact' ]
