@@ -19,9 +19,9 @@ predates the operator error (`opererr`), the parser's union check, the parser's
 line error and refusal path, YANG constraint messages, the argument-fault
 refusal and multi-leaf-key list addressing. This version rebuilds the design
 on those mechanisms. It keeps every owner answer and every acceptance
-criterion's intent. Review rounds 18 to 21 judged the rework; their findings
-are applied here and one short round 22 over the round-21 points is owed
-(Review Gate).
+criterion's intent. Review rounds 18 to 23 judged the rework and the
+`top <command>` form the owner's Q-9 answer asks for; their findings are applied
+here and one narrow round 24 is owed (Review Gate).
 
 ## Task
 
@@ -36,6 +36,13 @@ Owner rule (`ai/rules/user-facing-errors.md`): every message a user sees says
 what is wrong in plain words, why, and the exact command that fixes it. A
 refusal an operator reads is an `opererr.Error`, and the fix is the exact
 command alone on the last line, rendered `fix: <command>`.
+
+Owner answer Q-9, 2026-11-12: the editor's `top` takes an optional command,
+run once with the position at the root ("a transient change of directory for
+the command behind, whatever the command is"). So a fix line that names a path
+outside the operator's `edit` context is `top set <full path> <value>`, the
+exact command from any position, and every command the editor accepts works
+behind `top`.
 
 Today a value outside a YANG enumeration is refused with
 `invalid enum: "banana" (expected one of: enable, disable, require, refuse)`.
@@ -115,8 +122,10 @@ route-refresh accepts only these values:
 fix: set bgp peer peer1 session capability route-refresh <enable|disable|require|refuse>
 ```
 
-Inside `edit bgp peer peer1`, the SSH editor's fix is the command typed there:
-`fix: set session capability route-refresh <enable|disable|require|refuse>`.
+Inside `edit bgp peer peer1`, a refused `set` the operator just typed keeps the
+relative form typed: `fix: set session capability route-refresh <enable|disable|require|refuse>`.
+A commit refusal inside any context names the leaf from the root behind `top`:
+`fix: top set bgp peer peer1 session capability route-refresh require`.
 
 Range, File frame (`cost` is `range "1..65535"` in `ze-ospf-conf.yang`):
 
@@ -184,8 +193,9 @@ config validation failed:
   → Constraint: `./le arch operator-error check` (`internal/le/arch/operatorerror`, `classifyError`) refuses only an `errors.New`, an `fmt.Errorf` or a zero `opererr.Error` literal at a registered handler's return, and passes a callee's error unjudged; `./le arch error-inventory check` refuses a plain message a change adds at a surface writer. Neither proves a refusal reaches its writer typed, so this spec's proof is the `errors.As` tests (AC-21).
 - [ ] `docs/contributing/ze-go-style.md` - "Every error is handled"
   → Constraint: `opererr.New` and `opererr.Wrap` panic on an empty part; its fields are private and immutable; a producer builds the error once, a layer wraps only to add a fact it holds.
-- [ ] `ai/rules/cli.md` - validation errors surfaced to an agent
+- [ ] `ai/rules/cli.md` - validation errors surfaced to an agent, editor grammar
   → Constraint: the JSON diagnostic keeps its codes (`config-yang-enum`, `config-yang-range`, `config-yang-length`, `config-yang-pattern`) and its keys (`expected`, `actual`, `path`, `code`).
+  → Constraint: an editor verb's forms are declared once (`editorHelp` table, `internal/component/cli/editor_help.go`), and help and completion derive from it.
 - [ ] `ai/rules/config.md` - enum help text
   → Constraint: an `enum` value carries its one-line text as `ze:help` alone; an enum `description` is read by no surface.
 - [ ] `docs/architecture/config/syntax.md` - "Unknown keys", "multi-leaf list keys"
@@ -195,8 +205,9 @@ config validation failed:
   → Constraint: a declared `error-message` speaks in place of the generic text on every path (`ConstraintMessages`).
 - [ ] `docs/architecture/api/commands.md` - YANG-typed argument validation
   → Constraint: a command line's faults are all named by `ArgumentFaults`, and every route restates them through `RestatedForLine`.
-- [ ] `docs/guide/config-editor.md` - secrets in command answers
+- [ ] `docs/guide/config-editor.md` - navigation (`edit`, `up`, `top`), secrets in command answers
   → Constraint: `DisplayMessageAtPath` / `maskSecretInMessage` stay as a second defence; the refusal is built masked.
+  → Constraint: this page documents `top`, so it gains the `top <command>` form in the phase that adds it.
 
 ### RFC Summaries (Scope: protocol)
 - N-A for a summary edit: no wire behaviour changes and no row of `rfc/short/rfc7950.md` is added or changed. RFC 7950 Section 9.6 (enumeration) is what the RFC-tagged tests prove; they assert `ErrTypeEnum`, `Expected` and `Got`, never the message text, and this spec keeps all three.
@@ -208,6 +219,7 @@ config validation failed:
 - The typed facts the surfaces need (path segments, accepted values, kind, value, secret flag) live on the existing `configyang.ValidationError`, which holds the operator error and unwraps to it.
 - The parser already checks unions (`validateUnionValue`), already builds a refusal path with keys on unwind (`prependSyntaxPath`, for a refusal wrapped in `syntaxRefusal`), and returns a typed line error (`LineError`); reload already prints one `parse config:`.
 - The creator's key rule, stated once: an address with `ListAddress.Tokens == 0` is not judged; every other address is. Only `ListPathStep`'s anonymous arm and `materializeMetaPaths` (stored change-file keys read back) build an address with `Tokens == 0`; every address built from typed tokens has `Tokens >= 1` (`ParseListAddress`, `editor_walk.go`, `editor_commands.go`). So a typed `default` or `x#3` is judged, and stored `KeyDefault`, `#N` and change-file keys are not.
+- `top <command>` needs no new state machine: the SSH editor already runs each dispatched command on a copy of the model (`executeCommand` has a value receiver) and applies the position only from the result's `clearContext` and `newContext` (`handleCommandResult`); `show <path>` and `load <path>` already change the position for one command and put it back. The verbs `handleEnter` takes before dispatch (`run`, `exit`, `quit`, `stop`, `restart`, `clear`) read no position, so `top` in front of them is dropped.
 
 ## Current Behavior (MANDATORY)
 
@@ -225,6 +237,10 @@ Read at HEAD `e660eff82e`, 2026-11-12.
 - [ ] `internal/component/config/list_key.go` (`ParseListAddress`, `ListPathStep`, `WalkListEntryPath`, `ResolveListEntryTarget`, `EnsureListEntry`, `ListEntryDestination`, `keyLeafMoveRefusal`) - the one address reader judges each non-first key pair with `ValidateLeafValue` (`invalid <leaf> for <list>: ...`) and never the first key value. `ParseListAddress` builds `Tokens >= 1`; `ListPathStep`'s anonymous arm builds `Tokens == 0`. `EnsureListEntry` is the creator of `internal/component/cli/editor_walk.go`, `editor_commands.go`, `internal/component/config/setparser.go`, `setparser_meta.go`, `setparser_entries.go`, `change_file.go` (`materializeMetaPaths`, which rebuilds entries from the stored meta keys with `Tokens == 0`, `"default"` for an edit under an anonymous entry among them). Lookup callers read an address of an entry that exists and treat a refused address as absence: `ListPathStep` in `internal/component/cli/editor_walk.go` (four), `editor.go`, `editor_annotated.go`, `editor_commands.go`, `internal/component/web/handler_config_walk.go` (two), `internal/component/gnmi/path.go`, `internal/component/gnmi/get.go`, `internal/component/config/edit_path.go`; the set parser's inactive marking (marks nothing) and `deleteFromList` (refuses the delete); `internal/component/web/workbench_enrich.go`.
 - [ ] `internal/component/cli/editor_commit.go` (`DiscardSessionPath`, `memberOpFix`), `editor_commands.go` (write-through `set`, `openChangeFile`) - every discard, write-through `set` and commit reads the change file through `readChangeFile` and `materializeMetaPaths`; only `discard all` gets past an unparsable change file. The conflict fixes print `discard <root path> ...`.
 - [ ] `internal/component/cli/model_commands_commit.go` (`cmdDiscardSession`) and `cmdDiscardPath` - hand the typed path to `DiscardSessionPath`/`DiscardPath` without `m.contextPath`, so `discard` takes a root path in every context and the `memberOpFix` lines are exact today.
+- [ ] `internal/component/cli/model_commands.go` (`executeCommand`, `dispatchCommand`, `cmdTop`, `cmdUp`, `cmdEdit`) and `model.go` (`handleCommandResult`) - `executeCommand` has a value receiver, so `dispatchCommand` runs every dispatched command on a copy of the model; the position changes only when `handleCommandResult` applies the result's `clearContext` (set by `cmdTop`) or `newContext` (set by `cmdEdit` and `cmdUp`); no other verb sets either. `handleCommandResult` resolves `refreshConfig` at the real `m.contextPath`. `cmdTop` takes no arguments today: it answers `clearContext` and the root `configView`. An unknown verb answers `unknown command`, and `exit`/`quit` reaching `dispatchCommand` answer nothing (they are handled before).
+- [ ] `internal/component/cli/model_keys.go` (`handleEnter`) - takes `run <cmd>` (operational dispatch), bare `run` (usage), `exit`/`quit` (leave config mode, or quit, with the pending-changes guard), `stop`, `restart` (daemon lifecycle with confirmation) and `clear` (screen) before dispatch; none reads `m.contextPath`. It appends the line to history.
+- [ ] `internal/component/cli/model_commands_show.go` (`show <path>`, `cmdShow`) - `show` answers through `configView` (or `output`) built at `m.contextPath`; with a path argument it extends the position for the call and puts the saved one back. `internal/component/cli/model_load.go` (`load <path>`) does the same with `defer`; `load terminal` answers `enterPasteMode` with `pasteModeLocation` and `pasteModeAction`, and `finishPasteMode` (`model_keys.go`) later calls `applyLoad` on the real model, which reads the real `m.contextPath`. The `commit confirmed` countdown (`handleConfirmCountdown`) reverts or confirms the whole configuration and reads the position only to draw the view at the real position.
+- [ ] `internal/component/cli/model.go` (`commandCompleterInput`, `updateCompletions`, `cmdRun`) and `editor_help.go` (`editorHelp` table) - completion after `run ` strips the prefix and hands the rest to the operational completer; the help table declares `run` with its form, and `top` with none.
 - [ ] `internal/component/cli/completer_validate.go` (`validateTokenPath`) - skips a key with `ListAddressSpan`, judging none; the store after it creates through `EnsureListEntry`.
 - [ ] `internal/component/config/yang/validator_error.go` (`ValidationError`, `ErrorType`) and `validator.go` (`validateEntry`, `validateEnumeration`, `walkTree`) - `ValidationError` is a plain struct rendering `<type> error at <path>: <message>`; `validateEnumeration` answers `ErrTypeEnum`, `value %q is not a valid enumeration value`, `Expected` = goyang's sorted names joined `, `.
 - [ ] `internal/component/config/yang/constraint_message.go` (`ConstraintMessages`, `LeafConstraintMessages`, `WithConstraintMessage`) - a declared `error-message` on a range, length or pattern, joined after the refusal with `: `.
@@ -234,12 +250,14 @@ Read at HEAD `e660eff82e`, 2026-11-12.
 - [ ] `internal/component/cli/completer.go` (`ValidateValueAtPath`), `completer_validate.go` (`validateLeafValue`, `validateYangType`, `validateStringPatterns`, `validateUintRange`) - `invalid value %q for <leaf> (expected <hint>)`, the hint `enum` for an enum; the heuristic refuses every valid prefix (journal `helper-bypassed-by-an-open-coded-copy.md`, 2026-10-13).
 - [ ] `internal/component/cli/model_keys.go` (`handleSetCLIFormat`) - `invalid format: x (valid: json, ndjson, table, text, yaml)` written to `statusMessage`.
 - [ ] `internal/component/cli/model_commands_commit.go` (`CommitRefusal`, `commitValidationRefusal`, `appendIssueSummary`, `formatIssueList`) and `model_load.go` (`cmdCommitConfirmed`, `formatValidationErrors`) - issues joined by `; ` on one status row.
-- [ ] `internal/component/cli/model_render.go` (`View`, `feedbackLine`) - `bottomRows = 3`; row 1 is `Error: <m.err>`; a multi-line error pushes the prompt off the frame. The editor has `top` (`cmdTop`, no arguments); `cmdSet` always prepends `m.contextPath`; `set` has no root-path form.
-- [ ] `internal/component/cli/validator.go` (`validateCore`, `parseError`, `validatePeer`, `formatPeerError`, the missing-mandatory warnings) - `validateCore` parses first and returns on a parse error, since both parsers answer no tree then; `formatPeerError` has an `ErrTypeEnum` arm (`must be one of`), reachable when the walk refuses a value the parser accepted (a `MultiLeafNode` or `BracketLeafListNode` member, which carries no enum list). The missing-mandatory warnings print a root-form `(set bgp peer ...)` hint whatever the context, which inside an `edit` context is not the command the operator types.
-- [ ] `internal/component/web/cli_terminal.go` (`executeTerminalSet`, `execListEntryOp`), `internal/component/web/cli.go` (`handleCLISet`, `splitSetArgs`), `handler_config_form.go`, `handler_config_entry.go`, `error_fragment.go` (`WriteOOBError(path, message string)`) - no value check at `set`; the form checks the type only. These files import `internal/component/cli`.
-- [ ] `internal/component/api/config_session.go` (`SetSegments`), `internal/component/api/rest/server.go` (`writeSessionError`: 400, 403 when forbidden, for set and commit), `internal/component/api/grpc/server.go` (`sessionStatusError`: `InvalidArgument` unless forbidden, for set and commit), `internal/component/gnmi/set.go` (a path refused before `SetSegments` answers `InvalidArgument "update path: ..."`; `applyUpdate` returns the `SetSegments` error raw and `Set` passes it unwrapped, so the client receives `Unknown` while the metric records `InvalidArgument`) - REST, gRPC and gNMI sets reach `cli.Editor.SetValue`, then `walkOrCreate`, then `EnsureListEntry`.
+- [ ] `internal/component/cli/model_render.go` (`View`, `feedbackLine`) - `bottomRows = 3`; row 1 is `Error: <m.err>`; a multi-line error pushes the prompt off the frame. `cmdSet` always prepends `m.contextPath`.
+- [ ] `internal/component/cli/validator.go` (`validateCore`, `parseError`, `validatePeer`, `formatPeerError`, the missing-mandatory warnings) - `validateCore(content)` parses first and returns on a parse error, since both parsers answer no tree then; it holds no position, and validation ticks independently of navigation. `formatPeerError` has an `ErrTypeEnum` arm (`must be one of`), reachable when the walk refuses a value the parser accepted (a `MultiLeafNode` or `BracketLeafListNode` member, which carries no enum list). The missing-mandatory warnings build a plain string with a root-form `(set bgp peer ...)` hint, which inside an `edit` context is not the command the operator types.
+- [ ] `internal/component/web/cli_terminal.go` (`executeTerminalCommand`, `executeTerminalConfigMode`, `executeTerminalNav`, `executeTerminalSet`, `execListEntryOp`) and `internal/component/web/cli.go` (`dispatchCLICommand`, `handleCLITop`, `handleCLIEdit`, `handleCLIUp`, `handleCLICommit`, `handleCLISet`, `writeCLIResponse`, `splitSetArgs`) - both web editors keep a position: the page sends it as the `path` form value on every request. The terminal returns it in `terminalCommandResult.path`, replaced only when `executeTerminalNav` answers a non-nil new path. On the CLI bar only `writeCLIResponse` changes the page's position, and only `handleCLIEdit`, `handleCLITop` and `handleCLIUp` call it; `set`, `delete`, `show` and `commit` leave it alone. `handleCLITop` ignores its arguments, so `top set ...` on the bar today moves to the root and drops the rest of the line. `handleCLICommit` receives no position. No value check at `set`; the form checks the type only. These files import `internal/component/cli`, and share no dispatcher with the SSH editor.
+- [ ] `internal/component/web/handler_config_form.go`, `handler_config_entry.go`, `error_fragment.go` (`WriteOOBError(path, message string)`) - the form checks the type only.
+- [ ] `internal/component/api/config_session.go` (`SetSegments`), `internal/component/api/rest/server.go` (`writeSessionError`: 400, 403 when forbidden, for set and commit), `internal/component/api/grpc/server.go` (`sessionStatusError`: `InvalidArgument` unless forbidden, for set and commit), `internal/component/gnmi/set.go` (a path refused before `SetSegments` answers `InvalidArgument "update path: ..."`; `applyUpdate` returns the `SetSegments` error raw and `Set` passes it unwrapped, so the client receives `Unknown` while the metric records `InvalidArgument`) - REST, gRPC and gNMI sets reach `cli.Editor.SetValue`, then `walkOrCreate`, then `EnsureListEntry`. None of the three holds a position.
 - [ ] `internal/component/command/argvalidate.go` (`validateEnum`, `validateUnion`, `validateUint`, `validateString`), `argfaults.go` (`ArgumentFaults`, `newArgumentFaults`, `Restated`, `RestatedForLine`, `wholeCommand`, `faultList.verdict`), `argbind.go` (`ValidateArgs`), `local_data.go` (`ValidateModelArgs`), `internal/component/plugin/server/arg_faults.go` (`restateArgumentFaults`), `internal/component/plugin/server/command.go` (the `several` read, `adoptablePositional`, `argFaultOutsideSelector`) - a lone fault is returned bare (`verdict`), so no route restates it; `newArgumentFaults` panics under two faults; `RestatedForLine` writes the whole command only when every fault is missing (`onlyMissing`), else the general correction (`argumentFaultsFix`); `Restated` lists a replacement fault by its `Error()`.
 - [ ] `internal/component/bgp/plugins/cmd/update/update_text.go` (`parseCommonAttributeText`) - `invalid origin: %w` over the walk's `enum error at bgp/peer/update/attribute/origin: ...`.
+- [ ] YANG names: no schema node is named `top` (the nearest is `leaf top-n-sources`, `internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang`), so `top <command>` cannot be read as a path.
 
 **The texts today:**
 
@@ -258,6 +276,9 @@ Read at HEAD `e660eff82e`, 2026-11-12.
 | 9 | union non-member, every parser | `validateUnionValue` | `invalid value "x": it matches no member type of the union (...)` |
 | 10 | non-first key pair of a multi-leaf key | `ParseListAddress` | `invalid <leaf> for <list>: <ValidateLeafValue text>` |
 | 11 | editor and web commit, a walk refusal of a value the parser accepted | `formatPeerError` | `peer X: "leaf" must be one of: a, b (got "x")` |
+| 12 | editor missing-mandatory warning inside a context | `validator.go` | `(set bgp peer ...)`, a root path the context-relative `set` cannot take |
+| 13 | SSH editor `top <anything>` | `cmdTop` | arguments ignored; moves to the root |
+| 14 | CLI bar `top <anything>` | `handleCLITop` | arguments ignored; moves to the root, the rest of the line dropped |
 
 **Pins of today's text (rewritten, never weakened):**
 
@@ -273,15 +294,15 @@ Read at HEAD `e660eff82e`, 2026-11-12.
 | `internal/component/plugin/server/rfc8907_command_test.go` (`TestMissingMandatoryOutranksAnUnplaceableToken` NEGATIVE `invalid value`; `TestPositionalErrorNamesTheOneOpenDefinition`; `TestDispatchNamesTheBoundOfAKeywordBoundValue`) | negative and positive argument texts |
 | `internal/component/iface/cmd/manage_test.go` `TestUnitVIDBoundIsTheModels` | `value N out of range 1..4094` |
 | `internal/component/cli/model_cli_format_test.go` `TestCLIFormatRefusesAnUndeclaredValue`; `model_commands_test.go` `TestSetCLIFormatInvalid` | `invalid format`, `valid: json, ...` |
-| `internal/component/cli/model_commit_refusal_test.go` `TestCommitRefusalListsIssuesAndNamesForce`; `model_commit_mandatory_test.go` `TestCommitRefusesMissingMandatoryInSection`; `internal/component/web/editor_commit_window_test.go` | issues on the status row |
+| `internal/component/cli/model_commit_refusal_test.go` `TestCommitRefusalListsIssuesAndNamesForce`; `model_commit_mandatory_test.go` `TestCommitRefusesMissingMandatoryInSection`; `internal/component/web/editor_commit_window_test.go` | issues on the status row; the missing-mandatory `set ...` hint |
 | `internal/component/cli/model_commands_edit_secret_test.go` `TestSSHCLISetNeverEchoesASecret`; `internal/component/config/cli/cmd_set_secret_test.go` `TestConfigSetRefusalNeverEchoesASecret` | `invalid value` (needle moves to `is not in the accepted format`; placeholder assertions unchanged) |
 | `test/parse/asn4-refuses-boolean-spelling.ci`, `test/parse/capability-leaf-refuses-presence-spelling.ci`, `test/parse/ipsec-application-override.ci` (`expected one of`, `deny, allow`: the comma-joined list becomes one value per line, so the needle becomes each value line), `test/isis/isis-auth.ci`, `test/ospf/ospf-config.ci`, `test/parse/image-server-invalid-rescue-auth.ci`, `test/parse/redistribute-tag-filter.ci`, `test/web/web-error-fragment.wb`, `test/editor/pipe/set-cli-format.et`, `test/ui/cli-argument-length-refused.ci`, `test/ui/cli-argument-refused-plugin-route.ci`, `test/ipsec/ipsec-dataplane-show.ci`, `test/plugin/session-editor-commit-verify.ci` | the old words |
 | `test/plugin/policy-test-errors.ci` | NEGATIVE `reject=... invalid value` |
 | `test/parse/bmp-route-action-refuses-redistribute.ci`, `test/reload/bmp-route-action-redistribute-refused.ci` | `route-action`, `redistribute`, `monitor` (and `reload error`): the new body keeps all three; strengthened with the marker `is not an accepted value` and the `fix:` line |
 
-Stay green unchanged: the RFC-tagged enum tests (`rfc7950_radius_auth_method_enum_test.go`, `rfc7950_isis_auth_algorithm_enum_test.go`, `rfc7950_validator_yang_test.go` `TestValidateTree_EnumViolation`, `TestValidateTree_FamilyModeEnum`, `TestValidateTree_AddPathDirectionEnum`), `radius_auth_method_eap_enum_test.go`; the pins of the kinds that keep today's text, `internal/component/config/yang/validator_test.go` `TestValidationErrorTypeContract` (`unknown error at test/value: unspecified`) and `internal/component/config/yang/rfc7950_reference_walk_test.go` (`HasPrefix "reference error at sys/mgmt: "`); `TestSectionValidationErrorRedactsASensitiveLeaf`, `TestCLIFormatNamesMatchTheSchemaLeaf`, `TestUpdateText_OriginValidation_YANG`, `TestSetCommandRejectsInvalidValue` and `TestInsertValidatesValueType` (type refusals keep their text), `TestEditorCommitConfirmedBlocksOnPeerPipelineRefusal` (renamed from `...OnMissingLeakFilter` by 74c830e0d2), `test/plugin/session-editor-commit-force.ci`, `test/parse/firewall-priority-out-of-range.ci`.
+Stay green unchanged: the RFC-tagged enum tests (`rfc7950_radius_auth_method_enum_test.go`, `rfc7950_isis_auth_algorithm_enum_test.go`, `rfc7950_validator_yang_test.go` `TestValidateTree_EnumViolation`, `TestValidateTree_FamilyModeEnum`, `TestValidateTree_AddPathDirectionEnum`), `radius_auth_method_eap_enum_test.go`; the pins of the kinds that keep today's text, `internal/component/config/yang/validator_test.go` `TestValidationErrorTypeContract` (`unknown error at test/value: unspecified`) and `internal/component/config/yang/rfc7950_reference_walk_test.go` (`HasPrefix "reference error at sys/mgmt: "`); `TestSectionValidationErrorRedactsASensitiveLeaf`, `TestCLIFormatNamesMatchTheSchemaLeaf`, `TestUpdateText_OriginValidation_YANG`, `TestSetCommandRejectsInvalidValue` and `TestInsertValidatesValueType` (type refusals keep their text), `TestEditorCommitConfirmedBlocksOnPeerPipelineRefusal` (renamed from `...OnMissingLeakFilter` by 74c830e0d2), `test/plugin/session-editor-commit-force.ci`, `test/parse/firewall-priority-out-of-range.ci`; every existing test of `top` alone, which keeps its meaning.
 
-The inventory is re-run at implementation over every `_test.go` under `internal/`, `cmd/`, `pkg/` and over `test/` for `invalid enum`, `expected one of`, `must be one of`, `not a valid enumeration`, `(valid: `, `invalid format`, `needs a value`, `or one of`, `expected enum`, `does not match pattern`, `outside range`, `outside allowed`, `out of range`, `matches no member type`, `invalid key for`, `invalid peer name`, `write:`, `error at `, `NotContains`, `reject=`.
+The inventory is re-run at implementation over every `_test.go` under `internal/`, `cmd/`, `pkg/` and over `test/` for `invalid enum`, `expected one of`, `must be one of`, `not a valid enumeration`, `(valid: `, `invalid format`, `needs a value`, `or one of`, `expected enum`, `does not match pattern`, `outside range`, `outside allowed`, `out of range`, `matches no member type`, `invalid key for`, `invalid peer name`, `write:`, `error at `, `(set bgp`, `top `, `NotContains`, `reject=`.
 
 **Behavior to preserve:**
 - Every value refused today stays refused on every path that refuses it, a typed `default` or `<key>#N` on a typed key included; every value accepted stays accepted, except the named changes below.
@@ -291,6 +312,7 @@ The inventory is re-run at implementation over every `_test.go` under `internal/
 - A type refusal (not a number, not a boolean, decimal64 fraction digits) keeps its text.
 - Secret masking.
 - `UnknownKeywordHint` and `retiredKeywords` unchanged.
+- `top` alone moves to the root, as today, on the SSH editor, the web terminal and the CLI bar.
 
 **Behavior to change:**
 - Every text in the table becomes the operator error of its kind.
@@ -302,6 +324,7 @@ The inventory is re-run at implementation over every `_test.go` under `internal/
 - The in-entry key-leaf form is refused at set and no longer corrupts the session change file.
 - `ze config validate` reports a parser refusal with its kind's code and `expected`/`actual`.
 - A gNMI `Set` refused at the session answers `InvalidArgument`, not `Unknown` (AC-43).
+- `top <command ...>` runs that one command at the root, whatever the command is, and keeps the position unless the command moves it, on the SSH editor, the web terminal and the CLI bar (Q-9); texts 13 and 14 go. The missing-mandatory hint names its fix with `top` inside a context (AC-51).
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -320,7 +343,14 @@ Each row exists at HEAD `e660eff82e` and already does part of this job.
 | The closest-match helper | `internal/core/suggest/suggest.go` `Command`; `internal/component/config/retired.go` `UnknownKeywordHint` | Edit distance, ` (did you mean X?)` | extends: the same helper and wording |
 | The per-value help reader | `internal/component/config/yang/enum.go` `EnumValueSummaries`, `EnumNamesDeclared` | The one reader of a value's `ze:help` and of declared order | extends: `yangToLeaf`, the leaf-list builders and the `ArgDef` builder store the help |
 | The SSH viewport refusal route | `internal/component/cli/model_load.go` (`Commit blocked by conflicts:`) | A long refusal shown in the viewport, the row keeps one line | extends: every multi-line `m.err` takes it |
-| The editor's root-path commands | `internal/component/cli/model_commands_commit.go` `cmdDiscardSession`, `cmdDiscardPath`; `internal/component/cli/editor_commit.go` `memberOpFix` | `discard` takes a root path in every context, so its fixes are exact today | does not apply until Q-9: the owner's answer decides whether `set` gains the same root form |
+| The editor's per-command copy and position result | `internal/component/cli/model_commands.go` `executeCommand` (value receiver), `dispatchCommand`; `model.go` `handleCommandResult` (`clearContext`, `newContext`, `refreshConfig`) | Each dispatched command runs on a copy of the model; only the result's `clearContext` and `newContext` move the real position; `refreshConfig` is resolved at the real position | extends: `top <command>` dispatches the rest of the line on that copy with the position emptied; the real position moves only when the inner result sets `clearContext` or `newContext`; nothing is restored by hand |
+| The one-command position change | `internal/component/cli/model_commands_show.go` (`show <path>`), `internal/component/cli/model_load.go` (`load <path>`) | Extend the position for one command and put the saved one back; the view the command answers is the one it built | extends: `top <command>` is the same pattern with the root in place of a deeper path, and it keeps the inner `configView` as `show <path>` does |
+| The `handleEnter` interceptions | `internal/component/cli/model_keys.go` `handleEnter` (`run`, `exit`, `quit`, `stop`, `restart`, `clear`) | Verbs taken before dispatch; none reads the position | extends: `handleEnter` drops a leading `top ` before its interceptions, so these verbs behave behind `top` exactly as without it |
+| The `run` completion prefix | `internal/component/cli/model.go` `commandCompleterInput` (the `run ` strip), `updateCompletions` | Completion after `run ` strips the prefix and completes the rest | extends as the model: completion after `top ` strips `top ` and completes the rest at the root context |
+| The editor help table | `internal/component/cli/editor_help.go` `editorHelp` | One declaration of each verb, its help and its forms; help and the command reference derive from it | extends: `top` gains the form `top <command>` |
+| The paste state | `internal/component/cli/model.go` (`pasteModeLocation`, `pasteModeAction`), `model_keys.go` `finishPasteMode` → `applyLoad` | `load terminal` enters paste mode; the later Ctrl-D applies the paste at the real position | extends: the paste state also records the position the `load` ran at, so `top load terminal ...` pastes at the root |
+| The web editors' position | `internal/component/web/cli_terminal.go` (`terminalCommandResult.path`, `executeTerminalNav`), `internal/component/web/cli.go` (`dispatchCLICommand`, `writeCLIResponse` from the three navigation handlers) | The page sends the position with each request; only navigation answers a new one | extends: the terminal runs `top <command>` with an empty position and keeps the request's position unless `executeTerminalNav` answered a new one; the CLI bar calls `dispatchCLICommand` with the rest of the line and an empty position, which needs no signal because only the navigation handlers change the page's position |
+| The editor's root-path commands | `internal/component/cli/model_commands_commit.go` `cmdDiscardSession`, `cmdDiscardPath`; `internal/component/cli/editor_commit.go` `memberOpFix` | `discard` takes a root path in every context, so its fixes are exact today | does not apply: `discard` fixes stay as they are |
 
 New pieces, each with the reason no mechanism does it:
 
@@ -331,19 +361,31 @@ New pieces, each with the reason no mechanism does it:
 | The pattern format reader in `config/yang` (nearest typedef's `ze:help`, else its description's first sentence, else the leaf's `ze:help`) | No reader answers a typedef's text today; `GetHelpExtension` reads one statement |
 | A decimal64 value type and range arm (`TypeDecimal64`, `LeafNode.FractionDigits`, an exported `ParseDecimal64` from the walk's `validateDecimal64`) | The parser has no decimal64 type (a defect, journaled in `declared-format-contradicts-payload.md`); the walk's own parse is reused, not copied |
 | The in-entry key-leaf check | No walker refuses the first key leaf named inside an entry (`set <list> <key> <key-leaf> <v>`); `ParseListAddress` reads only non-first key leaves as address pairs |
+| `top <command>` (Q-9) | No command runs another at the root: `top` ignores its arguments, `cmdSet` always prepends the context; the owner chose a `top` form so that it serves every command |
+| A typed fix on `ConfigValidationError` (the leaf path and value of a missing-mandatory or commit refusal) | `validateCore` builds plain strings with no position, and validation runs apart from navigation, so the frame that knows the position must write the fix line; a string cannot be reframed |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A config value as text: a file line, a `set` line (editor, offline, web terminal, REST/gRPC/gNMI session), a web form post, or a command argument.
+- An editor line `top <command ...>` on the SSH editor, the web terminal or the CLI bar.
 
 ### Transformation Path
 1. Schema build: `yangToLeaf`, the leaf-list builders (`ValueOrArrayNode`, `MultiLeafNode`, `BracketLeafListNode`) and the `ArgDef` builder store the enum names in declared order, the per-value help and the format text.
 2. Value check: `ValidateLeafValue` (every parser, `ParseListAddress` pairs, `ValidateListKey`, the set surfaces) and the tree walk build a `ValidationError` holding the path segments it knows, the value, kind, accepted values with help, suggestion, secret flag and constraint message. `ValidateArgs` builds a `ValueArgumentError` from the same renderer.
 3. Path: in the hierarchical parser every value and key arm builds the refusal with the leaf or list name alone and wraps it in `syntaxRefusal`; `prependSyntaxPath` collects the segments on unwind (keys and `ParseAt` context included), and at the parse root `Parse` and `ParseAt` rebuild it once with `WithPath`, which answers a new `ValidationError` and a new operator error whose problem names the space-separated path. The set parsers pass the tokens their walk consumed; the set surfaces pass the token path they hold; `EnsureListEntry` passes the list path. The walk threads segments from `ValidateTree`. `parseCommonAttributeText` re-roots to the command words.
 4. Error chain: both parsers `LineError` → `ValidationError` → `*opererr.Error` (the hierarchical parser's `syntaxRefusal` is replaced at the parse root for this refusal and stays for the others); the set surfaces `ValidationError` → `*opererr.Error`. `ValidationError.Error()` renders the held operator error, whose fix is the set form; `Unwrap` answers it, so `errors.As` finds the `ValidationError` (JSON, frames) and the `*opererr.Error` (the web notice, `SplitLine`). A frame that holds another fix calls `WithFix`, which answers a copy with the same problem and why. The cause is not set on the operator error, so nothing is printed twice. A `ValidationError` of another kind holds no operator error and renders as today.
-5. Rendering: `LineError` and `SplitLine` carry and print it on the file surfaces; the SSH editor moves a multi-line `m.err` to the viewport; `CommitRefusal` and `formatIssueList` write one issue per line; the web form reads `Problem`, `Why`, `Fix`; REST, gRPC and gNMI read `ValidateContent`'s joined error; JSON takes `code`, `expected`, `actual`, `path` from the `ValidationError`.
+5. Rendering: `LineError` and `SplitLine` carry and print it on the file surfaces; the SSH editor moves a multi-line `m.err` to the viewport; `CommitRefusal` and `formatIssueList` write one issue per line; the web form reads `Problem`, `Why`, `Fix`; REST, gRPC and gNMI read `ValidateContent`'s joined error; JSON takes `code`, `expected`, `actual`, `path` from the `ValidationError`. A commit refusal and a missing-mandatory warning carry a typed fix (`ConfigValidationError`, leaf path and value); the frame that renders it writes `set <full path> <value>` at the root and `top set <full path> <value>` inside a context. The frames that know a position: the SSH model (`m.contextPath`), the web terminal (the request's path), the CLI bar (`handleCLICommit`, which now receives the request's path). REST, gRPC and gNMI hold no position, so they write the plain form.
 6. Masking: the secret flag is set where the refusal is built (`config.LeafHoldsSecret` over a `LeafNode`; the entry's `ze:sensitive`/`ze:bcrypt` through one reader on the walk), so the value slot holds `config.SecretDataPlaceholder` and no suggestion is computed.
+7. `top <command>` on the SSH editor:
+   - `handleEnter` first drops a leading `top ` when the rest begins with a verb it intercepts (`run`, `exit`, `quit`, `stop`, `restart`, `clear`); those verbs read no position, so they behave exactly as without `top` (`top exit` leaves config mode as `exit` does; `top run show version` runs the operational command). History records the line as typed, `top` included.
+   - Every other line reaches `dispatchCommand`. `cmdTop(args)` sets the copy's `m.contextPath` to nil and dispatches the rest of the line through `dispatchCommand`, then answers the inner result unchanged, its `configView` and `output` included, as `show <path>` keeps the view it built. So `top show` displays the whole configuration.
+   - The real position moves only when the inner result sets `clearContext` or `newContext`. The verbs that set them are exactly `edit`, `up` and `top`; `exit` and `quit` leave the mode or the session through `handleEnter` and set neither. Every other verb leaves the position alone.
+   - `refreshConfig` in the inner result is resolved by `handleCommandResult` at the real position, so a `top set` that refreshes the view shows the context the prompt names.
+   - An inner error passes through unchanged, so `m.err` is the inner command's own refusal and the position is untouched.
+   - Validation marks are recomputed over the whole tree (`runValidation`), which does not depend on the position.
+   - Multi-step commands: `load terminal` returns `enterPasteMode`; the result also carries the position the `load` ran at (nil under `top`), stored beside `pasteModeLocation`, and `finishPasteMode` applies the paste at that stored position, so `top load terminal relative` pastes at the root. The `commit confirmed` countdown and its prompt revert or confirm the whole configuration and read the position only to draw the view at the real position, so they need nothing. The `exit` and `quit` confirmations read no position.
+8. `top <command>` on the web: the terminal's `executeTerminalConfigMode` runs the rest of the line as a `cliCommand` with an empty position and answers the request's position unless `executeTerminalNav` answered a new one. The CLI bar's `dispatchCLICommand` calls itself with the rest of the line and an empty position; since only `handleCLIEdit`, `handleCLITop` and `handleCLIUp` write a new position (`writeCLIResponse`), every other verb leaves the page's position alone with no signal needed. Both replace today's `top` that ignores its arguments.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -352,18 +394,19 @@ New pieces, each with the reason no mechanism does it:
 | config → cli / web / api | the error crosses as `error`; `errors.As` recovers `ValidationError` and `*opererr.Error` | No |
 | daemon → REST/gRPC/gNMI client | `ValidateContent` joins the refusals with `errors.Join`; `errors.As` answers the first; set refusals keep each surface's status mapping, gNMI's now wrapped as `InvalidArgument` | No |
 | plugin or API command → `update text` | `errors.As` on the validator's answer, re-rooted | No |
+| browser → web editor | the position travels as the `path` form value and returns in the answer; `top <command>` answers the request's position unless the inner verb navigated | No |
 
 ### Integration Points
-- `internal/core/opererr`, `internal/core/suggest`, `config.LineError`, `prependSyntaxPath`, `ConstraintMessages`, `ArgumentFaults`, `EnsureListEntry`.
+- `internal/core/opererr`, `internal/core/suggest`, `config.LineError`, `prependSyntaxPath`, `ConstraintMessages`, `ArgumentFaults`, `EnsureListEntry`, `dispatchCommand`/`handleCommandResult`, `handleEnter`, `editorHelp`.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers | Yes | each producer that refuses today builds the refusal where it refuses |
+| No bypassed layers | Yes | each producer that refuses today builds the refusal where it refuses; `top <command>` dispatches through each editor's own dispatcher and interceptions |
 | No unintended coupling | Yes | `config`, `config/yang`, `command`, `cli`, `web` import only `opererr` and `suggest` for it, both core leaves |
-| No duplicated functionality | Yes | no second error type; one refusal path; one creator; one fault list |
-| Zero-copy preserved | Yes | error path only |
-| Registration over hardcoding, outbound | Yes | no per-feature field or switch; `invalidListKeyError`'s `peer` special case is deleted |
+| No duplicated functionality | Yes | no second error type; one refusal path; one creator; one fault list; one `top <command>` rule per editor dispatcher, no command list |
+| Zero-copy preserved | Yes | error path and editor dispatch only |
+| Registration over hardcoding, outbound | Yes | no per-feature field or switch; `invalidListKeyError`'s `peer` special case is deleted; `top <command>` names no inner command |
 | Registration over hardcoding, inbound | Yes | every value list comes from the YANG node at hand; no leaf name in any producer |
 
 ## Risks & Assumptions
@@ -379,6 +422,9 @@ New pieces, each with the reason no mechanism does it:
 | A-7 | "Friendly errors everywhere" covers command arguments | owner answer Q-3 "yes" | - | owner | confirmed |
 | A-9 | The creators of list entries are the ones the table below lists, each with its verdict | `grep -rn '\.AddListEntry('` over non-test Go at `e660eff82e` | a creator keeps an unchecked key | the same grep at implementation is the gate: a creator not in the table refuses the phase until it has a verdict | unvalidated |
 | A-10 | Every route that refuses a command line restates through `RestatedForLine` | `restateArgumentFaults` (dispatcher), `ValidateModelArgs` (`local_data.go`) | a route prints a value fault with no whole-command fix | AC-12 one-fault case on the dispatcher and a model route | unvalidated |
+| A-11 | Only `edit`, `up` and `top` set `clearContext` or `newContext` | `cmdTop`, `cmdUp`, `cmdEdit` read at HEAD; no other `dispatchCommand` verb sets either | another command that moves the position keeps its move under `top`, which is the rule's intent | `TestTopKeepsPositionUnlessInnerMoves` over every `dispatchCommand` verb | unvalidated |
+| A-12 | On the CLI bar only the navigation handlers change the page's position | `writeCLIResponse` is called only by `handleCLIEdit`, `handleCLITop` and `handleCLIUp` (`internal/component/web/cli.go`, `internal/component/web/cli_terminal.go`) | - | read at HEAD | confirmed |
+| A-13 | The `handleEnter` interceptions are `run`, bare `run`, `exit`, `quit`, `stop`, `restart` and `clear`, and none reads the position | `handleEnter` read at HEAD | a verb behind `top` misbehaves | `TestTopInterceptedVerbsBehaveAsWithout` | unvalidated |
 
 Creators that store a list entry, and the key verdict each takes:
 
@@ -411,14 +457,16 @@ Creators that store a list entry, and the key verdict each takes:
 | R-13 | A frame rebuilds an operator error and drops a fact | review | `WithFix` and `WithPath` copy every fact and replace only the fix or the path; `TestFrameKeepsProblemAndWhy` |
 | R-15 | The tree and the session change file hold keys no key check produced: the anonymous block (`KeyDefault`, `parseList`), duplicates (`<key>#N`, `AddListEntry`) and stored meta keys. A check where an address is read, or where stored keys are read back, would hide, refuse or lock them (Current Behavior, `list_key.go` and `editor_commit.go` rows) | a lookup, delete, discard or resume test red | the one rule (`Tokens == 0` is not judged) keeps the check to addresses built from typed tokens; a lookup never runs it; `TestLookupWalkFindsEveryStoredKey` covers an anonymous entry and a `#N` entry through `ListPathStep`, `deleteFromList` and the inactive marker; `TestChangeFileReadsBackUnjudged` covers a stored `"default"` key and a session discard; `TestTypedDefaultKeyStaysRefused` keeps a typed `default` and `x#3` refused on a typed key |
 | R-16 | The parser starts refusing an enum value on a `MultiLeafNode` or `BracketLeafListNode` that a config in the repository holds | `test/parse` and the repository config corpus test red | the walk and the commit already refuse such a value in walked sections; a config that holds one is converted in the same phase (`ai/META-DECISIONS.md`) |
+| R-18 | `top <command>` shows a view at a position other than the one the operator asked for | `TestTopShowShowsTheRoot` or `TestTopSetRefreshesAtThePosition` red | the inner `configView` is kept as built (`top show` shows the root, as asked); a `refreshConfig` is resolved at the real position by `handleCommandResult`, so a `top set` refresh shows the context the prompt names |
+| R-19 | A verb behind `top` misbehaves: an intercepted verb (`run`, `exit`, `quit`, `stop`, `restart`, `clear`) answering `unknown command` or nothing, a nested `top top ...`, or a later step of a multi-step command (paste) landing at the real position | `TestTopInterceptedVerbsBehaveAsWithout`, `TestTopLoadTerminalPastesAtTheRoot` red | `handleEnter` drops `top ` before its interceptions; `top top set` runs `top set` at the root, which runs `set` there; the paste state records its position |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | a refusal reads wrong, or a path accepts or refuses a value it did not before (AC-14) |
+| What breaks if this is wrong? | a refusal reads wrong, a path accepts or refuses a value it did not before (AC-14), or `top <command>` leaves the editor at a wrong position |
 | How is it reverted? | per-phase commits, each revertable; no config, wire or storage format changes |
-| Who else touches this path? | `spec-bmp-route-action-redistribute-acts-as-monitor.md`; any spec adding an enum benefits |
+| Who else touches this path? | `spec-bmp-route-action-redistribute-acts-as-monitor.md`; any spec adding an enum benefits; editor navigation tests |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -439,9 +487,13 @@ Creators that store a list entry, and the key verdict each takes:
 | SSH editor session over a change file holding a stored `"default"` key: write-through `set`, `discard <path>`, commit | → | `readChangeFile` → `materializeMetaPaths` → `EnsureListEntry` with `Tokens == 0` | `TestChangeFileReadsBackUnjudged` |
 | SSH editor `load` in an edit context; `load terminal` paste | → | `ParseAt`, `finishPasteMode` | `test/editor/validation/enum-refusal-load.et`, `TestEditorMultiLineErrorKeepsThePromptRow` |
 | SSH editor `set cli format bogus` | → | `handleSetCLIFormat` → `ValidateLeafValue` | `test/editor/pipe/set-cli-format.et` (rewritten) |
-| SSH editor `commit`, `commit confirmed 60`, `commit verify`, `show \| errors`, file and session mode, root and `edit` context | → | `validateCore` → `parseError` → `CommitRefusal`, `appendIssueSummary`, `formatIssueList` | `test/editor/validation/enum-refusal-commit.et` |
+| SSH editor `commit`, `commit confirmed 60`, `commit verify`, `show \| errors`, file and session mode, root and `edit` context | → | `validateCore` → `parseError` → `CommitRefusal`, `appendIssueSummary`, `formatIssueList`, the typed fix framed by the model | `test/editor/validation/enum-refusal-commit.et` |
+| SSH editor inside a context: the printed `top set ...` fix typed, then `commit` | → | `dispatchCommand` → `cmdTop(args)` → `cmdSet` at the root | `test/editor/validation/enum-refusal-commit.et` (top case) |
+| SSH editor `top set`, `top show`, `top edit`, `top` alone, `top <failing command>`, `top run <cmd>`, `top exit`, `top load terminal`, completion after `top ` | → | `handleEnter` `top ` strip; `cmdTop(args)` → `dispatchCommand`; the paste state; `commandCompleterInput` `top ` branch | `test/editor/navigation/top-command.et`, `TestTopKeepsPositionUnlessInnerMoves`, `TestTopInterceptedVerbsBehaveAsWithout`, `TestTopLoadTerminalPastesAtTheRoot`, `TestTopCompletesFromTheRoot` |
+| SSH editor missing-mandatory warning inside a context | → | the typed fix on `ConfigValidationError`, framed by the model | `TestMissingMandatoryHintUsesTopInsideAContext` |
 | SSH editor commit of a multi-leaf or bracket value the walk refuses | → | `validatePeer` → `formatPeerError` `ErrTypeEnum` arm | `TestFormatPeerErrorPassesTheRefusalThrough` |
 | web terminal `set` (value, key, key-leaf form, in-entry form) and `commit` | → | `executeTerminalSet`; `runCommit` → `parseError` | `test/web/config-enum-refusal.wb`, `TestWebTerminalCommitShowsEnumRefusal` |
+| web terminal and CLI bar `top <command>`; CLI bar commit inside a context | → | `executeTerminalConfigMode`; `dispatchCLICommand` with an empty position; `handleCLICommit` with the request's position | `TestWebTopCommandKeepsPosition`, `test/web/config-enum-refusal.wb` (top case) |
 | web CLI bar `set` (Q-8b) | → | `handleCLISet` → the same checks | `test/web/config-enum-refusal.wb` (CLI bar case) |
 | crafted web form POST, form ADD key, form rename, URL ancestor keys | → | form handlers → `ValidateLeafValue`; `EnsureListEntry`; `ListEntryDestination` | `TestWebFormRefusesEnumAtSet`, `test/web/config-enum-refusal.wb` |
 | REST session commit; gRPC config session commit; gNMI `Set` | → | `configValidationHook` → `ValidateContent` | `test/plugin/api-config-enum-refusal.ci`, `test/plugin/grpc-config-enum-refusal.ci`, `test/plugin/gnmi-set-enum-refusal.ci` |
@@ -465,7 +517,7 @@ the operator error as the surface prints one today.
 | AC-3 | a value far from every accepted value (`route-refresh banana`), and BMP `route-action redistribute` (the one accepted value is `monitor` since fa74dc4c00) | no `did you mean`; every value listed; the fix line holds the alternation, for BMP `fix: route-action monitor;` as the one-value alternation; the BMP `.ci` pins pass with the marker and the fix line added |
 | AC-4 | an enum value with no `ze:help` (test schema) | its line is two spaces and the name, no trailing space; the other helps stay aligned |
 | AC-5 | a member outside the enumeration on an inline-list child, a bracket-form `ValueOrArrayNode` (`storeValueOrArray`), an inactive bracket member (`parseInactiveBracketMember`), a set-format leaf-list (`validateValueOrArrayItems`), an enum-typed `MultiLeafNode` and `BracketLeafListNode`, and a freeform attribute (test schema when no shipped leaf is one) | the same refusal for that member, the full path named as in AC-1, declared order; no `(valid: `; the `MultiLeafNode` and `BracketLeafListNode` cases are refused by the parser, which accepted them before |
-| AC-6 | SSH editor `set ... route-refresh requre` at the root and inside `edit bgp peer peer1`, and offline `ze config set` of the same | the AC-2 body; the fix is the command the operator types where they are: `fix: set bgp peer peer1 session capability route-refresh require` at the root and offline, `fix: set session capability route-refresh require` in the edit context; no `(expected enum)`. SSH: the whole refusal in the viewport (`.et` `viewport:contains`), the feedback row holds the problem line alone and the prompt stays on the last row (`TestEditorMultiLineErrorKeepsThePromptRow`). Offline: on stderr after `error: `, exit 2 |
+| AC-6 | SSH editor `set ... route-refresh requre` at the root and inside `edit bgp peer peer1`, and offline `ze config set` of the same | the AC-2 body; the fix is the command the operator typed, corrected: `fix: set bgp peer peer1 session capability route-refresh require` at the root and offline, `fix: set session capability route-refresh require` in the edit context; no `(expected enum)`. SSH: the whole refusal in the viewport (`.et` `viewport:contains`), the feedback row holds the problem line alone and the prompt stays on the last row (`TestEditorMultiLineErrorKeepsThePromptRow`). Offline: on stderr after `error: `, exit 2 |
 | AC-7 | web terminal `set ... route-refresh requre`; a crafted form POST of `requre` | refused at set with the AC-6 body and the root fix; a following `show` holds no `requre`; the form's notice shows problem, why and fix (`TestWebFormRefusesEnumAtSet`) |
 | AC-8 | REST session sets `requre` and commits; a second session with `requre` and `cost 0` | commit refused with HTTP 400 (`writeSessionError`); the error holds the AC-2 body and `fix: set bgp peer peer1 session capability route-refresh require`; no `line N:`; with two refusals, `config validation failed:` then each refusal as a block whose every line is indented two spaces (value lines four), each block ending with its own `fix:` line (Text samples); `errors.As` on `ValidateContent`'s error answers the first refusal's `ValidationError`; active config unchanged |
 | AC-9 | gNMI `Set` of `requre`; gRPC config session set of `requre` then commit | gNMI `Aborted` (the commit hook); gRPC `InvalidArgument` (`sessionStatusError`); each message holds the AC-8 text |
@@ -481,7 +533,7 @@ the operator error as the surface prints one today.
 | AC-20 | SSH editor `set cli format bogus` | the Set frame in the viewport, path `cli format`, values in declared order (`text, table, json, yaml, ndjson`) with help, `fix: set cli format <text\|table\|json\|yaml\|ndjson>`; the feedback row in `errorStyle`; no `(valid: `; completion keeps sorted order |
 | AC-21 | `errors.As` on a hierarchical and a set parser error, on `ValidateValueAtPath`'s error, on a walk error, on `ValidateContent`'s error, on a `WithFix` and a `WithPath` copy | each recovers the `ValidationError` and the `*opererr.Error`; a copy's other facts equal the original's |
 | AC-22 | `update text origin bogus nlri ipv4/unicast add 10.0.0.0/24` from a plugin; the same through `update cursor` | the problem `update text origin: "bogus" is not an accepted value` (`update cursor origin` for cursor), origin values with help in declared order, a `fix:` line with the command retyped; no `bgp/peer/update/attribute/origin` |
-| AC-23 | SSH editor commit, `commit confirmed 60`, `commit verify` and `show \| errors` of a candidate holding `route-refresh requre`, in file mode and in session mode, at the root and inside `edit bgp peer peer1`, also on an inactive (`nop`) leaf; a web terminal commit of the same | `CommitRefusal` keeps its header, ends it with no trailing `: `, and writes each issue on its own line; the SSH viewport shows the issues, the status row the header alone; in every mode the fix is the editor command typed where the operator is (`fix: set bgp peer peer1 session capability route-refresh require` at the root, `fix: set session capability route-refresh require` inside `edit bgp peer peer1`; a leaf outside the context waits on Q-9), never a file-form line or `nop`, and after typing it an inactive leaf stays inactive; `commit confirmed 60` refuses through `commitValidationRefusal` and writes no `cannot commit:` (`formatValidationErrors` deleted); no forced-command hint, since an error blocks. A refused member of a plain leaf-list in the candidate gets `fix: delete <path> <refused-member>` |
+| AC-23 | SSH editor commit, `commit confirmed 60`, `commit verify` and `show \| errors` of a candidate holding `route-refresh requre`, in file mode and in session mode, at the root and inside `edit bgp peer peer1` and inside `edit ospf`, also on an inactive (`nop`) leaf; a web terminal commit and a CLI bar commit of the same, at the root and inside a context | `CommitRefusal` keeps its header, ends it with no trailing `: `, and writes each issue on its own line; the SSH viewport shows the issues, the status row the header alone; at the root the fix is `fix: set bgp peer peer1 session capability route-refresh require`; inside any context it is `fix: top set bgp peer peer1 session capability route-refresh require`; never a file-form line or `nop`; after typing it the leaf holds `require`, the position is unchanged, and an inactive leaf stays inactive; `commit confirmed 60` refuses through `commitValidationRefusal` and writes no `cannot commit:` (`formatValidationErrors` deleted); no forced-command hint, since an error blocks. A refused member of a plain leaf-list in the candidate gets `fix: delete <path> <refused-member>`, behind `top` inside a context. The web terminal and the CLI bar (now given the request's position) answer the same lines |
 | AC-24 | set-format file with `set bgp peer peer1 session capability route-refresh requre`, the `set-meta` form, and the same leaf on a `nop` line; `ze config validate` and daemon start | `line N: ` and the AC-2 body; `fix: set bgp peer peer1 session capability route-refresh require` (`fix: nop ...` on the `nop` line: only a file holds `nop`); no `invalid value for`; JSON as AC-11 |
 | AC-25 | SSH editor `set <ospf-path> redistribute bogus metric 30` (OSPF `list redistribute`, key `source`), file and session mode; and a hierarchical file holding `redistribute bogus { metric 30; }` | the editor refuses where the entry would be created, no entry created: path ending `redistribute bogus`, every `source` value with help, `fix: set <ospf-path> redistribute <connected\|static\|kernel\|bgp\|isis> metric 30`; `show` holds no `redistribute bogus`. The file refuses at the list-key arm with the same body, the full path named, and the file-form fix; no `invalid key for` |
 | AC-26 | SSH editor `rename` and `copy <ospf-path> redistribute connected to bogus` | refused through `ListEntryDestination`: `fix: rename <ospf-path> redistribute connected to <connected\|...>` (and `copy`); `show` unchanged |
@@ -502,6 +554,14 @@ the operator error as the surface prints one today.
 | AC-41 | the five ranged `zt:decimal-2` leaves given an in-range value (`5.00`, `5.00`, `2.50`, `5.00`, `0.25`) and an out-of-range one (`500.00`, `500.00`, `16.01`, `0.99`, `1.01`), through `ze config validate` (text, JSON), SSH `set`, offline set; `5.001` and `abc` | in range accepted; out of range the range refusal with the decimal bounds (`1.00..100.00`, `0.00..16.00`, `0.00..1.00`); `5.001` and `abc` keep the type refusals `expected decimal64 with at most 2 fraction digits` and `expected decimal64` |
 | AC-42 | multi-leaf-key list (BFD `single-hop-session`, key `peer vrf interface`): a non-first key pair whose value its leaf refuses, in a file and at SSH `set` | the kind's refusal for that key leaf, path naming the list and the first key value; no `invalid <leaf> for <list>:` prefix |
 | AC-43 | REST, gRPC and gNMI session set of `<ospf-path> redistribute bogus metric 30` | refused at set, nothing stored: REST HTTP 400 (`writeSessionError`), gRPC `InvalidArgument` (`sessionStatusError`), gNMI `InvalidArgument` (today `Unknown`: `applyUpdate` returns the `SetSegments` error raw; this spec wraps it as `InvalidArgument`, a defect fix); each message holds the problem, the value lines and `fix: set <ospf-path> redistribute <connected\|...> metric 30` |
+| AC-45 | SSH editor inside `edit bgp peer peer1`: `top set ospf router-id 192.0.2.9` | the leaf `ospf router-id` holds `192.0.2.9`; the prompt and the position are still `bgp peer peer1`; a refreshed view shows the config at `bgp peer peer1`; history holds the line `top set ospf router-id 192.0.2.9` as typed |
+| AC-46 | SSH editor inside `edit bgp peer peer1`: `top show` | the viewport shows the whole configuration from the root; afterwards the prompt and the position are still `bgp peer peer1` |
+| AC-47 | SSH editor inside `edit bgp peer peer1`: `top edit ospf`; then `top` alone; then `top top edit bgp`; then `top run show version`; then, with no pending change, `top exit` | `top edit ospf` moves the position to `ospf`; `top` alone moves to the root as today; `top top edit bgp` moves to `bgp`; `top run show version` answers what `run show version` answers and leaves the position; `top exit` leaves config mode exactly as `exit` does |
+| AC-48 | SSH editor inside `edit bgp peer peer1`: `top set nosuchleaf 1`, `top set bgp peer peer1 session capability route-refresh requre`, `top nosuchverb`; and `top exit` with a pending change | each refused with the inner command's own refusal, unchanged (the AC-2 body and its fix for the second, `unknown command` for the third); the position stays `bgp peer peer1`; nothing stored; `top exit` with a pending change asks the same confirmation `exit` asks |
+| AC-49 | SSH editor inside `edit bgp peer peer1`: completion and `?` after `top ` and after `top set ` | the rest of the line is completed with `m.completer.Complete(tree, rest, nil)` at the root context and the editor's own verbs: the candidates are what the root offers at the same point (`set`, `edit`, `show`, `run` and the rest after `top `; the root's top-level nodes after `top set `), never the context's children; `?` after `top` shows the `top <command>` form from the help table |
+| AC-50 | web terminal and CLI bar, position `bgp peer peer1`: `top set ospf router-id 192.0.2.9`, `top show`, `top edit ospf`, `top` alone, `top set nosuchleaf 1` | each answers as on the SSH editor (AC-45 to AC-48): the answered position stays `bgp peer peer1` except after `top edit ospf` (`ospf`) and `top` alone (root); the failing line answers the inner refusal; the CLI bar no longer drops the rest of a `top ...` line |
+| AC-51 | SSH editor commit inside `edit ospf` of a candidate whose `bgp peer peer1` lacks a mandatory leaf; the same at the root; the same on the web terminal and the CLI bar | inside the context the missing-mandatory hint reads `(top set bgp peer peer1 <leaf> <value>)`; at the root `(set bgp peer peer1 <leaf> <value>)` as today; the hint is framed when it is rendered, so a hint computed before an `edit` reads correctly after it; the `discard ...` conflict fixes are unchanged |
+| AC-52 | SSH editor inside `edit bgp peer peer1`: `top load terminal relative`, paste `ospf { router-id 192.0.2.9; }`, Ctrl-D | the paste is applied at the root: `ospf router-id` holds `192.0.2.9` and nothing is written under `bgp peer peer1`; the position stays `bgp peer peer1` |
 
 AC-15 and AC-44 are unused: AC-15 was a removed-value reason, which direction
 (c) leaves out; AC-44 was a resume-time key refusal, withdrawn in round 20
@@ -519,6 +579,8 @@ because stored keys are read back unjudged.
 | 6 | mistypes a command argument | dispatcher → `ValidateArgs` → `RestatedForLine` | `test/plugin/command-arg-enum-refusal.ci` |
 | 7 | loads a snippet with a bad enum | `load` → `ParseAt` | `test/editor/validation/enum-refusal-load.et` |
 | 8 | writes an out-of-range, wrong-length or malformed value | parsers, `set` surfaces | `test/parse/range-length-pattern-refusal.ci`, `test/editor/validation/range-length-pattern-set.et`, `test/web/config-range-length-pattern-refusal.wb` |
+| 9 | inside a context, copies a commit refusal's `top set ...` fix and commits | `cmdTop(args)` → `cmdSet` at the root → commit | `test/editor/validation/enum-refusal-commit.et` (top case) |
+| 10 | changes, shows or pastes config elsewhere without leaving the current context | `top <command>` | `test/editor/navigation/top-command.et` |
 
 ## 🧪 TDD Test Plan
 
@@ -541,8 +603,9 @@ because stored keys are read back unjudged.
 | `TestLegacyHintPrecedesTheRefusal` | `internal/component/config/loader_test.go` | AC-10 hint placement | |
 | `TestRunValidationParserEnumDiagnostic`, `TestValidateContentFramesEnumRefusal` | `internal/component/config/cli/cmd_validate_test.go` | AC-8, AC-11, AC-21 | |
 | `TestValidateValueAtPathEnumRefusal`, `TestValidateValueAtPathRangePatternRefusal` | `internal/component/cli/completer_test.go` | AC-6, AC-14 | |
-| `TestEditorMultiLineErrorKeepsThePromptRow`, `TestCommitRefusalWritesOneIssuePerLine`, `TestEditorFixIsTheCommandTypedHere`, `TestCliFormatRefusalUsesSharedBody`, `TestInEntryKeyLeafRefusal`, `TestFormatPeerErrorPassesTheRefusalThrough`, `TestKeyCheckOnInsertNestedActivation` | `internal/component/cli/*_test.go` | AC-6, AC-20, AC-23, AC-29 to AC-31, AC-34 | |
-| `TestWebFormRefusesEnumAtSet`, `TestWebTerminalCommitShowsEnumRefusal`, `TestWebTerminalKeyLeafFormStoresKeyedEntry` | `internal/component/web/*_test.go` | AC-7, AC-23, AC-33 | |
+| `TestEditorMultiLineErrorKeepsThePromptRow`, `TestCommitRefusalWritesOneIssuePerLine`, `TestEditorFixIsTheCommandTypedHere`, `TestCommitFixUsesTopInsideAContext`, `TestMissingMandatoryHintUsesTopInsideAContext`, `TestCliFormatRefusalUsesSharedBody`, `TestInEntryKeyLeafRefusal`, `TestFormatPeerErrorPassesTheRefusalThrough`, `TestKeyCheckOnInsertNestedActivation` | `internal/component/cli/*_test.go` | AC-6, AC-20, AC-23, AC-29 to AC-31, AC-34, AC-51 | |
+| `TestTopKeepsPositionUnlessInnerMoves`, `TestTopShowShowsTheRoot`, `TestTopSetRefreshesAtThePosition`, `TestTopFailingCommandKeepsPosition`, `TestTopInterceptedVerbsBehaveAsWithout`, `TestTopLoadTerminalPastesAtTheRoot`, `TestTopCompletesFromTheRoot` | `internal/component/cli/model_top_test.go` | AC-45 to AC-49, AC-52, A-11, A-13, R-18, R-19 | |
+| `TestWebFormRefusesEnumAtSet`, `TestWebTerminalCommitShowsEnumRefusal`, `TestWebTerminalKeyLeafFormStoresKeyedEntry`, `TestWebTopCommandKeepsPosition`, `TestCLIBarCommitFramesTheFixWithThePosition` | `internal/component/web/*_test.go` | AC-7, AC-23, AC-33, AC-50, AC-51 | |
 | `TestSetUpdateRefusalIsInvalidArgument` | `internal/component/gnmi/set_test.go` | AC-43 gNMI code | |
 | `TestValidateArgEnumRefusal`, `TestValidateArgRangeLengthPatternRefusal`, `TestOneValueFaultIsRestated`, `TestFaultEntryHoldsNoFixLine` | `internal/component/command/*_test.go` | AC-12, AC-38 | |
 | `TestDispatcherRestatesOneValueFault` | `internal/component/plugin/server/route_arg_faults_test.go` | AC-12 dispatcher route | |
@@ -563,8 +626,9 @@ because stored keys are read back unjudged.
 | `enum-refusal-inline-leaf-list`, `enum-refusal-set-format`, `enum-refusal-union`, `enum-refusal-multi-leaf-key`, `enum-refusal-config-set`, `range-length-pattern-refusal`, `decimal64-range` | `test/parse/` | AC-5, AC-13, AC-24, AC-28, AC-35 to AC-37, AC-39, AC-41, AC-42 | |
 | `enum-refusal-daemon-start` | `test/plugin/` | AC-10, AC-24 | |
 | `enum-refusal-reload` | `test/reload/` | AC-10 | |
-| `enum-refusal-set`, `enum-refusal-load`, `enum-refusal-commit`, `range-length-pattern-set` | `test/editor/validation/` | AC-6, AC-19, AC-23, AC-25, AC-26, AC-34 | |
-| `config-enum-refusal`, `config-range-length-pattern-refusal` | `test/web/` | AC-7, AC-27, AC-33, Q-8a, Q-8b | |
+| `enum-refusal-set`, `enum-refusal-load`, `enum-refusal-commit`, `range-length-pattern-set` | `test/editor/validation/` | AC-6, AC-19, AC-23 (with the top case: from inside `edit bgp peer peer1`, type the printed `top set ...` fix line, `commit`, and see the commit succeed and the position unchanged), AC-25, AC-26, AC-34 | |
+| `top-command` | `test/editor/navigation/` | AC-45 to AC-49, AC-52 | |
+| `config-enum-refusal`, `config-range-length-pattern-refusal` | `test/web/` | AC-7, AC-27, AC-33, AC-50, Q-8a, Q-8b | |
 | `api-config-enum-refusal`, `grpc-config-enum-refusal`, `gnmi-set-enum-refusal`, `command-arg-enum-refusal`, `update-text-origin-enum-refusal` | `test/plugin/` | AC-8, AC-9, AC-12, AC-22, AC-43 | |
 | `cli-argument-pattern-refused` | `test/ui/` | AC-38 | |
 | Rewritten pins (Current Behavior table), each asserting path, value, every accepted value and the `fix:` line, each change judged by `ze-test-judge` | as listed | | |
@@ -591,10 +655,15 @@ because stored keys are read back unjudged.
 | `internal/component/config/cli/cmd_validate.go`, `cmd_set.go` | JSON codes and fields from `errors.As`; `ValidateContent` joins the operator errors (`errors.Join`), each block indented; offline set prints the refusal |
 | `internal/component/cli/completer.go`, `completer_validate.go` | `ValidateValueAtPath` judges with `ValidateLeafValue` and the member check; the heuristic deleted; completion judges a typed new key with `ValidateListKey` |
 | `internal/component/cli/editor_walk.go`, `editor_commands.go` | callers of `EnsureListEntry` handle its error |
-| `internal/component/cli/model.go`, `model_render.go`, `model_keys.go`, `model_load.go`, `model_commands_commit.go`, `model_commands_edit.go`, `validator.go` | the multi-line `m.err` route to the viewport; `set cli format` through `ValidateLeafValue`; one issue per line; `commit confirmed` through `commitValidationRefusal`; every editor fix written as the command typed in the operator's context (`WithFix`); `parseError` keeps the operator error; the in-entry check; `formatPeerError`'s `ErrTypeEnum` arm passes the `ValidationError` through with the peer context |
-| `internal/component/web/cli_terminal.go`, `cli.go`, `handler_config_form.go`, `handler_config_entry.go`, `error_fragment.go`, `editor.go` | value checks at set (terminal, CLI bar, form); key checks through the creator (ADD, rename, URL keys); the key-leaf form through `CreateEntry`; the in-entry check; the notice reads `Problem`, `Why`, `Fix` through `errors.As`; the decimal64 field type stays string |
+| `internal/component/cli/model_commands.go` | `cmdTop(args)`: no arguments as today; with arguments, the copy's `m.contextPath` emptied, the rest dispatched through `dispatchCommand`, the inner result answered unchanged |
+| `internal/component/cli/model_keys.go` | `handleEnter` drops a leading `top ` before its interceptions when the rest is `run ...`, `run`, `exit`, `quit`, `stop`, `restart` or `clear`; `finishPasteMode` applies the paste at the position the paste state records |
+| `internal/component/cli/model.go`, `model_load.go` | the paste state records the position `load terminal` ran at (`commandResult` and the model beside `pasteModeLocation`); `commandCompleterInput` and `updateCompletions` gain a `top ` branch that strips `top ` and completes the rest with `m.completer.Complete(tree, rest, nil)` and the editor's own verbs |
+| `internal/component/cli/editor_help.go` | `top` gains the form `top <command>`: "Run one command at the root, then come back" |
+| `internal/component/cli/model_render.go`, `model_commands_commit.go`, `model_commands_edit.go`, `validator.go` | the multi-line `m.err` route to the viewport; `set cli format` through `ValidateLeafValue`; one issue per line; `commit confirmed` through `commitValidationRefusal`; a refused `set` keeps the relative form typed; `ConfigValidationError` carries a typed fix (leaf path, value) for commit refusals and the missing-mandatory hint, which `CommitRefusal`, `appendIssueSummary`, `formatIssueList` and the warning renderer frame with the model's position (`set` at the root, `top set` inside a context); `parseError` keeps the operator error; the in-entry check; `formatPeerError`'s `ErrTypeEnum` arm passes the `ValidationError` through with the peer context |
+| `internal/component/web/cli_terminal.go`, `cli.go` | the terminal's `executeTerminalConfigMode` runs `top <command>` with an empty position and keeps the request's position unless `executeTerminalNav` answers a new one; the CLI bar's `dispatchCLICommand` calls itself with the rest of the line and an empty position (replacing `handleCLITop`'s silent drop of its arguments); `handleCLICommit` receives the request's position and frames the typed fix with it; value checks at set (terminal, CLI bar); the key-leaf form through `CreateEntry`; the in-entry check |
+| `internal/component/web/handler_config_form.go`, `handler_config_entry.go`, `error_fragment.go`, `editor.go` | value checks at set (form); key checks through the creator (ADD, rename, URL keys); the notice reads `Problem`, `Why`, `Fix` through `errors.As`; the decimal64 field type stays string |
 | `internal/component/gnmi/set.go` | `applyUpdate` wraps the `SetSegments` error as `InvalidArgument` (AC-43) |
-| `internal/component/api/config_session.go`, `internal/component/api/grpc/server.go`, `internal/component/api/rest/server.go` | the set refusal passes through unchanged (the status mapping stays) |
+| `internal/component/api/config_session.go`, `internal/component/api/grpc/server.go`, `internal/component/api/rest/server.go` | the set refusal passes through unchanged (the status mapping stays); the typed fix is written in the plain root form, since these surfaces hold no position |
 | `internal/component/command/argvalidate.go`, `argfaults.go`, `argbind.go`, `argdef.go` | `ValueArgumentError` from the renderer; `verdict` answers an `ArgumentFaults` of one for a lone value fault; `newArgumentFaults` accepts one value fault and then writes its problem and why without the count header; `wholeCommand` writes a value fault's placeholder in place of its typed value and runs when every fault is missing or a value fault; a value fault's list entry is its problem and why, never its fix; the `ArgumentFaults` and `newArgumentFaults` docs that say "two or more" are rewritten |
 | `internal/component/plugin/server/arg_faults.go`, `internal/component/plugin/server/command.go`, `internal/component/command/local_data.go` | `restateArgumentFaults` and `ValidateModelArgs` restate a one-fault refusal through `RestatedForLine`; the `several` variable and comments at the dispatcher's restate, in `adoptablePositional`, `argFaultOutsideSelector` and `validateModelArgsAs` are renamed and reworded, their verdicts unchanged |
 | `internal/component/bgp/plugins/cmd/update/update_text.go`, `cursor.go` | re-root to the command words |
@@ -603,9 +672,9 @@ because stored keys are read back unjudged.
 
 ## Files to Create
 
-- `internal/core/suggest/valuelist_test.go`, `internal/component/config/yang/refusal_test.go`, `internal/component/config/yang/format_test.go`
+- `internal/core/suggest/valuelist_test.go`, `internal/component/config/yang/refusal_test.go`, `internal/component/config/yang/format_test.go`, `internal/component/cli/model_top_test.go`
 - `internal/test/fixture/plugin_fixture_enum_refusal.go` - three `le test fixture` clients registered beside `plugin/api-config-commit-reject`: `plugin/api-config-enum-refusal` (REST session set then commit), `plugin/grpc-config-enum-refusal` (gRPC `ZeConfigService` session set then commit) and `plugin/gnmi-set-enum-refusal` (a gNMI `SetRequest` over the vendored `github.com/openconfig/gnmi` proto, asserting the code and the message); each takes the path and the value, so one client serves every kind and the key cases
-- the functional tests in the TDD plan
+- `test/editor/navigation/top-command.et` and the other functional tests in the TDD plan
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -613,11 +682,11 @@ because stored keys are read back unjudged.
 | YANG schema (new RPCs/config) | No | no leaf, RPC or extension added |
 | YANG validation constraints | No | enforcement exists; the refusal changes, plus the decimal64 range and leaf-list enum defect fixes |
 | YANG custom validators | No | none added |
-| CLI commands/flags | No | none added |
-| CLI grammar (keyword before value) | N-A | no grammar change (Q-9 option (c) would add one, if chosen) |
-| Editor autocomplete | No | completion already lists values with help, sorted |
+| CLI commands/flags | Yes | the editor verb `top` gains the form `top <command>` (`internal/component/cli/editor_help.go`); no operational command added |
+| CLI grammar (keyword before value) | Yes | `top <command>` is a keyword followed by a whole command line, the shape `run <cmd>` already has; no YANG node named `top` exists, so it cannot be misread as a path; `./le cli grammar` judges the editor help table it reads |
+| Editor autocomplete | Yes | the `top ` branch in `commandCompleterInput` and `updateCompletions`; values keep their sorted completion order |
 | Functional test for new RPC/API | Yes | `test/plugin/api-config-enum-refusal.ci`, `test/plugin/grpc-config-enum-refusal.ci`, `test/plugin/gnmi-set-enum-refusal.ci` |
-| Pipe completeness | N-A | no command output added |
+| Pipe completeness | N-A | no command output added; `top show ... \| <pipe>` goes through the inner command's pipe handling |
 | Env var registration | N-A | none |
 | Doctor check for runtime dependencies | N-A | no runtime dependency; the refusal is the operator's own input, answered at the command |
 | Prometheus counters/metrics | N-A | none; the gNMI error metric already records `InvalidArgument` |
@@ -626,23 +695,23 @@ because stored keys are read back unjudged.
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | No | refusal wording; check `./le feature report` in Phase 3 |
+| 1 | New user-facing feature? | Yes | `top <command>` in the editor; check `./le feature report` in Phase 3 |
 | 2 | Config syntax changed? | Yes | `docs/architecture/config/syntax.md`: "Enumeration values" beside "Unknown keys", with range, length, pattern and the key check at creation; Phase 2 |
-| 3 | CLI command added/changed? | No | none, unless Q-9 (c) |
+| 3 | CLI command added/changed? | Yes | `docs/guide/config-editor.md` (navigation: `top <command>`, every command behind it) and the editor command reference the help table feeds; Phases 3 and 4 |
 | 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md`: argument refusals, one fault restated; `docs/architecture/api/architecture.md`: the gNMI `Set` code; Phases 4 and 5 |
 | 5 | Plugin added/changed? | No | none |
-| 6 | Has a user guide page? | Yes | `docs/guide/config-editor.md` (Phase 3), `docs/guide/web-interface.md` (Phase 4) |
+| 6 | Has a user guide page? | Yes | `docs/guide/config-editor.md` (Phase 3), `docs/guide/web-interface.md` (Phase 4, `top <command>` and set-time refusals) |
 | 7 | Wire format changed? | No | none |
 | 8 | Plugin SDK/protocol changed? | No | none |
 | 9 | RFC behavior changed or newly proven? | Yes | RFC 7950 Section 9.3 decimal64 range now enforced by the parser; `docs/architecture/config/yang-config-design.md`; Phase 2 |
 | 10 | Test infrastructure changed? | Yes | three fixture clients; the page `ai/CODE-TO-DOCS.md` names for `internal/test/fixture/`; Phase 4 |
 | 11 | Affects daemon comparison? | No | none |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/config/yang-config-design.md` (the refusal, its error chain, the format reader) and `docs/architecture/cli/error-surface.md` (multi-line errors in the SSH viewport); Phases 1 and 3 |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/config/yang-config-design.md` (the refusal, its error chain, the format reader) and `docs/architecture/cli/error-surface.md` (multi-line errors in the SSH viewport, the `top` fix rule, the typed fix framed by each surface); Phases 1 and 3 |
 | 13 | Route metadata keys? | No | none |
 | 14 | Prometheus counters? | No | none |
 | 15 | Registered plugin, event, command or inventory changed? | No | none |
 | 16 | Changed source referenced by doc anchors? | derived | `./le spec citation anchors spec plan/release/fixes/spec-config-enum-refusal-proposes-valid-values.md` per phase |
-| 17 | Docs show examples for this area? | Yes | grep `docs/` for `invalid enum`, `expected one of`, `invalid peer name`, `write:` per phase |
+| 17 | Docs show examples for this area? | Yes | grep `docs/` for `invalid enum`, `expected one of`, `invalid peer name`, `write:`, `(set bgp` per phase |
 
 ## Implementation Steps
 
@@ -656,14 +725,15 @@ Order: Phase 1, then Phase 2, then Phase 3, then Phase 4 (the web imports
 Phase 3 once Phase 2 lands, provided it changes no exported signature of
 `internal/component/command` that `cli` reads; otherwise it runs after Phase 3.
 Phase 6 runs last. Before Phase 2 commits, the `AddListEntry` grep is re-run
-against the creator table (A-9).
+against the creator table (A-9). Within Phase 3, `top <command>` lands first,
+as its own commit, because the commit-refusal fix lines print it.
 
 | Phase | Packages (files) | Tests | Red walk owed |
 |-------|------------------|-------|---------------|
 | 1 Refusal and schema facts | `internal/core/suggest`; `internal/component/config/yang` (`validator_error.go`, `validator.go`, `enum.go`, `constraint_message.go`, format reader); `internal/component/config` (`yang_schema.go` only) | `TestValueListRender`, `TestValidationErrorOperatorError`, `TestFrameKeepsProblemAndWhy`, `TestTypeFormatReader`, `TestYangToLeafCarriesEnumHelp`, `TestValueOrArrayEnumDeclaredOrder`, `TestMultiLeafAndBracketCarryEnums`, `TestValidateEnumerationSharedBody`; RFC-tagged enum tests, `TestValidationErrorTypeContract` and the reference walk test unchanged | `./le rfc record` for `validateEnumeration`, `walkTree`, `yangToLeaf` and the range, length, pattern producers; break the renderer's alignment and see `TestValueListRender` red |
 | 2 Parsers and keys | `internal/component/config` (`schema.go`, `parser*.go`, `line_error.go`, `setparser*.go`, `list_key.go`, `change_file.go`, `validate_sections.go`, `loader.go`); `internal/component/bgp/config` (the peer-name pin) | the parser, set-parser, list-key, change-file, schema, loader and section tests; the `bgp/config` loader test; `test/parse/*`, `test/plugin/enum-refusal-daemon-start.ci`, `test/reload/enum-refusal-reload.ci`, the BMP pins | `./le rfc record` for `refuseInvalidCustomSections`; break the creator's key check and see `TestEnsureListEntryJudgesNewKey` red; judge `Tokens == 0` and see `TestChangeFileReadsBackUnjudged` and `TestLookupWalkFindsEveryStoredKey` red; widen the exemption to a typed `default` and see `TestTypedDefaultKeyStaysRefused` red; drop one value or key arm's `syntaxRefusal` and see `TestEveryValueArmNamesTheFullPath` red; drop `WithPath` and see `TestParserEnumRefusalNamesFullPath` red; break the decimal64 arm and see `TestValidateLeafValueDecimal64Range` red |
-| 3 Offline and SSH editor | `internal/component/config/cli`; `internal/component/cli` | `cmd_validate`, `completer`, model and commit tests; `test/editor/validation/*`, `test/editor/pipe/set-cli-format.et`, `test/ui/config-*` | revert the viewport route and see `TestEditorMultiLineErrorKeepsThePromptRow` red; write the root-form fix inside a context and see `TestEditorFixIsTheCommandTypedHere` red |
-| 4 Web, REST, gRPC, gNMI | `internal/component/web`; `internal/component/api`; `internal/component/gnmi`; `internal/test/fixture`; `cmd/ze/hub` (tests) | web, api and gnmi tests, `test/web/*`, the three `test/plugin/*-enum-refusal.ci` | remove the terminal `set` check and see `config-enum-refusal.wb` red, with the binary rebuilt; remove the `applyUpdate` wrap and see `TestSetUpdateRefusalIsInvalidArgument` red |
+| 3 Offline and SSH editor, `top <command>` | `internal/component/config/cli`; `internal/component/cli` (adds `model_commands.go` `cmdTop`, `model_keys.go` `handleEnter` and `finishPasteMode`, `model.go` and `model_load.go` paste state and completion, `editor_help.go`, `model_top_test.go` to the phase's files; the package set is unchanged) | `cmd_validate`, `completer`, model, commit and `top` tests; `test/editor/validation/*`, `test/editor/navigation/top-command.et`, `test/editor/pipe/set-cli-format.et`, `test/ui/config-*` | revert the viewport route and see `TestEditorMultiLineErrorKeepsThePromptRow` red; let `cmdTop` keep the emptied position and see `TestTopKeepsPositionUnlessInnerMoves` and `top-command.et` red; remove the `handleEnter` strip and see `TestTopInterceptedVerbsBehaveAsWithout` red; drop the paste position and see `TestTopLoadTerminalPastesAtTheRoot` red; print the root form inside a context and see `TestCommitFixUsesTopInsideAContext` red |
+| 4 Web, REST, gRPC, gNMI | `internal/component/web`; `internal/component/api`; `internal/component/gnmi`; `internal/test/fixture`; `cmd/ze/hub` (tests) | web, api and gnmi tests, `test/web/*`, the three `test/plugin/*-enum-refusal.ci` | remove the terminal `set` check and see `config-enum-refusal.wb` red, with the binary rebuilt; let the web `top` keep the emptied position and see `TestWebTopCommandKeepsPosition` red; drop the bar's commit position and see `TestCLIBarCommitFramesTheFixWithThePosition` red; remove the `applyUpdate` wrap and see `TestSetUpdateRefusalIsInvalidArgument` red |
 | 5 Command arguments and update text | `internal/component/command`; `internal/component/config/yang/command.go`; `internal/component/plugin/server`; `internal/component/iface/cmd` (test); `internal/component/bgp/plugins/cmd/update` | command and dispatcher tests, `test/plugin/command-arg-enum-refusal.ci`, `test/plugin/update-text-origin-enum-refusal.ci`, `test/ui/cli-argument-*.ci`, `test/ipsec/ipsec-dataplane-show.ci`, `test/plugin/policy-test-errors.ci` | make `verdict` return a lone fault bare again and see `TestOneValueFaultIsRestated` red; each negative pin proven red by making the dispatcher answer with the new refusal (R-11) |
 | 6 Docs | `docs/` pages of the Documentation checklist not yet edited by their phase | `./le doc check all` | - |
 
@@ -675,6 +745,7 @@ against the creator table (A-9).
 | One error type | no error type beside `opererr.Error`; the `errors.As` tests (AC-21) prove each refusal reaches its writer typed; `./le arch operator-error check` and `./le arch error-inventory check` clean on the changed lines |
 | Creators | the `AddListEntry` grep matches the creator table; `Tokens == 0` is the only form left unjudged |
 | Parser paths | every hierarchical value and key arm that refuses wraps the refusal in `syntaxRefusal` |
+| `top <command>` | one rule, no list of inner commands, on the SSH dispatcher, the `handleEnter` interceptions and each web editor; the real position moves only through the inner result or a web navigation answer; the paste lands where `load` ran |
 | Data flow | values and help read only through `EnumNamesDeclared`/`EnumValueSummaries` or the node fields they fill |
 | Rule: testing | every rewritten assertion as strong as before, judged by `ze-test-judge`; negative pins keep their old needle |
 
@@ -683,15 +754,17 @@ against the creator table (A-9).
 |-------------|---------------------|
 | one refusal, no new error type | `gopls symbols internal/component/config/yang/validator_error.go`; the diff adds `ValueArgumentError` as a fault type only |
 | old texts gone | the Critical Review grep |
+| `top <command>` on every editor | `top-command.et`, `TestWebTopCommandKeepsPosition` |
 | every path proven | every Wiring Test row's test exists and passes |
 | records fresh | `./le rfc check` has no RFC 7950 `discrimination:` line |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | the refused value is quoted (`%q`), so it cannot forge a line in a log or the web fragment |
+| Input validation | the refused value is quoted (`%q`), so it cannot forge a line in a log or the web fragment; the web `top` validates the position it is given as today (`ValidatePathSegments`) |
 | Error leakage | a sensitive value and its suggestion never appear (AC-16) |
-| Resource exhaustion | the suggestion costs values times length, on an error path only |
+| Authorization | `top <command>` runs the inner command through the same dispatcher, interceptions and authorization as typing it at the root; `top stop` and `top restart` ask the same confirmation; it grants nothing |
+| Resource exhaustion | the suggestion costs values times length, on an error path only; nested `top top ...` is bounded by the line length |
 
 ### Failure Routing
 
@@ -710,6 +783,8 @@ against the creator table (A-9).
 - Both parsers answer no tree on a parse error, so the commit walks never meet a value the parser refused; the walk still refuses what the parser could not judge, which is why the leaf-list nodes gain enum facts.
 - A key check belongs where an entry is created from typed tokens, and one field says which: `Tokens == 0` marks an address no operator typed (the anonymous step, a stored key read back).
 - The parser's refusal is built before its path is known, so every value and key arm joins the unwind and the path is added once, at the parse root, by rebuilding the immutable error rather than by prefixing its text.
+- The SSH editor already runs each dispatched command on a copy and moves the real position only through the result, so `top <command>` restores nothing by hand; the only places a position is read later or earlier than the dispatch (the `handleEnter` interceptions, which read none, and the paste, which reads it at Ctrl-D) are handled where they read it.
+- A fix line that depends on the position cannot be a string built where the position is unknown; it is a typed fix the rendering frame writes.
 
 ## Owned journal rows
 
@@ -726,8 +801,13 @@ against the creator table (A-9).
 |----------|--------|
 | The refusal is an `opererr.Error` held by the existing `configyang.ValidationError`, whose `Error()` delegates to it and whose `Unwrap` answers it; the kinds that hold none keep today's text | the rule allows one refusal shape; `ValidationError` already carries `Type`, `Path`, `Expected`, `Got` and is read by the RFC tests and the JSON; delegation prints the text once, and both `errors.As` targets resolve |
 | The accepted values are the why lines | they say why the value is refused; `ArgumentFaults` is the precedent for a list in the why |
-| The fix is per surface: the frame that holds the surface calls `WithFix`; the problem and why are built once | a frame adds only the fact it holds (`docs/contributing/ze-go-style.md`) |
-| Fix table: a hierarchical file and an editor `load` snippet `fix: <leaf> <value>;`; a set-format file `fix: <verb> <path> <value>`; the SSH editor (`set`, commit, every mode) the command typed in the operator's current context; offline, web terminal, web form, REST, gRPC, gNMI `fix: set <path> <value>`; a key `fix: rename <list-path> <old> to <key>`; a refused plain leaf-list member in a commit candidate `fix: delete <path> <member>`; a command the whole command with the placeholder | the fix is the exact text the operator types where they are; the web form's fix is the `set` line the web terminal on the same page accepts |
+| The fix is per surface: the frame that holds the surface calls `WithFix`, or writes the typed fix of a `ConfigValidationError`; the problem and why are built once | a frame adds only the fact it holds (`docs/contributing/ze-go-style.md`), and only the frame knows the position |
+| Fix table: a hierarchical file and an editor `load` snippet `fix: <leaf> <value>;`; a set-format file `fix: <verb> <path> <value>`; a refused editor `set` the command as typed, corrected (relative inside a context); an editor commit refusal and the missing-mandatory hint `set <full path> <value>` at the root and `top set <full path> <value>` inside a context, on the SSH editor, the web terminal and the CLI bar; offline, web form, REST, gRPC, gNMI `fix: set <path> <value>` (no position); a key `fix: rename <list-path> <old> to <key>`; a refused plain leaf-list member in a commit candidate `fix: delete <path> <member>` (behind `top` inside a context); `discard` fixes unchanged; a command the whole command with the placeholder | the fix is the exact text the operator types where they are (Q-9) |
+| `top <command>` is an argument of `cmdTop` inside `dispatchCommand`, and `handleEnter` drops `top ` before its own interceptions | dispatched verbs already run on a copy; the intercepted verbs (`run`, `exit`, `quit`, `stop`, `restart`, `clear`) read no position, so they behave behind `top` exactly as without it; the owner asked for every command |
+| The real position moves only when the inner result sets `clearContext` or `newContext`, which exactly `edit`, `up` and `top` do | those two fields are the editor's one way to move (`handleCommandResult`); a failure leaves both unset, so the position stays on failure too |
+| The inner `configView` is kept as built; `refreshConfig` resolves at the real position | `top show` must show the whole configuration (the owner's purpose), as `show <path>` keeps its own view; a refresh after `top set` shows the context the prompt names |
+| The paste state records the position `load terminal` ran at | the paste is applied at Ctrl-D, after the dispatch; without it `top load terminal` would paste at the context |
+| Web: the terminal keys on `executeTerminalNav`'s new path; the CLI bar needs no signal | the bar's position changes only through `writeCLIResponse`, which only its navigation handlers call |
 | The parser's path comes from `prependSyntaxPath` on unwind, every value and key arm joins it, and the path is written into the refusal once, at the parse root, by `WithPath` | it already names keys and the `ParseAt` context and costs nothing on success; the error is immutable, so it is rebuilt rather than prefixed, and the slash prefix is dropped |
 | `invalidListKeyError` is replaced and its `peer` special case deleted | the friendly key refusal names the path (`bgp peer <key>`), so a word reserved for one list name is a per-leaf special case the Task forbids |
 | No continuation-indent table | each surface prints an operator error as it prints one today; this spec changes only the `; ` joins, `ValidateContent`'s block indent and the SSH row |
@@ -754,6 +834,7 @@ Changed from the 2026-10-14 design:
 | the walk's group re-root and inherited-refusal dedup (AC-23) | dropped; the walk's enum arm passes the refusal through | the parser refuses those values first |
 | Q-5 kinds with fixed why text | a declared `error-message` is the why | `ConstraintMessages` (3e94cb7c40) |
 | the BMP worked example with `redistribute` accepted | `redistribute` refused, `monitor` the one value | fa74dc4c00 |
+| a fix outside the context with no exact command | `top set <full path> ...` | owner answer Q-9 |
 | one closing commit, `./le verify worktree` | per-phase commits, scoped runs | `ai/META-DECISIONS.md` |
 
 ## Known Limitations
@@ -778,11 +859,10 @@ Changed from the 2026-10-14 design:
 | Q-7 | SSH commit refusal: (a) full refusal, one issue per line, in the viewport; (b) first line only | (a) | **Answered by the owner, 2026-10-13: "a".** |
 | Q-8a | Web key checks at the command (terminal `rename`, `copy`, `insert`, `activate`, `deactivate`, form rename, form ADD key, URL ancestor keys)? | Yes | **Answered by the owner, 2026-10-13: "yes".** Delivered through `EnsureListEntry` and `ListEntryDestination`, which those paths reach |
 | Q-8b | Web CLI bar `set` gets the value and key checks? | Yes | **Answered by the owner, 2026-10-13: "yes".** |
-| Q-9 | How should an SSH editor fix line name a config path outside the operator's current `edit` context? `discard` already takes a root path in every context (`cmdDiscardSession` and `cmdDiscardPath` hand the typed path to `DiscardSessionPath`/`DiscardPath` without the context), so its conflict fixes (`memberOpFix`, `discard <root path> ...`) are exact today. `set` does not: `cmdSet` always prepends `m.contextPath`, and `top` (`cmdTop`) takes no arguments, so no single `set` command reaches a path outside the context. The one existing refusal that prints a root-form `set` whatever the context is the missing-mandatory hint `(set bgp peer ...)` (`internal/component/cli/validator.go`), which inside a context is not the command typed; this spec would add commit refusals of a leaf outside the context. Which way? (a) keep the root-form `set` and say in the why that it is typed after `top`: no code change, but those fixes are not a command alone; (b) move the editor to the root context on every refusal that names a root path, so the root-form `set` is exact: changes navigation in the middle of an edit; (c) give `set` the root form `discard` already has, for example `set top <path> <value>`, and write the missing-mandatory hint and this spec's out-of-context fixes in it: a grammar addition that makes `set` match `discard` | (c): it makes `set` take a root path the way `discard` does, keeps every fix the exact command from any context, and corrects the one existing hint; (a) is smallest but leaves those fixes short of the rule; (b) surprises an operator in the middle of an edit | **Open: put to the owner 2026-11-12.** Until answered, AC-23 asserts the relative fix for a leaf under the context and the root form at the root; the missing-mandatory hint is unchanged |
+| Q-9 | How should an SSH editor fix line name a config path outside the operator's current `edit` context? `discard` already takes a root path in every context, so its fixes are exact today; `set` always prepends the context and `top` took no arguments, so no single command reached a path outside the context. Options were (a) the root-form `set` typed after `top`, (b) moving the editor to the root on such refusals, (c) a root-path form of `set` | (c) | **Answered by the owner, 2026-11-12: "I think the top command should have a set sub option, which effectively make it transient. So it will be a top set bgp instead of the proposed set top bgp."** and, on making it general: **"Yes, you can make it top effectively. A transient change of directory for the command behind, whatever the command is."** Designed as `top <command ...>`: `top` alone keeps its meaning; with a command, that command runs once at the root, whatever it is, and the position is kept unless the command itself moves it (Data Flow 7 and 8, AC-45 to AC-52) |
 
-Q-1 is unused. Two things are owed from the owner: approval of this design
-(review round 22 found it ready) and the answer to Q-9. Until both arrive the
-status stays `design`.
+Q-1 is unused. Every owner question is answered. Design approval is still owed
+from the owner; the status stays `design` until it is given.
 
 ## Review Gate
 
@@ -795,8 +875,10 @@ status stays `design`.
 | 18 | 2026-11-12 | 2 BLOCKER, 7 ISSUE, 3 NIT (full review of the rework) | All 12 verified at the producer and applied (I-6 with correction). B-1: the first-key check moved from `ParseListAddress` to the creator, with `TestLookupWalkFindsEveryStoredKey`. B-2: `ValueArgumentError`, an `ArgumentFaults` of one, the placeholder in `wholeCommand`, fault entries without `fix:`. I-1: the error chain with delegating `Error()`, `Unwrap`, `WithFix`. I-2: `prependSyntaxPath` reused, A-4 and the `Parser.path` extension deleted. I-3: A-8 and R-14 deleted, the `formatPeerError` arm kept, leaf-list nodes gain enum facts (AC-5, R-16). I-4: AC-43, the gRPC cases and client. I-5: Phase 4 after Phase 3. I-6: fixes typed in the current context, the leaf-list `delete` fix, Q-9 for a leaf outside the context. I-7: `ipsec-application-override.ci` pinned, AC-29 to AC-31 in a Go test. N-1 to N-3: the proof rests on `errors.As`, the hint before the refusal, `ValidateContent` joined with `errors.Join` |
 | 19 | 2026-11-12 | 0 BLOCKER, 5 ISSUE, 2 NIT (narrow review of the round-18 edits) | All 7 verified at the producer and applied. I-1: exemption narrowed to `ListPathStep`'s anonymous arm, no suffix stripped, the key-only arm through the creator, `TestTypedDefaultKeyStaysRefused`. I-2: the creator table under A-9, the grep the gate. I-3: the other `ValidationError` kinds keep today's text, two pins added. I-4: `WithPath` at the parse root, space-separated, the slash prefix dropped. I-5: gNMI `applyUpdate` wrapped as `InvalidArgument`; REST 400 and gRPC `InvalidArgument` in the ACs. N-1: stale `several` comments listed. N-2: a resume-time refusal (AC-44, R-17), withdrawn in round 20. Q-9 rewritten for one editor convention |
 | 20 | 2026-11-12 | 1 BLOCKER, 2 ISSUE, 1 NIT (narrow review of the round-19 edits) | All 4 verified at the producer and applied. B-1: `DiscardSessionPath`, every write-through `set` and every commit read the change file through `materializeMetaPaths`, and a change file holds `"default"` for an edit under an anonymous entry; stored keys are now read back unjudged, AC-44 and R-17 deleted, `TestChangeFileReadsBackUnjudged` added. I-1: the `parser_list.go` and `parser_freeform.go` value arms return a plain `p.errorf`; each now wraps its refusal in `syntaxRefusal`, with `TestEveryValueArmNamesTheFullPath`. I-2: `discard` takes a root path in every context; Q-9 rewritten around `set` alone. N-1: the `ensureFlexListEntry` row cites the `FlexNode` declaration |
-| 21 | 2026-11-12 | 0 BLOCKER, 1 ISSUE, 1 NIT (narrow review of the round-20 edits) | Both verified at the producer and applied. I-1: three more arms returned a plain `p.errorf`: `parseInactiveBracketMember` (`parser.go`, over `validateValuePatterns`) and the two `parser_list.go` list-key arms (`ValidateListKey` into `invalidListKeyError`); all three are added to Current Behavior, the creator table and Files to Modify, each wrapped in `syntaxRefusal`, and covered by `TestEveryValueArmNamesTheFullPath`; `invalidListKeyError` is replaced and its `invalid peer name:` arm deleted as a per-leaf special case, its pin (`internal/component/bgp/config/loader_test.go`) added; AC-25 gains the file case and AC-39 the hierarchical key case; the `parser_freeform.go` `KeyType` check is named exempt (`exabgp.yang` inline lists only). N-1: the creator rule is stated once, `ListAddress.Tokens == 0` is not judged, with its two builders (`ListPathStep`'s anonymous arm, `materializeMetaPaths`) and the typed builders that set `Tokens >= 1`. One short round 22 over these two points is owed |
-| 22 | 2026-11-12 | 0 BLOCKER, 0 ISSUE, 1 NIT (short review of the round-21 points) | The NIT verified and applied: the `invalid peer name` pin in `internal/component/bgp/config/loader_test.go` asserts only under `if err != nil`, and `validatePeerName` (`internal/component/bgp/config/resolve.go`) writes the same words for a key that is an IP address, so the pin inventory now has the implementation first establish which producer fires, rewrite the pin only if it is the parser arm, and put the conditional assert to the `ze-test-judge`. The reviewer states the design is ready for owner approval with Q-9 open; no further round is owed |
+| 21 | 2026-11-12 | 0 BLOCKER, 1 ISSUE, 1 NIT (narrow review of the round-20 edits) | Both verified at the producer and applied. I-1: `parseInactiveBracketMember` and the two `parser_list.go` list-key arms wrapped in `syntaxRefusal`, covered by `TestEveryValueArmNamesTheFullPath`; `invalidListKeyError` replaced, its `invalid peer name:` arm deleted, its pin added; AC-25 gains the file case and AC-39 the hierarchical key case; the `parser_freeform.go` `KeyType` check named exempt. N-1: the creator rule stated once, `ListAddress.Tokens == 0` is not judged |
+| 22 | 2026-11-12 | 0 BLOCKER, 0 ISSUE, 1 NIT (short review of the round-21 points) | The NIT verified and applied: the `invalid peer name` pin in `internal/component/bgp/config/loader_test.go` asserts only under `if err != nil`, and `validatePeerName` (`internal/component/bgp/config/resolve.go`) writes the same words for a key that is an IP address, so the pin inventory now has the implementation first establish which producer fires, rewrite the pin only if it is the parser arm, and put the conditional assert to the `ze-test-judge`. The reviewer stated the design ready for owner approval with Q-9 open |
+| amendment | 2026-11-12 | reviewed in round 23 | Q-9 answered by the owner. `top <command>` designed on the editor's existing per-command copy and position result and the one-command position change of `show <path>` and `load <path>`; one web helper; fix lines `top set <full path> ...` inside a context; AC-23 updated, AC-45 to AC-51 added |
+| 23 | 2026-11-12 | 1 BLOCKER, 4 ISSUE, 2 NIT (review of the `top <command>` addition) | All 7 verified at the producer and applied. B-1: `cmdShow` answers through `configView` (`model_commands_show.go`), so rebuilding it would have shown the context under `top show`; the inner `configView` is now kept as built, and only `refreshConfig` resolves at the real position (`handleCommandResult`); R-18 rewritten. I-1: `handleEnter` takes `run`, `exit`, `quit`, `stop`, `restart` and `clear` before dispatch, and only `edit`, `up` and `top` set `clearContext`/`newContext` (`exit` does not); `handleEnter` now drops `top ` before its interceptions, since none reads the position, so every verb works behind `top` as without it; A-11 corrected, A-13 added, AC-47 and AC-48 gain `top run`, `top exit` and `top nosuchverb`, R-19 rewritten. I-2: `finishPasteMode` applies the paste at the real position later; the paste state records the position `load terminal` ran at, AC-52 added; the `commit confirmed` countdown and the exit confirmations read no position. I-3: `validateCore` holds no position and the CLI bar's `handleCLICommit` receives none; `ConfigValidationError` carries a typed fix framed by the SSH model, the web terminal and the CLI bar (now given the request's position); REST, gRPC and gNMI write the plain form. I-4: A-12 confirmed (only the three navigation handlers call `writeCLIResponse`); the bar's `top <command>` calls `dispatchCLICommand` with an empty position and no signal; today's `handleCLITop` drop of its arguments recorded as text 14. N-1: completion after `top ` uses `m.completer.Complete(tree, rest, nil)` (AC-49). N-2: no YANG node is named `top` (nearest `leaf top-n-sources`). Narrow round 24 is owed over these edits |
 
 ### Run 1
 
@@ -851,13 +933,13 @@ status stays `design`.
 |-------|-------|
 | Date | 2026-11-12 |
 | Checked at | e660eff82e |
-| Verdict | REWORK (design reworked; review rounds 18 to 22 applied; ready for owner approval, Q-9 open) |
+| Verdict | REWORK (design reworked; review rounds 18 to 23 applied; Q-9 answered and designed; round 24 owed; owner approval owed) |
 | Evidence 1 | 3e94cb7c40 (spec-operator-errors-name-the-fix, closed dc5b80f1b6) made every operator refusal an `opererr.Error` with a `fix: <command>` last line; `ai/rules/user-facing-errors.md` requires it |
 | Evidence 2 | 238bdb62e9 added the union arm to `ValidateLeafValue` (`validateUnionValue`), contradicting the old AC-10, AC-13, AC-14, AC-23 and R-4 |
 | Evidence 3 | 3e94cb7c40 added `config.LineError`/`SplitLine` (deleting `withoutLinePrefix`), `ConstraintMessages`, and `ArgumentFaults` (with 3af4462e82, 37c3a2abb1); `syntaxRefusal` and `prependSyntaxPath` exist |
 | Evidence 4 | the reload prefix is `reload: parse config: line N:` (`test/reload/reload-parse-error-single-prefix.ci`) |
 | Evidence 5 | 163d9a07c8, 98394e78ce, d2f0e2cb08: multi-leaf-key addressing, one address reader `ParseListAddress`, one creator `EnsureListEntry` |
-| Evidence 6 | still open at HEAD: texts 1 to 11, the `; ` joins, no web set check, the completer heuristic, the ranged decimal64 defect |
+| Evidence 6 | still open at HEAD: texts 1 to 14, the `; ` joins, no web set check, the completer heuristic, the ranged decimal64 defect |
 | Evidence 7 | fa74dc4c00 removed `enum redistribute` from BMP `route-action`; the two BMP `.ci` pin only `route-action`, `redistribute`, `monitor` |
 
 The goal still holds: every refusal in the Current Behavior table reads at HEAD
@@ -866,5 +948,6 @@ longer fit main. It built a refusal type and frames beside the operator error
 that now governs every refusal, it rebuilt a line error and a path stack that
 exist, and it rested several acceptance criteria on the parser accepting union
 non-members, which it no longer does. The rework rebuilds the design on those
-mechanisms, and the findings of rounds 18 to 22 are applied. Round 22 found the
-design ready; owner approval and the Q-9 answer are owed.
+mechanisms, and the findings of rounds 18 to 23 are applied. The owner answered
+Q-9 and `top <command>` is designed in; one narrow round 24 over the round-23
+edits is owed, and design approval is still owed from the owner.
