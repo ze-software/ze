@@ -16,15 +16,11 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Blocker
+## Blocker (cleared)
 
-Closure review, round 1 (2026-11-12), by a closure agent that did not author
-the change. Scope: the whole change set of ee567a0309 (`gitVerbRun`,
-`gitNameByte` and `bashBranchMove` in `internal/le/hookruntime/bash.go`, the
-four tests in `bash_git_test.go`, the two verdict table rows, the golden row,
-counts and digests in `internal/le/ai/hooks/`, the page, the door line, the
-three journal rows). Lenses: correctness with the guard audit, security
-(bypass and fail-open), and conformance to this spec and its pages.
+The closure handed this spec back once (3bb3b8a013) on review round 1's two
+ISSUEs. Fix commit 6142d698ef answered both, and round 2 is recorded under
+Review Gate. The round 1 table stays here as the record of what blocked.
 
 | # | Severity | Finding | Location | What clears it |
 |---|----------|---------|----------|----------------|
@@ -405,3 +401,153 @@ and the tree's Markdown on 2026-11-12. Callers: `bashDestructiveGit` and
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec + the journal rows
 - [ ] **Commit B:** the spec removed
+
+## Implementation Summary
+
+### What Was Implemented
+- `gitVerbRun` (`internal/le/hookruntime/bash.go`) ends a pattern of the word `git` and one more word where the verb ends: an occurrence followed by a byte `gitNameByte` accepts (letter, digit, hyphen) is another command, and the scan continues past it. A pattern with an argument keeps its prefix match (ee567a0309)
+- `bashBranchMove` names the eight git commands that merge into the index and working tree under a longer name (ee567a0309)
+- Four tests through the real `pretool-bash` action, a fifth for the scan past a longer name (6142d698ef), one `BASH_GOLDEN` row, two appended verdict rows, counts and two re-sealed digests
+
+### Bugs Found/Fixed
+- The prefix match refused `git merge-base` as `git merge` (three journal rows, now `fixed:`); covered by `TestALongerGitCommandIsNotTheBannedVerb` and the golden row
+- Closure round 1: no test held the scan past a skipped longer name; `TestAVerbAfterALongerCommandIsStillRefused` now does, red under the break (6142d698ef)
+
+### Documentation Updates
+- `docs/contributing/running-commands.md`, "The Bash guard matches your command text": where a verb ends, why argument patterns stay prefixes, the eight named commands; anchor `<!-- source: internal/le/hookruntime/bash.go -- gitVerbRun -->` (ee567a0309)
+- `ai/doors/le-tooling.md` Traps line no longer states the defect as current (ee567a0309)
+
+### Deviations from Plan
+- The owned-rows entry in `plan/post-release/engineering/spec-gates-share-one-semantic-population.md` was not dropped: the spec edit gate refuses that spec until it carries its own `## Existing Mechanisms` section (Task correction, R-4)
+- `parity.go`, `parity_test.go` and `fixtures.go` changed too: counts and stored digests mirror the catalog and the hook sources
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The implementation's tests proved the skip but not the scan that follows it | A break of the `continue` into `return false` left every test green | Closure review round 1 | Test added in 6142d698ef |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `git merge-base` passes, `git merge` forms stay refused | Done | `bash.go` `gitVerbRun`, `gitNameByte` | |
+| Every other pattern keeps its verdict | Done | `bash.go` `bashDestructiveGit`, `bashBranchMove` | argument patterns untouched; verdict table gained rows only |
+| Drop the 2026-09-02 entry from the other spec's owned rows | Changed | - | refused by the spec edit gate; see Deviations and Work Not Done |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestALongerGitCommandIsNotTheBannedVerb`; golden row | bare, `-C`, after `&&` |
+| AC-2 | Done | `TestTheVerbEndsAtEveryByteThatCannotContinueAName` | eleven forms |
+| AC-3 | Done | `TestAnArgumentPatternKeepsItsPrefix` | five forms |
+| AC-4 | Done | `TestAMergeBackendIsRefusedByName`; passing half in `TestALongerGitCommandIsNotTheBannedVerb` | |
+| AC-5 | Done | `TestGuardVerdictsOfHeadStand` | two rows appended, none changed |
+| AC-6 | Done | `running-commands.md`, `le-tooling.md` hunks of ee567a0309 | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestALongerGitCommandIsNotTheBannedVerb` | Done | `internal/le/hookruntime/bash_git_test.go` | red before the change |
+| `TestTheVerbEndsAtEveryByteThatCannotContinueAName` | Done | same | |
+| `TestAnArgumentPatternKeepsItsPrefix` | Done | same | |
+| `TestAMergeBackendIsRefusedByName` | Done | same | |
+| `TestGuardVerdictsOfHeadStand` | Done | `verdicts_test.go` | |
+| `BASH_GOLDEN` row | Done | `internal/le/ai/hooks/parity_catalog.go` | |
+| `TestAVerbAfterALongerCommandIsStillRefused` (added at closure) | Done | `bash_git_test.go` | red under the break |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/hookruntime/bash.go` | Done | |
+| `internal/le/hookruntime/bash_git_test.go` | Done | |
+| `internal/le/hookruntime/testdata/guard-verdicts-head.jsonl` | Done | update run only |
+| `internal/le/ai/hooks/parity_catalog.go`, `parity.go`, `parity_test.go`, `fixtures.go` | Done | |
+| `docs/contributing/running-commands.md`, `ai/doors/le-tooling.md` | Done | |
+| `plan/journal/hook-existing-patterns-false-positive.md` | Done | three rows `fixed:` |
+| `plan/post-release/engineering/spec-gates-share-one-semantic-population.md` | Changed | not modified (R-4) |
+
+### Audit Summary
+- **Total items:** 20
+- **Done:** 18
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| `git merge-base` passes the guard | live hook and test | `git merge-base --is-ancestor HEAD~1 HEAD` ran through the live hook on the builds of ee567a0309 and 6142d698ef; `TestALongerGitCommandIsNotTheBannedVerb` red before the change, green after; golden row exit 0 under `./le ai hooks unit` |
+| `git merge` forms stay refused | test, live hook | `TestTheVerbEndsAtEveryByteThatCannotContinueAName`, `TestAVerbAfterALongerCommandIsStillRefused` (red under the scan break); `git mergetool --tool-help` refused live |
+| Every other pattern keeps its verdict | recorded table | `TestGuardVerdictsOfHeadStand` green, table diff additions only; `TestAnArgumentPatternKeepsItsPrefix` |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Drop the 2026-09-02 row from the owned-rows table of the semantic-population spec | The spec edit gate refuses that spec until its own design adds `## Existing Mechanisms` (R-4); the row is `fixed:` | `plan/post-release/engineering/spec-gates-share-one-semantic-population.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/hook-git-verb-prefix-match-e82b0d47-98d2-4083-b79e-5838e8b12dd5.md` (12 files, verdict clean; the two journal shards pinned by their HEAD blobs, because other sessions' rows sit uncommitted in both) |
+| `./le spec review check` | clean (run before commit A) |
+| Rounds | 2 |
+| Reviewer lenses used | round 1: correctness with guard audit, security (bypass, fail-open), spec and page conformance; round 2: test discrimination and comment accuracy |
+
+### Run 1
+Scope: the whole change set of ee567a0309. Findings: the table in `## Blocker (cleared)` (2 ISSUE, 2 NOTE).
+
+### Run 2
+Scope, written before the round: commit 6142d698ef only, which is `TestAVerbAfterALongerCommandIsStillRefused` and two test comments in `bash_git_test.go`, the comment above the eight patterns in `bashBranchMove`, the `hookSourcesDigest` re-seal in `fixtures.go`, the journal row in `gate-excludes-part-of-its-population.md`, the skeleton `spec-hook-git-guard-misses-index-writers.md`, and the edits to this spec; plus the sibling call site the fix touched, `bashDestructiveGit`, whose `git commit` pattern the second test line exercises.
+
+Result: 0 BLOCKER, 0 ISSUE, 1 NOTE. The new test asks one question through
+the real action, each line pins its guard's own refusal text, and the main
+thread observed both lines exit 0 under the `return false` break. The second
+line reaches `bashDestructiveGit` past `git commit-tree`, so both callers of
+`gitVerbRun` carry the proof. The three reworded comments and the decision
+row match `gitNameByte` and the page. The journal row has five cells and names
+its owning spec, and the skeleton cites this spec by bare stem.
+NOTE: the decision row states the criterion as writing the shared index or a
+branch, which `git cherry-pick` and `git read-tree` meet while passing; that
+gap predates this work and is owned by
+`plan/post-release/engineering/spec-hook-git-guard-misses-index-writers.md`.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | No test held the scan past a skipped longer name | `bash.go` `gitVerbRun` | 6142d698ef, `TestAVerbAfterALongerCommandIsStillRefused` |
+| 2 | ISSUE | Comment called `git merge-file` and `git merge-tree` read-only | `bash.go` `bashBranchMove` | 6142d698ef, comment and Key Design Decisions row reworded |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| none to create | N-A | Files to Create is `none`; every modified file is in HEAD (ee567a0309, 6142d698ef) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5 | the tests named in the audit pass | `./le test unit pkg path ./internal/le/hookruntime/` exit 0 after 6142d698ef (main thread) |
+| AC-1 | golden row | `./le ai hooks unit` exit 0 on the build of 6142d698ef (main thread) |
+| AC-6 | page and door | `git show ee567a0309 -- docs/ ai/` carries both hunks |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Bash call through `pretool-bash` | none: the entry point is the hook action, driven by `runHook` and the `BASH_GOLDEN` row | yes, and live: `git merge-base --is-ancestor HEAD~1 HEAD` ran through the hook |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestTheVerbEndsAtEveryByteThatCannotContinueAName` |
+| A-2 | confirmed | Thomas's ruling; AC-4 |
+| A-3 | confirmed | `TestGuardVerdictsOfHeadStand` green, table diff additions only |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| running-commands.md paragraph on where a verb ends | `gitVerbRun` lines 129-143, `gitNameByte`, `bashBranchMove` pattern list, read 2026-11-12 | yes |
+| le-tooling.md Traps line | same | yes |
+| `.claude/hooks/README.md` description of `bashBranchMove` | refuses verbs that integrate a branch, still true | yes |
