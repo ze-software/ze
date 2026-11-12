@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | The external system RIB lacks the authoritative routing state and transport wiring its internal mode uses. Its BGP-only fallback bypasses the Loc-RIB import gate when an EventBus is injected. Repair both execution modes, prove the import chains through the daemon, and declare the shipped capability. |
@@ -22,7 +22,8 @@ Repair the system RIB so an operator gets correct routing with either an
 internal plugin or an external subprocess. The owner requirement is recorded
 verbatim in `docs/architecture/rib/unified-locrib.md`, “Owner requirement:
 internal and external system RIB.” That requirement rejects the previous
-internal-only proposal. The transport design below remains proposed until reviewed.
+internal-only proposal. The owner approved the reviewed transport design for
+implementation on 2026-11-12.
 
 This spec owns the umbrella's three findings. The umbrella's ownership pointers
 still need its separate closure edits. Creating this spec did not change them.
@@ -46,6 +47,7 @@ still need its separate closure edits. Creating this spec did not change them.
 |------|----------|-------------|
 | 2026-11-12, initial design | Proposed declaring the system RIB internal-only, refusing external configuration, and adding VRRP/AS112 refusals. | Rejected by the owner. These proposed refusals are withdrawn, including the proposed exception to the system door. They were a consequence of the rejected repair, not one of B-1 to B-3. |
 | 2026-11-12, this revision | Preserve and repair both system RIB modes. | Keep one authoritative Loc-RIB and gate in the daemon. Supply the missing process interfaces and prove parity. Existing VRRP/AS112 behavior is outside this system RIB repair and is not represented as repaired. |
+| 2026-11-12, implementation approval | The owner asked: "Okay, can you implement this specification?" | The revised design is approved for implementation. Native claim admission controls the transition to in-progress. |
 
 ## Required Reading
 
@@ -552,8 +554,8 @@ the new transport is already implemented.
 
 ## Key Design Decisions
 
-The owner chose two-mode correctness. The following implementation design remains
-at `design` for review. No implementation or completed proof is claimed.
+The owner approved this two-mode implementation design on 2026-11-12.
+No implementation or completed proof is claimed yet.
 
 | Decision | Alternatives considered | Rationale |
 |----------|-------------------------|-----------|

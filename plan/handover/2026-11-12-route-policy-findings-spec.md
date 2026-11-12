@@ -15,8 +15,12 @@ external system RIB".
 `plan/release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md` now
 requires complete two-mode routing behavior, an authoritative daemon view,
 distance publication, candidates, external FIB output, and lifecycle proof.
-It remains at `design` pending review of that replacement transport design.
+The owner approved implementation on 2026-11-12. It is now `ready`.
 The proposed system RIB, VRRP, and AS112 commit refusals are withdrawn.
+
+The implementation claim was refused on 2026-11-12: 17 specs were already
+in progress against a cap of 12. No implementation code was changed. Starting
+this spec requires capacity under the cap or an explicit owner exception.
 
 The umbrella closure instructions below remain a handoff for that separate
 work, subject to checking the current tree. The old design decision table,
