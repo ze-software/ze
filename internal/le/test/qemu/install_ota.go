@@ -24,6 +24,9 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/health"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -35,6 +38,8 @@ const otaPersistentHost = "ota-persistent"
 // wait one hundred seconds each for SIGTERM and SIGKILL before unmounting.
 const otaUploadTimeout = 2 * time.Minute
 const otaRebootTimeout = 5 * time.Minute
+
+var errOTAHealthNotReady = errors.New("daemon health is not ready")
 
 type otaStatus struct {
 	BuildTimestamp string
@@ -130,6 +135,12 @@ func (installer *Installer) executeApplianceOTA(ctx context.Context) (report Ins
 	if err != nil {
 		return report, err
 	}
+	seedTree, err := config.ParseTreeForValidation(string(seed))
+	if err != nil {
+		return report, opererr.Wrap(err, "appliance health seed could not be read",
+			"The update proof cannot determine which services the seed configures.",
+			"./le test qemu appliance-ota")
+	}
 	if err := guest.uploadConfig(ctx, seedWithHost(string(seed), otaPersistentHost)); err != nil {
 		return report, err
 	}
@@ -156,7 +167,11 @@ func (installer *Installer) executeApplianceOTA(ctx context.Context) (report Ins
 	if err := guest.assertHost(ctx); err != nil {
 		return report, err
 	}
+	if err := guest.assertHealth(ctx, seedTree); err != nil {
+		return report, err
+	}
 	report.passed("updated-runtime", before.BuildTimestamp+" -> "+after.BuildTimestamp)
+	report.passed("updated-health", "live daemon health checks passed after update")
 	report.passed("persistent-config", "host and login survived update; persistent UUID unchanged")
 	// Testboot retains the original root in the boot configuration. Switch
 	// would promote the tested root instead of recovering the original one.
@@ -176,8 +191,12 @@ func (installer *Installer) executeApplianceOTA(ctx context.Context) (report Ins
 	if err := guest.assertHost(ctx); err != nil {
 		return report, err
 	}
+	if err := guest.assertHealth(ctx, seedTree); err != nil {
+		return report, err
+	}
 	report.passed("previous-slot", "original runtime, persisted host and original login are usable")
-	report.line(otaReportPrefix, "PASS real image upload, reboot, persistent configuration and previous-slot recovery")
+	report.passed("recovered-health", "live daemon health checks passed after recovery")
+	report.line(otaReportPrefix, "PASS real image upload, reboot, live health, persistent configuration and previous-slot recovery")
 	report.Verdict = InstallVerdictPass
 	return report, nil
 }
@@ -449,4 +468,116 @@ func (guest *otaGuest) assertHost(ctx context.Context) error {
 		return fmt.Errorf("appliance host=%q, want preserved host %q", name, otaPersistentHost)
 	}
 	return nil
+}
+
+func (guest *otaGuest) assertHealth(ctx context.Context, seed *config.Tree) error {
+	timeout := guest.installer.Options.BootTimeout
+	if timeout == 0 {
+		timeout = 5 * time.Minute
+	}
+	deadline, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	var last error
+	for deadline.Err() == nil {
+		output, err := guest.ssh(deadline, "show health | json", "")
+		if err != nil {
+			last = err
+			break
+		}
+		last = validateOTAHealth(output, seed)
+		if last == nil {
+			return nil
+		}
+		if !errors.Is(last, errOTAHealthNotReady) {
+			break
+		}
+		// sleep(poll-interval): SSH can answer before plugin startup completes; re-probe live health until ready, bounded by deadline.
+		if err := guest.installer.ops.Sleep(deadline, time.Second); err != nil {
+			last = errors.Join(err, last)
+			break
+		}
+	}
+	return opererr.Wrap(errors.Join(deadline.Err(), last), "appliance health could not be verified",
+		"The update proof cannot confirm that the rebooted daemon and its services are usable.",
+		"ZE_INSTALL_KEEP=1 ./le test qemu appliance-ota")
+}
+
+// validateOTAHealth reads the show-health payload produced by handleShowHealth.
+// A missing report or required probe cannot stand in for measured health.
+func validateOTAHealth(output string, seed *config.Tree) error {
+	var report health.Report
+	decoder := json.NewDecoder(strings.NewReader(output))
+	if err := decoder.Decode(&report); err != nil {
+		return fmt.Errorf("decode daemon health response: %w", err)
+	}
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return errors.New("daemon health response has trailing data")
+	}
+	if _, err := time.Parse(time.RFC3339, report.CheckedAt); err != nil {
+		return fmt.Errorf("daemon health check timestamp is invalid: %w", err)
+	}
+	// The daemon's answer is external input, so reject unknown status values.
+	switch report.Status {
+	case health.StatusHealthy, health.StatusDegraded, health.StatusDown:
+	default:
+		return fmt.Errorf("daemon health response has unknown status %q", report.Status)
+	}
+	seen := make(map[string]bool, len(report.Components))
+	overall := health.StatusHealthy
+	var unhealthy []error
+	for _, component := range report.Components {
+		if component.Name == "" {
+			return errors.New("daemon health response has an unnamed component")
+		}
+		if seen[component.Name] {
+			return fmt.Errorf("daemon health response repeats component %q", component.Name)
+		}
+		seen[component.Name] = true
+		// Component status values are external input too.
+		switch component.Status {
+		case health.StatusHealthy:
+		case health.StatusDegraded:
+			if overall != health.StatusDown {
+				overall = health.StatusDegraded
+			}
+		case health.StatusDown:
+			overall = health.StatusDown
+		default:
+			return fmt.Errorf("daemon health component %q has unknown status %q", component.Name, component.Status)
+		}
+		if component.Status != health.StatusHealthy {
+			if !otaInactiveHealth(component, seed) {
+				unhealthy = append(unhealthy, fmt.Errorf("%w: component %q is %q: %s", errOTAHealthNotReady, component.Name, component.Status, component.Reason))
+			}
+		}
+	}
+	if report.Status != overall {
+		return fmt.Errorf("daemon health overall status %q disagrees with its component status %q", report.Status, overall)
+	}
+	for _, required := range []string{"plugins", "iface"} {
+		if !seen[required] {
+			return fmt.Errorf("daemon health response has no %q probe", required)
+		}
+	}
+	return errors.Join(unhealthy...)
+}
+
+// otaInactiveHealth recognizes only the inactive outcomes produced by
+// l2tp.checkHealth and ike/engine.checkIPsecHealth for the management-only seed.
+func otaInactiveHealth(component health.ComponentHealth, seed *config.Tree) bool {
+	switch component.Name {
+	case "l2tp":
+		if seed.GetContainer("l2tp") != nil {
+			return false
+		}
+		return component.Status == health.StatusDegraded && component.Reason == "subsystem not running"
+	case "ipsec":
+		if seed.GetContainerPath("vpn/ipsec") != nil {
+			return false
+		}
+		return component.Status == health.StatusDown && component.Reason == "ike engine not running"
+	default:
+		return false
+	}
 }

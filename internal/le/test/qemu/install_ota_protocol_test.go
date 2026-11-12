@@ -43,20 +43,24 @@ func TestApplianceOTATestbootRecoveryDoesNotSwitch(t *testing.T) {
 }
 
 type otaProtocolFixture struct {
-	mu           sync.Mutex
-	installer    *Installer
-	legacyConfig bool
-	runtime      string
-	host         string
-	switched     bool
-	uploads      int
-	sshLogins    int
-	forward      string
-	webPort      int
-	sshPort      int
-	stallExec    chan struct{}
-	sshStderr    string
-	closeSSH     func()
+	mu              sync.Mutex
+	installer       *Installer
+	legacyConfig    bool
+	runtime         string
+	host            string
+	switched        bool
+	uploads         int
+	sshLogins       int
+	hostnameQueries map[string]int
+	forward         string
+	webPort         int
+	sshPort         int
+	stallExec       chan struct{}
+	sshStderr       string
+	healthOutput    map[string]string
+	healthError     map[string]bool
+	healthBoots     []string
+	closeSSH        func()
 }
 
 func (fixture *otaProtocolFixture) run(t *testing.T) {
@@ -73,6 +77,13 @@ func (fixture *otaProtocolFixture) run(t *testing.T) {
 	if fixture.switched || fixture.uploads != 1 || fixture.sshLogins < 6 {
 		t.Fatalf("switch=%v uploads=%d authenticated SSH logins=%d", fixture.switched, fixture.uploads, fixture.sshLogins)
 	}
+	// Health logins cannot replace the original hostname queries: two on the
+	// updated runtime and four across the original and recovered runtime.
+	for boot, want := range map[string]int{"original": 4, "updated": 2} {
+		if fixture.hostnameQueries[boot] < want {
+			t.Fatalf("hostname queries on %s runtime=%d, want at least %d", boot, fixture.hostnameQueries[boot], want)
+		}
+	}
 	want := "hostfwd=tcp:" + net.JoinHostPort(forwardHost, strconv.Itoa(fixture.webPort)) + "-:8080"
 	if !strings.Contains(fixture.forward, want) {
 		t.Fatalf("missing loopback web forward %q: %s", want, fixture.forward)
@@ -81,7 +92,8 @@ func (fixture *otaProtocolFixture) run(t *testing.T) {
 
 func newOTAProtocolFixture(t *testing.T, legacy bool) *otaProtocolFixture {
 	t.Helper()
-	fixture := &otaProtocolFixture{legacyConfig: legacy, runtime: "original"}
+	registerOTAHealthSchema(t)
+	fixture := &otaProtocolFixture{legacyConfig: legacy, runtime: "original", hostnameQueries: make(map[string]int)}
 	installer := installTestInstaller(t, InstallKindISO)
 	fixture.installer = installer
 	installer.Tree = t.TempDir()
@@ -92,7 +104,7 @@ func newOTAProtocolFixture(t *testing.T, legacy bool) *otaProtocolFixture {
 	if err := os.MkdirAll(seedDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(seedDir, "ze.conf"), []byte("set system ssh enabled true\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(seedDir, "ze.conf"), []byte("set environment ssh enabled true\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	update := httptest.NewTLSServer(http.HandlerFunc(fixture.update))
@@ -208,7 +220,7 @@ func (fixture *otaProtocolFixture) upload(w http.ResponseWriter, r *http.Request
 		return
 	}
 	body, err := io.ReadAll(r.Body)
-	if err != nil || !strings.Contains(string(body), "set system ssh enabled true") || !strings.Contains(string(body), otaPersistentHost) {
+	if err != nil || !strings.Contains(string(body), "set environment ssh enabled true") || !strings.Contains(string(body), otaPersistentHost) {
 		http.Error(w, "missing complete persisted configuration", http.StatusBadRequest)
 		return
 	}
@@ -331,7 +343,19 @@ func (fixture *otaProtocolFixture) sshConnection(connection net.Conn, config *ss
 			fixture.mu.Lock()
 			code := uint32(0)
 			if command.Command == HostnameQuery {
+				fixture.hostnameQueries[fixture.runtime]++
 				_, _ = fmt.Fprintf(channel, `{"host":{"hostname":%q}}`, fixture.host)
+			} else if command.Command == "show health | json" {
+				fixture.healthBoots = append(fixture.healthBoots, fixture.runtime)
+				output, ok := fixture.healthOutput[fixture.runtime]
+				if !ok {
+					output = otaHealthyResponse
+				}
+				_, _ = io.WriteString(channel, output)
+				if fixture.healthError[fixture.runtime] {
+					code = 1
+					_, _ = io.WriteString(channel.Stderr(), "health command refused")
+				}
 			} else if fixture.legacyConfig && strings.HasPrefix(command.Command, "config ") {
 				fixture.host = otaPersistentHost
 			} else {

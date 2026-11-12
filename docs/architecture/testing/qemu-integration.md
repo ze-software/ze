@@ -1163,6 +1163,16 @@ the next boot selection; calling the updater's switch endpoint would instead
 promote the tested root.
 <!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA, otaGuest.await, otaGuest.assertHost -->
 
+After update and recovery, the proof queries the authenticated daemon with
+`show health | json`. It requires the live plugin and interface probes and
+rejects missing, malformed or inconsistent reports. Unexpected degraded or down
+components fail the proof. Only the exact inactive L2TP and IPsec outcomes are
+permitted when the parsed seed omits their configuration. This checks the
+seed's configured services; it does not prove unconfigured routing or VPN
+traffic. Valid unhealthy reports are retried within `ZE_INSTALL_BOOT_TIMEOUT`;
+command and malformed-data failures stop immediately.
+<!-- source: internal/le/test/qemu/install_ota.go -- otaGuest.assertHealth, validateOTAHealth, otaInactiveHealth -->
+
 Status requests have a ten-second ceiling. Configuration publication has a
 two-minute ceiling to allow synchronous reload, and recovery reboot has a
 five-minute ceiling to allow gokrazy's two 100-second service shutdown waits

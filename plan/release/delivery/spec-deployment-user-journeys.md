@@ -144,7 +144,7 @@ substitute for the outstanding actual deployment proofs.
 | AC-5: deployment container persistence | Container/netlab code landed in `ef6e1c9806`; runtime correction `adf359f08c` includes noninteractive import and `/tmp` mode `1777`. Actual Compose portion of finished job `84344` printed `DEPLOYMENT-COMPOSE: PASS authenticated edit retained across a new container on the same persistent volume`, including the corrected metadata-aware subtree oracle. Final outer cleanup stopped the VM and left nothing behind. | This proves the authenticated edit/recreation path for the explicitly source-unbound runtime image. The combined job's separate netlab portion failed; it is not an overall runtime PASS. |
 | AC-6: live containerlab/netlab | Actual `53628` created all three running nodes and completed initial configuration, then exposed the missing YAML snapshot. Explicit YAML output and pickle-only ownership refusal passed separate RED/GREEN regressions, full netlab package, actual pinned create and independent review. | Declared adjacencies, kernel routes and six directed sourced pings remain unverified. Actual VM cleanup left nothing behind; no protocol/traffic PASS is claimed. |
 | AC-7: installer ISO and installed disk | `66cc2f7abb` landed the ISO corrections. Actual native amd64/KVM proof passed optical boot, selected-disk installation, clean poweroff, unchanged extra disk, installed-disk boot and authenticated SSH/version. Final module-bound ISO assembly passed. | This is amd64/KVM evidence; arm64 boot was not run. The retained ISO image does not establish OTA credentials or update recovery. |
-| AC-8: appliance image update and recovery | OTA implementation landed in `d5ac4d3249`. Actual run `19822` passed: two images, changed runtime after update, retained persistent UUID/configuration/login/hostname, previous-slot recovery and owned cleanup. The committed source passed all-five-flavor compilation. | Independent review found that `executeApplianceOTA` does not assert daemon health after update or recovery. Add that assertion and run the extended proof. The existing identity/persistence/recovery evidence remains valid for amd64 only. |
+| AC-8: appliance image update and recovery | OTA implementation landed in `d5ac4d3249`. Actual run `19822` passed two images, changed runtime, retained persistent UUID/configuration/login/hostname, previous-slot recovery and cleanup. The extended health assertions now passed semantic RED/GREEN checks, full QEMU-package race tests, independent source review and fixture judgment. | The health-bearing actual VM proof remains required. The original identity/persistence/recovery evidence remains valid for amd64 only and does not establish the new health assertion. |
 | AC-9: website deployment journeys | Resumed completed-path documentation, homepage and navigation updates passed canonical local build `67925` and check `38826`: 24 producers and 1,107 declared/written routes in sibling `../gh-pages`. Generated HTML and Markdown were inspected. The appliance decommissioning section now passed independent source/link review. | Regenerate the site after the new decommissioning and artifact-status guidance. No remote publication or push occurred; the broad doc gate's generated-index failure is recorded above. |
 | AC-10: identified preview delivery | Complete fresh preparation `52283` and separate retained checker `27968` passed: static Linux amd64/arm64 binaries and archives, native amd64 deployment/lab exports, manifest and checksums. Identity is `preview-c4e0e1d13892-ddebbea4677b-dirty`, source digest `ddebbea4677b8d475cfad0c910a62833bb3f89f739b79ca42ed99141adc8a000`; both actual images were version-probed by the producer. | This private bundle is source-bound at its captured revision. Earlier Compose proof used a different source-unbound runtime image; no current-image recreation proof, public artifact, release, push or publication is claimed. |
 | AC-11: production-evaluator guidance | The resumed chooser and update guidance distinguish demonstrated paths, tested architecture, source-unbound container evidence, pending live lab proof and unavailable public images. Independent source review cleared the selected guide and website changes. | Outstanding actual deployment evidence remains required; the work does not declare Ze production-ready. |
@@ -653,6 +653,7 @@ dated execution history and failed runs above remain evidence.
 | `deployment_final_review`: minimal initial-method correction `b914eb1a0b` | `contrib/netlab/ze.yml`, production buildLab/export regression, guide override explanation | Narrow review clear, tests strengthened and no existing assertions weakened. Actual fixed runtime proof remains pending. |
 | `deployment_site_scope`: final owned documentation and acquisition links | Report `tmp/session/2026-11-10-225434/scratch/deployment-doc-final-review.md` | No related substantive discrepancy found across native, quickstart, Docker, appliance, netlab/site acquisition and preview carriers. Source review only; main separately passed final post-guide canonical site build `53669` and check `13463`, with 24 producers and 1,107 declared/written routes. |
 | `deployment_final_gap_review`: remaining requirements across completed paths | `executeApplianceOTA`, `otaGuest.await`, `otaGuest.assertHost`, `docsRenderer.renderSource` and the appliance guide | Two blockers: AC-8 lacks a health assertion after update and recovery; AC-9 lacks appliance decommissioning guidance. Both fixes are in progress. The known netlab and complete preview proof gaps remain open. |
+| `ota_health_review`: extended health proof and original protocol assertions | `executeApplianceOTA`, `otaGuest.assertHealth`, `validateOTAHealth`, `otaInactiveHealth`, `otaProtocolFixture.run` and health command producers | No actionable findings. Health checks reject unexpected failures and permit only exact inactive outcomes for protocols absent from the parsed seed. Existing hostname probes remain independently required. Actual extended VM proof remains owed. |
 
 ### Fixes and scoped reruns
 
@@ -664,12 +665,20 @@ confirmed the routing daemon already overrides inherited namespace mode with
 `ignore`; no additional routing override was required. These controls do not
 substitute for the running actual own-kernel rerun.
 
+The OTA health extension separately failed for missing health queries (`63291`),
+configured protocols incorrectly receiving inactive exceptions (`60575`), and
+transient readiness being refused immediately (`77420`). Focused health GREEN
+`67333` and full verbose QEMU-package race run `31325` then passed, including
+every original OTA test. The fixture judge personally recorded approvals after
+formatting; extra health logins cannot satisfy the six original hostname-query
+requirements. No new actual health-bearing VM PASS has yet occurred.
+
 ### Remaining acceptance evidence
 
 | Requirement | Current state | Required result |
 |-------------|---------------|-----------------|
 | AC-6 live topology | Actual `53628` reached running nodes and initial configuration; missing YAML inventory was then corrected and passed scoped tests and actual create. | Actual declared adjacencies, kernel routes, sourced traffic and successful owned teardown through the corrected invocation. |
-| AC-8 post-update health | Actual update/recovery proved identity, login and persistent configuration; the runner does not yet query daemon health. | Preserve those assertions and add a meaningful health assertion after both updated and recovered boots, then pass the extended actual proof. |
+| AC-8 post-update health | Extended runner and health regressions passed scoped/full package tests and independent reviews, preserving all original assertions. | Pass the extended actual VM proof after both updated and recovered boots. |
 | AC-9 appliance removal | Canonical guide now covers live backup, separate appliance export, graceful shutdown, VM disk retention/deletion, hardware retirement and retained secrets; independent review was clear. | Regenerate and inspect the canonical website output for the updated guide. |
 | AC-10 current source-bound preview | Fresh complete preparation `52283` and retained checker `27968` passed with all identity checks retained. | Preserve the private bundle and its exact scope; no publication is authorized. |
 | Final closure review | Bounded source/doc reviews above are clear; required runtime/artifact evidence remains open. | Reconcile actual results before declaring a final clean gate or overall completion. |
@@ -679,10 +688,10 @@ substitute for the running actual own-kernel rerun.
 - [ ] Independent review shows zero blockers and zero issues.
 - [ ] Notes recorded or explicitly none.
 
-These final closure boxes remain unchecked while live netlab proof and the
-current source-bound bundle result remain blocked. Final post-guide local site
-build/check passed; baseline stale-supported warnings are retained, without a
-feature-proof refresh or remote publication. No own jobs remain pending.
+These final closure boxes remain unchecked while live netlab and extended OTA
+health proofs remain open. The complete source-bound preview and its retained
+checker passed. Canonical site regeneration for the latest guidance remains
+required. No feature-proof refresh or remote publication is authorized.
 
 ## Build and kernel research, 2026-11-11
 
