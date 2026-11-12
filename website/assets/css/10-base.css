@@ -1418,17 +1418,6 @@ section[aria-labelledby="blog-teaser-title"] {
     clip-path: inset(0 -100vmax);
 }
 
-.journey-hero::before {
-    content: "";
-    position: absolute;
-    z-index: var(--z-page-title-art);
-    inset: 0;
-    background: linear-gradient(120deg, transparent, rgba(0, 158, 226, 0.08));
-    background-size: auto;
-    mask-image: none;
-    pointer-events: none;
-}
-
 .journey-hero::after {
     content: none;
     position: absolute;
