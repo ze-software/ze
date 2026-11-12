@@ -46,8 +46,8 @@ const (
 	// so a budget set close to the uncontended runtime flakes under load. Many
 	// .ci timeouts sit at 70-100% of the uncontended runtime, leaving no
 	// headroom. Multiplying by this factor when concurrency > 1 absorbs the
-	// contention; serial runs (-p 1, single-test debug) keep the tight value so
-	// real slowdowns still surface quickly.
+	// contention; isolated serial runs (-p 1, single-test debug) keep the tight
+	// value so real slowdowns still surface quickly.
 	ParallelTimeoutHeadroom = 3
 )
 

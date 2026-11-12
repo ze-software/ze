@@ -120,6 +120,9 @@ type invocation struct {
 	testBin   string
 	timeout   time.Duration
 	extraTags string
+	// parallelFactor is the enclosing batch's contention factor. Zero means
+	// no enclosing headroom; Invoke still retains any inherited runner factor.
+	parallelFactor int
 }
 
 type processResult struct {
@@ -342,10 +345,15 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 	ran, failed := 0, 0
 	for report.Completed < opts.Iterations && runCtx.Err() == nil && !report.Reproduced {
 		batch := min(parallel, opts.Iterations-report.Completed)
+		batchSpec := spec
+		batchSpec.parallelFactor = 1
+		if batch > 1 {
+			batchSpec.parallelFactor = runner.ParallelTimeoutHeadroom
+		}
 		batchCtx, cancelBatch := context.WithCancel(runCtx)
 		results := make(chan processResult, batch)
 		for range batch {
-			go func() { results <- deps.runner.Invoke(batchCtx, spec) }()
+			go func() { results <- deps.runner.Invoke(batchCtx, batchSpec) }()
 		}
 		for range batch {
 			result := <-results

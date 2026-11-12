@@ -1569,6 +1569,22 @@ fixture that runs as a plugin. `env.Get` reads a dot, an underscore and a hyphen
 as one separator, and the daemon now renames every ze key to its shell spelling
 before it forks a plugin (`env.ShellSafe`).
 
+Stress reproduction publishes the existing `ze.test.parallel.factor` for the
+actual invocation batch. A batch with concurrent invocations publishes x3. One
+invocation keeps x1 unless an enclosing runner already published a larger
+factor. The child runner uses the larger of its local and inherited factors
+for measured deadlines and published child budgets. Nested concurrency applies
+x3 once, so a selected test does not lose headroom from sibling invocations.
+An isolated single-test debug run keeps its authored deadlines.
+<!-- source: internal/le/test/stressrepro/run.go -- run, actual invocation batch -->
+<!-- source: internal/le/test/stressrepro/process.go -- realProcessRunner.Invoke -->
+<!-- source: internal/test/runner/runner_exec_util.go -- parallelFactor, parallelFactorEnv, testBudgetEnv -->
+
+The stress command's explicit `timeout` remains its invocation limit. Choose a
+limit that covers the selected tests' contention-derived budgets and cleanup;
+the stress command does not multiply an operator's explicit limit.
+<!-- source: internal/le/test/stressrepro/process.go -- realProcessRunner.Invoke, invocation timeout -->
+
 The runner does NOT read the job-admission budget. `defaultSlots`
 (`internal/le/job/job.go`) gives the machine one job slot for each core share it
 holds, which is four slots on the 32-core development box. Each admitted suite

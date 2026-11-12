@@ -10,10 +10,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	coreenv "github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/test/runner"
 )
 
@@ -26,7 +28,11 @@ func (realProcessRunner) Invoke(ctx context.Context, spec invocation) processRes
 	}
 	invokeCtx, cancel := context.WithTimeout(ctx, spec.timeout)
 	defer cancel()
-	env := append([]string(nil), os.Environ()...)
+	// The child runner sees only its own selected cases. Carry contention
+	// from sibling invocations through the existing runner factor, once.
+	factor := max(runner.ChildParallelFactor(), spec.parallelFactor)
+	env := coreenv.Without(os.Environ(), runner.ParallelFactorEnv)
+	env = setEnvironment(env, strings.ReplaceAll(runner.ParallelFactorEnv, ".", "_"), strconv.Itoa(factor))
 	env = setEnvironment(env, "ze.bin", spec.zeBin)
 	env = setEnvironment(env, runner.EnvNoBuild, "1")
 	env = setEnvironment(env, "GOTRACEBACK", "all")

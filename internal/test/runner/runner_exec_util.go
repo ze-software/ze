@@ -263,20 +263,23 @@ func (r *Runner) parallelFactorEnv() string {
 }
 
 // parallelFactor is the multiplier withParallelHeadroom applies:
-// ParallelTimeoutHeadroom under concurrent execution, 1 for a serial run.
+// ParallelTimeoutHeadroom under concurrent execution, 1 for an isolated serial
+// run. An enclosing runner can publish the same factor for concurrent siblings.
 // Exposed so COUNT-based budgets (an HTTP readiness poll's retry attempts)
 // scale by the same factor as the duration budgets, from one source of truth.
 func (r *Runner) parallelFactor() int {
+	factor := ChildParallelFactor()
 	if r.concurrency > 1 {
-		return ParallelTimeoutHeadroom
+		factor = max(factor, ParallelTimeoutHeadroom)
 	}
-	return 1
+	return factor
 }
 
 // withParallelHeadroom widens a resolved per-test timeout by
 // ParallelTimeoutHeadroom when this Run executes tests concurrently. Serial
-// runs (-p 1 or a single selected test) keep the authored value so real
-// slowdowns surface quickly. See ParallelTimeoutHeadroom for rationale.
+// runs outside an enclosing concurrent run keep the authored value so real
+// slowdowns surface quickly. Nested runs retain the larger factor once.
+// See ParallelTimeoutHeadroom for rationale.
 //
 // This applies to the OUTER per-test budget AND to the fixed inner readiness
 // gates it used to leave untouched: BOTH daemon.ready waits (background and foreground), the
