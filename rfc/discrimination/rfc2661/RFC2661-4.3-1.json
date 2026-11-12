@@ -7,7 +7,7 @@
     "claim-sha": "3a1e7c5025a0569f",
     "route": "revert",
     "producer": "internal/component/l2tp/iccn_proxy.go::writeICCNProxyPAP",
-    "producer-sha": "47aac6ef9f2fb077",
+    "producer-sha": "5a774e90b8606627",
     "break": "body of writeICCNProxyPAP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

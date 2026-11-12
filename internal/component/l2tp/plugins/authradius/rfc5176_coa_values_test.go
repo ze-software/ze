@@ -29,6 +29,8 @@ func subscriberSession(t *testing.T, id, accessInterface string) {
 		ID:              id,
 		AccessType:      subscriber.AccessL2TP,
 		AccessInterface: accessInterface,
+		PppInterface:    coaFixtureInterface(10, 20),
+		Username:        "alice",
 		TunnelID:        10,
 		SessionID:       20,
 		AcctSessionID:   "10-20-1",

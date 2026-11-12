@@ -1,0 +1,5 @@
+**
+!test/interop-l2tp/Dockerfile.ze
+!test/interop-l2tp/Dockerfile.ze.dockerignore
+!test/interop-l2tp/ze-linux
+!test/interop-l2tp/le-linux

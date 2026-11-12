@@ -150,7 +150,7 @@ func TestAccountingRequestGoesToTheAccountingPort(t *testing.T) {
 		"                shared-key testing123\n")
 
 	previousHandler := l2tp.GetAuthHandler()
-	if err := activateRadiusConfig(cfg); err != nil {
+	if err := activateRadiusConfig(cfg, nil); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {

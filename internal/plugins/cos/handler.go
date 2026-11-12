@@ -6,8 +6,10 @@
 package cos
 
 import (
+	"maps"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
@@ -76,13 +78,17 @@ type updateQoSFunc func(ifaceName string, ingress, egress map[uint32]uint32) err
 type resolveStaticFunc func(ifaceName string) (ingress, egress map[uint32]uint32)
 
 type cosHandler struct {
+	mu            sync.Mutex
 	updateQoS     updateQoSFunc
+	readLink      func(string) (*iface.InterfaceInfo, error)
 	resolveStatic resolveStaticFunc
 	unsubs        []func()
+	pending       cosSessionChange
+	completed     completedCoSChange
 }
 
 func newCosHandler(bus ze.EventBus, updateQoS updateQoSFunc, resolveStatic resolveStaticFunc) *cosHandler {
-	h := &cosHandler{updateQoS: updateQoS, resolveStatic: resolveStatic}
+	h := &cosHandler{updateQoS: updateQoS, resolveStatic: resolveStatic, readLink: readSessionLink}
 	h.unsubs = append(h.unsubs,
 		l2tpevents.SessionUp.Subscribe(bus, h.onSessionUp),
 		l2tpevents.SessionDown.Subscribe(bus, h.onSessionDown),
@@ -99,6 +105,8 @@ func (h *cosHandler) stop() {
 }
 
 func (h *cosHandler) onSessionUp(p *l2tpevents.SessionUpPayload) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	if p.AccessInterface == "" {
 		logger().Debug("cos: session-up without access interface, skipping",
 			"tunnel", p.TunnelID, "session", p.SessionID)
@@ -122,18 +130,17 @@ func (h *cosHandler) onSessionUp(p *l2tpevents.SessionUpPayload) {
 	if h.resolveStatic != nil {
 		staticIn, staticOut = h.resolveStatic(p.AccessInterface)
 	}
+	if err := h.updateQoS(p.AccessInterface, profile.IngressMap, profile.EgressMap); err != nil {
+		logger().Warn("cos: apply failed",
+			"interface", p.AccessInterface, "profile", meta.CoSProfile, "error", err)
+		return
+	}
 	sessionStore.Store(key, sessionCoSState{
 		accessInterface: p.AccessInterface,
 		profileName:     meta.CoSProfile,
 		staticIngress:   staticIn,
 		staticEgress:    staticOut,
 	})
-
-	if err := h.updateQoS(p.AccessInterface, profile.IngressMap, profile.EgressMap); err != nil {
-		logger().Warn("cos: apply failed",
-			"interface", p.AccessInterface, "profile", meta.CoSProfile, "error", err)
-		return
-	}
 
 	recordApplied()
 	logger().Info("cos: applied dynamic profile",
@@ -142,10 +149,17 @@ func (h *cosHandler) onSessionUp(p *l2tpevents.SessionUpPayload) {
 }
 
 func (h *cosHandler) onSessionDown(p *l2tpevents.SessionDownPayload) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	key := sessionKey{tunnelID: p.TunnelID, sessionID: p.SessionID}
+	change := h.forgetSessionChange(key)
 	v, ok := sessionStore.LoadAndDelete(key)
 	if !ok {
-		return
+		if change == nil {
+			return
+		}
+		v = sessionCoSState{accessInterface: change.accessInterface,
+			staticIngress: change.ingress, staticEgress: change.egress}
 	}
 	state, ok := v.(sessionCoSState)
 	if !ok {
@@ -165,22 +179,24 @@ func (h *cosHandler) onSessionDown(p *l2tpevents.SessionDownPayload) {
 }
 
 func (h *cosHandler) onCoSChange(p *l2tpevents.SessionCoSChangePayload) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	if p.AccessInterface == "" {
 		return
 	}
-
+	key := sessionKey{tunnelID: p.TunnelID, sessionID: p.SessionID}
+	if h.pending != nil {
+		if h.pending.prepared().key == key {
+			return
+		}
+	}
 	profile, ok := coreCos.Lookup(p.ProfileName)
 	if !ok {
 		logger().Warn("cos: CoA profile not found", "profile", p.ProfileName)
 		return
 	}
-
-	key := sessionKey{tunnelID: p.TunnelID, sessionID: p.SessionID}
-	if v, loaded := sessionStore.Load(key); loaded {
-		if state, ok := v.(sessionCoSState); ok {
-			state.profileName = p.ProfileName
-			sessionStore.Store(key, state)
-		}
+	if h.consumeCommandReceipt(p, profile) {
+		return
 	}
 
 	if err := h.updateQoS(p.AccessInterface, profile.IngressMap, profile.EgressMap); err != nil {
@@ -188,9 +204,59 @@ func (h *cosHandler) onCoSChange(p *l2tpevents.SessionCoSChangePayload) {
 			"interface", p.AccessInterface, "profile", p.ProfileName, "error", err)
 		return
 	}
+	if v, loaded := sessionStore.Load(key); loaded {
+		if state, ok := v.(sessionCoSState); ok {
+			state.profileName = p.ProfileName
+			state.commandToken = ""
+			sessionStore.Store(key, state)
+		}
+	}
 
 	recordCoAChanged()
 	logger().Info("cos: applied CoA profile change",
 		"interface", p.AccessInterface, "profile", p.ProfileName,
 		"tunnel", p.TunnelID, "session", p.SessionID)
+}
+
+// consumeCommandReceipt skips one notification of the maps the owner already
+// installed. A lost notification must not suppress a later profile reload.
+// The caller MUST hold h.mu while inspecting the committed snapshot and store.
+func (h *cosHandler) consumeCommandReceipt(p *l2tpevents.SessionCoSChangePayload, profile coreCos.Profile) bool {
+	key := sessionKey{tunnelID: p.TunnelID, sessionID: p.SessionID}
+	value, loaded := sessionStore.Load(key)
+	if !loaded {
+		return false
+	}
+	state, valid := value.(sessionCoSState)
+	if !valid {
+		return false
+	}
+	if state.commandToken == "" {
+		return false
+	}
+	if state.accessInterface != p.AccessInterface {
+		return false
+	}
+	if state.profileName != p.ProfileName {
+		return false
+	}
+	if h.completed.token != state.commandToken {
+		return false
+	}
+	if h.completed.operation != completionCommitted {
+		return false
+	}
+	if h.completed.change == nil {
+		return false
+	}
+	confirmed := h.completed.change.profile
+	if !maps.Equal(confirmed.IngressMap, profile.IngressMap) {
+		return false
+	}
+	if !maps.Equal(confirmed.EgressMap, profile.EgressMap) {
+		return false
+	}
+	state.commandToken = ""
+	sessionStore.Store(key, state)
+	return true
 }

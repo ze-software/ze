@@ -7,8 +7,8 @@
     "claim-sha": "ef9d10d45418767b",
     "route": "revert",
     "producer": "internal/component/tacacs/client.go::sendToServers",
-    "producer-sha": "58d31116af117c21",
-    "break": "body of sendToServers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a3332adf26c42fae",
+    "break": "body of sendToServers replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8907-4.1-2",

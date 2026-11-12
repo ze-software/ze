@@ -9,6 +9,33 @@ module ze-l2tp-shaper-conf {
          Applies TC (traffic control) rules on pppN interfaces
          when sessions come up. Supports TBF and HTB qdiscs.";
 
+    container request {
+        config false;
+        description "Runtime operations leave persistent configuration unchanged.";
+        ze:help "Request a runtime operation.";
+        container l2tp {
+            description "Operations on live subscriber sessions use the running daemon.";
+            ze:help "L2TP runtime operations.";
+            container shaper {
+                description "The shaper confirms backend application before a rate change succeeds.";
+                ze:help "Subscriber shaping operations.";
+                container rate {
+                    ze:command "ze-l2tp-shaper:rate";
+                    description "Prepare captures the complete last successfully programmed shaping state.
+Apply changes both directions. Rollback restores that state, and commit releases the transaction.
+Tokens belong to the source peer and an owner retains only one pending transaction.";
+                    ze:help "Manage a subscriber rate transaction.";
+                    leaf transaction {
+                        type string { length "1..8192"; }
+                        mandatory true;
+                        description "A JSON object carries the operation and token, or the interface and rates for prepare.";
+                        ze:help "JSON transaction operation and values.";
+                    }
+                }
+            }
+        }
+    }
+
     container l2tp {
         // Repeat the canonical description owned by ze-l2tp-conf.yang verbatim,
         // so the tree merge does not warn on a mismatch. This module only

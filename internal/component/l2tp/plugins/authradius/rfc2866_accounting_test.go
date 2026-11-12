@@ -443,6 +443,10 @@ func TestRFC2866AcctSessionIDKeepsTunnelSessionPrefix(t *testing.T) {
 	fake := oneSessionService()
 	addr := coaTestListener(t, secret, nil, fake)
 	id := newRADIUSAcct().genSessionID(10, 20)
+	seedCoAAccountingIdentity(t, &acctSession{
+		tunnelID: 10, sessionID: 20, username: "alice", acctSessID: id,
+		pppInterface: fake.snap.Tunnels[0].Sessions[0].PppInterface,
+	})
 	resp := sendRawCoAPacket(t, addr, buildCoAPacket(t, radius.CodeDisconnectRequest, secret,
 		[]radius.Attr{{Type: radius.AttrAcctSessionID, Value: radius.AttrString(id)}}, time.Now()))
 	if resp.Code != radius.CodeDisconnectACK {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/internal/component/traffic"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -19,8 +20,13 @@ import (
 var errNoTrafficBackendLoadedConfigureTraffic = errors.New("no traffic backend loaded; configure traffic-control or wait for it to start")
 
 type shaperPlugin struct {
-	cfgPtr   atomic.Pointer[shaperConfig]
-	sessions sync.Map // sessionKey -> sessionState
+	cfgPtr      atomic.Pointer[shaperConfig]
+	sessions    sync.Map // sessionKey -> sessionState
+	mutationMu  sync.Mutex
+	confirmed   map[string]traffic.InterfaceQoS
+	ratePending rateChange
+	rateLast    rateChange
+	rateNow     func() time.Time // nil uses the system clock; tests can advance a private clock.
 
 	busMu sync.Mutex
 	bus   ze.EventBus
@@ -55,11 +61,22 @@ func (s *shaperPlugin) setEventBus(eb ze.EventBus) {
 	unsubUp := l2tpevents.SessionUp.Subscribe(eb, s.onSessionUp)
 	unsubDown := l2tpevents.SessionDown.Subscribe(eb, s.onSessionDown)
 	unsubRate := l2tpevents.SessionRateChange.Subscribe(eb, s.onSessionRateChange)
+	unsubSubscriberDown := subevents.SessionDown.Subscribe(eb, s.onSubscriberSessionDown)
 	s.unsub = func() {
 		unsubUp()
 		unsubDown()
 		unsubRate()
+		unsubSubscriberDown()
 	}
+}
+
+// onSubscriberSessionDown releases the confirmed state PPPoE session-up stored.
+// A late transaction must never re-create shaping after that lifetime ended.
+func (s *shaperPlugin) onSubscriberSessionDown(payload *subevents.SessionDownPayload) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	delete(s.confirmed, payload.Session.PppInterface)
+	s.invalidateRateInterface(payload.Session.PppInterface)
 }
 
 // handleSubscriberSessionUp is the subscriber.ShaperHandler registered at init.
@@ -70,6 +87,8 @@ func (s *shaperPlugin) setEventBus(eb ze.EventBus) {
 // A zero argument means the session carries no per-subscriber rate, which is
 // what subscriber.Session holds today, so the configured leaf applies.
 func (s *shaperPlugin) handleSubscriberSessionUp(iface string, downloadRate, uploadRate uint64) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
 	cfg := s.cfgPtr.Load()
 	if cfg == nil {
 		return
@@ -80,6 +99,7 @@ func (s *shaperPlugin) handleSubscriberSessionUp(iface string, downloadRate, upl
 	if uploadRate == 0 {
 		uploadRate = cfg.uploadRateOrDefault()
 	}
+	s.invalidateRateInterface(iface)
 	if err := s.applyTC(iface, cfg.QdiscType, downloadRate, uploadRate); err != nil {
 		logger().Warn("l2tp-shaper: failed to apply TC on subscriber session-up",
 			"interface", iface, "error", err)
@@ -90,6 +110,8 @@ func (s *shaperPlugin) handleSubscriberSessionUp(iface string, downloadRate, upl
 }
 
 func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
 	cfg := s.cfgPtr.Load()
 	if cfg == nil {
 		return
@@ -102,6 +124,7 @@ func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
 		uploadRate:   cfg.uploadRateOrDefault(),
 		appliedAt:    time.Now(),
 	}
+	s.invalidateRateInterface(payload.Interface)
 
 	// RFC 2865 Section 5.11: Filter-Id from RADIUS overrides default rate.
 	if meta := l2tp.LoadSessionMetadata(payload.TunnelID, payload.SessionID); meta != nil && meta.FilterID != "" {
@@ -132,12 +155,16 @@ func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
 }
 
 func (s *shaperPlugin) onSessionDown(payload *l2tpevents.SessionDownPayload) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
 	key := sessionKey{tunnelID: payload.TunnelID, sessionID: payload.SessionID}
 	val, loaded := s.sessions.LoadAndDelete(key)
 	if !loaded {
 		return
 	}
 	if state, ok := val.(sessionState); ok {
+		delete(s.confirmed, state.iface)
+		s.invalidateRateInterface(state.iface)
 		if restorer, ok := traffic.GetBackend().(traffic.OriginalStateRestorer); ok {
 			if err := restorer.RestoreOriginal(context.Background(), state.iface); err != nil {
 				logger().Warn("l2tp-shaper: failed to restore original TC on session-down",
@@ -150,6 +177,8 @@ func (s *shaperPlugin) onSessionDown(payload *l2tpevents.SessionDownPayload) {
 }
 
 func (s *shaperPlugin) onSessionRateChange(payload *l2tpevents.SessionRateChangePayload) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
 	key := sessionKey{tunnelID: payload.TunnelID, sessionID: payload.SessionID}
 	val, ok := s.sessions.Load(key)
 	if !ok {
@@ -174,6 +203,13 @@ func (s *shaperPlugin) onSessionRateChange(payload *l2tpevents.SessionRateChange
 	uploadRate := payload.UploadRate
 	if uploadRate == 0 {
 		uploadRate = state.uploadRate
+	}
+	// CoA emits its notification after the synchronous owner command applied
+	// this pair. Other event producers retain the existing change behavior.
+	if state.downloadRate == payload.DownloadRate && state.uploadRate == uploadRate {
+		if _, confirmed := s.confirmed[state.iface]; confirmed {
+			return
+		}
 	}
 
 	if err := s.applyTC(state.iface, qdiscType, payload.DownloadRate, uploadRate); err != nil {
@@ -204,6 +240,7 @@ func (s *shaperPlugin) onSessionRateChange(payload *l2tpevents.SessionRateChange
 // Every call programs both. A rate change re-enters here with the new pair, so
 // nothing about the path is install-once: an authorization change that is
 // accepted and never programmed is the failure this design exists to avoid.
+// Callers MUST hold mutationMu across this call and their session-state update.
 func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, downloadBps, uploadBps uint64) error {
 	backend := traffic.GetBackend()
 	if backend == nil {
@@ -216,6 +253,19 @@ func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, do
 		return fmt.Errorf("subscriber upload rate: %w", err)
 	}
 
+	qos, err := subscriberQoS(ifaceName, qdiscType, downloadBps, uploadBps)
+	if err != nil {
+		return err
+	}
+	if err := backend.Apply(context.Background(), map[string]traffic.InterfaceQoS{ifaceName: qos}); err != nil {
+		return err
+	}
+	s.rememberQoS(qos)
+	return nil
+}
+
+// subscriberQoS constructs the exact two directions the shaper owns.
+func subscriberQoS(ifaceName string, qdiscType traffic.QdiscType, downloadBps, uploadBps uint64) (traffic.InterfaceQoS, error) {
 	qos := traffic.InterfaceQoS{
 		Interface: ifaceName,
 		Qdisc: traffic.Qdisc{
@@ -238,13 +288,20 @@ func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, do
 		qos.Qdisc.RateBps = downloadBps
 	case traffic.QdiscHFSC, traffic.QdiscFQ, traffic.QdiscFQCodel, traffic.QdiscSFQ,
 		traffic.QdiscNetem, traffic.QdiscPrio, traffic.QdiscClsact, traffic.QdiscIngress:
-		return fmt.Errorf("subscriber shaper requires tbf or htb, got %s", qdiscType)
+		return traffic.InterfaceQoS{}, fmt.Errorf("subscriber shaper requires tbf or htb, got %s", qdiscType)
 	default: // The set is open: the qdisc type comes from config.
-		return fmt.Errorf("subscriber shaper requires tbf or htb, got %s", qdiscType)
+		return traffic.InterfaceQoS{}, fmt.Errorf("subscriber shaper requires tbf or htb, got %s", qdiscType)
 	}
+	return qos, nil
+}
 
-	desired := map[string]traffic.InterfaceQoS{ifaceName: qos}
-	return backend.Apply(context.Background(), desired)
+// rememberQoS records only a successfully programmed state. Callers MUST hold
+// mutationMu, as they do across the backend apply and the owner-state update.
+func (s *shaperPlugin) rememberQoS(qos traffic.InterfaceQoS) {
+	if s.confirmed == nil {
+		s.confirmed = make(map[string]traffic.InterfaceQoS)
+	}
+	s.confirmed[qos.Interface] = qos
 }
 
 func (s *shaperPlugin) showSessions() any {

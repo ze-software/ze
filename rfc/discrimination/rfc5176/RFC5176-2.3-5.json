@@ -46,6 +46,28 @@
   {
     "rid": "RFC5176-2.3-5",
     "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go::TestCoAImplementedIdentificationStillApplies",
+    "unit-sha": "a631fc0f79ca691f",
+    "claim-sha": "713425d68610bd6d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa_transaction.go::confirmCoA",
+    "producer-sha": "9cfdaf6623236160",
+    "break": "body of confirmCoA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-2.3-5",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go::TestDynamicAuthorizationRefusesUnimplementedIdentification",
+    "unit-sha": "986713c545175d8c",
+    "claim-sha": "4605bd9fc9636e39",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::unsupportedAttr",
+    "producer-sha": "d3c60711cf64c92d",
+    "break": "line 350: \"if !supported[pkt.Attrs[i].Type] {\" -\u003e \"if false \u0026\u0026 !supported[pkt.Attrs[i].Type] {\""
+  },
+  {
+    "rid": "RFC5176-2.3-5",
+    "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed",
     "unit-sha": "274039c0fd0cd29e",
     "claim-sha": "f29abd222fdf7748",

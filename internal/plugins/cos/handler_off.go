@@ -7,6 +7,7 @@ package cos
 
 import (
 	"github.com/ze-software/ze/internal/core/metrics"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -33,6 +34,10 @@ type cosHandler struct{}
 func newCosHandler(ze.EventBus, updateQoSFunc, resolveStaticFunc) *cosHandler { return &cosHandler{} }
 
 func (h *cosHandler) stop() {}
+
+func sessionCommandDecls() []sdk.CommandDecl { return nil }
+
+func registerSessionCommand(map[string]func([]string, string) (string, any, error)) {}
 
 // BindMetrics is a no-op: the dynamic-CoS counters (applied/reverted/coa)
 // count session events, which cannot occur without the BNG.

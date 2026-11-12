@@ -1,13 +1,13 @@
 {
-  "note": "(a) forbidden: using an identification attribute as an authorization change. (b) TestRFC5176IdentificationAttributesIdentifyOnly asserts a CoA carrying User-Name, NAS-Port, Called-Station-Id and NAS-Identifier plus Filter-Id emits exactly one rate event for session 20 at the Filter-Id rate, and an identification-only CoA is NAKed 401 with no new event.",
+  "note": "Independent semantic rejudgment 2026-11-12 against Section 3.6 Note 1: NAS/session identification attributes serve identification only, never authorization changes. IdentificationAttributesIdentifyOnly now uses exactly the three implemented selectors (User-Name, NAS-Port, Acct-Session-Id), replacing two unsupported extras previously ignored. With Filter-Id it requires CoA-ACK, exactly one typed rate event for session 20 at 10M; with the SAME three selectors and no authorization attribute it requires CoA-NAK 401 and no further event. The genuine accepted control prevents passing through blanket rejection, while the bare control catches interpreting identity as a requested authorization change. readCoAChange reads only Filter-Id/VSA; sessionSelectorsMatch only narrows identity. New signed-wire refusal tests retain all eleven removed unsupported types as explicit 401 controls, so the correction does not hide those inputs. All prior payload/rate/count assertions remain. No native proof claim is inferred.",
   "requirement_sha": "dc580da5c2327d98",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly": "2b3357f1f1e8ec93",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly#2": "2b3357f1f1e8ec93"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly": "fc41528fea27644c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly#2": "fc41528fea27644c"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly": "d88a8334c75becb4",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly#2": "d88a8334c75becb4"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly": "6eac10e62ef1a127",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly#2": "6eac10e62ef1a127"
   },
   "verdict": "enforced"
 }

@@ -58,6 +58,7 @@ const (
 	CodeDoctorDNSSourceInterfaceSilent             = "doctor-dns-source-interface-silent"
 	CodeDoctorDNSSourceSelfUnserved                = "doctor-dns-source-self-unserved"
 	CodeDoctorClockSkew                            = "doctor-clock-skew"
+	CodeDoctorRADIUSCoAApply                       = "doctor-radius-coa-apply"
 	CodeDoctorMachineIDMissing                     = "doctor-machine-id-missing"
 	CodeDoctorConfigClaimsUnavailable              = "doctor-config-claims-unavailable"
 	CodeDoctorConfigRootUnclaimed                  = "doctor-config-root-unclaimed"
@@ -1274,6 +1275,12 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "RADIUS servers unreachable",
 		Description: "No configured L2TP RADIUS server could be reached by the UDP readiness probe.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-radius-unreachable"},
+	},
+	{
+		Code:        CodeDoctorRADIUSCoAApply,
+		Title:       "Subscriber authorization backend did not confirm a change",
+		Description: "A RADIUS CoA owner failed to apply or restore a subscriber's shaping or VLAN maps. The runtime finding retains the backend cause until a successful retry for that session, session teardown, or provider shutdown. Inspect shaping and interface state, repair the backend, then retry the authenticated authorization request.",
+		Examples:    []string{exampleShowDoctor, "ze show l2tp shaper"},
 	},
 	{
 		Code:        "doctor-radius-invalid",

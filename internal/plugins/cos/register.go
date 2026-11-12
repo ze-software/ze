@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/plugins/cos/yang"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -51,7 +52,11 @@ func init() {
 				if b == nil {
 					return fmt.Errorf("cos: no iface backend loaded")
 				}
-				return b.UpdateVLANQoSMap(ifaceName, ingress, egress)
+				device, err := iface.ResolveDevice(ifaceName)
+				if err != nil {
+					return err
+				}
+				return b.UpdateVLANQoSMap(device, ingress, egress)
 			}
 			dynamicHandler = newCosHandler(eb, updateFn, nil)
 		},
@@ -157,12 +162,7 @@ func runPlugin(conn net.Conn) int {
 
 	newCoSConfigTx().Register(p)
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
-		if command == "show class-of-service" {
-			return "done", showProfiles(), nil
-		}
-		return "error", "", fmt.Errorf("unknown command: %s", command)
-	})
+	p.OnExecuteCommand(executeCommand)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -185,10 +185,29 @@ func runPlugin(conn net.Conn) int {
 // without starting an engine, and the runner sends it in the Stage 1
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
-	return []sdk.CommandDecl{
+	decls := []sdk.CommandDecl{
 		{
 			Name:      "show class-of-service",
 			ShortHelp: "Show each class-of-service profile with its ingress and egress marking maps.",
 		},
 	}
+	return append(decls, sessionCommandDecls()...)
+}
+
+// executeCommand admits only commands this plugin declares. The session owner
+// route uses the same handler for DirectBridge and socket command callbacks.
+func executeCommand(_ string, command string, args []string, peer string) (string, any, error) {
+	handlers := map[string]func([]string, string) (string, any, error){
+		"show class-of-service": func([]string, string) (string, any, error) {
+			return "done", showProfiles(), nil
+		},
+	}
+	registerSessionCommand(handlers)
+	handler, found := handlers[command]
+	if !found {
+		return "error", "", opererr.New("unknown class-of-service command: "+command,
+			"This plugin serves the class-of-service commands declared by the running binary.",
+			"ze show class-of-service")
+	}
+	return handler(args, peer)
 }

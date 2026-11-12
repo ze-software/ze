@@ -42,12 +42,57 @@ nothing.
 `ConfigureEventBus` is the engine-side hook for a typed event subscription, and
 it is what the shaper uses. `OnStarted` is not that hook.
 
-### Reverting the static map passes nil
+### CoA waits for the owner to apply its maps
 
-There is no backend method that reads the current QoS maps, so a revert cannot
-restore what it did not record. Passing nil clears the map on both backends,
-because `UpdateVLANQoSMap` is a full replace (`../iface/vlan-qos-map.md`), which
-is the correct end state when no static config exists.
+<!-- source: internal/plugins/cos/session_transaction.go -- executeSessionTransaction, prepareSessionChange -->
+<!-- source: internal/plugins/cos/register.go -- commandDecls, executeCommand -->
+
+RADIUS dispatches the hidden `request class-of-service session` command through
+the existing command transport. Its arguments are `transaction` and one JSON
+value. Prepare carries `operation`, `tunnel-id`, `session-id`, `interface` and
+`profile`; its answer carries an opaque `token`. Apply, rollback and commit
+carry only `operation` and that token. The authenticated request's peer context
+must remain the same for every step.
+
+Prepare changes nothing. It reads the actual VLAN ingress and egress maps with
+the interface backend's `GetLink`, copies the proposed profile and records the
+session's previous CoS state. Apply installs the maps before publishing the new
+profile. A failed apply restores the captured maps before reporting failure;
+rollback restores both the actual maps and the session state. RADIUS commits
+only after every owner accepted the request, then acknowledges the CoA.
+
+The post-commit session event consumes one transaction receipt when its token
+matches the retained committed snapshot and both current profile maps equal
+the maps that command installed. That notification needs no second backend
+write. Later legacy events still apply their profile. If the first notification
+was lost and the profile's maps changed, the old receipt cannot suppress the
+updated maps.
+
+<!-- source: internal/plugins/cos/handler.go -- cosHandler.consumeCommandReceipt -->
+
+The owner holds one pending change and one completed token with its snapshot.
+The last committed change remains compensatable until the next prepare, so a
+later owner's failed commit can restore every part of the request. This bounds
+retained snapshots and makes retries of the last apply, rollback or commit idempotent.
+An outstanding transaction refuses another prepare, so another request cannot
+overwrite the state needed to compensate it. A pending change expires after one
+minute: the next request restores its maps before admitting new work. Session
+departure invalidates its tokens, so a delayed apply cannot restore a departed
+subscriber. An external CoS process has no
+interface backend wiring and refuses the operation; it cannot acknowledge maps
+it did not install.
+
+The netlink backend reports both VLAN maps in `GetLink`, including an empty map
+when none is installed. VPP's `detailsToInfo` reports link identity and VLAN
+attributes but does not report the maps. Its `UpdateVLANQoSMap` can program
+identity ingress and egress marking, but the atomic CoA path refuses prepare
+when it cannot capture the previous maps to restore. Empty unreported fields
+are never treated as evidence that VPP has no installed mapping. This limitation
+does not change the existing configuration or session event paths.
+
+<!-- source: internal/plugins/iface/netlink/show_linux.go -- linkToInfo -->
+<!-- source: internal/plugins/iface/vpp/query.go -- detailsToInfo -->
+<!-- source: internal/plugins/iface/vpp/ifacevpp.go -- UpdateVLANQoSMap -->
 
 ## Consequences
 

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"strings"
 	"sync"
 	"time"
 
@@ -21,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/radius"
 	"github.com/ze-software/ze/internal/component/traffic"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
@@ -45,6 +45,7 @@ type coaListenerConfig struct {
 	Secrets        map[string][]byte // source IP -> shared secret
 	DefaultSecret  []byte
 	Bus            ze.EventBus
+	Dispatch       coaCommandDispatch
 	AllowedSources []net.IP
 
 	// CoARequireMessageAuthenticator is the `coa-require-message-authenticator` leaf
@@ -289,32 +290,21 @@ func (cl *coaListener) answerRequest(pkt *radius.Packet, from *net.UDPAddr) {
 }
 
 // coaSupportedAttrs are the attribute types this NAS accepts in a CoA-Request:
-// the NAS and session identification attributes of RFC 5176 Section 3, the
+// the three session identification attributes this NAS evaluates, the
 // transport attributes its Section 3.6 table allows in every packet, and the two
 // authorization-change attributes this NAS implements (Filter-Id and
 // Vendor-Specific, which carry the rate and the CoS profile).
 var coaSupportedAttrs = map[uint8]bool{
 	radius.AttrUserName:             true,
-	radius.AttrNASIPAddress:         true,
 	radius.AttrNASPort:              true,
 	radius.AttrServiceType:          true,
-	radius.AttrFramedIPAddress:      true,
 	radius.AttrFilterID:             true,
 	radius.AttrState:                true,
 	radius.AttrVendorSpecific:       true,
-	radius.AttrCalledStationID:      true,
-	radius.AttrCallingStationID:     true,
-	radius.AttrNASIdentifier:        true,
 	radius.AttrProxyState:           true,
 	radius.AttrAcctSessionID:        true,
-	radius.AttrAcctMultiSessionID:   true,
 	radius.AttrEventTimestamp:       true,
 	radius.AttrMessageAuthenticator: true,
-	radius.AttrNASPortID:            true,
-	radius.AttrChargeableUserID:     true,
-	radius.AttrNASIPv6Address:       true,
-	radius.AttrFramedInterfaceID:    true,
-	radius.AttrFramedIPv6Prefix:     true,
 }
 
 // disconnectSupportedAttrs are the attribute types this NAS accepts in a
@@ -336,22 +326,14 @@ var coaSupportedAttrs = map[uint8]bool{
 // attribute mandatory, so one it would ignore is refused with a 401.
 var disconnectSupportedAttrs = map[uint8]bool{
 	radius.AttrUserName:             true,
-	radius.AttrNASIPAddress:         true,
 	radius.AttrNASPort:              true,
 	radius.AttrReplyMessage:         true,
 	radius.AttrClass:                true,
-	radius.AttrCalledStationID:      true,
-	radius.AttrCallingStationID:     true,
-	radius.AttrNASIdentifier:        true,
 	radius.AttrProxyState:           true,
 	radius.AttrAcctSessionID:        true,
 	radius.AttrAcctTerminateCause:   true,
-	radius.AttrAcctMultiSessionID:   true,
 	radius.AttrEventTimestamp:       true,
 	radius.AttrMessageAuthenticator: true,
-	radius.AttrNASPortID:            true,
-	radius.AttrChargeableUserID:     true,
-	radius.AttrNASIPv6Address:       true,
 }
 
 // unsupportedAttr answers the first attribute type the request carries that this
@@ -373,18 +355,13 @@ func unsupportedAttr(pkt *radius.Packet) (uint8, bool) {
 }
 
 // fixedLengthAttrs are the supported attributes whose value has one length:
-// the four-octet address, integer and time values of RFC 2865 Section 5, RFC
-// 2866 Section 5.10 and RFC 2869 Section 5.3, and the RFC 3162 IPv6 address
-// (16 octets) and interface identifier (8 octets).
+// the four-octet integer and time values of RFC 2865 Section 5, RFC 2866
+// Section 5.10 and RFC 2869 Section 5.3.
 var fixedLengthAttrs = map[uint8]int{
-	radius.AttrNASIPAddress:       4,
 	radius.AttrNASPort:            4,
 	radius.AttrServiceType:        4,
-	radius.AttrFramedIPAddress:    4,
 	radius.AttrAcctTerminateCause: 4,
 	radius.AttrEventTimestamp:     4,
-	radius.AttrNASIPv6Address:     16,
-	radius.AttrFramedInterfaceID:  8,
 }
 
 // unsupportedAttrValue answers the first supported attribute whose value this
@@ -495,6 +472,15 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 		return
 	}
 
+	// RFC 5176 Section 2.3: the ACK follows confirmed backend application.
+	if err := cl.confirmCoA(&subscriber.Session{
+		TunnelID: sess.TunnelLocalTID, SessionID: sid, PppInterface: sess.PppInterface,
+	}, &change, from.IP.String()); err != nil {
+		logger().Warn("Subscriber authorization failed; inspect shaping and repair the backend before retrying the request",
+			"code", diagnostic.CodeDoctorRADIUSCoAApply, "error", err, "from", from, "fix", coaHealthFix)
+		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
+		return
+	}
 	if _, emitErr := l2tpevents.SessionRateChange.Emit(cl.cfg.Bus, &l2tpevents.SessionRateChangePayload{
 		TunnelID:     sess.TunnelLocalTID,
 		SessionID:    sid,
@@ -502,8 +488,6 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 		UploadRate:   change.upload,
 	}); emitErr != nil {
 		logger().Warn("coa: emit rate-change failed", "error", emitErr)
-		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
-		return
 	}
 
 	cl.sendResponse(from, pkt, radius.CodeCoAACK, 0)
@@ -522,12 +506,9 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 // NOT be made for any of the matching sessions." The subscriber registry answers
 // with one session, so "all matching sessions" is that session.
 //
-// Atomicity is kept by order: every condition that can refuse a part of the
-// change (no event bus, a CoS profile for a session with no access interface) is
-// decided before the first event leaves, and readCoAChange has already refused
-// any value this NAS cannot apply. The bus then refuses an emit only for an
-// event type nobody registered, and all three events here are registered at
-// package init, so no emit after the first can be refused.
+// Every owner prepares before either applies. A failed apply restores each
+// prepared owner's last confirmed state; an ACK follows all successful owner
+// results. The events below then notify observers and carry no apply authority.
 func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr, sub *subscriber.Session, change *coaChange) {
 	if cl.cfg.Bus == nil {
 		logger().Warn("coa: no event bus, the authorization change cannot be carried out", "from", from)
@@ -543,6 +524,13 @@ func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr,
 		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
 		return
 	}
+	// RFC 5176 Section 2.3.
+	if err := cl.confirmCoA(sub, change, from.IP.String()); err != nil {
+		logger().Warn("Subscriber authorization failed; inspect shaping and repair the backend before retrying the request",
+			"code", diagnostic.CodeDoctorRADIUSCoAApply, "error", err, "from", from, "fix", coaHealthFix)
+		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
+		return
+	}
 	if change.hasRate {
 		if _, err := subevents.SessionRateChange.Emit(cl.cfg.Bus, &subevents.SessionRateChangePayload{
 			SessionID:    sub.ID,
@@ -550,8 +538,6 @@ func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr,
 			UploadRate:   change.upload,
 		}); err != nil {
 			logger().Warn("coa: emit subscriber rate-change failed", "error", err)
-			cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
-			return
 		}
 		// An L2TP session also needs the L2TP-specific event, which the shaper
 		// plugin consumes.
@@ -563,8 +549,6 @@ func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr,
 				UploadRate:   change.upload,
 			}); err != nil {
 				logger().Warn("coa: emit l2tp rate-change failed", "error", err)
-				cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
-				return
 			}
 		}
 	}
@@ -576,8 +560,6 @@ func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr,
 			ProfileName:     change.cosProfile,
 		}); err != nil {
 			logger().Warn("coa: emit cos-change failed", "error", err)
-			cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
-			return
 		}
 	}
 	cl.sendResponse(from, pkt, radius.CodeCoAACK, 0)
@@ -634,8 +616,12 @@ func (cl *coaListener) handleDisconnect(pkt *radius.Packet, from *net.UDPAddr) {
 	logger().Info("coa: disconnected session", "session", sid, "from", from)
 }
 
-// findSubscriberSession looks up the subscriber registry by Acct-Session-Id.
-// Works for both PPPoE and L2TP sessions.
+// findSubscriberSession narrows an exact accounting-id registry hit with every
+// supported session selector, for PPPoE and L2TP alike.
+// RFC 5176 Section 3: "The combination of NAS and session identification
+// attributes included in a CoA-Request or Disconnect-Request packet MUST match
+// at least one session in order for a Request to be successful; otherwise a
+// Disconnect-NAK or CoA-NAK MUST be sent."
 func (cl *coaListener) findSubscriberSession(pkt *radius.Packet) (subscriber.Session, bool) {
 	acctSessID := pkt.FindAttr(radius.AttrAcctSessionID)
 	if acctSessID == nil {
@@ -645,7 +631,50 @@ func (cl *coaListener) findSubscriberSession(pkt *radius.Packet) (subscriber.Ses
 	if svc == nil {
 		return subscriber.Session{}, false
 	}
-	return svc.Registry.LookupByAcctSessionID(string(acctSessID))
+	session, found := svc.Registry.LookupByAcctSessionID(string(acctSessID))
+	if !found {
+		return subscriber.Session{}, false
+	}
+	_, nasPort := session.PPPKey()
+	if !sessionSelectorsMatch(pkt, session.Username, uint32(nasPort), func(value []byte) bool {
+		return string(value) == session.AcctSessionID
+	}) {
+		return subscriber.Session{}, false
+	}
+	return session, true
+}
+
+// sessionSelectorsMatch checks each supplied implemented selector, including
+// repeated attributes. The accounting matcher preserves the registry's exact
+// id and the accountant's full issued id without duplicating this guard.
+// RFC 5176 Section 3: "The combination of NAS and session identification
+// attributes included in a CoA-Request or Disconnect-Request packet MUST match
+// at least one session in order for a Request to be successful; otherwise a
+// Disconnect-NAK or CoA-NAK MUST be sent."
+func sessionSelectorsMatch(pkt *radius.Packet, username string, nasPort uint32, matchesAccount func([]byte) bool) bool {
+	// The attribute count is bounded by the admitted RADIUS packet length.
+	for i := range pkt.Attrs {
+		attr := &pkt.Attrs[i]
+		// Admission has already refused every unsupported identification type.
+		switch attr.Type {
+		case radius.AttrAcctSessionID:
+			if !matchesAccount(attr.Value) {
+				return false
+			}
+		case radius.AttrUserName:
+			if string(attr.Value) != username {
+				return false
+			}
+		case radius.AttrNASPort:
+			if len(attr.Value) != 4 {
+				return false
+			}
+			if binary.BigEndian.Uint32(attr.Value) != nasPort {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // oneSession answers the single session the request identifies, having already
@@ -687,8 +716,9 @@ func (cl *coaListener) oneSession(pkt *radius.Packet, from *net.UDPAddr, nak uin
 // three identifies nothing and matches nothing.
 //
 // The accounting plugin writes an Acct-Session-Id as
-// "tunnelID-sessionID-bootTag-counter" (acct.go genSessionID), so the match is
-// on the "tunnelID-sessionID-" prefix and the boot tag and counter are ignored.
+// "tunnelID-sessionID-bootTag-counter" (acct.go genSessionID). The complete
+// value must equal the current accounting owner's id; an unknown accounting
+// context cannot be reconstructed from the numeric tuple in a snapshot.
 func (cl *coaListener) findSessions(pkt *radius.Packet) []uint16 {
 	svc := l2tp.LookupService()
 	if svc == nil {
@@ -702,21 +732,24 @@ func (cl *coaListener) findSessions(pkt *radius.Packet) []uint16 {
 	}
 
 	var out []uint16
+	var accountIDs map[sessionKey]string
+	if acctSessID != nil {
+		// RFC 5176 Section 3: use the complete id this NAS actually issued.
+		accountIDs = acctInstance.currentSessionIDs()
+	}
 	snap := svc.Snapshot()
 	for i := range snap.Tunnels {
 		for j := range snap.Tunnels[i].Sessions {
 			sess := &snap.Tunnels[i].Sessions[j]
-			if acctSessID != nil {
-				var pb textbuf.Buffer
-				prefix := pb.Reset().Int(int64(snap.Tunnels[i].LocalTID)).Byte('-').Int(int64(sess.LocalSID)).Byte('-').String()
-				if !strings.HasPrefix(string(acctSessID), prefix) {
-					continue
+			key := sessionKey{tunnelID: snap.Tunnels[i].LocalTID, sessionID: sess.LocalSID}
+			// RFC 5176 Section 3: fallback obeys the same full selector guard.
+			if !sessionSelectorsMatch(pkt, sess.Username, uint32(sess.LocalSID), func(value []byte) bool {
+				id, found := accountIDs[key]
+				if !found {
+					return false
 				}
-			}
-			if userName != nil && sess.Username != string(userName) {
-				continue
-			}
-			if len(nasPortAttr) == 4 && uint32(sess.LocalSID) != binary.BigEndian.Uint32(nasPortAttr) {
+				return string(value) == id
+			}) {
 				continue
 			}
 			out = append(out, sess.LocalSID)
@@ -814,6 +847,12 @@ func (c *coaChange) addVendorSpecific(raw []byte) uint32 {
 // shaper can install, and a second rate would be ignored, so both answer 407.
 func (c *coaChange) setRate(download, upload uint64) uint32 {
 	if download == 0 {
+		return radius.ErrorCauseInvalidAttributeValue
+	}
+	if download%8 != 0 {
+		return radius.ErrorCauseInvalidAttributeValue
+	}
+	if upload%8 != 0 {
 		return radius.ErrorCauseInvalidAttributeValue
 	}
 	if c.hasRate {

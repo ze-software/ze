@@ -6,17 +6,9 @@ package trafficnetlink
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/ze-software/ze/internal/component/traffic"
 )
-
-func init() {
-	if err := traffic.RegisterVerifier("tc", verifyDesired); err != nil {
-		fmt.Fprintf(os.Stderr, "trafficnetlink: verifier registration failed: %v\n", err)
-		os.Exit(1)
-	}
-}
 
 // verifyDesired runs at config verification and at Apply for dynamic subscriber
 // callers. Invalid rates or classless/classful mixtures must not replace a live

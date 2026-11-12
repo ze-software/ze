@@ -1,18 +1,123 @@
 # Handover: closing near-done specs (2026-11-10)
 
-**Current status (2026-11-11):** nine specs closed; refusal is blocked on scoped lint;
-lint-tooling and route-policy remain claimed. Access's old claim marker is gone,
-but another session's uncommitted acceptance preparation is preserved.
+**Current status (2026-11-12):** nine specs closed; refusal is blocked on scoped lint;
+lint-tooling and route-policy remain claimed. Access is source-complete and
+blocked on foreign guest-build input and changing lint dependencies.
 Route-policy still owes matched Mac measurements. Reload's claim is released.
 **Branch:** main. No push was performed by this session; Thomas controls pushes.
 **Goal:** close the open specs whose implementation is already committed. The
 owner asked that locked or blocked specs not stop progress on the others.
 
+## Current Access blocked checkpoint, 2026-11-12
+
+Native commit preparation refused two owned error-reporting sites and produced
+no script. Main corrected duplicate literal `tc` startup registration to a
+programmer-BUG panic and CoS unknown-command reporting to an operator refusal
+with the supplied command and `ze show class-of-service` recovery. Independent
+bounded source review approves both; all nine focused race roots pass without
+skips in `job-access-final-error-surface-controls-8c7f5c5b.log`. The historical
+240-carrier artifact predates these two corrections; refresh its affected pins
+before closure. This note adds no fourth whole-source review pass.
+
+Access remains open; no tenth spec has closed. Root currently holds its claim
+`01a1c842-0a58-7752-bbff-2a3f1633b66f`. All source findings are repaired;
+independent Review 3 is CLEAN with zero BLOCKER/ISSUE, and main observed the
+native artifact/check PASS over 240 carriers at the completed source checkpoint.
+The owned diagnostic-only patch retains reviewed SHA
+`eec1496845df93f13dd7c189a18bb2ddb14a42567ffc3947709b160efa1fd5e6`;
+later foreign diagnostic additions are excluded. Main observed 393 affected-package race
+roots PASS with zero skips, CoS without L2TP PASS and the current named build
+PASS. Seventeen native proof renewals are recorded in
+`job-access-final-seventeen-rfc-proofs-d82b2fea.log`. Eight semantic rejudgments
+and mechanical shifts are applied; `access-final-owned-rfc-lines.json` is empty
+after regeneration: zero findings across the thirteen owned stems. Foreign
+global findings are preserved. Byte-identical RFC test renames add no review round.
+
+Keep the Ze/KVM passes for `01-ppp-ipv4`
+(`job-access-existing-ppp-ipv4-5622c558.log`) and `03-ze-lac-xl2tpd-lns`
+(`job-access-existing-remaining-one-ze-vm-3996ff22.log`). The current retry in
+`job-access-final-five-ze-guest-retry-8670e830.log` reached Docker readiness,
+then all five cases failed cross-compilation before assertions: foreign
+untracked `internal/plugins/fib/vpp/routesource.go:32` imports absent vendor
+package `go.fd.io/govpp/binapi/fib`. Each case reports zero scenarios. KVM and
+the kernel check pass; lab-exit is 1 and the VM stops with no leftovers.
+
+The one final scoped lint attempt exits 2 without producing a plan: foreign
+`internal/plugins/fib/vpp/mpls.go` changed during planning after host
+(`job-access-scoped-lint-final-checkpoint-476d68e0.log`). The source owner holds
+`spec-fib-depth.md` as `f5ef1144-6c05-40fc-8506-68a94ded2a6f`; preserve its work.
+No lint pass is claimed and main will not retry in a loop.
+
+Unblock by letting that owner finish the import/vendor repair and dependency
+edits, then rebuild in main and rerun exactly `04-radius-acct-attrs`,
+`01-pppoe-chap-ipv4`, `02-ze-ac-pppd-client`, `radius-admin-eap-freeradius`
+and `radius-coa-disconnect-freeradius` under the Ze Docker-host VM. Rerun the
+13-directory scoped lint once inputs settle and validate the five Dockerfile
+allowlists through the normal native build path. Preserve both completed passes.
+
+The prior commit-create was cancelled before publication to preserve sixteen
+foreign diagnostic lines; no commit is pending or landed at this checkpoint.
+The next single blocked-handback commit uses the 48-file manifest
+`scratch/access-coa-source-commit-files-with-hunks.txt`, diagnostic-only hunks
+from `scratch/access-coa-diagnostic-owned.patch`, the 29 audit JSON files in
+`scratch/access-audit-metadata-files.txt`, five Docker ignore files, two traffic
+verifier carriers, Access spec/handover/news, two whole owned journal files and
+the isolated Access journal row in `scratch/access-journal-selector-owned.patch`.
+Preserve the foreign diagnostic and journal hunks.
+No push or `./le verify` ran; all execution remains main-only.
+
+## Earlier Access continuation, 2026-11-11 (superseded)
+
+Refusal blocked handback `3ac9c3b11f` is committed and its claim released.
+Access is claimed by `01a1c842-0a58-7752-bbff-2a3f1633b66f`. No tenth spec
+has closed. Official Access Review 1 found three issues: CoA ACK before
+confirmed backend application, subscriber lookup ignoring additional selectors,
+and traffic verifier registration outside a register file. Source repairs are
+active in `access_coa_repair` and `access_cos_transaction`; review reports and
+the complete 43-commit scope are `scratch/access-closure-round1.{md,json}`
+and `access-review1-*`. No CLEAN artifact is authorized for Access yet.
+
+Main observed genuine CoA negatives (conflicting username/NAS port, 1bit rate,
+backend refusal) while the valid actual-backend control passed:
+`job-access-coa-real-owner-red-9709e666.log`. CoS failed-write state publication
+and missing synchronous route also failed:
+`job-access-cos-owner-red-236be207.log`. Both owners now use the existing
+synchronous command transport, with prepare/apply/rollback/commit; source and
+tests remain uncommitted pending main execution and independent review.
+
+Existing acceptance: `01-ppp-ipv4` passes on Ze/KVM with all exits zero and no
+leftovers (`job-access-existing-ppp-ipv4-5622c558.log`), and
+`03-ze-lac-xl2tpd-lns` passes in the retained batch
+`job-access-existing-remaining-one-ze-vm-3996ff22.log`. RADIUS accounting ran
+zero scenarios: its Docker build filled the guest while copying unrelated
+staged lab binaries. The first PPPoE setup then met this session's incomplete
+owner edits; the second was cancelled while stopping the batch. The EAP case
+was not reached. The stopped VM reports no leftovers and lab-exit 143.
+Rerun these four outstanding cases after source is coherent and the three
+Dockerfile-specific allowlists are validated; keep both passed cases.
+
+The allowlists restrict only L2TP/PPPoE Ze image COPY inputs and the RADIUS
+mock's actual production compile closure. They leave the root Docker ignore
+and the other session's context tooling unchanged. Main native build validation
+is still owed. Host filesystems have space (20 GiB root/50 GiB cache); the
+reported exhaustion was inside the Ze guest.
+
+Access freshness checkpoint `0ba9582eb7` commits four byte-identical TACACS
+audit reseals and two actual positive renewals (CHAP retransmit/AVP catalog).
+The script's shared-index refresh collided with a foreign lock after publication;
+the exact documented six-path repair succeeded once that lock disappeared.
+Nine renewals remain; the first baseline had a transient foreign missing
+`opererr` import, now corrected. The resumed proof was cancelled to restore
+the one-CPU-job rule, and recorded no new proof. Main mistakenly overlapped
+local checks with the VM and has corrected that scheduling; subsequent
+execution is serialized. The current CoS full race run is
+`job-access-cos-owner-green-*`; its result is pending, not claimed green.
+
 ## Active refusal evidence continuation, 2026-11-11
 
 ### Blocked handback after source-CLEAN round 2
 
-Refusal remains open, with blocked handback prepared for claim release by
+Refusal remains open, with blocked handback `3ac9c3b11f` and claim released by
 `01a1c842-0a58-7752-bbff-2a3f1633b66f`. No further spec has closed. The native
 round-2 CLEAN review artifact is recorded and its check passes. Fresh prechecks
 have zero owned findings; broader lint remains blocked. No push or `./le verify` ran. Every test, build,

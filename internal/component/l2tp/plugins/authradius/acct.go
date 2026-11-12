@@ -256,15 +256,32 @@ const bootTagOctets = 12
 // RFC 2866 Section 5.5: "This attribute is a unique Accounting ID to make it
 // easy to match start and stop records in a log file." The counter makes the
 // id unique within one accountant; the boot tag makes it unique across a
-// restart, which resets the counter. The "tunnel-session-" prefix is what
-// coa.go findSessions matches a CoA by, so it stays first. Safe for concurrent
-// use.
+// restart, which resets the counter. CoA compares the complete value retained
+// by currentSessionIDs, including the boot tag and counter. Safe for concurrent use.
 func (a *radiusAcct) genSessionID(tunnelID, sessionID uint16) string {
 	a.bootTagMint.Do(a.mintBootTag)
 	n := a.nextSess.Add(1)
 	var b textbuf.Buffer
 	return b.Reset().Int(int64(tunnelID)).Byte('-').Int(int64(sessionID)).Byte('-').
 		Hex(a.bootTag[:]).Byte('-').Int(int64(n)).String()
+}
+
+// currentSessionIDs snapshots the complete ids the active accounting owner
+// issued. A snapshot has no entry for an unknown id; a caller MUST NOT guess
+// the missing value from a numeric tunnel/session tuple. Safe for concurrent use.
+// RFC 2866 Section 5.5: "This attribute is a unique Accounting ID to make it
+// easy to match start and stop records in a log file."
+func (a *radiusAcct) currentSessionIDs() map[sessionKey]string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	ids := make(map[sessionKey]string, len(a.sessions))
+	for key, session := range a.sessions {
+		if session.acctSessID == "" {
+			continue
+		}
+		ids[key] = session.acctSessID
+	}
+	return ids
 }
 
 // mintBootTag writes the boot tag: the Unix seconds acctNow reads, then 64

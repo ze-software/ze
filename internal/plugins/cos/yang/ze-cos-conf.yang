@@ -15,6 +15,32 @@ module ze-cos-conf {
         description "Initial revision";
     }
 
+    container request {
+        config false;
+        description "Operational actions that change the running subscriber policy.";
+        ze:help "Request an operation on running state.";
+
+        container class-of-service {
+            description "These actions apply a named profile to a subscriber's access VLAN.";
+            ze:help "Apply subscriber class-of-service policy.";
+
+            container session {
+                ze:command "ze-cos:session";
+                description "The RADIUS owner prepares a change, applies its maps, then commits
+it after every owner succeeds. Rollback restores the maps captured before prepare.";
+                ze:help "Change one subscriber's VLAN marking maps.";
+
+                leaf transaction {
+                    type string { length "1..8192"; }
+                    mandatory true;
+                    description "One JSON object carries the operation and its session selection
+or opaque token. This internal transaction is carried through authenticated command dispatch.";
+                    ze:help "JSON transaction operation, selection or token.";
+                }
+            }
+        }
+    }
+
     container class-of-service {
         description "A profile maps the 3-bit PCP field of an 802.1Q header to an internal
 priority, in the ingress direction and in the egress direction. An interface leaf and a

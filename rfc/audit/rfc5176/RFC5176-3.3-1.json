@@ -1,17 +1,25 @@
 {
-  "note": "Rejudged 2026-10-14 by a reader who did not author the tests; only TestDisconnectReplayReturnsCachedResponse changed (its two copies now leave one socket, so the replay is a duplicate under the source-port key) and it still asserts a Disconnect-ACK and one teardown for the matching Acct-Session-Id. TestRFC5176MatchedIdentificationSucceeds and TestRFC5176UnmatchedIdentificationIsNAKed keep both request kinds and both outcomes: CoA-NAK and Disconnect-NAK 503 with no event and no teardown when no session matches; TestRFC5176NoSessionIdNotActedOn the no-identification negative.",
+  "note": "Independent semantic rejudgment 2026-11-12 against RFC 5176 Section 3 (the complete combination MUST match; otherwise NAK), current coa.go selectors and every tagged unit. Existing MatchedIdentificationSucceeds, UnmatchedIdentificationIsNAKed and NoSessionIdNotActedOn distinguish real CoA/Disconnect ACK/teardown from 503/no event/no teardown. ReplayReturnsCachedResponse now seeds the live accountant and still requires two ACKs but exactly one teardown. New RegisteredSubscriberAllSelectorsMustMatch sends an exact registry Acct-Session-Id plus conflicting User-Name or NAS-Port, requiring signed CoA-NAK 503 and unchanged installed rate. OldAccountingIdentityCannotSelectNewIncarnation and DisconnectOldAccountingIdentityCannotTerminateNewIncarnation keep the tuple/other selectors valid while changing only the full issued identity; they require signed 503, unchanged shaping and zero teardown. LiveAccountingOwnerIdentitySurvivesRegistryMiss supplies the actual current accountant ID alongside a different registry ID and requires signed ACK plus an installed 20M rate, preventing refusal of every fallback. Admission refuses unsupported identification types before matching; sessionSelectorsMatch intersects every occurrence of the three implemented selectors on both registry and complete-accountant fallback routes. Removing either intersection or restoring numeric-prefix matching makes exact outcome assertions fail. This judges the whole included-combination clause, not a claim to support the eleven refused types. Native proof freshness is a separate main-thread gate.",
   "requirement_sha": "79cb52981c308285",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "ff37f19e24dbd668",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "ff37f19e24dbd668",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "fd727898db37d6c6",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "25c2b53f1b101476"
+    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss": "886403c5e0c35224",
+    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoAOldAccountingIdentityCannotSelectNewIncarnation": "886403c5e0c35224",
+    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation": "886403c5e0c35224",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "0461f962da4d97fb",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "0461f962da4d97fb",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "b2cfd60387861a53",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "25c2b53f1b101476",
+    "internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go::TestCoARegisteredSubscriberAllSelectorsMustMatch": "a364fe90dd12fa62"
   },
   "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss": "34a33bac1c629bb8",
+    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoAOldAccountingIdentityCannotSelectNewIncarnation": "721faa3336409072",
+    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation": "227c84657236e2fd",
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "18fb7991d427fefe",
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "48a54bb92cb5b6f7",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "3af259e73ebb3526",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "0004cdb472171249"
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "0d0a6cde2f2121d5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "0004cdb472171249",
+    "internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go::TestCoARegisteredSubscriberAllSelectorsMustMatch": "b3eff2d7fe0ecac6"
   },
   "verdict": "enforced"
 }

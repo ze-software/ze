@@ -1,0 +1,4 @@
+**
+!test/interop-radius-subscriber/Dockerfile.ze
+!test/interop-radius-subscriber/Dockerfile.ze.dockerignore
+!test/interop-radius-subscriber/ze-linux

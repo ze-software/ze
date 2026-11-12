@@ -1,6 +1,39 @@
 [
   {
     "rid": "RFC5176-3.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss",
+    "unit-sha": "5ee684479186bc38",
+    "claim-sha": "9f11bb9d593a2c35",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
+    "producer-sha": "4d2c21aa782de973",
+    "break": "body of findSessions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-3.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoAOldAccountingIdentityCannotSelectNewIncarnation",
+    "unit-sha": "8f48e405bb6c9bc7",
+    "claim-sha": "db4197c92741ac74",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
+    "producer-sha": "4d2c21aa782de973",
+    "break": "line 747: \"id, found := accountIDs[key]\" -\u003e \"id, found := string(value), accountIDs != nil \u0026\u0026 key.sessionID != 0\""
+  },
+  {
+    "rid": "RFC5176-3.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation",
+    "unit-sha": "d9de0b2444b570e4",
+    "claim-sha": "867621d8bd4e33e2",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
+    "producer-sha": "4d2c21aa782de973",
+    "break": "line 747: \"id, found := accountIDs[key]\" -\u003e \"id, found := string(value), accountIDs != nil \u0026\u0026 key.sessionID != 0\""
+  },
+  {
+    "rid": "RFC5176-3.3-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds",
     "unit-sha": "4e56466b04916916",
@@ -42,5 +75,16 @@
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
     "producer-sha": "f62a214577dacfe5",
     "break": "body of findSessions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-3.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go::TestCoARegisteredSubscriberAllSelectorsMustMatch",
+    "unit-sha": "8c337b78e1409200",
+    "claim-sha": "945c5d5a1dd3988e",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::sessionSelectorsMatch",
+    "producer-sha": "28c6fbdefee07efb",
+    "break": "line 665: \"if string(attr.Value) != username {\" -\u003e \"if string(attr.Value) == username {\""
   }
 ]

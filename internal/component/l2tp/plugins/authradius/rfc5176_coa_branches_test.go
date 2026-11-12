@@ -29,8 +29,8 @@ func twoAliceSessions() *fakeL2TPService {
 		Tunnels: []l2tp.TunnelSnapshot{{
 			LocalTID: 10,
 			Sessions: []l2tp.SessionSnapshot{
-				{LocalSID: 20, TunnelLocalTID: 10, Username: "alice"},
-				{LocalSID: 21, TunnelLocalTID: 10, Username: "alice"},
+				{LocalSID: 20, TunnelLocalTID: 10, Username: "alice", PppInterface: coaFixtureInterface(10, 20)},
+				{LocalSID: 21, TunnelLocalTID: 10, Username: "alice", PppInterface: coaFixtureInterface(10, 21)},
 			},
 		}},
 	}}

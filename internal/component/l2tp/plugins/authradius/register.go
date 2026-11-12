@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/radius"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -101,6 +102,7 @@ func runPlugin(conn net.Conn) int {
 	logger().Debug(Name + " plugin starting (RPC)")
 
 	p := sdk.NewWithConn(Name, conn)
+	p.OnDoctorCheck(checkCoAHealth)
 	defer func() {
 		if err := p.Close(); err != nil {
 			logger().Debug("plugin close error", "error", err)
@@ -137,6 +139,7 @@ func runPlugin(conn net.Conn) int {
 	bus := storedBus
 	eventBusMu.Unlock()
 	unsubscribeAccounting := acctInstance.subscribeEventBus(bus)
+	unsubscribeCoAHealth := subscribeCoAHealth(bus)
 	unsubscribeCommit := func() {}
 	unsubscribeAcceptance := func() {}
 	if bus != nil {
@@ -179,6 +182,7 @@ func runPlugin(conn net.Conn) int {
 		unsubscribeCommit()
 		unsubscribeAcceptance()
 		unsubscribeAccounting()
+		unsubscribeCoAHealth()
 		transactionMu.Lock()
 		stopped = true
 		if current != nil {
@@ -186,6 +190,8 @@ func runPlugin(conn net.Conn) int {
 		}
 		retireAuthClient()
 		closeCoAListener()
+		// Releasing the provider also settles evicted report subjects.
+		report.ClearSource(Name)
 		retireAccounting()
 		transactionMu.Unlock()
 		retirements.Wait()
@@ -206,7 +212,7 @@ func runPlugin(conn net.Conn) int {
 	}
 	replaceConfig := func(cfg *radiusConfig) error {
 		if cfg != nil {
-			return activateRadiusConfig(cfg)
+			return activateRadiusConfig(cfg, p.DispatchCommandArgs)
 		}
 		if current != nil {
 			restoreFallback()
@@ -299,6 +305,7 @@ func runPlugin(conn net.Conn) int {
 		WantsConfig:  []string{configRootL2TP},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
+		DoctorChecks: []rpc.DoctorCheckDecl{coaHealthDeclaration()},
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
 		return 1
@@ -330,7 +337,7 @@ func retireAuthClient() {
 	}
 }
 
-func activateRadiusConfig(cfg *radiusConfig) error {
+func activateRadiusConfig(cfg *radiusConfig, dispatch coaCommandDispatch) error {
 	client, err := radius.NewClient(radius.ClientConfig{
 		Servers:       cfg.Servers,
 		Timeout:       cfg.Timeout,
@@ -399,7 +406,7 @@ func activateRadiusConfig(cfg *radiusConfig) error {
 		activeCoA = nil
 	}
 	if cfg.CoAPort > 0 && len(cfg.Servers) > 0 {
-		startCoAListener(cfg, bus)
+		startCoAListener(cfg, bus, dispatch)
 	}
 	return nil
 }
@@ -407,7 +414,7 @@ func activateRadiusConfig(cfg *radiusConfig) error {
 // startCoAListener starts the RFC 5176 CoA/Disconnect listener and records it in
 // activeCoA. The caller holds the same lock every other writer of activeCoA
 // holds.
-func startCoAListener(cfg *radiusConfig, bus ze.EventBus) {
+func startCoAListener(cfg *radiusConfig, bus ze.EventBus, dispatch coaCommandDispatch) {
 	// RFC 5176 Section 6.1: "A Dynamic Authorization Server MUST silently discard
 	// Disconnect-Request or CoA-Request packets from untrusted sources." The
 	// trusted sources are the configured RADIUS servers. When not one of their
@@ -427,6 +434,7 @@ func startCoAListener(cfg *radiusConfig, bus ze.EventBus) {
 		Secrets:                        serverSecrets(cfg.Servers),
 		DefaultSecret:                  cfg.Servers[0].SharedKey,
 		Bus:                            bus,
+		Dispatch:                       dispatch,
 		AllowedSources:                 allowed,
 		CoARequireMessageAuthenticator: cfg.CoARequireMessageAuthenticator,
 	})

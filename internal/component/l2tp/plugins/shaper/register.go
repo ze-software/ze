@@ -117,7 +117,14 @@ func runPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, args []string, peer string) (string, any, error) {
+		if command == rateCommand {
+			data, err := shaperInstance.executeRate(args, peer)
+			if err != nil {
+				return "error", nil, err
+			}
+			return "done", data, nil
+		}
 		if command == "show l2tp shaper" {
 			return "done", shaperInstance.showSessions(), nil
 		}
@@ -147,6 +154,12 @@ func runPlugin(conn net.Conn) int {
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
+		{
+			Name:      rateCommand,
+			ShortHelp: "Prepare, apply or restore a subscriber rate transaction.",
+			Args:      []string{"transaction"},
+			Hidden:    true,
+		},
 		{
 			Name:      "show l2tp shaper",
 			ShortHelp: "Show each shaped subscriber session with its download and upload rate.",

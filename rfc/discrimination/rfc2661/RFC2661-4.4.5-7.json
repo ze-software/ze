@@ -3,7 +3,7 @@
     "rid": "RFC2661-4.4.5-7",
     "polarity": "positive",
     "unit": "internal/component/l2tp/rfc2661_session_initiator_test.go::TestWriteICCNBodyProxyAVPs",
-    "unit-sha": "5be89c2865a3e5e0",
+    "unit-sha": "999fd54cf9d89ca8",
     "claim-sha": "69e342ce6e46c3c6",
     "route": "revert",
     "producer": "internal/component/l2tp/iccn_proxy.go::writeICCNProxyAVPs",

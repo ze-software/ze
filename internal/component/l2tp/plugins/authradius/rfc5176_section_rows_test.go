@@ -55,8 +55,8 @@ func twoSessionService() *fakeL2TPService {
 		Tunnels: []l2tp.TunnelSnapshot{{
 			LocalTID: 10,
 			Sessions: []l2tp.SessionSnapshot{
-				{LocalSID: 20, TunnelLocalTID: 10, Username: "alice"},
-				{LocalSID: 21, TunnelLocalTID: 10, Username: "alice"},
+				{LocalSID: 20, TunnelLocalTID: 10, Username: "alice", PppInterface: coaFixtureInterface(10, 20)},
+				{LocalSID: 21, TunnelLocalTID: 10, Username: "alice", PppInterface: coaFixtureInterface(10, 21)},
 			},
 		}},
 	}}
@@ -280,10 +280,9 @@ func TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5176-3-1 negative -- a Disconnect-Request carrying only NAS
-// identification (NAS-IP-Address, NAS-Identifier) and session identification
-// (Acct-Session-Id, User-Name, NAS-Port, Called-Station-Id, Calling-Station-Id)
-// attributes is answered with a Disconnect-ACK and one teardown, so the
+// RFC requirement: RFC5176-3-1 negative -- a Disconnect-Request carrying only
+// implemented session identification (Acct-Session-Id, User-Name and NAS-Port)
+// is answered with a Disconnect-ACK and one teardown, so the
 // Disconnect-NAK is owed to the other attribute alone.
 func TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed(t *testing.T) {
 	secret := []byte("test-rfc5176-3-neg-secret")
@@ -291,13 +290,9 @@ func TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed(t *testing.T) {
 	addr := coaTestListener(t, secret, &recordingBus{}, fake)
 
 	resp := sendCoAPacket(t, addr, radius.CodeDisconnectRequest, secret, []radius.Attr{
-		{Type: radius.AttrNASIPAddress, Value: []byte{127, 0, 0, 1}},
-		{Type: radius.AttrNASIdentifier, Value: radius.AttrString("ze-nas")},
 		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 		{Type: radius.AttrUserName, Value: radius.AttrString("alice")},
 		{Type: radius.AttrNASPort, Value: radius.AttrUint32(20)},
-		{Type: radius.AttrCalledStationID, Value: radius.AttrString("00:11:22:33:44:55")},
-		{Type: radius.AttrCallingStationID, Value: radius.AttrString("66:77:88:99:aa:bb")},
 	})
 	if resp.Code != radius.CodeDisconnectACK {
 		t.Fatalf("code: got %d, want %d (Disconnect-ACK)", resp.Code, radius.CodeDisconnectACK)
@@ -490,7 +485,7 @@ func TestRFC5176RequestNotRoutableCauseNeverSent(t *testing.T) {
 // RFC requirement: RFC5176-3.5-8 negative -- a CoA-Request and a
 // Disconnect-Request each carrying Error-Cause 502 are refused with 401 alone,
 // and a Disconnect-Request naming a user of another realm through another NAS
-// is answered with Error-Cause 503 (Session Context Not Found), never 502.
+// is answered with Error-Cause 401 for the unsupported NAS-Identifier, never 502.
 func TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession(t *testing.T) {
 	wantForbiddenCauseNeverEchoed(t, 502)
 
@@ -500,8 +495,8 @@ func TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession(t *testing.T)
 		{Type: radius.AttrUserName, Value: radius.AttrString("bob@elsewhere.example")},
 		{Type: radius.AttrNASIdentifier, Value: radius.AttrString("other-nas")},
 	})
-	if got := errorCauses(t, resp); !slices.Equal(got, []uint32{radius.ErrorCauseSessionNotFound}) {
-		t.Errorf("foreign session: Error-Cause %v, want [503]", got)
+	if got := errorCauses(t, resp); !slices.Equal(got, []uint32{radius.ErrorCauseUnsupportedAttribute}) {
+		t.Errorf("foreign session: Error-Cause %v, want [401]", got)
 	}
 }
 
@@ -626,6 +621,7 @@ func newWindowListener(t *testing.T, secret []byte, fake *fakeL2TPService) *coaL
 	t.Helper()
 	l2tp.PublishService(fake)
 	t.Cleanup(func() { l2tp.PublishService(nil) })
+	seedCoAServiceAccounting(t)
 	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)

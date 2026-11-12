@@ -1,0 +1,4 @@
+**
+!test/interop-pppoe/Dockerfile.ze
+!test/interop-pppoe/Dockerfile.ze.dockerignore
+!test/interop-pppoe/ze-linux

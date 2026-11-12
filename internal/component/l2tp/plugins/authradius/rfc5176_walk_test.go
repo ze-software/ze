@@ -75,7 +75,12 @@ func coaTestListener(t *testing.T, secret []byte, bus ze.EventBus, fake *fakeL2T
 		l2tp.PublishService(fake)
 		t.Cleanup(func() { l2tp.PublishService(nil) })
 	}
-	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret, Bus: bus})
+	seedCoAServiceAccounting(t)
+	var dispatch coaCommandDispatch
+	if bus != nil {
+		dispatch = coaFixtureDispatch(t)
+	}
+	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret, Bus: bus, Dispatch: dispatch})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,6 +102,7 @@ func oneSessionService() *fakeL2TPService {
 				LocalSID:       20,
 				TunnelLocalTID: 10,
 				Username:       "alice",
+				PppInterface:   coaFixtureInterface(10, 20),
 			}},
 		}},
 	}}
@@ -368,6 +374,7 @@ func TestRFC5176SharedSecretChosenBySourceAddress(t *testing.T) {
 	fake := oneSessionService()
 	l2tp.PublishService(fake)
 	defer l2tp.PublishService(nil)
+	seedCoAServiceAccounting(t)
 
 	cl, err := newCoAListener(coaListenerConfig{
 		AllowedSources: coaLoopbackSources(),
@@ -761,8 +768,7 @@ func TestRFC5176IdentificationAttributesIdentifyOnly(t *testing.T) {
 	resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, []radius.Attr{
 		{Type: radius.AttrUserName, Value: radius.AttrString("alice")},
 		{Type: radius.AttrNASPort, Value: radius.AttrUint32(20)},
-		{Type: radius.AttrCalledStationID, Value: radius.AttrString("00:11:22:33:44:55")},
-		{Type: radius.AttrNASIdentifier, Value: radius.AttrString("ze-nas")},
+		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 		{Type: radius.AttrFilterID, Value: radius.AttrString("10mbit")},
 	})
 	if resp.Code != radius.CodeCoAACK {
@@ -786,7 +792,7 @@ func TestRFC5176IdentificationAttributesIdentifyOnly(t *testing.T) {
 	bare := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, []radius.Attr{
 		{Type: radius.AttrUserName, Value: radius.AttrString("alice")},
 		{Type: radius.AttrNASPort, Value: radius.AttrUint32(20)},
-		{Type: radius.AttrCalledStationID, Value: radius.AttrString("00:11:22:33:44:55")},
+		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 	})
 	wantNAK(t, bare, radius.CodeCoANAK, radius.ErrorCauseUnsupportedAttribute)
 	if got := len(bus.recorded()); got != 1 {
@@ -804,6 +810,7 @@ func TestRFC5176UntrustedSourceDiscarded(t *testing.T) {
 	fake := oneSessionService()
 	l2tp.PublishService(fake)
 	defer l2tp.PublishService(nil)
+	seedCoAServiceAccounting(t)
 
 	attrs := func() []radius.Attr {
 		return []radius.Attr{{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")}}

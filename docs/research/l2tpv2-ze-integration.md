@@ -456,7 +456,21 @@ registry.Register(registry.Registration{
 Responsibilities:
 - Apply TC (traffic control) rules to pppN interfaces.
 - Subscribe to `(l2tp, session-up)` to apply initial shaping.
-- Handle rate changes from RADIUS CoA.
+- Handle rate changes from RADIUS CoA through the synchronous
+  `request l2tp shaper rate` transaction command. The owner prepares its complete
+  last successfully programmed QoS, applies both directions, and confirms the
+  backend result. Rollback reapplies that confirmed state, including after a
+  partially failed backend call. One pending transaction and one completed token
+  are retained. Pending transactions expire after one minute; the next admitted
+  owner command restores the prior state before handling its operation. A failed
+  restore retains the original token and snapshot for retry, and a lost prepare
+  reply cannot occupy the slot forever. Tokens belong to the requesting Dynamic
+  Authorization Client's address. Session removal invalidates tokens so a late rollback cannot restore
+  a departed subscriber's shaping. The listener ACKs only after every requested
+  owner confirms its apply. Post-commit rate events remain notifications.
+
+<!-- source: internal/component/l2tp/plugins/shaper/rate_transaction.go -- rateOperation, prepareRate, applyRate, restoreRate -->
+<!-- source: internal/component/l2tp/plugins/authradius/coa_transaction.go -- confirmCoA -->
 - Clean up TC rules on `(l2tp, session-down)`.
 
 ### 6.4 l2tp-stats (telemetry)

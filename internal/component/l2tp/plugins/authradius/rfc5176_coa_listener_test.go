@@ -477,6 +477,7 @@ func TestDisconnectReplayReturnsCachedResponse(t *testing.T) {
 	}}
 	l2tp.PublishService(fake)
 	defer l2tp.PublishService(nil)
+	seedCoAServiceAccounting(t)
 
 	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
 	if err != nil {

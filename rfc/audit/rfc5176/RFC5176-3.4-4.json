@@ -1,13 +1,13 @@
 {
-  "note": "Rejudged 2026-10-28 after the leaf rename to coa-require-message-authenticator (field CoARequireMessageAuthenticator); test bodies otherwise unchanged. Forbidden: treating the MAY as a MUST by discarding a request without Message-Authenticator by default. TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault asserts Disconnect-ACK and one teardown with no Message-Authenticator; TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired asserts discard only with the leaf set. Negative now carries a mutant record (coa.go admitRequest drop condition forced false goes red).",
+  "note": "Independent semantic rejudgment 2026-11-12 against Section 3.4's optional Message-Authenticator. MessageAuthenticatorAbsentIsAcceptedByDefault still sends a correctly authenticated/current Disconnect without Message-Authenticator to a trusted listener, now explicitly seeds its current accounting identity, and asserts Disconnect-ACK AND one actual teardown. MissingMessageAuthenticatorDroppedWhenRequired drives the same absence with the opt-in leaf enabled and asserts no response. The valid accountant seed fixes identity isolation and preserves the original assertions; a default mandatory-presence gate fails acceptance, while ignoring the explicit strict leaf fails discard. New source is unchanged at admitRequest: absence is accepted by default, presence is always verified. This MAY does not require optional response attributes to be emitted; mandatory verification when present is separately covered by 3.4-3. No fresh mutation execution is claimed here.",
   "requirement_sha": "76d3f6211fedecf1",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "fd727898db37d6c6",
-    "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault": "46ab3e035ce543fd"
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "b2cfd60387861a53",
+    "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault": "5bd679d0cb80811c"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "1dbae4c7d8a9cef7",
-    "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault": "3f811816ff9bb4b9"
+    "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault": "0c66016d26bad0b8"
   },
   "verdict": "enforced"
 }

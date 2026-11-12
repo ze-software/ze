@@ -1,13 +1,13 @@
 {
-  "note": "Judge 2026-09-30 (access cont 10, independent). Ze is the NAS. + TestRFC5176RequestNotRoutableCauseNeverSent: no response on any path carries 502. - TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession (R1(b)): injected 502 never echoed (401 only); a Disconnect naming another realm's user through another NAS-Identifier -> [503], never 502. Records observed red.",
+  "note": "Independent semantic rejudgment 2026-11-12 against Section 3.5: NAS MUST NOT emit proxy-only Error-Cause 502. RequestNotRoutableCauseNeverSent drives coaResponsePaths across all four reply codes and all current success/refusal classes, verifies each exact code/cause, then prohibits 502 everywhere. RequestNotRoutableCauseNeverSentForAForeignSession injects 502 into both request kinds with an opaque Proxy-State copy and requires only 401 (never echoed 502) while preserving Proxy-State bytes; its foreign user/NAS-Identifier case now correctly requires only 401 because NAS-Identifier is unsupported, still forbidding 502. The changed 503-to-401 assertion follows mandatory unsupported-attribute admission and preserves the actual NAS prohibition. Exact cause assertions would fail if request content were echoed as NAS error or foreign identity were answered using proxy routing failure. These controls isolate response generation from transport/authentication failure and retain both ordinary replies and tempting forbidden input. No fresh record execution is claimed.",
   "requirement_sha": "105130563996c69c",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSent": "9b6dfc18b62099d5",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession": "9b6dfc18b62099d5"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSent": "5031ddff52e7f84f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession": "5031ddff52e7f84f"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSent": "6d63a1675f337700",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession": "ef769bbc4c3aae1a"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession": "78f86b590790282d"
   },
   "verdict": "enforced"
 }

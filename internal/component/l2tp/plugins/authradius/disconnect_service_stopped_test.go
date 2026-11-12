@@ -47,9 +47,10 @@ func (s *stopsAfterLookupService) TeardownSession(uint16) error {
 func TestRFC5176DisconnectLocatedButServiceStoppedIsNotRemovable(t *testing.T) {
 	secret := []byte("test-rfc5176-stopped-secret")
 	svc := &stopsAfterLookupService{fakeL2TPService: oneSessionService()}
-	l2tp.PublishService(svc)
+	l2tp.PublishService(svc.fakeL2TPService)
 	t.Cleanup(func() { l2tp.PublishService(nil) })
 	addr := coaTestListener(t, secret, nil, nil)
+	l2tp.PublishService(svc)
 
 	resp := sendCoAPacket(t, addr, radius.CodeDisconnectRequest, secret, []radius.Attr{
 		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},

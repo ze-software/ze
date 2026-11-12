@@ -1,6 +1,28 @@
 [
   {
     "rid": "RFC5176-2.3-6",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go::TestCoAMixedOwnerFailureRestoresBothControls",
+    "unit-sha": "705779022d08f50d",
+    "claim-sha": "d6324ff341953039",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa_transaction.go::confirmCoA",
+    "producer-sha": "9cfdaf6623236160",
+    "break": "line 68: \"for i := len(owners) - 1; i \u003e= 0; i-- {\" -\u003e \"for i := len(owners) - 1; i \u003c 0; i-- {\""
+  },
+  {
+    "rid": "RFC5176-2.3-6",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go::TestCoAMixedOwnersApplyBeforeACK",
+    "unit-sha": "6dad9d67f5e88ca7",
+    "claim-sha": "873fe26a8746fa7a",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa_transaction.go::confirmCoA",
+    "producer-sha": "9cfdaf6623236160",
+    "break": "body of confirmCoA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-2.3-6",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoANAKMakesNoPartialChange",
     "unit-sha": "e214bf8f77ea6ca6",
