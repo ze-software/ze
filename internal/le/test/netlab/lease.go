@@ -37,7 +37,7 @@ func acquireLiveDirectory(directory string) (*liveDirectory, error) {
 		}
 		return nil, errors.Join(fmt.Errorf("lock live lab directory: %w", err), file.Close())
 	}
-	for _, marker := range []string{"netlab.snapshot.yml", "clab.yml", "netlab.lock", ".netlab.lock"} {
+	for _, marker := range []string{"netlab.snapshot.yml", "netlab.snapshot.pickle", "clab.yml", "netlab.lock", ".netlab.lock"} {
 		_, err := os.Lstat(filepath.Join(canonical, marker))
 		if err == nil {
 			return nil, errors.Join(fmt.Errorf("lab directory %s already holds deployment state %s; use its owning netlab session to stop it", canonical, marker), file.Close())

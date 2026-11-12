@@ -141,7 +141,9 @@ func (c *Checker) RunLive(ctx context.Context, directory string) (err error) {
 			}
 		}
 	}()
-	startupOutput, err = c.liveCommand(ctx, directory, netlab, "up", "--no-config", "topology.yml")
+	// Keep netlab's normal provider/configuration/pickle outputs and add the
+	// YAML inventory before startup can fail with partially created nodes.
+	startupOutput, err = c.liveCommand(ctx, directory, netlab, "up", "--no-config", "--set", "defaults.netlab.create.output.yaml.output=netlab.snapshot.yml", "topology.yml")
 	if err != nil {
 		return err
 	}

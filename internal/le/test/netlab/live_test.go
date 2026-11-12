@@ -58,7 +58,7 @@ func TestPartialLiveStartAlwaysTearsDown(t *testing.T) {
 			t.Errorf("failure omits %q: %v", phrase, err)
 		}
 	}
-	want := [][]string{{fixture.netlab, "up", "--no-config", "topology.yml"}, {fixture.netlab, "down", "--cleanup"}}
+	want := [][]string{{fixture.netlab, "up", "--no-config", "--set", "defaults.netlab.create.output.yaml.output=netlab.snapshot.yml", "topology.yml"}, {fixture.netlab, "down", "--cleanup"}}
 	if !reflect.DeepEqual(calls, want) {
 		t.Fatalf("lifecycle: got %v, want %v", calls, want)
 	}

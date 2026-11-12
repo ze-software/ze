@@ -93,6 +93,9 @@ teardown, including partial startup. A failed assertion or cleanup fails the
 command. Before cleanup, a failed proof saves generated configuration, the
 topology snapshot, Docker inspection, and bounded node logs in a private
 `diagnostics-*` directory under the retained lab directory.
+The runner requests a YAML topology snapshot in addition to netlab 26.10's
+normal pickle, provider, and configuration outputs. It uses the YAML inventory
+for checks, diagnostics, and cleanup, including a partial startup failure.
 Each run uses its build's retained image tag, checked against the immutable image
 ID before startup. Concurrent runs cannot change the selected node image by
 moving `netlab/ze:latest`. A directory lease prevents a second host-runtime run

@@ -12,7 +12,7 @@
 | Handoff | `tmp/session/2026-11-10-225434/scratch/deployment-runtime-handoff.md` |
 | Updated | 2026-11-12 |
 
-## Last verification blocker
+## Historical verification blocker
 
 Actual own-kernel rerun `68552` finished before the topology could start. The
 kernel check and fresh Linux Ze build passed, then `runContainerLab` reached
@@ -112,6 +112,22 @@ test judge approved and personally recorded the updated assertion, preserving
 all YAML/startup checks while adding explicit shell and failure-stop checks.
 The next actual topology run remains required.
 
+Actual `53628` subsequently built both binaries/images, passed the own-kernel
+check, created all three running nodes and completed initial configuration.
+The verifier then failed because netlab 26.10 writes a pickle snapshot by
+default, while the verifier needs YAML. Teardown stopped the VM with no
+leftovers. The corrected invocation adds the YAML output through the existing
+CLI setting, preserving normal outputs. Existing pickle-only deployments are
+also refused before any command or teardown.
+
+Main observed snapshot-retention RED `96653` and pickle-ownership RED `17190`,
+then focused GREEN `65222` and full netlab-package GREEN `54464`. Actual pinned
+netlab create `69738` generated both snapshots, node configuration, provider
+configuration and Ansible inventory with the same output setting. Independent
+source/documentation review was clear; an independent judge approved and
+recorded the exact-argv fixture update after formatting. The live protocol,
+route, traffic and cleanup proof remains required.
+
 ## Current acceptance evidence, 2026-11-12
 
 This section records the latest results reported by the main thread and
@@ -126,7 +142,7 @@ substitute for the outstanding actual deployment proofs.
 | AC-3: source build and named executables | The patched-toolchain build path is implemented. All five shipped flavors compiled after the preview, OTA, container and phase-binding commits; committed-build job `98028` exited 0 with all five OK at HEAD `94e8a7de6383`. Kernel/build documentation landed in `be5381db9c`. | Each compilation result belongs to its recorded source revision. Recurrent foreign API changes caused earlier failed builds; a passed committed build does not establish the pending source-bound artifact bundle. |
 | AC-4: supplied two-peer quickstart | Real basic route-exchange/authentication checks passed. The quickstart completed all 80 unchanged stress invocations in the approved private tmpfs context. Functional fixtures landed in `4c05449c18`; all three deployment tests also passed the live CI-path run associated with `eb28da8d95`. | This proves the supplied control-plane tutorial, with its explicit forwarding limits; it does not add production forwarding evidence. The whole-UI run was not green, as recorded below. |
 | AC-5: deployment container persistence | Container/netlab code landed in `ef6e1c9806`; runtime correction `adf359f08c` includes noninteractive import and `/tmp` mode `1777`. Actual Compose portion of finished job `84344` printed `DEPLOYMENT-COMPOSE: PASS authenticated edit retained across a new container on the same persistent volume`, including the corrected metadata-aware subtree oracle. Final outer cleanup stopped the VM and left nothing behind. | This proves the authenticated edit/recreation path for the explicitly source-unbound runtime image. The combined job's separate netlab portion failed; it is not an overall runtime PASS. |
-| AC-6: live containerlab/netlab | Startup ordering and retained diagnostics passed units and committed compilation. Actual `57720` exposed a nested template include failure; its correction now passes direct actual rendering, all three golden/config checks, the stronger regression and full netlab package. | Fixed live topology, declared adjacencies, kernel routes and six directed sourced pings remain unverified. Actual VM cleanup left nothing behind; no protocol/traffic PASS is claimed. |
+| AC-6: live containerlab/netlab | Actual `53628` created all three running nodes and completed initial configuration, then exposed the missing YAML snapshot. Explicit YAML output and pickle-only ownership refusal passed separate RED/GREEN regressions, full netlab package, actual pinned create and independent review. | Declared adjacencies, kernel routes and six directed sourced pings remain unverified. Actual VM cleanup left nothing behind; no protocol/traffic PASS is claimed. |
 | AC-7: installer ISO and installed disk | `66cc2f7abb` landed the ISO corrections. Actual native amd64/KVM proof passed optical boot, selected-disk installation, clean poweroff, unchanged extra disk, installed-disk boot and authenticated SSH/version. Final module-bound ISO assembly passed. | This is amd64/KVM evidence; arm64 boot was not run. The retained ISO image does not establish OTA credentials or update recovery. |
 | AC-8: appliance image update and recovery | OTA implementation landed in `d5ac4d3249`. Actual run `19822` passed: two images, changed runtime after update, retained persistent UUID/configuration/login/hostname, previous-slot recovery and owned cleanup. The committed source passed all-five-flavor compilation. | Independent review found that `executeApplianceOTA` does not assert daemon health after update or recovery. Add that assertion and run the extended proof. The existing identity/persistence/recovery evidence remains valid for amd64 only. |
 | AC-9: website deployment journeys | Resumed completed-path documentation, homepage and navigation updates passed canonical local build `67925` and check `38826`: 24 producers and 1,107 declared/written routes in sibling `../gh-pages`. Generated HTML and Markdown were inspected. The appliance decommissioning section now passed independent source/link review. | Regenerate the site after the new decommissioning and artifact-status guidance. No remote publication or push occurred; the broad doc gate's generated-index failure is recorded above. |
@@ -652,7 +668,7 @@ substitute for the running actual own-kernel rerun.
 
 | Requirement | Current state | Required result |
 |-------------|---------------|-----------------|
-| AC-6 live topology | Fixed own-kernel runtime `68552` failed before topology startup staging Linux LE on changing foreign IKE code; cleanup passed. | Coherent owning refactor, then actual declared adjacencies, kernel routes, sourced traffic and successful owned teardown. |
+| AC-6 live topology | Actual `53628` reached running nodes and initial configuration; missing YAML inventory was then corrected and passed scoped tests and actual create. | Actual declared adjacencies, kernel routes, sourced traffic and successful owned teardown through the corrected invocation. |
 | AC-8 post-update health | Actual update/recovery proved identity, login and persistent configuration; the runner does not yet query daemon health. | Preserve those assertions and add a meaningful health assertion after both updated and recovered boots, then pass the extended actual proof. |
 | AC-9 appliance removal | Canonical guide now covers live backup, separate appliance export, graceful shutdown, VM disk retention/deletion, hardware retirement and retained secrets; independent review was clear. | Regenerate and inspect the canonical website output for the updated guide. |
 | AC-10 current source-bound preview | Fresh complete preparation `52283` and retained checker `27968` passed with all identity checks retained. | Preserve the private bundle and its exact scope; no publication is authorized. |

@@ -130,7 +130,11 @@ second invocation cannot tear down another run's topology.
 Before cleanup, a failed proof saves a private `diagnostics-*` directory inside
 the retained lab directory. It contains startup output, the topology snapshot,
 generated node files, Docker inspection, and each node's last 200 log lines.
+The runner explicitly adds `netlab.snapshot.yml` to netlab's normal outputs
+before startup. netlab 26.10 writes a pickle snapshot by default; the added YAML
+inventory supplies node names for live checks, failure capture, and cleanup.
 <!-- source: internal/le/test/netlab/live_diagnostics.go -- keepLiveDiagnostics -->
+<!-- source: internal/le/test/netlab/live.go -- RunLive -->
 
 ## How netlab configures a node
 
