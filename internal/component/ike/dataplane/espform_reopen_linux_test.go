@@ -274,8 +274,10 @@ func TestESPFormReceiverReopensAStoppedReaderByItself(t *testing.T) {
 	refusal := espFormSocketRefusal(unix.EPERM)
 	first, third := newIdleESPFormPaths(), newIdleESPFormPaths()
 	opened := make(chan int, 4)
+	failureBeforeSuccess := make(chan *ESPFormCompletePathFailure, 1)
 	opens := 0 // written only by openPaths, which runs under r.mu
-	r := espFormTestReceiver(t, func() (espFormPaths, error) {
+	var r *espFormReceiver
+	r = espFormTestReceiver(t, func() (espFormPaths, error) {
 		opens++
 		opened <- opens
 		if opens == 1 {
@@ -285,6 +287,9 @@ func TestESPFormReceiverReopensAStoppedReaderByItself(t *testing.T) {
 			return espFormPaths{}, refusal
 		}
 		if opens == 3 {
+			// This seam holds r.mu, so the preceding refusal is observed before the
+			// successful open clears it, whatever schedule the test goroutine gets.
+			failureBeforeSuccess <- r.failure
 			return third, nil
 		}
 		return espFormPaths{}, errors.New("test: an open beyond the three scripted")
@@ -312,9 +317,12 @@ func TestESPFormReceiverReopensAStoppedReaderByItself(t *testing.T) {
 	failESPFormReader(t, r, first)
 
 	waitOpen(2)
-	r.mu.Lock()
-	failure := r.failure
-	r.mu.Unlock()
+	var failure *ESPFormCompletePathFailure
+	select {
+	case failure = <-failureBeforeSuccess:
+	case <-time.After(espFormReopenWait):
+		t.Fatal("the receiver never tried the successful open after its refused attempt")
+	}
 	if failure == nil || !errors.Is(failure.Err, refusal) {
 		t.Fatalf("after the refused attempt the recorded failure is %v, want the refusal", failure)
 	}

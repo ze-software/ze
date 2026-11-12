@@ -31,6 +31,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -243,7 +244,7 @@ func TestESPFormTUNSetIffRefusalNamesTheCause(t *testing.T) {
 		problem string
 		fix     string
 	}{
-		{unix.EPERM, "Ze has no permission to create the ze-espform TUN interface", "docker run --cap-add NET_ADMIN"},
+		{unix.EPERM, "Ze has no permission to create the ze-espform TUN interface", privilege.DaemonCapabilitiesFix},
 		{unix.EBUSY, "an interface named ze-espform already exists", "ip link delete ze-espform"},
 		{unix.EINVAL, "an interface named ze-espform already exists", "ip link delete ze-espform"},
 		{unix.ENOMEM, "Ze cannot create the ze-espform TUN interface", "ip link show ze-espform"},
@@ -254,8 +255,17 @@ func TestESPFormTUNSetIffRefusalNamesTheCause(t *testing.T) {
 		})
 	}
 	refusal, ok := errors.AsType[*opererr.Error](espFormTUNSetIffRefusal(unix.EPERM))
-	if !ok || !strings.Contains(refusal.Why(), "CAP_NET_ADMIN") {
+	if !ok {
+		t.Fatalf("the EPERM refusal must be an operator error: %v", refusal)
+	}
+	if !strings.Contains(refusal.Why(), "CAP_NET_ADMIN") {
 		t.Errorf("the EPERM refusal must say CAP_NET_ADMIN is needed: %v", refusal)
+	}
+	if !strings.Contains(refusal.Why(), "in Docker, start the container with --cap-add NET_ADMIN") {
+		t.Errorf("the EPERM refusal must retain the Docker remedy: %v", refusal)
+	}
+	if refusal.Fix() != privilege.DaemonCapabilitiesFix {
+		t.Errorf("the EPERM fix = %q, want %q", refusal.Fix(), privilege.DaemonCapabilitiesFix)
 	}
 }
 

@@ -404,7 +404,7 @@ func espFormSharedSPI(shared *dataplane.ESPFormSharedSPI) rpc.DoctorCheckDiagnos
 		Str(". The kernel serves both, but the IPsec ESP form fast path serves one SA per SPI, " +
 			"the one on ").Str(shared.Served.String()).
 		Str(", so bare ESP for the SA on ").Str(shared.Unserved.String()).
-		Str(" takes the complete path. ")
+		Str(" goes through Ze's own receiver for bare ESP. ")
 	espFormCompletePathCost(&tb, "the link it arrived on")
 	tb.Str(" A new SPI for the SA on ").Str(shared.Unserved.String()).Str(" ends this. ")
 	peer, found := espFormSharedSPIPeer(shared.SPI, shared.Unserved)
@@ -492,7 +492,7 @@ func espFormCompletePathCost(tb *textbuf.Buffer, link string) {
 	tb.Str("Every packet is still checked against the SA's policy, but at most ").
 		Int(dataplane.ESPFormCompletePathRate).
 		Str(" datagrams per second go through ").Str(espFormDevice).
-		Str(": the complete path drops every datagram above that rate before XFRM sees it, " +
+		Str(": Ze's own receiver drops every datagram above that rate before XFRM sees it, " +
 			"so that traffic is lost. A firewall rule keyed on the input interface sees ").Str(espFormDevice).
 		Str(", not ").Str(link).Str(".")
 }
@@ -555,7 +555,7 @@ func espFormFirewallBlocked(site, how, fix string) rpc.DoctorCheckDiagnostic {
 	tb.Str("The IPsec ESP form fast path is off because a firewall rule or policy on the input " +
 		"path could drop ESP, and the fast path would rewrite bare ESP before that rule sees it. " +
 		"The first site that could drop it: ").Str(site).
-		Str(". So bare ESP for every Child SA on UDP port 4500 takes the complete path, which reads " +
+		Str(". So bare ESP for every Child SA on UDP port 4500 goes through Ze's own receiver for bare ESP, which reads " +
 			"it after the input path, and the firewall still decides on it. ")
 	espFormCompletePathCost(&tb, "the link it arrived on")
 	tb.Str(" To keep the fast path, and only if that ESP should be accepted, add a first rule " +
@@ -679,7 +679,7 @@ func espFormFirewallOffForSafety(tb *textbuf.Buffer, cause string) {
 	tb.Str("The IPsec ESP form fast path is off for safety (").Str(cause).
 		Str("): Ze cannot tell whether a firewall rule on the input path could drop ESP, which " +
 			"the fast path would rewrite before that rule sees it. So bare ESP for every Child SA " +
-			"on UDP port 4500 takes the complete path, which reads it after the input path, and " +
+			"on UDP port 4500 goes through Ze's own receiver for bare ESP, which reads it after the input path, and " +
 			"the firewall still decides on it. ")
 	espFormCompletePathCost(tb, "the link it arrived on")
 }
@@ -784,7 +784,7 @@ func espFormFirewallMoving(since, now time.Time) []rpc.DoctorCheckDiagnostic {
 	}
 	tb.Str(", so the IPsec ESP form fast path stays off: every read of the ruleset meets a new commit, " +
 		"and the fast path must not rewrite bare ESP past a rule it has not read. So bare ESP for every " +
-		"Child SA on UDP port 4500 takes the complete path, which reads it after the input path, and the " +
+		"Child SA on UDP port 4500 goes through Ze's own receiver for bare ESP, which reads it after the input path, and the " +
 		"firewall still decides on it. ")
 	espFormCompletePathCost(&tb, "the link it arrived on")
 	tb.Str(" For the firewall reading, no restart is needed: the fast path comes back on once the commits pause long enough for " +
@@ -808,8 +808,8 @@ func espFormFirewallReadingUnknown(reading dataplane.ESPFormFirewallReading) rpc
 	tb.Str("Ze could not read how the IPsec ESP form fast path reads the nftables ruleset " +
 		"(it reported the firewall reading ").Str(reading.String()).
 		Str(", which only a Ze defect produces), so it cannot tell whether a firewall rule keeps " +
-			"the fast path off and bare ESP for Child SAs on UDP port 4500 on the rate-bounded " +
-			"complete path through ").Str(espFormDevice).
+			"the fast path off and bare ESP for Child SAs on UDP port 4500 on Ze's own rate-bounded " +
+			"receiver for bare ESP through ").Str(espFormDevice).
 		Str(". The warnings the command below lists name the cause.")
 	return rpc.DoctorCheckDiagnostic{
 		Code:     diagnostic.CodeDoctorIPsecESPFormFirewall,
@@ -826,7 +826,7 @@ func espFormFastPathUnavailable(cause string) rpc.DoctorCheckDiagnostic {
 	}
 	var tb textbuf.Buffer
 	tb.Str("The IPsec ESP form fast path is unavailable (").Str(cause).
-		Str("), so bare ESP for every Child SA on UDP port 4500 is re-presented by the complete path. ")
+		Str("), so bare ESP for every Child SA on UDP port 4500 is re-presented by Ze's own receiver for bare ESP. ")
 	espFormCompletePathCost(&tb, "the link it arrived on")
 	tb.Str(" Under systemd, a ze unit written by an older ze does not grant CAP_BPF: the " +
 		"command below stops ze with sudo systemctl stop ze, because the install refuses while " +
@@ -856,7 +856,7 @@ func espFormFastPathDetached(cause string) rpc.DoctorCheckDiagnostic {
 		Str("). Ze could not shut its firewall gate, which keeps the program from rewriting bare ESP " +
 			"while Ze checks the nftables ruleset, so it removed the program rather than let it rewrite " +
 			"bare ESP past a firewall rule that should see it. So bare ESP for every Child SA on UDP port " +
-			"4500 takes the complete path, which reads it after the input path, and the firewall still " +
+			"4500 goes through Ze's own receiver for bare ESP, which reads it after the input path, and the firewall still " +
 			"decides on it. ")
 	espFormCompletePathCost(&tb, "the link it arrived on")
 	tb.Str(" The fast path stays detached until ze restarts, or until no Child SA is served in both " +
@@ -876,7 +876,7 @@ func espFormFastPathStoppedFollowing(state *dataplane.ESPFormFastPathState) rpc.
 	var tb textbuf.Buffer
 	tb.Str("The IPsec ESP form fast path stopped following new links (").Str(state.Cause).
 		Str("). It still rewrites bare ESP on the ").Int(int64(len(state.Attached))).
-		Str(" links it is attached to; bare ESP on a link created since is re-presented by the complete path. ")
+		Str(" links it is attached to; bare ESP on a link created since is re-presented by Ze's own receiver for bare ESP. ")
 	espFormCompletePathCost(&tb, "that link")
 	tb.Str(" Restart ze to follow links again.")
 	return rpc.DoctorCheckDiagnostic{
@@ -892,7 +892,7 @@ func espFormLinkRefused(refusal *dataplane.ESPFormLinkRefusal) rpc.DoctorCheckDi
 	var tb textbuf.Buffer
 	tb.Str("The IPsec ESP form fast path does not serve link ").Str(refusal.Link).
 		Str(" (").Str(refusal.Reason).
-		Str("), so bare ESP arriving on it for a Child SA on UDP port 4500 takes the complete path. ")
+		Str("), so bare ESP arriving on it for a Child SA on UDP port 4500 goes through Ze's own receiver for bare ESP. ")
 	espFormCompletePathCost(&tb, refusal.Link)
 	tb.Str(" To keep that traffic in the kernel, set the peer to always encapsulate ESP in UDP " +
 		"(on a strongSwan peer, set ").Str(espFormFastPathPeerEncap).

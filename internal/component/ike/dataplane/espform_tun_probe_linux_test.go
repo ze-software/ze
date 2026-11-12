@@ -46,8 +46,8 @@ const (
 
 // TestESPFormTUNProbePredictsTheSysctlRefusal drives the probe's sysctl half over each
 // writability and each conf/default and conf/all combination that decides it, and
-// checks the outcome (available, the refusal for the setting that blocks, or a plain
-// error), the files whose writability it tested, and that it wrote nothing.
+// checks the outcome (available or the operator refusal for the failed setting), the
+// files whose writability it tested, and that it wrote nothing.
 func TestESPFormTUNProbePredictsTheSysctlRefusal(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -63,7 +63,6 @@ func TestESPFormTUNProbePredictsTheSysctlRefusal(t *testing.T) {
 		why        string
 		fix        string
 		errno      unix.Errno // in the error chain when non-zero
-		plainErr   bool       // an error that is not an operator error
 	}{
 		{
 			name:   "writable, every value wrong: available",
@@ -114,12 +113,14 @@ func TestESPFormTUNProbePredictsTheSysctlRefusal(t *testing.T) {
 			errno:      unix.EACCES,
 		},
 		{
-			name:   "a writability test failing for another reason is returned as it is",
+			name:   "a writability test failing for another reason names its fix",
 			defPol: 0, allPol: 0, defRPF: 0, allRPF: 0,
 			writeErr:   unix.EIO,
 			wantProbes: []string{sysctlDefaultRPF},
+			problem:    "Ze cannot set " + sysctlDefaultRPF + " to 2",
+			why:        "Ze then could not receive bare ESP",
+			fix:        "sudo sysctl -w net.ipv4.conf.default.rp_filter=2",
 			errno:      unix.EIO,
-			plainErr:   true,
 		},
 		{
 			name:   "default disable_policy unreadable is refused",
@@ -166,17 +167,8 @@ func TestESPFormTUNProbePredictsTheSysctlRefusal(t *testing.T) {
 				if refusal != nil && !strings.Contains(refusal.Why(), tc.why) {
 					t.Errorf("why = %q, want it to contain %q", refusal.Why(), tc.why)
 				}
-				return
-			}
-			if tc.plainErr {
-				if err == nil {
-					t.Fatalf("err = nil, want the %v failure", tc.errno)
-				}
-				if _, ok := errors.AsType[*opererr.Error](err); ok {
-					t.Errorf("err = %v, want the failure as it is, not a sysctl refusal: only EROFS and EACCES let the applied value decide", err)
-				}
-				if !errors.Is(err, tc.errno) {
-					t.Errorf("err = %v, want its chain to hold %v", err, tc.errno)
+				if tc.errno == unix.EIO && refusal != nil && refusal.Fix() != tc.fix {
+					t.Errorf("the I/O refusal's fix = %q, want %q", refusal.Fix(), tc.fix)
 				}
 				return
 			}

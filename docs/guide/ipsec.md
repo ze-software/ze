@@ -1936,6 +1936,36 @@ for it as RFC 4301 Section 5.2 requires.
 <!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormReceiver, run -->
 <!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- espFormTUNSysctls -->
 
+On a distribution kernel, the loaded module `esp4_offload` can consume bare
+ESP during Generic Receive Offload (GRO), before either of Ze's paths sees it.
+While a dual-form SA is installed, `ze doctor` reports that module under
+`doctor-ipsec-esp-form-offload`. Its systemd fix is:
+
+```sh
+sudo systemctl stop ze && sudo modprobe -r esp4_offload && sudo systemctl start ze
+```
+
+Stopping Ze interrupts all its tunnels and removes their SAs, which can hold
+references that prevent the module from unloading. Ze does not request
+hardware offload for its SAs, so negotiating them again does not autoload this
+module. Another IPsec owner can still hold or load it: if unloading fails,
+the command leaves Ze stopped. Stop that owner and retry before starting Ze.
+If another owner needs the module, disable GRO on the receiving interfaces
+through their existing `offload { gro false; }` configuration instead. Without
+systemd, stop and start Ze with the supervisor that runs it, with
+`sudo modprobe -r esp4_offload` between those steps.
+
+An unreadable receiver state or module list is a separate
+`doctor-ipsec-esp-form-offload-unknown` warning, with the command to inspect the
+dataplane's warnings or restore missing procfs. A readable module list proves
+only whether the module is loaded; it cannot detect an ESP GRO implementation
+built into the kernel. Ze's runtime kernel does not enable that feature.
+<!-- source: internal/component/ike/engine/doctor_esp_form_offload_linux.go -- answerESPFormOffload, espFormOffloadModuleFindings -->
+<!-- source: internal/component/ike/engine/register_esp_form_offload_linux.go -- init -->
+<!-- source: internal/component/ike/engine/apply.go -- shutdown, stopAllPeers -->
+<!-- source: vendor/github.com/vishvananda/netlink/xfrm_state_linux.go -- xfrmStateAddOrUpdate -->
+<!-- source: internal/component/iface/offload_linux.go -- applyOffloads -->
+
 The fast path is a tc ingress program. It adds a UDP header with the IKE ports
 to a bare ESP datagram for a watched Child SA, in place, so the kernel receives
 the form the state expects on the real link. Ze attaches it to every interface

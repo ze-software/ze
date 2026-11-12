@@ -115,9 +115,9 @@ func TestDoctorESPFormFastPath(t *testing.T) {
 			}},
 			want: link + "," + link,
 			contains: [][]string{
-				append([]string{"does not serve link ppp0 (" + refusedPPP.Reason + ")", "complete path", bound, "ze-espform, not ppp0",
+				append([]string{"does not serve link ppp0 (" + refusedPPP.Reason + ")", "Ze's own receiver for bare ESP", bound, "ze-espform, not ppp0",
 					"shows the link's type and state"}, peerStep...),
-				append([]string{"does not serve link wg0 (" + refusedWG.Reason + ")", "complete path", bound, "ze-espform, not wg0",
+				append([]string{"does not serve link wg0 (" + refusedWG.Reason + ")", "Ze's own receiver for bare ESP", bound, "ze-espform, not wg0",
 					"shows the link's type and state"}, peerStep...),
 			},
 			fix: []string{"ze show interface name ppp0 detail", "ze show interface name wg0 detail"},
@@ -575,7 +575,7 @@ func TestDoctorESPFormFastPathDetached(t *testing.T) {
 	detachedText := []string{
 		"detached itself from every link (" + detachCause + ")",
 		"Ze could not shut its firewall gate", "removed the program",
-		"takes the complete path", bound, "Restart ze with the command below to load it again",
+		"goes through Ze's own receiver for bare ESP", bound, "Restart ze with the command below to load it again",
 	}
 	for _, tc := range []struct {
 		name  string
@@ -699,7 +699,7 @@ func TestDoctorESPFormSharedSPI(t *testing.T) {
 		"Two Child SAs on different local addresses drew the same random inbound SPI 4660, " +
 			"one on 203.0.113.9 and one on 203.0.113.10",
 		"fast path serves one SA per SPI, the one on 203.0.113.9",
-		"bare ESP for the SA on 203.0.113.10 takes the complete path",
+		"bare ESP for the SA on 203.0.113.10 goes through Ze's own receiver for bare ESP",
 		bound, "drops every datagram above that rate before XFRM sees it",
 	}
 	// The listing shows no local address, so the message names no address to find the

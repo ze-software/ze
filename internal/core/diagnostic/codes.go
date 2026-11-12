@@ -80,6 +80,8 @@ const (
 	CodeDoctorIPsecESPFormTUN                      = "doctor-ipsec-esp-form-tun"
 	CodeDoctorIPsecESPFormReaderStopped            = "doctor-ipsec-esp-form-reader-stopped"
 	CodeDoctorIPsecESPFormFirewall                 = "doctor-ipsec-esp-form-firewall"
+	CodeDoctorIPsecESPFormOffload                  = "doctor-ipsec-esp-form-offload"
+	CodeDoctorIPsecESPFormOffloadUnknown           = "doctor-ipsec-esp-form-offload-unknown"
 	CodeDoctorIPsecChildInstallRefused             = "doctor-ipsec-child-install-refused"
 	CodeDoctorDaemonCapabilityMissing              = "doctor-daemon-capability-missing"
 	CodeDoctorIPsecImplicitDiscard                 = "doctor-ipsec-implicit-discard"
@@ -1191,6 +1193,29 @@ var builtinCodes = append([]CodeMeta{
 			"finding stays, ze show log recent level warn component ike.dataplane names why it " +
 			"keeps failing.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-esp-form-firewall"},
+	},
+	{
+		Code:  CodeDoctorIPsecESPFormOffload,
+		Title: "A loaded ESP GRO module can consume bare ESP before Ze receives it",
+		Description: "The IPv4 dual-form receiver has a watched SPI and esp4_offload is loaded. Its GRO callback " +
+			"can send bare ESP into XFRM before tc ingress or raw sockets, so an ESP-in-UDP state can refuse it " +
+			"before either Ze receive path sees it. On a systemd host, sudo systemctl stop ze && sudo modprobe -r " +
+			"esp4_offload && sudo systemctl start ze removes Ze's SAs before unloading their referenced module. " +
+			"Other IPsec owners may still hold or load the module; stop them too or disable GRO on receiving " +
+			"links through the existing interface offload configuration. This check only detects the loaded " +
+			"module, never an ESP GRO implementation built into the kernel.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-esp-form-offload"},
+	},
+	{
+		Code:  CodeDoctorIPsecESPFormOffloadUnknown,
+		Title: "Ze cannot determine whether a loaded ESP GRO module affects bare ESP",
+		Description: "The engine cannot read the dual-form receiver's state or its loaded-module list. " +
+			"It reports the observation as unknown rather than claiming esp4_offload is absent. The finding " +
+			"names the failed observation and its command: the dataplane warning log for receiver state, or " +
+			"sudo mount -t proc proc /proc to restore missing procfs. Where procfs is already mounted, make " +
+			"its module list readable in the engine's namespace. A kernel without module support and ESP GRO " +
+			"built into the kernel require a separate check of the kernel's build configuration.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-esp-form-offload-unknown"},
 	},
 	{
 		Code:  CodeDoctorIPsecChildInstallRefused,

@@ -41,6 +41,10 @@ type espFormIssueRaiser interface {
 // again. A raise the daemon refuses, or one sent before the plugin's handshake ended, is
 // logged at Warn under the same code, so the log still records the stop. It runs on the
 // receiver's revive worker, with no receiver lock held.
+//
+// Safe alongside other plugin RPCs: RaiseIssue builds its request locally, the SDK
+// multiplexes each pipe request separately, and its direct bridge admits concurrent
+// dispatches. The daemon serializes report admission and the error ring's append.
 func espFormReaderStoppedSink(p espFormIssueRaiser, log *slog.Logger) dataplane.ESPFormReaderStoppedSink {
 	return func(stopped dataplane.ESPFormReaderStopped) {
 		ctx, cancel := context.WithTimeout(context.Background(), espFormReaderStoppedRaiseTimeout)

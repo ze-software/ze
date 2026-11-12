@@ -808,6 +808,37 @@ datagram the receiver re-presents already carries the ports the state matches;
 `RemoveSA` forgets it, and `MigrateTunnel` retargets it after a MOBIKE move. A
 template-free state receives bare ESP itself and is never watched.
 
+On a distribution kernel, a loaded `esp4_offload` module can consume bare ESP
+in `esp4_gro_receive` before tc ingress and raw socket delivery. It calls
+`xfrm_input` with the bare form, which an ESP-in-UDP state refuses, so neither
+of Ze's receive paths sees that packet. The Linux-only runtime check
+`ipsec-esp-form-offload` reads the receiver's state and, while it watches an
+SPI, the shared `kernelcap.LoadedModules` snapshot. A loaded module is a
+`doctor-ipsec-esp-form-offload` warning; an unreadable receiver or module list
+is `doctor-ipsec-esp-form-offload-unknown`, never module absence. An idle
+receiver reports neither. The check only reads and never unloads a module.
+
+The loaded-module fix stops Ze, unloads the module, then starts Ze. The stop
+removes Ze's Child SAs: `xfrm_set_type_offload` takes a module reference for an
+ESP state even when that state requested no hardware offload, so unloading a
+module while those SAs live can fail. Recreating Ze's SAs does not autoload the
+module: `xfrm_state_construct` asks `xfrm_set_type_offload` to load it only for
+`XFRMA_OFFLOAD_DEV`, which Ze's state serializer does not send. Another IPsec
+owner can still hold or load it; the finding names that condition and the
+existing per-interface `offload gro false` setting as the alternative when
+that owner needs the module. A readable module list cannot detect ESP GRO
+built into the kernel. That packaging is outside this loaded-module check's
+proof; Ze's runtime kernel does not enable `CONFIG_INET_ESP_OFFLOAD`.
+<!-- source: internal/component/ike/engine/register_esp_form_offload_linux.go -- init -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_offload_linux.go -- answerESPFormOffload, espFormOffloadModuleFindings -->
+<!-- source: internal/component/kernelcap/modules_linux.go -- LoadedModules -->
+<!-- source: internal/component/ike/engine/apply.go -- shutdown, stopAllPeers -->
+<!-- source: internal/component/ike/engine/established.go -- cleanupChild -->
+<!-- source: vendor/github.com/vishvananda/netlink/xfrm_state_linux.go -- xfrmStateAddOrUpdate -->
+<!-- source: internal/component/iface/offload_linux.go -- applyOffloads -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_offload_linux_test.go TestDoctorESPFormOffloadLoadedModuleWarns -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_offload_linux_test.go TestDoctorESPFormOffloadUnreadableModulesWarns -->
+
 The receiver names a watched SA by its SPI and its local address, the pair XFRM
 keys an inbound state on (`__xfrm_state_lookup`). Ze draws each inbound SPI at
 random and checks it against no SPI in use (`generateESPSPI`), so two Child SAs
@@ -879,8 +910,9 @@ the fast path's because its subject is the complete path, the socket and the
 device the TUN finding names, and its consequence is that finding's, a refused
 SA, which no fast path finding has. When the TUN record of the last apply has
 the same cause, the check reports the receiver's finding alone
-(`espFormDeviceFindings`, `espFormSameCause`). The operator text calls the
-complete path Ze's own receiver for bare ESP.
+(`espFormDeviceFindings`, `espFormSameCause`). Every doctor finding calls the
+complete path Ze's own receiver for bare ESP, including the fast-path findings
+that explain the rate bound and the input interface the firewall sees.
 
 A reader whose socket fails ends while the SAs it served stay in the SAD, so
 its bare form is owed and unserved. Each reader has one revive worker
@@ -906,6 +938,19 @@ fails, it refuses with the open's error and the revive worker keeps trying. The
 reader takes no lock, so its socket's close joins it under the receiver's lock
 (`closeReaderLocked`); a revive worker takes the lock for each attempt, so
 `Close` joins the workers after it released the lock.
+
+The revive worker can raise its event while the plugin sends another RPC.
+`sdk.Plugin.RaiseIssue` builds a request local to the call; the pipe path
+multiplexes each request separately and serializes its framed write, and the
+direct bridge admits concurrent dispatches. The daemon serializes the report
+rate check and the error ring's append.
+<!-- source: pkg/plugin/sdk/report.go -- RaiseIssue, reportCall -->
+<!-- source: pkg/plugin/sdk/sdk.go -- callEngineRaw -->
+<!-- source: pkg/plugin/rpc/mux.go -- CallRPC -->
+<!-- source: pkg/plugin/rpc/conn.go -- writeFrame -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DispatchRPC, beginDispatch -->
+<!-- source: internal/component/plugin/server/dispatch_report.go -- opReportIssue, admit -->
+<!-- source: internal/core/report/report.go -- raiseError -->
 
 The receiver's registry follows the SAD and never leads it: `MigrateTunnel`
 moves the states first, while the receiver keeps re-presenting bare ESP on the
