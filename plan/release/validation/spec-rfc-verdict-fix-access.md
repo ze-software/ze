@@ -8,58 +8,50 @@
 | Scope | tooling |
 | Depends | `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the access group before any row edit, parent R-11) |
 | Phase | 13/13 — D-8 existing-scenario acceptance and closure |
-| Handoff | `857da9e798`; claim released. `plan/handover/2026-11-10-close-open-specs.md`, active Access checkpoint 2026-11-12 |
-| Blocker | Guest compilation: foreign `internal/plugins/fib/vpp/routesource.go:32` imports missing vendor package `go.fd.io/govpp/binapi/fib`; all five pending cases stop before assertions. Scoped lint: foreign `internal/plugins/fib/vpp/mpls.go` changed during planning after host; exit 2, no plan. Both belong to active `spec-fib-depth.md` owner `f5ef1144-6c05-40fc-8506-68a94ded2a6f`; preserve its work. |
+| Handoff | Closure handed back 2026-11-12, claim released. The closing commit runs from `tmp/session/2026-11-12-014013/scratch/access-owner-close.sh` once the owner authorises review rounds 6 and 7 |
+| Blocker | The review record owes the owner's `owner-authorised` at a terminal (seven rounds); see `## Blocker` |
 | Updated | 2026-11-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Blocker
 
-Native commit preparation found two owned error-reporting sites and produced
-no script. The duplicate literal `tc` verifier registration in
-`register_verify_linux.go` now panics as a programmer BUG: `RegisterVerifier`
-fails only for duplicate names during startup. CoS `executeCommand` now gives
-an unknown command an operator refusal naming that command, the declared
-command boundary and `ze show class-of-service` recovery. Independent bounded
-source review approves both classifications; valid registrations and command
-dispatch are unchanged. Main observed all nine focused race roots PASS without
-skips in `scratch/job-access-final-error-surface-controls-8c7f5c5b.log`. Refresh
-the historical native artifact's two affected source pins before closure.
-This checkpoint adds no fourth whole-source pass.
+Everything is done except the review record.
 
-All source findings are repaired and independently source-reviewed CLEAN at
-round 3. Main observed native review artifact/check PASS over 240 carriers at
-the completed source checkpoint, including the byte-identically renamed tests.
-Later foreign diagnostic additions are excluded; the owned patch retains
-reviewed SHA `eec1496845df93f13dd7c189a18bb2ddb14a42567ffc3947709b160efa1fd5e6`.
-Main observed 393 affected
-race roots PASS with zero skips, CoS without L2TP PASS and the current named
-build PASS. Seventeen native proof renewals completed in
-`scratch/job-access-final-seventeen-rfc-proofs-d82b2fea.log`; eight semantic
-rejudgments and the mechanical shifts are applied. The final regenerated
-thirteen-stem reconciliation `scratch/access-final-owned-rfc-lines.json` is
-empty: zero owned findings. This does not claim a clean global RFC check.
+`./le spec review record` refuses the record without `owner-authorised`,
+typed at an interactive terminal, because the review ran seven rounds. The
+rule is `ai/rules/planning.md`, "Five review rounds are the session's to
+spend. The sixth is Thomas's decision." The producer is
+`internal/le/spec/review.go` `recordReview`.
 
-Keep the earlier `01-ppp-ipv4` and `03-ze-lac-xl2tpd-lns` acceptance passes.
-The final retry `scratch/job-access-final-five-ze-guest-retry-8670e830.log`
-boots Ze/KVM, passes the kernel check and reaches Docker readiness, then all
-five cases stop at the missing FIB vendor import before assertions. Each
-reports zero scenarios; lab-exit is 1 and the VM stops with no leftovers.
-The final bounded lint attempt also stops before a plan, on changing foreign
-MPLS input, in `scratch/job-access-scoped-lint-final-checkpoint-476d68e0.log`.
-No lint or guest acceptance pass is inferred from these attempts.
+Rounds 6 and 7 ran before the cap was noticed. Each was one re-read of a
+one-line comment: the suppression on the CoA rollback loop in
+`internal/component/l2tp/plugins/authradius/coa_transaction.go`.
 
-To unblock, let the FIB owner complete its import/vendor and dependency edits,
-then rebuild in main and rerun exactly `04-radius-acct-attrs`,
-`01-pppoe-chap-ipv4`, `02-ze-ac-pppd-client`, `radius-admin-eap-freeradius`
-and `radius-coa-disconnect-freeradius` under the Ze Docker-host VM. The last
-case verifies the current repair against actual kernel shaping. Rerun the
-same 13-directory scoped lint once its dependencies settle, validate the five
-Dockerfile-specific allowlists through native builds, then complete remaining
-documentation/citation/planned-file checks and the closing commit workflow.
-Do not repeat completed proofs merely to refresh timestamps. All execution
-remains main-only; no closure or push is claimed.
+**What clears it.** The owner runs this from the checkout root:
+`bash tmp/session/2026-11-12-014013/scratch/access-owner-close.sh "<his words authorising review rounds 6 and 7>"`.
+The script does these steps in order, and stops at the first refusal:
+
+1. It records the review under session
+   `49765d8f-de3a-44bd-b9b8-95fd0126fbef`, over the 35 files in
+   `tmp/session/2026-11-12-014013/scratch/access-review-record-args.txt`, and
+   cites `tmp/session/2026-11-12-014013/scratch/access-closure-rounds5-7.md`.
+2. It checks the record.
+3. It prepares the commit that removes the spec, and runs that commit's
+   script.
+4. It runs `./le spec citation`.
+
+**If a pin is stale.** Another session can commit to one of the 35 files
+first. Then recompute the population: the commits that carry
+`Spec-work: rfc-verdict-fix-access`, their `.go` and `.yang` files, and HEAD
+against the working tree for each. Pin `file` where the two match. Pin
+`blob <path> <HEAD id> mode <path> 100644` where the working tree carries
+another session's hunks. Have an independent reader read the foreign delta,
+then record again.
+
+**The spec's Status does not stop the removing commit.** `specMechanismsRefusal`
+(`internal/le/commit/specmechanisms.go`) skips a removed spec, so the script
+can remove the spec while its Status is `blocked`.
 
 ## Task
 
@@ -357,6 +349,9 @@ Inherited from the parent (AC-C1 to AC-C7), restated for the access group.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | an existing tagged `.ci` test in scope, changed only where its verdict demands | `test/` | the operator-visible behavior the quoted sentence names | |
+| `rfc2661-sccrq-tunnel-id-zero` | `test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci` | the daemon answers an SCCRQ carrying Assigned Tunnel ID 0 with StopCCN and still accepts a well-formed SCCRQ (in the round-3 review population) | existing, last changed `61e717df0c`; no closure re-run claimed |
+| `radius-coa-listener` | `test/l2tp/radius-coa-listener.ci` | `coa-port` in a production config starts the RFC 5176 CoA listener and the daemon answers on it | existing, last changed `61e717df0c`; no closure re-run claimed |
+| `radius-acct-wire` | `test/l2tp/radius-acct-wire.ci` | the subscriber attributes on the RADIUS wire for a real PPP session | existing, last changed `b0f097d650`; no closure re-run claimed |
 
 ### Interop Tests
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -414,9 +409,9 @@ describe D-8. These are the current applicable categories and committed pages.
 | Config, CLI and traffic architecture | Yes | `0d9da69ff3` updates `docs/guide/traffic-control.md`, `docs/guide/command-reference.md`, `docs/guide/l2tp.md` and `docs/architecture/core-design.md` for classless TBF, bits/bytes, bounds and `rate-bps`. |
 | Appliance prerequisites | Yes | `80175d768d` updates `docs/architecture/appliance/kernel-profiles.md` and `docs/guide/appliance.md` for built-in upload policing. |
 | Test infrastructure | Yes | `9a51de9deb`, `1573a9970a` and `f200020a7f` update `docs/architecture/testing/interop.md`; PPPoE also updates `docs/labs/pppoe-interop.md`. |
-| RFC support | Yes | Owned summaries, independent audit verdicts and discrimination records remain the authority; generated status pages are not hand-edited. Main is renewing 11 positive tuples and four mechanical RFC8907 shifts found by the current native check. |
+| RFC support | Yes | Owned summaries, independent audit verdicts and discrimination records remain the authority; generated status pages are not hand-edited. The seventeen native proof renewals and the mechanical RFC8907 shifts are committed in `0ba9582eb7` and `857da9e798`. |
 | New API/RPC, plugin SDK, metadata, metric or comparison capability | No | The fixes use existing protocol/backend interfaces and preserve the existing feature scope. They add no such public surface. |
-| Operator news | Required; prepared | `website/changes/fragments/rfc-verdict-fix-access.md` records the D-8 and confirmed-authorization behavior, supported selectors and recovery, with six headings and source anchors. Main carries it in commit A. |
+| Operator news | Required; prepared | `website/changes/fragments/rfc-verdict-fix-access.md` records the D-8 and confirmed-authorization behavior, supported selectors and recovery, with six headings and source anchors. It is tracked since `857da9e798`, so the closure commits need not carry it again. |
 
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
@@ -558,9 +553,17 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | `9793ba4da8` | PPPoE client answers CHAP re-challenge in network phase |
 | `1870461d15`, `189db75308`, `10b1ef1ebb` | RADIUS Framed-Protocol, NAS identity (RFC3579-3-1), EAP header and Framed-IP |
 | `8c68fcf514`, `4e55b63ea6` | CoA 504 on SessionNotRemovable and on service stop; L2TP idle SCCRP |
+| `857da9e798` | CoA ACK only after the shaper and class-of-service owners confirm (`confirmCoA`), with rate-transaction expiry (`rateOperation`); tc verifier registration in `register_verify_linux.go`; CoS unknown-command operator refusal (`executeCommand`) |
+| `0551906c9f` | The eight scoped-lint findings on lines `857da9e798` wrote: two unchecked test-helper type assertions, the shaper token key and CoS status strings named once, a combined parameter list, preallocated CoS declarations, and a stated suppression on the `confirmCoA` loop |
+
+### Documentation Updates
+- The pages are named, with their commits, in the Documentation Update Checklist above. `857da9e798` adds `docs/architecture/traffic/cos-dynamic.md`, `docs/guide/l2tp.md` and `docs/research/l2tpv2-ze-integration.md` edits.
+- `docs/architecture/testing/interop.md` already says which ignore file a lab build reads (`<Dockerfile>.dockerignore` before `.dockerignore`), anchored to `contextIgnoreMatcher`. The five allowlist files need no page of their own.
+- `./le doc check all` ran on 2026-11-12, with no failing step of Access's (Pre-Commit Verification).
 
 ### Deviations from Plan
 - None beyond the naming marker above.
+- Existing-scenario acceptance ran seven cases, not six: `radius-coa-disconnect-freeradius` was run again as the current kernel CoA control.
 
 ## Mistake Log
 | Kind | What happened | What was true instead | How discovered | Action |
@@ -568,27 +571,59 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | approach | Verdict-only integration and documentation answers survived after D-8 added product changes. | TBF config/output, subscriber shaping and protocol lifecycle changed and had committed documentation. | Independent closure review, 2026-11-11. | Current applicability tables above replace those initial answers. |
 | approach | CoA admission equated event delivery with an applied authorization change. | Backend rate refusal returns through a void event callback, while the listener sends ACK. | Independent Review Gate round 1 traced `handleCoA` through `onSessionRateChange` to `rateBytesPerSecond`. | Repaired through synchronous owner confirmation and compensation. Round 3 is source CLEAN; current RFC reconciliation and interop remain separate gates. |
 | approach | The rate owner bounded its pending slot count but gave the slot no lifetime. | A lost prepare reply leaves the coordinator no token to release the slot; expired applied state also needs compensation. | Review 2 traced the lost-reply path; main observed three deterministic clock regressions blocked by the occupied slot. | A one-minute lease now recovers before the next admitted operation. Failed compensation retains its token and snapshot. Main's scoped race and native proof runs passed; overall closure remains open. |
+| wrong assumption | The closure plan pinned `internal/core/diagnostic/codes.go` at the blob `857da9e798` committed, and called the lint scope thirteen directories. | The closure gate hashes the prospective tree (`treeSelection`, `checkVerificationGates`), where two foreign commits changed `codes.go` afterwards. The review population reaches fourteen Go trees. | The closure read `checkReviewSelected` and grouped `access-review3-code-paths.txt` by tree. | The closure read each foreign delta. `codes.go` became clean when its foreign hunks landed in `bec9096156`, so the record pins all 35 files with `file`. The lint scope lists the fourteen trees (Pre-Commit Verification). |
 | wrong assumption | The new useful-control test treated plain 20mbit as a download-only request preserving a 5M upload. | `ParseFilterIDRate` intentionally makes a plain rate symmetric. | Main's baseline exposed the upload assertion and read the parser contract. | Changed the new test input to explicit 20mbit/5mbit, retaining the 5M assertion. The production parser is unchanged, and the corrected control passed main's scoped race run. |
 
 ## Implementation Audit
 
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| AC-C1 goal: the derived listing holds only the "Blocked by" verdicts | Done | `rfc/audit/<stem>/<id>.json` for the thirteen owned stems; the "Derived listing" filter | The three blocked verdicts left through P-3 and were closed `enforced` by `spec-radius-rfc-defects` |
+| D-8: a verified defect is fixed failing-test-first, with interop where a peer exists | Done | "Bugs Found/Fixed" commits; five new scenarios with red/green proof | Seven existing scenarios pass again (acceptance table) |
+| One writer per owned ledger file (P-1, P-2) | Done | `RFC-approved:` trailers and `audit-stamp ... mode rejudge` in the owned-stem commits | No owned RFC file changed after `857da9e798` |
+
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-C1 | Source and owned RFC reconciliation complete; closure blocked | Current selectors and complete accounting IDs match; unsupported identification attributes NAK. Round 3 is source CLEAN; final thirteen-stem check has zero owned findings. | Fresh evidence is in the 2026-11-12 checkpoint. Guest acceptance and lint remain open. |
-| AC-C2 | Native proof renewals complete | 121 verdicts moved to `enforced` since `174862502f`; historical sweep found zero unrecorded tagged units. Main recorded all 17 current renewals, including the eight new real-owner/signed-wire bindings. | `scratch/job-access-final-seventeen-rfc-proofs-d82b2fea.log`; actual kernel CoA acceptance remains separately pending. |
+| AC-C1 | Done | Current selectors and complete accounting IDs match; unsupported identification attributes NAK. Round 3 is source CLEAN; final thirteen-stem check has zero owned findings. | No owned RFC file or tagged unit changed after that check (`git log 857da9e798..HEAD`), so it is not re-run. |
+| AC-C2 | Done | 121 verdicts moved to `enforced` since `174862502f`; historical sweep found zero unrecorded tagged units. Main recorded all 17 current renewals, including the eight new real-owner/signed-wire bindings. | Renewals are committed in `0ba9582eb7` and `857da9e798`. Kernel CoA acceptance passed on 2026-11-12 (acceptance table). |
 | AC-C3 | Done | rfc5176 split rows `8c68fcf514`, RFC1994-4.2-5 row `4e55b63ea6`, RFC2866 table split `10b1ef1ebb` | reviewer to re-walk the split table |
 | AC-C4 | Done | the three blocked verdicts are in `spec-radius-rfc-defects` | |
-| AC-C5 | Current owned reconciliation complete | `scratch/access-final-owned-rfc-lines.json` is empty after fresh native regeneration/check. | Eight independent semantic rejudgments and mechanical shifts applied; foreign global findings remain. |
+| AC-C5 | Done for the owned stems | `scratch/access-final-owned-rfc-lines.json` is empty after fresh native regeneration/check. | Eight independent semantic rejudgments and mechanical shifts applied; foreign global findings remain, and no clean global `./le rfc check` is claimed. |
 | AC-C6 | N-A | the parent's row-quality and mistagged-unit tables hold no row of the access stems | RFC2759-x-8/x-9 belong to `spec-rfc-verdict-fix-ike-eap`; the `8c68fcf514` corrections cited here before are AC-C3's evidence (round-1 review NOTE-1) |
 | AC-C7 | N-A | no R-7 row belongs to this child | the Linux-only RFC2866-4.1-1 `.ci` record the handover listed as owed landed in `dd09cdd4ff` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Tagged units of the nine owned packages | Done | the nine packages in the TDD Unit Tests table | 393 affected race roots PASS with zero skips (main, 2026-11-11); the error-surface controls PASS (`job-access-final-error-surface-controls-8c7f5c5b.log`) |
+| Functional `.ci` in scope | Unchanged | `test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci`, `radius-coa-listener.ci`, `radius-acct-wire.ci` | Not edited after their last commits; no closure re-run is claimed |
+| Interop, five new D-8 scenarios | Done | `internal/le/interoplab/{l2tp,pppoe,radiussubscriber}` | Red/green/restored, "Current native proof, 2026-10-27" |
+| Interop, seven existing-scenario acceptance cases | Done | acceptance table | All pass under KVM on Ze's Docker-host image |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `_test.go` and `.ci` files carrying the listed tags | Done | the owned-stem commits |
+| `rfc/short`, `rfc/audit`, `rfc/discrimination`, `rfc/corrections`, `rfc/extraction` of the thirteen owned stems | Done | last owned change `857da9e798` |
+| D-8 producers | Done | "Bugs Found/Fixed" |
+| `docs/features/rfc-status.md` | Changed | generated, never hand-edited; the owned summaries are the source |
+
+### Audit Summary
+- **Total items:** 7 AC rows, 3 task requirements, 4 test groups, 4 file groups
+- **Done:** 5 AC rows, every task requirement, every test group, 3 file groups
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** the rfc-status page row (generated, see Files from Plan); AC-C6 and AC-C7 are N-A
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
 | AC-C1: the derived listing holds only "Blocked by" ids | ledger query | 3 rows, all in `spec-radius-rfc-defects` ACs |
 | every resolved verdict proven and judged by a non-author | discrimination records + audit | 0 unrecorded tagged units over 121 moved verdicts; `./le rfc check` clean for the access stems |
-| D-8 fixes work against another implementation | interop | All five new scenarios have native green / intended-red / restored-green evidence. The three link scenarios are recorded in `9a51de9deb` and `1573a9970a`; the two subscriber scenarios are recorded below. Existing-scenario acceptance is the "Existing-scenario acceptance, 2026-11-11" table, pending |
+| D-8 fixes work against another implementation | interop | All five new scenarios have native green / intended-red / restored-green evidence. The three link scenarios are recorded in `9a51de9deb` and `1573a9970a`; the two subscriber scenarios are recorded below. Existing-scenario acceptance passed seven of seven on Ze's Docker-host image under KVM (xl2tpd, accel-ppp, pppd, FreeRADIUS): the "Existing-scenario acceptance, 2026-11-11" table, which also states what tree each run compiled |
+| A malformed or refused input gets a refusal, not only no crash (Security Review Checklist) | interop + unit | `radius-coa-disconnect-freeradius` requires CoA-NAK and unchanged kernel rates for a mixed valid/unsupported CoA (`checkCoADisconnect`). `l2tp-radius-framed-protocol-reject` requires refused SLIP authorization and no Accounting-Start (`checkFramedReject`). Both have intended-red and restored-green proof from 2026-10-27; the CoA scenario passed again on 2026-11-12 |
 
 ## D-8 Interop Implementation, 2026-10-26
 
@@ -651,33 +686,113 @@ and do not close AC-C1 through AC-C7 by themselves.
 
 ## Existing-scenario acceptance, 2026-11-11
 
-The six existing scenarios that exercise the D-8 producers, run in the main
-checkout over the committed fixes. Logs are retained at
-`tmp/access-close/<scenario>.log`.
+**Former FIB blockers, cleared 2026-11-12.** The handback in `857da9e798`
+named two foreign blockers, both owned by `spec-fib-depth`:
 
-| Scenario | Command | Result | Log |
-|----------|---------|--------|-----|
-| `01-ppp-ipv4` | `ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 ./le test deployment docker-l2tp-ppp` | pending | `tmp/access-close/01-ppp-ipv4.log` |
-| `03-ze-lac-xl2tpd-lns` | `ZE_L2TP_INTEROP_SCENARIO=03-ze-lac-xl2tpd-lns ./le test deployment docker-l2tp-ppp` | pending | `tmp/access-close/03-ze-lac-xl2tpd-lns.log` |
-| `04-radius-acct-attrs` | `ZE_L2TP_INTEROP_SCENARIO=04-radius-acct-attrs ./le test deployment docker-l2tp-ppp` | pending | `tmp/access-close/04-radius-acct-attrs.log` |
-| `01-pppoe-chap-ipv4` | `ZE_PPPOE_INTEROP_SCENARIO=01-pppoe-chap-ipv4 ./le test deployment docker-pppoe-accel` | pending | `tmp/access-close/01-pppoe-chap-ipv4.log` |
-| `02-ze-ac-pppd-client` | `ZE_PPPOE_INTEROP_SCENARIO=02-ze-ac-pppd-client ./le test deployment docker-pppoe-accel` | pending | `tmp/access-close/02-ze-ac-pppd-client.log` |
-| `radius-admin-eap-freeradius` | `RADIUS_INTEROP_SCENARIO=radius-admin-eap-freeradius ./le test integration interop-radius` | pending | `tmp/access-close/radius-admin-eap-freeradius.log` |
+| Former blocker | What cleared it | Checked |
+|----------------|-----------------|---------|
+| Guest builds stopped because `internal/plugins/fib/vpp/routesource.go` imported the absent vendor package `go.fd.io/govpp/binapi/fib` | `e8cb8ef87c` vendors the package; `routesource.go` and `mpls.go` are committed and clean in the working tree | `git ls-tree HEAD vendor/go.fd.io/govpp/binapi/fib/` lists `fib.ba.go`; `git status` of `internal/plugins/fib/` is empty |
+| Scoped lint stopped before a plan because foreign `internal/plugins/fib/vpp/mpls.go` changed during planning | Same: that input no longer changes | The lint then ran (Pre-Commit Verification) |
+
+After the clear, the five remaining existing-scenario cases passed. The table
+below records all seven runs. The earlier checkpoint's other facts still hold.
+The two error-surface corrections (`register_verify_linux.go` `init`, CoS
+`executeCommand`) are in `857da9e798` and passed a bounded independent
+review. The owned thirteen-stem RFC reconciliation found no owned finding.
+`git log 857da9e798..HEAD` shows no change since then to an owned
+`rfc/short`, `rfc/audit` or `rfc/discrimination` file, or to the L2TP,
+RADIUS, TACACS and `test/l2tp` trees.
+
+The six existing scenarios that exercise the D-8 producers, plus
+`radius-coa-disconnect-freeradius` run again as the current CoA control
+against real kernel shaping. Every case ran in the main checkout inside Ze's
+Docker-host image (`~/.cache/ze/docker-host/amd64/cc542f79b4da2fba`) under
+KVM. Each run's summary shows `accelerator kvm`, `check-exit 0` (the Docker
+kernel check) and `left-behind none`, and the VM stopped.
+
+The outer command was `./le job run label <label> quiet command ./le test qemu
+docker-lab lab "job run label <label> command python3 <wrapper>" timeout <d>`.
+The wrapper sets one scenario selector per case and runs the case's own suite
+(`access-five-labs.py`, `access-two-labs.py` under
+`tmp/session/2026-11-12-014013/scratch/`). The logs are session scratch. They
+are volatile, so the closure commit body restates each case's result line.
+
+| Scenario | Selector and suite | Result line | Images built | Log |
+|----------|--------------------|-------------|--------------|-----|
+| `01-ppp-ipv4` | `ZE_L2TP_INTEROP_SCENARIO`, `./le test deployment docker-l2tp-ppp` | `interop: [1/1] 01-ppp-ipv4: pass (20s)`, `1 passed, 0 failed`, lab-exit 0 | `ze-l2tp-interop`, `ze-l2tp-lac` | `tmp/session/2026-11-11-014000/scratch/job-access-existing-ppp-ipv4-5622c558.log` |
+| `03-ze-lac-xl2tpd-lns` | `ZE_L2TP_INTEROP_SCENARIO`, `./le test deployment docker-l2tp-ppp` | `interop: [1/1] 03-ze-lac-xl2tpd-lns: pass (3s)`, `1 passed, 0 failed`, case exit 0 | `ze-l2tp-interop`, `ze-l2tp-lac` | `tmp/session/2026-11-11-014000/scratch/job-access-existing-remaining-one-ze-vm-3996ff22.log` (the later cases in this log ran 0 scenarios; lab-exit 143) |
+| `04-radius-acct-attrs` | `ZE_L2TP_INTEROP_SCENARIO`, `./le test deployment docker-l2tp-ppp` | `interop: [1/1] 04-radius-acct-attrs: pass (4s)`, `1 passed, 0 failed` | `ze-l2tp-interop`, `ze-l2tp-lac`, `ze-l2tp-radius` | `tmp/session/2026-11-12-014013/scratch/access-batch-0303-three-pass.log` |
+| `01-pppoe-chap-ipv4` | `ZE_PPPOE_INTEROP_SCENARIO`, `./le test deployment docker-pppoe-accel` | `interop: [1/1] 01-pppoe-chap-ipv4: pass (7s)`, `1 passed, 0 failed` | `ze-pppoe-interop`, `ze-pppoe-accel`, `ze-pppoe-client` | same log |
+| `02-ze-ac-pppd-client` | `ZE_PPPOE_INTEROP_SCENARIO`, `./le test deployment docker-pppoe-accel` | `interop: [1/1] 02-ze-ac-pppd-client: pass (16s)`, `1 passed, 0 failed` | `ze-pppoe-interop`, `ze-pppoe-accel`, `ze-pppoe-client` | same log. Its fourth and fifth cases stopped at a foreign L2TP compile break (`reactor_kernel.go`: `undefined: teardowns`) before any assertion. The next log supersedes them |
+| `radius-admin-eap-freeradius` | `RADIUS_INTEROP_SCENARIO`, `./le test integration interop-radius` | `interop: [1/1] radius-admin-eap-freeradius: pass (41s)`, `PASS 1 scenario(s)`, case exit 0 | `ze-radius-interop` | `tmp/session/2026-11-12-014013/scratch/access-batch-two-pass.log` |
+| `radius-coa-disconnect-freeradius` | `RADIUS_SUBSCRIBER_INTEROP_SCENARIO`, `./le test integration interop-radius-subscriber` | `interop: [1/1] radius-coa-disconnect-freeradius: pass (15s)`, `1 passed, 0 failed`, lab-exit 0 | `ze-radius-subscriber-ze`, `ze-radius-subscriber-lac` | same log |
+
+**The Dockerfile-specific allowlists.** `857da9e798` commits five
+`<Dockerfile>.dockerignore` files. `Suite.prepareImages`
+(`internal/le/interoplab/lab.go`) prints `interop: image <name>: reference`
+only after `Docker.Build` returns. `Docker.Build` (`docker.go`) sends the
+context that `prepareBuildContext` filters, and `contextIgnoreMatcher`
+(`docker_build_context.go`) reads `<Dockerfile>.dockerignore` before the
+context's own `.dockerignore`. The image registrations name the Dockerfiles
+(`l2tp/register_images.go`, `pppoe/register_images.go`,
+`radius/register_images.go`, `radiussubscriber/register_images.go`). All five
+allowlists were exercised by runs after `857da9e798` landed (00:51 UTC on
+2026-11-12), and none of the five files has changed since:
+
+| Allowlist | Image it filters | Run that built it after `857da9e798` |
+|-----------|------------------|--------------------------------------|
+| `test/interop-l2tp/Dockerfile.ze.dockerignore` | `ze-l2tp-interop` | `04-radius-acct-attrs` |
+| `internal/le/interoplab/l2tp/radiusmock/Dockerfile.dockerignore` | `ze-l2tp-radius` | `04-radius-acct-attrs` |
+| `test/interop-pppoe/Dockerfile.ze.dockerignore` | `ze-pppoe-interop` | `01-pppoe-chap-ipv4`, `02-ze-ac-pppd-client` |
+| `test/interop-radius/Dockerfile.ze.dockerignore` | `ze-radius-interop` | `radius-admin-eap-freeradius` |
+| `test/interop-radius-subscriber/Dockerfile.ze.dockerignore` | `ze-radius-subscriber-ze` | `radius-coa-disconnect-freeradius` |
+
+**What these runs tested.** Every guest build compiles Ze from the shared
+working tree, not from a commit:
+
+- `01-ppp-ipv4` (21:21 UTC) and `03-ze-lac-xl2tpd-lns` (22:15 UTC) ran on
+  2026-11-11, before `857da9e798` landed. They compiled the working tree of
+  that time, which no record pins.
+- The five 2026-11-12 cases ran after `857da9e798`. At that time the working
+  tree held uncommitted L2TP teardown edits from another session
+  (`spec-single-owner-lifecycle-5-session-end-locals`). The compile break in
+  `reactor_kernel.go` above is one of them, and eight `internal/component/l2tp`
+  files are still modified. So the L2TP code under test was Access's
+  committed fixes plus those edits.
+
+These runs are regression evidence for the existing scenarios. They are not
+the discrimination proof of the D-8 fixes, which is "Current native proof,
+2026-10-27".
+
+**All seven passes predate `0551906c9f`** (the eight owned lint fixes, 04:08
+UTC on 2026-11-12), and no lab has run on it. That commit changes form only.
+It adds a comment to the `confirmCoA` rollback loop, which `behaviorSHA`
+(`internal/le/rfc/discriminate.go`) strips, so the RFC5176 records over
+`confirmCoA` stay fresh. It names the shaper's `token` key once as
+`rateAnswerTokenKey`. It replaces CoS `"done"`/`"error"` with
+`rpc.StatusDone`/`rpc.StatusError`, which equal those strings. It builds the
+CoS declarations with `slices.Concat`, combines one parameter list, and adds
+checked type assertions to two test helpers. The authradius, shaper and cos
+packages pass under race on that commit (`job-unit-pkg-71061623.log`). A
+confirmation rerun of the two RADIUS cases did not reach a lab: the Docker
+kernel check timed out on `docker info` at load average 36-39
+(`job-access-confirm-radius-6d908fad.log`, check-exit 1, no scenario ran). No
+acceptance criterion depends on a lab run of `0551906c9f`. The interop goal
+rests on the five scenarios' red/green proof, and this commit leaves the
+behavior of every producer they test unchanged.
 
 ## Work Not Done
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2 | producer defects (P-3) | `spec-radius-rfc-defects`, closed 2026-10-20 with all three verdicts `enforced` |
-| OPEN GATE: interop over the wire-visible D-8 fixes | All five new scenarios have green / intended-red / restored-green proof; existing-scenario acceptance remains | This spec still owes acceptance runs of `01-ppp-ipv4`, `03-ze-lac-xl2tpd-lns`, `04-radius-acct-attrs`, `01-pppoe-chap-ipv4`, `02-ze-ac-pppd-client` and `radius-admin-eap-freeradius`, with retained logs |
-| Scoped evidence for the committed change | No agent runs any `./le verify` command, `./le verify changed` included (`ai/META-DECISIONS.md`, "Ze is pre-release"); the evidence is the scoped runs of what the change reaches | The evidence already recorded in this spec: the scoped eight-package race proof (two retained runs, "D-8 Interop Implementation, 2026-10-26"), the native red/green records of the five new scenarios ("Current native proof, 2026-10-27"), and the "Existing-scenario acceptance, 2026-11-11" table once its rows are filled. GitHub CI's `verify` workflow verifies the pushed closing commits; a red it reports gets a fix commit of its own and does not reopen this spec. Full verification is Thomas's release check, not a closure gate |
+| none | Every in-scope item is done. The three blocked verdicts (RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2) left this child through P-3. `spec-radius-rfc-defects` closed them `enforced` on 2026-10-20, so they are not work this spec left undone. The existing-scenario acceptance is complete (seven of seven). GitHub CI's `verify` workflow verifies the pushed closing commits, and full verification is Thomas's release check, not a closure item | none |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | Source CLEAN at round 3. Main recorded `tmp/review/rfc-verdict-fix-access-01a1c842-0a58-7752-bbff-2a3f1633b66f.md` over 240 carriers. Independent reports are `scratch/access-closure-round1.{md,json}`, `access-closure-round2.{md,json}` and `access-closure-round3.{md,json}` under this session. |
-| `./le spec review check` | Main observed PASS over 240 carriers at the completed source checkpoint after the byte-identical renames. Later foreign diagnostic hunks are excluded; the owned patch retains the reviewed hash. Source CLEAN remains round 3. |
-| Rounds | 3 official passes: round 1 found three product/style groups; round 2 found two lifecycle/event issues; round 3 reviewed those fixes and touched siblings with zero BLOCKER and zero ISSUE. |
+| Artifact | OWED: the owner script `tmp/session/2026-11-12-014013/scratch/access-owner-close.sh` records it (`## Blocker`). The earlier artifact `tmp/review/rfc-verdict-fix-access-01a1c842-0a58-7752-bbff-2a3f1633b66f.md` (240 carriers) is keyed to the previous session. Independent reports are `access-closure-round1.{md,json}`, `access-closure-round2.{md,json}` and `access-closure-round3.{md,json}` under `tmp/session/2026-11-11-014000/scratch/`, and `tmp/session/2026-11-12-014013/scratch/access-closure-rounds5-7.md` for rounds 5 to 7. |
+| `./le spec review check` | OWED after the record; the owner script runs it. Earlier: main observed PASS over 240 carriers at the completed source checkpoint. |
+| Rounds | 7: round 1 found three product/style groups; round 2 found two lifecycle/event issues; round 3 reviewed those fixes and the sibling paths they touched (zero BLOCKER, zero ISSUE); round 4 was the bounded independent review of the two error-surface corrections, CLEAN; rounds 5 to 7 are the three passes of the bounded review of `0551906c9f`, the last CLEAN. Above five, the record needs `rounds-reason` and Thomas's `owner-authorised` (`ai/rules/planning.md`). |
 | Reviewer lenses used | Correctness and wiring; protocol and security boundaries; lifecycle/resource ownership; test preservation; Go style; source-linked documentation and all AC-C rows. |
 
 ### Round 1 scope and result, 2026-11-11
@@ -753,6 +868,59 @@ Main refreshed and checked the same round-3 artifact after this naming NOTE.
 Owned RFC renewals/audits are complete; guest acceptance and lint remain open.
 Source CLEAN is not closure. The prose and naming refresh adds no review round.
 
+### Round 4 and the closure population, 2026-11-12
+
+Round 4 scope: the two corrections that native commit preparation forced
+before `857da9e798`, the duplicate `tc` verifier registration
+(`register_verify_linux.go` `init`) and the CoS unknown command
+(`internal/plugins/cos/register.go` `executeCommand`). The bounded independent
+review approved both (`plan/handover/2026-11-10-close-open-specs.md`, "Access
+blocked checkpoint"). The closure read both again. `RegisterVerifier`
+(`internal/component/traffic/backend.go`) fails only for a duplicate name, and
+`init` runs at startup, so no peer and no config reaches the `panic`.
+`executeCommand` answers an unknown command with `opererr.New`, naming the
+command and `ze show class-of-service`. No finding.
+
+The closure gate judges commit B, the commit that removes the spec
+(`checkVerificationGates`, `internal/le/commit/prepare.go`). It covers the
+reviewable files of every commit carrying `Spec-work: rfc-verdict-fix-access`
+(`857da9e798` and `0ba9582eb7`), of commit A, and of commit B. It hashes each
+file from the prospective tree (`treeSelection`), not from the working tree.
+That set is 35 Go and YANG files. 32 of them still match the round-3 artifact
+pins byte for byte. The other three differ:
+
+| File | Why it differs from the round-3 pin | Reviewed by |
+|------|--------------------------------------|-------------|
+| `internal/plugins/traffic/netlink/register_verify_linux.go` | round-4 correction, committed in `857da9e798` | round 4 |
+| `internal/plugins/cos/register.go` | round-4 correction, committed in `857da9e798` | round 4 |
+| `internal/core/diagnostic/codes.go` | `857da9e798` committed Access's diagnostic hunks as blob `37baf857bd`. Two foreign commits then changed it: `5d3d7e3a6d` adds the two `doctor-mpls-ttl-propagate-*` codes, and `b2ced10cac` adds one sentence to an IKE code's description. HEAD's blob is `103493b798827cfabf1af5b7186d7c57015d21c2`. The working tree holds more foreign hunks | The closure read the `857da9e798..HEAD` delta. It adds catalog data only, and no Access code reads it. NOTE, no finding |
+
+The gate reads HEAD's blob for `codes.go`, so a pin of `37baf857bd` would be
+stale at commit B.
+
+### Rounds 5 to 7, the lint fixes, 2026-11-12
+
+Scope: the diff of `0551906c9f`, six files. A reviewer that wrote none of it
+ran three passes:
+
+| Round | Verdict | Finding |
+|-------|---------|---------|
+| 5 | NOT CLEAN | The first version rewrote the `confirmCoA` rollback loop with `slices.Backward`. That changes the function's behavior hash and stales three RFC 5176 discrimination records (two under RFC5176-2.3-6, one under RFC5176-2.3-5) |
+| 6 | NOT CLEAN | The suppression kept the index form, but its reason over-claimed which records quote the loop |
+| 7 | CLEAN | Zero BLOCKER, zero ISSUE. Two NOTEs stay open: `rateAnswerTokenKey` duplicates the `rateRequest.Token` JSON tag, and `callCoAOwner` still compares a literal status |
+
+The closure read the diff as well. `behaviorSHA` strips comments, so the
+committed suppression leaves the RFC5176 records fresh. The SDK constants
+`rpc.StatusDone` and `rpc.StatusError` equal the strings they replace.
+
+The closure population is now three tagged commits, `0551906c9f`,
+`857da9e798` and `0ba9582eb7`. They hold the same 35 Go and YANG files,
+because the lint fix touched six files already in the set. On 2026-11-12,
+after `0551906c9f`, the working tree of all 35 equals HEAD. The foreign
+`codes.go` hunks landed in `bec9096156`, which adds one more catalog entry,
+`doctor-ddos-flowspec-orphan-announcement`. The closure read that delta:
+catalog data only, NOTE. So every file is pinned with `file`.
+
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
@@ -764,24 +932,42 @@ Source CLEAN is not closure. The prose and naming refresh adds no review round.
 
 ## Pre-Commit Verification
 
-This record remains blocked on the two foreign execution inputs in the current
-checkpoint. Owned RFC freshness and source review are complete; lint and the
-five pending guest runs remain open. No closing commit is claimed.
+Guest acceptance is complete. Main ran the checks below on 2026-11-12, judged
+by ownership: a finding on a line this spec's commits wrote is owed here, and
+a foreign finding is reported apart. Logs are under
+`tmp/session/2026-11-12-014013/scratch/`.
+
+| Check | Result |
+|-------|--------|
+| Scoped lint, first run | `job-access-scoped-lint-a619dbe1.log`: 50 findings in the main builds. 8 are `OWNED`, all on lines `857da9e798` wrote (`access-lint-ownership.tsv`) |
+| The eight fixes | committed in `0551906c9f`, reviewed in rounds 5 to 7; authradius, shaper and cos `ok` under race (`job-unit-pkg-71061623.log`) |
+| Scoped lint, rerun | `job-access-scoped-lint-after-fixes-a619dbe1.log`, `access-lint-after-ownership.tsv`: 37 distinct findings, none on a line an Access commit wrote. 32 are in foreign commits (`internal/appliance` `7a40464210`, `66cc2f7abb`; `internal/le/interoplab/pppoe` ST1005 from `dbbd2c3a32`, `3cc99259b0`). 3 are in a foreign untracked appliance test. 1 is a typecheck in another session's uncommitted edit of the plugin `process` package. 1 is a vendor typecheck under FreeBSD |
+| `./le doc check all` | `job-doc-check-all-506ada98.log`: two failing steps, neither Access's. The published wiki command catalogue differs from the live one, and three `ai/digests/` files cite `ai/PACKAGE-MAP.md`, which `7629e90135` removed. The source-anchor step passes |
+| Review record and check | owed: the owner script `access-owner-close.sh` runs both (`## Blocker`) |
+
+| Check as specified | Exact command | Why this scope |
+|------------|---------------|----------------|
+| Scoped lint | `./le go lint run scope "./internal/component/l2tp/... ./internal/component/radius/... ./internal/component/tacacs/... ./internal/component/traffic/... ./internal/plugins/traffic/netlink/... ./internal/plugins/traffic/vpp/... ./internal/plugins/cos/... ./internal/core/diagnostic/... ./internal/appliance ./internal/le/interoplab/l2tp/... ./internal/le/interoplab/pppoe/... ./internal/le/interoplab/radiussubscriber/... ./test/interop-l2tp/... ./test/interop-pppoe/..."` | Every tree that holds a Go file of the round-3 review population (`access-review3-code-paths.txt`, 240 carriers). Fourteen trees: the twelve of the last attempt plus `cos` and `diagnostic`, which that population reaches through `handler.go`, `register.go` and `codes.go`. The "13-directory" count written earlier was wrong. `internal/appliance` is its root package alone, because the population holds only `kernelreq.go` and its test there. `test/l2tp` holds only a `.ci` file of the population |
+| Documentation | `./le doc check all` | `857da9e798` edits three pages |
+| Review record, then check | the owner script `tmp/session/2026-11-12-014013/scratch/access-owner-close.sh` (`## Blocker`) | the 35-file closure population |
 
 ### Files Exist (ls)
 
 | File | Exists | Evidence |
 |------|--------|----------|
-| Owned Go and D-8 harness sources | Source-read population located | `scratch/access-review1-existing.txt` lists 283 current files, including 212 Go files; main's bounded planned-file `ls` remains owed. |
+| The five D-8 checker sources | Yes | `ls` 2026-11-12: `internal/le/interoplab/l2tp/mandatory_avp.go`, `internal/le/interoplab/pppoe/check_lifecycle.go`, `internal/le/interoplab/radiussubscriber/check_coa_disconnect.go`, `internal/le/interoplab/radiussubscriber/check_framed_protocol.go` |
+| The five Dockerfile allowlists | Yes | `ls` 2026-11-12 lists all five paths of the allowlist table; `git status` shows them clean |
+| `website/changes/fragments/rfc-verdict-fix-access.md` | Yes | tracked since `857da9e798`, `spec: rfc-verdict-fix-access`, six headings |
+| Functional tests named in the TDD plan | Yes | `ls test/l2tp/` lists `rfc2661-sccrq-tunnel-id-zero.ci`, `radius-coa-listener.ci`, `radius-acct-wire.ci` |
 
 ### AC Verified (grep/test)
 
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-C1, AC-C2, AC-C5 | Source and owned RFC gates complete; closure remains blocked. | All 17 native renewals recorded; eight semantic rejudgments and mechanical shifts applied; final owned thirteen-stem finding list empty. |
+| AC-C1, AC-C2, AC-C5 | Owned RFC gates complete. | All 17 native renewals recorded; eight semantic rejudgments and mechanical shifts applied; final owned thirteen-stem finding list empty. `git log 857da9e798..HEAD` on the owned `rfc/` files and on `internal/component/{l2tp,radius,tacacs}` and `test/l2tp` is empty, so nothing staled the check. |
 | AC-C3, AC-C4 | Split/correction history and former blocked work are retained. | Commits `8c68fcf514`, `4e55b63ea6`, `10b1ef1ebb` and closed `spec-radius-rfc-defects`; no new cross-owner ledger edit is authorized. |
 | AC-C6, AC-C7 | No applicable rows were assigned by the parent's named tables. | Those source tables in this spec are empty; RFC2759 belongs to the IKE/EAP child. |
-| D-8 end-to-end behavior | Historical discriminated scenarios retained; two existing acceptance passes preserved. | `01-ppp-ipv4` and `03-ze-lac-xl2tpd-lns` PASS in their retained logs. The final five-case retry (four other existing cases plus current kernel CoA control) stops before assertions on the foreign missing FIB vendor import; the VM stopped with no leftovers. |
+| D-8 end-to-end behavior | Seven existing scenarios pass, and the five new scenarios keep their red/green proof. | Acceptance table: seven `pass` lines, each with its log, KVM, kernel check exit 0 and nothing left behind. |
 
 ### Wiring Verified (end-to-end)
 
@@ -789,21 +975,24 @@ five pending guest runs remain open. No closing commit is claimed.
 |-------------|----------|----------|
 | RFC record and audit readers | Native `./le rfc check`, not a daemon `.ci` | Current source `checkAuditFindings` reads requirement-sharded files; main owns final execution. |
 | L2TP unknown AVP, PPPoE CHAP/termination, RADIUS framing/CoA | Native interop scenarios, not `.ci` wrappers | `scenarioCheckerMap` in L2TP/subscriber suites and PPPoE `checkers` reach all five actual peer checkers; green/intended-red/restore evidence remains in the recorded commit bodies. |
-| Existing subscriber and admin-login controls | Six named existing scenarios plus current kernel CoA control | Two earlier passes remain valid. Five-case final retry is blocked before assertions; exact commands and unblock action are in Blocker. No broad suite pass is substituted. |
+| Existing subscriber and admin-login controls | Six named existing scenarios plus the current kernel CoA control | All seven pass through each suite's own entry point (`./le test deployment docker-l2tp-ppp`, `docker-pppoe-accel`, `./le test integration interop-radius`, `interop-radius-subscriber`) under the scenario selector; acceptance table. |
+| CoA listener from production config | `test/l2tp/radius-coa-listener.ci` | Reads `coa-port` through `parseConfigFromTree` to `newCoAListener`; unchanged since `61e717df0c`, not re-run at closure. |
 
 ### Assumptions Resolved
 
 | ID | Final Status | Evidence |
 |----|--------------|----------|
 | A-1 | Confirmed | `audit-stamp` supports `mode rejudge`; independent stamps and historical commit records use it. |
-| A-2 | Confirmed; source and owned RFC work complete | The three old blocked rows were closed by the RADIUS defect spec. Current CoA findings are fixed and source-reviewed CLEAN at round 3; final owned RFC reconciliation is zero. Guest acceptance and lint remain blocked. |
+| A-2 | Confirmed | The three old blocked rows were closed by the RADIUS defect spec. Current CoA findings are fixed and source-reviewed CLEAN at round 3; final owned RFC reconciliation is zero. Guest acceptance is complete. |
 
 ### Documentation Verified
 
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
 | L2TP AVP and PPP/PPPoE lifetime | `AVPIterator.Next`, `handleHello`, `applyTransition`, `signalLayerFinished`, `networkPhaseCHAP.handle` | Governing wire, subscriber and CPE pages have corresponding source anchors and committed D-8 edits. |
-| CoA atomicity and session selection | `handleCoA`, `applySubscriberCoA`, `confirmCoA`, `findSubscriberSession` | Docs describe confirmed owner application, compensation, all implemented selectors, complete accounting identity and explicit refusal of unsupported identification. Source-reviewed CLEAN; actual kernel acceptance remains pending. |
+| CoA atomicity and session selection | `handleCoA`, `applySubscriberCoA`, `confirmCoA`, `findSubscriberSession` | Docs describe confirmed owner application, compensation, all implemented selectors, complete accounting identity and explicit refusal of unsupported identification. Source-reviewed CLEAN; `radius-coa-disconnect-freeradius` passed against real kernel shaping on 2026-11-12. |
 | Traffic config, output and kernel prerequisite | `parseInterfaceQoS`, `FormatQoS`, `verifyDesired`, `rateBytesPerSecond`, `runtimeKernelRequirements` | Current guide/schema describe root rate, exact units and built-in police support; D-8 applicability above is corrected. |
 | Native peer observations | `checkCHAPRechallenge`, `checkPeerTerminate`, `checkUnknownMandatoryAVP`, `checkCoADisconnect`, `checkFramedReject` | The interop page describes actual external peers and observed wire/kernel state. |
-| Closure news and final doc checks | D-8 has operator-visible behavior changes. | Canonical six-heading news is prepared for this blocked handback. Main's final documentation/citation/planned-file checks remain owed; no verdict-only exemption is claimed. |
+| Closure news and final doc checks | D-8 has operator-visible behavior changes. | `website/changes/fragments/rfc-verdict-fix-access.md` is tracked since `857da9e798`, a `Spec-work` commit, so it satisfies `newsFragmentRefusal`; commit B carries no `no-news`. Its After section matches `confirmCoA`, `rateOperation` and `executeCommand` as read at closure. `./le doc check all` ran on 2026-11-12 (Pre-Commit Verification). |
+| Lab build context and ignore files | `contextIgnoreMatcher`, `prepareBuildContext`, `Docker.Build` | `docs/architecture/testing/interop.md` states that `<Dockerfile>.dockerignore` wins over `.dockerignore`, with a source anchor to those functions. |
+| Citations of this spec | `git grep -n spec-rfc-verdict-fix-access` over the tracked tree | Only `plan/handover/2026-11-10-close-open-specs.md` uses the full path, and `Policed` (`internal/le/doc/citation/policed.go`) excludes `plan/handover/` as a record, so it is not repointed (`ai/rules/writing.md`). Every other hit is the bare stem: four handover author files, seven journal rows (one open, Framed-IP-Address 0xFFFFFFFF, owned by `spec-ppp-l2tp-aaa-one-off-defects` AC-8), `plan/release/fixes/spec-rfc5176-remaining-defect-classes.md` and `rfc/extraction/rfc5176.json`. A bare stem makes no resolution promise. No Go `// Design:` header cites the spec. `./le spec citation` runs from the owner script after the removing commit (`## Blocker`). |
