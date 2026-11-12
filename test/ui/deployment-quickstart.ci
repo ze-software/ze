@@ -1,0 +1,18 @@
+# Test: do the supplied two-peer configs establish real sessions, exchange each
+# opposite prefix, reject a bad login, and stop cleanly through actual Ze/CLI?
+# A unit test cannot decide real TCP, SSH authentication and UPDATE delivery.
+# accept-only: the native fixture checks each session and received prefix, rejects bad credentials, and joins both daemons
+#
+# VALIDATES: spec-deployment-user-journeys AC-4. The fixture reads the supplied
+# examples/quickstart/r1.conf and r2.conf from the checkout, changes ports and
+# resolver output paths in private copies through the product's config command,
+# validates them, and starts real daemons. No sink, synthetic query result, or local credential DB
+# substitutes for their actual CLI and received RIB.
+#
+# The runner supplies both SSH ports and one BGP port. BGP uses different local
+# addresses, so both copies can share that BGP port without sharing a listener.
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=le test fixture ui/deployment-quickstart $PORT $PORT2 $PORT3:timeout=110s
+expect=exit:code=0
+expect=stdout:contains=DEPLOYMENT-QUICKSTART: PASS

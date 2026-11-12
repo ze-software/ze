@@ -1,0 +1,17 @@
+# Test: Does a native installation boot authenticated management and retain its
+# login and configuration across reinstall and ordinary removal?
+# A unit seam cannot decide whether independently registered command, bootstrap,
+# storage, installed executable and SSH owners work together in the real binary.
+# accept-only: the compiled fixture checks authenticated installation, reinstall, busy refusal, state retention and confined purge
+# VALIDATES: deployment-user-journeys AC-1 and AC-2 (foreground Linux path).
+# PREVENTS: a successful copy with no usable SSH configuration, destructive
+# repeat bootstrap, and removal of persistent state during ordinary uninstall.
+# Readiness uses authenticated state within the authored 90-second lifecycle
+# budget, with the runner's published contention factor for parallel cases.
+# A single Wait owner reports early daemon exit, and both daemon output
+# streams remain available in the failure diagnostic. No retry-count deadline
+# replaces the lifecycle context.
+
+option=needs-linux
+cmd=foreground:seq=1:exec=le test fixture ui/native-install-lifecycle $PORT:timeout=120s
+expect=exit:code=0

@@ -1,0 +1,18 @@
+# Test: Can a standalone Ze CLI with no local store use only a selected verified
+# trust file to authenticate an actual Ze daemon, while refusing unknown and
+# changed server keys and a bad password without changing that trust file?
+# A unit seam cannot prove shipped CLI registration, optional credential-store
+# resolution, environment aliases, SSH host trust and actual daemon password
+# authentication work together through the downloaded-style executable.
+# VALIDATES: deployment-user-journeys AC-9 and AC-11 (direct remote operations).
+# PREVENTS: implicit local-store dependency, accidental remote trust bypass,
+# automatic key enrollment and a successful session with invalid credentials.
+# The fixture owns one private daemon and the runner's port. Only its private
+# bootstrap observes that daemon's key; every product CLI uses strict checking.
+# Each negative phase checks its reason; each successful phase checks actual
+# daemon output. The selected known_hosts file includes a space in its path.
+
+option=needs-linux
+cmd=foreground:seq=1:exec=le test fixture ui/deployment-remote-trust $PORT:timeout=120s
+expect=exit:code=0
+expect=stdout:contains=verified standalone remote trust and password rejection
