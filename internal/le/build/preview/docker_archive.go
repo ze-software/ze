@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path"
 	"slices"
@@ -31,6 +32,15 @@ const (
 	ociConfig                 = "application/vnd.oci.image.config.v1+json"
 	dockerConfig              = "application/vnd.docker.container.image.v1+json"
 	attestationManifest       = "application/vnd.docker.attestation.manifest.v1+json"
+)
+
+// ociUnknownPlatform is the OS and architecture an attestation manifest and
+// its config declare, so no runtime selects it. rootFSTypeLayers is the
+// rootfs type both an OCI image config and a Docker image config carry, and
+// the only one the OCI image config defines.
+const (
+	ociUnknownPlatform = "unknown"
+	rootFSTypeLayers   = "layers"
 )
 
 type archiveEntry struct {
@@ -105,7 +115,7 @@ func checkDockerArchive(filename string, image Image) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck // read-only file
 	content, err := scanImageArchive(file)
 	if err != nil {
 		return err
@@ -172,14 +182,14 @@ func checkDockerArchive(filename string, image Image) error {
 			return err
 		}
 		if len(index.Manifests) != 1 || !isImageManifest(index.Manifests[0].MediaType) || "sha256:"+config.sum != image.ID {
-			return errors.New("Docker archive does not contain its recorded immutable target")
+			return errors.New("the Docker archive does not contain its recorded immutable target")
 		}
 		if err := content.checkV1Configs(runtime.diffIDs, image); err != nil {
 			return err
 		}
 	}
 	if compatible[0].Config != runtime.config || !slices.Equal(compatible[0].Layers, runtime.layers) {
-		return errors.New("Docker compatibility manifest differs from OCI config or ordered layers")
+		return errors.New("the Docker compatibility manifest differs from OCI config or ordered layers")
 	}
 	return content.checkUsed()
 }
@@ -198,7 +208,7 @@ func scanImageArchive(file *os.File) (*archiveContent, error) {
 		}
 		count++
 		if count > archiveEntryLimit {
-			return nil, errors.New("Docker archive has too many entries")
+			return nil, errors.New("the Docker archive has too many entries")
 		}
 		name, err := archivePath(header.Name)
 		if err != nil {
@@ -206,7 +216,7 @@ func scanImageArchive(file *os.File) (*archiveContent, error) {
 		}
 		if header.Typeflag == tar.TypeDir {
 			if header.Size != 0 {
-				return nil, errors.New("Docker archive directory has content")
+				return nil, errors.New("a Docker archive directory has content")
 			}
 			continue
 		}
@@ -218,8 +228,10 @@ func scanImageArchive(file *os.File) (*archiveContent, error) {
 			return nil, err
 		}
 		entry := archiveEntry{offset: offset, size: header.Size}
+		// tar.Reader.Next already turns a legacy TypeRegA header into TypeReg,
+		// or into TypeDir for a name ending in a slash, so TypeReg covers both.
 		switch header.Typeflag {
-		case tar.TypeReg, tar.TypeRegA:
+		case tar.TypeReg:
 			sum, err := readerSum(reader)
 			if err != nil {
 				return nil, err
@@ -231,7 +243,7 @@ func scanImageArchive(file *os.File) (*archiveContent, error) {
 			}
 			link := header.Linkname
 			if header.Typeflag == tar.TypeSymlink {
-				link = path.Join(path.Dir(name), link)
+				link = path.Join(path.Dir(name), link) //nolint:gosec // G305: archivePath below cleans the joined link and refuses one that leaves the archive root; nothing is extracted to disk
 			}
 			entry.link, err = archivePath(link)
 			if err != nil {
@@ -244,7 +256,7 @@ func scanImageArchive(file *os.File) (*archiveContent, error) {
 		if strings.HasPrefix(name, "blobs/") {
 			parts := strings.Split(name, "/")
 			if len(parts) != 3 || parts[1] != "sha256" || !validImageDigest("sha256:"+parts[2]) || entry.link != "" || entry.sum != parts[2] {
-				return nil, fmt.Errorf("Docker blob digest differs: %s", name)
+				return nil, fmt.Errorf("the digest of Docker blob %s differs", name)
 			}
 		}
 	}
@@ -255,7 +267,7 @@ func scanImageArchive(file *os.File) (*archiveContent, error) {
 		n, err := file.Read(tail[:])
 		for _, value := range tail[:n] {
 			if value != 0 {
-				return nil, errors.New("Docker archive has trailing nonzero content")
+				return nil, errors.New("the Docker archive has trailing nonzero content")
 			}
 		}
 		if errors.Is(err, io.EOF) {
@@ -292,7 +304,7 @@ func (content *archiveContent) entry(name string) (archiveEntry, error) {
 	for range 32 {
 		entry, ok := content.entries[name]
 		if !ok {
-			return archiveEntry{}, fmt.Errorf("Docker archive is missing %s", name)
+			return archiveEntry{}, fmt.Errorf("the Docker archive is missing %s", name)
 		}
 		content.used[name] = true
 		if entry.link == "" {
@@ -300,7 +312,7 @@ func (content *archiveContent) entry(name string) (archiveEntry, error) {
 		}
 		name = entry.link
 	}
-	return archiveEntry{}, errors.New("Docker archive link chain is too deep")
+	return archiveEntry{}, errors.New("the Docker archive link chain is too deep")
 }
 
 func (content *archiveContent) json(name string, target any) error {
@@ -309,7 +321,7 @@ func (content *archiveContent) json(name string, target any) error {
 		return err
 	}
 	if entry.size < 0 || entry.size > archiveJSONLimit {
-		return fmt.Errorf("Docker JSON %s exceeds metadata limit", name)
+		return fmt.Errorf("the Docker JSON %s exceeds the metadata limit", name)
 	}
 	decoder := json.NewDecoder(io.NewSectionReader(content.file, entry.offset, entry.size))
 	if err := decoder.Decode(target); err != nil {
@@ -317,7 +329,7 @@ func (content *archiveContent) json(name string, target any) error {
 	}
 	var extra any
 	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
-		return fmt.Errorf("Docker JSON %s has trailing content", name)
+		return fmt.Errorf("the Docker JSON %s has trailing content", name)
 	}
 	return nil
 }
@@ -367,7 +379,7 @@ func (graph *imageGraph) walk(descriptor imageDescriptor, depth int) error {
 	if descriptor.Platform != nil {
 		attestation := descriptor.Annotations["vnd.docker.reference.type"] == "attestation-manifest"
 		if attestation {
-			if descriptor.Platform.OS != "unknown" || descriptor.Platform.Arch != "unknown" {
+			if descriptor.Platform.OS != ociUnknownPlatform || descriptor.Platform.Arch != ociUnknownPlatform {
 				return errors.New("attestation descriptor claims a runtime platform")
 			}
 		} else if descriptor.Platform.OS != graph.image.OS || descriptor.Platform.Arch != graph.image.Arch {
@@ -428,7 +440,7 @@ func (graph *imageGraph) walk(descriptor imageDescriptor, depth int) error {
 	if config.OS != graph.image.OS || config.Arch != graph.image.Arch || (descriptor.Platform != nil && (descriptor.Platform.OS != config.OS || descriptor.Platform.Arch != config.Arch)) {
 		return errors.New("archive runtime platform differs from image record")
 	}
-	if config.RootFS.Type != "layers" || len(config.RootFS.DiffIDs) != len(manifest.Layers) || len(manifest.Layers) == 0 {
+	if config.RootFS.Type != rootFSTypeLayers || len(config.RootFS.DiffIDs) != len(manifest.Layers) || len(manifest.Layers) == 0 {
 		return errors.New("runtime config and layer inventory differ")
 	}
 	runtime := runtimeImage{config: configName, diffIDs: config.RootFS.DiffIDs}
@@ -512,20 +524,18 @@ func (content *archiveContent) checkV1Configs(diffIDs []string, image Image) err
 				continue
 			}
 			fields := make(map[string]json.RawMessage, len(config.fields)+1)
-			for key, value := range config.fields {
-				fields[key] = value
-			}
-			if layerIndex != len(diffIDs)-1 {
-				// Moby constructs an intermediate V1Image with Created only,
-				// computes its ID, and assigns OS afterward for the saved blob.
-				delete(fields, "os")
-			} else {
+			maps.Copy(fields, config.fields)
+			if layerIndex == len(diffIDs)-1 {
 				// The top layer copies img.V1Image before hashing, including
 				// its actual native architecture and OS.
 				var arch string
 				if err := json.Unmarshal(fields["architecture"], &arch); err != nil || arch != image.Arch {
 					continue
 				}
+			} else {
+				// Moby constructs an intermediate V1Image with Created only,
+				// computes its ID, and assigns OS afterward for the saved blob.
+				delete(fields, "os")
 			}
 			fields["layer_id"], _ = json.Marshal(chain)
 			if parent != "" {
@@ -566,7 +576,7 @@ func (graph *imageGraph) attestation(descriptor imageDescriptor, manifest savedM
 			return err
 		}
 	}
-	if !validImageDigest(target) || (descriptor.Platform != nil && (descriptor.Platform.OS != "unknown" || descriptor.Platform.Arch != "unknown")) {
+	if !validImageDigest(target) || (descriptor.Platform != nil && (descriptor.Platform.OS != ociUnknownPlatform || descriptor.Platform.Arch != ociUnknownPlatform)) {
 		return errors.New("invalid attestation target or platform")
 	}
 	var config savedConfig
@@ -585,7 +595,7 @@ func (graph *imageGraph) attestation(descriptor imageDescriptor, manifest savedM
 		if manifest.Config.MediaType != ociConfig && manifest.Config.MediaType != dockerConfig {
 			return errors.New("unsupported attestation config media type")
 		}
-		if config.OS != "unknown" || config.Arch != "unknown" || config.RootFS.Type != "layers" || len(config.RootFS.DiffIDs) != len(manifest.Layers) {
+		if config.OS != ociUnknownPlatform || config.Arch != ociUnknownPlatform || config.RootFS.Type != rootFSTypeLayers || len(config.RootFS.DiffIDs) != len(manifest.Layers) {
 			return errors.New("attestation config has an unexpected platform or layer inventory")
 		}
 	}
@@ -625,7 +635,7 @@ func (content *archiveContent) layer(name, mediaType, diffID string) error {
 		if err != nil {
 			return err
 		}
-		defer compressed.Close()
+		defer compressed.Close() //nolint:errcheck // read side; the io.Copy to the end of the stream reports any stream error
 		reader = compressed
 	default:
 		return fmt.Errorf("unsupported preview filesystem layer compression: %s", mediaType)
@@ -670,7 +680,7 @@ func (content *archiveContent) checkLegacy(image Image, compatible compatibility
 	if err := content.json(compatible.Config, &config); err != nil {
 		return err
 	}
-	if config.OS != image.OS || config.Arch != image.Arch || config.RootFS.Type != "layers" || len(config.RootFS.DiffIDs) != len(compatible.Layers) || len(compatible.Layers) == 0 {
+	if config.OS != image.OS || config.Arch != image.Arch || config.RootFS.Type != rootFSTypeLayers || len(config.RootFS.DiffIDs) != len(compatible.Layers) || len(compatible.Layers) == 0 {
 		return errors.New("legacy Docker platform or layer inventory differs")
 	}
 	for index, name := range compatible.Layers {

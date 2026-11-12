@@ -32,11 +32,11 @@ source and the project's release signing and publication gates.
 `
 
 func fileSum(path string) (string, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // G304: the caller names a build output, a checkout input, or a bundle entry safeName confines to the bundle directory
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck // read-only file
 	return readerSum(file)
 }
 
@@ -49,7 +49,7 @@ func readerSum(reader io.Reader) (string, error) {
 }
 
 func writeArchive(root, binary, output string, source Source) (err error) {
-	license, err := os.ReadFile(root + "/LICENSE")
+	license, err := os.ReadFile(root + "/LICENSE") //nolint:gosec // G304: a fixed name under the checkout root the action located
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func writeArchive(root, binary, output string, source Source) (err error) {
 	if err != nil {
 		return err
 	}
-	file, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	file, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644) //nolint:gosec // G302: the archive is a published download
 	if err != nil {
 		return err
 	}
@@ -77,20 +77,20 @@ func writeArchive(root, binary, output string, source Source) (err error) {
 		size := int64(len(entry.body))
 		var executable *os.File
 		if entry.name == "ze" {
-			executable, err = os.Open(binary)
+			executable, err = os.Open(binary) //nolint:gosec // G304: the daemon binary this run built into its own bundle
 			if err != nil {
 				return err
 			}
 			info, statErr := executable.Stat()
 			if statErr != nil {
-				executable.Close()
+				executable.Close() //nolint:errcheck // read-only file; the stat error owns the verdict
 				return statErr
 			}
 			size, reader = info.Size(), executable
 		}
 		if err = tarball.WriteHeader(&tar.Header{Name: entry.name, Mode: entry.mode, Size: size, ModTime: stamp, Typeflag: tar.TypeReg, Format: tar.FormatUSTAR}); err != nil {
 			if executable != nil {
-				executable.Close()
+				executable.Close() //nolint:errcheck // read-only file; the header error owns the verdict
 			}
 			return err
 		}

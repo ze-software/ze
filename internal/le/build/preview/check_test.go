@@ -46,7 +46,11 @@ func TestELFStringReadsActualGoVariable(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer file.Close()
+			defer func() {
+				if err := file.Close(); err != nil {
+					t.Errorf("close the %s ELF fixture: %v", arch, err)
+				}
+			}()
 			for name, want := range map[string]string{"main.version": toolchain.Version, "main.buildDate": toolchain.BuildDate} {
 				got, err := elfString(file, name)
 				if err != nil {

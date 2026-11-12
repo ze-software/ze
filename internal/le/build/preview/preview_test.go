@@ -3,6 +3,7 @@
 package buildpreview
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -187,7 +188,7 @@ func TestArchivesHaveFixedHeadersAndOnlyPublicFiles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if string(x) != string(y) {
+		if !bytes.Equal(x, y) {
 			t.Fatal("archive contains wall-clock or destination identity")
 		}
 	}

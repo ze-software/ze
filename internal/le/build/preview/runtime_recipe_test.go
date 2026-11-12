@@ -26,7 +26,7 @@ func TestEachImageRefusesChangedRuntimeRecipe(t *testing.T) {
 			}
 			const recipe = "FROM scratch AS deployment\nCOPY ze /ze\nFROM scratch AS lab\nCOPY ze /usr/local/bin/ze\n"
 			put(t, root, "docker/Dockerfile.runtime", recipe)
-			sum, err := fileSum(filepath.Join(root, "docker/Dockerfile.runtime"))
+			sum, err := fileSum(filepath.Join(root, "docker", "Dockerfile.runtime"))
 			if err != nil {
 				t.Fatal(err)
 			}

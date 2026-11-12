@@ -40,7 +40,7 @@ func prepareImagesWithDocker(ctx context.Context, root, output, version string, 
 	if err != nil {
 		return nil, nil, err
 	}
-	if arch != "amd64" && arch != "arm64" {
+	if arch != archAMD64 && arch != archARM64 {
 		return nil, nil, fmt.Errorf("preview image target %q is not supported", arch)
 	}
 	work, err := os.MkdirTemp(output, ".runtime-images-")
@@ -109,5 +109,5 @@ func exportImage(ctx context.Context, docker *interoplab.Docker, built interopla
 	if err != nil {
 		return Artifact{}, Image{}, err
 	}
-	return Artifact{File: file, Kind: "docker", OS: "linux", Arch: arch, SHA256: sum}, Image{Role: role, Tag: built.Tag, ID: inspection.ID, OS: "linux", Arch: arch, File: file, Tags: slices.Clone(source.Tags), VersionOutput: strings.TrimSpace(result.Stdout)}, nil
+	return Artifact{File: file, Kind: "docker", OS: targetOS, Arch: arch, SHA256: sum}, Image{Role: role, Tag: built.Tag, ID: inspection.ID, OS: targetOS, Arch: arch, File: file, Tags: slices.Clone(source.Tags), VersionOutput: strings.TrimSpace(result.Stdout)}, nil
 }

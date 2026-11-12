@@ -22,7 +22,7 @@ func TestImagePackagingAllowsLaterGoEdits(t *testing.T) {
 			return source, err
 		}
 		reads++
-		sum, err := fileSum(filepath.Join(root, "cmd/ze/main.go"))
+		sum, err := fileSum(filepath.Join(root, "cmd", "ze", "main.go"))
 		if err != nil {
 			return source, err
 		}

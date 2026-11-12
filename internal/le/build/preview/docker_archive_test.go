@@ -78,6 +78,46 @@ func fixtureLayer(t *testing.T, name, text string) []byte {
 	return out.Bytes()
 }
 
+// mustString returns a decoded fixture value as a string, and fails the test
+// when the fixture holds another shape there. It stops the test on a mismatch,
+// so it runs only on the test's own goroutine.
+func mustString(t *testing.T, value any, what string) string {
+	t.Helper()
+	text, ok := value.(string)
+	if !ok {
+		t.Fatalf("%s is %T, want string", what, value)
+	}
+	return text
+}
+
+// mustMap returns a decoded fixture value as a JSON object, and fails the
+// test when the fixture holds another shape there. It stops the test on a
+// mismatch, so it runs only on the test's own goroutine.
+func mustMap(t *testing.T, value any, what string) map[string]any {
+	t.Helper()
+	object, ok := value.(map[string]any)
+	if !ok {
+		t.Fatalf("%s is %T, want map[string]any", what, value)
+	}
+	return object
+}
+
+// mustSlice returns a decoded fixture value as a JSON array of at least
+// entriesMin entries, and fails the test when the fixture holds another shape
+// or a shorter array there. It stops the test on a mismatch, so it runs only
+// on the test's own goroutine.
+func mustSlice(t *testing.T, value any, entriesMin int, what string) []any {
+	t.Helper()
+	array, ok := value.([]any)
+	if !ok {
+		t.Fatalf("%s is %T, want []any", what, value)
+	}
+	if len(array) < entriesMin {
+		t.Fatalf("%s holds %d entries, want at least %d", what, len(array), entriesMin)
+	}
+	return array
+}
+
 func savedDockerFixture(t *testing.T, format string) dockerFixture {
 	t.Helper()
 	fixture := dockerFixture{files: map[string][]byte{}, image: Image{Role: "deployment", OS: "linux", Arch: "amd64"}}
@@ -106,7 +146,7 @@ func savedDockerFixture(t *testing.T, format string) dockerFixture {
 		}
 		desc := add(payload)
 		desc["mediaType"] = mediaType
-		blob := "blobs/sha256/" + strings.TrimPrefix(desc["digest"].(string), "sha256:")
+		blob := "blobs/sha256/" + strings.TrimPrefix(mustString(t, desc["digest"], "layer descriptor digest"), "sha256:")
 		if format == "legacy" {
 			legacy := strings.Repeat(string(rune('a'+index)), 64) + "/layer.tar"
 			fixture.files[legacy] = fixture.files[blob]
@@ -119,8 +159,9 @@ func savedDockerFixture(t *testing.T, format string) dockerFixture {
 	config := fixtureJSON(t, map[string]any{"architecture": "amd64", "os": "linux", "rootfs": map[string]any{"type": "layers", "diff_ids": diffs}})
 	configDesc := add(config)
 	configDesc["mediaType"] = "application/vnd.oci.image.config.v1+json"
-	fixture.config = "blobs/sha256/" + strings.TrimPrefix(configDesc["digest"].(string), "sha256:")
-	fixture.image.ID = configDesc["digest"].(string)
+	configDigest := mustString(t, configDesc["digest"], "config descriptor digest")
+	fixture.config = "blobs/sha256/" + strings.TrimPrefix(configDigest, "sha256:")
+	fixture.image.ID = configDigest
 	if format == "legacy" {
 		legacy := strings.TrimPrefix(fixture.image.ID, "sha256:") + ".json"
 		fixture.files[legacy] = config
@@ -130,7 +171,7 @@ func savedDockerFixture(t *testing.T, format string) dockerFixture {
 		manifest := fixtureJSON(t, map[string]any{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json", "config": configDesc, "layers": layers})
 		desc := add(manifest)
 		desc["mediaType"] = "application/vnd.oci.image.manifest.v1+json"
-		fixture.manifest = "blobs/sha256/" + strings.TrimPrefix(desc["digest"].(string), "sha256:")
+		fixture.manifest = "blobs/sha256/" + strings.TrimPrefix(mustString(t, desc["digest"], "manifest descriptor digest"), "sha256:")
 		if strings.HasPrefix(format, "containerd-index") {
 			desc["platform"] = map[string]string{"os": "linux", "architecture": "amd64"}
 			manifests := []any{desc}
@@ -151,7 +192,7 @@ func savedDockerFixture(t *testing.T, format string) dockerFixture {
 			desc["mediaType"] = "application/vnd.oci.image.index.v1+json"
 		}
 		if strings.HasPrefix(format, "containerd") {
-			fixture.image.ID = desc["digest"].(string)
+			fixture.image.ID = mustString(t, desc["digest"], "top-level descriptor digest")
 		}
 		fixture.files["index.json"] = fixtureJSON(t, map[string]any{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.index.v1+json", "manifests": []any{desc}})
 		fixture.files["oci-layout"] = []byte(`{"imageLayoutVersion":"1.0.0"}`)
@@ -305,7 +346,7 @@ func TestDockerArchiveRejectsFreshInnerHashesWithStaleDiffIDs(t *testing.T) {
 	if err := json.Unmarshal(fixture.files[fixture.manifest], &manifest); err != nil {
 		t.Fatal(err)
 	}
-	layer := manifest["layers"].([]any)[0].(map[string]any)
+	layer := mustMap(t, mustSlice(t, manifest["layers"], 1, "manifest layers")[0], "first manifest layer")
 	layer["digest"], layer["size"] = digest, len(body)
 	body = fixtureJSON(t, manifest)
 	digest = digestBytes(body)
@@ -330,9 +371,9 @@ func TestDockerArchiveRecordedTargetMustOwnItsRuntime(t *testing.T) {
 	if err := json.Unmarshal(fixture.files[oldIndex], &index); err != nil {
 		t.Fatal(err)
 	}
-	manifests := index["manifests"].([]any)
-	attestation := manifests[1].(map[string]any)
-	fixture.image.ID = attestation["digest"].(string)
+	manifests := mustSlice(t, index["manifests"], 2, "index manifests")
+	attestation := mustMap(t, manifests[1], "attestation manifest descriptor")
+	fixture.image.ID = mustString(t, attestation["digest"], "attestation manifest digest")
 	fixture.files["index.json"] = fixtureJSON(t, map[string]any{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.index.v1+json", "manifests": []any{attestation, manifests[0]}})
 	delete(fixture.files, oldIndex)
 	if err := checkDockerArchive(writeDockerFixture(t, fixture), fixture.image); err == nil {
@@ -381,7 +422,7 @@ func TestDockerArchiveBoundsMetadataAndRefusesRepeatedEntries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := file.Write([]byte("unbound private trailing payload")); err != nil {
+	if _, err := file.WriteString("unbound private trailing payload"); err != nil {
 		t.Fatal(err)
 	}
 	if err := file.Close(); err != nil {

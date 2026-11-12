@@ -67,7 +67,7 @@ func captureSource(ctx context.Context, root string) (Source, error) {
 		return Source{}, err
 	}
 	git := func(args ...string) (string, error) {
-		command := exec.CommandContext(ctx, "git", args...)
+		command := exec.CommandContext(ctx, "git", args...) //nolint:gosec // G204: every call passes a fixed git query from this function, run in the checkout the action located
 		command.Dir = root
 		body, err := command.Output()
 		if err != nil {

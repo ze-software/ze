@@ -3,6 +3,7 @@
 package buildpreview
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -92,7 +93,7 @@ func TestPreviewCommandAnswersSummarizeInsteadOfDumpingInputs(t *testing.T) {
 			}
 			if action.name == "run" {
 				original = stored
-			} else if string(stored) != string(original) {
+			} else if !bytes.Equal(stored, original) {
 				t.Fatal("checking rewrote the full manifest")
 			}
 		})

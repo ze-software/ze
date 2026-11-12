@@ -13,6 +13,14 @@ import (
 	buildcompile "github.com/ze-software/ze/internal/le/build/compile"
 )
 
+// A preview targets Linux only, on the two architectures Ze ships. The values
+// are Go's GOOS and GOARCH names, which the OCI platform fields also use.
+const (
+	targetOS  = "linux"
+	archAMD64 = "amd64"
+	archARM64 = "arm64"
+)
+
 // Artifact is one independently checksummed, downloadable file.
 type Artifact struct {
 	File   string `json:"file"`
@@ -70,10 +78,10 @@ func prepare(ctx context.Context, root, output string, images bool, deps depende
 		return manifest, fmt.Errorf("preview source identity is incomplete")
 	}
 	version := previewVersion(source)
-	if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil { //nolint:gosec // G301: parent directories this call creates for the published bundle are world-readable, as a download location must be
 		return manifest, err
 	}
-	if err := os.Mkdir(output, 0o755); err != nil {
+	if err := os.Mkdir(output, 0o755); err != nil { //nolint:gosec // G301: the bundle directory is a published download
 		return manifest, err
 	}
 	complete := false
@@ -83,7 +91,7 @@ func prepare(ctx context.Context, root, output string, images bool, deps depende
 		}
 	}()
 	manifest = Manifest{Schema: 1, Channel: "preview", Published: false, Version: version, Source: source}
-	for _, arch := range []string{"amd64", "arm64"} {
+	for _, arch := range []string{archAMD64, archARM64} {
 		name := "ze-" + version + "-linux-" + arch
 		binary := filepath.Join(output, name)
 		if err := deps.build(ctx, root, arch, binary, version, source.BuildDate); err != nil {
@@ -101,7 +109,7 @@ func prepare(ctx context.Context, root, output string, images bool, deps depende
 			if err != nil {
 				return manifest, err
 			}
-			manifest.Artifacts = append(manifest.Artifacts, Artifact{File: entry.name, Kind: entry.kind, OS: "linux", Arch: arch, SHA256: sum})
+			manifest.Artifacts = append(manifest.Artifacts, Artifact{File: entry.name, Kind: entry.kind, OS: targetOS, Arch: arch, SHA256: sum})
 		}
 	}
 	after, err := deps.source(ctx, root)
@@ -150,7 +158,7 @@ func prepare(ctx context.Context, root, output string, images bool, deps depende
 	if err != nil {
 		return manifest, err
 	}
-	if err := os.WriteFile(filepath.Join(output, "manifest.json"), append(body, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(output, "manifest.json"), append(body, '\n'), 0o644); err != nil { //nolint:gosec // G306: the manifest is part of a published download
 		return manifest, err
 	}
 	var sums strings.Builder
@@ -162,7 +170,7 @@ func prepare(ctx context.Context, root, output string, images bool, deps depende
 		return manifest, err
 	}
 	fmt.Fprintf(&sums, "%s  manifest.json\n", sum)
-	if err := os.WriteFile(filepath.Join(output, "SHA256SUMS"), []byte(sums.String()), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(output, "SHA256SUMS"), []byte(sums.String()), 0o644); err != nil { //nolint:gosec // G306: the checksum list is part of a published download
 		return manifest, err
 	}
 	if _, err := check(output, deps.inspect); err != nil {
@@ -174,7 +182,7 @@ func prepare(ctx context.Context, root, output string, images bool, deps depende
 
 func joinCleanup(cause, cleanup error) error {
 	if cleanup != nil {
-		return fmt.Errorf("%w; remove incomplete preview: %v", cause, cleanup)
+		return fmt.Errorf("%w; remove incomplete preview: %w", cause, cleanup)
 	}
 	return cause
 }

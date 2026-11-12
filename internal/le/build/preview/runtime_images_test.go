@@ -24,7 +24,7 @@ func TestPreviewImagesReuseOnlyTheCheckedNativeBinary(t *testing.T) {
 	}
 	output := t.TempDir()
 	put(t, root, "docker/Dockerfile.runtime", "FROM scratch AS deployment\nCOPY ze /ze\nFROM scratch AS lab\nCOPY ze /usr/local/bin/ze\n")
-	sum, err := fileSum(filepath.Join(root, "docker/Dockerfile.runtime"))
+	sum, err := fileSum(filepath.Join(root, "docker", "Dockerfile.runtime"))
 	if err != nil {
 		t.Fatal(err)
 	}
