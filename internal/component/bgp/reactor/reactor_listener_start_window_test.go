@@ -133,7 +133,7 @@ func (w *startWindow) release(t *testing.T) {
 func (w *startWindow) abort(t *testing.T) {
 	t.Helper()
 	w.cancel()
-	require.ErrorIs(t, w.awaitStart(t), context.Canceled, "a start cancelled in its announce-delay hold did not abort")
+	require.ErrorIs(t, w.awaitStart(t), context.Canceled, "a start canceled in its announce-delay hold did not abort")
 }
 
 // startWindowPeer is a passive peer at addr that listens on
@@ -375,7 +375,7 @@ func TestAddPeerBeforeStartOpensNoListener(t *testing.T) {
 // stop or in an aborted start.
 //
 // Method: in each case the reactor's run ends first: a full start then
-// stopAndWait, or a start cancelled inside its announce-delay hold, which
+// stopAndWait, or a start canceled inside its announce-delay hold, which
 // aborts after the listeners started. AddPeer then adds a passive peer with a
 // local address. The peer MUST be recorded, the reactor MUST hold no
 // listener, and nothing MUST listen on the peer's address and port.

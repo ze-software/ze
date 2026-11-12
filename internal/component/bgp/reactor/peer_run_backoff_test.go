@@ -106,10 +106,14 @@ func (c *backoffClock) release() {
 	c.fire <- now
 }
 
+// backoffReconnectMin is the reconnect delay minimum of every backoff test. The
+// assertions that a wait restarts at the minimum name it.
+const backoffReconnectMin = 5 * time.Second
+
 // startBackoffNeighbor runs a dial-only Peer on a backoffClock against a
-// listener the test accepts on. configure, when not nil, edits the settings
-// before the Peer is built.
-func startBackoffNeighbor(t *testing.T, reconnectMin, reconnectMax time.Duration, configure func(*PeerSettings)) (*automaticStartNeighbor, *backoffClock) {
+// listener the test accepts on, with backoffReconnectMin as its reconnect delay
+// minimum. configure, when not nil, edits the settings before the Peer is built.
+func startBackoffNeighbor(t *testing.T, reconnectMax time.Duration, configure func(*PeerSettings)) (*automaticStartNeighbor, *backoffClock) {
 	t.Helper()
 	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp4", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -128,7 +132,7 @@ func startBackoffNeighbor(t *testing.T, reconnectMin, reconnectMax time.Duration
 	peer := NewPeer(settings)
 	clk := newBackoffClock()
 	peer.SetClock(clk)
-	peer.setReconnectDelay(reconnectMin, reconnectMax)
+	peer.setReconnectDelay(backoffReconnectMin, reconnectMax)
 	t.Cleanup(startAndStop(t, peer))
 	return &automaticStartNeighbor{peer: peer, listener: tcpListener}, clk
 }
@@ -219,17 +223,17 @@ func backoffBadMarker(t *testing.T, conn net.Conn) {
 // error, which only a stop does, so a peer that ran for a week and then lost
 // its session reconnects on whatever delay its history left.
 func TestRunBackoffRestartsAfterStableSession(t *testing.T) {
-	n, clk := startBackoffNeighbor(t, 5*time.Second, time.Minute, nil)
+	n, clk := startBackoffNeighbor(t, time.Minute, nil)
 
 	backoffBadMarker(t, n.accept(t))
-	requireBackoffBase(t, clk.awaitWait(t), 5*time.Second, "the first wait has the minimum as its base")
+	requireBackoffBase(t, clk.awaitWait(t), backoffReconnectMin, "the first wait has the minimum as its base")
 	clk.release()
 
 	conn := n.accept(t)
 	backoffEstablish(t, n, clk, conn)
 	clk.advance(time.Minute)
 	backoffCease(t, conn)
-	requireBackoffBase(t, clk.awaitWait(t), 5*time.Second,
+	requireBackoffBase(t, clk.awaitWait(t), backoffReconnectMin,
 		"a session that stayed in Established for reconnectMax restarts the delay at reconnectMin")
 }
 
@@ -242,10 +246,10 @@ func TestRunBackoffRestartsAfterStableSession(t *testing.T) {
 // PREVENTS: reaching Established resetting the delay by itself, which would let
 // a peer that flaps every few seconds redial at the minimum for ever.
 func TestRunBackoffDoublesAfterShortEstablishedSession(t *testing.T) {
-	n, clk := startBackoffNeighbor(t, 5*time.Second, time.Minute, nil)
+	n, clk := startBackoffNeighbor(t, time.Minute, nil)
 
 	backoffBadMarker(t, n.accept(t))
-	requireBackoffBase(t, clk.awaitWait(t), 5*time.Second, "the first wait has the minimum as its base")
+	requireBackoffBase(t, clk.awaitWait(t), backoffReconnectMin, "the first wait has the minimum as its base")
 	clk.release()
 
 	conn := n.accept(t)
@@ -272,12 +276,12 @@ func TestRunBackoffDoublesAfterShortEstablishedSession(t *testing.T) {
 // whether this cycle reached Established, which would read the earlier
 // session's stamp and restart the delay after a cycle that never came up.
 func TestRunBackoffKeepsDelayAfterLongCycleThatNeverEstablished(t *testing.T) {
-	n, clk := startBackoffNeighbor(t, 5*time.Second, time.Minute, nil)
+	n, clk := startBackoffNeighbor(t, time.Minute, nil)
 
 	first := n.accept(t)
 	backoffEstablish(t, n, clk, first)
 	backoffCease(t, first)
-	requireBackoffBase(t, clk.awaitWait(t), 5*time.Second, "the first wait has the minimum as its base")
+	requireBackoffBase(t, clk.awaitWait(t), backoffReconnectMin, "the first wait has the minimum as its base")
 	clk.release()
 
 	second := n.accept(t)
@@ -299,7 +303,7 @@ func TestRunBackoffKeepsDelayAfterLongCycleThatNeverEstablished(t *testing.T) {
 // Established, which would let a peer that floods its prefix limit come back
 // on the base idle-timeout after every slow failed attempt.
 func TestRunPrefixTeardownCountKeptAfterLongCycleThatNeverEstablished(t *testing.T) {
-	n, clk := startBackoffNeighbor(t, 5*time.Second, time.Minute, backoffPrefixTimer)
+	n, clk := startBackoffNeighbor(t, time.Minute, backoffPrefixTimer)
 
 	first := n.accept(t)
 	backoffEstablish(t, n, clk, first)
@@ -310,7 +314,7 @@ func TestRunPrefixTeardownCountKeptAfterLongCycleThatNeverEstablished(t *testing
 	second := n.accept(t)
 	clk.advance(2 * time.Minute)
 	backoffBadMarker(t, second)
-	requireBackoffBase(t, clk.awaitWait(t), 5*time.Second, "a failed handshake takes the normal backoff")
+	requireBackoffBase(t, clk.awaitWait(t), backoffReconnectMin, "a failed handshake takes the normal backoff")
 	clk.release()
 
 	third := n.accept(t)
@@ -333,9 +337,9 @@ func TestRunPrefixTeardownCountKeptAfterLongCycleThatNeverEstablished(t *testing
 // check that reads the zero EstablishedAt of a peer that never established as
 // a session older than reconnectMax.
 func TestRunBackoffKeepsCapOnPeerThatNeverComesUp(t *testing.T) {
-	n, clk := startBackoffNeighbor(t, 5*time.Second, 20*time.Second, nil)
+	n, clk := startBackoffNeighbor(t, 20*time.Second, nil)
 
-	bases := []time.Duration{5 * time.Second, 10 * time.Second}
+	bases := []time.Duration{backoffReconnectMin, 10 * time.Second}
 	for range 11 {
 		bases = append(bases, 20*time.Second)
 	}
@@ -359,7 +363,7 @@ func TestRunBackoffKeepsCapOnPeerThatNeverComesUp(t *testing.T) {
 // so one burst of route leaks long ago keeps doubling every later wait up to
 // the one hour cap.
 func TestRunPrefixTeardownCountRestartsAfterStableSession(t *testing.T) {
-	n, clk := startBackoffNeighbor(t, 5*time.Second, time.Minute, backoffPrefixTimer)
+	n, clk := startBackoffNeighbor(t, time.Minute, backoffPrefixTimer)
 
 	first := n.accept(t)
 	backoffEstablish(t, n, clk, first)
@@ -383,7 +387,7 @@ func TestRunPrefixTeardownCountRestartsAfterStableSession(t *testing.T) {
 // session shorter than reconnectMax, which would let a peer that leaks routes
 // on every session reconnect on the base idle-timeout for ever.
 func TestRunPrefixTeardownCountGrowsOnShortSessions(t *testing.T) {
-	n, clk := startBackoffNeighbor(t, 5*time.Second, time.Minute, backoffPrefixTimer)
+	n, clk := startBackoffNeighbor(t, time.Minute, backoffPrefixTimer)
 
 	for _, want := range []time.Duration{backoffPrefixIdle, 2 * backoffPrefixIdle, 4 * backoffPrefixIdle} {
 		conn := n.accept(t)
@@ -404,10 +408,10 @@ func TestRunPrefixTeardownCountGrowsOnShortSessions(t *testing.T) {
 // PREVENTS: the stable-session check moving the teardown reset, making a local
 // teardown wait, or a short session's teardown clearing the prefix count.
 func TestRunTeardownStillResetsDelay(t *testing.T) {
-	n, clk := startBackoffNeighbor(t, 5*time.Second, time.Minute, backoffPrefixTimer)
+	n, clk := startBackoffNeighbor(t, time.Minute, backoffPrefixTimer)
 
 	backoffBadMarker(t, n.accept(t))
-	requireBackoffBase(t, clk.awaitWait(t), 5*time.Second, "the first wait has the minimum as its base")
+	requireBackoffBase(t, clk.awaitWait(t), backoffReconnectMin, "the first wait has the minimum as its base")
 	clk.release()
 
 	leak := n.accept(t)
@@ -426,7 +430,7 @@ func TestRunTeardownStillResetsDelay(t *testing.T) {
 	failed := n.accept(t)
 	clk.requireNoWait(t, "a local teardown redials at once")
 	backoffBadMarker(t, failed)
-	requireBackoffBase(t, clk.awaitWait(t), 5*time.Second, "a local teardown resets the delay")
+	requireBackoffBase(t, clk.awaitWait(t), backoffReconnectMin, "a local teardown resets the delay")
 	clk.release()
 
 	again := n.accept(t)
@@ -446,7 +450,7 @@ func TestRunTeardownStillResetsDelay(t *testing.T) {
 // operator's teardown of a stable session leaves the prefix count of a leak
 // long gone.
 func TestRunTeardownAfterStableSessionClearsPrefixCount(t *testing.T) {
-	n, clk := startBackoffNeighbor(t, 5*time.Second, time.Minute, backoffPrefixTimer)
+	n, clk := startBackoffNeighbor(t, time.Minute, backoffPrefixTimer)
 
 	leak := n.accept(t)
 	backoffEstablish(t, n, clk, leak)
@@ -484,13 +488,13 @@ func TestRunBackoffStableTimeBoundary(t *testing.T) {
 		base   time.Duration
 	}{
 		{name: "one nanosecond short keeps the delay", stable: time.Minute - time.Nanosecond, base: 10 * time.Second},
-		{name: "exactly reconnectMax restarts it", stable: time.Minute, base: 5 * time.Second},
+		{name: "exactly reconnectMax restarts it", stable: time.Minute, base: backoffReconnectMin},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			n, clk := startBackoffNeighbor(t, 5*time.Second, time.Minute, nil)
+			n, clk := startBackoffNeighbor(t, time.Minute, nil)
 
 			backoffBadMarker(t, n.accept(t))
-			requireBackoffBase(t, clk.awaitWait(t), 5*time.Second, "the first wait has the minimum as its base")
+			requireBackoffBase(t, clk.awaitWait(t), backoffReconnectMin, "the first wait has the minimum as its base")
 			clk.release()
 
 			conn := n.accept(t)
