@@ -218,6 +218,8 @@ The plugin RPC answer format, the transaction orchestrator, the storage registry
 | `test-against-broken-path` | 2026-08-23 | `config-edit-ssh.ci` observer shutdown decode |
 | `unwired-feature` | 2026-08-15 | mcp `tools/list` first line fails |
 | `unwired-feature` | 2026-08-15 | mcp `tools/list` readiness, rerun from `git archive HEAD` |
+| `unwired-feature` | 2026-11-11 | plugin `Completable` commands get no Tab completion: `WireArgCompletion` and `commandRows` cover builtins only |
+| `production-function-only-tests-call` | 2026-11-11 | `ipc.Authenticate`, `authenticateWithName` test-only, still accept an empty expected token |
 
 ## Rows found already fixed
 
