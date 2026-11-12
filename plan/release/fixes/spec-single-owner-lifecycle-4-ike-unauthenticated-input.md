@@ -685,3 +685,157 @@ decided, which is now the entry.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `openProtected` (`ike/engine/protected_input.go`) is the one opener of an SK-protected message: opened, dropped (counted under the caller's reason, debug line, nothing written but the SA's drop count, nothing sent), or authenticated-malformed (an error wrapping `errInnerParse`, and `errInnerChain` when the chain failed). `decryptAndParse` and `discardUnauthenticatedHandshakeRequest` are deleted (9019fe4d21, a49d4d301f).
+- Initiator: `handleAuthResponse` and `handleEAPResponse` (`fsm.go`) open through it, so a forged IKE_AUTH response no longer ends the handshake (9019fe4d21).
+- Established sites: the four `handleOwnedInbound` sites and `handleHeldSuccessorInbound` open through it; the three sites that counted nothing count `established-unauthenticated` (a49d4d301f).
+- Doctor: `ipsec-unauthenticated-input` (`doctor_unauthenticated_input.go`) and `ipsec-peer-malformed-message` (`doctor_peer_malformed.go`), declared in `engine/register.go`, codes in `internal/core/diagnostic/codes.go` (a49d4d301f).
+- Functional: relay fixture `ipsec/auth-corrupt-response` and `test/ipsec/ike-auth-corrupt-response.ci` (78874013b5). Interop: `ipsec-auth-corrupt-response-strongswan` with checker `checkInitiatorSurvivesUnprotectedAuthResponse` (4999a0a410). Held-successor proof and tags (b1adbb55bf).
+
+### Bugs Found/Fixed
+- Two interop checker defects on the way to green (Design Insights, phase 6): forgeries left as ESP under charon's 0/0 Child SA; the bypass selector carried ports a raw socket's flow never has. Fixed in 4999a0a410.
+- `TestInterfaceAbsenceLoggedOncePerAbsence` race met in passing, fixed in a5f814b4f6.
+- Closure review: the `doctor-ipsec-peer-malformed-message` description said the SA is kept, while the first-exchange padding-failure WARN line that carries the code ends the handshake. Description corrected in `internal/core/diagnostic/codes.go` (Review Gate, finding 1).
+
+### Documentation Updates
+- `ai/doors/access-security.md` trap, `ai/digests/ipsec-ike.md` items 9, 10, 15, `docs/architecture/ike/ipsec-14-responder.md`, `ipsec-9-ikev2-eap-nat.md`, `ipsec-7-ikev2-engine.md`, `ipsec-10-cli-diag.md` (two sections), `docs/guide/ipsec.md` "Health and metrics", `features/ipsec-cli-and-diagnostics.md`, `features/ikev2-engine.md` Interop row, `docs/architecture/testing/interop.md` (9019fe4d21, a49d4d301f, 4999a0a410).
+- `./le doc check all` at closure: every stage this spec touches passes (source anchors; 3068 digest anchors resolve). Its one red is documentation drift failing to compile `./cmd/ze` on another session's uncommitted `internal/component/plugin/doctor/checks_delivery.go` (`HandlerPanicsDropped` undefined on `server.DoctorSnapshot`).
+
+### Deviations from Plan
+- A second doctor check, `ipsec-peer-malformed-message`, was added (Key Design Decisions): `./le arch doctor-coverage check` refuses a WARN line with no code.
+- The test-only reader `decryptAndParse` stays in `protected_input_test.go` and opens through `openProtected`, so about a hundred test call sites, many RFC-tagged, are unedited (Design Insights). AC-10 judges non-test files.
+- The interop hold is an nftables raw payload match, not `encap = yes` or `u32` (A-6).
+- The news fragment moved from `ike-initiator-keeps-handshake-on-unauthenticated-input.md` to the gate's path `single-owner-lifecycle-4-ike-unauthenticated-input.md`, and now also names the established-SA reason and both doctor checks.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5: taking the first SK payload instead of the last changes nothing | `wire.Message.ReadFrom` admits two SK payloads | Phase 1 reading | `protectedPayload` takes the first, pinned by `TestProtectedPayloadTakesTheFirstEncryptedPayload` |
+| assumption | A-6: strongSwan `encap = yes` puts IKE_AUTH on 4500 | Ze floats there through `mobikeAuthOffer`; `encap` would fake a NAT; `xt_u32` is absent | Phase 6 reading | nftables raw payload hold (Design Insights) |
+| approach | The phase 2 fragment was named after its content | The closure gate reads `website/changes/fragments/<spec-stem>.md` (`newsFragmentPath`, `internal/le/commit/newsfragment.go`) | Closure | Moved to the gate's path in commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every SK-protected inbound message opened by one function | Done | `protected_input.go` `openProtected`, the sole caller of `decryptSKPayload` | |
+| The function consumes the unauthenticated failure (drop, count, debug) | Done | `protected_input.go` `dropUnauthenticated` | |
+| Authenticated malformed keeps its outcome, site by site | Done | `fsm.go` `handleAuthResponse`, `handleEAPResponse`; `inbound.go` `handleOwnedInbound`; `held_successor.go` `handleHeldSuccessorInbound` | |
+| Initiator keeps retransmitting; genuine response establishes the same SA | Done | `fsm.go` `runInitiator` unchanged | |
+| `ze doctor` names a handshake receiving such messages | Done | `doctor_unauthenticated_input.go` `checkIPsecUnauthenticatedInput` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestInitiatorAuthSurvivesUnprotectedIKEAuthResponse` | tagged, recorded |
+| AC-2 | Done | `TestInitiatorEAPSurvivesUnprotectedIKEAuthResponse` | tagged, recorded |
+| AC-3 | Done | `TestInitiatorSecondAuthExchangeCountsUnprotectedResponse` | tagged (b1adbb55bf) |
+| AC-4 | Done | `TestInitiatorAuthEndsOnAuthenticatedMalformedResponse`, `TestInitiatorEAPEndsOnAuthenticatedMalformedResponse`, `TestInitiatorSecondAuthExchangeKeepsSAOnAuthenticatedPaddingFailure`, `TestEAPLengthDiscardKeepsInitiatorSA` | |
+| AC-5 | Done | `TestInitiatorAuthResponseWithoutSKIsCounted` | |
+| AC-6 | Done | `TestInitiatorKeepsRetransmittingAfterUnprotectedResponse`, `TestInitiatorTimesOutWhenOnlyUnprotectedResponsesArrive` | |
+| AC-7 | Done | `TestUnprotectedAuthResponseDoesNotMoveThePeerEndpoint` | |
+| AC-8 | Done | `rfc7296_unprotected_handshake_test.go`, bodies unedited (b1adbb55bf added a tag line only) | |
+| AC-9 | Done | `TestEstablishedSACountsUnprotectedMessage`, `TestEstablishedSACountsUnprotectedOutOfWindowResponse`, `TestMobikeRetransmitArmCountsUnprotectedMessage`, `TestHeldSuccessorSurvivesUnprotectedMessage` | |
+| AC-10 | Done | `TestOneFunctionOpensEveryProtectedMessage`; grep at closure | |
+| AC-11 | Done | `TestDoctorReportsHandshakeReceivingUnprotectedMessages`, `TestDoctorIsSilentOnceThePeerEstablished` | |
+| AC-12 | Done | interop `ipsec-auth-corrupt-response-strongswan`, green 49s and 53s, red recorded at assertion 5 | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every Unit Tests row | Done | `rfc7296_unprotected_response_test.go`, `mobike_test.go`, `protected_input_test.go`, `doctor_unauthenticated_input_test.go` | engine package green under the race detector (main thread) |
+| `ike-auth-corrupt-response` | Done | `test/ipsec/ike-auth-corrupt-response.ci` | green 1.6s, red recorded |
+| `ipsec-auth-corrupt-response-strongswan` | Done | `test/interop-ipsec/scenarios/` | green, red recorded |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every Files to Modify and Files to Create row | Done | committed in 9019fe4d21, a49d4d301f, 78874013b5, 4999a0a410, b1adbb55bf; `docs/architecture/testing/interop.md` gained the scenario paragraph |
+
+### Audit Summary
+- **Total items:** 5 requirements, 12 ACs, 3 test groups, 1 file group
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4 (Deviations from Plan)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every SK-protected inbound message, in every role and state, is opened by one function | unit (source) | `TestOneFunctionOpensEveryProtectedMessage` green; closure grep: the one `decryptSKPayload(` call outside its definition is in `openProtected`, and no non-test file names `decryptAndParse` or `discardUnauthenticatedHandshakeRequest` |
+| That function drops, counts and logs at debug, so no caller turns the failure into a state change | unit, each role | AC-1, AC-2, AC-3, AC-5, AC-8, AC-9 tests, each asserting an exact rise of one reason and unchanged SA fields; RFC7296-2.4-3 audit verdict `enforced` (`rfc/audit/rfc7296/RFC7296-2.4-3.json`, b1adbb55bf) |
+| An authenticated malformed message keeps its outcome | unit | AC-4 tests; `TestInitiatorAuthEndsOnAuthenticatedMalformedResponse` tagged `positive` and recorded |
+| An initiator fed only forgeries keeps retransmitting, and the genuine response establishes the same SA | functional and interop | `test/ipsec/ike-auth-corrupt-response.ci` green (1.6s), red under the `openProtected` mutant (no `sa-up` in 30s); `ipsec-auth-corrupt-response-strongswan` green (49s, 53s), count rose by exactly 20, Ze's established SA carries the forged-against initiator SPI; red at assertion 5 |
+| `ze doctor` names a handshake receiving messages that fail their integrity check | unit over the running SA table | `TestDoctorReportsHandshakeReceivingUnprotectedMessages`, `TestDoctorIsSilentOnceThePeerEstablished`; `TestIPsecDoctorCodesRegistered` derives the code from `registry.PluginDoctorChecks()` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| One transition function as the only writer of `sa.State` | Owner decision D3 | `plan/post-release/engineering/spec-validated-construction-and-state-types.md` |
+| The notify an authenticated malformed IKE_AUTH request is owed (RFC 7296 Section 2.21.2) | A different obligation on the branch this spec keeps | `plan/release/fixes/spec-ike-responder-auth-malformed-request-notify.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/single-owner-lifecycle-4-ike-unauthenticated-input-012c6aba-8383-4d29-8c6c-56a05b9072d6.md` (23 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | wiring, removed-behavior audit site by site, fail-open and amplification, log injection, concurrency of the doctor reads, user-facing text, RFC quote placement, Go style (peer-reachable panic) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The `doctor-ipsec-peer-malformed-message` description says Ze keeps the SA, but the first-exchange WARN line in `handleAuthResponse` that carries the code ends the handshake and is never counted, so an operator who looks the code up reads a false outcome | `internal/core/diagnostic/codes.go`, the code's `Description` | One sentence naming the first-exchange case and that the WARN line is its only record; `docs/architecture/ike/ipsec-10-cli-diag.md` already says so |
+
+### Run 1 notes (do not block)
+- NOTE: the two new runtime checks are proven by unit tests over a populated SA table and by the generic registration test, not by a `.ci` that runs `ze doctor` against a live engine. `docs/architecture/doctor-and-health-checks.md` names `ze doctor --json config <file>` as the functional form, which runs no engine and so cannot reach a check over `ActiveTable()`; the sibling runtime check `ipsec-virtual-ip-pool` has the same shape.
+- NOTE: `wire.Message.ReadFrom` does not enforce on receipt that the Encrypted payload is the last payload (RFC 7296 Sections 3.1 and 3.14); row RFC7296-3.1-1 is sender-side. Not exploitable here: the CBC checksum covers the whole datagram and AEAD's associated data holds the header Length, so a third party cannot append a payload.
+- NOTE: `inHandshake` panics on an unknown `SAState`; only Ze assigns the state, so no peer reaches it.
+- NOTE: `plan/post-release/engineering/spec-validated-construction-and-state-types.md` (Existing Mechanisms row "Dropping an unauthenticated handshake request") still names the deleted `responder_unauthenticated.go`; its door gate is outside this closure, so its citation of this spec is carried by `plan/.citation-baseline` and the stale row is reported.
+
+### Run 2
+- Re-read the changed description against `handleAuthResponse` (`fsm.go`): the first-exchange padding failure sets `StateDead` and does not call `countPeerMalformedMessage`; the second exchange counts and keeps the SA. 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| Files to Create | Yes | `ls` at closure: `protected_input.go`, `protected_input_test.go`, `rfc7296_unprotected_response_test.go`, `doctor_unauthenticated_input.go` and its test, `doctor_peer_malformed.go` and its test, both fixture files, `test/ipsec/ike-auth-corrupt-response.ci`, the scenario's `ze.conf` and `swanctl.conf`, `unprotected_response.go` and its test |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-10 | one caller of `decryptSKPayload`, replaced functions gone | closure grep: one call, in `openProtected`; no non-test hit for `decryptAndParse` or `discardUnauthenticatedHandshakeRequest` |
+| AC-11 | code declared and reachable | closure grep: `doctor-ipsec-unauthenticated-input` in `codes.go`, `register.go`, `doctor_unauthenticated_input.go` |
+| AC-1..AC-9, AC-11 | unit tests green | `./le test unit pkg path ./internal/component/ike/engine/` green under the race detector (main thread) |
+| Finding 1 fix | the `codes.go` description edit is formatted and its package green | main thread after the fix: `gofmt -l internal/core/diagnostic/codes.go` printed nothing; `./le test unit pkg path ./internal/core/diagnostic/` exit 0; `./le arch doctor-coverage check` exit 1 with no site in `internal/component/ike` (its findings are in other sessions' files) |
+| AC-12 | interop green, red recorded | `rfc/discrimination/rfc7296/RFC7296-2.4-3.json`; `./le rfc check` at closure lists nothing for RFC7296-2.4-3 or RFC3748-4-5 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A datagram on the daemon's IKE socket during a real handshake | `test/ipsec/ike-auth-corrupt-response.ci` | Read: background relay `le test fixture ipsec/auth-corrupt-response`, `expect=stdout:contains=RELAY-CORRUPTED: sent 3 copies`, `expect=event:namespace=vpn-ipsec:name=sa-up`, `expect=stderr:contains=ike: unauthenticated message dropped, SA kept` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1..A-4, A-7..A-11 | confirmed | the Status column of the Assumptions table |
+| A-5, A-6 | broken | Mistake Log rows 1 and 2 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Doctor checks, guide reasons | `docs/guide/ipsec.md` "Health and metrics" against `checkIPsecUnauthenticatedInput`, `checkIPsecPeerMalformedMessage`, the reason constants in `protected_input.go` | Yes |
+| #5 plugin guide | grep of `docs/guide/plugins.md` for `ipsec-virtual-ip-pool`: no hit, the page lists no check | Yes, no update |
+| #10 fixture list | `docs/functional-tests.md` lists suites, not fixtures | Yes, no update |
+| #11 comparison | grep of `docs/comparison.md` for "integrity" and "forged": no hit | Yes, no update |
+| #14 metrics page | `docs/plugin-development/metrics.md` names none of the reasons | Yes, no update |

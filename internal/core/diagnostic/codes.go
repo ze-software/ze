@@ -1131,7 +1131,11 @@ var builtinCodes = append([]CodeMeta{
 			"have failed that check: the defect is in the peer's IKE implementation. Ze drops " +
 			"such a response, or a retransmission it would otherwise answer from its cache, and " +
 			"keeps the SA; a malformed request is answered with INVALID_SYNTAX and ends the SA " +
-			"(RFC 7296 Section 2.21.3). The exchange the peer meant is lost, so a rekey, a " +
+			"(RFC 7296 Section 2.21.3). An IKE_AUTH response whose Padding or Pad Length is wrong " +
+			"keeps the SA in the RFC 4739 second exchange, but in the first authentication exchange " +
+			"it ends the handshake, so ze doctor never reports it: the WARN line that carries this " +
+			"code is its only record, and the next cycle starts a new handshake. " +
+			"The exchange the peer meant is lost, so a rekey, a " +
 			"liveness check, an address update or the second authentication exchange can " +
 			"fail. Run show vpn ipsec sa to see the SA, " +
 			"collect the peer's IKE log for the same time, and report the defect to the peer's " +

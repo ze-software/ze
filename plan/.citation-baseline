@@ -79,3 +79,4 @@ plan/post-release/engineering/spec-le-every-area-dispatches-through-one-table.md
 plan/post-release/engineering/spec-le-one-verb-one-job.md
 plan/post-release/engineering/spec-inventory-fast-registry-checks.md
 plan/post-release/engineering/spec-tooling-one-off-defects.md
+plan/release/fixes/spec-single-owner-lifecycle-4-ike-unauthenticated-input.md
