@@ -38,12 +38,12 @@ neither, so the hook lets them run:
 moves the branch, is refused by the hook with the route that works, whether or
 not a list names it today. Read-only git commands keep passing.
 
-**A second defect, same guards (2026-11-12).** The refusal `bashWorktreeCopy`
-prints tells a worktree agent "Use git merge or cherry-pick". Both are banned
-for it, and `git cherry-pick` is the one the hook lets through, so the hook's
-own message is the likeliest reason an agent would run it. The message is
-corrected to name the route that works. This part depends on nothing and may
-land first, alone.
+**A second defect, same guards (2026-11-12), split out.** The refusal
+`bashWorktreeCopy` prints told a worktree agent "Use git merge or
+cherry-pick", the likeliest reason an agent would run the unguarded verb. It
+depends on nothing, so it moved to
+`plan/post-release/engineering/spec-hook-worktree-copy-refusal-names-banned-verbs.md`,
+which owns its journal row.
 
 **Direction (2026-11-12, session decision, design still owed).** This spec
 does not run on its own by adding names to the two lists. Five names are known
@@ -137,4 +137,3 @@ the declared exceptions (`git fetch`, the `git pull --rebase` that
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `gate-excludes-part-of-its-population` | 2026-11-12 | `bashDestructiveGit`, `bashBranchMove`: `git cherry-pick`, `git am`, `git read-tree`, `git update-index`, `git apply --cached` are not refused |
-| `guard-message-teaches-the-violation` | 2026-11-12 | `bashWorktreeCopy`: the refusal tells a worktree agent to use `git merge` or `git cherry-pick` |

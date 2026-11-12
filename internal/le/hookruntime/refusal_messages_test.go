@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- native Bash hook policy
 // Related: session.go -- bashAgentIdentity and commandIdentityPrefix
-// Related: bash.go -- bashSystemTmp and bashScratch, whose advice these pin
+// Related: bash.go -- bashSystemTmp, bashScratch and bashWorktreeCopy, whose advice these pin
 
 package hookruntime
 
@@ -69,6 +69,45 @@ func TestIdentityRefusalEndsWithTheFixingLine(t *testing.T) {
 		code, _, message := runSubagentBash(t, command)
 		if strings.Contains(message, "takes another identity") || strings.Contains(message, "needs the agent's identity line") {
 			t.Errorf("%q: the agent's own line was refused (code %d): %s", command, code, message)
+		}
+	}
+}
+
+// TestWorktreeCopyRefusalNamesTheRouteThatWorks asks whether the refusal of a
+// copy out of a worktree names a remedy the worktree agent may follow. It
+// drives the whole pretool-bash action with one copy line and reads the text.
+//
+// The refusal said to merge or cherry-pick instead, and a worktree agent may
+// do neither: it commits on its own branch, and the user lands that branch on
+// main by rebase. The hook refuses the merge verb and lets cherry-pick through,
+// so the advice steered the agent onto the banned verb nothing stops.
+//
+// VALIDATES: AC-1 and AC-2: the copy exits 2, the text names the commit route
+// and the user's `git rebase <branch>`, its last line is the commit route, and
+// it names neither cherry-pick nor merging as the remedy.
+// PREVENTS: a refusal whose remedy is itself a banned verb.
+func TestWorktreeCopyRefusalNamesTheRouteThatWorks(t *testing.T) {
+	const command = "cp .claude/worktrees/a/x.go internal/x.go"
+	code, _, message := runHook(t, t.TempDir(), "pretool-bash", map[string]any{
+		"tool_name":  "Bash",
+		"tool_input": map[string]any{"command": command},
+	})
+	if code != 2 {
+		t.Fatalf("code = %d, want 2 for %q: %s", code, command, message)
+	}
+	for _, want := range []string{"./le commit create", "git" + " rebase <branch>"} {
+		if !strings.Contains(message, want) {
+			t.Errorf("the refusal does not name %q: %s", want, message)
+		}
+	}
+	trimmed := strings.TrimRight(message, "\n")
+	last := trimmed[strings.LastIndex(trimmed, "\n")+1:]
+	if !strings.HasPrefix(last, "./le commit create") {
+		t.Errorf("the refusal's last line is %q, want the ./le commit create line: %s", last, message)
+	}
+	for _, banned := range []string{"cherry-pick", "Use git" + " merge"} {
+		if strings.Contains(message, banned) {
+			t.Errorf("the refusal names the banned remedy %q: %s", banned, message)
 		}
 	}
 }

@@ -76,7 +76,11 @@ func bashWorktreeCopy(ctx context) *verdict {
 	if !blocked {
 		return nil
 	}
-	return &verdict{2, "❌ Blocked: copying files from worktree to main repo\nWorktree agents must commit their changes. Use git merge or cherry-pick.\nDirect file copying overwrites uncommitted work from other sessions."}
+	return &verdict{2, "❌ Blocked: copying files from worktree to main repo\n" +
+		"A direct copy overwrites the uncommitted work other sessions left in the main checkout.\n" +
+		"A worktree agent commits on its own branch, and the user lands that branch on main with `git rebase <branch>`.\n" +
+		"Commit your work on the worktree branch with:\n" +
+		"./le commit create subject \"<subject>\" file <path>"}
 }
 
 // shellInvoker matches a command that hands a quoted string to another shell to
