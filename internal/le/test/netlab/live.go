@@ -104,9 +104,8 @@ func (c *Checker) RunLive(ctx context.Context, directory string) (err error) {
 	if err != nil {
 		return err
 	}
+	var startupOutput string
 	defer func() {
-		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
-		defer cancel()
 		// Read names before --cleanup removes the snapshot. A startup failure
 		// can still leave a snapshot and a subset of the declared containers.
 		var deployed struct {
@@ -118,6 +117,17 @@ func (c *Checker) RunLive(ctx context.Context, directory string) (err error) {
 		} else if !errors.Is(readErr, os.ErrNotExist) {
 			err = errors.Join(err, fmt.Errorf("read cleanup inventory: %w", readErr))
 		}
+		if err != nil {
+			capture, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+			artifacts, captureErr := c.keepLiveDiagnostics(capture, directory, startupOutput, body, deployed.Nodes)
+			cancel()
+			err = errors.Join(err, captureErr)
+			if artifacts != "" {
+				err = fmt.Errorf("netlab diagnostics retained in %s: %w", artifacts, err)
+			}
+		}
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
+		defer cancel()
 		_, cleanupErr := c.liveCommand(cleanup, directory, netlab, "down", "--cleanup")
 		err = errors.Join(err, cleanupErr)
 		for _, node := range deployed.Nodes {
@@ -131,7 +141,8 @@ func (c *Checker) RunLive(ctx context.Context, directory string) (err error) {
 			}
 		}
 	}()
-	if _, err := c.liveCommand(ctx, directory, netlab, "up", "--no-config", "topology.yml"); err != nil {
+	startupOutput, err = c.liveCommand(ctx, directory, netlab, "up", "--no-config", "topology.yml")
+	if err != nil {
 		return err
 	}
 	if _, err := c.liveCommand(ctx, directory, netlab, "initial"); err != nil {
@@ -289,10 +300,10 @@ func (c *Checker) liveCommand(ctx context.Context, directory string, argv ...str
 	fmt.Fprintln(os.Stderr, "+", strings.Join(argv, " ")) //nolint:errcheck // CLI progress
 	result := c.Execute(Command{Context: ctx, Argv: argv, Env: c.Env, Dir: directory})
 	if result.Err != nil {
-		return "", fmt.Errorf("%s: %w: %s", strings.Join(argv, " "), result.Err, result.Stderr)
+		return result.Stdout + result.Stderr, fmt.Errorf("%s: %w: %s", strings.Join(argv, " "), result.Err, result.Stderr)
 	}
 	if result.Code != 0 {
-		return "", fmt.Errorf("%s exited %d: %s%s", strings.Join(argv, " "), result.Code, result.Stdout, result.Stderr)
+		return result.Stdout + result.Stderr, fmt.Errorf("%s exited %d: %s%s", strings.Join(argv, " "), result.Code, result.Stdout, result.Stderr)
 	}
 	return result.Stdout, nil
 }

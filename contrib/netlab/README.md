@@ -15,6 +15,7 @@ result to the ze parser. Upstream, no test has the parser to do it with.
 |------|-----------|
 | `ze.yml` | The daemon definition. Mirrors `netsim/daemons/ze.yml` |
 | `ze/ze.j2` | The whole running configuration. Mirrors `netsim/daemons/ze/ze.j2` |
+| `ze/initial.j2` | Linux interface setup and the startup completion marker |
 | `ze/{bgp,ospf,isis,bfd,routing}.j2` | One stub per declared module, writing an ignore file |
 | `ze/Dockerfile.j2` | The image recipe, for the day netlab builds the image itself |
 | `topology.yml` | The reference topology, three nodes, every declared module |
@@ -89,12 +90,18 @@ The native runner checks all configured BGP, OSPF, IS-IS and BFD adjacencies,
 the two static routes in the kernel, and sourced loopback pings between every
 pair of nodes. It polls state with bounded deadlines and always attempts
 teardown, including partial startup. A failed assertion or cleanup fails the
-command. Generated configuration and topology snapshots remain under the
-session's scratch directory for diagnosis.
+command. Before cleanup, a failed proof saves generated configuration, the
+topology snapshot, Docker inspection, and bounded node logs in a private
+`diagnostics-*` directory under the retained lab directory.
 Each run uses its build's retained image tag, checked against the immutable image
 ID before startup. Concurrent runs cannot change the selected node image by
 moving `netlab/ze:latest`. A directory lease prevents a second host-runtime run
 from starting or cleaning up an existing deployment.
+
+The node runs netlab's `dataplane-wait` script under `tini`. The script waits
+until `netlab initial` completes Linux interface setup and writes
+`/var/run/initial.done`, then replaces itself with Ze. Ze starts after its BGP
+local addresses exist, and its output and exit status reach Docker directly.
 
 The topology is three ze nodes:
 

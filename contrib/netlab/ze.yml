@@ -47,6 +47,7 @@ clab:
     docker_shell: sh
     netlab_config_mode: sh
     netlab_start_daemon: "/usr/local/bin/ze start /etc/ze/ze.conf"
+    netlab_dp_module: [ initial ]
   # Ze builds the image rather than netlab: `docker build -f
   # docker/Dockerfile.lab -t netlab/ze:latest .` derives its feature tags from
   # feature-gates.txt. Dockerfile.j2 stays beside the templates for the day
@@ -55,6 +56,11 @@ clab:
   build: False
   node:
     kind: linux
+    # BGP binds its local addresses at startup. Netlab assigns those addresses
+    # in initial configuration, then our initial template marks it complete.
+    cmd: /etc/dataplane-wait.sh
+    config_templates:
+      dataplane-wait: /etc/dataplane-wait.sh:sh
     # `netlab validate` runs netlab_show_command through `docker exec`, so the
     # ze CLI it starts inside the node needs a credential to reach the daemon's
     # SSH server. These two MUST match the netlab_lab_user / netlab_lab_password

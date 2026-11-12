@@ -127,6 +127,11 @@ second invocation cannot tear down another run's topology.
 <!-- source: internal/le/test/netlab/live.go -- RunLive, proveNode -->
 <!-- source: internal/le/test/netlab/run.go -- runContainerLab -->
 
+Before cleanup, a failed proof saves a private `diagnostics-*` directory inside
+the retained lab directory. It contains startup output, the topology snapshot,
+generated node files, Docker inspection, and each node's last 200 log lines.
+<!-- source: internal/le/test/netlab/live_diagnostics.go -- keepLiveDiagnostics -->
+
 ## How netlab configures a node
 
 netlab renders `contrib/netlab/ze/ze.j2` into one file, `/etc/ze/ze.conf`, and
@@ -135,12 +140,19 @@ holds the whole running configuration. Each other module key points at an ignore
 that nothing reads.
 <!-- source: contrib/netlab/ze.yml -- daemon_config -->
 
-The node starts with `ze start /etc/ze/ze.conf`. netlab assigns the interface addresses
-with `ip` inside the container, so the rendered configuration carries no interface
-block. The explicit `clab.node_config.initial` shell method runs that setup
-through `docker exec`. It overrides the Linux parent's host-namespace method;
-setting the default configuration mode alone does not replace an inherited method.
+The node starts netlab's `/etc/dataplane-wait.sh` under `tini`. That wrapper waits
+for initial interface configuration, then replaces itself with
+`ze start /etc/ze/ze.conf`. Ze therefore starts after its configured local
+addresses exist. Its rendered configuration carries no interface block.
+<!-- source: contrib/netlab/ze.yml -- clab.node.cmd, clab.node.config_templates, clab.group_vars.netlab_dp_module -->
+
+The explicit `clab.node_config.initial` shell method runs Linux interface setup
+through `docker exec`. The Ze initial template marks successful completion for
+the startup wrapper. The explicit method overrides the Linux parent's
+host-namespace method. Setting the default configuration mode alone does not
+replace an inherited method.
 <!-- source: contrib/netlab/ze.yml -- clab.node_config.initial -->
+<!-- source: contrib/netlab/ze/initial.j2 -- Linux interface setup and completion marker -->
 
 After changing that bind-mounted file, send SIGHUP to reload it.
 `handleSIGHUPReload` runs `signalReload`,

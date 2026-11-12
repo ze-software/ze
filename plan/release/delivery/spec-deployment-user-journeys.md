@@ -8,7 +8,7 @@
 | Release reason | Essential installation, appliance boot, and onboarding paths must work before users can evaluate a release. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | Completed deployment documentation and website updated; resume live netlab and source-bound bundle proofs |
+| Phase | Completed-path docs/site committed; netlab startup ordering and diagnostics passed scoped tests, actual rerun owed |
 | Handoff | `tmp/session/2026-11-10-225434/scratch/deployment-runtime-handoff.md` |
 | Updated | 2026-11-12 |
 
@@ -70,6 +70,30 @@ had succeeded, but the file was absent again by the final check. Eight reported
 symbol warnings belong to other documentation; none names these two changed
 guides. No global documentation pass, public publication or release is claimed.
 
+## Netlab startup continuation, 2026-11-12
+
+Documentation and website changes landed in `2b7ffc1e78`. Actual run `38376`
+then built Linux Ze/LE and both images, passed the own-kernel check and reached
+topology creation. Initial configuration used the corrected `docker exec`
+method, but all three containers had already stopped. Teardown and outer VM
+cleanup passed. The failed run did not retain node exit causes.
+
+Source review established a startup-ordering defect: the image starts Ze before
+`netlab initial` assigns the local addresses, while BGP listeners use ordinary
+address binding. The new declaration uses netlab's existing bounded
+`dataplane-wait` wrapper and an initial completion marker. It preserves the
+Linux interface setup and starts Ze through `exec`. Failure capture now keeps
+private, unique diagnostics with generated inputs and bounded log tails before
+teardown; capture errors cannot bypass cleanup.
+
+Main observed semantic RED for diagnostic retention (`73100`) and startup
+ordering (`55493`) before production edits. Focused three-regression GREEN
+`71442` and full netlab-package GREEN `2346` followed. Independent review
+confirmed the upstream metadata/template chain and cleanup preservation. The
+actual cause of the old exits remains unobserved, and the fixed live topology
+is not yet a pass. Fresh live proof and the current source-bound bundle remain
+required.
+
 ## Current acceptance evidence, 2026-11-12
 
 This section records the latest results reported by the main thread and
@@ -84,7 +108,7 @@ substitute for the outstanding actual deployment proofs.
 | AC-3: source build and named executables | The patched-toolchain build path is implemented. All five shipped flavors compiled after the preview, OTA, container and phase-binding commits; committed-build job `98028` exited 0 with all five OK at HEAD `94e8a7de6383`. Kernel/build documentation landed in `be5381db9c`. | Each compilation result belongs to its recorded source revision. Recurrent foreign API changes caused earlier failed builds; a passed committed build does not establish the pending source-bound artifact bundle. |
 | AC-4: supplied two-peer quickstart | Real basic route-exchange/authentication checks passed. The quickstart completed all 80 unchanged stress invocations in the approved private tmpfs context. Functional fixtures landed in `4c05449c18`; all three deployment tests also passed the live CI-path run associated with `eb28da8d95`. | This proves the supplied control-plane tutorial, with its explicit forwarding limits; it does not add production forwarding evidence. The whole-UI run was not green, as recorded below. |
 | AC-5: deployment container persistence | Container/netlab code landed in `ef6e1c9806`; runtime correction `adf359f08c` includes noninteractive import and `/tmp` mode `1777`. Actual Compose portion of finished job `84344` printed `DEPLOYMENT-COMPOSE: PASS authenticated edit retained across a new container on the same persistent volume`, including the corrected metadata-aware subtree oracle. Final outer cleanup stopped the VM and left nothing behind. | This proves the authenticated edit/recreation path for the explicitly source-unbound runtime image. The combined job's separate netlab portion failed; it is not an overall runtime PASS. |
-| AC-6: live containerlab/netlab | Initial-method correction `b914eb1a0b` explicitly selects `clab.node_config.initial` value `:sh`, with production export regression, accurate guide and narrow review clear. Semantic RED `2438` preceded focused GREEN `49686`; full package `61909` and all-five-flavor post-commit `67612` passed. | Actual `68552` failed before topology startup while staging fresh Linux LE on foreign IKE compile errors. Own-kernel check and fresh Linux Ze passed; outer VM stopped and left nothing behind, lab exit 1. New method remains unverified live; no protocol/route/traffic PASS exists. The failing IKE source has since changed, so the retained log is not a claim that identical errors persist. |
+| AC-6: live containerlab/netlab | Actual `38376` reached initial configuration through the corrected shell method but found all three containers stopped. Startup ordering and private pre-teardown diagnostics now pass focused regressions, the full netlab package and independent source review. | Fixed live topology, declared adjacencies, kernel routes and six directed sourced pings remain unverified. Actual `38376` teardown and outer VM cleanup passed; no protocol/traffic PASS is claimed. |
 | AC-7: installer ISO and installed disk | `66cc2f7abb` landed the ISO corrections. Actual native amd64/KVM proof passed optical boot, selected-disk installation, clean poweroff, unchanged extra disk, installed-disk boot and authenticated SSH/version. Final module-bound ISO assembly passed. | This is amd64/KVM evidence; arm64 boot was not run. The retained ISO image does not establish OTA credentials or update recovery. |
 | AC-8: appliance image update and recovery | OTA implementation landed in `d5ac4d3249`. Actual run `19822` passed: two images, changed runtime after update, retained persistent UUID/configuration/login/hostname, previous-slot recovery and owned cleanup. The committed source passed all-five-flavor compilation. | This actual OTA/recovery proof supersedes the earlier failed host-push run `44967`; that failure remains historical evidence below. It does not extend the amd64 proof to arm64. |
 | AC-9: website deployment journeys | Resumed completed-path documentation, homepage and navigation updates passed canonical local build `67925` and check `38826`: 24 producers and 1,107 declared/written routes in sibling `../gh-pages`. Generated HTML and Markdown were inspected. | Baseline stale-supported warnings persisted; no feature-proof refresh occurred. No remote publication or push occurred; the broad doc gate's generated-index failure is recorded above. |
