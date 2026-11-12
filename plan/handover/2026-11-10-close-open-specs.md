@@ -1,9 +1,12 @@
 # Handover: closing near-done specs (2026-11-10)
 
-**Current status (2026-11-12 06:40 UTC):** eleven specs closed. Access and
-refusal closed today. Lint-tooling is in progress with two fix batches in and
-its criterion ruled on by the owner. Route-policy waits on the Mac. The 06:40
-continuation checkpoint below is the current state.
+**Current status (2026-11-12 20:00 UTC):** eleven specs closed. Access and
+refusal closed today; Access's RFC 5176 proofs were found stale after closure
+and are repaired. Lint-tooling is in progress with five fix batches in and
+about 167 known findings left. Route-policy has its benchmark, accepted by the
+owner, and is blocked on three findings of its closure review. Read the dated
+sections below from the bottom of this block up; the latest ones are the
+Access proof repair and the route-policy section.
 **Branch:** main. No push was performed by this session; Thomas controls pushes.
 **Goal:** close the open specs whose implementation is already committed. The
 owner asked that locked or blocked specs not stop progress on the others.
@@ -167,8 +170,58 @@ package, skipping files other sessions hold open
 and fix what the repeat cap had hidden; then the closing review record. Every
 further review round, the closing one included, is the owner's to grant.
 
-Two things this session got wrong, so the next one does not repeat them:
+## Access closed with stale RFC 5176 proofs; repaired 2026-11-12
 
+Access closed (`a5ca6d22cd`) on the statement that its RFC records held no
+owned finding. That was false. Its last commit, `857da9e798`, rewrote four
+functions of the CoA handler (`coa.go`: `handleCoA`, `applySubscriberCoA`,
+`findSubscriberSession`, `findSessions`) and six tagged tests, and re-recorded
+proofs for three requirements only. Twenty-two revert records kept
+fingerprints from October. The closing session did not run `./le rfc check` on
+the committed state; it relied on the earlier handback's claim.
+
+Repair, `7d99289745`: all 22 re-observed with `./le rfc record`. Seventeen
+went red under the old break (the producer's body replaced by a halt). Five
+stayed green under it, because a halt in the CoA path is now recovered and
+answered with a NAK and no change, which is what those five tests assert; they
+are recorded under hand-written one-line mutations instead
+(`rfc5176-mutant-{1..5}.json` in this session's scratch). Two audit verdicts
+whose units only moved are re-stamped, and one comment that read as a naming
+marker is reworded. `./le rfc check` then shows no finding for `rfc5176`
+(`job-rfc-check-after-reseal-f2bb299a.log`: 92 global, none for this stem).
+
+What the repair exposed and did not fix: the tests for RFC5176-2.3-5 and
+RFC5176-3.3-1 assert the NAK code only, so a crash that answers NAK would also
+pass them (asserting Error-Cause 407 and 503 would separate the two); and for
+RFC5176-2.3-6 the mutation records prove the CoA-NAK half of the claim, while
+the "no event reaches the bus" half is guarded twice and no single break
+reaches it.
+
+## Route-policy after the owner's benchmark, 2026-11-12
+
+The owner ran the A-4 procedure on his Mac
+(`plan/records/route-policy-0-a4-mac.bench.txt`, `8fe071985c`): the import gate
+costs 5.6% on a single-writer Loc-RIB insert (about 17 ns), nothing measurable
+under parallel writers, and one allocation less per insert. He accepted that
+cost. The round-four closure review then found three things the spec promises
+and lacks, and the spec is handed back `blocked` on them (`e5273c6dcb`):
+
+- B-1: `test/plugin/rib-import-central-bogons.ci` and
+  `test/plugin/static-import-filter-distance.ci` were never committed.
+- B-2: a system RIB run as its own process finds no Loc-RIB
+  (`sysrib/register.go` `runSysRIBPlugin`) and subscribes to BGP best-change
+  events (`sysrib/sysrib.go` `run`), an input the import gate never judges.
+  Whether an operator configuration can fork it today is not verified.
+- B-3: no feature declaration and no comparison row.
+
+Round five, over those fixes, is the last round a session may spend there.
+`b6425246e2` re-stamps the one shifted verdict among the spec's documents.
+
+Three things this session got wrong, so the next one does not repeat them:
+
+- A closure that trusts "the RFC records are clean" from a handover. Run
+  `./le rfc check` on the committed state and filter the spec's stems before
+  any closing commit, whatever the record says.
 - Ownership of a lint finding by `git blame` alone misses a finding the spec
   caused on a line it did not write: a signature change makes an old call
   site discard a new error. Trace each remaining finding in the spec's
