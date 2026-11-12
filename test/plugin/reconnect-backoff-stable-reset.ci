@@ -1,0 +1,150 @@
+# Test: the reconnect backoff forgets its penalty after a stable session
+#
+# The one question: does the running daemon, on its real clock, double the
+# reconnect delay after sessions that end soon after Established, and go back to
+# the minimum after a session that stayed Established longer than reconnectMax?
+#
+# Why a .ci: the unit tests in internal/component/bgp/reactor/
+# peer_run_backoff_test.go decide the rule through Peer.run on a fake clock.
+# Only the daemon shows that a config-built peer, the 60 s reconnectMax that
+# NewPeer sets (DefaultReconnectMax, peer.go), the real peer clock and the error
+# a peer's TCP close produces reach that rule.
+#
+# Spec: plan/release/fixes/spec-single-owner-lifecycle-2-bgp-session.md,
+# AC-8 (stable session restarts at reconnectMin), AC-9 (short session doubles),
+# user stories 2 and 3. R-8: the stable time is not shortened and has no knob,
+# so this test holds a session for over a minute and takes about 85 to 115 s.
+#
+# What it asserts. The producer is Peer.run (peer_run.go). It logs
+# "timing: backoff starting" with delay=<base>, the delay BEFORE fsm.Jitter
+# scales it to 0.75..1.0 of the base, so every assertion below reads an exact
+# base (5s, 10s, 20s) and never a waited time. Each backoff line is pinned to
+# the cycle it follows by two lines of the same goroutine: "timing:
+# safeRunOnce returned ... attempt=N" before it and "timing: connection
+# attempt starting ... attempt=N+1" after it. So each window holds exactly one
+# backoff line, and a later reset cannot satisfy an earlier window.
+#
+#   cycle 1  Established, ends at once      next base 5s   (reconnectMin)
+#   cycle 2  Established, ends at once      next base 10s  (doubled: AC-9)
+#   cycle 3  Established for over a minute  next base 5s   (restarted: AC-8)
+#                                           the unfixed daemon logs 20s
+#   cycle 4  ze dialed again                (closes the cycle 3 window)
+#
+# How the sessions end. ze-peer closes the TCP connection when a connection's
+# expectations are met (no linger), which ze reads as ErrConnectionClosed
+# (session_read.go): an ordinary error, not ErrTeardown. ze is the only dialer:
+# `accept false` opens no listener, and ze-peer never connects, so no inbound
+# connection wakes a wait. No command is sent, so no administrative wake
+# either. Each of those three resets the delay on its own and would hide the
+# rule.
+#
+# How cycle 3 is held for over a minute without a sleep. Hold time 90 and
+# keepalive 30 are written below (both are the YANG defaults), and ze-peer
+# states no smaller hold time, so ze sends a KEEPALIVE every 30 s scaled by the
+# RFC 4271 Section 10 jitter to 22.5..30 s (Timers.StartKeepaliveTimer,
+# fsm/timer.go). Connection 3 waits for three of them after the End-of-RIB, at
+# least 67.5 s after ze entered Established, before ze-peer closes it. The wait
+# is the daemon's own timer, and the 7.5 s margin over the 60 s stable time
+# holds whatever the jitter draws.
+#
+# Each End-of-RIB expectation proves the cycle reached Established: RFC 4271
+# Section 9 permits an UPDATE only there.
+#
+# Mutation-verified 2026-11-12 against a daemon built through a GOFLAGS=-overlay
+# copy of peer_run.go whose Peer.cycleStayedEstablished returns `false && ...`,
+# which is the daemon before the fix (the shared tree was not touched):
+#   * the run FAILS in 110.2s. The cycle 1 and cycle 2 windows and the cycle 3
+#     elapsed precondition pass (VERIFY steps 3, 4, 5), and the cycle 3 window
+#     goes RED (step 6: no delay=5s between attempt=3 and attempt=4). The
+#     mutated daemon's own log shows the delay still doubling: `timing: backoff
+#     starting ... delay=40s` after attempt 4.
+#   * the run stopped at step 6, so the cycle 3 reject=stderr (delay=20s) was
+#     not reached in that run. It is kept as the wrong-outcome check, not
+#     claimed as observed red.
+# The same file passed against the fixed daemon on 2026-11-12 in 98.4s.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=4
+option=asn:value=65001
+# Connection 1: ze's IPv4 End-of-RIB, then ze-peer closes.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# Connection 2: the same short session.
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# Connection 3: End-of-RIB, then three of ze's periodic KEEPALIVEs, then close.
+# ze's handshake KEEPALIVE arrives before the End-of-RIB and is accepted in
+# silence (Checker.expectedOrKeepalive), so the three below are periodic ones.
+expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+expect=bgp:conn=3:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+expect=bgp:conn=3:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+# Connection 4 exists only if ze dialed after the cycle 3 backoff, so the
+# runner cannot stop ze before the cycle 3 backoff line is written.
+expect=bgp:conn=4:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration: one active peer, no listener, the default timers
+# written out because the cycle 3 hold is computed from them.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+		}
+		timer {
+			receive-hold-time 90
+			keepalive 30
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.bgp.reactor.peer:value=debug
+
+# The 180 s ceiling covers the fixed daemon (about 85 to 115 s) and the unfixed
+# one (its cycle 3 wait is 15 to 20 s instead of 3.75 to 5 s), so a red run
+# fails on the delay assertions below, not on the timeout. The runner stops ze
+# as soon as ze-peer completes on connection 4.
+option=timeout:value=180s
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=180s
+
+# Cycle 1 (AC-9 start): the first wait uses reconnectMin.
+expect=stderr:pattern=(?s)msg="timing: safeRunOnce returned"[^\n]*attempt=1\b.*msg="timing: backoff starting"[^\n]*delay=5s\b.*msg="timing: connection attempt starting"[^\n]*attempt=2\b
+# Cycle 2 (AC-9): a short Established session doubles the delay.
+expect=stderr:pattern=(?s)msg="timing: safeRunOnce returned"[^\n]*attempt=2\b.*msg="timing: backoff starting"[^\n]*delay=10s\b.*msg="timing: connection attempt starting"[^\n]*attempt=3\b
+# Cycle 3 precondition: the cycle lasted at least a minute, as the daemon
+# measured it. A red here means the hold was short, not that the rule failed.
+expect=stderr:pattern=msg="timing: safeRunOnce returned"[^\n]*attempt=3\b[^\n]*elapsed=[0-9]+m[0-9]
+# Cycle 3 (AC-8): after the stable session the delay is back at reconnectMin.
+expect=stderr:pattern=(?s)msg="timing: safeRunOnce returned"[^\n]*attempt=3\b.*msg="timing: backoff starting"[^\n]*delay=5s\b.*msg="timing: connection attempt starting"[^\n]*attempt=4\b
+# The wrong outcome in the same window: the penalty kept and doubled again.
+reject=stderr:pattern=(?s)msg="timing: safeRunOnce returned"[^\n]*attempt=3\b.*msg="timing: backoff starting"[^\n]*delay=20s\b.*msg="timing: connection attempt starting"[^\n]*attempt=4\b
+# No cycle ended in ErrTeardown, which resets the delay by itself.
+reject=stderr:pattern=msg="timing: safeRunOnce returned"[^\n]*session teardown
