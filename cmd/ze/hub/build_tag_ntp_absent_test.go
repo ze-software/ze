@@ -54,9 +54,18 @@ func TestBuildTag_NTP_AbsentRejectsNTPConfig(t *testing.T) {
 
 // TestBuildTag_NTP_AbsentSyncInfoNil proves an absent NTP state reader returns
 // no invented metadata and an explicit refusal, rather than the same answer
-// as a registered but inactive NTP client.
+// as a registered but inactive NTP client. The query answers as an inactive
+// client would, so a provider registered in this build would answer inactive
+// with no refusal; with none registered the seam refuses without reading.
 func TestBuildTag_NTP_AbsentSyncInfoNil(t *testing.T) {
-	info, refusal := pluginreg.GetNTPSyncInfo()
+	var queried []string
+	info, refusal := pluginreg.GetNTPSyncInfo(func(name string) (map[string]any, error) {
+		queried = append(queried, name)
+		return map[string]any{"enabled": false}, nil
+	})
+	if len(queried) != 0 {
+		t.Errorf("non-ze_ntp build: GetNTPSyncInfo read %q with no provider registered", queried)
+	}
 	if info != nil {
 		t.Fatalf("non-ze_ntp build: GetNTPSyncInfo = %v, want nil (no provider registered)", info)
 	}

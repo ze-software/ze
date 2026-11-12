@@ -349,23 +349,38 @@ func ntpSyncInfo(query registry.CommandQuery) (map[string]any, *opererr.Error) {
 	if err != nil {
 		return nil, ntpReadRefusal(err)
 	}
-	metadata, err := ntpReplyMetadata(data)
+	enabled, err := ntpReplyEnabled(data)
+	if err != nil {
+		return nil, ntpReadRefusal(err)
+	}
+	if !enabled {
+		// An explicit inactive answer needs no measurements. Nil metadata with
+		// no refusal is that answer under the NTPSyncProvider contract.
+		return nil, nil
+	}
+	metadata, err := ntpActiveMetadata(data)
 	if err != nil {
 		return nil, ntpReadRefusal(err)
 	}
 	return metadata, nil
 }
 
-// ntpReplyMetadata validates the synchronization fields before projecting them.
-// An explicit inactive answer needs no measurements; missing enabled is unknown.
-func ntpReplyMetadata(data map[string]any) (map[string]any, error) {
+// ntpReplyEnabled reads whether the NTP owner answered as an active client.
+// A missing or non-boolean enabled field is unknown, never an inactive client.
+// A caller MUST read enabled with this function, or an equivalent check, and
+// MUST NOT call ntpActiveMetadata unless it answered true.
+func ntpReplyEnabled(data map[string]any) (bool, error) {
 	enabled, ok := data[fieldEnabled].(bool)
 	if !ok {
-		return nil, errors.New("the NTP response has no boolean enabled field")
+		return false, errors.New("the NTP response has no boolean enabled field")
 	}
-	if !enabled {
-		return nil, nil
-	}
+	return enabled, nil
+}
+
+// ntpActiveMetadata validates an active answer's synchronization fields before
+// projecting them. The caller MUST have read enabled=true with ntpReplyEnabled
+// or an equivalent check first: an inactive answer carries no measurements.
+func ntpActiveMetadata(data map[string]any) (map[string]any, error) {
 	synced, ok := data["synced"].(bool)
 	if !ok {
 		return nil, errors.New("the active NTP response has no boolean synced field")
@@ -401,6 +416,13 @@ func ntpCommandReadRefusal(name string, cause error) *opererr.Error {
 // fieldEnabled is the YANG leaf that switches NTP on, and the JSON key the
 // status view answers with.
 const fieldEnabled = "enabled"
+
+// fieldPeers and fieldPeerCount are the JSON keys the peers view answers
+// with: one row for each server, and the number of rows in that array.
+const (
+	fieldPeers     = "peers"
+	fieldPeerCount = "count"
+)
 
 // handleShowSystemNTP returns the NTP sync status summary.
 func handleShowSystemNTP(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
@@ -441,7 +463,7 @@ func handleShowSystemNTPPeers(_ *pluginserver.CommandContext, _ command.Validate
 	if len(st.Servers) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"peers": []map[string]any{}, "count": 0},
+			Data:   plugin.Map{fieldPeers: []map[string]any{}, fieldPeerCount: 0},
 		}, nil
 	}
 	peers := make([]map[string]any, 0, len(st.Servers))
@@ -464,6 +486,6 @@ func handleShowSystemNTPPeers(_ *pluginserver.CommandContext, _ command.Validate
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"peers": peers, "count": len(peers)},
+		Data:   plugin.Map{fieldPeers: peers, fieldPeerCount: len(peers)},
 	}, nil
 }

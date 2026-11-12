@@ -4,6 +4,7 @@
 package ntp
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
@@ -91,7 +92,7 @@ func TestNTPPublicCommandsRespectInactiveSubtree(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if string(after) != string(before) {
+			if !bytes.Equal(after, before) {
 				t.Errorf("public reads changed accepted running configuration: before=%s after=%s", before, after)
 			}
 		})

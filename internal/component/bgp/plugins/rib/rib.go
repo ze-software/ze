@@ -74,10 +74,6 @@ const (
 // Envelope fields of the JSON payloads the rib commands return. A route
 // property is a row key instead (rib_pipeline.go).
 const (
-	// jsonKeyError is the field a failed command reports its message in. It is
-	// a KEY, where statusError above is a status VALUE.
-	jsonKeyError = "error"
-
 	jsonKeyCount     = "count"
 	jsonKeyInjected  = "injected"
 	jsonKeyWithdrawn = "withdrawn"

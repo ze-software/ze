@@ -18,7 +18,7 @@ func TestPipelineParseErrorsReachCommandVerdict(t *testing.T) {
 				args []string
 				want string
 			}{
-				{[]string{"unrecognised-stage"}, "unknown keyword: unrecognised-stage"},
+				{[]string{"unrecognized-stage"}, "unknown keyword: unrecognized-stage"},
 				{[]string{"peer"}, "peer requires a value"},
 			} {
 				status, data, err := r.handleCommand(command, "*", bad.args)

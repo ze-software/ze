@@ -31,7 +31,7 @@ func commandDecls() []sdk.CommandDecl {
 
 // executeNTPCommand reads only this process's worker state. The daemon reaches
 // it through the same command callback for internal and forked runners.
-func executeNTPCommand(_ string, name string, args []string, _ string) (string, any, error) {
+func executeNTPCommand(_, name string, args []string, _ string) (string, any, error) {
 	if len(args) != 0 {
 		return plugin.StatusError, nil, opererr.New(name+" takes no arguments",
 			"The NTP runtime commands read one state document and accept no arguments.",
@@ -84,7 +84,7 @@ func forwardNTPCommand(ctx *pluginserver.CommandContext, args command.ValidatedA
 	if !cfg.Enabled {
 		if name == commandNTPPeers {
 			return &plugin.Response{Status: plugin.StatusDone,
-				Data: plugin.Map{"peers": []map[string]any{}, "count": 0}}, nil
+				Data: plugin.Map{fieldPeers: []map[string]any{}, fieldPeerCount: 0}}, nil
 		}
 		return &plugin.Response{Status: plugin.StatusDone,
 			Data: plugin.Map{fieldEnabled: false}}, nil
@@ -127,16 +127,16 @@ func forwardNTPCommand(ctx *pluginserver.CommandContext, args command.ValidatedA
 			return plugin.OperatorErrorResponse(ntpCommandReadRefusal(name,
 				errors.New("the accepted configuration enables NTP but the worker is disabled"))), nil
 		}
-		if _, err := ntpReplyMetadata(data); err != nil {
+		if _, err := ntpActiveMetadata(data); err != nil {
 			return plugin.OperatorErrorResponse(ntpCommandReadRefusal(name, err)), nil
 		}
 	} else {
-		peers, ok := data["peers"].([]any)
+		peers, ok := data[fieldPeers].([]any)
 		if !ok {
 			return plugin.OperatorErrorResponse(ntpCommandReadRefusal(name,
 				errors.New("the NTP worker returned no peers array"))), nil
 		}
-		count, ok := data["count"].(float64)
+		count, ok := data[fieldPeerCount].(float64)
 		if !ok {
 			return plugin.OperatorErrorResponse(ntpCommandReadRefusal(name,
 				errors.New("the NTP worker returned no numeric peer count"))), nil

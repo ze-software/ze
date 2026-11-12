@@ -45,8 +45,8 @@ func ntpWorkerGoroutines() int {
 		records = make([]runtime.StackRecord, count+16)
 	}
 	count := 0
-	for _, record := range records {
-		frames := runtime.CallersFrames(record.Stack())
+	for i := range records {
+		frames := runtime.CallersFrames(records[i].Stack())
 		for {
 			frame, more := frames.Next()
 			if frame.Function == "github.com/ze-software/ze/internal/plugins/ntp.(*syncWorker).run" {

@@ -12,6 +12,10 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// ntpForkedSourceField is the key under which the NTP status answer names its
+// synchronization source.
+const ntpForkedSourceField = "source"
+
 func init() {
 	Register("plugin/system-date-ntp-forked", func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "system-date-ntp-forked-test", &sdk.Registration{}, observeForkedNTPState)
@@ -33,13 +37,16 @@ func observeForkedNTPState(ctx context.Context, p *sdk.Plugin) error {
 		}
 		return state["enabled"] == true
 	}) {
-		return fmt.Errorf("forked NTP never reported enabled=true: state=%v error=%v", state, last)
+		if last != nil {
+			return fmt.Errorf("forked NTP never reported enabled=true: state=%v: %w", state, last)
+		}
+		return fmt.Errorf("forked NTP never reported enabled=true: state=%v", state)
 	}
 	if synced, ok := state["synced"].(bool); !ok || synced {
 		return fmt.Errorf("forked NTP synced=%v, want worker-published false", state["synced"])
 	}
-	if source, ok := state["source"].(string); !ok || source != "" {
-		return fmt.Errorf("forked NTP source=%v, want the worker's empty source", state["source"])
+	if source, ok := state[ntpForkedSourceField].(string); !ok || source != "" {
+		return fmt.Errorf("forked NTP source=%v, want the worker's empty source", state[ntpForkedSourceField])
 	}
 	if offset, ok := state["offset"].(string); !ok || offset != "0s" {
 		return fmt.Errorf("forked NTP offset=%v, want worker-published 0s", state["offset"])
@@ -50,7 +57,7 @@ func observeForkedNTPState(ctx context.Context, p *sdk.Plugin) error {
 	}
 	for _, field := range []struct{ date, state string }{
 		{date: "ntp-synced", state: "synced"},
-		{date: "ntp-source", state: "source"},
+		{date: "ntp-source", state: ntpForkedSourceField},
 		{date: "ntp-offset", state: "offset"},
 	} {
 		actual, present := date[field.date]

@@ -579,7 +579,7 @@ configuration, a failed command connection or a malformed reply is refused.
 The initial unsynchronized snapshot can carry a zero offset before any server
 exchange; it does not claim a successful synchronization.
 <!-- source: internal/plugins/ntp/register_commands.go -- forwardNTPCommand, executeNTPCommand -->
-<!-- source: internal/plugins/ntp/register.go -- ntpReplyMetadata, handleShowSystemNTP, handleShowSystemNTPPeers -->
+<!-- source: internal/plugins/ntp/register.go -- ntpReplyEnabled, ntpActiveMetadata, handleShowSystemNTP, handleShowSystemNTPPeers -->
 <!-- source: internal/plugins/ntp/ntp.go -- syncWorker.run, syncWorker.publishState -->
 
 If the final write of the last-known time fails, the NTP plugin exits with an
