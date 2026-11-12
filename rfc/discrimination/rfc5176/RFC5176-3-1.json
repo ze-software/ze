@@ -14,12 +14,12 @@
     "rid": "RFC5176-3-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed",
-    "unit-sha": "bdd95504e73519c9",
-    "claim-sha": "bec9deccc1f54d36",
+    "unit-sha": "339a65977a91c160",
+    "claim-sha": "e09c9130df6a1e63",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
     "producer-sha": "3dd44855461b6daa",
-    "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-3-1",

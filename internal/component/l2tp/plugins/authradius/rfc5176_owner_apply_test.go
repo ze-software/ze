@@ -211,7 +211,7 @@ func TestCoAUnrepresentableRateDoesNotACK(t *testing.T) {
 	wantCoAInitialRate(t, backend)
 }
 
-// RFC naming: RFC5176 Section 3.5 -- a registered PPPoE accounting id combined
+// RFC 5176 Section 3.5: a registered PPPoE accounting id combined
 // with a conflicting User-Name or NAS-Port gets signed Disconnect-NAK 503 and
 // retains its registry entry. This regression discriminates Session Context Not
 // Found (503) from Session Context Not Removable (504).

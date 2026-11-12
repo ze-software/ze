@@ -27,10 +27,10 @@
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoANAKMakesNoPartialChange",
     "unit-sha": "e214bf8f77ea6ca6",
     "claim-sha": "6af995633e0ad5ef",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-    "producer-sha": "f7c7c770125f61d8",
-    "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c790b6874df23e48",
+    "break": "line 471: \"radius.CodeCoANAK\" -\u003e \"radius.CodeCoAACK\""
   },
   {
     "rid": "RFC5176-2.3-6",
@@ -62,8 +62,8 @@
     "claim-sha": "083a393b1258d022",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::applySubscriberCoA",
-    "producer-sha": "585b21bed8b17aba",
-    "break": "body of applySubscriberCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "60a918d72529a0a9",
+    "break": "body of applySubscriberCoA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-2.3-6",
@@ -71,10 +71,10 @@
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange",
     "unit-sha": "5ac71558aeb4e2db",
     "claim-sha": "f8cedeb61f127efa",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::applySubscriberCoA",
-    "producer-sha": "585b21bed8b17aba",
-    "break": "body of applySubscriberCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "60a918d72529a0a9",
+    "break": "line 524: \"radius.CodeCoANAK\" -\u003e \"radius.CodeCoAACK\""
   },
   {
     "rid": "RFC5176-2.3-6",
@@ -84,8 +84,8 @@
     "claim-sha": "027876badb2fcdbf",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-    "producer-sha": "f7c7c770125f61d8",
-    "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c790b6874df23e48",
+    "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-2.3-6",
@@ -95,7 +95,7 @@
     "claim-sha": "ea1c14f218f5f894",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-    "producer-sha": "f7c7c770125f61d8",
-    "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c790b6874df23e48",
+    "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

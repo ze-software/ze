@@ -5,10 +5,10 @@
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176SessionNotRemovableNeverInACoANAK",
     "unit-sha": "86cb45a4245b43d2",
     "claim-sha": "0b1cefb98233060f",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-    "producer-sha": "f7c7c770125f61d8",
-    "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c790b6874df23e48",
+    "break": "line 461: \"radius.ErrorCauseResourcesUnavailable\" -\u003e \"radius.ErrorCauseSessionNotRemovable\""
   },
   {
     "rid": "RFC5176-3.5-9",

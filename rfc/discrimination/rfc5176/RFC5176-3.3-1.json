@@ -40,8 +40,8 @@
     "claim-sha": "9a92e397df5dc36d",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-    "producer-sha": "f7c7c770125f61d8",
-    "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c790b6874df23e48",
+    "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-3.3-1",
@@ -58,12 +58,12 @@
     "rid": "RFC5176-3.3-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse",
-    "unit-sha": "329bf85733c3605a",
+    "unit-sha": "6048fd1879e7e4b8",
     "claim-sha": "57d832711e155a61",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
-    "producer-sha": "f62a214577dacfe5",
-    "break": "body of findSessions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4d2c21aa782de973",
+    "break": "body of findSessions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-3.3-1",
@@ -71,10 +71,10 @@
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn",
     "unit-sha": "c9cf3ad890c9d2df",
     "claim-sha": "6ade0d61bc8516fe",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
-    "producer-sha": "f62a214577dacfe5",
-    "break": "body of findSessions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4d2c21aa782de973",
+    "break": "line 730: \"len(nasPortAttr) != 4\" -\u003e \"len(nasPortAttr) == 4\""
   },
   {
     "rid": "RFC5176-3.3-1",

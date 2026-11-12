@@ -14,11 +14,11 @@
     "rid": "RFC5176-3.5-8",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession",
-    "unit-sha": "ee7f0007925a6e10",
-    "claim-sha": "d2ade8155433e14d",
+    "unit-sha": "e8e4139a50eafd8a",
+    "claim-sha": "c0345166f7cea42d",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::unsupportedAttr",
     "producer-sha": "d3c60711cf64c92d",
-    "break": "body of unsupportedAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of unsupportedAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
