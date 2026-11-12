@@ -121,6 +121,7 @@ var namedArtifacts = []string{
 	changesLegacyFeedDest,
 	configTreeFile,
 	factsFile,
+	historyDataFile,
 	llmsFile,
 	llmsFullFile,
 	pluginFile,

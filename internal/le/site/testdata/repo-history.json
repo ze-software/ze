@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "rules": "site-test-fixture",
+  "sections": [
+    {"id":"third-party-go","label":"Third-party Go","go-split":true},
+    {"id":"go-tests","label":"Go tests","go-split":true},
+    {"id":"go-production","label":"Go production","go-split":true},
+    {"id":"plans","label":"Plans","go-split":false},
+    {"id":"other","label":"Other","go-split":false}
+  ],
+  "days": [
+    {"date":"2026-08-19","commit":"1111111111111111111111111111111111111111","modules":0,"sections":{"go-production":{"files":3,"lines":120,"gained":120,"lost":0,"go":{"code":90,"blank":15,"comment":15}},"go-tests":{"files":2,"lines":40,"gained":40,"lost":0,"go":{"code":30,"blank":6,"comment":4}},"other":{"files":2,"lines":10,"gained":10,"lost":0},"plans":{"files":1,"lines":30,"gained":30,"lost":0}}},
+    {"date":"2026-08-20","commit":"2222222222222222222222222222222222222222","modules":2,"sections":{"go-production":{"files":4,"lines":210,"gained":100,"lost":10,"go":{"code":160,"blank":25,"comment":25}},"go-tests":{"files":3,"lines":70,"gained":35,"lost":5,"go":{"code":52,"blank":10,"comment":8}},"other":{"files":2,"lines":10,"gained":0,"lost":0},"plans":{"files":2,"lines":80,"gained":50,"lost":0},"third-party-go":{"files":4,"lines":500,"gained":500,"lost":0,"go":{"code":400,"blank":50,"comment":50}}}},
+    {"date":"2026-08-21","commit":"3333333333333333333333333333333333333333","modules":2,"sections":{"go-production":{"files":5,"lines":300,"gained":120,"lost":30,"go":{"code":230,"blank":35,"comment":35}},"go-tests":{"files":4,"lines":110,"gained":45,"lost":5,"go":{"code":80,"blank":16,"comment":14}},"other":{"files":3,"lines":25,"gained":15,"lost":0},"plans":{"files":3,"lines":140,"gained":60,"lost":0},"third-party-go":{"files":4,"lines":500,"gained":0,"lost":0,"go":{"code":400,"blank":50,"comment":50}}}},
+    {"date":"2026-08-22","commit":"4444444444444444444444444444444444444444","modules":3,"sections":{"go-production":{"files":4,"lines":180,"gained":20,"lost":140,"go":{"code":140,"blank":20,"comment":20}},"go-tests":{"files":5,"lines":150,"gained":50,"lost":10,"go":{"code":110,"blank":22,"comment":18}},"other":{"files":3,"lines":25,"gained":0,"lost":0},"plans":{"files":2,"lines":60,"gained":0,"lost":80},"third-party-go":{"files":5,"lines":650,"gained":150,"lost":0,"go":{"code":520,"blank":65,"comment":65}}}},
+    {"date":"2026-08-23","commit":"5555555555555555555555555555555555555555","modules":3,"sections":{"go-production":{"files":4,"lines":190,"gained":15,"lost":5,"go":{"code":148,"blank":21,"comment":21}},"go-tests":{"files":6,"lines":175,"gained":30,"lost":5,"go":{"code":128,"blank":25,"comment":22}},"other":{"files":4,"lines":1234,"gained":1209,"lost":0},"plans":{"files":3,"lines":95,"gained":40,"lost":5},"third-party-go":{"files":5,"lines":650,"gained":0,"lost":0,"go":{"code":520,"blank":65,"comment":65}}}}
+  ]
+}

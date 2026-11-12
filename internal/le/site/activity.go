@@ -6,12 +6,15 @@ package site
 
 import (
 	"encoding/json"
+	"errors"
 	"html"
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	reporewrite "github.com/ze-software/ze/internal/le/repo/rewrite"
+	sitehistory "github.com/ze-software/ze/internal/le/site/history"
 )
 
 // The activity page registers from here. A build discovers it through the
@@ -56,7 +59,25 @@ type activityMetric struct {
 // day, so a second build over an unchanged history writes the same bytes. The
 // clock is the seam the footer stamp already reads, so the two cannot disagree
 // about the date, and a test fixes both at once.
+//
+// Repository size comes from the committed size history alone, which
+// `./le site history update` writes: the build reads that file and never
+// measures size. The calendar beside it is still measured from git here.
 func renderActivityPage(paths Paths) ([]string, error) {
+	history, err := sitehistory.ReadHistory(paths.Repository)
+	if errors.Is(err, sitehistory.ErrNoHistory) {
+		return nil, opererr.Wrap(sitehistory.ErrNoHistory,
+			"the size history has not been recorded: "+sitehistory.HistoryFile+" does not exist",
+			"the activity page publishes repository size from that file alone, and the site build never measures it",
+			"./le site history update")
+	}
+	if err != nil {
+		return nil, err
+	}
+	figures, err := newHistoryFigures(history)
+	if err != nil {
+		return nil, err
+	}
 	window, err := reporewrite.MeasureActivity(paths.Repository, reporewrite.ActivityDaysDefault, "", buildClock())
 	if err != nil {
 		return nil, err
@@ -65,26 +86,34 @@ func renderActivityPage(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	content, err := activityPageBody(&window, figures)
+	if err != nil {
+		return nil, err
+	}
 
 	shell := pageShell{
-		Title: "Development Activity - Ze",
-		Description: "A year of Ze's commit and added-line history, visualized as a " +
-			"calendar heatmap, rebuilt from git history at each publish.",
+		Title: "Repository Size and Activity - Ze",
+		Description: "How many lines each part of Ze's repository held on every recorded day, " +
+			"read from the committed size history, beside a year of commits and added lines as a calendar heatmap.",
 		Root:      activityRoot,
 		Path:      activityDest,
 		ExtraHead: activityStyle,
 		Sidebar:   pageSidebar(activityRoot, activityDest, links),
 	}
-	page := shell.render(activityBody(&window, activitySurfacePage))
+	page, err := figures.fillHTML(shell.render(content))
+	if err != nil {
+		return nil, err
+	}
 	body, err := extractMain(page)
 	if err != nil {
 		return nil, err
 	}
 
-	// The mirror is converted back from the page this build just wrote. The
-	// page has no Markdown source, and a heatmap has no Markdown form, so what
-	// a reader of index.md gets is the text the panels beside the grid state:
-	// the totals, the range and the Go inventory.
+	// The mirror is converted back from the page this build just wrote, after
+	// the fill, so it states the size figures the page shows. The page has no
+	// Markdown source, and a heatmap has no Markdown form, so what a reader of
+	// index.md gets is the text the panels state: the newest recorded day, each
+	// section's lines, the Go composition, the calendar's totals and its range.
 	mirror, err := htmlToMarkdown(body, pageCanonicalURL(activityDest))
 	if err != nil {
 		return nil, err
@@ -114,72 +143,119 @@ const (
 	activitySurfaceSlide
 )
 
-// activityBody renders the widget that holds the summary cards, the calendar,
-// the Go inventory and the tooltip, inside the shell its surface asks for.
+// activityPageBody renders the published page's body: the hero, then one
+// widget holding the view tabs, the size view and the calendar view, then the
+// script that draws the size view and the commits curve.
+//
+// The shipped markup shows both views, the size view first, and hides the
+// tabs, so a reader with no JavaScript reads everything in order; the script
+// shows the tabs and opens the size view. The size figures are history
+// markers, which renderActivityPage fills after the shell is drawn.
+func activityPageBody(window *reporewrite.ActivityWindow, figures historyFigures) (string, error) {
+	size, err := activitySizeHTML(figures)
+	if err != nil {
+		return "", err
+	}
+	var body textbuf.Buffer
+	body.Reset().Str(`            <section class="activity-page" aria-labelledby="activity-title">`).Byte('\n')
+	body.Str(`                <div class="activity-hero journey-hero reveal">`).Byte('\n')
+	body.Str(`                    <span class="activity-eyebrow journey-eyebrow">Git telemetry</span>`).Byte('\n')
+	body.Str(`                    <h1 id="activity-title">Repository size and activity</h1>`).Byte('\n')
+	body.Str(`                    <p>How many lines each part of the repository held on every recorded day, `).
+		Str(`and a year of commits and added lines, both read from the repository's history.</p>`).Byte('\n')
+	body.Str("                </div>\n")
+	// The site script fades the widget in as the reader scrolls to it, which
+	// is what the reveal class marks.
+	body.Str(`                <div class="activity-widget reveal" aria-label="Repository size and commit activity">`).Byte('\n')
+	body.Str(activityTabsHTML)
+	body.Str(size)
+	body.Str(activityBody(window, activitySurfacePage))
+	body.Str("                </div>\n")
+	body.Str("            </section>\n")
+	body.Str(activityGrowthScript)
+	return body.String(), nil
+}
+
+// activityBody renders what each surface draws from the calendar measurement.
+//
+// On the slide that is the whole document body: the widget with the summary
+// cards, the calendar, the working tree's Go inventory and the tooltip. On the
+// page it is the calendar view alone, which activityPageBody places after the
+// size view inside the page's widget: the summary cards, the metric switch, the
+// calendar and the commits curve, then the tooltip. Both close with the script
+// that switches the cards and the grid between the two metrics.
 func activityBody(window *reporewrite.ActivityWindow, surface activitySurface) string {
 	var body textbuf.Buffer
 	body.Reset()
+	lines := activityLineMetric(window)
 	switch surface {
 	case activitySurfacePage:
-		body.Str(`            <section class="activity-page" aria-labelledby="activity-title">`).Byte('\n')
-		body.Str(`                <div class="activity-hero journey-hero reveal">`).Byte('\n')
-		body.Str(`                    <span class="activity-eyebrow journey-eyebrow">Git telemetry</span>`).Byte('\n')
-		body.Str(`                    <h1 id="activity-title">Development activity</h1>`).Byte('\n')
-		body.Str(`                    <p>A year of commits, added lines, and Go composition `).
-			Str(`regenerated from the repository.</p>`).Byte('\n')
-		body.Str("                </div>\n")
-		body.Str(activityWidgetHTML(window, surface))
-		body.Str("            </section>\n")
+		lines = activityPageLineMetric(window)
+		body.Str(activityCalendarViewHTML(window, lines))
+		body.Str(activityTooltipHTML)
 	case activitySurfaceSlide:
 		body.Str(`        <main class="activity-slide">`).Byte('\n')
-		body.Str(activityWidgetHTML(window, surface))
+		body.Str(activitySlideWidgetHTML(window))
 		body.Str("        </main>\n")
 	case activitySurfaceUnspecified:
 		panic("BUG: site.activityBody: the caller named no activity surface")
 	default:
 		panic("BUG: site.activityBody: invalid activity surface")
 	}
-	body.Str(activityScriptHTML(activityLineMetric(window), activityCommitMetric(window)))
-	if surface == activitySurfacePage {
-		body.Str(activityGrowthScript)
-	}
+	body.Str(activityScriptHTML(lines, activityCommitMetric(window)))
 	return body.String()
 }
 
-// activityWidgetHTML renders the widget both surfaces share: the summary cards,
-// the calendar, the Go inventory and the tooltip.
-//
-// The page asks the site script to fade the widget in as the reader scrolls to
-// it, which is what the reveal class marks. The slide carries neither that
-// script nor a scroll, so it does not claim the class.
-func activityWidgetHTML(window *reporewrite.ActivityWindow, surface activitySurface) string {
-	class := "activity-widget"
-	if surface == activitySurfacePage {
-		class = "activity-widget reveal"
-	}
-
+// activitySlideWidgetHTML renders the deck's widget: the summary cards, the
+// calendar, the working tree's Go inventory and the tooltip. The slide
+// carries neither the site's reveal script nor a scroll, so it does not claim
+// the reveal class.
+func activitySlideWidgetHTML(window *reporewrite.ActivityWindow) string {
 	var out textbuf.Buffer
-	out.Reset().Str(`                <div class="`).Str(class).Str(`" aria-label="Activity heatmap">`).Byte('\n')
-	out.Str(activitySummaryHTML(activityLineMetric(window), activityRangeText(window), activityDaysShown(window), surface))
-	if surface == activitySurfacePage {
-		out.Str(`<div class="activity-view" id="activity-calendar" role="tabpanel" aria-labelledby="activity-tab-calendar">`).Byte('\n')
-	}
+	out.Reset().Str(`                <div class="activity-widget" aria-label="Activity heatmap">`).Byte('\n')
+	out.Str(activitySummaryHTML(activityLineMetric(window), activityRangeText(window), activityDaysShown(window), activitySurfaceSlide))
 	out.Str(`                    <div class="dashboard-grid">`).Byte('\n')
 	out.Str(`                        <div class="left-stack">`).Byte('\n')
-	out.Str(activityChartHTML(window, surface))
+	out.Str(activityChartHTML(window, activitySurfaceSlide))
 	out.Str(activityGoPanelHTML(window.Go))
 	out.Str("                        </div>\n")
 	out.Str("                    </div>\n")
-	if surface == activitySurfacePage {
-		out.Str("</div>\n")
-		out.Str(activityGrowthHTML(window.Go))
-	}
 	out.Str(activityTooltipHTML)
 	out.Str("                </div>\n")
 	return out.String()
 }
 
-// activityLineMetric labels the added-line series, which the page opens on.
+// activityCalendarViewHTML renders the page's calendar view: the four cards
+// and the metric switch, the note on what added lines count, the calendar, and
+// the cumulative commits curve drawn from the calendar's own cells. The cards
+// and the switch live inside the view, so they show only with it, while the
+// tabs that leave it sit outside.
+func activityCalendarViewHTML(window *reporewrite.ActivityWindow, lines activityMetric) string {
+	var out textbuf.Buffer
+	out.Reset().Str(`<div class="activity-view" id="activity-calendar" role="tabpanel" aria-labelledby="activity-tab-calendar">`).Byte('\n')
+	out.Str(activitySummaryHTML(lines, activityRangeText(window), activityDaysShown(window), activitySurfacePage))
+	out.Str(`    <p class="activity-note">Added lines count additions, not net repository size.</p>`).Byte('\n')
+	out.Str(`                    <div class="dashboard-grid">`).Byte('\n')
+	out.Str(`                        <div class="left-stack">`).Byte('\n')
+	out.Str(activityChartHTML(window, activitySurfacePage))
+	out.Str("                        </div>\n")
+	out.Str("                    </div>\n")
+	out.Str(activityCommitsCurveHTML)
+	out.Str("</div>\n")
+	return out.String()
+}
+
+// activityPageLineMetric labels the added-line series on the published page,
+// where the size view beside it states the repository's size: the first card
+// says the lines were added by commits in the window, so it never reads as a
+// size. The slide keeps activityLineMetric's labels.
+func activityPageLineMetric(window *reporewrite.ActivityWindow) activityMetric {
+	metric := activityLineMetric(window)
+	metric.TotalLabel = "Lines added by commits in this window"
+	return metric
+}
+
+// activityLineMetric labels the added-line series, which the calendar opens on.
 func activityLineMetric(window *reporewrite.ActivityWindow) activityMetric {
 	return activityMetric{
 		TotalLabel: "Total added lines", TotalValue: groupThousands(window.Lines.Total),
@@ -229,8 +305,9 @@ func activityDaysShown(window *reporewrite.ActivityWindow) int {
 	return int(window.End.Sub(window.Start)/day) + 1
 }
 
-// activitySummaryHTML renders the four cards and the metric switch, with the
-// representation tabs at the left on the published page.
+// activitySummaryHTML renders the four cards and the metric switch. The slide
+// places the window's range beside the switch; the page places it under the
+// calendar.
 //
 // The cards carry the ids the script writes into, and they open on the values
 // of the added-line metric, so a reader with no JavaScript still reads a
@@ -238,9 +315,6 @@ func activityDaysShown(window *reporewrite.ActivityWindow) int {
 func activitySummaryHTML(lines activityMetric, rangeText string, days int, surface activitySurface) string {
 	var out textbuf.Buffer
 	out.Reset().Str(`<section class="stats" aria-label="Summary">`).Byte('\n')
-	if surface == activitySurfacePage {
-		out.Str(activityTabsHTML)
-	}
 	out.Str(activityStatHTML("total", lines.TotalLabel, lines.TotalValue))
 	out.Str(activityStatHTML("active", lines.ActiveLabel, lines.ActiveValue))
 	out.Str(activityStatHTML("peak", lines.PeakLabel, lines.PeakValue))

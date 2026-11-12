@@ -179,6 +179,28 @@ func TestHistoryFileWritesOneDayPerLineInAFixedOrder(t *testing.T) {
 	}
 }
 
+// TestHistoryFileIsReadableByAWebServer asks whether the written file carries
+// the mode of published web content. Method: write the fixture over a file
+// readable by its owner alone, as the temporary file used to leave it, and
+// read the permission bits of the file now at that path.
+func TestHistoryFileIsReadableByAWebServer(t *testing.T) {
+	root := t.TempDir()
+	path := writeFixtureFile(t, root, fixtureFile)
+	if err := os.Chmod(path, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := WriteHistory(root, fixtureHistory(t)); err != nil {
+		t.Fatalf("WriteHistory: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o644 {
+		t.Errorf("the history file has mode %#o, want 0644: a web server reading as another account cannot serve it", got)
+	}
+}
+
 // TestReadRefusesMalformedFile asks what the reader refuses. Method: one edit
 // of fixtureFile per broken rule of the contract, each refused with the
 // message that names it, never read as the missing file, and with the repair

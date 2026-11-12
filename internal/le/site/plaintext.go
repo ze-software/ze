@@ -289,13 +289,17 @@ func plainFigures(page, content string, figures []publishedFigure) ([]plainFigur
 	return findings, nil
 }
 
-// figureMarked answers whether an element carries one of the two markers.
+// figureMarked answers whether an element carries one of the three markers:
+// a site-facts value, an RFC figure or a size-history figure.
 func figureMarked(node *xhtml.Node) bool {
 	for _, attribute := range node.Attr {
 		if attribute.Key == "data-ze-stat" {
 			return true
 		}
 		if attribute.Key == "data-ze-rfc" {
+			return true
+		}
+		if attribute.Key == "data-ze-history" {
 			return true
 		}
 	}

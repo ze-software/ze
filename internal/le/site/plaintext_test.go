@@ -247,3 +247,38 @@ func TestSiteCheckAcceptsTheRFCMarker(t *testing.T) {
 		t.Errorf("without the marker the check found\n%v\nwant\n%v", check.Figures, want)
 	}
 }
+
+// VALIDATES: AC-12. An element carrying data-ze-history="<subject>:<field>"
+// is marked, the same as data-ze-stat and data-ze-rfc: a figure inside it is
+// not refused, even where it equals a site-facts value.
+//
+// The method lays down one page with and one without the history marker and
+// asks the check for each: the marked page passes, and the unmarked page names
+// the figure, so the pass is the marker's doing.
+func TestHistoryMarkedFigureIsNotPlain(t *testing.T) {
+	const page = "project/activity/index.html"
+	marked := t.TempDir()
+	writeArtifactFile(t, marked, factsFile, plainFigureSnapshot)
+	writeArtifactFile(t, marked, page, `<!doctype html><html><body>
+<p><span data-ze-history="total:lines">4,744</span> lines.</p></body></html>`)
+	check, err := checkPlainFigures(ratchetSource(t, noRatchetedPages), marked)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(check.Figures) != 0 {
+		t.Errorf("a figure inside data-ze-history was refused: %v", check.Figures)
+	}
+
+	plain := t.TempDir()
+	writeArtifactFile(t, plain, factsFile, plainFigureSnapshot)
+	writeArtifactFile(t, plain, page, `<!doctype html><html><body>
+<p><span data-ze-size="total:lines">4,744</span> lines.</p></body></html>`)
+	check, err = checkPlainFigures(ratchetSource(t, noRatchetedPages), plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []plainFigure{{Page: page, Figure: "4,744", Key: "rfc.requirements_display"}}
+	if !slices.Equal(check.Figures, want) {
+		t.Errorf("without the marker the check found\n%v\nwant\n%v", check.Figures, want)
+	}
+}

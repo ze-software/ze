@@ -527,6 +527,9 @@ func WriteHistory(root string, history History) (string, error) {
 
 // replaceFile writes content to a temporary file beside path, then renames it
 // over path. The temporary file is removed on every path that does not rename.
+// os.CreateTemp makes the file readable by its owner alone, and the rename
+// keeps that mode, so the mode is set to 0644 before the rename: the site
+// build stages this file into the published site.
 func replaceFile(path string, content []byte) error {
 	file, err := os.CreateTemp(filepath.Dir(path), ".repo-history-*.json")
 	if err != nil {
@@ -539,6 +542,10 @@ func replaceFile(path string, content []byte) error {
 
 	if _, err := file.Write(content); err != nil {
 		file.Close() //nolint:errcheck // the write error is the one reported
+		return err
+	}
+	if err := file.Chmod(0o644); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
+		file.Close() //nolint:errcheck // the chmod error is the one reported
 		return err
 	}
 	if err := file.Sync(); err != nil {

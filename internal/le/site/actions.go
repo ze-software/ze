@@ -93,8 +93,8 @@ type checkReport struct {
 	MissingArtifacts []string `json:"missing-artifacts,omitempty"`
 	SourceOnly       []string `json:"source-only,omitempty"`
 	MissingMirrors   []string `json:"missing-mirrors,omitempty"`
-	// PlainFigures names each snapshot value a page shows outside its
-	// data-ze-stat or data-ze-rfc marker. Such a value is a second copy of
+	// PlainFigures names each snapshot value a page shows outside a
+	// data-ze-stat, data-ze-rfc or data-ze-history marker. Such a value is a second copy of
 	// data/site-facts.json that site.js cannot update, so it goes stale.
 	PlainFigures []plainFigure `json:"plain-figures,omitempty"`
 	// StaleRatchet names each page website/data/plain-figure-ratchet.json

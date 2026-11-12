@@ -48,6 +48,10 @@ func activityFixturePaths(t *testing.T) Paths {
 	if output, err := commit.CombinedOutput(); err != nil {
 		t.Fatalf("git commit: %v: %s", err, output)
 	}
+	// The page states repository size from the committed size history only,
+	// so the fixture repository carries the hand-written one. It is left
+	// untracked: the calendar reads commits, never the working tree.
+	writeActivityHistoryFixture(t, repository)
 
 	previous := buildClock
 	buildClock = func() time.Time { return activityFixtureDay }
@@ -103,12 +107,12 @@ func activityWording(fragment string) string {
 }
 
 // TestTheActivityPageReadsAsThePublishedPage compares every word the page shows
-// against the original published layout plus the approved additive Growth view,
-// with the measured numbers removed. The goal is rendered parity: a reader
-// meets the same headings, labels and captions as the fixture.
+// against the published layout, its repository size view and its commit
+// calendar view, with the measured numbers removed. The goal is rendered
+// parity: a reader meets the same headings, labels and captions as the fixture.
 //
 // VALIDATES: every word the activity page shows matches the published-layout
-// fixture and its Growth extension, once measured numbers are set aside.
+// fixture, once measured numbers are set aside.
 func TestTheActivityPageReadsAsThePublishedPage(t *testing.T) {
 	paths := activityFixturePaths(t)
 	got := activityWording(activityRenderedBody(t, paths))
@@ -164,8 +168,12 @@ func TestTheActivityPageStatesTheLabelsAReaderCannotSee(t *testing.T) {
 
 	for _, want := range []string{
 		`<section class="activity-page" aria-labelledby="activity-title">`,
-		`<h1 id="activity-title">Development activity</h1>`,
-		`<div class="activity-widget reveal" aria-label="Activity heatmap">`,
+		`<h1 id="activity-title">Repository size and activity</h1>`,
+		`<div class="activity-widget reveal" aria-label="Repository size and commit activity">`,
+		`<div class="activity-tabs" role="tablist" aria-label="Activity view" hidden>`,
+		`<section class="activity-view activity-size panel" id="activity-size" role="tabpanel" aria-labelledby="activity-tab-size"`,
+		`<div class="size-legend" role="group" aria-label="Sections drawn in the charts">`,
+		`<section class="activity-commits panel" aria-labelledby="activity-commits-title">`,
 		`<section class="stats" aria-label="Summary">`,
 		`<div class="metric-switch" aria-label="Activity metric">`,
 		`<button type="button" data-metric="lines" aria-pressed="true">Added Lines</button>`,
@@ -199,7 +207,7 @@ func TestTheActivityPageCarriesTheSharedShell(t *testing.T) {
 	}
 	page := string(raw)
 	for _, want := range []string{
-		`<title>Development Activity - Ze</title>`,
+		`<title>Repository Size and Activity - Ze</title>`,
 		`<link rel="canonical" href="https://ze-software.net/project/activity/" />`,
 		`<link rel="stylesheet" href="../../assets/site.css" />`,
 		`<main id="top" class="has-page-sidebar" tabindex="-1">`,

@@ -141,9 +141,6 @@ const activityStyle = `        <style>
             gap: 0.85rem;
             align-items: stretch;
         }
-        .activity-widget .stats:where(:has(.activity-tabs:not([hidden]))) {
-            grid-template-columns: auto repeat(4, minmax(0, 1fr)) auto;
-        }
         .activity-widget .stat {
             position: relative;
             overflow: hidden;

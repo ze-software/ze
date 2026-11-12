@@ -51,7 +51,8 @@ collector's other exclusions they keep `tmp/*` and the dashboard page paths;
 only the calendar also drops every directory named `vendor`. One counter,
 `CountGoLines`, splits each file into code, blank and comment lines. Source includes
 development tooling, so it is a repository-size figure rather than shipped
-product code alone. The activity page reads a live checkout inventory; a
+product code alone. The activity page states sizes from the committed size
+history, and the deck's activity slide from a live checkout inventory; a
 homepage figure is the inventory recorded by the facts update action.
 <!-- source: internal/le/site/facts/sitefacts.go -- derive -->
 
@@ -150,10 +151,30 @@ nothing in that file says where the number came from.
 Every value the site shows that changes over time is published once, in the
 artifact's `data/site-facts.json`, and a page shows it only inside an element
 that names its key: `data-ze-stat="<dotted.key>"`, or `data-ze-rfc="<stem>:<field>"`
-for a value of `data/rfc/<stem>.json`. The text inside is the last build's value
-for readers without JavaScript, and `site.js` replaces it from the file at load.
+for a value of `data/rfc/<stem>.json`, or `data-ze-history="<subject>:<field>"`
+for a repository size of `data/repo-history.json`, the committed size history. The text inside is the last build's value
+for readers without JavaScript, and a script replaces it from the file at load.
 A value printed as plain text is a second copy the file cannot update.
 <!-- source: internal/le/site/factmark.go -- markedFact, siteFactSnapshot -->
+
+The size history's marker is written only by `historyValueHTML`, and only the
+activity page carries it. Its subject is a section identifier the file lists,
+several of them joined by `+` (their sum), `total` (every section summed) or
+`day`. A section or a sum carries `files`, `lines`, `gained` and `lost`, and a
+Go section `code`, `blank` and `comment` as well; `day` carries `date` and
+`modules`. Every value is the newest recorded day's. The build reads the file
+through the history package's `ReadHistory`, refuses a checkout without it with
+`./le site history update` as the fix, and writes each value inside its marker
+(`historyFigures.fillHTML`). It refuses, by name, a marker naming a section the
+file lacks, a field its subject does not carry (a Go field on a section without
+the split included), and a marked element not in the helper's shape
+(`historyStrayMarker`). The page's own script, not `site.js`, refills the
+markers from the published copy. The build stages that copy like any other file
+of `website/data/`, and `namedArtifacts` lists it, so an artifact without it fails
+`./le site check`.
+<!-- source: internal/le/site/activityhistory.go -- historyValueHTML, historyFigures, historyStrayMarker, historyDataFile -->
+<!-- source: internal/le/site/activity.go -- renderActivityPage -->
+<!-- source: internal/le/site/producer.go -- namedArtifacts -->
 
 | Part | What it is |
 |------|-----------|

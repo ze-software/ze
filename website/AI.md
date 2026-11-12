@@ -459,9 +459,10 @@ plugins and CLI commands through marked `data/site-facts.json` values. The line
 figures include comments and blank lines. Source and test lines exclude
 dependencies; the separate third-party figure counts tracked vendored Go files.
 Source includes development tooling.
-They come from the recorded repository facts, using the activity page's Go
-inventory definition; the activity page itself still measures the current
-checkout. Each line figure links to activity, while plugins and commands link
+They come from the recorded repository facts, which count the tracked Go files
+of the checkout. The activity page states its sizes from the committed size
+history instead, so the two can describe different commits. Each line figure
+links to activity, while plugins and commands link
 to their reference pages. Why Ze exists remains an introductory text link, and
 Discord is linked in a sentence. Search and demonstrations retain their existing
 header and player paths. The release notice and testing proof section remain.
@@ -799,8 +800,11 @@ only the standalone bundle should change. The lower-level
 
 The activity page is one standalone document that carries its own stylesheet
 inside it, because a deck embeds it as an iframe where no link to the site's
-assets resolves. It draws the same measurement as `/project/activity/` and
-presents it differently: the published page follows the site's theme, is full size, and opens on a
+assets resolves. It shares the commit calendar with `/project/activity/`: the
+same measurement, the same cards and the same Added Lines/Commits switch, with
+the working tree's Go composition beside it. Only the published page has the
+repository size view, which it reads from the committed size history. The two
+present the calendar differently: the published page follows the site's theme, is full size, and opens on a
 hero, while the deck embed is dark and sized in viewport units so the whole
 widget fits one slide. The two stylesheets are separate files, and neither
 rendering reads the other's rules. `today <date>` pins the window, so a
@@ -811,19 +815,37 @@ Zero activity uses `--line`; borders use `--line-strong`. Its panels and text
 use the shared theme surfaces so low activity remains visible in dark mode.
 <!-- source: internal/le/site/activitystyle.go -- activityStyle -->
 
-The published page stacks Calendar/Growth at the left of its summary cards and
-Added Lines/Commits at the right. The date range sits to the left of the
-calendar's Less/More legend. The deck embed retains its calendar. Growth sums the daily commits and
-added lines already carried by the calendar cells, starting at the beginning of
-the displayed window. Growth shows one chart for the Added Lines/Commits
-selection shared with Calendar. Each metric uses its own scale. The date readout
-follows the pointer, the date slider or keyboard navigation. The selected date
-persists when changing the metric or representation. These are cumulative
-additions, not net source size or lifetime counts. Code, tests and third-party Go
-lines are shown as current snapshot totals, with an overall total that includes
-all three. No historical category measurements are collected for this
-representation.
-<!-- source: internal/le/site/activitygrowth.go -- activityGrowthHTML, activityGrowthScript -->
+The published page has two views, behind the Repository size and Commit
+calendar tabs above them. It opens on the size view. Without JavaScript the tabs
+stay hidden and both views show, the size view first.
+
+The size view reads `data/repo-history.json`, the committed size history. Its
+headline is the newest recorded day's total lines and that day's date, followed
+by one figure for each section the file lists, a sentence on what the figures
+count, and the Go composition of that day: the lines of all Go, third-party
+included, summed over every section the file splits into Go lines, then
+first-party Go, production, tests and third-party Go, each with files, lines,
+code, blank and comment lines, and the module count. Every figure is a `data-ze-history` marker that the build fills
+and the page script refills from the published file. One chart draws each
+section's lines over every recorded day, in a color taken from the section's
+place in the file and named in a legend whose buttons add or remove the section.
+A second chart draws the lines the selected sections gained, above the axis, and
+lost, below it, on each day. Both scales come from every recorded day, so an
+earlier peak stays inside the chart. A day is chosen with the pointer, the
+arrow, Home and End keys, or the slider, and the readout lists each section's
+lines, gained and lost lines for that day. When the file cannot be read, the
+readout says so and the figures of the last build stand.
+
+The calendar view keeps the four summary cards and the Added Lines/Commits
+switch, which show only with it. The first card counts the lines added by
+commits in the window, and the note under the cards says added lines are not
+repository size. The date range sits to the left of the calendar's Less/More
+legend. Under the calendar, the cumulative commits curve sums the daily commits
+the calendar cells carry, from the first day of the window, whichever metric the
+switch shows, with its own slider and readout. The deck embed retains its
+calendar.
+<!-- source: internal/le/site/activitygrowth.go -- activitySizeHTML, activityHistoryGoPanelHTML, activityGrowthScript -->
+<!-- source: internal/le/site/activity.go -- activityPageBody, activityCalendarViewHTML -->
 
 ## Adding a new presentation
 
