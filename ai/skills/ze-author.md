@@ -220,6 +220,8 @@ Documents that are neither correspondence nor articles (a proposal, a policy, a 
 
 When Thomas asks to work through revisions together, take one point at a time. Show the current wording and a concrete replacement, then incorporate his direction. Supply the surrounding paragraphs or the complete revised section when he asks to judge the flow. Keep clear which changes are proposed and which have been applied to the canonical source. Apply accepted wording before advancing to the next point, within the scope he authorised.
 
+For website prose, render the updated page for Thomas to review before committing it. Acceptance of proposed wording in chat does not authorise a commit. Keep the article uncommitted until he has reviewed the rendered copy and authorised the commit.
+
 After substantial additions or moves, reread the whole document. Individually approved passages can repeat each other or interrupt the argument in their new positions. Consolidate repeated explanations while preserving distinct points, and bring further substantive changes back for discussion. Record reusable preferences in this skill without turning each local word choice into a universal rule.
 
 ## Final check
