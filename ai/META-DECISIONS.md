@@ -419,6 +419,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   release, never as a step of `./le site build`. A fact the site publishes
   from the code is read from its declaration or from a committed data file,
   so a page edit publishes in minutes.
+- What the website shows about RFC conformance (the gate's verdict, its open
+  issues and the figures the RFC pages need) comes from a recorded data file,
+  and the pages are generated from that file. The site build does not run
+  the RFC check to render a page. It regenerates the file only when the file
+  is more than a week old, and a command regenerates it on demand, so Thomas
+  can update it when he needs to.
 - Website screenshots use WebP, alongside lightweight terminal-event playback
   for application demonstrations. Encoded video assets are not published on the
   website or stored in the repository, and CI/CD does not generate videos.
