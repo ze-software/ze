@@ -130,10 +130,18 @@ second invocation cannot tear down another run's topology.
 Before cleanup, a failed proof saves a private `diagnostics-*` directory inside
 the retained lab directory. It contains startup output, the topology snapshot,
 generated node files, Docker inspection, and each node's last 200 log lines.
+It also saves addresses, kernel routes, BGP and BFD state, OSPF and IS-IS
+interfaces, neighbors, databases and routes, the system RIB, and plugin state.
+Address, kernel route and adjacency queries run across every node before the
+more detailed routing queries. Capture has a two-minute total deadline and a
+five-second deadline for each command. A failed query leaves an `.error.txt`
+artifact with its command, failure and process output, so unavailable state
+cannot appear as an empty successful result. Cleanup still runs after capture.
+JSON artifacts keep stdout and use private `.stderr.txt` sidecars for stderr.
 The runner explicitly adds `netlab.snapshot.yml` to netlab's normal outputs
 before startup. netlab 26.10 writes a pickle snapshot by default; the added YAML
 inventory supplies node names for live checks, failure capture, and cleanup.
-<!-- source: internal/le/test/netlab/live_diagnostics.go -- keepLiveDiagnostics -->
+<!-- source: internal/le/test/netlab/live_diagnostics.go -- keepLiveDiagnostics, keepLiveCommand -->
 <!-- source: internal/le/test/netlab/live.go -- RunLive -->
 
 ## How netlab configures a node

@@ -118,7 +118,7 @@ func (c *Checker) RunLive(ctx context.Context, directory string) (err error) {
 			err = errors.Join(err, fmt.Errorf("read cleanup inventory: %w", readErr))
 		}
 		if err != nil {
-			capture, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+			capture, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
 			artifacts, captureErr := c.keepLiveDiagnostics(capture, directory, startupOutput, body, deployed.Nodes)
 			cancel()
 			err = errors.Join(err, captureErr)
@@ -211,7 +211,14 @@ func (c *Checker) RunLive(ctx context.Context, directory string) (err error) {
 	return nil
 }
 
-func (c *Checker) proveNode(ctx context.Context, directory, name string, node liveNode) error {
+type liveProof struct {
+	module, command, state, file string
+	count                        int
+}
+
+// nodeProofs is shared with failure capture so the state commands stay the
+// same commands whose answers determine whether the lab is ready.
+func nodeProofs(node liveNode) []liveProof {
 	bgp, ospf, isis, bfd := 0, 0, 0, 0
 	for _, peer := range node.BGP.Neighbors {
 		if peer.IPv4 != "" {
@@ -233,15 +240,16 @@ func (c *Checker) proveNode(ctx context.Context, directory, name string, node li
 			}
 		}
 	}
-	for _, proof := range []struct {
-		module, command, state string
-		count                  int
-	}{
-		{"bgp", "show bgp", "established", bgp},
-		{"ospf", "show ospf neighbor", "full", ospf},
-		{"isis", "show isis neighbor", "up", isis},
-		{"bfd", "show bfd sessions", "up", bfd},
-	} {
+	return []liveProof{
+		{"bgp", "show bgp", "established", "bgp.json", bgp},
+		{"ospf", "show ospf neighbor", "full", "ospf-neighbor.json", ospf},
+		{"isis", "show isis neighbor", "up", "isis-neighbor.json", isis},
+		{"bfd", "show bfd sessions", "up", "bfd.json", bfd},
+	}
+}
+
+func (c *Checker) proveNode(ctx context.Context, directory, name string, node liveNode) error {
+	for _, proof := range nodeProofs(node) {
 		if !slices.Contains(node.Module, proof.module) {
 			continue
 		}

@@ -93,6 +93,14 @@ teardown, including partial startup. A failed assertion or cleanup fails the
 command. Before cleanup, a failed proof saves generated configuration, the
 topology snapshot, Docker inspection, and bounded node logs in a private
 `diagnostics-*` directory under the retained lab directory.
+It also retains addresses, kernel routes, protocol adjacencies, OSPF and IS-IS
+interfaces, databases and routes, the system RIB, and plugin state. Essential
+address, kernel route and adjacency queries run across every node before the
+detailed queries. Capture has a two-minute total deadline and a five-second
+deadline for each command. A failed query produces an `.error.txt` artifact
+with the command, failure and process output instead of a success artifact.
+Cleanup runs after capture even when a diagnostic command fails.
+JSON artifacts keep stdout and use private `.stderr.txt` sidecars for stderr.
 The runner requests a YAML topology snapshot in addition to netlab 26.10's
 normal pickle, provider, and configuration outputs. It uses the YAML inventory
 for checks, diagnostics, and cleanup, including a partial startup failure.

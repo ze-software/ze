@@ -41,6 +41,14 @@ func TestFailedLiveStartRetainsNodeDiagnosticsBeforeCleanup(t *testing.T) {
 		}
 		if command.Argv[0] == "docker" {
 			switch command.Argv[1] {
+			case "exec":
+				if len(command.Argv) < 3 {
+					t.Fatalf("diagnostic command has no node: %v", command.Argv)
+				}
+				if command.Argv[2] != "clab-owned-r1" {
+					t.Fatalf("diagnostic command targets an unowned node: %v", command.Argv)
+				}
+				return CommandResult{Code: 1, Stderr: "container is not running"}
 			case "inspect":
 				inspected = true
 				if stopped {
