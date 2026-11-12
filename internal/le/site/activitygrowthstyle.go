@@ -91,6 +91,7 @@ const activityGrowthStyle = `<style>
     .activity-widget .activity-commits { display: grid; gap: 1rem; min-width: 0; }
     .activity-widget .activity-size .size-headline { color: var(--text); font-size: 1.15rem; }
     .size-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.8rem; }
+    .activity-widget .size-sections .stat span { overflow-wrap: anywhere; }
     .size-legend { display: flex; flex-wrap: wrap; gap: 0.4rem; }
     .size-toggle {
         display: inline-flex;
@@ -114,11 +115,11 @@ const activityGrowthStyle = `<style>
     .growth-point.size-point { fill: var(--series); }
     .change-gained { fill: var(--teal-deep); }
     .change-lost { fill: var(--coral); }
-    .size-readout { display: grid; gap: 0.5rem; }
+    .size-readout { display: grid; gap: 0.5rem; min-width: 0; }
     .size-table-wrap { max-width: 100%; overflow-x: auto; }
     .size-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     .size-table th, .size-table td { padding: 0.2rem 0.45rem; border-bottom: 1px solid var(--activity-border); text-align: right; }
-    .size-table th:first-child { text-align: left; font-weight: 700; overflow-wrap: anywhere; }
+    .size-table th:first-child { text-align: left; font-weight: 700; overflow-wrap: normal; word-break: normal; }
     .growth-charts { display: grid; gap: 1rem; min-width: 0; }
     .growth-charts > div {
         min-width: 0;
@@ -147,6 +148,7 @@ const activityGrowthStyle = `<style>
     }
     @media (max-width: 620px) {
         .size-sections { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .activity-widget .size-sections .stat span { font-size: 0.7rem; }
         .size-table { font-size: 0.78rem; }
         .size-table th, .size-table td { padding: 0.2rem 0.25rem; }
         .growth-charts > div { padding: 0.4rem; }
