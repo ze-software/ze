@@ -88,7 +88,41 @@ writing to, which today means the owner's Mac: its scoped lint, the whole
 test failed, `job-unit-pkg-c4a36b2f.log` and `job-unit-pkg-d25f06c4.log`; a
 quiet run took 1168 s), and the closing record with the owner's words.
 
-Next for lint-tooling, in order: run the spec's own scoped lint on a still tree
+The owner ran both on his Mac at `c775845457` (`lint3-mac-c775845457.md`).
+The whole `internal/le/rfc` package is ok there. The scoped lint planned and
+shows 228 findings in the host build, with repeated literals capped at 50 and
+identical messages at 10, so more is hidden. Its Linux build judged nothing:
+`internal/test/editorcase/parent_test.go` calls `syscall.Dup2`, which does not
+exist on linux/arm64, so on an arm64 host that test package does not compile.
+Fix that first, or the Mac cannot show the Linux findings.
+
+Batch 5 is written and tested but **not committed**: it waits for a review
+round. It is the preview-bundle package, `internal/le/build/preview`, which
+`deployment-user-journeys` landed on 2026-11-12 (61 findings, the largest
+share). Lists: `lint3-mac-preview-findings.tsv`, `lint3-batch5a-files.txt`
+(six source files), `lint3-batch5b-files.txt` (seven test files), plus the new
+`check_archive_limit_test.go`. Sixty findings are form or justified
+suppressions. One was a real defect: `checkArchive` (`check.go`) read an
+untrusted gzip stream with no bound, so a small crafted bundle cost unbounded
+CPU and time in a command meant to inspect bundles safely. It now reads
+through `checkArchiveWithin` with `archiveSizeLimit`, the mechanism `layer()`
+already uses, and refuses with "preview archive exceeds its size limit". The
+test was observed red against the unbounded body (two cases accepted, one
+refused for another reason) and the package is green after
+(`job-unit-pkg-13e22cc6.log`, `job-unit-pkg-ae2b3144.log`). Land it as two
+commits: the lint fixes, then the bound with its test; `check.go` carries
+both, so split it with `hunks`.
+
+Two more hook false positives met by agents, not journaled (no owner yet): the
+weakened-test check reads a doc comment that names `t.Fatalf` as a
+commented-out assertion; `git merge-base --is-ancestor` is refused as
+`git merge` (already journaled twice by other sessions).
+
+Next for lint-tooling, in order: review and land batch 5; fix the arm64
+compile failure in `editorcase`; then the remaining 167 host-build findings by
+package, skipping files other sessions hold open
+(`internal/le/interoplab/ipsec`, `internal/le/test/qemu`,
+`internal/test/runner` had uncommitted foreign edits at 16:00 UTC); then run the spec's own scoped lint on a still tree
 and fix what the repeat cap had hidden; then the closing review record. Every
 further review round, the closing one included, is the owner's to grant.
 
