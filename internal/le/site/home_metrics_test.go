@@ -261,8 +261,8 @@ func TestHomeIntroMergesLinkedRouting(t *testing.T) {
 	}
 }
 
-// TestHomeReleaseNamesInitialVersion checks the release title followed by the
-// linked bird and the two lines that name the initial version and its quarter.
+// TestHomeReleaseNamesInitialVersion checks the release title and linked bird
+// beside the two lines that name the initial version and its quarter.
 func TestHomeReleaseNamesInitialVersion(t *testing.T) {
 	paths := metricHomeFixture(t)
 	if _, err := renderHome(paths); err != nil {

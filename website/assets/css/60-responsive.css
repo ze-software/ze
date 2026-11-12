@@ -98,7 +98,9 @@
     .site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; grid-template-areas: "copy" "preview" "details"; gap: 1.5rem; padding-top: 1.5rem; }
     .site-home .hero-copy { max-width: 46rem; }
     .site-home .hero-action-row { grid-template-columns: minmax(0, 1fr); }
-    .site-home .hero-release-callout { width: 100%; border-inline-start: 0; border-top: 1px solid #2c4564; padding-inline-start: 0; padding-top: 1rem; }
+    .site-home .hero-release-callout { width: 100%; }
+    .site-home .hero-project-metrics { border-top: 1px solid #2c4564; padding-top: 1rem; }
+    .site-home .hero-project-metric:first-child { border-inline-start: 0; padding-inline-start: 0; }
     .site-home #hero-title { font-size: clamp(2.25rem, 5vw, 3rem); }
     .site-home .showcase { width: 100%; max-width: 46rem; justify-self: center; }
     .site-home .hero-outcome-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }

@@ -132,6 +132,27 @@ const homeTemplate = `        <div class="site-home">
                             </div>
                         </div>
                         <div class="hero-action-row">
+                            <div class="hero-release-callout">
+                                <div class="hero-release-details">
+                                    <a
+                                        class="hero-release-speaker"
+                                        href="zeledon/"
+                                        aria-label="Meet Zeledon, the Ze mascot"
+                                    >
+                                        <img
+                                            class="hero-mascot"
+                                            src="assets/zeledon.svg"
+                                            alt="Zeledon, the Ze bird mascot"
+                                            width="134"
+                                            height="134"
+                                        />
+                                    </a>
+                                    <p>
+                                        <strong class="hero-release-title">Planned release</strong>
+                                        <span>Initial version</span><br /><span>Q4 2026</span>
+                                    </p>
+                                </div>
+                            </div>
                             <div class="hero-project-metrics" aria-label="Project size and scope">
                                 <div class="hero-metrics-grid">
                                     <a class="hero-project-metric" href="project/activity/">
@@ -154,25 +175,6 @@ const homeTemplate = `        <div class="site-home">
                                         <strong>{{ze:cli_commands}}</strong>
                                         <span>CLI commands</span>
                                     </a>
-                                </div>
-                            </div>
-                            <div class="hero-release-callout">
-                                <strong class="hero-release-title">Planned release</strong>
-                                <div class="hero-release-details">
-                                    <a
-                                        class="hero-release-speaker"
-                                        href="zeledon/"
-                                        aria-label="Meet Zeledon, the Ze mascot"
-                                    >
-                                        <img
-                                            class="hero-mascot"
-                                            src="assets/zeledon.svg"
-                                            alt="Zeledon, the Ze bird mascot"
-                                            width="134"
-                                            height="134"
-                                        />
-                                    </a>
-                                    <p><span>Initial version</span><br /><span>Q4 2026</span></p>
                                 </div>
                             </div>
                         </div>
