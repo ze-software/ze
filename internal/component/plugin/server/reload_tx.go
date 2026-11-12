@@ -448,7 +448,7 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 		// declaration its verify answers carried: an OPEN built from here on
 		// carries what the running configuration declares.
 		if err := bridge.restoreCapabilities(); err != nil {
-			logger().Error("config tx: restore plugin capabilities", "error", err)
+			s.capabilityRestore.failed(err)
 			return errors.Join(txResultToError(result), err)
 		}
 	}
@@ -461,6 +461,9 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 		return errors.Join(txResultToError(result), s.completeShutdown(ctx, batch))
 	}
 	if result.State == transaction.StateCommitted {
+		// The committed configuration's declarations are now the ones in
+		// force, so an earlier failed restore no longer stands.
+		s.capabilityRestore.clear()
 		recordReloadTransaction(ctx, coordinator.TransactionID(), affected)
 		if pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance); pending != nil {
 			pending.mu.Lock()

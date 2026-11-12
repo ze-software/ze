@@ -1374,7 +1374,7 @@ func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, input string, resp 
 		}
 	}
 	if recordErr := d.audit.Record(entry); recordErr != nil {
-		logger().Warn("audit record failed", "action", action, "command", input, "error", recordErr)
+		logger().Warn("audit record failed", "code", "doctor-audit-record-failed", "action", action, "command", input, "error", recordErr)
 	}
 }
 

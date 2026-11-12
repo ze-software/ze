@@ -536,7 +536,7 @@ func (s *GRPCServer) recordAuthFailure(ctx context.Context, actor string) {
 		entry.RemoteAddr = p.Addr.String()
 	}
 	if err := s.auditRecorder.Record(entry); err != nil {
-		logger.Warn("gRPC audit record failed", "action", entry.Action, "actor", entry.Actor, "error", err)
+		logger.Warn("gRPC audit record failed", "code", "doctor-audit-record-failed", "action", entry.Action, "actor", entry.Actor, "error", err)
 	}
 }
 
@@ -790,7 +790,7 @@ func (s *zeConfigServiceImpl) recordAudit(entry audit.Entry) {
 		return
 	}
 	if err := s.auditRecorder.Record(entry); err != nil {
-		logger.Warn("gRPC audit record failed", "action", entry.Action, "actor", entry.Actor, "error", err)
+		logger.Warn("gRPC audit record failed", "code", "doctor-audit-record-failed", "action", entry.Action, "actor", entry.Actor, "error", err)
 	}
 }
 

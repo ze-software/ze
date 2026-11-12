@@ -923,6 +923,25 @@ also clear the warnings the plugin raised itself through `report-issue`
 | `plugin-fatal-stop` | pre-config | `doctor-plugin-stop-cleanup-late` (warning) | each `stop-cleanup-late` entry of the last-stop record: the stop went on before that plugin finished its cleanup, so state it installs may remain | `journalctl -u ze --until <time> \| grep <plugin>` |
 | `plugin-autoload` | post-config | `doctor-plugin-autoload-unresolved` (error) | the config's auto-load set that `registry.ResolveDependencies` refuses, with the boot refusal's text | the fix the refusal names |
 | `plugin-setup` | pre-config | `doctor-plugin-setup-failed` (error for hard, warning for soft) | each `registry.SetupResults` failure, with the recorded reason | the remedy after the reason's last `; `, else `ze show plugin list` |
+| `plugin-dataplane-writer` | post-config | `doctor-plugin-no-dataplane-writer` (error) | the config's auto-load set holds a `NeedsDataPlane` producer, no `ProgramsFIB` plugin is selected or configured, and `registry.DataPlaneWriter` refuses the data plane the config selects: the boot and reload refusal of `appendDataPlaneWriter`, in its words | the fix the refusal names |
+| `plugin-removal-recovery` | runtime | `doctor-plugin-removal-unrecovered` (error) | each `pluginRemoval` whose restore after a refused reload failed (`recoveryErr`), with plugin and cause | `ze request reload`, which retries the restore first |
+| `plugin-capability-restore` | runtime | `doctor-plugin-capabilities-not-restored` (error) | the latest failed `restoreCapabilities` after a refused reload, kept until a reload commits | `ze request reload` |
+| `audit-record` | runtime | `doctor-audit-record-failed` (error) | the published audit log's last failed write (`audit.PublishedWriteFailure`): file, error, time, count, last surface; cleared by a write that lands | `ls -ld <dir> && df -h <dir>`, then make it writable |
+
+Two command events go through `recent-events`: a parent an ensure-exists chain
+created and could not delete again (`doctor-command-ensure-rollback-failed`,
+error, the subject the parent's command path, the fix the delete command with
+the same selectors), and the first use per session of a deprecated command
+name (`doctor-command-deprecated-used`, warning, the fix the new name). The
+`stop-cleanup-late` entries are written by `Server.stopTransaction` when the
+config transaction does not unwind within its grace, and by `Server.cleanup`
+for every engine `ProcessManager.CleanupLate` names.
+<!-- source: internal/component/plugin/doctor/check_dataplane_writer.go -- checkDataPlaneWriter, dataPlaneWriterRows -->
+<!-- source: internal/component/plugin/doctor/check_reload_records.go -- removalUnrecoveredRows, capabilitiesNotRestoredRows -->
+<!-- source: internal/component/plugin/server/doctor_reload_records.go -- PluginReloadRecords -->
+<!-- source: internal/component/plugin/server/command_events.go -- ensureRollbackFailed, deprecatedUsed -->
+<!-- source: internal/component/plugin/server/stop_cleanup_late.go -- stopTransactionLate, recordLateEngines -->
+<!-- source: internal/component/doctor/checks_audit.go -- checkAuditRecordFailed -->
 
 `request plugin restart <name>` starts a configured plugin that is not running
 again, lifting a respawn-limit disable because the operator asked for this

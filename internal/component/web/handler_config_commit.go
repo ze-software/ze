@@ -276,7 +276,7 @@ func recordWebAudit(recorder audit.Recorder, r *http.Request, username, action, 
 		Detail:     detail,
 		Outcome:    audit.OutcomeSuccess,
 	}); err != nil {
-		serverLogger.Warn("audit record failed", "action", action, "user", username, "error", err)
+		serverLogger.Warn("audit record failed", "code", "doctor-audit-record-failed", "action", action, "user", username, "error", err)
 	}
 }
 

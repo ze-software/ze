@@ -460,7 +460,7 @@ func recordWebAuthFailure(recorder audit.Recorder, username, remoteAddr string) 
 		Action:     audit.ActionAuthFail,
 		Outcome:    audit.OutcomeDenied,
 	}); err != nil {
-		logger.Warn("audit record failed", "action", audit.ActionAuthFail, "user", username, "error", err)
+		logger.Warn("audit record failed", "code", "doctor-audit-record-failed", "action", audit.ActionAuthFail, "user", username, "error", err)
 	}
 }
 

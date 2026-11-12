@@ -324,9 +324,11 @@ plugin's own leaves, or to pick a plugin other than the one Ze would load. Your
 block always wins. A configuration whose static routes are all in named tables
 needs no FIB plugin at all, because static programs those routes itself.
 
-`ze doctor` reports `doctor-static-no-fib-writer` at error severity when your
-config selects a data plane no plugin programs. The routes then reach the system
-RIB and stop there.
+When your config selects a data plane no plugin programs, or one this build
+was compiled without, ze refuses to start or reload it, and `ze doctor` reports
+`doctor-plugin-no-dataplane-writer` at error severity beforehand, in the same
+words, with the fix the refusal names. An explicit `fib { ... }` block is never
+reported: its plugin is the writer.
 
 ## Administrative distance
 

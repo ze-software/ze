@@ -262,7 +262,7 @@ func (s *Server) recordAuthFailure(username, remote string) {
 		Action:     audit.ActionAuthFail,
 		Outcome:    audit.OutcomeDenied,
 	}); err != nil {
-		s.logger.Warn("audit record failed", "action", audit.ActionAuthFail, "user", username, "error", err)
+		s.logger.Warn("audit record failed", "code", "doctor-audit-record-failed", "action", audit.ActionAuthFail, "user", username, "error", err)
 	}
 }
 

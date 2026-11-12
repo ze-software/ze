@@ -147,9 +147,12 @@ type Server struct {
 
 	// Removal retains the callback and dependency lifetime across a refused
 	// reload, until cleanup and committed-configuration recovery both finish.
-	removalMu        sync.Mutex
-	removals         map[*process.Process]*pluginRemoval
-	configureConfigs map[*process.Process]configureConfig
+	removalMu sync.Mutex
+	removals  map[*process.Process]*pluginRemoval
+	// capabilityRestore is the latest failed capability restore since the
+	// last committed reload (doctor_reload_records.go).
+	capabilityRestore capabilityRestoreRecord
+	configureConfigs  map[*process.Process]configureConfig
 
 	// Forked route-installing plugins (OSPF, IS-IS) insert into the engine Loc-RIB
 	// via the route-install RPC. installedByPlugin tracks each plugin's live routes
@@ -955,6 +958,9 @@ func (s *Server) cleanup() {
 	// Stop processes
 	if pm := s.procManager.Load(); pm != nil {
 		pm.Stop()
+		// An engine that missed its shutdown grace may leave what it
+		// installed behind; the next local `ze doctor` names it.
+		recordLateEngines(pm.CleanupLate())
 	}
 }
 

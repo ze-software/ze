@@ -283,8 +283,7 @@ func (s *Server) stopTransaction(grace time.Duration) {
 	select {
 	case <-done:
 	case <-timer.C:
-		logger().Warn("shutdown: config transaction did not unwind in time, closing plugin connections anyway",
-			"grace", grace)
+		stopTransactionLate(grace)
 	}
 }
 

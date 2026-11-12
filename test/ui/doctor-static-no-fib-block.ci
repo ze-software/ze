@@ -4,14 +4,14 @@
 #            the FIB plugin is AUTO-LOADED when static is used, so a config an
 #            operator could commit before main-table routes moved to the Loc-RIB
 #            is not diagnosed as unroutable after it.
-# PREVENTS: the static-fib-writer check going back to refusing every static
+# PREVENTS: the data-plane writer check (plugin-dataplane-writer) going back to refusing every static
 #           config that does not name a data-plane backend, which is what commit
 #           125979ea99 shipped and what this replaces.
 #
 # The sibling case, a data plane no plugin programs, is
-# TestFIBWriterCheckReportsADataPlaneNoPluginProgram
-# (internal/plugins/static/doctor_fib_writer_test.go): it needs an
-# `interface { backend ... }` name Ze does not implement, which the daemon
+# TestDataPlaneWriterRowMatchesRefusal
+# (internal/component/plugin/doctor/check_reload_dataplane_test.go): it needs a
+# data plane no writer programs, which the daemon
 # refuses to load, so it is not reachable from a config `ze doctor` accepts.
 
 tmpfs=static-no-fib.conf:terminator=EOF_CONF
@@ -26,4 +26,4 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze doctor --json config static-no-fib.conf
 expect=stdout:contains=diagnostics
-reject=stdout:contains=doctor-static-no-fib-writer
+reject=stdout:contains=doctor-plugin-no-dataplane-writer

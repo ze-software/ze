@@ -107,8 +107,12 @@ it would answer with silence.
 If no plugin programs the selected data plane, auto-loading refuses the whole
 selection before starting a route producer. Boot and reload both propagate the
 refusal. A configuration that needs no data-plane writer remains valid, and an
-explicit FIB plugin remains the operator's choice. The `static-fib-writer`
-doctor check still diagnoses a missing writer in a running system.
+explicit FIB plugin remains the operator's choice. `ze doctor` reports the same
+refusal before ze starts: the `plugin-dataplane-writer` check
+(`doctor-plugin-no-dataplane-writer`) asks `registry.DataPlaneWriter`, the
+judgement `appendDataPlaneWriter` makes, for every `NeedsDataPlane` producer the
+config selects, static and `bgp-epe` alike. It keys on the registration, so
+static holds no check of its own for it.
 
 The static plugin declares `rib` as a dependency, so the system RIB itself always
 runs.
@@ -116,8 +120,10 @@ runs.
 <!-- source: internal/plugins/static/locrib.go -- staticPath, insertPathLocked, the main-table boundary -->
 <!-- source: internal/plugins/static/inject.go -- route apply, BFD integration, redistribute emit -->
 <!-- source: internal/plugins/static/events/events.go -- RouteChange event registration -->
-<!-- source: internal/plugins/static/doctor.go -- the FIB-writer and route-skipped checks -->
+<!-- source: internal/plugins/static/doctor.go -- the route-skipped check -->
 <!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriter, the writer resolution -->
+<!-- source: internal/component/plugin/registry/dataplane_writer.go -- DataPlaneWriter, the refusal boot, reload and doctor share -->
+<!-- source: internal/component/plugin/doctor/check_dataplane_writer.go -- checkDataPlaneWriter, dataPlaneWriterRows -->
 
 ## ECMP and BFD
 

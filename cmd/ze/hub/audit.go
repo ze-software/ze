@@ -25,6 +25,9 @@ func openAuditLog(configPath string) (*audit.Log, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The daemon's log is the one `show doctor` reports a failed write of
+	// (doctor-audit-record-failed, internal/component/doctor/checks_audit.go).
+	log.Publish()
 	return log, nil
 }
 

@@ -275,7 +275,7 @@ func (s *Server) recoverPluginRemoval(proc *process.Process, attempt *pluginRemo
 		}
 		defer s.txLock.release()
 		if err := s.completeRemovalRecovery(ctx, proc, attempt); err != nil {
-			logger().Error("plugin removal recovery failed", "plugin", proc.Name(), "error", err)
+			logRemovalUnrecovered(proc.Name(), err)
 		}
 	})
 }

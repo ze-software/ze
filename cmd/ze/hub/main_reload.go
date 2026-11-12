@@ -326,7 +326,7 @@ func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface
 		Detail:     detail,
 		Outcome:    audit.OutcomeSuccess,
 	}); err != nil {
-		slogutil.Logger("hub.audit").Warn("audit record failed", "action", audit.ActionDaemonReload, "error", err)
+		slogutil.Logger("hub.audit").Warn("audit record failed", "code", "doctor-audit-record-failed", "action", audit.ActionDaemonReload, "error", err)
 	}
 }
 

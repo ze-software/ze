@@ -104,6 +104,10 @@ type ProcessManager struct {
 	// the engines a first entry is already waiting for. See Stop for why.
 	stopping atomic.Bool
 
+	// cleanupLate names the plugins whose engine did not return within
+	// pluginStopGrace at the last Stop, sorted. Protected by mu.
+	cleanupLate []string
+
 	// respawnRefused is set once by RefuseRespawns when the daemon's stop
 	// drain begins, and never cleared: the stop is terminal.
 	respawnRefused atomic.Bool
@@ -333,8 +337,11 @@ func (pm *ProcessManager) Stop() {
 	if len(late) > 0 {
 		slices.Sort(late)
 		logger().Warn("plugin engine did not finish its shutdown cleanup in time, resources it installed may be left behind",
-			"plugins", strings.Join(late, ","), "grace", pluginStopGrace)
+			"code", diagnostic.CodeDoctorPluginStopCleanupLate, "plugins", strings.Join(late, ","), "grace", pluginStopGrace)
 	}
+	pm.mu.Lock()
+	pm.cleanupLate = late
+	pm.mu.Unlock()
 
 	// Then the goroutine-leak wait, unchanged: the group holds the delivery loop and
 	// the external-process monitor as well, and this is the "call Wait after Stop"
@@ -359,6 +366,16 @@ func (pm *ProcessManager) Stop() {
 	pm.mu.Lock()
 	pm.processes = make(map[string]*Process)
 	pm.mu.Unlock()
+}
+
+// CleanupLate answers the plugins whose engine did not finish its shutdown
+// cleanup within the grace at the last Stop, sorted; none before a Stop. The
+// plugin server writes them to the last-stop record, so the next local
+// `ze doctor` reports doctor-plugin-stop-cleanup-late. Safe for concurrent use.
+func (pm *ProcessManager) CleanupLate() []string {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+	return slices.Clone(pm.cleanupLate)
 }
 
 // Wait waits for all processes to stop.

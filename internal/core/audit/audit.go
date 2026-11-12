@@ -66,6 +66,9 @@ type Log struct {
 	path       string
 	maxEntries int
 	entries    []Entry
+	// failure is the outcome of the most recent failed write, cleared by a
+	// write that lands (write_outcome.go). Protected by mu.
+	failure WriteFailure
 }
 
 // validateMaxEntries verifies the configured audit retention bound.
@@ -87,7 +90,9 @@ func NewMemory(maxEntries int) (*Log, error) {
 	return &Log{maxEntries: maxEntries}, nil
 }
 
-// Record appends one audit record.
+// Record appends one audit record. A failed write is returned to the writer
+// and also kept on the log (WriteFailure), so `ze doctor` reports it under
+// doctor-audit-record-failed whichever surface wrote.
 func (l *Log) Record(entry Entry) error {
 	if entry.Timestamp.IsZero() {
 		entry.Timestamp = time.Now().UTC()
@@ -106,5 +111,7 @@ func (l *Log) Record(entry Entry) error {
 	if l.path == "" {
 		return nil
 	}
-	return l.persistLocked()
+	err := l.persistLocked()
+	l.recordWriteLocked(&entry, err)
+	return err
 }

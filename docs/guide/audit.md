@@ -34,8 +34,16 @@ For a daemon started from a real config file, the audit log is stored next to th
 
 The in-memory query cache keeps the newest records up to the configured retention limit in code. The default is 10,000 entries, with accepted bounds from 100 to 100,000.
 
-<!-- source: cmd/ze/hub/audit.go -- defaultAuditPath and openAuditLog -->
+Each record rewrites the file. When a write fails (a full disk, a directory ze
+cannot write), the action still goes ahead and the record stays in memory;
+`show doctor` reports `doctor-audit-record-failed` with the file, the error,
+the time and how many writes failed, whichever surface wrote. The next write
+that lands rewrites the file with every record still held, and the row clears.
+
+<!-- source: cmd/ze/hub/audit.go -- defaultAuditPath and openAuditLog, which publishes the log -->
 <!-- source: internal/core/audit/audit.go -- retention bounds -->
+<!-- source: internal/core/audit/write_outcome.go -- WriteFailure, PublishedWriteFailure -->
+<!-- source: internal/component/doctor/checks_audit.go -- checkAuditRecordFailed -->
 <!-- source: internal/core/audit/store.go -- JSON-lines persistence -->
 
 ## Querying

@@ -493,11 +493,11 @@ func (r *CommandRegistry) resolveDeprecatedLocked(oldKey string) *RegisteredComm
 	return cmd
 }
 
-// warnDeprecated logs a deprecation warning once per session per old name.
+// warnDeprecated logs a deprecation warning and raises its doctor event once
+// per session per old name (command_events.go deprecatedUsed).
 func (r *CommandRegistry) warnDeprecated(oldName, newName string) {
 	if _, loaded := r.deprecatedWarned.LoadOrStore(strings.ToLower(oldName), true); !loaded {
-		logger().Warn("deprecated command used", "old", oldName, "new", newName,
-			"hint", "use '"+newName+"' instead; old form will be removed in a future release")
+		deprecatedUsed(oldName, newName)
 	}
 }
 

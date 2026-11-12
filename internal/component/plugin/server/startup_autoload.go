@@ -15,7 +15,6 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // encoderJSON is the wire encoder every auto-loaded internal plugin speaks.
@@ -179,16 +178,10 @@ func (s *Server) appendDataPlaneWriter(needed []string, dataPlane string) ([]str
 	if s.fibPluginChosen(needed) {
 		return needed, nil
 	}
-	writer, ok := registry.PluginForDataPlane(dataPlane)
-	if !ok {
-		if gatedWriter, gated := registry.GatedDataPlaneWriter(dataPlane); gated {
-			return nil, fmt.Errorf("data plane %q: %w", dataPlane,
-				registry.UnloadedDependencyError(needed[producerIndex], gatedWriter))
-		}
-		return nil, opererr.New(
-			"no forwarding plugin programs data plane \""+dataPlane+"\"",
-			"the requested routes cannot reach forwarding; startup or reload is refused before their plugins start",
-			"remove the configuration that loads \""+needed[producerIndex]+"\", or select an interface backend with a forwarding plugin")
+	// The judgement `ze doctor` repeats (doctor-plugin-no-dataplane-writer).
+	writer, err := registry.DataPlaneWriter(needed[producerIndex], dataPlane)
+	if err != nil {
+		return nil, err
 	}
 	// No second "is it already loaded" check: writer declares a data plane, so
 	// it declares ProgramsFIB, so fibPluginChosen above has already answered for
@@ -196,6 +189,14 @@ func (s *Server) appendDataPlaneWriter(needed []string, dataPlane string) ([]str
 	logger().Info("auto-loading the FIB plugin for the configured data plane",
 		"plugin", writer, "data-plane", dataPlane)
 	return append(needed, writer), nil
+}
+
+// ConfigDataPlane answers the data plane a config tree selects at
+// `interface { backend }`, read as reload reads it. The doctor check of a
+// missing data-plane writer reads it here, so the plugin infrastructure keeps
+// its one import of iface in this package.
+func ConfigDataPlane(tree map[string]any) string {
+	return iface.BackendNameFromTree(tree)
 }
 
 // fibPluginChosen reports whether a plugin that programs the FIB is configured,
@@ -273,7 +274,7 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 		logger().Info("config reload: auto-loading plugin for new config path", "plugin", pluginName)
 	}
 
-	needed, err := s.appendDataPlaneWriter(needed, iface.BackendNameFromTree(newTree))
+	needed, err := s.appendDataPlaneWriter(needed, ConfigDataPlane(newTree))
 	if err != nil {
 		return nil, err
 	}

@@ -26,7 +26,8 @@ import (
 // record, so a row means the stop has not been followed by a clean start.
 //
 // A stop-time cleanup that ran late is reported from the same record as a
-// doctor-plugin-stop-cleanup-late warning (AC-32): P5 adds its writers.
+// doctor-plugin-stop-cleanup-late warning (AC-32), written by the server when
+// the config transaction or a plugin engine ran late (stop_cleanup_late.go).
 func checkPluginFatalStop(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	if ctx.Store == nil {
 		return nil // The store open diagnostic already names an absent store.
@@ -121,7 +122,8 @@ func cleanupLateRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 // (registry.MissingDependencyError).
 //
 // Boot also adds the data-plane writer a NeedsDataPlane producer needs
-// (appendDataPlaneWriter); that refusal is not repeated here.
+// (appendDataPlaneWriter); plugin-dataplane-writer reports that refusal
+// (check_dataplane_writer.go), so it is not repeated here.
 func checkPluginAutoload(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok || tree == nil {

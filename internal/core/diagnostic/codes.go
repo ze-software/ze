@@ -361,12 +361,6 @@ var builtinCodes = append([]CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-static-route-skipped"},
 	},
 	{
-		Code:        "doctor-static-no-fib-writer",
-		Title:       "Static routes in the main table have no FIB plugin to program them",
-		Description: "The config declares a static route in the main table, and no plugin programs the data plane it selects at `interface { backend }`. A main-table static route is arbitrated by the system RIB against every other protocol that offers the same prefix, and a FIB plugin programs the winner, so with no writer the route reaches the system RIB and stops there. You do NOT need a `fib { ... }` block for the common case: Ze loads the writer for the data plane your config selects, `fib-kernel` for netlink and `fib-vpp` for vpp. This fires when the selected data plane has no writer at all. Name a backend Ze programs, or add the `fib { ... }` block for the plugin you want. A route in a NAMED table does not need any of this: static programs it directly.",
-		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-static-no-fib-writer"},
-	},
-	{
 		Code:        "doctor-ddos-detect-no-flow-source",
 		Title:       "DDoS characterization has no flow source",
 		Description: "ddos-detect is enabled with characterization on, but neither traffic-usage (track-ip) nor flow-export (conntrack) is configured. Detection still works, but mitigation degrades to generic-flood with no target prefix, so responders cannot install a surgical or targeted rule. Enable traffic-usage track-ip and/or flow-export conntrack.",

@@ -24,6 +24,12 @@ type EnsureStep struct {
 	ArgDefs         []command.ArgDef
 	RollbackHandler Handler // Deletion handler for undo on descendant failure
 	WireMethod      string  // Creation handler's wire method, for contract errors
+	// Path is the ancestor's command tokens, and RollbackPath the tokens of
+	// the delete command serving RollbackWireMethod (nil when the tree holds
+	// none): a failed rollback names both to the operator.
+	Path               []string
+	RollbackPath       []string
+	RollbackWireMethod string
 }
 
 // ErrEnsureContract reports that a creation handler on an ensure-exists path did
@@ -74,9 +80,10 @@ func wrapWithEnsureChain(leaf Handler, chain []EnsureStep) Handler {
 			}
 			if created {
 				rb := step.RollbackHandler
+				failedStep := &step
 				rollbacks = append(rollbacks, func() {
 					if _, rbErr := rb(ctx, validated); rbErr != nil {
-						logger().Warn("ensure-exists rollback failed", "error", rbErr)
+						ensureRollbackFailed(ctx, failedStep, rbErr)
 					}
 				})
 			}
@@ -144,7 +151,7 @@ func buildEnsureChain(tree *command.Node, path string, wireToHandler map[string]
 	node := tree
 
 	// Walk all but the last token (the leaf command itself).
-	for _, part := range parts[:len(parts)-1] {
+	for i, part := range parts[:len(parts)-1] {
 		child, ok := node.Children[part]
 		if !ok {
 			break
@@ -154,10 +161,13 @@ func buildEnsureChain(tree *command.Node, path string, wireToHandler map[string]
 			rollbackHandler := wireToHandler[child.EnsureExists]
 			if createHandler != nil && rollbackHandler != nil {
 				chain = append(chain, EnsureStep{
-					Handler:         createHandler,
-					RollbackHandler: rollbackHandler,
-					WireMethod:      child.WireMethod,
-					ArgDefs:         child.ArgDefs,
+					Handler:            createHandler,
+					RollbackHandler:    rollbackHandler,
+					WireMethod:         child.WireMethod,
+					ArgDefs:            child.ArgDefs,
+					Path:               slices.Clone(parts[:i+1]),
+					RollbackPath:       commandPath(tree, child.EnsureExists),
+					RollbackWireMethod: child.EnsureExists,
 				})
 			}
 		}

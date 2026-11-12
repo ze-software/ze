@@ -729,7 +729,7 @@ func (s *RESTServer) recordAudit(entry audit.Entry) {
 		return
 	}
 	if err := s.auditRecorder.Record(entry); err != nil {
-		logger.Warn("REST audit record failed", "action", entry.Action, "actor", entry.Actor, "error", err)
+		logger.Warn("REST audit record failed", "code", "doctor-audit-record-failed", "action", entry.Action, "actor", entry.Actor, "error", err)
 	}
 }
 
