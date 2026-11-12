@@ -42,7 +42,7 @@ const homeTemplate = `        <div class="site-home">
                                     <span>Appliance option</span>
                                     <span>ExaBGP compatible</span>
                                 </p>
-                                <p class="hero-intro">Run <a href="guides/bgp-peering/">BGP</a>, <a href="guides/ospf/">OSPF</a> and <a href="guides/isis/">IS-IS</a> on Linux and manage <a href="features/interfaces/">interfaces</a>, <a href="guides/ipsec/">IPsec VPN</a> and <a href="features/interfaces/#wireguard-configuration">WireGuard</a> tunnels, the <a href="reference/plugins/fib-kernel/">forwarding table (FIB)</a> and services through <a href="reference/configuration/">one configuration</a> over <a href="features/cli-commands/">SSH</a>, <a href="features/web-interface/">web</a> or <a href="features/api-commands/">APIs</a>.</p>
+                                <p class="hero-intro">Run <a href="guides/bgp-peering/">BGP</a>, <a href="guides/ospf/">OSPF</a> and <a href="guides/isis/">IS-IS</a> on Linux with <a href="reference/plugins/fib-kernel/">FIB</a> or <a href="reference/plugins/fib-vpp/">VPP</a> forwarding. Use <a href="guides/ipsec/">IPsec VPN</a> or <a href="features/interfaces/#wireguard-configuration">WireGuard</a> tunnels and manage <a href="features/interfaces/">interfaces</a> and services through <a href="reference/configuration/">one configuration</a> over <a href="features/cli-commands/">SSH</a>, <a href="features/web-interface/">web</a> or <a href="features/api-commands/">APIs</a>.</p>
                                 <p class="hero-project-intro"><a href="project/why-ze/">Why Ze exists →</a> · Ask questions and follow development on <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>.</p>
                                 <div class="hero-actions">
                                     <a class="button primary" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
@@ -157,23 +157,23 @@ const homeTemplate = `        <div class="site-home">
                                 </div>
                             </div>
                             <div class="hero-release-callout">
-                                <a
-                                    class="hero-release-speaker"
-                                    href="zeledon/"
-                                    aria-label="Meet Zeledon, the Ze mascot"
-                                >
-                                    <img
-                                        class="hero-mascot"
-                                        src="assets/zeledon.svg"
-                                        alt="Zeledon, the Ze bird mascot"
-                                        width="134"
-                                        height="134"
-                                    />
-                                </a>
-                                <p>
-                                    Expected initial release:<br />
-                                    Q4 2026.
-                                </p>
+                                <strong class="hero-release-title">Planned release</strong>
+                                <div class="hero-release-details">
+                                    <a
+                                        class="hero-release-speaker"
+                                        href="zeledon/"
+                                        aria-label="Meet Zeledon, the Ze mascot"
+                                    >
+                                        <img
+                                            class="hero-mascot"
+                                            src="assets/zeledon.svg"
+                                            alt="Zeledon, the Ze bird mascot"
+                                            width="134"
+                                            height="134"
+                                        />
+                                    </a>
+                                    <p><span>Initial version</span><br /><span>Q4 2026</span></p>
+                                </div>
                             </div>
                         </div>
                         <div class="hero-outcome-links" aria-label="Ze product map">

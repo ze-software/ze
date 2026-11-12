@@ -479,15 +479,43 @@ Thomas requested this correction on 11 November 2026:
 > Current first-party Go inventory. Includes comments and blank lines; excludes third-party dependencies. Development activity →
 > The comment is not useful with the extra number and the details are on the page so remove
 
-The opening keeps its linked protocol and management summary. The complete
-Route and connect and Manage one configuration information sits beside the
-demonstration on desktop and below the player on smaller screens. The metric
+The opening paragraph combines routing, interfaces, tunnels, forwarding and
+services with their documentation links. Detailed configuration information
+sits beside the demonstration on desktop and below the player on smaller screens. The metric
 band has five figures and no inventory note; their definitions remain on the
 activity page and in this build reference.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: website/assets/css/30-components.css -- .site-home .hero-start-intro.hero-grid -->
 <!-- source: website/assets/css/30-components.css -- .site-home .hero-capabilities -->
 <!-- source: website/assets/css/60-responsive.css -- .site-home .hero-start-intro.hero-grid -->
+
+Thomas requested this layout refinement on 2026-11-12:
+
+> can you bring the content of:
+> Route and connect
+> Speak BGP, ISIS and OSPF. Manage interfaces and tunnels with IPsec VPN and WireGuard. Set the forwarding table (FIB).
+>
+> Into the previous:
+> Run BGP, OSPF and IS-IS on Linux. Manage interfaces and services through one configuration over SSH, web or APIs.
+>
+> The cards with the Million the number line must not wrap, they do not have to have the exact same size
+>
+> The zeledon card you can change it to have "Planned release" as title and then "Initial version" "Q4 2026" as two lines
+> with the bird before the two lines
+
+Each metric keeps its number and written unit on one line. The metric cards
+take their width from their content and wrap as whole cards when space runs out.
+The introduction presents IPsec VPN or WireGuard as tunnel options and FIB or
+VPP as forwarding options. The management clause describes interfaces and
+services.
+The release group has a Planned release title, followed by the linked bird
+beside two lines: Initial version and Q4 2026. The separator before this group
+remains vertical on desktop and horizontal when the group stacks on mobile.
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
+<!-- source: website/assets/css/30-components.css -- .site-home .hero-metrics-grid -->
+<!-- source: website/assets/css/30-components.css -- .site-home .hero-project-metric strong -->
+<!-- source: website/assets/css/30-components.css -- .site-home .hero-release-details -->
+<!-- source: website/assets/css/60-responsive.css -- .site-home .hero-release-callout -->
 
 The line labels read as a phrase after the quantity. Thomas requested this
 wording improvement on 2026-11-11:

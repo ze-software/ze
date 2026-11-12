@@ -204,9 +204,127 @@ func TestHomeOpeningKeepsLinkedCapabilities(t *testing.T) {
 			t.Errorf("opening lacks useful capability link %s", href)
 		}
 	}
-	for _, text := range []string{"Route and connect", "Manage one configuration", "plugins for automation and services of your own"} {
+	for _, text := range []string{"Manage one configuration", "plugins for automation and services of your own"} {
 		if !strings.Contains(metricNodeText(opening), text) {
 			t.Errorf("opening lacks capability information %q", text)
 		}
 	}
+}
+
+// TestHomeIntroMergesLinkedRouting holds the routing and management summary to
+// its useful destinations after the separate routing definition is merged.
+func TestHomeIntroMergesLinkedRouting(t *testing.T) {
+	paths := metricHomeFixture(t)
+	if _, err := renderHome(paths); err != nil {
+		t.Fatal(err)
+	}
+	root, err := xhtml.Parse(strings.NewReader(readArtifact(t, paths.Output, homeDest)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	intro := metricNodeWithClass(root, "hero-intro")
+	if intro == nil {
+		t.Fatal("homepage has no introduction")
+	}
+	links := make(map[string]bool)
+	var collect func(*xhtml.Node)
+	collect = func(node *xhtml.Node) {
+		if node.Type == xhtml.ElementNode && node.Data == "a" {
+			for _, attr := range node.Attr {
+				if attr.Key == "href" {
+					links[attr.Val] = true
+				}
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			collect(child)
+		}
+	}
+	collect(intro)
+	for _, href := range []string{
+		"guides/bgp-peering/", "guides/ospf/", "guides/isis/", "features/interfaces/",
+		"guides/ipsec/", "features/interfaces/#wireguard-configuration", "reference/plugins/fib-kernel/",
+		"reference/configuration/", "features/cli-commands/", "features/web-interface/", "features/api-commands/",
+		"reference/plugins/fib-vpp/",
+	} {
+		if !links[href] {
+			t.Errorf("introduction lacks useful link %s", href)
+		}
+	}
+	for _, text := range []string{"Linux", "services", "tunnels", "FIB or VPP forwarding"} {
+		if !strings.Contains(metricNodeText(intro), text) {
+			t.Errorf("introduction lacks routing or management information %q", text)
+		}
+	}
+	if strings.Contains(metricNodeText(root), "Route and connect") {
+		t.Error("homepage retains the routing heading after its content was merged")
+	}
+}
+
+// TestHomeReleaseNamesInitialVersion checks the release title followed by the
+// linked bird and the two lines that name the initial version and its quarter.
+func TestHomeReleaseNamesInitialVersion(t *testing.T) {
+	paths := metricHomeFixture(t)
+	if _, err := renderHome(paths); err != nil {
+		t.Fatal(err)
+	}
+	root, err := xhtml.Parse(strings.NewReader(readArtifact(t, paths.Output, homeDest)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	callout := metricNodeWithClass(root, "hero-release-callout")
+	if callout == nil {
+		t.Fatal("homepage has no release callout")
+	}
+	title := metricNodeWithClass(callout, "hero-release-title")
+	if title == nil || strings.TrimSpace(metricNodeText(title)) != "Planned release" {
+		t.Fatal("release callout lacks its Planned release title")
+	}
+	details := metricNodeWithClass(callout, "hero-release-details")
+	if details == nil {
+		t.Fatal("release callout lacks the bird and version row")
+	}
+	var tags []string
+	var lines []string
+	breaks := 0
+	for child := details.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type != xhtml.ElementNode {
+			continue
+		}
+		tags = append(tags, child.Data)
+		if child.Data == "p" {
+			for line := child.FirstChild; line != nil; line = line.NextSibling {
+				if line.Type == xhtml.ElementNode && line.Data == "br" {
+					breaks++
+				}
+				if line.Type == xhtml.ElementNode && line.Data == "span" {
+					lines = append(lines, strings.TrimSpace(metricNodeText(line)))
+				}
+			}
+		}
+	}
+	if got := strings.Join(tags, ","); got != "a,p" {
+		t.Errorf("release details order = %s, want linked bird before version text", got)
+	}
+	if metricNodeWithClass(details, "hero-mascot") == nil || metricNodeWithClass(details, "hero-release-speaker") == nil {
+		t.Error("release details lost the linked bird")
+	}
+	if got := strings.Join(lines, ","); got != "Initial version,Q4 2026" || breaks != 1 {
+		t.Errorf("release lines = %q with %d breaks, want Initial version then Q4 2026", got, breaks)
+	}
+}
+
+// metricNodeWithClass finds a test target in the rendered DOM by a full class.
+func metricNodeWithClass(node *xhtml.Node, class string) *xhtml.Node {
+	for _, attr := range node.Attr {
+		if attr.Key == "class" && strings.Contains(" "+attr.Val+" ", " "+class+" ") {
+			return node
+		}
+	}
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if found := metricNodeWithClass(child, class); found != nil {
+			return found
+		}
+	}
+	return nil
 }

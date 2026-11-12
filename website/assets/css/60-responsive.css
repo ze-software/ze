@@ -133,8 +133,6 @@
     .site-home .hero-primary-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .site-home .hero-project-metrics { flex-basis: 100%; }
     .site-home .hero-release-callout { width: 100%; border-inline-start: 0; border-top: 1px solid #2c4564; padding-inline-start: 0; padding-top: 1rem; }
-    .site-home .hero-metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 1.1rem; }
-    .site-home .hero-project-metric:nth-child(odd) { border-inline-start: 0; padding-inline-start: 0; }
     .site-home .section-head, .site-home .home-section-panel-map .section-head { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
     .site-home .home-proof-head { gap: 1rem; }
     .site-home .home-proof-actions { max-width: none; }

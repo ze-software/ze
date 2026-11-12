@@ -340,8 +340,9 @@ counter shows vendored Go lines separately. Activity retains the detailed invent
 and the plugin and CLI references explain the other figures. The hero keeps
 Why Ze exists and Discord as text links alongside the existing demo and search
 paths; its release notice and testing evidence remain separate.
-The opening summary links to its protocol and management pages, with the full
-capability information beside the demo on desktop and below it on mobile.
+The opening summary links to its protocol, tunnel, forwarding and management
+pages. Detailed configuration information sits beside the demo on desktop and
+below it on mobile.
 The metrics omit the inventory note because the activity page carries the details.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: internal/le/site/facts.go -- factsFromRepositoryFile -->
