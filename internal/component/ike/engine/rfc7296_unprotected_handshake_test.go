@@ -318,6 +318,13 @@ func unprotSecondExchange(t *testing.T) (p *maPair, req2 []byte) {
 // PREVENTS: handleResponderAuthRound logging a WARN for every decrypt error and counting
 // nothing, which let an off-path sender write one line to the operator's log per forged
 // datagram, the defect openProtected exists to refuse.
+//
+// RFC requirement: RFC7296-2.4-3 negative -- in the RFC 4739 second IKE_AUTH exchange, a
+// request with no Encrypted payload and one whose checksum fails, both at the second
+// request's Message ID, leave the responder in IKE_AUTH received with its expected
+// Message ID unchanged, raise handshake-unauthenticated by exactly two, write no WARN
+// line and draw no datagram before the sentinel; the genuine second request then
+// establishes the SA.
 func TestResponderSecondAuthRoundDropsUnprotectedRequestQuietly(t *testing.T) {
 	p, req2 := unprotSecondExchange(t)
 	expected := p.resp.ExpectedMsgID

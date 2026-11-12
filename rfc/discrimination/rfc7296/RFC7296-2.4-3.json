@@ -2,6 +2,17 @@
   {
     "rid": "RFC7296-2.4-3",
     "polarity": "negative",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeRetransmitArmCountsUnprotectedMessage",
+    "unit-sha": "adebab1531e41b72",
+    "claim-sha": "0e374f84829c3db7",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+    "producer-sha": "67aa5a111a4a8280",
+    "break": "line 122: \"return ownedOutcome{}\" -\u003e \"return ownedOutcome{peerAlive: true}\""
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing",
     "unit-sha": "d9c4092481dfbf07",
     "claim-sha": "89fab7b8c3432c33",
@@ -100,6 +111,50 @@
   },
   {
     "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_unprotected_handshake_test.go::TestResponderSecondAuthRoundDropsUnprotectedRequestQuietly",
+    "unit-sha": "6e692a9f67e197f3",
+    "claim-sha": "8d59595bd3ea58ca",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "line 112: \"return nil, true, nil\" -\u003e \"return nil, false, err\""
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestEstablishedSACountsUnprotectedMessage",
+    "unit-sha": "cb0eb12fe2f30c12",
+    "claim-sha": "29364de0084ebe5e",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "line 112: \"return nil, true, nil\" -\u003e \"return nil, false, err\""
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestEstablishedSACountsUnprotectedOutOfWindowResponse",
+    "unit-sha": "4401924c8fc35572",
+    "claim-sha": "5383432e487bedd6",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+    "producer-sha": "67aa5a111a4a8280",
+    "break": "line 154: \"return ownedOutcome{}\" -\u003e \"return ownedOutcome{dpdResp: true}\""
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestHeldSuccessorSurvivesUnprotectedMessage",
+    "unit-sha": "ee4666b00ec46225",
+    "claim-sha": "b1fde4fc480ba552",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "line 112: \"return nil, true, nil\" -\u003e \"return nil, false, err\""
+  },
+  {
+    "rid": "RFC7296-2.4-3",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorAuthEndsOnAuthenticatedMalformedResponse",
     "unit-sha": "b81054fccbf8f1bd",
@@ -130,6 +185,17 @@
     "producer": "internal/component/ike/engine/protected_input.go::openProtected",
     "producer-sha": "95bc07c8d939f760",
     "break": "line 97: \"return nil, true, nil\" -\u003e \"return nil, false, err\""
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorSecondAuthExchangeCountsUnprotectedResponse",
+    "unit-sha": "7e5ca6651cb9cb9b",
+    "claim-sha": "0ff87deb5fa237ea",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "line 112: \"return nil, true, nil\" -\u003e \"return nil, false, err\""
   },
   {
     "rid": "RFC7296-2.4-3",

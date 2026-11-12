@@ -4,6 +4,8 @@
 // Related: rfc4739_rounds_test.go -- maSAInitPair, the Ze-to-Ze pre-shared-secret handshake
 // Related: rfc3748_eap_length_test.go -- eaplenExchange, the real EAP-MSCHAPv2 handshake
 // Related: initiator_cycle_test.go -- icyParse, and the afterFunc seam that drives runInitiator
+// Related: rfc7296_reauth_receive_test.go -- heldInitiatorSuccessor, the held reauthentication successor
+// Related: held_successor.go -- handleHeldSuccessorInbound, the held successor's drop site
 
 package engine
 
@@ -501,6 +503,13 @@ func unprotIniSecondExchange(t *testing.T) (p *maPair, firstResp, req2, final []
 //
 // PREVENTS: the second exchange dropping a forgery with a WARN line and no count, so an
 // off-path sender wrote the operator's log and the counter missed the drop.
+//
+// RFC requirement: RFC7296-2.4-3 negative -- in the RFC 4739 second IKE_AUTH exchange, a
+// final response whose checksum fails leaves the initiator's state, next Message ID and
+// retransmitted second request unchanged, raises handshake-unauthenticated by exactly
+// one and writes no WARN line; a tampered late copy of the first response leaves the
+// state unchanged and is not counted; neither draws a datagram before the sentinel; and
+// the genuine final response then establishes the SA.
 func TestInitiatorSecondAuthExchangeCountsUnprotectedResponse(t *testing.T) {
 	p, firstResp, req2, final := unprotIniSecondExchange(t)
 	state, nextMsgID := p.ini.State, p.ini.NextMsgID
@@ -910,6 +919,12 @@ func TestUnprotectedAuthResponseDoesNotMoveThePeerEndpoint(t *testing.T) {
 //
 // PREVENTS: the in-window site dropping such a message with only a debug line, so no
 // operator could see that someone sends datagrams under the live SPIs.
+//
+// RFC requirement: RFC7296-2.4-3 negative -- on an established SA, an in-window
+// INFORMATIONAL request whose checksum fails is not credited as liveness, draws no
+// datagram before the sentinel, raises established-unauthenticated by exactly one, and
+// leaves the SA established with its expected Message ID and Child SA unchanged; the
+// genuine request then draws an answer and is credited as liveness.
 func TestEstablishedSACountsUnprotectedMessage(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, peer, ps, peerTr, myTr := osrSession(t)
@@ -964,6 +979,12 @@ func TestEstablishedSACountsUnprotectedMessage(t *testing.T) {
 // Message ID; the forgery flips its last octet. Both go through handleOwnedInbound.
 //
 // PREVENTS: the arm falling through to its out-of-window debug line on a forgery, uncounted.
+//
+// RFC requirement: RFC7296-2.4-3 negative -- on an established SA, an INFORMATIONAL
+// response at a Message ID no request of Ze's holds, whose checksum fails, is reported
+// neither as a probe answer nor as liveness, draws no datagram before the sentinel,
+// raises established-unauthenticated by exactly one and leaves the SA established; the
+// genuine copy is then reported as the probe answer at its Message ID.
 func TestEstablishedSACountsUnprotectedOutOfWindowResponse(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, peer, ps, peerTr, myTr := osrSession(t)
@@ -1003,5 +1024,81 @@ func TestEstablishedSACountsUnprotectedOutOfWindowResponse(t *testing.T) {
 	}
 	if got := errorNotifySuppressedCount(suppressedUnauthenticatedEstablished) - before; got != 1 {
 		t.Errorf("the genuine response was counted: %s rose by %d, want 1", suppressedUnauthenticatedEstablished, got)
+	}
+}
+
+// VALIDATES: the held reauthentication successor's drop site. A request at the
+// successor's expected Message ID whose checksum fails leaves the successor held and
+// established beside the unchanged owned IKE SA, with its expected Message ID and cached
+// response unchanged, sends nothing, and raises held-successor-decrypt-failed by exactly
+// one. The genuine request is then answered, and the successor is still held.
+//
+// METHOD: heldInitiatorSuccessor holds a gateway reauthentication without a Child SA.
+// The gateway seals a liveness probe at the successor's expected Message ID; the forgery
+// is that datagram with its last octet, which belongs to the checksum, flipped. Both
+// reach handleInbound, the dispatch goroutine's entry, from a loopback peer socket that
+// rtxPeerLink opens, so a datagram Ze wrote would reach it before the sentinel.
+//
+// PREVENTS: handleHeldSuccessorInbound answering a forgery as an authenticated message
+// whose payloads do not parse: INVALID_SYNTAX, which RFC 7296 Section 2.21.3 makes
+// fatal, so one off-path datagram under the successor's SPIs would end the
+// reauthentication.
+//
+// RFC requirement: RFC7296-2.4-3 negative -- on the held reauthentication successor, a
+// request at its expected Message ID whose checksum fails leaves it held and established
+// beside the unchanged owned IKE SA and Child SA, leaves its expected Message ID and
+// cached response unchanged, draws no datagram before the sentinel, and raises
+// held-successor-decrypt-failed by exactly one; the genuine request then draws a
+// datagram and a response cached at its Message ID, and leaves it held.
+func TestHeldSuccessorSurvivesUnprotectedMessage(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ps, old, gw, held, table := heldInitiatorSuccessor(t)
+	oldChild := ps.getChildSA()
+	peerTr, myTr := rtxPeerLink(t)
+	remote := nttPeerAddr(t, peerTr)
+	expected := held.ExpectedMsgID
+	cachedSet, cachedID := held.lastResponseSet, held.lastResponseID
+
+	good, err := buildEncryptedMessageEx(gw, nil, expected, wire.ExchangeInformational, initiatorFlag(gw))
+	if err != nil {
+		t.Fatalf("build the gateway's liveness probe at id %d: %v", expected, err)
+	}
+	before := errorNotifySuppressedCount(suppressedHeldSuccessorUnauthenticated)
+	handleInbound(held, transport.Packet{Data: unprotTampered(good), RemoteAddr: remote}, table, myTr, log)
+
+	rtxExpectSilence(t, peerTr, myTr, remote, "a held-successor request that failed its integrity check")
+	if got := errorNotifySuppressedCount(suppressedHeldSuccessorUnauthenticated) - before; got != 1 {
+		t.Errorf("%s rose by %d, want 1", suppressedHeldSuccessorUnauthenticated, got)
+	}
+	if ps.getPendingSA() != held {
+		t.Fatal("the forgery ended the held successor")
+	}
+	if held.State != StateEstablished {
+		t.Fatalf("held successor state after the forgery = %v, want established", held.State)
+	}
+	if held.ExpectedMsgID != expected {
+		t.Fatalf("expected Message ID after the forgery = %d, want %d", held.ExpectedMsgID, expected)
+	}
+	if held.lastResponseSet != cachedSet || held.lastResponseID != cachedID {
+		t.Fatal("the forgery changed the held successor's cached response")
+	}
+	if ps.getSA() != old || ps.getChildSA() != oldChild {
+		t.Fatal("the forgery disturbed the owned IKE SA or its Child SA")
+	}
+
+	// Control: the genuine probe reaches the same site and is answered, so the silence
+	// above is the drop and not a path that sends nowhere.
+	handleInbound(held, transport.Packet{Data: good, RemoteAddr: remote}, table, myTr, log)
+	if !held.lastResponseSet || held.lastResponseID != expected {
+		t.Fatalf("the genuine probe at id %d on the held successor went unanswered", expected)
+	}
+	if rtxRecv(t, peerTr) == nil {
+		t.Fatal("the genuine probe drew no datagram")
+	}
+	if ps.getPendingSA() != held {
+		t.Fatal("the genuine probe ended the held successor")
+	}
+	if got := errorNotifySuppressedCount(suppressedHeldSuccessorUnauthenticated) - before; got != 1 {
+		t.Errorf("the genuine probe was counted: %s rose by %d, want 1", suppressedHeldSuccessorUnauthenticated, got)
 	}
 }

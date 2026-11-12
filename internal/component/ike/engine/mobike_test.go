@@ -1930,6 +1930,12 @@ func TestMobikeUpdateRefusedForTransportChildAfterIKERekey(t *testing.T) {
 // at the same Message ID, so classifyInbound sends it to the retransmit arm.
 //
 // PREVENTS: the arm returning on a failed decrypt with nothing counted and nothing logged.
+//
+// RFC requirement: RFC7296-2.4-3 negative -- on an established MOBIKE SA, a request at
+// the cached response's Message ID whose checksum fails is not credited as liveness,
+// draws no datagram before the sentinel, raises established-unauthenticated by exactly
+// one and leaves the SA established; the genuine retransmission then draws the cached
+// response byte for byte.
 func TestMobikeRetransmitArmCountsUnprotectedMessage(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	f := mbInitiator(t)
