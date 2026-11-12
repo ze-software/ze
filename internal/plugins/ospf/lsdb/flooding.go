@@ -47,6 +47,15 @@ type InterfaceInfo struct {
 	Passive     bool
 	Address     [4]byte
 	NetworkMask [4]byte
+	// IPv4SecondaryPrefixes are the other live IPv4 addresses and prefix lengths.
+	// They contribute stub reachability without changing the primary adjacency,
+	// DR identity or numbered/unnumbered point-to-point decision. Host bits remain
+	// available for loopback and point-to-multipoint host links.
+	IPv4SecondaryPrefixes []netip.Prefix
+	// IPv4InventoryUnavailable means the live IPv4 inventory could not be read.
+	// Origination retains this area in ABR accounting, but preserves its previous
+	// Router/Network-LSAs until a complete inventory can be read.
+	IPv4InventoryUnavailable bool
 	// InterfaceID is the OSPFv3 Interface ID (the OS ifindex) used for this interface's
 	// links in the address-free Router-LSA (RFC 5340 sec 3.4.3); OSPFv2 origination
 	// ignores it (OSPFv2 Router-LSA links carry IP addresses, not Interface IDs).

@@ -77,9 +77,11 @@ programs Ze does not control, so most mistakes here are about ownership.
 - **The firewall table registry is process-local.** Every nft table producer
   runs in process (`table-ownership-and-shutdown-flush.md`). A producer that
   can run forked needs an RPC, not a call to `RegisterTables`.
-- **The report bus is process-local too.** `internal/core/report` is a package
-  store with no RPC in `pkg/plugin/rpc`, so a warning a forked plugin raises
-  never reaches `show warnings` (`core-design.md`, section 15).
+- **The report bus is process-local too.** A plugin raises or clears issues
+  through SDK `RaiseIssue` or `ClearIssue`, whose `report-issue` RPC reaches
+  the daemon's store (`pkg/plugin/sdk/report.go`, `internal/component/plugin/server/dispatch_report.go`).
+  A forked plugin that imports `internal/core/report` directly changes only
+  its own store, so that warning never reaches `show warnings`.
 - **Kernel tunables go through `sysctl`.** A plugin contributes a default over
   the EventBus (`internal/component/sysctl/events`). It does not write `/proc`.
 

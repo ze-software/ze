@@ -39,17 +39,37 @@ lifecycle callbacks, transport enrollment and config validation.
   through the same registry, not a test-only engine field.
   <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceNetworkMask, interfaceIPv4Address -->
   <!-- source: internal/plugins/ospf/rfc7474_apad_source_test.go -- installOSPFAddressBackend -->
-- **Only the interface's first IPv4 address and prefix form the OSPF
-  interface.** RFC 2328 section 9 gives an OSPF interface one IP address and one
-  mask, so the engine takes the first IPv4 address the iface component lists and
-  the first IPv4 prefix length. A secondary subnet on the same Linux interface is
-  not part of the OSPF interface: a neighbour whose address sits on it fails the
-  section 8.2 source check above and its packets are dropped. Ze does not run a
-  second OSPF interface for a secondary subnet, because the OSPFv2 interface list
-  is keyed by the interface name alone; put the other subnet on its own interface
-  (a VLAN or a second port) to run OSPF over it.
+- **The first IPv4 address and prefix bind the adjacency; other prefixes
+  supply reachability.** The primary address still supplies Hellos, source
+  validation, DR identity and numbered/unnumbered point-to-point selection.
+  Each OSPFv2 topology pass derives its primary address, mask and other IPv4
+  prefixes from one live inventory read. The paired address and mask therefore
+  cannot come from separate reads with different outcomes.
+  Subnet stub links include each distinct usable subnet. Multiple addresses in
+  the same subnet produce one. Host127 and other non-unicast or link-local
+  addresses do not supply stub reachability. A neighbor on a secondary subnet
+  still fails the primary subnet's source check. Use another interface, such
+  as a VLAN, to run a separate adjacency on that subnet.
   <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceNetworkMask, interfaceIPv4Address -->
+  <!-- source: internal/plugins/ospf/interface_addr.go -- readInterfaceIPv4Inventory -->
+  <!-- source: internal/plugins/ospf/lsdb/origination.go -- appendIPv4StubLinks, appendIPv4Stub -->
   <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- list interface, key name -->
+- **An explicit loopback network type originates zero-cost host stubs.**
+  Each usable IPv4 address becomes a /32, even when its kernel prefix is
+  shorter (RFC 2328 Section 12.4.1). A passive interface with a broadcast
+  network type advertises its configured subnets at the interface cost.
+  <!-- source: internal/plugins/ospf/lsdb/origination.go -- routerLinks -->
+- **An unread inventory preserves the last complete area advertisements.**
+  A failed IPv4 inventory read preserves the area's existing Router and
+  Network LSAs, including its Network-LSA flush state. The area remains in
+  ABR accounting, and healthy areas can continue to publish. Runtime doctor
+  reads only enrolled interfaces. Warning state coalesces repeated failures
+  and clears on successful reads or interface removal; addresses are not cached.
+  Topology-only snapshots without a live interface runtime do not enqueue
+  warnings or start a maintenance worker.
+  <!-- source: internal/plugins/ospf/interface_addr_error.go -- recordInterfaceAddressRead, interfaceAddressDoctorFindings -->
+  <!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateFromTopology -->
+
 - **The Go parser enforces the IPv4 range as well as YANG.** Unit tests and SDK
   paths call the resolver directly, outside native YANG validation.
 - **One function answers what an interface costs, and every consumer calls it.**
@@ -145,8 +165,8 @@ lifecycle callbacks, transport enrollment and config validation.
   `repriceInterfaceLocked` replaces the enrolled config in `e.running` and
   updates the runtime cost without clearing neighbors or DR state.
   `lsdbTopology` reads that enrolled config on every origination pass, so both
-  explicit and automatic costs reach the self-LSAs, including passive and
-  loopback topology. Router ID, area type, and the other interface restart
+  explicit and automatic costs reach subnet stubs in the self-LSAs. Loopback
+  host stubs keep metric zero. Router ID, area type, and the other interface restart
   boundaries remain unchanged.
   <!-- source: internal/plugins/ospf/instance.go -- interfaceParamsEqual, interfaceGlobalParamsChanged, repriceInterfaceLocked, lsdbTopology -->
 - `reconcile` attempts self-LSA origination before it returns. RFC 2328 Section

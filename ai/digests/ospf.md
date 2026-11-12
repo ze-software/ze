@@ -95,7 +95,12 @@ other lock held. Entry points are `registerOSPF` (`register.go`, plugin registra
    (`lsdb/flooding.go` -> `floodExcept`, `lsdb/flooding.go`), decides the RFC 2328 Table 19
    acknowledgment (`lsdb/flooding.go` -> `ackForReceive`), and calls `notifyChange`
    (`lsdb/lsdb.go`) which is wired to `engine.triggerSPF` (`spf_wiring.go`, `spf_wiring.go`).
-10. **LSA origination (self).** `engine.originateSelfLSAs` (`instance.go`), invoked after every
+10. **LSA origination (self).** `engine.lsdbTopology` (`instance.go`) derives the primary IPv4
+    address, its mask and secondary prefixes from one fresh inventory read;
+    `readInterfaceIPv4Inventory` (`interface_addr.go`) keeps their read outcome coherent. Router-LSA
+    origination emits each distinct usable IPv4 stub, excludes host127, and
+    uses zero-cost /32 host links for explicit loopback network types.
+    `engine.originateSelfLSAs` (`instance.go`), invoked after every
     Full/Down transition and once per second from the retransmit tick (`instance.go`), calls
     `lsdb.OriginateFromTopology` (`lsdb/origination.go`): per active area, `OriginateRouter` builds
     the Type 1 Router-LSA from the live interface/neighbor topology (`lsdb/origination.go`, ABR/

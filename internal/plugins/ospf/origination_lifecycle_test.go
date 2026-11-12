@@ -15,17 +15,17 @@ import (
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
-// VALIDATES: passive-only and loopback-only engines publish a re-priced Router-LSA after
+// VALIDATES: passive-only engines publish a re-priced Router-LSA after
 // MinLSInterval, whether their sole interface was present at startup or added by reload.
 // PREVENTS: a rate-limited reload losing its new metric because no maintenance worker starts.
 func TestReferenceBandwidthReloadPublishesAfterMinLSInterval(t *testing.T) {
+	installOSPFAddressBackend(t)
 	stubLinkSpeed(t, map[string]uint64{"eth0": 1000})
 	for _, mode := range []struct {
 		name    string
 		options string
 	}{
 		{name: "passive", options: `"passive":"true"`},
-		{name: "loopback", options: `"network-type":"loopback"`},
 	} {
 		for _, enrollment := range []string{"initial", "reload-added"} {
 			t.Run(mode.name+"/"+enrollment, func(t *testing.T) {
@@ -102,6 +102,7 @@ func selfRouterLinkCount(t *testing.T, eng *engine, router types.RouterID) (int,
 // PREVENTS: a deferred origination outliving its engine and reading state its owner released.
 func TestDeferredOriginationJoinsTheEngine(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
+		installOSPFAddressBackend(t)
 		cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0","cost":"10"}}}}}`), nil)
 		if err != nil {
 			t.Fatalf("parseOSPFConfig: %v", err)

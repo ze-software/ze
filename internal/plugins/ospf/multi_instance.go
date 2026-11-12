@@ -185,7 +185,9 @@ func (m *instanceManager) ensureSet(ids []uint8) (created []uint8, started bool)
 	}
 	for _, id := range ids {
 		if _, ok := m.engines[id]; !ok {
-			m.engines[id] = m.build(id)
+			eng := m.build(id)
+			eng.addressIssueOwner = m.engines[0]
+			m.engines[id] = eng
 			created = append(created, id)
 		}
 	}
@@ -275,9 +277,16 @@ func (m *instanceManager) start(cfg ospfConfig) error {
 
 // shutdownAll tears down every instance engine.
 func (m *instanceManager) shutdownAll() {
-	for _, eng := range m.snapshot() {
+	engines := m.snapshot()
+	for id, eng := range engines {
+		if id == 0 {
+			continue
+		}
 		eng.shutdown()
 	}
+	// Instance zero owns the sole warning publisher for this SDK connection.
+	// Join every producer before its final bounded clears and connection exit.
+	engines[0].shutdown()
 }
 
 // instanceSnapshot returns one instanceSummaryView per configured instance, sorted by

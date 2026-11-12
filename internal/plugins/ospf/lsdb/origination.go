@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"log/slog"
+	"net/netip"
 	"slices"
 	"sort"
 	"time"
@@ -50,11 +51,15 @@ type OriginInput struct {
 func (d *LSDB) OriginateFromTopology(router types.RouterID, maxMetric bool) int {
 	ifs := d.topologySnapshot()
 	byArea := make(map[types.AreaID][]InterfaceInfo)
+	unavailableAreas := make(map[types.AreaID]bool)
 	for idx := range ifs {
 		if ifs[idx].AreaID == (types.AreaID{}) && ifs[idx].Name == "" {
 			continue
 		}
 		byArea[ifs[idx].AreaID] = append(byArea[ifs[idx].AreaID], ifs[idx])
+		if ifs[idx].IPv4InventoryUnavailable {
+			unavailableAreas[ifs[idx].AreaID] = true
+		}
 	}
 	areas := make([]types.AreaID, 0, len(byArea))
 	activeAreas := make([]types.AreaID, 0, len(byArea))
@@ -79,6 +84,12 @@ func (d *LSDB) OriginateFromTopology(router types.RouterID, maxMetric bool) int 
 	// This clears the E-bit automatically when the last one is withdrawn (AC-6).
 	asbr := d.selfOriginatesExternal(router)
 	for _, area := range areas {
+		// An unread inventory is unknown, not a prefix withdrawal. Keep the
+		// area above for ABR accounting, but preserve both self-LSA types and
+		// avoid stale Network-LSA flushing until the next complete read.
+		if unavailableAreas[area] {
+			continue
+		}
 		opts := types.Options(0)
 		if len(byArea[area]) > 0 {
 			opts = byArea[area][0].Options
@@ -230,6 +241,13 @@ func routerLinks(in OriginInput) []packet.RouterLink {
 			metric = 1
 		}
 		local := iface.Address
+		// RFC 2328 Section 12.4.1: "The Link ID should be set to the IP interface
+		// address, the Link Data set to the mask 0xffffffff (indicating a host
+		// route), and the cost set to 0."
+		if iface.NetworkType == types.NetworkLoopback {
+			links = appendIPv4StubLinks(links, iface, true, 0)
+			continue
+		}
 		// RFC 2328 App A.4.2: a virtual link is a Type-4 link record with Link ID = the
 		// neighbor Router ID, Link Data = the local transit interface address, and Metric =
 		// the transit-area path cost. It has no stub/transit link, so `continue` after
@@ -276,9 +294,7 @@ func routerLinks(in OriginInput) []packet.RouterLink {
 		// cost 0) instead of a subnet stub so other routers can reach the interface; it
 		// never advertises a transit/subnet prefix (RFC 2328 sec 12.4.1.4).
 		if isPtMP {
-			if iface.Address != ([4]byte{}) {
-				links = append(links, packet.RouterLink{LinkID: types.LinkStateID(iface.Address), LinkData: [4]byte{255, 255, 255, 255}, Type: packet.RouterLinkTypeStub, Metric: 0})
-			}
+			links = appendIPv4StubLinks(links, iface, true, 0)
 			continue
 		}
 		// RFC 6138 Section 4: "the Router-LSA is not updated with a 'Link Type 2' (link
@@ -305,9 +321,48 @@ func routerLinks(in OriginInput) []packet.RouterLink {
 			}
 			links = append(links, packet.RouterLink{LinkID: types.LinkStateID(drAddr), LinkData: local, Type: packet.RouterLinkTypeTransit, Metric: m})
 		}
-		if iface.NetworkMask != ([4]byte{}) && iface.Address != ([4]byte{}) {
-			links = append(links, packet.RouterLink{LinkID: types.LinkStateID(networkAddress(iface.Address, iface.NetworkMask)), LinkData: iface.NetworkMask, Type: packet.RouterLinkTypeStub, Metric: metric})
+		links = appendIPv4StubLinks(links, iface, false, metric)
+	}
+	return links
+}
+
+// appendIPv4StubLinks adds the primary and each distinct secondary stub without
+// duplicating a subnet when several addresses share it. The adjacency uses only
+// InterfaceInfo.Address; prefixes here supply reachability, never neighbors.
+// RFC 2328 Section 12.4.1: "For links to stub networks, this field specifies the
+// stub network's IP address mask."
+func appendIPv4StubLinks(links []packet.RouterLink, iface *InterfaceInfo, host bool, metric types.Metric) []packet.RouterLink {
+	links = appendIPv4Stub(links, iface.Address, iface.NetworkMask, host, metric)
+	for _, prefix := range iface.IPv4SecondaryPrefixes {
+		if !prefix.Addr().Is4() {
+			continue
 		}
+		mask := ^uint32(0) << uint(32-prefix.Bits())
+		octets := [4]byte{byte(mask >> 24), byte(mask >> 16), byte(mask >> 8), byte(mask)}
+		links = appendIPv4Stub(links, prefix.Addr().As4(), octets, host, metric)
+	}
+	return links
+}
+
+// appendIPv4Stub emits one eligible host or subnet as an RFC 2328 Section
+// 12.4.1 Type 3 link. RFC 1812 Section 7.1.1: "A router SHOULD provide a mechanism
+// to filter out obviously invalid routes (such as those for net 127)."
+func appendIPv4Stub(links []packet.RouterLink, address, mask [4]byte, host bool, metric types.Metric) []packet.RouterLink {
+	if !netip.AddrFrom4(address).IsGlobalUnicast() {
+		return links
+	}
+	if host {
+		mask = [4]byte{255, 255, 255, 255}
+	}
+	if mask == ([4]byte{}) {
+		return links
+	}
+	link := packet.RouterLink{
+		LinkID: types.LinkStateID(networkAddress(address, mask)), LinkData: mask,
+		Type: packet.RouterLinkTypeStub, Metric: metric,
+	}
+	if !slices.Contains(links, link) {
+		links = append(links, link)
 	}
 	return links
 }

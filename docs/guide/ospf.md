@@ -69,6 +69,24 @@ both families (the IPv6 `address-family ipv6` interface omits `loopback`):
   all-routers group (the broadcast variant) or, when an `nbma-neighbor` list is
   configured, unicast to that list (the non-broadcast variant).
 
+OSPFv2 stub advertisements include secondary IPv4 prefixes.
+The interface's first IPv4 address still binds the adjacency and DR identity.
+Each topology pass takes the primary address, its mask and secondary prefixes
+from one inventory read. A passive broadcast
+interface advertises subnets at the interface cost. With `network-type loopback`,
+each usable address is advertised as a /32 host route at metric zero, regardless
+of its kernel prefix length. Host127 addresses, such as Linux's default
+127.0.0.1, are excluded from stub advertisements.
+<!-- source: internal/plugins/ospf/interface_addr.go -- readInterfaceIPv4Inventory -->
+<!-- source: internal/plugins/ospf/lsdb/origination.go -- routerLinks, appendIPv4Stub -->
+
+If a running interface's address inventory cannot be read, OSPF keeps that
+area's last complete Router and Network LSAs and retries. Other areas can
+still publish. The runtime doctor check and active warning identify the
+interface and provide its existing detail command for diagnosis.
+<!-- source: internal/plugins/ospf/interface_addr_error.go -- interfaceAddressInventoryError, interfaceAddressDoctorFindings -->
+<!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateFromTopology -->
+
 Configured NBMA neighbor and poll state appears in `show ospf interface`. The
 `ze_ospf_nbma_neighbors{interface,af,state}`, `ze_ospf_nbma_polls_total{interface,af}`,
 and `ze_ospf_ptmp_host_routes{interface,af}` metrics track NBMA/PtMP operation.

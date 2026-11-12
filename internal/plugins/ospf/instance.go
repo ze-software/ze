@@ -136,6 +136,12 @@ type engine struct {
 	state     stateClient
 	stateOnce sync.Once
 	stateErr  error
+	// addressIssues coalesces warning transitions. Removed interfaces retain
+	// only a pending clear; no address inventory or LSA snapshot is cached.
+	addressIssueMu sync.Mutex
+	addressIssues  map[interfaceAddressIdentity]interfaceAddressWarning
+	// Nonzero IPv4 instances share the base engine's notification lifetime.
+	addressIssueOwner *engine
 	// translations records the network -> source-NSSA of each Type 7 this router has
 	// translated to a Type 5 (RFC 3101 §3.6), so a translation can be withdrawn when its
 	// source Type 7 disappears or this router loses the translator role. Guarded by mu.
@@ -270,6 +276,7 @@ func newEngineWithCodecAF(t Transport, codec Codec, af addressFamily) *engine {
 	// address families. Inert until the operator enables graceful-restart.
 	e.gr = newGRManager(e)
 	db.SetTopology(e.lsdbTopology)
+	e.addressIssueOwner = e
 	// Graceful Restart LSDB seams (spec-ospf-ext-9): suppress the fight-back flush of the
 	// restarter's own self-LSAs while in-restart (RFC 3623 sec 2), and observe content
 	// changes for the helper's sec 3.2 strict-LSA-checking exit.
@@ -821,6 +828,7 @@ func (e *engine) startNeighborRetransmitLoop() {
 						return
 					}
 					e.neighbors.Retransmit(now)
+					e.publishInterfaceAddressWarnings()
 					if e.lsdb != nil {
 						e.lsdb.RetransmitTick(now)
 						e.lsdb.Tick(now)
@@ -959,7 +967,12 @@ func (e *engine) closeInterface(name string) {
 	e.mu.Lock()
 	e.stopInterfaceLocked(name)
 	delete(e.running, name)
+	instance := e.cfg.InstanceID
+	warningChanged := e.addressIssueOwner.queueInterfaceAddressWarning(interfaceAddressIdentity{name: name, instance: instance}, nil)
 	e.mu.Unlock()
+	if warningChanged {
+		e.addressIssueOwner.startNeighborRetransmitLoop()
+	}
 	// The interface's neighbors are deleted without an NSM emit, so release their BFD sessions
 	// here (outside e.mu; stopBFDSession joins the subscriber, which never needs e.mu).
 	e.bfdReleaseInterface(name)
@@ -1416,6 +1429,7 @@ func (e *engine) shutdown() {
 		e.transport.Close()
 	}
 	e.wg.Wait()
+	e.clearInterfaceAddressWarnings()
 }
 
 // originateSelfLSAsDeferred queues a coalesced topology re-evaluation. Its caller
@@ -1507,6 +1521,15 @@ func (e *engine) lsdbTopology() []ospflsdb.InterfaceInfo {
 		if e.gr.shouldReElectSelfDR(state == ospfiface.StateWaiting.String(), dr == cfg.RouterID) {
 			dr = cfg.RouterID
 		}
+		isV6 := e.dispatch.codec.IsV6()
+		var ipv4 interfaceIPv4Inventory
+		var inventoryErr error
+		if isV6 {
+			ipv4.address = interfaceIPv4Address(ic.Name)
+			ipv4.mask = interfaceNetworkMask(ic.Name)
+		} else {
+			ipv4, inventoryErr = readInterfaceIPv4Inventory(ic.Name)
+		}
 		info := ospflsdb.InterfaceInfo{
 			Name:               ic.Name,
 			AreaID:             ic.AreaID,
@@ -1515,8 +1538,8 @@ func (e *engine) lsdbTopology() []ospflsdb.InterfaceInfo {
 			State:              state,
 			Priority:           ic.Priority,
 			Passive:            ic.Passive,
-			Address:            interfaceIPv4Address(ic.Name),
-			NetworkMask:        interfaceNetworkMask(ic.Name),
+			Address:            ipv4.address,
+			NetworkMask:        ipv4.mask,
 			InterfaceID:        e.grInterfaceID(ic.Name),
 			Cost:               interfaceCost(ic, cfg.ReferenceBandwidth),
 			RouterID:           cfg.RouterID,
@@ -1526,10 +1549,17 @@ func (e *engine) lsdbTopology() []ospflsdb.InterfaceInfo {
 			RetransmitInterval: ic.RetransmitInterval,
 			TransmitDelay:      ic.TransmitDelay,
 			Neighbors:          neighbors,
-			IsV6:               e.dispatch.codec.IsV6(),
+			IsV6:               isV6,
 			IPv6LinkLocal:      interfaceIPv6LinkLocal(ic.Name),
 			IPv6Prefixes:       interfaceIPv6Prefixes(ic.Name),
 			IPv6Addresses:      interfaceIPv6Addresses(ic.Name),
+		}
+		if !info.IsV6 {
+			// RFC 2328 Section 12.4.1: attached prefixes and the primary address
+			// MUST come from the same inventory outcome as the paired mask.
+			info.IPv4InventoryUnavailable = inventoryErr != nil
+			info.IPv4SecondaryPrefixes = ipv4.secondaryPrefixes
+			e.recordInterfaceAddressRead(ic.Name, cfg.InstanceID, ifaces[ic.Name], inventoryErr)
 		}
 		// RFC 2328 Section 12.4.1.1: an unnumbered point-to-point link carries the
 		// interface's MIB-II ifIndex as its Link Data and no stub link.

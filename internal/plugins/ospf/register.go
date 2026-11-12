@@ -205,6 +205,12 @@ func init() { registerOSPF() }
 // ospf-3 and registered there.
 var ospfDiagnosticCodes = []diagnostic.CodeMeta{
 	{
+		Code:        codeOSPFInterfaceAddressesUnavailable,
+		Title:       "OSPF interface IPv4 addresses unavailable",
+		Description: "A running OSPF interface's address inventory could not be read. OSPF preserves the area's existing self-LSAs until a complete read succeeds. Inspect the interface with ze show interface name <name> detail and resolve the address-read error it reports.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospf-interface-addresses-unavailable"},
+	},
+	{
 		Code:        codeOSPFRouterIDMissing,
 		Title:       "OSPF router-id missing",
 		Description: "OSPF is configured but no router-id is set and none can be derived from an interface IPv4 address. The engine cannot originate LSAs or form adjacencies without a router-id; set `ospf { router-id <dotted-quad> }`.",
@@ -233,6 +239,9 @@ var ospfDiagnosticCodes = []diagnostic.CodeMeta{
 func registerOSPFDiagnosticCodes() {
 	for _, m := range ospfDiagnosticCodes {
 		_ = diagnostic.Register(m)
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeOSPFInterfaceAddressesUnavailable}); err != nil {
+		panic("BUG: register OSPF interface address event: " + err.Error())
 	}
 }
 
@@ -638,6 +647,9 @@ func runOSPFEngine(conn net.Conn) int {
 	})
 
 	p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
+		if name == interfaceAddressCheckName {
+			return instances.interfaceAddressDoctorFindings(), nil
+		}
 		// The SR label record lives in this process, internal and forked
 		// alike; before any engine wired SR it holds nothing to report.
 		if name == srLabelEntriesCheckName {
@@ -930,7 +942,7 @@ func runOSPFEngine(conn net.Conn) int {
 		DoctorChecks: []rpc.DoctorCheckDecl{{
 			Name: "ospf-state", Phase: rpc.DoctorPhasePostConfig,
 			Codes: []string{codeOSPFGracefulRestartNVS},
-		}, srLabelEntriesCheckDecl},
+		}, srLabelEntriesCheckDecl, interfaceAddressCheckDecl},
 	})
 	if err != nil {
 		log.Error("ospf engine failed", "error", err)

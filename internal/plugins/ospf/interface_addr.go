@@ -41,6 +41,62 @@ func interfaceNetworkMask(name string) [4]byte {
 	return [4]byte{}
 }
 
+// interfaceIPv4Inventory belongs to one topology pass. Its zero has no addresses;
+// the accompanying read error distinguishes an empty inventory from a failed read.
+type interfaceIPv4Inventory struct {
+	address           [4]byte
+	mask              [4]byte
+	secondaryPrefixes []netip.Prefix
+}
+
+// readInterfaceIPv4Inventory derives the primary address and mask together with
+// secondary prefixes from one live read. Callers MUST use that paired outcome
+// so a failed later lookup cannot replace a known subnet mask with zero.
+// Prefixes retain host bits for loopback and PtMP host links.
+// RFC 2328 Section 1.2: "It is possible for one physical network to be assigned
+// multiple IP network/subnet numbers."
+func readInterfaceIPv4Inventory(name string) (interfaceIPv4Inventory, error) {
+	var inventory interfaceIPv4Inventory
+	if err := ifcomp.EnsureBackend(); err != nil {
+		return inventory, err
+	}
+	addrs, err := ifcomp.Addresses(name)
+	if err != nil {
+		return inventory, err
+	}
+	primaryFound := false
+	for _, addr := range addrs {
+		if addr.Family != interfaceFamilyIPv4 {
+			continue
+		}
+		parsed, err := netip.ParseAddr(addr.Address)
+		if err != nil {
+			continue
+		}
+		if !parsed.Is4() {
+			continue
+		}
+		prefix := netip.PrefixFrom(parsed, addr.PrefixLength)
+		if !prefix.IsValid() {
+			continue
+		}
+		mask := maskFromPrefixLength(addr.PrefixLength)
+		if !primaryFound {
+			inventory.address = parsed.As4()
+			inventory.mask = mask
+			primaryFound = true
+			continue
+		}
+		if parsed.As4() == inventory.address {
+			if mask == inventory.mask {
+				continue
+			}
+		}
+		inventory.secondaryPrefixes = append(inventory.secondaryPrefixes, prefix)
+	}
+	return inventory, nil
+}
+
 func interfaceIPv4Address(name string) [4]byte {
 	// See interfaceNetworkMask: ensure the iface backend is loaded so a
 	// passive/loopback-only OSPF config does not advertise 0.0.0.0.

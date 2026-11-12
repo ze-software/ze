@@ -22,6 +22,7 @@ import (
 // or a notification arriving during active origination being discarded.
 func TestReceiveProgressWhileOriginationBlocked(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
+		installTopologyAddressBackend(t)
 		cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0","network-type":"point-to-point","cost":"10"},"eth1":{"area":"0","network-type":"point-to-point","cost":"10"},"eth2":{"area":"0","network-type":"point-to-point","cost":"10"}}}}}`), nil)
 		if err != nil {
 			t.Fatalf("parseOSPFConfig: %v", err)

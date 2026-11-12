@@ -388,8 +388,8 @@ func TestReferenceBandwidthReloadKeepsNeighborAndReprices(t *testing.T) {
 
 // TestExplicitCostReloadKeepsNeighborAndReprices reads the CLI snapshot and the
 // originated Router-LSA across explicit cost addition, replacement, and removal.
-// Passive and loopback interfaces must also publish after MinLSInterval without
-// a restart or a test-triggered origination retry.
+// Passive interfaces also publish after MinLSInterval without a restart or a
+// test-triggered retry. Loopback host metrics stay zero while runtime costs change.
 func TestExplicitCostReloadKeepsNeighborAndReprices(t *testing.T) {
 	// MUST stop each engine before the isolated iface backend is restored.
 	installOSPFAddressBackend(t)
@@ -440,6 +440,9 @@ func TestExplicitCostReloadKeepsNeighborAndReprices(t *testing.T) {
 				eng.originateSelfLSAs()
 				synctest.Wait()
 				previous := types.Metric(100)
+				if mode.name == "loopback" {
+					previous = 0
+				}
 				if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != previous {
 					t.Fatalf("initial Router-LSA cost = %d, want %d", got, previous)
 				}
@@ -466,6 +469,13 @@ func TestExplicitCostReloadKeepsNeighborAndReprices(t *testing.T) {
 					if got := snapshotByName(t, eng.interfaceSnapshot(), "eth0").Cost; got != uint16(step.want) {
 						t.Errorf("%s CLI cost = %d, want %d", step.name, got, step.want)
 					}
+					if got := topologyCost(t, eng, "eth0"); got != uint16(step.want) {
+						t.Errorf("%s topology cost = %d, want %d", step.name, got, step.want)
+					}
+					wantMetric := step.want
+					if mode.name == "loopback" {
+						wantMetric = 0
+					}
 					if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != previous {
 						t.Fatalf("%s Router-LSA cost during MinLSInterval = %d, want %d", step.name, got, previous)
 					}
@@ -473,10 +483,13 @@ func TestExplicitCostReloadKeepsNeighborAndReprices(t *testing.T) {
 					// time. Only the maintenance worker retries the reload's LSA.
 					time.Sleep(5 * time.Second)
 					synctest.Wait()
-					if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != step.want {
-						t.Fatalf("%s Router-LSA cost = %d, want %d", step.name, got, step.want)
+					if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != wantMetric {
+						t.Fatalf("%s Router-LSA cost = %d, want %d", step.name, got, wantMetric)
 					}
-					previous = step.want
+					if mode.name == "loopback" {
+						assertLoopbackHostLink(t, eng, cfg.RouterID, [4]byte{192, 0, 2, 1})
+					}
+					previous = wantMetric
 				}
 			})
 		})

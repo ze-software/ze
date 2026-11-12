@@ -175,6 +175,7 @@ func TestVirtualLinkTopologyEmitsBackboneInterface(t *testing.T) {
 // interfaces, returning the engine and the transit interface's fake ifindex.
 func vlEngine(t *testing.T, cfgJSON string) (*engine, *fakeBackend) {
 	t.Helper()
+	installTopologyAddressBackend(t)
 	cfg, err := parseOSPFConfig(ospfSec(cfgJSON), nil)
 	if err != nil {
 		t.Fatalf("parseOSPFConfig: %v", err)
@@ -253,6 +254,7 @@ func (r *vlRoutedTransport) SendPacketRouted(egress string, dst, _ netip.Addr, p
 // carries the V-bit.
 func TestVirtualLinkAdjacencyReachesFull(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
+		installTopologyAddressBackend(t)
 		const j = `{"ospf":{"router-id":"10.0.0.1",
 		"areas":{"area":{
 			"0.0.0.0":{"area-id":"0.0.0.0"},
