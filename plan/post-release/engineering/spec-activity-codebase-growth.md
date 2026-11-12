@@ -8,7 +8,7 @@
 | Release reason | Correct public project-size reporting; no shipped routing or lifecycle behavior changes. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | design approved by the owner 2026-11-12; implementation phase 1 of 5 |
+| Phase | implementation: phases 1 to 4 committed (`6b71cb9764`, `f9c89e551d`, `7c2bdfeae7`, `71aa9c7188`, `13276d9afe`); phase 5 (canonical artifact and inspection) in progress; closure is `/ze-close` |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -103,6 +103,7 @@ gained-and-lost meaning of "additions" (A-4) included.
 | O-2 | A growth chart on the front page | The front page shows three true size figures and no churn figure; he removed its inventory note himself on 2026-11-11 | No chart is added there |
 | O-3 | The front page's three line figures read the history's newest day | They come from `website/data/repo-facts.json`, a separate recorded snapshot, so the two pages can state sizes measured at different commits | They keep their own writer |
 | O-4 | The section table | See "Sections" below; 0.10M of 7.89M lines fall in the catch-all | The twelve sections as listed |
+| O-5 | Regenerating `website/data/repo-facts.json` after the inventory correction (AC-14, last clause) | Open. `./le site facts update` reads the working tree. Run on 2026-11-12 after `6b71cb9764`, it warned that 212 Go files differ from the last commit (other sessions' work) and wrote counts that describe no commit, so its output was not committed. The published figures are the same before and after (1.58, 1.86 and 2.00 million) | The committed file stays as it is until the facts are regenerated on a tree that holds no other session's uncommitted Go; the owner decides when |
 
 ## Required Reading
 
@@ -274,6 +275,17 @@ A kept day older than the newest must record the last commit of its day. The
 newest recorded day may record an earlier commit of its day: commits made
 later that day are lag, and the next default run measures them.
 
+Cases the implementation met that this table had not named, with the repair
+each refusal names:
+
+| Case | Repair named | Why |
+|------|--------------|-----|
+| A range holding no day of the history | `./le site history update` | The default run is the form that always has days to measure |
+| A range that overtakes the file's newest day while that day records an earlier commit of its day | `./le site history update` | Re-measuring that day is the narrower repair |
+| A file whose newest recorded day is later than the history's newest day | `./le site history update all` | The file describes commits this history does not hold |
+| A file that itself skips a history day | `./le site history update all` | A gap inside the file cannot be closed by extending it |
+| An object that cannot be read | `git fetch --refetch`, then the same update | The repository, not the file, is incomplete |
+
 The answer states the days measured, the range, each section's lines on the
 newest day and the file written.
 
@@ -386,10 +398,10 @@ style rule, the stage population test and the generation lists.
 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The author day in UTC, never earlier than the parent's, is the right clock | Measured: 1,727 commits share one committer date; 118 of 16,558 commits have an author day before an ancestor's, by two days at most | The curve's early months are misplaced | `TestDaySelectionFollowsEffectiveAuthorDay`; the recorded first day is 2025-12-19 | Measured on the real history; test pending |
-| A-2 | The whole history is cheap enough to re-measure | Prototype: 84 seconds, 158,845 blobs | A whole-history run becomes a burden and rule changes get avoided | The first real `update all`, timed on this development VM as a works-or-not check only | Prototype confirmed; real run pending |
-| A-3 | Twelve sections describe the repository at every point of its history | Prototype: 0.10M of 7.89M lines fall in Other today, 0.03M of 0.05M on the first day | A large unexplained Other section | The Other section's share in the real file, day by day; owner decision O-4 | Prototype confirmed |
-| A-6 | No commit of this history is authored after it was committed | Measured on 16,558 first-parent commits: none has an author day after its committer day, none an author instant after its committer instant | The refusal of step 2 would stop the tool on a real commit | The first real whole-history run | Measured on the real history |
+| A-1 | The author day in UTC, never earlier than the parent's, is the right clock | Measured: 1,727 commits share one committer date; 118 of 16,558 commits have an author day before an ancestor's, by two days at most | The curve's early months are misplaced | `TestDaySelectionFollowsEffectiveAuthorDay`; the recorded first day is 2025-12-19 | Confirmed: the test is green and the real file's first day is 2025-12-19 (`71aa9c7188`) |
+| A-2 | The whole history is cheap enough to re-measure | Prototype: 84 seconds, 158,845 blobs | A whole-history run becomes a burden and rule changes get avoided | The first real `update all`, timed on this development VM as a works-or-not check only | Confirmed: the real run completed in minutes, 327 days written |
+| A-3 | Twelve sections describe the repository at every point of its history | Prototype: 0.10M of 7.89M lines fall in Other today, 0.03M of 0.05M on the first day | A large unexplained Other section | The Other section's share in the real file, day by day; owner decision O-4 | Confirmed: Other holds 97,579 of 7,905,557 lines on the newest day; the owner confirmed the table |
+| A-6 | No commit of this history is authored after it was committed | Measured on 16,558 first-parent commits: none has an author day after its committer day, none an author instant after its committer instant | The refusal of step 2 would stop the tool on a real commit | The first real whole-history run | Confirmed: the real whole-history run refused no commit |
 | A-4 | Gained and lost per file between recorded days is what "the additions" means for growth | Owner: "the growth of the codebase NOT the change over time" | He wanted commit additions per section | Put to him as a decision on 2026-11-12 | Confirmed by the owner, 2026-11-12 |
 | A-5 | The existing chart treatment carries several series without being a new treatment | `website/AI.md`: a new treatment needs owner approval | A style-guide change and his approval are owed first | His review of the preview before the canonical build | Awaiting his review |
 
@@ -529,7 +541,7 @@ exercised directly by the two action tests.
 - `internal/le/site/activity_test.go`, `activity_growth_test.go`, `activity_growth_integration_test.go`, `internal/le/site/testdata/published-activity-main.html`, `published-activity.md`: judged expectations.
 - `website/AI.md`: in the homepage paragraph, "using the activity page's Go inventory definition" and "the activity page itself still measures the current checkout"; in "Presentation tooling", the deck "draws the same measurement as `/project/activity/`" and the Growth paragraph.
 - `docs/architecture/site-facts.md`: a "Size history" section; the sentence "The activity page reads a live checkout inventory"; "One published copy of each value" names the history file and its marker.
-- `docs/contributing/gh-pages.md`, `.claude/skills/ze-weekly-update/SKILL.md`: the history update beside the facts update, before the build.
+- `docs/contributing/gh-pages.md`, `ai/skills/ze-weekly-update.md`: the history update beside the facts update, before the build. The skill's source is the file under `ai/skills/`; the copy under `.claude/skills/` is generated and untracked.
 - `docs/contributing/spec-workflow.md`: the paragraph on shared git object readers names the streaming read and the tree listing.
 - `website/style-guide/index.html`: the multi-series chart, if the owner judges it a new treatment (A-5).
 - `ai/INDEX.md`: the keyword row for repository size history.
@@ -679,6 +691,22 @@ exercised directly by the two action tests.
 | 3 fix attempts failed | Stop, report the three approaches, ask which way to fix it |
 
 ## Design Insights
+
+### What implementation added to the design
+
+| Where | What | Why |
+|-------|------|-----|
+| Check | One more refusal: the file's section list differs from the tool's while the rules identifier matches | The identifier digests the table, so this is a hand-edited file; it names `./le site history update all` |
+| Check | It reads the data file from the checkout, not from `HEAD`'s tree | A developer checks an update before committing it; under the verify stage the worktree is the commit, so the judged file is the commit's own |
+| Check | The default `./le site history update` is named in the answer's lag line, never as a refusal | Lag never fails |
+| Check | An absent file answers 1 with the whole-history run as its repair; a file that cannot be read answers 2 | "Not recorded" is a verdict; "could not look" is not |
+| Page marker | A subject may sum sections (`a+b`), and the all-Go figure sums every section the file marks with the Go split | First-party Go is production plus tests; all Go adds third-party; the file carries no first-party flag |
+| Page | The Go composition's four buckets name their section identifiers in the page code | The section table exports no way to ask for one particular section; an unknown identifier refuses the build by name |
+| Page | The mirror test compares headings and bullet labels only, so it cannot see a dropped paragraph | A judge noted it; the size total and the all-Go sentence are asserted by `TestActivityPagePublishesSizeHistory` instead |
+| Writer | The data file is written world-readable | The temporary file's owner-only mode reached the committed file's first write; other site data files are readable by all |
+| Dashboard | The standalone dashboard's two notes now name the third-party trees | The old wording said "outside vendor/", which the inventory correction made false |
+| First real run | 327 days, 2025-12-19 to 2026-11-12, 7,905,557 lines on the newest day, measured at `9e38af2dd7` | Committed as `71aa9c7188` |
+| Browser test | Two judges refused the replacement before a third ruling approved it | It had dropped the proof that the commits curve is drawn, the charts' `viewBox`, the pointer on the commits readout, and the tab's selected state after a keyboard switch; all four are asserted now |
 
 - The two "five million" figures were different measurements that happen to be close: 5.8M lines added by commits in a year, and 5.4M Go lines in the tree with third-party code.
 - Third-party code is the largest single section (2.31M of 7.89M lines) and arrived in two steps. A total that hides the split would tell the wrong story about the project's own growth.
