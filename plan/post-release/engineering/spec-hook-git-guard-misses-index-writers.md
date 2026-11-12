@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Agent tooling: the guard that keeps sessions off the shared index and the branch has holes, but no shipped behaviour changes |
 | RFC gaps | - |
-| Depends | - |
+| Depends | spec-gates-share-one-semantic-population |
 | Phase | - |
 | Handoff | - |
 | Design tier | development tier |
@@ -38,11 +38,31 @@ neither, so the hook lets them run:
 moves the branch, is refused by the hook with the route that works, whether or
 not a list names it today. Read-only git commands keep passing.
 
-**To decide in design.** Whether the guards gain these names, or whether the
-decision moves to the parsed command words that AC-8 of
-`plan/post-release/engineering/spec-gates-share-one-semantic-population.md`
-plans; and the full set of git commands that write the index or the branch,
-derived from git's own command list rather than from memory.
+**A second defect, same guards (2026-11-12).** The refusal `bashWorktreeCopy`
+prints tells a worktree agent "Use git merge or cherry-pick". Both are banned
+for it, and `git cherry-pick` is the one the hook lets through, so the hook's
+own message is the likeliest reason an agent would run it. The message is
+corrected to name the route that works. This part depends on nothing and may
+land first, alone.
+
+**Direction (2026-11-12, session decision, design still owed).** This spec
+does not run on its own by adding names to the two lists. Five names are known
+today, and git has more commands of the same kind (`git update-ref`,
+`git symbolic-ref`, `git checkout-index`, `git worktree add`, `git pull`
+without `--rebase`); a list of banned names keeps missing the next one, which
+is the defect this spec records. The guard that cannot miss a command is the
+reverse: a git command is allowed when it is a declared reader
+(`gitReadVerbs`) or a declared exception, and refused otherwise. That needs
+the command judged as parsed words, which is AC-8 of
+`plan/post-release/engineering/spec-gates-share-one-semantic-population.md`,
+so the guard part of this spec runs with that conversion, not before it. No
+journal row records a session running one of these commands; the cost of
+waiting is a possibility, not an observed incident.
+
+**To decide in design.** The full set of git commands that write the index or
+the branch, derived from git's own command list rather than from memory; and
+the declared exceptions (`git fetch`, the `git pull --rebase` that
+`ai/rules/git-safety.md` requires of a branch behind its upstream).
 
 ## Required Reading
 
@@ -117,3 +137,4 @@ derived from git's own command list rather than from memory.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `gate-excludes-part-of-its-population` | 2026-11-12 | `bashDestructiveGit`, `bashBranchMove`: `git cherry-pick`, `git am`, `git read-tree`, `git update-index`, `git apply --cached` are not refused |
+| `guard-message-teaches-the-violation` | 2026-11-12 | `bashWorktreeCopy`: the refusal tells a worktree agent to use `git merge` or `git cherry-pick` |
