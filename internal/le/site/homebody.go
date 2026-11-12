@@ -42,7 +42,7 @@ const homeTemplate = `        <div class="site-home">
                                     <span>Appliance option</span>
                                     <span>ExaBGP compatible</span>
                                 </p>
-                                <p class="hero-intro">Run <a href="guides/bgp-peering/">BGP</a>, <a href="guides/ospf/">OSPF</a> and <a href="guides/isis/">IS-IS</a> on Linux. Manage <a href="features/interfaces/">interfaces</a> and services through <a href="reference/configuration/">one configuration</a> over <a href="features/cli-commands/">SSH</a>, <a href="features/web-interface/">web</a> or <a href="features/api-commands/">APIs</a>.</p>
+                                <p class="hero-intro">Run <a href="guides/bgp-peering/">BGP</a>, <a href="guides/ospf/">OSPF</a> and <a href="guides/isis/">IS-IS</a> on Linux and manage <a href="features/interfaces/">interfaces</a>, <a href="guides/ipsec/">IPsec VPN</a> and <a href="features/interfaces/#wireguard-configuration">WireGuard</a> tunnels, the <a href="reference/plugins/fib-kernel/">forwarding table (FIB)</a> and services through <a href="reference/configuration/">one configuration</a> over <a href="features/cli-commands/">SSH</a>, <a href="features/web-interface/">web</a> or <a href="features/api-commands/">APIs</a>.</p>
                                 <p class="hero-project-intro"><a href="project/why-ze/">Why Ze exists →</a> · Ask questions and follow development on <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>.</p>
                                 <div class="hero-actions">
                                     <a class="button primary" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
@@ -113,17 +113,6 @@ const homeTemplate = `        <div class="site-home">
                             </div>
                             <div class="hero-capabilities" aria-label="Networking and management capabilities">
                                 <dl>
-                                    <div>
-                                        <dt>Route and connect</dt>
-                                        <dd>
-                                            Speak <a href="guides/bgp-peering/">BGP</a>,
-                                            <a href="guides/isis/">ISIS</a> and <a href="guides/ospf/">OSPF</a>.
-                                            Manage <a href="features/interfaces/">interfaces</a> and tunnels with
-                                            <a href="guides/ipsec/">IPsec VPN</a> and
-                                            <a href="features/interfaces/#wireguard-configuration">WireGuard</a>.
-                                            Set the <a href="reference/plugins/fib-kernel/">forwarding table (FIB)</a>.
-                                        </dd>
-                                    </div>
                                     <div>
                                         <dt>Manage one configuration</dt>
                                         <dd>
