@@ -1,0 +1,45 @@
+# Test: the web terminal refuses a range and a pattern miss at set
+# QUESTION: does a browser operator read the range and the pattern refusal at
+#           `set`, with the accepted bounds or format and the fix, through the
+#           daemon's own page? A unit test judges the leaf; only this run proves
+#           the page shows the refusal whole.
+# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-35 (range) and
+#            AC-37 (pattern) on the web terminal
+# PREVENTS: the web storing an out-of-range or malformed value until commit
+#
+# The length case of AC-36 (`run ""`) is not typed here: the web tokenizer
+# drops an empty quoted word (tokenizeCommand), so the line never carries an
+# empty value. That is a web tokenizer gap, reported with this draft.
+#
+# No step sleeps: each command waits for its own request (action=wait) and each
+# outcome is a positive expectation, which polls.
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+action=open:path=/cli
+expect=element:id=terminal-input
+
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze#
+
+action=fill:id=terminal-input:value=set ospf interfaces interface eth0 cost 0
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=is outside the accepted range
+expect=element:text=cost accepts a value in 1..65535
+expect=element:text=fix: set ospf interfaces interface eth0 cost <1..65535>
+
+action=fill:id=terminal-input:value=set l2tp shaper default-rate fast
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=is not in the accepted format
+expect=element:text=fix: set l2tp shaper default-rate <rate>
+
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:not-text=cost 0
+expect=element:not-text=default-rate fast

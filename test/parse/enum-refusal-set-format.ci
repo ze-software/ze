@@ -1,0 +1,105 @@
+# Test: enum-refusal-set-format
+#
+# QUESTION: does `ze config validate` of a set-format file refuse an enum
+# value, a leaf-list member and a list key with the same operator error as a
+# hierarchical file, framed for the set line: the line, the full path, the
+# values with help, and a fix that is the line retyped with the refused word
+# replaced (the line's own verb, `nop` on a `nop` line), the rest of the line
+# kept? A unit test drives the set parser over a test schema; this drives the
+# shipped YANG through DetectFormat and the real printer.
+#
+# Leaves:
+#   bgp peer <name> session capability route-refresh, typedef capability-mode
+#     (internal/component/bgp/yang/ze-bgp-conf.yang).
+#   ospf router-information scope, leaf-list of an enumeration
+#     (internal/plugins/ospf/yang/ze-ospf-conf.yang).
+#   ospf redistribute <source>, list key `source`, an enumeration
+#     (internal/plugins/ospf/yang/ze-ospf-conf.yang).
+#
+# Producers: framedRefusal, valueLineRefusal, keyLineRefusal and lineVerb
+# (internal/component/config/setparser_refusal.go).
+#
+# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-24 (set, set-meta
+#   and nop lines), AC-5 set-format leaf-list member, AC-25 set-format key with
+#   the rest of the line kept, and the key-only line.
+# PREVENTS: `invalid value for ...`, `invalid key for ...`, `invalid enum`, or
+#   a fix written in the file form inside a set-format file.
+
+stdin=leaf:terminator=EOF_LEAF
+set bgp router-id 203.0.113.253
+set bgp peer peer1 connection remote ip 192.0.2.1
+set bgp peer peer1 session capability route-refresh requre
+EOF_LEAF
+
+stdin=meta:terminator=EOF_META
+#thomas @local %2026-04-21T12:34:56Z set bgp router-id 203.0.113.253
+#thomas @local %2026-04-21T12:34:56Z set bgp peer peer1 session capability route-refresh requre
+EOF_META
+
+stdin=nop:terminator=EOF_NOP
+set bgp router-id 203.0.113.253
+set bgp peer peer1 connection remote ip 192.0.2.1
+nop bgp peer peer1 session capability route-refresh requre
+EOF_NOP
+
+stdin=member:terminator=EOF_MEMBER
+set ospf router-id 10.0.0.1
+set ospf router-information scope bogus
+EOF_MEMBER
+
+stdin=key:terminator=EOF_KEY
+set ospf router-id 10.0.0.1
+set ospf redistribute bogus nssa-propagate true
+EOF_KEY
+
+stdin=keyonly:terminator=EOF_KEYONLY
+set ospf router-id 10.0.0.1
+set ospf redistribute bogus
+EOF_KEYONLY
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=leaf
+expect=exit:code=1
+expect=stdout:contains=line 3: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+expect=stdout:pattern=route-refresh accepts only these values:\n +enable   Advertise the capability; no enforcement\n +disable  Do not advertise the capability; no enforcement\n +require  Advertise the capability; refuse the session when the peer does not offer it\n +refuse   Do not advertise the capability; refuse the session when the peer offers it\n *fix: set bgp peer peer1 session capability route-refresh require
+reject=stdout:contains=invalid value for
+reject=stdout:contains=invalid enum
+reject=stdout:contains=expected one of
+reject=stdout:contains=fix: route-refresh
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=meta
+expect=exit:code=1
+expect=stdout:contains=line 2: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+expect=stdout:contains=fix: set bgp peer peer1 session capability route-refresh require
+reject=stdout:contains=invalid value for
+reject=stdout:contains=invalid enum
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=nop
+expect=exit:code=1
+expect=stdout:contains=line 3: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+expect=stdout:contains=fix: nop bgp peer peer1 session capability route-refresh require
+reject=stdout:contains=fix: set bgp
+reject=stdout:contains=invalid enum
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=member
+expect=exit:code=1
+expect=stdout:contains=line 2: ospf router-information scope: "bogus" is not an accepted value
+expect=stdout:pattern=scope accepts only these values:\n +link  Link-local
+expect=stdout:contains=fix: set ospf router-information scope <link|area|as>
+reject=stdout:contains=(valid:
+reject=stdout:contains=invalid value for
+reject=stdout:contains=invalid enum
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=key
+expect=exit:code=1
+expect=stdout:contains=line 2: ospf redistribute bogus: "bogus" is not an accepted value
+expect=stdout:pattern=source accepts only these values:\n +connected  Routes of the addresses configured on local interfaces\.
+expect=stdout:contains=fix: set ospf redistribute <connected|static|kernel|bgp|isis> nssa-propagate true
+reject=stdout:contains=invalid key for
+reject=stdout:contains=invalid enum
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=keyonly
+expect=exit:code=1
+expect=stdout:contains=line 2: ospf redistribute bogus: "bogus" is not an accepted value
+expect=stdout:pattern=fix: set ospf redistribute <connected\|static\|kernel\|bgp\|isis>\n*$
+reject=stdout:contains=invalid key for
+reject=stdout:contains=invalid enum

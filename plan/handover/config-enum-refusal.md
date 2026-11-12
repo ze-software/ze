@@ -41,14 +41,19 @@ under load, and an independent judge's approval of every changed test.
 
 ## Left to do, in order
 
-1. **Functional drafts not yet promoted.** Under `test/draft/`:
-   `parse/enum-refusal-set-format.ci`, `plugin/enum-refusal-daemon-start-set.ci`,
-   `plugin/api-config-enum-refusal.ci` (REST), `web/config-enum-refusal.wb`,
-   `web/config-range-length-pattern-refusal.wb` all pass and owe their 80-run
-   load proof; `editor/pipe/set-cli-format.et` (replaces the committed test)
-   and `editor/validation/enum-refusal-set.et` have not run. `test/ipsec/ipsec-dataplane-show.ci`
-   is promoted and owes its load run. The editor suite takes the file path as
-   the test name; the others take `--pattern <name>`.
+1. **Load proofs and one draft.** Every functional test written so far is
+   committed under `test/`. Four passed and are promoted without their 80-run
+   load proof, which is owed: `test/web/config-enum-refusal.wb`,
+   `test/web/config-range-length-pattern-refusal.wb`,
+   `test/editor/validation/enum-refusal-set.et`,
+   `test/editor/pipe/set-cli-format.et`; so is `test/ipsec/ipsec-dataplane-show.ci`.
+   One draft is NOT a test yet: the REST test passed alone and timed out under
+   load, because its listener port 18088 is fixed and parallel copies collide.
+   It is saved as `plan/handover/config-enum-refusal-rest-draft.ci.txt`: restore
+   it to `test/draft/plugin/api-config-enum-refusal.ci`, give it a leased port,
+   prove it, promote it. The editor suite takes the file path as the test
+   name; the others take `--pattern <name>`. The docs pass is committed
+   (24c082936a).
 2. **Phase 3 remainder** (`internal/component/cli`, `internal/component/config/cli`):
    offline `ze config set` (AC-6, AC-28); `TestKeyCheckOnInsertNestedActivation`
    with its test YANG module (AC-29 to AC-31); session-mode key refusals
@@ -62,7 +67,9 @@ under load, and an independent judge's approval of every changed test.
    `gnmi-set-enum-refusal.ci`. No gRPC or gNMI client fixture exists; each
    needs one that dials over TLS with a token. The web activation framing has
    no test (needs a leaf-list under an enum-keyed list).
-4. **Phase 6:** the documentation pass.
+4. **Phase 6:** done (24c082936a), except what is not built yet: offline
+   `ze config set` refusals are not documented. Run `./le doc index update`
+   and `./le doc check all` before closure.
 5. **RFC records.** Thirteen records in `rfc/discrimination/rfc7950.json` name
    producers Phases 1 and 2 changed and owe a re-record with the same revert
    break: `refuseInvalidCustomSections` (8.3.3-1, 8.1-2, 8.3-1),

@@ -1,0 +1,92 @@
+# Test: the web editors refuse an enum value and a list key at set, and run `top <command>` at the root
+# QUESTION: does a browser operator, through the page's own terminal and the
+#           daemon that serves it, read the schema refusal at `set` with its
+#           fix framed for where they stand, and does `top <command>` keep the
+#           prompt where it was? A unit test drives the handler; only this run
+#           proves the page shows the multi-line answer and the prompt it gets.
+# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-7 (terminal
+#            `set` refused with the accepted values and the root fix), AC-27
+#            (a refused new key names the whole line), AC-33 (the key-leaf form
+#            stores a keyed entry), AC-50 (`top set` keeps the position,
+#            `top edit` moves it), Q-8a, Q-8b
+# PREVENTS: the web storing what only the commit refused (text 6), and the
+#           web `top` dropping the rest of the line (text 14)
+#
+# No step sleeps: each command waits for its own request (action=wait) and each
+# outcome is a positive expectation, which polls.
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+action=open:path=/cli
+expect=element:id=terminal-input
+
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze#
+
+# AC-7: refused at set, the accepted values listed, the root fix last.
+action=fill:id=terminal-input:value=set bgp peer peer1 session capability route-refresh requre
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=is not an accepted value
+expect=element:text=route-refresh accepts only these values:
+expect=element:text=fix: set bgp peer peer1 session capability route-refresh require
+
+# Inside a context, the fix is the `set` typed there, corrected.
+action=fill:id=terminal-input:value=edit bgp peer peer1
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze[bgp peer peer1]#
+
+action=fill:id=terminal-input:value=set session capability route-refresh maybe
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=fix: set session capability route-refresh <enable|disable|require|refuse>
+
+# AC-50: `top set` runs at the root and the prompt stays where it was.
+action=fill:id=terminal-input:value=top set ospf router-id 192.0.2.9
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=set ospf router-id 192.0.2.9
+expect=element:text=ze[bgp peer peer1]#
+
+# A refused set behind `top` is framed for the operator's position.
+action=fill:id=terminal-input:value=top set bgp peer peer1 session capability route-refresh requre
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=fix: top set bgp peer peer1 session capability route-refresh require
+
+# `top edit` moves the position, as the command behind it does.
+action=fill:id=terminal-input:value=top edit ospf
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze[ospf]#
+
+action=fill:id=terminal-input:value=top
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze#
+
+# AC-27: a refused new key names the whole line, the key replaced.
+# The spec's `metric 30` is no leaf of ze-ospf-conf.yang's redistribute list;
+# nssa-propagate is, so the line reaches the creator.
+action=fill:id=terminal-input:value=set ospf redistribute bogus nssa-propagate true
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=fix: set ospf redistribute <connected|static|kernel|bgp|isis> nssa-propagate true
+
+# AC-33: the key-leaf form stores the keyed entry.
+action=fill:id=terminal-input:value=set ospf redistribute source connected
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=created redistribute connected
+
+# Nothing refused was stored.
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=router-id 192.0.2.9
+expect=element:not-text=requre
+expect=element:not-text=bogus

@@ -1,0 +1,43 @@
+# Test: enum-refusal-daemon-start-set
+#
+# QUESTION: does the daemon's own config load refuse an enum value outside the
+# enumeration in a set-format file with the set frame of the operator error
+# (`line N: `, the full path, the values, `fix: set ...`), after
+# `error: load config:` and one `parse config:`, and exit 1 before any
+# session? A unit test reaches the set parser; only the daemon's start path
+# proves DetectFormat sends the file there and the loader wraps it once.
+#
+# The hierarchical file is test/plugin/enum-refusal-daemon-start.ci: the
+# runner compares one exit code per test, the foreground daemon's.
+#
+# Leaf: bgp peer <name> session capability route-refresh, typedef
+#   capability-mode (internal/component/bgp/yang/ze-bgp-conf.yang).
+#
+# Producers: cmd/ze/hub/main.go ("error: load config: %v"), parseConfigError
+# (internal/component/config/line_error.go), valueLineRefusal and
+# framedRefusal (internal/component/config/setparser_refusal.go).
+#
+# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-10 (start),
+#   AC-24 (set format at daemon start).
+# PREVENTS: `parse config: parse config:`, `line N: line N:`, `invalid value
+#   for`, `invalid enum`, a fix in the file form, or a start that reaches the
+#   peers.
+
+stdin=setform:terminator=EOF_SETFORM
+set bgp router-id 203.0.113.253
+set bgp peer peer1 connection remote ip 127.0.0.1
+set bgp peer peer1 session capability route-refresh requre
+EOF_SETFORM
+
+cmd=foreground:seq=1:exec=ze -:stdin=setform:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=error: load config: parse config: line 3: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+expect=stderr:pattern=route-refresh accepts only these values:\n +enable   Advertise the capability; no enforcement\n +disable  Do not advertise the capability; no enforcement\n +require  Advertise the capability; refuse the session when the peer does not offer it\n +refuse   Do not advertise the capability; refuse the session when the peer offers it\n *fix: set bgp peer peer1 session capability route-refresh require
+reject=stderr:contains=fix: route-refresh
+reject=stderr:contains=invalid value for
+reject=stderr:contains=bgp peers started
+reject=stderr:pattern=parse config: parse config
+reject=stderr:pattern=line [0-9]+: line [0-9]+
+reject=stderr:pattern=invalid enum
+reject=stderr:pattern=expected one of
+reject=stderr:pattern=panic

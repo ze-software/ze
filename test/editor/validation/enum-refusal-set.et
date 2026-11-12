@@ -1,0 +1,62 @@
+# Test: a refused enum value at the editor `set` proposes the accepted values
+# QUESTION: does an operator at the SSH editor, typing a value outside an
+#   enumeration, read the shared refusal with the fix written in the form they
+#   typed, the whole of it in the viewport while the prompt stays? A unit test
+#   proves the text; only the editor run proves the operator sees it there.
+# VALIDATES: spec-config-enum-refusal AC-6 -- root form at the root, relative
+#   form inside `edit bgp peer peer1`, `top set` form behind `top` (AC-48);
+#   nothing stored.
+# PREVENTS: `invalid value "requre" for route-refresh (expected enum)`.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+    asn {
+      local 65000;
+    }
+  }
+  peer peer1 {
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# At the root: the root form.
+input=type:text=set bgp peer peer1 session capability route-refresh requre
+input=enter
+expect=error:contains=bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+expect=viewport:contains=route-refresh accepts only these values:
+expect=viewport:contains=fix: set bgp peer peer1 session capability route-refresh require
+expect=viewport:not-contains=expected enum
+
+# Inside the peer: the relative form typed.
+input=type:text=edit bgp peer peer1
+input=enter
+input=type:text=set session capability route-refresh requre
+input=enter
+expect=viewport:contains=fix: set session capability route-refresh require
+expect=context:path=bgp/peer/peer1
+
+# Behind `top` inside the peer: the fix keeps `top`.
+input=type:text=top set bgp peer peer1 session capability route-refresh requre
+input=enter
+expect=viewport:contains=fix: top set bgp peer peer1 session capability route-refresh require
+expect=context:path=bgp/peer/peer1
+
+# Nothing was stored.
+input=type:text=top show
+input=enter
+expect=viewport:not-contains=requre

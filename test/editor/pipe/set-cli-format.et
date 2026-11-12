@@ -1,6 +1,8 @@
 # Test: set cli format session override
 # VALIDATES: AC-7 -- set cli format json sets the default
 # VALIDATES: AC-8 -- set cli format invalid shows error
+# VALIDATES: spec-config-enum-refusal AC-20 -- the shared refusal: path `cli format`,
+#   the values one per line, the fix line, the whole refusal in the viewport
 # PREVENTS: Session format override silently ignored
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -40,8 +42,10 @@ expect=status:contains=cli format set to table
 # Invalid value
 input=type:text=set cli format bogus
 input=enter
-expect=status:contains=invalid format
-expect=status:contains=valid: json, ndjson, table, text, yaml
+expect=error:contains=cli format: "bogus" is not an accepted value
+expect=viewport:contains=format accepts only these values:
+expect=viewport:contains=fix: set cli format <text|table|json|yaml|ndjson>
+expect=viewport:not-contains=(valid:
 
 # Show current (should be table from last valid set)
 input=type:text=set cli format
