@@ -13,7 +13,7 @@ the tree before acting on it.
 | 2 BGP session | `in-progress` | Phases 3 and 4 are committed. Phases 1 and 2 (the initial-sync rewrite) are prepared and not started. One functional test is promoted and uncommitted |
 | 3 BGP plugins | `ready`, not started | Everything. Same block as child 1 (it edits the plugin server's peer-state delivery) |
 | 4 IKE | closed by its own session (`1d22056eb4`) | Nothing |
-| 5 session-end locals | `in-progress` | All three code phases are committed. Five daemon-level proofs are written and not run. One acceptance criterion (AC-16) is not met and needs an owner decision |
+| 5 session-end locals | `in-progress` | All three code phases are committed. Five daemon-level proofs are written and not run. AC-16 was decided by the owner and its first half is built; its second half moved to another spec (below) |
 
 The WIP cap: Thomas granted an exception for this set on 2026-11-12 ("cap
 exception"). Children 2 and 5 were claimed at 15 and 16 in flight against a cap
@@ -33,17 +33,40 @@ and 3 are covered by the same words but were not claimed.
 | `30bcf7988d` | five journal rows and three skeleton specs for defects met on the way |
 | `650bccc707` | child 2 phase 3: `test/plugin/reconnect-backoff-stable-reset.ci` (green twice, red observed through an overlay, no failure in 80 stress invocations; `prefix-teardown-reconnect-backoff.ci` re-run and passing) |
 | `2219d0d7b5` | three lint findings fixed in the backoff and listener tests |
+| `110970688d` | the skeleton spec for store maintenance through the daemon, with its journal row |
+| `85507073e8` | child 5 phase 3: the orphan record report's fix clears it, an announcement no longer overwrites an earlier record, the record read names its outcomes. Carries a `Weakening-approved:` line from an independent judge for one test helper |
 
-`./le repo compiles check` passed with all seven code commits in.
+`./le repo compiles check` passed with every code commit above in.
 
-## Decisions needed from Thomas
+## Decided by Thomas on 2026-11-12: who clears an orphan FlowSpec record (AC-16)
 
-| # | Decision | Evidence | What each answer changes |
-|---|----------|----------|--------------------------|
-| 1 | Who clears an orphan FlowSpec record (child 5, AC-16) | The doctor report's fix command (`send bgp * update text mp ipv4/flow del ...`) withdraws the rule at the peers; nothing then removes the record `meta/ddos-flowspec/announcement`, and `ze data rm` is refused while a daemon owns the store (`storage/ownership.go`). So the warning stands after the operator did what it said (`doctor.go` `orphanDiagnostic`) | (a) The fix becomes `ze request plugin restart ddos-flowspec`: the start-time withdrawal reruns and removes the record; one command, no new surface, but it only works while the section is configured. (b) A plugin command that withdraws and forgets in one step: new CLI surface. (c) `ze data rm` through the daemon, which the rule "every operator command runs through the daemon" already asks for: then the fix is two commands. The main session's recommendation is (a) for the running plugin and (c) for the removed one |
+The report's fix command withdrew the rule at the peers and nothing then
+removed the record, so the warning stood after the operator did what it said.
+His words: "ok a + c".
 
-Nothing else needs him. Three points were settled without asking, each on its
-evidence, and are his to overturn:
+| Half | What it is | Where it lives |
+|------|------------|----------------|
+| (a) the section is configured | The fix is `ze request plugin restart ddos-flowspec`: the start path withdraws the recorded rule from its own record and removes it | Built in child 5, `85507073e8`. Unit-proven over the engine-pair harness; the daemon-level proof is the reworked draft `test/draft/plugin/ddos-flowspec-orphan-doctor.ci`, not yet run |
+| (c) the section is removed | The operator withdraws with the command the report prints, then removes the record through the running daemon | `plan/release/fixes/spec-data-store-maintenance-through-the-daemon.md` (`110970688d`, skeleton). The store's write verbs (`rm`, `write`, `import`, `repair`) are refused while a daemon owns the store; the read verbs, `backup` and `restore` already answer through it |
+
+For the closure pass, the sentence child 5's Work Not Done owes: "The
+removed-section half of AC-16 (with `ddos flowspec` removed, the operator
+withdraws the rule with the command the report prints, then removes the record
+through the running daemon, and the report clears) moved to
+`plan/release/fixes/spec-data-store-maintenance-through-the-daemon.md`, which
+builds the daemon route for `ze data rm` and rewrites the report's
+removed-section text."
+
+Building (a) exposed a hole in `bec9096156`, closed in `85507073e8`: one key
+holds one record, so a new announcement overwrote the record of an earlier rule
+that was never withdrawn. An announcement now withdraws such a rule first and
+announces nothing if that fails. The record read returns one of four named
+outcomes (absent, a rule, unreadable, corrupt). One residual risk is stated in
+the guide: two failed state writes in a row can still leave a live rule with no
+record.
+
+Three other points were settled without asking, each on its evidence, and are
+his to overturn:
 
 - Child 5, AC-5: an adjacency expiry now really drops the LDP backoff (before,
   the buggy session end wrote it back). A neighbor that NAKs and is rediscovered
