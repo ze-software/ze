@@ -131,6 +131,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/setup/docker/kernel"
 	_ "github.com/ze-software/ze/internal/le/site"
 	_ "github.com/ze-software/ze/internal/le/site/facts"
+	_ "github.com/ze-software/ze/internal/le/site/history"
 	_ "github.com/ze-software/ze/internal/le/site/release"
 	_ "github.com/ze-software/ze/internal/le/site/terminaldemo"
 	_ "github.com/ze-software/ze/internal/le/site/wiki"

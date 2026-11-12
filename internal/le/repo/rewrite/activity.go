@@ -73,6 +73,13 @@ var defaultActivityExcludes = append(append([]string(nil), activityVendorExclude
 // each named from the repository root with its trailing slash.
 var thirdPartyTrees = []string{"vendor/", "third_party/", "website/assets/vendor/"}
 
+// ThirdPartyTrees answers a copy of the third-party trees ThirdPartyPath
+// names, each from the repository root with its trailing slash, so a rule
+// built on them (the size history's rules identifier) digests this one list.
+func ThirdPartyTrees() []string {
+	return slices.Clone(thirdPartyTrees)
+}
+
 // ThirdPartyPath answers whether path, slash-separated and relative to the
 // repository root, lies under one of the third-party trees. A directory merely
 // named vendor elsewhere, such as internal/le/web/vendor, is first-party.
@@ -529,15 +536,26 @@ func collectGoStats(options ActivityOptions) (ActivityGo, error) {
 	}
 	modules, readErr := os.ReadFile(filepath.Join(options.Repo, "vendor", "modules.txt"))
 	if readErr == nil {
-		for line := range strings.SplitSeq(string(modules), "\n") {
-			if strings.HasPrefix(line, "# ") && !strings.HasPrefix(line, "##") {
-				stats.VendorModules++
-			}
-		}
+		stats.VendorModules = CountVendorModules(modules)
 	} else if !os.IsNotExist(readErr) {
 		return ActivityGo{}, readErr
 	}
 	return stats, nil
+}
+
+// CountVendorModules counts the modules a vendor/modules.txt lists: one for
+// each line that starts with "# " and not with "##", the header line go mod
+// vendor writes for each module ("## explicit" lines annotate the module above
+// them). It is the one module counter: the working-tree inventory and the
+// committed size history both call it. Safe for concurrent use.
+func CountVendorModules(modules []byte) int {
+	count := 0
+	for line := range strings.SplitSeq(string(modules), "\n") {
+		if strings.HasPrefix(line, "# ") && !strings.HasPrefix(line, "##") {
+			count++
+		}
+	}
+	return count
 }
 
 // inventoryExcluded answers whether the Go inventory leaves out the

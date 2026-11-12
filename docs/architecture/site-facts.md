@@ -354,6 +354,121 @@ evidence of delivery. This separate provenance boundary leaves `repo-facts.json`
 and its existing update/check gate unchanged.
 <!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->
 
+## Size history
+
+The repository's size on every day of its history is the pattern's second
+instance. `./le site history update` measures it from committed git objects
+into `website/data/repo-history.json`, and the activity page graphs that file.
+The file is written by the command and never by hand: a figure edited by hand
+breaks the line arithmetic the reader checks, or states a size no tree had.
+Unlike `./le site facts update` it reads no working tree and no index, so it
+needs no worktree and prints no dirty-tree warning.
+<!-- source: internal/le/site/history/file.go -- HistoryFile, NewHistory, ReadHistory, WriteHistory -->
+
+**What the file records.** A schema version, the rules identifier, the
+section list (identifier, label, and whether the section carries the Go
+split), and one line per recorded day: the UTC date, the commit whose tree was
+measured, the module count of that tree's `vendor/modules.txt` (0 when it has
+none), and for each section its files, lines, and the lines it gained and lost
+since the previous recorded day, with code, blank and comment lines for a Go
+section. A section that holds nothing and changed nothing that day is left
+out. The file carries no byte sizes and no commit counts: commits per day stay
+the calendar's measurement.
+<!-- source: internal/le/site/history/measure.go -- dayRecord -->
+
+**Which commit measures a day.** The history is `HEAD`'s first-parent history,
+resolved once. A commit's day is its author day in UTC, raised to its parent's
+day when earlier, so days never run backward; the committer date places no
+commit, because a March 2026 rewrite stamped 1,727 commits with one. A day is
+measured at its last commit in first-parent order, and a day with no commit is
+not recorded. A commit authored on a later day than it was committed is
+refused by name, because the raise would carry every later commit onto that
+future day.
+<!-- source: internal/le/site/history/days.go -- SelectDays -->
+
+**How a file counts.** Only regular files count: a symbolic link and a
+submodule are not. A blob with a NUL byte at offsets 0 to 7,999, git's own
+probe, is binary and counts as one file with zero lines, a Go file included.
+Any other blob counts one line per newline, plus one for an unterminated last
+line. A `.go` blob in a Go section is also split into code, blank and comment
+lines by `CountGoLines`, the counter the homepage figures use, so the split
+sums to the line count. Each blob is read once per run, streamed one at a time,
+and only its counts are kept.
+<!-- source: internal/le/site/history/measure.go -- countBlob, measureTree -->
+<!-- source: internal/le/repo/rewrite/activity.go -- CountGoLines, CountVendorModules -->
+
+**Sections.** Every path falls in exactly one of twelve sections, by the first
+rule of the ordered table `sections` that matches, the last section taking
+every path no rule matches: third-party Go and third-party other (the trees
+`ThirdPartyPath` names from the root), Go tests, Go production, functional
+tests, RFC corpus, plans, agent rules, documentation, website, schemas and
+other. The table is declared there once, and the file carries its identifiers
+and labels, so the page reads them from the file. The rules identifier is a
+digest of the table, of the third-party trees and of the two counting-rule
+versions (`CountingRulesVersion`, `GoLineRulesVersion`); a test pins it, so a
+rule change is made on purpose and followed by a whole-history run.
+<!-- source: internal/le/site/history/sections.go -- sections, SectionOf, RulesIdentifier, rulesText -->
+
+**Gained and lost.** Against the previous recorded day, per path: a new path
+gains all its lines, a removed path loses them, a path whose section changed
+loses its old lines in the old section and gains its new lines in the new one,
+and a path that stayed gains or loses the difference. The first day of the
+history gains its whole tree. For every section and every pair of consecutive
+days, size equals the previous size plus gained minus lost, and no file that
+breaks it is written or read.
+<!-- source: internal/le/site/history/measure.go -- dayRecord -->
+<!-- source: internal/le/site/history/file.go -- checkArithmetic -->
+
+**The three forms of the update.** Every refusal names its repair and leaves
+the committed file as it was; the file is written last, through a temporary
+file and a rename.
+
+| Form | Measures | Refuses when |
+|------|----------|--------------|
+| `./le site history update` | From the newest recorded day, re-measured at that day's current last commit, to the newest day of the history; the whole history when no file exists yet | The file was measured under other rules, or a kept day's commit left the history or is not its day's last commit (both name `./le site history update all`) |
+| `./le site history update from <day> to <day>` | Those days inclusive, either end open to the first or newest day; the recorded day before the range is measured at the commit the file records, as the baseline its first day is counted against | As above; no file yet (names `all`); a day not written `YYYY-MM-DD`, `from` after `to`, or a range holding no day of the history; a range that would leave a history day unrecorded between the file and the range (names `./le site history update`); a merge whose kept neighbour no longer adds up (names `all`) |
+| `./le site history update all` | The whole history, replacing the file | `all` beside `from` or `to` |
+
+A kept day older than the newest recorded day must record its day's last
+commit. The newest may record an earlier commit of its day: the commits made
+later that day are lag, and the next default run measures them.
+<!-- source: internal/le/site/history/update.go -- updateHistory, planUpdate, planRange -->
+<!-- source: internal/le/site/history/actions.go -- parseUpdate -->
+
+**The check.** `./le site history check` writes nothing and judges the file
+in the checkout against `HEAD`'s first-parent history. It answers 1, naming
+the day, the section where there is one, both values where there are two, and
+`./le site history update all` as the repair, when:
+
+| Refusal | What it proves |
+|---------|----------------|
+| The reader refuses the file: absent, malformed, an unknown field, a Go split that does not sum to its lines, or a size that is not the previous size plus gained minus lost | The contract, and the line arithmetic of every day |
+| The rules identifier, or the section list under it, is not the tool's | Every day was measured under today's rules |
+| A recorded commit is not on the history with that day as its day, or a day older than the newest does not record its day's last commit | The file describes this history |
+| A history day between the first day of the history and the newest recorded day is absent | No gap |
+| The newest recorded day, measured again, differs in its module count or in any count of any section | One full measurement |
+
+The newest day is measured again at the commit the file records, never at its
+day's current last commit, against the recorded day before it at that day's
+recorded commit. The commit that lands the file is itself a later commit of
+that day, and it changes the tree by adding the file, so a check that followed
+the day forward would refuse the commit that satisfied it. Commits after the
+recorded one, the same day or later, are reported as lag, with the default
+`./le site history update` that measures them, and never fail: new commits
+must not turn a gate red.
+
+The check does not measure the older days again. Their file counts and Go
+split are proven by a whole-history run: its output is deterministic, so an
+altered figure shows as a diff of the committed file. A history the check
+cannot read (no `HEAD`, a shallow clone, a missing object, a file the disk
+refuses) answers 2, a question that was never put. It is the stage
+`site history/check` of the full verification, which runs in a worktree at
+`HEAD`, so there the file judged is the commit's own; CI clones the whole
+history for it.
+<!-- source: internal/le/site/history/check.go -- checkHistory, judgeRecorded, remeasureNewest, compareRecord, checked -->
+<!-- source: internal/le/site/history/actions.go -- check, refusalCode -->
+<!-- source: internal/le/verify/engine/stages.go -- fullStages -->
+
 ## Related
 
 - `plan/journal/concurrent-session-corruption.md` -- the class, and its count

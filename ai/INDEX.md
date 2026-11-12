@@ -389,6 +389,7 @@ disagree, the manifest is right and the row is stale.
 | `./le setup docker host` | `internal/le/setup/docker/host.DockerHostAnswer` | run Ze's docker-host image on macOS |
 | `./le setup docker kernel` | `internal/le/setup/docker/kernel.DockerKernelAnswer` | check or install Ze's Docker host kernel |
 | `./le site facts` | `internal/le/site/facts.Answer` | the numbers the website publishes about this repository, including homepage Go source, test and third-party line metrics: derive them into website/data/repo-facts.json, or check what has gone stale in it |
+| `./le site history` | `internal/le/site/history.Answer` | the size of the repository per section on every day of its committed history: measure it into website/data/repo-history.json, or check that the file describes HEAD's history |
 | `./le site release` | `internal/le/site/release.Answer` | the releases the website publishes: read them from the forge into website/data/github-releases.json, which the site build reads instead of reaching the network |
 | `./le site terminal-demo` | `internal/le/site/terminaldemo.Answer` | check demo artifacts, release identity or validation; build the renderer image or binaries; render one demo or all; record a tape or drive a program through `pty` |
 | `./le spec citation` | `internal/le/spec/citation.Answer` | a plan/spec-*.md citing a sibling spec absent on disk fails, unless the target is grandfathered in plan/.citation-baseline; a path:line citation whose backtick-quoted token drifted off that line warns |
@@ -549,6 +550,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | Keywords | Docs |
 |----------|------|
 | pcap, packet capture, capture-raw, LINKTYPE_RAW, TCP reassembly, decode a capture, tcpdump, Wireshark | `docs/architecture/diagnostics/packet-capture.md` |
+| repository size history, codebase growth, lines per section per day, repo-history.json, ./le site history, section table, gained and lost lines | `docs/architecture/site-facts.md` (Size history), `internal/le/site/history/` |
 | crash capture, kernel panic, pstore, ramoops, reserve_mem, kdump, crash-dump, show crashes, configured versus armed, harvest a crash record, execve past the stderr flush, crashlog.Exec | `docs/architecture/diagnostics/crash-capture.md`, `docs/guide/appliance.md`, `docs/guide/configuration.md` |
 | buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md`, `ai/rules/performance.md` |
 | encode, Pack, WriteTo, alloc | `ai/rules/performance.md`, `buffer-architecture.md` |

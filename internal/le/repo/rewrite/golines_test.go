@@ -46,3 +46,26 @@ func TestGoLineCountsArePinned(t *testing.T) {
 		})
 	}
 }
+
+// TestCountVendorModulesCountsModuleHeaders asks what CountVendorModules
+// counts in a vendor/modules.txt. Method: counts written by hand over an
+// empty file, one module, a "## explicit" annotation and package lines that
+// are no module, an unterminated last header, and a "#" with no space.
+func TestCountVendorModulesCountsModuleHeaders(t *testing.T) {
+	cases := []struct {
+		name    string
+		modules string
+		want    int
+	}{
+		{"empty file", "", 0},
+		{"one module", "# example.com/a v1.0.0\n", 1},
+		{"annotations and packages are no modules", "# example.com/a v1.0.0\n## explicit; go 1.22\nexample.com/a\nexample.com/a/sub\n", 1},
+		{"an unterminated last header counts", "# example.com/a v1.0.0\n## explicit\n# example.com/b v0.1.0", 2},
+		{"a hash with no space is no module", "#example.com/a v1.0.0\n", 0},
+	}
+	for _, tc := range cases {
+		if got := CountVendorModules([]byte(tc.modules)); got != tc.want {
+			t.Errorf("%s: CountVendorModules(%q) = %d, want %d", tc.name, tc.modules, got, tc.want)
+		}
+	}
+}

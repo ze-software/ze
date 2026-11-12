@@ -318,25 +318,33 @@ In `website/`, apply the checklist from `AI.md`:
 4. Check `docs/comparison.md` and `website/compare/bgp.md` for comparison drift (`website/compare/comparison.md` is a dispatch page, not the mirror).
 5. Check whether a new lab page or `data/nav.json` Labs entry is needed.
 6. Check whether `performance/index.html` needs fresh headline benchmark stats.
-7. Run:
+7. Extend the repository size history to the commits this update covers, and
+   commit `website/data/repo-history.json` if it changed. It reads committed
+   git objects only, so run it after the week's work is committed:
+
+```sh
+./le site history update
+```
+
+8. Run:
 
 ```sh
 ./le site build
 ./le site check
 ```
 
-8. Verify these outputs exist and reference the new week:
+9. Verify these outputs exist and reference the new week:
    - `changes/<covers-start>/index.html`,
    - `changes/index.html`,
    - `changes/feed.xml`,
    - `index.html` homepage `Latest updates` cards, when the new week is within the rendered latest set.
-9. Verify the generated Milestones page and Markdown mirror as the checklist
+10. Verify the generated Milestones page and Markdown mirror as the checklist
    requires: newest months first, one card per month, short Key Points, and
    report links at the bottom. Verify the compact header, desktop grid,
    mobile column and related navigation below the timeline in the HTML.
    A successful build alone does not account for the milestone review.
-10. Do not assume the homepage card count. Read `website/data/whats-new.json` and the staged `../gh-pages/index.html` before claiming the homepage is correct.
-11. Use `./le site check` for the native artifact and page-mirror checks.
+11. Do not assume the homepage card count. Read `website/data/whats-new.json` and the staged `../gh-pages/index.html` before claiming the homepage is correct.
+12. Use `./le site check` for the native artifact and page-mirror checks.
 
 ## Phase 5: Report
 

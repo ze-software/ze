@@ -347,6 +347,18 @@ The metrics omit the inventory note because the activity page carries the detail
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: internal/le/site/facts.go -- factsFromRepositoryFile -->
 
+The repository's size per section on each day of its history is recorded the
+same way, in `website/data/repo-history.json`, by `./le site history update`.
+Run it before a publication, beside `./le site facts update`: with no keyword
+it extends the record from its newest recorded day to `HEAD`. It reads only
+committed git objects, so other sessions' uncommitted work never enters it.
+`./le site history update all` measures the whole history and replaces the
+file, which is owed after the section table or a counting rule changed, or
+after the history was rewritten. `from <day>` and `to <day>` re-measure a range
+of days and keep every other day's line as it was. Every refusal names the form
+that repairs it (`docs/architecture/site-facts.md`, "Size history").
+<!-- source: internal/le/site/history/update.go -- planUpdate, planRange -->
+
 The homepage and README select the continuous recording through `HeroDemo`.
 The site replays its `.cast` terminal events with the vendored asciinema player.
 The README uses `docs/demos/showcase.webp`, linked to the continuous showcase's
