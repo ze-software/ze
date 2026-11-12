@@ -508,6 +508,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   set aside, and every owner ruling it was checked against. A spec is never
   designed and implemented without having read the code and the records of
   his earlier rulings on the same surface.
+- A spec never departs from the design documentation (the architecture pages,
+  the doors, Thomas's rulings and the records that hold them) without a
+  discussion with him. The main session presents the departure the way it
+  presents a design: before and after examples of what a user sees, the
+  alternatives, and the documentation it contradicts. Once he agrees, the
+  documentation is corrected in the same work.
 - A hook checks what a command, path or file is, never how a message is worded.
 - An agent never gets past a hook refusal by running the refused command from
   a script file or any other wrapper, even when the refusal is false. It
