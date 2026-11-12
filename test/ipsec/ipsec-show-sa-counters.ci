@@ -142,7 +142,7 @@ cmd=foreground:seq=2:exec=ze -:stdin=responder:timeout=110s
 
 # Establishment gate. aes-cbc appears in the SA row only once IKE_AUTH has
 # completed, so the child-sa object below exists by the time it is read.
-command=show vpn ipsec sa | json
+command=show vpn ipsec sa
 expect=output:contains=aes-cbc:timeout=60
 
 # AC-8. counters-known reports whether the SAD WAS READ, so true here is the
@@ -159,9 +159,9 @@ expect=output:json=peers.0.child-sa.packets-out=0:timeout=15
 expect=output:json=peers.0.child-sa.packets-in=0:timeout=15
 
 # The same four keys through the pipe the operator actually types. The handler
-# returns plugin.Map and never formats, so `| json` renders the same data; this
+# returns plugin.Map and never formats, so `| json compact` renders the same data; this
 # step proves the keys survive the pipe layer rather than only the wire response.
-command=show vpn ipsec sa | json
+command=show vpn ipsec sa | json compact
 expect=output:contains="counters-known":true:timeout=15
 expect=output:contains="bytes-out":0:timeout=15
 

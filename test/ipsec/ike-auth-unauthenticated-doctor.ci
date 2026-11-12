@@ -1,0 +1,146 @@
+# Functional test: the daemon's doctor names a peer whose handshake in progress keeps
+# dropping IKE_AUTH responses that fail their integrity check.
+# Spec: plan/release/fixes/spec-single-owner-lifecycle-4-ike-unauthenticated-input.md
+# (closed; the check landed in commits 9019fe4d21..b2ced10cac).
+#
+# THE ONE QUESTION. While a Ze initiator sits in AuthSent and drops forged IKE_AUTH
+# responses on its real sockets, does `show doctor` on the running daemon report
+# `doctor-ipsec-unauthenticated-input` for that peer? A unit test of
+# unauthenticatedInputByPeer hands it a hand-built SA table; only a live daemon proves
+# that openProtected counts on the SA the engine's ActiveTable holds, and that the
+# daemon route of doctor runs the engine's post-config check over that table.
+#
+# VALIDATES: checkIPsecUnauthenticatedInput (internal/component/ike/engine/
+# doctor_unauthenticated_input.go), declared in the engine's Registration.DoctorChecks
+# (engine/register.go), over the per-SA count openProtected keeps
+# (protected_input.go, dropUnauthenticated).
+#
+# PREVENTS: the drop going unrecorded (only a debug line), so a tunnel held down by
+# forgeries or a damaging path shows no cause in doctor. Red when the count call in
+# dropUnauthenticated is removed, or when the ipsec-unauthenticated-input entry leaves
+# Registration.DoctorChecks: the doctor answer then never holds the code and the
+# re-dispatched step times out.
+#
+# HOW. The relay ipsec/auth-corrupt-response in `withhold` mode
+# (internal/test/fixture/tunnel_fixture_ipsec_corrupt_response.go) sits between the two
+# daemons as in test/ipsec/ike-auth-corrupt-response.ci, but replaces EVERY IKE_AUTH
+# response, retransmissions included, with one copy whose last ICV octet it changed, and
+# never forwards a genuine one. The initiator therefore never establishes: each copy is
+# dropped and counted on its AuthSent SA. The doctor step is re-dispatched until the
+# finding appears (state, not time). The initiator is the second daemon, so the runner
+# writes its config to daemon-2/ze-config.conf (runner_config.go zeConfigFileName),
+# which lies in that daemon's config directory, the one the daemon route of doctor
+# admits (command.CallerPath).
+#
+# Both daemons use the noop dataplane: the claim is about IKE state.
+
+option=env:var=ze_test_ike_port:value=$PORT2
+option=env:var=ze_test_ike_dataplane:value=noop
+option=env:var=ze.log.ike:value=debug
+option=timeout:value=60s
+
+# ── Responder daemon (background, first daemon): binds 127.0.0.2 ──
+stdin=responder:terminator=EOF_RESPONDER
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.3
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (foreground, second daemon) with the engine-steps executor ──
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "le mock engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.3
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=le test fixture ipsec/auth-corrupt-response $PORT2 withhold:name=relay:timeout=58s:ready=RELAY: listening on
+# The relay replaced at least one IKE_AUTH response with a damaged copy.
+expect=stdout:contains=RELAY-WITHHELD: sent a damaged copy in place of the IKE_AUTH response
+cmd=background:seq=2:exec=ze -:stdin=responder
+cmd=foreground:seq=3:exec=ze -:stdin=config:timeout=55s
+
+# ── The daemon's doctor, re-dispatched until the finding is there ──
+# The executor splits the pipe chain off before it dispatches, as SSH does
+# (pipedEngineDispatch, internal/test/cli/cmd_engine_steps.go), so the daemon
+# answers `show doctor config <file>` and the step reads that answer as JSON.
+command=show doctor config daemon-2/ze-config.conf | json
+expect=output:contains=doctor-ipsec-unauthenticated-input:timeout=30
+# The finding names the peer and the handshake state it was counted in.
+expect=output:contains=ipsec peer peer-1: its handshake in progress:timeout=5
+expect=output:contains=IKE messages that failed their integrity check:timeout=5
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+
+# ── The initiator dropped the damaged copies: openProtected's debug line ──
+expect=stderr:contains=ike: unauthenticated message dropped, SA kept
+
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

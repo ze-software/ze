@@ -216,6 +216,11 @@ gives: the twin-SA tests copy the struct.
 <!-- test: internal/component/ike/engine/doctor_unauthenticated_input_test.go TestDoctorReportsHandshakeReceivingUnprotectedMessages -->
 <!-- test: internal/component/ike/engine/doctor_unauthenticated_input_test.go TestDoctorIsSilentOnceThePeerEstablished -->
 
+`test/ipsec/ike-auth-unauthenticated-doctor.ci` proves it on a live handshake: a relay
+damages every IKE_AUTH response and never forwards the genuine one, and the daemon's
+`show doctor config <file> | json` names the waiting peer under this code.
+<!-- test: test/ipsec/ike-auth-unauthenticated-doctor.ci -->
+
 ## ipsec-peer-malformed-message
 
 `checkIPsecPeerMalformedMessage` (`doctor_peer_malformed.go`) warns once per peer whose
@@ -246,3 +251,8 @@ is rekeyed.
 <!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse -->
 <!-- test: internal/component/ike/engine/doctor_peer_malformed_test.go TestDoctorReportsPeerSendingMalformedMessages -->
 <!-- test: internal/component/ike/engine/doctor_peer_malformed_test.go TestDoctorIsSilentForAPeerWithNoMalformedMessage -->
+
+`test/ipsec/ike-peer-malformed-doctor.ci` proves it on a live SA: a test peer completes a
+real handshake with Ze, then sends one correctly sealed INFORMATIONAL response whose
+payloads do not parse, and the daemon's doctor names that peer while the SA stays up.
+<!-- test: test/ipsec/ike-peer-malformed-doctor.ci -->

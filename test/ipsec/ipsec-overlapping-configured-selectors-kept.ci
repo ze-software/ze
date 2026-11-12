@@ -232,7 +232,7 @@ expect=stderr:contains=child-sa: installed
 
 # The hub's steps (the hub is the only daemon that loads the executor). The peers
 # list is sorted by peer name.
-command=show vpn ipsec sa | json
+command=show vpn ipsec sa
 expect=output:json=peers.0.peer-name=spoke-a:timeout=40
 expect=output:json=peers.0.child-sa.ts-remote=10.1.0.0/16:timeout=20
 expect=output:json=peers.1.peer-name=spoke-b:timeout=20

@@ -2317,6 +2317,16 @@ re-dispatches the most recent `command=` until its predicate holds or the
 timeout expires; `expect=stream` matches delivered `stream=` events;
 `expect=event` matches a delivered event by its `(namespace, name)` identity.
 
+A `command=` line carrying a pipe chain (`show doctor config <file> | json`) is
+split the way the SSH exec channel splits one: the executor dispatches the
+command alone and renders the daemon's answer through the chain, so the step
+reads what `ze cli -c` prints for the same line. The daemon's dispatcher gives
+`|` no meaning, so a chain sent whole would reach the handler as arguments. A
+line with no pipe gets the raw JSON answer, with no default format added, which
+is what `json=` predicates walk. A chain the pipe layer refuses fails the step
+before anything is dispatched, and `expect=command-error` can read it.
+<!-- source: internal/test/cli/cmd_engine_steps.go -- pipedEngineDispatch -->
+
 ### expect=event
 
 The executor declares ONE startup event subscription, derived from the

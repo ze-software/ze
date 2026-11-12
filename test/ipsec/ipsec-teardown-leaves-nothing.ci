@@ -190,7 +190,7 @@ expect=output:contains=aes-cbc:timeout=40
 # MEASURED 2026-08-17: a clear that landed 49ms after the responder installed its Child
 # SA left both XFRM states in the kernel for the remaining 60s of the test. That is
 # recorded in plan/journal/ and is not what AC-5 is about.
-command=show vpn ipsec sa | json
+command=show vpn ipsec sa | json compact
 expect=output:contains="uptime-seconds":1:timeout=15
 command=clear vpn ipsec sa all
 expect=output:contains=clear-all:timeout=10

@@ -1,11 +1,17 @@
 // Design: docs/architecture/testing/ci-format.md -- compiled fixtures a .ci drives through `le test fixture`.
 // Related: register_ipsec_auth_corrupt_response.go -- the registration
 // Related: test/ipsec/ike-auth-corrupt-response.ci -- the run that starts this relay
+// Related: test/ipsec/ike-auth-unauthenticated-doctor.ci -- the run in withhold mode
 //
 // The relay of test/ipsec/ike-auth-corrupt-response.ci. Two Ze daemons each name the
 // relay's address as their remote-address, so every IKE datagram between them crosses
 // it. Before it forwards each first IKE_AUTH response to the initiator, the relay sends
-// three copies with the last octet changed. The last octets of an SK-protected message
+// three copies with the last octet changed. In withhold mode it sends one damaged copy
+// of every IKE_AUTH response, retransmissions included, and never forwards a genuine
+// one, so the initiator stays in its handshake dropping forgeries for as long as the
+// test reads its state.
+//
+// The last octets of an SK-protected message
 // are its Integrity Checksum Data (RFC 7296 Section 3.14), so each copy fails the
 // integrity check while its clear header still carries the live SPIs and Message ID:
 // the forgery RFC 7296 Section 2.4 says an endpoint must survive.
@@ -45,6 +51,9 @@ const (
 	// corruptPassthrough is the argument of the control run: the relay forwards every
 	// datagram unchanged, which proves the relay alone lets the tunnel establish.
 	corruptPassthrough = "passthrough"
+	// corruptWithhold is the argument of the doctor run: every IKE_AUTH response is
+	// replaced by one damaged copy, so the handshake never completes.
+	corruptWithhold = "withhold"
 	// corruptLifetimeMax bounds the relay when nothing cancels it. The runner's
 	// background timeout and its teardown end it first in every .ci run.
 	corruptLifetimeMax = 5 * time.Minute
@@ -86,6 +95,22 @@ const (
 	corruptResponseKeyLn = 12
 )
 
+// corruptMode is what the relay does to an IKE_AUTH response bound for the initiator.
+// Zero is no mode: corruptRelayArgs always answers one of the three named modes.
+type corruptMode uint8
+
+const (
+	corruptModeUnspecified corruptMode = iota
+	// corruptModeCopies sends corruptCopies damaged copies ahead of each first
+	// response, then the genuine one.
+	corruptModeCopies
+	// corruptModePassthrough forwards every response unchanged (the control run).
+	corruptModePassthrough
+	// corruptModeWithhold sends one damaged copy in place of every response and
+	// forwards no genuine one.
+	corruptModeWithhold
+)
+
 // corruptResponseKey names one IKE_AUTH response: the initiator's SPI and the Message
 // ID. A retransmitted response carries the same key and is forwarded unchanged.
 type corruptResponseKey [corruptResponseKeyLn]byte
@@ -93,11 +118,12 @@ type corruptResponseKey [corruptResponseKeyLn]byte
 // corruptRelay is the state the two port workers share. Safe for concurrent use:
 // every field is read and written under mu.
 type corruptRelay struct {
-	passthrough bool
+	mode corruptMode
 
 	mu        sync.Mutex
 	responses map[corruptResponseKey]bool
 	forwarded int
+	withheld  int
 	stray     int
 	failure   error
 }
@@ -105,13 +131,13 @@ type corruptRelay struct {
 // tunnelIPsecAuthCorruptResponse runs the relay until the context is canceled (the
 // runner's SIGTERM at a stop or at teardown) or corruptLifetimeMax passes.
 //
-// Arguments: the test's IKE port ($PORT2), then optionally `passthrough`.
+// Arguments: the test's IKE port ($PORT2), then optionally `passthrough` or `withhold`.
 func tunnelIPsecAuthCorruptResponse(ctx context.Context, args []string) error {
-	ikePort, passthrough, err := corruptRelayArgs(args)
+	ikePort, mode, err := corruptRelayArgs(args)
 	if err != nil {
 		return err
 	}
-	relay := &corruptRelay{passthrough: passthrough, responses: make(map[corruptResponseKey]bool)}
+	relay := &corruptRelay{mode: mode, responses: make(map[corruptResponseKey]bool)}
 
 	ikeConn, err := corruptRelayListen(ctx, ikePort)
 	if err != nil {
@@ -125,7 +151,7 @@ func tunnelIPsecAuthCorruptResponse(ctx context.Context, args []string) error {
 	defer nattConn.Close() //nolint:errcheck // the relay is done with the socket; a close error changes no verdict
 
 	// The ready= text of the .ci: printed only once both sockets are bound.
-	fmt.Println("RELAY: listening on", ikeConn.LocalAddr(), "and", nattConn.LocalAddr(), "passthrough", passthrough)
+	fmt.Println("RELAY: listening on", ikeConn.LocalAddr(), "and", nattConn.LocalAddr(), "passthrough", mode == corruptModePassthrough, "withhold", mode == corruptModeWithhold)
 
 	deadline := time.Now().Add(corruptLifetimeMax)
 	var workers sync.WaitGroup
@@ -136,32 +162,35 @@ func tunnelIPsecAuthCorruptResponse(ctx context.Context, args []string) error {
 	return relay.verdict()
 }
 
-// corruptRelayArgs reads the IKE port and the optional passthrough word.
-func corruptRelayArgs(args []string) (uint16, bool, error) {
+// corruptRelayArgs reads the IKE port and the optional mode word.
+func corruptRelayArgs(args []string) (uint16, corruptMode, error) {
 	if len(args) == 0 {
-		return 0, false, errors.New("ipsec/auth-corrupt-response needs the test's IKE port: le test fixture ipsec/auth-corrupt-response $PORT2 [passthrough]")
+		return 0, corruptModeUnspecified, errors.New("ipsec/auth-corrupt-response needs the test's IKE port: le test fixture ipsec/auth-corrupt-response $PORT2 [passthrough|withhold]")
 	}
 	if len(args) > 2 {
-		return 0, false, fmt.Errorf("ipsec/auth-corrupt-response takes the IKE port and an optional %q, got %q", corruptPassthrough, args)
+		return 0, corruptModeUnspecified, fmt.Errorf("ipsec/auth-corrupt-response takes the IKE port and an optional %q or %q, got %q", corruptPassthrough, corruptWithhold, args)
 	}
 	port, err := strconv.ParseUint(args[0], 10, 16)
 	if err != nil {
-		return 0, false, fmt.Errorf("ipsec/auth-corrupt-response: IKE port %q: %w", args[0], err)
+		return 0, corruptModeUnspecified, fmt.Errorf("ipsec/auth-corrupt-response: IKE port %q: %w", args[0], err)
 	}
 	// The NAT-T socket takes the next port, so 65535 has no partner (nattAddr, testport.go).
 	if port == 0 {
-		return 0, false, fmt.Errorf("ipsec/auth-corrupt-response: IKE port %q must be above 0", args[0])
+		return 0, corruptModeUnspecified, fmt.Errorf("ipsec/auth-corrupt-response: IKE port %q must be above 0", args[0])
 	}
 	if port >= 65535 {
-		return 0, false, fmt.Errorf("ipsec/auth-corrupt-response: IKE port %q must be below 65535, the NAT-T port is the one after it", args[0])
+		return 0, corruptModeUnspecified, fmt.Errorf("ipsec/auth-corrupt-response: IKE port %q must be below 65535, the NAT-T port is the one after it", args[0])
 	}
 	if len(args) == 1 {
-		return uint16(port), false, nil
+		return uint16(port), corruptModeCopies, nil
 	}
-	if args[1] != corruptPassthrough {
-		return 0, false, fmt.Errorf("ipsec/auth-corrupt-response: unknown argument %q, the only one is %q", args[1], corruptPassthrough)
+	if args[1] == corruptPassthrough {
+		return uint16(port), corruptModePassthrough, nil
 	}
-	return uint16(port), true, nil
+	if args[1] == corruptWithhold {
+		return uint16(port), corruptModeWithhold, nil
+	}
+	return 0, corruptModeUnspecified, fmt.Errorf("ipsec/auth-corrupt-response: unknown argument %q, the only ones are %q and %q", args[1], corruptPassthrough, corruptWithhold)
 }
 
 // corruptRelayListen binds the relay address on one port.
@@ -208,9 +237,13 @@ func (relay *corruptRelay) serve(ctx context.Context, deadline time.Time, conn *
 		destination := netip.AddrPortFrom(target, port)
 		message := datagram[:octets]
 		if toInitiator {
-			if err := relay.corruptFirstAuthResponse(conn, destination, message, damaged, natt); err != nil {
+			forward, err := relay.corruptAuthResponse(conn, destination, message, damaged, natt)
+			if err != nil {
 				relay.fail(err)
 				return
+			}
+			if !forward {
+				continue
 			}
 		}
 		if _, err := conn.WriteToUDPAddrPort(message, destination); err != nil {
@@ -233,37 +266,62 @@ func corruptRelayTarget(source netip.Addr) (netip.Addr, bool, bool) {
 	return netip.Addr{}, false, false
 }
 
-// corruptFirstAuthResponse sends corruptCopies damaged copies of message to destination
-// when message is an IKE_AUTH response the relay has not seen before. The caller then
-// forwards the genuine message.
-func (relay *corruptRelay) corruptFirstAuthResponse(conn *net.UDPConn, destination netip.AddrPort, message, damaged []byte, natt bool) error {
+// corruptAuthResponse acts on a datagram bound for the initiator as the relay's mode
+// says, and answers whether the caller forwards the genuine message. Only an IKE_AUTH
+// response is acted on; every other datagram is forwarded.
+func (relay *corruptRelay) corruptAuthResponse(conn *net.UDPConn, destination netip.AddrPort, message, damaged []byte, natt bool) (bool, error) {
 	key, isAuthResponse := ikeAuthResponseKey(message, natt)
 	if !isAuthResponse {
-		return nil
+		return true, nil
 	}
 	first, full := relay.recordResponse(key)
-	if !first {
-		return nil
-	}
 	if full {
-		return fmt.Errorf("relay recorded %d IKE_AUTH responses, its bound: the initiator restarted its handshake that many times", corruptResponsesMax)
+		return false, fmt.Errorf("relay recorded %d IKE_AUTH responses, its bound: the initiator restarted its handshake that many times", corruptResponsesMax)
 	}
 	messageID := uint32(key[8])<<24 | uint32(key[9])<<16 | uint32(key[10])<<8 | uint32(key[11])
-	if relay.passthrough {
-		fmt.Println("RELAY-PASSTHROUGH: forwarded the IKE_AUTH response unchanged, message ID", messageID)
-		return nil
-	}
-	copy(damaged, message)
-	copyOf := damaged[:len(message)]
-	// The last octet is the last octet of the Integrity Checksum Data (RFC 7296 Section 3.14).
-	copyOf[len(copyOf)-1] ^= 0xff
-	for range corruptCopies {
-		if _, err := conn.WriteToUDPAddrPort(copyOf, destination); err != nil {
-			return fmt.Errorf("relay send a damaged copy to %s: %w", destination, err)
+	switch relay.mode {
+	case corruptModePassthrough:
+		if first {
+			fmt.Println("RELAY-PASSTHROUGH: forwarded the IKE_AUTH response unchanged, message ID", messageID)
 		}
+		return true, nil
+	case corruptModeCopies:
+		if !first {
+			return true, nil
+		}
+		copyOf := damageLastOctet(message, damaged)
+		for range corruptCopies {
+			if _, err := conn.WriteToUDPAddrPort(copyOf, destination); err != nil {
+				return false, fmt.Errorf("relay send a damaged copy to %s: %w", destination, err)
+			}
+		}
+		fmt.Println("RELAY-CORRUPTED: sent", corruptCopies, "copies of the IKE_AUTH response with the last octet changed, message ID", messageID, "natt", natt)
+		return true, nil
+	case corruptModeWithhold:
+		// Every response, a retransmitted one included, is replaced: a genuine response
+		// that slipped through would establish the SA and clear the count under test.
+		copyOf := damageLastOctet(message, damaged)
+		if _, err := conn.WriteToUDPAddrPort(copyOf, destination); err != nil {
+			return false, fmt.Errorf("relay send a damaged copy to %s: %w", destination, err)
+		}
+		relay.countWithheld()
+		if first {
+			fmt.Println("RELAY-WITHHELD: sent a damaged copy in place of the IKE_AUTH response, message ID", messageID, "natt", natt)
+		}
+		return false, nil
+	case corruptModeUnspecified:
 	}
-	fmt.Println("RELAY-CORRUPTED: sent", corruptCopies, "copies of the IKE_AUTH response with the last octet changed, message ID", messageID, "natt", natt)
-	return nil
+	panic("BUG: corrupt relay holds no mode")
+}
+
+// damageLastOctet copies message into damaged and changes its last octet, the last
+// octet of the Integrity Checksum Data (RFC 7296 Section 3.14). damaged MUST be at
+// least as long as message.
+func damageLastOctet(message, damaged []byte) []byte {
+	copyOf := damaged[:len(message)]
+	copy(copyOf, message)
+	copyOf[len(copyOf)-1] ^= 0xff
+	return copyOf
 }
 
 // ikeAuthResponseKey reads the clear header and answers the response's key when the
@@ -319,6 +377,12 @@ func (relay *corruptRelay) countForwarded() {
 	relay.mu.Unlock()
 }
 
+func (relay *corruptRelay) countWithheld() {
+	relay.mu.Lock()
+	relay.withheld++
+	relay.mu.Unlock()
+}
+
 func (relay *corruptRelay) countStray() {
 	relay.mu.Lock()
 	relay.stray++
@@ -339,7 +403,7 @@ func (relay *corruptRelay) fail(err error) {
 func (relay *corruptRelay) verdict() error {
 	relay.mu.Lock()
 	defer relay.mu.Unlock()
-	fmt.Println("RELAY-SUMMARY: forwarded", relay.forwarded, "datagrams, saw", len(relay.responses), "IKE_AUTH responses, ignored", relay.stray, "from unknown sources")
+	fmt.Println("RELAY-SUMMARY: forwarded", relay.forwarded, "datagrams, saw", len(relay.responses), "IKE_AUTH responses, withheld", relay.withheld, "of them, ignored", relay.stray, "from unknown sources")
 	if relay.failure != nil {
 		return relay.failure
 	}

@@ -194,7 +194,7 @@ cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=55s
 # Wait for the established SA (aes-cbc appears only after IKE_AUTH), then poll the
 # SA's own uptime until it passes 20 seconds. The poll re-dispatches the command;
 # it never sleeps, and it reads the daemon's state rather than the test's clock.
-command=show vpn ipsec sa | json
+command=show vpn ipsec sa | json compact
 expect=output:contains=aes-cbc:timeout=25
 expect=output:matches="uptime-seconds":[2-9][0-9]:timeout=40
 expect=output:contains="state":"established":timeout=5

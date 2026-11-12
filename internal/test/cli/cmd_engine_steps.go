@@ -4,9 +4,12 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/test/runner"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -91,12 +94,11 @@ func CmdEngineSteps(args []string) int {
 		// The handler must return promptly (it answers an engine RPC); the
 		// steps dispatch further RPCs, so they run in their own goroutine.
 		go func() {
-			var dispatch runner.EngineDispatch = func(dctx context.Context, command string) (string, string, error) {
+			dispatch := pipedEngineDispatch(func(dctx context.Context, line string) (string, []byte, error) {
 				callCtx, callCancel := context.WithTimeout(dctx, 30*time.Second)
 				defer callCancel()
-				status, data, derr := p.DispatchCommand(callCtx, command)
-				return status, string(data), derr
-			}
+				return p.DispatchCommand(callCtx, line)
+			})
 			err := runner.RunEngineSteps(ctx, dispatch, buf, steps)
 			if err != nil {
 				slog.Error("ZE-OBSERVER-FAIL: engine-steps", "error", err)
@@ -130,4 +132,44 @@ func CmdEngineSteps(args []string) int {
 		}
 	}
 	return 0
+}
+
+// pipedEngineDispatch is the executor's dispatch: it sends a step's command
+// line to the daemon the way SSH sends one, so a step reads what `ze cli -c`
+// prints for the same line.
+//
+// The daemon's dispatcher gives "|" no meaning: every operator surface splits
+// the pipe chain off before it dispatches and renders the answer through it
+// (the SSH exec channel, the web CLI and `ze cli` all call
+// command.ProcessPipesDefaultFormatChecked). Sent whole, `show doctor config f
+// | json` reaches the handler with "|" and "json" as its arguments, and a
+// handler that reads its arguments refuses them, while one that ignores them
+// answers its raw JSON whatever the chain asked for (`| table` included).
+//
+// A line with no pipe keeps the raw JSON answer: no default format is added,
+// because json= predicates walk that answer (runner.RunEngineSteps). A refused
+// chain and a chain the answer cannot satisfy are errors, as `ze cli -c` exits
+// 1 for them, so an expect=command-error step can read them.
+//
+// send MUST return the daemon's status and its raw answer data.
+func pipedEngineDispatch(send func(ctx context.Context, line string) (string, []byte, error)) runner.EngineDispatch {
+	return func(ctx context.Context, line string) (string, string, error) {
+		if !strings.Contains(line, "|") {
+			status, data, err := send(ctx, line)
+			return status, string(data), err
+		}
+		dispatched, format, pipeErr := command.ProcessPipesDefaultFormatChecked(line, "")
+		if pipeErr != "" {
+			return "", "", errors.New(pipeErr)
+		}
+		status, data, err := send(ctx, dispatched)
+		if err != nil {
+			return status, string(data), err
+		}
+		rendered := format(string(data))
+		if command.IsPipeError(rendered) {
+			return "", "", errors.New(rendered)
+		}
+		return status, rendered, nil
+	}
 }
