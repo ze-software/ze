@@ -146,7 +146,7 @@ system {
 	if err := os.WriteFile(configPath, []byte(configuration), 0o600); err != nil {
 		return err
 	}
-	serverEnv := remoteTrustEnvironment(os.Environ(), map[string]string{envConfigDir: serverDir, envReadyFile: readyPath, "HOME": serverDir, "XDG_RUNTIME_DIR": filepath.Join(serverDir, "r")})
+	serverEnv := remoteTrustEnvironment(os.Environ(), map[string]string{envConfigDir: serverDir, envReadyFile: readyPath, "HOME": serverDir, envXDGRuntimeDir: filepath.Join(serverDir, "r")})
 	var daemonOutput lockedBuffer
 	daemon, err := remoteTrustStartDaemon(ctx, source, serverDir, configPath, serverEnv, &daemonOutput)
 	if err != nil {
@@ -197,15 +197,18 @@ system {
 	if err := os.WriteFile(defaultTrustPath, defaultBody, 0o600); err != nil {
 		return err
 	}
-	clientEnv := remoteTrustEnvironment(os.Environ(), map[string]string{"HOME": filepath.Join(clientDir, "home"), "XDG_CONFIG_HOME": filepath.Join(clientDir, "home"), "XDG_RUNTIME_DIR": filepath.Join(clientDir, "r"), "ZE_SSH_PASSWORD": password, "ZE_SSH_KNOWN_HOSTS": trustPath, "ZE_SSH_INSECURE": "false"})
+	clientEnv := remoteTrustEnvironment(os.Environ(), map[string]string{"HOME": filepath.Join(clientDir, "home"), "XDG_CONFIG_HOME": filepath.Join(clientDir, "home"), envXDGRuntimeDir: filepath.Join(clientDir, "r"), "ZE_SSH_PASSWORD": password, "ZE_SSH_KNOWN_HOSTS": trustPath, "ZE_SSH_INSECURE": "false"})
 	client := func(environment []string) fixture10ProcessResult {
 		return remoteTrustRunCLI(ctx, binary, clientDir, address, environment)
 	}
 	checkFiles := func(body []byte) error {
 		for path, expected := range map[string][]byte{trustPath: body, defaultTrustPath: defaultBody} {
-			got, err := os.ReadFile(path)
-			if err != nil || !bytes.Equal(got, expected) {
-				return fmt.Errorf("product CLI changed trust file %s: %v", path, err)
+			got, err := os.ReadFile(path) //nolint:gosec // the path is one of the two trust files this fixture wrote
+			if err != nil {
+				return fmt.Errorf("product CLI changed trust file %s: %w", path, err)
+			}
+			if !bytes.Equal(got, expected) {
+				return fmt.Errorf("product CLI changed trust file %s", path)
 			}
 		}
 		return filepath.WalkDir(clientDir, func(path string, entry fs.DirEntry, walkErr error) error {
@@ -372,7 +375,7 @@ func remoteTrustStartDaemon(ctx context.Context, binary, cwd, config string, env
 func remoteTrustDaemonAlive(process *runner.ServerProcess, output *lockedBuffer) error {
 	select {
 	case <-process.Done():
-		return fmt.Errorf("private remote daemon exited before proof completed: %v\n%s", process.Wait(), output.String())
+		return fmt.Errorf("private remote daemon exited before proof completed: %w\n%s", exitCause(process.Wait()), output.String())
 	default:
 		return nil
 	}
@@ -430,8 +433,14 @@ func remoteTrustVersionVerdict(result fixture10ProcessResult) error {
 		Version string `json:"version"`
 	}
 	parseErr := json.Unmarshal([]byte(result.stdout), &answer)
-	if result.code != 0 || parseErr != nil || answer.Version == "" {
-		return fmt.Errorf("verified standalone CLI did not return daemon version JSON: exit=%d stdout=%q stderr=%q parse=%v", result.code, result.stdout, result.stderr, parseErr)
+	if parseErr != nil {
+		return fmt.Errorf("verified standalone CLI did not return daemon version JSON: exit=%d stdout=%q stderr=%q parse=%w", result.code, result.stdout, result.stderr, parseErr)
+	}
+	if result.code != 0 {
+		return fmt.Errorf("verified standalone CLI did not return daemon version JSON: exit=%d stdout=%q stderr=%q", result.code, result.stdout, result.stderr)
+	}
+	if answer.Version == "" {
+		return fmt.Errorf("verified standalone CLI returned JSON with no daemon version: stdout=%q stderr=%q", result.stdout, result.stderr)
 	}
 	return nil
 }

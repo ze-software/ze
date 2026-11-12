@@ -112,10 +112,10 @@ func deploymentQuickstart(ctx context.Context, args []string) (retErr error) {
 	ready := Poll(readyCtx, 200*runner.ChildParallelFactor(), 100*time.Millisecond, func() bool {
 		select {
 		case <-first.Done():
-			last = fmt.Errorf("r1 exited before route verification: %v", first.Wait())
+			last = fmt.Errorf("r1 exited before route verification: %w", exitCause(first.Wait()))
 			return true
 		case <-second.Done():
-			last = fmt.Errorf("r2 exited before route verification: %v", second.Wait())
+			last = fmt.Errorf("r2 exited before route verification: %w", exitCause(second.Wait()))
 			return true
 		default:
 		}
@@ -144,8 +144,17 @@ func deploymentQuickstart(ctx context.Context, args []string) (retErr error) {
 	if err := stopQuickstart(second, &secondOutput); err != nil {
 		return fmt.Errorf("stop r2: %w", err)
 	}
-	fmt.Fprintln(os.Stdout, "DEPLOYMENT-QUICKSTART: PASS both sessions established, opposite prefixes received, bad login denied, both daemons stopped cleanly")
-	return nil
+	_, err = fmt.Fprintln(os.Stdout, "DEPLOYMENT-QUICKSTART: PASS both sessions established, opposite prefixes received, bad login denied, both daemons stopped cleanly")
+	return err
+}
+
+// exitCause answers why a daemon exited, in a form %w can carry: a clean exit
+// has no error, and %w renders nil as a formatting fault.
+func exitCause(exit error) error {
+	if exit == nil {
+		return errors.New("exit status 0")
+	}
+	return exit
 }
 
 func readQuickstartPorts(args []string) (quickstartPorts, error) {
@@ -162,7 +171,7 @@ func readQuickstartPorts(args []string) (quickstartPorts, error) {
 			return quickstartPorts{}, fmt.Errorf("leased port %d must be unprivileged", port)
 		}
 		for previous := range index {
-			if ports[previous] == uint16(port) {
+			if uint64(ports[previous]) == port {
 				return quickstartPorts{}, fmt.Errorf("leased port %d is repeated", port)
 			}
 		}
@@ -172,7 +181,7 @@ func readQuickstartPorts(args []string) (quickstartPorts, error) {
 }
 
 func prepareQuickstart(ctx context.Context, binary, repository, work string, input quickstartInput) (string, error) {
-	body, err := os.ReadFile(filepath.Join(repository, "examples", "quickstart", input.name+".conf"))
+	body, err := os.ReadFile(filepath.Join(repository, "examples", "quickstart", input.name+".conf")) //nolint:gosec // the path is a quickstart example the fixture names under the repository
 	if err != nil {
 		return "", err
 	}
@@ -186,9 +195,9 @@ func prepareQuickstart(ctx context.Context, binary, repository, work string, inp
 	}
 	environment := daemonEnvironment(os.Environ(), dir, daemonStoreDisk)
 	updates := [][]string{
-		{"environment", "ssh", "server", "main", "port", strconv.Itoa(int(input.sshPort))},
-		{"bgp", "peer", input.peer, "connection", "local", "port", strconv.Itoa(int(input.bgpPort))},
-		{"bgp", "peer", input.peer, "connection", "remote", "port", strconv.Itoa(int(input.bgpPort))},
+		{"environment", "ssh", "server", "main", leafPort, strconv.Itoa(int(input.sshPort))},
+		{"bgp", "peer", input.peer, "connection", "local", leafPort, strconv.Itoa(int(input.bgpPort))},
+		{"bgp", "peer", input.peer, "connection", "remote", leafPort, strconv.Itoa(int(input.bgpPort))},
 		{"system", "dns", "resolv-conf-path", filepath.Join(dir, "resolv.conf")},
 	}
 	for _, update := range updates {
@@ -227,7 +236,7 @@ func awaitQuickstartReady(ctx context.Context, process *runner.ServerProcess, pa
 	ready := Poll(readyCtx, 300*runner.ChildParallelFactor(), 100*time.Millisecond, func() bool {
 		select {
 		case <-process.Done():
-			last = fmt.Errorf("daemon exited before readiness: %v", process.Wait())
+			last = fmt.Errorf("daemon exited before readiness: %w", exitCause(process.Wait()))
 			return true
 		default:
 		}

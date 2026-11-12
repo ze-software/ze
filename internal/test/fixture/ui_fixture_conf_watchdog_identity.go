@@ -124,8 +124,12 @@ func confWatchdogExecutableIdentity(ctx context.Context) error {
 			return fmt.Errorf("the real watchdog session did not record expected announcement/withdrawal %s", wire)
 		}
 	}
-	if _, err := os.Stat(wrongMarker); !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("the wrong PATH le was invoked or its sentinel cannot be checked: %v", err)
+	_, err = os.Stat(wrongMarker)
+	if err == nil {
+		return errors.New("the wrong PATH le was invoked")
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("the wrong PATH le sentinel cannot be checked: %w", err)
 	}
 	_, err = fmt.Fprintln(os.Stdout, "PASS: conf-watchdog wire assertions through selected renamed executable and spaced argv")
 	return err

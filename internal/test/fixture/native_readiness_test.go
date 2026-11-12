@@ -44,7 +44,7 @@ func TestNativeReadinessStopsWhenDaemonExits(t *testing.T) {
 	if waitCalls != 1 {
 		t.Fatalf("daemon exit was not read from its owner exactly once: %d", waitCalls)
 	}
-	if status := wait(); status != exit {
+	if status := wait(); !errors.Is(status, exit) {
 		t.Fatalf("process owner lost exit status: %v", status)
 	}
 }
@@ -65,7 +65,7 @@ func TestNativeReadinessDaemonExitCancelsInFlightProbe(t *testing.T) {
 	if waitCalls != 1 {
 		t.Fatalf("daemon exit was not read from its owner exactly once: %d", waitCalls)
 	}
-	if status := wait(); status != exit {
+	if status := wait(); !errors.Is(status, exit) {
 		t.Fatalf("process owner lost exit status: %v", status)
 	}
 }

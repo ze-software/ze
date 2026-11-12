@@ -18,6 +18,7 @@ const (
 	areaSpec     = "spec"
 	fieldDryRun  = "dry-run"
 	flagJSON     = "--json"
+	leafPort     = "port"   // The config leaf that carries a listener or peer port.
 	mockRadius   = "radius" // The le mock server selector.
 	programZeLe  = "ze le"
 	sourceRadius = "radius" // The authentication source recorded after a RADIUS login.
@@ -54,6 +55,7 @@ const (
 	envSSHUsername     = "ZE_SSH_USERNAME"
 	envTerm            = "TERM"
 	envTestBGPPort     = "ze_test_bgp_port"
+	envXDGRuntimeDir   = "XDG_RUNTIME_DIR"
 )
 
 // The two address families these fixtures drive, in the registry's own words.

@@ -209,7 +209,7 @@ func TestRegistryMutatorsAfterSealRefuse(t *testing.T) {
 
 	for name, entry := range calls {
 		t.Run(name, func(t *testing.T) {
-			err, panicked := callRecovering(entry.call)
+			panicked, err := callRecovering(entry.call)
 			if entry.returnsError {
 				if !errors.Is(err, ErrRegistrySealed) {
 					t.Fatalf("%s after Seal = %v, want ErrRegistrySealed", name, err)
@@ -249,7 +249,7 @@ func TestRegistryMutatorsAfterSealRefuse(t *testing.T) {
 			"SetNTPSyncProvider":      func() { SetNTPSyncProvider(nil) },
 		}
 		for name, call := range seams {
-			if _, panicked := callRecovering(func() error { call(); return nil }); panicked != nil {
+			if panicked, _ := callRecovering(func() error { call(); return nil }); panicked != nil {
 				t.Errorf("runtime seam %s panicked after Seal: %v", name, panicked)
 			}
 		}
@@ -257,9 +257,9 @@ func TestRegistryMutatorsAfterSealRefuse(t *testing.T) {
 }
 
 // callRecovering runs call and answers its error, or what it panicked with.
-func callRecovering(call func() error) (err error, panicked any) {
+func callRecovering(call func() error) (panicked any, err error) {
 	defer func() { panicked = recover() }()
-	return call(), nil
+	return nil, call()
 }
 
 // seamMarker is the sentence a runtime seam's doc comment carries.
@@ -352,7 +352,11 @@ func parseRegistrySource(t *testing.T) ([]*ast.File, map[string]bool) {
 				continue
 			}
 			for _, spec := range gen.Specs {
-				for _, ident := range spec.(*ast.ValueSpec).Names { //nolint:forcetypeassert // a var GenDecl holds ValueSpecs only
+				value, isValue := spec.(*ast.ValueSpec)
+				if !isValue {
+					t.Fatalf("%s: a var declaration holds a %T, want a ValueSpec", path, spec)
+				}
+				for _, ident := range value.Names {
 					packageVars[ident.Name] = true
 				}
 			}
@@ -534,8 +538,8 @@ func fillValue(t testing.TB, v reflect.Value, path string) {
 func mutateValue(v reflect.Value) {
 	switch v.Kind() {
 	case reflect.Struct:
-		for i := range v.NumField() {
-			mutateValue(v.Field(i))
+		for _, field := range v.Fields() {
+			mutateValue(field)
 		}
 	case reflect.Slice, reflect.Array:
 		for i := range v.Len() {

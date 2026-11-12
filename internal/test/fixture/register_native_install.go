@@ -74,7 +74,7 @@ func nativeInstallLifecycle(ctx context.Context, args []string) (lifecycleErr er
 	if strings.Contains(configuration.stdout, "interface {") {
 		return fmt.Errorf("native install claimed host interfaces: %s", configuration.stdout)
 	}
-	remote := map[string]string{envConfigDir: configDir, envSSHHost: addrLoopback, envSSHPort: args[0], envSSHPassword: "native-test-secret", "XDG_RUNTIME_DIR": runtimeDir}
+	remote := map[string]string{envConfigDir: configDir, envSSHHost: addrLoopback, envSSHPort: args[0], envSSHPassword: "native-test-secret", envXDGRuntimeDir: runtimeDir}
 	if err := nativeInstalledLogin(ctx, started, binary, remote); err != nil {
 		return err
 	}
@@ -96,8 +96,12 @@ func nativeInstallLifecycle(ctx context.Context, args []string) (lifecycleErr er
 	if removed.code != 0 {
 		return fmt.Errorf("native uninstall failed: %s%s", removed.stdout, removed.stderr)
 	}
-	if _, err := os.Stat(binary); !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("uninstall did not remove installed binary: %v", err)
+	_, err = os.Stat(binary)
+	if err == nil {
+		return errors.New("uninstall did not remove installed binary")
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("uninstall did not remove installed binary: %w", err)
 	}
 	if _, err := os.Stat(filepath.Join(configDir, "database")); err != nil {
 		return fmt.Errorf("ordinary uninstall removed state: %w", err)
@@ -106,8 +110,12 @@ func nativeInstallLifecycle(ctx context.Context, args []string) (lifecycleErr er
 	if purged.code != 0 {
 		return fmt.Errorf("explicit purge failed: %s%s", purged.stdout, purged.stderr)
 	}
-	if _, err := os.Stat(configDir); !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("explicit purge retained config directory: %v", err)
+	_, err = os.Stat(configDir)
+	if err == nil {
+		return errors.New("explicit purge retained config directory")
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("explicit purge retained config directory: %w", err)
 	}
 	if _, err := os.Stat(runtimeDir); err != nil {
 		return fmt.Errorf("purge removed an unrelated installation directory: %w", err)
@@ -131,7 +139,7 @@ func nativeInstallCommand(ctx context.Context, started time.Time, env map[string
 func nativeInstalledLogin(ctx context.Context, started time.Time, binary string, remote map[string]string) (loginErr error) {
 	fmt.Fprintf(os.Stderr, "native lifecycle +%s daemon spawn begin argv=%q\n", time.Since(started).Round(time.Millisecond), []string{binary, "start"})
 	command := exec.CommandContext(ctx, binary, "start") //nolint:gosec // The installed executable belongs to this fixture.
-	command.Env = fixture10Environment(map[string]string{envConfigDir: remote[envConfigDir], "XDG_RUNTIME_DIR": remote["XDG_RUNTIME_DIR"]})
+	command.Env = fixture10Environment(map[string]string{envConfigDir: remote[envConfigDir], envXDGRuntimeDir: remote[envXDGRuntimeDir]})
 	var output lockedBuffer
 	command.Stdout = io.MultiWriter(os.Stderr, &output)
 	command.Stderr = io.MultiWriter(os.Stderr, &output)
