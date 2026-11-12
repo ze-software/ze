@@ -1383,6 +1383,7 @@ go.fd.io/govpp/binapi/acl
 go.fd.io/govpp/binapi/acl_types
 go.fd.io/govpp/binapi/classify
 go.fd.io/govpp/binapi/ethernet_types
+go.fd.io/govpp/binapi/fib
 go.fd.io/govpp/binapi/fib_types
 go.fd.io/govpp/binapi/gre
 go.fd.io/govpp/binapi/interface
