@@ -29,13 +29,22 @@ var (
 func Register(command, key string, e Enricher) error {
 	mu.Lock()
 	defer mu.Unlock()
-	for _, existing := range registry[command] {
+	current := registry[command]
+	for _, existing := range current {
 		if existing.key == key {
 			return errDuplicateKey
 		}
 	}
-	registry[command] = append(registry[command], entry{key: key, enricher: e})
-	sort.Slice(registry[command], func(i, j int) bool { return registry[command][i].key < registry[command][j].key })
+	// Enrich and EnrichBrief iterate the list they read under the read lock
+	// after releasing it, so a published list is never changed in place: an
+	// append into spare capacity and an in-place sort would move the entries
+	// under that iteration. The new list is a fresh copy, sorted, then
+	// published, as Unregister does.
+	fresh := make([]entry, 0, len(current)+1)
+	fresh = append(fresh, current...)
+	fresh = append(fresh, entry{key: key, enricher: e})
+	sort.Slice(fresh, func(i, j int) bool { return fresh[i].key < fresh[j].key })
+	registry[command] = fresh
 	return nil
 }
 

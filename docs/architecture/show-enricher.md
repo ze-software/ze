@@ -26,6 +26,7 @@ verb. They serve different consumers and never meet.
 | The handler calls `show.Enrich()` explicitly | dispatcher middleware would have to parse and merge JSON at the wire layer, and the dispatcher is single-response |
 | Brief and Detail are separate functions | they map to the summary and the detail command; a detail-only enricher leaves Brief nil instead of writing a no-op |
 | Keys are emitted in alphabetical order | deterministic output for `\| json` and for debugging, matching the `registry.All()` convention |
+| A published list is never changed in place: `Register` and `Unregister` build a fresh slice and assign it | `Enrich()` and `EnrichBrief()` read the list under the read lock and call the enrichers after releasing it, so a slow enricher never holds up a registration, and a plugin that registers or unregisters at run time (a restart) cannot move the entries a `show` is iterating |
 | `Enrich()` recovers from a panic | a network OS must not lose a show command because one enricher has a defect |
 | `Register` returns an error, `MustRegister` panics | the native write hook forbids a direct panic carrying dynamic content, so the panic lives in one named wrapper |
 <!-- source: internal/le/hookruntime/writeedit.go -- writeGoPatterns -->
