@@ -535,7 +535,14 @@ bgp {
 	r := newReader(schemas, confPath, validator, nil)
 	_, err := r.load()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "pattern")
+	// The refusal names the setting, the refused value, the accepted format in
+	// words and the command that fixes it; it no longer prints the word
+	// "pattern" or a regular expression.
+	assert.Contains(t, err.Error(), "bgp router-id")
+	assert.Contains(t, err.Error(), `"not-an-ip"`)
+	assert.Contains(t, err.Error(), "is not in the accepted format")
+	assert.Contains(t, err.Error(), "\nfix: ")
+	assert.NotContains(t, err.Error(), "pattern")
 }
 
 // TestReader_ValidateBlock_MandatoryMissing verifies YANG validator reports missing mandatory fields.
@@ -837,7 +844,14 @@ set bgp router-id not-an-ip
 	r := newReader(schemas, confPath, validator, fe)
 	_, err := r.load()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "pattern")
+	// The refusal names the setting, the refused value, the accepted format in
+	// words and the command that fixes it; it no longer prints the word
+	// "pattern" or a regular expression.
+	assert.Contains(t, err.Error(), "bgp router-id")
+	assert.Contains(t, err.Error(), `"not-an-ip"`)
+	assert.Contains(t, err.Error(), "is not in the accepted format")
+	assert.Contains(t, err.Error(), "\nfix: ")
+	assert.NotContains(t, err.Error(), "pattern")
 }
 
 // mapKeys returns sorted keys of a map.

@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
+
+	"github.com/ze-software/ze/internal/core/suggest"
 )
 
 // EnumValues answers every value of the enumeration the model declares at path,
@@ -102,6 +104,45 @@ func EnumNamesDeclared(entry *gyang.Entry) ([]string, error) {
 		return nil, err
 	}
 	return assigned.namesByValue(), nil
+}
+
+// EnumNamesDeclaredOf answers the names of yt's enumeration in declared
+// order, where yt is a type leaf's type statement resolved to: the leaf's own
+// type, or a union member at any depth. It is EnumNamesDeclared for a type
+// that is not the leaf's whole type, so a union's enum member lists its values
+// in the module's order too. The error names a yt no type statement under
+// leaf resolved to, or an enumeration whose values the RFC forbids.
+func EnumNamesDeclaredOf(leaf *gyang.Entry, yt *gyang.YangType) ([]string, error) {
+	statement := typeStatementOf(entryTypeStatement(leaf), yt, 0)
+	if statement == nil {
+		return nil, fmt.Errorf("%w: no type statement of the entry resolves to this enumeration", ErrEnumValue)
+	}
+	assigned, err := parseEnumAssignment(statement)
+	if err != nil {
+		return nil, err
+	}
+	return assigned.namesByValue(), nil
+}
+
+// EnumValuesOf answers the accepted values of yt's enumeration with the
+// ze:help each declares, in declared order: the value list an enum refusal
+// prints. yt is leaf's own type or one of its union members.
+//
+// A loaded module cannot hold an enumeration EnumNamesDeclaredOf refuses
+// (checkStructure runs at load), so that answer is only reached with a type
+// built outside a module load; the values are then listed in goyang's sorted
+// order, which still names every accepted value.
+func EnumValuesOf(leaf *gyang.Entry, yt *gyang.YangType) []suggest.Value {
+	names, err := EnumNamesDeclaredOf(leaf, yt)
+	if err != nil && yt != nil && yt.Enum != nil {
+		names = yt.Enum.Names()
+	}
+	help := EnumValueSummaries(leaf)
+	values := make([]suggest.Value, 0, len(names))
+	for _, name := range names {
+		values = append(values, suggest.Value{Name: name, Help: help[name]})
+	}
+	return values
 }
 
 // entryTypeStatement answers the type statement entry's leaf or leaf-list

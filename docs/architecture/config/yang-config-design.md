@@ -464,8 +464,10 @@ substatement, and Ze speaks it when that restriction refuses a value.
 
 RFC 7950 Section 7.5.4.1: "If the constraint evaluates to "false", the string is passed as <error-message> in the <rpc-error> in NETCONF."
 
-The refusal keeps what was refused and adds the module author's reason and
-fix:
+On the tree walk the message is the why line of the value refusal ("Value
+refusals" below), and `Message` keeps the text in this table. The parsers and
+the command argument refusal keep what was refused and add the module
+author's reason and fix:
 
 | Restriction | The refusal the operator reads |
 |-------------|--------------------------------|
@@ -503,6 +505,56 @@ IS-IS `system-id` pattern and `zt:vlan-id` are the worked examples.
 <!-- source: internal/component/config/yang_schema.go -- yangToNodeOfAnyOS, yangToLeaf, unionMembersFromType -->
 <!-- test: internal/component/config/leaflist_pattern_message_test.go TestLeafListPatternRefusalSpeaksTheMessage -->
 <!-- source: internal/component/command/argvalidate.go -- refusalWithMessage -->
+
+#### Value refusals
+
+A value outside an enumeration, a range, a length or a pattern is refused with
+one operator error (`ai/rules/user-facing-errors.md`), built from the schema
+alone. `configyang.ValidationError` holds it: `Error()` renders it, and
+`Unwrap` answers the `*opererr.Error`, so `errors.As` finds both the typed
+facts (`Type`, `Expected`, `Got`, the JSON diagnostic's fields) and the
+problem, why and fix a web notice reads. Every other kind (missing, type,
+reference, cardinality, unknown) holds none and keeps
+`<type> error at <path>: <message>`.
+
+| Part | Enum | Range | Length | Pattern |
+|------|------|-------|--------|---------|
+| problem | `<path>: "<value>" is not an accepted value`, ` (did you mean X?)` when one value is close | `... is outside the accepted range` | `... is outside the accepted length (N characters)` | `... is not in the accepted format` |
+| why | `<leaf> accepts only these values:`, then one line per value in declared order with its `ze:help` | `<leaf> accepts a value in <bounds>` | `<leaf> accepts <bounds> characters` | `<leaf> accepts <format>` |
+| fix | `set <path> <suggestion>`, else the alternation `<a\|b\|c>` | `set <path> <bounds>` | `set <path> <bounds characters>` | `set <path> <typedef-name>` or `<value>` |
+
+The path is the setting path as an operator types it, words separated by
+spaces, list keys included. A declared `error-message` is the why line in
+place of the generic one. An enum leaf written with no value says
+`<path>: needs a value`. On a `ze:sensitive` or `ze:bcrypt` leaf the value slot
+holds `/* SECRET-DATA */`, and neither a suggestion nor a length is computed.
+
+The pattern's format comes from one reader, `LeafValueFormat`: the nearest
+typedef's `ze:help`, else the first sentence of its `description`, else the
+leaf's own `ze:help`; with none of them the why names the typedef
+(`a value of type <name>`), and an inline pattern on a leaf with no help says
+`<leaf> does not accept this value`. The regular expression is never shown.
+
+The tree walk attaches the refusal in `validateLeafValue`, where the leaf is
+known; the parsers build it with `EnumRefusal`, `MissingEnumValue`,
+`RangeRefusal`, `LengthRefusal` and `PatternRefusal`. A surface that frames
+its own fix (the file form `route-refresh require;`, a command typed inside an
+`edit` context) calls `WithFix` with the line built from `Correction()`, and
+the parser names the full path once with `WithPath`; each answers a copy whose
+other facts are the original's. The value lines and the alternation are
+written by `suggest.ValueLines` and `suggest.Alternation`, which the command
+argument refusal shares. The schema nodes keep the facts the parsers build
+from: `LeafNode.Enums` in declared order with `EnumHelp`, `Format`, and the
+same fields on `MultiLeafNode`, `BracketLeafListNode` and `ValueOrArrayNode`.
+
+<!-- source: internal/component/config/yang/refusal.go -- RefusedValue, EnumRefusal, MissingEnumValue, RangeRefusal, LengthRefusal, PatternRefusal, WithFix, WithPath, Correction, attachRefusal, pathWords -->
+<!-- source: internal/component/config/yang/validator_error.go -- ValidationError, Error, Unwrap -->
+<!-- source: internal/component/config/yang/format.go -- ValueFormat, LeafValueFormat, firstSentence -->
+<!-- source: internal/component/config/yang/enum.go -- EnumNamesDeclaredOf, EnumValuesOf -->
+<!-- source: internal/component/config/yang/sensitive.go -- SecretValuePlaceholder, EntryHoldsSecret -->
+<!-- source: internal/core/suggest/valuelist.go -- Value, ValueLines, Alternation -->
+<!-- source: internal/component/config/yang_schema.go -- enumFactsFromEntry, yangToLeaf, unionMembersFromType -->
+<!-- test: internal/component/config/yang/refusal_test.go TestValidationErrorOperatorError -->
 
 ### Layer 2: Custom Validators (`ze:validate`)
 

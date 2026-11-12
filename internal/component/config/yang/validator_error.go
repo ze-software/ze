@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md — YANG schema handling
 // Related: validator.go — every check returns a ValidationError
+// Related: refusal.go — the operator error an enum, range, length or pattern refusal holds
 
 package yang
 
@@ -46,6 +47,13 @@ func (e ErrorType) String() string {
 }
 
 // ValidationError represents a YANG validation error.
+//
+// An enum, range, length or pattern refusal built by a refusal constructor
+// (refusal.go) or by the tree walk holds an operator error: Error() renders
+// it, and Unwrap answers it, so errors.As finds both the ValidationError (its
+// typed facts) and the *opererr.Error (its problem, why and fix). Every other
+// kind, and a ValidationError written as a composite literal, holds none and
+// renders "<type> error at <path>: <message>".
 type ValidationError struct {
 	Path       string    // Path to the invalid value
 	Type       ErrorType // Type of validation error
@@ -53,12 +61,29 @@ type ValidationError struct {
 	Expected   string    // What was expected
 	Got        string    // What was provided
 	LineNumber int       // Line number in config file (if available)
+
+	// facts is what the operator error is built from, and that error. nil
+	// for a kind that holds no operator error. Immutable once set: WithFix
+	// and WithPath answer a copy with new facts.
+	facts *refusalFacts
 }
 
 func (e *ValidationError) Error() string {
 	var b textbuf.Buffer
 	if e.LineNumber > 0 {
-		return b.Str("line ").Int(int64(e.LineNumber)).Str(": ").Str(e.Type.String()).Str(" error at ").Str(e.Path).Str(": ").Str(e.Message).String()
+		b.Str("line ").Int(int64(e.LineNumber)).Str(": ")
+	}
+	if e.facts != nil {
+		return b.Str(e.facts.refusal.Error()).String()
 	}
 	return b.Str(e.Type.String()).Str(" error at ").Str(e.Path).Str(": ").Str(e.Message).String()
+}
+
+// Unwrap answers the operator error the refusal holds, or nil for a kind that
+// holds none.
+func (e *ValidationError) Unwrap() error {
+	if e.facts == nil {
+		return nil
+	}
+	return e.facts.refusal
 }

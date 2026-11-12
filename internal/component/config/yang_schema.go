@@ -455,17 +455,22 @@ func yangToNodeOfAnyOS(entry *gyang.Entry, path string) Node {
 		return yangToInlineListWithKey(entry, path, keyType)
 	case "multi-leaf":
 		node := multiLeaf(yangTypeToValueType(entry.Type))
+		node.Enums, node.EnumHelp = enumFactsFromEntry(entry, path)
+		node.Format = yang.LeafValueFormat(entry, entry.Type)
 		node.Patterns = patternsFromType(entry.Type)
 		node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
 		return node
 	case "bracket":
 		node := bracketLeafList(yangTypeToValueType(entry.Type))
+		node.Enums, node.EnumHelp = enumFactsFromEntry(entry, path)
+		node.Format = yang.LeafValueFormat(entry, entry.Type)
 		node.Patterns = patternsFromType(entry.Type)
 		node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
 		node.Ordered = getOrderedExtension(entry)
 		return node
 	case "value-or-array":
 		node := valueOrArray(yangTypeToValueType(entry.Type))
+		node.Format = yang.LeafValueFormat(entry, entry.Type)
 		node.Patterns = patternsFromType(entry.Type)
 		node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
 		node.Ordered = getOrderedExtension(entry)
@@ -481,13 +486,18 @@ func yangToNodeOfAnyOS(entry *gyang.Entry, path string) Node {
 		if entry.IsLeafList() {
 			validateLeafDefaults(entry, path)
 			if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
-				node := valueOrArrayEnum(entry.Type.Enum.Names())
+				// The values in the module's order, as a refusal lists
+				// them; completion sorts its own copy.
+				values, help := enumFactsFromEntry(entry, path)
+				node := valueOrArrayEnum(values)
+				node.EnumHelp = help
 				node.Patterns = patternsFromType(entry.Type)
 				node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
 				node.Ordered = getOrderedExtension(entry)
 				return node
 			}
 			node := valueOrArray(yangTypeToValueType(entry.Type))
+			node.Format = yang.LeafValueFormat(entry, entry.Type)
 			node.Patterns = patternsFromType(entry.Type)
 			node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
 			node.Ordered = getOrderedExtension(entry)
@@ -620,26 +630,6 @@ func getOSExtension(entry *gyang.Entry) string {
 // in backend_gate.go.
 func getBackendExtension(entry *gyang.Entry) []string {
 	return yang.GetBackendExtension(entry)
-}
-
-// hasSensitiveExtension checks if a YANG entry has the ze:sensitive extension.
-func hasSensitiveExtension(entry *gyang.Entry) bool {
-	for _, ext := range entry.Exts {
-		if ext.Keyword == "ze:sensitive" || strings.HasSuffix(ext.Keyword, ":sensitive") {
-			return true
-		}
-	}
-	return false
-}
-
-// hasBcryptExtension checks if a YANG entry has the ze:bcrypt extension.
-func hasBcryptExtension(entry *gyang.Entry) bool {
-	for _, ext := range entry.Exts {
-		if ext.Keyword == "ze:bcrypt" || strings.HasSuffix(ext.Keyword, ":bcrypt") {
-			return true
-		}
-	}
-	return false
 }
 
 // hasHiddenExtension checks if a YANG entry has the ze:hidden extension with argument "true".
@@ -778,8 +768,8 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 		}
 	}
 	validateLeafDefaults(entry, path)
-	node.Sensitive = hasSensitiveExtension(entry)
-	node.Bcrypt = hasBcryptExtension(entry)
+	node.Sensitive = yang.HasSensitiveExtension(entry)
+	node.Bcrypt = yang.HasBcryptExtension(entry)
 	node.Hidden = hasHiddenExtension(entry)
 	node.Ephemeral = hasEphemeralExtension(entry)
 	node.Decorate = getDecorateExtension(entry)
@@ -787,13 +777,8 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	node.Description = entry.Description               // the long explanation
 	node.Backend = getBackendExtension(entry)
 	node.Related = extractRelatedTools(entry, path)
-	if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
-		enums, err := yang.EnumNamesDeclared(entry)
-		if err != nil {
-			recordSchemaBuildError(fmt.Errorf("at %s: %w", path, err))
-		}
-		node.Enums = enums
-	}
+	node.Enums, node.EnumHelp = enumFactsFromEntry(entry, path)
+	node.Format = yang.LeafValueFormat(entry, entry.Type)
 	node.Ranges = numericRangesFromType(entry.Type, path)
 	node.Patterns = patternsFromType(entry.Type)
 	node.Lengths = lengthRangesFromType(entry.Type)
@@ -805,6 +790,22 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 		}
 	}
 	return node
+}
+
+// enumFactsFromEntry answers the values of entry's enumeration in YANG
+// declaration order and the ze:help each declares, by name, or nil and nil
+// for an entry whose type is no enumeration. A refusal lists the values in
+// this order with this help; the order is the module author's, so the default
+// comes first and related values stay together.
+func enumFactsFromEntry(entry *gyang.Entry, path string) ([]string, map[string]string) {
+	if entry.Type == nil || entry.Type.Kind != gyang.Yenum || entry.Type.Enum == nil {
+		return nil, nil
+	}
+	enums, err := yang.EnumNamesDeclared(entry)
+	if err != nil {
+		recordSchemaBuildError(fmt.Errorf("at %s: %w", path, err))
+	}
+	return enums, yang.EnumValueSummaries(entry)
 }
 
 // defaultValidator checks every default statement against its type at
@@ -997,8 +998,16 @@ func unionMembersFromType(leaf *gyang.Entry, typ *gyang.YangType) []UnionMember 
 		node.Patterns = patternsFromType(member)
 		node.Lengths = lengthRangesFromType(member)
 		node.Constraint = yang.LeafConstraintMessages(leaf, member)
+		node.Format = yang.LeafValueFormat(leaf, member)
 		if member.Kind == gyang.Yenum && member.Enum != nil {
-			node.Enums = member.Enum.Names()
+			// The member's values in the module's order, with the help the
+			// leaf's enumerations declare, as a refusal lists them.
+			enums, err := yang.EnumNamesDeclaredOf(leaf, member)
+			if err != nil {
+				recordSchemaBuildError(fmt.Errorf("at %s: %w", leaf.Path(), err))
+			}
+			node.Enums = enums
+			node.EnumHelp = yang.EnumValueSummaries(leaf)
 		}
 		node.Union = unionMembersFromType(leaf, member)
 		members = append(members, UnionMember{TypeName: member.Name, Leaf: node})

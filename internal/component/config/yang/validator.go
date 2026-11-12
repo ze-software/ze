@@ -174,6 +174,12 @@ func (v *Validator) ValidateLeafType(path string, leaf *yang.Entry, yangType *ya
 // leaf is the leaf (or leaf-list) holding the value, which a leafref's
 // relative path starts from, and whose type statements carry the
 // error-message of each constraint (LeafConstraintMessages).
+//
+// An enum, range, length or pattern refusal gets its operator error here,
+// where the leaf is known (attachRefusal): its path, its accepted values with
+// their help in declared order, its bounds or format, and the error-message
+// its constraint declares. The arms of validateKind keep only the typed
+// facts the RFC tests and the JSON diagnostic read.
 func (v *Validator) validateLeafValue(path string, leaf *yang.Entry, yangType *yang.YangType, value any) error {
 	err := v.validateKind(path, leaf, yangType, value)
 	if leaf == nil {
@@ -183,7 +189,9 @@ func (v *Validator) validateLeafValue(path string, leaf *yang.Entry, yangType *y
 	if !errors.As(err, &refusal) {
 		return err
 	}
-	speakConstraintMessage(refusal, LeafConstraintMessages(leaf, yangType))
+	messages := LeafConstraintMessages(leaf, yangType)
+	speakConstraintMessage(refusal, messages)
+	attachRefusal(refusal, leaf, yangType, value, messages)
 	return err
 }
 
@@ -564,6 +572,8 @@ func (v *Validator) validateEnumeration(path string, yangType *yang.YangType, va
 		return nil
 	}
 
+	// goyang's sorted names; attachRefusal replaces them with the declared
+	// order once the leaf is known, which is every walk of a config tree.
 	var expected string
 	if yangType.Enum != nil {
 		expected = textbuf.Join(yangType.Enum.Names(), ", ")

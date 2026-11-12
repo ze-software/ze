@@ -100,7 +100,9 @@ const (
 )
 
 // SecretDataPlaceholder is the replacement text for stripped sensitive values.
-const SecretDataPlaceholder = "/* SECRET-DATA */" //nolint:gosec // not a credential
+// It is declared in config/yang, where a refusal of a secret value shows it
+// too, so the display and the refusal print one placeholder.
+const SecretDataPlaceholder = configyang.SecretValuePlaceholder
 
 // SensitiveKeys walks a schema tree and returns all leaf names marked ze:sensitive.
 //
@@ -151,20 +153,26 @@ type Node interface {
 type LeafNode struct {
 	Type        ValueType
 	Default     string
-	Sensitive   bool           // ze:sensitive — value is a password/key, masked in display ($9$ reversible)
-	Bcrypt      bool           // ze:bcrypt — one-way bcrypt hash; parser skips $9$ decode, commit hashes plaintext sibling
-	Hidden      bool           // ze:hidden — kept out of completion, the web editor and the annotated views; the file form still prints it
-	Ephemeral   bool           // ze:ephemeral — present in schema, not persisted to config file
-	Decorate    string         // ze:decorate — decorator name for display-time enrichment
-	ShortHelp   string         // One-line summary from the ze:help extension, for tooltips/help
-	Description string         // Long explanation from the YANG description statement
-	Enums       []string       // Valid enum values (nil for non-enum types)
-	Ranges      []NumericRange // Valid numeric ranges from YANG range statements
-	Lengths     []NumericRange // Valid string lengths from YANG length statements (characters, RFC 7950 Section 9.4.4)
-	Patterns    []string       // Valid string patterns from YANG pattern statements
-	Union       []UnionMember  // Member types of a YANG union, in declared order; nil for any other type
-	Backend     []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
-	Related     []*RelatedTool // ze:related — operator tools attached to this leaf (see related.go)
+	Sensitive   bool     // ze:sensitive — value is a password/key, masked in display ($9$ reversible)
+	Bcrypt      bool     // ze:bcrypt — one-way bcrypt hash; parser skips $9$ decode, commit hashes plaintext sibling
+	Hidden      bool     // ze:hidden — kept out of completion, the web editor and the annotated views; the file form still prints it
+	Ephemeral   bool     // ze:ephemeral — present in schema, not persisted to config file
+	Decorate    string   // ze:decorate — decorator name for display-time enrichment
+	ShortHelp   string   // One-line summary from the ze:help extension, for tooltips/help
+	Description string   // Long explanation from the YANG description statement
+	Enums       []string // Valid enum values in YANG declaration order (nil for non-enum types)
+	// EnumHelp holds the one-line ze:help of each enum value, by name; a
+	// value that declares none is absent (configyang.EnumValueSummaries).
+	EnumHelp map[string]string
+	// Format is the pattern's format in words, which a pattern refusal
+	// shows in place of the regular expression (configyang.LeafValueFormat).
+	Format   configyang.ValueFormat
+	Ranges   []NumericRange // Valid numeric ranges from YANG range statements
+	Lengths  []NumericRange // Valid string lengths from YANG length statements (characters, RFC 7950 Section 9.4.4)
+	Patterns []string       // Valid string patterns from YANG pattern statements
+	Union    []UnionMember  // Member types of a YANG union, in declared order; nil for any other type
+	Backend  []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
+	Related  []*RelatedTool // ze:related — operator tools attached to this leaf (see related.go)
 
 	// Constraint holds the error-message of the range, the length and each
 	// pattern (RFC 7950 Section 7.5.4.1), which their refusals speak.
@@ -668,7 +676,13 @@ func Freeform() *FreeformNode {
 
 // MultiLeafNode accepts multiple words until semicolon: "word word word;".
 type MultiLeafNode struct {
-	Type     ValueType
+	Type ValueType
+	// Enums holds the accepted values in YANG declaration order when the
+	// type is an enumeration, nil otherwise; EnumHelp their ze:help by name.
+	Enums    []string
+	EnumHelp map[string]string
+	// Format is the pattern's format in words (configyang.LeafValueFormat).
+	Format   configyang.ValueFormat
 	Patterns []string
 	// Constraint holds the error-message of each pattern (RFC 7950 Section
 	// 7.5.4.1), which a pattern refusal speaks.
@@ -685,7 +699,13 @@ func multiLeaf(typ ValueType) *MultiLeafNode {
 // BracketLeafListNode accepts [ item item ... ] syntax for leaf-list.
 // Maps to YANG leaf-list with ze:syntax "bracket".
 type BracketLeafListNode struct {
-	Type     ValueType
+	Type ValueType
+	// Enums holds the accepted values in YANG declaration order when the
+	// type is an enumeration, nil otherwise; EnumHelp their ze:help by name.
+	Enums    []string
+	EnumHelp map[string]string
+	// Format is the pattern's format in words (configyang.LeafValueFormat).
+	Format   configyang.ValueFormat
 	Patterns []string
 	// Constraint holds the error-message of each pattern (RFC 7950 Section
 	// 7.5.4.1), which a pattern refusal speaks.
@@ -708,8 +728,12 @@ func bracketLeafList(typ ValueType) *BracketLeafListNode {
 // Stores result as space-separated string in both cases.
 type ValueOrArrayNode struct {
 	Type        ValueType
-	ValidValues []string // If non-nil, each item must be one of these values (YANG enum)
-	Patterns    []string
+	ValidValues []string // If non-nil, each item must be one of these values (YANG enum), in declaration order
+	// EnumHelp holds the ze:help of each ValidValues entry, by name.
+	EnumHelp map[string]string
+	// Format is the pattern's format in words (configyang.LeafValueFormat).
+	Format   configyang.ValueFormat
+	Patterns []string
 	// Constraint holds the error-message of each pattern (RFC 7950 Section
 	// 7.5.4.1), which a pattern refusal speaks.
 	Constraint configyang.ConstraintMessages

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Priority | P1 |
 | Release reason | Honor the approved consistent schema-derived enum refusal across operator entry points. |
 | Scope | config |
@@ -13,6 +13,12 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+WIP-cap exception, 2026-11-12: the owner granted a one-off cap exception for
+this spec, naming it in answer to "grant a cap exception so I take that spec
+next". It is the dependency that lets
+`plan/release/fixes/spec-bmp-route-action-redistribute-acts-as-monitor.md`
+close. The exception covers this spec's claim only.
+
 This spec was reworked on 2026-11-12 (Disposition: REWORK). The design of
 2026-10-14, reviewed in 17 rounds, is in git history at `09be99b7db`. It
 predates the operator error (`opererr`), the parser's union check, the parser's
@@ -21,7 +27,8 @@ refusal and multi-leaf-key list addressing. This version rebuilds the design
 on those mechanisms. It keeps every owner answer and every acceptance
 criterion's intent. Review rounds 18 to 25 judged the rework and the
 `top <command>` form the owner's Q-9 answer asks for; their findings are applied
-here, and round 25 found no further round owed (Review Gate).
+here, and round 25 found no further round owed (Review Gate). The owner
+approved the design on 2026-11-12 ("approve").
 
 ## Task
 
@@ -903,8 +910,9 @@ Changed from the 2026-10-14 design:
 | Q-8b | Web CLI bar `set` gets the value and key checks? | Yes | **Answered by the owner, 2026-10-13: "yes".** |
 | Q-9 | How should an SSH editor fix line name a config path outside the operator's current `edit` context? `discard` already takes a root path in every context, so its fixes are exact today; `set` always prepends the context and `top` took no arguments, so no single command reached a path outside the context. Options were (a) the root-form `set` typed after `top`, (b) moving the editor to the root on such refusals, (c) a root-path form of `set` | (c) | **Answered by the owner, 2026-11-12: "I think the top command should have a set sub option, which effectively make it transient. So it will be a top set bgp instead of the proposed set top bgp."** and, on making it general: **"Yes, you can make it top effectively. A transient change of directory for the command behind, whatever the command is."** Designed as `top <command ...>`: `top` alone keeps its meaning; with a command, that command runs once at the root, whatever it is, and the position is kept unless the command itself moves it (Data Flow 7 and 8, AC-45 to AC-52) |
 
-Q-1 is unused. Every owner question is answered. Design approval is still owed
-from the owner; the status stays `design` until it is given.
+Q-1 is unused. Every owner question is answered. The owner approved the design
+on 2026-11-12 ("approve"), after review round 25, and the status moved to
+`ready`.
 
 ## Review Gate
 
@@ -923,6 +931,7 @@ from the owner; the status stays `design` until it is given.
 | 23 | 2026-11-12 | 1 BLOCKER, 4 ISSUE, 2 NIT (review of the `top <command>` addition) | All 7 verified at the producer and applied. B-1: `cmdShow` answers through `configView` (`model_commands_show.go`), so rebuilding it would have shown the context under `top show`; the inner `configView` is now kept as built, and only `refreshConfig` resolves at the real position (`handleCommandResult`); R-18 rewritten. I-1: `handleEnter` takes `run`, `exit`, `quit`, `stop`, `restart` and `clear` before dispatch, and only `edit`, `up` and `top` set `clearContext`/`newContext` (`exit` does not); `handleEnter` now drops `top ` before its interceptions, since none reads the position, so every verb works behind `top` as without it; A-11 corrected, A-13 added, AC-47 and AC-48 gain `top run`, `top exit` and `top nosuchverb`, R-19 rewritten. I-2: `finishPasteMode` applies the paste at the real position later; the paste state records the position `load terminal` ran at, AC-52 added; the `commit confirmed` countdown and the exit confirmations read no position. I-3: `validateCore` holds no position and the CLI bar's `handleCLICommit` receives none; `ConfigValidationError` carries a typed fix framed by the SSH model, the web terminal and the CLI bar (now given the request's position); REST, gRPC and gNMI write the plain form. I-4: A-12 confirmed (only the three navigation handlers call `writeCLIResponse`); the bar's `top <command>` calls `dispatchCLICommand` with an empty position and no signal; today's `handleCLITop` drop of its arguments recorded as text 14. N-1: completion after `top ` uses `m.completer.Complete(tree, rest, nil)` (AC-49). N-2: no YANG node is named `top` (nearest `leaf top-n-sources`). Narrow round 24 is owed over these edits |
 | 24 | 2026-11-12 | 0 BLOCKER, 2 ISSUE, 2 NIT (narrow review of the round-23 edits) | All 4 verified at the producer at `1d565709a2` and applied. I-1: 24 results write `configView: m.configViewAtPath(m.contextPath)`; only `cmdShow`'s is an asked-for view, the other 23 (option 2, edit 6, commit 8, session 4, load 2, commit window 1, the two `show changes` "No pending changes" arms among them) answer `refreshConfig`; proven invisible without `top` from `configViewAtPath`, `setViewportData` and both appliers (A-14, AC-54, `TestIncidentalViewUnchangedWithoutTop`); while verifying, `setViewportData` was found to pick the annotator from the real position, so `cmdTop` marks the inner view `atRoot`. I-2: one framer `cli.FrameFix(FixCommand, operator)`, the operator position saved by `cmdTop` as `m.topOrigin` and carried on the web as `cliCommand.Operator`; `CommitRefusal`, `appendIssueSummary`, `formatIssueList` and `EditorManager.runCommit` gain the parameter; the commit modal and `CommitNow` pass nil; AC-48 corrected, AC-53, `TestTopCommitFixUsesTopSetInsideAContext`, `TestTopRefusedSetFixKeepsTop`, `TestFrameFix` added. Found while verifying: `dispatchCommand` splits a pipe before its verb switch and `dispatchWithPipe` refuses any verb but `show`, so `top show \| errors` was refused, and the Integration Checklist said otherwise; `top` is now taken before the split (R-21, `TestTopPipedShowRunsAtTheRoot`). N-1: history keeps the typed line on every arm; the arms that record nothing today (bare `run`, `exit`, `quit`, `stop`, `restart`) stay unrecorded (`TestTopKeepsHistoryAsTyped`). N-2: recorded with a correction: no interception acts on the position, but `clear` reads it through `showConfigContent` to redraw the real position; the position movers are exactly `cmdEdit`, `cmdUp`, `cmdTop` by grep (A-11, A-13 confirmed). Narrow round 25 is owed over these edits |
 | 25 | 2026-11-12 | 0 BLOCKER, 1 ISSUE, 2 NIT (narrow review of the round-24 edits) | All 3 verified at the producer and applied. I-1: `setViewportData` takes the tree diff only when the real `m.contextPath` is empty, so `show <path>` already gets the wrong annotator; the `atRoot` mark is replaced by `configViewAtPath` recording its path in `viewportData`, read by `setViewportData`; `cmdTop` marks nothing; the `show <path>` mismatch is fixed (`TestShowPathAnnotatesAtItsOwnPath`). N-1: `topOrigin` plus `underTop` kept, the reason stated; the commit modal and `CommitNow` hold no CLI position, so a fix typed into the CLI bar inside a context needs `top `. N-2: the web terminal splits a pipe inside `executeTerminalNav`, after `executeTerminalConfigMode` takes `top`; the CLI bar has no pipe handling (`parseCLICommand` only tokenizes). No further round owed; the design is ready for owner approval |
+| owner approval | 2026-11-12 | approved | The owner answered "approve" after round 25; Status set to `ready` |
 
 ### Run 1
 
@@ -977,7 +986,7 @@ from the owner; the status stays `design` until it is given.
 |-------|-------|
 | Date | 2026-11-12 |
 | Checked at | e660eff82e |
-| Verdict | REWORK (design reworked; review rounds 18 to 25 applied; Q-9 answered and designed; no further review round owed; owner approval owed) |
+| Verdict | REWORK (design reworked; review rounds 18 to 25 applied; Q-9 answered and designed; no further review round owed; owner approval given 2026-11-12) |
 | Evidence 1 | 3e94cb7c40 (spec-operator-errors-name-the-fix, closed dc5b80f1b6) made every operator refusal an `opererr.Error` with a `fix: <command>` last line; `ai/rules/user-facing-errors.md` requires it |
 | Evidence 2 | 238bdb62e9 added the union arm to `ValidateLeafValue` (`validateUnionValue`), contradicting the old AC-10, AC-13, AC-14, AC-23 and R-4 |
 | Evidence 3 | 3e94cb7c40 added `config.LineError`/`SplitLine` (deleting `withoutLinePrefix`), `ConstraintMessages`, and `ArgumentFaults` (with 3af4462e82, 37c3a2abb1); `syntaxRefusal` and `prependSyntaxPath` exist |
@@ -994,4 +1003,4 @@ exist, and it rested several acceptance criteria on the parser accepting union
 non-members, which it no longer does. The rework rebuilds the design on those
 mechanisms, and the findings of rounds 18 to 25 are applied. The owner answered
 Q-9 and `top <command>` is designed in; round 25 closed the review with no
-further round owed, and design approval is still owed from the owner.
+further round owed, and the owner approved the design on 2026-11-12.

@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/config/yang"
+
 	// Blank imports trigger init() registration of YANG modules.
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/softver/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/yang"
@@ -1524,4 +1526,120 @@ func TestSchemaNodesCarryBothTexts(t *testing.T) {
 		assert.NotEmpty(t, node.description, "%s carries no description", node.path)
 		assert.NotEqual(t, node.shortHelp, node.description, "%s repeats one text as the other", node.path)
 	}
+}
+
+// enumFactsModule declares every node kind that carries an enumeration, each
+// with values whose declaration order is not their sorted order, so a builder
+// that sorts is red.
+const enumFactsModule = `module ze-test-enum-facts {
+	namespace "urn:ze:test-enum-facts"; prefix tef;
+	import ze-extensions { prefix ze; }
+	container top {
+		leaf mode {
+			type enumeration {
+				enum enable { ze:help "Advertise it"; }
+				enum disable { ze:help "Do not advertise it"; }
+				enum require;
+			}
+		}
+		leaf either {
+			type union {
+				type enumeration { enum zulu { ze:help "Last letter"; } enum alpha; }
+				type uint8;
+			}
+		}
+		leaf-list modes {
+			type enumeration { enum zulu { ze:help "Last letter"; } enum alpha { ze:help "First letter"; } }
+		}
+		leaf words {
+			ze:syntax "multi-leaf";
+			type enumeration { enum zulu { ze:help "Last letter"; } enum alpha; }
+		}
+		leaf-list items {
+			ze:syntax "bracket";
+			type enumeration { enum zulu; enum alpha { ze:help "First letter"; } }
+		}
+		leaf digits { type string { pattern '[0-9]+'; } ze:help "Digits only"; }
+		leaf-list tags { ze:syntax "bracket"; type string { pattern '[a-z]+'; } ze:help "Lower-case tags"; }
+		leaf secret { type string; ze:sensitive; }
+	}
+}`
+
+// enumFactsNode builds the enumFactsModule's top container as the schema
+// build does and answers its child named name.
+func enumFactsNode(t *testing.T, name string) Node {
+	t.Helper()
+	loader := yang.NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.AddModuleFromText("ze-test-enum-facts.yang", enumFactsModule))
+	resolved, err := loader.Resolve()
+	require.NoError(t, err)
+	module := resolved.GetEntry("ze-test-enum-facts")
+	require.NotNil(t, module)
+	resetSchemaBuildErrors()
+	top := yangToNode(module.Dir["top"], "top")
+	require.NoError(t, flushSchemaBuildErrors())
+	container, ok := top.(*ContainerNode)
+	require.True(t, ok, "top builds a container, got %T", top)
+	node := container.Get(name)
+	require.NotNil(t, node, "top declares no %s", name)
+	return node
+}
+
+// TestYangToLeafCarriesEnumHelp proves a leaf carries what its refusal lists:
+// the values in declared order with their ze:help, a union member's values in
+// declared order with theirs, the pattern's format in words, and the secret
+// flag read through config/yang. Method: build the probe nodes and compare
+// each field.
+func TestYangToLeafCarriesEnumHelp(t *testing.T) {
+	mode, ok := enumFactsNode(t, "mode").(*LeafNode)
+	require.True(t, ok)
+	assert.Equal(t, []string{"enable", "disable", "require"}, mode.Enums, "declared order")
+	assert.Equal(t, map[string]string{"enable": "Advertise it", "disable": "Do not advertise it"}, mode.EnumHelp,
+		"a value with no ze:help stays absent")
+
+	either, ok := enumFactsNode(t, "either").(*LeafNode)
+	require.True(t, ok)
+	require.Len(t, either.Union, 2)
+	assert.Equal(t, []string{"zulu", "alpha"}, either.Union[0].Leaf.Enums, "a union member keeps the declared order")
+	assert.Equal(t, "Last letter", either.Union[0].Leaf.EnumHelp["zulu"])
+
+	digits, ok := enumFactsNode(t, "digits").(*LeafNode)
+	require.True(t, ok)
+	assert.Equal(t, "Digits only", digits.Format.Text())
+	assert.Equal(t, "<value>", digits.Format.Placeholder())
+
+	secret, ok := enumFactsNode(t, "secret").(*LeafNode)
+	require.True(t, ok)
+	assert.True(t, secret.Sensitive, "ze:sensitive is read through config/yang")
+}
+
+// TestValueOrArrayEnumDeclaredOrder proves a plain enum leaf-list keeps the
+// module's order and help, which its refusal lists. Method: compare ValidValues
+// with the declared order, which differs from the sorted one.
+func TestValueOrArrayEnumDeclaredOrder(t *testing.T) {
+	modes, ok := enumFactsNode(t, "modes").(*ValueOrArrayNode)
+	require.True(t, ok)
+	assert.Equal(t, []string{"zulu", "alpha"}, modes.ValidValues)
+	assert.Equal(t, map[string]string{"zulu": "Last letter", "alpha": "First letter"}, modes.EnumHelp)
+}
+
+// TestMultiLeafAndBracketCarryEnums proves the multi-leaf and bracket nodes
+// carry the enum facts the walk refuses with, so the parser can judge them
+// too (AC-5). Method: compare Enums, EnumHelp and Format on each node.
+func TestMultiLeafAndBracketCarryEnums(t *testing.T) {
+	words, ok := enumFactsNode(t, "words").(*MultiLeafNode)
+	require.True(t, ok)
+	assert.Equal(t, []string{"zulu", "alpha"}, words.Enums)
+	assert.Equal(t, map[string]string{"zulu": "Last letter"}, words.EnumHelp)
+
+	items, ok := enumFactsNode(t, "items").(*BracketLeafListNode)
+	require.True(t, ok)
+	assert.Equal(t, []string{"zulu", "alpha"}, items.Enums)
+	assert.Equal(t, map[string]string{"alpha": "First letter"}, items.EnumHelp)
+
+	tags, ok := enumFactsNode(t, "tags").(*BracketLeafListNode)
+	require.True(t, ok)
+	assert.Nil(t, tags.Enums, "a string leaf-list carries no enum facts")
+	assert.Equal(t, "Lower-case tags", tags.Format.Text())
 }

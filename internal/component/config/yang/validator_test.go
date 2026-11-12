@@ -333,3 +333,34 @@ func TestWalkTreeNestedLeafListCardinality(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateEnumerationSharedBody proves the walk and the refusal
+// constructors write one refusal (AC-17). Method: the walk's refusal of an
+// enum value, of a range and of a length is compared with the refusal the
+// constructor builds from the same facts, text for text; the missing-value
+// refusal is pinned whole; a list key in the walk path becomes its own word.
+func TestValidateEnumerationSharedBody(t *testing.T) {
+	v := refusalProbe(t)
+
+	walked := walkRefusal(t, v, "mode", "requre")
+	built := EnumRefusal(RefusedValue{Path: []string{"probe", "mode"}, Leaf: "mode", Value: "requre"}, walked.Values())
+	assert.Equal(t, walked.Error(), built.Error(), "the walk and the constructor write one enum refusal")
+	assert.Equal(t, walked.Expected, built.Expected)
+	assert.Equal(t, walked.Got, built.Got)
+	assert.Equal(t, ErrTypeEnum, built.Type)
+
+	cost := walkRefusal(t, v, "cost", "0")
+	builtCost := RangeRefusal(RefusedValue{Path: []string{"probe", "cost"}, Leaf: "cost", Value: "0"}, "1..65535", "")
+	assert.Equal(t, cost.Error(), builtCost.Error(), "the walk and the constructor write one range refusal")
+
+	run := walkRefusal(t, v, "run", "")
+	builtRun := LengthRefusal(RefusedValue{Path: []string{"probe", "run"}, Leaf: "run"}, "1..4096", "")
+	assert.Equal(t, run.Error(), builtRun.Error(), "the walk and the constructor write one length refusal")
+	assert.Equal(t, run.Got, builtRun.Got, "both count the characters in Got")
+
+	missing := MissingEnumValue([]string{"probe", "mode"}, "mode", walked.Values())
+	assert.Equal(t, "probe mode: needs a value\n"+modeValueLines+"\nfix: set probe mode <enable|disable|require|refuse>", missing.Error())
+
+	assert.Equal(t, []string{"bgp", "peer", "10.0.0.0/8", "session"}, pathWords("bgp/peer[10.0.0.0/8]/session"),
+		"a slash inside a list key does not split it")
+}
