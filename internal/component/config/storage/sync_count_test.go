@@ -77,25 +77,29 @@ func TestTreeRewriteSyncCount(t *testing.T) {
 	assert.Equal(t, "two", string(got))
 }
 
-// TestLockStoreFileSyncsFolderOnlyWhenCreated counts the folder barriers of
-// taking a store lock. Goal: the first lock, whose exclusive create adds the
-// file, syncs the folder once; a later lock of the existing file syncs
-// nothing, because a flock is kernel state and the folder did not change.
-// Method: lock a fresh name, release it, lock it again, counting each time.
-func TestLockStoreFileSyncsFolderOnlyWhenCreated(t *testing.T) {
+// TestLockStoreFileRetainsPrivateStableInode proves that releasing ownership
+// leaves the private coordination inode available for the next owner. Lock
+// acquisition publishes no stored data and requires no durability barrier.
+func TestLockStoreFileRetainsPrivateStableInode(t *testing.T) {
 	folder, err := openFolder(t.TempDir())
 	require.NoError(t, err)
 	defer folder.Close() //nolint:errcheck // test cleanup.
 
-	var created syncCounter
-	first, err := lockStoreFile(folder, "database.lock", unix.LOCK_EX, created.sync)
+	first, err := lockStoreFile(folder, "database.lock", unix.LOCK_EX)
 	require.NoError(t, err)
+	defer first.Close() //nolint:errcheck // Releases ownership after an early assertion failure.
+	before, err := first.Stat()
+	require.NoError(t, err)
+	require.True(t, before.Mode().IsRegular())
+	require.Equal(t, os.FileMode(0o600), before.Mode().Perm())
 	require.NoError(t, first.Close())
-	assert.Equal(t, []string{folder.Name()}, created.names, "a created lock syncs its folder once")
 
-	var existing syncCounter
-	second, err := lockStoreFile(folder, "database.lock", unix.LOCK_EX, existing.sync)
+	second, err := lockStoreFile(folder, "database.lock", unix.LOCK_EX)
 	require.NoError(t, err)
+	defer second.Close() //nolint:errcheck // Releases ownership after an early assertion failure.
+	after, err := second.Stat()
+	require.NoError(t, err)
+	assert.True(t, os.SameFile(before, after), "reacquisition preserves the coordination inode")
+	assert.Equal(t, os.FileMode(0o600), after.Mode().Perm())
 	require.NoError(t, second.Close())
-	assert.Empty(t, existing.names, "an existing lock syncs nothing")
 }

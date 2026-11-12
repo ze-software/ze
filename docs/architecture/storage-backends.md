@@ -250,9 +250,11 @@ Staging creation, publication and cleanup all use retained directory descriptors
 Renaming or replacing the containing directory's pathname does not redirect
 these operations into the replacement directory.
 
-Taking a store lock syncs the containing folder only when the exclusive create
-made the lock file. A lock file that already exists adds no directory entry, and
-the `flock` itself is kernel state, so relocking it makes nothing durable.
+Taking a store lock does not sync its containing folder. Its stable inode
+coordinates live owners through kernel `flock` state; after a host crash every
+flock is gone, so a missing lock file can be recreated safely. Stored values,
+tree publication, import recovery and ownership changes retain their own
+durability barriers.
 <!-- source: internal/component/config/storage/open.go -- lockStoreFile, openLockNode -->
 
 `Create` auto-creates an empty tree. `CreatePopulated` runs its callback against a

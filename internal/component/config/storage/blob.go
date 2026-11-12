@@ -53,7 +53,7 @@ func openBlob(path string, writable bool, acquire func(*os.File, string, bool) (
 	if writable {
 		mode = unix.LOCK_EX
 	}
-	owner, err := lockStoreFile(folder, filepath.Base(path)+".lock", mode, (*os.File).Sync)
+	owner, err := lockStoreFile(folder, filepath.Base(path)+".lock", mode)
 	if err != nil {
 		return nil, err
 	}

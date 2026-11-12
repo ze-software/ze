@@ -271,14 +271,14 @@ func openTree(folder *os.File, name, lock string, owner *os.File, readonly bool)
 }
 
 func lockOwner(folder *os.File, name string) (*os.File, error) {
-	return lockStoreFile(folder, name, unix.LOCK_EX, (*os.File).Sync)
+	return lockStoreFile(folder, name, unix.LOCK_EX)
 }
 
 // lockStoreFile opens or creates the lock file name in folder and takes mode
-// on it without blocking. syncFolder is the directory barrier, a parameter so
-// a test can count it; every production caller passes (*os.File).Sync.
-func lockStoreFile(folder *os.File, name string, mode int, syncFolder func(*os.File) error) (*os.File, error) {
-	fd, created, err := openLockNode(folder, name)
+// on it without blocking. The stable inode coordinates live owners; its name
+// need not survive a host crash, which also releases every flock.
+func lockStoreFile(folder *os.File, name string, mode int) (*os.File, error) {
+	fd, _, err := openLockNode(folder, name)
 	if err != nil {
 		return nil, fmt.Errorf("lock %s: %w", filepath.Join(folder.Name(), name), err)
 	}
@@ -288,15 +288,6 @@ func lockStoreFile(folder *os.File, name string, mode int, syncFolder func(*os.F
 	}
 	if err := unix.Flock(fd, mode|unix.LOCK_NB); err != nil {
 		return nil, errors.Join(fmt.Errorf("%w: %s; close its owner before maintenance: %w", ErrBusy, folder.Name(), err), file.Close())
-	}
-	// A flock lives in the kernel, never on disk, so taking it makes nothing
-	// durable. Only the exclusive create added a directory entry; a lock file
-	// that already existed changed nothing in folder, so its sync is skipped.
-	if !created {
-		return file, nil
-	}
-	if err := syncFolder(folder); err != nil {
-		return nil, errors.Join(err, file.Close())
 	}
 	return file, nil
 }
@@ -314,8 +305,7 @@ func lockStoreFile(folder *os.File, name string, mode int, syncFolder func(*os.F
 // of being told the store has an owner. ownershipLock reads the lock the same
 // way, so the package has one shape for a create-or-open.
 //
-// created reports that this call's exclusive create made the file, which is
-// the one case where the folder gained an entry its caller must make durable.
+// created reports whether this call's exclusive create made the lock inode.
 func openLockNode(folder *os.File, name string) (fd int, created bool, err error) {
 	flags := unix.O_RDWR | unix.O_NOFOLLOW | unix.O_NONBLOCK | unix.O_CLOEXEC
 	fd, err = unix.Openat(int(folder.Fd()), name, flags|unix.O_CREAT|unix.O_EXCL, 0o600)

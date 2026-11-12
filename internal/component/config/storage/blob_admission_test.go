@@ -96,7 +96,7 @@ func TestOpenBlobConsumedDescriptorUnderLock(t *testing.T) {
 				}
 				_, err := observed.Stat()
 				require.ErrorIs(t, err, os.ErrClosed)
-				competitor, err := lockStoreFile(folder, name+".lock", unix.LOCK_EX, (*os.File).Sync)
+				competitor, err := lockStoreFile(folder, name+".lock", unix.LOCK_EX)
 				if competitor != nil {
 					require.NoError(t, competitor.Close())
 				}
