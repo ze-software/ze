@@ -41,8 +41,8 @@ func showInterfacePPPoEClient(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	client := clients[0]
 	want := [...]struct{ key, value string }{
-		{"name", `"` + showPPPoEClientDevice + `"`},
-		{"state", `"discovery"`},
+		{fieldName, `"` + showPPPoEClientDevice + `"`},
+		{fieldState, `"discovery"`},
 		{"source-interface", `"` + kernelLink + `"`},
 		{"dns-servers", `[]`},
 		// No session, so no DHCPv6 lease: the key is present and empty.
@@ -58,7 +58,6 @@ func showInterfacePPPoEClient(ctx context.Context, plugin *sdk.Plugin) error {
 		}
 	}
 	var tb textbuf.Buffer
-	tb.Str("OK: show interface pppoe-client: ").Str(showPPPoEClientDevice).
+	return tb.Str("OK: show interface pppoe-client: ").Str(showPPPoEClientDevice).
 		Str(" in discovery on ").Str(kernelLink).Str(", dns-servers [], delegated-prefixes []\n").StdErr()
-	return nil
 }

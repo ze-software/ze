@@ -67,7 +67,7 @@ func dnsSourceRouterFollowsRARDNSS(ctx context.Context, plugin *sdk.Plugin) erro
 
 	// The plugin suite runs in the guest's own namespace, so the dummy link
 	// this fixture creates is removed on every return path.
-	defer netlink.LinkDel(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: raRDNSSScene.stubLink}}) //nolint:errcheck // Cleanup after the verdict; a missing link is the goal.
+	defer netlink.LinkDel(&netlink.Dummy{Name: raRDNSSScene.stubLink}) //nolint:errcheck // Cleanup after the verdict; a missing link is the goal.
 	stub, err := raRDNSSScene.startStub()
 	if err != nil {
 		return err
@@ -119,16 +119,15 @@ func dnsSourceRouterFollowsRARDNSS(ctx context.Context, plugin *sdk.Plugin) erro
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("OK: web.example.test type A -> ").Str(leaseStubRecord).
+	return tb.Str("OK: web.example.test type A -> ").Str(leaseStubRecord).
 		Str(" through the RA RDNSS server, then withdrawn at Lifetime 0\n").StdErr()
-	return nil
 }
 
 // startStub creates the dummy link stubLink holding server,
 // without Duplicate Address Detection so the address binds at once, and
 // starts the DNS stub on it, port 53 because an RDNSS option carries no port.
 func (s rdnssScene) startStub() (*dnsmock.Server, error) {
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: s.stubLink}}
+	link := &netlink.Dummy{Name: s.stubLink}
 	if err := netlink.LinkAdd(link); err != nil {
 		return nil, fmt.Errorf("create %s: %w", s.stubLink, err)
 	}

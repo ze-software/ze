@@ -98,7 +98,7 @@ func leCompletionShells(ctx context.Context) error {
 	}
 	env := childEnvironment(os.Environ(), map[string]string{
 		"PATH":    checkout + string(os.PathListSeparator) + os.Getenv("PATH"),
-		"HOME":    work,
+		envHome:   work,
 		"ZDOTDIR": work,
 		"INPUTRC": os.DevNull,
 		envTerm:   leCompletionShellsTerm,

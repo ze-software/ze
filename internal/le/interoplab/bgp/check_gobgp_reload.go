@@ -151,7 +151,7 @@ func (proof *gobgpReloadProof) identify(ctx context.Context) error {
 		{peerFRRSink, "sink-version", []string{cmdVtysh, "-c", frrShowVersion}},
 		{peerBIRD, "bird-version", []string{cmdBirdc, "show status"}},
 		{"ze", "ze-version", []string{"ze", flagVersion}},
-		{"ze", "ze-binary-sha256", []string{cmdSha256sum, zeBinaryPath}},
+		{"ze", evidenceZeBinarySHA256, []string{cmdSha256sum, zeBinaryPath}},
 	} {
 		if _, err := proof.query(ctx, query.key, query.peer, query.command); err != nil {
 			return err

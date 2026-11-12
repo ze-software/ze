@@ -37,6 +37,8 @@ const (
 	envGitCommitName   = "GIT_COMMITTER_NAME"
 	envGitConfigGlobal = "GIT_CONFIG_GLOBAL"
 	envGitConfigSystem = "GIT_CONFIG_NOSYSTEM"
+	envGoCache         = "GOCACHE"
+	envHome            = "HOME"
 	envLEBuildName     = "ZE_LE_BUILD_NAME"
 	envLogBFD          = "ze.log.bfd"
 	envLogBGP          = "ze.log.bgp"
@@ -149,6 +151,7 @@ const (
 	fieldResult             = "result" // The field in a dispatch answer.
 	fieldRouterID           = "router-id"
 	fieldRows               = "rows"
+	fieldSource             = "source" // The field in a payload.
 	fieldStage              = "stage"
 	fieldState              = "state" // The peer or interface field in a payload.
 	fieldStatus             = "status"
@@ -306,6 +309,7 @@ const (
 	areaRepository                = "repo"
 	areaRFC                       = "rfc" // The le RFC command area.
 	areaRules                     = "rules"
+	areaTest                      = "test" // The le test area.
 	areaTier                      = "arch tier"
 	checkCIDispatch               = "cli dispatch"
 	checkCLIGrammar               = "cli grammar"
@@ -345,6 +349,7 @@ const (
 	fileCoreMD                      = "CORE.md"
 	fileDaemonPID                   = "daemon.pid"
 	fileDaemonReady                 = "daemon.ready"
+	fileDatabaseZefs                = "database.zefs" // The zefs blob a storage scenario writes or refuses.
 	fileFeatureGates                = "feature-gates.txt"
 	fileGitIgnore                   = ".gitignore"
 	fileGoMod                       = "go.mod"

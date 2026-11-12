@@ -86,7 +86,7 @@ type replayHoldSpan struct {
 
 // replayHoldGate holds the DHCP server's snapshot-request unanswered. Close
 // it with closeReplayHoldGate before the reload, start its watcher with
-// watchListener once the reload is signalled, and call finish once, which
+// watchListener once the reload is signaled, and call finish once, which
 // opens it and waits for both workers. open is safe for concurrent use and
 // idempotent; the other methods are for the scenario's goroutine.
 type replayHoldGate struct {
@@ -232,7 +232,7 @@ func (g *replayHoldGate) isHeld() bool {
 }
 
 // watchListener starts the gate's watcher. It MUST be called once, after
-// closeReplayHoldGate returned the gate and the reload is signalled.
+// closeReplayHoldGate returned the gate and the reload is signaled.
 func (g *replayHoldGate) watchListener(ctx context.Context) {
 	g.watcherStarted = true
 	go g.watch(ctx)
@@ -340,7 +340,7 @@ func udp4PortBound(port uint16) (bool, error) {
 		if err != nil {
 			return false, fmt.Errorf("/proc/net/udp: local port %q: %w", portHex, err)
 		}
-		if uint16(local) == port {
+		if local == uint64(port) {
 			return true, nil
 		}
 	}

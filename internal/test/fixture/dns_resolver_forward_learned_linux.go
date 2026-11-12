@@ -85,7 +85,7 @@ func dnsResolverForwardReceived(ctx context.Context, _ *sdk.Plugin) error {
 	defer cancel()
 
 	scene := forwardReceivedScene
-	defer netlink.LinkDel(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: scene.stubLink}}) //nolint:errcheck // Cleanup after the verdict; a missing link is the goal.
+	defer netlink.LinkDel(&netlink.Dummy{Name: scene.stubLink}) //nolint:errcheck // Cleanup after the verdict; a missing link is the goal.
 	learned, err := scene.startStub()
 	if err != nil {
 		return err
@@ -129,8 +129,7 @@ func dnsResolverForwardReceived(ctx context.Context, _ *sdk.Plugin) error {
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("OK: dns-resolver forward -> configured, then the RA RDNSS server, then configured again at Lifetime 0\n").StdErr()
-	return nil
+	return tb.Str("OK: dns-resolver forward -> configured, then the RA RDNSS server, then configured again at Lifetime 0\n").StdErr()
 }
 
 // dnsResolverForwardDefault proves AC-20 through the daemon: with no forward
@@ -143,7 +142,7 @@ func dnsResolverForwardDefault(ctx context.Context, plugin *sdk.Plugin, reloadSo
 	defer cancel()
 
 	scene := forwardDefaultScene
-	defer netlink.LinkDel(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: scene.stubLink}}) //nolint:errcheck // Cleanup after the verdict; a missing link is the goal.
+	defer netlink.LinkDel(&netlink.Dummy{Name: scene.stubLink}) //nolint:errcheck // Cleanup after the verdict; a missing link is the goal.
 	learned, err := scene.startStub()
 	if err != nil {
 		return err
@@ -188,8 +187,7 @@ func dnsResolverForwardDefault(ctx context.Context, plugin *sdk.Plugin, reloadSo
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("OK: dns-resolver default forward -> the RA RDNSS server, then the committed forward server alone\n").StdErr()
-	return nil
+	return tb.Str("OK: dns-resolver default forward -> the RA RDNSS server, then the committed forward server alone\n").StdErr()
 }
 
 // forwardStartConfiguredStub starts the stub that stands for the operator's

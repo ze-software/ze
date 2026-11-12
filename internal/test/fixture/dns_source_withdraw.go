@@ -12,7 +12,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -91,7 +90,7 @@ func judgeResolverListed(answer *showSystemDNSAnswer) error {
 	if forward == nil {
 		return fmt.Errorf("no %s selection at %q", withdrawResolverConsumer, showDNSForwardPath)
 	}
-	return judgeSelection(forward, dnssource.ClassConfigured, showDNSForwardServer)
+	return judgeSelection(forward, showDNSForwardServer)
 }
 
 // judgeResolverWithdrawn names the first expectation the post-reload answer

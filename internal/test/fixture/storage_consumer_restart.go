@@ -71,7 +71,7 @@ func storageConsumerRestartArm(ctx context.Context, consumer string, run func(co
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(filepath.Join(dir, "database.zefs")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(dir, fileDatabaseZefs)); !os.IsNotExist(err) {
 		return fmt.Errorf("consumer used legacy database.zefs: %w", err)
 	}
 	fmt.Fprintf(os.Stderr, "OK: %s consumer restored operational state from selected tree without config-dir pin\n", consumer)

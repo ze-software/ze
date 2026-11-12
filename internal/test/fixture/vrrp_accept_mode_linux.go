@@ -94,7 +94,7 @@ func vrrpAcceptConfig(group, acceptMode bool) string {
 	tb.Str("interface {\n\tbackend netlink;\n\tethernet ").Str(vrrpAcceptParent).
 		Str(" {\n\t\tunit 0 {\n\t\t\tipv4 {\n\t\t\t\taddress [ ").Str(vrrpAcceptRealCIDR).Str(" ];\n")
 	if group {
-		accept := "false"
+		accept := valueFalse
 		if acceptMode {
 			accept = "true"
 		}

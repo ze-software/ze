@@ -450,7 +450,7 @@ func leSpecStatusExpectedRecords(records []map[string]json.RawMessage, expected 
 			return uiLeSpecStatusAnswersFailf("inventory is missing authored spec %q", spec.name)
 		}
 		for key, want := range map[string]string{
-			"name": spec.name, "title": spec.name, "path": spec.dir + "/spec-" + spec.name + ".md",
+			fieldName: spec.name, "title": spec.name, "path": spec.dir + "/spec-" + spec.name + ".md",
 			"status": spec.status, leSpecFieldBucket: spec.bucket, "category": spec.category,
 			"updated": spec.updated, "git-modified": spec.modified,
 			"phase": "fixture-phase", "depends": "fixture-dependency",

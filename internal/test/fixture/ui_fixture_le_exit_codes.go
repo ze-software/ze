@@ -64,7 +64,7 @@ func leExitCodes(ctx context.Context) error {
 		{why: "a hook that blocks (the hook protocol)", stdin: `{"tool_name":"Bash","tool_input":{"command":"git push --force"}}`,
 			args: []string{"ai", "hooks", "pretool-bash"}, code: 2},
 		{why: "a pass-through program's own failure", stdin: "not json",
-			args: []string{leExitCodesAreaTest, "json-ip-bytes", "--ip", "192.0.2.1"}, code: 1},
+			args: []string{areaTest, "json-ip-bytes", "--ip", "192.0.2.1"}, code: 1},
 	} {
 		got, err := leExitCodesRun(ctx, lePath, root, line)
 		if err != nil {
@@ -137,7 +137,3 @@ func leExitCodesNamesRoot(entry string) bool {
 	name, _, _ := strings.Cut(entry, "=")
 	return strings.EqualFold(strings.ReplaceAll(name, ".", "_"), "ZE_REPO_ROOT")
 }
-
-// leExitCodesAreaTest is le's test area, whose pass-through children answer
-// their own program's code.
-const leExitCodesAreaTest = "test"

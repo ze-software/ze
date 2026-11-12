@@ -129,7 +129,7 @@ system {
 		return err
 	}
 	daemonEnv := replaceBGPColumnOrderEnv(os.Environ(),
-		"ZE_SSH_EPHEMERAL", sshAddressFile,
+		envSSHEphemeral, sshAddressFile,
 		"ZE_READY_FILE", readyFile,
 		"ZE_CONFIG_DIR", cwd,
 		"ze_test_bgp_port", strconv.Itoa(bgpPort),
@@ -185,10 +185,10 @@ system {
 	}
 
 	cliEnv := replaceBGPColumnOrderEnv(os.Environ(),
-		"ZE_SSH_HOST", host,
-		"ZE_SSH_PORT", port,
-		"ZE_SSH_USERNAME", "ci",
-		"ZE_SSH_PASSWORD", "secret",
+		envSSHHost, host,
+		envSSHPort, port,
+		envSSHUsername, "ci",
+		envSSHPassword, valueSecret,
 		"ZE_CONFIG_DIR", cwd,
 	)
 

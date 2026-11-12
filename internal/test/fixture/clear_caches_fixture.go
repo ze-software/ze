@@ -140,7 +140,7 @@ func clearIRRCache04(ctx context.Context, p *sdk.Plugin) error {
 	fmt.Fprintf(os.Stderr, "OK: %s -> found true, removed by owner bgp-filter-irr\n", command)
 	steps := []func() error{
 		func() error {
-			_, err := requireAnswer04(ctx, p, command, map[string]any{clearKeyAction04: clearActionEntry04, "name": "AS-TEST", clearKeyFound04: false})
+			_, err := requireAnswer04(ctx, p, command, map[string]any{clearKeyAction04: clearActionEntry04, fieldName: "AS-TEST", clearKeyFound04: false})
 			return err
 		},
 		func() error { return requireRefused04(ctx, p, "clear irr cache", "all", "as-set") },

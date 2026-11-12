@@ -177,7 +177,7 @@ func staleRunnerTree(ctx context.Context, parent, checkout string) (string, []st
 	}
 	treeEnv = childEnvironment(treeEnv, map[string]string{
 		envRepoRoot:        tree,
-		"GOCACHE":          gotoolchain.GoCache(checkout),
+		envGoCache:         gotoolchain.GoCache(checkout),
 		"GOFLAGS":          "",
 		envGitConfigGlobal: os.DevNull,
 		envGitConfigSystem: "1",
@@ -226,7 +226,7 @@ func staleRunnerPlace(native, target string) error {
 	if err := os.Link(native, target); err == nil {
 		return nil
 	}
-	source, err := os.Open(native)
+	source, err := os.Open(native) //nolint:gosec // the path is the native le, or the launcher build this fixture placed from it in its scratch tree
 	if err != nil {
 		return fmt.Errorf("open native le: %w", err)
 	}

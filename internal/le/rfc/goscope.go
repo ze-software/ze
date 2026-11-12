@@ -516,10 +516,9 @@ func DeclaredUnits(content string) ([]DeclaredUnit, bool) {
 	// An error that carries no position leaves firstError before every
 	// declaration, so none of them is exact.
 	firstError := -1
-	var syntax scanner.ErrorList
-	if errors.As(err, &syntax) {
-		if len(syntax) != 0 {
-			firstError = syntax[0].Pos.Offset
+	if syntaxErrors, ok := errors.AsType[scanner.ErrorList](err); ok {
+		if len(syntaxErrors) != 0 {
+			firstError = syntaxErrors[0].Pos.Offset
 		}
 	}
 	var units []DeclaredUnit

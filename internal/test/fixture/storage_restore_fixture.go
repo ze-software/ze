@@ -113,7 +113,7 @@ func storageTreeEquals(path string, values map[string][]byte) error {
 // storageDaemonTreeEquals is storageTreeEquals for the live tree under the
 // working directory, the store the daemon starts on.
 func storageDaemonTreeEquals(values map[string][]byte) error {
-	store, err := openDaemonTree(os.Environ(), ".", false)
+	store, err := openDaemonTree(os.Environ(), false)
 	if err != nil {
 		return err
 	}
@@ -204,7 +204,7 @@ func storageRestoreFullScenario(ctx context.Context) error {
 	if output, err := restore("bad.zefs"); err == nil {
 		return fmt.Errorf("a corrupt artifact was restored:\n%s", output)
 	}
-	owner, err := openDaemonTree(os.Environ(), ".", true)
+	owner, err := openDaemonTree(os.Environ(), true)
 	if err != nil {
 		return err
 	}
@@ -482,7 +482,7 @@ func storageRestoreConfigScenario(ctx context.Context) error {
 	if err := storageRequireOutput(output, "committed as "+device); err != nil {
 		return err
 	}
-	store, err := openDaemonTree(os.Environ(), ".", false)
+	store, err := openDaemonTree(os.Environ(), false)
 	if err != nil {
 		return err
 	}

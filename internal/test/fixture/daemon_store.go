@@ -113,9 +113,11 @@ func openDaemonStoreReadOnly(environment []string, dir string) (storage.Storage,
 	return storage.OpenReadOnly(dir, dir)
 }
 
-// openDaemonTree is storage.OpenTree on that store's live tree.
+// openDaemonTree is storage.OpenTree on the live tree of the store in the
+// current directory, where every caller's daemon keeps it.
 // Caller MUST Close the result.
-func openDaemonTree(environment []string, dir string, writable bool) (storage.Storage, error) {
+func openDaemonTree(environment []string, writable bool) (storage.Storage, error) {
+	const dir = "."
 	if err := requireDaemonRoot(environment, dir); err != nil {
 		return nil, err
 	}

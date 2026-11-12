@@ -48,7 +48,7 @@ func dhcpLinkDriver(_ context.Context, args []string) error {
 // link, whatever the steps answered.
 func dhcpProbeDriver(ctx context.Context, args []string) error {
 	if len(args) < 2 {
-		return errors.New("dhcp/probe takes the link name, then the steps: dhcp/probe <name> <step>...")
+		return errors.New("dhcp/probe takes the link name, then the steps: dhcp/probe <name> <step> [<step> ...]")
 	}
 	steps := make([]dhcpprobe.Step, 0, len(args)-1)
 	for _, arg := range args[1:] {

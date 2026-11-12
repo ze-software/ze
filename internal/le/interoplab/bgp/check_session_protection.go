@@ -161,7 +161,7 @@ func checkSessionProtection(ctx context.Context, check *interoplab.CheckContext)
 	addressCommand := func(action string) []string {
 		return []string{"ip", ipObjectAddr, action, prefix, ipOptionDevice, containerInterface}
 	}
-	if _, err := check.Lab.Exec(ctx, peerFRR, addressCommand("add"), nil); err != nil {
+	if _, err := check.Lab.Exec(ctx, peerFRR, addressCommand(ipActionAdd), nil); err != nil {
 		return fail(6, err)
 	}
 	defer func() {

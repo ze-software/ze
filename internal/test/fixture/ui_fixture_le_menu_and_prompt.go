@@ -88,7 +88,7 @@ func leMenuAndPrompt(ctx context.Context) error {
 	// The session id is a throwaway one as well, so even a claim that found a
 	// checkout would not land on the session running this test.
 	env := childEnvironment(os.Environ(), map[string]string{
-		"ZE_REPO_ROOT": "", "HOME": work, envTerm: leCompletionShellsTerm,
+		"ZE_REPO_ROOT": "", envHome: work, envTerm: leCompletionShellsTerm,
 		"CLAUDE_CODE_SESSION_ID": "le-menu-and-prompt-probe",
 	})
 

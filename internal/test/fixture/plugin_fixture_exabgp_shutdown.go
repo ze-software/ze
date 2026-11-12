@@ -84,7 +84,7 @@ func exabgpJSONIsUp(line string) bool {
 	if json.Unmarshal([]byte(line), &event) != nil {
 		return false
 	}
-	if event.Type != "state" {
+	if event.Type != eventState {
 		return false
 	}
 	return event.Neighbor.State == "up"

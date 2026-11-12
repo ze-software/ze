@@ -273,12 +273,12 @@ func peerPIDs07() ([]int, error) {
 			continue
 		}
 		processDir := "/proc/" + entry.Name() + "/"
-		raw, err := os.ReadFile(processDir + "cmdline")
+		raw, err := os.ReadFile(processDir + "cmdline") //nolint:gosec // the path is a /proc entry this fixture enumerates
 		if err != nil {
 			continue
 		}
 		argv := strings.Split(string(raw), "\x00")
-		if len(argv) < 3 || argv[1] != "test" || argv[2] != fieldPeer {
+		if len(argv) < 3 || argv[1] != areaTest || argv[2] != fieldPeer {
 			continue
 		}
 		candidateDir, err := os.Stat(processDir + "cwd")

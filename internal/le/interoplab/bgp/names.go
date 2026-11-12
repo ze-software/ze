@@ -44,11 +44,18 @@ const (
 	cmdGoBGP = "gobgp"
 	cmdCat   = "cat"
 	cmdPing  = "ping"
+	// cmdSleep keeps a container's entrypoint alive, or holds a scenario step
+	// for a fixed time. cmdDHCPCD is the DHCPv4 client a client peer runs.
+	cmdSleep  = "sleep"
+	cmdDHCPCD = "dhcpcd"
 	// cmdSha256sum, cmdTcpdump and cmdBase64 record a binary's identity, stop a
 	// capture and carry its octets out of the container as text.
 	cmdSha256sum = "sha256sum"
 	cmdTcpdump   = "tcpdump"
 	cmdBase64    = "base64"
+	// evidenceZeBinarySHA256 is the evidence key that records the sha256sum
+	// line of the Ze binary a capture ran.
+	evidenceZeBinarySHA256 = "ze-binary-sha256"
 	// flagVersion asks a program for the version line the evidence records.
 	flagVersion = "--version"
 	// zeBinaryPath is where the Ze image installs the daemon binary, and
@@ -149,6 +156,7 @@ const gobgpDetailEstablished = "BGP state = SESSION_STATE_ESTABLISHED"
 // read the IPsec state with them.
 const (
 	containerInterface = "eth0"
+	ipActionAdd        = "add"
 	ipActionSet        = "set"
 	ipFamilyInet       = "inet"
 	ipFamilyMPLS       = "mpls"
@@ -159,8 +167,11 @@ const (
 	ipObjectRoute      = "route"
 	ipObjectXfrm       = "xfrm"
 	ipOptionDevice     = "dev"
-	ipScopeLink        = "link"
-	linkDown           = "down"
+	// ipLinkAddress is the link-layer (MAC) address attribute of
+	// `ip link add` and `ip link set`, not the address object.
+	ipLinkAddress = "address"
+	ipScopeLink   = "link"
+	linkDown      = "down"
 )
 
 // nft(8) words. The GTSM scenario counts a rejected segment with them, the

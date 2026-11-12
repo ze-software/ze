@@ -75,7 +75,7 @@ func init() {
 // registerPassed registers driver under name, printing OK once it passes. It
 // hands properties on to Register, so a caller declares what its driver does
 // (TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon).
-func registerPassed(name string, driver Driver, properties ...Property) {
+func registerPassed(name string, driver Driver, properties ...Property) { //nolint:unparam // TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon requires a registering helper to carry properties so a caller can declare StopsDaemon
 	Register(name, func(ctx context.Context, args []string) error {
 		if err := driver(ctx, args); err != nil {
 			return err
@@ -84,6 +84,25 @@ func registerPassed(name string, driver Driver, properties ...Property) {
 		return nil
 	}, properties...)
 }
+
+// dockerVerbStart is the docker subcommand that starts a created container,
+// as the fake Docker receives it and the kernel-build check expects it.
+const dockerVerbStart = "start"
+
+// fakeDockerID reports whether id has the shape the fake's create prints: the
+// 64 lowercase hex characters of a SHA-256, so it names no other path.
+func fakeDockerID(id string) bool {
+	if len(id) != 2*sha256.Size {
+		return false
+	}
+	for _, ch := range id {
+		if !strings.ContainsRune("0123456789abcdef", ch) {
+			return false
+		}
+	}
+	return true
+}
+
 func installDockerStub(args []string) int {
 	logPath := os.Getenv("ZE_INSTALL_DOCKER_LOG")
 	if logPath != "" {
@@ -138,13 +157,17 @@ func installDockerStub(args []string) int {
 			fmt.Fprintln(os.Stderr, "fake Docker removal requires --force")
 			return 2
 		}
+		if !fakeDockerID(args[2]) {
+			fmt.Fprintln(os.Stderr, "fake Docker removal got container ID \""+args[2]+"\"; it accepts only the 64 lowercase hex characters its create printed")
+			return 2
+		}
 		if err := os.Remove(logPath + "." + args[2]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
 		return 0
 	}
-	if args[0] != "start" {
+	if args[0] != dockerVerbStart {
 		return 0
 	}
 	if len(args) != 3 {
@@ -155,7 +178,11 @@ func installDockerStub(args []string) int {
 		fmt.Fprintln(os.Stderr, "fake Docker start requires --attach")
 		return 2
 	}
-	record, err := os.ReadFile(logPath + "." + args[2])
+	if !fakeDockerID(args[2]) {
+		fmt.Fprintln(os.Stderr, "fake Docker start got container ID \""+args[2]+"\"; it accepts only the 64 lowercase hex characters its create printed")
+		return 2
+	}
+	record, err := os.ReadFile(logPath + "." + args[2]) //nolint:gosec // the ID shape is checked, so the path names a record this fake's create wrote
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -1127,7 +1154,7 @@ func assertDockerContainerLifetimes(calls [][]string) error {
 			return fmt.Errorf("container has no per-run name: %v", calls[create])
 		}
 		id := fmt.Sprintf("%x", sha256.Sum256([]byte(name)))
-		if !slices.Equal(calls[create+1], []string{"start", "--attach", id}) {
+		if !slices.Equal(calls[create+1], []string{dockerVerbStart, "--attach", id}) {
 			return fmt.Errorf("attachment did not use the acquired full ID: %v", calls[create+1])
 		}
 		if !slices.Equal(calls[create+2], []string{"rm", "--force", id}) {

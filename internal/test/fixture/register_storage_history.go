@@ -217,7 +217,7 @@ func storageHistoryRestoreConfig(ctx context.Context) error {
 // pointer when versioned is set, else the direct mirror a pointer-free store
 // holds.
 func storageActiveEquals(device string, want []byte, versioned bool) error {
-	store, err := openDaemonTree(os.Environ(), ".", false)
+	store, err := openDaemonTree(os.Environ(), false)
 	if err != nil {
 		return err
 	}

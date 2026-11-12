@@ -139,6 +139,10 @@ type ospfBGPLSDescriptor struct {
 	ASN      uint32 `json:"autonomous-system"`
 }
 
+// ospfBGPLSKindLink is the ls-nlri-type of a BGP-LS Link NLRI, once its
+// "bgpls-" prefix is trimmed.
+const ospfBGPLSKindLink = "link"
+
 type ospfBGPLSRoute struct {
 	Kind     string                `json:"ls-nlri-type"`
 	Protocol int                   `json:"protocol-id"`
@@ -180,11 +184,11 @@ func ospfBGPLSRouterIDVerdict(logs, local, remote string, interAS bool) error {
 	localID := ospfBGPLSWantID(1028, local)
 	want := map[string][]string{"node/" + local + "/": {localID}}
 	if interAS {
-		want["link/"+local+"/203.0.113.9"] = []string{localID, ospfBGPLSWantID(1030, "203.0.113.9"), ospfBGPLSWantID(1031, "2001:db8::9")}
+		want[ospfBGPLSKindLink+"/"+local+"/203.0.113.9"] = []string{localID, ospfBGPLSWantID(1030, "203.0.113.9"), ospfBGPLSWantID(1031, "2001:db8::9")}
 	} else {
 		want["node/"+remote+"/"] = []string{ospfBGPLSWantID(1028, remote)}
-		want["link/"+local+"/"+remote] = []string{localID, ospfBGPLSWantID(1030, remote)}
-		want["link/"+remote+"/"+local] = []string{ospfBGPLSWantID(1028, remote), ospfBGPLSWantID(1030, local)}
+		want[ospfBGPLSKindLink+"/"+local+"/"+remote] = []string{localID, ospfBGPLSWantID(1030, remote)}
+		want[ospfBGPLSKindLink+"/"+remote+"/"+local] = []string{ospfBGPLSWantID(1028, remote), ospfBGPLSWantID(1030, local)}
 	}
 	seen := make(map[string]bool)
 	for _, route := range inventory {
@@ -202,7 +206,7 @@ func ospfBGPLSRouterIDVerdict(logs, local, remote string, interAS bool) error {
 		if !ok {
 			continue
 		}
-		if interAS && route.Kind == "link" && remoteAS != 65001 {
+		if interAS && route.Kind == ospfBGPLSKindLink && remoteAS != 65001 {
 			return fmt.Errorf("BGP-LS inter-AS remote descriptor has ASN %d, want 65001", remoteAS)
 		}
 		if !slices.Equal(route.IDs, expected) {

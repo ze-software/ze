@@ -713,7 +713,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 				Mounts: []interoplab.Mount{mount(path, "/etc/knot/knot.conf"), mount(filepath.Join(scenario, knotZoneFile), "/etc/knot/"+knotZoneFile)}, Ready: ready("ip", ipObjectLink)},
 			interoplab.PeerConfig{Name: peerDNSClient, Container: containerName(peerDNSClient, suffix), Image: peerKnot, Host: dnsClientHostNumber,
 				Capabilities: []string{capabilityNetAdmin}, Arguments: []string{dockerSysctlFlag, "net.ipv4.conf.default.promote_secondaries=1"},
-				Command: []string{"sleep", "infinity"}, Ready: ready("ip", ipObjectLink)})
+				Command: []string{cmdSleep, "infinity"}, Ready: ready("ip", ipObjectLink)})
 	}
 	if path := filepath.Join(scenario, unboundConfigFile); regularFile(path) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerUnbound, Container: containerName(peerUnbound, suffix), Image: peerUnbound, Host: unboundHostNumber,

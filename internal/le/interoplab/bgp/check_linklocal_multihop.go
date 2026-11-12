@@ -56,7 +56,7 @@ func checkLinkLocalOnlyMultihopWithdraw(ctx context.Context, check *interoplab.C
 	// Assertion 1. Ze reaches FRR's loopback through FRR's adjacent interface.
 	// No transit router is present. The host route adds no connected subnet,
 	// so the link scope classifies the session address as off-link.
-	route := operation{kind: opExec, peer: "ze", command: []string{"ip", ipObjectRoute, "add", frrMultihopLoopback + "/32", "via", networkHostAddress(check.Network, 3)}}
+	route := operation{kind: opExec, peer: "ze", command: []string{"ip", ipObjectRoute, ipActionAdd, frrMultihopLoopback + "/32", "via", networkHostAddress(check.Network, 3)}}
 	if err := runOperation(ctx, check.Network, check.Lab, &route); err != nil {
 		return fail(1, err)
 	}

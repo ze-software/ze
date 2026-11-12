@@ -200,7 +200,7 @@ system {
 		return err
 	}
 	daemonEnv := setPluginShapesEnv(baseEnv,
-		"ZE_SSH_EPHEMERAL", sshAddrPath,
+		envSSHEphemeral, sshAddrPath,
 		"ZE_READY_FILE", readyPath,
 		"ZE_CONFIG_DIR", dir,
 		// Leave port 179 alone. The suite runs unprivileged, and a bind
@@ -246,10 +246,10 @@ system {
 		host = strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
 	}
 	cliEnv := setPluginShapesEnv(baseEnv,
-		"ZE_SSH_HOST", host,
-		"ZE_SSH_PORT", port,
-		"ZE_SSH_USERNAME", "ci",
-		"ZE_SSH_PASSWORD", "secret",
+		envSSHHost, host,
+		envSSHPort, port,
+		envSSHUsername, "ci",
+		envSSHPassword, valueSecret,
 		"ZE_CONFIG_DIR", dir,
 	)
 

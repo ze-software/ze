@@ -112,7 +112,7 @@ func dhcpServerDNSReplayHold(ctx context.Context, p *sdk.Plugin, reloadSource st
 	gate.watchListener(runCtx)
 	emit := func(line string) {
 		var tb textbuf.Buffer
-		tb.Str(line).Str("\n").StdErr()
+		tb.Str(line).Str("\n").StdErr() //nolint:errcheck // stderr is the progress channel; a failed write has no other channel, and probe.First decides the verdict
 	}
 	firstErr := probe.First(&step.Exchange, replayHoldInterval, replayHoldWindow, emit)
 	answeredAt := time.Now()
@@ -134,11 +134,10 @@ func replayHoldJudgeSpan(span replayHoldSpan, answeredAt time.Time) error {
 			span.openedAt.Sub(answeredAt).String() + " before the gate opened")
 	}
 	var tb textbuf.Buffer
-	tb.Str("OK: dhcp-server listener bound, no offer while its snapshot-request was held for ").
+	return tb.Str("OK: dhcp-server listener bound, no offer while its snapshot-request was held for ").
 		Str(span.openedAt.Sub(span.boundAt).Round(time.Millisecond).String()).Str("\n").
 		Str("OK: dhcp-server started after the PPPoE lease -> first offer carries the replayed lease server ").
 		Str(leaseDNSServer.String()).Str("\n").StdErr()
-	return nil
 }
 
 // replayHoldSignalReload copies source over the daemon's config file and

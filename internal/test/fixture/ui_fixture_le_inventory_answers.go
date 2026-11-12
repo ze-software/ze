@@ -155,7 +155,7 @@ func runLEInventoryAnswers(ctx context.Context) error {
 	if len(commands) == 0 {
 		return errors.New("FAIL: the command list answered an empty array")
 	}
-	for _, key := range []string{"verb", fieldPath, "source"} {
+	for _, key := range []string{"verb", fieldPath, fieldSource} {
 		if _, ok := commands[0][key]; !ok {
 			return fmt.Errorf("FAIL: a command carries no %q: %v", key, commands[0])
 		}

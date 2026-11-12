@@ -96,10 +96,9 @@ func dnsSourceRouterMerge(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("OK: resolv.conf lists ").Str(leaseDNSServer.String()).Str(" then ").Str(mergeConfiguredServer.String()).
+	return tb.Str("OK: resolv.conf lists ").Str(leaseDNSServer.String()).Str(" then ").Str(mergeConfiguredServer.String()).
 		Str(", and web.example.test type A -> ").Str(dnsAnswerLine(data)).
 		Str(" through the configured server after the lease's server refused\n").StdErr()
-	return nil
 }
 
 // mergeHostResolvConf is the host's own resolv.conf, which the daemon reads as

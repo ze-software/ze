@@ -214,7 +214,7 @@ func fixture10PeerRows(ctx context.Context, plugin *sdk.Plugin, selector string)
 	return rows, ok
 }
 
-func fixture10PeerCounter(ctx context.Context, plugin *sdk.Plugin, selector, field string) (int, bool) {
+func fixture10PeerCounter(ctx context.Context, plugin *sdk.Plugin, selector, field string) (int, bool) { //nolint:unparam // the peer-wait guard (plugin_fixture_peer_wait_test.go) reads the selector at argument 2 to learn which peer each poll reads
 	rows, ok := fixture10PeerRows(ctx, plugin, selector)
 	if !ok {
 		return 0, false

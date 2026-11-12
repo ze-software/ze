@@ -30,6 +30,9 @@ const (
 	kernelWeightedRoute = "198.18.73.0/24"
 	kernelIfaceRoute    = "198.18.74.0/24"
 
+	// protocolBGP is the protocol name the system RIB reports for a BGP path.
+	protocolBGP = "bgp"
+
 	// kernelPolls bounds each wait to ten seconds, inside the .ci timeout, so a
 	// failing wait reports its own reason before the runner kills the daemon.
 	kernelPolls = 100
@@ -193,7 +196,7 @@ func staticKernelDistanceReload(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("after the reload to static 250: want exactly one kernel entry, proto 250 via %s; ip route show table all: %q",
 			kernelBGPGateway, entries)
 	}
-	if winner, seen := ribWinner02(ctx, plugin, arbitratedPrefix); winner != "bgp" {
+	if winner, seen := ribWinner02(ctx, plugin, arbitratedPrefix); winner != protocolBGP {
 		return fmt.Errorf("after the reload to static 250: system RIB winner is %q, want bgp; show rib: %s", winner, seen)
 	}
 	fmt.Fprintln(os.Stderr, "OK: reload re-ranked "+arbitratedPrefix+", kernel now via "+kernelBGPGateway)

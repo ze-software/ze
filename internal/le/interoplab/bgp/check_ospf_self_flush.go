@@ -100,7 +100,7 @@ var ospfSelfLSAFlushOperations = []operation{
 	{kind: opWaitAbsent, peer: peerFRR, command: ospfSelfFlushFRRDefaultLSA, absent: []string{ospfSelfFlushZeAdvertises}, proof: []string{ospfSelfFlushFRRHeading}, timeout: 120 * time.Second},
 	{kind: opWaitAbsent, peer: peerFRR, command: ospfSelfFlushFRRRoutes, absent: []string{ospfSelfFlushDefaultPrefix}, proof: []string{ospfSelfFlushFRRRouteCodes}, timeout: 30 * time.Second},
 	// A refresh or a late re-origination would bring it back; it stays gone.
-	{kind: opExec, peer: peerFRR, command: []string{"sleep", "15"}},
+	{kind: opExec, peer: peerFRR, command: []string{cmdSleep, "15"}},
 	{kind: opRequireAbsent, peer: peerFRR, command: ospfSelfFlushFRRDefaultLSA, absent: []string{ospfSelfFlushZeAdvertises}, proof: []string{ospfSelfFlushFRRHeading}},
 	{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}},
 }

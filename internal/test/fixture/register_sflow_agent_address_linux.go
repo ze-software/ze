@@ -33,7 +33,7 @@ func init() {
 // the exporter. A dummy pair would incorrectly exercise the loopback branch.
 // The two .ci callers MUST hold the sflow-agent-address-topology exclusive group.
 func sflowAgentAddressDaemon(ctx context.Context, _ []string) (result error) {
-	link := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: sflowProofLinkFirst}, PeerName: sflowProofLinkSecond}
+	link := &netlink.Veth{Name: sflowProofLinkFirst, PeerName: sflowProofLinkSecond}
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("create owned sFlow proof veth pair: %w", err)
 	}

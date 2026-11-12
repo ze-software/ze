@@ -141,7 +141,7 @@ func tunnelProxyICMPRoundTrip(ctx context.Context, peer *tunnelAccountingPeer, g
 		peer.sendPPP(0x0021, request)
 		packet, err := peer.readPacket(250 * time.Millisecond)
 		if err != nil {
-			if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
+			if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
 				continue
 			}
 			return fmt.Errorf("read proxy ICMP reply: %w", err)

@@ -412,12 +412,12 @@ func leJobAdmitsStartFollower(ctx context.Context, binary, scratch string, env [
 func (f *leJobAdmitsFollower) scan(stderr io.Reader) {
 	defer close(f.scanned)
 	reader := bufio.NewReader(stderr)
-	signalled := false
+	signaled := false
 	for {
 		line, err := reader.ReadString('\n')
 		f.stderr.WriteString(line)
-		if !signalled && strings.Contains(line, leJobAdmitsAttachBanner) {
-			signalled = true
+		if !signaled && strings.Contains(line, leJobAdmitsAttachBanner) {
+			signaled = true
 			close(f.attached)
 		}
 		if err != nil {

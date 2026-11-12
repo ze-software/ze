@@ -79,7 +79,7 @@ func dnsSourceReceivedInterface(ctx context.Context, plugin *sdk.Plugin) error {
 
 	// The plugin suite runs in the guest's own namespace, so the dummy link
 	// this fixture creates is removed on every return path.
-	defer netlink.LinkDel(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: rifStubLink}}) //nolint:errcheck // Cleanup after the verdict; a missing link is the goal.
+	defer netlink.LinkDel(&netlink.Dummy{Name: rifStubLink}) //nolint:errcheck // Cleanup after the verdict; a missing link is the goal.
 	dropped, kept, err := rifStartStubs()
 	if err != nil {
 		return err
@@ -149,10 +149,9 @@ func dnsSourceReceivedInterface(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("OK: resolv.conf lists ").Str(rifKeptServer.String()).Str(" alone, learned on ").Str(rifKeptReceiver).
+	return tb.Str("OK: resolv.conf lists ").Str(rifKeptServer.String()).Str(" alone, learned on ").Str(rifKeptReceiver).
 		Str(", and web.example.test type A -> ").Str(dnsAnswerLine(data)).
 		Str(" through it, with a resolver learned on ").Str(rifDroppedReceiver).Str(" filtered out\n").StdErr()
-	return nil
 }
 
 // rifStartStubs creates the stub link holding both servers, without Duplicate
@@ -161,7 +160,7 @@ func dnsSourceReceivedInterface(ctx context.Context, plugin *sdk.Plugin) error {
 // answers rifDroppedRecord for web.example.test; the kept stub answers the
 // zone's own leaseStubRecord.
 func rifStartStubs() (dropped, kept *dnsmock.Server, err error) {
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: rifStubLink}}
+	link := &netlink.Dummy{Name: rifStubLink}
 	if err := netlink.LinkAdd(link); err != nil {
 		return nil, nil, fmt.Errorf("create %s: %w", rifStubLink, err)
 	}
@@ -251,12 +250,13 @@ func rifHasPrefixRoute(name string, prefix netip.Prefix) bool {
 	if err != nil {
 		return false
 	}
-	for _, route := range routes {
-		if route.Dst == nil {
+	for i := range routes {
+		dst := routes[i].Dst
+		if dst == nil {
 			continue
 		}
-		ones, _ := route.Dst.Mask.Size()
-		addr, ok := netip.AddrFromSlice(route.Dst.IP)
+		ones, _ := dst.Mask.Size()
+		addr, ok := netip.AddrFromSlice(dst.IP)
 		if !ok {
 			continue
 		}

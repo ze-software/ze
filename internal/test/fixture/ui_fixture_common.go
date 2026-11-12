@@ -27,7 +27,7 @@ func uiDriver(driver any) Driver {
 // registerFixture registers a UI driver of any shape uiDriver accepts. It
 // hands properties on to Register, so a caller declares what its driver does
 // (TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon).
-func registerFixture(name string, driver any, properties ...Property) {
+func registerFixture(name string, driver any, properties ...Property) { //nolint:unparam // TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon requires a registering helper to carry properties so a caller can declare StopsDaemon
 	Register(name, uiDriver(driver), properties...)
 }
 

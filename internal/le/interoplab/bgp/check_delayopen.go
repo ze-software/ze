@@ -91,7 +91,7 @@ func checkDelayOpenFRR(ctx context.Context, check *interoplab.CheckContext) (res
 			command   []string
 		}{
 			{"ze", "rendered-ze.conf", []string{cmdCat, zeMountedConfig}},
-			{"ze", "ze-binary-sha256", []string{cmdSha256sum, zeBinaryPath}},
+			{"ze", evidenceZeBinarySHA256, []string{cmdSha256sum, zeBinaryPath}},
 			{"ze", "tcp-sockets", []string{"ss", "-tnp"}},
 			{peerFRR, "rendered-frr.conf", []string{cmdCat, frrConfigPath}},
 			{peerFRRSink, "rendered-frr-sink.conf", []string{cmdCat, frrConfigPath}},

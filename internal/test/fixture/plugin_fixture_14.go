@@ -42,26 +42,26 @@ func init() {
 	Register("plugin/route-modify-localpref", plugin14Observer("test-modify-lp", plugin14ModifyLocalpref), StopsDaemon)
 	Register("plugin/rpf-multicast", plugin14Observer("rpf-multicast-test", plugin14RPFMulticast), StopsDaemon)
 	Register("plugin/rpki-as-set", plugin14Observer("rpki-asset-test", plugin14RPKIAsSet), StopsDaemon)
-	Register("plugin/rpki-aspa-disabled", plugin14EventObserver("rpki-aspa-disabled-test", "peer1", []string{textRPKIDirectionReceived}, plugin14ASPADisabled), StopsDaemon)
+	Register("plugin/rpki-aspa-disabled", plugin14EventObserver("rpki-aspa-disabled-test", []string{textRPKIDirectionReceived}, plugin14ASPADisabled), StopsDaemon)
 	Register("plugin/rpki-aspa-invalid", plugin14ASPAStateObserver("rpki-aspa-invalid-test", "invalid"), StopsDaemon)
-	Register("plugin/rpki-aspa-policy-logonly", plugin14EventObserver("rpki-aspa-policy-logonly-test", "peer1", []string{textRPKIDirectionReceived}, plugin14ASPAPolicyLogOnly), StopsDaemon)
-	Register("plugin/rpki-aspa-policy-reject", plugin14EventObserver("rpki-aspa-policy-reject-test", "peer1", []string{textRPKIDirectionReceived}, func(ctx context.Context, p *sdk.Plugin, events <-chan plugin14Event) error {
+	Register("plugin/rpki-aspa-policy-logonly", plugin14EventObserver("rpki-aspa-policy-logonly-test", []string{textRPKIDirectionReceived}, plugin14ASPAPolicyLogOnly), StopsDaemon)
+	Register("plugin/rpki-aspa-policy-reject", plugin14EventObserver("rpki-aspa-policy-reject-test", []string{textRPKIDirectionReceived}, func(ctx context.Context, p *sdk.Plugin, events <-chan plugin14Event) error {
 		return plugin14ASPAPolicyReject(ctx, p, events, "invalid", "ASPA policy", " policy")
 	}), StopsDaemon)
-	Register("plugin/rpki-aspa-policy-unknown-reject", plugin14EventObserver("rpki-aspa-policy-unknown-reject-test", "peer1", []string{textRPKIDirectionReceived}, func(ctx context.Context, p *sdk.Plugin, events <-chan plugin14Event) error {
+	Register("plugin/rpki-aspa-policy-unknown-reject", plugin14EventObserver("rpki-aspa-policy-unknown-reject-test", []string{textRPKIDirectionReceived}, func(ctx context.Context, p *sdk.Plugin, events <-chan plugin14Event) error {
 		return plugin14ASPAPolicyReject(ctx, p, events, "unknown", "ASPA unknown policy", " unknown-action=reject")
 	}), StopsDaemon)
 	Register("plugin/rpki-aspa-unknown", plugin14ASPAStateObserver("rpki-aspa-unknown-test", "unknown"), StopsDaemon)
 	Register("plugin/rpki-aspa-valid", plugin14ASPAStateObserver("rpki-aspa-valid-test", "valid"), StopsDaemon)
 	Register("plugin/rpki-cache-connect", plugin14Observer("rpki-cache-test", plugin14RPKICacheConnect), StopsDaemon)
 	Register("plugin/rpki-cache-update", plugin14Observer("rpki-update-test", plugin14RPKICacheUpdate), StopsDaemon)
-	Register("plugin/rpki-decorator-autoload", plugin14EventObserver("rpki-auto-test", "peer1", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorAutoload), StopsDaemon)
-	Register("plugin/rpki-decorator-merge", plugin14EventObserver("rpki-dec-test", "peer1", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorMerge), StopsDaemon)
-	Register("plugin/rpki-decorator-register", plugin14EventObserver("rpki-reg-test", "peer1", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorRegister), StopsDaemon)
-	Register("plugin/rpki-decorator-timeout", plugin14EventObserver("rpki-to-test", "peer1", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorTimeout), StopsDaemon)
-	Register("plugin/rpki-event-multi", plugin14EventObserver("rpki-event-multi-test", "peer1", []string{textRPKIDirectionReceived}, plugin14RPKIEventMulti), StopsDaemon)
-	Register("plugin/rpki-event-unavailable", plugin14EventObserver("rpki-unavail-test", "peer1", []string{textRPKIDirectionReceived}, plugin14RPKIEventUnavailable), StopsDaemon)
-	Register("plugin/rpki-event-valid", plugin14EventObserver("rpki-event-test", "peer1", []string{textRPKIDirectionReceived}, plugin14RPKIEventValid), StopsDaemon)
+	Register("plugin/rpki-decorator-autoload", plugin14EventObserver("rpki-auto-test", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorAutoload), StopsDaemon)
+	Register("plugin/rpki-decorator-merge", plugin14EventObserver("rpki-dec-test", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorMerge), StopsDaemon)
+	Register("plugin/rpki-decorator-register", plugin14EventObserver("rpki-reg-test", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorRegister), StopsDaemon)
+	Register("plugin/rpki-decorator-timeout", plugin14EventObserver("rpki-to-test", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorTimeout), StopsDaemon)
+	Register("plugin/rpki-event-multi", plugin14EventObserver("rpki-event-multi-test", []string{textRPKIDirectionReceived}, plugin14RPKIEventMulti), StopsDaemon)
+	Register("plugin/rpki-event-unavailable", plugin14EventObserver("rpki-unavail-test", []string{textRPKIDirectionReceived}, plugin14RPKIEventUnavailable), StopsDaemon)
+	Register("plugin/rpki-event-valid", plugin14EventObserver("rpki-event-test", []string{textRPKIDirectionReceived}, plugin14RPKIEventValid), StopsDaemon)
 	Register("plugin/rpki-group-action", plugin14Observer("rpki-group-test", plugin14RPKIGroupAction), StopsDaemon)
 	Register("plugin/rpki-maxlength", plugin14Observer("rpki-maxlen-test", plugin14RPKIMaxlength), StopsDaemon)
 	Register("plugin/rpki-multi-prefix", plugin14Observer("rpki-multi-test", plugin14RPKIMultiPrefix), StopsDaemon)
@@ -121,7 +121,7 @@ func plugin14Observer(name string, scenario ObserverScenario) Driver {
 	}
 }
 
-func plugin14EventObserver(name, peer string, subscriptions []string, scenario plugin14EventScenario) Driver {
+func plugin14EventObserver(name string, subscriptions []string, scenario plugin14EventScenario) Driver {
 	return func(ctx context.Context, _ []string) error {
 		events := make(chan plugin14Event, 256)
 		setup := func(plugin *sdk.Plugin) error {
@@ -146,13 +146,13 @@ func plugin14EventObserver(name, peer string, subscriptions []string, scenario p
 			if err := scenario(ctx, plugin, events); err != nil {
 				return err
 			}
-			return p12WaitPeersEOR(ctx, plugin, peer)
+			return p12WaitPeersEOR(ctx, plugin, peerNameOne)
 		})
 	}
 }
 
 func plugin14ASPAStateObserver(name, want string) Driver {
-	return plugin14EventObserver(name, "peer1", []string{textRPKIDirectionReceived}, func(ctx context.Context, plugin *sdk.Plugin, events <-chan plugin14Event) error {
+	return plugin14EventObserver(name, []string{textRPKIDirectionReceived}, func(ctx context.Context, plugin *sdk.Plugin, events <-chan plugin14Event) error {
 		if ok := plugin14WaitEvent(ctx, events, 15*time.Second, func(event plugin14Event) bool {
 			return plugin14RPKISection(event, false)["aspa-state"] == want
 		}); !ok {

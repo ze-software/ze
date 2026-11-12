@@ -659,7 +659,7 @@ func leChecksBuildTree(ctx context.Context, parent, checkout string) (string, []
 	}
 	childEnv := childEnvironment(baseEnv, map[string]string{
 		envRepoRoot:           root,
-		"GOCACHE":             gotoolchain.GoCache(checkout),
+		envGoCache:            gotoolchain.GoCache(checkout),
 		envGitConfigGlobal:    os.DevNull,
 		envGitConfigSystem:    "1",
 		envGitAuthorName:      gitFixtureName,
@@ -670,7 +670,7 @@ func leChecksBuildTree(ctx context.Context, parent, checkout string) (string, []
 		"GIT_COMMITTER_DATE":  "2000-01-02T12:00:00Z",
 		repocompiles.RevKey:   "HEAD",
 		repocompiles.FloorKey: strconv.Itoa(repocompiles.DefaultPackageFloor),
-		repocompiles.KeepKey:  "false",
+		repocompiles.KeepKey:  valueFalse,
 	})
 	for _, args := range [][]string{
 		{argInit, argQuiet, gitInitNoTemplate, gitInitFixtureBranch},

@@ -243,7 +243,7 @@ func storageInitFromBlob(ctx context.Context) error {
 		zefs.KeyInstanceName.Pattern:       []byte("seeded-router"),
 		zefs.KeyFileActive.Key("ze.conf"):  []byte("bgp { session { asn { local 65000; } } router-id 10.0.0.1; }\n"),
 	}
-	blob, err := storage.CreateBlobPopulated("database.zefs", func(seed storage.Storage) error {
+	blob, err := storage.CreateBlobPopulated(fileDatabaseZefs, func(seed storage.Storage) error {
 		for key, value := range values {
 			if err := seed.WriteKey(key, value); err != nil {
 				return err
@@ -257,17 +257,17 @@ func storageInitFromBlob(ctx context.Context) error {
 	if err := blob.Close(); err != nil {
 		return err
 	}
-	if _, err := storageRequireCommand(ctx, "", "init", "--from", "database.zefs"); err != nil {
+	if _, err := storageRequireCommand(ctx, "", "init", "--from", fileDatabaseZefs); err != nil {
 		return err
 	}
-	_, err = os.Lstat("database.zefs")
+	_, err = os.Lstat(fileDatabaseZefs)
 	if err == nil {
 		return errors.New("import left the blob in place")
 	}
 	if !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("stat database.zefs: %w", err)
 	}
-	archives, err := storageArchives("database.zefs")
+	archives, err := storageArchives(fileDatabaseZefs)
 	if err != nil {
 		return err
 	}
@@ -329,7 +329,7 @@ func storageInitFromBlob(ctx context.Context) error {
 	if len(replaced) != 1 {
 		return fmt.Errorf("--force retired %d trees, want 1: %v", len(replaced), replaced)
 	}
-	archives, err = storageArchives("database.zefs")
+	archives, err = storageArchives(fileDatabaseZefs)
 	if err != nil {
 		return err
 	}
@@ -429,7 +429,7 @@ func storageRefusalScenario(ctx context.Context, prepare func(context.Context) (
 // storageRefusalBlob leaves a legacy blob and no tree: start names the blob
 // and the import command.
 func storageRefusalBlob(context.Context) ([]string, error) {
-	blob, err := storage.CreateBlob("database.zefs")
+	blob, err := storage.CreateBlob(fileDatabaseZefs)
 	if err != nil {
 		return nil, err
 	}
@@ -458,7 +458,7 @@ func storageRefusalUnfinishedImport(context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	source := filepath.Join(cwd, "database.zefs")
+	source := filepath.Join(cwd, fileDatabaseZefs)
 	// The layout mirrors storage's importIntent: a retiring init of the
 	// canonical seed that moved no tree. The identities are never consulted
 	// here because neither the source nor any tree exists to compare them with.
@@ -721,7 +721,7 @@ func storageBackupScenario(ctx context.Context) error {
 	}
 	refusals := [][]string{
 		{"out.zefs"},
-		{"database.zefs"},
+		{fileDatabaseZefs},
 		{"other.zefs", "spare", "101"},
 		{"other.zefs", "spare", "ten"},
 	}
@@ -731,10 +731,10 @@ func storageBackupScenario(ctx context.Context) error {
 			return fmt.Errorf("ze %v accepted:\n%s", command, output)
 		}
 	}
-	if _, err := os.Lstat("database.zefs"); !errors.Is(err, fs.ErrNotExist) {
+	if _, err := os.Lstat(fileDatabaseZefs); !errors.Is(err, fs.ErrNotExist) {
 		return errors.Join(errors.New("refused backup left database.zefs"), err)
 	}
-	owner, err := openDaemonTree(os.Environ(), ".", true)
+	owner, err := openDaemonTree(os.Environ(), true)
 	if err != nil {
 		return err
 	}
@@ -791,7 +791,7 @@ func storageEphemeralScenario(ctx context.Context) error {
 			return errors.New("storeless restart reused its CA")
 		}
 		previous = fingerprint
-		for _, path := range []string{storageTreeName, "database.zefs", "meta/ca/cert", "meta/ca/key"} {
+		for _, path := range []string{storageTreeName, fileDatabaseZefs, "meta/ca/cert", "meta/ca/key"} {
 			if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
 				return errors.Join(fmt.Errorf("storeless startup persisted %s", path), err)
 			}

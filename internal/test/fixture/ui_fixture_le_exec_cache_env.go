@@ -22,7 +22,7 @@ import (
 // leExecCacheVariables are the four variables `le exec` points under the
 // per-user cache, with the directory each one names there.
 var leExecCacheVariables = [...][2]string{
-	{"GOCACHE", "go-cache"},
+	{envGoCache, "go-cache"},
 	{"GOPLSCACHE", "gopls"},
 	{"GOLANGCI_LINT_CACHE", "golangci-lint-cache"},
 	{"STATICCHECK_CACHE", "staticcheck-matrix"},

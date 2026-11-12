@@ -75,7 +75,6 @@ func dnsResolverForwardPPPLease(ctx context.Context, _ *sdk.Plugin) error {
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("OK: dns-resolver forward -> configured, then the IPCP lease's server ").Str(leaseDNSServer.String()).
+	return tb.Str("OK: dns-resolver forward -> configured, then the IPCP lease's server ").Str(leaseDNSServer.String()).
 		Str(", then configured again after PADT\n").StdErr()
-	return nil
 }

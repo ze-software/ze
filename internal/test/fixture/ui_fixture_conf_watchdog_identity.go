@@ -60,7 +60,7 @@ func confWatchdogExecutableIdentity(ctx context.Context) error {
 	}
 	wrongMarker := filepath.Join(wrongDir, "wrong-le-ran")
 	wrong := "#!/bin/sh\nprintf 'wrong executable ran\\n' > \"$WATCHDOG_WRONG_MARKER\"\nexit 99\n"
-	if err := os.WriteFile(filepath.Join(wrongDir, "le"), []byte(wrong), 0o700); err != nil {
+	if err := os.WriteFile(filepath.Join(wrongDir, "le"), []byte(wrong), 0o700); err != nil { //nolint:gosec // the PATH decoy is executed, so it needs its owner execute bit
 		return err
 	}
 	base := childEnvironment(os.Environ(), map[string]string{
@@ -74,9 +74,12 @@ func confWatchdogExecutableIdentity(ctx context.Context) error {
 	refused.Dir = here
 	refused.Env = childEnvironment(base, map[string]string{"ZE_LE_BUILD_NAME": "foreign-watchdog-build"})
 	output, err := refused.CombinedOutput()
+	if err == nil {
+		return fmt.Errorf("wrong build identity was not refused: le exited 0\n%s", output)
+	}
 	exit, ok := errors.AsType[*exec.ExitError](err)
 	if !ok {
-		return fmt.Errorf("wrong build identity was not refused: %v\n%s", err, output)
+		return fmt.Errorf("wrong build identity was not refused: %w\n%s", err, output)
 	}
 	if exit.ExitCode() != 2 {
 		return fmt.Errorf("wrong build identity exited %d instead of 2: %s", exit.ExitCode(), output)
@@ -109,7 +112,7 @@ func confWatchdogExecutableIdentity(ctx context.Context) error {
 	if !bytes.Contains(output, []byte("successful")) {
 		return fmt.Errorf("the watchdog wire helper did not finish its assertions: %s", output)
 	}
-	frames, err := os.ReadFile(filepath.Join(capture, "conf-watchdog.1.frames"))
+	frames, err := os.ReadFile(filepath.Join(capture, "conf-watchdog.1.frames")) //nolint:gosec // the path is under the fixture's own workspace
 	if err != nil {
 		return fmt.Errorf("read watchdog frames from the exact spaced --save argument: %w", err)
 	}

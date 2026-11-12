@@ -113,7 +113,7 @@ func leWeeklyAnswers(ctx context.Context) error {
 	if !ok {
 		return fmt.Errorf("FAIL: first post row = %T, want an object", reportPosts[0])
 	}
-	for _, key := range []string{"source", "date", "covers", fieldStatus, "date-stamped", "messages"} {
+	for _, key := range []string{fieldSource, "date", "covers", fieldStatus, "date-stamped", "messages"} {
 		if _, found := first[key]; !found {
 			keys := make([]string, 0, len(first))
 			for present := range first {

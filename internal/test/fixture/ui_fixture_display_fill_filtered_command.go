@@ -93,7 +93,7 @@ system {
 		return err
 	}
 	daemonEnv := setEnvironment(os.Environ(),
-		"ZE_SSH_EPHEMERAL", sshAddr,
+		envSSHEphemeral, sshAddr,
 		"ZE_READY_FILE", readyFile,
 		"ZE_CONFIG_DIR", dir,
 		// Leave port 179 alone: the suite runs unprivileged, and a bind
@@ -225,10 +225,10 @@ func exerciseDisplayAndFill(ctx context.Context, daemon *uiDisplayFillFilteredCo
 	}
 
 	cliEnv := setEnvironment(os.Environ(),
-		"ZE_SSH_HOST", host,
-		"ZE_SSH_PORT", port,
-		"ZE_SSH_USERNAME", "ci",
-		"ZE_SSH_PASSWORD", "secret",
+		envSSHHost, host,
+		envSSHPort, port,
+		envSSHUsername, "ci",
+		envSSHPassword, valueSecret,
 		"ZE_CONFIG_DIR", dir,
 	)
 

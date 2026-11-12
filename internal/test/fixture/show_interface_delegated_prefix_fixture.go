@@ -44,9 +44,9 @@ func showInterfaceDelegatedPrefix(ctx context.Context, plugin *sdk.Plugin) error
 	want := [...]struct{ key, value string }{
 		{"interface", `"` + showDelegatedPrefixLAN + `"`},
 		{"unit", `"0"`},
-		{"source", `"pppoe0"`},
+		{fieldSource, `"pppoe0"`},
 		{"subnet-id", `1`},
-		{"state", `"waiting"`},
+		{fieldState, `"waiting"`},
 	}
 	for _, field := range want {
 		got, present := row[field.key]
@@ -67,7 +67,6 @@ func showInterfaceDelegatedPrefix(ctx context.Context, plugin *sdk.Plugin) error
 		}
 	}
 	var tb textbuf.Buffer
-	tb.Str("OK: show interface delegated-prefix: ").Str(showDelegatedPrefixLAN).
+	return tb.Str("OK: show interface delegated-prefix: ").Str(showDelegatedPrefixLAN).
 		Str(" unit 0 waiting on pppoe0, no address reported\n").StdErr()
-	return nil
 }

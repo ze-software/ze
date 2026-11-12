@@ -53,7 +53,7 @@ const (
 // the LAN link, whatever the steps answered.
 func dhcpProbeLearnedDriver(ctx context.Context, args []string) error {
 	if len(args) < 2 {
-		return errors.New("dhcp/probe-learned takes the LAN link name, then the steps: dhcp/probe-learned <name> <step>...")
+		return errors.New("dhcp/probe-learned takes the LAN link name, then the steps: dhcp/probe-learned <name> <step> [<step> ...]")
 	}
 	steps := make([]learnedStep, 0, len(args)-1)
 	for _, arg := range args[1:] {
@@ -127,7 +127,7 @@ func parseLearnedStep(arg string) (learnedStep, error) {
 			return learnedStep{}, err
 		}
 		if step.Kind != dhcpprobe.StepExchange {
-			return learnedStep{}, errors.New("dhcp/probe-learned: until takes an exchange: until,x,<label>,...")
+			return learnedStep{}, errors.New("dhcp/probe-learned: until takes an exchange: until,x,<label>,type=<type>,mac=<mac>,expect=<reply type>, then any optional key=value fields")
 		}
 		if step.Exchange.Silent {
 			return learnedStep{}, errors.New("dhcp/probe-learned: until waits for a reply; an expected silence is the probe's own x step")
@@ -147,7 +147,7 @@ func parseLearnedStep(arg string) (learnedStep, error) {
 // at the first that fails.
 func runLearnedSteps(ctx context.Context, probe *dhcpprobe.Probe, pid int, steps []learnedStep) error {
 	reload := func(file string) error {
-		data, err := os.ReadFile(file)
+		data, err := os.ReadFile(file) //nolint:gosec // the file is a reload config the .ci step names
 		if err != nil {
 			return fmt.Errorf("dhcp/probe-learned reload: %w", err)
 		}
@@ -167,7 +167,7 @@ func runLearnedSteps(ctx context.Context, probe *dhcpprobe.Probe, pid int, steps
 		case learnedReload:
 			err = reload(step.file)
 		case learnedUntil:
-			err = learnedUntilReply(ctx, probe, step.probe)
+			err = learnedUntilReply(ctx, probe, &step.probe)
 		case learnedProbe:
 			err = probe.Run([]dhcpprobe.Step{step.probe}, probeReload, emit)
 		case learnedUnspecified:
@@ -236,12 +236,12 @@ func learnedWANLease(ctx context.Context, step *learnedStep) error {
 // it names, then prints that reply's line. When the poll runs out it prints
 // the last reply's line and answers the exchange's own verdict on it, so the
 // failure names the field that never arrived.
-func learnedUntilReply(ctx context.Context, probe *dhcpprobe.Probe, step dhcpprobe.Step) error {
+func learnedUntilReply(ctx context.Context, probe *dhcpprobe.Probe, step *dhcpprobe.Step) error {
 	var lastLine string
 	var lastErr error
 	noReload := func() error { return errors.New("BUG: dhcp/probe-learned: an exchange asked for a reload") }
 	if Poll(ctx, untilAttempts, untilDelay, func() bool {
-		lastErr = probe.Run([]dhcpprobe.Step{step}, noReload, func(line string) { lastLine = line })
+		lastErr = probe.Run([]dhcpprobe.Step{*step}, noReload, func(line string) { lastLine = line })
 		// refuse-by-default: guards Poll -- a failed exchange is "not yet": lastErr keeps it, and the poll running out returns it
 		return lastErr == nil
 	}) {

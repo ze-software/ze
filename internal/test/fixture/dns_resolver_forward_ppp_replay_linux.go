@@ -94,9 +94,8 @@ func dnsResolverForwardPPPReplay(ctx context.Context, plugin *sdk.Plugin, reload
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("OK: dns-resolver started after the PPPoE lease -> first answer from the replayed lease server ").
+	return tb.Str("OK: dns-resolver started after the PPPoE lease -> first answer from the replayed lease server ").
 		Str(leaseDNSServer.String()).Str("\n").StdErr()
-	return nil
 }
 
 // forwardPPPReplayAwaitRecord waits until the daemon's resolv.conf lists

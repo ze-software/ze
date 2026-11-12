@@ -6,6 +6,7 @@ package rfc
 
 import (
 	"errors"
+	"maps"
 	"path/filepath"
 	"strings"
 )
@@ -145,9 +146,7 @@ func committedAuditSource(tree string, stems map[string]bool, extraPaths []strin
 	if err != nil {
 		return auditSource{}, err
 	}
-	for rel, body := range codeBlobs {
-		tagBlobs[rel] = body
-	}
+	maps.Copy(tagBlobs, codeBlobs)
 	return auditSource{collected: collected, reader: newTextReader(tagBlobs), revision: revision}, nil
 }
 
@@ -166,7 +165,7 @@ func resealHeadTags(tree, revision string, carriers []Carrier) ([]Tag, map[strin
 				continue
 			}
 			skipped := false
-			for _, part := range strings.Split(rel, "/") {
+			for part := range strings.SplitSeq(rel, "/") {
 				if skipDirs[part] {
 					skipped = true
 					break

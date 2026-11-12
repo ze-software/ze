@@ -883,7 +883,7 @@ func startPeer(ctx context.Context, peer netnsPeer, path *clampedPath, orig netn
 	if err != nil {
 		return err
 	}
-	child, err := startInNetns(ctx, []string{"le", "test", lePeerVerb, peer.script}, ns, orig)
+	child, err := startInNetns(ctx, []string{"le", areaTest, lePeerVerb, peer.script}, ns, orig)
 	if err != nil {
 		return err
 	}

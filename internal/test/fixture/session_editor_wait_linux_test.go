@@ -24,7 +24,7 @@ func TestReadPTYUntilContextKeepsPTYCloseContract(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer terminal.Close()
+			defer closeSessionWaitEnd(t, terminal)
 			if err := slave.Close(); err != nil {
 				t.Fatal(err)
 			}

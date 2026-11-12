@@ -88,7 +88,7 @@ func (proof *nssaFirstEpochProof) finish(ctx context.Context, nativeErr error) (
 	if strings.TrimSpace(packageVersion) != "coreutils-9.11-r0" {
 		resultErr = errors.Join(resultErr, errors.New("NSSA capture has the wrong coreutils package"))
 	}
-	for _, binary := range []struct{ key, path string }{{"timeout-binary-sha256", "/bin/coreutils"}, {"ze-binary-sha256", zeBinaryPath}} {
+	for _, binary := range []struct{ key, path string }{{"timeout-binary-sha256", "/bin/coreutils"}, {evidenceZeBinarySHA256, zeBinaryPath}} {
 		text := query(binary.key, "ze", []string{cmdSha256sum, binary.path})
 		fields := strings.Fields(text)
 		if len(fields) != 2 || fields[1] != binary.path || len(fields[0]) != 64 {

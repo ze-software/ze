@@ -257,7 +257,7 @@ func runJointSubnetFRR(ctx context.Context, plan *jointSubnetFRRPlan, topology *
 	}); err != nil {
 		return fmt.Errorf("FRR recipient establishment setup: %w", err)
 	}
-	if _, err := startJointSubnetFRRProcess(ctx, []string{plan.le, "test", lePeerVerb, "--port", portArgument, filepath.Join(plan.output, "inject.peer")}, topology.path.far, orig, plan.output, "inject", watched); err != nil {
+	if _, err := startJointSubnetFRRProcess(ctx, []string{plan.le, areaTest, lePeerVerb, "--port", portArgument, filepath.Join(plan.output, "inject.peer")}, topology.path.far, orig, plan.output, "inject", watched); err != nil {
 		return err
 	}
 	if err := pollJointSubnetFRR(ctx, watched, captureWatch, func() (bool, error) {

@@ -81,7 +81,7 @@ func judgeSystemDNSAnswer(answer *showSystemDNSAnswer) error {
 	if forward.Default {
 		return fmt.Errorf("%s carries the default marker, but the config writes it", showDNSForwardPath)
 	}
-	if err := judgeSelection(forward, dnssource.ClassConfigured, showDNSForwardServer); err != nil {
+	if err := judgeSelection(forward, showDNSForwardServer); err != nil {
 		return err
 	}
 	pool := showDNSSelection(answer, "l2tp-pool", showDNSPoolPath)
@@ -94,11 +94,13 @@ func judgeSystemDNSAnswer(answer *showSystemDNSAnswer) error {
 	if pool.Mode != dnssource.ModeFirstUsable.String() {
 		return fmt.Errorf("%s mode %q, want the default's %q", showDNSPoolPath, pool.Mode, dnssource.ModeFirstUsable)
 	}
-	return judgeSelection(pool, dnssource.ClassConfigured, showDNSPoolPrimary)
+	return judgeSelection(pool, showDNSPoolPrimary)
 }
 
-// judgeSelection checks that selection used class alone and selected server alone.
-func judgeSelection(selection *dnssource.ConsumerSelection, class dnssource.Class, server netip.Addr) error {
+// judgeSelection checks that selection used the configured class alone and
+// selected server alone: every scenario judges an operator-configured server.
+func judgeSelection(selection *dnssource.ConsumerSelection, server netip.Addr) error {
+	class := dnssource.ClassConfigured
 	if !slices.Equal(selection.Used, []dnssource.Class{class}) {
 		return fmt.Errorf("%s used %v, want [%s]", selection.Path, selection.Used, class)
 	}

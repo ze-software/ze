@@ -69,7 +69,7 @@ func prepareDHCPSharedSegmentPeers(peers []interoplab.PeerConfig, _ string) ([]i
 	peers = append(peers, interoplab.PeerConfig{Name: peerDHCPClient, Container: containerName(peerDHCPClient, suffix),
 		Image: peerKnot, Host: dhcpClientHostNumber, Capabilities: []string{capabilityNetAdmin},
 		Arguments: []string{dockerSysctlFlag, "net.ipv4.conf.default.promote_secondaries=1"},
-		Command:   []string{"sleep", "infinity"},
+		Command:   []string{cmdSleep, "infinity"},
 		Ready:     &interoplab.ReadyProbe{Command: []string{"ip", ipObjectLink}, Timeout: dhcpSharedReadyWait, Interval: time.Second}})
 	return peers, nil
 }
@@ -130,10 +130,10 @@ func checkDHCPSharedSegment(ctx context.Context, check *interoplab.CheckContext)
 	// DHCPDISCOVER binds the reservation, 10.99.0.20, from ze's address in the
 	// device subnet.
 	for _, argv := range [][]string{
-		{"dhcpcd", "-4", "-x", dhcpPrinter.iface},
-		{"ip", "link", "set", dhcpPrinter.iface, "down"},
-		{"ip", "link", "set", dhcpPrinter.iface, "address", dhcpPrinter.mac},
-		{"ip", "link", "set", dhcpPrinter.iface, "up"},
+		{cmdDHCPCD, "-4", "-x", dhcpPrinter.iface},
+		{"ip", ipObjectLink, ipActionSet, dhcpPrinter.iface, linkDown},
+		{"ip", ipObjectLink, ipActionSet, dhcpPrinter.iface, ipLinkAddress, dhcpPrinter.mac},
+		{"ip", ipObjectLink, ipActionSet, dhcpPrinter.iface, "up"},
 	} {
 		if _, err := check.Lab.Exec(ctx, peerDHCPClient, argv, nil); err != nil {
 			return fail(5, err)
@@ -155,8 +155,8 @@ func checkDHCPSharedSegment(ctx context.Context, check *interoplab.CheckContext)
 // dhcpMacvlan creates c's macvlan interface on eth0 with c's MAC and brings it up.
 func dhcpMacvlan(ctx context.Context, lab interoplab.CheckerLab, c dhcpSharedClient) error {
 	for _, argv := range [][]string{
-		{"ip", "link", "add", c.iface, "link", containerInterface, "address", c.mac, "type", "macvlan", "mode", "bridge"},
-		{"ip", "link", "set", c.iface, "up"},
+		{"ip", ipObjectLink, ipActionAdd, c.iface, "link", containerInterface, ipLinkAddress, c.mac, "type", "macvlan", "mode", "bridge"},
+		{"ip", ipObjectLink, ipActionSet, c.iface, "up"},
 	} {
 		if _, err := lab.Exec(ctx, peerDHCPClient, argv, nil); err != nil {
 			return err
@@ -168,7 +168,7 @@ func dhcpMacvlan(ctx context.Context, lab interoplab.CheckerLab, c dhcpSharedCli
 // dhcpcdBind is dhcpcd binding one interface: -w returns once bound and
 // leaves dhcpcd running, which --dumplease needs.
 func dhcpcdBind(iface string) []string {
-	return []string{"dhcpcd", "-4", "-w", "-t", strconv.Itoa(dhcpSharedTimeoutSecond), iface}
+	return []string{cmdDHCPCD, "-4", "-w", "-t", strconv.Itoa(dhcpSharedTimeoutSecond), iface}
 }
 
 // dhcpSharedBind binds iface and checks its lease is address from server.
@@ -205,7 +205,7 @@ type dhcpSharedLeaseDump struct {
 
 // dhcpSharedRead reads iface's lease from the running dhcpcd.
 func dhcpSharedRead(ctx context.Context, lab interoplab.CheckerLab, iface string) (dhcpSharedLeaseDump, error) {
-	dump, err := lab.Query(ctx, peerDHCPClient, []string{"dhcpcd", "-4", "--dumplease", iface}, nil)
+	dump, err := lab.Query(ctx, peerDHCPClient, []string{cmdDHCPCD, "-4", "--dumplease", iface}, nil)
 	if err != nil {
 		return dhcpSharedLeaseDump{}, err
 	}

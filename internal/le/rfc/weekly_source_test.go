@@ -4,7 +4,7 @@ package rfc
 // RFC sections `le weekly report` answers.
 // METHOD: the seam that readies an endpoint's own le is replaced by an
 // in-process answer over a fixture tree (treeReport, discriminationStatusOf,
-// marshalled as `| json` does), or by canned answers built from the
+// marshaled as `| json` does), or by canned answers built from the
 // production types; the sections are then asked as the report asks them.
 // PREVENTS: a report figure that differs from the ledger's, a lost proof read
 // as no event, an interop record dropped because it names no scenario, and a

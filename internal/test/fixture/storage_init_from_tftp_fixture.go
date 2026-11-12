@@ -39,7 +39,7 @@ func storageInitFromTFTP(ctx context.Context, _ []string) error {
 	if err := os.MkdirAll(filepath.Join(root, "install"), 0o700); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(root, "install", "database.zefs"), blob, 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "install", fileDatabaseZefs), blob, 0o600); err != nil {
 		return err
 	}
 

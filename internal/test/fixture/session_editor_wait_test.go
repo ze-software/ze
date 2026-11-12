@@ -19,8 +19,8 @@ func TestSessionEditorWaitForKeepsFollowingOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer reader.Close()
-	defer writer.Close()
+	defer closeSessionWaitEnd(t, reader)
+	defer closeSessionWaitEnd(t, writer)
 	if _, err := writer.WriteString("EDLE tail NEXT suffix"); err != nil {
 		t.Fatal(err)
 	}
@@ -66,8 +66,8 @@ func TestSessionEditorWaitForUsesCallerLifetime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer reader.Close()
-	defer writer.Close()
+	defer closeSessionWaitEnd(t, reader)
+	defer closeSessionWaitEnd(t, writer)
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	var transcript bytes.Buffer
@@ -140,8 +140,8 @@ func TestSessionEditorWaitForCancelsLiveSilentRead(t *testing.T) {
 	done := make(chan struct{})
 	defer func() {
 		cancel()
-		writer.Close()
-		reader.Close()
+		closeSessionWaitEnd(t, writer)
+		closeSessionWaitEnd(t, reader)
 		<-done
 	}()
 	pending := []byte("unfinished result")
@@ -197,9 +197,9 @@ func TestReadPTYUntilContextKeepsEOFContract(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer file.Close()
+				defer closeSessionWaitEnd(t, file)
 				if _, err := writer.WriteString("partial"); err != nil {
-					writer.Close()
+					closeSessionWaitEnd(t, writer)
 					t.Fatal(err)
 				}
 				if err := writer.Close(); err != nil {
@@ -220,5 +220,15 @@ func TestReadPTYUntilContextKeepsEOFContract(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// closeSessionWaitEnd closes one end of a test pipe or terminal and fails the
+// test when the close itself fails. Each end is closed once, so any close
+// error is a failure.
+func closeSessionWaitEnd(t *testing.T, end io.Closer) {
+	t.Helper()
+	if err := end.Close(); err != nil {
+		t.Errorf("close: %v", err)
 	}
 }

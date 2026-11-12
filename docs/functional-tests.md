@@ -426,7 +426,9 @@ A compiled fixture that seeds or reads the store a ze daemon persists opens
 it through one helper (`internal/test/fixture/daemon_store.go`:
 `openDaemonStore`, `openDaemonStoreReadOnly`, `openDaemonTree`,
 `createDaemonStore`, `createDaemonStorePopulated`). Each takes the daemon's
-environment and the directory, and refuses three ways before it touches the
+environment and the directory, except `openDaemonTree`, which takes the
+environment and opens the store in the current directory, where every
+caller's daemon keeps it. Each refuses three ways before it touches the
 disk:
 
 - the environment selects the memory store under any spelling of

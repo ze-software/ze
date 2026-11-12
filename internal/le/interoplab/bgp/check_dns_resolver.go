@@ -201,12 +201,12 @@ func checkDNSDHCPLAN(ctx context.Context, check *interoplab.CheckContext) error 
 	// leaves dhcpcd running in the background, because dhcpcd 10 answers
 	// --dumplease only from the running daemon ("dhcpcd is not running"
 	// after a -1 one-shot).
-	bind := []string{"dhcpcd", "-4", "-w", "-t", strconv.Itoa(dnsDHCPTimeoutSecond), containerInterface}
+	bind := []string{cmdDHCPCD, "-4", "-w", "-t", strconv.Itoa(dnsDHCPTimeoutSecond), containerInterface}
 	if _, err := check.Lab.Exec(ctx, peerDNSClient, bind, nil); err != nil {
 		return fail(1, err)
 	}
 	// Assertion 2. The lease is the pool address and option 6 is ze.
-	dump, err := check.Lab.Query(ctx, peerDNSClient, []string{"dhcpcd", "-4", "--dumplease", containerInterface}, nil)
+	dump, err := check.Lab.Query(ctx, peerDNSClient, []string{cmdDHCPCD, "-4", "--dumplease", containerInterface}, nil)
 	if err != nil {
 		return fail(2, err)
 	}

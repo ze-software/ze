@@ -63,7 +63,7 @@ func dnsResolverForwardDHCPv4Default(ctx context.Context, plugin *sdk.Plugin, re
 	defer cancel()
 
 	scene := dhcpv4DefaultScene
-	defer netlink.LinkDel(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: scene.stubLink}}) //nolint:errcheck // Cleanup after the verdict; a missing link is the goal.
+	defer netlink.LinkDel(&netlink.Dummy{Name: scene.stubLink}) //nolint:errcheck // Cleanup after the verdict; a missing link is the goal.
 	learned, err := scene.startStub()
 	if err != nil {
 		return err
@@ -108,15 +108,14 @@ func dnsResolverForwardDHCPv4Default(ctx context.Context, plugin *sdk.Plugin, re
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("OK: dns-resolver default forward -> the DHCPv4 lease's server ").Str(scene.leaseServer.String()).
+	return tb.Str("OK: dns-resolver default forward -> the DHCPv4 lease's server ").Str(scene.leaseServer.String()).
 		Str(", then the committed forward server alone, listener not rebound\n").StdErr()
-	return nil
 }
 
 // startStub creates the dummy link that holds leaseServer and starts the
 // learned stub there, answering the mock's default zone.
 func (s dhcpv4LeaseScene) startStub() (*dnsmock.Server, error) {
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: s.stubLink}}
+	link := &netlink.Dummy{Name: s.stubLink}
 	if err := netlink.LinkAdd(link); err != nil {
 		return nil, fmt.Errorf("create %s: %w", s.stubLink, err)
 	}

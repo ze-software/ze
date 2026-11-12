@@ -81,9 +81,8 @@ func dnsSourceRouterFollowsLease(ctx context.Context, plugin *sdk.Plugin) error 
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("OK: web.example.test type A -> ").Str(dnsAnswerLine(data)).
+	return tb.Str("OK: web.example.test type A -> ").Str(dnsAnswerLine(data)).
 		Str(" through the IPCP lease's server ").Str(leaseDNSServer.String()).Str("\n").StdErr()
-	return nil
 }
 
 // leaseNegotiate plays LCP with CHAP-MD5, the CHAP challenge, then IPCP

@@ -81,7 +81,7 @@ func checkOSPFVirtualLink(ctx context.Context, check *interoplab.CheckContext) e
 	if err := waitVirtualLinkRoute(ctx, check.Lab, v6, true); err != nil {
 		return fail(5, err)
 	}
-	if _, err := check.Lab.Exec(ctx, peerFRRTransit, []string{"ip", ipObjectLink, "set", "eth2", "down"}, nil); err != nil {
+	if _, err := check.Lab.Exec(ctx, peerFRRTransit, []string{"ip", ipObjectLink, ipActionSet, "eth2", linkDown}, nil); err != nil {
 		return fail(6, err)
 	}
 	down, err := waitVirtualLink(ctx, check.Lab, remote, v6, 0, false)

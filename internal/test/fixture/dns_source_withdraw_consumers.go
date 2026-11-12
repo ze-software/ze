@@ -12,7 +12,6 @@ import (
 	"net/netip"
 	"os"
 
-	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -116,7 +115,7 @@ func judgeDHCPListed(answer *showSystemDNSAnswer) error {
 			if selection.Instance != withdrawDHCPSubnet.String() {
 				continue
 			}
-			return judgeSelection(selection, dnssource.ClassConfigured, withdrawDHCPServer)
+			return judgeSelection(selection, withdrawDHCPServer)
 		}
 	}
 	return fmt.Errorf("no %s selection at %q for subnet %s", withdrawDHCPConsumer, withdrawDHCPPath, withdrawDHCPSubnet)
@@ -133,7 +132,7 @@ func judgePoolListed(answer *showSystemDNSAnswer) error {
 	if pool == nil {
 		return fmt.Errorf("no %s selection at %q", withdrawPoolConsumer, showDNSPoolPath)
 	}
-	return judgeSelection(pool, dnssource.ClassConfigured, showDNSPoolPrimary)
+	return judgeSelection(pool, showDNSPoolPrimary)
 }
 
 // judgeConsumerWithdrawn names the first expectation the post-reload answer
