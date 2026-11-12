@@ -3,7 +3,7 @@
 Owner order (2026-10-23): implement these two specs, in this order, each in its
 own fresh session:
 
-1. `plan/release/fixes/spec-refuse-instead-of-defaulting.md` (P1, 51 owned journal rows)
+1. `spec-refuse-instead-of-defaulting` (P1, 51 owned journal rows)
 2. `plan/release/fixes/spec-yang-single-source-of-truth.md` (P1, 51 owned journal rows)
 
 ## Why these two

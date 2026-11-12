@@ -1,7 +1,7 @@
 # 24 Refuse-by-default: implemented, uncommitted, closure waits on one dependency
 
 State at the end of session 6b51c217 (2026-10-24), which implemented
-`plan/release/fixes/spec-refuse-instead-of-defaulting.md` (Status `in-progress`,
+`spec-refuse-instead-of-defaulting` (Status `in-progress`,
 claimed by 6b51c217).
 
 ## What is true now

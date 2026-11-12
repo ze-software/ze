@@ -95,7 +95,7 @@ applies, owns the tree-wide acceptance, and closes after the last child.
 | Operator warnings bus | `internal/core/report` (`show warnings`, `docs/architecture/core-design.md` section 15) | Holds warnings an operator lists | Applies where a failure is a lasting condition rather than an event; process-local, so a forked plugin uses its log |
 | Prometheus metrics registry | `docs/plugin-development/metrics.md` | Per-subsystem counters | Applies for "count it" on a per-packet or per-route path, where a WARN per event would flood |
 | User-facing error rule | `ai/rules/user-facing-errors.md` | What, why, fix in every message | Applies to every WARN a child writes |
-| Earlier refuse-by-default backlog | `plan/release/fixes/spec-refuse-instead-of-defaulting.md` (verification) | The first four shapes' report-clean pass | Does not overlap: it predates this shape; its report-clean phase covered the other shapes only |
+| Earlier refuse-by-default backlog | `spec-refuse-instead-of-defaulting` (verification) | The original four shapes and the fifth dropped-error check | Bounded overlap: `Reactor.notifyOneMessage` records parse failures, and `buildWithdrawalPayload` / `fwdWithdrawal.of` propagate conversion errors to both forwarding WARN callers. This umbrella's children retain the remaining dropped-error backlog. |
 | Discarded-error lint ratchet | `plan/post-release/engineering/spec-lint-ratchet-clock-and-discarded-errors.md` (ready) | `_ = f()` discards with no log at all | Does not overlap: a blank discard has no log line, which this shape does not read |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)

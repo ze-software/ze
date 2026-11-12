@@ -6,7 +6,7 @@ in its own fresh session, now.
 
 ## Why it runs now
 
-`plan/release/fixes/spec-refuse-instead-of-defaulting.md` (in progress, session
+`spec-refuse-instead-of-defaulting` (in progress, session
 6b51c217) is implemented apart from six owned journal rows. Each needs the
 refusal this spec designs: a feature that is not compiled into the binary must
 be refused by name, never read as "not configured". Writing a second not-built
