@@ -103,6 +103,20 @@ Accidental costs that give nothing up when removed:
 Verified in source by the supervising session: items 1 and 2 and the
 30-second limit. The rest is the analysis agent's reading.
 
+### Decision 1 is taken
+
+The owner has decided decision 1: the website's RFC data is recorded once,
+saved with the published website, and the pages are generated from it. The
+build regenerates the recording only when its saved timestamp is more than a
+week old, or when it is absent, and a command regenerates it on demand. The
+rule is in `ai/META-DECISIONS.md`, "Website design". The design and its open
+questions are in
+`plan/post-release/engineering/spec-site-rfc-recorded-data.md`, which is the
+home of decision 1. Reading the source for that spec found eight RFC corpus
+collections per full build, not seven: the docs producer's `rfc.StatusPage` is
+the eighth, and `derived.EnsureAll` adds a ninth when an RFC derived artifact
+is absent.
+
 ## 3. Open from the page work
 
 - The tests that cover the approved page changes pass: `./le test unit pkg
