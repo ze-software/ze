@@ -1,0 +1,25 @@
+# Test: `show mpls forwarding` on the vpp data plane reads VPP MPLS table 0.
+#
+# Question: with `interface { backend vpp; }`, does `show mpls forwarding`,
+# asked of the running daemon over its SSH CLI, list the label fib-vpp
+# installed in VPP MPLS table 0? A unit test drives the VPP reader or the
+# handler alone over a fake; only the daemon reads the accepted config's
+# data plane, finds the reader fib-vpp registered for "vpp", and dumps the
+# table through a real GoVPP channel on the vpp component's connection.
+#
+# Flow: the compiled driver starts the VPP stub, then ze with vpp.external,
+# `interface { backend vpp; }`, `ldp { }` and an SSH login. It waits until
+# the stub log shows LDP's egress pop installed in table 0 (both S routes),
+# then runs `ze cli -c "show mpls forwarding | json"`. The stub answers
+# mpls_route_dump from the routes fib-vpp installed. The test passes only
+# when that label is listed as a pop. The kernel AF_MPLS table holds no Ze
+# label here, so the old kernel-only reader answers an empty list and fails.
+#
+# VALIDATES: spec-fib-depth journal row 2026-11-11 (`show mpls forwarding`
+#            answers from the selected data plane)
+# PREVENTS:  the command reading the kernel table on a VPP box and answering
+#            an empty table while VPP holds every label
+
+cmd=foreground:seq=1:exec=le test fixture vpp/vpp-mpls-forwarding-show:timeout=40s
+expect=exit:code=0
+expect=stderr:pattern=OK: show mpls forwarding read VPP MPLS table 0 and listed LDP label

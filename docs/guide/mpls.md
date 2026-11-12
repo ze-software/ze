@@ -146,9 +146,12 @@ Inspect LDP state with `show ldp neighbor` (session state, transport address)
 and `show ldp binding` (FEC-to-label bindings). A label binding learned from a
 neighbor programs an ingress push entry toward that neighbor, in the kernel MPLS
 FIB under `interface { backend netlink; }` and in VPP under `backend vpp`.
-Under `backend vpp`, `show mpls forwarding` still reads only the kernel table,
-so it does not list the labels VPP holds; use `vppctl show mpls fib` there.
+`show mpls forwarding` reads the data plane the backend selects: under
+`backend vpp` it lists the labels in VPP MPLS table 0 and VPP's labeled IP
+routes, in the same row format as the kernel table. When VPP does not answer,
+the command fails and names `ze doctor`. It does not answer an empty table.
 
+<!-- source: internal/plugins/fib/vpp/mplsforwarding.go -- readMPLSForwarding -->
 <!-- source: internal/core/mplsfib/label.go -- label validation -->
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildMPLSEncap (push) -->
 <!-- source: internal/component/iface/config_sysctl.go -- net.mpls.conf.<iface>.input -->

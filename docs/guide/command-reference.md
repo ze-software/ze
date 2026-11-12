@@ -1150,11 +1150,16 @@ ze show mpls forwarding limit 500       # Cap the response size
 Each entry reports the incoming label (`in-label`), the `operation`
 applied (`swap` when an outgoing label stack is programmed, `pop` for
 disposition / implicit-null), any `out-labels`, the `next-hop`, and the
-egress `device`. On a non-Linux host the command fails with an error
-naming the host's OS, rather than answering an empty table: Ze reads the
-kernel MPLS FIB on Linux only.
+egress `device`. The table is the one used by the data plane that
+`interface { backend }` selects: the kernel MPLS FIB under `netlink`, and
+VPP MPLS table 0 plus VPP's labeled IP routes under `vpp`. The rows have the
+same format on both. When the table cannot be read, the command fails and
+says why. That happens on a non-Linux host (the error names the OS), when VPP
+is unreachable, or when the build has no reader for the selected data plane.
+The command never answers an empty table in place of a table it could not read.
 
 <!-- source: internal/component/mpls/show_forwarding.go -- handleShowMPLSForwarding -->
+<!-- source: internal/plugins/fib/vpp/mplsforwarding.go -- readMPLSForwarding -->
 <!-- source: internal/component/mpls/forwarding_linux.go -- dumpMPLSRoutes -->
 <!-- source: internal/component/mpls/forwarding_other.go -- dumpMPLSRoutes -->
 

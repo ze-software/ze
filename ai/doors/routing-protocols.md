@@ -18,8 +18,10 @@ work, not the tests in this repository alone.
   routes use as clients (`docs/architecture/bfd.md`). Its subpackage layout is
   the reference skeleton for a new protocol (`ai/rules/protocol.md`,
   `docs/architecture/protocol-skeleton.md`).
-- **`internal/component/mpls` is read-only.** It dumps the kernel MPLS table
-  for `show mpls forwarding` (`internal/component/mpls/doc.go`).
+- **`internal/component/mpls` is read-only.** It serves `show mpls
+  forwarding` from the reader that the selected data plane's owner registers
+  in `internal/core/mplsfib` (`forwarding.go`). It reads the kernel AF_MPLS
+  table itself. `fib-vpp` reads VPP MPLS table 0.
 - **Every one can be compiled out:** `ze_ospf`, `ze_isis`, `ze_ldp`,
   `ze_rsvpte`, `ze_mpls`, `ze_bfd` (`feature-gates.txt`).
 

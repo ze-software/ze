@@ -12,9 +12,11 @@ package mpls
 import (
 	"errors"
 	"runtime"
+
+	"github.com/ze-software/ze/internal/core/mplsfib"
 )
 
-func dumpMPLSRoutes(_ int) ([]forwardingEntry, error) {
+func dumpMPLSRoutes(_ int) ([]mplsfib.ForwardingEntry, error) {
 	return nil, errors.New("cannot read the MPLS forwarding table: Ze reads the kernel table " +
 		"on Linux only, and this host runs " + runtime.GOOS + ", so no label route " +
 		"can be shown or checked here. Run ze on Linux to read the table")

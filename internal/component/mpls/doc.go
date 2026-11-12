@@ -1,2 +1,2 @@
-// Package mpls reads the kernel MPLS forwarding table and serves the show mpls forwarding command.
+// Package mpls serves the show mpls forwarding command from the MPLS forwarding table of the selected data plane, and reads the kernel table itself.
 package mpls

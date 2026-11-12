@@ -1,7 +1,8 @@
 //go:build linux
 
 // Design: docs/architecture/mpls/mpls-kernel.md -- kernel AF_MPLS table reader
-// Related: show_forwarding.go -- handler and forwardingEntry type
+// Related: show_forwarding.go -- the handler that picks a reader by data plane
+// Related: register.go -- registers this reader for the "netlink" data plane
 //
 // dumpMPLSRoutes reads the kernel's AF_MPLS routing table via netlink. Each
 // AF_MPLS route is keyed by an incoming label (MPLSDst); NewDst carries the
@@ -15,16 +16,15 @@ import (
 
 	"github.com/vishvananda/netlink"
 
+	"github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/internal/core/rtproto"
 )
-
-const mplsImplicitNull = 3
 
 // rtprotZE is the rtm_protocol the fib-kernel plugin tags its routes with;
 // label-imposition (push) routes are ze-owned IP routes carrying an MPLS encap.
 const rtprotZE = rtproto.FIBKernel
 
-func dumpMPLSRoutes(limit int) ([]forwardingEntry, error) {
+func dumpMPLSRoutes(limit int) ([]mplsfib.ForwardingEntry, error) {
 	links, lerr := netlink.LinkList()
 	if lerr != nil {
 		return nil, fmt.Errorf("mpls: link list: %w", lerr)
@@ -34,7 +34,7 @@ func dumpMPLSRoutes(limit int) ([]forwardingEntry, error) {
 		idxName[l.Attrs().Index] = l.Attrs().Name
 	}
 
-	out := make([]forwardingEntry, 0, limit)
+	out := make([]mplsfib.ForwardingEntry, 0, limit)
 
 	// AF_MPLS table: swap/pop entries keyed by incoming label.
 	mplsRoutes, err := netlink.RouteList(nil, netlink.FAMILY_MPLS)
@@ -48,7 +48,7 @@ func dumpMPLSRoutes(limit int) ([]forwardingEntry, error) {
 		if mplsRoutes[i].MPLSDst == nil {
 			continue
 		}
-		entry := forwardingEntry{
+		entry := mplsfib.ForwardingEntry{
 			InLabel: *mplsRoutes[i].MPLSDst,
 			Device:  idxName[mplsRoutes[i].LinkIndex],
 		}
@@ -58,7 +58,7 @@ func dumpMPLSRoutes(limit int) ([]forwardingEntry, error) {
 		if dst, ok := mplsRoutes[i].NewDst.(*netlink.MPLSDestination); ok && dst != nil {
 			entry.OutLabels = dst.Labels
 		}
-		entry.Operation = mplsOperation(entry.OutLabels)
+		entry.Operation = mplsfib.LabelOperation(entry.OutLabels)
 		out = append(out, entry)
 	}
 
@@ -82,18 +82,18 @@ func dumpMPLSRoutes(limit int) ([]forwardingEntry, error) {
 	return out, nil
 }
 
-// pushEntryFromRoute builds a "push" forwardingEntry from a ze-owned IP route
+// pushEntryFromRoute builds a "push" ForwardingEntry from a ze-owned IP route
 // carrying an MPLS label encap, or returns ok=false when r is not one (foreign
 // protocol, no prefix, or no MPLS encap).
-func pushEntryFromRoute(r *netlink.Route, idxName map[int]string) (forwardingEntry, bool) {
+func pushEntryFromRoute(r *netlink.Route, idxName map[int]string) (mplsfib.ForwardingEntry, bool) {
 	if r.Protocol != rtprotZE || r.Dst == nil {
-		return forwardingEntry{}, false
+		return mplsfib.ForwardingEntry{}, false
 	}
 	enc, ok := r.Encap.(*netlink.MPLSEncap)
 	if !ok || enc == nil {
-		return forwardingEntry{}, false
+		return mplsfib.ForwardingEntry{}, false
 	}
-	entry := forwardingEntry{
+	entry := mplsfib.ForwardingEntry{
 		FEC:       r.Dst.String(),
 		Operation: "push",
 		OutLabels: enc.Labels,
@@ -103,14 +103,4 @@ func pushEntryFromRoute(r *netlink.Route, idxName map[int]string) (forwardingEnt
 		entry.NextHop = r.Gw.String()
 	}
 	return entry, true
-}
-
-func mplsOperation(outLabels []int) string {
-	if len(outLabels) == 0 {
-		return "pop"
-	}
-	if len(outLabels) == 1 && outLabels[0] == mplsImplicitNull {
-		return "pop"
-	}
-	return "swap"
 }

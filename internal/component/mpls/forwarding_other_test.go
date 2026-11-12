@@ -23,8 +23,13 @@ import (
 // with a message naming runtime.GOOS.
 // PREVENTS: dumpMPLSRoutes returning nil, nil off Linux.
 //
-// Method: call the handler with no seam swapped.
+// Method: select the reader this package registers for the kernel data plane,
+// the one a config naming 'interface { backend netlink; }' selects, and call
+// the handler over it.
 func TestShowMPLSForwardingOffLinuxIsAnError(t *testing.T) {
+	reader, refusal := readerForDataPlane(kernelDataPlane)
+	require.Nil(t, refusal)
+	withForwardingReader(t, reader)
 	resp, err := handleShowMPLSForwarding(nil, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)

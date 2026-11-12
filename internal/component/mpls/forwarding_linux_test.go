@@ -10,13 +10,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/core/mplsfib"
 )
 
+// TestMPLSOperationClassifier proves the kernel reader's rows classify as the
+// shared classifier does: the reader calls mplsfib.LabelOperation, which the
+// VPP reader calls too. The value 3 is the Implicit NULL label.
 func TestMPLSOperationClassifier(t *testing.T) {
-	assert.Equal(t, "pop", mplsOperation(nil), "no outgoing label is disposition")
-	assert.Equal(t, "pop", mplsOperation([]int{mplsImplicitNull}), "implicit-null only is pop")
-	assert.Equal(t, "swap", mplsOperation([]int{16001}), "single real label is swap")
-	assert.Equal(t, "swap", mplsOperation([]int{16001, 16002}), "label stack is swap")
+	assert.Equal(t, "pop", mplsfib.LabelOperation(nil), "no outgoing label is disposition")
+	assert.Equal(t, "pop", mplsfib.LabelOperation([]int{3}), "implicit-null only is pop")
+	assert.Equal(t, "swap", mplsfib.LabelOperation([]int{16001}), "single real label is swap")
+	assert.Equal(t, "swap", mplsfib.LabelOperation([]int{16001, 16002}), "label stack is swap")
 }
 
 // VALIDATES: F14 -- `show mpls forwarding` includes label-imposition (push)
