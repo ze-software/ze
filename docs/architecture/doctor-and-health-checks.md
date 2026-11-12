@@ -869,6 +869,25 @@ Each line carries its code and its site raises an error event under it, with
 | `doctor-plugin-answer-undelivered` | `plugin-server`: an answer, refusal or completion its caller never took, or a plugin answer that ended before its terminator | the caller waits or goes on without it |
 | `doctor-plugin-drain-incomplete` | `plugin-server`: a drain round with a failed or late plugin, or one a signal aborted | queued work was dropped |
 
+The process manager raises one more error event of this kind, with a fix of
+its own. `ProcessManager.Respawn` stops the process it replaces and waits for
+it to end for that process's exit grace plus one second: 2s for a forked
+plugin, whose process group `superviseExit` kills 1s after the stop, and 1s
+for a plugin that runs in the daemon. When that wait expires, the replacement
+starts while the previous process may still run, and both may hold the same
+resources. `recordRestartOverlap` logs it at WARN and raises
+`doctor-plugin-restart-overlap` (`plugin` source), with the plugin as its
+subject. A second restart is no fix, because it replaces the new process. So
+the fix of a forked plugin is `pgrep -a -g <process group>`, a host command
+and not a ze one, which lists what is still in the previous process group:
+the group was already killed, so a process listed there is held by the
+kernel. The fix of a plugin that runs in the daemon is
+`ze show system goroutines full`, whose stacks show where its previous engine
+is stuck.
+<!-- source: internal/component/plugin/process/manager.go -- Respawn, respawnJoinMargin -->
+<!-- source: internal/component/plugin/process/doctor_records.go -- recordRestartOverlap -->
+<!-- test: internal/component/plugin/process/restart_overlap_test.go TestRespawnRecordsAnExpiredJoin -->
+
 The operator's goroutine dump (`request quit`) reports nothing wrong, so it
 logs at `Info`.
 <!-- source: internal/component/plugin/server/server_events.go -- raiseServerEvent, serverEventSource -->

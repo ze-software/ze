@@ -44,6 +44,7 @@ func TestCrossCuttingCodesDescribed(t *testing.T) {
 		CodeDoctorPluginPanic,
 		CodeDoctorPluginDeliveryFailed,
 		CodeDoctorPluginStderrRelayStopped,
+		CodeDoctorPluginRestartOverlap,
 		CodeDoctorPluginEnricherUnavailable,
 		CodeDoctorPluginConnectBackRefused,
 		CodeDoctorManagedListenerUnbound,

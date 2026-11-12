@@ -36,6 +36,7 @@ const (
 	CodeDoctorPluginPanic                   = "doctor-plugin-panic"
 	CodeDoctorPluginDeliveryFailed          = "doctor-plugin-delivery-failed"
 	CodeDoctorPluginStderrRelayStopped      = "doctor-plugin-stderr-relay-stopped"
+	CodeDoctorPluginRestartOverlap          = "doctor-plugin-restart-overlap"
 	CodeDoctorPluginEnricherUnavailable     = "doctor-plugin-enricher-unavailable"
 	CodeDoctorPluginConnectBackRefused      = "doctor-plugin-connect-back-refused"
 	CodeDoctorManagedListenerUnbound        = "doctor-managed-listener-unbound"
@@ -234,6 +235,14 @@ var pluginInfraCodes = []CodeMeta{
 		Description: "The relay that copies a plugin's standard error into ze's log stopped while the plugin was running, so what the plugin writes there is lost. " +
 			"The event names the plugin and the cause.",
 		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-stderr-relay-stopped"},
+	},
+	{
+		Code:  CodeDoctorPluginRestartOverlap,
+		Title: "Plugin restarted beside its previous process",
+		Description: "When ze restarted a plugin, the previous process or engine of that plugin had not ended within its bound after it was stopped, so the replacement started while it may still run. " +
+			"Both may then hold the same resources, such as sockets, routes or kernel state. For a forked plugin ze has killed the previous process group, and the event names its process group id: a process still listed in it is held by the kernel or ignores the kill. " +
+			"For a plugin that runs in the daemon, the event names the goroutine dump, which shows where the previous engine is stuck. A second restart replaces the new process, not the previous one.",
+		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-restart-overlap"},
 	},
 	{
 		Code:  CodeDoctorPluginEnricherUnavailable,

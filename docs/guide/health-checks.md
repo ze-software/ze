@@ -179,6 +179,7 @@ show warnings source bgp
 | `doctor-plugin-crashed` | plugin | error | Plugin process exited unexpectedly; carries the exit status and the failure policy ze applies, and clears every warning the plugin raised itself |
 | `doctor-plugin-stopped` | plugin | warning | A configured plugin is down on any path (failure policy, respawn limit, failed restart, failed startup handshake); the fix is `ze request plugin restart <name>`, and the `plugins` health row reads down. Cleared when the plugin runs again or leaves the configuration |
 | `doctor-plugin-stderr-relay-stopped` | plugin | error | The relay copying a plugin's stderr into ze's log stopped while the plugin runs (a read error, a line over the scanner's limit); the fix is `ze request plugin restart <name>` |
+| `doctor-plugin-restart-overlap` | plugin | error | A plugin was restarted before its previous process ended (2s after the stop for a forked plugin, 1s for one in the daemon), so the replacement runs beside it and both may hold the same resources. A second restart does not help, because it replaces the new process. The fix is the host command `pgrep -a -g <process group>` (not a ze command), which lists what is left of the killed process group, or `ze show system goroutines full` for a plugin in the daemon |
 | `iface-errors` | iface | warning | RX/TX error counters increasing |
 
 The bus holds at most `ze.report.warnings.max` active warnings (default 1024)

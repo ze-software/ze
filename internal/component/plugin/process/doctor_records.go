@@ -287,6 +287,51 @@ func (p *Process) noteBatch(elapsed time.Duration, events int, err error, unwait
 	}
 }
 
+// restartOverlapGoroutinesFix is the fix of an overlap whose previous engine
+// runs in the daemon: no command ends a goroutine, and the full dump
+// (show system goroutines, ze-cli-show-cmd.yang) prints every stack, the stuck
+// engine's included.
+const restartOverlapGoroutinesFix = "ze show system goroutines full"
+
+// recordRestartOverlap logs and raises a respawn whose join of the process it
+// replaces expired after bound, so the replacement started while that process
+// may still run: Respawn's only record of it. Two processes of one plugin may
+// then hold the same resources. The event code is registered in register.go.
+//
+// A second restart is no fix, because it replaces the NEW process. A forked
+// plugin's previous process group has been killed by superviseExit, so what
+// still runs in it is held by the kernel or outside ze's reach, and the fix
+// lists what the group still holds. A plugin that runs in the daemon has no
+// process to list; the goroutine dump shows its stuck engine.
+//
+// Each textbuf.Buffer is read once, into the string the log line and the
+// raise share: String empties the buffer, so a second read answers "".
+func recordRestartOverlap(proc *Process, bound time.Duration, cause error) {
+	name := proc.Name()
+	var message textbuf.Buffer
+	var fix textbuf.Buffer
+	message.Str("plugin ").Str(name)
+	if cmd := proc.Cmd(); cmd != nil && cmd.Process != nil {
+		group := cmd.Process.Pid
+		message.Str(" was restarted before its previous process (process group ").Int(int64(group)).
+			Str(") ended: it had not ended ").Str(bound.String()).
+			Str(" after it was stopped, so its replacement started beside it and the two may hold the same resources; ze killed that process group, ").
+			Str("and the host command pgrep (not a ze command) lists any process still in it")
+		fix.Str("pgrep -a -g ").Int(int64(group))
+	} else {
+		message.Str(" was restarted before its previous engine ended: it had not returned ").Str(bound.String()).
+			Str(" after it was stopped, so its replacement started beside it in the daemon and the two may hold the same resources")
+		fix.Str(restartOverlapGoroutinesFix)
+	}
+	messageLine := message.String()
+	fixLine := fix.String()
+	logger().Warn("plugin restarted before its previous process ended, so the two may hold the same resources",
+		"plugin", name, "detail", messageLine, "bound", bound, "error", cause,
+		"fix", fixLine, "code", diagnostic.CodeDoctorPluginRestartOverlap)
+	report.RaiseErrorFix(reportSourcePlugin, diagnostic.CodeDoctorPluginRestartOverlap, name,
+		messageLine, fixLine)
+}
+
 // raiseRelayStopped raises the stopped stderr relay on the report bus, where
 // the recent-events check reports it: the plugin keeps running with its later
 // output, a panic block included, never relayed, and a restart starts a new

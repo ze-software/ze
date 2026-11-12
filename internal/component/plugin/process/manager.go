@@ -50,6 +50,13 @@ const (
 // internal/test/runner/caps.go: never written outside a test.
 var pluginStopGrace = 3 * time.Second
 
+// respawnJoinMargin is how long Respawn waits, past the stopped process's own
+// exit grace (stopExitGrace), for that process to end before it starts the
+// replacement. A join that expires is raised as doctor-plugin-restart-overlap
+// (recordRestartOverlap). A var for the same test seam as pluginStopGrace:
+// never written outside a test.
+var respawnJoinMargin = time.Second
+
 // Respawn errors.
 var (
 	ErrRespawnLimitExceeded = errors.New("respawn limit exceeded")
@@ -704,9 +711,16 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 		proc.Stop()
 		// An external plugin that does not exit on its closed connection is killed
 		// only once pluginExitGrace has passed, so the join waits past its grace.
-		ctx, cancel := context.WithTimeout(context.Background(), proc.stopExitGrace()+time.Second)
-		_ = proc.Wait(ctx)
+		// A join that still expires means the replacement starts while the old
+		// process may run: that is said, never dropped, because nothing else
+		// records it and the two may hold the same resources.
+		joinBound := proc.stopExitGrace() + respawnJoinMargin
+		ctx, cancel := context.WithTimeout(context.Background(), joinBound)
+		joinErr := proc.Wait(ctx)
 		cancel()
+		if joinErr != nil {
+			recordRestartOverlap(proc, joinBound, joinErr)
+		}
 	}
 
 	// Start new process with acceptor if configured.
