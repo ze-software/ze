@@ -331,7 +331,10 @@ func (r *l2tpReactor) drainOnStop(rx <-chan rxPacket) {
 // anywhere below it is contained, the tunnel the datagram reached is cleared,
 // and run goes on to the next event. tunnelsMu is released by a deferred
 // check, so a panic inside the locked dispatch never leaves the map locked
-// for the teardown and every other tunnel.
+// for the teardown and every other tunnel. The session-downs a drain returned
+// are delivered by a deferred call that runs after that unlock and before the
+// teardown, so a contained panic leaves no order ticket open for the
+// teardown's own ticket to wait behind.
 func (r *l2tpReactor) handle(pkt rxPacket) {
 	defer pkt.release()
 
@@ -401,6 +404,23 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 		sccrq = &info
 	}
 
+	// undelivered holds every session-down a drain below returned, until the
+	// delivery takes it. Each down carries its tunnel's order ticket, and a
+	// ticket never finished stops that tunnel's notifications for ever: the
+	// teardown clearTunnelAfterPanic runs after a contained panic would wait
+	// on it here, on the reactor goroutine, and every tunnel would stop. So a
+	// panic between a drain and the delivery delivers the downs on the way
+	// out. The call is deferred before tunnelsMu is taken, so it runs after
+	// the deferred unlock below, and no reader ever runs under the lock.
+	//
+	// One window stays outside it: a panic inside locateTunnelLocked after a
+	// tie-breaker discard, before the discarded downs reach undelivered. Those
+	// downs are lost and their ticket stays open, and nothing waits on it:
+	// discardTunnelLocked removed the tunnel from both maps in the step that
+	// drained it, so no later path can reach that tunnel to take a ticket.
+	var undelivered []sessionDown
+	defer func() { r.deliverSessionDowns(undelivered) }()
+
 	// Hold tunnelsMu across dispatch so every per-tunnel mutation (map
 	// insert, FSM state change, peerAddr update) is race-free with
 	// test introspection. We release the lock BEFORE sending outbound
@@ -413,14 +433,15 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 		}
 	}()
 	tunnel, discardTeardowns, discardDowns := r.locateTunnelLocked(pkt.from, hdr, sccrq)
+	undelivered = discardDowns
 	if tunnel == nil {
 		tunnelsHeld = false
 		r.tunnelsMu.Unlock()
 		// Even if no tunnel is dispatched (peer lost the tie-breaker), the
 		// loser tunnel may have queued kernel teardowns and session-downs we
-		// must drain.
+		// must drain. The deferred delivery above delivers the downs as this
+		// returns, after the teardowns are enqueued.
 		r.enqueueKernelEvents(nil, discardTeardowns)
-		r.emitSessionDowns(discardDowns)
 		return
 	}
 	dispatch.localTID = tunnel.localTID
@@ -442,9 +463,10 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 
 	// Phase 5: collect kernel events while still holding tunnelsMu.
 	// Tie-breaker losers add their teardowns into discardTeardowns above.
-	setupEvents, teardownEvents, downs := r.collectKernelEventsLocked(tunnel)
+	setupEvents, teardownEvents, tunnelDowns := r.collectKernelEventsLocked(tunnel)
+	tunnelDowns = append(tunnelDowns, undelivered...)
+	undelivered = tunnelDowns
 	teardownEvents = append(teardownEvents, discardTeardowns...)
-	downs = append(downs, discardDowns...)
 
 	// Capture the tunnel's new deadline for the timer heap update.
 	// If the tunnel just reached established and the engine has no
@@ -486,16 +508,18 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 		}
 	}
 
-	// Withdraw subscriber routes for sessions a peer-initiated event just
-	// tore down (incoming StopCCN clears the tunnel's sessions; CDN clears
-	// one; tie-breaker losses discard a tunnel). Without this the redistribute
-	// source keeps the /32 injected after the session is gone.
-	r.notifyRouteObserverDown(teardownEvents)
-
-	// Tell the subscribers of (l2tp, session-down) about the same teardowns.
-	// A peer hanging up is the ORDINARY end of a session, so this is where
-	// most of an LNS's Accounting-Stop records come from.
-	r.emitSessionDowns(downs)
+	// Withdraw the subscriber routes of the sessions a peer-initiated event
+	// just tore down (incoming StopCCN clears the tunnel's sessions; CDN
+	// clears one; tie-breaker losses discard a tunnel), then tell the readers
+	// of (l2tp, session-down). Without the withdrawal the redistribute source
+	// keeps the /32 injected after the session is gone. A peer hanging up is
+	// the ORDINARY end of a session, so this is where most of an LNS's
+	// Accounting-Stop records come from. The downs leave undelivered before
+	// the call, so a reader that panics inside it is not delivered to twice
+	// by the deferred delivery.
+	downs := undelivered
+	undelivered = nil
+	r.deliverSessionDowns(downs)
 
 	// Phase 5: enqueue kernel events after releasing the lock.
 	r.enqueueKernelEvents(setupEvents, teardownEvents)
@@ -682,7 +706,7 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 		// stale heap entry.
 		r.tunnelsMu.Unlock()
 		r.enqueueKernelEvents(nil, reapTeardowns)
-		r.emitSessionDowns(reapDowns)
+		r.deliverSessionDowns(reapDowns)
 		r.notifyReaped(reaped)
 		select {
 		case r.updateCh <- heapUpdate{tunnelID: tr.tunnelID}:
@@ -766,9 +790,6 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 		}
 	}
 
-	// Phase 5: collect kernel events (teardownStopCCN may have cleared sessions).
-	_, tickTeardowns, tickDowns := r.collectKernelEventsLocked(tunnel)
-
 	newDeadline := tunnel.engine.NextDeadline()
 	// If the tunnel is established and has a HELLO interval, ensure
 	// the deadline is at most helloInterval from now so the timer
@@ -780,6 +801,14 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 		}
 	}
 
+	// Phase 5: collect kernel events (teardownStopCCN may have cleared
+	// sessions). Last before the unlock, so the order ticket the drain issues
+	// meets nothing that can panic before its delivery below. handleTick has
+	// no panic boundary: a panic here ends the daemon, so it leaves no ticket
+	// for anybody to wait on. The tickets reapExpiredLocked issued above
+	// belong to tunnels already gone from both maps, which no later path can
+	// reach to wait behind them.
+	_, tickTeardowns, tickDowns := r.collectKernelEventsLocked(tunnel)
 	stateAfter := tunnel.state
 	localTID := tunnel.localTID
 	r.tunnelsMu.Unlock()
@@ -794,15 +823,13 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 		}
 	}
 
-	// Withdraw subscriber routes for sessions this tick-driven teardown just
-	// cleared (retransmit limit exhausted -> StopCCN). reapTeardowns belong
-	// to tunnels closed in an earlier tick/packet and already withdrawn then.
-	r.notifyRouteObserverDown(tickTeardowns)
-
 	// A dead peer or an exhausted retransmit budget ends every session the
-	// tunnel carried, and the subscriber never sent anything to say so. Their
-	// Accounting-Stop, pool release and shaper cleanup start here.
-	r.emitSessionDowns(append(reapDowns, tickDowns...))
+	// tunnel carried, and the subscriber never sent anything to say so. The
+	// withdrawal of their subscriber routes, their Accounting-Stop, pool
+	// release and shaper cleanup start here. A reaped tunnel was closed in an
+	// earlier tick or packet, which delivered its sessions then, so its batch
+	// is normally empty.
+	r.deliverSessionDowns(append(reapDowns, tickDowns...))
 
 	// Phase 5: enqueue kernel teardown events after releasing the lock.
 	r.enqueueKernelEvents(nil, append(reapTeardowns, tickTeardowns...))
@@ -837,7 +864,9 @@ func (r *l2tpReactor) notifyReaped(ids []uint16) {
 // engine retention window has elapsed. Returns the IDs of reaped
 // tunnels so the caller can notify the timer AFTER releasing the lock,
 // plus any kernel teardown events from reaped tunnels whose sessions
-// had kernel resources, plus the session-downs they queued.
+// had kernel resources, plus the session-downs they queued, each reaped
+// tunnel's batch under its own order ticket, which the caller MUST deliver
+// (deliverSessionDowns).
 //
 // A tunnel reaches retention already closed, and closing it cleared its
 // sessions, so both lists are normally empty here. They are returned rather
@@ -874,8 +903,9 @@ func (r *l2tpReactor) reapExpiredLocked(now time.Time) ([]uint16, []kernelTeardo
 //
 // The second and third return values carry what discarding a tunnel during
 // tie-breaker resolution queued (Phase 5): the kernel teardowns the caller
-// MUST enqueue to the kernel worker, and the session-downs it MUST emit. Both
-// are owed after releasing tunnelsMu, even when the tunnel return is nil.
+// MUST enqueue to the kernel worker, and the session-downs it MUST deliver
+// (deliverSessionDowns), which carry each discarded tunnel's order ticket.
+// Both are owed after releasing tunnelsMu, even when the tunnel return is nil.
 func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader, sccrq *sccrqInfo) (*L2TPTunnel, []kernelTeardownEvent, []sessionDown) {
 	if hdr.TunnelID != 0 {
 		t, ok := r.tunnelsByLocalID[hdr.TunnelID]
@@ -955,7 +985,8 @@ func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 // On success (new SCCRQ wins or has no conflict) returns a non-nil
 // sentinel. The teardowns return value carries kernel cleanup events
 // from any discarded loser tunnels and the downs value the session-downs
-// they queued; the caller MUST enqueue the first and emit the second.
+// they queued, each loser's batch under that loser's own order ticket; the
+// caller MUST enqueue the first and deliver the second (deliverSessionDowns).
 //
 // Caller MUST hold tunnelsMu. Called only when sccrq.TieBreakerPresent
 // is true and newTB is non-nil.
@@ -1003,8 +1034,9 @@ func (r *l2tpReactor) resolveTieBreakerLocked(from netip.AddrPort, newTB []byte)
 // discardTunnelLocked removes a tunnel from both lookup maps and marks it
 // closed. Returns what clearSessions queued: the kernel teardown events for
 // the sessions that held kernel resources, which the caller MUST enqueue to
-// the kernel worker, and one session-down per session, which the caller MUST
-// emit after it unlocks. Caller MUST hold tunnelsMu.
+// the kernel worker, and one session-down per session under the tunnel's
+// order ticket, which the caller MUST deliver after it unlocks
+// (deliverSessionDowns). Caller MUST hold tunnelsMu.
 func (r *l2tpReactor) discardTunnelLocked(t *L2TPTunnel, reason string) ([]kernelTeardownEvent, []sessionDown) {
 	// AC-4: a dialed tunnel that loses the tie-breaker (or expires in
 	// retention) is discarded before it establishes, so its pending call is

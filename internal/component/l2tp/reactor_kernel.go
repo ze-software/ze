@@ -14,18 +14,26 @@ import (
 
 // collectKernelEventsLocked scans the tunnel for sessions that need
 // kernel setup and drains everything a session removal queued on it.
-// Caller MUST hold tunnelsMu.
+// Caller MUST hold tunnelsMu, and MUST deliver the downs as
+// drainPendingTeardowns states.
 func (r *l2tpReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSetupEvent, []kernelTeardownEvent, []sessionDown) {
-	// Drain first, unconditionally: the route observer and the session-down
-	// subscribers must learn of torn sessions even when no kernel worker is
-	// present (non-Linux, tests). Both are independent of kernel-resource
-	// teardown, so neither can be gated on r.kernelWorker.
-	teardowns, downs := tunnel.drainPendingTeardowns()
-
-	if r.kernelWorker == nil {
-		return nil, teardowns, downs
+	var setups []kernelSetupEvent
+	if r.kernelWorker != nil {
+		setups = r.kernelSetupsLocked(tunnel)
 	}
+	// Drain last, so the order ticket it issues is in the caller's hands the
+	// moment it exists: a panic in the setup scan above takes no ticket with
+	// it. Unconditionally: the route observer and the session-down readers
+	// must learn of torn sessions even when no kernel worker is present
+	// (non-Linux, tests), so the drain cannot be gated on r.kernelWorker.
+	teardowns, downs := tunnel.drainPendingTeardowns()
+	return setups, teardowns, downs
+}
 
+// kernelSetupsLocked answers the kernel setup event of every session of the
+// tunnel that needs one, and clears its need. Caller MUST hold tunnelsMu, and
+// MUST enqueue every event it answers.
+func (r *l2tpReactor) kernelSetupsLocked(tunnel *L2TPTunnel) []kernelSetupEvent {
 	var setups []kernelSetupEvent
 	socketFD := -1 // resolved lazily below
 
@@ -60,8 +68,7 @@ func (r *l2tpReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSet
 			proxyLastRecvLCPConfReq:    sess.proxyLastRecvLCPConfReq,
 		})
 	}
-
-	return setups, teardowns, downs
+	return setups
 }
 
 // enqueueKernelEvents sends setup and teardown events to the kernel
@@ -238,16 +245,11 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 	teardowns, downs := tunnel.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 
-	// spec-l2tp-7 Phase 6: notify the route observer before the CDN
-	// goes on the wire so subscriber routes are withdrawn promptly
-	// even if the outbound send blocks.
-	if r.routeObserver != nil {
-		r.routeObserver.OnSessionDown(tid, sid)
-	}
-
-	// spec-l2tp-8a: emit (l2tp, session-down) so the pool plugin
-	// can release the allocated IP address.
-	r.emitSessionDowns(downs)
+	// spec-l2tp-7 Phase 6: withdraw the subscriber route before the CDN
+	// goes on the wire so it is withdrawn promptly even if the outbound
+	// send blocks. spec-l2tp-8a: then publish (l2tp, session-down) so
+	// the session's readers release what they hold.
+	r.deliverSessionDowns(downs)
 
 	r.logger.Info("l2tp: PPP requested session teardown; sending CDN",
 		"tunnel-id", tid, "session-id", sid, "reason", reason)
@@ -294,6 +296,9 @@ func (r *l2tpReactor) handleLCPUp(ev ppp.EventLCPUp) {
 
 // handleLCPDown clears negotiated values and withdraws any network lifetime
 // while keeping the L2TP transport available for the resumed LCP exchange.
+// The withdrawal and its (l2tp, session-down) are delivered in the turn of the
+// tunnel's order ticket taken under tunnelsMu; the deferred Acknowledge runs
+// after that delivery returned.
 func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
 	defer ev.Acknowledge()
 	r.tunnelsMu.Lock()
@@ -317,48 +322,55 @@ func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
 	sess.assignedAddr = netip.Addr{}
 	sess.username = ""
 	cancelSessionTimeouts(sess)
+	if !r.hasSessionNoticeReader() {
+		r.tunnelsMu.Unlock()
+		ClearSessionMetadata(ev.TunnelID, ev.SessionID)
+		return
+	}
+	ticket := tunnel.issueNoticeTicket()
 	r.tunnelsMu.Unlock()
-	if r.routeObserver != nil {
-		r.routeObserver.OnSessionDown(ev.TunnelID, ev.SessionID)
-	}
-	if r.eventBus != nil {
-		if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
-			TunnelID: ev.TunnelID, SessionID: ev.SessionID, Username: username,
-			Cause: l2tpevents.TerminateCauseUserRequest,
-		}); err != nil {
-			r.logger.Warn("l2tp: network lifetime withdrawal failed", "error", err)
-		}
-	}
+
+	ticket.deliver(func() { r.notifyNetworkLifetimeDown(ev.TunnelID, ev.SessionID, username) })
 	ClearSessionMetadata(ev.TunnelID, ev.SessionID)
 }
 
-// notifyRouteObserverDown withdraws subscriber routes for the sessions in
-// a batch of kernel-teardown events. clearSessions / removeSession queue
-// one event per established session torn down by a peer-initiated event
-// (incoming StopCCN or CDN, a retransmit timeout, or a tie-breaker loss),
-// so these events are exactly the sessions whose /32 or /128 must be
-// withdrawn. The operator teardown paths (teardown.go) and the PPP-event
-// path notify the observer directly; this covers the peer-driven reactor
-// paths (handle, handleTick), which previously left routes injected after
-// the session was gone. OnSessionDown is idempotent, so a session with no
-// route record is a cheap no-op.
-//
-// Caller MUST NOT hold tunnelsMu (OnSessionDown takes the observer lock).
-func (r *l2tpReactor) notifyRouteObserverDown(events []kernelTeardownEvent) {
-	if r.routeObserver == nil {
+// hasSessionNoticeReader reports whether a session notification has anybody
+// to reach: the route observer or the event bus. A path with nobody to reach
+// takes no order ticket.
+func (r *l2tpReactor) hasSessionNoticeReader() bool {
+	if r.routeObserver != nil {
+		return true
+	}
+	return r.eventBus != nil
+}
+
+// notifyNetworkLifetimeDown withdraws the subscriber route of a session whose
+// LCP went down in the network phase, and publishes the (l2tp, session-down)
+// that ends its network lifetime. Runs inside handleLCPDown's ticket turn.
+func (r *l2tpReactor) notifyNetworkLifetimeDown(tid, sid uint16, username string) {
+	if r.routeObserver != nil {
+		r.routeObserver.OnSessionDown(tid, sid)
+	}
+	if r.eventBus == nil {
 		return
 	}
-	for _, e := range events {
-		r.routeObserver.OnSessionDown(e.localTID, e.localSID)
+	if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
+		TunnelID: tid, SessionID: sid, Username: username,
+		Cause: l2tpevents.TerminateCauseUserRequest,
+	}); err != nil {
+		r.logger.Warn("l2tp: network lifetime withdrawal failed", "error", err)
 	}
 }
 
 // handleSessionIPAssigned records the NCP-negotiated peer IP on the
-// session struct and calls RouteObserver.OnSessionIPUp. Called from
-// handlePPPEvent for every EventSessionIPAssigned (once per family
-// per session in dual-stack flows).
+// session struct, calls RouteObserver.OnSessionIPUp and publishes
+// (l2tp, session-ip-assigned), both in the turn of the tunnel's order ticket
+// it took under tunnelsMu, so a teardown that follows on another goroutine
+// is delivered after them. Called from handlePPPEvent for every
+// EventSessionIPAssigned (once per family per session in dual-stack flows).
 // The consumer MUST acknowledge after synchronous publication completes, before
-// PPP can enable forwarding.
+// PPP can enable forwarding: the deferred Acknowledge runs after the
+// delivery returned.
 func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 	defer ev.Acknowledge()
 
@@ -388,25 +400,31 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 	username := sess.username
 	pppIface := sess.pppInterface
 	callingNumber := sess.callingNumber
+	tellObserver := r.routeObserver != nil && addr.IsValid()
+	publish := r.eventBus != nil && (addr.IsValid() || ev.InterfaceID != [8]byte{})
+	owed := tellObserver || publish
+	if !owed {
+		r.tunnelsMu.Unlock()
+		r.logIPAssigned(ev, username, addr)
+		return
+	}
+	// The ticket is the last step under tunnelsMu and its delivery the first
+	// after it, so nothing that can panic runs between the two.
+	ticket := tunnel.issueNoticeTicket()
 	r.tunnelsMu.Unlock()
 
-	if r.routeObserver != nil && addr.IsValid() {
-		r.routeObserver.OnSessionIPUp(ev.TunnelID, ev.SessionID, username, addr)
-	}
-
-	if addr.IsValid() {
-		r.logger.Info("l2tp: session IP assigned",
-			"tunnel-id", ev.TunnelID,
-			"session-id", ev.SessionID,
-			"username", username,
-			"address", addr.String())
-	}
-
-	peerAddr := ""
-	if addr.IsValid() {
-		peerAddr = addr.String()
-	}
-	if r.eventBus != nil && (addr.IsValid() || ev.InterfaceID != [8]byte{}) {
+	ticket.deliver(func() {
+		r.logIPAssigned(ev, username, addr)
+		if tellObserver {
+			r.routeObserver.OnSessionIPUp(ev.TunnelID, ev.SessionID, username, addr)
+		}
+		if !publish {
+			return
+		}
+		peerAddr := ""
+		if addr.IsValid() {
+			peerAddr = addr.String()
+		}
 		if _, err := l2tpevents.SessionIPAssigned.Emit(r.eventBus, &l2tpevents.SessionIPAssignedPayload{
 			TunnelID:         ev.TunnelID,
 			SessionID:        ev.SessionID,
@@ -420,41 +438,76 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 		}); err != nil {
 			r.logger.Warn("l2tp: session-ip-assigned emit failed", "error", err)
 		}
+	})
+}
+
+// logIPAssigned records the IPv4 address IPCP assigned a session. An event
+// that carries only an IPv6 interface identifier logs nothing.
+func (r *l2tpReactor) logIPAssigned(ev ppp.EventSessionIPAssigned, username string, addr netip.Addr) {
+	if !addr.IsValid() {
+		return
 	}
+	r.logger.Info("l2tp: session IP assigned",
+		"tunnel-id", ev.TunnelID,
+		"session-id", ev.SessionID,
+		"username", username,
+		"address", addr.String())
 }
 
 // handleSessionUp emits the (l2tp, session-up) EventBus event when a
 // PPP session completes LCP, auth, and all NCPs. The shaper plugin
-// subscribes to this event to apply TC rules on the pppN interface.
+// subscribes to this event to apply TC rules on the pppN interface. The event
+// is published in the turn of the tunnel's order ticket taken under
+// tunnelsMu, so a teardown that follows on another goroutine is delivered
+// after it. The RADIUS timeouts start after the publication returned.
 func (r *l2tpReactor) handleSessionUp(ev ppp.EventSessionUp) {
-	var ifaceName string
 	r.tunnelsMu.Lock()
-	if tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]; ok {
-		if sess := tunnel.lookupSession(ev.SessionID); sess != nil {
-			ifaceName = sess.pppInterface
-		}
-	}
-	r.tunnelsMu.Unlock()
-	if ifaceName == "" {
+	tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]
+	if !ok {
+		r.tunnelsMu.Unlock()
 		return
 	}
+	sess := tunnel.lookupSession(ev.SessionID)
+	if sess == nil {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	ifaceName := sess.pppInterface
+	if ifaceName == "" {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	if r.eventBus == nil {
+		r.tunnelsMu.Unlock()
+		r.logSessionUp(ev, ifaceName)
+		return
+	}
+	// The ticket is the last step under tunnelsMu and its delivery the first
+	// after it, so nothing that can panic runs between the two.
+	ticket := tunnel.issueNoticeTicket()
+	r.tunnelsMu.Unlock()
+
+	ticket.deliver(func() {
+		r.logSessionUp(ev, ifaceName)
+		if _, err := l2tpevents.SessionUp.Emit(r.eventBus, &l2tpevents.SessionUpPayload{
+			TunnelID:  ev.TunnelID,
+			SessionID: ev.SessionID,
+			Interface: ifaceName,
+		}); err != nil {
+			r.logger.Warn("l2tp: session-up emit failed", "error", err)
+		}
+	})
+
+	// RFC 2865 Section 5.27/5.28: start RADIUS-driven timeouts.
+	r.startSessionTimeouts(ev.TunnelID, ev.SessionID)
+}
+
+// logSessionUp records that a session's PPP reached session-up.
+func (r *l2tpReactor) logSessionUp(ev ppp.EventSessionUp, ifaceName string) {
 	r.logger.Info("l2tp: PPP session up",
 		"tunnel-id", ev.TunnelID,
 		"session-id", ev.SessionID,
 		"interface", ifaceName)
-	if r.eventBus == nil {
-		return
-	}
-	if _, err := l2tpevents.SessionUp.Emit(r.eventBus, &l2tpevents.SessionUpPayload{
-		TunnelID:  ev.TunnelID,
-		SessionID: ev.SessionID,
-		Interface: ifaceName,
-	}); err != nil {
-		r.logger.Warn("l2tp: session-up emit failed", "error", err)
-	}
-
-	// RFC 2865 Section 5.27/5.28: start RADIUS-driven timeouts.
-	r.startSessionTimeouts(ev.TunnelID, ev.SessionID)
 }
 
 // handleEchoRTT relays a PPP echo round-trip measurement to the
@@ -510,8 +563,7 @@ func (r *l2tpReactor) handleKernelError(kerr kernelSetupFailed) {
 	teardowns, downs := tunnel.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 
-	r.notifyRouteObserverDown(teardowns)
-	r.emitSessionDowns(downs)
+	r.deliverSessionDowns(downs)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed (kernel error CDN)",

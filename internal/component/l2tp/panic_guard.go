@@ -108,7 +108,10 @@ func describeHandlerCall(tunnelID, sessionID uint16) func() taskguard.Context {
 // tunnel to clear: that datagram is dropped, as a malformed one is.
 //
 // It answers the guard's end function, which reads dispatch only after the
-// panic, when handle has filled in what it learned.
+// panic, when handle has filled in what it learned. By then handle's deferred
+// delivery has delivered every session-down that reached it before the panic
+// and finished their order tickets, so the teardown's own ticket does not wait
+// for ever on this goroutine behind one the panic left open.
 func (r *l2tpReactor) clearTunnelAfterPanic(dispatch *controlDispatch) func(*taskguard.Panic) {
 	return func(*taskguard.Panic) {
 		if dispatch.localTID == 0 {

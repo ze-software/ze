@@ -252,8 +252,14 @@ resources, fails a call still waiting on an RPC, and queues the session-down
 with the username and the cause read off the session struct it is about to
 drop. `clearSessions` runs it for every session on a tunnel that ended. The
 reactor drains both lists with `drainPendingTeardowns` while it still holds
-`tunnelsMu` and emits after it unlocks, because a subscriber runs on that
-goroutine and can call back into the reactor.
+`tunnelsMu`, and the drain takes the tunnel's order ticket for the batch. The
+reactor delivers the batch after it unlocks, in that ticket's turn: a reader
+runs on the delivering goroutine, and a reader run under the lock would hold
+every state change of the reactor behind it. A reader must not cause a
+publication for the same tunnel from its handler, because that publication
+would wait behind the ticket its caller holds
+(`subscriber-session-model.md`, "The order of one L2TP session's
+notifications").
 
 The username is read at removal rather than after, because it lives only on the
 session struct the removal drops: a read taken later returns an empty string,
@@ -269,7 +275,7 @@ route observer working, which is why each round looked correct
 <!-- source: internal/component/l2tp/events/terminate_cause.go -- TerminateCause -->
 <!-- source: internal/component/l2tp/session.go -- removeSession, clearSessions, drainPendingTeardowns -->
 <!-- source: internal/component/l2tp/session_fsm.go -- terminateCauseForCDN, handleCDN -->
-<!-- source: internal/component/l2tp/teardown.go -- teardownTunnelByID, teardownSessionByID, teardownSessionOnTunnel, emitSessionDowns -->
+<!-- source: internal/component/l2tp/teardown.go -- teardownTunnelByID, teardownSessionByID, teardownSessionOnTunnel, deliverSessionDowns -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- fail, the LCP and echo emitters -->
 
 **Calling-Station-Id crosses three boundaries, and it used to cross none.**

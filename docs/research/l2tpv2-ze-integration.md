@@ -1047,8 +1047,19 @@ without creating a goroutine per session.
 
 ### 11.4 Event emission
 
-Events are emitted via `eventBus.Emit()` from the reactor goroutine.
-The event bus handles fan-out to subscribers asynchronously.
+A session event is emitted via `eventBus.Emit()` on the goroutine that changed
+the session: the reactor goroutine, or the operator, timeout or CoA goroutine
+that tore the session down. An in-process subscriber runs on that goroutine,
+during the `Emit`. One tunnel's session events are delivered in the order its
+sessions changed state, through the tunnel's order ticket
+(`docs/architecture/l2tp/subscriber-session-model.md`, "The order of one L2TP
+session's notifications").
+
+<!-- source: internal/component/l2tp/events/events.go -- the reader contract in the package doc -->
+<!-- source: internal/component/l2tp/session.go -- sessionNoticeOrder, issueNoticeTicket -->
+
+The tunnel lifecycle events (`tunnel-up`, `tunnel-down`) are emitted from the
+reactor goroutine.
 
 ### 11.5 Receiver goroutines and a failing socket
 

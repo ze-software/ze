@@ -1,10 +1,21 @@
 // Design: docs/guide/l2tp.md -- L2TP route-change event handle
 // Related: ../redistribute.go -- source registration (config layer)
 
-// Package events defines the typed EventBus handle for L2TP subscriber
-// route-change events. Producers (the route observer) and consumers
-// (bgp-redistribute) each call events.Register with the same
-// (namespace, eventType, T) tuple; the events registry is idempotent.
+// Package events defines the typed EventBus handles for L2TP events: the
+// subscriber route-change events and the tunnel and session lifecycle events.
+// Producers (the route observer, the reactor) and consumers
+// (bgp-redistribute, the session readers) each call events.Register with the
+// same (namespace, eventType, T) tuple; the events registry is idempotent.
+//
+// Reader contract for SessionIPAssigned, SessionUp and SessionDown: the
+// reactor publishes the notifications of one tunnel's sessions one at a time,
+// in the order the sessions' state changed, and an in-process reader runs on
+// the publishing goroutine. A reader MUST NOT cause a publication for the
+// same tunnel from inside its handler, by publishing one itself or by calling
+// back into the reactor to end one of the tunnel's sessions: that publication would
+// wait behind the one its own caller is still delivering, and the tunnel's
+// notifications would stop. A reader that is slow delays the later
+// notifications of its own tunnel and the goroutine that carries them.
 package events
 
 import (
@@ -40,9 +51,13 @@ var RouteChange = events.Register[*redistevents.RouteChangeBatch](Namespace, red
 // SessionDownEvent is the event type string for session-down notifications.
 const SessionDownEvent = "session-down"
 
-// SessionDownPayload carries the tunnel/session IDs of a torn-down session.
-// Pool plugins subscribe to release allocated addresses; the CQM observer
-// uses Username to transition the login's bucket state to "down".
+// SessionDownPayload carries the tunnel/session IDs of a torn-down session,
+// or of a session whose network lifetime ended while LCP renegotiates.
+// RADIUS accounting sends its Stop; the shaper and the CoS handler drop their
+// per-session traffic state; the subscriber bridge removes the subscriber entry and
+// re-publishes on the subscriber namespace, which the address pool reads to
+// release the address; the CQM observer uses Username to transition the
+// login's bucket state to "down".
 type SessionDownPayload struct {
 	TunnelID  uint16
 	SessionID uint16
@@ -54,8 +69,9 @@ type SessionDownPayload struct {
 }
 
 // SessionDown is the typed handle for (l2tp, session-down). Emitted by
-// the reactor when a PPP session tears down; consumed by the pool
-// plugin to release allocated IP addresses.
+// the reactor when a session is removed from its tunnel, and when LCP goes
+// down in the network phase; its readers are the ones SessionDownPayload
+// names. The pool does not read it.
 var SessionDown = events.Register[*SessionDownPayload](Namespace, SessionDownEvent)
 
 // SessionUpEvent is the event type string for session-up notifications.
@@ -72,7 +88,8 @@ type SessionUpPayload struct {
 }
 
 // SessionUp is the typed handle for (l2tp, session-up). Consumed by
-// the shaper plugin to apply TC rules and by stats plugins.
+// the shaper plugin to apply TC rules, the CoS handler, the subscriber
+// bridge and the CQM observer.
 var SessionUp = events.Register[*SessionUpPayload](Namespace, SessionUpEvent)
 
 // SessionRateChangeEvent is the event type string for rate-change notifications.

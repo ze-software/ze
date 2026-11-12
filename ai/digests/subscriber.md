@@ -88,10 +88,15 @@ asks a kernel worker to build the PPPoX/L2TP kernel socket before handing fds to
     the same channel PPPoE's `handlePADR` writes to (step 5).
 13. **Teardown.** Peer StopCCN/CDN: `handleMessage` (`tunnel_fsm.go`) ->
     `handleStopCCN`/`handleCDN` (`session_fsm.go`). Operator-initiated:
-    `TeardownTunnelByID`/`TeardownSessionByID` (`teardown.go,77`) send administrative
-    StopCCN/CDN and drain pending kernel teardowns (`teardown.go,100-101`), then
-    `r.routeObserver.OnSessionDown` withdraws the subscriber's redistributed route
-    (`teardown.go,105`; observer at `route_observer.go`).
+    `teardownTunnel`/`teardownSessionByID` (`teardown.go`) send administrative
+    StopCCN/CDN. Every path, peer, operator, PPP, kernel error, tick, reap and
+    tie-breaker alike, removes sessions through `removeSession` (`session.go`) and
+    drains them with `drainPendingTeardowns` under `tunnelsMu`, which takes the
+    tunnel's order ticket for the batch. After the unlock `deliverSessionDowns`
+    (`teardown.go`) delivers the batch in that ticket's turn: `notifySessionDowns`
+    has `r.routeObserver.OnSessionDown` withdraw the route of each down whose
+    session was established (`route_observer.go`), then publishes one
+    `(l2tp, session-down)` per down.
 
 ### C. Shared PPP negotiation (both transports converge here)
 14. **Dispatch + per-session goroutine.** `Driver.dispatch` (`manager.go`) reads
@@ -220,6 +225,19 @@ asks a kernel worker to build the PPPoX/L2TP kernel socket before handing fds to
 | `plugins/pool/register.go` | Static IPv4 pool `PoolHandler`, registered via `l2tp.RegisterPoolHandler` |
 
 ## Invariants & gotchas
+- **One tunnel's session notifications are delivered in state-change order.** A path
+  that changes a session takes the tunnel's order ticket under `tunnelsMu`
+  (`issueNoticeTicket`, or `drainPendingTeardowns` for downs, `session.go`), waits its
+  turn after the unlock and delivers (`sessionNoticeTicket.deliver`): route observer
+  calls and `(l2tp, session-ip-assigned)`, `session-up`, `session-down` alike
+  (`handleSessionIPAssigned`, `handleSessionUp`, `handleLCPDown`, `reactor_kernel.go`).
+  Every ticket MUST be finished on every exit of its path, a contained panic
+  included: issue last under the lock and deliver first after it, or, in `handle`
+  (`reactor.go`), a delivery deferred before the lock. A reader MUST NOT cause a
+  publication for the same tunnel from its handler: it would wait behind its own
+  caller's ticket (reader contract, `events/events.go`). Page:
+  `docs/architecture/l2tp/subscriber-session-model.md`, "The order of one L2TP
+  session's notifications".
 - **One shared PPP package, two transports.** `ppp.Driver` is transport-agnostic
   (`ppp.StartSession` is the only contract, `start_session.go`); PPPoE and L2TP each
   own a **separate** `*ppp.Driver` instance (`pppoe/subsystem.go`,

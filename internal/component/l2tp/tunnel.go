@@ -141,9 +141,17 @@ type L2TPTunnel struct {
 
 	// pendingSessionDowns collects every session the tunnel removed, with
 	// the username and the RFC 2866 Section 5.10 cause captured at removal.
-	// The reactor drains this with drainPendingTeardowns and emits one
+	// The reactor drains this with drainPendingTeardowns and delivers one
 	// (l2tp, session-down) per entry after it releases tunnelsMu.
 	pendingSessionDowns []sessionDown
+
+	// noticeOrder orders this tunnel's session notifications
+	// (sessionNoticeOrder). Nil until issueNoticeTicket takes the tunnel's
+	// first ticket, which creates it.
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu to read or set the
+	// field; the order it points to is safe for concurrent use.
+	noticeOrder *sessionNoticeOrder
 
 	// pendingCalls are the calls the reactor must originate the moment this
 	// initiated tunnel reaches established: the one its dial was issued for

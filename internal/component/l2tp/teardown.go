@@ -68,12 +68,7 @@ func (r *l2tpReactor) teardownTunnel(localTID uint16, result ResultCodeValue, ca
 	teardowns, downs := t.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 
-	if r.routeObserver != nil {
-		for _, d := range downs {
-			r.routeObserver.OnSessionDown(localTID, d.localSID)
-		}
-	}
-	r.emitSessionDowns(downs)
+	r.deliverSessionDowns(downs)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed (tunnel teardown)",
@@ -114,16 +109,12 @@ func (r *l2tpReactor) teardownSessionByID(localSID uint16, cause l2tpevents.Term
 		r.tunnelsMu.Unlock()
 		return fmt.Errorf("%w: local-sid=%d", ErrSessionNotFound, localSID)
 	}
-	tid := tunnel.localTID
 	now := r.params.Clock()
 	outbound := tunnel.teardownSession(sess, cdnResultAdministrative, cause, now, r.logger)
 	teardowns, downs := tunnel.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 
-	if r.routeObserver != nil {
-		r.routeObserver.OnSessionDown(tid, localSID)
-	}
-	r.emitSessionDowns(downs)
+	r.deliverSessionDowns(downs)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed (operator session teardown)",
@@ -189,22 +180,61 @@ func (r *l2tpReactor) TeardownAllSessions() int {
 	return n
 }
 
-// emitSessionDowns publishes one (l2tp, session-down) for every session a
-// teardown removed from the tunnel. It is the ONLY emitter of that event, and
-// its input is what removeSession queued, so a teardown path cannot reach the
-// subscribers without one and cannot reach them twice.
+// deliverSessionDowns delivers every session a teardown removed, one drain's
+// batch at a time, each in the turn of the order ticket the drain stamped on
+// it: the route observer withdraws the subscriber route of each down whose
+// session was established, then one (l2tp, session-down) is published per
+// down. Its input is what removeSession queued, so a teardown path cannot
+// reach the readers without one and cannot reach them twice. handleLCPDown
+// publishes the only other (l2tp, session-down): the end of a network
+// lifetime of a session that stays.
 //
-// This is what RADIUS accounting, the address pool, the shaper and the CoS
-// handler each key their cleanup on: no emission means no Accounting-Stop, no
-// address released and no traffic rule dropped.
+// This is what RADIUS accounting, the shaper, the CoS handler, the subscriber
+// bridge and the CQM observer each key their cleanup on: no delivery means no
+// Accounting-Stop, no traffic rule dropped and no subscriber entry removed.
+// The address pool releases on the subscriber bridge's re-publication.
 //
-// Caller MUST NOT hold tunnelsMu. A subscriber runs on this goroutine and can
-// call back into the reactor.
-func (r *l2tpReactor) emitSessionDowns(downs []sessionDown) {
+// A path that drains several tunnels (a tunnel teardown, retention reaping, a
+// tie-breaker loss) passes their downs in one slice, each tunnel's batch
+// contiguous, as the drains appended them. The batches are delivered one after
+// another, and the call for the rest is deferred, so a reader that panics on
+// one batch still lets the later batches deliver and finish their tickets.
+// The recursion depth is the number of drains in one path: the tunnels that
+// path ended, bounded by the tunnel count.
+//
+// Caller MUST NOT hold tunnelsMu, and MUST pass every down a drain returned,
+// on every exit of its path (drainPendingTeardowns): each batch's ticket is
+// finished only here. A reader runs on this goroutine
+// and MUST NOT cause a publication for the same tunnel from inside its
+// handler: that publication would wait behind the ticket this call holds
+// (the reader contract on the events package).
+func (r *l2tpReactor) deliverSessionDowns(downs []sessionDown) {
+	if len(downs) == 0 {
+		return
+	}
+	batchLen := 1
+	for batchLen < len(downs) && downs[batchLen].ticket == downs[0].ticket {
+		batchLen++
+	}
+	batch := downs[:batchLen]
+	defer r.deliverSessionDowns(downs[batchLen:])
+	batch[0].ticket.deliver(func() { r.notifySessionDowns(batch) })
+}
+
+// notifySessionDowns tells the route observer and the readers of
+// (l2tp, session-down) about one drain's batch. Runs inside the batch's turn.
+func (r *l2tpReactor) notifySessionDowns(batch []sessionDown) {
+	if r.routeObserver != nil {
+		for _, d := range batch {
+			if d.established {
+				r.routeObserver.OnSessionDown(d.localTID, d.localSID)
+			}
+		}
+	}
 	if r.eventBus == nil {
 		return
 	}
-	for _, d := range downs {
+	for _, d := range batch {
 		if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
 			TunnelID:  d.localTID,
 			SessionID: d.localSID,
@@ -272,10 +302,7 @@ func (r *l2tpReactor) teardownSessionOnTunnelWith(localTID, localSID, result uin
 	teardowns, downs := t.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 
-	if r.routeObserver != nil {
-		r.routeObserver.OnSessionDown(localTID, localSID)
-	}
-	r.emitSessionDowns(downs)
+	r.deliverSessionDowns(downs)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed (teardown-all session)",

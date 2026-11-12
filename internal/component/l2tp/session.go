@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"net/netip"
+	"sync"
 	"time"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
@@ -260,8 +261,8 @@ func (t *L2TPTunnel) addSession(s *L2TPSession) {
 }
 
 // sessionDown is one session a teardown removed from the tunnel, held on the
-// tunnel until the reactor can emit (l2tp, session-down) for it after it
-// releases tunnelsMu.
+// tunnel until the reactor can deliver it after it releases tunnelsMu: the
+// route observer's withdrawal, then (l2tp, session-down).
 //
 // The username is captured at removal because it lives only on the session
 // struct the removal drops: a read taken after the map is cleared returns an
@@ -274,6 +275,127 @@ type sessionDown struct {
 	localSID uint16
 	username string
 	cause    l2tpevents.TerminateCause
+	// established records that the session had reached established when it
+	// was removed. Only such a session ran PPP, so only it can hold a
+	// subscriber route for the route observer to withdraw. The observer keys
+	// its records by session ID alone, so a withdrawal for a session that
+	// never ran PPP could remove the record of another tunnel's session with
+	// the same ID.
+	established bool
+	// ticket is the tunnel's order ticket for the drain that returned this
+	// down. Every down of one drain carries the same ticket, and they are
+	// delivered together in its one turn. drainPendingTeardowns sets it; a
+	// down still queued on the tunnel has none.
+	ticket sessionNoticeTicket
+}
+
+// sessionNoticeOrder orders the session notifications of one tunnel: every
+// route-observer call and every (l2tp, session-ip-assigned), session-up and
+// session-down of every session the tunnel ever holds, a reused session ID
+// included. tunnelsMu orders the state changes; a path that changed a session
+// and has a notification to deliver takes a ticket while it still holds
+// tunnelsMu, so tickets are issued in the order of the state changes. After it
+// releases tunnelsMu it waits until every earlier ticket of the tunnel has
+// finished, delivers, and finishes its own. No lock is held while a reader
+// runs, so a slow reader delays only the later notifications of its own
+// tunnel and the goroutine that carries them.
+//
+// The two counts are written only by issue and finish. Tickets finish in the
+// order they were issued, because each one waits for its turn before it
+// delivers. Safe for concurrent use.
+type sessionNoticeOrder struct {
+	mu sync.Mutex
+	// turn is signaled on mu whenever either count moves.
+	turn     *sync.Cond
+	issued   uint64 // tickets handed out; the next ticket's number
+	finished uint64 // tickets whose delivery ended, all numbered below this
+}
+
+func newSessionNoticeOrder() *sessionNoticeOrder {
+	o := &sessionNoticeOrder{}
+	o.turn = sync.NewCond(&o.mu)
+	return o
+}
+
+// sessionNoticeTicket is one turn in a tunnel's sessionNoticeOrder. Only
+// sessionNoticeOrder.issue makes one; the zero value is no ticket and MUST NOT
+// be delivered.
+type sessionNoticeTicket struct {
+	order  *sessionNoticeOrder
+	number uint64
+}
+
+// issueNoticeTicket takes the tunnel's next order ticket, for a session
+// notification its caller has to deliver.
+//
+// Caller MUST hold tunnelsMu, and MUST deliver the ticket
+// (sessionNoticeTicket.deliver) exactly once after it releases tunnelsMu, on
+// every exit of its path, the exit of a panic the path recovers included: a
+// ticket that is never delivered stops every later notification of the
+// tunnel. The path meets this in one of two ways. Either the issue is its last
+// step before it releases tunnelsMu and the delivery its first after, so
+// nothing that can panic runs between them (handleSessionUp, teardownTunnel),
+// or it defers the delivery before it takes tunnelsMu, so the deferred call
+// runs after its deferred unlock (handle). A path with nothing to deliver
+// MUST NOT take one.
+func (t *L2TPTunnel) issueNoticeTicket() sessionNoticeTicket {
+	if t.noticeOrder == nil {
+		t.noticeOrder = newSessionNoticeOrder()
+	}
+	return t.noticeOrder.issue()
+}
+
+// issue hands out the next ticket. Called only by issueNoticeTicket, under
+// tunnelsMu, which makes the ticket order the order of the state changes.
+func (o *sessionNoticeOrder) issue() sessionNoticeTicket {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	ticket := sessionNoticeTicket{order: o, number: o.issued}
+	o.issued++
+	o.turn.Broadcast()
+	return ticket
+}
+
+// finish ends the delivery of the ticket whose turn it is. Called only by
+// deliver, deferred, after that ticket's turn came.
+func (o *sessionNoticeOrder) finish() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.finished++
+	o.turn.Broadcast()
+}
+
+// awaitTurn blocks until every ticket numbered below number has finished.
+//
+// The wait is bounded by the deliveries ahead of it: each runs the readers of
+// one notification, and the slowest reader in the tree is RADIUS accounting
+// sending its Accounting-Stop, which is bounded at 10 seconds. The number of
+// deliveries ahead is bounded by the goroutines that can carry one for this
+// tunnel at once: the reactor goroutine and the operator, CoA and timeout
+// callers, each of which holds at most one ticket of a tunnel at a time.
+func (o *sessionNoticeOrder) awaitTurn(number uint64) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	for o.finished < number {
+		o.turn.Wait()
+	}
+}
+
+// deliver waits until every earlier ticket of the tunnel has finished, runs
+// notify, and finishes the ticket. The finish is deferred, so a reader that
+// panics inside notify still finishes it and the tunnel's later notifications
+// are not stopped.
+//
+// MUST be called exactly once for every ticket issueNoticeTicket returned, on
+// every exit of the path that took it (the two shapes issueNoticeTicket
+// names), and never while holding tunnelsMu: the wait would hold every state
+// change of the reactor behind the slowest reader. notify runs on the caller's goroutine and
+// MUST NOT deliver another ticket of the same tunnel: that ticket waits behind
+// this one.
+func (t sessionNoticeTicket) deliver(notify func()) {
+	t.order.awaitTurn(t.number)
+	defer t.order.finish()
+	notify()
 }
 
 // removeSession is the ONE place a session leaves a tunnel, so it performs
@@ -296,7 +418,8 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 	}
 	cancelSessionTimeouts(sess)
 	ClearSessionMetadata(t.localTID, sid)
-	if sess.state == L2TPSessionEstablished {
+	established := sess.state == L2TPSessionEstablished
+	if established {
 		t.pendingKernelTeardowns = append(t.pendingKernelTeardowns, kernelTeardownEvent{
 			localTID: t.localTID,
 			localSID: sid,
@@ -311,10 +434,11 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 		sess.realm.end("L2TP session to realm " + sess.realm.realm + " ended")
 	}
 	t.pendingSessionDowns = append(t.pendingSessionDowns, sessionDown{
-		localTID: t.localTID,
-		localSID: sid,
-		username: sess.username,
-		cause:    cause,
+		localTID:    t.localTID,
+		localSID:    sid,
+		username:    sess.username,
+		cause:       cause,
+		established: established,
 	})
 	delete(t.sessions, sid)
 }
@@ -329,14 +453,30 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 // subscribers of the event decide for themselves whether they hold state for
 // it.
 //
-// Caller MUST hold tunnelsMu, and MUST emit the session-downs after it
-// unlocks (emitSessionDowns) so a subscriber cannot re-enter the reactor
-// under the lock.
+// When it returns at least one down, the drain takes the tunnel's next order
+// ticket for them (issueNoticeTicket) and stamps it on each, so the ticket
+// travels with its batch through every caller that gathers downs:
+// discardTunnelLocked, reapExpiredLocked, resolveTieBreakerLocked and
+// locateTunnelLocked. A drain that returns no down takes no ticket.
+//
+// Caller MUST hold tunnelsMu, and MUST hand the downs to deliverSessionDowns
+// after it unlocks, on every exit of its path, the exit of a panic the path
+// recovers included, in one of the two shapes issueNoticeTicket names: a
+// ticket never delivered stops every later notification of the tunnel, and a
+// reader run under the lock would hold every state change of the reactor
+// behind it.
 func (t *L2TPTunnel) drainPendingTeardowns() ([]kernelTeardownEvent, []sessionDown) {
 	teardowns := t.pendingKernelTeardowns
 	t.pendingKernelTeardowns = nil
 	downs := t.pendingSessionDowns
 	t.pendingSessionDowns = nil
+	if len(downs) == 0 {
+		return teardowns, downs
+	}
+	ticket := t.issueNoticeTicket()
+	for i := range downs {
+		downs[i].ticket = ticket
+	}
 	return teardowns, downs
 }
 

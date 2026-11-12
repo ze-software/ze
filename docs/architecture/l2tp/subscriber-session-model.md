@@ -91,6 +91,75 @@ receive buffer and kernel receive MRU retain the full 1500-octet capacity.
 <!-- source: internal/component/l2tp/subscriber/metrics.go -- session telemetry -->
 <!-- source: internal/component/l2tp/subscriber/service.go -- service locator -->
 
+## The order of one L2TP session's notifications
+
+`tunnelsMu` orders every change of an L2TP session's state. A path that changes
+a session and has a notification to deliver takes the tunnel's next order
+ticket while it still holds `tunnelsMu`. A notification is a route observer
+call, or an `(l2tp, session-ip-assigned)`, `session-up` or `session-down`
+event. After the path releases the lock, it waits until every earlier ticket
+of that tunnel has finished, delivers, and then finishes its own ticket. Every
+reader and the route observer therefore receive one session's notifications in
+the order its state changed, whichever goroutines changed it: the reactor, an
+operator command, a timeout or a CoA Disconnect. The sequence belongs to the
+tunnel, because a tunnel reuses its session IDs. Notifications of different
+tunnels do not wait for each other.
+
+No lock is held while a reader runs. A slow reader delays only the later
+notifications of its own tunnel, and the goroutine that carries them. RADIUS
+accounting is the slowest: it sends Accounting-Stop synchronously, bounded at
+10 seconds. When the waiting goroutine is the reactor's own, packet processing
+waits with it, as it does whenever the reactor publishes to a slow reader
+(`plan/journal/slow-reader-stalls-a-shared-goroutine.md`).
+
+<!-- source: internal/component/l2tp/session.go -- sessionNoticeOrder, sessionNoticeTicket, issueNoticeTicket, awaitTurn, deliver -->
+
+| Notification | Ticket taken by | Delivered by | What runs after the delivery returned |
+|--------------|-----------------|--------------|----------------------------------------|
+| Session-down of a removed session | `drainPendingTeardowns`, once for the batch it returns, stamped on each down | `deliverSessionDowns`, one batch per turn | Outbound CDN or StopCCN, kernel teardown |
+| Session-down that ends a network lifetime (LCP down in the network phase) | `handleLCPDown` | `notifyNetworkLifetimeDown` | `ClearSessionMetadata`, then PPP's acknowledgement |
+| IP assigned | `handleSessionIPAssigned` | the same, with the route observer's IP-up | PPP's acknowledgement, which enables forwarding |
+| Session up | `handleSessionUp` | the same | The RADIUS session and idle timeouts |
+
+<!-- source: internal/component/l2tp/session.go -- removeSession, drainPendingTeardowns -->
+<!-- source: internal/component/l2tp/teardown.go -- deliverSessionDowns, notifySessionDowns -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPDown, notifyNetworkLifetimeDown, handleSessionIPAssigned, handleSessionUp -->
+
+Inside a batch's turn, `notifySessionDowns` tells the route observer to
+withdraw the route of each down whose session was established, then publishes
+one session-down per down. A session removed before it was established gets
+its session-down and no withdrawal. Only an established session ran PPP and
+can hold a subscriber route, and the observer keys its records by session ID
+alone, so a withdrawal for a session that never ran PPP could remove the
+record of another tunnel's session with the same ID. The rule is the same on
+every removal path: operator, CoA, timeout, PPP, kernel error, a peer StopCCN
+or CDN, a dead peer, retention reaping and a lost tie breaker.
+
+<!-- source: internal/component/l2tp/session.go -- sessionDown, removeSession -->
+<!-- source: internal/component/l2tp/teardown.go -- notifySessionDowns -->
+
+Every ticket is finished on every exit of the path that took it, a contained
+panic included. A path takes its ticket as its last step under `tunnelsMu` and
+delivers it as its first step after the unlock, so nothing that can panic runs
+between the two. `handle`, the control task's panic boundary, drains before
+other locked work, so it defers the delivery before it takes `tunnelsMu`. The
+deferred call runs after the deferred unlock and before
+`clearTunnelAfterPanic` tears the tunnel down, so the teardown's own ticket
+never waits behind one the panic left open. A reader that panics still
+finishes its ticket, because `sessionNoticeTicket.deliver` defers the finish.
+
+<!-- source: internal/component/l2tp/reactor.go -- handle -->
+<!-- source: internal/component/l2tp/panic_guard.go -- clearTunnelAfterPanic -->
+
+**The reader contract.** An in-process reader runs on the publishing
+goroutine. It must not cause a publication for the same tunnel from inside its
+handler, by publishing an L2TP session event or by calling the reactor:
+that publication would wait behind the ticket its own caller holds, and the
+tunnel's notifications would stop. The contract is written on the events
+package.
+
+<!-- source: internal/component/l2tp/events/events.go -- the reader contract in the package doc -->
+
 ## Traps this code exists to avoid
 
 **Registry insertion must precede the event emit.** The PPPoE event consumer
