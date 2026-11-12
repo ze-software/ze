@@ -2,6 +2,7 @@ package flowspec
 
 import (
 	"context"
+	"errors"
 	"net/netip"
 	"strings"
 	"sync"
@@ -16,10 +17,16 @@ type fakeDispatcher struct {
 	cmds     []string
 	err      error
 	recorded *flowspecMatch // the announcement record; nil when none is stored
+	// refuse, when set, fails every command that contains it, as the engine
+	// refuses one send and accepts another.
+	refuse string
 }
 
 func (f *fakeDispatcher) Dispatch(cmd string) error {
 	f.cmds = append(f.cmds, cmd)
+	if f.refuse != "" && strings.Contains(cmd, f.refuse) {
+		return errors.New("send refused: no peer this selector names attaches this process with the required send permission")
+	}
 	return f.err
 }
 

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
@@ -77,7 +78,10 @@ type engineStub struct {
 	mu     sync.Mutex
 	routes []string
 	state  []stateCallRecord
-	stored map[string][]byte // what state-get answers; an absent key answers absent
+	store  *stubStore // what the state calls read and change
+	// routeRefusal, when set, is the error every update-route is answered with,
+	// as the daemon answers a send it refuses (reactor errSendNotPermitted).
+	routeRefusal string
 
 	// seen carries every request method, in arrival order, so the handshake
 	// can wait for the stage the plugin reached instead of sleeping.
@@ -93,6 +97,57 @@ type engineStub struct {
 // stored seeds what the plugin's state-get finds.
 func startEngineStub(t *testing.T, stored map[string][]byte) (*engineStub, *exitTestBus) {
 	t.Helper()
+	return startEngineStubOn(t, newStubStore(stored), "")
+}
+
+// stubStore is the daemon's runtime state store as the engine stub keeps it:
+// a put writes the key, a remove deletes it, and a get reads what is there
+// now. Two stubs share one to play a plugin restart against one store.
+//
+// Safe for concurrent use.
+type stubStore struct {
+	mu   sync.Mutex
+	data map[string][]byte
+}
+
+// newStubStore returns a store holding a copy of seed.
+func newStubStore(seed map[string][]byte) *stubStore {
+	s := &stubStore{data: make(map[string][]byte, len(seed))}
+	maps.Copy(s.data, seed)
+	return s
+}
+
+// apply performs one state call and returns the daemon's answer to it.
+func (s *stubStore) apply(method, key string, data []byte) *rpc.StateOutput {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	switch method {
+	case rpc.MethodStatePut:
+		s.data[key] = data
+	case rpc.MethodStateRemove:
+		delete(s.data, key)
+	case rpc.MethodStateGet:
+		value, found := s.data[key]
+		if !found {
+			return &rpc.StateOutput{Status: rpc.StateAbsent}
+		}
+		return &rpc.StateOutput{Status: rpc.StateOK, Data: value}
+	}
+	return &rpc.StateOutput{Status: rpc.StateOK}
+}
+
+// holds reports whether key is stored now.
+func (s *stubStore) holds(key string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, found := s.data[key]
+	return found
+}
+
+// startEngineStubOn is startEngineStub over store, answering every
+// update-route with routeRefusal when it is not empty.
+func startEngineStubOn(t *testing.T, store *stubStore, routeRefusal string) (*engineStub, *exitTestBus) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 
@@ -104,11 +159,12 @@ func startEngineStub(t *testing.T, stored map[string][]byte) (*engineStub, *exit
 
 	pluginEnd, engineEnd := net.Pipe()
 	e := &engineStub{
-		t:      t,
-		mux:    rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd)),
-		stored: stored,
-		seen:   make(chan string, 256),
-		done:   make(chan struct{}),
+		t:            t,
+		mux:          rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd)),
+		store:        store,
+		routeRefusal: routeRefusal,
+		seen:         make(chan string, 256),
+		done:         make(chan struct{}),
 	}
 	go e.run(pluginEnd)
 	go e.serve(ctx)
@@ -169,6 +225,10 @@ func (e *engineStub) answer(ctx context.Context, req *rpc.Request) {
 		e.mu.Lock()
 		e.routes = append(e.routes, in.Command)
 		e.mu.Unlock()
+		if e.routeRefusal != "" {
+			err = e.mux.SendError(ctx, req.ID, e.routeRefusal)
+			break
+		}
 		err = e.mux.SendResult(ctx, req.ID, &rpc.UpdateRouteOutput{})
 	case rpc.MethodStateGet, rpc.MethodStatePut, rpc.MethodStateRemove:
 		err = e.mux.SendResult(ctx, req.ID, e.recordState(req))
@@ -193,16 +253,38 @@ func (e *engineStub) recordState(req *rpc.Request) *rpc.StateOutput {
 		e.t.Errorf("%s params %s: %v", req.Method, req.Params, err)
 	}
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	e.state = append(e.state, stateCallRecord{method: req.Method, key: in.Key, data: in.Data})
-	if req.Method != rpc.MethodStateGet {
-		return &rpc.StateOutput{Status: rpc.StateOK}
+	e.mu.Unlock()
+	return e.store.apply(req.Method, in.Key, in.Data)
+}
+
+// doctorCheck runs the plugin's declared runtime check through the
+// doctor-check callback, as the daemon does for `ze doctor`, and returns the
+// findings it answered.
+func (e *engineStub) doctorCheck(ctx context.Context, name string) []rpc.DoctorCheckDiagnostic {
+	e.t.Helper()
+	raw, err := e.mux.CallRPC(ctx, "ze-plugin-callback:doctor-check", rpc.DoctorCheckInput{Name: name})
+	if err != nil {
+		e.t.Fatalf("doctor-check %s: %v", name, err)
 	}
-	data, found := e.stored[in.Key]
-	if !found {
-		return &rpc.StateOutput{Status: rpc.StateAbsent}
+	var out rpc.DoctorCheckOutput
+	if err := json.Unmarshal(raw, &out); err != nil {
+		e.t.Fatalf("doctor-check %s answer %s: %v", name, raw, err)
 	}
-	return &rpc.StateOutput{Status: rpc.StateOK, Data: data}
+	return out.Diagnostics
+}
+
+// stop ends the plugin the way a restart does: the daemon sends no `bye` and
+// closes the connection (Process.Stop), then waits for the engine function to
+// return.
+func (e *engineStub) stop(ctx context.Context) {
+	e.t.Helper()
+	_ = e.mux.Close()
+	select {
+	case <-e.done:
+	case <-ctx.Done():
+		e.t.Fatalf("the ddos-flowspec engine did not stop after its connection closed: %v", ctx.Err())
+	}
 }
 
 // waitRequest returns once the plugin has sent a request named method.

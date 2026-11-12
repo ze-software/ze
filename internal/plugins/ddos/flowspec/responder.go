@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -104,8 +105,11 @@ func decodeAnnouncementRecord(data []byte) (flowspecMatch, error) {
 // recorded and could not withdraw, then removes the record. It adopts nothing:
 // protection after a restart comes from fresh detection.
 //
-// A record it cannot read or decode is left in place and logged; the doctor
-// checks report it (doctor.go). A withdrawal that fails leaves the record too.
+// A record it cannot read or decode is left in place and logged here; the
+// doctor checks report it (doctor.go). A withdrawal that fails leaves the record too,
+// and its line names the error and the restart that tries again: the restart
+// is the fix the runtime doctor report prints (doctor.go unownedOrphanDiagnostic),
+// and it fails the same way until the cause in the error is fixed.
 // A withdrawal sent before any BGP session is established reaches no peer,
 // which is correct: a session that comes up later never held the rule.
 //
@@ -115,32 +119,111 @@ func decodeAnnouncementRecord(data []byte) (flowspecMatch, error) {
 // arch doctor-coverage check` matches a log line to its doctor check by the
 // constant it reads at the site.
 func withdrawRecordedAnnouncement(d routeDispatcher) {
-	data, found, err := d.Recorded()
-	if err != nil {
-		logger().Warn("ddos-flowspec: could not read the record of a FlowSpec rule a previous run announced, so it is not withdrawn",
-			"error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+	switch reading := readRecordedAnnouncement(d).(type) {
+	case recordAbsent:
+		return
+	case recordUnreadable:
+		logger().Warn("ddos-flowspec: could not read the record of an announced FlowSpec rule, so nothing is withdrawn from it",
+			"error", reading.err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return
+	case recordCorrupt:
+		logger().Warn("ddos-flowspec: the record of an announced FlowSpec rule is corrupt, so nothing is withdrawn from it",
+			"error", reading.err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return
+	case recordedRule:
+		logger().Warn("ddos-flowspec: a previous run left a FlowSpec rule announced, withdrawing it",
+			"target", reading.rule.DstPrefix, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		if err := withdrawRecordedRule(d, reading.rule); err != nil {
+			logger().Warn("ddos-flowspec: the withdrawal of a FlowSpec rule a previous run announced failed, so the rule may still be at the BGP peers and stays recorded; ze doctor reports it, and the restart in fix tries again once the cause in error is fixed",
+				"target", reading.rule.DstPrefix, "error", err, "fix", process.RestartCommand(Name),
+				"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		}
 		return
 	}
-	if !found {
-		return
+	panic("BUG: ddos-flowspec: withdrawRecordedAnnouncement met a record reading of no known kind")
+}
+
+// recordReading is what one read of the announcement record found. It is
+// exactly one of four outcomes, each holding only its own payload:
+// recordAbsent, recordedRule, recordUnreadable and recordCorrupt. A failure to
+// read is its own outcome, never an absence: an unreadable or corrupt record
+// may still name a rule at the BGP peers.
+//
+// classifyRecord is its one constructor and never answers nil, so a consumer's
+// type switch lists the four variants and panics after the switch on a value
+// only a Ze defect can produce.
+type recordReading interface{ recordReading() }
+
+// recordAbsent is the outcome of a read that found no record stored: every
+// rule this plugin announced and recorded was withdrawn.
+type recordAbsent struct{}
+
+// recordedRule is the outcome of a read whose record decodes: rule is the
+// FlowSpec match a withdrawal renders.
+type recordedRule struct{ rule flowspecMatch }
+
+// recordUnreadable is the outcome of a read that failed: err is why. Whether a
+// record is stored, and which rule it names, is unknown.
+type recordUnreadable struct{ err error }
+
+// recordCorrupt is the outcome of a read that found a stored record which does
+// not decode: err is why, and stored is the bytes, which can still show the
+// rule's victim to an operator. Nothing is ever rendered from them.
+type recordCorrupt struct {
+	err    error
+	stored []byte
+}
+
+func (recordAbsent) recordReading()     {}
+func (recordedRule) recordReading()     {}
+func (recordUnreadable) recordReading() {}
+func (recordCorrupt) recordReading()    {}
+
+// readRecordedAnnouncement reads the record of an announced rule through the
+// plugin's state calls. It logs nothing: each caller logs the outcome in the
+// terms of what it does next, so one event makes one line.
+func readRecordedAnnouncement(d routeDispatcher) recordReading {
+	return classifyRecord(d.Recorded())
+}
+
+// classifyRecord turns one raw read of the record into its outcome: err is the
+// read's failure, stored whether a record exists, data its bytes. The doctor's
+// store read (doctor.go checkOrphanRecord) and the plugin's state read
+// (readRecordedAnnouncement) both go through it, so the two never judge the
+// same bytes differently.
+func classifyRecord(data []byte, stored bool, err error) recordReading {
+	if err != nil {
+		return recordUnreadable{err: err}
+	}
+	// refuse-by-default: guards withdrawEarlierRecord -- recordAbsent is no zero but the named outcome "no record is stored", which every consumer's type switch handles as its own case, apart from recordUnreadable and recordCorrupt
+	if !stored {
+		return recordAbsent{}
 	}
 	m, err := decodeAnnouncementRecord(data)
 	if err != nil {
-		logger().Warn("ddos-flowspec: the record of a FlowSpec rule a previous run announced is corrupt, so nothing is withdrawn from it",
-			"error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
-		return
+		return recordCorrupt{err: err, stored: data}
 	}
-	logger().Warn("ddos-flowspec: a previous run left a FlowSpec rule announced, withdrawing it",
-		"target", m.DstPrefix, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+	return recordedRule{rule: m}
+}
+
+// withdrawRecordedRule withdraws the recorded rule m, then removes the record.
+// It returns the dispatch error of a withdrawal that did not reach the engine,
+// which leaves the record in place, because the rule may still be at the peers.
+// A record that could not be removed after the withdrawal is logged here and
+// is no error: the rule is gone, and the record names nothing at the peers.
+//
+// Its two callers log a failed withdrawal each in their own terms:
+// withdrawRecordedAnnouncement at start, and announce through
+// withdrawEarlierRecord.
+func withdrawRecordedRule(d routeDispatcher, m flowspecMatch) error {
 	if err := d.Dispatch(renderFlowspecCommand(m, "", 0, "del")); err != nil {
-		logger().Warn("ddos-flowspec: the withdrawal of a FlowSpec rule a previous run announced failed; it stays recorded",
-			"target", m.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
-		return
+		return err
 	}
 	if err := d.Forget(); err != nil {
-		logger().Warn("ddos-flowspec: the FlowSpec rule a previous run announced was withdrawn, but its record could not be removed",
+		logger().Warn("ddos-flowspec: the recorded FlowSpec rule was withdrawn, but its record could not be removed",
 			"target", m.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
 	}
+	return nil
 }
 
 // flowspecSelector announces to all peers; the engine only sends flow NLRI to
@@ -598,6 +681,20 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 			"reason", reason, "effect", "no upstream rule; on-host mitigation and the detector are unaffected")
 		return
 	}
+	// One record holds one rule, so an earlier rule still recorded is withdrawn
+	// before this one is announced and recorded over it (withdrawEarlierRecord).
+	// When that withdrawal fails nothing is announced: the earlier rule may still
+	// be at the peers, and recording this one would leave it there with nothing
+	// remembering it. The announcement would go to the engine by the same path
+	// that just failed, and the next attack event tries both again, as after a
+	// failed Dispatch. It runs before the limiter, so a refusal costs no slot.
+	next := buildMatch(target)
+	if err := r.withdrawEarlierRecord(next); err != nil {
+		logger().Warn("ddos-flowspec: not announcing, because an earlier FlowSpec rule is still recorded and its withdrawal failed, so it may still be at the BGP peers and one record holds one rule; the next attack event tries again",
+			"target", target.DstPrefix, "reason", reason, "error", err,
+			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return
+	}
 	if !r.limiter.allow(r.clock()) {
 		// The responder stays idle, exactly as it does when Dispatch fails, so a
 		// later AttackCharacterized announces once the window frees. It never
@@ -607,7 +704,7 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 			"reason", reason)
 		return
 	}
-	r.match = buildMatch(target)
+	r.match = next
 	cmd := renderFlowspecCommand(r.match, action, r.cfg.RateLimitBytes, "add")
 	if err := r.dispatcher.Dispatch(cmd); err != nil {
 		logger().Error("ddos-flowspec: announce failed", "error", err)
@@ -627,6 +724,51 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 		logger().Warn("ddos-flowspec: the announced FlowSpec rule could not be recorded, so a crash or daemon stop before its withdrawal would leave it at the peers unknown to the next start",
 			"target", target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
 	}
+}
+
+// withdrawEarlierRecord withdraws the rule the record names, when it is not
+// next, before next is announced. Caller holds r.mu: announce is its one caller.
+//
+// The record is never this responder's live rule here, because announce runs
+// only while nothing is live. It is left by a withdrawal that failed: the one
+// at start (withdrawRecordedAnnouncement), or a later one (withdrawThrough).
+// Recording next over it would leave that rule at the peers with nothing
+// remembering it. A record of next itself is left alone, because the
+// announcement replaces the same NLRI at the peers and the record then names
+// it again. It returns the dispatch error of a withdrawal that failed, which
+// leaves the record in place.
+//
+// A record it cannot read, or one that does not decode, names no rule it could
+// withdraw, and the announcement still goes out: refusing to mitigate over the
+// record would be worse. That is no absence, though. The record may name a rule
+// still at the peers, and once this announcement is recorded over it nothing
+// can withdraw that rule from its record any more, so its line says so, with
+// the stored bytes of a corrupt record, which can still show the victim, and
+// the command that withdraws a rule by hand.
+func (r *responder) withdrawEarlierRecord(next flowspecMatch) error {
+	switch reading := readRecordedAnnouncement(r.dispatcher).(type) {
+	case recordAbsent:
+		return nil
+	case recordUnreadable:
+		logger().Warn("ddos-flowspec: could not read the record of an earlier FlowSpec rule, announcing anyway; if the record names a rule still at the BGP peers, this announcement is recorded over it and that rule can no longer be withdrawn from its record, so withdraw it by hand with the command in fix; ze doctor reported the unreadable record until now",
+			"target", next.DstPrefix, "error", reading.err, "fix", manualWithdrawalCommand(),
+			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return nil
+	case recordCorrupt:
+		logger().Warn("ddos-flowspec: the record of an earlier FlowSpec rule is corrupt, announcing anyway; this announcement is recorded over it, so the earlier rule, if it is still at the BGP peers, can no longer be withdrawn from its record: the stored bytes are in record, and the command in fix withdraws that rule by hand; ze doctor reported the corrupt record until now",
+			"target", next.DstPrefix, "error", reading.err, "record", string(reading.stored),
+			"fix", manualWithdrawalCommand(), "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return nil
+	case recordedRule:
+		if reading.rule == next {
+			return nil
+		}
+		logger().Warn("ddos-flowspec: an earlier FlowSpec rule is still recorded, withdrawing it before announcing",
+			"recorded", reading.rule.DstPrefix, "target", next.DstPrefix,
+			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return withdrawRecordedRule(r.dispatcher, reading.rule)
+	}
+	panic("BUG: ddos-flowspec: withdrawEarlierRecord met a record reading of no known kind")
 }
 
 func (r *responder) onCleared(_ *ddosevent.AttackCleared) {
@@ -725,8 +867,9 @@ func (r *responder) withdraw() {
 
 // withdrawThrough sends the withdrawal through d, ends the announcement either
 // way, and removes the record only when the withdrawal reached the engine: a
-// rule the engine may still hold stays recorded, for the next start to
-// withdraw and for `ze doctor` to report. It returns the dispatch error.
+// rule the engine may still hold stays recorded, for the next announcement or
+// the next start to withdraw and for `ze doctor` to report. It returns the
+// dispatch error.
 // Caller holds r.mu.
 func (r *responder) withdrawThrough(d routeDispatcher) error {
 	cmd := renderFlowspecCommand(r.match, "", 0, "del")

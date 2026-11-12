@@ -570,20 +570,47 @@ FlowSpec rule announced, withdrawing it` at WARN with the victim, and removes th
 record. It adopts nothing: protection after a restart comes from fresh detection,
 as for ddos local. This withdrawal runs when the plugin starts, which can be
 before any BGP session is established. It then reaches no peer, and that is
-correct, because a session that comes up later never held the rule.
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- announce, withdrawThrough, withdrawRecordedAnnouncement, encodeAnnouncementRecord -->
+correct, because a session that comes up later never held the rule. When the
+withdrawal fails, the rule stays recorded, and the WARN line names the error
+and, under `fix`, the plugin restart that tries again.
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- announce, withdrawThrough, withdrawRecordedAnnouncement, readRecordedAnnouncement, withdrawRecordedRule, encodeAnnouncementRecord -->
+
+One record holds one rule. So when a rule is still recorded because its
+withdrawal failed, a new announcement first withdraws that rule, and only then
+announces and records its own. When that withdrawal fails again, nothing new is
+announced: the plugin logs `not announcing, because an earlier FlowSpec rule is
+still recorded` at WARN, and the next attack event tries both again. A record of
+the same rule that is about to be announced is not withdrawn first, because the
+announcement replaces it at the peers.
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- announce, withdrawEarlierRecord -->
 
 `ze doctor` reports a recorded rule that no running responder holds, under
-`doctor-ddos-flowspec-orphan-announcement`. It names the victim, says why the
-rule may still be at the peers, and prints the exact withdrawal as the fix. While
-`ddos flowspec` is configured, the plugin answers this check itself. While it is
-not, doctor reads the record from the store. After you send the withdrawal,
-remove the record with `ze data rm meta/ddos-flowspec/announcement`. A record that
-does not decode is reported as corrupt and is never sent to the peers. A doctor
-run that opened no store, or holds no parsed configuration, cannot judge the
-record: it says so, and its fix is `ze data cat meta/ddos-flowspec/announcement`,
-which prints the record if one is stored.
-<!-- source: internal/plugins/ddos/flowspec/doctor.go -- orphanRuntimeCheckDecl, orphanRecordCheck, orphanFindings, orphanDiagnostic, recordReadCommand -->
+`doctor-ddos-flowspec-orphan-announcement`. It names the victim and says why the
+rule may still be at the peers. What it prints as the fix depends on whether the
+plugin runs:
+
+| `ddos flowspec` | Who answers | Fix | What clears the report |
+|-----------------|-------------|-----|------------------------|
+| Configured | The plugin, from its own runtime check | `ze request plugin restart ddos-flowspec` | The restarted plugin withdraws the recorded rule when it starts, and removes the record. When the cause of the failed withdrawal is still there (for example, no peer gives the plugin permission to send), the restart fails the same way, the WARN line names the cause, and the report stays until you fix that cause and restart again |
+| Not configured | Doctor, from the store | The exact withdrawal, `ze cli -c "send bgp * update text mp ipv4/flow del ..."` | The withdrawal removes the rule from the peers, not the record, so the report stays. The plugin removes the record the next time it starts, when you configure `ddos flowspec` again. `ze data rm meta/ddos-flowspec/announcement` removes it only while ze is stopped, because the store refuses a second writer while the daemon owns it |
+<!-- source: internal/plugins/ddos/flowspec/doctor.go -- orphanRuntimeCheckDecl, orphanRecordCheck, ruleFindings, unownedOrphanDiagnostic, unconfiguredOrphanDiagnostic, recordRemovalToday -->
+<!-- source: internal/component/plugin/process/stopped.go -- RestartCommand -->
+
+A record that does not decode is reported as corrupt and is never sent to the
+peers, and no start of the plugin withdraws anything from it, so a restart does
+not clear it. Its fix is `ze data cat meta/ddos-flowspec/announcement`, which
+prints the stored record: it can still show the victim prefix, so you can
+withdraw that rule at the peers by hand. The record stays until the plugin
+records a new announcement over it, or until `ze data rm` removes it while ze is
+stopped. That announcement still goes out, over a corrupt record or one the
+plugin cannot read, and its WARN line says that the earlier rule, if it is still
+at the peers, can no longer be withdrawn from its record: it carries the stored
+bytes of a corrupt record under `record`, and the withdrawal by hand under `fix`.
+A doctor run that opened no store, or holds no parsed configuration,
+cannot judge the record: it says so, and its fix is the same `ze data cat`
+command, which prints the record if one is stored.
+<!-- source: internal/plugins/ddos/flowspec/doctor.go -- corruptRecordDiagnostic, recordReadCommand, manualWithdrawalCommand, checkOrphanRecord, storedRecordReading -->
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- withdrawEarlierRecord, classifyRecord, recordReading -->
 
 ### VPP dataplane
 

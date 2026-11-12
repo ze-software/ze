@@ -4,14 +4,17 @@
 package flowspec
 
 import (
+	"context"
 	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // orphanTestMatch is the rule every doctor case records.
@@ -19,12 +22,19 @@ func orphanTestMatch() flowspecMatch {
 	return buildMatch(ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix(exitTestVictim), Proto: 17})
 }
 
-// orphanTestFix is the exact withdrawal the report must print for orphanTestMatch.
+// orphanTestFix is the exact withdrawal the removed-section report must print
+// for orphanTestMatch: no plugin runs to restart.
 const orphanTestFix = `ze cli -c "send bgp * update text mp ipv4/flow del destination-ipv4 192.0.2.9/32 protocol =17"`
+
+// restartTestFix is the fix the runtime report must print while the plugin
+// runs: the restarted plugin's start withdraws the recorded rule and removes
+// the record, which a withdrawal typed at the CLI does not. Written out rather
+// than built from process.RestartCommand, because it is what the operator types.
+const restartTestFix = "ze request plugin restart ddos-flowspec"
 
 // TestOrphanCheckReportsARecordWithNoLiveResponder proves that the runtime check
 // reports a recorded rule the running plugin does not hold as live, with the
-// victim and the exact withdrawal as its fix.
+// victim and the plugin restart as its fix.
 //
 // VALIDATES: AC-16, positive: a start-time withdrawal that failed leaves the
 // record and no live announcement.
@@ -48,8 +58,110 @@ func TestOrphanCheckReportsARecordWithNoLiveResponder(t *testing.T) {
 	if !strings.Contains(diags[0].Message, exitTestVictim) {
 		t.Errorf("message %q does not name the victim %s", diags[0].Message, exitTestVictim)
 	}
-	if diags[0].Fix != orphanTestFix {
-		t.Errorf("fix = %q, want %q", diags[0].Fix, orphanTestFix)
+	if diags[0].Fix != restartTestFix {
+		t.Errorf("fix = %q, want %q", diags[0].Fix, restartTestFix)
+	}
+}
+
+// TestCorruptRecordReportNamesTheReadCommand proves that the report of a record
+// that does not decode prints, as its fix, the command that reads the record,
+// and never the record's removal.
+//
+// VALIDATES: ai/rules/user-facing-errors.md for the corrupt record: `ze data rm`
+// is refused while the daemon owns the store, and no plugin start withdraws
+// from a record it cannot decode, so neither clears it.
+// METHOD: the runtime check's answer function over a fake whose Recorded
+// answers bytes that are not a record.
+// PREVENTS: a fix line the running daemon refuses.
+func TestCorruptRecordReportNamesTheReadCommand(t *testing.T) {
+	diags, err := answerOrphanRuntimeCheck(orphanRuntimeCheck,
+		corruptRecordDispatcher{&fakeDispatcher{}}, flowspecMatch{}, false)
+	if err != nil {
+		t.Fatalf("answer: %v", err)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("findings = %v, want one", diags)
+	}
+	if diags[0].Fix != recordReadTestFix {
+		t.Errorf("fix = %q, want %q", diags[0].Fix, recordReadTestFix)
+	}
+}
+
+// corruptRecordDispatcher answers a stored record that does not decode.
+type corruptRecordDispatcher struct{ *fakeDispatcher }
+
+func (corruptRecordDispatcher) Recorded() ([]byte, bool, error) { return []byte("not json"), true, nil }
+
+// TestRemovedSectionReportSaysWhatRemovesTheRecord proves that the report made
+// while ddos flowspec is not configured says its withdrawal leaves the record,
+// and that the store's removal works only while ze is stopped.
+//
+// VALIDATES: AC-16's "the report clears when the record is removed", as things
+// work while no plugin runs: the fix withdraws the rule, and the message names
+// what removes the record.
+// METHOD: the removed-section report for orphanTestMatch.
+// PREVENTS: a report that presents `ze data rm` as a step the running daemon
+// takes, when the store refuses a second writer.
+func TestRemovedSectionReportSaysWhatRemovesTheRecord(t *testing.T) {
+	diag := unconfiguredOrphanDiagnostic(orphanTestMatch())
+
+	if !strings.Contains(diag.Message, "ze data rm "+announcementRecordKey+" removes the record only while ze is stopped") {
+		t.Errorf("message %q does not say that ze data rm removes the record only while ze is stopped", diag.Message)
+	}
+	if !strings.Contains(diag.Message, "configure ddos flowspec again") {
+		t.Errorf("message %q does not name the plugin start that removes the record", diag.Message)
+	}
+}
+
+// TestRestartWithdrawsTheOrphanAndClearsTheReport proves the fix the runtime
+// report prints: a plugin whose start-time withdrawal failed reports the record
+// with the restart as its fix, and the restarted plugin withdraws the rule,
+// removes the record, and then reports nothing.
+//
+// VALIDATES: AC-16, "the report clears when the record is removed", through the
+// owner's fix for a running plugin (`ze request plugin restart`). The restart
+// (handlePluginRestart -> restartPlugin) stops the process with no `bye` and
+// runs a new one through the whole handshake, so its OnStarted withdraws the
+// record (withdrawRecordedAnnouncement).
+// METHOD: two runs of runEngine against one stub store, as the restart runs two
+// processes against the daemon's store. The first run's engine refuses every
+// update-route, so the start-time withdrawal fails and the record stays. Its
+// connection then closes with no `bye`, as Process.Stop does. The second run's
+// engine accepts.
+// PREVENTS: a doctor report whose fix leaves the report standing.
+func TestRestartWithdrawsTheOrphanAndClearsTheReport(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	record, err := encodeAnnouncementRecord(orphanTestMatch())
+	if err != nil {
+		t.Fatalf("encode the record: %v", err)
+	}
+	store := newStubStore(map[string][]byte{announcementRecordKey: record})
+
+	first, _ := startEngineStubOn(t, store,
+		"send refused: no peer this selector names attaches this process with the required send permission")
+	first.waitRequest(ctx, rpc.MethodUpdateRoute)
+	before := first.doctorCheck(ctx, orphanRuntimeCheck)
+	if len(before) != 1 {
+		t.Fatalf("setup: findings after the refused start-time withdrawal = %v, want one", before)
+	}
+	if before[0].Fix != restartTestFix {
+		t.Fatalf("setup: fix = %q, want %q", before[0].Fix, restartTestFix)
+	}
+	first.stop(ctx)
+
+	second, _ := startEngineStubOn(t, store, "")
+	second.waitRequest(ctx, rpc.MethodStateRemove)
+
+	if got := countCommands(second.routeCommands(), "/flow del "); got != 1 {
+		t.Fatalf("withdrawals of %s by the restarted plugin = %d, want 1 (commands: %v)",
+			exitTestVictim, got, second.routeCommands())
+	}
+	if store.holds(announcementRecordKey) {
+		t.Fatalf("the record %s is still stored after the restarted plugin withdrew the rule", announcementRecordKey)
+	}
+	if after := second.doctorCheck(ctx, orphanRuntimeCheck); len(after) != 0 {
+		t.Fatalf("findings after the restart = %v, want none", after)
 	}
 }
 

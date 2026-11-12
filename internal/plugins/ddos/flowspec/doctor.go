@@ -1,6 +1,6 @@
 // Design: docs/guide/ddos-mitigation.md -- a FlowSpec rule no responder owns
 // Related: register.go -- announcementKey, the two check registrations
-// Related: responder.go -- encodeAnnouncementRecord, decodeAnnouncementRecord
+// Related: responder.go -- encodeAnnouncementRecord, decodeAnnouncementRecord, classifyRecord
 //
 // The record of the live announcement is judged by two checks, because no one
 // process can see every case. While ddos flowspec is configured the plugin runs
@@ -19,6 +19,8 @@ import (
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -55,13 +57,6 @@ var orphanRecordCheck = diagnostic.DoctorCheck{
 	Check: checkOrphanRecord,
 }
 
-// whyUnowned and whyUnconfigured complete the orphan report's first sentence,
-// one for each check.
-const (
-	whyUnowned      = "no running responder holds it as its live announcement, so a withdrawal at start or on the way out did not reach the BGP engine"
-	whyUnconfigured = "the ddos flowspec section is not configured, so no running plugin can withdraw it"
-)
-
 // liveMatch returns the match the live responder announces. live is false
 // while no responder runs or the running one announces nothing.
 func liveMatch() (m flowspecMatch, live bool) {
@@ -83,43 +78,81 @@ func answerOrphanRuntimeCheck(name string, d routeDispatcher, live flowspecMatch
 		return nil, errors.New("ddos-flowspec has no doctor check named " + strconv.Quote(name) +
 			"; it declares only " + orphanRuntimeCheck)
 	}
-	data, found, err := d.Recorded()
-	if err != nil {
-		return nil, fmt.Errorf("ddos-flowspec could not read its announcement record, so it cannot say whether a FlowSpec rule is left at the BGP peers: %w", err)
+	switch reading := readRecordedAnnouncement(d).(type) {
+	case recordAbsent:
+		// No record is the healthy answer: every rule this plugin announced was
+		// withdrawn.
+		return nil, nil
+	case recordUnreadable:
+		return nil, fmt.Errorf("ddos-flowspec could not read its announcement record, so it cannot say whether a FlowSpec rule is left at the BGP peers: %w", reading.err)
+	case recordCorrupt:
+		return []rpc.DoctorCheckDiagnostic{corruptRecordDiagnostic(reading.err)}, nil
+	case recordedRule:
+		return ruleFindings(reading.rule, live, isLive, unownedOrphanDiagnostic), nil
 	}
-	return orphanFindings(data, found, live, isLive, whyUnowned), nil
+	panic("BUG: ddos-flowspec: answerOrphanRuntimeCheck met a record reading of no known kind")
 }
 
-// orphanFindings judges the stored record against the live announcement. A
+// orphanReport builds the report of a recorded rule nothing withdraws. Each
+// check passes its own, because what clears the finding differs: a running
+// plugin withdraws the rule when it restarts, while with the section removed no
+// plugin runs to withdraw it.
+type orphanReport func(m flowspecMatch) rpc.DoctorCheckDiagnostic
+
+// ruleFindings judges the recorded rule m against the live announcement. A
 // record the live responder holds is the normal state of a running
-// mitigation. Any other record names a rule that may still be at the peers,
-// and a record that does not decode is reported as corrupt and never rendered.
-func orphanFindings(data []byte, found bool, live flowspecMatch, isLive bool, why string) []rpc.DoctorCheckDiagnostic {
-	// refuse-by-default: guards answerOrphanRuntimeCheck -- no record is the healthy answer: every rule this plugin announced was withdrawn
-	if !found {
-		return nil
-	}
-	m, err := decodeAnnouncementRecord(data)
-	if err != nil {
-		return []rpc.DoctorCheckDiagnostic{corruptRecordDiagnostic(err)}
-	}
+// mitigation. Any other recorded rule may still be at the peers, and report
+// reports it.
+func ruleFindings(m, live flowspecMatch, isLive bool, report orphanReport) []rpc.DoctorCheckDiagnostic {
 	if isLive {
 		if m == live {
 			return nil
 		}
 	}
-	return []rpc.DoctorCheckDiagnostic{orphanDiagnostic(m, why)}
+	return []rpc.DoctorCheckDiagnostic{report(m)}
 }
 
-// orphanDiagnostic reports a recorded rule no responder owns. Its fix is the
-// exact withdrawal the plugin would send.
-func orphanDiagnostic(m flowspecMatch, why string) rpc.DoctorCheckDiagnostic {
+// recordRemovalToday says what removes the record while no plugin start does.
+// The store refuses a writer beside the daemon that owns it (storage open.go
+// lockStoreFile answers ErrBusy), so `ze data rm` removes the record only while
+// ze is stopped.
+func recordRemovalToday(msg *textbuf.Buffer) {
+	msg.Str("ze data rm ").Str(announcementKey.Pattern).
+		Str(" removes the record only while ze is stopped, because the store refuses a second writer while the daemon owns it")
+}
+
+// unownedOrphanDiagnostic is the runtime report: the plugin runs and its
+// responder does not hold the recorded rule as live, so the last withdrawal of
+// that rule failed. Its fix is the plugin restart: the restarted plugin's start
+// (withdrawRecordedAnnouncement, from OnStarted) withdraws the recorded rule and
+// removes the record in one step, which a withdrawal typed at the CLI does not.
+func unownedOrphanDiagnostic(m flowspecMatch) rpc.DoctorCheckDiagnostic {
 	victim := m.DstPrefix.String()
 	var msg textbuf.Buffer
-	msg.Str("ddos-flowspec announced a FlowSpec rule for ").Str(victim).Str(" and ").Str(why).
-		Str(", so every BGP peer that took the rule may still discard or rate-limit traffic to ").Str(victim).
-		Str(". The plugin withdraws a recorded rule each time it starts. To withdraw it now, run the command below, then remove the record with: ze data rm ").
-		Str(announcementKey.Pattern)
+	msg.Str("ddos-flowspec holds the record of a FlowSpec rule it announced for ").Str(victim).
+		Str(", and no running responder holds that rule as its live announcement: the last withdrawal of the rule did not reach the BGP engine, and the plugin logged why under the code ").
+		Str(diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement).
+		Str(". Every BGP peer that took the rule may still discard or rate-limit traffic to ").Str(victim).
+		Str(". A restart of the plugin withdraws the recorded rule and removes the record. If the cause of the failed withdrawal remains, the restart fails the same way, the plugin logs the cause again, and this report stays")
+	return rpc.DoctorCheckDiagnostic{
+		Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+		Severity: string(diagnostic.SeverityWarning),
+		Message:  msg.String(),
+		Fix:      process.RestartCommand(Name),
+	}
+}
+
+// unconfiguredOrphanDiagnostic is the report while ddos flowspec is not
+// configured: no plugin runs to restart, so its fix is the exact withdrawal the
+// plugin would send. That withdrawal does not remove the record, and the
+// message says what does.
+func unconfiguredOrphanDiagnostic(m flowspecMatch) rpc.DoctorCheckDiagnostic {
+	victim := m.DstPrefix.String()
+	var msg textbuf.Buffer
+	msg.Str("ddos-flowspec announced a FlowSpec rule for ").Str(victim).
+		Str(", and the ddos flowspec section is not configured, so no running plugin can withdraw it. Every BGP peer that took the rule may still discard or rate-limit traffic to ").Str(victim).
+		Str(". The command below withdraws the rule at the peers. It does not remove the record, so this report stays: the plugin removes the record when it next starts (configure ddos flowspec again, and its start withdraws the rule and removes the record), and ")
+	recordRemovalToday(&msg)
 	var fix textbuf.Buffer
 	fix.Str(`ze cli -c "send bgp `).Str(flowspecSelector).Byte(' ').
 		Str(renderFlowspecCommand(m, "", 0, "del")).Byte('"')
@@ -131,20 +164,33 @@ func orphanDiagnostic(m flowspecMatch, why string) rpc.DoctorCheckDiagnostic {
 	}
 }
 
-// corruptRecordDiagnostic reports a record that does not decode. Nothing is
-// rendered from it, so the operator finds the rule at the peers.
+// corruptRecordDiagnostic reports a record that does not decode, for both
+// checks. Nothing is rendered from it, and no plugin start withdraws from it
+// (readRecordedAnnouncement), so a restart does not clear it. Its fix prints the
+// stored bytes, which can still show the rule's victim, so the operator can
+// withdraw that rule at the peers.
 func corruptRecordDiagnostic(err error) rpc.DoctorCheckDiagnostic {
 	var msg textbuf.Buffer
 	msg.Str("ddos-flowspec holds a record of an announced FlowSpec rule that it cannot read (").Err(err).
-		Str("), so ze cannot say which rule may still be at the BGP peers, and the plugin does not withdraw anything from it. Find the FlowSpec rule ze announced in a peer's flow routes and withdraw it, then remove the record")
-	var fix textbuf.Buffer
-	fix.Str("ze data rm ").Str(announcementKey.Pattern)
+		Str("), so ze cannot say which rule may still be at the BGP peers, and the plugin withdraws nothing from it, at start or after a restart. The command below prints the stored record, which can still show the rule's victim prefix: withdraw that rule at the peers with ").
+		Str(manualWithdrawalCommand()).
+		Str(", or ipv6/flow and destination-ipv6 for an IPv6 victim. The record and this report stay until the plugin records a new announcement over it, and ")
+	recordRemovalToday(&msg)
 	return rpc.DoctorCheckDiagnostic{
 		Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
 		Severity: string(diagnostic.SeverityWarning),
 		Message:  msg.String(),
-		Fix:      fix.String(),
+		Fix:      recordReadCommand(),
 	}
+}
+
+// manualWithdrawalCommand is the command that withdraws, by hand, the FlowSpec
+// rule for an IPv4 victim the record no longer names: what an operator types
+// when the record that named the rule could not be read or decoded.
+func manualWithdrawalCommand() string {
+	var tb textbuf.Buffer
+	return tb.Str(`ze cli -c "send bgp `).Str(flowspecSelector).
+		Str(` update text mp ipv4/flow del destination-ipv4 <victim>"`).String()
 }
 
 // recordReadCommand is the command that prints the stored announcement record.
@@ -182,14 +228,14 @@ func checkOrphanRecord(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 			Fix:      recordReadCommand(),
 		}}
 	}
-	data, err := ctx.Store.ReadKey(announcementKey.Pattern)
-	if errors.Is(err, fs.ErrNotExist) {
-		// refuse-by-default: guards orphanFindings -- no record is the healthy answer: every rule the plugin announced was withdrawn
+	switch reading := storedRecordReading(ctx.Store).(type) {
+	case recordAbsent:
+		// No record is the healthy answer: every rule the plugin announced was
+		// withdrawn.
 		return nil
-	}
-	if err != nil {
+	case recordUnreadable:
 		var msg textbuf.Buffer
-		msg.Str("ddos-flowspec: the announcement record could not be read (").Err(err).
+		msg.Str("ddos-flowspec: the announcement record could not be read (").Err(reading.err).
 			Str("), so doctor cannot say whether a FlowSpec rule a stopped plugin announced is still at the BGP peers")
 		return []diagnostic.Diagnostic{{
 			Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
@@ -197,8 +243,28 @@ func checkOrphanRecord(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 			Message:  msg.String(),
 			Fix:      "ze data check",
 		}}
+	case recordCorrupt:
+		return doctorDiagnostics([]rpc.DoctorCheckDiagnostic{corruptRecordDiagnostic(reading.err)})
+	case recordedRule:
+		return doctorDiagnostics(ruleFindings(reading.rule, flowspecMatch{}, false, unconfiguredOrphanDiagnostic))
 	}
-	findings := orphanFindings(data, true, flowspecMatch{}, false, whyUnconfigured)
+	panic("BUG: ddos-flowspec: checkOrphanRecord met a record reading of no known kind")
+}
+
+// storedRecordReading reads the record from the store doctor opened. The
+// store's not-exist answer is the absence of the record, never a failure to
+// read it; every other error is.
+func storedRecordReading(store storage.Storage) recordReading {
+	data, err := store.ReadKey(announcementKey.Pattern)
+	if errors.Is(err, fs.ErrNotExist) {
+		return classifyRecord(nil, false, nil)
+	}
+	return classifyRecord(data, true, err)
+}
+
+// doctorDiagnostics carries the findings of the shared report builders over to
+// the registered check's diagnostic type.
+func doctorDiagnostics(findings []rpc.DoctorCheckDiagnostic) []diagnostic.Diagnostic {
 	out := make([]diagnostic.Diagnostic, 0, len(findings))
 	for _, f := range findings {
 		out = append(out, diagnostic.Diagnostic{
