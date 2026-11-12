@@ -67,12 +67,17 @@ state they read lives in that plugin's process:
 | `ospf-sr-label-entries` | `ospf` | a Segment Routing push, swap or pop no writer carried out, or one OSPF cannot program because it runs forked | `doctor-fib-mpls-no-writer` |
 | `bgp-epe-label-entries` | `bgp-epe` | a PeerNode SID label no writer installed or removed as EPE wants | `doctor-fib-mpls-no-writer` |
 | `fib-vpp-label-entries` | `fib-vpp` | label entries installed without their path MTU; a label route a previous run left in VPP that could not be removed | `doctor-fib-vpp-mpls-path-mtu`, `doctor-fib-vpp-mpls-stale-label` |
+| `fib-vpp-stale-routes` | `fib-vpp` | an IP route or labeled push a previous run left in VPP that could not be removed, IP tables that could not be read, or no FIB source to mark routes with | `doctor-fib-vpp-stale-route` |
 
-What each finding means, and the stale-label sweep behind the last code, are
-in `docs/architecture/mpls/mpls-kernel.md`, "Doctor checks".
+What each finding means, and the stale-label sweep behind the
+`doctor-fib-vpp-mpls-stale-label` code, are in
+`docs/architecture/mpls/mpls-kernel.md`, "Doctor checks". The stale IP route
+sweep behind `doctor-fib-vpp-stale-route` is in
+`docs/architecture/fib/fib-vpp-route-ownership.md`.
 <!-- source: internal/plugins/ldp/doctor_label.go -- labelEntriesCheckDecl -->
 <!-- source: internal/plugins/rsvpte/doctor_label.go -- labelEntriesCheckName -->
 <!-- source: internal/plugins/fib/vpp/doctor_label.go -- labelEntriesCheckDecl -->
+<!-- source: internal/plugins/fib/vpp/doctor_route.go -- staleRoutesCheckDecl -->
 
 There is one phase set and one registry. A second registry of daemon-only
 checks would let a check pick the one the local route happens to run, so the

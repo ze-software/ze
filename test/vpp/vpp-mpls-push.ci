@@ -9,9 +9,9 @@
 #      ipv4/mpls-label family negotiated. Ze dials 127.0.0.1:$PORT,
 #      receives the labeled UPDATE, nlrisplit strips the label,
 #      RIB stores the route + label side-data, best-change propagates
-#      labels through sysRIB, fib-vpp builds an ip_route_add_del with
+#      labels through sysRIB, fib-vpp builds an ip_route_add_del_v2 with
 #      LabelStack, stub logs it.
-# The driver polls the stub's JSONL log for ip_route_add_del is_add=true
+# The driver polls the stub's JSONL log for ip_route_add_del_v2 is_add=true
 # prefix=10.30.0.0/24 with labels=[100], reports OK, then shuts down.
 #
 # VALIDATES: spec-vpp-3-mpls AC-1 -- labeled unicast -> VPP MPLS label push

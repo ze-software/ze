@@ -12,7 +12,6 @@ import (
 
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/fib_types"
-	"go.fd.io/govpp/binapi/ip"
 	"go.fd.io/govpp/binapi/mpls"
 
 	"github.com/ze-software/ze/internal/core/mplsfib"
@@ -83,13 +82,19 @@ func uniformLabels(path *fib_types.FibPath, labels []uint32) {
 }
 
 // govppMPLSBackend implements mplsBackend using GoVPP binary API.
+// A labeled push is an IP route, so it goes through source like every other
+// IP route fib-vpp installs (routesource.go).
 type govppMPLSBackend struct {
 	ch      api.Channel
 	tableID uint32
+	source  *routeSource
 }
 
-func newGovppMPLSBackend(ch api.Channel, tableID uint32) *govppMPLSBackend {
-	return &govppMPLSBackend{ch: ch, tableID: tableID}
+// newGovppMPLSBackend binds the MPLS backend to ch. source MUST be the one
+// the writer's IP backend uses, so the stale sweep sees pushes and plain
+// routes as one set.
+func newGovppMPLSBackend(ch api.Channel, tableID uint32, source *routeSource) *govppMPLSBackend {
+	return &govppMPLSBackend{ch: ch, tableID: tableID, source: source}
 }
 
 // addMPLSRoute programs a label push: IP route with MPLS label stack on the FibPath.
@@ -103,42 +108,14 @@ func (b *govppMPLSBackend) addMPLSRoute(prefix netip.Prefix, nextHop netip.Addr,
 	}
 	// RFC 3032 Section 2.4.3
 	uniformLabels(&path, labels)
-	req := &ip.IPRouteAddDel{
-		IsAdd: true,
-		Route: ip.IPRoute{
-			TableID: b.tableID,
-			Prefix:  toVPPPrefix(prefix),
-			NPaths:  1,
-			Paths:   []fib_types.FibPath{path},
-		},
-	}
-	reply := &ip.IPRouteAddDelReply{}
-	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("mpls IPRouteAddDel: %w: %w", errVPPMutationUncertain, err)
-	}
-	if reply.Retval != 0 {
-		return fmt.Errorf("mpls IPRouteAddDel retval=%d", reply.Retval)
-	}
-	return nil
+	key := ipRouteKey{table: b.tableID, prefix: prefix}
+	return b.source.sendRoute("mpls ip_route_add_del_v2", true, key, []fib_types.FibPath{path})
 }
 
 // delMPLSRoute removes a labeled IP route.
 func (b *govppMPLSBackend) delMPLSRoute(prefix netip.Prefix, _ []uint32) error {
-	req := &ip.IPRouteAddDel{
-		IsAdd: false,
-		Route: ip.IPRoute{
-			TableID: b.tableID,
-			Prefix:  toVPPPrefix(prefix),
-		},
-	}
-	reply := &ip.IPRouteAddDelReply{}
-	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("mpls del IPRouteAddDel: %w: %w", errVPPMutationUncertain, err)
-	}
-	if reply.Retval != 0 {
-		return fmt.Errorf("mpls del IPRouteAddDel retval=%d", reply.Retval)
-	}
-	return nil
+	key := ipRouteKey{table: b.tableID, prefix: prefix}
+	return b.source.sendRoute("mpls del ip_route_add_del_v2", false, key, nil)
 }
 
 // createMPLSTable creates MPLS table 0. mpls_table_create holds one API lock

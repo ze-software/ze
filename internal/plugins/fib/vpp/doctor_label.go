@@ -57,8 +57,8 @@ var staleLabelCodeMeta = diagnostic.CodeMeta{
 		"(LDP, RSVP-TE, OSPF-SR, BGP EPE) to re-apply the entries it wants, and after 30 seconds removes every label " +
 		"route with an unreserved in-label that no source re-claimed. This ERROR means VPP refused to remove one, or " +
 		"MPLS table 0 could not be read, so a label nobody advertises may still forward packets. A push (a labeled " +
-		"IP route) that a failed flush left is not in MPLS table 0: it stays until its source installs or withdraws " +
-		"the FEC again. Remedy: restart Ze with `ze signal restart`, which opens a new writer and runs the sweep again; " +
+		"IP route) is not in MPLS table 0: the stale IP route sweep removes one a previous run left, and reports " +
+		"what it could not remove under doctor-fib-vpp-stale-route. Remedy: restart Ze with `ze signal restart`, which opens a new writer and runs the sweep again; " +
 		"the finding names VPP's refusal when it repeats.",
 	Examples: []string{"ze show doctor", "ze show diagnostic doctor-fib-vpp-mpls-stale-label"},
 }

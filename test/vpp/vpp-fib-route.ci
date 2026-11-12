@@ -7,12 +7,12 @@
 #      the session.
 #   3. ze with vpp.external=true and fib.vpp.enabled=true. Ze dials
 #      127.0.0.1:$PORT, receives the UPDATE, sysrib emits best-change,
-#      fib-vpp builds an ip_route_add_del request, stub logs it.
-# The driver polls the stub's JSONL log for ip_route_add_del is_add=true
+#      fib-vpp builds an ip_route_add_del_v2 request, stub logs it.
+# The driver polls the stub's JSONL log for ip_route_add_del_v2 is_add=true
 # prefix=10.20.0.0/24, reports PLUGIN OK, then shuts all three processes
 # down in reverse order.
 #
-# VALIDATES: spec-vpp-7 AC-3 -- fib-vpp -> stub ip_route_add_del path
+# VALIDATES: spec-vpp-7 AC-3 -- fib-vpp -> stub ip_route_add_del_v2 path
 #            spec-vpp-7 AC-5 -- runner exit 0 when evidence is captured
 # PREVENTS:  fib-vpp wired in isolation (unit-test-only); stub misparsing
 #            the IPRouteAddDel body so the logged prefix/next-hop is wrong.

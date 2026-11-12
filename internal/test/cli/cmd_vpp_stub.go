@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -21,6 +22,7 @@ import (
 
 	"go.fd.io/govpp/api"
 	_ "go.fd.io/govpp/binapi/classify"
+	_ "go.fd.io/govpp/binapi/fib"
 	_ "go.fd.io/govpp/binapi/interface"
 	_ "go.fd.io/govpp/binapi/ip"
 	_ "go.fd.io/govpp/binapi/memclnt"
@@ -52,6 +54,8 @@ type vppStubState struct {
 	mu            sync.Mutex
 	classifyIndex uint32
 	loopbackIndex uint32
+	// labels holds the MPLS routes clients added, so mpls_route_dump answers them.
+	labels vppStubLabelTable
 }
 
 // CmdVPPStub is the harness command `le test vpp stub`, registered by
@@ -275,6 +279,12 @@ func serveVPPClient(state *vppStubState, connection net.Conn) error {
 		if name == "" {
 			name = fmt.Sprintf("unknown_%d", id)
 		}
+		if name == "mpls_route_dump" {
+			if err := state.serveMPLSRouteDump(connection, &state.labels, contextID); err != nil {
+				return err
+			}
+			continue
+		}
 		body, closeConnection, handled, err := state.handle(name, contextID, frame[headerLength:])
 		if err != nil {
 			return err
@@ -321,10 +331,29 @@ func (state *vppStubState) handle(name string, contextID uint32, body []byte) ([
 		binary.BigEndian.PutUint32(replyBody[4:8], 1)
 		binary.BigEndian.PutUint32(replyBody[8:12], uint32(os.Getpid())) //nolint:gosec // process ids fit uint32 on supported systems.
 	case "ip_route_add_del":
-		fields = decodeIPRoute(body)
+		fields = decodeIPRoute(body, ipRoutePathsV1)
 		replyBody = make([]byte, 8)
+	case "ip_route_add_del_v2":
+		// fib-vpp installs under its own FIB source; the v2 route carries
+		// the source id after n_paths.
+		fields = decodeIPRoute(body, ipRoutePathsV2)
+		if len(body) > ipRoutePathsV1 {
+			fields["src"] = body[ipRoutePathsV1]
+		}
+		replyBody = make([]byte, 8)
+	case "fib_source_add":
+		// priority (u8), id (u8), name (string[64]). The reply is retval
+		// (i32) then the id VPP allocated.
+		if len(body) >= 2 {
+			fields["priority"] = body[0]
+			fields["name"] = strings.TrimRight(string(body[2:min(len(body), 66)]), "\x00")
+		}
+		fields["id"] = vppStubFibSourceID
+		replyBody = make([]byte, 5)
+		replyBody[4] = vppStubFibSourceID
 	case "mpls_route_add_del":
 		fields = decodeMPLSRoute(body)
+		state.labels.record(body)
 		replyBody = make([]byte, 8)
 	case "mpls_table_add_del":
 		// mt_is_add (u8), then mpls_table: mt_table_id (u32), mt_name.
@@ -402,21 +431,36 @@ func (state *vppStubState) sockCreateReplyBody() []byte {
 	return body
 }
 
-func decodeIPRoute(body []byte) map[string]any {
+// vppStubFibSourceID is the FIB source id the stub gives every
+// fib_source_add.
+const vppStubFibSourceID = 20
+
+// Where the first fib_path of an ip_route_add_del body starts: is_add,
+// is_multipath, then the route's table_id, stats_index, prefix and n_paths
+// (offset 28). ip_route_v2 adds the src byte after n_paths.
+const (
+	ipRoutePathsV1 = 29
+	ipRoutePathsV2 = 30
+)
+
+// decodeIPRoute decodes an ip_route_add_del or ip_route_add_del_v2 body
+// whose first path starts at pathOffset.
+func decodeIPRoute(body []byte, pathOffset int) map[string]any {
 	fields := make(map[string]any)
-	if len(body) < 29 {
+	if len(body) < pathOffset {
 		return fields
 	}
 	fields["is_add"] = body[0] != 0
 	fields["is_multipath"] = body[1] != 0
 	fields["table_id"] = binary.BigEndian.Uint32(body[2:6])
-	fields["prefix"] = vppAddress(body[10], body[11:27]) + fmt.Sprintf("/%d", body[27])
+	fields["prefix"] = vppAddress(body[10], body[11:27]) + "/" + strconv.Itoa(int(body[27]))
 	fields["n_paths"] = body[28]
-	if body[28] > 0 && len(body) >= 71 {
-		fields["next_hop"] = vppAddress(byte(binary.BigEndian.Uint32(body[51:55])), body[55:71])
+	if body[28] > 0 && len(body) >= pathOffset+42 {
+		proto := byte(binary.BigEndian.Uint32(body[pathOffset+22 : pathOffset+26]))
+		fields["next_hop"] = vppAddress(proto, body[pathOffset+26:pathOffset+42])
 	}
-	if body[28] > 0 && len(body) >= 84 {
-		fields["labels"] = vppLabels(body, 29)
+	if body[28] > 0 && len(body) >= pathOffset+55 {
+		fields["labels"] = vppLabels(body, pathOffset)
 	}
 	return fields
 }

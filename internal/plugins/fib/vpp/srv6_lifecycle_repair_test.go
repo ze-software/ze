@@ -373,8 +373,8 @@ func TestVPPOrdinaryMutationReplyClassification(t *testing.T) {
 			if uncertain {
 				channel.sendErr = errors.New("reply lost")
 			}
-			ip := newGovppBackend(channel, 0)
-			mpls := newGovppMPLSBackend(channel, 0)
+			ip := newGovppBackend(channel, 0, testRouteSource(channel))
+			mpls := newGovppMPLSBackend(channel, 0, testRouteSource(channel))
 			for _, err := range []error{
 				ip.addRoute(prefix, nextHop),
 				ip.replaceRichRoute(vppRichRoute{Prefix: prefix, NextHop: nextHop}),
@@ -402,11 +402,11 @@ func TestSRv6FallbackKeepsOriginalZeroTable(t *testing.T) {
 		t.Fatal(err)
 	}
 	ipChannel := &testChannel{}
-	fib := newFibVPP(newGovppBackend(ipChannel, 100))
+	fib := newFibVPP(newGovppBackend(ipChannel, 100, testRouteSource(ipChannel)))
 	fib.srv6Backend, fib.srv6TableID = newGovppSRv6Backend(channel, 100, store), 100
 	for _, action := range []routeaction.Action{routeaction.Update, routeaction.Withdraw} {
 		fib.processEvent(&incomingBatch{Changes: []incomingChange{{Action: action, Prefix: prefix, NextHop: netip.MustParseAddr("198.51.100.2")}}})
-		request, ok := ipChannel.lastRequest.(*ipapi.IPRouteAddDel)
+		request, ok := ipChannel.lastRequest.(*ipapi.IPRouteAddDelV2)
 		if !ok || request.Route.TableID != 0 || request.IsAdd != (action == routeaction.Update) {
 			t.Fatalf("retained table zero was reinterpreted as configured table 100: %#v", ipChannel.lastRequest)
 		}

@@ -286,7 +286,7 @@ func runVPPRouteProgramming(ctx context.Context, args []string, mpls bool) error
 	var scanErr error
 	ok := Poll(ctx, 120, 100*time.Millisecond, func() bool {
 		matched, err := vppLogMatches(log, func(entry map[string]any) bool {
-			if entry["msg"] != "ip_route_add_del" {
+			if entry["msg"] != "ip_route_add_del_v2" {
 				return false
 			}
 			fields, _ := entry["fields"].(map[string]any)

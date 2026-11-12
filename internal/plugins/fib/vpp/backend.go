@@ -13,7 +13,6 @@ import (
 
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/fib_types"
-	"go.fd.io/govpp/binapi/ip"
 	"go.fd.io/govpp/binapi/ip_types"
 )
 
@@ -46,14 +45,19 @@ type vppBackend interface {
 	close() error
 }
 
-// govppBackend implements vppBackend using GoVPP binary API.
+// govppBackend implements vppBackend using GoVPP binary API. Every route it
+// adds or removes goes through source, under fib-vpp's own VPP FIB source
+// (routesource.go).
 type govppBackend struct {
 	ch      api.Channel
 	tableID uint32
+	source  *routeSource
 }
 
-func newGovppBackend(ch api.Channel, tableID uint32) *govppBackend {
-	return &govppBackend{ch: ch, tableID: tableID}
+// newGovppBackend binds the IP backend to ch. source MUST be bound to ch
+// too, and shared with the writer's MPLS backend.
+func newGovppBackend(ch api.Channel, tableID uint32, source *routeSource) *govppBackend {
+	return &govppBackend{ch: ch, tableID: tableID, source: source}
 }
 
 func (b *govppBackend) addRoute(prefix netip.Prefix, nextHop netip.Addr) error {
@@ -65,7 +69,8 @@ func (b *govppBackend) delRoute(prefix netip.Prefix) error {
 }
 
 func (b *govppBackend) replaceRoute(prefix netip.Prefix, nextHop netip.Addr) error {
-	// VPP IPRouteAddDel with IsAdd=true replaces existing route.
+	// An ip_route_add_del_v2 add that is not multipath replaces the source's
+	// existing path list.
 	return b.routeAddDel(true, prefix, nextHop)
 }
 
@@ -88,22 +93,8 @@ func (b *govppBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
 // Owned identities keep their exact table, including table zero after a
 // configured-table change. The public route methods still apply defaults.
 func (b *govppBackend) delRouteInTable(prefix netip.Prefix, tableID uint32) error {
-	req := &ip.IPRouteAddDel{
-		IsAdd: false,
-		Route: ip.IPRoute{
-			TableID: tableID,
-			Prefix:  toVPPPrefix(prefix),
-			NPaths:  0,
-		},
-	}
-	reply := &ip.IPRouteAddDelReply{}
-	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("IPRouteAddDel rich del: %w: %w", errVPPMutationUncertain, err)
-	}
-	if reply.Retval != 0 {
-		return fmt.Errorf("IPRouteAddDel rich del retval=%d", reply.Retval)
-	}
-	return nil
+	key := ipRouteKey{table: tableID, prefix: prefix}
+	return b.source.sendRoute("ip_route_add_del_v2 rich del", false, key, nil)
 }
 
 func (b *govppBackend) replaceRichRoute(r vppRichRoute) error {
@@ -150,29 +141,10 @@ func (b *govppBackend) addRichRouteInTable(r vppRichRoute, tableID uint32) error
 	}
 
 	if len(paths) == 0 {
-		return fmt.Errorf("IPRouteAddDel rich: no paths for prefix %v", r.Prefix)
+		return fmt.Errorf("ip_route_add_del_v2 rich: no paths for prefix %v", r.Prefix)
 	}
-	if len(paths) > 255 {
-		return fmt.Errorf("IPRouteAddDel rich: %d paths exceeds uint8 limit", len(paths))
-	}
-
-	req := &ip.IPRouteAddDel{
-		IsAdd: true,
-		Route: ip.IPRoute{
-			TableID: tableID,
-			Prefix:  toVPPPrefix(r.Prefix),
-			NPaths:  uint8(len(paths)),
-			Paths:   paths,
-		},
-	}
-	reply := &ip.IPRouteAddDelReply{}
-	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("IPRouteAddDel rich: %w: %w", errVPPMutationUncertain, err)
-	}
-	if reply.Retval != 0 {
-		return fmt.Errorf("IPRouteAddDel rich retval=%d", reply.Retval)
-	}
-	return nil
+	key := ipRouteKey{table: tableID, prefix: r.Prefix}
+	return b.source.sendRoute("ip_route_add_del_v2 rich", true, key, paths)
 }
 
 func routeTypeToVPP(rt sysribevents.RouteType) fib_types.FibPathType {
@@ -201,32 +173,17 @@ func (b *govppBackend) close() error {
 }
 
 func (b *govppBackend) routeAddDel(isAdd bool, prefix netip.Prefix, nextHop netip.Addr) error {
-	req := &ip.IPRouteAddDel{
-		IsAdd: isAdd,
-		Route: ip.IPRoute{
-			TableID: b.tableID,
-			Prefix:  toVPPPrefix(prefix),
-		},
-	}
+	key := ipRouteKey{table: b.tableID, prefix: prefix}
 	// A delete names the prefix and no path, so it is not asked for a next-hop
 	// and must not be refused for the want of one.
-	if isAdd {
-		path, err := gatewayPath(nextHop, prefix)
-		if err != nil {
-			return err
-		}
-		req.Route.NPaths = 1
-		req.Route.Paths = []fib_types.FibPath{path}
+	if !isAdd {
+		return b.source.sendRoute("ip_route_add_del_v2", false, key, nil)
 	}
-
-	reply := &ip.IPRouteAddDelReply{}
-	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("IPRouteAddDel: %w: %w", errVPPMutationUncertain, err)
+	path, err := gatewayPath(nextHop, prefix)
+	if err != nil {
+		return err
 	}
-	if reply.Retval != 0 {
-		return fmt.Errorf("IPRouteAddDel retval=%d", reply.Retval)
-	}
-	return nil
+	return b.source.sendRoute("ip_route_add_del_v2", true, key, []fib_types.FibPath{path})
 }
 
 // toVPPPrefix converts a Go netip.Prefix to a VPP ip_types.Prefix.

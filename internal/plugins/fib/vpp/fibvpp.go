@@ -75,7 +75,7 @@ func getEventBus() ze.EventBus {
 // fibVPPConfig holds parsed fib/vpp config values.
 // batch-size and batch-interval-ms are accepted by the parser (YANG leaves
 // exist) but not consumed: sysRIB already delivers per-family batches and
-// VPP's IPRouteAddDel is per-route, so cross-emission accumulation adds
+// VPP's ip_route_add_del_v2 is per-route, so cross-emission accumulation adds
 // complexity for zero benefit today.
 type fibVPPConfig struct {
 	tableID uint32
@@ -179,10 +179,15 @@ type fibVPP struct {
 	ipTableID     uint32
 	pathMTUWarned bool
 	retired       bool // prevents an old subscription racing reconnect reconciliation
-	backend       vppBackend
-	mplsBackend   mplsBackend
-	srv6Backend   srv6Backend
-	mu            sync.RWMutex
+	// routes is the VPP FIB source this writer's IP routes and labeled pushes
+	// are installed under, and the record of what a previous writer left
+	// under it (routesource.go). nil for a writer over a mock backend, which
+	// holds no VPP to sweep.
+	routes      *routeSource
+	backend     vppBackend
+	mplsBackend mplsBackend
+	srv6Backend srv6Backend
+	mu          sync.RWMutex
 }
 
 func newFibVPP(backend vppBackend) *fibVPP {
@@ -475,9 +480,9 @@ func (f *fibVPP) requestLabelReplay(eb ze.EventBus) {
 }
 
 // run requests replay after the plugin has subscribed and restored ownership,
-// then, labelSweepDelay later unless ctx ends first, removes the leftover
-// label routes no source re-claimed. The caller MUST cancel ctx when retiring
-// this worker.
+// then, labelSweepDelay later unless ctx ends first, removes the leftover IP
+// routes, labeled pushes and label routes no source re-claimed. The caller
+// MUST cancel ctx when retiring this worker.
 func (f *fibVPP) run(ctx context.Context, flushOnStop bool) {
 	eb := getEventBus()
 	if eb == nil {
@@ -494,13 +499,15 @@ func (f *fibVPP) run(ctx context.Context, flushOnStop bool) {
 	f.requestLabelReplay(eb)
 
 	logger().Info("fib-vpp: running")
-	// The sources answer the replay asynchronously; once the window has
-	// passed, a leftover label route nobody re-claimed is removed, as
-	// fib-kernel's sweepStale removes an IP route sysrib did not refresh.
+	// sysrib and the label sources answer the replay asynchronously; once the
+	// window has passed, a leftover IP route or label route nobody re-claimed
+	// is removed, as fib-kernel's sweepStale removes an IP route sysrib did
+	// not refresh.
 	sweep := time.NewTimer(labelSweepDelay)
 	select {
 	case <-ctx.Done():
 	case <-sweep.C:
+		f.sweepStaleRoutes()
 		f.sweepStaleLabels()
 		<-ctx.Done()
 	}

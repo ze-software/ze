@@ -231,9 +231,9 @@ func runFibVPPPlugin(conn net.Conn) int {
 
 	p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
 		fibMu.Lock()
-		f := fib
+		f, cause := fib, unreachable
 		fibMu.Unlock()
-		return answerLabelDoctorCheck(name, f)
+		return answerDoctorCheck(name, f, cause)
 	})
 
 	ctx, cancel := sdk.SignalContext()
@@ -259,8 +259,18 @@ func engineRegistration() *sdk.Registration {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
-		DoctorChecks: []rpc.DoctorCheckDecl{labelEntriesCheckDecl},
+		DoctorChecks: []rpc.DoctorCheckDecl{labelEntriesCheckDecl, staleRoutesCheckDecl},
 	}
+}
+
+// answerDoctorCheck answers the runtime doctor check named name from the
+// current writer f, or from unreachable, why there is none. A name fib-vpp
+// did not declare is refused by answerLabelDoctorCheck.
+func answerDoctorCheck(name string, f *fibVPP, unreachable error) ([]rpc.DoctorCheckDiagnostic, error) {
+	if name == staleRoutesCheckName {
+		return staleRouteDoctorFindings(f, unreachable), nil
+	}
+	return answerLabelDoctorCheck(name, f)
 }
 
 // answerLabelDoctorCheck answers the runtime doctor check named name from
@@ -283,7 +293,9 @@ func answerLabelDoctorCheck(name string, f *fibVPP) ([]rpc.DoctorCheckDiagnostic
 // whose backends are still nil. A nil connector (the vpp component is not
 // running) and a channel that will not open are refused, never answered with a
 // writer that programs nothing: such a writer would report every route as
-// installed while VPP holds none.
+// installed while VPP holds none. So is a VPP that gives the writer no FIB
+// source (routesource.go): its routes could not be told from another owner's,
+// so no stale sweep could ever remove them safely.
 func openFibVPPWriter(connector *vppcomp.Connector, table uint32, store srv6StateStore) (*fibVPP, error) {
 	if connector == nil {
 		return nil, errFibVPPNoConnector
@@ -293,8 +305,19 @@ func openFibVPPWriter(connector *vppcomp.Connector, table uint32, store srv6Stat
 		return nil, fmt.Errorf("fib-vpp: open a GoVPP channel: %w; run 'ze doctor' to see "+
 			"why VPP is not answering", err)
 	}
-	f := newFibVPP(newGovppBackend(ch, table))
-	f.mplsBackend = newGovppMPLSBackend(ch, table)
+	routes, err := openRouteSource(ch)
+	if err != nil {
+		ch.Close()
+		return nil, fmt.Errorf("%w; fib-vpp cannot mark the routes it installs as its own, so it programs "+
+			"none: run 'ze show doctor' to see whether VPP is answering, and run a VPP release that "+
+			"serves fib_source_add and ip_route_add_del_v2", err)
+	}
+	// Read what the source holds before any route is installed or any replay
+	// asked for: everything under it now is a previous run's.
+	routes.markStale()
+	f := newFibVPP(newGovppBackend(ch, table, routes))
+	f.routes = routes
+	f.mplsBackend = newGovppMPLSBackend(ch, table, routes)
 	f.srv6TableID = table
 	f.ipTableID = table
 	f.labelReplayToken = mplsfib.NewReplayToken()

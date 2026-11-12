@@ -65,8 +65,8 @@ type labelWriter struct {
 func newLabelWriter(t *testing.T, ipTable uint32) *labelWriter {
 	t.Helper()
 	ch := &testChannel{}
-	f := newFibVPP(newGovppBackend(ch, ipTable))
-	f.mplsBackend = newGovppMPLSBackend(ch, ipTable)
+	f := newFibVPP(newGovppBackend(ch, ipTable, testRouteSource(ch)))
+	f.mplsBackend = newGovppMPLSBackend(ch, ipTable, testRouteSource(ch))
 	f.ipTableID = ipTable
 	f.labelReplayToken = mplsfib.NewReplayToken()
 	w := &labelWriter{ch: ch, bus: &syncBus{}, fib: f}
@@ -222,7 +222,7 @@ func TestFibVPPLabelTTLUniform(t *testing.T) {
 		switch req := m.(type) {
 		case *mpls.MplsRouteAddDel:
 			paths = append(paths, req.MrRoute.MrPaths...)
-		case *ip.IPRouteAddDel:
+		case *ip.IPRouteAddDelV2:
 			paths = append(paths, req.Route.Paths...)
 		}
 	}
@@ -396,7 +396,7 @@ func TestFibVPPFlushRemovesLabelEntries(t *testing.T) {
 			if !req.MrIsAdd {
 				labelDels++
 			}
-		case *ip.IPRouteAddDel:
+		case *ip.IPRouteAddDelV2:
 			if !req.IsAdd {
 				ipDels++
 			}

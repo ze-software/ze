@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 
 	"go.fd.io/govpp/api"
+	"go.fd.io/govpp/binapi/fib"
 	"go.fd.io/govpp/binapi/fib_types"
 	"go.fd.io/govpp/binapi/ip"
 	"go.fd.io/govpp/binapi/ip_types"
@@ -36,16 +37,41 @@ import (
 type testChannel struct {
 	lastRequest api.Message
 	requests    []api.Message // every request, in order
-	retval      int32         // reply retval for IPRouteAddDelReply and the MPLS replies
+	retval      int32         // reply retval for IPRouteAddDelV2Reply and the MPLS replies
 	sendErr     error         // error returned by ReceiveReply
 	closed      bool
 	mplsDump    []mpls.MplsRoute // what an MplsRouteDump answers (mplsstale_test.go)
+	// ipTables and ipDump are what an IPTableDump and an IPRouteV2Dump answer
+	// (routesource_test.go): ipDump holds every route of every source, and a
+	// dump lists only those of the table and source it names, as VPP's
+	// fib_table_walk_w_src does. ipDumpErr fails the route dump alone.
+	ipTables  []ip.IPTable
+	ipDump    []ip.IPRouteV2
+	ipDumpErr error
+	// fibSources is what a FibSourceDump answers; fibSourceAddID the id a
+	// FibSourceAdd is given.
+	fibSources     []fib.FibSource
+	fibSourceAddID uint8
+	// delRetval is the retval of an IPRouteAddDelV2 delete of a prefix in it,
+	// so one leftover can be refused while the others are removed.
+	delRetval map[netip.Prefix]int32
+}
+
+// testRouteSourceID is the FIB source id testRouteSource binds, distinct
+// from FIB_SOURCE_API and from 0 (which VPP reads as FIB_SOURCE_API).
+const testRouteSourceID = 42
+
+// testRouteSource is fib-vpp's FIB source bound to ch, as openRouteSource
+// would return it for a VPP that already holds the source.
+func testRouteSource(ch *testChannel) *routeSource {
+	return &routeSource{ch: ch, id: testRouteSourceID}
 }
 
 var _ api.Channel = (*testChannel)(nil)
 
 type testRequestCtx struct {
-	ch *testChannel
+	ch  *testChannel
+	req api.Message
 }
 
 func (r *testRequestCtx) ReceiveReply(msg api.Message) error {
@@ -53,8 +79,18 @@ func (r *testRequestCtx) ReceiveReply(msg api.Message) error {
 		return r.ch.sendErr
 	}
 	switch reply := msg.(type) {
-	case *ip.IPRouteAddDelReply:
+	case *ip.IPRouteAddDelV2Reply:
 		reply.Retval = r.ch.retval
+		if req, ok := r.req.(*ip.IPRouteAddDelV2); ok && !req.IsAdd {
+			if prefix, err := fromVPPPrefix(req.Route.Prefix); err == nil {
+				if retval, refused := r.ch.delRetval[prefix]; refused {
+					reply.Retval = retval
+				}
+			}
+		}
+	case *fib.FibSourceAddReply:
+		reply.Retval = r.ch.retval
+		reply.ID = r.ch.fibSourceAddID
 	case *mpls.MplsRouteAddDelReply:
 		reply.Retval = r.ch.retval
 	case *mpls.MplsTableAddDelReply:
@@ -68,11 +104,15 @@ func (r *testRequestCtx) ReceiveReply(msg api.Message) error {
 func (c *testChannel) SendRequest(msg api.Message) api.RequestCtx {
 	c.lastRequest = msg
 	c.requests = append(c.requests, msg)
-	return &testRequestCtx{ch: c}
+	return &testRequestCtx{ch: c, req: msg}
 }
 
 func (c *testChannel) SendMultiRequest(msg api.Message) api.MultiRequestCtx {
 	c.requests = append(c.requests, msg)
+	switch msg.(type) {
+	case *ip.IPTableDump, *ip.IPRouteV2Dump, *fib.FibSourceDump:
+		return &testIPDumpCtx{ch: c, msg: msg}
+	}
 	return &testMPLSDumpCtx{ch: c, msg: msg}
 }
 func (c *testChannel) SubscribeNotification(chan api.Message, api.Message) (api.SubscriptionCtx, error) {
@@ -196,18 +236,18 @@ func newFibVPPWithMPLS(ip vppBackend, mpls mplsBackend) *fibVPP {
 // --- govppBackend via mock channel tests ---
 
 func TestBackendAddRoute(t *testing.T) {
-	// VALIDATES: AC-1 -- addRoute sends IPRouteAddDel with IsAdd=true
+	// VALIDATES: AC-1 -- addRoute sends ip_route_add_del_v2 with IsAdd=true
 	ch := &testChannel{}
-	b := newGovppBackend(ch, 0)
+	b := newGovppBackend(ch, 0, testRouteSource(ch))
 
 	err := b.addRoute(netip.MustParsePrefix("10.0.0.0/24"), netip.MustParseAddr("192.168.1.1"))
 	if err != nil {
 		t.Fatalf("addRoute: %v", err)
 	}
 
-	req, ok := ch.lastRequest.(*ip.IPRouteAddDel)
+	req, ok := ch.lastRequest.(*ip.IPRouteAddDelV2)
 	if !ok {
-		t.Fatalf("lastRequest type: got %T, want *ip.IPRouteAddDel", ch.lastRequest)
+		t.Fatalf("lastRequest type: got %T, want *ip.IPRouteAddDelV2", ch.lastRequest)
 	}
 	if !req.IsAdd {
 		t.Error("IsAdd: got false, want true")
@@ -221,16 +261,16 @@ func TestBackendAddRoute(t *testing.T) {
 }
 
 func TestBackendDelRoute(t *testing.T) {
-	// VALIDATES: AC-2 -- delRoute sends IPRouteAddDel with IsAdd=false, no paths
+	// VALIDATES: AC-2 -- delRoute sends ip_route_add_del_v2 with IsAdd=false, no paths
 	ch := &testChannel{}
-	b := newGovppBackend(ch, 0)
+	b := newGovppBackend(ch, 0, testRouteSource(ch))
 
 	err := b.delRoute(netip.MustParsePrefix("10.0.0.0/24"))
 	if err != nil {
 		t.Fatalf("delRoute: %v", err)
 	}
 
-	req, ok := ch.lastRequest.(*ip.IPRouteAddDel)
+	req, ok := ch.lastRequest.(*ip.IPRouteAddDelV2)
 	if !ok {
 		t.Fatalf("lastRequest type: got %T", ch.lastRequest)
 	}
@@ -248,14 +288,14 @@ func TestBackendDelRoute(t *testing.T) {
 func TestBackendReplaceRoute(t *testing.T) {
 	// VALIDATES: AC-3 -- replaceRoute sends IsAdd=true (VPP overwrites)
 	ch := &testChannel{}
-	b := newGovppBackend(ch, 0)
+	b := newGovppBackend(ch, 0, testRouteSource(ch))
 
 	err := b.replaceRoute(netip.MustParsePrefix("10.0.0.0/24"), netip.MustParseAddr("10.10.10.1"))
 	if err != nil {
 		t.Fatalf("replaceRoute: %v", err)
 	}
 
-	req, ok := ch.lastRequest.(*ip.IPRouteAddDel)
+	req, ok := ch.lastRequest.(*ip.IPRouteAddDelV2)
 	if !ok {
 		t.Fatalf("lastRequest type: got %T", ch.lastRequest)
 	}
@@ -267,14 +307,14 @@ func TestBackendReplaceRoute(t *testing.T) {
 func TestBackendVRFTableID(t *testing.T) {
 	// VALIDATES: AC-9 -- table-id propagated to VPP request
 	ch := &testChannel{}
-	b := newGovppBackend(ch, 42)
+	b := newGovppBackend(ch, 42, testRouteSource(ch))
 
 	err := b.addRoute(netip.MustParsePrefix("10.0.0.0/24"), netip.MustParseAddr("1.1.1.1"))
 	if err != nil {
 		t.Fatalf("addRoute: %v", err)
 	}
 
-	req, ok := ch.lastRequest.(*ip.IPRouteAddDel)
+	req, ok := ch.lastRequest.(*ip.IPRouteAddDelV2)
 	if !ok {
 		t.Fatalf("lastRequest type: got %T", ch.lastRequest)
 	}
@@ -286,7 +326,7 @@ func TestBackendVRFTableID(t *testing.T) {
 func TestBackendRetvalError(t *testing.T) {
 	// VALIDATES: VPP retval != 0 produces error
 	ch := &testChannel{retval: -1}
-	b := newGovppBackend(ch, 0)
+	b := newGovppBackend(ch, 0, testRouteSource(ch))
 
 	err := b.addRoute(netip.MustParsePrefix("10.0.0.0/24"), netip.MustParseAddr("1.1.1.1"))
 	if err == nil {
@@ -297,7 +337,7 @@ func TestBackendRetvalError(t *testing.T) {
 func TestBackendSendError(t *testing.T) {
 	// VALIDATES: GoVPP send error propagated
 	ch := &testChannel{sendErr: fmt.Errorf("connection lost")}
-	b := newGovppBackend(ch, 0)
+	b := newGovppBackend(ch, 0, testRouteSource(ch))
 
 	err := b.addRoute(netip.MustParsePrefix("10.0.0.0/24"), netip.MustParseAddr("1.1.1.1"))
 	if err == nil {
@@ -308,7 +348,7 @@ func TestBackendSendError(t *testing.T) {
 func TestBackendClose(t *testing.T) {
 	// VALIDATES: AC-10 -- close releases channel
 	ch := &testChannel{}
-	b := newGovppBackend(ch, 0)
+	b := newGovppBackend(ch, 0, testRouteSource(ch))
 
 	err := b.close()
 	if err != nil {
@@ -320,13 +360,13 @@ func TestBackendClose(t *testing.T) {
 }
 
 func TestBackendIPv4PrefixConversion(t *testing.T) {
-	// VALIDATES: AC-7 -- IPv4 prefix in IPRouteAddDel has correct AF and length
+	// VALIDATES: AC-7 -- IPv4 prefix in ip_route_add_del_v2 has correct AF and length
 	ch := &testChannel{}
-	b := newGovppBackend(ch, 0)
+	b := newGovppBackend(ch, 0, testRouteSource(ch))
 
 	_ = b.addRoute(netip.MustParsePrefix("172.16.0.0/12"), netip.MustParseAddr("10.0.0.1"))
 
-	req, ok := ch.lastRequest.(*ip.IPRouteAddDel)
+	req, ok := ch.lastRequest.(*ip.IPRouteAddDelV2)
 	if !ok {
 		t.Fatalf("lastRequest type: got %T", ch.lastRequest)
 	}
@@ -339,13 +379,13 @@ func TestBackendIPv4PrefixConversion(t *testing.T) {
 }
 
 func TestBackendIPv6PrefixConversion(t *testing.T) {
-	// VALIDATES: AC-8 -- IPv6 prefix in IPRouteAddDel has correct AF and length
+	// VALIDATES: AC-8 -- IPv6 prefix in ip_route_add_del_v2 has correct AF and length
 	ch := &testChannel{}
-	b := newGovppBackend(ch, 0)
+	b := newGovppBackend(ch, 0, testRouteSource(ch))
 
 	_ = b.addRoute(netip.MustParsePrefix("2001:db8::/32"), netip.MustParseAddr("fe80::1"))
 
-	req, ok := ch.lastRequest.(*ip.IPRouteAddDel)
+	req, ok := ch.lastRequest.(*ip.IPRouteAddDelV2)
 	if !ok {
 		t.Fatalf("lastRequest type: got %T", ch.lastRequest)
 	}
@@ -964,7 +1004,7 @@ func labelRouteRequests(t *testing.T, ch *testChannel) []*mpls.MplsRouteAddDel {
 // recording fake channel.
 func TestMPLSSwap(t *testing.T) {
 	ch := &testChannel{}
-	b := newGovppMPLSBackend(ch, 5)
+	b := newGovppMPLSBackend(ch, 5, testRouteSource(ch))
 	nh := netip.MustParseAddr("192.168.1.1")
 
 	err := b.addLabelRoutes(labelRoute{inLabel: 100, outLabels: []uint32{200}, nextHop: nh})
@@ -990,7 +1030,7 @@ func TestMPLSSwap(t *testing.T) {
 // VPP reads as a pop. Method: as TestMPLSSwap.
 func TestMPLSPop(t *testing.T) {
 	ch := &testChannel{}
-	b := newGovppMPLSBackend(ch, 0)
+	b := newGovppMPLSBackend(ch, 0, testRouteSource(ch))
 	nh := netip.MustParseAddr("192.168.1.1")
 
 	err := b.addLabelRoutes(labelRoute{inLabel: 100, nextHop: nh})
@@ -1014,7 +1054,7 @@ func TestMPLSDelete(t *testing.T) {
 	assert.Equal(t, pfx, mb.delPushes[0])
 
 	ch := &testChannel{}
-	err = newGovppMPLSBackend(ch, 0).delLabelRoutes(100)
+	err = newGovppMPLSBackend(ch, 0, testRouteSource(ch)).delLabelRoutes(100)
 	require.NoError(t, err)
 	reqs := labelRouteRequests(t, ch)
 	require.Len(t, reqs, 2)
@@ -1030,7 +1070,7 @@ func TestMPLSDelete(t *testing.T) {
 func TestMPLSCreateTableZero(t *testing.T) {
 	ch := &testChannel{}
 
-	err := newGovppMPLSBackend(ch, 7).createMPLSTable()
+	err := newGovppMPLSBackend(ch, 7, testRouteSource(ch)).createMPLSTable()
 	require.NoError(t, err)
 	require.Len(t, ch.requests, 1)
 	req, ok := ch.requests[0].(*mpls.MplsTableAddDel)
@@ -1039,7 +1079,7 @@ func TestMPLSCreateTableZero(t *testing.T) {
 	assert.Equal(t, uint32(0), req.MtTable.MtTableID)
 
 	ch.retval = -6
-	err = newGovppMPLSBackend(ch, 7).createMPLSTable()
+	err = newGovppMPLSBackend(ch, 7, testRouteSource(ch)).createMPLSTable()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "retval=-6")
 }
