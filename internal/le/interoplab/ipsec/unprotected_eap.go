@@ -32,8 +32,8 @@ const unprotForgedMessageID = 2
 // octet is 0xa5, so the ICV check fails and nothing decrypts.
 const unprotSKFillerOctets = 64
 
-// unprotDropMetric is the Prometheus series discardUnauthenticatedHandshakeRequest
-// (internal/component/ike/engine/responder_unauthenticated.go) raises for each drop.
+// unprotDropMetric is the Prometheus series openProtected
+// (internal/component/ike/engine/protected_input.go) raises for each drop.
 const unprotDropMetric = `ze_ipsec_error_notify_suppressed_total{reason="handshake-unauthenticated"}`
 
 // unprotSwanConnecting matches the IKE SA line `swanctl --list-sas` prints while the
@@ -113,7 +113,7 @@ func checkResponderEAPSurvivesUnprotectedAuth(ctx context.Context, lab *scenario
 	if spis == nil {
 		return interoplab.WithSearchedOutput(fmt.Errorf("no CONNECTING IKE SA with both SPIs in swanctl --list-sas"), listing)
 	}
-	forged, err := unprotForgedAuthHex(spis[1], spis[2])
+	forged, err := unprotForgedAuthHex(spis[1], spis[2], unprotFlagsInitiatorRequest, unprotForgedMessageID, unprotInnerEAP)
 	if err != nil {
 		return err
 	}
@@ -146,14 +146,30 @@ func checkResponderEAPSurvivesUnprotectedAuth(ctx context.Context, lab *scenario
 	return lab.verifyTunnelTraffic(ctx, "no traffic after an EAP exchange that survived forged IKE_AUTH requests")
 }
 
-// unprotForgedAuthHex builds the forged IKE_AUTH request rawprobe sends, as the 0x hex
+// The three octets that tell the two forged IKE_AUTH shapes apart: the RFC 7296
+// Section 3.1 Flags of a request (Initiator, 0x08) and of a response to an initiator
+// (Response, 0x20), and the first payload inside the Encrypted payload, EAP (48) for
+// the request and IDr (36) for the response.
+const (
+	unprotFlagsInitiatorRequest  byte = 0x08
+	unprotFlagsResponderResponse byte = 0x20
+	unprotInnerEAP               byte = 48
+	unprotInnerIDr               byte = 36
+)
+
+// unprotForgedAuthUDPOctets is the UDP length of every datagram unprotForgedAuthHex
+// builds: the 8-octet UDP header rawprobe writes, the 4-octet non-ESP marker, the
+// 28-octet IKE header and the Encrypted payload's 4-octet generic header and filler.
+const unprotForgedAuthUDPOctets = 8 + 4 + 28 + 4 + unprotSKFillerOctets
+
+// unprotForgedAuthHex builds a forged IKE_AUTH message rawprobe sends, as the 0x hex
 // injectOutOfSA takes. The four zero octets of the non-ESP marker (RFC 3948 Section
 // 2.2) come first, because the exchange runs on UDP 4500. The RFC 7296 Section 3.1
 // header follows: the two SPIs, Next Payload 46 (Encrypted), version 2.0 (0x20),
-// Exchange Type IKE_AUTH (35), Flags Initiator (0x08), Message ID and Length. Then the
-// Encrypted payload: Next Payload 48 (EAP), the critical octet, its length, and
-// unprotSKFillerOctets of filler.
-func unprotForgedAuthHex(initiatorSPI, responderSPI string) (string, error) {
+// Exchange Type IKE_AUTH (35), flags, Message ID and Length. Then the Encrypted
+// payload: the Next Payload octet firstInner, the critical octet, its length, and
+// unprotSKFillerOctets of filler, so its integrity check fails.
+func unprotForgedAuthHex(initiatorSPI, responderSPI string, flags, messageID, firstInner byte) (string, error) {
 	const markerOctets, headerOctets, genericOctets = 4, 28, 4
 	skOctets := genericOctets + unprotSKFillerOctets
 	total := headerOctets + skOctets
@@ -166,10 +182,10 @@ func unprotForgedAuthHex(initiatorSPI, responderSPI string) (string, error) {
 		}
 		message = append(message, raw...)
 	}
-	message = append(message, 46, 0x20, 35, 0x08,
-		0, 0, 0, unprotForgedMessageID,
+	message = append(message, 46, 0x20, 35, flags,
+		0, 0, 0, messageID,
 		byte(total>>24), byte(total>>16), byte(total>>8), byte(total),
-		48, 0, byte(skOctets>>8), byte(skOctets))
+		firstInner, 0, byte(skOctets>>8), byte(skOctets))
 	for range unprotSKFillerOctets {
 		message = append(message, 0xa5)
 	}

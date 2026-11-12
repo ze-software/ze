@@ -2464,7 +2464,7 @@ subsystem's level without changing the shared default.
 
 `out-of-sa-request-notified-over-sa` proves RFC 7296 Section 2.21.4 against
 strongSwan. Once the PSK tunnel is up, strongSwan sends Ze, from its own
-address and port 500, a header-only IKE datagram whose SPI pair names no IKE SA.
+address and port 4500, a header-only IKE datagram whose SPI pair names no IKE SA.
 `rawprobe -p udp -x` (`test/interop-ipsec/rawprobe.c`) writes it through a raw IP
 socket, as `craftedProbe` writes its probes.
 charon logs a `parsed INFORMATIONAL request` line only for a message it
@@ -2474,6 +2474,43 @@ first and must draw no such line within five seconds, and the SA and its tunnel
 must survive both.
 
 <!-- source: internal/le/interoplab/ipsec/suspicious.go -- checkOutOfSARequestNotifiedOverSA, injectOutOfSA, countProtectedInvalidIKESPI -->
+
+`ipsec-auth-corrupt-response-strongswan` proves RFC 7296 Section 2.4 with Ze as
+the initiator: forged IKE_AUTH responses that fail their integrity check do not
+end Ze's handshake. After a control establishment, strongSwan holds its own
+IKE_AUTH responses to Ze in an nftables table on its output hook, matching
+UDP source port 4500 and the Exchange Type octet (`@th,240,8`, 35). It then
+terminates the IKE SA, and Ze reconnects. Ze sends IKE_AUTH from port 4500
+because it offers MOBIKE (`mobikeAuthOffer`), and charon answers along the path
+the request came in (`build_response`), so IKE_SA_INIT still passes on port 500.
+charon logs `received retransmit of request with ID 1, retransmitting response`
+for each retransmission Ze sends into the hold (`process_message` and
+`is_retransmit` in `task_manager_v2.c`, strongSwan 6.1.0). The checker then
+injects twenty IKE_AUTH responses under the live SPI pair, at Message ID 1, each
+with an Encrypted payload of filler. rawprobe's raw socket passes the same output
+hook as charon's socket, so the hold rule exempts the forgeries' UDP length.
+That socket also takes the XFRM output path, and charon has already installed
+its Child SA (selectors `0.0.0.0/0`) when it answers into the hold, so without
+help the forgeries would leave as ESP under an SA Ze never installed and die in
+Ze's kernel (`XfrmInNoStates`). The checker adds an outbound XFRM policy with
+no template on strongSwan, for UDP toward Ze at priority 1, and removes it once
+the counter has risen and before the hold lifts. The selector names no port:
+rawprobe opens its raw socket without `IP_HDRINCL`, and `raw_sendmsg`
+(`net/ipv4/raw.c`) looks the flow up with the socket's protocol and both ports
+zero, so a selector on port 4500 never matches it. A failing run of this
+checker carries strongSwan's XFRM tables and nftables counters, Ze's XFRM and
+UDP counters, sockets and `ze_ipsec` series, and rawprobe's own report.
+`ze_ipsec_error_notify_suppressed_total{reason="handshake-unauthenticated"}`
+must rise by exactly twenty. The hold must lift before Ze's last retransmission,
+32 seconds after its request (`retransmitBase`, `retransmitBackoff` and
+`maxRetransmissions` in `fsm.go`), and the checker refuses a run that took
+longer. Ze must then establish the IKE SA whose initiator SPI the forgeries
+named, and pass traffic over it. With the initiator fix reverted, the first
+forgery ends the handshake, so the counter stays still and Ze establishes a new
+SA under a new initiator SPI.
+
+<!-- source: internal/le/interoplab/ipsec/unprotected_response.go -- checkInitiatorSurvivesUnprotectedAuthResponse, holdAuthResponses, zeLastAuthRetransmitOffset -->
+<!-- source: internal/component/ike/engine/mobike.go -- mobikeAuthOffer -->
 
 ### The outer DF bit and ICMP errors on a Child SA (RFC 4301)
 

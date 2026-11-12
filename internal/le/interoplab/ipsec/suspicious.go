@@ -118,10 +118,18 @@ func countProtectedInvalidIKESPI(logs string) int {
 // Ze's port 4500, the endpoint pair the SA uses. rawprobe writes it through a raw IP
 // socket, as craftedProbe explains, so charon's own 4500 socket does not stand in the way.
 func (l *scenarioLab) injectOutOfSA(ctx context.Context, payloadHex string) error {
+	_, err := l.injectOutOfSAReport(ctx, payloadHex)
+	return err
+}
+
+// injectOutOfSAReport is injectOutOfSA answering rawprobe's own report of what it
+// sent ("SENT udp <source>:<port> > <target>:<port> len=... csum=..."), for a checker
+// whose red must say what left strongSwan.
+func (l *scenarioLab) injectOutOfSAReport(ctx context.Context, payloadHex string) (string, error) {
 	output, err := l.exec(ctx, swanPeer, rawProbe, "-p", "udp",
 		"-s", outOfSAPort, "-d", outOfSAPort, "-x", payloadHex, zeIP)
 	if err != nil {
-		return fmt.Errorf("rawprobe out-of-SA IKE datagram to %s on strongSwan: %w: %s", zeIP, err, output)
+		return output, fmt.Errorf("rawprobe out-of-SA IKE datagram to %s on strongSwan: %w: %s", zeIP, err, output)
 	}
-	return nil
+	return output, nil
 }

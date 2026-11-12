@@ -134,6 +134,18 @@
   {
     "rid": "RFC7296-2.4-3",
     "polarity": "negative",
+    "unit": "internal/le/interoplab/ipsec/unprotected_response.go::checkInitiatorSurvivesUnprotectedAuthResponse",
+    "unit-sha": "d83b03df1dfd8f98",
+    "claim-sha": "258a8d3d72a9068e",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "line 112: \"return nil, true, nil\" -\u003e \"return nil, false, err\"",
+    "citation": "5"
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
     "unit": "test/ipsec/ike-auth-corrupt-response.ci",
     "unit-sha": "2235681e7a24471f",
     "claim-sha": "9c7fd9ae03b15dfd",

@@ -69,6 +69,7 @@ var scenarioCheckers = map[string]scenarioCheck{
 	"ike-rekey-retries-in-the-named-group":            {run: checkIKERekeyRetriesInTheNamedGroup},
 	"initiator-rekey-answer-narrows":                  {run: checkInitiatorRekeyAnswerNarrows},
 	"invalid-ke-retry":                                {run: checkInvalidKERetry},
+	"ipsec-auth-corrupt-response-strongswan":          {run: checkInitiatorSurvivesUnprotectedAuthResponse},
 	"ipsec-bgp-redistribute-frr":                      {run: checkIPsecBGPRedistributeFRR},
 	"mobike-initiator":                                {run: checkMOBIKEInitiator},
 	"mobike-responder":                                {run: checkMOBIKEResponder},
