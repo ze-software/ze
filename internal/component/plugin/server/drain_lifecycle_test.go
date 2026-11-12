@@ -12,6 +12,7 @@ import (
 	"context"
 	"net"
 	"slices"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -38,8 +39,9 @@ type drainPluginSpec struct {
 type drainPluginProbe struct {
 	starts  atomic.Int64
 	entered chan struct{} // one send per drain handler entry, never blocking
-	// respawned runs at the start of every generation after the first, which
-	// is inside applyFailurePolicy's restart, so it sees what the policy saw.
+	// respawned runs at the start of every generation after the first, on that
+	// generation's engine goroutine, which Respawn starts after the failure
+	// policy joined the old generation's drain caller.
 	respawned atomic.Pointer[func()]
 }
 
@@ -142,17 +144,30 @@ func TestDrainCallerLifecycle(t *testing.T) {
 	assert.Nil(t, drainCallerOf(s, noBudget), "a generation with no DrainBudget got a drain caller")
 	old := drainCallerOf(s, first)
 
-	// (c) idle, then (d). The check runs inside the respawn, so it observes
-	// the caller set as applyFailurePolicy left it, not after it returned.
+	// (c) idle, then (d). The check runs on the second generation's engine
+	// goroutine, which Respawn starts (startInternal) after superviseProcess
+	// removed and joined the old caller (stopDrainCaller), so it observes the
+	// caller set as the respawn met it. Respawn writes the manager's slot before
+	// or while that goroutine runs, so the slot change below does not mean the
+	// check has run: the test waits on checked, which the check closes once
+	// after storing both flags, before it reads them.
 	var oldReturned, oldRemoved atomic.Bool
+	checked := make(chan struct{})
+	var checkOnce sync.Once
 	check := func() {
 		oldReturned.Store(isClosed(old.done))
 		oldRemoved.Store(drainCallerOf(s, first) == nil)
+		checkOnce.Do(func() { close(checked) })
 	}
 	probe.respawned.Store(&check)
 	close(crash)
 	require.Eventually(t, func() bool { return pm.GetProcess(life.name) != first }, failureWait, 10*time.Millisecond,
 		"the plugin exited and the failure policy never respawned it")
+	select {
+	case <-checked:
+	case <-time.After(failureWait):
+		t.Fatal("the respawned generation never ran its check")
+	}
 	assert.True(t, oldReturned.Load(), "the old caller had not returned when the respawn ran")
 	assert.True(t, oldRemoved.Load(), "the ended generation's caller was still in the set when the respawn ran")
 
