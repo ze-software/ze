@@ -389,9 +389,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   does not authorize a push or deployment.
 - Website work is tested once, at the closure of the work, after Thomas has
   said he is happy with the pages. While he is still reviewing, an agent
-  changes the page, rebuilds it and shows it, and runs no test: a test run
-  during review checks a moving target. The tests and their fixtures are
-  brought up to date, and run, when the pages are approved.
+  changes the page, renders that page alone from the working tree and shows
+  it. It neither commits nor runs a test: the output is most often not right
+  the first time, and a test run during review checks a moving target. The
+  commit, the tests and their fixtures come when the pages are approved.
 - When the website talks about how Ze is developed with AI, it presents AI as
   a means to quality: the project built a framework that constrains and guides
   how agents develop (specs agreed first, tests first, independent review,
