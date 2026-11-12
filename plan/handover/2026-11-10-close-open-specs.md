@@ -1,14 +1,45 @@
 # Handover: closing near-done specs (2026-11-10)
 
-**Current status (2026-11-12):** nine specs closed; refusal is blocked on scoped lint;
-lint-tooling and route-policy remain claimed. Access is source-complete and
-blocked on foreign guest-build input and changing lint dependencies.
-Route-policy still owes matched Mac measurements. Reload's claim is released.
+**Current status (2026-11-12 03:10 UTC):** nine specs closed. Refusal's lint
+ran and its owned findings are fixed, uncommitted, with tests owed. Lint-tooling
+is unblocked and its known findings are fixed, uncommitted. Access has five of
+seven acceptance cases. Route-policy still owes matched Mac measurements and
+has a written procedure. No claim is held. The continuation checkpoint below
+is the current state.
 **Branch:** main. No push was performed by this session; Thomas controls pushes.
 **Goal:** close the open specs whose implementation is already committed. The
 owner asked that locked or blocked specs not stop progress on the others.
 
-## Current Access blocked checkpoint, 2026-11-12
+## Continuation checkpoint, 2026-11-12 03:10 UTC (session 49765d8f)
+
+This section supersedes the blocker statements below where they differ. Short
+log names are under `tmp/session/2026-11-12-014013/scratch/`. No push and no
+`./le verify` ran. Every test, lint and lab ran in main.
+
+Two old blockers are gone. The inventory build that held lint-tooling was
+deleted outright in `066717fbab`, and the FIB vendor package that held Access
+landed in `e8cb8ef87c`. The sessions behind the old lint-tooling and
+route-policy claim markers have no session directory left.
+
+The new shared blocker is the session running
+`spec-single-owner-lifecycle-5-session-end-locals` (`26c7a22c`): its agents
+rework L2TP teardown, LDP and DDoS session-end code, and `internal/component/l2tp`
+stops compiling for minutes at a time. Every test, lint and lab links that
+package, the `le` tooling included. Type-check first (`./le test unit pkg ... vet`
+takes under a minute), then start the job.
+
+| Spec | State | Next |
+|------|-------|------|
+| refusal | The 13-package scoped lint ran: 134 findings, 8 owned, 105 from other sessions' commits, 21 in their untracked files (`refusal-lint-ownership.tsv`). One more owned defect showed in the compile-out build: `cmd/ze/hub/build_tag_ntp_absent_test.go` did not compile after `GetNTPSyncInfo` gained its query. All nine are fixed in the working tree, uncommitted, and an independent bounded review is CLEAN. NTP, RIB and show package tests pass (`job-unit-pkg-ba291acb.log`, RIB rerun `job-unit-pkg-1cf6d23e.log`). | Hub tests in both NTP builds, the fixture package, `test/plugin/system-date-ntp-forked.ci`, then the same lint once more. Commit the fixes, record the review for this session, then the two closing commits |
+| lint-tooling | 93 of the 98 findings that overlap the refusal scope are fixed across 72 files (`lint3-agent-files.txt`), uncommitted. Independent review: round 1 found two issues, round 2 is CLEAN. The six changed packages type-check (`job-vet-pkg-7dd5a45b.log`). | Package tests of `internal/test/fixture`, `internal/le/interoplab/bgp`, `internal/le/rfc`; the spec's own scoped lint, which will show what else landed in that scope; Review Gate; closure. `plugin_fixture_10_process.go` carries another session's edits and keeps one unparam finding |
+| access | Three more cases pass on the Ze Docker-host VM: `04-radius-acct-attrs`, `01-pppoe-chap-ipv4`, `02-ze-ac-pppd-client` (`access-batch-0303-three-pass.log`). With the two earlier passes, five of seven. The L2TP code under test included the lifecycle session's uncommitted edits. | `radius-admin-eap-freeradius` and `radius-coa-disconnect-freeradius` (`access-two-labs.py`). Then the scoped lint, with `./internal/plugins/cos/... ./internal/core/diagnostic/...` added to the twelve trees the last attempt named, because the review population reaches both. Re-record the review for the closing session: `internal/core/diagnostic/codes.go` gained foreign lines, so pin it as the blob `857da9e798` committed |
+| route-policy | Unchanged: needs the owner's Mac. The procedure is `plan/records/route-policy-0-a4-procedure.md` (`551a39b32b`), with a third column for `origin/main` because `dfa96ffa2e` later touched the insert path. | Owner runs it; then reconcile, final review, closure |
+
+A review record is keyed to the session that commits. The records under
+`tmp/review/` belong to session `01a1c842`, so each closure records again for
+its own session, over the files of the commit it makes.
+
+## Access blocked checkpoint, 2026-11-12 (superseded above)
 
 Native commit preparation initially refused two owned error-reporting sites and produced
 no script. Main corrected duplicate literal `tc` startup registration to a
