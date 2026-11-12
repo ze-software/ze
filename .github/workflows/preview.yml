@@ -1,0 +1,38 @@
+name: preview
+
+# Prepared evaluation artifacts only. Release activation is a separate owner step.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout the selected preview source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select the pinned bootstrap Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Prepare both Linux targets and native images
+        # le activates Ze's patched GOROOT; Docker recipes do the same using
+        # gen.Pin(go.mod). RUNNER_TEMP keeps build output outside source inputs.
+        run: ./le --name preview-ci build preview run output "$RUNNER_TEMP/ze-preview" images
+      - name: Check the downloadable bundle
+        run: ./le --name preview-ci build preview check path "$RUNNER_TEMP/ze-preview"
+      - name: Retain the prepared preview for review
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ze-preview-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/ze-preview/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

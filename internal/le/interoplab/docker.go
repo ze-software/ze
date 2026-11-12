@@ -107,11 +107,13 @@ type Docker struct {
 
 // ImageBuild identifies one image that a suite builds before it starts scenarios.
 type ImageBuild struct {
-	Name       string   `json:"name"`
-	Tag        string   `json:"tag"`
-	Dockerfile string   `json:"dockerfile"`
-	Context    string   `json:"context"`
-	BuildArgs  []string `json:"build-args,omitempty"`
+	Name       string `json:"name"`
+	Tag        string `json:"tag"`
+	Dockerfile string `json:"dockerfile"`
+	Context    string `json:"context"`
+	// Target selects one Dockerfile stage. Empty builds the final stage.
+	Target    string   `json:"target,omitempty"`
+	BuildArgs []string `json:"build-args,omitempty"`
 	// NamedContexts are the additional build contexts a Dockerfile reads
 	// with `COPY --from=<name>`, such as a sibling source checkout.
 	NamedContexts []NamedBuildContext `json:"named-contexts,omitempty"`
@@ -479,6 +481,9 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 	if build.Timeout < 0 {
 		return image, errors.New("Docker build timeout must not be negative")
 	}
+	if err := validateBuildTarget(build.Target); err != nil {
+		return image, err
+	}
 	// The image's field only ever lengthens the machine bound, the same rule
 	// Pull applies to its caller's bound.
 	timeout := max(build.Timeout, d.buildTimeout)
@@ -495,6 +500,9 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 	arguments := []string{DockerExecutable, "build"}
 	arguments = append(arguments, d.owner.labelArguments(resourceImageTag)...)
 	arguments = append(arguments, "-t", build.Tag)
+	if build.Target != "" {
+		arguments = append(arguments, "--target", build.Target)
+	}
 	for _, argument := range build.BuildArgs {
 		arguments = append(arguments, "--build-arg", argument)
 	}

@@ -1,0 +1,17 @@
+# Packages an already built static Linux ze binary. The context contains only
+# this recipe and ze; source-building images retain their separate recipes.
+FROM alpine:3.24.3 AS certificates
+RUN apk add --no-cache ca-certificates
+
+FROM scratch AS deployment
+COPY --from=certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY ze /ze
+EXPOSE 179 2222 8080
+ENTRYPOINT ["/ze"]
+
+FROM alpine:3.24.3 AS lab
+RUN apk add --no-cache tini iproute2 ca-certificates
+COPY ze /usr/local/bin/ze
+EXPOSE 179 2222 8080
+ENTRYPOINT ["tini", "--"]
+CMD ["ze", "start", "/etc/ze/ze.conf"]

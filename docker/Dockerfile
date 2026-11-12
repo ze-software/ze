@@ -8,7 +8,7 @@ FROM golang:1.27-alpine AS builder
 
 # git applies Ze's standard-library patch when the build below generates the
 # patched GOROOT (docs/contributing/patching-the-standard-library.md).
-RUN apk add --no-cache git
+RUN apk add --no-cache git ca-certificates
 
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -42,7 +42,7 @@ ARG ZE_TAGS
 # .dockerignore, so the tree lands in a real cache/stdpatch/ inside this stage.
 RUN . ./feature-tags && ZE_FEATURES="$(feature_tags feature-gates.txt ' ')" && \
     tree="$(go run ./internal/le/go/stdpatch/goroot)" && \
-    GOROOT="$tree" GOTOOLCHAIN=local PATH="$tree/bin:$PATH" CGO_ENABLED=0 "$tree/bin/go" build \
+    GOROOT="$tree" GOTOOLCHAIN=local PATH="$tree/bin:$PATH" CGO_ENABLED=0 "$tree/bin/go" build -trimpath -buildvcs=false \
     -tags "ze_core $ZE_FEATURES $ZE_TAGS" \
     -ldflags "-X main.version=${ZE_VERSION:-dev} -X main.buildDate=${ZE_BUILD_DATE:-unknown}" \
     -o /ze ./cmd/ze
@@ -51,6 +51,7 @@ RUN . ./feature-tags && ZE_FEATURES="$(feature_tags feature-gates.txt ' ')" && \
 FROM scratch
 
 COPY --from=builder /ze /ze
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 EXPOSE 179 1790 8080
 

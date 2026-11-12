@@ -18,6 +18,7 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 
 	_ "github.com/ze-software/ze/internal/le/build/hostdriver"
+	_ "github.com/ze-software/ze/internal/le/build/preview"
 	_ "github.com/ze-software/ze/internal/le/go/stdpatch"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	_ "github.com/ze-software/ze/internal/le/perf"
@@ -194,9 +195,11 @@ func jobBlocks(t *testing.T, name string) []jobBlock {
 // nativeActionPattern reads up to four words after le, because a command may
 // be a namespace and its member before its verb: `le verify deps vulnerability`
 // is one command of two words and one verb, and `le setup docker kernel check`
-// one command of three words and one verb.
+// one command of three words and one verb. The public launcher can consume a
+// leading --name <name> or --name=<name> before those command words; its name
+// is not an action. Noncapturing groups preserve the command-word offsets.
 var nativeActionPattern = regexp.MustCompile(
-	`(?m)(^|[[:space:];&|])(\./)?le[[:space:]]+([a-z0-9-]+)[[:space:]]+([a-z0-9-]+)([[:space:]]+([a-z0-9-]+))?([[:space:]]+([a-z0-9-]+))?`,
+	`(?m)(^|[[:space:];&|])(\./)?le[[:space:]]+(?:--name(?:[[:blank:]]+|=)(?:[A-Za-z0-9._-]+|"[A-Za-z0-9._-]+"|'[A-Za-z0-9._-]+')[[:space:]]+)?([a-z0-9-]+)[[:space:]]+([a-z0-9-]+)([[:space:]]+([a-z0-9-]+))?([[:space:]]+([a-z0-9-]+))?`,
 )
 
 // nativeActionsIn answers each `le` invocation in a workflow as command/verb,

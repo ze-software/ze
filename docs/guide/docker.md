@@ -18,6 +18,19 @@ The sizes are `docker image ls` values measured on 2026-08-14. Use the deploymen
 <!-- source: docker/Dockerfile.lab -- FROM alpine:3.24.3, apk add tini iproute2, ENTRYPOINT ["tini", "--", "ze"] -->
 <!-- source: docker/Dockerfile -- default feature-tag derivation and deployment image -->
 
+The [preview artifact builder](../contributing/preview-artifacts.md) instead
+packages its inspected native binary through `docker/Dockerfile.runtime`.
+Those prepared images carry the binary's exact tags, including `ze_distro`;
+the source-building commands below keep their own feature selection.
+<!-- source: docker/Dockerfile.runtime -- deployment and lab -->
+<!-- source: internal/le/build/preview/images.go -- prepareImages, exportImage -->
+
+Both images include system CA certificates for outbound HTTPS requests,
+including `ze init --from https://...`.
+<!-- source: docker/Dockerfile -- runtime certificate bundle -->
+<!-- source: docker/Dockerfile.lab -- ca-certificates package -->
+<!-- source: internal/core/fetch/fetch.go -- metadataClient, doToFile -->
+
 ## Build the deployment image
 
 ```bash

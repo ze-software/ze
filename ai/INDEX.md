@@ -334,6 +334,7 @@ disagree, the manifest is right and the row is stale.
 | `./le build gosum` | `internal/le/build/gosum.Answer` | the packed gokrazy/ze/builddir/**/go.sum files agree with the root module about what a version contains |
 | `./le build host-driver` | `internal/le/build/hostdriver.Answer` | build ze-host, the `ze appliance ...` driver that runs on the build machine, at the checkout root |
 | `./le build installer` | `internal/le/build/installer.Answer` | cross-build the installer initrd PID 1 for amd64 or arm64 |
+| `./le build preview` | `internal/le/build/preview.Answer` | prepare and check unpublished Linux amd64/arm64 binaries and archives, with optional immutable native Docker image exports; see `docs/contributing/preview-artifacts.md` |
 | `./le chaos run` | `internal/le/chaos/run.Answer` | run the chaos orchestrator against ze, FRR or BIRD: `le chaos run [options]` |
 | `./le chaos selftest` | `internal/le/chaos/selftest.Answer` | chaos simulator tests, reduced-tag CLI tests, and lint |
 | `./le cli catalog` | `internal/le/cli/catalog.Answer` | the generated command-catalog Markdown: check it against live registries, or rewrite it |

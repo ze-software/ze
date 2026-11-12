@@ -32,6 +32,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/build/gosum"
 	_ "github.com/ze-software/ze/internal/le/build/hostdriver"
 	_ "github.com/ze-software/ze/internal/le/build/installer"
+	_ "github.com/ze-software/ze/internal/le/build/preview"
 	_ "github.com/ze-software/ze/internal/le/chaos"
 	_ "github.com/ze-software/ze/internal/le/chaos/run"
 	_ "github.com/ze-software/ze/internal/le/chaos/selftest"
