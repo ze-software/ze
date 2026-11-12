@@ -89,6 +89,14 @@ it owns `AdminDistance`, so a producer's value is discarded. `selectBest` and
 them out. A group whose paths are all hidden has no best, the same as an empty
 group, so its subscribers see `ChangeRemove` and sysrib withdraws the FIB entry.
 A hidden path stays stored, so `Lookup`, `Inspect` and `Iterate` still list it.
+
+`LPM` skips groups whose paths are all hidden and returns the most specific
+cover with a selectable path, including a default route. Each shard first
+looks up its longest covering prefix; only a hidden-only match triggers exact
+ancestor lookups, bounded by 32 for IPv4 or 128 for IPv6. The most specific
+selectable result across the shards wins.
+<!-- source: internal/core/rib/locrib/manager.go -- LPM -->
+
 `Path.HiddenBy` names the chain that hid it (`ChainRoleSource` or
 `ChainRoleCentral`), copied from the `RejectedBy` field of the verdict
 `Snapshot.Evaluate` returned. It is one byte, in `Equal` and out of `key()`, so

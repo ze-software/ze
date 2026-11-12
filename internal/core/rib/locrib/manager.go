@@ -499,8 +499,9 @@ func (r *RIB) Best(fam family.Family, prefix netip.Prefix) (Path, bool) {
 
 // LPM performs a longest-prefix-match lookup for addr within the given
 // family. Queries all shards and returns the best Path from the PathGroup
-// stored under the most specific covering prefix. Returns (zero, invalid,
-// false) when no prefix in the family covers addr.
+// stored under the most specific selectable covering prefix. Hidden-only
+// groups do not mask selectable ancestors. Returns (zero, invalid, false)
+// when no selectable prefix in the family covers addr.
 func (r *RIB) LPM(fam family.Family, addr netip.Addr) (Path, netip.Prefix, bool) {
 	if !addr.IsValid() {
 		return Path{}, netip.Prefix{}, false
@@ -520,11 +521,31 @@ func (r *RIB) LPM(fam family.Family, addr netip.Addr) (Path, netip.Prefix, bool)
 		sh := &fs.shards[i]
 		sh.mu.RLock()
 		g, pfx, ok := sh.store.LookupLPM(addr)
-		if ok && (!found || pfx.Bits() > bestPfx.Bits()) {
-			if p, have := g.best(); have {
-				bestPath = p
-				bestPfx = pfx
-				found = true
+		if ok {
+			p, have := g.best()
+			if !have {
+				// Hidden candidates stay in the store for inspection, so its
+				// longest match can obscure a selectable ancestor in this shard.
+				// Only that case walks parents: at most 32 or 128 exact lookups.
+				for bits := pfx.Bits() - 1; bits >= 0; bits-- {
+					cover := netip.PrefixFrom(addr, bits).Masked()
+					ancestor, exists := sh.store.Lookup(cover)
+					if !exists {
+						continue
+					}
+					p, have = ancestor.best()
+					if have {
+						pfx = cover
+						break
+					}
+				}
+			}
+			if have {
+				if !found || pfx.Bits() > bestPfx.Bits() {
+					bestPath = p
+					bestPfx = pfx
+					found = true
+				}
 			}
 		}
 		sh.mu.RUnlock()
