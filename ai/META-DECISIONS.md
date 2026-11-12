@@ -230,7 +230,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   are pipe operations after it. A command may declare optional pipe operations
   of its own, such as `| count`, and the engine handles a declared operation
   for every caller. The command line is never rewritten to carry one as an
-  argument.
+  argument. A common operation such as `| count` is generic and applies to
+  every command's answer. A command overrides its behaviour by declaring the
+  same name with its own description, keeping the generic's meaning and answer
+  shape; an operation that means something else takes a name of its own.
 
 ## Ze is pre-release
 
