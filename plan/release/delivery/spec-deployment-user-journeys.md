@@ -8,7 +8,7 @@
 | Release reason | Essential installation, appliance boot, and onboarding paths must work before users can evaluate a release. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | Native, ISO, OTA health, preview and site passed; verifying IGP fixes and the daemon warning-cleanup dependency exposed by live netlab |
+| Phase | Finishing IGP validation before actual FRR and netlab reruns; native, ISO, OTA, preview and completed-path website evidence retained |
 | Handoff | `tmp/session/2026-11-10-225434/scratch/deployment-runtime-handoff.md` |
 | Updated | 2026-11-12 |
 
@@ -18,20 +18,24 @@ The requested dedicated VM-kernel proposal is recorded separately in
 `plan/proposals/spec-virtual-machine-kernel-profiles.md`. It remains unapproved;
 this deployment task continues without replacing its kernel or acceptance criteria.
 
-The OSPF inventory fix depends on daemon warning cleanup after admitted plugin
-requests drain. The source-removal path can clear warnings before a pending
-report raises one again. The corrective dependency makes runtime cleanup clear
-active warnings after dispatch joins; historical errors remain in the report
-ring. Its actual SDK socket/direct regression passed after an observed semantic
-failure. Whole-server regression coverage remains required before landing it.
+The daemon warning-cleanup dependency landed in `3dcdfc5297`. Its SDK
+socket/direct regression passed after an observed failure; all five committed
+build flavors passed at `3dcdfc529716`. The whole server package ran and failed
+only the unrelated concurrent startup-encoding test
+`TestConfigureFailsWhenNestedReplyCannotEncode`; source review confirmed that
+test does not reach report cleanup. Historical error events remain retained.
 
-The first full OSPF package run after the focused fixes failed six test
-functions with missing self Router-LSAs (`job-unit-pkg-efbdf8c3.log`). Source
-inspection found synthetic transports without address inventory in those
-fixtures. An independent judgment of the proposed fixture correction is owed;
-the production guard preserving advertisements on inventory failure stays intact.
-IS-IS refusal tests passed after the formatting-only textbuf correction
-(`job-unit-pkg-847b060b.log`). Full package and live FRR/netlab proofs remain open.
+| Current proof | Result and remaining limit |
+|---------------|----------------------------|
+| IS-IS level resolution and inactive configuration | Actual startup/verify, doctor and fake-backend lifecycle regressions passed after their observed failures. Full package race tests passed in `job-isis-final-level-package-197ecfe9.log`. Partial configuration now reports both missing NET and incompatible levels, including structured Fix. Actual FRR and netlab proofs remain required. |
+| OSPF address inventory | Independent fixture judgments preserved the existing assertions and guards. Runtime identity/doctor cuts failed their intended assertions, then restored tests passed. A reproduced leaked-worker race was fixed by rejecting absent runtimes. A reproduced zero-mask Network-LSA was fixed with one coherent IPv4 read. Current full OSPF/LSDB race packages passed in `job-ospf-coherent-inventory-packages-a802fbce.log`; the additional inventory boundary table passed its baseline and rejected a deliberate duplicate-prefix cut. Its restored count-coverage run remains required. |
+| Repository configuration corpus | Actual validation covered 3,168 Ze and 242 migrated configurations. Its only failure was the unrelated `test/reload/enum-refusal-reload.ci:config2.conf` expectation `config-parse` versus actual `config-yang-enum`, retained in `job-deployment-config-corpus-b6c10dc6.log`. No global corpus pass is claimed. |
+| Kernel proposal | `dfda18bebd` and `8eefc0be3c` record the unapproved QEMU/Xen proposal and partial Linux 7.3 source audit. No new kernel profile or Xen support has been implemented. |
+
+Native job logs can reuse their filenames when the same selector runs again.
+The original OSPF leaked-worker race is retained separately as
+`tmp/session/2026-11-10-225434/scratch/ospf-full-package-runtime-absence-race.log`.
+Distinct outer job labels preserve the failure and pass summaries for each fix.
 
 ## Historical verification blocker
 

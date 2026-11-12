@@ -3,7 +3,7 @@
 The presentation and verification layer over the IS-IS engine. It originates no
 protocol state: it renders the engine's read-only snapshots as `show isis ...`
 commands and two web pages, adds two `clear isis ...` actions, asserts the
-canonical metric set, and registers two config-sanity diagnostic codes.
+canonical metric set, and registers config-sanity diagnostic codes.
 
 | Concern | File |
 |---------|------|
@@ -44,14 +44,14 @@ points at with `ze:rpc`, and no IS-IS command node does.
 
 ## Decision: diagnostic codes live in the component
 
-The two config-sanity codes are registered from the component rather than the
+The config-sanity codes are registered from the component rather than the
 central code slice, with a comment in the central file recording that they are
 deliberately absent there. Deleting the IS-IS component removes its codes.
 
 The raw-socket code stays owned by the transport and is only surfaced here. One
 code, one owner.
 
-<!-- source: internal/plugins/isis/codes.go -- the two config-sanity code definitions -->
+<!-- source: internal/plugins/isis/codes.go -- isisDiagnosticCodes -->
 <!-- source: internal/plugins/isis/doctor.go -- the config-sanity check, a no-op when IS-IS is absent -->
 
 ## Decision: assert the metrics, do not register them

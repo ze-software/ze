@@ -701,8 +701,12 @@ func (e *engine) reconcile(newCfg Config) reconcileResult {
 	e.refreshCircuitProtocols()
 
 	desired := make(map[string]InterfaceConfig)
-	for _, ic := range newCfg.EnabledCircuits() {
-		desired[ic.Name] = ic
+	// A partial config without a NET stays idle, just as at startup. An empty
+	// desired set also closes existing circuits when the last NET is removed.
+	if newCfg.Present() {
+		for _, ic := range newCfg.EnabledCircuits() {
+			desired[ic.Name] = ic
+		}
 	}
 
 	e.mu.Lock()

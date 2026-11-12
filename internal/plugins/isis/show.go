@@ -154,7 +154,7 @@ type interfaceRow struct {
 }
 
 // interfaceSnapshot builds the `show isis interface` view (spec-isis-13 AC-4).
-// It merges the configured per-interface parameters (every configured circuit,
+// It merges the resolved per-interface parameters (every configured circuit,
 // including passive ones with no live socket) with the runtime DIS/adjacency
 // state read from the live circuits. Passive circuits and circuits whose link is
 // still down have no live circuit, so their DIS/adjacency columns are empty.
@@ -170,6 +170,7 @@ func (e *engine) interfaceSnapshot() []any {
 	// passive ones, so iterate cfg.Interfaces for completeness.
 	e.mu.Lock()
 	cfgIfaces := append([]InterfaceConfig(nil), e.cfg.Interfaces...)
+	instanceLevel := e.cfg.Level
 	e.mu.Unlock()
 
 	// The authenticated column reads the resolved key store, never the configured
@@ -186,7 +187,7 @@ func (e *engine) interfaceSnapshot() []any {
 		}
 		row := interfaceRow{
 			Name:          ic.Name,
-			Level:         ic.Level.String(),
+			Level:         interfaceLevel(instanceLevel, ic.Level).String(),
 			CircuitType:   ic.CircuitType.String(),
 			Metric:        ic.Metric,
 			HelloInterval: ic.HelloInterval,

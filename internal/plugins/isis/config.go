@@ -23,6 +23,8 @@ import (
 	"strconv"
 
 	"github.com/ze-software/ze/internal/core/configvalue"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
 	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
 	"github.com/ze-software/ze/internal/plugins/isis/transport"
@@ -212,16 +214,28 @@ func (c Config) Protocols() adjacency.Protocols {
 }
 
 // EnabledCircuits returns the interfaces that should have a circuit opened: those
-// enabled and non-passive. Passive interfaces are advertised but form no
-// adjacency (so isis-4 opens no circuit for them).
+// enabled and non-passive, with levels constrained by the instance. Passive
+// interfaces are advertised but form no adjacency. The caller MUST first call
+// validateInterfaceLevels to reject levels disjoint from the instance.
 func (c Config) EnabledCircuits() []InterfaceConfig {
 	out := make([]InterfaceConfig, 0, len(c.Interfaces))
 	for _, ic := range c.Interfaces {
 		if ic.Enabled && !ic.Passive {
+			ic.Level = interfaceLevel(c.Level, ic.Level)
 			out = append(out, ic)
 		}
 	}
 	return out
+}
+
+// interfaceLevel constrains the default or explicit dual-level request to the
+// instance's levels. validateInterfaceLevels MUST reject disjoint level requests
+// before this resolved level is used to open a circuit or render its state.
+func interfaceLevel(instance, requested Level) Level {
+	if requested == LevelL1L2 {
+		return instance
+	}
+	return requested
 }
 
 // Errors surfaced by config resolution.
@@ -570,6 +584,7 @@ func parseKeyChain(entry listEntry) KeyChainConfig {
 // system-id pattern, numeric ranges, enums) is enforced by YANG native
 // validation before this runs, and structurally re-checked by parseISISConfig's
 // types.ParseNET / ParseSystemID.
+// Callers MUST validate before EnabledCircuits resolves the active level set.
 func validateConfig(cfg Config) error {
 	if len(cfg.NETs) == 0 {
 		return ErrNoNET
@@ -579,10 +594,39 @@ func validateConfig(cfg Config) error {
 			return ErrSystemIDMismatch
 		}
 	}
+	if err := validateInterfaceLevels(cfg); err != nil {
+		return err
+	}
 	// An auth-key-chain leaf naming no key-chains entry needs no check here: the
 	// leaf is a YANG leafref (ze-isis-conf.yang), so config validation refuses
 	// the dangling name before this plugin is handed the section.
 	return validateMetricStyle(cfg)
+}
+
+// validateInterfaceLevels refuses an enabled interface whose requested level
+// cannot operate within the instance. Startup and commit callers MUST apply
+// this check before any circuit or connected-prefix advertisement is activated.
+func validateInterfaceLevels(cfg Config) error {
+	for _, ic := range cfg.Interfaces {
+		if !ic.Enabled {
+			continue
+		}
+		if cfg.Level.HasL1() && ic.Level.HasL1() {
+			continue
+		}
+		if cfg.Level.HasL2() && ic.Level.HasL2() {
+			continue
+		}
+		var tb textbuf.Buffer
+		problem := tb.Str("IS-IS interface ").Str(ic.Name).Str(" level ").Str(ic.Level.String()).
+			Str(" has no level in common with instance level ").Str(cfg.Level.String()).String()
+		fix := tb.Str("set isis interfaces interface ").Str(ic.Name).Str(" level l1-l2").String()
+		return opererr.New(
+			problem,
+			"The interface cannot form an adjacency or advertise its prefixes at an enabled instance level.",
+			fix)
+	}
+	return nil
 }
 
 // validateMetricStyle refuses a circuit metric a narrow-metric TLV cannot carry.

@@ -80,10 +80,15 @@ level changes, so the new identity reaches the running circuits.
 <!-- source: internal/plugins/isis/server.go -- reconcile, circuitNeedsRebuild, circuitParamsEqual -->
 <!-- source: internal/plugins/isis/circuits.go -- applyCircuitParams, launchCircuitGoroutine -->
 
-A config with no NET is treated as "not present" and leaves the engine idle,
-following the LDP precedent of a missing LSR ID. The required-field policy lives
-in `validateConfig`, not in the parser, so verify can stage a partial config the
-same way it rejects one.
+A config with no NET is inactive at startup and after a commit. Startup and
+commit verification still reject incompatible interface levels in a partial
+config. Adding the first NET opens the configured circuits; removing the last
+NET closes them without replacement. Required-field validation stays in
+`validateConfig`, so the parser can stage a partial config.
+
+<!-- source: internal/plugins/isis/config.go -- Present, validateConfig, validateInterfaceLevels -->
+<!-- source: internal/plugins/isis/register.go -- runISISEngine OnConfigure, OnConfigVerify, OnStarted -->
+<!-- source: internal/plugins/isis/server.go -- reconcile -->
 
 ## Decision: the dispatcher reads the PDU type from the raw frame
 
@@ -178,6 +183,17 @@ The `level` default token is `l1-l2` in kebab case, and the parser falls through
 to the dual-level value for any unrecognized string, so an omitted or empty level
 is the dual-level default.
 
+The parsed interface level stays as configured. `EnabledCircuits` resolves a
+dual-level interface to the instance's level before the transport, Hello sender,
+adjacency table and flooder consume it. `validateInterfaceLevels` refuses an
+enabled interface with no common instance level at startup and commit. Explicit
+L1 or L2 interfaces on a dual-level instance retain their level.
+`interfaceSnapshot` applies the same resolution to active and passive interface
+rows.
+
+<!-- source: internal/plugins/isis/config.go -- EnabledCircuits, interfaceLevel, validateInterfaceLevels -->
+<!-- source: internal/plugins/isis/show.go -- interfaceSnapshot -->
+
 The Go zero value of `Level` remains `LevelL1`; `DefaultLevel` is an alias for
 `LevelL1L2`, not zero. Internal level converters handle all three values and
 assert `BUG` for an unknown numeric level. External tokens still pass through
@@ -194,8 +210,12 @@ defaults.
 
 ## Owned diagnostic codes
 
-`doctor-isis-net-missing` and `doctor-isis-system-id-mismatch`, plus the
+`doctor-isis-net-missing`, `doctor-isis-system-id-mismatch`, and
+`doctor-isis-interface-level-mismatch`, plus the
 `isis-config-sanity` check. The raw-socket check and its code stay owned by the
 transport (see [`isis-3-l2-transport.md`](isis-3-l2-transport.md)). Each
 `ze_isis_*` metric series is registered by the layer that produces it; this layer
 only threads the registry through.
+
+<!-- source: internal/plugins/isis/register.go -- registerISISDoctor -->
+<!-- source: internal/plugins/isis/codes.go -- isisDiagnosticCodes -->

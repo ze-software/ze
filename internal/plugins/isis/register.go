@@ -219,7 +219,7 @@ func init() { registerISIS() }
 // owning them here means deleting the IS-IS component removes the codes with it
 // (ai/rules/plugins.md). A duplicate registration is benign (the
 // code is already explainable), so the error is ignored like RegisterBuiltinCodes
-// does; this function is the only registrant of these two codes.
+// does; this function is the only registrant of these config-sanity codes.
 func registerISISDiagnosticCodes() {
 	for _, m := range isisDiagnosticCodes {
 		_ = diagnostic.Register(m)
@@ -238,7 +238,7 @@ func registerISISDoctor() {
 		Component:    componentName,
 		Dependencies: []string{"config-tree"}, // reads the parsed isis config block
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{codeNETMissing, codeSystemIDMismatch},
+		Codes:        []string{codeNETMissing, codeSystemIDMismatch, codeInterfaceLevelMismatch},
 		Check:        checkISISConfigSanity,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
@@ -329,10 +329,9 @@ func runISISEngine(conn net.Conn) int {
 		}
 	}()
 
-	// OnConfigVerify: parse-check only, rejecting malformed config (no NET, bad
-	// NET, system-id mismatch) before any state mutation (AC-3/AC-4). The
-	// verified config is stashed so OnConfigApply (the reload-commit step) can
-	// reconcile to it.
+	// OnConfigVerify checks identity and interface levels before state mutation.
+	// A partial config without a NET stays inactive but must have compatible
+	// interface levels. OnConfigApply reconciles the verified staged config.
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		cfg, err := parseISISConfig(toConfigSections(sections))
 		if err != nil {
@@ -342,6 +341,8 @@ func runISISEngine(conn net.Conn) int {
 			if verr := validateConfig(cfg); verr != nil {
 				return verr
 			}
+		} else if err := validateInterfaceLevels(cfg); err != nil {
+			return err
 		}
 		export, err := parseExportChain(toConfigSections(sections))
 		if err != nil {
@@ -360,6 +361,9 @@ func runISISEngine(conn net.Conn) int {
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		cfg, err := parseISISConfig(toConfigSections(sections))
 		if err != nil {
+			return err
+		}
+		if err := validateInterfaceLevels(cfg); err != nil {
 			return err
 		}
 		export, err := parseExportChain(toConfigSections(sections))

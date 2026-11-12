@@ -21,6 +21,16 @@ user-facing behaviour; the wire format is documented in
 
 ## Routing capabilities
 
+The instance `level` limits every interface, including passive interfaces. With
+`level l2`, an interface whose `level` is omitted or set to `l1-l2` uses only L2.
+On an `l1-l2` instance, an interface can select `l1` or `l2`. An enabled interface
+with no level in common with the instance is refused at startup or commit. Set
+its `level` to `l1-l2` to use the instance's levels. `show isis interface` reports
+the effective level of each interface.
+
+<!-- source: internal/plugins/isis/config.go -- EnabledCircuits, interfaceLevel, validateInterfaceLevels -->
+<!-- source: internal/plugins/isis/show.go -- interfaceSnapshot -->
+
 IPv4 Protocols Supported (`0xCC`) is advertised on every circuit. Enabling
 IPv6 on any enabled interface, including a passive one, adds `0x8E` to every
 Hello and LSP fragment zero. A commit updates both advertisements even when no
@@ -613,5 +623,14 @@ with labels is listed in `docs/plugin-development/metrics.md`.
   IS-IS cannot derive a System ID or originate LSPs.
 - `doctor-isis-system-id-mismatch`: an explicit `system-id` disagrees with the
   System ID embedded in the first NET.
+- `doctor-isis-interface-level-mismatch`: an enabled interface has no level in
+  common with the instance. The diagnostic names the interface and the command
+  that sets its `level` to `l1-l2` to use the instance's levels.
+  The check reports this mismatch even when a partial configuration has no NET.
+
+<!-- source: internal/plugins/isis/doctor.go -- checkISISConfigSanity -->
+<!-- source: internal/plugins/isis/transport/doctor.go -- raw-socket readiness check -->
 
 Each code is explainable with `ze show diagnostic <code>`.
+
+<!-- source: internal/plugins/isis/codes.go -- isisDiagnosticCodes -->

@@ -1,10 +1,10 @@
 // Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- IS-IS diagnostic code ownership.
-// Related: doctor.go -- the config-sanity check that emits these two codes
+// Related: doctor.go -- the config-sanity check that emits these codes.
 // Related: register.go -- registerISISDiagnosticCodes() registers them at init
 // Related: transport/doctor.go -- the SEPARATE raw-socket check (isis-3 owns its code)
 //
 // The IS-IS component OWNS its config-sanity diagnostic codes
-// (doctor-isis-net-missing, doctor-isis-system-id-mismatch). Their explanation
+// (NET, system-ID and interface-level checks). Their explanation
 // metadata lives here as data; the registration call lives in register.go so the
 // side effect stays in the component's registration file (ai/patterns/registration.md).
 // Registering here instead of in the central diagnostic.builtinCodes slice means
@@ -30,5 +30,11 @@ var isisDiagnosticCodes = []diagnostic.CodeMeta{
 		Title:       "IS-IS system-id does not match the NET",
 		Description: "An explicit IS-IS system-id was configured that disagrees with the 6-octet System ID embedded in the first NET (the octets before the NSEL). Remove the system-id leaf to derive it from the NET, or align the two so the IS uses a single consistent identity.",
 		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-isis-system-id-mismatch"},
+	},
+	{
+		Code:        codeInterfaceLevelMismatch,
+		Title:       "IS-IS interface and instance levels do not overlap",
+		Description: "An enabled IS-IS interface requests a level that the instance disables. It cannot form an adjacency or advertise its prefixes at that level. Set the interface level to l1-l2 to use the instance's levels.",
+		Examples:    []string{"ze doctor", "ze show diagnostic doctor-isis-interface-level-mismatch"},
 	},
 }
