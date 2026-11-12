@@ -12,5 +12,9 @@ import "github.com/ze-software/ze/internal/component/firewall"
 //
 //nolint:gochecknoinits // registration: a reservation is declared from init, before any RegisterTables
 func init() {
-	firewall.MustReserveTableNames("copp", coppTableName)
+	firewall.MustReserveTableNames("copp", firewall.TableControl{
+		Plugin:  "copp plugin",
+		Decides: "the control-plane-protection section of the configuration",
+		Command: "show firewall ruleset copp",
+	}, coppTableName)
 }

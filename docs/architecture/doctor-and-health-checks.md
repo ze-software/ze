@@ -4,7 +4,7 @@ Ze has three tiers of self-diagnosis, and they differ by WHEN they answer.
 
 | Tier | Command | When the fact is produced |
 |------|---------|---------------------------|
-| Readiness | `ze doctor`, and its daemon form `show doctor` | At read time, by re-probing config and the environment. `ze doctor` runs in the operator's own process; `show doctor` runs the same producer (`doctor.Answer`) inside the daemon, and adds the `runtime`-phase checks and the doctor checks of the plugins the daemon runs |
+| Readiness | `ze doctor`, and its daemon form `show doctor` | At read time, by re-probing config and the environment. `show doctor` runs the producer (`doctor.Answer`) inside the daemon, and adds the `runtime`-phase checks and the checks the running plugins declared; `ze doctor` asks the running daemon for that answer and draws it, and runs the config-phase checks in the operator's own process only when no daemon answers |
 | Live health | `show health` | At read time, inside the daemon, by running a registered probe now |
 | Recorded setup outcome | `show plugin list` | Once, in a plugin's own `init()`, before `main()`. The `outcome` and `reason` columns replay it |
 
@@ -284,7 +284,8 @@ writable. On a Docker host `./le setup docker kernel apparmor` loads it
 <!-- source: internal/component/kernelcap/apparmor.go -- ProbeAppArmorProfile -->
 
 This is the `ze doctor` tier of the table above, not a fourth one. The verdict is
-produced at read time, in the reader's own process, and it keeps no memory of a
+produced at read time, in the process that answers doctor (the daemon when it
+answers, the operator's own process otherwise), and it keeps no memory of a
 start. It cannot move into the setup registry, whose records are written before
 `main()` and therefore cannot see the configuration this verdict depends on.
 
@@ -469,7 +470,9 @@ host it says so under `doctor-memlock-rlimit-unknown` rather than passing.
 
 The registry cannot answer the first question, because it replays what already
 happened on a host where ze already started. The doctor check cannot answer the
-second, because it runs in the operator's own process rather than the daemon's.
+second: it is a config-phase check, so it reads the limit of whichever process
+answers doctor (the daemon when it answers, the operator's own process
+otherwise), and the limit says nothing about whether the lock was taken.
 <!-- source: internal/plugins/memlock/doctor_linux.go -- checkMemlockLimit, memlockLimitDiagnostics -->
 <!-- source: internal/plugins/memlock/memlock_linux.go -- init, the outcome it records -->
 
@@ -500,16 +503,34 @@ remains an error and prevents every `post-config` check from running.
 A config phase runs in whichever process answers: the operator's own process
 on the local route, and the daemon on the daemon route, where `doctor.Answer`
 runs `runChecks` too. So a check registers at the phase whose process holds
-the state it reads. Config and host state read the same from both, so a check
-over them takes a config phase. Live daemon state exists only in the daemon,
+the state it reads. Config and kernel state read the same from both. A probe
+whose answer depends on the asking process's privileges (a capability, an
+rlimit, an execute permission, an eBPF load) does not: on the daemon route it
+measures the daemon, the process that needs them, and on the local fallback
+the operator's process; either way it takes a config phase, and its message
+says which process it measured. Live daemon state exists only in the daemon,
 so a check over it takes `runtime`: read from a config phase, the local route
-finds it empty and reports the box healthy. A bind probe MUST NOT judge a port
+finds it empty and reports the box healthy. State a plugin holds (its loaded
+dataplane, its SA table, an apply outcome) is neither: the plugin may run
+forked, so its check is a `runtime` check declared in its Stage 1 registration
+and answered by its doctor callback, never a `registry.DoctorCheckDef`
+(`ai/rules/plugins.md`). The IKE engine's `ipsec-esp-form-fast-path` is one: it
+reads the dataplane `runEngine` loaded, which is nil in every other process.
+`ipsec-child-install` is another: it reads the refusal each peer session
+records (`recordChildRefused`), which exists only in the engine's process.
+Neither check probes the host: the TUN device outcome is recorded by the apply
+(`recordESPFormTUN`), because opening `/dev/net/tun` may create the node.
+A bind probe MUST NOT judge a port
 its own running daemon holds, because inside the daemon that bind fails on
 every healthy box. The listener probe (`checkListeners`) does not tell the
 routes apart yet: on the daemon route it reports each port the daemon serves
 as a bind failure. `plan/release/validation/spec-doctor-coverage-11-hub-engine.md`
 (AC-1) owns that repair.
 <!-- source: internal/component/doctor/doctor.go -- runChecks -->
+<!-- source: internal/component/doctor/answer.go -- Answer -->
+<!-- source: internal/component/ike/engine/doctor_runtime.go -- engineDoctorChecks, answerDoctorCheck, answerESPFormFastPath -->
+<!-- source: internal/component/ike/engine/doctor_child_install.go -- childInstallCheckDecl, recordChildRefused -->
+<!-- source: internal/component/ike/engine/apply.go -- recordESPFormTUN -->
 <!-- source: internal/component/doctor/registry.go -- runDoctorChecks -->
 <!-- source: internal/component/doctor/checks_plugin_registry.go -- runPluginRegistryChecks -->
 <!-- source: pkg/plugin/rpc/types.go -- DoctorCheckPhase, DoctorPhaseParsedConfig -->
@@ -549,8 +570,11 @@ Two constraints hold this together:
 
 `ze doctor` and the daemon's `show doctor` read one request (`answerDoctor`)
 and run one set of checks. The local route asks the running daemon for its
-answer and runs the checks in the operator's own process only when no daemon
-answers, with no plugin check, because no plugin runs there (see "The local
+answer and runs the config-phase checks in the operator's own process only
+when no daemon answers. That fallback runs the `registry.DoctorCheckDef`
+functions of the plugins linked into `ze`, because `runPluginRegistryChecks`
+reads the registry, and no check a plugin declared at Stage 1, because no
+plugin runs there (see "The local
 route asks the running daemon first"). `doctor` is an offline root, not a verb, so it
 has no daemon path of its own: its registration names `show doctor` as its
 daemon form (`registry.Meta.DaemonPath`), and every daemon surface offers
@@ -1273,7 +1297,8 @@ one the daemon runs on.
 
 | Dependency owner | Registration mechanism |
 |------------------|------------------------|
-| Internal plugin (registered by `registry.Register`) | The `Registration.DoctorChecks` field. The doctor runner bridges these at execution time through `checks_plugin_registry.go`. The check function takes `registry.DoctorCheckContext` and returns `[]rpc.DoctorCheckDiagnostic`, and Component is set from the plugin name. `l2tpauthradius/register.go` is the reference example |
+| Internal plugin (registered by `registry.Register`), check over config or the host | The `Registration.DoctorChecks` field, at a config phase only. The doctor runner bridges these at execution time through `checks_plugin_registry.go`, in whichever process answers doctor. The check function takes `registry.DoctorCheckContext` and returns `[]rpc.DoctorCheckDiagnostic`, and Component is set from the plugin name. `l2tpauthradius/register.go` is the reference example |
+| Any plugin, internal or forked, check over state its own process holds | A `runtime` `rpc.DoctorCheckDecl` in the `DoctorChecks` of the `sdk.Registration` it sends at Stage 1, answered by its `OnDoctorCheck` handler. `ldp/register.go` and `ike/engine/doctor_runtime.go` are reference examples |
 | Web, MCP, looking-glass, or other listener component | `diagnostic.RegisterDoctorCheck()` from the owning component's `init()` |
 | SSH host-key dependency | `diagnostic.RegisterDoctorCheck()` from the SSH component |
 | Interface backend | `diagnostic.RegisterDoctorCheck()` from the backend owner |

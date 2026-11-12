@@ -541,6 +541,7 @@ One agent per package, about 60 tool calls each. Agents edit only; the main thre
 | `normal-state-logged-at-error.md` | 2026-11-10 | pool `ipv6-pd delegation-length` default logged at Warn |
 | `published-value-drifts-from-the-behavior-it-describes.md` | 2026-11-10 | `doctor-ipsec-listen` metadata with no producer |
 | `gate-excludes-part-of-its-population.md` | 2026-11-12 | IKE ESP and transform kernel capabilities, built by helpers, named by file:line in the doctor-coverage source scan |
+| `process-global-read-across-the-plugin-boundary.md` | 2026-11-12 | IKE post-config doctor checks over engine globals, empty in a forked engine and the local `ze doctor` |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

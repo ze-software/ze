@@ -18,13 +18,18 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-One defect met on 2026-11-12 while
-`spec-single-owner-lifecycle-5-session-end-locals` was implemented. It has a
-journal row (Owned journal rows). Nothing here is designed yet.
+Three defects in how the weakening check and its approval route name a test
+unit, all met on 2026-11-12: the first while
+`spec-single-owner-lifecycle-5-session-end-locals` was implemented, the second
+during an IKE dataplane test cleanup, the third while a test was added to an
+untracked IKE dataplane test file. Each has a journal row (Owned journal
+rows). Nothing here is designed yet.
 
 | Part | Producer | What the agent meets today | Why it is owed |
 |------|----------|----------------------------|----------------|
 | A unit HEAD never held is judged weakened | `Proposed` and `proposedFindings` (`internal/le/test/weakened/proposed.go`), read by the `pretool-writeedit` hook | The check refused an agent's removal of a test helper it wrote minutes earlier in a tracked test file. HEAD does not hold the helper, so nothing committed could be weakened | A false refusal is a hook defect (`ai/META-DECISIONS.md`, "How agents work"), and it blocks the author's own repair |
+| A method unit cannot be approved when another type shares its bare name | `approvalUnitTexts`, `changedApprovalCarriers` and `ambiguousApprovalCarrier` (`internal/le/rfc/approvalunits.go`), run by `./le test weakened approve`. The detector also names a unit by its bare name and merges a file's same-named functions into one (`unitsByName`, `internal/le/test/weakened/scope.go`) | A unit is `<package>.<Name>` with no receiver. `dataplane.Close` is refused as "ambiguous across carriers" because three test types in one directory declare `Close`, so the judge-approved removal of the dead `fakeESPFormConn.Close` cannot be recorded, and the refusal names no fix | An approved test change cannot land, so dead test code stays. `le rfc record` already resolves `Type.Method` (`scopeIndex.keyText`, `internal/le/rfc/goscope.go`). The unit grammar cuts at the last dot to admit a dotted directory key (`SplitApprovalUnit`), so a receiver-qualified key has to coexist with it |
+| A test function only the new text holds is judged a weakening, and a pre-edit approval of a file HEAD lacks goes stale on its own edit | `weakenedUnits` (`internal/le/test/weakened/scope.go`), called by `proposedFindings`; `ApprovalContentAdmits` (`internal/le/rfc/approvalunits.go`) | Adding `TestESPFormFastPathGateFollowsTheKernelRuleset`, whose one `t.Skip` is a root guard, was refused as "adding t.Skip (0 -> 1); the test stops running": the named comparison walks the old text's units only, so the new function's skip reaches the residual through the whole-file count. The judge's approval recorded base `none`, which never equals the recorded current digest, so it was read as a post-edit approval of the pre-edit text and refused the edit it approved | A false refusal is a hook defect, and the approval route that should release it cannot, so a new guarded test cannot be added without a second judge run |
 
 ## Required Reading
 
@@ -83,6 +88,7 @@ Draft row. The design pass confirms or rewrites it.
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | An edit removes a test function from a tracked test file, and HEAD's copy of that file holds no such function | The check reports no weakening for it | None |
 | AC-2 | An edit removes a test function HEAD records | The check still refuses it without an approval | None |
+| AC-3 | A judge's approval names one method of a test type whose bare name another type in the same package also declares | `./le test weakened approve` records it for that method alone; the check accepts the removal of that method and still refuses an unapproved removal of the other type's method | None |
 
 ## 🧪 TDD Test Plan
 
@@ -106,6 +112,9 @@ Draft row. The design pass confirms or rewrites it.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `plan/journal/guard-blocks-its-own-authors-repair.md` | 2026-11-12 | `Proposed` refuses removal of a helper HEAD never held |
+| `plan/journal/two-owners-share-one-name.md` | 2026-11-12 | `./le test weakened approve` refuses a method unit whose bare name another type shares |
+| `plan/journal/hook-existing-patterns-false-positive.md` | 2026-11-12 | `weakenedUnits` refuses a new test function's guard skip; `ApprovalContentAdmits` stales a pre-edit approval of a file HEAD lacks |
+| `plan/journal/hook-existing-patterns-false-positive.md` | 2026-11-12 | `commentedAssertionPattern` (`detect`, called by `Proposed`) reads a doc comment naming `t.Errorf` as a commented-out assertion |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -123,7 +132,7 @@ Draft row. The design pass confirms or rewrites it.
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
-- [ ] The targeted tests for what changed pass, run in the main checkout: `./le test unit pkg path ./internal/le/test/weakened/` and `./le ai hooks unit`. No agent runs any `./le verify` command
+- [ ] The targeted tests for what changed pass, run in the main checkout: `./le test unit pkg path ./internal/le/test/weakened/`, `./le test unit pkg path ./internal/le/rfc/` (AC-3's resolver) and `./le ai hooks unit`. No agent runs any `./le verify` command
 
 ### TDD
 - [ ] Tests written

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 func TestTrafficUsageDiagnostic(t *testing.T) {
@@ -74,5 +76,36 @@ func TestTrafficUsageReadinessCanFail(t *testing.T) {
 	unset := trafficUsageDiagnostic(true, tcxReadinessResult{})
 	if len(unset) != 1 || unset[0].Code != "doctor-traffic-usage-ebpf-unknown" {
 		t.Errorf("a probe with no verdict must read unknown, got %v", unset)
+	}
+}
+
+// TestTrafficUsageUnknownCarriesTheCapabilitiesFix checks that every unknown finding
+// carries, as its fix line, the one command that grants a systemd-run daemon its whole
+// capability set (privilege.DaemonCapabilitiesFix), and that its message says to stop
+// ze first, because the install refuses while the daemon holds the store. It drives
+// both routes to the unknown finding: a probe the kernel refused, and a probe that
+// returned no verdict.
+func TestTrafficUsageUnknownCarriesTheCapabilitiesFix(t *testing.T) {
+	cases := []struct {
+		name      string
+		readiness tcxReadinessResult
+	}{
+		{"probe refused", classifyTCXProbe(syscall.EPERM)},
+		{"probe returned no verdict", tcxReadinessResult{}},
+	}
+	for _, tc := range cases {
+		got := trafficUsageDiagnostic(true, tc.readiness)
+		if len(got) != 1 {
+			t.Fatalf("%s: want 1 diagnostic, got %d", tc.name, len(got))
+		}
+		if got[0].Code != "doctor-traffic-usage-ebpf-unknown" {
+			t.Errorf("%s: code = %q, want doctor-traffic-usage-ebpf-unknown", tc.name, got[0].Code)
+		}
+		if got[0].Fix != privilege.DaemonCapabilitiesFix {
+			t.Errorf("%s: fix = %q, want %q", tc.name, got[0].Fix, privilege.DaemonCapabilitiesFix)
+		}
+		if !strings.Contains(got[0].Message, "sudo systemctl stop ze") {
+			t.Errorf("%s: message does not say to stop ze before the install: %q", tc.name, got[0].Message)
+		}
 	}
 }

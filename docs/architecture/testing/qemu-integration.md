@@ -391,8 +391,9 @@ The runner enters the namespace itself, once per test (`enterTestNetns`,
 with a non-root `ZE_TEST_UID`. `test qemu all` sets both for a routed suite, copies
 `ze`, `ze-stripped` and the running `le` to the guest's own tmpfs with the same
 file capabilities (a 9p mount carries no extended attribute, so a `setcap` on
-`/workspace` would buy nothing). The capabilities are the runner's own
-declaration, `netnsDaemonCapBits` in `internal/test/runner/caps.go`, written
+`/workspace` would buy nothing). The capabilities are the set the systemd unit
+grants a non-root daemon: `netnsDaemonCapBits` in `internal/test/runner/caps.go`
+derives them from `privilege.DaemonCapabilities`, and they are written
 through `runner.NetnsDaemonSetcap` as
 `cap_net_admin,cap_net_raw,cap_net_bind_service,cap_bpf+ep`, and the `.ci`
 runner's `caps=` gate reads the same list in this mode, so a test that needs a
@@ -412,18 +413,23 @@ capability on a `nosuid` mount and gokrazy, the init of Ze's own image, mounts
 an ipsec daemon's XFRM install answered `operation not permitted`. The
 preparation refuses a `nosuid` mount it finds on `/tmp/zebin`.
 
-Both `test qemu all` and `test qemu netns` also make `/dev/ppp` mode 0666
-(`netnsDevPPPScript`). devtmpfs creates it 0600 root, and the dropped user's
-capabilities carry no `cap_dac_override`, so its PPPoE client could not open it
-after PADS: it sent PADT and redialed, and on Ze's own image
-`pppoe-client-lcp-renegotiation` timed out in its concentrator's LCP read. The
-chmod runs only where `/workspace` is the 9p share, so it never widens the
-device on a machine that outlives the run.
+Both `test qemu all` and `test qemu netns` also make `/dev/ppp` and
+`/dev/net/tun` mode 0666 (`netnsDevNodes`, `netnsDevNodesScript`). devtmpfs
+creates each 0600 root, because neither driver declares a mode, and the
+dropped user's capabilities carry no `cap_dac_override`. Without the chmod its
+PPPoE client could not open `/dev/ppp` after PADS: it sent PADT and redialed,
+and on Ze's own image `pppoe-client-lcp-renegotiation` timed out in its
+concentrator's LCP read. Every IPsec Child SA that receives UDP-encapsulated
+ESP opens `/dev/net/tun` to create the `ze-espform` device (`openESPFormTUN`),
+and the install is refused when that open fails. The chmod runs only where
+`/workspace` is the 9p share, so it never widens a device on a machine that
+outlives the run.
 <!-- source: internal/le/test/qemu/netns.go -- netnsCapMountScript -->
-<!-- source: internal/le/test/qemu/netns.go -- netnsDevPPPScript -->
+<!-- source: internal/le/test/qemu/netns.go -- netnsDevNodes, netnsDevNodesScript -->
 <!-- source: internal/le/test/qemu/netns.go -- netnsHarnessSource -->
 <!-- source: internal/test/runner/caps.go -- netnsDaemonCapBits, NetnsDaemonSetcap -->
 <!-- source: internal/test/runner/record_parse_option.go -- applyNetnsDaemonCapsGate -->
+<!-- source: internal/core/privilege/capabilities.go -- DaemonCapabilities -->
 <!-- test: internal/le/test/qemu/netns_alltests_test.go -- TestTheCapabilityCopiesAreMadeBeforeTheFirstSuite, TestTheCapabilityCopiesLandOnATmpfsThatHonorsFileCapabilities, TestTheCapabilityCopiesCarryTheHarnessTheDroppedDaemonExecs, TestThePreparationLetsTheDroppedDaemonOpenDevPPP -->
 <!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsBinaries -->
 <!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsState -->

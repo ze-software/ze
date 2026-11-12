@@ -502,6 +502,13 @@ func runEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("ike", conn)
 	defer closeSDK(p)
 
+	// The dual-form receiver's reader stops reach the daemon's report bus through this
+	// plugin's own report-issue request, which crosses the process boundary in-process and
+	// forked alike (espFormReaderStoppedSink). Removed before the SDK closes: the deferred
+	// calls run in reverse.
+	dataplane.RegisterESPFormReaderStopped(espFormReaderStoppedSink(p, log))
+	defer dataplane.RegisterESPFormReaderStopped(nil)
+
 	if reg := registry.GetMetricsRegistry(); reg != nil {
 		state.metrics = RegisterMetrics(reg)
 	}
@@ -656,11 +663,18 @@ func runEngine(conn net.Conn) int {
 		return nil
 	})
 
+	// The engine's runtime doctor checks read state that lives in this process (the
+	// dataplane loaded above and its dual-form receiver), so they are declared in the
+	// Stage 1 registration below and answered here, internal and forked alike
+	// (engineDoctorChecks, doctor_runtime.go).
+	p.OnDoctorCheck(state.answerDoctorCheck)
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{configRootVPN},
+		WantsConfig:  []string{configRootVPN},
+		DoctorChecks: engineDoctorCheckDecls(),
 	}); err != nil {
 		log.Error("ike engine failed", "error", err)
 		return 1

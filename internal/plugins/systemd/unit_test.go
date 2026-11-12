@@ -40,12 +40,13 @@ func TestUnitFileCustomConfig(t *testing.T) {
 func TestUnitFileCapabilities(t *testing.T) {
 	// VALIDATES: AC-10 generated unit file runs as ze with required network capabilities.
 	// PREVENTS: accidentally running the service as root or without BGP/network privileges.
+	// PREVENTS: a unit without CAP_BPF, under which the kernel refuses the eBPF loads of the IPsec ESP form fast path, the IPsec override guard and traffic-usage.
 	unit := buildUnitFile(unitSpec{BinaryPath: "/usr/bin/ze", ConfigDir: "/etc/ze"})
 
 	assertContains(t, unit, "User=ze")
 	assertContains(t, unit, "Group=ze")
-	assertContains(t, unit, "AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE")
-	assertContains(t, unit, "CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE")
+	assertContains(t, unit, "AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_BPF\n")
+	assertContains(t, unit, "CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_BPF\n")
 }
 
 func TestUnitFileHardening(t *testing.T) {

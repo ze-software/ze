@@ -102,6 +102,21 @@ is a change.
 - `insert <list path> <entry> before|after <ref>` moves an existing entry, in the SSH editor and the web terminal, in direct and session mode.
 - The per-user change file records the move as one `move-entry` line; drafts and commits apply it.
 
+## Existing Mechanisms (MANDATORY)
+
+Drawn from the Current Behavior reading above; each row names the mechanism the move reuses.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec |
+|-----------|------------------------------------------|--------------------|-----------|
+| List entry order in the Tree | `internal/component/config/tree.go` `listOrder`, `AddListEntry`, `RenameListEntry`, `CopyListEntry`, `GetListOrdered` | Records the order entries were added; rename keeps the position, copy places the copy after the source; there is no move | Extends: a move method reorders `listOrder` and changes no entry content |
+| Leaf-list positional insert | `internal/component/config/tree.go` `InsertMultiValue`, `isValidInsertPosition`, `InsertBefore`, `InsertAfter` | Places a leaf-list member first, last, before or after another | Extends: the list move reuses the `before` and `after` positions and refuses `first` and `last` (D-2) |
+| The editor's `insert` verb | `internal/component/cli/model_commands_edit.go` `cmdInsert`, `resolveLeafListValue`, `errInsertFailedTargetIsNotA`; `model_commands.go` dispatch; `completer.go` | Parses the position, then refuses any target that is not a leaf-list | Extends: the same verb takes the list form when the target resolves to a list entry; no new verb |
+| Editor list-entry operations | `internal/component/cli/editor_commands.go` `RenameListEntry`, `CopyListEntry`, `listEntryDestination`, `InsertLeafListValue` | Direct mode edits the Tree; session mode writes through a structural op | Extends: the move joins them with the same direct and session split |
+| Change-file structural ops | `internal/component/config/change_file.go` `StructuralOpType`, `StructuralOp`, `parseInsertMemberLine`; `docs/architecture/config/change-file-structural-ops.md` | One metadata-prefixed line per rename, copy or member insert, with its `PendingChange` | Extends: one `move-entry` line and its pending change, in `config` and `cli/contract` alike |
+| Draft and commit replay | `internal/component/cli/editor_draft.go` `applyStructuralOpsAroundEntries`, `memberOpWaitsForEntries`, `renameAlreadyApplied`; `editor_commit.go` `memberOpStaleConflict`, `memberOpFix` | Replays ops around leaf edits, waits for entries a leaf edit creates, reports a stale op with the command to retype | Extends: the move copies the wait, the idempotent replay and the stale conflict |
+| Web terminal verbs | `internal/component/web/cli.go` `verbInsert`, `cli_terminal.go`, `editor.go` `EditorManager.RenameListEntry` | `insert <path>` creates a keyless list entry; rename and copy reach the editor through `EditorManager` | Extends: the move reaches the editor the way rename does, and the verb's meaning is aligned (D-7) |
+| gNMI Set | `internal/component/gnmi/set.go` `Set` | Applies delete, replace and update; carries no editor verb | Does not apply: no command language to carry the move (Known Limitations) |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -371,6 +386,7 @@ Each phase is sized at about 60 tool calls.
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `error-names-no-fix-command.md` | 2026-11-12 | `espFormOwnedTableAccept` cannot name a command that puts `accept-esp` first |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

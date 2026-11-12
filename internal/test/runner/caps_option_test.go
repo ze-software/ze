@@ -356,22 +356,63 @@ func TestNeedsLinuxRefusesUnknownKeys(t *testing.T) {
 	}
 }
 
-// TestContainerDevicesCoverWhatPPPOpens reads every non-test Go file under
-// internal/component/l2tp, the subsystem the L2TP and PPPoE .ci tests run,
-// collects each "/dev/..." literal passed to an open call, and checks that
+// TestContainerDevicesCoverWhatTestedPathsOpen reads every non-test Go file
+// under internal/component/l2tp, the subsystem the L2TP and PPPoE .ci tests
+// run, and internal/component/ike/dataplane, the XFRM dataplane the IPsec .ci
+// tests install through, collects each "/dev/..." string passed to an open
+// call, as a literal or as a constant its package declares, and checks that
 // ContainerDevicePaths holds every one and nothing else. The opened set is
 // derived from the source, not listed: ppp.DevPPPSetup opens /dev/ppp through
-// openDevPPP (devppp_linux.go).
+// openDevPPP (devppp_linux.go), and openESPFormTUN opens /dev/net/tun through
+// the constant espFormTUNClone (espform_tun_linux.go).
 //
 // VALIDATES: the release-candidate evidence container is granted every device
-// node the L2TP and PPPoE paths open, and no node they do not; the walk found
-// at least one open.
-// PREVENTS: a new device open in that subsystem leaving the container without
-// the node, which fails the session open and reads as a protocol failure, and
-// a stale grant surviving the open's removal.
-func TestContainerDevicesCoverWhatPPPOpens(t *testing.T) {
-	root := filepath.Join("..", "..", "component", "l2tp")
+// node the L2TP, PPPoE and IPsec dataplane paths open, and no node they do
+// not; the walk found at least one open in each tree.
+// PREVENTS: a new device open in those subsystems leaving the container
+// without the node, which fails the session open or the SA install and reads
+// as a protocol failure, and a stale grant surviving the open's removal.
+func TestContainerDevicesCoverWhatTestedPathsOpen(t *testing.T) {
 	opened := map[string]bool{}
+	for _, root := range []string{
+		filepath.Join("..", "..", "component", "l2tp"),
+		filepath.Join("..", "..", "component", "ike", "dataplane"),
+	} {
+		found := devNodesOpenedUnder(t, root)
+		if len(found) == 0 {
+			t.Fatalf("no open of a /dev node found under %s; the walk read the wrong tree", root)
+		}
+		for path := range found {
+			opened[path] = true
+		}
+	}
+	want := make([]string, 0, len(opened))
+	for path := range opened {
+		want = append(want, path)
+	}
+	slices.Sort(want)
+	if got := ContainerDevicePaths(); !slices.Equal(got, want) {
+		t.Errorf("ContainerDevicePaths() = %v, want exactly the nodes the L2TP, PPPoE and IPsec dataplane paths open, %v", got, want)
+	}
+	for _, path := range want {
+		if module, ok := DeviceHostModule(path); !ok || module == "" {
+			t.Errorf("DeviceHostModule(%q) = %q, %v; every granted node names the module that creates it", path, module, ok)
+		}
+	}
+}
+
+// devNodesOpenedUnder answers every "/dev/..." path a non-test Go file under
+// root passes as the first argument of a call to a selector named open or
+// openfile in any case, written as a string literal or as the name of a string
+// constant declared in the same directory (one package).
+func devNodesOpenedUnder(t *testing.T, root string) map[string]bool {
+	t.Helper()
+	type parsed struct {
+		dir  string
+		file *ast.File
+	}
+	var files []parsed
+	constants := map[string]map[string]string{}
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -383,44 +424,73 @@ func TestContainerDevicesCoverWhatPPPOpens(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		ast.Inspect(file, func(node ast.Node) bool {
-			call, ok := node.(*ast.CallExpr)
-			if !ok || len(call.Args) == 0 {
-				return true
+		dir := filepath.Dir(path)
+		files = append(files, parsed{dir: dir, file: file})
+		for _, declaration := range file.Decls {
+			general, ok := declaration.(*ast.GenDecl)
+			if !ok || general.Tok != token.CONST {
+				continue
 			}
-			selector, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || (selector.Sel.Name != "Open" && selector.Sel.Name != "OpenFile") {
-				return true
+			for _, spec := range general.Specs {
+				value, ok := spec.(*ast.ValueSpec)
+				if !ok || len(value.Names) != len(value.Values) {
+					continue
+				}
+				for i, name := range value.Names {
+					literal, ok := value.Values[i].(*ast.BasicLit)
+					if !ok || literal.Kind != token.STRING {
+						continue
+					}
+					text, err := strconv.Unquote(literal.Value)
+					if err != nil {
+						continue
+					}
+					if constants[dir] == nil {
+						constants[dir] = map[string]string{}
+					}
+					constants[dir][name.Name] = text
+				}
 			}
-			literal, ok := call.Args[0].(*ast.BasicLit)
-			if !ok || literal.Kind != token.STRING {
-				return true
-			}
-			value, err := strconv.Unquote(literal.Value)
-			if err == nil && strings.HasPrefix(value, "/dev/") {
-				opened[value] = true
-			}
-			return true
-		})
+		}
 		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(opened) == 0 {
-		t.Fatal("no open of a /dev node found under internal/component/l2tp; the walk read the wrong tree")
+	opened := map[string]bool{}
+	for _, source := range files {
+		ast.Inspect(source.file, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok || len(call.Args) == 0 {
+				return true
+			}
+			// Open and OpenFile of os and unix, and an injected opener such as
+			// the dataplane's espFormTUNNodeOps.open, which a test replaces.
+			selector, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || (!strings.EqualFold(selector.Sel.Name, "open") && !strings.EqualFold(selector.Sel.Name, "openfile")) {
+				return true
+			}
+			var value string
+			switch argument := call.Args[0].(type) {
+			case *ast.BasicLit:
+				if argument.Kind != token.STRING {
+					return true
+				}
+				text, err := strconv.Unquote(argument.Value)
+				if err != nil {
+					return true
+				}
+				value = text
+			case *ast.Ident:
+				value = constants[source.dir][argument.Name]
+			default:
+				return true
+			}
+			if strings.HasPrefix(value, "/dev/") {
+				opened[value] = true
+			}
+			return true
+		})
 	}
-	want := make([]string, 0, len(opened))
-	for path := range opened {
-		want = append(want, path)
-	}
-	slices.Sort(want)
-	if got := ContainerDevicePaths(); !slices.Equal(got, want) {
-		t.Errorf("ContainerDevicePaths() = %v, want exactly the nodes the L2TP and PPPoE paths open, %v", got, want)
-	}
-	for _, path := range want {
-		if module, ok := DeviceHostModule(path); !ok || module == "" {
-			t.Errorf("DeviceHostModule(%q) = %q, %v; every granted node names the module that creates it", path, module, ok)
-		}
-	}
+	return opened
 }

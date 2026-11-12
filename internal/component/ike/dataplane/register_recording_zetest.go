@@ -5,16 +5,16 @@
 
 package dataplane
 
-import (
-	"fmt"
-	"os"
-)
-
-// The recording backend registers only in a zetest build (recording_zetest.go says
-// why), so `ze.test.ike.dataplane=recording` names no backend in a shipped ze.
+// The recording backends register only in a zetest build (recording_zetest.go says
+// why), so `ze.test.ike.dataplane=recording` and
+// `ze.test.ike.dataplane=recording-esp-form-unavailable` name no backend in a shipped ze.
+// Register's only error is a duplicate name (dataplane.go Register), which only a Ze
+// defect makes, so a refusal panics, as register_vpp.go's does.
 func init() {
+	if err := Register("recording-esp-form-unavailable", newRecordingESPFormUnavailableBackend); err != nil {
+		panic("BUG: dataplane: recording-esp-form-unavailable registration failed: " + err.Error())
+	}
 	if err := Register("recording", newRecordingBackend); err != nil {
-		fmt.Fprintf(os.Stderr, "dataplane: recording registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: dataplane: recording registration failed: " + err.Error())
 	}
 }

@@ -13,9 +13,14 @@ package dataplane
 import (
 	"errors"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func TestXfrmPolicyFromParams(t *testing.T) {
@@ -181,6 +186,73 @@ func TestXFRMInstallSARejectsUnknownMode(t *testing.T) {
 	if err == nil {
 		t.Fatal("InstallSA accepted an unset mode, want rejection")
 	}
+}
+
+// VALIDATES: InstallSA refuses a UDP-encapsulated SA with IPv6 outer addresses that asks
+// to receive both ESP wire forms, with the operator error that names the gap and the
+// IPv4 fix, and installs nothing: no state reaches the kernel, and the ESP form receiver
+// watches no SPI and opens neither its socket nor ze-espform.
+// PREVENTS: an IPv6 dual-form SA installed anyway, which would receive one ESP form and
+// drop the other (RFC 7296 Section 2.23), while the receiver, which serves IPv4 only,
+// stays silent.
+// METHOD: run in the test's own user and network namespace, where the test is root, so
+// a state the refusal failed to stop would really be added, and the SAD dump of that
+// namespace proves none was. The host's SAD is never reachable from the test.
+func TestXFRMInstallSARefusesIPv6DualFormSA(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	const spi = 0x2000
+	b := &xfrmBackend{espForms: newESPFormReceiver(slogutil.DiscardLogger())}
+	t.Cleanup(func() {
+		if err := b.espForms.Close(); err != nil {
+			t.Errorf("close the ESP form receiver: %v", err)
+		}
+	})
+
+	err := b.InstallSA(SAParams{
+		SPI:                spi,
+		Src:                net.ParseIP("2001:db8::1"),
+		Dst:                net.ParseIP("2001:db8::2"),
+		Proto:              ProtoESP,
+		Mode:               ModeTunnel,
+		EncAlgo:            "aes256",
+		EncKey:             make([]byte, 32),
+		AuthAlgo:           "sha256",
+		AuthKey:            make([]byte, 32),
+		UDPEncap:           true,
+		UDPEncapSPort:      4500,
+		UDPEncapDPort:      4500,
+		AcceptBothESPForms: true,
+	})
+	refusal, isOperErr := errors.AsType[*opererr.Error](err)
+	if !isOperErr {
+		t.Fatalf("InstallSA answered %v, want the operator error refusing an IPv6 dual-form SA", err)
+	}
+	if want := "asks to receive both ESP wire forms over IPv6"; !strings.Contains(refusal.Problem(), want) {
+		t.Errorf("refusal problem %q, want it to contain %q", refusal.Problem(), want)
+	}
+	if want := "Ze has no IPv6 IKE transport yet"; !strings.Contains(refusal.Why(), want) {
+		t.Errorf("refusal reason %q, want it to contain %q", refusal.Why(), want)
+	}
+	if want := "remote-address <IPv4 address>"; !strings.Contains(refusal.Fix(), want) {
+		t.Errorf("refusal fix %q, want it to contain %q", refusal.Fix(), want)
+	}
+
+	states, err := netlink.XfrmStateList(netlink.FAMILY_ALL)
+	if err != nil {
+		t.Fatalf("dump the namespace's SAD: %v", err)
+	}
+	if len(states) != 0 {
+		t.Errorf("the refused install left %d state(s) in the SAD, first spi=%#x, want none", len(states), states[0].Spi)
+	}
+	if b.espForms.reg.watching(spi) {
+		t.Errorf("the refused SPI %#x is watched by the ESP form receiver, want it unknown", spi)
+	}
+	if b.espForms.running() {
+		t.Error("the ESP form receiver opened its socket and device for a refused SA")
+	}
+	espFormWantNoTUN(t, "the refused install")
 }
 
 // TestXfrmEncName proves each cipher word maps to its kernel transform and that a word

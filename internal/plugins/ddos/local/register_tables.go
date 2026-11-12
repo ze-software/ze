@@ -12,5 +12,10 @@ import "github.com/ze-software/ze/internal/component/firewall"
 //
 //nolint:gochecknoinits // registration: a reservation is declared from init, before any RegisterTables
 func init() {
-	firewall.MustReserveTableNames(tableName, tableName)
+	firewall.MustReserveTableNames(tableName, firewall.TableControl{
+		Plugin: "ddos-local plugin",
+		Decides: "the attacks the DDoS detector finds: a drop rule for an attacked destination stays " +
+			"while the attack lasts, up to max-mitigation-duration, or until a commit turns mitigation off",
+		Command: "show ddos local",
+	}, tableName)
 }

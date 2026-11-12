@@ -12,5 +12,10 @@ import "github.com/ze-software/ze/internal/component/firewall"
 //
 //nolint:gochecknoinits // registration: a reservation is declared from init, before any RegisterTables
 func init() {
-	firewall.MustReserveTableNames("flowspec", tableName)
+	firewall.MustReserveTableNames("flowspec", firewall.TableControl{
+		Plugin: "flowspec-firewall plugin",
+		Decides: "the BGP FlowSpec routes Ze selected: each rule leaves the kernel when the peer " +
+			"that sent its route withdraws it",
+		Command: "show bgp rib best | family ipv4/flow",
+	}, tableName)
 }

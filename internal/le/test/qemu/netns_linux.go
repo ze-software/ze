@@ -177,12 +177,12 @@ func prepareNetnsState(ctx context.Context) error {
 	if result.Code != 0 {
 		return fmt.Errorf("prepare %s failed with exit %d", netnsStateDir, result.Code)
 	}
-	result, err = guestRun(ctx, "", []string{"sh", "-c", netnsDevPPPScript()}, nil)
+	result, err = guestRun(ctx, "", []string{"sh", "-c", netnsDevNodesScript()}, nil)
 	if err != nil {
 		return err
 	}
 	if result.Code != 0 {
-		return fmt.Errorf("open /dev/ppp to the dropped user failed with exit %d: %s", result.Code, strings.TrimSpace(result.Stderr))
+		return fmt.Errorf("open /dev/ppp and /dev/net/tun to the dropped user failed with exit %d: %s", result.Code, strings.TrimSpace(result.Stderr))
 	}
 	return nil
 }

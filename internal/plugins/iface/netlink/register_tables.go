@@ -22,5 +22,9 @@ const rpfTableOwner = "iface-rpf"
 //
 //nolint:gochecknoinits // registration: a reservation is declared from init, before any RegisterTables
 func init() {
-	firewall.MustReserveTableNames(rpfTableOwner, rpfTableName)
+	firewall.MustReserveTableNames(rpfTableOwner, firewall.TableControl{
+		Plugin:  "iface netlink backend",
+		Decides: "the rpf-check setting of each interface in the configuration",
+		Command: "show interface",
+	}, rpfTableName)
 }

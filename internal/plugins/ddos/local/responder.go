@@ -328,20 +328,7 @@ func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddoseve
 		return
 	}
 
-	term := buildDropTerm("ddos-drop", target)
-	table := firewall.Table{
-		Name:   tableName,
-		Family: familyFromPrefix(target.DstPrefix),
-		Chains: []firewall.Chain{{
-			Name:     hookChainName(hook),
-			IsBase:   true,
-			Type:     firewall.ChainFilter,
-			Hook:     hook,
-			Priority: -200,
-			Policy:   firewall.PolicyAccept,
-			Terms:    []firewall.Term{term},
-		}},
-	}
+	table := MitigationTable(target, hook)
 
 	if err := registerTables(tableName, []firewall.Table{table}); err != nil {
 		// The registry refused the table, so nothing was staged and there is
@@ -377,6 +364,34 @@ func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddoseve
 	r.setStatus(true, target, hook)
 	logger().Info("ddos-local: drop rule installed",
 		"target", target.DstPrefix, "hook", hookChainName(hook), "phase", phase)
+}
+
+// MitigationTable returns the nftables table that drops the target vector's traffic
+// at hook: table ze_ddos-local, in the ip or ip6 family of the victim prefix, holding
+// one accept-policy base chain at priority -200 with the vector's drop term
+// (buildDropTerm). It is the table applyMitigation installs, and its only builder.
+//
+// It is exported so a test outside this package can judge the table this plugin
+// installs without a copy of its shape: the IKE ESP form fast path's analyzer test
+// (internal/component/ike/dataplane, espform_firewall_stock_linux_test.go) lowers it
+// through the nft backend and reads it back from the kernel.
+//
+// Caller MUST pass a target with a valid DstPrefix: familyFromPrefix answers ip6 for
+// the zero prefix, and buildDropTerm emits no match for a zero vector.
+func MitigationTable(target ddosevent.VectorTuple, hook firewall.ChainHook) firewall.Table {
+	return firewall.Table{
+		Name:   tableName,
+		Family: familyFromPrefix(target.DstPrefix),
+		Chains: []firewall.Chain{{
+			Name:     hookChainName(hook),
+			IsBase:   true,
+			Type:     firewall.ChainFilter,
+			Hook:     hook,
+			Priority: -200,
+			Policy:   firewall.PolicyAccept,
+			Terms:    []firewall.Term{buildDropTerm("ddos-drop", target)},
+		}},
+	}
 }
 
 // hookForDirection maps the victim's direction to the netfilter hook that can actually

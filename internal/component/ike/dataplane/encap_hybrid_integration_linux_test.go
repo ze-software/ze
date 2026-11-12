@@ -203,7 +203,7 @@ func TestEncapOneStateAcceptsBothForms(t *testing.T) {
 	}
 
 	out := make([]byte, espFormPacketLen(esp))
-	wrote := writeESPForm(out, netip.MustParseAddr(encapLoopbackPeerAddr), netip.MustParseAddr(encapLoopbackAddr), esp)
+	wrote := writeESPForm(out, netip.MustParseAddr(encapLoopbackPeerAddr), netip.MustParseAddr(encapLoopbackAddr), 0, esp)
 	if wrote == 0 {
 		t.Fatal("writeESPForm refused a datagram read off the wire")
 	}

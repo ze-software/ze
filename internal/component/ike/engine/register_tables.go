@@ -12,5 +12,9 @@ import "github.com/ze-software/ze/internal/component/firewall"
 //
 //nolint:gochecknoinits // registration: a reservation is declared from init, before any RegisterTables
 func init() {
-	firewall.MustReserveTableNames(sourceGuardOwner, sourceGuardTableName)
+	firewall.MustReserveTableNames(sourceGuardOwner, firewall.TableControl{
+		Plugin:  "IKE engine's tunnel-source guard",
+		Decides: "the IPsec site-to-site peers of the configuration and their tunnel addresses",
+		Command: "show firewall ruleset ipsec_source_guard",
+	}, sourceGuardTableName)
 }

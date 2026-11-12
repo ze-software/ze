@@ -17,6 +17,9 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Linux 7.2 include/uapi/linux/xfrm.h, struct xfrm_user_migrate_state.
@@ -158,18 +161,60 @@ func (b *xfrmMobikeBackend) MigrateTunnel(m TunnelMigration) error {
 	if b.espForms == nil {
 		return errNoESPFormReceiver
 	}
-	oldTarget, watched := b.espForms.reg.target(m.InboundSPI)
-	peer, _ := netip.AddrFromSlice(m.NewRemote.To4())
-	local, _ := netip.AddrFromSlice(m.NewLocal.To4())
-	// Acquire the receiver before touching the SAD; a socket failure leaves the
-	// existing tunnel intact. The old target is restored on any rollback.
-	if err := b.espForms.Watch(m.InboundSPI, peer, local); err != nil {
+	// The SA the receiver serves is the inbound SPI on the old local address, the pair
+	// XFRM keys the state on. Only an IPv4 inbound state is ever watched (InstallSA
+	// refuses a dual-form SA over IPv6), so an old local address with no IPv4 form names
+	// no watched SA.
+	var from netip.Addr
+	var oldTarget espFormTarget
+	watched := false
+	if oldLocal, ok := netip.AddrFromSlice(m.OldLocal.To4()); ok {
+		from = oldLocal
+		oldTarget, watched = b.espForms.target(m.InboundSPI, oldLocal)
+	}
+	peer, err := xfrmMigrationIPv4("peer", m.NewRemote)
+	if err != nil {
 		return err
 	}
-	b.espForms.reg.retarget(m.InboundSPI, espFormTarget{
-		peer: peer, local: local, peerPort: m.RemotePort, localPort: m.LocalPort,
-	})
+	local, err := xfrmMigrationIPv4("local", m.NewLocal)
+	if err != nil {
+		return err
+	}
+	newTarget := espFormTarget{peer: peer, local: local, peerPort: m.RemotePort, localPort: m.LocalPort}
+	// A move the receiver could not follow is refused while nothing has changed: the
+	// receiver tells SAs on one inbound SPI apart by local address, so a move onto the
+	// address another such SA holds would leave one of them unserved. The registry's
+	// own check decides it (espFormRegistry.admitsMove, the check retarget makes).
+	if err := b.espForms.admitsMove(m.InboundSPI, from, local); err != nil {
+		return xfrmMigrationCollision(err, m, local)
+	}
+	// RFC 7296 Section 2.23: "all devices MUST be able to receive and process both UDP-encapsulated ESP and non-UDP-encapsulated ESP packets at any time."
+	// prepareMigration templates the inbound state, so after the
+	// move the kernel refuses its bare ESP and only the receiver serves that form. An SA
+	// the receiver already watches has the paths open. For one it does not, the paths are
+	// opened, and held, before the SAD is touched: a raw socket or ze-espform device that
+	// cannot open refuses the move while nothing has changed, as InstallSA refuses an SA
+	// whose bare form nothing would serve. The hold ends in watchHeld once the move
+	// landed, or in release when it did not: held says it has not ended yet, and the
+	// deferred release ends it only then, so a panic before either cannot leave the
+	// paths held with no SA, and no path ends it twice.
+	held := false
+	if !watched {
+		if err := b.espForms.acquire(); err != nil {
+			return xfrmMigrationUnserved(err, m, local)
+		}
+		held = true
+		defer func() {
+			if held {
+				b.espForms.release()
+			}
+		}()
+	}
 
+	// The receiver follows the SAD, never leads it: until the states move, the kernel
+	// still holds the SA on its old address, so the receiver keeps re-presenting bare
+	// ESP there. The registry changes only after the move succeeds, so a failed move
+	// that rolls back leaves it as it was.
 	moved := 0
 	for i := range moves {
 		err = xfrmMigrationExecute(xfrmStateMigrationRequest(&moves[i], false))
@@ -192,9 +237,18 @@ func (b *xfrmMobikeBackend) MigrateTunnel(m TunnelMigration) error {
 		}
 	}
 	if err == nil {
+		// followMove ends the hold in watchHeld.
+		held = false
+		b.followMove(m.InboundSPI, watched, from, newTarget)
 		return nil
 	}
 
+	// The SA the hold was taken for is not registered: the move did not land, and on a
+	// lost rollback the caller retires the Child SA.
+	if held {
+		held = false
+		b.espForms.release()
+	}
 	cause := fmt.Errorf("xfrm: migrate tunnel: %w", err)
 	var rollback error
 	// Reverse migration synchronizes the CURRENT kernel state again. Replaying
@@ -216,15 +270,15 @@ func (b *xfrmMobikeBackend) MigrateTunnel(m TunnelMigration) error {
 		}
 		rollback = errors.Join(rollback, stateErr)
 	}
-	if watched {
-		b.espForms.reg.retarget(m.InboundSPI, oldTarget)
-	} else {
-		b.espForms.Forget(m.InboundSPI)
-	}
+	// The receiver never moved, so a restored tunnel is served where it was.
 	if rollback == nil {
 		return cause
 	}
-	b.espForms.Forget(m.InboundSPI)
+	// The caller retires this Child SA on ErrTunnelMigrationLost, so its watch goes now.
+	// The receiver never moved, so a watched SA is still on its old local address.
+	if watched {
+		b.espForms.Forget(m.InboundSPI, oldTarget.local)
+	}
 	// Policies stay PROTECT and owned. Removing them here would let traffic
 	// escape unencrypted. The caller MUST retire this Child SA on ErrTunnelMigrationLost.
 	cleanup := b.discardMigrationStates(&moves)
@@ -237,6 +291,121 @@ func sameXFRMMigrationState(a, b *xfrmMigrationState) bool {
 		a.ifID == b.ifID && a.encap == b.encap
 }
 
+// xfrmMigrationCollision answers MigrateTunnel's refusal of a move the receiver of both
+// ESP wire forms cannot follow, from the receiver's answer to admitsMove. Only
+// errESPFormLocalTaken is that refusal; any other answer passes through, as a receiver
+// that cannot be asked is not a collision.
+//
+// The fix line lists the peers with their inbound SPIs: the move names no peer, and
+// clearing either peer whose Child SA carries the SPI gives that peer's new Child SA a
+// new SPI, which ends the collision.
+func xfrmMigrationCollision(err error, m TunnelMigration, local netip.Addr) error {
+	if !errors.Is(err, errESPFormLocalTaken) {
+		return err
+	}
+	var problem textbuf.Buffer
+	problem.Str("the MOBIKE move of the Child SA with inbound SPI ").Uint32(m.InboundSPI).
+		Str(" from local address ").Str(m.OldLocal.String()).Str(" to ").Str(local.String()).
+		Str(" was refused, because another Child SA with the same inbound SPI is received on ").
+		Str(local.String())
+	return opererr.Wrap(err, problem.String(),
+		"the receiver of both ESP wire forms tells the SAs on one SPI apart by local address, so Ze "+
+			"keeps the tunnel on its old address and changes nothing. Clearing either peer whose Child SA "+
+			"carries that SPI, with "+ESPFormFixClearPeer+"<name>, gives its new Child SA a new SPI; the "+
+			"command below lists each peer with its inbound SPI",
+		ESPFormFixListSAs)
+}
+
+// xfrmMigrationUnserved answers MigrateTunnel's refusal of a move whose SA the receiver
+// of bare ESP could not serve, because its reader socket or its ze-espform device did not
+// open (espFormReceiver.acquire). The cause is rendered after the reason, so its text is
+// not repeated in the problem, and the fix is the cause's own: every open failure the
+// host can cause is an operator error that names its fix (openESPFormPaths), and the
+// doctor reports the same failure with the same fix. A cause that is no operator error is
+// a Ze defect no operator command fixes, so it passes through with the move's context
+// and no fix line.
+func xfrmMigrationUnserved(err error, m TunnelMigration, local netip.Addr) error {
+	var problem textbuf.Buffer
+	problem.Str("the MOBIKE move of the Child SA with inbound SPI ").Uint32(m.InboundSPI).
+		Str(" from local address ").Str(m.OldLocal.String()).Str(" to ").Str(local.String()).
+		Str(" was refused, because Ze cannot open the receiver of bare ESP, its raw ESP socket and the ").
+		Str(espFormTUNName).Str(" device")
+	refusal, ok := errors.AsType[*opererr.Error](err)
+	if !ok {
+		return fmt.Errorf("%s: %w", problem.String(), err)
+	}
+	return opererr.Wrap(espFormRefusalCause{err: err, refusal: refusal}, problem.String(),
+		"after the move the SA's inbound state carries the ESP-in-UDP template, so the kernel refuses its "+
+			"bare ESP, and only that receiver serves the bare form. Ze installs no SA that receives one ESP "+
+			"form only, so it keeps the tunnel on its old address and changes nothing",
+		refusal.Fix())
+}
+
+// espFormRefusalCause carries an operator error as the cause of another one that takes
+// over its fix. Its text is the refusal's problem and its own cause, never its why or fix
+// line: the outer error renders its own fix last, so the fix appears once, as the doctor
+// renders a refusal (espFormTUNUnavailable, engine/doctor_esp_form_fast_path.go). Unwrap
+// answers err unchanged, so errors.Is and errors.As still reach every error it carries.
+type espFormRefusalCause struct {
+	err     error
+	refusal *opererr.Error
+}
+
+func (c espFormRefusalCause) Error() string {
+	var text textbuf.Buffer
+	text.Str(c.refusal.Problem())
+	if cause := c.refusal.Unwrap(); cause != nil {
+		text.Str(": ").Err(cause)
+	}
+	return text.String()
+}
+
+func (c espFormRefusalCause) Unwrap() error {
+	return c.err
+}
+
+// followMove points the receiver at a tunnel the SAD has already moved: a watched SA
+// moves within the registry, so its old address is not left behind as a second SA, and
+// an SA that was not watched is registered on its new address, on the paths acquire
+// opened and held before the move, which cannot fail.
+//
+// A retarget failure costs serving only. The kernel holds the moved states and receives
+// the ESP-in-UDP form, so rolling the SAD back for it would trade a working tunnel for
+// the bare form. The failure is logged at Warn with its fix, here alone (retarget logs
+// nothing), and the SAD keeps the move: clearing the peer installs a new Child SA, which
+// InstallSA watches where it lives.
+func (b *xfrmMobikeBackend) followMove(spi uint32, watched bool, from netip.Addr, target espFormTarget) {
+	if !watched {
+		b.espForms.watchHeld(spi, target)
+		return
+	}
+	err := b.espForms.retarget(spi, from, target)
+	if err == nil {
+		return
+	}
+	b.espForms.logger().Warn("xfrm: a MOBIKE move carried a Child SA to a new address, but the receiver of "+
+		"bare ESP could not follow it, so the SA still receives the ESP-in-UDP form and not the bare form. "+
+		"Ze keeps the move. Clearing the peer that holds the SA, with "+ESPFormFixClearPeer+"<name>, "+
+		"installs a new Child SA that is received in both forms; the listing shows each peer's inbound SPI",
+		"spi", spi, "local", from, "new-local", target.local, "error", err,
+		"fix", ESPFormFixListSAs, "code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+}
+
+// xfrmMigrationIPv4 answers a MOBIKE move's new address as the IPv4 address the
+// dual-form receiver watches. validateXFRMMigration refuses an address with no IPv4
+// form first; this pairs that check where the address is converted, so a caller that
+// skipped it is refused rather than handed the zero address.
+func xfrmMigrationIPv4(role string, ip net.IP) (netip.Addr, error) {
+	addr, ok := netip.AddrFromSlice(ip.To4())
+	if ok {
+		return addr, nil
+	}
+	return netip.Addr{}, opererr.New(
+		"the MOBIKE move of an IPsec tunnel names the "+role+" address "+ip.String()+", which is not an IPv4 address",
+		"the receiver of both ESP wire forms serves IPv4 only, so Ze keeps the tunnel on its old addresses",
+		"ze clear vpn ipsec sa all")
+}
+
 func validateXFRMMigration(m TunnelMigration) error {
 	for _, ip := range []net.IP{m.OldLocal, m.OldRemote, m.NewLocal, m.NewRemote} {
 		if !validTunnelEndpoint(ip) {
@@ -246,9 +415,20 @@ func validateXFRMMigration(m TunnelMigration) error {
 			return fmt.Errorf("xfrm: migration cannot use multicast endpoints")
 		}
 	}
-	// The dual-form receiver currently serves IPv4 only, as InstallSA documents.
-	if m.NewLocal.To4() == nil || m.NewRemote.To4() == nil {
-		return fmt.Errorf("xfrm: migration cannot receive both ESP forms over IPv6: %w", ErrNotSupported)
+	// A MOBIKE move to IPv6 endpoints would need the dual-form receiver to serve IPv6,
+	// and no IPv6 dual-form SA can exist: Ze has no IPv6 IKE transport yet (the IKE
+	// listener opens udp4 only, transport/udp.go), so InstallSA refuses one. The gap is
+	// owed after the first release (plan/post-release/features/spec-ike-ipv6-transport.md).
+	// The refusal wraps ErrNotSupported, which the engine reads, and carries the same fix
+	// as xfrmMigrationIPv4, the check that pairs it where the address is converted.
+	ipv4 := m.NewLocal.To4() != nil && m.NewRemote.To4() != nil
+	if !ipv4 {
+		return opererr.Wrap(ErrNotSupported,
+			"the MOBIKE move of an IPsec tunnel to local address "+m.NewLocal.String()+" and peer address "+
+				m.NewRemote.String()+" was refused, because both ESP wire forms would have to be received over IPv6",
+			"Ze receives both ESP wire forms over IPv4 only until it has an IPv6 IKE transport, a gap owed "+
+				"after the first release, so Ze keeps the tunnel on its old addresses",
+			"ze clear vpn ipsec sa all")
 	}
 	if (m.OldLocal.To4() == nil) != (m.OldRemote.To4() == nil) {
 		return fmt.Errorf("xfrm: migration old endpoint families differ")

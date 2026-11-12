@@ -71,7 +71,8 @@ func argumentPairs(arguments []string, flag string) []string {
 // ipsecPeerGrants answers the exact grant set a peer of the named scenario
 // holds: FRR the NET_ADMIN and SYS_ADMIN of the shared FRR peer; strongSwan NET_ADMIN, and /proc/sys writable only where its
 // checker writes a sysctl; the NAT box NET_ADMIN and its --sysctl settings;
-// ze NET_ADMIN and BPF; every other peer NET_ADMIN.
+// ze NET_ADMIN and BPF, the host's /dev/net/tun and /proc/sys writable under
+// the generic net sysctl profile; every other peer NET_ADMIN.
 func ipsecPeerGrants(scenario, peer string) grantcheck.Grants {
 	switch peer {
 	case frrPeer:
@@ -85,8 +86,15 @@ func ipsecPeerGrants(scenario, peer string) grantcheck.Grants {
 		return grants
 	case zePeer:
 		// BPF: the default `vpn ipsec application-override deny` loads a cgroup
-		// setsockopt program (capabilityBPF in ipsec.go).
-		return grantcheck.Grants{Capabilities: []string{"NET_ADMIN", "BPF"}}
+		// setsockopt program (capabilityBPF in ipsec.go). /dev/net/tun and the
+		// writable /proc/sys: an encapsulated Child SA makes Ze create the
+		// ze-espform TUN device and set its sysctls (openESPFormTUN).
+		return grantcheck.Grants{
+			Capabilities:    []string{"NET_ADMIN", "BPF"},
+			Devices:         []string{interoplab.TUNDevice},
+			SecurityOptions: grantcheck.Parse(nil, interoplab.NetSysctlWriteArguments()).SecurityOptions,
+			AppArmorProfile: interoplab.NetSysctlAppArmorProfileName,
+		}
 	case natPeer:
 		return grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Sysctls: natSysctls}
 	}
@@ -100,7 +108,10 @@ func ipsecPeerGrants(scenario, peer string) grantcheck.Grants {
 // on forwarding;
 // writesPeerSysctl on its checker entry) and only there, gets /proc/sys
 // writable under the generic net sysctl profile, which grants every sysctl
-// those checkers write; ze gets neither, and takes no --sysctl: a scenario that
+// those checkers write; ze, in every scenario, gets the host's /dev/net/tun
+// and /proc/sys writable under the same profile, because whether a Child SA is
+// UDP-encapsulated (and so creates the ze-espform TUN device and writes its
+// sysctls) is decided at run time; ze takes no --sysctl: a scenario that
 // needs IPv6 on its eth0 gets an IPv6 lab network instead (networkIPv6).
 // PREVENTS: a lab peer silently running --privileged again, or a grant drifting
 // from the writes the lab makes.
@@ -128,6 +139,15 @@ func TestIPsecLabPeersRunWithoutPrivilege(t *testing.T) {
 				if !writable || peer.AppArmorProfile != interoplab.NetSysctlAppArmorProfileName {
 					t.Errorf("%s: strongSwan arguments %v profile %q, want /proc/sys writable under %s",
 						name, peer.Arguments, peer.AppArmorProfile, interoplab.NetSysctlAppArmorProfileName)
+				}
+			case zePeer:
+				if !writable || peer.AppArmorProfile != interoplab.NetSysctlAppArmorProfileName {
+					t.Errorf("%s: ze arguments %v profile %q, want /proc/sys writable under %s for the ze-espform sysctls",
+						name, peer.Arguments, peer.AppArmorProfile, interoplab.NetSysctlAppArmorProfileName)
+				}
+				if !slices.Contains(argumentPairs(peer.Arguments, "--device"), interoplab.TUNDevice) {
+					t.Errorf("%s: ze arguments %v lack --device %s, which an encapsulated Child SA opens",
+						name, peer.Arguments, interoplab.TUNDevice)
 				}
 			case natPeer:
 				sysctls := argumentPairs(peer.Arguments, "--sysctl")

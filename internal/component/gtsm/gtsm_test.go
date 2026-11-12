@@ -362,13 +362,15 @@ func TestGTSMBuildsNoICMPTermsForAnIPv6Peer(t *testing.T) {
 	}
 }
 
-// listenDrop is the shape a listen-port term must have: the source, TCP, the
-// one destination port, the family's below-floor match, and a drop alone.
+// listenDrop is the shape a listen-port term must have: TCP first, then the
+// source, the one destination port, the family's below-floor match, and a drop
+// alone. The protocol leads so the IKE ESP form fast path's analyzer can read
+// the lowered rule as one bare ESP never matches (listenPortTerm).
 func assertListenDrop(t *testing.T, term firewall.Term, source netip.Prefix, port uint16, floor firewall.Match) {
 	t.Helper()
 	want := []firewall.Match{
-		firewall.MatchSourceAddress{Prefix: source},
 		firewall.MatchProtocol{Protocol: "tcp"},
+		firewall.MatchSourceAddress{Prefix: source},
 		firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: port, Hi: port}}},
 		floor,
 	}

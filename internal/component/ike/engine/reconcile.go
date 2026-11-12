@@ -205,6 +205,12 @@ type PeerSession struct {
 	childCreate        childCreateSchedule
 	childCreateRefusal rekeyRefusalRecord
 
+	// childRefused is the last Child SA this node refused after the peer accepted it,
+	// while no Child SA has been installed since (recordChildRefused, doctor_child_install.go).
+	// The owner loop writes it and setChildSA clears it; the ipsec-child-install doctor
+	// check reads it from the doctor callback's goroutine, so it is atomic.
+	childRefused atomic.Pointer[childRefusal]
+
 	// pendingProbe is the padded path probe that holds the request window, with the
 	// channel its outcome is answered on (probe.go). Owned by the maintainSA loop,
 	// like pendingRekey.
@@ -456,6 +462,12 @@ func (ps *PeerSession) setChildSA(c *ChildSA) {
 	ps.childSA = c
 	dataplaneChanged()
 	ps.mu.Unlock()
+	// An installed Child SA ends the refusal the doctor reports: whichever exchange
+	// installed it (a retried creation, the peer's own request, a reconnect's IKE_AUTH),
+	// the peer now has one.
+	if c != nil {
+		ps.childRefused.Store(nil)
+	}
 }
 
 func (ps *PeerSession) getChildSA() *ChildSA {

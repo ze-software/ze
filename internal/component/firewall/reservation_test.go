@@ -5,11 +5,15 @@ import (
 	"testing"
 )
 
-// reserveForTest reserves names for owner and removes the reservation when the
-// test ends, so no other test in the package meets it.
-func reserveForTest(t *testing.T, owner string, names ...string) {
+// testReservationOwner is the owner every reserveForTest reservation is made for,
+// the "test-holder" the tests name when they register or expect that owner.
+const testReservationOwner = "test-holder"
+
+// reserveForTest reserves names for testReservationOwner and removes the
+// reservation when the test ends, so no other test in the package meets it.
+func reserveForTest(t *testing.T, names ...string) {
 	t.Helper()
-	MustReserveTableNames(owner, names...)
+	MustReserveTableNames(testReservationOwner, testTableControl, names...)
 	t.Cleanup(func() {
 		tableReservations.mu.Lock()
 		defer tableReservations.mu.Unlock()
@@ -24,7 +28,7 @@ func reserveForTest(t *testing.T, owner string, names ...string) {
 // as it was. The reserving owner itself still registers the name.
 // PREVENTS: an owner's table merging into another owner's table at ApplyAll.
 func TestRegisterTablesRefusesAReservedName(t *testing.T) {
-	reserveForTest(t, "test-holder", "ze_test_reserved")
+	reserveForTest(t, "ze_test_reserved")
 	t.Cleanup(func() {
 		_ = RegisterTables("test-holder", nil)
 		_ = RegisterTables("test-intruder", nil)
@@ -78,7 +82,7 @@ func TestRegisterTablesAcceptsSetsIntoAnUnreservedName(t *testing.T) {
 // owner; an unreserved operator table passes.
 // PREVENTS: an operator table named like a VRRP table merging into it.
 func TestOperatorTableRefusedOnAReservedName(t *testing.T) {
-	reserveForTest(t, "test-holder", "ze_test_reserved")
+	reserveForTest(t, "ze_test_reserved")
 	err := refuseReservedTableNames([]Table{
 		{Name: "ze_wan", Family: FamilyInet},
 		{Name: "ze_test_reserved", Family: FamilyIP},
@@ -110,7 +114,7 @@ func TestConntrackHelperTablesAreReserved(t *testing.T) {
 // VALIDATES: a second owner reserving a held name, or a name without the ze_
 // prefix, is a defect in the calling package and panics at init.
 func TestMustReserveTableNamesPanicsOnASecondOwner(t *testing.T) {
-	reserveForTest(t, "test-holder", "ze_test_reserved")
+	reserveForTest(t, "ze_test_reserved")
 	for _, tc := range []struct {
 		name  string
 		owner string
@@ -125,7 +129,52 @@ func TestMustReserveTableNamesPanicsOnASecondOwner(t *testing.T) {
 					t.Error("expected a panic, got none")
 				}
 			}()
-			MustReserveTableNames(tc.owner, tc.table)
+			MustReserveTableNames(tc.owner, testTableControl, tc.table)
 		})
+	}
+}
+
+// testTableControl is the control every test reservation declares.
+var testTableControl = TableControl{
+	Plugin:  "test plugin",
+	Decides: "the test's own state",
+	Command: "show firewall ruleset test_reserved",
+}
+
+// VALIDATES: a reservation whose control leaves a field empty is a defect in the
+// calling package and panics at init, so no reserved table is ever reported with
+// nothing that decides its rules; TableControlOf answers the control a
+// reservation declared, and false for a name no producer reserved.
+// PREVENTS: a message about a rule in a plugin's table that sends the operator
+// to nothing, or to an editor that cannot reach the table.
+func TestMustReserveTableNamesNeedsAControl(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		control TableControl
+	}{
+		{"no plugin", TableControl{Decides: "x", Command: "show x"}},
+		{"nothing decides", TableControl{Plugin: "x", Command: "show x"}},
+		{"no command", TableControl{Plugin: "x", Decides: "x"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Error("expected a panic, got none")
+				}
+			}()
+			MustReserveTableNames("test-holder", tc.control, "ze_test_no_control")
+		})
+	}
+	if _, ok := TableControlOf("ze_test_no_control"); ok {
+		t.Error("a reservation refused for its control was recorded")
+	}
+
+	reserveForTest(t, "ze_test_reserved")
+	got, ok := TableControlOf("ze_test_reserved")
+	if !ok || got != testTableControl {
+		t.Errorf("TableControlOf(ze_test_reserved) = %+v, %v; want %+v, true", got, ok, testTableControl)
+	}
+	if got, ok := TableControlOf("ze_operator_table"); ok {
+		t.Errorf("TableControlOf answered %+v for a name no producer reserved", got)
 	}
 }

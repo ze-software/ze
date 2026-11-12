@@ -15,8 +15,8 @@ expect=stdout:contains=WorkingDirectory=/custom/path
 expect=stdout:contains=Environment=ZE_CONFIG_DIR=/custom/path
 expect=stdout:contains=User=ze
 expect=stdout:contains=Group=ze
-expect=stdout:contains=AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
-expect=stdout:contains=CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+expect=stdout:contains=AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_BPF
+expect=stdout:contains=CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_BPF
 expect=stdout:contains=Environment=XDG_RUNTIME_DIR=/run/ze
 expect=stdout:contains=RuntimeDirectory=ze
 expect=stdout:contains=ProtectSystem=true

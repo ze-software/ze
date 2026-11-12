@@ -794,6 +794,687 @@ it is being dropped.
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig, releaseSPD -->
 <!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- xfrmInterfaceExemptions, interfaceSPDCatchAll, planXFRMInterfaceEntries -->
 
+## Both ESP forms on one inbound state
+
+RFC 7296 Section 2.23 says "all devices MUST be able to receive and process
+both UDP-encapsulated ESP and non-UDP-encapsulated ESP packets at any time."
+One XFRM state receives one form (`LL-XFRM-STATE-ONE-ESP-FORM` in
+[Linux limitations](../linux-limitations.md#ll-xfrm-state-one-esp-form)).
+`installChildDataplane` sets `SAParams.AcceptBothESPForms` on every inbound
+Child SA state. For one that also carries the ESP-in-UDP template
+(`UDPEncap`), `InstallSA` watches its SPI (`espFormReceiver.Watch`) with the
+peer and local address and the template's ports in one call, so the first
+datagram the receiver re-presents already carries the ports the state matches;
+`RemoveSA` forgets it, and `MigrateTunnel` retargets it after a MOBIKE move. A
+template-free state receives bare ESP itself and is never watched.
+
+The receiver names a watched SA by its SPI and its local address, the pair XFRM
+keys an inbound state on (`__xfrm_state_lookup`). Ze draws each inbound SPI at
+random and checks it against no SPI in use (`generateESPSPI`), so two Child SAs
+on two local addresses can carry one SPI, and the kernel installs both. The
+registry holds both, and the complete path looks a datagram up by its SPI and
+its destination address, so each SA's bare ESP reaches its own target and a
+datagram sent to an address no watched SA holds is dropped. `RemoveSA` forgets
+only the SA on the state's destination, so removing an outbound SA whose
+peer-chosen SPI equals a watched inbound SPI leaves the inbound SA served. The
+fast path's map holds one target per SPI: it keeps the first SA watched, and the
+program rewrites only a datagram from that SA's peer to its local address, so
+the second SA's bare ESP takes the complete path, rate-bounded. While the fast
+path is attached, Watch logs both local addresses at Warn under
+`doctor-ipsec-esp-form-fast-path`, with `ze show vpn ipsec sa` as its fix and the
+message saying that clearing either peer whose Child SA carries the SPI ends the
+collision. A fast path that is unavailable or detached serves no SA, so the
+collision costs nothing more there and Watch does not warn of it. When the
+first SA is forgotten, the second takes the fast path over.
+
+A MOBIKE move onto a local address another SA on the same SPI holds is refused
+before the SAD is touched. `espFormRegistry.retarget` holds the one check of
+that collision and answers why it refused (`errESPFormLocalTaken`, or
+`errESPFormNotWatched` for an SA it does not watch). `MigrateTunnel` asks the
+same check first, through `admitsMove`, and answers an operator error whose fix
+is `ze show vpn ipsec sa`. A watch replaces an SA already on the same SPI and
+local address rather than refusing it, so for an SA the receiver does not watch
+yet this check is the only thing that keeps the move from taking another SA's
+watch.
+
+`MigrateTunnel` always templates the moved inbound state, so after the move the
+kernel refuses its bare ESP and the receiver is the only server of that form.
+For an SA the receiver does not watch yet, `MigrateTunnel` therefore opens the
+receiver's paths, the raw ESP socket and the `ze-espform` device, and holds
+them (`espFormReceiver.acquire`) before it touches the SAD. When they cannot
+open, the move is refused with nothing changed: no state moves, the registry is
+untouched, and the tunnel stays on its old address. The refusal is an operator
+error (`xfrmMigrationUnserved`) that names the SPI and both local addresses and
+wraps the cause, and its fix is the cause's own. The cause renders as its
+problem and its own cause, never its fix line (`espFormRefusalCause`), so the
+refusal shows one fix. Every open failure the host can produce is an operator
+error with its fix (`openESPFormPaths`): the raw socket's open and its policy
+exemption answer the capability install for EPERM (`espFormSocketRefusal`,
+`espFormBypassRefusal`), the journal's SELinux and AppArmor denials for EACCES,
+which a security module gives and no capability changes
+(`espFormSecurityModuleRefusal`), the unit install that sets `LimitNOFILE` for
+EMFILE, the `fs.file-max` write for ENFILE, `free -m` for ENOMEM and ENOBUFS, and
+the receiver's warnings for any other answer, which Ze retries by itself
+(`espFormOpenFailure`). The TUN open names its fix, and each later step of the
+device's configuration answers the capability install for EPERM and the
+receiver's warnings otherwise, because the name is Ze's after TUNSETIFF and the
+device is gone again (`espFormTUNStepRefusal`). A sysctl write that fails for a
+reason other than a read-only `/proc/sys` answers the `sysctl -w` of
+`net.ipv4.conf.default` (`espFormTUNSysctlWriteRefusal`). A cause that is no operator
+error is a Ze defect, such as a receiver the backend was built without, and
+passes through with the move's context and no fix line. This is the same
+refusal class `InstallSA` gives an SA whose bare form nothing would serve: it
+wraps the same operator error, whose fix the engine reads
+(`childInstallRefusedFix`).
+
+The receiver records its last failure to open its paths, the error and its
+time, under its lock, and clears the record on the next open that succeeds.
+`ESPFormFastPathState.CompletePathFailure` carries it to the doctor, which reads
+it and opens nothing: one `doctor-ipsec-esp-form-tun` error naming the cause
+and saying that no Child SA that must receive both forms can be installed, or
+moved onto the ESP-in-UDP form, until the path opens
+(`espFormCompletePathFindings`). Only such a move acquires the paths: a watched
+SA's move retargets the registry and opens nothing. It is the TUN code and not
+the fast path's because its subject is the complete path, the socket and the
+device the TUN finding names, and its consequence is that finding's, a refused
+SA, which no fast path finding has. When the TUN record of the last apply has
+the same cause, the check reports the receiver's finding alone
+(`espFormDeviceFindings`, `espFormSameCause`). The operator text calls the
+complete path Ze's own receiver for bare ESP.
+
+A reader whose socket fails ends while the SAs it served stay in the SAD, so
+its bare form is owed and unserved. Each reader has one revive worker
+(`espFormReceiver.revive`), started with it, which wakes on that failure, logs
+it at Warn under `doctor-ipsec-esp-form-reader-stopped`, hands it to the sink
+the engine registered (`RegisterESPFormReaderStopped`, `reportReaderStopped`),
+and opens the paths again until an open succeeds or the paths are stopped. The
+stop is transient, and the first reopen often succeeds, leaving no record for a
+check to read, so the engine raises it on the report bus as an error event under
+that code, a registered event code, through its own `report-issue` request
+(`espFormReaderStoppedSink`): the dataplane runs in the engine's process, in-process
+or forked, and holds no route to the daemon's bus. The wait before each attempt
+is the receiver's, not one reader's (`reopenWait`): it doubles from one second
+up to `ESPFormCompletePathReopenMax` (30 seconds) at each attempt and returns to
+zero only at the stop of a reader that served `espFormReopenResetAfter` (a
+minute) (`reopenWaitLocked`, `reviveLocked`), so a socket that fails right after
+each open is not reopened in a tight loop. After `Close`, a Watch or acquire
+refuses with `errESPFormReceiverClosed` and opens nothing. A Watch or acquire that meets the
+stopped reader first (`servingLocked`) opens the paths itself
+(`reopenReaderLocked`), which closes the failed socket and the device before it
+opens new ones, because two `ze-espform` devices cannot exist; when that open
+fails, it refuses with the open's error and the revive worker keeps trying. The
+reader takes no lock, so its socket's close joins it under the receiver's lock
+(`closeReaderLocked`); a revive worker takes the lock for each attempt, so
+`Close` joins the workers after it released the lock.
+
+The receiver's registry follows the SAD and never leads it: `MigrateTunnel`
+moves the states first, while the receiver keeps re-presenting bare ESP on the
+old address where the kernel still holds the SA, and only then retargets a
+watched SA, or registers an SA that was not watched on its new address on the
+paths it holds (`espFormReceiver.watchHeld`), which cannot fail. A failed move
+that rolls back has left the registry unchanged and ends the hold
+(`espFormReceiver.release`), which closes the paths when nothing else is
+watched. A rollback that is lost (`ErrTunnelMigrationLost`) also forgets a
+watched SA on its old address, because the caller retires that Child SA. A
+retarget that fails after a move that succeeded costs serving only: the SA
+still receives the ESP-in-UDP form, so Ze keeps the move, never rolls the SAD
+back for it, and logs one Warn, from `followMove` alone, whose fix is
+`ze show vpn ipsec sa`, the message naming `ze clear vpn ipsec sa peer <name>`
+to install a new Child SA.
+
+<!-- source: internal/component/ike/dataplane/espform.go -- espFormRegistry, watch, forget, target, watching, fastTarget -->
+<!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormReceiver.Watch, espFormReceiver.acquire, espFormReceiver.watchHeld, espFormReceiver.release, espFormReceiver.Forget, espFormReceiver.retarget, espFormReceiver.admitsMove, syncFastPath, servingLocked, reopenReaderLocked, closeReaderLocked, espFormRegistry.empty, espFormRegistry.retarget, espFormRegistry.admitsMove, moveSlotLocked, run -->
+<!-- source: internal/component/ike/dataplane/espform_open_linux.go -- openESPFormPaths, espFormSocketRefusal, espFormBypassRefusal, espFormSecurityModuleRefusal, espFormOpenFailure, espFormReceiver.read, espFormReceiver.revive, reportReaderStopped, reopenWaitLocked, reviveLocked -->
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- espFormTUNStepRefusal, espFormTUNSysctlWriteRefusal -->
+<!-- source: internal/component/ike/dataplane/espform_state.go -- ESPFormReaderStopped, RegisterESPFormReaderStopped -->
+<!-- source: internal/component/ike/engine/register_esp_form_reader.go -- espFormReaderStoppedSink -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormDeviceFindings, espFormSameCause -->
+<!-- source: internal/component/ike/dataplane/xfrm_migrate_linux.go -- MigrateTunnel, xfrmMigrationCollision, xfrmMigrationUnserved, espFormRefusalCause, followMove -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormCompletePathFindings -->
+<!-- test: internal/component/ike/dataplane/xfrm_migrate_linux_test.go TestXFRMMigrationUnwatchedSAOpensThePathsBeforeTheMove -->
+<!-- test: internal/component/ike/dataplane/espform_refusal_linux_test.go TestXFRMMigrationUnservedRendersTheFixOnce -->
+<!-- test: internal/component/ike/dataplane/espform_reopen_linux_test.go TestESPFormReceiverWatchReopensAStoppedReader -->
+<!-- source: internal/component/ike/engine/child.go -- generateESPSPI -->
+<!-- test: internal/component/ike/dataplane/espform_test.go TestESPFormRegistryHoldsTwoSAsOnOneSPI -->
+<!-- test: internal/component/ike/dataplane/espform_run_linux_test.go TestESPFormRunServesTwoSAsOnOneSPI -->
+<!-- test: internal/component/ike/dataplane/espform_linux_test.go TestESPFormRegistryRetargetRefusesATakenAddress -->
+<!-- test: internal/component/ike/dataplane/espform_linux_test.go TestESPFormReceiverWarnsOfNoSharedSPIWhileUnavailable -->
+<!-- test: internal/component/ike/dataplane/espform_fastpath_integration_linux_test.go TestESPFormFastPathSecondSATakesOver -->
+<!-- test: internal/component/ike/dataplane/espform_fastpath_integration_linux_test.go TestESPFormFastPathWarnsOfASharedSPIWhileAttached -->
+<!-- test: internal/component/ike/dataplane/xfrm_migrate_linux_test.go TestXFRMMigrationReceiverFollowsTheMove -->
+<!-- test: internal/component/ike/dataplane/xfrm_migrate_linux_test.go TestXFRMMigrationRetargetRefusesAnotherSAsAddress -->
+
+The receiver's state records each such SA for the doctor check
+(`ESPFormFastPathState.SharedSPIs`, read from the registry by
+`espFormRegistry.shared`): one entry per SA the fast path does not serve,
+naming the SPI, the local address of the SA the fast path serves and the local
+address of the one it does not. The entry appears with the second Watch and
+goes with the Forget of either SA. While the fast path is attached, the check
+reports each entry as a `doctor-ipsec-esp-form-fast-path` warning. It names the
+SPI and both addresses, and says that the SA on the second address takes the
+complete path at its rate bound because two Child SAs on different local
+addresses drew the same random SPI. Its fix is
+`ze clear vpn ipsec sa peer <name>`, for the peer whose current or pending
+Child SA carries that SPI to the unserved address. The lookup compares the SPI
+and the address while it holds the session's lock, the one a MOBIKE move
+rewrites the address under. It does not read the Child SA a rekey replaced
+(`supersededChild`), which only the session's own loop may read. Ze has no
+command that rekeys one Child SA, so clearing that peer is how the SA draws a
+new SPI, and that peer's tunnel carries no traffic until its new IKE SA and
+Child SA are up. When no current or pending Child SA matches, as while a rekey
+replaces it, or when the peer's name cannot be typed as one command word, the
+fix is `ze show vpn ipsec sa`. That listing shows each peer's inbound SPI but
+no local address, so the message says that clearing either peer whose Child SA
+carries the SPI ends the collision: the cleared peer's new Child SA draws a new
+SPI, and the other SA takes the fast path over. While the fast path is unavailable or
+detached, every SA's bare ESP takes the complete path, so that status's own
+warning is reported alone.
+
+<!-- source: internal/component/ike/dataplane/espform.go -- espFormRegistry.shared -->
+<!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormReceiver.fastPathState -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormFastPathAttached, espFormSharedSPI, espFormSharedSPIPeer, espFormChildCarries -->
+<!-- source: internal/component/ike/cmd/ipsec.go -- handleClearIPsecSAPeer -->
+<!-- test: internal/component/ike/dataplane/espform_test.go TestESPFormRegistryListsSharedSPIs -->
+<!-- test: internal/component/ike/dataplane/espform_linux_test.go TestESPFormReceiverReportsSharedSPI -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_fast_path_test.go TestDoctorESPFormSharedSPI -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_fast_path_test.go TestDoctorESPFormSharedSPIPeerRacesNoMOBIKEMove -->
+
+Bare ESP for a watched SPI reaches XFRM in the template's form through one of
+two paths, and both are policy-checked. Both serve an IPv4 outer header, and
+for IPv4 the receiving device decides the check: the decapsulated packet keeps
+that device as `skb->dev`, the input path and the input route set
+`IPSKB_NOPOLICY` only when its `disable_policy` (ORed with `conf/all`) is 1,
+and both devices carry 0 (the real link unless the operator set it, and
+`ze-espform` always), so the inbound policy check matches the packet against
+the SA's selectors (RFC 4301 Section 5.2). IPv6 decides the check differently,
+from the `DST_NOPOLICY` flag of the local route rather than the device, and no
+IPv6 SPI is watched yet (see the end of this section).
+
+<!-- source: internal/component/ike/engine/child.go -- installChildDataplane, inbound.AcceptBothESPForms -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- InstallSA, RemoveSA -->
+<!-- source: internal/component/ike/dataplane/xfrm_migrate_linux.go -- MigrateTunnel -->
+<!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormReceiver.Watch, espFormReceiver.Forget, espFormReceiver.retarget -->
+<!-- source: internal/component/ike/dataplane/espform.go -- espFormRegistry -->
+
+**The fast path** is a tc ingress program built from `asm.Instructions`
+(`espFormFastPathSpec`), one variant for an Ethernet link (14 octets of L2
+header) and one for an L3 device. Before it reads the packet it reads a
+one-element gate map (`ze_esp_gate`), and while the gate holds 0, or cannot be
+read, it leaves every packet untouched with `TCX_NEXT`. A new collection's gate
+reads 0. It looks the SPI up in a hash map
+(`ze_esp_watch4`, `ze_esp_watch6`), checks the outer source and destination
+against the target, inserts the eight-octet UDP header with
+`bpf_skb_adjust_room(BPF_ADJ_ROOM_NET)`, writes the template's ports, and fixes
+the lengths, the protocol and the IPv4 header checksum. It verifies the
+received IPv4 header checksum first, so it never gives a corrupt header a valid
+one. An IPv6 datagram gets checksum `0xffff` and is marked
+`CHECKSUM_UNNECESSARY` with `bpf_csum_level`; that UDP receive then skips the
+checksum is unproven, and nothing reaches the IPv6 half until
+`plan/post-release/features/spec-ike-ipv6-transport.md`, which owes that proof.
+The IPv6 datagrams it skips are served by no other path either: the complete
+path reads IPv4 only. Every datagram it does not
+rewrite leaves byte-identical with `TCX_NEXT`: a fragment, an IPv4 header with
+options, an IPv6 extension header, a `CHECKSUM_COMPLETE` IPv6 skb, an IPv4
+header whose checksum is wrong, and a datagram the helper refuses (a GSO skb).
+A rewritten datagram also answers `TCX_NEXT`, so a program attached behind it
+(the trafficusage counter) still runs. Only a datagram whose room was opened
+and whose header write then failed is dropped. A per-CPU counter
+(`ze_esp_count`) counts the rewrites per family.
+
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathSpec, espFormFastPathInstructions, espFormFastPathIPv4, espFormFastPathIPv6 -->
+
+Ze attaches the program at the head of every non-loopback link while any SPI
+is watched, follows links created later through a netlink link subscription,
+and logs a link type the program has no variant for by name. `lo` and
+`ze-espform` stay unattached. Every watch, forget and retarget also writes the
+map. The last forget and `Close` detach every link and release the map.
+The receiver starts the fast path after the complete path, and the fast path
+never refuses an SA: when the program cannot load, or a map write fails, the
+failure is logged at Warn with its doctor code and the complete path serves
+the SPI. Each watch, forget and retarget updates the registry and decides the
+start or stop under one lock, so a watch that races the last forget never finds
+the receiver stopping under it. `ESPFormFastPathState` on the XFRM backend
+reports the fast path's state for the doctor check.
+
+<!-- source: internal/component/ike/dataplane/espform_fastpath_linux.go -- the fast path's attach lifecycle -->
+<!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormReceiver.Watch, espFormReceiver.Forget, espFormReceiver.watchFastPath, openLocked, stopLocked -->
+<!-- source: internal/component/ike/dataplane/espform_backend_linux.go -- ESPFormFastPathState -->
+
+**The complete path** is the raw `IPPROTO_ESP` reader (`espFormReceiver.run`).
+Linux delivers a copy of every bare ESP datagram to a raw socket before XFRM
+refuses it, reassembled when it was fragmented. A datagram the fast path
+rewrote is UDP by then, so the reader never sees it and no datagram is served
+twice. For a watched SPI whose source is the SA's peer, the reader builds the
+ESP-in-UDP datagram (`writeESPForm`, IPv4 header checksum computed) and writes
+it into the TUN `ze-espform` (`espFormTUN.inject`). Ze writes
+`disable_policy` 0 and IPv4 `rp_filter` 2 on the TUN: the datagram keeps the
+peer's source, whose route leaves through the real link, so strict reverse-path
+filtering (1) would drop it. Where `/proc/sys` is read-only and Ze cannot
+write, it requires the TUN's own `disable_policy` to be 0 already, and it
+accepts the `rp_filter` the kernel applies (the larger of `conf/all` and the
+device's value) when that value is not 1, because only strict filtering drops
+the datagram (`settleESPFormTUNUnwritable`). An operator who sets
+`conf/all/disable_policy` 1 disables the check on every device, this one
+included. The path runs in userspace, so `espFormLimiter` bounds it to 5000
+datagrams per second with a burst of 10000. The reader socket and the TUN open
+on the first watch and close on the last forget, and the TUN is not persistent,
+so a daemon that dies leaves no device behind.
+
+<!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormReceiver.run, openLocked, stopLocked -->
+<!-- source: internal/component/ike/dataplane/espform_open_linux.go -- openESPFormPaths -->
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- espFormTUN, openESPFormTUN, espFormTUNSysctls, settleESPFormTUNUnwritable -->
+<!-- source: internal/component/ike/dataplane/espform.go -- writeESPForm, espFormRate, espFormBurst -->
+
+A firewall rule keyed on the input interface sees `ze-espform` for the traffic
+the complete path carries. The fast path runs at tc ingress, which
+`__netif_receive_skb_core` (`net/core/dev.c`, v7.0) runs in
+`sch_handle_ingress` before `nf_ingress`, the netdev ingress hook, and both run
+before `ip_rcv` reaches `NF_INET_PRE_ROUTING` (`net/ipv4/ip_input.c`). A
+datagram the fast path rewrites therefore reaches every netfilter hook as UDP
+to port 4500, and a rule on `protocol esp` would never see it. A datagram the
+complete path carries passes `NF_INET_LOCAL_IN` as ESP first, because
+`raw_local_deliver` hands the reader its copy after that hook
+(`ip_local_deliver`), so a rule there still applies to it; the datagram Ze
+writes into `ze-espform` then passes the hooks again as UDP to port 4500.
+
+So the fast path rewrites only while no nftables rule on the input path can
+drop or change ESP. The fast path's worker reads the kernel's ruleset, not Ze's own
+copy, because a forked IKE engine holds no copy, and judges it
+(`espFormFirewallBlocks`): the base chains of the ingress, prerouting and input
+hooks of every table in the inet, ip, netdev and bridge families, each walked
+rule by rule. It opens the gate only when every such chain is safe. It judges
+the ruleset when the fast path starts and again on each commit an nftables
+watch signals. Each judgment dumps the ruleset holding no lock, and
+publishes only when no hold, release or commit came while it read. One
+judgment is several dumps (the tables, the chains, then one rule dump per base
+chain), and `NLM_F_DUMP_INTR` flags a commit inside one dump only, while the
+watch's `NFT_MSG_NEWGEN` can arrive after the last dump ended. So the
+judgment reads the ruleset's generation (`NFT_MSG_GETGEN`) before its first
+dump and after its last. Every commit bumps that counter. When the two reads
+differ, a commit landed between two dumps, and the judgment publishes nothing
+and runs again (`errESPFormRulesetChanged`).
+
+The bracket catches a commit that starts and ends inside one judgment without
+waiting for the watch, but it does not refuse every splice. `nf_tables_commit`
+(v7.0) stores the bumped counter (`smp_store_release(&net->nft.base_seq,
+base_seq)`) before it flips the generation cursor that decides which rules are
+active, and before its commit loop applies table and chain updates, chain
+policy included; `NFT_MSG_GETGEN` is answered under RCU, not under the commit
+mutex. A first read can therefore answer the new number while the dumps still
+read the old state, and the two reads agree. The kernel sends `NFT_MSG_NEWGEN`
+after that loop, so the watch signals every such commit once it applied, and
+the signal closes the gap.
+
+Every change of the ruleset the worker sees, a commit the watch signals or a
+bracket that moved, shuts the gate before the judgment that follows, as a hold
+does (`firewallCommitted`). The gate is therefore open only over a ruleset some
+judgment published, never across a change the watch delivered, and a judgment
+that a commit spliced is open for at most the watch's latency, the same window
+as a commit that lands while the gate is open. When two passes in a row each
+see the ruleset move, the commits are a stream (fail2ban adding a set element
+every few milliseconds is one, each element a commit): the worker keeps the
+gate shut and judges again after a wait that starts at
+`espFormNFTRejudgeFirst` (50 ms) and doubles to `espFormNFTRejudgeMax` (1 s),
+so it never dumps back to back. The wait runs in the worker's loop, which
+still applies link updates and ends at stop; a commit during it shuts the gate
+again and leaves the judgment to the wait. A dump message the kernel flagged
+`NLM_F_DUMP_INTR` (`errESPFormDumpInterrupted`) counts as a move of the ruleset
+exactly as a moved generation does (`espFormRulesetMoved`): it shuts the gate
+and steps the epoch, and never publishes `dump-failed`. From the first judgment
+of a stream that ends Moving, the state reports the `moving` reading with
+`FirewallMovingSince`, the worker clock's time when that judgment ended
+(`firewallMoving`): the commits it met came before it, so the ruleset has kept
+changing since at least then. The reading lasts until a judgment publishes or a shut records its own reading.
+
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- judgeFirewall, espFormRulesetMoved, firewallCommitted, judgeWatched, firewallMoving, endMovingLocked, espFormNFTRejudgeFirst, espFormNFTRejudgeMax -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_linux.go -- serve -->
+
+A ruleset
+that cannot be read, a watch that ended, and a rule that can drop ESP each
+shut the gate. `ESPFormFastPathState` then reports `FirewallBlocked` with the
+first such rule in `FirewallSite`, or the failure in `FirewallCause`. With the
+gate shut, the complete path serves the SA's bare ESP after the firewall
+decided on it, rate-bounded.
+
+`FirewallReading` (`ESPFormFirewallReading`) says how the ruleset is read, so a
+reader never matches the cause's text: `unheld` while no program is loaded,
+`pending` until the first judgment publishes, `read` once one read the ruleset
+(`FirewallBlocked` then says whether a rule can drop ESP), `unreadable` when the
+reader or the watch could not open at start, `rewatching` while the worker
+opens a failed watch again, `watch-closed` when `Close` ended the watch,
+`dump-failed` when the reader and the watch are open but the last dump failed,
+and `moving` while a stream of commits keeps every judgment from reading the
+ruleset (`FirewallMovingSince` is when the first judgment that met the stream
+ended, not when the stream began, so the ruleset has kept changing since at
+least then; `FirewallBlocked` and the fields beside it are clear). While the
+fast path is attached, the doctor check chooses its finding and its fix from
+the reading alone, under `doctor-ipsec-esp-form-firewall`. While it is
+unavailable (the program never loaded) or detached (it loaded, then a write
+that shuts the gate failed, `detachLocked`), no program reads the gate, so the
+doctor reports that status alone and no firewall finding. The two have their
+own findings under `doctor-ipsec-esp-form-fast-path`: unavailable names
+`CAP_BPF`, the unit and the kernel, with the unit and capability install as its
+fix; detached says the gate could not be shut, so the program was detached from
+every link and bare ESP takes the complete path, with `sudo systemctl restart ze`
+as its fix, the command the dataplane's warning names. A link subscription that
+ends after the detach leaves the detach as the cause (`followEnded`). Where a
+firewall finding below says no restart is needed, it says so for the firewall
+reading alone, because under `attached` it can sit beside the finding for a
+link subscription that ended, whose fix is a restart:
+
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- writeGateLocked, detachLocked -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_linux.go -- followEnded -->
+<!-- source: internal/component/ike/dataplane/espform_state.go -- ESPFormFastPathDetached -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormFastPathFindings, espFormFastPathDetached, espFormFastPathUnavailable -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_fast_path_test.go TestDoctorESPFormFastPathDetached -->
+<!-- test: internal/component/ike/dataplane/espform_fastpath_gate_linux_test.go TestESPFormFastPathFailedShutDetaches -->
+<!-- test: internal/component/ike/dataplane/espform_fastpath_gate_linux_test.go TestESPFormFastPathSubscriptionEndKeepsTheDetachCause -->
+
+
+| Reading | Finding | Fix line |
+|---------|---------|----------|
+| `unheld`, `pending` | none | |
+| `read` | the blocking site, when `FirewallBlocked`; none otherwise | the command or editor lines chosen for the site's table, or the warning log when none was chosen (a Ze defect) |
+| `unreadable`, `watch-closed` | nothing reads the ruleset again until ze restarts | `sudo systemctl restart ze` |
+| `dump-failed` | no restart is needed: the watch still runs, so the next commit reads the ruleset again, and nothing reads it before then | `sudo systemctl restart ze`, which reads it at once |
+| `rewatching` | no restart is needed: Ze watches again by itself, at most 30 seconds apart | `ze show log recent level warn component ike.dataplane`, which names why the watch keeps failing |
+| `moving`, `FirewallMovingSince` ten seconds ago or longer | the ruleset has kept changing since at least the time it names, so bare ESP takes the complete path at its rate bound, at most 5000 datagrams per second; no restart is needed: the fast path comes back on once the commits pause long enough for one read, and that read finds no rule that can drop ESP; run the fix to see which tool keeps committing, then make that tool batch its changes, or stop it (fail2ban, for example) | `sudo nft monitor` |
+| `moving`, `FirewallMovingSince` shorter than ten seconds ago | none: the fast path outlasts a burst of commits | |
+
+<!-- source: internal/component/ike/dataplane/espform_state.go -- ESPFormFirewallReading, ESPFormFirewallMovingReportAfter, ESPFormFixMoving, ESPFormFixRestart, ESPFormFixLog -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormFastPathFindings, espFormFirewallFindings, espFormFirewallDumpFailed, espFormFirewallRewatching, espFormFirewallUnread, espFormFirewallMoving -->
+<!-- source: internal/component/ike/dataplane/espform.go -- espFormRate -->
+
+Only a watch that `Close` ended keeps the gate shut until the fast path stops.
+A watch that fails, on a failure the library reports or on a monitor that
+ended with no `Close` asking for it, is opened again by the worker in the
+namespace the fast path started in. The wait before each attempt doubles from
+one second (`espFormNFTRewatchFirst`) to a cap of thirty seconds
+(`espFormNFTRewatchMax`), and a watch that opens resets it. Once the new watch
+is up, a fresh dump, which begins after it and so covers every commit made
+while nothing watched, judges the ruleset again and reopens the gate when it
+finds no rule that can drop ESP and no hold is open.
+
+The watch's socket asks for a 16 MiB receive buffer
+(`espFormNFTWatchBufferOctets`) through `SO_RCVBUFFORCE`, past
+`net.core.rmem_max`. The kernel queues one notification for each object a
+transaction changes before the `NFT_MSG_NEWGEN` that ends it, and Ze's firewall
+applies its whole ruleset on every apply, so a large commit could overflow the
+default buffer, and the next receive then fails with `ENOBUFS` and ends the
+watch. The larger buffer makes that overflow less likely; it does not rule it
+out, and the reopening above recovers it. The option needs `CAP_NET_ADMIN`, as
+joining the nftables group does: when the kernel refuses it, Ze logs a warning
+and the watch keeps the kernel's default buffer, because the option never fails
+the dial.
+
+The watch has one known limit: a removal it is never told of. When the process
+that owns a table created with the owner flag (`NFT_TABLE_F_OWNER`) exits, the
+kernel removes the table outside any commit (`nft_rcv_nl_event`, then
+`__nft_release_table`, `net/netfilter/nf_tables_api.c`, v7.0), with no
+generation bump and no `NFT_MSG_NEWGEN`. A gate that table shut stays shut
+until the next commit, by any program, has the worker judge again. That limits
+the fast path's liveness, never the firewall's decision: an accept in one base
+chain does not stop another, so removing a table can make no safe ruleset
+unsafe.
+
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- espFormNFTRewatchFirst, espFormRewatchIn, nextWait, watchLost, watchAgain, firewallWatchEnded, firewallWatched, firewallRewatchFailed, shutGateLocked, clearFirewallLocked -->
+<!-- source: internal/component/ike/dataplane/espform_state.go -- espFormNFTRewatchMax, ESPFormFirewallReading -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormFirewallFindings -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_linux.go -- serve -->
+<!-- source: internal/component/ike/dataplane/espform_firewall_kernel_linux.go -- espFormNFTWatchBufferOctets, startESPFormNFTWatch, espFormNFTWatchBuffer, forceESPFormNFTWatchBuffer, errESPFormNFTWatchEnded -->
+<!-- test: internal/component/ike/dataplane/espform_firewall_linux_test.go TestESPFormNFTWatchReceiveBuffer -->
+
+The walk is conservative, and it judges each rule from that rule's own
+expressions, with no model of the registers (`espFormJudgeRule`). A rule is
+excluded only when its first two expressions are a load and an equality compare
+of exactly the register that load wrote, against one octet that is not ESP's
+value (`espFormExcludesESP`). Three loads count, each a value the kernel computes
+from the IPv4 header of the packet the program rewrites (`espFormFirstLoad`):
+`meta l4proto` in every family walked, the IPv4 protocol octet (network header
+offset 9, one octet) in an `inet` or `ip` table, and `meta nfproto` in an `inet`
+or `ip` table, where it reads `ipv4` for every IPv4 packet. ESP's value is 50
+for the first two and `NFPROTO_IPV4` for the third. So `meta l4proto udp`, `ip
+protocol tcp` and the `meta nfproto ipv6` guard Ze's firewall lowering puts first
+in an IPv6 address match each exclude a rule. Nothing else does: not `meta
+l4proto != esp`, not the same pair later in the rule, and not a match on
+anything else (an address, a port, an interface, `meta protocol`, `nfproto` in a
+`netdev` or `bridge` table). `nft_do_chain` runs a rule's expressions in order
+from the first, so a compare of the register the first expression has just
+written reads that load and nothing an earlier rule or expression left behind.
+
+The stock producers whose drops sit on the walked hooks put their protocol match
+first for this reason. GTSM's listen-port term (`listenPortTerm`) opens with
+`meta l4proto tcp` ahead of the source address, which in its `inet` table would
+lower to `meta nfproto ipv4` first and exclude nothing for an IPv4 peer; the
+source match keeps its own `nfproto` guard directly ahead of its address load
+(`lowerAddrMatch`). The on-host DDoS drop (`buildDropTerm`) opens with the
+vector's protocol ahead of the victim address, and keeps the fast path off only
+for a vector whose protocol is ESP or has no canonical name, where the drop can
+match ESP to the victim. The proofs judge what the nft backend committed to a
+kernel from the producers' own builders, `gtsm.FilterTables` and
+`local.MitigationTable` (the table `applyMitigation` installs), never rules
+written by hand.
+
+<!-- source: internal/component/gtsm/gtsm.go -- listenPortTerm, FilterTables -->
+<!-- source: internal/plugins/ddos/local/match.go -- buildDropTerm -->
+<!-- source: internal/plugins/ddos/local/responder.go -- MitigationTable, applyMitigation -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerAddrMatch, lowerProtoMatch -->
+<!-- test: internal/component/ike/dataplane/espform_firewall_stock_linux_test.go TestESPFormFirewallStockGTSMKeepsTheFastPathOn -->
+<!-- test: internal/component/ike/dataplane/espform_firewall_stock_linux_test.go TestESPFormFirewallStockDDoSNamedProtocolKeepsTheFastPathOn -->
+<!-- test: internal/component/ike/dataplane/espform_firewall_stock_linux_test.go TestESPFormFirewallStockDDoSUnnamedProtocolClosesTheFastPath -->
+
+The definite accept (`espFormAcceptsESP`) has the same opening: a protocol
+load, a compare of that register for equality with 50, then at most a counter
+and an accept, and nothing else. It accepts every ESP packet that reaches it and
+ends the chain's walk as safe. Ze's lowering of a term that matches `protocol
+esp` and accepts takes that shape, and so does nft's `meta l4proto esp accept`.
+
+Every other rule can match ESP. It lets the walk go on to the next rule only
+when every expression in it is on a short closed list (`espFormHarmless`) and
+its verdict is accept, break or continue (`espFormJudgeVerdict`). Each entry
+writes nothing but a data register, and either selects or records the packet
+somewhere outside it: a compare or a range, a counter, a log, a limit, a load
+from `meta`, `ct`, the packet or an extension header (a destination register
+and no source register), a bitwise, byteorder, `fib`, `rt`, `socket`, `hash`
+or `numgen`, and constant data into a data register. For an IPv4 packet `fib`
+and `socket` set no verdict but `NFT_BREAK`: the `NF_DROP` at the end of
+`nft_fib_inet_eval` is reached only for a result `nft_fib_init` refuses. `hash`
+and `numgen` write their register and nothing else, and have no map form.
+Every other expression closes the fast path, and the site names its class:
+
+| Expression | Reason |
+|------------|--------|
+| A `meta` or `ct` write (`meta mark set`, `ct mark set`), `notrack` | `meta or ct set` |
+| A payload or extension header write, a DSCP set included, and an extension header with no register (the TCP option strip, which can drop) | `packet rewrite` |
+| A set lookup for membership (`ip saddr @s`) | `set lookup` |
+| A lookup with a data output (a map) | `map lookup` |
+| A lookup whose output is the verdict (a verdict map) | `verdict map` |
+| A set add or update (`dynset`) | `set update` |
+| `dup` | `dup` |
+| A reference to a stateful object, other than a synproxy (`espFormObjref`) | `object reference` and the object type |
+| `quota`, `connlimit` | `expression off the harmless list` and the type |
+| `reject`, `queue`, NAT, masquerade or redirect, `tproxy`, `synproxy` | `reject`, `queue`, `nat`, `tproxy`, `synproxy` |
+| A netdev `fwd` | `forward` |
+| An iptables compat expression (`xt`, which iptables-nft writes for an extension) | `xt compat` |
+| An expression the walk does not name | `unknown expression` and the type |
+
+A set lookup is not harmless, membership included: on a hit `nft_lookup_eval`
+runs the matched element's own stateful expressions
+(`nft_set_elem_update_expr`), which the rule does not carry and the walk never
+reads, and a `connlimit` there can set `NF_DROP`. No stock Ze rule needs one on
+the path: copp's set match sits behind its TCP guard, which excludes the rule
+first, and the irr whitelist ends in a drop of its own. A mark write is not
+harmless, because a mark can choose a route through an `fwmark` rule. A DSCP set is not either: `nft_payload_set_eval` writes the
+checksum delta at the offset the rule chose (`csum_offset`, any value up to
+`U8_MAX`), so a one-octet DSCP write can rewrite the TTL and the protocol too.
+Only base chains are read. A rule that can match ESP and sends it anywhere but
+an accept or a drop (a jump, a goto, a return, a verdict map) counts as unsafe,
+and its target is never read. In
+`nft_do_chain` (`net/netfilter/nf_tables_core.c`) a return in a base chain skips
+every later rule and meets the policy, and a goto pushes nothing, so the end of
+its target is a return from the chain that went to it. A walk that read on past
+either would count a later ESP accept that the ESP which left never reaches. A
+ruleset that sends ESP through a jump therefore keeps the fast path off until an
+ESP accept comes ahead of the jump. Every other verdict (drop, queue, stolen,
+repeat, stop, or a code the walk cannot read) counts as able to drop. A chain
+whose policy is drop, reached with no accept of ESP, is unsafe too.
+
+The reader (`espFormKernelReader`) dumps the tables, the chains and the rules
+itself, on one netfilter socket, rather than through the vendored library's
+readers: `Conn.GetRules` drops every expression the library cannot decode, so a
+netdev `fwd` would read as a rule with no verdict, and `Conn.ListTables` and
+`Conn.ListChains` pass on a message the kernel flagged `NLM_F_DUMP_INTR`. A
+table, chain or rule message flagged `NLM_F_DUMP_INTR` (the ruleset changed
+while it was read, so what was read is two rulesets spliced) fails the dump,
+and the gate stays shut until the judgment the commit's `NFT_MSG_NEWGEN` asks
+for. That flag misses a commit between two dumps, which the generation
+bracket above refuses. The reader dials the kernel's nftables netlink from the namespace the fast
+path started in, and the watch joins the nftables multicast group there.
+
+<!-- source: internal/component/ike/dataplane/espform_firewall_linux.go -- espFormFirewallBlocks, errESPFormRulesetChanged, espFormFirewallWalk, espFormBaseChains, espFormBaseBlocks, espFormJudgeRule, espFormJudgeVerdict, espFormFirstLoad, espFormESPValue, espFormExcludesESP, espFormAcceptsESP, espFormHarmless, espFormLookup, espFormObjref, espFormUnsafe, espFormFirewallSite -->
+<!-- source: internal/component/ike/dataplane/espform_firewall_kernel_linux.go -- espFormKernelReader, openESPFormNFTReader, Generation, espFormGenerationFromMessage, espFormDumpMessage, errESPFormDumpInterrupted, espFormRuleFromMessage, startESPFormNFTWatch, espFormNFTWatch -->
+
+The program passes every skb that carries a VLAN tag, out of band
+(`vlan_present`) or in the frame, untouched to the complete path
+(`espFormFastPathInstructions`). `skb_vlan_untag` runs before TCX in
+`__netif_receive_skb_core` (`net/core/dev.c`), so on a VLAN's parent link TCX and
+the netdev hooks see one skb whose protocol is already the inner IPv4, and a rule
+there can still match the tag (`nft_payload_copy_vlan`,
+`net/netfilter/nft_payload.c`). A rewrite would hand that rule UDP where it
+matches ESP. The VLAN device's own TCX and hooks run on the next round of the
+receive loop, where the datagram arrives untagged.
+
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathInstructions, espFormFastPathSkbVLANPresent -->
+<!-- test: internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go TestRFC4301BareESPFirewallDropKeepsTheFastPathOff -->
+
+What the walk cannot see, it cannot gate on. The cases below are the ones known
+today. They are not a proof that nothing else on a host decides on ESP after tc
+ingress: anything outside the nftables ruleset that matches the IP protocol
+meets the same limit.
+
+- Rules loaded with iptables-legacy sit in x_tables, which no nftables dump
+  returns, so the fast path rewrites past them; iptables-nft rules are nftables
+  rules and are judged.
+- Rules loaded with ebtables-legacy sit in the bridge's own ebtables tables
+  (`net/bridge/netfilter/ebtables.c`), which no nftables dump returns either;
+  an nftables `bridge` table is judged, and ebtables-nft writes one.
+- A `BPF_PROG_TYPE_NETFILTER` program attached through a
+  `BPF_LINK_TYPE_NETFILTER` link (`include/uapi/linux/bpf.h`, the
+  `netfilter` attach fields `pf`, `hooknum` and `priority`) runs on an IPv4 or
+  IPv6 netfilter hook, `NF_INET_PRE_ROUTING` and `NF_INET_LOCAL_IN` among
+  them. It is a netfilter hook entry, not an nftables chain, so no nftables
+  dump returns it, and it sees the rewritten datagram as UDP to port 4500.
+- A tc ingress program or filter another owner attached behind the fast path
+  sees the rewritten datagram as UDP to port 4500, because the fast path
+  attaches at `link.Head()` and answers `TCX_NEXT` (`espFormFastPathNext`), and
+  classic tc filters run after every TCX program (`sch_handle_ingress`,
+  `net/core/dev.c`).
+- Policy routing keyed on the protocol sees the rewritten datagram as UDP.
+  `ip_route_input_slow` (`net/ipv4/route.c`) and `__fib_validate_source`
+  (`net/ipv4/fib_frontend.c`) fill `flowi4_proto` and the ports from
+  `fib4_rules_early_flow_dissect` (`include/net/ip_fib.h`), which dissects the
+  skb as it is after tc ingress, and only once a rule that needs it exists
+  (`fib_rules_require_fldissect`, counted from `fib_rule_requires_fldissect`
+  in `include/net/fib_rules.h`). `fib4_rule_match` (`net/ipv4/fib_rules.c`)
+  compares `rule->ip_proto` with that field. The reverse-path check is reached
+  first: `fib_validate_source` runs `__fib_validate_source` whenever
+  `rp_filter` is on (the secpath exemption does not apply, because XFRM has
+  not seen the datagram yet), its lookup goes to the peer's address, so the
+  `local` rule at priority 0 finds nothing and the walk reaches later rules,
+  and a lookup that fails under `rp_filter` 1 or 2 ends at `e_rpf`, a drop. An
+  `ipproto esp` rule answering `prohibit`, `blackhole` or `unreachable` then
+  drops bare ESP and passes the rewritten UDP. The forward lookup reaches such
+  a rule only when the `local` rule no longer sits at priority 0, as the usual
+  VRF setup arranges. An `fwmark` rule never meets the difference through
+  nftables: a rule that can match ESP and sets a mark is a `meta` write, which
+  keeps the fast path off (`espFormHarmless`). So only a routing rule written by
+  hand that selects on `ipproto esp` reaches it, unread by the walk in the same
+  way as an iptables-legacy rule. Ze installs no `ipproto` rule
+  and keeps the `local` rule ahead of its own: the IPsec source guard at
+  `iprule.IPsecSourceGuardPriority` (30000), the policy routing plugin's fwmark
+  rules from 100, and the MPLS context rules at 1 and 2, whose installer leaves
+  the kernel's priority-0 `local` rule in place (`ensureMPLSSelector`).
+
+The guide's "Both ESP wire forms" gives the operator's fix for each.
+
+<!-- source: internal/component/ike/dataplane/espform_fastpath_linux.go -- linkAdded, the link.Head() anchor -->
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathNext -->
+
+Ze's own firewall commits take a hold (`ESPFormFirewallHolder`, implemented by
+the XFRM backend): the hold writes 0 into the gate before the commit, and its
+release asks for a judgment that begins after the commit. A hold taken while
+the fast path is idle still counts, so a start during the commit stays shut.
+A commit by another program is seen only after it landed: the window is the
+watch's latency, plus the end of the one dump the worker may be running when
+the signal arrives, after which the signal shuts the gate. A stream of commits
+keeps the gate shut until a judgment reads the ruleset with nothing moving. A
+forked IKE engine takes no hold, so it has
+that window for Ze's commits too. A datagram in that window is still
+decrypted and checked against the SA's selectors; what it misses is the
+firewall's decision.
+
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- judgeFirewall, publishFirewall, hold, releaseHold -->
+<!-- source: internal/component/ike/dataplane/espform_firewall_hold.go -- ESPFormFirewallHolder -->
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathInstructions, the gate lookup -->
+
+The IKE engine takes that hold through a firewall commit observer
+(`holdESPFormFastPathForCommit`, registered from `init()` with
+`firewall.RegisterCommitObserver`). `firewall.ApplyAll` runs it inside its
+reconcile lock just before the backend applies, and calls its release once the
+apply returns, on success and on failure. The observer runs in every process
+that links the engine, so with the engine forked the daemon's copy finds no
+IPsec dataplane in the daemon (`dataplane.Get` answers nil, or an XFRM backend
+OSPF loaded with no dual-form receiver) and holds nothing. The doctor check
+`ipsec-esp-form-fast-path` reports a shut gate of an attached fast path as
+`doctor-ipsec-esp-form-firewall`: the first blocking site, or the cause when
+the ruleset was not read or followed, the complete path's rate bound, the
+drops above it, and the fix.
+
+The fix depends on who writes the blocking site's table
+(`espFormFirewallAccept`). A table whose name does not start with `ze_` is not
+Ze's, and the fix is the `nft insert` of an ESP accept at the head of that base
+chain (`espFormForeignTableAccept`), or the ruleset listing when the table or
+chain name holds a quote or a control character. Ze rewrites a `ze_` table, so
+an nft rule there does not last, and who writes it is the firewall registry's
+to say, which the dataplane does not import: the engine registers
+`espFormOwnedTableAccept` with `dataplane.RegisterESPFormOwnedTableAccept`
+(`register_esp_form_table.go`). A table a producer reserved
+(`firewall.TableControlOf`) is answered with the control the producer declared
+when it reserved it: the plugin that writes it, what decides its rules, and the
+command that shows that state. Any other `ze_` table is the firewall config's,
+and the fix is the editor lines that add the `accept-esp` term to the chain and
+commit it, with the sentence that the editor appends a new term and has no
+command that moves it ahead of another. A `ze_` table or chain name the config
+cannot hold gets the ruleset listing.
+
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- espFormFirewallAccept, espFormForeignTableAccept, espFormNFTQuotable -->
+<!-- source: internal/component/ike/dataplane/espform_state.go -- ESPFormOwnedTableAccept, RegisterESPFormOwnedTableAccept, FirewallAcceptFix, FirewallAcceptHow -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormOwnedTableAccept, espFormConfigSite, espFormConfigName -->
+<!-- source: internal/component/firewall/reservation.go -- TableControl, MustReserveTableNames, TableControlOf -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_fast_path_test.go TestESPFormOwnedTableAccept -->
+
+<!-- source: internal/component/ike/engine/register_firewall_observer.go -- holdESPFormFastPathForCommit -->
+<!-- source: internal/component/firewall/commit_observer.go -- CommitObserver, applyObserved -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormFirewallFindings, espFormFirewallBlocked, espFormFirewallUnread -->
+
+The `lo` re-presentation that `ze-espform` replaced arrived with
+`disable_policy` 1, which sets `IPSKB_NOPOLICY`, so `__xfrm_policy_check2`
+returned before any policy was read.
+
+Dual-form serving over an IPv6 outer header is a gap owed after the first
+release. Ze has no IPv6 IKE transport yet: the IKE listener opens `udp4` only
+(`transport/udp.go` `newTransport`) and the probe refuses an IPv6 peer
+(`engine/probe.go`), so no Child SA with IPv6 outer addresses is negotiated.
+`InstallSA` refuses one that asks for both forms, and `MigrateTunnel` refuses a
+MOBIKE move to IPv6 endpoints. The IPv6 variant of the fast path program is
+built and tested, and nothing writes its map. The work is owned by
+`plan/post-release/features/spec-ike-ipv6-transport.md`.
+
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- espFormTUNSysctls -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- InstallSA -->
+<!-- source: internal/component/ike/dataplane/xfrm_migrate_linux.go -- validateXFRMMigration -->
+<!-- source: internal/component/ike/transport/udp.go -- newTransport, the udp4 listener -->
+
 ## The application override guard
 
 RFC 4301 Section 4.4.1 owes the administrator a choice over whether a user or
@@ -836,7 +1517,11 @@ stat(2) encoding differs from it once the minor reaches 256. Both helpers are in
 falls through to it (`kernel/bpf/helpers.c`, `kernel/bpf/cgroup.c`, v7.3).
 
 Ze's one socket policy, the ESP form reader's inbound ALLOW
-(`espFormBypassInboundPolicy`), carries `PriorityESPFormSocket` as a mark. The
+(`espFormBypassInboundPolicy`), lets the complete path read the bare ESP copy
+that Ze's own inbound Child SA policy would refuse at `raw_rcv`. It covers that
+read and nothing else: the datagram the reader writes into `ze-espform` gets the
+inbound policy check (see "Both ESP forms on one inbound state"). The policy
+carries `PriorityESPFormSocket` as a mark. The
 kernel copies a socket policy's priority (`copy_from_user_policy`, reached from
 `xfrm_compile_policy`) and never matches on it, so the read-back names that row
 `esp-form-socket` and any other `socket-override` (`socketPolicyRole`). A
@@ -847,6 +1532,22 @@ therefore counts every socket policy, not only the unmarked ones.
 <!-- source: internal/component/ike/dataplane/override_guard.go -- OverrideGuard, OverrideGuardStatus -->
 <!-- source: internal/component/ike/engine/application_override.go -- applyApplicationOverride, releaseApplicationOverride -->
 <!-- source: internal/component/ike/dataplane/policy_role.go -- socketPolicyRole -->
+
+Both eBPF loads, the guard and the ESP form fast path, run in a daemon that is
+not root and holds only the capabilities the systemd unit grants
+(`privilege.DaemonCapabilities`). That set carries no `CAP_PERFMON`, so the
+verifier judges both hand-assembled programs by its unprivileged rules, which
+every other test here hides by loading as root. Two guest-root tests prove each
+load passes them: each starts this test binary again under uid 65534, with the
+unit's set as its only effective capabilities, in a network namespace of its
+own. `TestESPFormFastPathLoadsUnderTheUnitCapabilities` loads the fast path's
+collection through `loadESPFormFastPathCollection` and attaches both programs at
+the head of a dummy link's TCX ingress. `TestOverrideGuardLoadsUnderTheUnitCapabilities`
+attaches the guard through `AttachOverrideGuard`, reads it attached, and
+detaches it. The helper is the loader, so the guard exempts it, and the guard
+governs only the helper's namespace.
+
+<!-- source: internal/component/ike/dataplane/unit_capabilities_integration_linux_test.go -- TestESPFormFastPathLoadsUnderTheUnitCapabilities, TestOverrideGuardLoadsUnderTheUnitCapabilities -->
 
 ## Policy ownership
 
@@ -1019,8 +1720,9 @@ states and their policies. It also moves a superseded pair still awaiting the
 peer's Delete, without moving shared policies twice; distinct selectors retain
 their own migrated policies. Inner selectors and policy ownership do not change.
 Child rekey inherits the migrated addresses and UDP mapping rather than returning
-to the configuration's original endpoints. Its replacement inbound receiver uses
-those mapped ports when re-presenting bare ESP, just as its kernel state does.
+to the configuration's original endpoints. Its replacement inbound state's watch
+uses those mapped ports when either path turns bare ESP into ESP-in-UDP, just as
+its kernel state does.
 
 A parallel responder handshake and the old owner's migration are serialized from
 Child installation through publication. Once that handshake publishes
@@ -1088,7 +1790,20 @@ IKE SA").
 
 Only the IKE SA initiator asks for the Child SA it lacks, so two Ze peers never
 collide on it. `runEstablished` starts `childCreateSchedule` when IKE_AUTH left
-the initiator childless, and the owner tick calls `serviceChildCreate`: the first
+the initiator childless. It starts it too when this node could not install or bind
+the IKE_AUTH Child SA (`errChildInstall` or `errChildBinding`: a refused
+`InstallSA`, or a `vti` bind that `resolveIfID` cannot resolve), and when it could
+not build that Child SA (`errChildProposal`, `errChildKeying`, `errChildAddress`,
+or no peer SPI recorded), every cause `createFirstChildSA` answers but
+`errChildNoIKEKeys`, the IKE SA's own failure, which still ends it. Only the
+initiator resolves the binding there: a responder resolved it in IKE_AUTH
+(`selectAuthChildSA`). In that case it
+first sends a Delete for the ESP pair (`sendDeleteESP`), so the peer holds no
+Child SA this node does not, and keeps the IKE SA rather than end it: ending it
+re-ran the whole handshake about once a second while the cause lasted. Its warning
+carries `childInstallRefusedFix`, the fix of the operator error the refusing
+producer wrote, such as the ESP form receiver's TUN refusal. The owner tick calls
+`serviceChildCreate`: the first
 request goes 30 s after establishment, and each refusal doubles the wait up to
 300 s. The request is `{[N(USE_TRANSPORT_MODE),] SA, Ni, [KEi,] TSi, TSr}` from
 the configured esp-group, with KEi in the IKE SA's group under `pfs`. No request
@@ -1101,6 +1816,10 @@ Child or IKE rekey hold. An answer this node refuses after the peer accepted it
 (a missing KEr, for example) is followed by a Delete for the pair, and so is a
 success that arrives after the peer created the session's Child SA meanwhile. The
 schedule lives on the session, so an IKE SA rekey keeps it.
+
+<!-- source: internal/component/ike/engine/established.go -- runEstablished, the errChildInstall and errChildBinding arm, the errChildNoIKEKeys arm and the build-failure arm -->
+<!-- source: internal/component/ike/engine/create_child.go -- childCreateSchedule, childCreateFirst, childCreateMax, childInstallRefusedFix, errChildProposal, errChildKeying, errChildNoIKEKeys -->
+<!-- source: internal/component/ike/engine/child.go -- createFirstChildSA -->
 
 A Child SA rekey answer behaves the same way. An answer carrying an error
 notification is the peer's refusal and is routed by the notification. An answer

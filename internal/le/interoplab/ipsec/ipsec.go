@@ -421,7 +421,18 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		Mounts:       zeMounts,
 		Environment:  environment,
 		Capabilities: []string{capabilityNetAdmin, capabilityBPF},
-		Command:      []string{"start", "/etc/ze/ze.conf"},
+		// Every Child SA that receives UDP-encapsulated ESP makes Ze create the
+		// ze-espform TUN device and write its disable_policy and rp_filter
+		// (openESPFormTUN, internal/component/ike/dataplane/espform_tun_linux.go),
+		// and the install is refused when either fails. Ze decides at run time
+		// whether an SA is encapsulated: NAT detection, MOBIKE (which floats IKE
+		// to port 4500 before IKE_AUTH) or a peer that came in on 4500. So every
+		// scenario's ze holds the host's /dev/net/tun, and /proc/sys writable
+		// under the generic lab profile, which confines the writes to its own
+		// network namespace.
+		Arguments:       append(interoplab.TUNDeviceArguments(), interoplab.NetSysctlWriteArguments()...),
+		AppArmorProfile: interoplab.NetSysctlAppArmorProfileName,
+		Command:         []string{"start", "/etc/ze/ze.conf"},
 	})
 	return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, nil
 }

@@ -94,13 +94,25 @@ with two chains.
 an operator table `vrrp_owner_nd` (kernel name `ze_vrrp_owner_nd`) used to be
 merged into the VRRP owner table, giving one kernel table two owners' base
 chains. Each producer above except firewall-domain therefore reserves its own
-names with `firewall.MustReserveTableNames(owner, names...)`, called from the
-`init()` of its own `register_tables.go` (the firewall engine reserves the
-conntrack-helper tables from `register.go`, and the iface netlink backend
+names with `firewall.MustReserveTableNames(owner, control, names...)`, called
+from the `init()` of its own `register_tables.go` (the firewall engine reserves
+the conntrack-helper tables from `register.go`, and the iface netlink backend
 reserves `ze_iface_rpf`, which it writes without the registry). The firewall
 component holds no list of producers: a producer that is compiled out reserves
 nothing, and it then installs no table for an operator table of that name to
 merge with.
+
+The `control` is a `firewall.TableControl`: the plugin that writes the table,
+what decides its rules in the operator's words, and the exact command that
+shows that state. Each field is required, and an empty one panics at `init()`.
+A producer rewrites its table whenever that state changes, so an nft rule an
+operator adds there does not last, and the config editor cannot reach the
+table at all. `firewall.TableControlOf(name)` answers the control for a kernel
+name, and false for a `ze_` table no producer reserved, which is a table of the
+operator's firewall config. The IPsec ESP form fast path names it when a rule
+in such a table keeps the fast path off (`docs/guide/ipsec.md`, "Both ESP wire
+forms"). The reservations are filled from `init()`, so every process of the ze
+binary holds the same set, a forked plugin's included.
 
 Two checks read the reservation:
 
@@ -113,7 +125,7 @@ A name nobody reserved stays shareable: firewall-irr and firewall-domain
 register sets into an operator table's name, and `ApplyAll` merges them as
 before. A second owner reserving a held name panics at init, because it is a
 defect in that package.
-<!-- source: internal/component/firewall/reservation.go -- MustReserveTableNames, refuseForeignReservations, refuseReservedTableNames -->
+<!-- source: internal/component/firewall/reservation.go -- TableControl, MustReserveTableNames, TableControlOf, refuseForeignReservations, refuseReservedTableNames -->
 <!-- source: internal/component/firewall/engine.go -- parseAndVerifyFirewallSections -->
 
 ## Rule 2a: the tables those builds left are removed once
@@ -272,6 +284,33 @@ does not yet carry this startup sweep.
 <!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule -->
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- shouldDeleteTable -->
 <!-- source: test/plugin/ddos-local-stale-table-swept.ci -- the kernel readback -->
+
+## The commit observers
+
+A package that must act around every reconcile registers a
+`firewall.CommitObserver` with `RegisterCommitObserver`, from the `init()` of
+its own `register*.go`. `ApplyAll` runs every observer, in registration order,
+just before `Backend.Apply`, and calls each `after` function they returned once
+Apply has returned, with Apply's error, on success and on failure. A nil
+`after` is allowed. The calls are deferred, so a backend that panics still
+reaches every `after`, with an error naming the panic. A reconcile that returns
+before Apply (no backend, an autoload failure, a verifier refusal) runs no
+observer, so no `before` is left without its `after`. `FlushAllTables` reaches
+the observers through `ApplyAll`.
+
+Observers run inside `reconcileMu`, the outermost firewall lock, so an observer
+MUST NOT call back into the firewall package: `ApplyAll` would wait on itself.
+
+The one observer today is the IKE engine's. Its ESP form fast path rewrites
+bare ESP before netfilter, so it holds the fast path off while Ze's own commit
+lands (`docs/guide/ipsec.md`). The registry is process-local like the table
+registry: with the IKE engine forked, the daemon's `ApplyAll` finds no IPsec
+dataplane in its own process and takes no hold.
+
+<!-- source: internal/component/firewall/commit_observer.go -- CommitObserver, RegisterCommitObserver, applyObserved -->
+<!-- source: internal/component/firewall/registry.go -- ApplyAll -->
+<!-- source: internal/component/ike/engine/register_firewall_observer.go -- holdESPFormFastPathForCommit -->
+<!-- test: internal/component/firewall/commit_observer_test.go TestApplyAllRunsCommitObserversAroundApply -->
 
 ## The injector plugin, and why it exists
 

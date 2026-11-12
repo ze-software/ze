@@ -12,5 +12,9 @@ import "github.com/ze-software/ze/internal/component/firewall"
 //
 //nolint:gochecknoinits // registration: a reservation is declared from init, before any RegisterTables
 func init() {
-	firewall.MustReserveTableNames(filterOwner, filterTableName)
+	firewall.MustReserveTableNames(filterOwner, firewall.TableControl{
+		Plugin:  "gtsm component",
+		Decides: "the BGP peers whose configuration sets the TTL security check (RFC 5082)",
+		Command: "show firewall ruleset gtsm",
+	}, filterTableName)
 }

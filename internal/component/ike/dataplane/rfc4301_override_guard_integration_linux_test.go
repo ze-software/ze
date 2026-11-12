@@ -151,7 +151,11 @@ func runGuardHelper(mode string, out io.Writer, in io.Reader) error {
 			return fmt.Errorf("open the ESP form socket: %w", err)
 		}
 		defer conn.Close() //nolint:errcheck // a probe socket
-		if _, err := fmt.Fprintf(out, "esp-form %s\n", errnoName(espFormBypassInboundPolicy(conn))); err != nil {
+		ipConn, ok := conn.(*net.IPConn)
+		if !ok {
+			return fmt.Errorf("the ESP form socket %T is not an IP socket", conn)
+		}
+		if _, err := fmt.Fprintf(out, "esp-form %s\n", errnoName(espFormBypassInboundPolicy(ipConn))); err != nil {
 			return fmt.Errorf("report the ESP form policy: %w", err)
 		}
 		if _, err := fmt.Fprintln(out, "ready"); err != nil {
@@ -407,7 +411,11 @@ func openESPFormSocket(t *testing.T) error {
 		t.Fatalf("open the ESP form socket: %v", err)
 	}
 	t.Cleanup(func() { conn.Close() }) //nolint:errcheck // a probe socket
-	return espFormBypassInboundPolicy(conn)
+	ipConn, ok := conn.(*net.IPConn)
+	if !ok {
+		t.Fatalf("the ESP form socket %T is not an IP socket", conn)
+	}
+	return espFormBypassInboundPolicy(ipConn)
 }
 
 // RFC requirement: RFC4301-4.4.1-8 positive -- with the guard attached, every per-socket IPsec policy option, in both socket families, set by a process other than the one that loaded the guard in Ze's network namespace fails with EPERM and is counted, and that process's traffic still meets the SPD's DISCARD entry; the same calls in another network namespace are not refused; Ze's own ESP form socket policy is set and listed as esp-form-socket; and with the loader in a PID namespace of its own, its ESP form policy is still set while a process outside that namespace is refused.

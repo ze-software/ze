@@ -256,8 +256,9 @@ func parseOptionNeedsLinux(r *Record, ciFile string, kv map[string]string) error
 // file capabilities in netnsDaemonCapBits, so the runner probe alone passes
 // every token and the test then fails inside ze (BPF_MAP_CREATE answering
 // EPERM for an IPsec guard). The reason names each missing capability and the
-// declaration that grants it. Off netns mode the runner and ze share one
-// credential, and hasCaps is the whole answer.
+// declaration that grants it: netnsDaemonCapBits is derived from
+// privilege.DaemonCapabilities, the set the systemd unit grants. Off netns mode
+// the runner and ze share one credential, and hasCaps is the whole answer.
 func applyNetnsDaemonCapsGate(r *Record, caps []string) error {
 	if !netnsActive() {
 		return nil
@@ -273,7 +274,7 @@ func applyNetnsDaemonCapsGate(r *Record, caps []string) error {
 	r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
 		Str(" (the netns-mode ze daemon runs as ZE_TEST_UID and is not granted ").
 		Str(strings.Join(missing, ",")).
-		Str("; add it to netnsDaemonCapBits in internal/test/runner/caps.go, or move the test to a guest-root suite of ./le test qemu all)").
+		Str("; netnsDaemonCapBits in internal/test/runner/caps.go grants the systemd unit's set, privilege.DaemonCapabilities in internal/core/privilege/capabilities.go: add the capability there when the daemon needs it, or move the test to a guest-root suite of ./le test qemu all)").
 		String()
 	return nil
 }

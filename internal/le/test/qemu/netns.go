@@ -63,25 +63,42 @@ func netnsCapMountScript() string {
 	return tb.String()
 }
 
-// netnsDevPPPScript answers the shell that lets the dropped user open
-// /dev/ppp, for both callers of the mode (prepareNetnsState and
-// allTestsRun.prepareNamespace). A guest with no /dev/ppp is left alone: the
-// PPPoE tests then fail on their own ENOENT.
+// netnsDevNodes are the device nodes the per-test namespace daemon opens
+// that devtmpfs creates 0600 root: /dev/ppp (ppp.DevPPPSetup, for every L2TP
+// and PPPoE session) and /dev/net/tun (openESPFormTUN, for every IPsec Child
+// SA that receives UDP-encapsulated ESP). drivers/base/devtmpfs.c gives a
+// node whose driver declares no mode 0600, and neither ppp nor tun declares
+// one.
+var netnsDevNodes = []string{"/dev/ppp", "/dev/net/tun"}
+
+// netnsDevNodesScript answers the shell that lets the dropped user open each
+// of netnsDevNodes, for both callers of the mode (prepareNetnsState and
+// allTestsRun.prepareNamespace). A guest without one of the nodes leaves it
+// alone: the tests that open it then fail on their own ENOENT.
 //
-// devtmpfs creates /dev/ppp 0600 root, and the per-test namespace daemon runs
-// as netnsUID with the file capabilities runner.NetnsDaemonSetcap names, which
-// hold no cap_dac_override. Its PPPoE
-// client failed DevPPPSetup after every PADS, sent PADT and redialed, so on
-// Ze's own image pppoe-client-lcp-renegotiation timed out in its
-// concentrator's LCP read. The widened node persists for every local user
-// until the device is recreated, so the script refuses unless /workspace is
-// the 9p share only the throwaway QEMU guest mounts.
-func netnsDevPPPScript() string {
-	return "if [ -c /dev/ppp ]; then" +
-		" grep -qs ' /workspace 9p ' /proc/mounts" +
-		" || { echo \"qemu: refusing to chmod 0666 /dev/ppp: this is not the QEMU guest (no 9p /workspace)," +
-		" and the widened node would persist for every local user. Run: ./le test qemu all\" >&2; exit 1; };" +
-		" chmod 0666 /dev/ppp; fi"
+// The per-test namespace daemon runs as netnsUID with the file capabilities
+// runner.NetnsDaemonSetcap names, which hold no cap_dac_override, so a 0600
+// root node refuses its open. Its PPPoE client failed DevPPPSetup after
+// every PADS, sent PADT and redialed, so on Ze's own image
+// pppoe-client-lcp-renegotiation timed out in its concentrator's LCP read;
+// an IPsec install that cannot open /dev/net/tun is refused. A widened node
+// persists for every local user until the device is recreated, so the script
+// refuses unless /workspace is the 9p share only the throwaway QEMU guest
+// mounts.
+func netnsDevNodesScript() string {
+	var tb textbuf.Buffer
+	for i, node := range netnsDevNodes {
+		if i > 0 {
+			tb.Str("; ")
+		}
+		tb.Str("if [ -c ").Str(node).Str(" ]; then").
+			Str(" grep -qs ' /workspace 9p ' /proc/mounts").
+			Str(" || { echo \"qemu: refusing to chmod 0666 ").Str(node).
+			Str(": this is not the QEMU guest (no 9p /workspace),").
+			Str(" and the widened node would persist for every local user. Run: ./le test qemu all\" >&2; exit 1; };").
+			Str(" chmod 0666 ").Str(node).Str("; fi")
+	}
+	return tb.String()
 }
 
 // netnsHarnessSource answers the le to copy into netnsCapDir, for both callers
@@ -217,7 +234,7 @@ func (a *allTestsRun) usesPerTestNamespace(suites []vmSuite) bool {
 // prepareNamespace gives the per-test namespace launcher what it needs: a
 // capability-carrying copy of ze, ze-stripped and the running le on a
 // filesystem that keeps an extended attribute, a state directory the
-// dropped user owns, and a /dev/ppp that user can open (netnsDevPPPScript).
+// dropped user owns, and the device nodes that user opens widened to it (netnsDevNodesScript).
 //
 // le is copied for the reason netnsHarnessSource gives: the runner puts
 // netnsCapDir on the daemon's PATH (it is ZE_BIN's directory), and without a
@@ -253,7 +270,7 @@ func (a *allTestsRun) prepareNamespace(environ []string, suites []vmSuite) error
 		Str("; mkdir -p ").Str(netnsStateDir).
 		Str("; chown ").Str(netnsUID).Byte(':').Str(netnsUID).Byte(' ').Str(netnsStateDir).
 		Str("; chmod 0750 ").Str(netnsStateDir).
-		Str("; ").Str(netnsDevPPPScript())
+		Str("; ").Str(netnsDevNodesScript())
 	for _, binary := range []struct{ name, source string }{
 		{zeName, a.workspacePath(a.ZeBin)},
 		{zeStrippedName, a.workspacePath(a.StrippedBin)},

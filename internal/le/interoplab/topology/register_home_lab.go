@@ -172,9 +172,13 @@ func homeLab(checker interoplab.Checker, options homeOptions) scenario {
 // and access-up proves Ze's own /tmp/resolv.conf holds exactly that server.
 //
 // It holds BPF beside NET_ADMIN because its configuration carries `vpn ipsec`
-// (capabilityBPF).
+// (capabilityBPF), and the host's /dev/net/tun beside /dev/ppp because a Child
+// SA that receives UDP-encapsulated ESP makes Ze create the ze-espform TUN
+// device (interoplab.TUNDevice); the sysctls Ze then writes on that device are
+// covered by netSysctlWriter.
 func convertedCPE() node {
-	cpe := zeNode(nodeCPE, 5, "", append(interoplab.PPPDeviceArguments(),
+	arguments := append(interoplab.PPPDeviceArguments(), interoplab.TUNDeviceArguments()...)
+	cpe := zeNode(nodeCPE, 5, "", append(arguments,
 		dockerSysctl, "net.ipv4.ip_forward=1", dockerSysctl, "net.ipv6.conf.all.disable_ipv6=0")...)
 	cpe.config = ""
 	// ze-cpe.conf carries `vpn ipsec` with no application-override, so the

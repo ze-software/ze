@@ -3,6 +3,7 @@
 package systemd
 
 import (
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -12,8 +13,19 @@ const (
 	serviceUser     = "ze"
 	serviceGroup    = "ze"
 	defaultUnitPath = "/etc/systemd/system/ze.service"
-	capabilities    = "CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE"
 )
+
+// writeCapabilities writes the set the unit grants ze, ambient and bounding
+// alike: privilege.DaemonCapabilities, space-separated. Why each one is there
+// is in internal/core/privilege/capabilities.go.
+func writeCapabilities(b *textbuf.Buffer) {
+	for i, c := range privilege.DaemonCapabilities() {
+		if i > 0 {
+			b.Byte(' ')
+		}
+		b.Str(c.Name)
+	}
+}
 
 // stopTimeoutSeconds is the TimeoutStopSec every ze unit needs: the drain
 // ceiling plus the teardown margin the daemon is held to (pkg/plugin/rpc,
@@ -40,7 +52,7 @@ const execStartShell = "/bin/sh"
 
 func buildUnitFile(spec unitSpec) string {
 	var b textbuf.Buffer
-	b.Grow(978 + len(spec.BinaryPath) + len(spec.ConfigDir)*2)
+	b.Grow(994 + len(spec.BinaryPath) + len(spec.ConfigDir)*2)
 	b.Str("[Unit]\n")
 	b.Str("Description=Ze Network OS\n")
 	b.Str("After=network-online.target\n")
@@ -96,10 +108,10 @@ func buildUnitFile(spec unitSpec) string {
 	b.Byte('\n')
 	b.Str("Environment=XDG_RUNTIME_DIR=/run/ze\n")
 	b.Str("AmbientCapabilities=")
-	b.Str(capabilities)
+	writeCapabilities(&b)
 	b.Byte('\n')
 	b.Str("CapabilityBoundingSet=")
-	b.Str(capabilities)
+	writeCapabilities(&b)
 	b.Byte('\n')
 	b.Str("# Host tuning may need CAP_SYS_NICE. Future VRF/netns support may need CAP_SYS_ADMIN.\n")
 	b.Str("# Add those capabilities only when the configured feature requires them.\n")

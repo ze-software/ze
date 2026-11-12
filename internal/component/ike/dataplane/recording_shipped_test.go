@@ -22,3 +22,20 @@ func TestRecordingBackendAbsentFromShippedBuild(t *testing.T) {
 		t.Fatalf("Load(recording) = %v, want the unknown-backend refusal", err)
 	}
 }
+
+// VALIDATES: a shipped build has no recording-esp-form-unavailable backend either, so
+// ze.test.ike.dataplane cannot make a shipped daemon report a fast path it never tried
+// to load.
+// METHOD: load the backend by name, as runEngine does, and expect the unknown-backend
+// refusal.
+// PREVENTS: a test-only backend whose doctor finding names a test cause reaching an
+// operator, beside an SPD no kernel holds.
+func TestRecordingESPFormUnavailableBackendAbsentFromShippedBuild(t *testing.T) {
+	err := Load("recording-esp-form-unavailable")
+	if err == nil {
+		t.Fatal("a shipped build loaded the recording-esp-form-unavailable dataplane")
+	}
+	if !strings.Contains(err.Error(), "not registered") {
+		t.Fatalf("Load(recording-esp-form-unavailable) = %v, want the unknown-backend refusal", err)
+	}
+}

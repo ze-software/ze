@@ -608,8 +608,10 @@ LimitMEMLOCK=infinity
 WorkingDirectory=/etc/ze
 Environment=ZE_CONFIG_DIR=/etc/ze
 Environment=XDG_RUNTIME_DIR=/run/ze
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_BPF
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_BPF
+# Host tuning may need CAP_SYS_NICE. Future VRF/netns support may need CAP_SYS_ADMIN.
+# Add those capabilities only when the configured feature requires them.
 NoNewPrivileges=true
 ProtectSystem=true
 ProtectHome=true
@@ -620,6 +622,11 @@ WantedBy=multi-user.target
 ```
 <!-- source: internal/plugins/systemd/cmd_install.go -- cmdInstall -->
 <!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
+
+`CAP_BPF` is granted for the eBPF programs of the IPsec ESP form fast path,
+the IPsec application override guard and traffic-usage, which the kernel
+refuses to load without it.
+<!-- source: internal/plugins/systemd/unit.go -- capabilities -->
 
 ## Troubleshooting
 

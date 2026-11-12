@@ -278,6 +278,33 @@ is a name every backend can program.
 | `vrrp` | 112 |
 | `sctp` | 132 |
 
+On a host that runs IPsec, a rule on `esp` keeps deciding on the peer's bare
+ESP. On a Child SA whose inbound state is UDP-encapsulated, Ze's ESP form fast
+path adds a UDP header to a whole bare ESP datagram at tc ingress, which Linux
+runs before every firewall hook, so a rewritten datagram would pass the rule as
+UDP to port 4500. The fast path therefore rewrites only while no nftables rule
+or chain policy on the input path (an `ingress`, `prerouting` or `input` base
+chain) could drop the peer's ESP. A term that drops or rejects `protocol esp`
+there, or a chain with `policy drop` that ESP reaches without an accept,
+keeps the fast path off: bare ESP reaches the rule as ESP, and what the rule
+lets through goes to the complete path, which is bounded to 5000 datagrams per
+second and arrives on `ze-espform`. `show doctor` reports it as
+`doctor-ipsec-esp-form-firewall`, naming the table, chain and term. To keep the
+fast path, accept `protocol esp` in a term ahead of the one that could drop it.
+Ze reads only the nftables ruleset, and learns of another program's commit only
+after it lands, so other filters and other programs have limits of their own.
+The known ones are rules loaded with iptables-legacy or with
+ebtables-legacy, BPF programs attached to a netfilter hook, tc programs Ze did
+not install, `ip rule` entries that select on `ipproto esp`, and commits from
+other programs: [Both ESP wire forms](ipsec.md#both-esp-wire-forms) lists each,
+with its fix. That list holds the limits known today, not every kind of filter
+a Linux host can run.
+
+<!-- source: internal/component/ike/dataplane/espform_firewall_linux.go -- espFormFirewallBlocks, espFormBaseChains -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- publishFirewall -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormFirewallBlocked -->
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathIPv4 -->
+
 A protocol outside this set is refused where it enters. The config editor
 refuses it at commit; a FlowSpec route that names one is refused at translation,
 counted, and logged with the protocol number and the route key. Ze does not

@@ -4,6 +4,7 @@ package dataplane
 
 import (
 	"net"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -52,7 +53,57 @@ const (
 
 	// encapFormChangePoll is how often the counter is re-read while waiting.
 	encapFormChangePoll = 20 * time.Millisecond
+
+	// encapRoutedLocalAddr and encapRoutedPeerAddr are the outer addresses of a probe
+	// that drives the production receiver over a real kernel. The receiver writes the
+	// refused form into ze-espform, and the stack receives it there as if from a link:
+	// a loopback address arriving on a device other than lo is martian
+	// (ip_route_input_slow, IN_DEV_NET_ROUTE_LOCALNET), and so is a source that is one of
+	// the host's own addresses. So the local endpoint sits on a dummy link and the peer
+	// is a non-local address reached through that link's connected route, which is the
+	// routable source ze-espform's loose reverse-path filter asks for. A production peer
+	// has exactly that shape.
+	encapRoutedLocalAddr = "192.0.2.1"
+	encapRoutedPeerAddr  = "192.0.2.2"
+	encapRoutedLinkName  = "espform-peer"
 )
+
+// encapRoutedNetns moves the calling goroutine into a network namespace of its own, as
+// encapNetns does, and gives it a dummy link holding encapRoutedLocalAddr/24, so
+// encapRoutedPeerAddr is routable and not local.
+func encapRoutedNetns(t *testing.T) {
+	t.Helper()
+	encapNetns(t)
+	encapNetnsUsable(t)
+	link := &netlink.Dummy{Name: encapRoutedLinkName}
+	if err := netlink.LinkAdd(link); err != nil {
+		t.Fatalf("add the dummy link %s: %v", encapRoutedLinkName, err)
+	}
+	addr, err := netlink.ParseAddr(encapRoutedLocalAddr + "/24")
+	if err != nil {
+		t.Fatalf("parse %s/24: %v", encapRoutedLocalAddr, err)
+	}
+	if err := netlink.AddrAdd(link, addr); err != nil {
+		t.Fatalf("address %s on %s: %v", encapRoutedLocalAddr, encapRoutedLinkName, err)
+	}
+	if err := netlink.LinkSetUp(link); err != nil {
+		t.Fatalf("bring %s up: %v", encapRoutedLinkName, err)
+	}
+}
+
+// encapInjectEncapsulated writes one UDP-encapsulated ESP datagram from the peer to the
+// local endpoint, both on port 4500, through an IP_HDRINCL socket. A UDP socket cannot
+// send it: its source is not a local address, and the output route refuses that source
+// to anything but a transparent or header-including socket.
+func encapInjectEncapsulated(t *testing.T, src, dst string, esp []byte) {
+	t.Helper()
+	pkt := make([]byte, espFormPacketLen(esp))
+	n := writeESPForm(pkt, netip.MustParseAddr(src), netip.MustParseAddr(dst), 0, esp)
+	if n == 0 {
+		t.Fatalf("writeESPForm refused the encapsulated fixture %s->%s", src, dst)
+	}
+	encapInjectRaw(t, dst, pkt[:n])
+}
 
 // encapWaitForStat waits until one named xfrm counter rises above want, and reports the
 // value it reached. It reports false on timeout, and the CALLER decides whether that is a
@@ -82,8 +133,8 @@ func encapWaitForStat(t *testing.T, name string, above int) (int, bool) {
 func encapFormChangeSA() SAParams {
 	return SAParams{
 		SPI:                encapSPIFormChange,
-		Src:                net.ParseIP(encapLoopbackPeerAddr),
-		Dst:                net.ParseIP(encapLoopbackAddr),
+		Src:                net.ParseIP(encapRoutedPeerAddr),
+		Dst:                net.ParseIP(encapRoutedLocalAddr),
 		Proto:              ProtoESP,
 		Mode:               ModeTunnel,
 		ReqID:              1,
@@ -103,7 +154,7 @@ func encapFormChangeSA() SAParams {
 // (engine/register.go, transport.EnableESPInUDP).
 func encapFormChangeNATTSocket(t *testing.T) *net.UDPConn {
 	t.Helper()
-	uc, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP(encapLoopbackAddr), Port: encapNATTPortForTests})
+	uc, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP(encapRoutedLocalAddr), Port: encapNATTPortForTests})
 	if err != nil {
 		t.Fatalf("bind udp %d: %v", encapNATTPortForTests, err)
 	}
@@ -164,8 +215,9 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
-	encapNetns(t)
-	encapNetnsUsable(t)
+	// Routed addresses, not loopback: the receiver re-presents the bare form on
+	// ze-espform, where a loopback address is martian (encapRoutedLocalAddr).
+	encapRoutedNetns(t)
 
 	uc := encapFormChangeNATTSocket(t)
 	defer func() {
@@ -194,8 +246,9 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 	// the point. net/ipv4/raw.c raw_rcv runs xfrm4_policy_check before it queues a
 	// packet to a raw socket, and a policy demanding ESP rejects the very datagram the
 	// receiver was opened to recover. That defect was live and this probe could not see
-	// it: __xfrm_policy_check2 short-circuits on DST_NOPOLICY, which every loopback dst
-	// entry carries, so the check the daemon trips is skipped here. MEASURED on
+	// it: the bare datagram this probe injects is delivered over loopback, and
+	// __xfrm_policy_check2 short-circuits on DST_NOPOLICY, which every loopback dst entry
+	// carries, so the check the daemon trips is skipped here. MEASURED on
 	// 2026-08-03, by removing the per-socket bypass from espFormReceiver.startLocked and
 	// re-running: this probe stayed green while the strongSwan lab lost 100% of its
 	// traffic.
@@ -204,6 +257,37 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 	// test/interop-ipsec/scenarios/esp-form-change. This probe owns the kernel
 	// mechanism and the SA's identity across the change (ai/rules/evidence.md).
 	anyV4 := &net.IPNet{IP: net.IPv4zero.To4(), Mask: net.CIDRMask(0, 32)}
+
+	// The inbound IKE bypass for UDP to port 4500, installed first, as production installs
+	// it before any Child SA policy: the dir-in entry of engine/bypass.go
+	// ikeBypassPolicies, which installIKEBypass puts in place at the first configuration
+	// apply. The Child SA policy below then carries PriorityChildSA, as installChildSA
+	// gives every Child SA policy, so the bypass at PriorityIKEBypass ranks ahead of it.
+	//
+	// WHY the probe needs it now. The re-presented datagram is plaintext UDP to port 4500,
+	// and it arrives on ze-espform, whose disable_policy is 0. Linux checks the inbound
+	// policy for a UDP datagram before the socket's encapsulation hook runs:
+	// udp_queue_rcv_one_skb (net/ipv4/udp.c, v7.0) opens with
+	// `if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb)) {` and
+	// `drop_reason = SKB_DROP_REASON_XFRM_POLICY;`, ahead of `encap_rcv(sk, skb)`. The
+	// any-to-any policy below demands ESP of that datagram, so without the bypass it is
+	// dropped there and never reaches XFRM. When the receiver re-presented over lo, lo's
+	// disable_policy skipped that check, so the probe never met it. Production always has
+	// the bypass, and it is what lets the peer's own ESP-in-UDP, and the datagram the
+	// receiver re-presents, reach the port-4500 socket.
+	if err := dp.InstallPolicy(SPParams{
+		Src:        anyV4,
+		Dst:        anyV4,
+		Dir:        SADirIn,
+		Action:     SPActionBypass,
+		Role:       PolicyRoleIKEBypass,
+		Priority:   PriorityIKEBypass,
+		UpperProto: unix.IPPROTO_UDP,
+		SrcPort:    AnyPortMatch(),
+		DstPort:    ExactPortMatch(encapNATTPortForTests),
+	}); err != nil {
+		t.Fatalf("install the inbound IKE bypass for UDP port %d: %v", encapNATTPortForTests, err)
+	}
 	if err := dp.InstallPolicy(SPParams{
 		Src:       anyV4,
 		Dst:       anyV4,
@@ -211,8 +295,9 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 		Proto:     ProtoESP,
 		Mode:      ModeTunnel,
 		ReqID:     1,
-		TunnelSrc: net.ParseIP(encapLoopbackPeerAddr),
-		TunnelDst: net.ParseIP(encapLoopbackAddr),
+		Priority:  PriorityChildSA,
+		TunnelSrc: net.ParseIP(encapRoutedPeerAddr),
+		TunnelDst: net.ParseIP(encapRoutedLocalAddr),
 	}); err != nil {
 		t.Fatalf("install the inbound Child SA policy: %v", err)
 	}
@@ -227,23 +312,10 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 	}
 
 	// The peer sends toward the local endpoint from its own address, exactly as the SA
-	// was installed. A datagram from anywhere else would be a different measurement.
-	sender, err := net.DialUDP("udp4",
-		&net.UDPAddr{IP: net.ParseIP(encapLoopbackPeerAddr), Port: encapNATTPortForTests},
-		&net.UDPAddr{IP: net.ParseIP(encapLoopbackAddr), Port: encapNATTPortForTests})
-	if err != nil {
-		t.Fatalf("dial udp from the peer address: %v", err)
-	}
-	defer func() {
-		if cerr := sender.Close(); cerr != nil {
-			t.Errorf("close sender: %v", cerr)
-		}
-	}()
-
+	// was installed, on port 4500 at both ends. A datagram from anywhere else would be a
+	// different measurement, and the receiver now skips one.
 	sendEncapsulated := func() {
-		if _, werr := sender.Write(encapESPBytes(encapSPIFormChange)); werr != nil {
-			t.Fatalf("send encapsulated ESP: %v", werr)
-		}
+		encapInjectEncapsulated(t, encapRoutedPeerAddr, encapRoutedLocalAddr, encapESPBytes(encapSPIFormChange))
 	}
 
 	// Row 1: the SA is live and carrying the form its template selects.
@@ -262,7 +334,7 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 	// because the recovery runs on the receiver's goroutine.
 	mismatchBefore := encapStat(t, encapStatMismatch)
 	protoBefore := encapStat(t, encapStatProtoError)
-	encapInjectBare(t, encapLoopbackPeerAddr, encapESPBytes(encapSPIFormChange))
+	encapInjectBareTo(t, encapRoutedPeerAddr, encapRoutedLocalAddr, encapESPBytes(encapSPIFormChange))
 
 	if _, ok := encapWaitForStat(t, encapStatProtoError, protoBefore); !ok {
 		t.Fatalf("AC-4: after the peer changed to bare ESP on the live SA, %s never rose within %v. The datagram never reached the crypto check, so the tunnel stops carrying traffic when the peer changes form",
@@ -296,7 +368,7 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 	// state raises a THIRD counter, so the rows above are real readings and not a counter
 	// that moves for everything.
 	if got := encapVerdictOf(t, func() {
-		encapInjectBare(t, encapLoopbackPeerAddr, encapESPBytes(encapSPIUnknown))
+		encapInjectBareTo(t, encapRoutedPeerAddr, encapRoutedLocalAddr, encapESPBytes(encapSPIUnknown))
 	}); got != encapStatNoStates {
 		t.Errorf("an SPI with no state raised %s, want %s; the rows above prove nothing",
 			got, encapStatNoStates)

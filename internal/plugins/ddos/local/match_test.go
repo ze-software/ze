@@ -124,3 +124,61 @@ func TestBuildDropTermSkipsUnnamedProtocol(t *testing.T) {
 		Ranges: []firewall.PortRange{{Lo: 53, Hi: 53}},
 	})
 }
+
+// TestBuildDropTermPutsTheProtocolFirst pins the order of the term's matches.
+// Goal: a mitigation for a vector whose protocol has a name opens with that
+// protocol, ahead of the victim address, so the IKE ESP form fast path's
+// analyzer reads the lowered rule as one bare ESP never matches
+// (espFormExcludesESP, internal/component/ike/dataplane); a vector whose
+// protocol has no name opens with the address, and that drop can match ESP to
+// the victim. Method: build the term for a UDP, a TCP SYN and an unnamed
+// protocol vector and compare the whole match list.
+//
+// VALIDATES: buildDropTerm's documented order, protocol then address then ports
+// then flags.
+// PREVENTS: an armed mitigation keeping the ESP form fast path off for every
+// Child SA on the box.
+// MUTATION: append the destination address ahead of the protocol in
+// buildDropTerm; the udp and syn rows go red.
+func TestBuildDropTermPutsTheProtocolFirst(t *testing.T) {
+	victim := netip.MustParsePrefix("192.0.2.1/32")
+	tests := []struct {
+		name   string
+		vector ddosevent.VectorTuple
+		want   []firewall.Match
+	}{
+		{
+			name:   "udp",
+			vector: ddosevent.VectorTuple{DstPrefix: victim, Proto: 17, DstPort: 53, SrcPort: 123},
+			want: []firewall.Match{
+				firewall.MatchProtocol{Protocol: "udp"},
+				firewall.MatchDestinationAddress{Prefix: victim},
+				firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 53, Hi: 53}}},
+				firewall.MatchSourcePort{Ranges: []firewall.PortRange{{Lo: 123, Hi: 123}}},
+			},
+		},
+		{
+			name:   "syn",
+			vector: ddosevent.VectorTuple{DstPrefix: victim, Proto: 6, TCPFlags: 0x02},
+			want: []firewall.Match{
+				firewall.MatchProtocol{Protocol: "tcp"},
+				firewall.MatchDestinationAddress{Prefix: victim},
+				firewall.MatchTCPFlags{Flags: firewall.TCPFlags(0x02), Mask: firewall.TCPFlags(0x02)},
+			},
+		},
+		{
+			name:   "unnamed protocol",
+			vector: ddosevent.VectorTuple{DstPrefix: victim, Proto: 253, DstPort: 53},
+			want: []firewall.Match{
+				firewall.MatchDestinationAddress{Prefix: victim},
+				firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 53, Hi: 53}}},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			term := buildDropTerm("attack", tt.vector)
+			assert.Equal(t, tt.want, term.Matches)
+		})
+	}
+}

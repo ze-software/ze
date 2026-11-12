@@ -1,14 +1,15 @@
 // VALIDATES: spec-fixit-ike-resource-lifetime-leaks AC-5 on a real kernel -- after a
 // tunnel's state and policy are torn down twice, the XFRM state table holds no state of
 // this tunnel, the XFRM policy table holds no policy of it, and the ESP form receiver
-// holds neither the SPI nor its raw sockets. It also settles A-2: a stranded espForms
-// entry keeps a REAL host-wide raw ESP socket open, which only a kernel can show.
-// PREVENTS: the second teardown, and every failed first one, leaving the raw ESP sockets
-// open for a tunnel that is gone. The Forget sat below the delete's error return, so an
+// holds neither the SPI nor its reader socket, device and fast path. It also settles A-2:
+// a stranded espForms entry keeps a REAL host-wide raw ESP socket open, which only a
+// kernel can show.
+// PREVENTS: the second teardown, and every failed first one, leaving the raw ESP socket,
+// ze-espform and the fast path in place for a tunnel that is gone. The Forget sat below the delete's error return, so an
 // SA whose state the kernel had already dropped -- a hard lifetime expiry, an operator
 // flush, a peer Delete that removeChildSA answered twice -- stayed watched for the life
 // of the process. The receiver then makes the kernel clone every bare ESP packet on the
-// box, which taxes the fast path this design exists to preserve.
+// box, which taxes the kernel's own ESP receive for every tunnel, not only this one.
 //
 // It needs CAP_NET_ADMIN for the state and policy, and CAP_NET_RAW for the ESP
 // form sockets. userns.Enter runs it as root over a user and network namespace of
@@ -86,7 +87,8 @@ func TestXFRMDoubleTeardownLeavesNothing(t *testing.T) {
 	b := &xfrmBackend{espForms: newESPFormReceiver(slogutil.DiscardLogger())}
 
 	// The inbound state of a NAT-traversing tunnel: it asks for both ESP wire forms,
-	// so the backend watches its SPI beside the kernel and opens the raw sockets.
+	// so the backend watches its SPI beside the kernel and opens the reader socket,
+	// ze-espform and the fast path.
 	// RFC 7296 Section 2.23.
 	err := b.InstallSA(SAParams{
 		SPI: teardownSPI, Src: remote, Dst: local, Proto: ProtoESP, Mode: ModeTunnel,
@@ -142,11 +144,21 @@ func TestXFRMDoubleTeardownLeavesNothing(t *testing.T) {
 	if teardownPolicyInstalled(t, b, policy) {
 		t.Errorf("the XFRM policy table still holds the Child SA policy (reqid %#x) after two teardowns", policy.ReqID)
 	}
-	if _, watched := b.espForms.reg.target(teardownSPI); watched {
+	if b.espForms.reg.watching(teardownSPI) {
 		t.Errorf("the ESP form receiver still watches spi %#x after two teardowns", teardownSPI)
 	}
 	if b.espForms.running() {
 		t.Error("the ESP form receiver still holds its raw ESP sockets after the last watched SA was torn down: " +
 			"the kernel clones every bare ESP packet on this host for a tunnel that no longer exists")
+	}
+	// The device and the fast path go with the socket. A ze-espform left behind holds the
+	// name, so the next SA that asks for both forms cannot create it and is refused.
+	espFormWantNoTUN(t, "two teardowns")
+	st, err := b.espForms.fastPathState()
+	if err != nil {
+		t.Fatalf("read the fast path state after two teardowns: %v", err)
+	}
+	if st.Status != ESPFormFastPathIdle {
+		t.Errorf("the fast path is %s after the last watched SA was torn down, want %s", st.Status, ESPFormFastPathIdle)
 	}
 }

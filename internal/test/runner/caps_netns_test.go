@@ -1,5 +1,6 @@
-// VALIDATES: the per-test netns mode's capability grant is declared once
-// (netnsDaemonCapBits), its setcap text is derived from that declaration, and
+// VALIDATES: the per-test netns mode's capability grant is the systemd unit's
+// set (netnsDaemonCapBits, derived from privilege.DaemonCapabilities), its
+// setcap text is derived from that declaration, and
 // the caps= gate in that mode judges a test against the grant ze receives
 // rather than the root runner's own CapEff.
 // PREVENTS: the vacuous gate that admitted every XFRM IPsec test declaring

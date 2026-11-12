@@ -285,6 +285,39 @@ func TestThePreparationLetsTheDroppedDaemonOpenDevPPP(t *testing.T) {
 	}
 }
 
+// VALIDATES: the whole-suite preparation lets the dropped daemon open
+// /dev/net/tun, and widens it only after checking, within the node's own
+// step, that it runs in the QEMU guest whose /workspace is the 9p share.
+// PREVENTS: a per-test namespace daemon (uid 1000, no cap_dac_override)
+// failing to open the 0600 root /dev/net/tun devtmpfs creates, which refuses
+// every IPsec Child SA that receives UDP-encapsulated ESP (openESPFormTUN).
+// METHOD: run the preparation against the recorder and read the one shell
+// line it emits.
+func TestThePreparationLetsTheDroppedDaemonOpenDevNetTUN(t *testing.T) {
+	run := vmFixture(t)
+	rec := &recorder{}
+	run.Run = rec.run
+	run.Execute()
+
+	if len(rec.calls) == 0 {
+		t.Fatal("the run emitted no command at all")
+	}
+	first := strings.Join(rec.calls[0], " ")
+	step := strings.Index(first, "if [ -c /dev/net/tun ]")
+	if step < 0 {
+		t.Fatalf("the preparation has no step for /dev/net/tun, so the dropped daemon cannot open it"+
+			" and every UDP-encapsulated Child SA is refused:\n  %s", first)
+	}
+	widen := strings.Index(first[step:], "chmod 0666 /dev/net/tun")
+	if widen < 0 {
+		t.Fatalf("the /dev/net/tun step never widens the node:\n  %s", first)
+	}
+	guard := strings.Index(first[step:], "' /workspace 9p ' /proc/mounts")
+	if guard < 0 || guard > widen {
+		t.Errorf("the /dev/net/tun step widens the node before checking it runs in the QEMU guest:\n  %s", first)
+	}
+}
+
 // A guest without libcap cannot give ze its capabilities, and the run says so
 // before it boots through an hour of suites that would each fail on it.
 func TestAGuestWithoutSetcapIsRefusedBeforeAnythingRuns(t *testing.T) {

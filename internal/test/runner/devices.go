@@ -25,12 +25,17 @@ type containerDevice struct {
 //     admits, and the PADS is sent only after it succeeds. A container sees
 //     only the device nodes it was given, so without the grant the open fails
 //     and the session never reaches the asserted state.
+//   - /dev/net/tun, the TUN clone device. openESPFormTUN
+//     (internal/component/ike/dataplane/espform_tun_linux.go) opens it to
+//     create the ze-espform device for every IPsec Child SA that receives
+//     UDP-encapsulated ESP, and the SA install is refused when it cannot.
 //
 // A test declares no device: the container is granted the whole table,
 // whichever tests open which node, so a per-test declaration would have no
-// reader. TestContainerDevicesCoverWhatPPPOpens reads the source that opens
-// the node and checks this table holds it.
+// reader. TestContainerDevicesCoverWhatTestedPathsOpen reads the source that
+// opens each node and checks this table holds exactly those.
 var containerDevices = []containerDevice{
+	{path: "/dev/net/tun", module: "tun"},
 	{path: "/dev/ppp", module: "ppp_generic"},
 }
 

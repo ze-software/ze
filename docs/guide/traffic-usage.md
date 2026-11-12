@@ -12,7 +12,10 @@ are exported as Prometheus metrics and viewed with `show traffic usage`. The
 the config.
 
 Traffic usage is **monitoring only**. The eBPF programs read packet headers and
-update counters; they never drop, redirect, or modify traffic. Accounting is
+update counters; they never drop, redirect, or modify traffic, and they leave
+each packet to the programs and tc filters that follow them on the interface, so
+a traffic-control policer, an sFlow sampler or a mirror on the same interface
+still runs. Accounting is
 IPv4 only. The plugin is Linux only and is a no-op on other platforms.
 
 ## How It Works
@@ -161,20 +164,30 @@ learns that accounting is configured but inert rather than silently producing no
 metrics.
 <!-- source: internal/plugins/trafficusage/doctor.go -- checkTrafficUsageBPF, doctor-traffic-usage-ebpf -->
 
-The check probes TCX only when `traffic-usage` is enabled. When the probe
-cannot measure readiness (typically a `ze doctor` run without CAP_BPF and
+The check probes TCX only when `traffic-usage` is enabled. It runs in the
+process that answers doctor: the running daemon when one answers `ze doctor`
+or `show doctor`, and your own `ze doctor` process only when no daemon answers.
+When the probe cannot measure readiness (that process lacks CAP_BPF or
 CAP_NET_ADMIN), it does not guess: it warns under
-`doctor-traffic-usage-ebpf-unknown` with the reason and tells you to run
-`sudo ze doctor`. `doctor-traffic-usage-ebpf` is kept for a kernel that lacks
-TCX, and names the Linux 6.6 and `CONFIG_NET_XGRESS` requirement.
-<!-- source: internal/plugins/trafficusage/doctor.go -- trafficUsageDiagnostic, probeTCX -->
+`doctor-traffic-usage-ebpf-unknown` with the reason, and its fix is
+`sudo systemctl stop ze && sudo ze install systemd --force --start`. When the
+daemon answered, the daemon is what lacks the capability: under systemd a ze
+unit written by an older ze does not grant `CAP_BPF`, and that one line stops
+ze, which the install needs, rewrites the unit and starts ze again; without
+systemd, start ze with `CAP_BPF` and
+`CAP_NET_ADMIN`. When no daemon answered, the answer also carries
+`doctor-runtime-not-checked`, and `sudo ze doctor` measures the host as root.
+`doctor-traffic-usage-ebpf` is kept for a kernel that lacks TCX, and names the
+Linux 6.6 and `CONFIG_NET_XGRESS` requirement.
+<!-- source: internal/plugins/trafficusage/doctor.go -- checkTrafficUsageBPF, trafficUsageDiagnostic, probeTCX -->
 
 ## Limitations
 
 - **IPv4 only.** Per-port and per-IP accounting cover IPv4 traffic; IPv6 is not
   counted.
 - **Monitoring only.** The eBPF programs only read headers and update counters.
-  They never drop, redirect, or modify traffic.
+  They never drop, redirect, or modify traffic, and they never end the
+  interface's tc hook: the filters after them still run.
 - **Per-IP requires `track-ip`.** The `ze_traffic_usage_ingress_bytes_total` and
   `ze_traffic_usage_egress_bytes_total` series are only produced when `track-ip`
   is enabled. Per-port accounting is always on.
@@ -185,3 +198,30 @@ TCX, and names the Linux 6.6 and `CONFIG_NET_XGRESS` requirement.
 - **Bounded cardinality.** Stale metric series (unseen within `stale-timeout`)
   are deleted, and each map is an LRU capped at `max-entries`; under high key
   churn only the current top talkers are retained.
+- **IPsec bare ESP can be counted as UDP to port 4500.** On a link where Ze's
+  IPsec ESP form fast path runs, the program counts some ingress ESP under
+  `udp`; [Bare ESP counted as UDP to port 4500](#bare-esp-counted-as-udp-to-port-4500)
+  says when, and how to read the figures.
+
+## Bare ESP counted as UDP to port 4500
+
+A Child SA on UDP port 4500 receives ESP in both forms, and Ze's ESP form fast
+path turns the peer's bare ESP into ESP in UDP at tc ingress, before XFRM
+decrypts it ([Both ESP wire forms](ipsec.md#both-esp-wire-forms)). The fast
+path attaches its program at the head of the interface's TCX chain. The
+traffic-usage program attaches behind it, so it counts the datagram after the
+rewrite: in `ze_traffic_usage_ingress_port_bytes_total`, bare ESP for that
+Child SA is counted under `protocol="udp"` and `dst_port="4500"`, not under
+`esp`, and each datagram counts 8 bytes more, the UDP header the rewrite added.
+
+Only ingress is affected, and only while the fast path rewrites: ESP for an SPI
+no Child SA on UDP port 4500 uses, and all bare ESP while the fast path is off
+(`show doctor` says when it is), stays under `esp`. The per-IP series are keyed
+by the peer's address either way. Ingress UDP to port 4500 from an IPsec peer
+then holds both its IKE messages and its ESP. The Child SA's own counters,
+`bytes-in` and `packets-in` in `ze show vpn ipsec sa`, count its ESP in either
+form.
+
+<!-- source: internal/plugins/trafficusage/attach_linux.go -- the ingress link.AttachTCX with no anchor -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_linux.go -- linkAdded, the link.Head() anchor -->
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathPorts, espFormFastPathNext -->

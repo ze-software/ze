@@ -2388,6 +2388,17 @@ dataplane speaks even with telemetry disabled.
 <!-- source: internal/plugins/firewall/nft/deadline_linux.go -- per-dial netlink deadline -->
 <!-- source: internal/plugins/ddos/local/responder.go -- rollback skips reconcile on a timeout -->
 
+`reconcileMu` also covers the commit observers. A package registers one with
+`firewall.RegisterCommitObserver`, and `ApplyAll` runs each observer inside `reconcileMu`
+just before `Backend.Apply`, then runs the `after(err)` it returned once Apply returns: on
+success, on error, and on a panic. An observer, and its `after`, must not call back into the
+firewall package: `ApplyAll` would wait on `reconcileMu`, which it already holds, and every
+owner would hang. The IKE engine's observer uses this to hold the ESP form fast path shut
+across every reconcile its process commits. The full contract is in
+[the commit observers](firewall/table-ownership-and-shutdown-flush.md#the-commit-observers).
+<!-- source: internal/component/firewall/commit_observer.go -- CommitObserver, RegisterCommitObserver, applyObserved -->
+<!-- source: internal/component/ike/engine/register_firewall_observer.go -- holdESPFormFastPathForCommit -->
+
 The traffic component also has its own reactor (`internal/component/traffic/register.go`, spec-fw-9):
 `init()` calls `registry.Register(Name="traffic", ConfigRoots=["traffic/control"])`, and `runEngine`
 uses the SDK 5-stage protocol (`OnConfigure`, `OnConfigVerify`, `OnConfigApply`, `OnConfigRollback`)

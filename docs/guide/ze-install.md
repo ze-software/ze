@@ -152,8 +152,10 @@ LimitMEMLOCK=infinity
 WorkingDirectory=<config-dir>
 Environment=ZE_CONFIG_DIR=<config-dir>
 Environment=XDG_RUNTIME_DIR=/run/ze
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_BPF
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_BPF
+# Host tuning may need CAP_SYS_NICE. Future VRF/netns support may need CAP_SYS_ADMIN.
+# Add those capabilities only when the configured feature requires them.
 NoNewPrivileges=true
 ProtectSystem=true
 ProtectHome=true
@@ -162,6 +164,12 @@ RuntimeDirectory=ze
 [Install]
 WantedBy=multi-user.target
 ```
+
+`CAP_BPF` lets ze load the eBPF programs of the IPsec ESP form fast path, the
+IPsec application override guard and traffic-usage; without it the kernel
+refuses each load, so a unit written by an older ze is rewritten with
+`sudo ze install systemd --force` while the daemon is stopped.
+<!-- source: internal/plugins/systemd/unit.go -- capabilities -->
 
 `TimeoutStopSec=90` and `KillMode=mixed` serve the stop drain. On a stop, ze
 first drains its routing protocols for up to 60 s, then tears down for up to

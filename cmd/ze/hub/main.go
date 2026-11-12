@@ -17,6 +17,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -47,6 +48,7 @@ import (
 	resolvecmd "github.com/ze-software/ze/internal/component/resolve/cmd"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/reboot"
@@ -202,9 +204,7 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	defer statestore.SetStore(nil)
 
 	if !skipRootCheck {
-		for _, w := range privilege.CheckPrivileges() {
-			fmt.Fprintln(os.Stderr, "warning: "+w)
-		}
+		warnDaemonPrivileges(privilege.CheckPrivileges())
 	}
 
 	// Read config content first (to probe type without parsing).
@@ -289,6 +289,31 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // errUnauthenticatedMgmtListener summarizes the mgmt-listener refusal for the
 // slog mirror; the per-listener detail is on stderr from checkMgmtListeners.
 var errUnauthenticatedMgmtListener = errors.New("refusing unauthenticated non-loopback management listener (detail on stderr)")
+
+// warnDaemonPrivileges logs what privilege.CheckPrivileges reports for the daemon: the
+// capabilities of privilege.DaemonCapabilities it lacks, each with what it serves, or a
+// capability set it could not read. The line goes through the hub logger, which is up
+// from the first statement of run (logStartupFailure logs there too), so it reaches the
+// journal under systemd and carries the doctor code the daemon-capabilities check
+// declares (internal/component/doctor/checks_daemon_capabilities.go). The daemon keeps
+// running: each missing capability disables only what it serves.
+func warnDaemonPrivileges(warnings []string) {
+	if len(warnings) == 0 {
+		return
+	}
+	var missing textbuf.Buffer
+	for i, w := range warnings {
+		if i > 0 {
+			missing.Byte(' ')
+		}
+		missing.Str(strings.TrimSpace(w))
+	}
+	slogutil.Logger("hub").Warn("ze runs without a capability it needs; each missing one disables the features named beside it",
+		"missing", missing.String(),
+		"why", privilege.DaemonCapabilitiesAdvice,
+		"fix", privilege.DaemonCapabilitiesFix,
+		"code", diagnostic.CodeDoctorDaemonCapabilityMissing)
+}
 
 // logStartupFailure mirrors a fatal pre-serve failure onto the slog backend.
 // The stderr print beside each call reaches interactive operators, but on the

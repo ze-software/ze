@@ -12,7 +12,15 @@ import "github.com/ze-software/ze/internal/component/firewall"
 //
 //nolint:gochecknoinits // registration: a reservation is declared from init, before any RegisterTables
 func init() {
-	firewall.MustReserveTableNames(acceptFilterOwner, acceptFilterTableName)
-	firewall.MustReserveTableNames(ownerFilterOwner, ownerFilterARPTableName, ownerFilterNDTableName)
-	firewall.MustReserveTableNames(backupFilterOwner, backupFilterTableName)
+	firewall.MustReserveTableNames(acceptFilterOwner, vrrpTableControl, acceptFilterTableName)
+	firewall.MustReserveTableNames(ownerFilterOwner, vrrpTableControl, ownerFilterARPTableName, ownerFilterNDTableName)
+	firewall.MustReserveTableNames(backupFilterOwner, vrrpTableControl, backupFilterTableName)
+}
+
+// vrrpTableControl is what decides the rules of every VRRP table: each virtual
+// router's configuration and its current state.
+var vrrpTableControl = firewall.TableControl{
+	Plugin:  "vrrp plugin",
+	Decides: "the VRRP virtual routers of the configuration and whether each is master or backup",
+	Command: "show vrrp",
 }

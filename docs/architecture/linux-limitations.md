@@ -314,14 +314,30 @@ For a `library` entry, read the module in the module cache:
 - **Re-check:** read the encapsulation check in `xfrm_input` and the lookup in
   `xfrm_state_add`. `TestEncapKernelBindsOneESPFormPerState` and the dual-form
   integration test measure it on a real kernel.
-- **Ze meanwhile:** works around it, with a known security defect. A raw
-  `IPPROTO_ESP` reader receives the form the state refuses and re-presents it
-  to Ze's own address. That datagram arrives on `lo`, whose `disable_policy`
-  sets `IPSKB_NOPOLICY`, so `__xfrm_policy_check2` skips the inbound policy:
-  bare ESP re-presented this way gets no RFC 4301 Section 5.2 selector check.
-  `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` owns the fix.
+- **Ze meanwhile:** installs the inbound state with the ESP-in-UDP template
+  and turns bare ESP for its SPI into that form before XFRM reads it, on two
+  paths. Both hand XFRM the state's own form for an IPv4 outer header, on a
+  device whose `disable_policy`, the setting that decides the IPv4 check, is 0
+  (the real link unless the operator set it, and `ze-espform` always), so the
+  inbound policy check of RFC 4301 Section 5.2 runs on the decrypted packet.
+  The fast path is a tc ingress program,
+  attached to every non-loopback link while an SPI is watched: it inserts the
+  UDP header with the template's ports into a whole bare datagram, so the
+  packet is received on its real link. The complete path is a raw
+  `IPPROTO_ESP` reader for what the fast path leaves alone (fragments,
+  read after reassembly, IPv4 options, a link without the program). It writes
+  the encapsulated datagram into the Ze TUN `ze-espform`, at most 5000
+  datagrams per second. Ze never re-presents a datagram through `lo`, whose
+  `disable_policy` is 1 and skips the check. Serving both forms over an IPv6
+  outer header is a gap owed after the first release: Ze has no IPv6 IKE
+  transport yet, so no Child SA receives both forms over IPv6, and
+  `plan/post-release/features/spec-ike-ipv6-transport.md` owns the work.
 
 <!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormReceiver -->
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- espFormTUNSysctls -->
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathInstructions -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_linux.go -- the fast path's attach lifecycle -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- InstallSA, the IPv6 dual-form refusal -->
 
 ### LL-NETLINK-XFRM-PORT-MASK
 

@@ -50,7 +50,11 @@ func init() { //nolint:gochecknoinits // plugin registration
 	// The helper tables are this engine's own, registered under
 	// conntrackHelperOwner; an operator table of the same name would merge
 	// into them (reservation.go).
-	MustReserveTableNames(conntrackHelperOwner, conntrackHelperTableInet, conntrackHelperTableIP)
+	MustReserveTableNames(conntrackHelperOwner, TableControl{
+		Plugin:  "firewall component's conntrack helpers",
+		Decides: "the helper modules of the system conntrack configuration",
+		Command: "show firewall ruleset conntrack_helpers",
+	}, conntrackHelperTableInet, conntrackHelperTableIP)
 
 	reg := registry.Registration{
 		Name:        "firewall",

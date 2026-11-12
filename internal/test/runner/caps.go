@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -156,24 +157,34 @@ func ContainerCapsDockerNames() ([]string, error) {
 	return names, nil
 }
 
-// netnsDaemonCapBits is the one declaration of the capabilities a ze daemon
-// holds in the per-test netns launch mode. That mode drops ze to ZE_TEST_UID
-// (runOrchestrated, runner_exec.go), so ze holds no capability of the runner's:
-// it holds only the file capabilities the QEMU harness writes on its copies of
-// ze, ze-stripped and le, and NetnsDaemonSetcap derives that setcap text from
-// this list (internal/le/test/qemu, netnsCapabilities). The parse-time gate
-// reads the same list (netnsDaemonMissing), so a test declaring a capability
-// the grant lacks is skipped with the missing name rather than passing a probe
-// of the root runner and then failing inside ze.
+// netnsDaemonCapBits is the capabilities a ze daemon holds in the per-test
+// netns launch mode, as bits: the set the systemd unit grants a non-root daemon
+// (privilege.DaemonCapabilities, whose comment says why each one is there), so a
+// test runs ze with exactly the capabilities a production daemon holds. That
+// mode drops ze to ZE_TEST_UID (runOrchestrated, runner_exec.go), so ze holds no
+// capability of the runner's: it holds only the file capabilities the QEMU
+// harness writes on its copies of ze, ze-stripped and le, and NetnsDaemonSetcap
+// derives that setcap text from this list (internal/le/test/qemu,
+// netnsCapabilities). The parse-time gate reads the same list
+// (netnsDaemonMissing), so a test declaring a capability the grant lacks is
+// skipped with the missing name rather than passing a probe of the root runner
+// and then failing inside ze.
 //
-// CAP_BPF is here because the IPsec plugin's default `vpn ipsec
-// application-override deny` guard creates an eBPF map and attaches a cgroup
-// program before the tunnel comes up; without it BPF_MAP_CREATE answers EPERM
-// and every XFRM test that declares caps=net-admin,bpf failed at stage Config.
 // CAP_SYS_TIME is deliberately absent: a test that sets the clock changes the
 // guest it runs on rather than its namespace, so its gate keeps it out of this
 // mode.
-var netnsDaemonCapBits = []int{capNetAdmin, capNetRaw, capNetBindService, capBPF}
+var netnsDaemonCapBits = daemonCapBits()
+
+// daemonCapBits answers privilege.DaemonCapabilities as capability bits, in its
+// order.
+func daemonCapBits() []int {
+	capabilities := privilege.DaemonCapabilities()
+	bits := make([]int, 0, len(capabilities))
+	for _, c := range capabilities {
+		bits = append(bits, int(c.Bit))
+	}
+	return bits
+}
 
 // setcapName answers setcap(8)'s name for a capability bit: the kernel's CAP_
 // name in lower case, derived from capDockerName so a bit carries one

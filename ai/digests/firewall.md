@@ -56,7 +56,10 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
    (`registry.go`). It runs the active backend's registered verifier against
    this merged state before calling `backend.Apply(all)`, so plugin-owned tables
    cannot bypass the capability checks run for operator config. Refusal leaves
-   the applied snapshot unchanged.
+   the applied snapshot unchanged. Every registered `CommitObserver`
+   (`commit_observer.go`, `applyObserved`) runs just before `backend.Apply` and
+   hears its outcome after, inside `reconcileMu`; the IKE engine's holds the ESP
+   form fast path off while the commit lands.
 8. **nftables Apply.** `internal/plugins/firewall/nft/backend_linux.go`: list current `ze_*`
    tables (`ListTables`, line 44), delete only tables this Apply owns
    (`shouldDeleteTable`, line 73), then `applyTable` per table (line 92), **Sets are applied

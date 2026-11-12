@@ -8,6 +8,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -29,8 +30,11 @@ func doctorChecks() []registry.DoctorCheckDef {
 
 // checkTrafficUsageBPF warns when traffic-usage is enabled but this host cannot
 // attach the eBPF TCX programs, and says Unknown when the probe could not ask
-// the kernel. The probe runs in the doctor's own process, so it measures this
-// kernel and this process's privileges, not the daemon's.
+// the kernel. It is a post-config check, so it runs in whichever process answers
+// doctor (doctor.Answer, runChecks): the daemon when a daemon answers, on show doctor
+// and on a ze doctor the daemon answered, and the operator's own ze doctor process
+// when none does. The probe measures this kernel and that process's privileges, so on
+// the daemon route it measures the daemon, the process that loads the programs.
 func checkTrafficUsageBPF(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok || tree == nil {
@@ -134,10 +138,19 @@ func trafficUsageDiagnostic(enabled bool, readiness tcxReadinessResult) []rpc.Do
 	case tcxReadinessUnspecified:
 		tb.Str("traffic-usage is enabled but the eBPF TCX readiness probe returned no verdict")
 	}
-	tb.Str("; run `sudo ze doctor` (CAP_BPF and CAP_NET_ADMIN) to measure it")
+	tb.Str("; the process that ran this check usually lacks CAP_BPF or CAP_NET_ADMIN. " +
+		"When the daemon answered doctor, that process is the daemon: under systemd, a ze unit " +
+		"written by an older ze does not grant CAP_BPF, so the command below stops ze with " +
+		"`sudo systemctl stop ze`, because the install refuses while ze runs, then rewrites the " +
+		"unit (add the --config <dir> the unit was first installed with to the install) and " +
+		"starts ze again; without systemd, start ze with CAP_BPF and " +
+		"CAP_NET_ADMIN. When no daemon answered (the answer then also carries " +
+		"doctor-runtime-not-checked), the check measured your own ze doctor process: run " +
+		"`sudo ze doctor` to measure it as root")
 	return []rpc.DoctorCheckDiagnostic{{
 		Code:     "doctor-traffic-usage-ebpf-unknown",
 		Severity: "warning",
 		Message:  tb.String(),
+		Fix:      privilege.DaemonCapabilitiesFix,
 	}}
 }

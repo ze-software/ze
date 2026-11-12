@@ -38,5 +38,10 @@ func init() {
 	if err := diagnostic.RegisterDoctorCheck(envValuesCheck); err != nil {
 		panic("BUG: env-values doctor check registration refused: " + err.Error())
 	}
+	// The privilege package is core too, so the check that reports the
+	// capabilities the daemon lacks lives here as well (checks_daemon_capabilities.go).
+	if err := diagnostic.RegisterDoctorCheck(daemonCapabilitiesCheck); err != nil {
+		panic("BUG: daemon-capabilities doctor check registration refused: " + err.Error())
+	}
 	diagnostic.RegisterDoctorProvider(runChecks)
 }

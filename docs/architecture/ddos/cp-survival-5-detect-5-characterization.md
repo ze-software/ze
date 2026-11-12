@@ -116,7 +116,7 @@ port), generic (best effort).
 
 ## The responder split
 
-<!-- source: internal/plugins/ddos/local/responder.go -- applyMitigation, onDetected, onCharacterized -->
+<!-- source: internal/plugins/ddos/local/responder.go -- applyMitigation, MitigationTable, onDetected, onCharacterized -->
 <!-- source: internal/plugins/ddos/local/match.go -- buildDropTerm -->
 <!-- source: internal/component/firewall/model.go -- MatchTCPFlags -->
 <!-- source: internal/plugins/ddos/flowspec/responder.go -- onDetected, onCharacterized -->

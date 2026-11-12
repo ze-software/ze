@@ -16,6 +16,8 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // childSpec is what one exchange agreed for a Child SA that replaces no other: the
@@ -637,6 +639,19 @@ var (
 	errChildBinding           = errors.New("child-sa: resolving the peer's vti binding")
 	errChildAddress           = errors.New("child-sa: reading the tunnel addresses")
 	errChildInstall           = errors.New("child-sa: installing the Child SA")
+	// errChildProposal marks a first Child SA this node could not build from the ESP
+	// proposal the exchange accepted: an esp-group with no proposal, or an algorithm ze
+	// cannot resolve. The fix is in the configuration.
+	errChildProposal = errors.New("child-sa: building the Child SA from the accepted ESP proposal")
+	// errChildKeying marks a first Child SA this node could not key or number: the
+	// KEYMAT derivation, or the random source that draws its inbound SPI, failed. No
+	// configuration causes it.
+	errChildKeying = errors.New("child-sa: keying the Child SA")
+	// errChildNoIKEKeys marks a first Child SA asked of an IKE SA that holds no SK_*
+	// keys. Unlike every other cause here it is a failure of the IKE SA: with no keys it
+	// can protect no message, so it can neither delete the peer's half nor ask again,
+	// and runEstablished ends it. Only a Ze defect reaches it on an established SA.
+	errChildNoIKEKeys = errors.New("child-sa: no IKE keys available")
 )
 
 // The next step a refused creation response names, one per cause childResponseRefusedFix
@@ -668,6 +683,14 @@ const (
 		"ze deleted the pair; no traffic is protected until a Child SA exists, and ze asks again " +
 		"after retry-after; the error names what the kernel refused: make the esp-group algorithms " +
 		"ones this kernel supports, then reload the configuration: ze signal reload"
+	childResponseFixProposal = "the peer accepted the Child SA and this node could not build it from " +
+		"the accepted ESP proposal, so ze deleted the pair; no traffic is protected until a Child SA " +
+		"exists, and ze asks again after retry-after; give this peer's esp-group a proposal whose " +
+		"encryption and integrity algorithms ze supports, then reload the configuration: ze signal reload"
+	childResponseFixKeying = "the peer accepted the Child SA and this node could not derive its keys " +
+		"or draw its SPI, so ze deleted the pair; no traffic is protected until a Child SA exists, and " +
+		"ze asks again after retry-after; no configuration causes this: report it as a ze defect with " +
+		"the log lines of this peer"
 	childRekeyFixTransport = "the peer answered the rekey of a transport-mode Child SA in tunnel mode, " +
 		"so ze deleted the new pair and keeps the Child SA in use, and asks again after retry-after " +
 		"until the Child SA's hard lifetime ends it; the peer falls back to tunnel mode when its " +
@@ -695,6 +718,18 @@ const (
 		"group, is fixed in the configuration, then reload it: ze signal reload"
 )
 
+// childInstallRefusedFix is the next step for a Child SA this node refused after the
+// peer accepted it. Where the producer that refused it wrote an operator error, its fix
+// is the one that names the cause: the ESP form receiver's TUN refusal names the device
+// flag the container lacks, which the kernel-algorithm fix of errChildInstall does not.
+// Every other cause takes childResponseRefusedFix.
+func childInstallRefusedFix(err error) string {
+	if refusal, ok := errors.AsType[*opererr.Error](err); ok {
+		return refusal.Fix()
+	}
+	return childResponseRefusedFix(err)
+}
+
 // childResponseRefusedFix is the next step for a creation response this node refused,
 // derived from the cause err carries.
 func childResponseRefusedFix(err error) string {
@@ -716,6 +751,10 @@ func childResponseRefusedFix(err error) string {
 		return childResponseFixAddress
 	case errors.Is(err, errChildInstall):
 		return childResponseFixInstall
+	case errors.Is(err, errChildProposal):
+		return childResponseFixProposal
+	case errors.Is(err, errChildKeying):
+		return childResponseFixKeying
 	case errors.Is(err, errTSTransportPairs):
 		return childResponseFixTransportPairs
 	default:
@@ -966,11 +1005,15 @@ func (ps *PeerSession) finishChildCreate(sa *SA, p *pendingRekey, inner []wire.P
 			"error", err, "retry-after", ps.childCreate.wait, "fix", childRefusedFixInitiator)
 	default:
 		// The peer accepted and installed its half, and this node refused the answer.
-		// Its half is deleted so the peer holds no Child SA this node does not.
+		// Its half is deleted so the peer holds no Child SA this node does not. The
+		// refusal is recorded for the ipsec-child-install doctor check until a Child SA
+		// installs, and the line carries its code, as runEstablished's refusals do.
 		ps.sendDeleteESP(sa, tr, p.newInboundSPI, log)
 		ps.childCreate.refused(now)
+		ps.recordChildRefused(err, now)
 		log.Warn("child-sa: creation response refused, deleting the pair", "peer", ps.peerName,
-			"error", err, "retry-after", ps.childCreate.wait, "fix", childResponseRefusedFix(err))
+			"error", err, "retry-after", ps.childCreate.wait, "fix", childInstallRefusedFix(err),
+			"code", diagnostic.CodeDoctorIPsecChildInstallRefused)
 	}
 	return ownedOutcome{}
 }

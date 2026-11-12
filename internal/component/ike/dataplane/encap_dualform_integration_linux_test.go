@@ -126,8 +126,13 @@ func encapVerdictOf(t *testing.T, send func()) string {
 // own source address and prove nothing about the real case.
 func encapInjectBare(t *testing.T, src string, esp []byte) {
 	t.Helper()
-	// Every injection targets this host, so dst is fixed.
-	const dst = encapLoopbackAddr
+	encapInjectBareTo(t, src, encapLoopbackAddr, esp)
+}
+
+// encapInjectBareTo is encapInjectBare toward a local address the caller names, for a
+// probe whose local endpoint is not loopback (encapRoutedLocalAddr).
+func encapInjectBareTo(t *testing.T, src, dst string, esp []byte) {
+	t.Helper()
 	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_RAW, unix.IPPROTO_RAW)
 	if err != nil {
 		t.Fatalf("open a raw IPPROTO_RAW socket in the test's own namespace: %v", err)

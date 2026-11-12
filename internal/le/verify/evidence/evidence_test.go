@@ -150,7 +150,7 @@ func TestACleanTreeStartsOneContainer(t *testing.T) {
 	// here, independent of the runner's tables, so a stray grant fails.
 	want := grantcheck.Grants{
 		Capabilities: []string{"BPF", "NET_ADMIN", "NET_BIND_SERVICE", "NET_RAW"},
-		Devices:      []string{"/dev/ppp"},
+		Devices:      []string{"/dev/net/tun", "/dev/ppp"},
 		Mounts: []string{
 			checkout + ":/host:ro",
 			"ze-apt-cache:/var/cache/apt",

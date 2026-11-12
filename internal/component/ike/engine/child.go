@@ -307,16 +307,16 @@ func createFirstChildSA(
 	log *slog.Logger,
 ) (*ChildSA, error) {
 	if sa.SKKeys == nil {
-		return nil, fmt.Errorf("child-sa: no IKE keys available")
+		return nil, errChildNoIKEKeys
 	}
 	if len(espGroup.Proposals) == 0 {
-		return nil, fmt.Errorf("child-sa: no ESP proposals configured")
+		return nil, fmt.Errorf("%w: no ESP proposals configured", errChildProposal)
 	}
 
 	prop := espGroup.Proposals[0]
 	enc, integ, err := resolveESPTransforms(prop)
 	if err != nil {
-		return nil, fmt.Errorf("child-sa: %w", err)
+		return nil, fmt.Errorf("%w: %w", errChildProposal, err)
 	}
 
 	// RFC 7296 Section 2.17: KEYMAT = prf+(SK_d, Ni | Nr) in absolute initiator/
@@ -328,7 +328,7 @@ func createFirstChildSA(
 		enc, integ,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("child-sa: key derivation: %w", err)
+		return nil, fmt.Errorf("%w: key derivation: %w", errChildKeying, err)
 	}
 
 	var inSPI uint32
@@ -336,7 +336,7 @@ func createFirstChildSA(
 		inSPI, err = generateESPSPI()
 		if err != nil {
 			keys.Clear()
-			return nil, fmt.Errorf("child-sa: generate inbound SPI: %w", err)
+			return nil, fmt.Errorf("%w: generate inbound SPI: %w", errChildKeying, err)
 		}
 	} else {
 		inSPI = sa.ChildInboundSPI

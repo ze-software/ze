@@ -18,6 +18,7 @@ import (
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -89,8 +90,18 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 		var okPeer, okLocal bool
 		peer, okPeer = netip.AddrFromSlice(p.Src.To4())
 		local, okLocal = netip.AddrFromSlice(p.Dst.To4())
+		// Fail closed: a state installed here would receive one ESP form only. The branch
+		// is unreachable from a negotiation today, because the IKE listener opens udp4
+		// only (transport/udp.go), so no Child SA has IPv6 outer addresses; the gap is
+		// owed after the first release (plan/post-release/features/spec-ike-ipv6-transport.md).
 		if !okPeer || !okLocal {
-			return fmt.Errorf("xfrm: spi=%d asks to receive both ESP forms, which this backend serves for IPv4 only (src=%v dst=%v)", p.SPI, p.Src, p.Dst)
+			return opererr.New(
+				"the Child SA from "+p.Src.String()+" to "+p.Dst.String()+
+					" asks to receive both ESP wire forms over IPv6, and Ze cannot serve that yet",
+				"Ze has no IPv6 IKE transport yet, so no IPv6 dual-form SA can be produced; "+
+					"receiving both ESP forms over IPv6 is a gap owed after the first release, "+
+					"and installing the SA anyway would drop one of the two forms",
+				"set vpn ipsec site-to-site peer <peer> remote-address <IPv4 address>")
 		}
 	}
 	if err := netlink.XfrmStateAdd(state); err != nil {
@@ -110,7 +121,12 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 	// forbids encapsulation on port 500, so a peer that encapsulates ESP runs its IKE on
 	// port 4500 and its SA is templated here.
 	if p.AcceptBothESPForms && p.UDPEncap {
-		if err := b.espForms.Watch(p.SPI, peer, local); err != nil {
+		// The template's ports, not 4500/4500: a Child rekey after MOBIKE keeps the
+		// translated IKE port, and the reader re-presents bare ESP to the replacement
+		// inbound SA with the tuple its state matches from the first datagram on.
+		target := espFormTarget{peer: peer, local: local, peerPort: p.UDPEncapSPort, localPort: p.UDPEncapDPort}
+		// RFC 7296 Section 2.23
+		if err := b.espForms.Watch(p.SPI, target); err != nil {
 			// The state is already in the kernel, and this install is about to be
 			// reported as failed. Leaving it behind would strand a state no caller
 			// believes exists, and the next install of the same SPI would answer
@@ -121,11 +137,6 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 			}
 			return fmt.Errorf("xfrm: spi=%d cannot receive both ESP forms, so it was not installed: %w", p.SPI, err)
 		}
-		// A Child rekey after MOBIKE retains the translated IKE port. Use that
-		// same tuple when re-presenting bare ESP to its replacement inbound SA.
-		b.espForms.reg.retarget(p.SPI, espFormTarget{
-			peer: peer, local: local, peerPort: p.UDPEncapSPort, localPort: p.UDPEncapDPort,
-		})
 	}
 	return nil
 }
@@ -429,8 +440,9 @@ func (b *xfrmBackend) SAOptionsSupported(o SAOptions) error {
 // watched forever and held a host-wide raw ESP socket open after the last tunnel was
 // gone, which taxes every packet on the box rather than only this tunnel's.
 //
-// Forget is a no-op for an SPI that was never watched, and releases the raw sockets once
-// the last watched SA is removed.
+// Forget is a no-op for an SA that was never watched, takes the SPI out of the fast
+// path's map unless another SA on the same SPI still holds it, and releases the reader
+// socket, the ze-espform device and the fast path once the last watched SA is removed.
 func (b *xfrmBackend) RemoveSA(spi uint32, dst net.IP, proto uint8) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -440,7 +452,14 @@ func (b *xfrmBackend) RemoveSA(spi uint32, dst net.IP, proto uint8) error {
 		Proto: netlink.Proto(proto),
 		Spi:   int(spi),
 	}
-	defer b.espForms.Forget(spi)
+	// The SA forgotten is the one that carries spi to dst, the pair XFRM keys the state on,
+	// so removing an outbound SA whose peer-chosen SPI equals a watched inbound SPI leaves
+	// that inbound SA served. Only an IPv4 inbound state is ever watched (InstallSA
+	// refuses a dual-form SA over IPv6), so a destination with no IPv4 form names no
+	// watched SA, and nothing is forgotten.
+	if local, ok := netip.AddrFromSlice(dst.To4()); ok {
+		defer b.espForms.Forget(spi, local)
+	}
 	if alternate, pending := b.migrationCleanup[IdentityOf(spi, dst, proto, 0)]; pending {
 		extra := &netlink.XfrmState{
 			Dst: net.IP(alternate.Dst.AsSlice()), Spi: int(alternate.SPI),

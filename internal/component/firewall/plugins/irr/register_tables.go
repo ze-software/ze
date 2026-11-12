@@ -12,5 +12,9 @@ import "github.com/ze-software/ze/internal/component/firewall"
 //
 //nolint:gochecknoinits // registration: a reservation is declared from init, before any RegisterTables
 func init() {
-	firewall.MustReserveTableNames("firewall-irr", ifaceTableName)
+	firewall.MustReserveTableNames("firewall-irr", firewall.TableControl{
+		Plugin:  "firewall-irr plugin",
+		Decides: "the firewall irr policies of the configuration and the IRR prefixes Ze fetched for them",
+		Command: "show firewall irr",
+	}, ifaceTableName)
 }

@@ -12,5 +12,9 @@ import "github.com/ze-software/ze/internal/component/firewall"
 //
 //nolint:gochecknoinits // registration: a reservation is declared from init, before any RegisterTables
 func init() {
-	firewall.MustReserveTableNames(owner, tableNameV4, tableNameV6)
+	firewall.MustReserveTableNames(owner, firewall.TableControl{
+		Plugin:  "anomaly-shape plugin",
+		Decides: "the anomaly responder's mode and the sources it armed against",
+		Command: "show anomaly shape",
+	}, tableNameV4, tableNameV6)
 }

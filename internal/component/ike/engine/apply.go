@@ -6,6 +6,8 @@
 package engine
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"maps"
 	"sync"
@@ -14,6 +16,8 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // ikeListeners is one pair of UDP sockets the engine receives IKE on, with the host it
@@ -155,6 +159,12 @@ type ikeEngineState struct {
 	// reCtx is read by the operator `clear` path on another goroutine, so it is atomic
 	// where the members above are not.
 	reCtx atomic.Pointer[reEstablishCtx]
+
+	// espFormTUN is the outcome of the last apply's attempt to open the TUN clone device
+	// the dual-form receiver needs, nil when that apply made none (recordESPFormTUN). The
+	// ipsec-esp-form-fast-path doctor check reads it from the doctor callback's goroutine,
+	// so it is atomic.
+	espFormTUN atomic.Pointer[espFormTUNRecord]
 }
 
 // openPair binds whichever socket of l is absent and starts its receive loop. The IKE
@@ -454,6 +464,10 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 
 	s.table.virtualIP.reload(cfg.RemoteAccess, s.log)
 
+	// Before the peers start, so the device's refusal is logged ahead of the first Child
+	// SA it refuses. It refuses nothing itself: the refusal is per SA, at install.
+	s.recordESPFormTUN(cfg)
+
 	// Peer reconciliation is the only part of an apply that puts packets on the wire,
 	// and at STARTUP it is deferred to OnAllPluginsReady. Phase 1 loads a config-path
 	// plugin such as this one before Phase 2 spawns an `external` plugin, so initiating
@@ -490,6 +504,50 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 
 	s.log.Info("ike engine configured", "peers", len(cfg.Peers))
 	return nil
+}
+
+// recordESPFormTUN opens and closes the TUN clone device the dual-form receiver needs,
+// and predicts whether the ze-espform interface it would create keeps the inbound policy
+// check and a loose reverse-path filter (dataplane.ESPFormTUNAvailable), on every apply
+// that configures a peer, and records the outcome for the doctor
+// (ikeEngineState.espFormTUN). Every IPsec peer can need the device: any IKE SA may float
+// to UDP port 4500 (RFC 7296 Section 2.23), and a Child SA on that port is installed
+// with UDP encapsulation and must receive bare ESP too (newChildSA, create_child.go),
+// which the receiver re-presents through ze-espform. An apply that configures no peer,
+// or whose dataplane has no dual-form receiver (VPP, a failed load), makes no attempt
+// and clears the record, so the doctor reports nothing about a device nothing needs.
+//
+// The attempt runs here, in the engine's process, and never in the doctor check, because
+// it may create the node /dev/net/tun (espFormTUNAvailable), and a doctor check only reads.
+//
+// A failure is logged once per apply, at Warn, with its cause and fix. It does not
+// refuse the configuration: a peer that stays on UDP port 500 with no NAT still
+// installs a Child SA with no UDP encapsulation, which needs no device, and the refusal
+// of one that floats is made per SA, at install. The caller holds applyMu.
+func (s *ikeEngineState) recordESPFormTUN(cfg *ipsec.IPsecConfig) {
+	if len(cfg.Peers) == 0 {
+		s.espFormTUN.Store(nil)
+		return
+	}
+	if _, ok := dataplane.Get().(dataplane.ESPFormFastPathReporter); !ok {
+		s.espFormTUN.Store(nil)
+		return
+	}
+	record := newESPFormTUNRecord(espFormTUNAvailable())
+	s.espFormTUN.Store(record)
+	if record.status != espFormTUNRefused {
+		return
+	}
+	const refusedText = "ike: Ze cannot create a usable ze-espform interface, so every Child SA on UDP port 4500 will be refused at install"
+	if refusal, ok := errors.AsType[*opererr.Error](record.err); ok {
+		s.log.LogAttrs(context.Background(), slog.LevelWarn, refusedText,
+			refusal.LogAttrs(
+				slog.String("problem", refusal.Problem()),
+				slog.String("code", diagnostic.CodeDoctorIPsecESPFormTUN))...)
+		return
+	}
+	s.log.Warn(refusedText, "error", record.err, "fix", "ze show doctor",
+		"code", diagnostic.CodeDoctorIPsecESPFormTUN)
 }
 
 // reconcile starts, stops and restarts peer sessions so the running set matches plan,

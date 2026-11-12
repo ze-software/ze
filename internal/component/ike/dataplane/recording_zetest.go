@@ -30,6 +30,38 @@ func newRecordingBackend() (Dataplane, error) {
 	return &recordingDataplane{policies: map[recordedPolicyKey]SPParams{}}, nil
 }
 
+// recordingESPFormUnavailableCause is the Cause the recording-esp-form-unavailable
+// backend reports. It says it is the test backend's, so no reader takes it for a
+// kernel's refusal.
+const recordingESPFormUnavailableCause = "the recording-esp-form-unavailable test backend " +
+	"loads no BPF program, as a host without CAP_BPF loads none"
+
+// newRecordingESPFormUnavailableBackend is the recording backend on a host whose ESP
+// form fast path could not load. It answers ESPFormFastPathState with
+// ESPFormFastPathUnavailable from the start, the state xfrmBackend reaches at its first
+// dual-form Child SA on such a host, so a .ci reaches the doctor finding through the
+// daemon's own doctor answer with no Child SA and no privilege
+// (test/ipsec/ipsec-esp-form-fast-path-doctor.ci). Selected with
+// ze.test.ike.dataplane=recording-esp-form-unavailable.
+func newRecordingESPFormUnavailableBackend() (Dataplane, error) {
+	return &recordingESPFormUnavailable{policies: map[recordedPolicyKey]SPParams{}}, nil
+}
+
+// recordingESPFormUnavailable is the recording backend with a fast path that never
+// loaded. Safe for concurrent use, as recordingDataplane is; its own state is constant.
+type recordingESPFormUnavailable struct {
+	recordingDataplane
+}
+
+// ESPFormFastPathState answers the fast path unavailable, with the test backend's cause.
+func (d *recordingESPFormUnavailable) ESPFormFastPathState() (ESPFormFastPathState, error) {
+	return ESPFormFastPathState{
+		Status: ESPFormFastPathUnavailable, Cause: recordingESPFormUnavailableCause,
+		// No program loaded, so no gate and no ruleset read, as start leaves it.
+		FirewallReading: ESPFormFirewallUnheld,
+	}, nil
+}
+
 // recordingDataplane is safe for concurrent use: the engine installs from its apply
 // path and the show command reads from the RPC goroutine.
 type recordingDataplane struct {

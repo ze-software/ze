@@ -12,5 +12,9 @@ import "github.com/ze-software/ze/internal/component/firewall"
 //
 //nolint:gochecknoinits // registration: a reservation is declared from init, before any RegisterTables
 func init() {
-	firewall.MustReserveTableNames("policy-routes", policyRoutingTable)
+	firewall.MustReserveTableNames("policy-routes", firewall.TableControl{
+		Plugin:  "policyroute plugin",
+		Decides: "the policy routes of the configuration",
+		Command: cmdShowPolicyRoutes,
+	}, policyRoutingTable)
 }

@@ -31,7 +31,7 @@ func TestRemoveSAForgetsESPFormWhenStateDeleteFails(t *testing.T) {
 	b := &xfrmBackend{espForms: newESPFormReceiver(slogutil.DiscardLogger())}
 	// The registry is seeded directly rather than through Watch: Watch opens the raw
 	// sockets, which needs CAP_NET_RAW, and the membership is what RemoveSA must drop.
-	b.espForms.reg.watch(spi, netip.MustParseAddr("198.51.100.7"), netip.MustParseAddr("203.0.113.9"))
+	b.espForms.reg.watch(spi, natTarget(netip.MustParseAddr("198.51.100.7"), netip.MustParseAddr("203.0.113.9")))
 
 	err := b.RemoveSA(spi, net.ParseIP("203.0.113.9"), ProtoESP)
 
@@ -41,7 +41,7 @@ func TestRemoveSAForgetsESPFormWhenStateDeleteFails(t *testing.T) {
 	if !strings.Contains(err.Error(), "xfrm: state del") {
 		t.Errorf("RemoveSA returned %v, want the state-del failure reported unchanged to the caller", err)
 	}
-	if _, watched := b.espForms.reg.target(spi); watched {
+	if b.espForms.reg.watching(spi) {
 		t.Errorf("spi %#x is still watched after a failed RemoveSA: the receiver holds a host-wide raw ESP socket for a tunnel that is gone", spi)
 	}
 }

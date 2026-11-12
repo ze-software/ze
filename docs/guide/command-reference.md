@@ -2430,7 +2430,9 @@ under the same ownership lock. Stop the daemon before installation or replacemen
 Later store maintenance runs as `ze`, not root.
 
 The generated unit sets `XDG_RUNTIME_DIR=/run/ze`, creates `/run/ze`, and grants
-`CAP_NET_ADMIN`, `CAP_NET_RAW`, and `CAP_NET_BIND_SERVICE`.
+`CAP_NET_ADMIN`, `CAP_NET_RAW`, `CAP_NET_BIND_SERVICE`, and `CAP_BPF` (for the
+eBPF programs of the IPsec ESP form fast path, the IPsec application override
+guard and traffic-usage).
 <!-- source: internal/plugins/systemd/cmd_install.go -- cmdInstall, chownConfig -->
 <!-- source: internal/component/config/storage/ownership.go -- TransferOwnership -->
 

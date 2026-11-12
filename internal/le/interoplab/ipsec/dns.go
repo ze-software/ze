@@ -175,7 +175,7 @@ func dnsPeerConfig(container string) interoplab.PeerConfig {
 		Container: container,
 		Image:     dnsImage,
 		Host:      dnsHost,
-		// Every peer of this lab but FRR holds exactly NET_ADMIN (capabilityNetAdmin).
+		// Every peer of this lab but FRR and ze holds exactly NET_ADMIN (capabilityNetAdmin).
 		Capabilities: []string{capabilityNetAdmin},
 		// exec, so tini signals the reader itself and a stop is immediate.
 		Command: []string{"-c", "exec tail -f /dev/null"},

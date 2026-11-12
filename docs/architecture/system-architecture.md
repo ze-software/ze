@@ -787,6 +787,30 @@ When `ze.user` is not set, no privilege dropping occurs.
 Implementation: `internal/core/privilege/` -- calls `setgid` then `setuid` after `reactor.Start()` binds port 179.
 <!-- source: internal/core/privilege/ -- privilege dropping -->
 
+### Capabilities without root
+
+`privilege.DaemonCapabilities` is the one declaration of the capabilities a
+non-root daemon runs with: `CAP_NET_ADMIN`, `CAP_NET_RAW`, `CAP_NET_BIND_SERVICE`
+and `CAP_BPF`, each with its kernel bit and what Ze needs it for. The systemd unit
+grants exactly that set, ambient and bounding alike; when `CheckPrivileges`
+reports one a non-root daemon lacks, the hub logs one warning at start under
+`doctor-daemon-capability-missing`, and the `daemon-capabilities` runtime check
+reports the same in `show doctor`; the per-test netns mode of
+`./le test qemu all` runs ze with the same set (`netnsDaemonCapBits`); and a unit
+capability test (`unit_capabilities_integration_linux_test.go` in the package
+that owns the program, for traffic-usage, the IPsec ESP form fast path and the
+IPsec application override guard) loads each eBPF program from a non-root
+process holding exactly it, which is how the verifier's unprivileged rules are
+proven. Each kernel bit is written out, because
+`golang.org/x/sys/unix` declares the `CAP_` constants on Linux alone, and
+`TestDaemonCapabilityBitsAreTheKernels` compares it with that constant.
+<!-- source: internal/core/privilege/capabilities.go -- DaemonCapabilities -->
+<!-- source: internal/core/privilege/check_linux.go -- CheckPrivileges, effectiveCapabilities -->
+<!-- source: cmd/ze/hub/main.go -- warnDaemonPrivileges -->
+<!-- source: internal/component/doctor/checks_daemon_capabilities.go -- daemonCapabilitiesCheck, checkDaemonCapabilities -->
+<!-- source: internal/plugins/systemd/unit.go -- writeCapabilities -->
+<!-- source: internal/test/runner/caps.go -- netnsDaemonCapBits, daemonCapBits -->
+
 ### Plugin TLS Transport
 
 External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }`), forks child processes with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_HUB_TOKEN`/`ZE_PLUGIN_CA_PEM` env vars, and waits for authenticated connect-back. `ZE_PLUGIN_CA_PEM` carries the certificate authority root that issued the listener's certificate, and the SDK validates the chain against it and nothing else; the full contract is in [Process Protocol](api/process-protocol.md). Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.

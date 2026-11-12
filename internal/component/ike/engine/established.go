@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -91,12 +92,6 @@ func (ps *PeerSession) runEstablished(
 		ps.setPendingIKESwap(nil)
 	}()
 
-	ifID, err := resolveIfID(&peer)
-	if err != nil {
-		log.Warn("ike: child SA creation failed", "peer", ps.peerName, "error", err)
-		return err
-	}
-
 	// The IKE SA is kept whether or not IKE_AUTH built its Child SA. RFC 7296 Section
 	// 2.21.2: "This failure does not automatically cause the IKE SA to be deleted."
 	var child *ChildSA
@@ -104,11 +99,24 @@ func (ps *PeerSession) runEstablished(
 	case sa.IsInitiator && sa.IKEAuthChildless:
 		log.Info("ike: IKE SA established with no Child SA", "peer", ps.peerName)
 		// Only the IKE SA initiator asks for the Child SA later, so two Ze peers never
-		// collide on it; a responder serves the peer's request (respondNewChild).
+		// collide on it; a responder serves the peer's request (respondNewChild). The
+		// creation request resolves the binding again (errChildBinding).
 		ps.childCreate.start(time.Now())
 	case sa.IsInitiator:
+		// An initiator that cannot bind its first Child SA refuses that Child SA alone,
+		// below, as it refuses one its dataplane cannot install. Only the initiator
+		// resolves the binding here: a responder resolved it while answering IKE_AUTH
+		// (selectAuthChildSA, responder.go), and a binding it could not resolve there
+		// already answered IKE_AUTH with no Child SA. Resolving it again here ended the
+		// responder's IKE SA for a Child SA cause, which RFC 7296 Section 2.21.2 does not
+		// ask for, and told the peer nothing.
+		ifID, bindErr := resolveIfID(&peer)
 		var err error
-		child, err = initiatorFirstChildSA(sa, ifID, dp, log)
+		if bindErr != nil {
+			err = fmt.Errorf("%w: %w", errChildBinding, bindErr)
+		} else {
+			child, err = initiatorFirstChildSA(sa, ifID, dp, log)
+		}
 		switch {
 		case errors.Is(err, errChildEncapPort):
 			// The peer answered IKE_AUTH and installed its half of the pair, and this
@@ -120,9 +128,12 @@ func (ps *PeerSession) runEstablished(
 			// RFC 3948 Section 2.1
 			ps.sendDeleteESP(sa, tr, sa.ChildInboundSPI, log)
 			log.Warn("ike: child SA refused, no UDP encapsulation port, deleting the pair and keeping the IKE SA",
-				"peer", ps.peerName, "error", err, "fix", childResponseFixEncapPort)
+				"peer", ps.peerName, "error", err, "fix", childResponseFixEncapPort,
+				"code", diagnostic.CodeDoctorIPsecChildInstallRefused)
 			child = nil
-			ps.childCreate.start(time.Now())
+			now := time.Now()
+			ps.childCreate.start(now)
+			ps.recordChildRefused(err, now)
 		case errors.Is(err, errInnerSelectorConflict):
 			// The peer answered IKE_AUTH and installed its half of the pair, and this
 			// node refused to install a tunnel another peer's live tunnel overlaps.
@@ -134,12 +145,81 @@ func (ps *PeerSession) runEstablished(
 			// RFC 3948 Section 5.1
 			ps.sendDeleteESP(sa, tr, sa.ChildInboundSPI, log)
 			log.Warn("ike: child SA refused, another peer holds an overlapping tunnel, deleting the pair and keeping the IKE SA",
-				"peer", ps.peerName, "error", err, "fix", childResponseRefusedFix(err))
+				"peer", ps.peerName, "error", err, "fix", childResponseRefusedFix(err),
+				"code", diagnostic.CodeDoctorIPsecChildInstallRefused)
 			child = nil
-			ps.childCreate.start(time.Now())
-		case err != nil:
-			log.Warn("ike: child SA creation failed", "peer", ps.peerName, "error", err)
+			now := time.Now()
+			ps.childCreate.start(now)
+			ps.recordChildRefused(err, now)
+		case errors.Is(err, errChildInstall), errors.Is(err, errChildBinding):
+			// The peer answered IKE_AUTH and installed its half of the pair, and this
+			// node could not bind or install its own: a vti bind naming no XFRM
+			// interface, a kernel without the transform, a container started without
+			// /dev/net/tun for the ESP form receiver. Such a cause outlasts any one
+			// attempt. Ending the IKE SA here re-ran the whole handshake once a second
+			// for as long as the cause lasted, logging the same error each time:
+			// runInitiator clears connectFailures when the IKE SA establishes, before
+			// this install, so reconnectDelay answered reconnectBase on every cycle.
+			//
+			// The IKE SA is kept as a childless one instead, and its peer half is
+			// deleted so the peer holds no Child SA this node does not. The creation
+			// schedule asks again childCreateFirst from now, then waits twice as long
+			// after each refusal, up to childCreateMax, logging one line per attempt.
+			// The first attempt after the operator removed the cause installs the Child
+			// SA with no restart: the dataplane retries what failed on each install (the
+			// ESP form receiver reopens the TUN device on its first Watch), and success
+			// stops the schedule, so the next refusal starts it over at childCreateFirst.
+			// RFC 7296 Section 2.21.2: "This failure does not automatically cause the
+			// IKE SA to be deleted."
+			//
+			// The refusal is recorded for the ipsec-child-install doctor check, which
+			// reports it until a Child SA installs (setChildSA clears it), and the line
+			// carries that check's code. A ze-espform cause (the TUN operator error
+			// InstallSA wraps) takes the same code: the doctor-coverage gate reads a code only as a constant, and
+			// this line reports this peer's refused Child SA, which that check reports and
+			// clears; the device itself is reported under doctor-ipsec-esp-form-tun by
+			// the apply that found it missing (recordESPFormTUN, apply.go).
+			ps.sendDeleteESP(sa, tr, sa.ChildInboundSPI, log)
+			child = nil
+			now := time.Now()
+			ps.childCreate.start(now)
+			ps.recordChildRefused(err, now)
+			log.Warn("ike: child SA refused, this node could not install it, deleting the pair and keeping the IKE SA",
+				"peer", ps.peerName, "error", err, "retry-after", ps.childCreate.wait,
+				"fix", childInstallRefusedFix(err), "code", diagnostic.CodeDoctorIPsecChildInstallRefused)
+		case errors.Is(err, errChildNoIKEKeys):
+			// The one failure of the IKE SA itself: with no SK_* keys it can protect no
+			// message, so it can neither delete the peer's half nor ask again, and
+			// keeping it would keep an SA that cannot talk. Only a Ze defect reaches
+			// it on an established SA.
+			log.Warn("ike: IKE SA holds no keys to build its first Child SA, ending it",
+				"peer", ps.peerName, "error", err, "code", diagnostic.CodeDoctorInternalDefect)
 			return err
+		case err != nil:
+			// The peer answered IKE_AUTH and installed its half of the pair, and this
+			// node could not build its own: no ESP proposal or an algorithm ze cannot
+			// resolve (errChildProposal), a failed key derivation or SPI draw
+			// (errChildKeying), unusable tunnel addresses (errChildAddress), or a peer
+			// SPI never recorded. Each is a failure of this Child SA, not of the IKE SA.
+			// Ending the IKE SA here had the effect the install arm above describes:
+			// runInitiator had cleared connectFailures, so reconnectDelay answered
+			// reconnectBase and the handshake and this line repeated every second.
+			// RFC 7296 Section 2.21.2: "This failure does not automatically cause the
+			// IKE SA to be deleted."
+			//
+			// The IKE SA is kept as a childless one on the creation schedule, as the
+			// install arm keeps it. The peer's half is deleted when IKE_AUTH announced
+			// this node's inbound SPI, the one the peer sends to.
+			if sa.ChildInboundSPI != 0 {
+				ps.sendDeleteESP(sa, tr, sa.ChildInboundSPI, log)
+			}
+			child = nil
+			now := time.Now()
+			ps.childCreate.start(now)
+			ps.recordChildRefused(err, now)
+			log.Warn("ike: child SA refused, this node could not build it, deleting the pair and keeping the IKE SA",
+				"peer", ps.peerName, "error", err, "retry-after", ps.childCreate.wait,
+				"fix", childInstallRefusedFix(err), "code", diagnostic.CodeDoctorIPsecChildInstallRefused)
 		default:
 			ps.setChildSA(child)
 		}

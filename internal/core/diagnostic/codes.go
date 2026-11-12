@@ -75,6 +75,13 @@ const (
 	CodeDoctorIPsecCertURL                         = "doctor-ipsec-cert-url"
 	CodeDoctorIPsecCertURLDenied                   = "doctor-ipsec-cert-url-denied"
 	CodeDoctorIPsecCookieThreshold                 = "doctor-ipsec-cookie-threshold"
+	CodeDoctorIPsecESPFormFastPath                 = "doctor-ipsec-esp-form-fast-path"
+	CodeDoctorIPsecESPFormLink                     = "doctor-ipsec-esp-form-link"
+	CodeDoctorIPsecESPFormTUN                      = "doctor-ipsec-esp-form-tun"
+	CodeDoctorIPsecESPFormReaderStopped            = "doctor-ipsec-esp-form-reader-stopped"
+	CodeDoctorIPsecESPFormFirewall                 = "doctor-ipsec-esp-form-firewall"
+	CodeDoctorIPsecChildInstallRefused             = "doctor-ipsec-child-install-refused"
+	CodeDoctorDaemonCapabilityMissing              = "doctor-daemon-capability-missing"
 	CodeDoctorIPsecImplicitDiscard                 = "doctor-ipsec-implicit-discard"
 	CodeDoctorIPsecOverrideGuard                   = "doctor-ipsec-override-guard"
 	CodeDoctorIPsecSocketPolicy                    = "doctor-ipsec-socket-policy"
@@ -1097,6 +1104,122 @@ var builtinCodes = append([]CodeMeta{
 		Examples: []string{exampleDoctorJSON, "show vpn ipsec dataplane policy"},
 	},
 	{
+		Code:  CodeDoctorIPsecESPFormFastPath,
+		Title: "IPsec bare ESP is not rewritten in the kernel",
+		Description: "A Child SA on UDP port 4500 receives bare ESP as well as ESP-in-UDP (RFC 7296 " +
+			"Section 2.23). Ze normally turns bare ESP into the form the SA's kernel state carries with " +
+			"a tc-ingress BPF program on each link, the fast path. The fast path did not load, or it " +
+			"stopped following new links, so that bare ESP goes through ze-espform instead, the " +
+			"complete path: at a bounded rate, above which every datagram is dropped, and a " +
+			"firewall rule keyed on the input " +
+			"interface sees ze-espform, not the link the packet arrived on. Every packet is still " +
+			"checked against the SA's policy. Under systemd, a ze unit written by an older ze does " +
+			"not grant CAP_BPF: stop ze with sudo systemctl stop ze, then rewrite the unit with " +
+			"sudo ze install systemd --force --start, which starts ze again. Without systemd, start " +
+			"ze with CAP_BPF and CAP_NET_ADMIN. On a kernel before Linux 6.6, which has no TCX, " +
+			"upgrade the kernel, then restart ze.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-esp-form-fast-path"},
+	},
+	{
+		Code:  CodeDoctorIPsecESPFormLink,
+		Title: "IPsec bare ESP on one link is not rewritten in the kernel",
+		Description: "The IPsec ESP form fast path is not attached to one link: the link's type has " +
+			"no program variant (only Ethernet and links that carry IP with no link header have " +
+			"one), or the kernel refused the attach. Bare ESP that arrives on that link for a Child " +
+			"SA on UDP port 4500 goes through ze-espform, the complete path: at a bounded rate, " +
+			"above which every datagram is dropped, " +
+			"and a firewall rule keyed on the input interface sees ze-espform, not that " +
+			"link. Every packet is still checked against the SA's policy. To keep that traffic off " +
+			"the complete path, set the peer to always encapsulate ESP in UDP (strongSwan: encap = " +
+			"yes), or route it over a link of a supported type.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-esp-form-link"},
+	},
+	{
+		Code:  CodeDoctorIPsecESPFormTUN,
+		Title: "IPsec Child SAs on UDP port 4500 are refused: no usable ze-espform interface",
+		Description: "A Child SA on UDP port 4500 must receive bare ESP as well as ESP-in-UDP (RFC " +
+			"7296 Section 2.23). The bare ESP the fast path cannot rewrite (fragments, IPv4 options, " +
+			"a link it does not serve) goes through ze-espform, the complete path, a TUN interface " +
+			"Ze creates from /dev/net/tun. Ze cannot create a usable one here: the TUN device does " +
+			"not open, or /proc/sys is read-only and the interface would take from " +
+			"net.ipv4.conf.default a disable_policy that skips the inbound policy check or a strict " +
+			"rp_filter that drops what Ze writes into it. So Ze refuses every Child SA on UDP port " +
+			"4500 rather than install one that receives a single ESP form, or one whose bare ESP " +
+			"skips the policy check. Ze checks this on every configuration apply that configures a " +
+			"peer. The doctor finding names the cause (a container started without the device, a " +
+			"kernel with no TUN driver, a missing device node, no CAP_NET_ADMIN, or the sysctl " +
+			"setting) and the command that fixes it. The complete path also reads bare ESP through " +
+			"a raw ESP socket, and the receiver records its last failure to open the socket or the " +
+			"interface, at a Child SA install, a MOBIKE move, or its own reopen after the socket " +
+			"failed; the doctor reports that record under this code, with the cause (no CAP_NET_RAW " +
+			"or CAP_NET_ADMIN, or a step of the interface's configuration) and its fix, until an " +
+			"open succeeds.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-esp-form-tun"},
+	},
+	{
+		Code:  CodeDoctorIPsecESPFormReaderStopped,
+		Title: "IPsec bare ESP went unreceived for a while: Ze's own receiver for bare ESP stopped",
+		Description: "A Child SA on UDP port 4500 must receive bare ESP as well as ESP-in-UDP (RFC " +
+			"7296 Section 2.23). The bare ESP the fast path cannot rewrite reaches the SA only " +
+			"through Ze's own receiver, which reads it from a raw ESP socket and writes it into " +
+			"ze-espform. That socket failed, so until Ze opened the receiver again, such bare ESP " +
+			"was not received. Ze opens it again by itself, at once and then further apart if it " +
+			"stops again soon after each open. The event is raised on the report bus each time the " +
+			"receiver stops, even when it opened again at once; when it cannot open, the doctor also " +
+			"reports a doctor-ipsec-esp-form-tun error with the cause. The receiver's warnings name " +
+			"the error the socket answered and each attempt to open it again.",
+		Examples: []string{exampleDoctorJSON, "ze show errors", "ze show diagnostic doctor-ipsec-esp-form-reader-stopped"},
+	},
+	{
+		Code:  CodeDoctorIPsecESPFormFirewall,
+		Title: "IPsec bare ESP is not rewritten in the kernel: the firewall could drop ESP",
+		Description: "The IPsec ESP form fast path rewrites bare ESP for a Child SA on UDP port 4500 " +
+			"at tc ingress, before netfilter, so a firewall rule on the input path would not see " +
+			"the ESP it was written for. Ze reads the nftables ruleset and keeps the fast path off " +
+			"while an ingress, prerouting or input chain holds a rule or a drop policy that could " +
+			"drop ESP, and while it cannot read the ruleset or follow its changes. Bare ESP then " +
+			"goes through ze-espform, the complete path, after the input path, so the firewall " +
+			"still decides on it. The complete path carries a bounded number of datagrams per " +
+			"second, which the doctor finding names, and drops every datagram above it before " +
+			"XFRM sees it; a firewall rule keyed on the input interface sees ze-espform, not the " +
+			"link the packet arrived on. The finding names the first blocking site. To keep the " +
+			"fast path, and only if that ESP should be accepted, put a term that accepts protocol " +
+			"esp first in that chain; otherwise keep the firewall as it is and accept the bound. " +
+			"When the ruleset could not be read, or the monitor that follows its changes was " +
+			"closed, restart ze. When only following its changes failed, no restart is needed: " +
+			"Ze follows them again by itself, trying at most 30 seconds apart, and while the " +
+			"finding stays, ze show log recent level warn component ike.dataplane names why it " +
+			"keeps failing.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-esp-form-firewall"},
+	},
+	{
+		Code:  CodeDoctorIPsecChildInstallRefused,
+		Title: "IPsec peer has no Child SA: this node refused the one the peer accepted",
+		Description: "The peer accepted a Child SA, and this node could not build, install or bind its " +
+			"own half: the esp-group has no proposal ze can use, the keys could not be derived, the " +
+			"kernel refused the install, the vti bind names no XFRM interface, the ze-espform " +
+			"device cannot be created, another peer holds an overlapping tunnel, or the peer's answer is " +
+			"one this node cannot use. Ze deleted the peer's half and kept the IKE SA (RFC 7296 Section " +
+			"2.21.2), so no traffic of that peer is protected until a Child SA exists. Ze asks again " +
+			"after a wait that doubles after each refusal, up to five minutes, and the first attempt " +
+			"after the cause is removed installs the Child SA with no restart. The doctor finding names " +
+			"the peer, the error, the next attempt and the command that fixes the cause.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-child-install-refused"},
+	},
+	{
+		Code:  CodeDoctorDaemonCapabilityMissing,
+		Title: "The ze daemon runs without a capability it needs",
+		Description: "The ze daemon runs without root and lacks one of the capabilities a non-root " +
+			"daemon runs with (CAP_NET_ADMIN, CAP_NET_RAW, CAP_NET_BIND_SERVICE, CAP_BPF), or could " +
+			"not read its own capability set. Each missing capability disables what it serves: " +
+			"without CAP_BPF, for example, the IPsec ESP form fast path, the IPsec override guard " +
+			"and traffic-usage load no eBPF program. Under systemd, a ze unit written by an older " +
+			"ze does not grant CAP_BPF: stop ze with sudo systemctl stop ze, then rewrite the unit " +
+			"with sudo ze install systemd --force --start, which starts ze again. Without systemd, " +
+			"start ze with the capabilities the finding names.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-daemon-capability-missing"},
+	},
+	{
 		Code:  CodeDoctorIPsecSPDWriter,
 		Title: "Other processes can write the IPsec SPD",
 		Description: "Processes other than Ze hold CAP_NET_ADMIN in Ze's network namespace. Linux " +
@@ -1368,7 +1491,7 @@ var builtinCodes = append([]CodeMeta{
 	{
 		Code:        "doctor-traffic-usage-ebpf-unknown",
 		Title:       "traffic-usage eBPF readiness not measured",
-		Description: "The traffic-usage plugin is enabled but the doctor could not ask the kernel whether it attaches eBPF TCX programs, usually because the doctor process lacks CAP_BPF or CAP_NET_ADMIN. Run `sudo ze doctor` to measure it.",
+		Description: "The traffic-usage plugin is enabled but the doctor could not ask the kernel whether it attaches eBPF TCX programs, usually because the process that ran the check lacks CAP_BPF or CAP_NET_ADMIN. Under systemd, a ze unit written by an older ze does not grant CAP_BPF: stop ze with `sudo systemctl stop ze`, then rewrite the unit with `sudo ze install systemd --force --start`. Without systemd, run ze with CAP_BPF and CAP_NET_ADMIN, and run `sudo ze doctor` to measure it.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-traffic-usage-ebpf-unknown"},
 	},
 	{

@@ -370,6 +370,19 @@ func peerTerms(p Peer) []firewall.Term {
 // goes through the scarce resource." The accepted socket's own floor
 // (network.SetIPMinTTL) comes after the handshake has already cost a request
 // socket and a SYN-ACK.
+//
+// The protocol is the first match, ahead of the source, though the order
+// changes no packet the term selects. The IKE engine's ESP form fast path
+// rewrites bare ESP before netfilter runs, so it stays on only while no
+// input-path rule can drop ESP, and its analyzer reads a rule as unable to
+// match ESP only from the rule's own first two expressions, a protocol load
+// and its compare against a protocol other than ESP (espFormExcludesESP,
+// internal/component/ike/dataplane/espform_firewall_linux.go). In this inet
+// table a source address first lowers to `meta nfproto ipv4`, which every
+// IPv4 ESP packet matches, so an IPv4 peer's drop would keep that fast path
+// shut. Opening with `meta l4proto tcp` excludes the rule, and the source
+// match still carries its own nfproto guard directly ahead of its address
+// load (lowerAddrMatch, internal/plugins/firewall/nft/lower_linux.go).
 func listenPortTerm(source netip.Prefix, port uint16, floor uint8) (firewall.Term, bool) {
 	if !source.IsValid() {
 		return firewall.Term{}, false
@@ -388,8 +401,8 @@ func listenPortTerm(source netip.Prefix, port uint16, floor uint8) (firewall.Ter
 	return firewall.Term{
 		Name: listenTermName(source),
 		Matches: []firewall.Match{
-			firewall.MatchSourceAddress{Prefix: source},
 			firewall.MatchProtocol{Protocol: "tcp"},
+			firewall.MatchSourceAddress{Prefix: source},
 			firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: port, Hi: port}}},
 			belowFloor,
 		},

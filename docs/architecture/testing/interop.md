@@ -1089,7 +1089,17 @@ namespace-wide `net/ipv4/conf/all/rp_filter` and
 the profile grants each. In the IPsec lab the NAT box, strongSwan and ze hold
 `NET_ADMIN`, and ze also holds `BPF`, because `vpn ipsec application-override
 deny` (the default) loads and attaches its setsockopt guard and fails the apply
-without it (`capabilityBPF`, `internal/le/interoplab/ipsec/ipsec.go`); the NAT box sets its three sysctls through `--sysctl`; strongSwan
+without it (`capabilityBPF`, `internal/le/interoplab/ipsec/ipsec.go`). In every
+scenario ze also holds the host's `/dev/net/tun` (`interoplab.TUNDevice`,
+`--device`) and runs under `ze-lab-net-sysctl` with `/proc/sys` writable: a
+Child SA that receives UDP-encapsulated ESP makes ze create the `ze-espform`
+TUN device and write its `disable_policy` and `rp_filter` (`openESPFormTUN`,
+`internal/component/ike/dataplane/espform_tun_linux.go`), and the install is
+refused when either fails. Whether an SA is encapsulated is decided at run
+time (NAT detection, MOBIKE, which floats IKE to port 4500 before IKE_AUTH, or
+a peer that came in on 4500), so no scenario is exempt. `TUNSETIFF` needs
+`CAP_NET_ADMIN` in the container's namespace, which ze already holds. The NAT
+box sets its three sysctls through `--sysctl`; strongSwan
 runs under `ze-lab-net-sysctl` only in a scenario whose `scenarioCheckers`
 entry sets `writesPeerSysctl` (`internal/le/interoplab/ipsec/checkers.go`),
 because its checker writes strongSwan's sysctls at run time (it cuts the
@@ -1117,6 +1127,18 @@ operation, exit code, stderr and cause, and adds `sudo modprobe ppp_generic`
 only when Docker's stderr names `/dev/ppp`.
 
 <!-- source: internal/le/interoplab/pppdevice.go -- PPPDeviceArguments, PPPDeviceProbe, ParsePreflight, PPPDeviceMissing, PPPPreflightRunRefusal -->
+
+The TUN clone device every lab Ze running IPsec holds is declared once too,
+as `TUNDevice` and `TUNDeviceArguments` in `internal/le/interoplab/tundevice.go`;
+the IPsec lab's ze and the home-CPE lab's CPE take it from there. It has no
+preflight: Ze's kernel builds `tun` in (`CONFIG_TUN=y`,
+`gokrazy/kernel/runtime.config`), so a Docker host on Ze's kernel always has
+the node, and on any other host Docker refuses the container start with an
+`error gathering device information` line naming `/dev/net/tun`.
+`TestIPsecLabPeersRunWithoutPrivilege` holds the IPsec lab's ze to exactly
+`NET_ADMIN`, `BPF`, that device and the net sysctl grant.
+
+<!-- source: internal/le/interoplab/tundevice.go -- TUNDevice, TUNDeviceArguments -->
 
 <!-- source: internal/le/interoplab/apparmor.go -- RegisterAppArmorProfile, appArmorSecurityOption, labAppArmorProfileMissing, labAppArmorUnapplied -->
 <!-- source: internal/le/interoplab/apparmor_netsysctl.go -- NetSysctlAppArmorProfileName, NetSysctlGranted -->
@@ -1195,17 +1217,20 @@ ignores so the tree stays clean, and makes the same check with it. The
 container never runs `--privileged`: it holds one `--cap-add` for each
 capability the `option=needs-linux:caps=` vocabulary names and one `--device`
 for each node a production path reached by a test opens (`/dev/ppp`, opened by
-`ppp.DevPPPSetup`), read from the runner's own tables
+`ppp.DevPPPSetup`, and `/dev/net/tun`, opened by `openESPFormTUN` for an IPsec
+Child SA that receives UDP-encapsulated ESP), read from the runner's own tables
 (`runner.ContainerCapsDockerNames`, `runner.ContainerDevicePaths`), and keeps
 Docker's default seccomp and AppArmor profiles. A test declares no device:
-`TestContainerDevicesCoverWhatPPPOpens` reads the L2TP sources for every
-`/dev` node they open and checks the table holds exactly those. A token added
+`TestContainerDevicesCoverWhatTestedPathsOpen` reads the L2TP and IPsec
+dataplane sources for every `/dev` node they open, as a literal or a package
+constant, and checks the table holds exactly those. A token added
 to either table reaches the container with no other edit. `sys-time` is left out:
 a container shares the Docker host's clock, so a verify run must not set it,
 and the NTP restore test skips there through its own caps gate. A container
 never loads a kernel module, so a Docker host without one of those nodes makes
 Docker refuse the start; the run then answers an error naming the node and the
-host command that creates it (`sudo modprobe ppp_generic` for `/dev/ppp`)
+host command that creates it (`sudo modprobe ppp_generic` for `/dev/ppp`,
+`sudo modprobe tun` for `/dev/net/tun`)
 rather than a bare exit code.
 
 The run is a release check only Thomas starts. The verb declares
@@ -2562,6 +2587,35 @@ the Ze image so the break takes effect:
 <!-- source: internal/le/interoplab/ipsec/icmperror.go -- checkICMPErrorPayloadCheck, icmpErrorRoutes, carryErrorSourceOverSA, icmpErrorObservation -->
 <!-- source: test/interop-ipsec/Dockerfile.strongswan -- nftables -->
 
+### The ESP form fast path under a firewall rule
+
+`esp-form-firewall-drop` proves that Ze's ESP form fast path never carries a
+peer's bare ESP past a firewall rule that drops ESP on the input path. The
+peers disagree about the ESP form as in `esp-form-change`: strongSwan
+initiates, floats IKE to UDP 4500 with no NAT, and still sends bare ESP,
+because `build_i` (`src/libcharon/sa/ikev2/tasks/child_create.c`, strongSwan
+6.1.0) sets `child.encap` from `COND_NAT_ANY`. Ze's `ze.conf` holds one inet
+table whose input chain accepts by policy and drops `protocol esp` in the
+`drop-esp` term, so IKE on UDP 500 and 4500 passes. The fast path rewrites at
+tc ingress, ahead of every netfilter hook, so with that rule in the kernel it
+keeps its gate shut and the rule judges the bare ESP.
+
+The checker first waits for `show doctor | json` to answer
+`doctor-ipsec-esp-form-firewall` naming `ze_espdrop` and `drop-esp`. A ping
+from Ze then proves the Child SA carries ESP toward strongSwan. strongSwan's
+ping to Ze must advance strongSwan's outbound SA, lose every echo request,
+leave Ze's inbound SA still, raise the `drop-esp` counter of
+`show firewall ruleset espdrop | json` by at least the echo requests, and
+leave Ze's `XfrmInStateMismatch` still, so no bare ESP reached XFRM through
+the complete path either.
+
+| Scenario | Break | Expected red |
+|----------|-------|--------------|
+| `esp-form-firewall-drop` | `writeGateLocked` writes `espFormFastPathGateOpen` whatever it is given | strongSwan's echo requests are rewritten past the rule and answered, and the `drop-esp` counter stays still |
+
+<!-- source: internal/le/interoplab/ipsec/espformfirewall.go -- checkESPFormFirewallDrop, waitESPFormFirewallFinding, espFirewallDropped, assertESPStill -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- writeGateLocked, publishFirewall -->
+
 ### IPsec address movement
 
 `mobike-initiator` moves Ze; `mobike-responder` moves strongSwan. Each native
@@ -3729,7 +3783,11 @@ defaults to discard, which would drop the CPE's own DNS and ping in the
 clear. It names no `application-override`, so the default deny attaches
 Ze's setsockopt guard, and the CPE holds `BPF` beside `NET_ADMIN`
 (`capabilityBPF`, `internal/le/interoplab/topology/topology.go`): without it
-the guard's map cannot be created and ze exits at startup. A `lan-client` dhcpcd node starts with
+the guard's map cannot be created and ze exits at startup. It also holds the
+host's `/dev/net/tun` beside `/dev/ppp` (`convertedCPE`,
+`register_home_lab.go`): a Child SA that receives UDP-encapsulated ESP makes
+ze create the `ze-espform` TUN device, whose sysctls it writes under the same
+run-time net sysctl grant. A `lan-client` dhcpcd node starts with
 `net.ipv4.conf.default.promote_secondaries=1`, because dhcpcd's `if_init`
 writes that sysctl for its interface when it reads anything else, and Docker's
 `/proc/sys` is read-only. Every node beyond the

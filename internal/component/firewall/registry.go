@@ -124,6 +124,10 @@ func RegisterTables(owner string, tables []Table) error {
 // and Family from different owners are merged: their Chains, Sets, and Flowtables
 // are concatenated so that e.g. a plugin can register sets for a table
 // whose chains are owned by the firewall engine.
+//
+// Every registered CommitObserver runs just before Backend.Apply and hears its
+// outcome after, inside reconcileMu; an early return before Apply (no backend,
+// an autoload failure, a verifier refusal) runs none of them.
 func ApplyAll() error {
 	// Report the reconcile AFTER reconcileMu is released. Registered before the
 	// unlock defer, so LIFO runs it last: observeApply writes a log line on a
@@ -240,7 +244,11 @@ func ApplyAll() error {
 	applyStart = time.Now()
 	applyResult = applyResultPanic
 
-	err = b.Apply(all)
+	// The commit observers (commit_observer.go) run just before Apply and are told
+	// its outcome once it returns, still inside reconcileMu, so an observer sees
+	// every commit Ze makes and never two at once. FlushAllTables reaches here
+	// through this function too.
+	err = applyObserved(b, all)
 	applyResult = applyResultOf(err)
 	if err == nil {
 		// The reconcile reached a backend, which is where the one-time removal

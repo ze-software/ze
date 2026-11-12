@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -303,11 +304,27 @@ func TestXFRMMigrationRollsBackPolicyFailure(t *testing.T) {
 
 // A reverse-migration failure must destroy both candidate SAD pairs while leaving
 // PROTECT policies owned, so a caller cannot mistake the error for an intact tunnel.
+// The inbound SA is watched on its old local address first, as InstallSA watches a
+// templated SA, so the receiver check at the end reads a watch the lost rollback had to
+// forget rather than one that never existed.
+// MUTATION: in MigrateTunnel, drop the Forget of the lost-rollback branch: the SPI is
+// still watched after the failed rollback.
 func TestXFRMMigrationFailedRollbackDiscardsStates(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
 	b, m := migrationKernelFixture(t, 64, false)
+	oldPeer, okPeer := netip.AddrFromSlice(m.OldRemote.To4())
+	oldLocal, okLocal := netip.AddrFromSlice(m.OldLocal.To4())
+	if !okPeer || !okLocal {
+		t.Fatalf("the fixture's old addresses %v, %v have no IPv4 form", m.OldRemote, m.OldLocal)
+	}
+	if err := b.espForms.Watch(m.InboundSPI, natTarget(oldPeer, oldLocal)); err != nil {
+		t.Fatalf("watch the inbound SA on its old local address: %v", err)
+	}
+	if !b.espForms.reg.watching(m.InboundSPI) {
+		t.Fatal("the inbound SA is not watched before the move, so the check below could not discriminate")
+	}
 	original := xfrmMigrationExecute
 	t.Cleanup(func() { xfrmMigrationExecute = original })
 	calls := 0
@@ -338,7 +355,7 @@ func TestXFRMMigrationFailedRollbackDiscardsStates(t *testing.T) {
 			t.Fatal("failed rollback released policy ownership")
 		}
 	}
-	if _, watched := b.espForms.reg.target(m.InboundSPI); watched {
+	if b.espForms.reg.watching(m.InboundSPI) {
 		t.Fatal("failed rollback left a stale ESP demultiplexer entry")
 	}
 }
@@ -591,8 +608,9 @@ func TestXFRMMigrationRekeyReceiverUsesMappedPorts(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
-	encapNetns(t)
-	encapNetnsUsable(t)
+	// Routed addresses, not loopback: the receiver re-presents the bare form on
+	// ze-espform, where a loopback address is martian (encapRoutedLocalAddr).
+	encapRoutedNetns(t)
 	dp, err := newXFRMBackend()
 	if err != nil {
 		t.Fatal(err)
@@ -604,14 +622,14 @@ func TestXFRMMigrationRekeyReceiverUsesMappedPorts(t *testing.T) {
 	})
 	const spi = 0x71910003
 	if err := dp.InstallSA(SAParams{
-		SPI: spi, Src: net.ParseIP(encapLoopbackPeerAddr), Dst: net.ParseIP(encapLoopbackAddr),
+		SPI: spi, Src: net.ParseIP(encapRoutedPeerAddr), Dst: net.ParseIP(encapRoutedLocalAddr),
 		Proto: ProtoESP, Mode: ModeTunnel, ReqID: 740, ReplayWin: 32,
 		EncAlgo: "aes256gcm", EncKey: encapTestAEADKey, IsAEAD: true,
 		UDPEncap: true, UDPEncapSPort: 62001, UDPEncapDPort: 48001, AcceptBothESPForms: true,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	reader, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:udp", encapLoopbackAddr)
+	reader, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:udp", encapRoutedLocalAddr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -624,7 +642,7 @@ func TestXFRMMigrationRekeyReceiverUsesMappedPorts(t *testing.T) {
 		t.Fatal(err)
 	}
 	esp := encapESPBytes(spi)
-	encapInjectBare(t, encapLoopbackPeerAddr, esp)
+	encapInjectBareTo(t, encapRoutedPeerAddr, encapRoutedLocalAddr, esp)
 	var packet [2048]byte
 	n, _, err := reader.ReadFrom(packet[:])
 	if err != nil {
