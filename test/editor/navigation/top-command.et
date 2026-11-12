@@ -1,0 +1,94 @@
+# Test: top <command> runs one command at the root and keeps the position
+# QUESTION: does an operator inside a context, typing at the real editor
+# keystroke by keystroke, reach the root through `top <command>` and stay where
+# they were? A unit test drives handleEnter directly; this drives the editor
+# the way a session does, completion and paste mode included.
+# VALIDATES: AC-45 top set keeps the position and stores at the root path
+# VALIDATES: AC-46 top show draws the root
+# VALIDATES: AC-47 top edit moves, top alone moves to the root, top top edit
+# VALIDATES: AC-48 a failing command behind top keeps the position
+# VALIDATES: AC-49 completion after `top set ` offers the root's nodes
+# VALIDATES: AC-52 top load terminal relative pastes at the root
+# PREVENTS: top ignoring its arguments, or leaving the editor at the root
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  peer peer1 {
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
+  	}
+    timer { receive-hold-time 90; }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit bgp peer peer1
+input=enter
+expect=context:path=bgp/peer/peer1
+
+# AC-45: the set lands at bgp router-id, the position stays.
+input=type:text=top set bgp router-id 9.9.9.9
+input=enter
+expect=error:none
+expect=context:path=bgp/peer/peer1
+expect=content:contains=router-id 9.9.9.9
+expect=viewport:contains=receive-hold-time
+expect=dirty:true
+
+# AC-46: the whole configuration from the root.
+input=type:text=top show
+input=enter
+expect=error:none
+expect=context:path=bgp/peer/peer1
+expect=viewport:contains=router-id 9.9.9.9
+expect=viewport:contains=peer peer1
+
+# AC-48: the inner refusal, position kept.
+input=type:text=top nosuchverb
+input=enter
+expect=error:contains=unknown command: nosuchverb
+expect=context:path=bgp/peer/peer1
+
+# AC-49: completion after `top set ` is the root's.
+input=type:text=top set
+input=space
+expect=completion:contains=bgp
+expect=completion:excludes=timer
+input=ctrl:key=u
+
+# AC-52: paste at the root.
+input=type:text=top load terminal relative merge
+input=enter
+expect=status:contains=Paste mode
+input=type:text=bgp { router-id 7.7.7.7; }
+input=ctrl:key=d
+expect=error:none
+expect=context:path=bgp/peer/peer1
+expect=content:contains=router-id 7.7.7.7
+
+# AC-47: top edit moves; top alone goes to the root; top top edit moves.
+input=type:text=top edit bgp
+input=enter
+expect=context:path=bgp
+input=type:text=top
+input=enter
+expect=context:root
+input=type:text=top top edit bgp peer peer1
+input=enter
+expect=context:path=bgp/peer/peer1
