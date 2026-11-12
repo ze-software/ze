@@ -125,6 +125,11 @@ type PluginDoctorState struct {
 	// restart failure. A start that reached running, and a removal, clear it.
 	Down bool
 	Stop process.PluginStop
+	// CleanupOwed is true while a process of the plugin that a restart
+	// stopped has not run its runtime cleanup (lateCleanupRecord): every
+	// restart and every start of the name is refused until it has, so the
+	// restart command is not yet a fix that works.
+	CleanupOwed bool
 	// Records is the process's registration and delivery records
 	// (process.DoctorRecord), with delivery problems over the window ending
 	// at the snapshot; zero when HasProcess is false.
@@ -206,6 +211,7 @@ func (s *Server) pluginDoctorState(name string, configured bool) PluginDoctorSta
 	pm := s.procManager.Load()
 	state := PluginDoctorState{Name: name, Configured: configured, Disabled: pm.Disabled(name)}
 	state.Stop, state.Down = pm.Stopped(name)
+	state.CleanupOwed = s.lateCleanups.owed(name)
 	state.Enrichers = enricherFailures(name)
 	state.EnrichersDropped = enricherFailuresDropped(name)
 	proc := pm.GetProcess(name)

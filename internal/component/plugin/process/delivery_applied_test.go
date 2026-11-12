@@ -442,11 +442,11 @@ func TestDrainEventsAppliedOwnerStopsWhileWaiting(t *testing.T) {
 	release := make(chan struct{})
 	barrierAdmitted := make(chan struct{})
 	var admissions atomic.Int64
-	proc.deliveryInc = func() {
+	proc.metricHooks.Store(&processMetricHooks{delivered: func() {
 		if admissions.Add(1) == 2 {
 			close(barrierAdmitted)
 		}
-	}
+	}})
 	proc.bridge = rpc.NewDirectBridge()
 	proc.bridge.SetDeliverEvents(func([]string) error {
 		close(entered)

@@ -974,9 +974,24 @@ func (s *Server) restartPluginFn() transaction.RestartFunc {
 	}
 }
 
-// restartPlugin restarts a broken plugin. Called by the orchestrator when a
-// rollback ack reports CodeBroken. The spawner owns the respawn policy (limits,
-// the disabled set); this function owns everything the engine must do around it.
+// restartPlugin restarts a plugin, running or not, for a caller that holds
+// the config transaction lock: the orchestrator when a rollback ack reports
+// CodeBroken (restartPluginFn), and the operator's `request plugin restart`
+// (handlePluginRestart). The failure policy of a plugin that exited asking
+// for a restart holds no lock and calls restartPluginAfterExit. Because the
+// lock is held, restartPlugin MUST answer within a bound, and every wait
+// below has one:
+//
+//   - Respawn's join of the process it stops: that process's StopJoinBound
+//     (2s for a forked plugin on Linux, 1s for one in the daemon).
+//   - The wait for that process's runtime cleanup: restartCleanupGrace (3s).
+//   - The replacement's handshake: restartHandshakeBound, one stage timeout
+//     per stage (25s by default).
+//   - The rollback's wait for a replacement it stops: the replacement's
+//     StopJoinBound (rollbackReplacement).
+//
+// The spawner owns the respawn policy (limits, the disabled set); this
+// function owns everything the engine must do around it.
 //
 // The respawn is only half of a restart. It replaces the PROCESS and runs no
 // startup handshake, so the replacement holds no registration, no delivered
@@ -984,18 +999,37 @@ func (s *Server) restartPluginFn() transaction.RestartFunc {
 // three steps below are ordered and none is optional:
 //
 //  1. Respawn, which stops the old process and spawns its replacement.
-//  2. Release the old process's name-keyed registrations, so Stage 1 of the
-//     replacement's handshake is not refused its own plugin's name.
+//  2. Wait, at most restartCleanupGrace, for the old process's runtime
+//     cleanup, then release its name-keyed registrations, so Stage 1 of the
+//     replacement's handshake is not refused its own plugin's name. A wait
+//     that expires fails the restart: the replacement is stopped the way a
+//     failed handshake stops it, because the late cleanup would remove what
+//     it registered under the same name.
 //  3. Run the handshake on the replacement and start its runtime handler.
 //
 // Step 2 runs AFTER step 1 on purpose: a respawn that is refused (limit
-// exceeded, plugin disabled, no such plugin) must leave the running plugin
-// exactly as it found it, and a teardown before the refusal would unregister a
-// plugin that is still serving. Such a refusal wraps
-// transaction.ErrRestartRefused, so the reload answer distinguishes a refused
-// restart from a failed replacement without claiming the old process runs.
+// exceeded, plugin disabled, no such plugin, a stopped process of the name
+// still owing its cleanup) must leave the running plugin exactly as it found
+// it, and a teardown before the refusal would unregister a plugin that is
+// still serving. Such a refusal wraps transaction.ErrRestartRefused, so the
+// reload answer distinguishes a refused restart from a failed replacement
+// without claiming the old process runs.
 func (s *Server) restartPlugin(pluginName string) error {
-	err := s.restartPluginProcess(pluginName)
+	return s.restartPluginWithin(pluginName, s.boundedRestartHandshake)
+}
+
+// restartPluginAfterExit is restartPlugin for the failure policy, which holds
+// no lock: the replacement's handshake runs as long as the daemon does
+// (lifetimeRestartHandshake), so a slow replacement still comes up. Its other
+// waits are restartPlugin's.
+func (s *Server) restartPluginAfterExit(pluginName string) error {
+	return s.restartPluginWithin(pluginName, s.lifetimeRestartHandshake)
+}
+
+// restartPluginWithin is the restart both entry points run, with the
+// handshake bounded by handshake.
+func (s *Server) restartPluginWithin(pluginName string, handshake handshakeScope) error {
+	err := s.restartPluginProcess(pluginName, handshake)
 	if err == nil {
 		return nil
 	}
@@ -1010,13 +1044,20 @@ func (s *Server) restartPlugin(pluginName string) error {
 
 // restartPluginProcess is the restart itself, the three steps restartPlugin
 // describes.
-func (s *Server) restartPluginProcess(pluginName string) error {
+func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScope) error {
 	if s.spawner == nil {
 		return fmt.Errorf("no plugin spawner available to restart %s", pluginName)
 	}
 	pm := s.procManager.Load()
 	if pm == nil {
 		return fmt.Errorf("no process manager available to restart %s", pluginName)
+	}
+
+	// A process an earlier restart stopped and could not wait for still owes
+	// its cleanup, which removes what is keyed by the plugin's name. A new
+	// generation started now would lose its routes and hook state to it.
+	if s.lateCleanups.owed(pluginName) {
+		return fmt.Errorf("restart %s: %w: %w", pluginName, transaction.ErrRestartRefused, errReplacedCleanupLate)
 	}
 
 	old := pm.GetProcess(pluginName)
@@ -1030,9 +1071,15 @@ func (s *Server) restartPluginProcess(pluginName string) error {
 	}
 
 	if old != nil {
+		if err := s.awaitReplacedCleanup(old); err != nil {
+			// The replacement has run no handshake, so it leaves the way a
+			// replacement whose handshake failed does (restartHandshake).
+			s.rollbackReplacement(newProc)
+			return fmt.Errorf("restart %s: %w", pluginName, err)
+		}
 		s.releasePluginRegistrations(old)
 	}
-	if err := s.restartHandshake(newProc); err != nil {
+	if err := s.restartHandshake(newProc, handshake); err != nil {
 		return fmt.Errorf("restart handshake %s: %w", pluginName, err)
 	}
 	s.announceInsertionChange(insertionsBefore, declaredInsertions(newProc))

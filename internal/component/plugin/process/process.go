@@ -107,11 +107,13 @@ type Process struct {
 	// runner's return code for an internal plugin, the reaped state for a fork.
 	exit exitRecord
 
-	// Metrics callbacks (set by ProcessManager, nil when metrics disabled).
-	onStageChange   func(plugin.PluginStage) // Called after stage transition
-	deliveryInc     func()                   // Called after successful Deliver enqueue
-	deliveryFailInc func()                   // Called after a fire-and-forget batch failed
-	deliverySlowInc func()                   // Called after a batch took over DeliverySlowThreshold
+	// metricHooks holds the metrics callbacks the ProcessManager gives this
+	// process (wireMetrics), nil when metrics are disabled or the manager took
+	// them back (clearProcessCallbacks, Respawn). It is one atomic pointer
+	// because the manager swaps it while the process runs: a restart of a
+	// running plugin clears it while Deliver, the delivery loop and SetStage
+	// read it, each from its own goroutine under its own lock or none.
+	metricHooks atomic.Pointer[processMetricHooks]
 
 	// Direct transport bridge for internal plugins (nil for external).
 	// After 5-stage startup, events and RPCs bypass socket I/O via function calls.
@@ -210,23 +212,19 @@ func (p *Process) StartupError() error {
 }
 
 // SetStage sets the current stage and notifies waiters.
-// If an onStageChange callback is set (by ProcessManager metrics), it is called
-// after the stage is stored and waiters are notified, outside the lock.
+// If a stage-change metrics callback is set (by ProcessManager metrics), it is
+// called after the stage is stored and waiters are notified, outside the lock.
 func (p *Process) SetStage(stage plugin.PluginStage) {
-	var cb func(plugin.PluginStage)
 	p.stageMu.Lock()
 	// Safe: PluginStage has only values 0-6 (StageInit..StageRunning).
 	p.stage.Store(int32(stage)) //nolint:gosec // G115: bounded enum
-	cb = p.onStageChange
 	// Close and recreate channel to notify all waiters
 	close(p.stageCh)
 	p.stageCh = make(chan struct{})
 	p.stageMu.Unlock()
 	// Call metrics callback outside the lock to avoid holding stageMu
 	// during Prometheus internal lock acquisition.
-	if cb != nil {
-		cb(stage)
-	}
+	p.noteStageChange(stage)
 }
 
 // WaitForStage waits for the process to reach or pass the given stage.
@@ -514,10 +512,36 @@ func (p *Process) RunRuntimeCleanupOnce(cleanup func()) {
 	})
 }
 
-// WaitRuntimeCleanup waits until server runtime cleanup completes.
+// WaitRuntimeCleanup waits until server runtime cleanup completes, with no
+// bound: a cleanup that never runs holds the caller forever. A caller that
+// holds a lock others wait for uses WaitRuntimeCleanupContext instead.
 // Caller MUST stop a running process before it calls WaitRuntimeCleanup.
 func (p *Process) WaitRuntimeCleanup() {
 	<-p.runtimeCleanupDone
+}
+
+// WaitRuntimeCleanupContext waits until server runtime cleanup completes, or
+// until ctx ends, and then answers ctx's error: the cleanup has not run, and
+// the caller decides what that means for its own action. The caller picks the
+// bound: the server's restart uses its restartCleanupGrace, the daemon's stop
+// budget, because the cleanup runs once the process's calls into the engine
+// have returned, and the plugin's exit, which StopJoinBound bounds, does not
+// end those calls. Caller MUST stop a running process before it calls
+// WaitRuntimeCleanupContext. Safe for concurrent use.
+func (p *Process) WaitRuntimeCleanupContext(ctx context.Context) error {
+	// A cleanup that already ran answers nil even when ctx has ended too: a
+	// select over two ready cases picks one at random.
+	select {
+	case <-p.runtimeCleanupDone:
+		return nil
+	default:
+	}
+	select {
+	case <-p.runtimeCleanupDone:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // CloseConnForTest closes and nils the RPC connection under the mutex.
@@ -843,6 +867,16 @@ func (p *Process) stopExitGrace() time.Duration {
 		return 0
 	}
 	return pluginExitGrace
+}
+
+// StopJoinBound is how long a caller waits, after Stop, for this process to
+// end: its exit grace (stopExitGrace) plus respawnJoinMargin, 2s for a forked
+// plugin on Linux and 1s for one that runs in the daemon. Respawn joins the
+// process it replaces for this long, and a caller that waits for what follows
+// the end of this process (WaitRuntimeCleanupContext) bounds that wait with it
+// rather than with a number of its own. Safe for concurrent use.
+func (p *Process) StopJoinBound() time.Duration {
+	return p.stopExitGrace() + respawnJoinMargin
 }
 
 // stderrRelayReader is the read end of a plugin's stderr pipe, as the relay

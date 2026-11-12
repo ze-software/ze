@@ -119,14 +119,19 @@ func enrichResponder(t *testing.T, key string, outcomes ...string) *ipc.PluginCo
 // whose plugin fails the first call and answers the second (AC-21, R-10).
 //
 // VALIDATES: makeProxyCall records the failed call as a call failure naming
-// command, key and cause, and the next successful call clears it.
+// command, key and cause, and the next successful call clears it. The call
+// goes through the connection the plugin registered its enricher on, which
+// is the only one whose failures are the plugin's.
 // PREVENTS: a `show` field silently missing on every call because its
 // plugin's enricher fails, or a recovered enricher still reported failing.
 func TestProxyEnricherCallFailureRecordedAndCleared(t *testing.T) {
 	const name = "enrich-call"
+	const command = "show doctor-call-enricher"
 	t.Cleanup(func() { forgetEnricherFailures(name) })
-	call := makeProxyCall(name, "show doctor-call-enricher", "extra", "detail",
-		enrichResponder(t, "extra", "enricher broke", ""))
+	conn := enrichResponder(t, "extra", "enricher broke", "")
+	registerProxyEnrichers(name, []rpc.EnricherDecl{{Command: command, Key: "extra"}}, conn)
+	t.Cleanup(func() { unregisterProxyEnrichers(name) })
+	call := makeProxyCall(name, command, "extra", "detail", conn)
 
 	call(map[string]any{})
 	failures := enricherFailures(name)
@@ -144,6 +149,32 @@ func TestProxyEnricherCallFailureRecordedAndCleared(t *testing.T) {
 	}
 	if got := enricherFailures(name); len(got) != 0 {
 		t.Fatalf("a successful call left its failure recorded: %+v", got)
+	}
+}
+
+// TestProxyEnricherFailureOfEndedProcessNotRecorded fails a call through the
+// connection of a plugin process whose cleanup already removed its enricher,
+// with no later process registering one.
+//
+// VALIDATES: a failed call through a connection that is not the one the
+// plugin's enrichers are registered on is not recorded, also when the plugin
+// has no enricher registered at all.
+// PREVENTS: the late failure of a replaced process (a call its stop cut,
+// arriving after its cleanup) staying in the doctor for good when the
+// replacement declares no enricher: only a registration forgets it, and none
+// comes.
+func TestProxyEnricherFailureOfEndedProcessNotRecorded(t *testing.T) {
+	const name = "enrich-ended"
+	const command = "show doctor-ended-enricher"
+	t.Cleanup(func() { forgetEnricherFailures(name) })
+	ended := enrichResponder(t, "extra", "connection closed")
+	registerProxyEnrichers(name, []rpc.EnricherDecl{{Command: command, Key: "extra"}}, ended)
+	call := makeProxyCall(name, command, "extra", "detail", ended)
+	unregisterProxyEnrichers(name)
+
+	call(map[string]any{})
+	if got := enricherFailures(name); len(got) != 0 {
+		t.Fatalf("a failure through the connection of a process whose cleanup ran was recorded: %+v", got)
 	}
 }
 

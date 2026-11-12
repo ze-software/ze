@@ -239,9 +239,10 @@ var pluginInfraCodes = []CodeMeta{
 	{
 		Code:  CodeDoctorPluginRestartOverlap,
 		Title: "Plugin restarted beside its previous process",
-		Description: "When ze restarted a plugin, the previous process or engine of that plugin had not ended within its bound after it was stopped, so the replacement started while it may still run. " +
-			"Both may then hold the same resources, such as sockets, routes or kernel state. For a forked plugin ze has killed the previous process group, and the event names its process group id: a process still listed in it is held by the kernel or ignores the kill. " +
-			"For a plugin that runs in the daemon, the event names the goroutine dump, which shows where the previous engine is stuck. A second restart replaces the new process, not the previous one.",
+		Description: "When ze restarted a plugin, the process it replaced had not finished stopping within its bound (2s after the stop for a forked plugin, 1s for one that runs in the daemon), so the replacement started anyway. " +
+			"The event says what was left. An engine that had not returned, or a forked process that had not exited, may hold the same resources as the replacement, such as sockets, routes or kernel state. " +
+			"When the engine or the process had ended, only its event delivery or the relay of its stderr was left, and a process the plugin started may hold that stderr open. " +
+			"ze takes no further step to end what is left. The fix is the command that shows it: the goroutine dump for a plugin that runs in the daemon, and the relayed plugin output for a forked plugin. A second restart replaces the new process, not the previous one.",
 		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-restart-overlap"},
 	},
 	{

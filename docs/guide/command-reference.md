@@ -713,9 +713,11 @@ stopped, the respawn limit disabled it, a restart failed, or its startup
 handshake failed. `ze doctor` names each such plugin under
 `doctor-plugin-stopped`, with this command as its fix. A running plugin can
 hold state only a new process clears: a config-committed it was never told of,
-an event it failed to apply, a post-startup callback it never received, a
-dropped subscription. `ze doctor` names this command as the fix of those rows
-too. The command runs in the daemon.
+an event it failed to apply, a post-startup callback it never received.
+`ze doctor` names this command as the fix of those rows too, and as the last
+step of a dropped subscription's fix, once the plugin subscribes in a namespace
+the build registers. A row that counts entries past what the doctor keeps names
+`ze show log recent` instead, which lists them. The command runs in the daemon.
 
 ```
 ze request plugin restart <name>     # <name> is the plugin's configured name
@@ -738,24 +740,45 @@ running: stopped and started again` (the `was-running` field says which).
 | `required argument missing: name` | no name was given. The daemon refuses the line against the command's schema, before the command runs |
 | `request plugin restart needs exactly one plugin name` | more than one name was given |
 | `plugin <name> is not a configured plugin` | neither the configuration nor its auto-load started a plugin of that name. The name is refused, never guessed |
-| `plugin <name> was not restarted: a config transaction is in flight` | a reload or commit is running and talks to the plugin's process; run the command again once it has answered |
+| `plugin <name> cannot restart itself` | the plugin sent the command for its own name. The restart waits until the plugin's calls into ze have ended, and this request is one of them, so it is refused before anything stops; type the command at the CLI |
+| `plugin <name> was not restarted: a config transaction is in flight` | a reload or commit is running, whichever plugins it talks to; run the command again once it has answered |
+| `plugin <name> was not restarted: its removal is still pending` | a reload removed the plugin and the removal has not settled: the plugin has not acknowledged it, or putting it back failed. `ze request reload` retries the removal's recovery |
 | `plugin <name> cannot be restarted: no plugin server runs here` | the process that answered holds no plugin server; the fix is `ze start` |
 | `plugin <name> cannot be restarted: plugin startup has not begun` | the daemon has not handed its plugins to a process manager yet |
 | `plugin <name> did not start again` | the restart itself failed. The plugin stays down, and `ze doctor` names it with the error |
 
+The restart waits 3 seconds, the daemon's stop budget, for the stopped process
+to clean up after its calls into ze. When one of those calls has not returned
+by then, the restart fails rather than wait: the new process is stopped, the
+plugin stays down under `doctor-plugin-stopped`, and the answer is `plugin
+<name> did not start again` with the cause `the stopped process has not
+finished its cleanup`. Until that cleanup has run, every restart of the plugin
+is refused with the same cause and starts nothing, and so is a reload that
+would start it again, because the late cleanup would remove what a new process
+registered under the same name. Once the call returns, the restart works
+again. A call that never returns ends only when ze restarts, so the answer and
+the `doctor-plugin-stopped` row name the restart once the call has returned,
+and `ze signal restart` if it never does.
+
 Each refusal the command itself answers says why and names the command that
-helps: `ze show doctor`, except for the missing server (`ze start`) and for a
-transaction in flight, which names the same restart command to run again.
+helps: `ze show doctor`, except for the missing server (`ze start`), a pending
+removal (`ze request reload`), an unfinished cleanup (the restart once the
+call has returned, or `ze signal restart`), and a self-restart or a
+transaction in flight, which name the same restart command to run again.
 
 In the interactive CLI (SSH and `ze cli`), Tab after `request plugin restart`
-offers every configured plugin, exactly the names the command accepts, each
-marked `configured plugin, running: the restart stops it first` or
+offers every configured plugin, the names the command knows; a plugin offered
+can still meet a refusal above, such as a pending removal or an unfinished
+cleanup. Each is marked `configured plugin, running: the restart stops it first` or
 `configured plugin, not running`. The candidates are asked of the running
 daemon at each Tab, so the marks follow the plugin's state. Shell completion
 (`ze completion`) has no daemon to ask and offers no plugin names.
 
-<!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal, completePluginRestart -->
-<!-- source: internal/component/plugin/server/reload_tx.go -- restartPlugin -->
+<!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal, pluginRestartFailure, removalPendingFor, completePluginRestart -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- restartPlugin, restartPluginProcess -->
+<!-- source: internal/component/plugin/server/restart.go -- restartCleanupGrace, awaitReplacedCleanup, lateCleanupRecord -->
+<!-- source: internal/component/plugin/server/startup.go -- runPluginPhaseWithin -->
+<!-- source: internal/component/plugin/doctor/checks_runtime.go -- pluginStoppedRow -->
 <!-- source: internal/component/plugin/process/stopped.go -- Reenable, RestartCommand -->
 <!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request plugin restart -->
 

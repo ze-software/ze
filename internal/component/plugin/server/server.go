@@ -38,9 +38,14 @@ var errFilterUpdateNoProcessManager = errors.New("filter-update: no process mana
 // judge against the other running blocks.
 var errStage1NoProcessManager = errors.New("stage 1: no process manager to judge the filter declarations against")
 
+// LogSubsystem is the plugin server's log subsystem: the `component` a log
+// entry it wrote carries in `ze show log recent`, which is how a doctor row
+// names the entries this package only logs.
+const LogSubsystem = "plugin.server"
+
 // logger is the plugin server subsystem logger (lazy initialization).
 // Controlled by ze.log.plugin.server environment variable.
-var logger = slogutil.LazyLogger("plugin.server")
+var logger = slogutil.LazyLogger(LogSubsystem)
 
 // Default stall timeout for the plugin registration protocol.
 //
@@ -149,6 +154,9 @@ type Server struct {
 	// reload, until cleanup and committed-configuration recovery both finish.
 	removalMu sync.Mutex
 	removals  map[*process.Process]*pluginRemoval
+	// lateCleanups holds each replaced process whose runtime cleanup outlived
+	// its restart's wait, until that cleanup has run (restart.go).
+	lateCleanups lateCleanupRecord
 	// capabilityRestore is the latest failed capability restore since the
 	// last committed reload (doctor_reload_records.go).
 	capabilityRestore capabilityRestoreRecord

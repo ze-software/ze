@@ -83,3 +83,51 @@ func TestPluginStoppedEveryDownPath(t *testing.T) {
 		}
 	}
 }
+
+// TestPluginStoppedRowWhileCleanupOwed reads the row of a plugin whose failed
+// restart left a stopped process owing its cleanup.
+//
+// Goal: while the restart command refuses the plugin, its row says only what
+// is known (the stopped process's cleanup had not finished within the bound,
+// whether it waits on a call or is still running), says ze refuses to start
+// the plugin until it has, keeps the restart command alone as the fix, and
+// names restarting the ze daemon as the last resort, for what it is.
+// Method: the same down plugin with and without CleanupOwed in the snapshot.
+// PREVENTS: a row claiming a call has not returned when the cleanup may only
+// be slow, a fix line carrying prose after the command, and an operator left
+// with no way out, or told `ze signal restart` brings ze back on its own.
+func TestPluginStoppedRowWhileCleanupOwed(t *testing.T) {
+	stop := process.PluginStop{Cause: process.StopRestartFailed, Detail: "the stopped process has not finished its cleanup"}
+	owed := pluginStoppedRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{
+		{Name: "stuck", Configured: true, Down: true, Stop: stop, CleanupOwed: true},
+	}})
+	if len(owed) != 1 {
+		t.Fatalf("rows = %d, want one: %+v", len(owed), owed)
+	}
+	for _, want := range []string{
+		"refuses to start the plugin",
+		"had not finished within the restart's bound",
+		"or still be running",
+		daemonRestartLastResort,
+	} {
+		if !strings.Contains(owed[0].Message, want) {
+			t.Errorf("message %q does not say %q", owed[0].Message, want)
+		}
+	}
+	if strings.Contains(owed[0].Message, "has not returned") {
+		t.Errorf("message %q claims a call has not returned, which ze does not know", owed[0].Message)
+	}
+	if owed[0].Fix != process.RestartCommand("stuck") {
+		t.Errorf("fix %q, want the restart command alone, %q", owed[0].Fix, process.RestartCommand("stuck"))
+	}
+
+	settled := pluginStoppedRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{
+		{Name: "stuck", Configured: true, Down: true, Stop: stop},
+	}})
+	if len(settled) != 1 || settled[0].Fix != process.RestartCommand("stuck") {
+		t.Fatalf("once the cleanup ran the fix is not the restart command alone: %+v", settled)
+	}
+	if strings.Contains(settled[0].Message, "refuses to start the plugin") {
+		t.Errorf("once the cleanup ran the row still says ze refuses the plugin: %q", settled[0].Message)
+	}
+}

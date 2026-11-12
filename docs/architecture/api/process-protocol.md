@@ -828,8 +828,31 @@ Every path that leaves a configured plugin down records why and raises the
 The warning clears when the plugin runs again, and when a reload removes it from
 the configuration. `request plugin restart <name>` starts a configured plugin
 again, stopping it first when it runs; the operator's order lifts a
-respawn-limit disable, and the command refuses a name nothing configured and a
-restart while a config transaction is in flight.
+respawn-limit disable, and the command refuses a name nothing configured, a
+restart while a config transaction is in flight, a plugin asking for its own
+restart, and a plugin whose removal a refused reload left pending. Every
+restart, whoever asks for it, waits at most `restartCleanupGrace` (the
+daemon's 3-second stop budget) for the stopped process's runtime cleanup,
+which runs only once its in-flight calls into the engine have returned. A wait
+that expires fails the restart: the replacement is stopped the way a failed
+handshake stops it, because the late cleanup removes what is keyed by the
+plugin's name, and each later restart of the name is refused until that
+cleanup has run.
+
+The operator's restart and a reload rollback's restart hold the config
+transaction lock, so each of their waits has a bound. The replacement's
+startup handshake gets one `stage-timeout` per stage, five in all (25s by
+default), because the handshake of a replacement runs outside any tier and
+no stall timeout applies to it. A handshake that runs out of that bound
+fails the restart the way a failed handshake does. The rollback that stops a
+replacement waits for it for that process's own stop bound (2s for a forked
+plugin on Linux, 1s for one in the daemon), then releases it. A forked
+plugin still running then is killed by its exit supervisor, while an engine
+in the daemon that does not return on its closed connection runs until it
+returns. A restart the failure policy makes holds no lock: its replacement's
+handshake runs as long as the daemon does, so a slow replacement still comes
+up, and only its rollback wait is bounded.
+<!-- source: internal/component/plugin/server/restart.go -- restartHandshakeBound, boundedRestartHandshake, lifetimeRestartHandshake, rollbackReplacement -->
 
 A process exit also clears every warning and error the plugin raised itself
 through `report-issue`: their owner is gone and nothing else can clear them.
@@ -866,6 +889,7 @@ aborted it, the error log line names the plugin and the sibling's failure.
 <!-- source: internal/component/plugin/process/stopped.go -- StopCause, RecordStopped, ClearStopped, RestartCommand, Reenable -->
 <!-- source: internal/component/plugin/server/reload_tx.go -- restartPlugin -->
 <!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal -->
+<!-- source: internal/component/plugin/server/restart.go -- restartCleanupGrace, awaitReplacedCleanup -->
 
 **Pipe Alias Declaration (Stage 1):**
 

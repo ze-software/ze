@@ -45,7 +45,7 @@ func (s *Server) HandleAdHocPluginSession(reader io.ReadCloser, writer io.WriteC
 	// Run the 5-stage handshake outside any tier barrier: an ad-hoc session is
 	// not part of tier-ordered startup, so every stageTransition returns true
 	// immediately (runUnbarrieredStartupHandshake, restart.go).
-	s.runUnbarrieredStartupHandshake(proc)
+	s.runUnbarrieredStartupHandshake(s.ctx, proc)
 
 	if proc.Stage() < plugin.StageRunning {
 		return fmt.Errorf("handshake incomplete: reached stage %d", proc.Stage())

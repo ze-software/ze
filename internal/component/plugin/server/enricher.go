@@ -98,40 +98,45 @@ func registerProxyEnrichers(pluginName string, enrichers []rpc.EnricherDecl, con
 	}
 }
 
-// replacedProxyConn reports whether the plugin's enrichers are registered by
-// a process other than conn's: a later process replaced it. The caller MUST
-// hold proxyMu.
+// currentProxyConn reports whether conn is the connection the plugin's
+// registered enrichers call through: the connection of its current process.
+// The caller MUST hold proxyMu.
 //
-// A plugin with no registered enricher is not replaced: its process ended and
-// its cleanup ran, and the next registration forgets what is recorded
-// meanwhile. makeProxyCall built without a registration (a test) records as
-// before.
-func replacedProxyConn(pluginName string, conn *plugipc.PluginConn) bool {
-	entries := proxyRegistry[pluginName]
-	return len(entries) > 0 && !slices.ContainsFunc(entries, func(e proxyEntry) bool { return e.conn == conn })
+// A plugin with no registered enricher has no current connection. Its process
+// ended and its cleanup removed the entries, or the process that replaced it
+// declared none, and in neither case does a call through an old connection
+// speak for the plugin. The first registration is no exception: the call
+// closures exist before their entry, but registerProxyEnrichers holds proxyMu
+// until every entry is in, so no call reaches this check before its entry.
+func currentProxyConn(pluginName string, conn *plugipc.PluginConn) bool {
+	return slices.ContainsFunc(proxyRegistry[pluginName], func(e proxyEntry) bool { return e.conn == conn })
 }
 
-// recordProxyCallFailure records a failed call through conn, unless conn's
-// process was replaced. That failure belongs to the old process (a call its
-// stop cut, or one a `show` reached through the enricher it read before the
-// restart), whose cleanup forgot its failures, and recording it would blame
-// the replacement.
+// recordProxyCallFailure records a failed call through conn only when conn is
+// the plugin's current one. A failure through any other belongs to a process
+// that is gone (a call its stop cut, or one a `show` reached through the
+// enricher it read before the restart): its cleanup forgot its failures, and
+// recording it would blame the replacement, or, when the replacement
+// registers no enricher, leave a failure nothing would ever forget.
+//
+// A failure of the current process is recorded: its entries stay in
+// proxyRegistry, carrying its connection, until its own cleanup removes them.
 func recordProxyCallFailure(pluginName string, conn *plugipc.PluginConn, failure EnricherFailure) {
 	proxyMu.Lock()
 	defer proxyMu.Unlock()
-	if replacedProxyConn(pluginName, conn) {
+	if !currentProxyConn(pluginName, conn) {
 		return
 	}
 	recordEnricherFailure(pluginName, failure)
 }
 
 // clearProxyCallFailure clears the call failure of one enricher once a call
-// through conn succeeded, unless conn's process was replaced: the old
-// process answering says nothing of the replacement's enricher.
+// through conn succeeded, only when conn is the plugin's current one: a
+// process that is gone answering says nothing of the current enricher.
 func clearProxyCallFailure(pluginName string, conn *plugipc.PluginConn, command, key string) {
 	proxyMu.Lock()
 	defer proxyMu.Unlock()
-	if replacedProxyConn(pluginName, conn) {
+	if !currentProxyConn(pluginName, conn) {
 		return
 	}
 	clearEnricherCallFailure(pluginName, command, key)

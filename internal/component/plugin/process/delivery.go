@@ -80,9 +80,7 @@ func (p *Process) Deliver(d EventDelivery) bool {
 
 	select {
 	case p.eventChan <- d:
-		if p.deliveryInc != nil {
-			p.deliveryInc()
-		}
+		p.noteDelivered()
 		return true
 	case <-p.ctx.Done():
 		return false
@@ -446,9 +444,7 @@ func (p *Process) admitAppliedBarrier(ctx context.Context, result chan<- EventRe
 	}
 	select {
 	case p.eventChan <- EventDelivery{Barrier: true, Result: result}:
-		if p.deliveryInc != nil {
-			p.deliveryInc()
-		}
+		p.noteDelivered()
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()

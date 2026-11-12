@@ -18,23 +18,45 @@ import (
 // problem inside the window.
 // PREVENTS: a row that lists the first entries and reads as the whole story
 // while the producer counted, or overwrote, the rest.
+//
+// The rows past the bound name the plugin server's recent log, at the level
+// each entry was logged: those entries are only logged, never raised on the
+// report bus, so `ze show warnings` and `ze show errors` show none of them.
 func TestBoundedRecordsNameWhatTheyDropped(t *testing.T) {
+	const (
+		loggedWarnings = "ze show log recent level warn component plugin.server"
+		loggedErrors   = "ze show log recent level err component plugin.server"
+	)
 	t.Run("enrichers", func(t *testing.T) {
 		state := server.PluginDoctorState{Name: "rich", Configured: true, EnrichersDropped: 3}
 		row := oneRow(t, enricherRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{state}}),
-			diagnostic.CodeDoctorPluginEnricherUnavailable, diagnostic.SeverityWarning, "rich", "3 more")
-		if row.Fix != "ze show warnings" {
-			t.Fatalf("the dropped-enricher row's fix %q does not name the log", row.Fix)
+			diagnostic.CodeDoctorPluginEnricherUnavailable, diagnostic.SeverityWarning, "rich", "3 more", "logged")
+		if row.Fix != loggedWarnings {
+			t.Fatalf("the dropped-enricher row's fix %q does not list the logged warnings", row.Fix)
 		}
 	})
 	t.Run("subscriptions", func(t *testing.T) {
 		state := runningState("subscriber", process.DoctorRecord{SubscriptionDropsDropped: 4})
-		oneRow(t, subscriptionDropRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{state}}),
-			diagnostic.CodeDoctorPluginSubscriptionDropped, diagnostic.SeverityError, "subscriber", "4 more")
+		row := oneRow(t, subscriptionDropRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{state}}),
+			diagnostic.CodeDoctorPluginSubscriptionDropped, diagnostic.SeverityError, "subscriber", "4 more", "logged")
+		if row.Fix != loggedWarnings {
+			t.Fatalf("the dropped-subscription row's fix %q does not list the logged warnings", row.Fix)
+		}
 	})
 	t.Run("handler panics", func(t *testing.T) {
-		oneRow(t, panicRows(&server.DoctorSnapshot{HandlerPanicsTruncated: true}),
-			diagnostic.CodeDoctorPluginPanic, diagnostic.SeverityError, "more", server.HandlerPanicWindow.String())
+		row := oneRow(t, panicRows(&server.DoctorSnapshot{HandlerPanicsTruncated: true}),
+			diagnostic.CodeDoctorPluginPanic, diagnostic.SeverityError, "more", server.HandlerPanicWindow.String(), "logged")
+		if row.Fix != loggedErrors {
+			t.Fatalf("the truncated handler panic row's fix %q does not list the logged errors", row.Fix)
+		}
+	})
+	t.Run("command refusals", func(t *testing.T) {
+		state := runningState("commander", process.DoctorRecord{CommandRefusalsDropped: 2})
+		row := oneRow(t, commandRefusalRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{state}}),
+			diagnostic.CodeDoctorPluginCommandNotRegistered, diagnostic.SeverityWarning, "commander", "2 more", "logged")
+		if row.Fix != loggedWarnings {
+			t.Fatalf("the dropped command refusal row's fix %q does not list the logged warnings", row.Fix)
+		}
 	})
 	t.Run("delivery window", func(t *testing.T) {
 		records := process.DoctorRecord{Delivery: process.DeliveryWindowSummary{

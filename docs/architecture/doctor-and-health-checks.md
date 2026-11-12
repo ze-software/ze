@@ -871,22 +871,37 @@ Each line carries its code and its site raises an error event under it, with
 
 The process manager raises one more error event of this kind, with a fix of
 its own. `ProcessManager.Respawn` stops the process it replaces and waits for
-it to end for that process's exit grace plus one second: 2s for a forked
-plugin, whose process group `superviseExit` kills 1s after the stop, and 1s
-for a plugin that runs in the daemon. When that wait expires, the replacement
-starts while the previous process may still run, and both may hold the same
-resources. `recordRestartOverlap` logs it at WARN and raises
-`doctor-plugin-restart-overlap` (`plugin` source), with the plugin as its
-subject. A second restart is no fix, because it replaces the new process. So
-the fix of a forked plugin is `pgrep -a -g <process group>`, a host command
-and not a ze one, which lists what is still in the previous process group:
-the group was already killed, so a process listed there is held by the
-kernel. The fix of a plugin that runs in the daemon is
-`ze show system goroutines full`, whose stacks show where its previous engine
-is stuck.
+it to end for `Process.StopJoinBound`, that process's exit grace plus one
+second: 2s for a forked plugin, whose process group `superviseExit` kills 1s
+after the stop, and 1s for a plugin that runs in the daemon. The wait is
+`Process.Wait`, which joins every goroutine of the process: the engine and the
+event delivery loop of a plugin in the daemon, and the reaper, the stderr
+relay, the exit supervisor and the delivery loop of a forked one. When it
+expires, the replacement starts anyway, and `recordRestartOverlap` logs it at
+WARN and raises `doctor-plugin-restart-overlap` (`plugin` source), with the
+plugin as its subject.
+
+The message says what was left, from the one fact the process holds
+(`Running`, which the engine clears when it returns and the reaper clears once
+the forked process is reaped). An engine that had not returned, or a forked
+process that had not exited, may hold the same resources as the replacement.
+Otherwise only the delivery loop was left, or for a forked plugin the
+delivery loop or the stderr relay, which reads until every holder of the
+plugin's stderr closes it; nothing tells those two apart, and the message
+claims no shared resources for them. ze takes no further step to end what is
+left, and a second restart is no fix, because it replaces the new process. So
+the fix is the ze command that shows what is left:
+`ze show system goroutines full` for a plugin that runs in the daemon, whose
+stacks show the unfinished engine or delivery loop, and
+`ze show log recent component plugin.relay` for a forked plugin, which shows
+what its processes still write to the relayed stderr. Neither names a pid:
+the group id of a forked plugin is its reaped leader's pid, which the kernel
+may already have given to another program.
 <!-- source: internal/component/plugin/process/manager.go -- Respawn, respawnJoinMargin -->
-<!-- source: internal/component/plugin/process/doctor_records.go -- recordRestartOverlap -->
+<!-- source: internal/component/plugin/process/process.go -- StopJoinBound, Wait -->
+<!-- source: internal/component/plugin/process/doctor_records.go -- recordRestartOverlap, restartOverlapText -->
 <!-- test: internal/component/plugin/process/restart_overlap_test.go TestRespawnRecordsAnExpiredJoin -->
+<!-- test: internal/component/plugin/process/restart_overlap_test.go TestRestartOverlapTextNamesWhatWasUnfinished -->
 
 The operator's goroutine dump (`request quit`) reports nothing wrong, so it
 logs at `Info`.
@@ -952,16 +967,44 @@ the cause, the policy applied, the exit status (an internal plugin's runner
 code, a fork's reaped state) and the detail, and it raises
 `doctor-plugin-stopped` on the bus, so the `plugins` health row reads down on
 every one of those paths. A generation that reaches running clears it
-(`superviseProcess`), and so does a removal (`RemoveProcess`): a plugin the
-configuration no longer names is not down. `RemoveProcess` and `ReportCrash`
-also clear the warnings the plugin raised itself through `report-issue`
-(`report.ClearSource` of its name), because only the plugin could clear them.
+(`superviseProcess`), and so does taking the process out of its slot
+(`RemoveProcess`), after which a failed handshake records the plugin down
+again. A reload's removal (`stopCollectedProcesses`) takes the process out of
+its slot the same way, so a plugin a reload removed while it ran is not
+reported down. It stays in the configured set (`ConfiguredNames`, which this
+check, `request plugin restart` and its completion read), because nothing
+takes a name out of it. This is a known defect, not the design: `request plugin
+restart` still accepts the removed plugin and starts it again though the
+configuration no longer runs it, which is wrong, and the fix belongs where a
+reload's removal becomes final, which must take the name out of that set. A
+plugin that was already down (a failed start left it configured with no
+process) is not collected by the removal at all, so it keeps its record and
+this check keeps reporting it, with a restart as its fix. `StartMore` replaces
+the config of a name added back, so the configured set holds each plugin once.
+A plugin declared in its own `plugin {}` block is read only at boot, so no
+reload removes it. While a process a restart stopped still
+owes its runtime cleanup (`lateCleanupRecord`), every restart and every startup
+phase naming the plugin is refused, and the row says so: that cleanup had not
+finished within the restart's bound, either because it waits for a call the
+stopped process made into ze or because it is still running. Its fix is the
+restart, run again once that cleanup has finished. The row names the last
+resort as what it is: a restart of the ze daemon, which ends every call a
+plugin made into it (`systemctl restart ze` under systemd; `ze signal restart`
+writes the graceful-restart marker and shuts ze down, so ze comes back only
+under a supervisor).
+`RemoveProcess` and `ReportCrash` also clear the warnings the plugin raised
+itself through `report-issue` (`report.ClearSource` of its name), because
+only the plugin could clear them.
 <!-- source: internal/component/plugin/process/stopped.go -- RecordStopped, ClearStopped, StoppedMessage, RestartCommand, ExitStatus -->
+<!-- source: internal/component/plugin/process/manager.go -- RemoveProcess, StartMore, ConfiguredNames -->
 <!-- source: internal/component/plugin/server/failure_policy.go -- superviseProcess, applyFailurePolicy -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- collectProcessesForRemovedConfigPaths, stopCollectedProcesses -->
+<!-- source: internal/component/plugin/server/restart.go -- lateCleanupRecord -->
+<!-- source: internal/component/plugin/doctor/checks_runtime.go -- pluginStoppedRow -->
 
 | Check | Phase | Code | Reports | Fix |
 |-------|-------|------|---------|-----|
-| `plugin-stopped` | runtime | `doctor-plugin-stopped` (error) | each configured plugin recorded down, with the cause, policy, exit status and time | `ze request plugin restart <name>` |
+| `plugin-stopped` | runtime | `doctor-plugin-stopped` (error) | each configured plugin recorded down, with the cause, policy, exit status and time | `ze request plugin restart <name>`; while a stopped process of it owes its cleanup, the same command once that cleanup has finished, with a restart of the ze daemon named in the row as the last resort |
 | `recent-events` | runtime | `doctor-plugin-crashed` (event) | each unasked exit, with its exit status and the policy ze applied | `ze show errors` |
 | `plugin-fatal-stop` | pre-config | `doctor-plugin-fatal-stop` (error) | each `fatal-policy` or `boot-refused` entry of the last-stop record, with plugin, detail and time | the plugin's log lines before that time, then its config change |
 | `plugin-fatal-stop` | pre-config | `doctor-plugin-stop-cleanup-late` (warning) | each `stop-cleanup-late` entry of the last-stop record: the stop went on before that plugin finished its cleanup, so state it installs may remain | `journalctl -u ze --until <time> \| grep <plugin>` |
@@ -992,7 +1035,10 @@ respawn-limit disable because the operator asked for this restart. A running
 plugin is stopped first through `Respawn`, which joins the process it replaces,
 and its failure policy is not applied because the name already holds the
 replacement; the restart holds the config transaction lock, so one in flight
-refuses it, and an unknown name is refused. Tab after the command offers every
+refuses it, and an unknown name is refused. Every wait the restart makes under
+that lock has a bound, the replacement's handshake included, and a wait that
+runs out answers as a failed restart (`process-protocol.md`, the restart
+bounds). Tab after the command offers every
 configured plugin, saying which run (`completePluginRestart`, served through
 `system command complete args`; `docs/architecture/cli/command-completion.md`).
 <!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal, completePluginRestart -->
@@ -1052,12 +1098,19 @@ respawn or restart starts clean; `PluginDoctorState.Records` carries the copy.
 What has no process to live on is on the server: the recovered engine handler
 panics, the enricher failures per plugin name (cleared with the plugin's
 process cleanup and again when its next process registers its enrichers, and
-never recorded from a call through a replaced process's connection) and the
+recorded only from a call through the connection the plugin's enrichers are
+registered on, so a late failure of a replaced or ended process is never
+kept, whether or not its replacement declares enrichers) and the
 daemon's last committed transaction. The server
 lists are bounded at 16 too. Each bounded list carries its count of the rest
 into the snapshot (`EnrichersDropped`, and the `...Dropped` fields of
-`DoctorRecord`), and its check adds one row naming that count, with `ze show
-warnings` as the fix, where each one was logged with its code. A failing
+`DoctorRecord`), and its check adds one row naming that count. Each entry
+past the bound was only logged by the plugin server, with its code, and never
+raised on the report bus, so the row's fix is the recent log of that
+subsystem at the entry's level, `ze show log recent level warn component
+plugin.server` (`level err` for the handler panics), which lists them while
+the log buffer holds them; `ze show warnings` and `ze show errors` read only
+the bus and would list none. A failing
 enricher past the bound is counted once however often it fails, and leaves the
 count when a call succeeds. An engine handler has no process a restart
 replaces, so its panics are kept the way delivery problems are: the 16 newest,
@@ -1081,7 +1134,7 @@ check answers one warning saying it could not read the plugin state.
 | `plugin-delivery-agreement` | `doctor-plugin-delivery-disagreement` (warning) | each finding of `deliveryDisagreements(nil)` | computed at the snapshot | the `attach process` change (`DeliveryDisagreement.Fix`) |
 | `plugin-claims` | `doctor-plugin-claim-unbacked` (error) | each exclusive role with no claimant running, naming the claimants | computed at the snapshot | `ze request plugin restart <claimant>` |
 | `plugin-poststartup` | `doctor-plugin-poststartup-undelivered` (error) | each running plugin whose post-startup callback failed; one still starting, or whose callback is in flight, is not reported | `recordPostStartupOutcome` | `ze request plugin restart <name>` |
-| `plugin-panic` | `doctor-plugin-panic` (error) | a plugin's first failed event application (`projectionErr`), and each recovered engine handler panic with its namespace and event type | `deliverBatch`, `safeDeliverBatch`, `invokeHandler` | the restart, or `ze show errors` for an engine handler |
+| `plugin-panic` | `doctor-plugin-panic` (error) | a plugin's first failed event application (`projectionErr`), and each recovered engine handler panic with its namespace and event type | `deliverBatch`, `safeDeliverBatch`, `invokeHandler` | the restart, or `ze show log recent level err component plugin.server` for an engine handler, whose panics are logged and not raised on the report bus |
 | `plugin-delivery` | `doctor-plugin-delivery-failed` (warning) | the batches that failed with no caller waiting, and the batches over 500 ms, in the last five minutes (`DeliveryWindow`) | `noteBatch`, timed in `deliverBatch` for every transport | `ze request plugin restart <name>` |
 | `plugin-enrichers` | `doctor-plugin-enricher-unavailable` (warning) | each `show` enricher that failed to register, or whose last call failed | `registerProxyEnrichers`, `makeProxyCall` | remove the plugin holding the same field, or the restart |
 | `plugin-config-commit` | `doctor-plugin-config-unapplied` (warning) | each running plugin whose last config-committed callback failed or had no connection to go on, with the daemon's last committed transaction | `dispatchCommitted`, `subscribeCommitted` | `ze request plugin restart <name>` |

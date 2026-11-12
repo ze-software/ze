@@ -152,8 +152,10 @@ func (s *Server) applyFailurePolicy(proc *process.Process) {
 	switch policy {
 	case rpc.FailureRestart:
 		logger().Warn("plugin exited, starting it again", "plugin", name, "code", diagnostic.CodeDoctorPluginCrashed)
-		// restartPlugin records the stop itself when the restart fails.
-		if err := s.restartPlugin(name); err != nil {
+		// The restart records the stop itself when it fails. This path holds
+		// no lock, so the replacement's handshake runs as long as the daemon
+		// does (restartPluginAfterExit).
+		if err := s.restartPluginAfterExit(name); err != nil {
 			logger().Error("plugin exited and could not be started again, so it stays down",
 				"plugin", name, "error", err, "code", diagnostic.CodeDoctorPluginStopped)
 		}

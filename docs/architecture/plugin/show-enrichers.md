@@ -53,12 +53,16 @@ because the enrich entry point recovers from panics.
 process.** Stopping the old process closes its bridge or connection, which
 ends a call waiting on it at once, well inside the 2-second timeout. The proxy
 holds no lock across the call, so the cleanup that unregisters the enrichers
-never waits behind one. The failure of such a call, or of a call a `show`
-makes through the enricher it read before the restart, is not recorded against
-the plugin once a later process registered its enrichers. The registration of
-a new process also forgets the plugin's enricher failures, because a cut call
-can record its failure after the old process's cleanup already forgot them.
-<!-- source: internal/component/plugin/server/enricher.go -- registerProxyEnrichers, replacedProxyConn, recordProxyCallFailure -->
+never waits behind one. A call's failure is recorded against the plugin only
+when it came through the connection the plugin's enrichers are registered on,
+the current process's. The failure of a cut call, or of a call a `show` makes
+through the enricher it read before the restart, is therefore never recorded:
+not once a later process registered its enrichers, and not when the old
+process's cleanup removed them and the new process declares none, where
+nothing would ever forget it. A failure of the current process is recorded,
+because its entries keep its connection until its own cleanup removes them.
+The registration of a new process also forgets the plugin's enricher failures.
+<!-- source: internal/component/plugin/server/enricher.go -- registerProxyEnrichers, currentProxyConn, recordProxyCallFailure -->
 <!-- source: internal/component/plugin/process/process.go -- Stop -->
 <!-- source: pkg/plugin/rpc/bridge.go -- SendCallback -->
 <!-- source: internal/component/plugin/server/enricher_restart_test.go -- TestRestartCutsEnricherCallInFlight -->

@@ -130,13 +130,27 @@ func (s *Server) rollbackStartupProcess(proc *process.Process) error {
 }
 
 func (s *Server) stopRemovedProcess(proc *process.Process) {
+	s.takeAndStopProcess(proc)
+	if err := proc.Wait(s.Context()); err != nil {
+		logger().Debug("wait for removed plugin", "plugin", proc.Name(), "error", err)
+	}
+	s.releaseStoppedProcess(proc)
+}
+
+// takeAndStopProcess takes proc out of its manager slot, when it still holds
+// it, and orders it to stop. The caller MUST wait for proc and then call
+// releaseStoppedProcess: stopRemovedProcess waits as long as the daemon runs,
+// rollbackReplacement as long as proc's own stop bound.
+func (s *Server) takeAndStopProcess(proc *process.Process) {
 	if pm := s.procManager.Load(); pm != nil && pm.GetProcess(proc.Name()) == proc {
 		pm.RemoveProcess(proc.Name())
 	}
 	proc.Stop()
-	if err := proc.Wait(s.Context()); err != nil {
-		logger().Debug("wait for removed plugin", "plugin", proc.Name(), "error", err)
-	}
+}
+
+// releaseStoppedProcess removes what a stopped process registered and drops
+// the plugin's loaded mark. It MUST follow takeAndStopProcess and the wait.
+func (s *Server) releaseStoppedProcess(proc *process.Process) {
 	s.releasePluginRegistrations(proc)
 	s.unmarkPluginLoaded(proc.Name())
 }

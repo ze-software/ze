@@ -19,9 +19,19 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// fixShowWarnings is the fix of a row that counts entries past a record's
-// bound: each one was logged at WARN with its doctor code.
-const fixShowWarnings = "ze show warnings"
+// The fix of a row that counts entries past a record's bound. The plugin
+// server logged each one with its doctor code, at WARN or at ERROR, and raised
+// none on the report bus, so `ze show warnings` and `ze show errors`, which
+// read only that bus, list none of them. The daemon's recent log lists them,
+// as long as its buffer still holds them.
+const (
+	fixLoggedWarnings = "ze show log recent level warn component " + server.LogSubsystem
+	fixLoggedErrors   = "ze show log recent level err component " + server.LogSubsystem
+)
+
+// loggedPastBound closes the message of a row that counts entries past a
+// record's bound, saying where they can be read.
+const loggedPastBound = "; each was logged, and the daemon's recent log lists those its buffer still holds"
 
 // snapshotCheck adapts a row builder into a runtime check. When the snapshot
 // cannot be read it says so under the check's code, as a warning, rather
@@ -66,10 +76,10 @@ func commandRefusalRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic
 		if dropped := state.Records.CommandRefusalsDropped; dropped != 0 {
 			var message textbuf.Buffer
 			message.Str("plugin ").Str(state.Name).Str(" had ").Int(int64(dropped)).
-				Str(" more refused commands than the doctor keeps; the log lists them")
+				Str(" more refused commands than the doctor keeps").Str(loggedPastBound)
 			rows = append(rows, diagnostic.Diagnostic{
 				Code: diagnostic.CodeDoctorPluginCommandNotRegistered, Severity: diagnostic.SeverityWarning,
-				Message: message.String(), Fix: fixShowWarnings,
+				Message: message.String(), Fix: fixLoggedWarnings,
 			})
 		}
 	})
@@ -126,10 +136,10 @@ func subscriptionDropRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnost
 		if dropped := state.Records.SubscriptionDropsDropped; dropped != 0 {
 			var message textbuf.Buffer
 			message.Str("plugin ").Str(state.Name).Str(" had ").Int(int64(dropped)).
-				Str(" more dropped subscriptions than the doctor keeps, and receives none of their events; the log lists them")
+				Str(" more dropped subscriptions than the doctor keeps, and receives none of their events").Str(loggedPastBound)
 			rows = append(rows, diagnostic.Diagnostic{
 				Code: diagnostic.CodeDoctorPluginSubscriptionDropped, Severity: diagnostic.SeverityError,
-				Message: message.String(), Fix: fixShowWarnings,
+				Message: message.String(), Fix: fixLoggedWarnings,
 			})
 		}
 	})
@@ -243,16 +253,17 @@ func panicRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic {
 			Str(" panicked and was recovered, so it missed that event: ").Str(p.Panic)
 		rows = append(rows, diagnostic.Diagnostic{
 			Code: diagnostic.CodeDoctorPluginPanic, Severity: diagnostic.SeverityError,
-			Message: message.String(), Fix: "ze show errors",
+			Message: message.String(), Fix: fixLoggedErrors,
 		})
 	}
 	if snapshot.HandlerPanicsTruncated {
 		var message textbuf.Buffer
 		message.Str("in the last ").Str(server.HandlerPanicWindow.String()).
-			Str(", engine event handlers panicked more times than the doctor keeps (the newest are listed), each missing its event; the log lists them")
+			Str(", engine event handlers panicked more times than the doctor keeps (the newest are listed), each missing its event").
+			Str(loggedPastBound)
 		rows = append(rows, diagnostic.Diagnostic{
 			Code: diagnostic.CodeDoctorPluginPanic, Severity: diagnostic.SeverityError,
-			Message: message.String(), Fix: "ze show errors",
+			Message: message.String(), Fix: fixLoggedErrors,
 		})
 	}
 	return rows
@@ -301,10 +312,10 @@ func enricherRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic {
 		if dropped := state.EnrichersDropped; dropped != 0 {
 			var message textbuf.Buffer
 			message.Str("plugin ").Str(state.Name).Str(" has ").Int(int64(dropped)).
-				Str(" more failing `show` enrichers than the doctor lists, so those commands answer without their fields; the log names each one")
+				Str(" more failing `show` enrichers than the doctor lists, so those commands answer without their fields").Str(loggedPastBound)
 			rows = append(rows, diagnostic.Diagnostic{
 				Code: diagnostic.CodeDoctorPluginEnricherUnavailable, Severity: diagnostic.SeverityWarning,
-				Message: message.String(), Fix: fixShowWarnings,
+				Message: message.String(), Fix: fixLoggedWarnings,
 			})
 		}
 		for j := range state.Enrichers {

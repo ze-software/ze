@@ -35,6 +35,15 @@ func startRestartTarget(t *testing.T, name string, policy rpc.FailurePolicy, onE
 // starts, the restart's replacement included.
 func startRestartTargetWith(t *testing.T, name string, setup func(p *sdk.Plugin) *sdk.Registration) *Server {
 	t.Helper()
+	return startRestartTargetConfig(t, plugin.PluginConfig{Name: name, Internal: true, Encoder: plugin.EncodingJSON}, setup)
+}
+
+// startRestartTargetConfig is startRestartTargetWith for the plugin config
+// cfg, which names the plugin and keeps it internal; a restart's respawn
+// starts the replacement from the same config.
+func startRestartTargetConfig(t *testing.T, cfg plugin.PluginConfig, setup func(p *sdk.Plugin) *sdk.Registration) *Server {
+	t.Helper()
+	name := cfg.Name
 	snap := registry.Snapshot()
 	registry.Reset()
 	t.Cleanup(func() { registry.Restore(snap) })
@@ -63,7 +72,7 @@ func startRestartTargetWith(t *testing.T, name string, setup func(p *sdk.Plugin)
 		}
 	})
 	s, _ = newLifecycleStartupServer(t)
-	if err := s.runPluginPhase([]plugin.PluginConfig{{Name: name, Internal: true, Encoder: plugin.EncodingJSON}}); err != nil {
+	if err := s.runPluginPhase([]plugin.PluginConfig{cfg}); err != nil {
 		t.Fatalf("startup: %v", err)
 	}
 	s.dispatcher.Registry().Freeze()

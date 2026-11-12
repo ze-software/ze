@@ -466,6 +466,21 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 		return fmt.Errorf("plugin startup not begun: %w", err)
 	}
 
+	// A process of the plugin that a restart stopped and could not wait for
+	// still owes its runtime cleanup, which removes what is keyed by the
+	// plugin's name. A generation a reload's auto-load or a removal's
+	// recovery starts now would lose its routes and hook state to it, so the
+	// phase is refused as restartPluginProcess refuses a restart. The refusal
+	// names the reload as the retry: a reload's auto-load or a removal's
+	// recovery is the phase that names a plugin already started once, so a
+	// reload is what starts it again.
+	for i := range plugins {
+		if s.lateCleanups.owed(plugins[i].Name) {
+			return fmt.Errorf("plugin %s not started: %w; once that cleanup has finished, retry with: ze request reload",
+				plugins[i].Name, errReplacedCleanupLate)
+		}
+	}
+
 	// Step (a): Spawn processes via PluginManager (ProcessSpawner).
 	if s.spawner == nil {
 		return errNoProcessspawnerSetCallSetprocessspawner
@@ -649,13 +664,20 @@ func (s *Server) rollbackNonRunningStartupProcesses(pm *process.ProcessManager, 
 // sink's Transition), not the returned error -- which is why the driver's error
 // is only logged here and the outer runPluginPhase inspects the process stage.
 func (s *Server) handleProcessStartupRPC(proc *process.Process) {
+	s.handleProcessStartupRPCWithin(s.ctx, proc)
+}
+
+// handleProcessStartupRPCWithin is handleProcessStartupRPC bounded by ctx: it
+// binds the process's Configure scope, then runs handleProcessStartupWithin
+// under ctx. A restart passes its handshake bound (restartHandshake).
+func (s *Server) handleProcessStartupRPCWithin(ctx context.Context, proc *process.Process) {
 	scoped := []*process.Process{proc}
 	if err := s.bindConfigureConfig(scoped, s.currentConfigureConfig()); err != nil {
 		logger().Error("plugin Configure scope refused", "plugin", proc.Name(), "error", err)
 		return
 	}
 	defer s.clearConfigureConfig(scoped)
-	s.handleProcessStartupWithin(s.ctx, proc)
+	s.handleProcessStartupWithin(ctx, proc)
 }
 
 // handleProcessStartupWithin is handleProcessStartupRPC bounded by ctx, which

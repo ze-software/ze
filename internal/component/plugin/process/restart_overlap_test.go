@@ -87,9 +87,78 @@ func TestRespawnRecordsAnExpiredJoin(t *testing.T) {
 		"an in-daemon engine's overlap does not name the goroutine dump as its fix")
 	require.Contains(t, events[0].Message, "was restarted before its previous engine ended")
 
+	require.Contains(t, events[0].Message, "the two may hold the same resources")
+	require.NotContains(t, events[0].Message, "pgrep", "the message names a host command")
+
 	release()
 	joinCtx, joinCancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer joinCancel()
 	require.NoError(t, previous.Wait(joinCtx), "the released engine of the replaced process did not end")
 	pm.Stop()
+}
+
+// TestRestartOverlapTextNamesWhatWasUnfinished builds the overlap text for
+// each of the four states an expired join can find the replaced process in.
+//
+// VALIDATES: restartOverlapText says what had not finished, from the one fact
+// the process holds (Running): an engine in the daemon that had not returned,
+// one that had returned with its event delivery unfinished, a forked process
+// that had not exited, and one that had exited with its delivery or stderr
+// relay unfinished. Only the first and the third claim that the two
+// generations may hold the same resources, and every fix is a ze command that
+// names no pid.
+// PREVENTS: the text claiming a process group was killed and still running
+// when only the stderr relay was left, and a fix that is a host command
+// (pgrep) naming a group id the kernel may have reused.
+// METHOD: no fork. The forked shape is a Process whose config is not
+// Internal, with Running set by hand, which is all restartOverlapText reads;
+// the end-to-end forked case is test/plugin/plugin-restart-external-ignores-stop.ci,
+// which proves no overlap is raised when the kill lands inside the join.
+func TestRestartOverlapTextNamesWhatWasUnfinished(t *testing.T) {
+	cases := []struct {
+		name      string
+		internal  bool
+		running   bool
+		says      string
+		overlap   bool
+		fix       string
+		boundText string
+	}{
+		{"engine in the daemon had not returned", true, true,
+			"was restarted before its previous engine ended: that engine runs in the daemon and had not returned", true,
+			restartOverlapGoroutinesFix, "1s"},
+		{"engine returned, delivery unfinished", true, false,
+			"its engine had returned, but its event delivery had not finished", false,
+			restartOverlapGoroutinesFix, "1s"},
+		{"forked process had not exited", false, true,
+			"was restarted before its previous process exited: that process had not exited", true,
+			restartOverlapRelayLogFix, "2s"},
+		{"forked process exited, delivery or relay unfinished", false, false,
+			"that process had exited, but ze had not finished its event delivery or reading its stderr", false,
+			restartOverlapRelayLogFix, "2s"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			proc := NewProcess(plugin.PluginConfig{Name: "test-overlap-text", Internal: tc.internal})
+			proc.running.Store(tc.running)
+			bound, err := time.ParseDuration(tc.boundText)
+			require.NoError(t, err)
+
+			message, fix := restartOverlapText(proc, bound)
+
+			require.Contains(t, message, "plugin test-overlap-text ")
+			require.Contains(t, message, tc.says)
+			require.Contains(t, message, tc.boundText+" after ze stopped it")
+			require.Contains(t, message, "ze takes no further step to end")
+			if tc.overlap {
+				require.Contains(t, message, "the two may hold the same resources")
+			} else {
+				require.NotContains(t, message, "same resources",
+					"a process whose engine or process had ended is said to hold resources")
+			}
+			require.Equal(t, tc.fix, fix)
+			require.NotContains(t, message, "pgrep")
+			require.NotContains(t, message, "process group")
+		})
+	}
 }

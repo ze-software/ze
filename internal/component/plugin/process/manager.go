@@ -52,8 +52,8 @@ var pluginStopGrace = 3 * time.Second
 
 // respawnJoinMargin is how long Respawn waits, past the stopped process's own
 // exit grace (stopExitGrace), for that process to end before it starts the
-// replacement. A join that expires is raised as doctor-plugin-restart-overlap
-// (recordRestartOverlap). A var for the same test seam as pluginStopGrace:
+// replacement: the two make Process.StopJoinBound. A join that expires is
+// raised as doctor-plugin-restart-overlap (recordRestartOverlap). A var for the same test seam as pluginStopGrace:
 // never written outside a test.
 var respawnJoinMargin = time.Second
 
@@ -80,13 +80,18 @@ type pluginMetrics struct {
 
 // ProcessManager manages multiple external processes.
 type ProcessManager struct {
+	// configs holds exactly the plugins this manager is asked to run, one
+	// entry per name: StartMore replaces a name it already holds. Nothing
+	// drops an entry, so a plugin a reload removed stays listed. Protected by
+	// mu.
 	configs   []plugin.PluginConfig
 	processes map[string]*Process
 
 	// Respawn tracking: name -> list of respawn timestamps
 	respawnTimes map[string][]time.Time
 
-	// Cumulative respawn counts (never reset)
+	// Cumulative respawn counts, reset only by an operator's restart
+	// (Reenable).
 	totalRespawns map[string]int
 
 	// Disabled processes (respawn limit exceeded)
@@ -150,9 +155,10 @@ func (pm *ProcessManager) SetMetricsRegistry(reg metrics.Registry) {
 	}
 }
 
-// wireMetrics sets metrics callbacks on a process.
+// wireMetrics publishes the metrics callbacks of a process (metric_hooks.go).
 // No-op when metrics are disabled (pm.pmetrics is nil) or plugin name is empty.
-// Must be called before the process is started.
+// Called before the process is started; the publication is atomic, so a later
+// call is safe too.
 func (pm *ProcessManager) wireMetrics(proc *Process) {
 	if pm.pmetrics == nil {
 		return
@@ -162,24 +168,28 @@ func (pm *ProcessManager) wireMetrics(proc *Process) {
 		return
 	}
 	m := pm.pmetrics
-	proc.onStageChange = func(stage plugin.PluginStage) {
-		m.status.With(name).Set(float64(stage))
-	}
-	proc.deliveryInc = func() {
-		m.delivered.With(name).Inc()
-	}
-	proc.deliveryFailInc = func() {
-		m.failed.With(name).Inc()
-	}
-	proc.deliverySlowInc = func() {
-		m.slow.With(name).Inc()
-	}
+	proc.metricHooks.Store(&processMetricHooks{
+		stageChange: func(stage plugin.PluginStage) {
+			m.status.With(name).Set(float64(stage))
+		},
+		delivered: func() {
+			m.delivered.With(name).Inc()
+		},
+		deliveryFailed: func() {
+			m.failed.With(name).Inc()
+		},
+		deliverySlow: func() {
+			m.slow.With(name).Inc()
+		},
+	})
 }
 
 // NewProcessManager creates a new process manager.
+// It keeps its own copy of configs, because StartMore changes the list in
+// place.
 func NewProcessManager(configs []plugin.PluginConfig) *ProcessManager {
 	return &ProcessManager{
-		configs:       configs,
+		configs:       slices.Clone(configs),
 		processes:     make(map[string]*Process),
 		respawnTimes:  make(map[string][]time.Time),
 		totalRespawns: make(map[string]int),
@@ -199,12 +209,19 @@ func (pm *ProcessManager) Start() error {
 // StartMore to add additional configs while keeping the originals running.
 func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
 	pm.ctx, pm.cancel = context.WithCancel(ctx)
-	return pm.startConfigs(pm.configs)
+	pm.mu.RLock()
+	configs := slices.Clone(pm.configs)
+	pm.mu.RUnlock()
+	return pm.startConfigs(configs)
 }
 
 // StartMore starts the additional configs under the existing context.
 // Must be called after StartWithContext (the context is captured then).
 // Returns an error if the manager has not been started yet.
+//
+// A config whose name the manager already holds REPLACES the held one, in its
+// place: a plugin a reload removed and added back runs, and is restarted
+// (Respawn), with the config it was added back with, never the stale one.
 func (pm *ProcessManager) StartMore(configs []plugin.PluginConfig) error {
 	if pm.ctx == nil {
 		return errProcessmanagerStartmoreCalledBeforeStartwithcontext
@@ -212,7 +229,18 @@ func (pm *ProcessManager) StartMore(configs []plugin.PluginConfig) error {
 	if len(configs) == 0 {
 		return nil
 	}
-	pm.configs = append(pm.configs, configs...)
+	pm.mu.Lock()
+	for i := range configs {
+		index := slices.IndexFunc(pm.configs, func(held plugin.PluginConfig) bool {
+			return held.Name == configs[i].Name
+		})
+		if index < 0 {
+			pm.configs = append(pm.configs, configs[i])
+			continue
+		}
+		pm.configs[index] = configs[i]
+	}
+	pm.mu.Unlock()
 	return pm.startConfigs(configs)
 }
 
@@ -479,8 +507,11 @@ func AmbiguousRegistration(registration string, blocks []string) error {
 	return errors.New(tb.String())
 }
 
-// RemoveProcess unregisters a stopped process by name.
-// Used during config reload to clean up auto-stopped plugins.
+// RemoveProcess unregisters a stopped process by name. The plugin stays
+// configured (ConfiguredNames, Respawn): a failed startup or restart handshake
+// removes its process this way and records it down. A reload's removal does
+// too, so a plugin the configuration no longer names stays configured: nothing
+// drops its name from the configured set.
 //
 // A removed plugin is not down, so its stop record and its bus warning go
 // with it, and so do the warnings it raised itself (report-issue) and its
@@ -544,11 +575,12 @@ func (pm *ProcessManager) isRunning(name string) bool {
 	return proc.Running()
 }
 
-// ConfiguredNames returns the name of every plugin this manager was given to
-// run, in the order it was given them (NewProcessManager, then each
-// StartMore). A name stays configured after its process ends or is disabled,
-// which is what lets a reader tell a stopped plugin from an absent one. Safe
-// for concurrent use.
+// ConfiguredNames returns the name of every plugin this manager is asked to
+// run, once each, in the order it was first given them (NewProcessManager,
+// then each StartMore). A name stays configured after its process ends or is
+// disabled, which is what lets a reader tell a stopped plugin from an absent
+// one. Nothing removes a name, so a plugin a reload removed is still listed.
+// Safe for concurrent use.
 func (pm *ProcessManager) ConfiguredNames() []string {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
@@ -701,20 +733,20 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 	// Every such cycle left a delivery loop blocked on a channel nobody could reach,
 	// and ProcessManager.Stop walks pm.processes, so nothing ever joined it.
 	//
-	// Nil out the metrics callbacks first, so the dying process cannot re-create
-	// deleted status labels via SetStage during shutdown.
+	// Take the metrics callbacks back first, so the dying process cannot re-create
+	// deleted status labels via SetStage during shutdown. The process may be live
+	// (request plugin restart restarts a running plugin), so its delivery and
+	// stage goroutines read the callbacks while this runs: clearMetricHooks is the
+	// atomic swap they read through (metric_hooks.go).
 	if proc, ok := pm.processes[name]; ok {
-		proc.onStageChange = nil
-		proc.deliveryInc = nil
-		proc.deliveryFailInc = nil
-		proc.deliverySlowInc = nil
+		proc.clearMetricHooks()
 		proc.Stop()
 		// An external plugin that does not exit on its closed connection is killed
-		// only once pluginExitGrace has passed, so the join waits past its grace.
-		// A join that still expires means the replacement starts while the old
-		// process may run: that is said, never dropped, because nothing else
-		// records it and the two may hold the same resources.
-		joinBound := proc.stopExitGrace() + respawnJoinMargin
+		// only once pluginExitGrace has passed, so the join waits past its grace
+		// (StopJoinBound). A join that still expires means the replacement starts
+		// before the old process finished stopping: that is said, never dropped,
+		// because nothing else records it.
+		joinBound := proc.StopJoinBound()
 		ctx, cancel := context.WithTimeout(context.Background(), joinBound)
 		joinErr := proc.Wait(ctx)
 		cancel()
@@ -752,15 +784,12 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 	return newProc, nil
 }
 
-// clearProcessCallbacks nils out metrics callbacks on the named process.
-// Prevents a dying process from re-creating deleted metric labels via
-// SetStage or Deliver during shutdown.
+// clearProcessCallbacks takes the metrics callbacks back from the named
+// process (clearMetricHooks), so a dying process cannot re-create deleted
+// metric labels via SetStage or Deliver during shutdown. Caller holds pm.mu.
 func (pm *ProcessManager) clearProcessCallbacks(name string) {
 	if proc, ok := pm.processes[name]; ok {
-		proc.onStageChange = nil
-		proc.deliveryInc = nil
-		proc.deliveryFailInc = nil
-		proc.deliverySlowInc = nil
+		proc.clearMetricHooks()
 	}
 }
 

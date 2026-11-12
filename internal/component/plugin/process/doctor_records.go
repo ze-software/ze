@@ -255,14 +255,10 @@ func (p *Process) noteBatch(elapsed time.Duration, events int, err error, unwait
 			"plugin", p.config.Name, "events", events, "elapsed", elapsed,
 			"threshold", DeliverySlowThreshold, "error", err,
 			"code", diagnostic.CodeDoctorPluginDeliveryFailed)
-		if inc := p.deliverySlowInc; inc != nil {
-			inc()
-		}
+		p.noteDeliverySlow()
 	}
 	if failed {
-		if inc := p.deliveryFailInc; inc != nil {
-			inc()
-		}
+		p.noteDeliveryFailed()
 	}
 	if !slow && !failed {
 		return
@@ -287,49 +283,82 @@ func (p *Process) noteBatch(elapsed time.Duration, events int, err error, unwait
 	}
 }
 
-// restartOverlapGoroutinesFix is the fix of an overlap whose previous engine
+// restartOverlapGoroutinesFix is the fix of an overlap whose previous process
 // runs in the daemon: no command ends a goroutine, and the full dump
-// (show system goroutines, ze-cli-show-cmd.yang) prints every stack, the stuck
-// engine's included.
+// (show system goroutines, ze-cli-show-cmd.yang) prints every stack, the
+// unfinished engine's or delivery loop's included.
 const restartOverlapGoroutinesFix = "ze show system goroutines full"
 
+// restartOverlapRelayLogFix is the fix of an overlap whose previous process
+// was forked: no ze command ends a process, and the stderr relay logs under
+// the plugin.relay component (stderrLogger, ze-log-cmd.yang `show log recent`)
+// what the previous process still writes while ze reads its stderr.
+const restartOverlapRelayLogFix = "ze show log recent component plugin.relay"
+
 // recordRestartOverlap logs and raises a respawn whose join of the process it
-// replaces expired after bound, so the replacement started while that process
-// may still run: Respawn's only record of it. Two processes of one plugin may
-// then hold the same resources. The event code is registered in register.go.
+// replaces expired after bound, so the replacement started before ze finished
+// stopping that process: Respawn's only record of it. The event code is
+// registered in register.go.
 //
-// A second restart is no fix, because it replaces the NEW process. A forked
-// plugin's previous process group has been killed by superviseExit, so what
-// still runs in it is held by the kernel or outside ze's reach, and the fix
-// lists what the group still holds. A plugin that runs in the daemon has no
-// process to list; the goroutine dump shows its stuck engine.
-//
-// Each textbuf.Buffer is read once, into the string the log line and the
-// raise share: String empties the buffer, so a second read answers "".
+// A second restart is no fix, because it replaces the NEW process, and ze
+// takes no further step to end the previous one, so the fix is the command
+// that shows what is left (restartOverlapText).
 func recordRestartOverlap(proc *Process, bound time.Duration, cause error) {
 	name := proc.Name()
-	var message textbuf.Buffer
-	var fix textbuf.Buffer
-	message.Str("plugin ").Str(name)
-	if cmd := proc.Cmd(); cmd != nil && cmd.Process != nil {
-		group := cmd.Process.Pid
-		message.Str(" was restarted before its previous process (process group ").Int(int64(group)).
-			Str(") ended: it had not ended ").Str(bound.String()).
-			Str(" after it was stopped, so its replacement started beside it and the two may hold the same resources; ze killed that process group, ").
-			Str("and the host command pgrep (not a ze command) lists any process still in it")
-		fix.Str("pgrep -a -g ").Int(int64(group))
-	} else {
-		message.Str(" was restarted before its previous engine ended: it had not returned ").Str(bound.String()).
-			Str(" after it was stopped, so its replacement started beside it in the daemon and the two may hold the same resources")
-		fix.Str(restartOverlapGoroutinesFix)
-	}
-	messageLine := message.String()
-	fixLine := fix.String()
-	logger().Warn("plugin restarted before its previous process ended, so the two may hold the same resources",
+	messageLine, fixLine := restartOverlapText(proc, bound)
+	logger().Warn("plugin restarted before ze finished stopping its previous process",
 		"plugin", name, "detail", messageLine, "bound", bound, "error", cause,
 		"fix", fixLine, "code", diagnostic.CodeDoctorPluginRestartOverlap)
 	report.RaiseErrorFix(reportSourcePlugin, diagnostic.CodeDoctorPluginRestartOverlap, name,
 		messageLine, fixLine)
+}
+
+// restartOverlapText says what of proc had not finished when a join of bound
+// expired, and the command that shows it. Process.Wait joins every goroutine
+// of the process (p.wg): for a plugin that runs in the daemon its engine and
+// its event delivery loop; for a forked plugin its reaper (monitorCmd, which
+// also waits for the stderr relay to read to its end), the stderr relay, the
+// exit supervisor and the event delivery loop.
+//
+// One fact tells the parts apart: Running, which an engine clears when it
+// returns and a forked plugin's reaper clears once the process has exited and
+// been reaped. While it holds, the engine or the process itself had not
+// ended, and the two plugin generations may hold the same resources. Once it
+// is clear, what is left is the delivery loop (in the daemon), or the delivery
+// loop or the stderr relay (forked), which nothing here tells apart; the relay
+// reads until every holder of the plugin's stderr closes it, so a process the
+// plugin started keeps it open. Neither part holds a plugin resource, so the
+// text claims no overlap of resources for them.
+//
+// No pid is named: a forked plugin's process group id is its reaped leader's
+// pid, which the kernel may already have given to another program.
+//
+// Each textbuf.Buffer is read once: String empties the buffer, so a second
+// read answers "".
+func restartOverlapText(proc *Process, bound time.Duration) (message, fix string) {
+	var text textbuf.Buffer
+	text.Str("plugin ").Str(proc.Name())
+	if proc.config.Internal {
+		if proc.Running() {
+			text.Str(" was restarted before its previous engine ended: that engine runs in the daemon and had not returned ").
+				Str(bound.String()).
+				Str(" after ze stopped it, so the replacement runs beside it and the two may hold the same resources; ze takes no further step to end it")
+		} else {
+			text.Str(" was restarted before ze finished stopping its previous process: its engine had returned, but its event delivery had not finished ").
+				Str(bound.String()).Str(" after ze stopped it; ze takes no further step to end it")
+		}
+		return text.String(), restartOverlapGoroutinesFix
+	}
+	if proc.Running() {
+		text.Str(" was restarted before its previous process exited: that process had not exited ").
+			Str(bound.String()).
+			Str(" after ze stopped it, so the replacement runs beside it and the two may hold the same resources; ze takes no further step to end it")
+	} else {
+		text.Str(" was restarted before ze finished stopping its previous process: that process had exited, but ze had not finished its event delivery or reading its stderr ").
+			Str(bound.String()).
+			Str(" after ze stopped it, and that stderr stays open while a process the plugin started still holds it; ze takes no further step to end them")
+	}
+	return text.String(), restartOverlapRelayLogFix
 }
 
 // raiseRelayStopped raises the stopped stderr relay on the report bus, where
