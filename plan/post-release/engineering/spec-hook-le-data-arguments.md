@@ -121,3 +121,4 @@ job typed anywhere it can run.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `hook-existing-patterns-false-positive` | 2026-11-11 | `bashRawHeavy`, `rawHeavy` on a quoted `;`: prose after a `;` inside a `./le commit create` body read as a raw `go vet` |
+| `hook-existing-patterns-false-positive` | 2026-11-12 | `bashTestDeletion` line-wide words: a reader `for` loop's test paths read as targets of a later top-level `rm -f` |
