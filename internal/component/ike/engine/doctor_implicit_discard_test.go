@@ -62,3 +62,30 @@ func TestImplicitDiscardDoctorReports(t *testing.T) {
 		}
 	}
 }
+
+// TestImplicitDiscardDoctorWithoutTree checks that a check context holding no
+// parsed configuration answers a warning saying the check cannot answer.
+//
+// VALIDATES: checkIPsecImplicitDiscard answers one warning under its own code, saying
+// it holds no parsed configuration, with the command that prints the running one.
+// PREVENTS: a check that cannot read the configuration answering nothing, which reads
+// as "no discard in force".
+func TestImplicitDiscardDoctorWithoutTree(t *testing.T) {
+	diags := checkIPsecImplicitDiscard(registry.DoctorCheckContext{Tree: "not a tree"})
+	if len(diags) != 1 {
+		t.Fatalf("a context with no parsed tree produced %d diagnostics, want 1", len(diags))
+	}
+	d := diags[0]
+	if d.Code != "doctor-ipsec-implicit-discard" {
+		t.Errorf("code is %q, want doctor-ipsec-implicit-discard", d.Code)
+	}
+	if d.Severity != "warning" {
+		t.Errorf("severity is %q, want warning: nothing is known to be dropped", d.Severity)
+	}
+	if !strings.Contains(d.Message, "holds no parsed configuration") {
+		t.Errorf("message does not say the configuration could not be read: %s", d.Message)
+	}
+	if d.Fix != "show config running" {
+		t.Errorf("fix is %q, want the command that prints the running configuration", d.Fix)
+	}
+}

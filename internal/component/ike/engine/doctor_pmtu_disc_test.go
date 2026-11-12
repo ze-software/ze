@@ -100,3 +100,30 @@ func TestNoPMTUDiscDoctorZeroAndUnreadable(t *testing.T) {
 		t.Errorf("message %q does not say the sysctl could not be read", diags[0].Message)
 	}
 }
+
+// TestNoPMTUDiscDoctorWithoutTree checks that a check context holding no parsed
+// configuration answers a warning saying the check cannot answer.
+//
+// VALIDATES: checkIPsecNoPMTUDisc answers one warning under its own code, saying it
+// holds no parsed configuration, with the command that prints the running one.
+// PREVENTS: a check that cannot read the configuration answering nothing, which reads
+// as "no df-bit copy peer is affected".
+func TestNoPMTUDiscDoctorWithoutTree(t *testing.T) {
+	diags := checkIPsecNoPMTUDisc(registry.DoctorCheckContext{Tree: "not a tree"})
+	if len(diags) != 1 {
+		t.Fatalf("a context with no parsed tree produced %d diagnostics, want 1", len(diags))
+	}
+	d := diags[0]
+	if d.Code != "doctor-ipsec-no-pmtu-disc" {
+		t.Errorf("code is %q, want doctor-ipsec-no-pmtu-disc", d.Code)
+	}
+	if d.Severity != "warning" {
+		t.Errorf("severity is %q, want warning", d.Severity)
+	}
+	if !strings.Contains(d.Message, "holds no parsed configuration") {
+		t.Errorf("message does not say the configuration could not be read: %s", d.Message)
+	}
+	if d.Fix != "show config running" {
+		t.Errorf("fix is %q, want the command that prints the running configuration", d.Fix)
+	}
+}

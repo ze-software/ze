@@ -27,14 +27,28 @@ import (
 // dropped now, and only the operator writing the leaf says that is intended.
 func checkIPsecImplicitDiscard(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
-	if !ok || tree == nil {
+	if !ok {
+		// The check cannot read the configuration, so it cannot answer: it says so
+		// rather than read as "no discard in force", the convention of the ddos
+		// flowspec orphan-record check.
+		return []rpc.DoctorCheckDiagnostic{{
+			Code:     diagnostic.CodeDoctorIPsecImplicitDiscard,
+			Severity: severityWarning,
+			Message:  "vpn ipsec: this doctor run holds no parsed configuration, so it cannot say whether the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set; the command below prints the running configuration, whose `vpn ipsec unmatched` leaf answers it",
+			Fix:      "show config running",
+		}}
+	}
+	// refuse-by-default: guards ipsec.ParseIPsecConfig -- it answers a nil tree with EmptyConfig, whose bypass catch-all this check never reports, and the runner reports a missing config before this phase
+	if tree == nil {
 		return nil
 	}
 	cfg, err := ipsec.ParseIPsecConfig(tree)
-	if err != nil || cfg == nil {
-		// checkIPsecInterface already reports an unparseable vpn ipsec section, with the
-		// same tree and in the same phase. Reporting it twice would make one config error
-		// read as two unrelated faults.
+	// refuse-by-default: guards checkIPsecInterface -- it already reports an unparseable vpn ipsec section, with the same tree and in the same phase, and a second report would make one config error read as two unrelated faults
+	if err != nil {
+		return nil
+	}
+	// refuse-by-default: guards implicitDiscardInForce -- it reads the config's fields, and ParseIPsecConfig answers a nil config only beside an error
+	if cfg == nil {
 		return nil
 	}
 	if !implicitDiscardInForce(cfg) {

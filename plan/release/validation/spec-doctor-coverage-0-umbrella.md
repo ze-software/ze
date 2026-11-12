@@ -270,6 +270,7 @@ audit's output. Child 1 owes their creation, so the work stays visible as specs
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `plan/journal/silent-fall-through.md` | 2026-11-12 | doctor checks answer a non-tree check context with no finding (65 sites, every area) |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
