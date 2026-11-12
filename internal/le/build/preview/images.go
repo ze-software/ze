@@ -32,6 +32,10 @@ func prepareImages(ctx context.Context, root, output, version string, source Sou
 }
 
 func prepareImagesWithDocker(ctx context.Context, root, output, version string, source Source, docker *interoplab.Docker) (artifacts []Artifact, images []Image, err error) {
+	index := slices.IndexFunc(source.Inputs, func(input Input) bool { return input.Path == "docker/Dockerfile.runtime" })
+	if index < 0 {
+		return nil, nil, errors.New("runtime recipe docker/Dockerfile.runtime is missing from the captured source inputs; prepare a new bundle from the complete checkout")
+	}
 	arch, err := docker.ServerArchitecture(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -50,6 +54,13 @@ func prepareImagesWithDocker(ctx context.Context, root, output, version string, 
 		build, err := interoplab.StageRuntimeImage(root, filepath.Join(work, recipe.role), binary, recipe.role)
 		if err != nil {
 			return nil, nil, err
+		}
+		sum, err := fileSum(build.Dockerfile)
+		if err != nil {
+			return nil, nil, err
+		}
+		if sum != source.Inputs[index].SHA256 {
+			return nil, nil, fmt.Errorf("%s runtime recipe differs from captured docker/Dockerfile.runtime; resolve the recipe change before preparing another bundle", recipe.role)
 		}
 		build.Name = "preview-" + recipe.role
 		build.Tag = tag

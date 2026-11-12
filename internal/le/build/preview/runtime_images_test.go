@@ -22,9 +22,15 @@ func TestPreviewImagesReuseOnlyTheCheckedNativeBinary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	version := previewVersion(source)
 	output := t.TempDir()
 	put(t, root, "docker/Dockerfile.runtime", "FROM scratch AS deployment\nCOPY ze /ze\nFROM scratch AS lab\nCOPY ze /usr/local/bin/ze\n")
+	sum, err := fileSum(filepath.Join(root, "docker/Dockerfile.runtime"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source.Inputs = append(source.Inputs, Input{Path: "docker/Dockerfile.runtime", SHA256: sum})
+	source.Digest = sourceDigest(inputDigest(source.Inputs), source.Toolchain, source.Tags)
+	version := previewVersion(source)
 	put(t, root, "test/interop-stale/ze-linux", "must not enter image context")
 	for _, arch := range []string{"amd64", "arm64"} {
 		path := filepath.Join(output, "ze-"+version+"-linux-"+arch)

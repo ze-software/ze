@@ -104,6 +104,40 @@ func prepare(ctx context.Context, root, output string, images bool, deps depende
 			manifest.Artifacts = append(manifest.Artifacts, Artifact{File: entry.name, Kind: entry.kind, OS: "linux", Arch: arch, SHA256: sum})
 		}
 	}
+	after, err := deps.source(ctx, root)
+	if err != nil {
+		return manifest, err
+	}
+	// Provenance records the starting checkout. A concurrent commit or our
+	// output may move HEAD/status without changing any selected input.
+	// Validate after the last compiler/archive source read. Later image work
+	// consumes completed outputs and checks its own staged runtime recipe.
+	// Content identity, population, tags and toolchain MUST remain identical
+	// here; the version and build date stay pinned to the original capture.
+	after.Commit = source.Commit
+	after.Dirty = source.Dirty
+	after.BuildDate = source.BuildDate
+	if !reflect.DeepEqual(source, after) {
+		changed := "toolchain, tags or input digest"
+		for index := range max(len(source.Inputs), len(after.Inputs)) {
+			if index >= len(source.Inputs) {
+				changed = after.Inputs[index].Path
+				break
+			}
+			if index >= len(after.Inputs) {
+				changed = source.Inputs[index].Path
+				break
+			}
+			if source.Inputs[index] != after.Inputs[index] {
+				changed = source.Inputs[index].Path
+				if source.Inputs[index].Path != after.Inputs[index].Path {
+					changed += " / " + after.Inputs[index].Path
+				}
+				break
+			}
+		}
+		return manifest, fmt.Errorf("preview source inputs changed while preparing binaries and archives (%s); resolve this change before preparing another bundle", changed)
+	}
 	if images {
 		artifacts, records, err := deps.images(ctx, root, output, version, source)
 		if err != nil {
@@ -111,20 +145,6 @@ func prepare(ctx context.Context, root, output string, images bool, deps depende
 		}
 		manifest.Artifacts = append(manifest.Artifacts, artifacts...)
 		manifest.Images = records
-	}
-	after, err := deps.source(ctx, root)
-	if err != nil {
-		return manifest, err
-	}
-	// Provenance records the starting checkout. A concurrent commit or our
-	// output may move HEAD/status without changing any selected input.
-	// Content identity, population, tags and toolchain MUST remain identical;
-	// the version and build date remain pinned to the original capture.
-	after.Commit = source.Commit
-	after.Dirty = source.Dirty
-	after.BuildDate = source.BuildDate
-	if !reflect.DeepEqual(source, after) {
-		return manifest, fmt.Errorf("preview source inputs changed during preparation; retry with a stable checkout")
 	}
 	body, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {

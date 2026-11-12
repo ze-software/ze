@@ -5,7 +5,8 @@ release exists. It carries a preview version, commit, dirty flag, selected input
 hashes and checksums. The commit, dirty flag and build date describe the checkout
 at preparation's start. A concurrent commit or generated output does not change
 that captured identity when the selected input bytes, population, tags and
-toolchain remain identical. Preparing it does
+toolchain remain identical through native compilation and archive creation.
+Preparing it does
 not publish a release or make a download
 available on the website.
 <!-- source: internal/le/build/preview/preview.go -- Manifest and prepare -->
@@ -21,8 +22,11 @@ The command builds static Linux amd64 and arm64 daemon binaries with the default
 features and Ze's patched Go toolchain. Each archive contains `ze`, its license
 and installation instructions. `manifest.json` records the targets, source
 identity and artifact hashes; `SHA256SUMS` also covers the manifest. Existing
-output directories are refused. An input change during preparation refuses the
-bundle instead of assigning it an inaccurate source identity.
+output directories are refused. The complete source identity is checked after
+both native binaries and archives are complete, before image packaging starts.
+An input change during that phase refuses the bundle and names the first
+differing input when available. Later Go source edits do not change the
+completed outputs or their captured identity.
 <!-- source: internal/le/build/preview/preview.go -- prepare; internal/le/build/compile/daemon.go -- BuildDaemon -->
 
 Both commands print the bundle directory, manifest and checksum paths, preview
@@ -41,6 +45,9 @@ installation commands. The source-building `docker/Dockerfile` and
 inventories. The preview manifest records the exact tags, immutable IDs, local
 tags and architecture; each final image is exported as a Docker archive.
 This proves neither a second image architecture nor a running BGP session.
+Each staged runtime recipe is hashed before its Docker build and must match
+the captured recipe input. A later restoration of the checkout cannot hide a
+change already copied into a staged recipe.
 <!-- source: internal/le/build/preview/images.go -- prepareImages -->
 <!-- source: internal/le/interoplab/runtime_image.go -- StageRuntimeImage -->
 <!-- source: docker/Dockerfile.runtime -- deployment and lab -->
