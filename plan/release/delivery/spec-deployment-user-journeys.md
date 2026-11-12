@@ -3,14 +3,35 @@
 | Field | Value |
 |-------|-------|
 | Status | in-progress |
-| Scope | cli, tooling, docs |
+| Scope | cli, routing protocols, plugin infrastructure, tooling, docs |
 | Priority | P2 |
 | Release reason | Essential installation, appliance boot, and onboarding paths must work before users can evaluate a release. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | Native, ISO, extended OTA, preview and completed-path site checks passed; diagnosing remaining live netlab BGP/IGP failure |
+| Phase | Native, ISO, OTA health, preview and site passed; verifying IGP fixes and the daemon warning-cleanup dependency exposed by live netlab |
 | Handoff | `tmp/session/2026-11-10-225434/scratch/deployment-runtime-handoff.md` |
 | Updated | 2026-11-12 |
+
+## Current continuation, 2026-11-12
+
+The requested dedicated VM-kernel proposal is recorded separately in
+`plan/proposals/spec-virtual-machine-kernel-profiles.md`. It remains unapproved;
+this deployment task continues without replacing its kernel or acceptance criteria.
+
+The OSPF inventory fix depends on daemon warning cleanup after admitted plugin
+requests drain. The source-removal path can clear warnings before a pending
+report raises one again. The corrective dependency makes runtime cleanup clear
+active warnings after dispatch joins; historical errors remain in the report
+ring. Its actual SDK socket/direct regression passed after an observed semantic
+failure. Whole-server regression coverage remains required before landing it.
+
+The first full OSPF package run after the focused fixes failed six test
+functions with missing self Router-LSAs (`job-unit-pkg-efbdf8c3.log`). Source
+inspection found synthetic transports without address inventory in those
+fixtures. An independent judgment of the proposed fixture correction is owed;
+the production guard preserving advertisements on inventory failure stays intact.
+IS-IS refusal tests passed after the formatting-only textbuf correction
+(`job-unit-pkg-847b060b.log`). Full package and live FRR/netlab proofs remain open.
 
 ## Historical verification blocker
 
@@ -130,6 +151,46 @@ route, traffic and cleanup proof remains required.
 
 ## Current acceptance evidence, 2026-11-12
 
+Actual state-bearing rerun `37013` retained the cause of the missing loopback
+reachability. OSPF neighbors were Full with BFD Up, but the RIB/kernel contained
+the peer's `127.0.0.0/8` and omitted its `10.0.0.x/32` address. IS-IS had an Up
+L1 adjacency even though the configured process and both retained LSPs were
+L2. The L2 LSPs carried loopback reachability but no neighbor edge, and the
+IS-IS route table was empty. All owned containers and the VM were removed.
+
+The corrective phases stay in the protocol owners. OSPF must originate the
+applicable interface prefixes while retaining primary-address adjacency
+semantics. IS-IS circuits must respect the instance's enabled levels, and
+incompatible explicit levels must be refused. Existing topology addresses,
+protocol assertions and traffic checks remain unchanged. Separate source
+agents own the two fixes; new unit regressions precede their implementations,
+and actual FRR interoperability and the full netlab proof remain required.
+
+Root observed semantic unit RED for IS-IS in
+`job-isis-circuit-level-red-46716541.log`: circuits retained dual-level scope,
+incompatible levels were accepted, the adjacency selected L1, and the L2
+neighbor edge and peer SPF route were absent. OSPF RED in
+`job-ospf-loopback-prefix-red-790ebe74.log` showed the primary-only stub,
+missing secondary prefixes, exported host127 and incorrect explicit-loopback
+cost. Both implementations remain held while the new FRR scenarios
+`isis-p2p-level2-default-frr` and `ospf-loopback-prefixes-frr` are prepared for
+old-artifact discrimination. Existing topology and traffic assertions remain.
+
+The first FRR run built and booted successfully but exposed a checker error:
+the exact-protocol kernel query returned the installed route without a redundant
+printed protocol label. It is not protocol discrimination evidence. Independent
+review approved the source-correct printer check while retaining exact prefix and
+protocol filtering. FRR now offers both IS-IS levels so the L1 preference is
+actually exercised. The full interop-checker package passed after registration
+was corrected to keep bespoke checks out of the generic fallback registry.
+
+Additional OSPF regressions reached semantic RED for preserving Router and
+Network LSAs after inventory failure, healthy-area progress, retry recovery and
+actual SDK warning requests. Independent source review then found stale-read
+warning resurrection and lost clears after removing a nonzero instance. These
+are being corrected before the error-handling proposal is applied. The product
+fixes remain unapplied pending the corrected live baseline; no FRR pass is claimed.
+
 This section records the latest results reported by the main thread and
 supersedes the historical execution notes below. The specification remains
 in progress with the full scope open. Passing source, unit or filesystem-context checks is not a
@@ -142,7 +203,7 @@ substitute for the outstanding actual deployment proofs.
 | AC-3: source build and named executables | The patched-toolchain build path is implemented. All five shipped flavors compiled after the preview, OTA, container and phase-binding commits; committed-build job `98028` exited 0 with all five OK at HEAD `94e8a7de6383`. Kernel/build documentation landed in `be5381db9c`. | Each compilation result belongs to its recorded source revision. Recurrent foreign API changes caused earlier failed builds; a passed committed build does not establish the pending source-bound artifact bundle. |
 | AC-4: supplied two-peer quickstart | Real basic route-exchange/authentication checks passed. The quickstart completed all 80 unchanged stress invocations in the approved private tmpfs context. Functional fixtures landed in `4c05449c18`; all three deployment tests also passed the live CI-path run associated with `eb28da8d95`. | This proves the supplied control-plane tutorial, with its explicit forwarding limits; it does not add production forwarding evidence. The whole-UI run was not green, as recorded below. |
 | AC-5: deployment container persistence | Container/netlab code landed in `ef6e1c9806`; runtime correction `adf359f08c` includes noninteractive import and `/tmp` mode `1777`. Actual Compose portion of finished job `84344` printed `DEPLOYMENT-COMPOSE: PASS authenticated edit retained across a new container on the same persistent volume`, including the corrected metadata-aware subtree oracle. Final outer cleanup stopped the VM and left nothing behind. | This proves the authenticated edit/recreation path for the explicitly source-unbound runtime image. The combined job's separate netlab portion failed; it is not an overall runtime PASS. |
-| AC-6: live containerlab/netlab | Corrected actual `94212` reached running nodes, initial configuration, YAML inventory and authenticated BGP queries. One r1 session established while another remained connecting. Private diagnostics survived, and teardown/VM cleanup left nothing behind. | IGP/RIB/kernel state is needed to diagnose the failure before changing protocol code. Additional bounded failure diagnostics are in progress; declared adjacencies, routes and six directed sourced pings remain unverified. |
+| AC-6: live containerlab/netlab | Actual `37013` retained OSPF Full/BFD Up with missing routable loopbacks and learned host127, plus an IS-IS L1 adjacency under global L2 with no L2 neighbor edge or SPF routes. Private state diagnostics landed in `d8aa678cf4`; focused/full package checks and all five committed build flavors passed. Teardown/VM cleanup left nothing behind. New protocol regressions failed on both identified causes. | Apply and independently review the protocol fixes after baseline FRR scenario discrimination, prove reciprocal FRR loopback routes, then rerun the unchanged full topology, route and six directed sourced-ping assertions. |
 | AC-7: installer ISO and installed disk | `66cc2f7abb` landed the ISO corrections. Actual native amd64/KVM proof passed optical boot, selected-disk installation, clean poweroff, unchanged extra disk, installed-disk boot and authenticated SSH/version. Final module-bound ISO assembly passed. | This is amd64/KVM evidence; arm64 boot was not run. The retained ISO image does not establish OTA credentials or update recovery. |
 | AC-8: appliance image update and recovery | Extended actual `87610` passed real image upload, reboot, live health after update and recovery, persistent UUID/configuration/login/hostname, previous-slot recovery and owned cleanup. The health extension also passed semantic RED/GREEN checks, full QEMU-package race tests, independent source review and fixture judgment. | This is native amd64/KVM evidence for the configured management seed. It does not establish arm64 boot or routing/VPN traffic. Private credentialed images remain local. |
 | AC-9: website deployment journeys | Latest canonical full build `61957` and check `74537` passed with 24 producers and 1,107 routes. Source digest is `8d3ee7697570617e091135286b0dbabd53ee1f67146dadb8bd58469393b14c35`; root inspected HTML/Markdown retirement, preview and snapshot guidance. Generated wiki catalog repair and targeted drift check `25018` also passed, with local wiki commit `1d7f8fd`. | No remote publication or push occurred. Latest broad doc check `50828` failed only the then-stale wiki catalog; its targeted rerun passed after repair. No unobserved whole-doc green is claimed. |

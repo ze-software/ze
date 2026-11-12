@@ -854,10 +854,15 @@ handshake runs as long as the daemon does, so a slow replacement still comes
 up, and only its rollback wait is bounded.
 <!-- source: internal/component/plugin/server/restart.go -- restartHandshakeBound, boundedRestartHandshake, lifetimeRestartHandshake, rollbackReplacement -->
 
-A process exit also clears every warning and error the plugin raised itself
-through `report-issue`: their owner is gone and nothing else can clear them.
-`doctor-plugin-crashed` (an error, fix `ze show errors`) then records the exit
-with its status and the policy ze applies.
+A process exit clears the active warnings the plugin raised through
+`report-issue`, after its admitted requests finish. Their owner is gone and
+nothing else can clear them. Historical error events remain in the report ring.
+For an unexpected exit, `doctor-plugin-crashed` (an error, fix `ze show errors`)
+then records its status and the policy ze applies.
+<!-- source: internal/component/plugin/server/dispatch.go -- handleSingleProcessCommandsRPC, cleanupProcess -->
+<!-- source: internal/core/report/report.go -- ClearSource, RaiseError, store.clearSource -->
+<!-- source: internal/component/plugin/process/manager.go -- ReportCrash -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- superviseProcess, applyFailurePolicy -->
 
 A stop ends every restart. From the start of the stop drain (`BeginDrain`), the
 manager refuses each respawn with `respawn refused: ze is stopping`, so a plugin

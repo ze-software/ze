@@ -203,10 +203,11 @@ func (r *lateCleanupRecord) owed(name string) bool {
 //
 // Everything removed here is keyed by the plugin NAME, so it MUST run before the
 // replacement declares the same names: PluginRegistry.Register refuses a name it
-// already holds, with no exemption for the same plugin registering again. The
-// process's OWN exit path removes only what is keyed by the process POINTER
-// (cleanupProcess, dispatch.go), which is what stops that path taking a
-// replacement's registration away from it.
+// already holds, with no exemption for the same plugin registering again.
+// Runtime cleanup also removes name-owned routes, reports and hook state.
+// A replacement MUST wait for that cleanup before registering its state.
+// RunRuntimeCleanupOnce prevents the old exit path from repeating that cleanup
+// after the replacement starts.
 func (s *Server) releasePluginRegistrations(proc *process.Process) {
 	if proc.Stage() >= plugin.StageRunning {
 		proc.WaitRuntimeCleanup()

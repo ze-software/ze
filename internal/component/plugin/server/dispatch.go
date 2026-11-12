@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -38,6 +39,8 @@ import (
 // return ErrMuxConnClosed and incorrectly trigger cleanupProcess, causing
 // Server.Wait to unblock and the daemon to shut down during startup.
 func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
+	// Cleanup MUST follow both dispatch drains: an admitted report-issue can
+	// raise after the process manager removes the plugin and clears its source.
 	defer s.cleanupProcess(proc)
 
 	// The drain runs on EVERY exit path, so it is a defer rather than a step of
@@ -859,7 +862,9 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 	}
 }
 
-// cleanupProcess handles cleanup when a process exits.
+// cleanupProcess handles cleanup when a process exits. The caller MUST stop
+// dispatch admission and join admitted calls first. A replacement MUST wait
+// for this generation's runtime cleanup before it registers name-owned state.
 func (s *Server) cleanupProcess(proc *process.Process) {
 	proc.RunRuntimeCleanupOnce(func() {
 		// Unregister all commands and cancel pending requests from this process.
@@ -885,8 +890,10 @@ func (s *Server) cleanupProcess(proc *process.Process) {
 		// must not leave stale routes in the kernel.
 		s.withdrawPluginRoutes(proc.Name())
 
-		// Forget the plugin's report-issue rate window, so the windows hold
-		// only processes that are alive (dispatch_report.go).
+		// The manager can clear the source before an admitted report-issue
+		// finishes. Clear its warnings after the drain, then forget its rate
+		// window. Historical error events remain on the report bus.
+		report.ClearSource(proc.Name())
 		s.forgetPluginReports(proc.Name())
 
 		runProcessCleanupHooks(proc.Name())
