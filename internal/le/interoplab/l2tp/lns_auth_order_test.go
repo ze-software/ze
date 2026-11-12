@@ -86,7 +86,7 @@ func TestLNSCHAPOnlyCheckerRejectsEarlyConfAck(t *testing.T) {
 		if earlyAck {
 			trace = strings.Replace(trace, "rcvd [LCP TermReq ", "sent [LCP ConfAck id=0x7 <mru 1500> <auth chap MD5>]\nrcvd [LCP TermReq ", 1)
 		}
-		lab := &lnsAuthOrderLab{lnsPolicyLab: lnsPolicyLab{refused: true}, trace: trace}
+		lab := &lnsAuthOrderLab{refused: true, trace: trace}
 		check := scenarioCheckerMap(time.Second)[scenarioLNSCHAPOnly]
 		if check == nil {
 			t.Fatal("CHAP-only live checker is not registered")

@@ -30,12 +30,12 @@ func checkLNSOmittedMRU(ctx context.Context, lab labOperations, timeout time.Dur
 	if err != nil {
 		return err
 	}
-	output, err := execOutput(ctx, lab, peerZe, []string{"ip", "-j", "link", "show", "dev", link})
+	output, err := execOutput(ctx, lab, peerZe, []string{"ip", "-j", commandLink, commandShow, ipOptionDevice, link})
 	if err != nil {
 		return err
 	}
 	if err := lnsClientMTU(output); err != nil {
-		return interoplab.WithSearchedOutput(fmt.Errorf("Ze transmit interface: %w", err), output)
+		return interoplab.WithSearchedOutput(fmt.Errorf("transmit interface on Ze: %w", err), output)
 	}
 	if err := pingThroughSession(ctx, lab); err != nil {
 		return err
@@ -90,7 +90,7 @@ func lnsOmittedMRUEvidence(trace string) error {
 		return err
 	}
 	if ackID != requestID || strings.Contains(lines[index], "<mru ") {
-		return errors.New("Ze did not acknowledge the peer's omitted-MRU request")
+		return errors.New("the peer's omitted-MRU request was not acknowledged by Ze")
 	}
 	return lnsCHAPSuccess(lines, max(localAck, index)+1)
 }

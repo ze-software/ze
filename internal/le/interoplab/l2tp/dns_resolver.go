@@ -78,7 +78,7 @@ func checkDNSResolverSubscriber(ctx context.Context, lab labOperations, _ time.D
 func waitSubscriberDNS(ctx context.Context, lab labOperations, resolver netip.Addr) error {
 	deadline := time.Now().Add(subscriberWait)
 	for {
-		result, err := lab.Exec(ctx, peerLAC, []string{"cat", subscriberResolvConf}, nil)
+		result, err := lab.Exec(ctx, peerLAC, []string{commandCat, subscriberResolvConf}, nil)
 		if err == nil {
 			err = peerDNSIsResolver(result.Stdout, resolver)
 			if err == nil {
@@ -156,7 +156,7 @@ func peerDNSIsResolver(resolvConf string, resolver netip.Addr) error {
 func routeLeavesPPP(route string) error {
 	fields := strings.Fields(route)
 	for index, field := range fields {
-		if field != "dev" {
+		if field != ipOptionDevice {
 			continue
 		}
 		if index+1 == len(fields) {

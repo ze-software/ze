@@ -66,11 +66,11 @@ func checkRadiusAccountingFixture(ctx context.Context, lab labOperations, timeou
 		}
 		status := strings.TrimSpace(result.Stdout)
 		if result.ExitCode != 0 || (status != "running" && status != "0") {
-			output, _ := lab.Exec(probeCtx, peerZe, []string{"cat", "/tmp/l2tp-radius-acct-wire/worker.log"}, nil)
+			output, _ := lab.Exec(probeCtx, peerZe, []string{commandCat, "/tmp/l2tp-radius-acct-wire/worker.log"}, nil)
 			return interoplab.WithSearchedOutput(fmt.Errorf("original accounting fixtures failed with status %q (reader exit %d)", status, result.ExitCode), output.Stdout+output.Stderr)
 		}
 		if status == "0" {
-			output, err := lab.Exec(probeCtx, peerZe, []string{"cat", "/tmp/l2tp-radius-acct-wire/worker.log"}, nil)
+			output, err := lab.Exec(probeCtx, peerZe, []string{commandCat, "/tmp/l2tp-radius-acct-wire/worker.log"}, nil)
 			if err != nil {
 				return fmt.Errorf("read original accounting fixture evidence: %w", err)
 			}

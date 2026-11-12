@@ -163,13 +163,13 @@ func waitNamedSession(ctx context.Context, lab interoplab.CheckerLab, previous i
 			Str(", got [").Join(link.links, " ").Byte(']').String())
 	}
 
-	if _, err := waitAddress(ctx, lab, zeImageName, namedDevice, local, accelGateway, 20*time.Second, time.Second); err != nil {
+	if _, err := waitAddress(ctx, lab, namedDevice, local, accelGateway, 20*time.Second); err != nil {
 		return 0, fmt.Errorf("%s address: %w", namedDevice, err)
 	}
 	if err := waitNamedDefaultRoute(ctx, lab); err != nil {
 		return 0, err
 	}
-	if _, err := waitAccelSessions(ctx, lab, true, 30*time.Second); err != nil {
+	if _, err := waitAccelSessions(ctx, lab, true); err != nil {
 		return 0, fmt.Errorf("accel-ppp never reported the subscriber session: %w", err)
 	}
 	return link.index, nil

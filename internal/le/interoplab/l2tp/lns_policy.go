@@ -19,6 +19,11 @@ import (
 
 const lnsPolicyTrace = "/run/lns-policy-pppd.log"
 
+// authMethodCHAPMD5 is Ze's name for the one PPP authentication method the
+// CHAP-only LNS scenarios allow, as the daemon reports it in its effective
+// config and in a negotiated session.
+const authMethodCHAPMD5 = "chap-md5"
+
 type lnsPolicySession struct {
 	ID       uint16  `json:"local-sid"`
 	Username string  `json:"username"`
@@ -52,7 +57,7 @@ func checkLNSMRU(ctx context.Context, lab labOperations, timeout time.Duration) 
 	if err != nil {
 		return err
 	}
-	output, err := execOutput(ctx, lab, peerLAC, []string{"ip", "-j", "link", "show", "dev", link})
+	output, err := execOutput(ctx, lab, peerLAC, []string{"ip", "-j", commandLink, commandShow, ipOptionDevice, link})
 	if err != nil {
 		return err
 	}
@@ -120,14 +125,14 @@ func checkLNSCHAPOnly(ctx context.Context, lab labOperations, timeout time.Durat
 		return err
 	}
 	if !logs.Available {
-		return errors.New("Ze refusal logs unavailable")
+		return errors.New("the refusal logs of Ze are unavailable")
 	}
 	if strings.Contains(logs.Text, "PPP session up") {
 		return interoplab.WithSearchedOutput(errors.New("CHAP-only refusal reached PPP session up"), logs.Text)
 	}
 	for _, detail := range []string{"auth-method-refused: peer suggested", "(pap)", "allowed [chap-md5]"} {
 		if !strings.Contains(logs.Text, detail) {
-			return interoplab.WithSearchedOutput(fmt.Errorf("Ze refusal log lacks %q", detail), logs.Text)
+			return interoplab.WithSearchedOutput(fmt.Errorf("the refusal log of Ze lacks %q", detail), logs.Text)
 		}
 	}
 	radius, err := lab.Logs(ctx, peerRadius, 1000)
@@ -149,7 +154,7 @@ func checkLNSCHAPOnly(ctx context.Context, lab labOperations, timeout time.Durat
 }
 
 func readLNSPolicyTrace(ctx context.Context, lab labOperations) (string, error) {
-	return execOutput(ctx, lab, peerLAC, []string{"cat", lnsPolicyTrace})
+	return execOutput(ctx, lab, peerLAC, []string{commandCat, lnsPolicyTrace})
 }
 
 // lnsTracePacket returns pppd's decoded packet identifier and line index. It
@@ -212,7 +217,7 @@ func lnsMRUEvidence(trace string) error {
 		return err
 	}
 	if nakID != requestID {
-		return errors.New("Ze's MRU1492 Nak identifier does not match pppd's MRU1493 request")
+		return errors.New("the identifier of Ze's MRU1492 Nak does not match pppd's MRU1493 request")
 	}
 	retryID, index, err := lnsTracePacket(lines, index+1, "sent [LCP ConfReq ", "<mru 1492>")
 	if err != nil {
@@ -223,7 +228,7 @@ func lnsMRUEvidence(trace string) error {
 		return err
 	}
 	if ackID != retryID {
-		return errors.New("Ze's MRU1492 Ack identifier does not match pppd's converged request")
+		return errors.New("the identifier of Ze's MRU1492 Ack does not match pppd's converged request")
 	}
 	return lnsCHAPSuccess(lines, max(localAck, index)+1)
 }
@@ -329,7 +334,7 @@ func lnsCHAPOnlyEvidence(trace string) error {
 	}
 	for _, line := range lines {
 		if strings.Contains(line, "rcvd [LCP ConfReq ") && strings.Contains(line, "<auth pap>") {
-			return errors.New("Ze offered PAP after the disallowed Nak")
+			return errors.New("after the disallowed Nak, Ze offered PAP")
 		}
 	}
 	return nil
@@ -384,10 +389,10 @@ func checkLNSPolicyOutputForMRU(ctx context.Context, lab labOperations, peerMRU 
 	if config.MRU != 1492 {
 		return fmt.Errorf("daemon effective MRU is %d, want 1492", config.MRU)
 	}
-	if config.Auth != "chap-md5" {
+	if config.Auth != authMethodCHAPMD5 {
 		return fmt.Errorf("daemon effective auth-method is %q, want chap-md5", config.Auth)
 	}
-	if !slices.Equal(config.Allow, []string{"chap-md5"}) {
+	if !slices.Equal(config.Allow, []string{authMethodCHAPMD5}) {
 		return fmt.Errorf("daemon effective authentication-allow is %v, want [chap-md5]", config.Allow)
 	}
 	sessions, err := lnsPolicySessions(ctx, lab)
@@ -435,7 +440,7 @@ func lnsNegotiatedSessionMRU(session lnsPolicySession, peerMRU uint16) error {
 	if session.Auth == nil {
 		return errors.New("daemon session has no negotiated authentication method")
 	}
-	if *session.Auth != "chap-md5" {
+	if *session.Auth != authMethodCHAPMD5 {
 		return fmt.Errorf("daemon negotiated auth-method is %q, want chap-md5", *session.Auth)
 	}
 	return nil
@@ -457,9 +462,9 @@ func lnsPolicyCommand(ctx context.Context, lab labOperations, command string) (j
 	var body textbuf.Buffer
 	request := body.Str(`--post-data={"command":`).Quoted(command).Byte('}').String()
 	answer, err := execOutput(ctx, lab, peerZe, []string{
-		"wget", "-qO-", "--header=Authorization: Bearer secret",
-		"--header=Content-Type: application/json", request,
-		"http://127.0.0.1:17012/api/v1/execute",
+		commandWget, wgetQuietStdout, zeRESTBearerHeader,
+		zeRESTJSONHeader, request,
+		zeRESTExecuteURL,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("daemon %s: %w", command, err)

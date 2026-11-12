@@ -87,21 +87,23 @@ func pppAddress(
 	return result.Stdout, err
 }
 
+// waitPPPLink answers the first PPP interface the Ze container shows,
+// whichever side Ze plays in the scenario: the PPPoE client, or the access
+// concentrator a pppd client dials.
 func waitPPPLink(
 	ctx context.Context,
 	lab interoplab.CheckerLab,
-	peer string,
 	timeout time.Duration,
 	interval time.Duration,
 ) (string, error) {
 	var tb textbuf.Buffer
-	description := tb.Str("PPP interface in ").Str(peer).String()
+	description := tb.Str("PPP interface in ").Str(zeImageName).String()
 	links, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
 		Interval:    interval,
 		Description: description,
 	}, func(probeCtx context.Context) ([]string, error) {
-		return pppLinks(probeCtx, lab, peer)
+		return pppLinks(probeCtx, lab, zeImageName)
 	}, func(found []string) bool {
 		return len(found) != 0
 	})
@@ -111,24 +113,24 @@ func waitPPPLink(
 	return links[0], nil
 }
 
+// waitAddress polls iface in the Ze container once a second until its address
+// line carries both local and remote, and answers that line.
 func waitAddress(
 	ctx context.Context,
 	lab interoplab.CheckerLab,
-	peer string,
 	iface string,
 	local string,
 	remote string,
 	timeout time.Duration,
-	interval time.Duration,
 ) (string, error) {
 	var tb textbuf.Buffer
 	description := tb.Str("PPP address on ").Str(iface).String()
 	address, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
-		Interval:    interval,
+		Interval:    time.Second,
 		Description: description,
 	}, func(probeCtx context.Context) (string, error) {
-		return pppAddress(probeCtx, lab, peer, iface)
+		return pppAddress(probeCtx, lab, zeImageName, iface)
 	}, func(output string) bool {
 		return strings.Contains(output, local) && strings.Contains(output, remote)
 	})

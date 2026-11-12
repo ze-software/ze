@@ -36,7 +36,7 @@ func TestRadiusAccountingFixtureEvidence(t *testing.T) {
 	}
 	// Every evidence line comes from a distinct assertion or decoded packet.
 	// A successful process status cannot replace any of those observations.
-	for _, line := range strings.Split(strings.TrimSpace(radiusFixtureTrace), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(radiusFixtureTrace), "\n") {
 		t.Run(line, func(t *testing.T) {
 			missing := strings.ReplaceAll(radiusFixtureTrace, line+"\n", "")
 			if err := radiusAccountingFixtureEvidence(missing); err == nil {

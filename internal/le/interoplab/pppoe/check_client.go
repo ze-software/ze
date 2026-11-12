@@ -215,7 +215,6 @@ func checkZeClientSession(ctx context.Context, check *interoplab.CheckContext) (
 	iface, err := waitPPPLink(
 		ctx,
 		check.Lab,
-		zeImageName,
 		75*time.Second,
 		2*time.Second,
 	)
@@ -236,12 +235,10 @@ func checkZeClientSession(ctx context.Context, check *interoplab.CheckContext) (
 	address, err := waitAddress(
 		ctx,
 		check.Lab,
-		zeImageName,
 		iface,
 		zeClientAddr,
 		accelGateway,
 		20*time.Second,
-		time.Second,
 	)
 	if err != nil {
 		return fmt.Errorf(
@@ -272,7 +269,7 @@ func checkZeClientSession(ctx context.Context, check *interoplab.CheckContext) (
 		)
 	}
 
-	active, err := waitAccelSessions(ctx, check.Lab, true, 30*time.Second)
+	active, err := waitAccelSessions(ctx, check.Lab, true)
 	if err != nil {
 		return fmt.Errorf("accel-ppp never reported a subscriber session: %w", err)
 	}
@@ -301,7 +298,7 @@ func checkZeClientSession(ctx context.Context, check *interoplab.CheckContext) (
 	if err := check.Lab.Stop(ctx, zeImageName, 5); err != nil {
 		return fmt.Errorf("stop Ze client: %w", err)
 	}
-	gone, err := waitAccelSessions(ctx, check.Lab, false, 30*time.Second)
+	gone, err := waitAccelSessions(ctx, check.Lab, false)
 	if err != nil {
 		return fmt.Errorf("accel-ppp did not drop the session after client stop: %w", err)
 	}
@@ -333,14 +330,15 @@ func accelSessionCount(
 	return accelSessions{count: count}, nil
 }
 
+// waitAccelSessions polls accel-ppp's session table for up to 30 seconds
+// until it holds a session (wantActive) or none, and answers the last count.
 func waitAccelSessions(
 	ctx context.Context,
 	lab interoplab.CheckerLab,
 	wantActive bool,
-	timeout time.Duration,
 ) (accelSessions, error) {
 	returnValue, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout:     timeout,
+		Timeout:     30 * time.Second,
 		Interval:    2 * time.Second,
 		Description: "accel-ppp session table",
 	}, func(probeCtx context.Context) (accelSessions, error) {
@@ -422,13 +420,13 @@ func checkZeClientResolvers(ctx context.Context, check *interoplab.CheckContext,
 	if check == nil || check.Lab == nil {
 		return errors.New("PPPoE Ze-client checker has no lab")
 	}
-	iface, err := waitPPPLink(ctx, check.Lab, zeImageName, 75*time.Second, 2*time.Second)
+	iface, err := waitPPPLink(ctx, check.Lab, 75*time.Second, 2*time.Second)
 	if err != nil {
 		return appendDiagnostics(ctx, check.Lab, fmt.Errorf("ze PPP interface did not come up: %w", err), zeImageName, accelImageName)
 	}
 	// The address is applied once IPCP opened, just before runSession
 	// leases the learned servers, so the read below follows a finished IPCP.
-	if _, err := waitAddress(ctx, check.Lab, zeImageName, iface, zeClientAddr, accelGateway, 20*time.Second, time.Second); err != nil {
+	if _, err := waitAddress(ctx, check.Lab, iface, zeClientAddr, accelGateway, 20*time.Second); err != nil {
 		return appendDiagnostics(ctx, check.Lab, fmt.Errorf("%s never carried the IPCP address: %w", iface, err), zeImageName, accelImageName)
 	}
 	// With no server from any origin (no lease, no static one, no host

@@ -184,7 +184,7 @@ func checkZeClientIPv6Rejected(ctx context.Context, lab interoplab.CheckerLab) e
 // requireNamedPPPDevice waits for the client's PPP device and requires it to
 // be the configured pppoe0, the device every IPv6 assertion reads.
 func requireNamedPPPDevice(ctx context.Context, lab interoplab.CheckerLab) error {
-	iface, err := waitPPPLink(ctx, lab, zeImageName, 75*time.Second, 2*time.Second)
+	iface, err := waitPPPLink(ctx, lab, 75*time.Second, 2*time.Second)
 	if err != nil {
 		return fmt.Errorf("ze PPP interface did not come up: %w", err)
 	}

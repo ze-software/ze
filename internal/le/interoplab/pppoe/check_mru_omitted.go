@@ -70,11 +70,11 @@ func checkOmittedPeerMRU(ctx context.Context, check *interoplab.CheckContext) (e
 	if err := chapAuthEvidence(log); err != nil {
 		return err
 	}
-	zeLink, err := waitPPPLink(ctx, lab, zeImageName, 20*time.Second, time.Second)
+	zeLink, err := waitPPPLink(ctx, lab, 20*time.Second, time.Second)
 	if err != nil {
 		return err
 	}
-	if _, err := waitAddress(ctx, lab, zeImageName, zeLink, zeGateway, firstPoolAddr, 20*time.Second, time.Second); err != nil {
+	if _, err := waitAddress(ctx, lab, zeLink, zeGateway, firstPoolAddr, 20*time.Second); err != nil {
 		return err
 	}
 	link, err := query(ctx, lab, zeImageName, []string{"ip", "-j", "link", "show", "dev", zeLink})
@@ -182,7 +182,7 @@ func omittedMRUZeLink(body, name string) error {
 		return fmt.Errorf("decode measured Ze PPP interface: %w", err)
 	}
 	if len(links) != 1 || links[0].Name != name || links[0].MTU != 1492 {
-		return fmt.Errorf("Ze PPP interface does not install the 1492 transmit cap: %+v", links)
+		return fmt.Errorf("the PPP interface of Ze does not install the 1492 transmit cap: %+v", links)
 	}
 	return nil
 }

@@ -30,17 +30,17 @@ func checkCHAPRechallenge(ctx context.Context, check *interoplab.CheckContext) (
 	}
 	lab := check.Lab
 	defer func() { err = appendDiagnostics(ctx, lab, err, zeImageName, accelImageName) }()
-	iface, err := waitPPPLink(ctx, lab, zeImageName, 75*time.Second, time.Second)
+	iface, err := waitPPPLink(ctx, lab, 75*time.Second, time.Second)
 	if err != nil {
 		return err
 	}
-	if _, err := waitAddress(ctx, lab, zeImageName, iface, zeClientAddr, accelGateway, 20*time.Second, time.Second); err != nil {
+	if _, err := waitAddress(ctx, lab, iface, zeClientAddr, accelGateway, 20*time.Second); err != nil {
 		return err
 	}
 	if _, err := waitRoute(ctx, lab, zeImageName, iface, accelGateway, 20*time.Second); err != nil {
 		return err
 	}
-	if _, err := waitAccelSessions(ctx, lab, true, 30*time.Second); err != nil {
+	if _, err := waitAccelSessions(ctx, lab, true); err != nil {
 		return err
 	}
 	logs, err := lab.Logs(ctx, accelImageName, accelTraceLines)
@@ -96,7 +96,7 @@ func checkCHAPRechallenge(ctx context.Context, check *interoplab.CheckContext) (
 	if !slices.Equal(links, []string{iface}) {
 		return fmt.Errorf("reauthentication replaced the PPP interface: %v", links)
 	}
-	if _, err := waitAddress(ctx, lab, zeImageName, iface, zeClientAddr, accelGateway, 5*time.Second, time.Second); err != nil {
+	if _, err := waitAddress(ctx, lab, iface, zeClientAddr, accelGateway, 5*time.Second); err != nil {
 		return err
 	}
 	if _, err := waitRoute(ctx, lab, zeImageName, iface, accelGateway, 5*time.Second); err != nil {
@@ -155,7 +155,7 @@ func checkPeerTerminate(ctx context.Context, check *interoplab.CheckContext) (er
 	if err := lifecyclePing(ctx, lab, clientImageName, iface, zeGateway); err != nil {
 		return err
 	}
-	zeInterface, err := waitPPPLink(ctx, lab, zeImageName, 10*time.Second, time.Second)
+	zeInterface, err := waitPPPLink(ctx, lab, 10*time.Second, time.Second)
 	if err != nil {
 		return fmt.Errorf("record Ze's live PPP interface before termination: %w", err)
 	}

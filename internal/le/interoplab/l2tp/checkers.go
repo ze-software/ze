@@ -69,7 +69,7 @@ func checkPPPIPv4(ctx context.Context, lab labOperations, _ time.Duration) error
 	if err != nil {
 		return err
 	}
-	address, err := execOutput(ctx, lab, peerZe, []string{"ip", "-o", "addr", commandShow, "dev", iface})
+	address, err := execOutput(ctx, lab, peerZe, []string{"ip", "-o", "addr", commandShow, ipOptionDevice, iface})
 	if err != nil {
 		return err
 	}
@@ -166,11 +166,11 @@ func checkInitiator(ctx context.Context, lab labOperations, _ time.Duration) err
 		return err
 	}
 	arguments := []string{
-		"wget", "-qO-",
-		"--header=Authorization: Bearer secret",
-		"--header=Content-Type: application/json",
+		commandWget, wgetQuietStdout,
+		zeRESTBearerHeader,
+		zeRESTJSONHeader,
 		"--post-data={\"command\":\"request l2tp outgoing-call remote xl2tpd called 12345\"}",
-		"http://127.0.0.1:17012/api/v1/execute",
+		zeRESTExecuteURL,
 	}
 	result, err := lab.Exec(ctx, peerZe, arguments, nil)
 	if err != nil && strings.TrimSpace(result.Stdout+result.Stderr) == "" {
@@ -254,11 +254,11 @@ func checkRadiusAttributes(ctx context.Context, lab labOperations, timeout time.
 // checkInitiator drives a dial.
 func clearSessions(ctx context.Context, lab labOperations) error {
 	arguments := []string{
-		"wget", "-qO-",
-		"--header=Authorization: Bearer secret",
-		"--header=Content-Type: application/json",
+		commandWget, wgetQuietStdout,
+		zeRESTBearerHeader,
+		zeRESTJSONHeader,
 		"--post-data={\"command\":\"clear l2tp session all\"}",
-		"http://127.0.0.1:17012/api/v1/execute",
+		zeRESTExecuteURL,
 	}
 	result, err := lab.Exec(ctx, peerZe, arguments, nil)
 	if err != nil && strings.TrimSpace(result.Stdout+result.Stderr) == "" {

@@ -97,7 +97,7 @@ func checkCHAPOnlyPAPClient(ctx context.Context, check *interoplab.CheckContext)
 		return err
 	}
 	if !logs.Available {
-		return errors.New("Ze authentication refusal log is unavailable")
+		return errors.New("the authentication refusal log of Ze is unavailable")
 	}
 	return chapOnlyRefusalCause(logs.Text)
 }
@@ -113,7 +113,7 @@ func chapOnlyRefusalCause(log string) error {
 			return nil
 		}
 	}
-	return interoplab.WithSearchedOutput(errors.New("Ze refusal log does not name PAP and the CHAP-only allow-list"), log)
+	return interoplab.WithSearchedOutput(errors.New("the refusal log of Ze does not name PAP and the CHAP-only allow-list"), log)
 }
 
 // chapOnlyRefusalEvidence requires the same-session wire chain from Ze's PADS
@@ -135,7 +135,7 @@ func chapOnlyRefusalEvidence(frames []lifecycleFrame, local [6]byte) error {
 				return errors.New("PADS did not come from Ze")
 			}
 			if frame.sid == 0 {
-				return errors.New("Ze refused discovery instead of the authentication policy")
+				return errors.New("in its PADS, Ze refused discovery instead of the authentication policy")
 			}
 			if sid != 0 {
 				return errors.New("refused dial allocated another PPPoE session")
@@ -168,7 +168,7 @@ func chapOnlyRefusalEvidence(frames []lifecycleFrame, local [6]byte) error {
 				continue
 			}
 			if !terminated {
-				return errors.New("Ze PADT preceded its LCP Terminate-Request")
+				return errors.New("the PADT of Ze preceded its LCP Terminate-Request")
 			}
 			padts++
 			continue
@@ -188,7 +188,7 @@ func chapOnlyRefusalEvidence(frames []lifecycleFrame, local [6]byte) error {
 				return err
 			}
 			if !chap {
-				return errors.New("Ze offered a non-CHAP-MD5 or absent authentication option")
+				return errors.New("in its LCP request, Ze offered a non-CHAP-MD5 or absent authentication option")
 			}
 			request = frame
 		}
@@ -209,7 +209,7 @@ func chapOnlyRefusalEvidence(frames []lifecycleFrame, local [6]byte) error {
 		}
 		if outgoing && frame.code == 5 {
 			if !nak {
-				return errors.New("Ze terminated without the client's PAP Nak")
+				return errors.New("without the client's PAP Nak, Ze terminated LCP")
 			}
 			terminated = true
 		}

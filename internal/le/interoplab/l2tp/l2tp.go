@@ -44,6 +44,21 @@ const (
 	commandLink  = "link"
 	commandType  = "type"
 	commandVTYSH = "vtysh"
+	commandCat   = "cat"
+
+	// ipOptionDevice is the `ip` keyword that names a device: an argument of
+	// `ip link show` and `ip addr show`, and a token of the route `ip` prints.
+	ipOptionDevice = "dev"
+
+	// The lab's Ze answers operator commands on the REST execute endpoint its
+	// ze.conf opens, and a checker drives it with wget inside the Ze container:
+	// quiet, the answer on stdout, the bearer token and JSON body the endpoint
+	// requires.
+	commandWget        = "wget"
+	wgetQuietStdout    = "-qO-"
+	zeRESTBearerHeader = "--header=Authorization: Bearer secret"
+	zeRESTJSONHeader   = "--header=Content-Type: application/json"
+	zeRESTExecuteURL   = "http://127.0.0.1:17012/api/v1/execute"
 
 	// netAdminCapability is what a PPP over L2TP daemon needs beyond Docker's
 	// default grants besides the PPP device (interoplab.PPPDeviceArguments):
@@ -397,14 +412,15 @@ func LabBinaries() []interoplab.LabBinary {
 func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) []interoplab.ImageBuild {
 	needed := map[string]bool{imageZe: true, imageLAC: true}
 	needFRR := false
-	for _, plan := range plans {
-		needFRR = needFRR || plan.Source.Name == scenarioBGPRedistribute
-		needed[imageRadius] = needed[imageRadius] || plan.Source.Name == scenarioRadiusAttrs ||
-			plan.Source.Name == scenarioLNSMRU || plan.Source.Name == scenarioLNSOmittedMRU ||
-			plan.Source.Name == scenarioLNSNegotiatedMRU || plan.Source.Name == scenarioLNSCHAPOnly
-		needed[imageAVPRelay] = needed[imageAVPRelay] || plan.Source.Name == scenarioUnknownMandatoryAVP ||
-			plan.Source.Name == scenarioPPPCodeReject
-		needed[imageKnot] = needed[imageKnot] || plan.Source.Name == scenarioDNSResolver
+	for index := range plans {
+		name := plans[index].Source.Name
+		needFRR = needFRR || name == scenarioBGPRedistribute
+		needed[imageRadius] = needed[imageRadius] || name == scenarioRadiusAttrs ||
+			name == scenarioLNSMRU || name == scenarioLNSOmittedMRU ||
+			name == scenarioLNSNegotiatedMRU || name == scenarioLNSCHAPOnly
+		needed[imageAVPRelay] = needed[imageAVPRelay] || name == scenarioUnknownMandatoryAVP ||
+			name == scenarioPPPCodeReject
+		needed[imageKnot] = needed[imageKnot] || name == scenarioDNSResolver
 	}
 	builds := slices.DeleteFunc(interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),
 		func(build interoplab.ImageBuild) bool { return !needed[build.Name] })
