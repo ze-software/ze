@@ -1,10 +1,12 @@
 # Packages an already built static Linux ze binary. The context contains only
 # this recipe and ze; source-building images retain their separate recipes.
 FROM alpine:3.24.3 AS certificates
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates && \
+    mkdir -p /runtime-root/tmp && chmod 1777 /runtime-root/tmp
 
 FROM scratch AS deployment
 COPY --from=certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=certificates /runtime-root/ /
 COPY ze /ze
 EXPOSE 179 2222 8080
 ENTRYPOINT ["/ze"]

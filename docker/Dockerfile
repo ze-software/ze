@@ -8,7 +8,8 @@ FROM golang:1.27-alpine AS builder
 
 # git applies Ze's standard-library patch when the build below generates the
 # patched GOROOT (docs/contributing/patching-the-standard-library.md).
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache git ca-certificates && \
+    mkdir -p /runtime-root/tmp && chmod 1777 /runtime-root/tmp
 
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -52,6 +53,7 @@ FROM scratch
 
 COPY --from=builder /ze /ze
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder /runtime-root/ /
 
 EXPOSE 179 2222 8080
 
