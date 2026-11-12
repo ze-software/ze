@@ -118,7 +118,19 @@ Revision resolution and length-framed blob batches use
 selecting its object IDs; neither revision resolution nor blob reads open
 working-tree source files. Missing objects, a non-blob source object, or malformed
 batch framing refuse the read rather than producing a partial inventory.
-<!-- source: internal/le/repo/objects/objects.go -- Resolve, Read -->
+`Read` holds its whole batch in memory within a 30-second bound. `Stream` reads
+a larger set, such as every blob of the history, through one streaming
+`git cat-file --batch`: it hands each blob to its caller in request order, holds
+one blob at a time, applies the same header and framing checks, and is bounded
+only by its caller's context. `List` answers every non-tree entry of a commit's
+or tree's recursive listing, NUL-framed, with its mode, kind, ID and path;
+`Entry.Regular` tells a regular file from a symbolic link or a submodule, and
+the committed inventory keeps its own filter over that listing. `FirstParents`
+answers a commit's first-parent ancestry, oldest first, with each commit's tree
+and its author and committer times in UTC, and refuses a shallow repository,
+whose history would end early and still read as complete.
+<!-- source: internal/le/repo/objects/objects.go -- Resolve, Read, Stream, List, Entry.Regular, FirstParents -->
+<!-- source: internal/le/repo/inventory/source.go -- sourceObjects -->
 
 `./le spec roadmap update [revision <ref>]` writes the derived, untracked
 `plan/release/roadmap.md` with relative source links. Historical updates are labeled.

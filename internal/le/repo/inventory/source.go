@@ -11,12 +11,10 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"os/exec"
 	"path"
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"golang.org/x/mod/modfile"
 
@@ -140,42 +138,24 @@ type sourcePopulation struct {
 	ids   []string
 }
 
+// sourceObjects keeps the entries of revision's shared tree listing that the
+// inventory reads, and refuses one of them that is not a regular file. The
+// listing's own malformed records refuse in repoobjects.List.
 func sourceObjects(ctx context.Context, root, revision string) (sourcePopulation, error) {
-	bounded, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	command := exec.CommandContext(bounded, "git", "--no-replace-objects", "-C", root, "ls-tree", "-r", "-t", "-z", "--full-tree", revision) //nolint:gosec // revision is a resolved commit ID; no shell is used.
-	var stderr bytes.Buffer
-	command.Stderr = &stderr
-	output, err := command.Output()
+	entries, err := repoobjects.List(ctx, root, revision)
 	if err != nil {
-		return sourcePopulation{}, fmt.Errorf("cannot enumerate committed inventory %s; repair repository history: %w: %s", revision, err, stderr.String())
+		return sourcePopulation{}, fmt.Errorf("cannot enumerate committed inventory %s; repair repository history: %w", revision, err)
 	}
 	var population sourcePopulation
-	for record := range bytes.SplitSeq(output, []byte{0}) {
-		if len(record) == 0 {
+	for _, entry := range entries {
+		if !inventoryInput(entry.Path) {
 			continue
 		}
-		header, name, found := bytes.Cut(record, []byte{'\t'})
-		if !found {
-			return sourcePopulation{}, fmt.Errorf("malformed committed inventory tree at %s; repair repository objects", revision)
+		if !entry.Regular() {
+			return sourcePopulation{}, fmt.Errorf("committed inventory source %q has type %s mode %s; commit a regular source file", entry.Path, entry.Kind, entry.Mode)
 		}
-		rel := string(name)
-		fields := strings.Fields(string(header))
-		if len(fields) != 3 {
-			return sourcePopulation{}, fmt.Errorf("invalid committed inventory entry %q; repair repository objects", rel)
-		}
-		if fields[1] == "tree" {
-			continue
-		}
-		if !inventoryInput(rel) {
-			continue
-		}
-		regular := fields[1] == "blob" && (fields[0] == "100644" || fields[0] == "100755")
-		if !regular {
-			return sourcePopulation{}, fmt.Errorf("committed inventory source %q has type %s mode %s; commit a regular source file", rel, fields[1], fields[0])
-		}
-		population.paths = append(population.paths, rel)
-		population.ids = append(population.ids, fields[2])
+		population.paths = append(population.paths, entry.Path)
+		population.ids = append(population.ids, entry.ID)
 	}
 	return population, nil
 }
