@@ -5,7 +5,27 @@ Written 2026-11-12 by the session that continued
 route-policy section. Everything else in that handover (lint-tooling, the
 unjournaled findings, the rule conflict) still stands there.
 
-## Decisions waiting on the owner
+## Design revision on 2026-11-12
+
+The owner rejected the internal-only proposal below and required correct
+internal and external system RIB operation. The requirement is recorded in
+`docs/architecture/rib/unified-locrib.md`, "Owner requirement: internal and
+external system RIB".
+
+`plan/release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md` now
+requires complete two-mode routing behavior, an authoritative daemon view,
+distance publication, candidates, external FIB output, and lifecycle proof.
+It remains at `design` pending review of that replacement transport design.
+The proposed system RIB, VRRP, and AS112 commit refusals are withdrawn.
+
+The umbrella closure instructions below remain a handoff for that separate
+work, subject to checking the current tree. The old design decision table,
+the new spec's old assumptions and criterion mapping, and Phase 3 below are
+historical. Do not implement them. Read the revised spec for the current
+design and acceptance criteria. The umbrella's pointer edits have not been
+made by this revision.
+
+## Original decisions waiting on the owner (superseded)
 
 | # | Decision | What it unblocks | Recommendation |
 |---|----------|------------------|----------------|

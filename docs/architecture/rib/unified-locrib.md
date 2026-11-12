@@ -12,6 +12,26 @@ path, and feeds the kernel FIB through the existing event plumbing.
 <!-- source: internal/core/rib/locrib/default.go -- the process-wide instance -->
 <!-- source: internal/core/rib/locrib/shard.go -- sharded Loc-RIB -->
 
+## Owner requirement: internal and external system RIB
+
+On 2026-11-12, Thomas rejected the proposal to make the system RIB internal-only:
+
+> Please change it so we support it both from internal and external correctly.
+
+This is a requirement for the repair, not a claim that external operation is
+already correct. The current system RIB uses the Loc-RIB feed internally and
+has a BGP-only fallback when no Loc-RIB is wired. The repair must provide
+equivalent routing behavior across the process boundary.
+<!-- source: internal/component/sysrib/sysrib.go -- run, SetLocRIB -->
+
+The proposed consumer transport is recorded in
+`spec-route-policy-1-gate-proof-and-forked-sysrib`. It keeps admission and
+cross-source selection in the daemon's Loc-RIB. Both execution modes must
+preserve distances, next-hop resolution, ECMP, candidate inspection,
+configuration changes, FIB output, and recovery. An external-run refusal or
+an internal replacement for the configured subprocess does not meet the
+requirement.
+
 ## The decisions
 
 **The Loc-RIB lives in `internal/core/rib/locrib/`, not inside a component.**
