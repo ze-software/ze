@@ -98,8 +98,9 @@ Fix that first, or the Mac cannot show the Linux findings.
 
 Batch 5's form changes are committed: `066a8e1097`, twelve files, reviewed
 clean in the one round the owner granted. Its other half, the size bound in
-`check.go` with `check_archive_limit_test.go`, is **not committed**: that round
-found a blocker in it, since fixed, and the fix has not been reviewed.
+`check.go` with `check_archive_limit_test.go`, is committed too: `0e84b30083`,
+after three granted rounds (a blocker, then two test gaps, then clean). The
+paragraphs below are the record of how it got there.
 
 The blocker: a tar entry can declare itself sparse (PAX `GNU.sparse.*`
 records) with any logical size, and `archive/tar` fills the holes with zeros
@@ -124,8 +125,8 @@ check removed gives a raw "unexpected EOF"; `>` changed to `>=` refuses the
 exact-limit sparse entry; the declared-size check removed accepts the
 one-byte-over sparse entry. The code was restored and the package is green.
 Two notes from that round are applied: an unreachable negative-size guard is
-gone, and `archiveSizeLimit` is now `layerSizeLimit`. These additions have not
-been seen by a reviewer.
+gone, and `archiveSizeLimit` is now `layerSizeLimit`. A third round read those
+additions and was clean.
 
 The same round named three more unbounded reads of untrusted data in that
 package that predate this work and are not fixed: `scanImageArchive`
@@ -156,7 +157,9 @@ weakened-test check reads a doc comment that names `t.Fatalf` as a
 commented-out assertion; `git merge-base --is-ancestor` is refused as
 `git merge` (already journaled twice by other sessions).
 
-Next for lint-tooling, in order: review and land batch 5; fix the arm64
+The lint-tooling spec text does not record batch 5 yet.
+
+Next for lint-tooling, in order: record batch 5 in the spec; fix the arm64
 compile failure in `editorcase`; then the remaining 167 host-build findings by
 package, skipping files other sessions hold open
 (`internal/le/interoplab/ipsec`, `internal/le/test/qemu`,
