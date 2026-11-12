@@ -48,11 +48,39 @@ also changes a hook fixture and a second seal, `fixtureCatalogDigest`, whose
 value comes from `TestEveryStoredDigestMatchesTheTreeItRatchets`, and that
 test could not compile here while other sessions edited the tree.
 
-Next for lint-tooling, in order: record batches 2 and 3 in the spec; reword
-"Invalid Status" with its fixture and both seals on a tree that compiles; run
-the spec's own scoped lint on a still tree and fix what the repeat cap had
-hidden; then the closing review record. Every further review round, the
-closing one included, is the owner's to grant.
+Lint-tooling change 4 is written and tested but **not committed**: it waits
+for the owner to grant a review round. It rewords the "Invalid Status" refusal
+in `internal/le/spec/status/specstatus.go` `MetadataStatus` to "the metadata
+Status '%s' is not a declared status; use one of: %s", updates the one fixture
+row that names it in `internal/le/ai/hooks/fixture_catalog.go`
+(`validate-spec-verification-status-accepted`), and re-derives three seals in
+`internal/le/ai/hooks/fixtures.go`: `hookSourcesDigest`,
+`fixtureCatalogDigest` and `fixtureSiteDigest`, each with its re-derivation
+note. The values came from `TestEveryStoredDigestMatchesTheTreeItRatchets`.
+Evidence: `internal/le/ai/hooks` and `internal/le/spec/status` pass under race
+(`job-unit-pkg-d226cde8.log`); the hook self-test passes 30 of 30 on a build of
+the working tree. If another session commits into a sealed package before
+this lands, the seals must be read again.
+
+A defect met while doing it, verified at the producer and **not yet
+journaled**: hook fixture message expectations are never compared with hook
+output. `checkFixtureCategory` (`internal/le/ai/hooks/fixtures.go`) judges one
+allow probe and one refuse probe per category by verdict alone. Of 401 sites in
+`fixtureSites`, 78 declare 97 message expectations (contains, not-contains,
+equals, suffix), and one site is grounded against a real producer
+(`TestRenderedRuleNeedleMatchesProducer`). The row belongs in
+`plan/journal/negative-test-asserts-the-verdict-not-the-reason.md`. The spec
+whose mechanism fits is
+`plan/post-release/engineering/spec-harness-cannot-pass-on-its-own-failure.md`
+(status `design`), but it cannot be edited: it has no `## Existing Mechanisms`
+section, so it fails its own write gate, and a journal row with no owner is
+refused at commit. The owner decides which way: give that spec its missing
+section so it can own the row, or name another owner.
+
+Next for lint-tooling, in order: land change 4 after its review; record
+batches 2, 3 and 4 in the spec; run the spec's own scoped lint on a still tree
+and fix what the repeat cap had hidden; then the closing review record. Every
+further review round, the closing one included, is the owner's to grant.
 
 Two things this session got wrong, so the next one does not repeat them:
 
