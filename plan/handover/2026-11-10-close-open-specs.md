@@ -20,6 +20,37 @@ Access, refusal and lint-tooling. Eleven specs are closed.
 | lint-tooling | In progress, unclaimed between steps. The owner ruled that AC-1's "Zero findings" binds committed code in scope ("1 commited"); the spec records it as a ruling on this spec only. Batches `d3b523bb85` and `0b446895a2` are in. | The findings in the fixture files of `4c05449c18` are being fixed by their own session (those files are modified in the working tree as of 06:39): do not touch them. Owed here: the `fixture10Run` unparam in `plugin_fixture_10_process.go`; the capitalised-message candidates in `internal/le/interoplab/topology/check_conversion.go`, `internal/le/repo/objects/objects.go`, `internal/le/spec/status/specstatus.go`; the spec's own scoped lint, which plans only on a still tree (the owner's Mac did it for refusal); then the review record, which is past the round cap and needs the owner's words at a terminal |
 | route-policy | Unchanged. | The owner runs `plan/records/route-policy-0-a4-procedure.md` on the Mac |
 
+Lint-tooling batch 3 is written and tested but **not committed**: it waits for
+the owner to grant one more review round, because the spec is past the round
+cap. It is six files in the working tree
+(`tmp/session/2026-11-12-014013/scratch/lint3-batch3-files.txt`):
+`internal/test/fixture/plugin_fixture_10_process.go` and its `_test.go` (the
+`fixture10Run` unparam: nine callers, all in that file),
+`internal/le/interoplab/topology/check_conversion.go`,
+`internal/le/repo/objects/objects.go`,
+`internal/le/spec/status/specstatus.go` (one message) and
+`internal/le/ai/hooks/fixtures.go`.
+
+That last file repairs a red this session put at HEAD. `./le ai hooks unit`
+fails its `hook-source-drift` case since `d3b523bb85`: batch 1 changed two
+files in `internal/le/rfc`, which the hook source seal covers, and did not
+re-derive `hookSourcesDigest`. Batch 3 re-derives it for the committed tree
+plus its own one-line change in `internal/le/spec/status`. Until batch 3
+lands, that self-test case is red for every session.
+
+Evidence for batch 3: the five packages pass under race, `internal/test/fixture`
+with a native `le` on `PATH` (`job-unit-pkg-70f11c97.log`), and the hook
+self-test passes 30 of 30 on a build of the working tree
+(`job-lint3-hooks-unit-named-338dd3bf.log`). One capitalised message was left
+out of the batch on purpose, "Invalid Status" in `specstatus.go`: changing it
+also changes a hook fixture and a second seal, `fixtureCatalogDigest`, whose
+value comes from `TestEveryStoredDigestMatchesTheTreeItRatchets`, and that
+test could not compile here while other sessions edited the tree.
+
+When the owner grants the round: one bounded independent review of those six
+files, then commit them under the spec's claim, then record the batch in the
+spec.
+
 Two things this session got wrong, so the next one does not repeat them:
 
 - Ownership of a lint finding by `git blame` alone misses a finding the spec
