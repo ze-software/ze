@@ -565,6 +565,7 @@ Each phase is one commit that compiles and passes its own tests.
 | late-write-lands-on-the-successor | 2026-08-31 | `sendInitialRoutes` outlives teardown |
 | state-read-after-teardown-reset-it | 2026-10-11 | `Peer.run` backoff reset only on stop |
 | unwired-feature | 2026-10-13 | `addPeerLocked` passive peer gets no listener in standalone start |
+| green-that-could-not-have-been-red | 2026-11-13 | `TestPrefixBackoffReset` asserts a reset it performs itself |
 
 ## Rows found already fixed
 

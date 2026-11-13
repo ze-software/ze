@@ -123,4 +123,5 @@ job typed anywhere it can run.
 | `hook-existing-patterns-false-positive` | 2026-11-11 | `bashRawHeavy`, `rawHeavy` on a quoted `;`: prose after a `;` inside a `./le commit create` body read as a raw `go vet` |
 | `hook-existing-patterns-false-positive` | 2026-11-12 | `bashTestDeletion` line-wide words: a reader `for` loop's test paths read as targets of a later top-level `rm -f` |
 | `hook-existing-patterns-false-positive` | 2026-11-11 | `bashTestDeletion` line-wide words: test paths given to `git ls-tree` piped into `git update-index --index-info` read as targets of a scratch `rm -f` |
+| `hook-existing-patterns-false-positive` | 2026-11-12 | `bashTestDeletion` line-wide words: the word `rm` in a `./le commit create` here-document message read as deleting the `_test.go` files it names |
 | `hook-existing-patterns-false-positive` | 2026-11-12 | `bashTestDeletion` line-wide words: the `test/plugin/` destination of an `mv` from `test/draft/plugin/` read as the target of a scratch `rm -f` |
