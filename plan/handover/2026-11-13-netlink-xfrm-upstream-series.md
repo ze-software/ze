@@ -10,7 +10,7 @@ Mac that works on this checkout over ssh.
 | Thing | State on 2026-11-13 11:45 | Who holds it |
 |-------|---------------------------|--------------|
 | Forward-apply guard | Committed as `ce3a0e0fd7`: `TestPatchedVendorModulesMatchUpstream` now applies every patch forward | Done |
-| `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` | HEAD holds a sound two-file patch. The working tree holds a six-file patch that cannot be applied forward | Uncommitted work of `spec-rfc4301-architecture-gaps` |
+| `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` | HEAD holds a sound two-file patch. The working tree holds the six-file patch, repaired at 11:50 so it applies forward (below). Still uncommitted | Uncommitted work of `spec-rfc4301-architecture-gaps` |
 | Vendored netlink files | Three modified (`xfrm_policy_linux.go`, `xfrm_state_linux.go`, `nl/xfrm_linux.go`) and three untracked (`xfrm_state_scope_linux.go`, its test, `xfrm_selector_family_linux_test.go`) | Same |
 | `internal/component/ike/dataplane/xfrm_linux.go` | Modified, and it calls library functions that exist only in the uncommitted vendored files | Shared by the RFC 4301 and dual-form work |
 | Dual-form work | Uncommitted. Its commit was refused on one malformed row in `plan/journal/error-names-no-fix-command.md`. Handover: `plan/handover/2026-11-12-dual-form-spd-bypass.md` | A session was still writing its state file at 11:40 |
@@ -20,7 +20,7 @@ netlink file. The last commit that touched the vendored library is `e1f42c2ca4`
 (2026-11-10). The library part of RFC 4301 (the mapped IPv6 selector fix and the
 state scope) is NOT committed, whatever a report says.
 
-## The malformed patch
+## The malformed patch (repaired in the working tree)
 
 The generator `tmp/session/2026-11-10-225434/scratch/scope-wire-generate.py`
 builds the diff with Python's `difflib` and writes each `diff --git` line itself.
@@ -33,11 +33,20 @@ line, so git reads the three added files as a change to a file named `dev/null`.
 | `git apply --reverse --check` in the checkout | Passes |
 | Forward apply to pristine v1.3.1 | Refused, "error: dev/null: No such file or directory", three times |
 
-Fix: the generator emits `new file mode 100644` between the `diff --git` line and
-the `--- /dev/null` line when upstream has no such file, then the patch is
-regenerated under a new snapshot name (the generator refuses to overwrite its
-existing snapshot). Nothing else in the patch changes. Until then the
-vendorpatch package is red in the working tree, which is the guard working.
+Done at 11:50, uncommitted:
+
+- The three `new file mode 100644` lines were inserted into the patch, and nothing
+  else in it changed. `git apply --summary` now lists three creations, and
+  `./le test unit pkg path ./internal/le/vendorpatch/` is green (a real run, 1.4s).
+- The generator now emits that line when upstream has no such file, so a later
+  regeneration keeps it.
+- The patch and the generator as they were before are kept in
+  `tmp/session/2026-11-13-112345/scratch/` as
+  `netlink-xfrm-before-new-file-mode.patch` and
+  `scope-wire-generate.before-new-file-mode.py`. Remove them once the library
+  work is committed.
+
+The repaired patch belongs to the RFC 4301 library work and lands with it.
 
 ## Order of work
 
@@ -59,19 +68,19 @@ recommendation to approve all three. The spec has not been moved to `ready`.
 | Private kernel ABI (`XFRMA_STATE_SCOPE`, `XFRMA_ZE_CAPS`, the scope and capability types) | Moves into `internal/component/ike/dataplane`; the library keeps a generic attribute hook |
 | The single patch | Becomes an ordered series, one file per change |
 
-## Findings not yet written into the spec
+## Findings, now in the spec
 
-The spec edit was not made. A next session writes these into the spec's
-Assumptions and Risks tables.
+Written into the spec at 11:55 as A-1, A-5, A-6, R-9, R-10 and two Design
+Insights lines. The table stays here as the evidence trail.
 
 | Spec item | Finding | Evidence |
 |-----------|---------|----------|
 | A-1 | Half false. Upstream `main` (at `e0e26cd`) has not fixed the selector family and sets no state flag but ESN, so no patch is redundant. It HAS been reshaped: `pkgHandle` became a `pkgHandle()` call, and `XFRMA_SA_PCPU` is no longer sent on get or delete. No release follows v1.3.1 | `diff` of the three files at v1.3.1 against `raw.githubusercontent.com/vishvananda/netlink/main` |
 | A-5 | Confirmed. No Ze producer installs a selector with a source and no destination; an unrestricted side is always an explicit zero prefix | Trace of `childPairPolicy` and its fallback, `newRekeyedChild`, `inboundStateSelector`, `spdPolicyDirection`, the configured traffic selectors, `ikeBypassPolicies`, `spdCatchAllEntries`, `xfrmInterfaceExemptions`, `xfrmStateScopeFromParams`, OSPF's `buildIPsecSA` and `buildIPsecPolicies`, and the helpers `intersectNet`, `rangePrefixes`, `leaseHostIn`. Nothing at the library boundary refuses one, so the fix stays in the series |
 | A-6 | Confirmed. The kernel refuses an `AF_INET` selector with a prefix length above 32 with `-EINVAL` and "Invalid prefix length in selector (must be <= 32 for IPv4)", on policy add (`verify_newpolicy_info`) and on state add (`verify_selector_prefixlen` from `verify_newsa_info`) | `net/xfrm/xfrm_user.c` in Linux 7.3, the version `internal/appliance/kernel.version` pins. Present in mainline from v4.19, absent in v4.18. Not read: the introducing commit and stable backports |
-| New risk | A patch against v1.3.1 equals its pull request against `main` byte for byte only where `main` left the surrounding lines alone. The spec's goal of byte-identical patches holds for some patches only. Each patch records whether it applies to `main` unchanged; where it does not, the pull request branch is the source and the Ze patch is the same change rebased onto v1.3.1 | The A-1 comparison |
-| New risk | Upstream issue 1213 of `vishvananda/netlink` ("xfrm: three bugs in state read-back, replay window and template family"), opened by Thomas on 2026-08-25 with three diffs against `main` at `156a440`, already proposes three fixes this patch carries: the ESN flag and replay window on read-back, the replay window cut to 32, and the template family. It is open with no maintainer answer. The patch's leading text and the spec do not mention it. The series starts from those three diffs and names the issue | The issue and its one comment |
-| Bookkeeping | The owned journal row (`green-that-could-not-have-been-red.md`, 2026-11-13, the guard that only reverses) is fixed by `ce3a0e0fd7`, and AC-13 is already met. The spec still lists both as open | The report of the session that made that commit |
+| R-9 | A patch against v1.3.1 equals its pull request against `main` byte for byte only where `main` left the surrounding lines alone. The spec's goal of byte-identical patches holds for some patches only. Each patch records whether it applies to `main` unchanged; where it does not, the pull request branch is the source and the Ze patch is the same change rebased onto v1.3.1 | The A-1 comparison |
+| R-10 | Upstream issue 1213 of `vishvananda/netlink` ("xfrm: three bugs in state read-back, replay window and template family"), opened by Thomas on 2026-08-25 with three diffs against `main` at `156a440`, already proposes three fixes this patch carries: the ESN flag and replay window on read-back, the replay window cut to 32, and the template family. It is open with no maintainer answer. The patch's leading text and the spec do not mention it. The series starts from those three diffs and names the issue | The issue and its one comment |
+| Bookkeeping | The owned journal row (`green-that-could-not-have-been-red.md`, 2026-11-13, the guard that only reverses) is fixed by `ce3a0e0fd7`, and AC-13 is already met. The spec no longer lists the row as owned, and Design Insights says AC-13 is met | The report of the session that made that commit |
 
 ## Still unvalidated in the spec
 
