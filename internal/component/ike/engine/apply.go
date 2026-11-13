@@ -76,10 +76,12 @@ func natTraversalMobile() bool {
 // TerminateAllSAs deletes from that map and calls reEstablishFn, and the reconcile then
 // sees the peer absent and starts a fresh session (TestTerminateAllSAsReinitiates).
 type ikeEngineState struct {
-	table   *SATable
-	peers   map[string]*PeerSession
-	metrics *IPsecMetrics
-	log     *slog.Logger
+	// issueRaiser reaches the daemon report bus in either plugin process mode.
+	issueRaiser espFormIssueRaiser
+	table       *SATable
+	peers       map[string]*PeerSession
+	metrics     *IPsecMetrics
+	log         *slog.Logger
 
 	// applyMu serializes every writer of this state: an apply, the deferred startup
 	// reconcile, and the address worker's re-plan.
@@ -782,5 +784,5 @@ func (s *ikeEngineState) releaseSPD(dp dataplane.Dataplane, log *slog.Logger) {
 	if warnSPDLeft(dp, log) {
 		return
 	}
-	removeUnmatched(dp, log)
+	removeUnmatched(dp, log, s.issueRaiser)
 }

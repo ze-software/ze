@@ -23,7 +23,7 @@ an unconfigured source remains a separate remote-access gap; it does not mean
 the responder or EAP server is absent.
 
 VPP SA installation uses `vppBackend.InstallSA` (`dataplane/vpp.go`), while
-`childPolicyParams` (`engine/child.go`) leaves `IfIndex` unset and
+`childPairPolicy` (`engine/child.go`) leaves `IfIndex` unset and
 `vppPolicyInterface` (`dataplane/vpp_policy.go`) refuses that policy. SA
 install/read-back therefore does not establish an operator-usable VPP tunnel.
 
@@ -305,11 +305,18 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
   `runEngine` start, `engine/register.go`); `createFirstChildSA` then silently skips
   the kernel install and only logs at Debug (`child.go`), easy to mistake
   for a working tunnel with zero SAs actually in the kernel.
-- **`SAParams.Sel` / `SPParams.IfIndex`/`UpperProto` are OSPFv3-only fields.** IKE
-  Child SAs always leave `Sel` nil and `IfIndex`/`UpperProto` zero
-  (`child.go` never sets them); only the OSPFv3 manual-keyed IPsec-AH path
-  populates them to scope a shared
-  wildcard SA to one interface/protocol. Do not assume IKE ever sets a selector.
+- **IKE uses state and policy selectors.** `childPairPolicy` projects each
+  negotiated protocol and port constraint into `SPParams.UpperProto`,
+  `SrcPort` and `DstPort`; protocol 0 still means any protocol. Child policies
+  leave `IfIndex` unset and use `IfID` for the XFRM interface's SPD. In
+  `installChildDataplane`, transport-mode inbound states carry `SAParams.Sel`.
+  A tunnel inbound state also carries its own immutable selector when the
+  backend declares `InboundStateSelectorInstaller` and
+  `tunnelStateSelectorSupported` finds one concrete same-family policy.
+  Multiple-pair tunnels retain their complete policy set, with general per-SA
+  binding still open. Outbound tunnel states keep `Sel` nil so the outer family
+  does not constrain inner-family resolution. OSPFv3 manual-keyed AH also uses
+  these fields, but is not their only producer.
 - **Filename collision trap.** `internal/plugins/iface/netlink/xfrm_linux.go`
   creates/queries XFRM *interface* devices (if_id, parent link) for the `iface`
   component; `dataplane/xfrm_linux.go` (this subsystem) installs *SA/policy* state

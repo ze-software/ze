@@ -200,6 +200,9 @@ func (b *vppBackend) firstFreeSadID() (uint32, error) {
 // bidirectional SA (plugins/ospf/ipsec_install.go, buildIPsecSA), which VPP cannot
 // express at all.
 func vppUnsupportedSA(p SAParams) error {
+	if p.Scope != nil {
+		return fmt.Errorf("%w: vpp cannot enforce an explicit SA state scope because its SAD entry has no selector-set field; installing it would omit the scope", ErrSAOptionRefused)
+	}
 	if p.Dir != SADirIn && p.Dir != SADirOut {
 		return fmt.Errorf(
 			"%w: vpp: SA direction %d names neither inbound (%d) nor outbound (%d), and an ipsec_sad_entry_v3 carries one direction; installing it would program an outbound SA that never decrypts",

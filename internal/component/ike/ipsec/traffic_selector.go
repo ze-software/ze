@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // sortedPeerNames orders the peer map so a config with two faults always reports the
@@ -75,6 +76,71 @@ func AnyPort() PortSelector { return PortSelector{Form: PortAny} }
 // 4301 Section 4.4.1.1. OPAQUE is NOT any: it says the field could not be read, and
 // reading it as "every port" would widen a rule to traffic nobody named.
 func (p PortSelector) IsAny() bool { return p.Form == PortAny }
+
+// ValidForProtocol checks the wire meaning, independently of backend support.
+// RFC 7296 Section 3.13.1: "For protocols for which port is undefined (including
+// protocol 0), or if all ports are allowed, this field MUST be zero."
+// End Port: "For protocols for which port is undefined (including protocol 0),
+// or if all ports are allowed, this field MUST be 65535."
+//
+// Traffic Selector substructure, RFC 7296 Section 3.13.1 (byte offsets):
+//
+//	0       1          2                 4                 6               8
+//	+-------+----------+-----------------+-----------------+---------------+
+//	| Type  | Protocol | Selector Length | Start Port      | End Port      |
+//	+-------+----------+-----------------+-----------------+---------------+
+//	| Starting Address, then Ending Address (4 or 16 bytes each)           |
+//	+--------------------------------------------------------------------+
+//
+// For MH, each two-byte port is [Type][0]. Port retains that IKE value.
+func (p PortSelector) ValidForProtocol(proto uint8) bool {
+	switch p.Form {
+	case PortAny, 0:
+		return true
+	case PortSingle, PortOpaque:
+		if protocolCarriesPorts(proto) {
+			return true
+		}
+		if dataplane.IsICMPProto(proto) {
+			return true
+		}
+		if proto == MobilityHeaderProtocol {
+			if p.Form == PortOpaque {
+				return true
+			}
+			// RFC 7296 Section 3.13.1: "MIPv6 MH Type values are treated as a
+			// single 16-bit integer port number, with Type in the most significant
+			// eight bits and the least significant eight bits set to zero."
+			return p.Port&0xff == 0
+		}
+	}
+	return false
+}
+
+// ProgrammableForProtocol additionally checks what the Linux classifier can
+// select. include/net/xfrm.h, xfrm_flowi_sport/dport handle UDP-Lite but omit
+// DCCP. Linux7.3 decode_session6 does not fill the MH Type either: actual
+// incoming/forward probes deliver ANY MH but drop a matching exact Type.
+// OPAQUE has no dataplane mapping. The legacy unset form retains the
+// ANY meaning Wire gives it; config verification separately rejects that form.
+func (p PortSelector) ProgrammableForProtocol(proto uint8) bool {
+	// RFC 7296 Section 3.13.1
+	if !p.ValidForProtocol(proto) {
+		return false
+	}
+	switch p.Form {
+	case PortAny, 0:
+		return true
+	case PortSingle:
+		switch proto {
+		case protoDCCP, MobilityHeaderProtocol:
+			return false
+		}
+		return true
+	default:
+		return false
+	}
+}
 
 // Wire returns the start and end port octet pair RFC 7296 Section 3.13.1 requires for
 // this form. It is the single producer of that encoding, so the three MUSTs of Section
@@ -371,6 +437,25 @@ func checkPortProgrammable(peerName, number, side string, p PortSelector, proto 
 		if proto == 0 {
 			return fmt.Errorf("%w: peer %q traffic-selector %q: %s port %d needs a protocol, because RFC 7296 Section 3.13.1 requires the port fields to be 0 and 65535 whenever the protocol is 0; set protocol to 6 (tcp), 17 (udp), or another protocol that defines ports, or set the port to any",
 				ErrTrafficSelectorPolicy, peerName, number, side, p.Port)
+		}
+		fix := fmt.Sprintf("set vpn ipsec site-to-site peer %q traffic-selector %s %s port any", peerName, number, side)
+		if !p.ValidForProtocol(proto) {
+			why := fmt.Sprintf("protocol %d defines no port selector; RFC 7296 Section 3.13.1 requires ANY ports for protocols with undefined ports", proto)
+			if proto == MobilityHeaderProtocol {
+				why = "RFC 7296 Section 3.13.1 puts the MH Type in the high octet and requires the low octet to be zero; type 5 is port 1280"
+			}
+			return opererr.Wrap(ErrTrafficSelectorPolicy,
+				fmt.Sprintf("peer %q traffic-selector %q: %s port %d is invalid for protocol %d", peerName, number, side, p.Port, proto), why, fix)
+		}
+		if !p.ProgrammableForProtocol(proto) {
+			if proto == MobilityHeaderProtocol {
+				return opererr.Wrap(ErrTrafficSelectorPolicy,
+					fmt.Sprintf("peer %q traffic-selector %q: %s names a specific IPv6 Mobility Header Type", peerName, number, side),
+					"Linux's receive-flow decoder does not fill the MH Type used by XFRM; a policy naming an exact Type drops even matching received and forwarded packets, so Ze cannot program this selector exactly", fix)
+			}
+			return opererr.Wrap(ErrTrafficSelectorPolicy,
+				fmt.Sprintf("peer %q traffic-selector %q: %s names a specific DCCP port", peerName, number, side),
+				"DCCP defines ports, but Linux XFRM does not copy DCCP ports into its flow selector, so the negotiated port cannot be installed exactly", fix)
 		}
 		return nil
 	case PortOpaque:

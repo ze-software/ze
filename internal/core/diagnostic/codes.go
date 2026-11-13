@@ -82,6 +82,7 @@ const (
 	CodeDoctorIPsecESPFormFirewall                 = "doctor-ipsec-esp-form-firewall"
 	CodeDoctorIPsecESPFormOffload                  = "doctor-ipsec-esp-form-offload"
 	CodeDoctorIPsecESPFormOffloadUnknown           = "doctor-ipsec-esp-form-offload-unknown"
+	CodeDoctorIPsecForwardDefault                  = "doctor-ipsec-forward-default"
 	CodeDoctorIPsecChildInstallRefused             = "doctor-ipsec-child-install-refused"
 	CodeDoctorDaemonCapabilityMissing              = "doctor-daemon-capability-missing"
 	CodeDoctorIPsecImplicitDiscard                 = "doctor-ipsec-implicit-discard"
@@ -1216,6 +1217,12 @@ var builtinCodes = append([]CodeMeta{
 			"its module list readable in the engine's namespace. A kernel without module support and ESP GRO " +
 			"built into the kernel require a separate check of the kernel's build configuration.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-esp-form-offload-unknown"},
+	},
+	{
+		Code:        CodeDoctorIPsecForwardDefault,
+		Title:       "IPsec forwarding-default dependency or restoration failed",
+		Description: "The IKE process cannot read or restore its namespace's final forwarding disposition, or another policy manager changed the value it holds.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-forward-default"},
 	},
 	{
 		Code:  CodeDoctorIPsecChildInstallRefused,

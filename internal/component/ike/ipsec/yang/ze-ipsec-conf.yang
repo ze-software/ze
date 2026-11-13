@@ -1298,7 +1298,16 @@ module ze-ipsec-conf {
                                              RFC 7296 Section 3.13.1 requires the port fields to be 0 and
                                              65535 whenever the protocol is 0 or defines no port, so a
                                              value other than any needs the protocol leaf to name a
-                                             protocol that has ports.";
+                                             protocol that has ports. Linux accepts specific TCP, UDP,
+                                             SCTP and UDP-Lite ports. A DCCP-specific port is refused
+                                             because XFRM cannot select it. For ICMP the number is
+                                             type times 256 plus code; for Mobility Header protocol
+                                             135 it is Type times 256, with a zero low octet, so MH
+                                             Type 5 has wire value 1280. Ze refuses every specific MH
+                                             Type because the Linux receive-flow decoder does not
+                                             extract it for exact classification; port any remains
+                                             usable. VPP also refuses constrained MH and UDP-Lite
+                                             selectors because its SPD ignores those fields.";
                                 ze:help
                                     "Local port of the selector.";
                             }
@@ -1332,7 +1341,9 @@ module ze-ipsec-conf {
                                 }
                                 default any;
                                 description "It follows the same rule as the local port: a value other
-                                             than any needs the protocol leaf.";
+                                             than any needs the protocol leaf. The ICMP type/code,
+                                             MH high-octet Type encoding and backend limits stated
+                                             on the local port apply here too.";
                                 ze:help
                                     "Remote port of the selector.";
                             }

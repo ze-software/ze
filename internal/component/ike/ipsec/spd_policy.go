@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -407,6 +408,12 @@ func (p SPDPolicy) validate() error {
 					"Set protocol to 6 (TCP), 17 (UDP) or 132 (SCTP), or set both ports to any",
 				ErrSPDPolicy, p.Name, p.Protocol)
 		}
+		if p.Protocol == protoDCCP {
+			return opererr.Wrap(ErrSPDPolicy,
+				fmt.Sprintf("policy %q names a specific DCCP port", p.Name),
+				"DCCP defines ports, but Linux XFRM does not copy DCCP ports into its flow selector, so this policy cannot select that port exactly",
+				fmt.Sprintf("set vpn ipsec policy %q local port any; set vpn ipsec policy %q remote port any", p.Name, p.Name))
+		}
 	}
 
 	return p.validateICMP()
@@ -537,20 +544,26 @@ func icmpFamilyOf(prefix *net.IPNet) icmpFamily {
 }
 
 // protocolCarriesPorts reports whether an IP protocol number names a transport that
-// has port fields. RFC 4301 Section 4.4.1.1 names the three: "Local Port ... TCP/UDP/
-// SCTP source port".
+// has port fields. RFC 4301 Section 4.4.1.1 names TCP, UDP and SCTP; DCCP
+// (RFC 4340 Section 5.1) and UDP-Lite (RFC 3828 Section 3.1) define them too.
+// This says what the protocol defines, independently of backend support.
 func protocolCarriesPorts(proto uint8) bool {
 	switch proto {
-	case protoTCP, protoUDP, protoSCTP:
+	case protoTCP, protoUDP, protoDCCP, protoSCTP, protoUDPLite:
 		return true
 	}
 	return false
 }
 
-// IP protocol numbers of the three transports RFC 4301 Section 4.4.1.1 names as
-// carrying ports (IANA "Protocol Numbers" registry).
+// IP protocol numbers of transports with defined ports, plus Mobility Header's
+// special Type selector (IANA "Protocol Numbers" registry).
 const (
-	protoTCP  uint8 = 6
-	protoUDP  uint8 = 17
-	protoSCTP uint8 = 132
+	protoTCP     uint8 = 6
+	protoUDP     uint8 = 17
+	protoDCCP    uint8 = 33
+	protoSCTP    uint8 = 132
+	protoUDPLite uint8 = 136
+	// MobilityHeaderProtocol carries an MH Type in the high octet of the IKE
+	// port value, per RFC 7296 Section 3.13.1, rather than transport ports.
+	MobilityHeaderProtocol uint8 = 135
 )

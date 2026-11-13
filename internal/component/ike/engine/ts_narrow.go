@@ -141,6 +141,14 @@ func narrowSelectors(proposedI, proposedR []tsSelector, policy, floor []tsPair) 
 // combination whose two protocols are disjoint, or that pairs an IPv4 selector with an
 // IPv6 one, matches no packet, so it yields nothing.
 func acceptablePairs(proposed tsPair, policy []tsPair) []tsPair {
+	// Validate the received meaning before policy intersection can replace protocol
+	// ANY with TCP and conceal a prohibited specific port under protocol zero.
+	if !proposed.I.Port.ValidForProtocol(proposed.I.Proto) {
+		return nil
+	}
+	if !proposed.R.Port.ValidForProtocol(proposed.R.Proto) {
+		return nil
+	}
 	if _, ok := intersectProto(proposed.I.Proto, proposed.R.Proto); !ok {
 		return nil
 	}
@@ -375,9 +383,9 @@ func programmableSelector(s tsSelector) (tsSelector, bool) {
 		return tsSelector{}, false
 	}
 	// RFC 7296 Section 3.13.1 requires the port fields to be 0 and 65535 when the
-	// protocol defines no port. A specific or opaque port under protocol 0 could not be
+	// protocol defines no port. A specific or opaque port under such a protocol cannot be
 	// encoded conformantly, so it is narrowed away rather than emitted.
-	if s.Proto == 0 && s.Port.Form != ipsec.PortAny {
+	if !s.Port.ProgrammableForProtocol(s.Proto) {
 		return tsSelector{}, false
 	}
 	// OPAQUE ports have no dataplane mapping yet: OPAQUE names a port that is not
@@ -513,6 +521,9 @@ func wireToSelectors(list []wire.TrafficSelector) []tsSelector {
 			}
 			port = ipsec.PortSelector{Form: ipsec.PortSingle, Port: ts.StartPort}
 		}
+		if !port.ValidForProtocol(ts.IPProtocol) {
+			continue
+		}
 		out = append(out, tsSelector{Net: n, Port: port, Proto: ts.IPProtocol})
 	}
 	return out
@@ -571,6 +582,9 @@ func prefixLastAddr(ip net.IP, mask net.IPMask) string {
 func selectorsToWire(sels []tsSelector, payloadType uint8) *wire.PayloadTS {
 	out := make([]wire.TrafficSelector, 0, len(sels))
 	for _, s := range sels {
+		if !s.Port.ValidForProtocol(s.Proto) {
+			return nil
+		}
 		start, end := netRange(s.Net)
 		if start == nil {
 			continue
@@ -993,6 +1007,10 @@ func answerSelectors(list []wire.TrafficSelector, payload string) ([]tsSelector,
 		if !ok {
 			return nil, fmt.Errorf("%w: %s port range %d-%d has no exact dataplane form",
 				errTSUnusable, payload, ts.StartPort, ts.EndPort)
+		}
+		if !port.ValidForProtocol(ts.IPProtocol) {
+			return nil, fmt.Errorf("%w: %s port range %d-%d is invalid for protocol %d",
+				errTSUnusable, payload, ts.StartPort, ts.EndPort, ts.IPProtocol)
 		}
 		nets, ok := rangePrefixes(ts.StartAddress, ts.EndAddress, answerPairsMax)
 		if !ok {

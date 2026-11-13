@@ -27,6 +27,8 @@ import (
 	"go.fd.io/govpp/binapi/ipsec"
 	"go.fd.io/govpp/binapi/ipsec_types"
 	"go.fd.io/govpp/binapi/tunnel_types"
+
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // capturingChannel is an api.Channel that records what the backend sent and leaves
@@ -858,15 +860,62 @@ func TestVPPInstallPolicyBypass(t *testing.T) {
 
 // A port selector that is neither every port nor exactly one is REFUSED, because an
 // SPD entry carries a contiguous range.
+//
+// The policy names UDP because VPP's SPD compares ports only for TCP, UDP and SCTP:
+// under any other protocol a constrained port is refused earlier, by
+// vppICMPSelectorError, and the range conversion this test proves is never reached
+// (TestVPPInstallPolicyAnyProtocolPortRefused covers that input).
 func TestVPPInstallPolicyPartialPortMaskRefused(t *testing.T) {
 	b, ch := installedPolicyBackend(t)
 	p := testSPParams()
+	p.UpperProto = 17 // UDP
 	p.DstPort = PortMatch{Port: 500, Mask: 0xff00}
 	if err := b.InstallPolicy(p); !errors.Is(err, ErrNotSupported) {
 		t.Errorf("InstallPolicy error = %v, want ErrNotSupported", err)
 	}
 	if len(ch.sent) != 0 {
 		t.Errorf("sent %d messages, want none", len(ch.sent))
+	}
+}
+
+// VALIDATES: a policy for every protocol (UpperProto 0) that constrains a port, by a
+// partial mask or by one exact port, is REFUSED with ErrSAOptionRefused and never
+// ErrNotSupported, and nothing is sent to VPP.
+// PREVENTS: an entry that VPP would match on every packet of every protocol, because
+// its SPD compares ports only for TCP, UDP and SCTP (vppICMPSelectorError), and a
+// refusal the engine would read as a platform without IPsec (isXFRMUnsupported).
+// Method: each selector on each side, through InstallPolicy on a backend holding the SA.
+func TestVPPInstallPolicyAnyProtocolPortRefused(t *testing.T) {
+	selectors := []struct {
+		name string
+		port PortMatch
+	}{
+		{"partial mask", PortMatch{Port: 500, Mask: 0xff00}},
+		{"exact port", ExactPortMatch(500)},
+	}
+	for _, sel := range selectors {
+		for _, remote := range []bool{false, true} {
+			b, ch := installedPolicyBackend(t)
+			p := testSPParams()
+			p.UpperProto = 0
+			p.SrcPort = sel.port
+			if remote {
+				p.SrcPort, p.DstPort = AnyPortMatch(), sel.port
+			}
+			err := b.InstallPolicy(p)
+			if !errors.Is(err, ErrSAOptionRefused) {
+				t.Errorf("%s remote=%v: InstallPolicy error = %v, want ErrSAOptionRefused", sel.name, remote, err)
+			}
+			if errors.Is(err, ErrNotSupported) {
+				t.Errorf("%s remote=%v: refusal looks like a platform without IPsec: %v", sel.name, remote, err)
+			}
+			if _, ok := errors.AsType[*opererr.Error](err); !ok {
+				t.Errorf("%s remote=%v: refusal %T lacks an operator repair", sel.name, remote, err)
+			}
+			if len(ch.sent) != 0 {
+				t.Errorf("%s remote=%v: sent %d messages, want none", sel.name, remote, len(ch.sent))
+			}
+		}
 	}
 }
 

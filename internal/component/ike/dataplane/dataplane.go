@@ -261,15 +261,18 @@ func planStateAlgos(p SAParams) xfrmAlgoPlan {
 // is not known at install time. Src/Dst are prefixes (::/0 = any); UpperProto is the
 // upper-layer protocol (0 = any, 89 = OSPF).
 //
-// A transport-mode IKE Child SA carries its negotiated selector here too (RFC 4301
-// Section 4.4.2, engine/child.go installChildSA). SrcPort and DstPort are the port half
-// of that selector, and their zero value matches every port.
+// IKE uses this for a transport-mode inbound state and, on a backend that declares
+// InboundStateSelectorInstaller, a tunnel-mode inbound state with one representable
+// pair (RFC 4301 Section 4.4.2, engine/child.go installChildDataplane). SrcPort and
+// DstPort are the port half of that selector; their zero value matches every port.
 type SASelector struct {
 	Src        *net.IPNet
 	Dst        *net.IPNet
 	UpperProto uint8
 	SrcPort    PortMatch
 	DstPort    PortMatch
+	// IfIndex is the selector's kernel interface index, independent of an SA's IfID.
+	IfIndex int
 }
 
 // SAParams describes an ESP Security Association to install in the kernel or VPP.
@@ -329,12 +332,17 @@ type SAParams struct {
 
 	// Sel, when non-nil, installs an explicit XFRM state selector (x->sel) so the
 	// kernel resolves this SA for any flow matching the selector, not only for flows
-	// whose daddr equals Dst. A tunnel-mode IKE Child SA leaves Sel nil: the inbound
-	// require-policy enforces its selectors, because Linux drops a decapsulated packet
-	// that matches no inbound policy when its secpath holds a tunnel-mode state. A
-	// transport-mode IKE Child SA sets it on the inbound state, because a transport-only
-	// secpath passes that policy check (engine/child.go installChildSA).
+	// whose daddr equals Dst. IKE sets it on a transport-mode inbound state and, when
+	// InboundStateSelectorInstaller declares support, a tunnel-mode inbound state of
+	// one concrete same-family pair. This binds reception to that state's own scope
+	// before a sibling's policy can match. Multiple-pair tunnel states still leave it
+	// nil: one selector cannot represent their arbitrary negotiated set. The outbound
+	// tunnel state remains unconstrained here so its policies select the inner family.
 	Sel *SASelector
+
+	// Scope is the complete directional set of canonical kernel selectors. Nil
+	// retains the existing Sel contract for direct and manually keyed callers.
+	Scope *SAStateScope
 
 	// NAT-T UDP encapsulation (RFC 3948).
 	UDPEncap      bool
@@ -632,6 +640,11 @@ type SAInfo struct {
 	OptionsRead bool
 	Options     SAOptions
 
+	// StateScopeRead distinguishes an inspected legacy state (nil Scope) from a
+	// backend that did not inspect scope data. A failed conversion refuses the dump.
+	StateScopeRead bool
+	Scope          *SAStateScope
+
 	// Dir is the direction the dataplane itself records for the SA: SADirIn or
 	// SADirOut from the kernel's XFRMA_SA_DIR attribute. The zero value means the
 	// dataplane holds no direction, which is the answer for every state installed
@@ -723,6 +736,40 @@ type TunnelMigration struct {
 // keys. Inbound ESP continues to accept both wire forms independently of NATDetected.
 type TunnelMigrator interface {
 	MigrateTunnel(TunnelMigration) error
+}
+
+// ForwardDefaultInstaller uses a namespace FWD default instead of explicit forward
+// catch-alls, so a backend's ICMP payload lookup can run before the final disposition.
+// IN/OUT defaults MUST remain unchanged. Wrappers MUST forward the strategy query;
+// implementing the interface alone must not advertise it for an unsupported backend.
+type ForwardDefaultInstaller interface {
+	UsesForwardDefault() bool
+	// ApplyForwardDefault snapshots the original FWD value only on the first claim.
+	// Its undo restores the preceding apply if another final-entry install fails and
+	// MUST be called before another apply. Errors retain any unrestored claim.
+	ApplyForwardDefault(SPAction) (undo func() error, err error)
+	// ReleaseForwardDefault restores the original value only after all Ze SPD entries
+	// are removed. It MUST refuse an observed external change rather than overwrite it.
+	ReleaseForwardDefault() error
+}
+
+// ForwardDefaultChecker reads the host dependency and any held namespace claim.
+// It changes no policy or ownership and returns an operator error when unreadable
+// or when another policy manager changed the value Ze holds.
+type ForwardDefaultChecker interface {
+	CheckForwardDefault() error
+}
+
+// InboundStateSelectorInstaller is an optional declaration that a backend accepts
+// and enforces SAParams.Sel on an inbound tunnel state. The engine MUST populate
+// only an exactly representable negotiated pair; the backend MUST enforce every
+// selector field before accepting decrypted traffic. Transport-mode selectors keep
+// their existing mandatory contract independently of this declaration.
+//
+// An undeclared backend keeps its existing policy-installation path. This is not a
+// declaration that its policies provide per-SA selector isolation.
+type InboundStateSelectorInstaller interface {
+	InboundStateSelectorSupported() bool
 }
 
 // CatchAllInstaller is implemented by a backend that states, ahead of any install,

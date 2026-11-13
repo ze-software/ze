@@ -151,6 +151,44 @@ func sadSelStat(t *testing.T, name string) int {
 	return 0
 }
 
+// sadSelDropCounters keeps the diagnostic observations separate from the assertions.
+type sadSelDropCounters struct {
+	stateMismatch, noPols, polBlock int
+}
+
+// sadSelReadDropCounters uses the caller's namespace-specific counter reader.
+func sadSelReadDropCounters(t *testing.T, stat func(*testing.T, string) int) sadSelDropCounters {
+	t.Helper()
+	return sadSelDropCounters{
+		stateMismatch: stat(t, sadSelStatStateMismatch),
+		noPols:        stat(t, sadSelStatNoPols),
+		polBlock:      stat(t, inStepStatPolBlock),
+	}
+}
+
+// sadSelLogDropCounters records the rejection stage without changing any expectation.
+func sadSelLogDropCounters(t *testing.T, row string, before, after sadSelDropCounters) {
+	t.Helper()
+	t.Logf("%s: XfrmInStateMismatch before=%d after=%d delta=%d", row, before.stateMismatch, after.stateMismatch, after.stateMismatch-before.stateMismatch)
+	t.Logf("%s: XfrmInNoPols before=%d after=%d delta=%d", row, before.noPols, after.noPols, after.noPols-before.noPols)
+	t.Logf("%s: XfrmInPolBlock before=%d after=%d delta=%d", row, before.polBlock, after.polBlock, after.polBlock-before.polBlock)
+}
+
+// sadSelWantDropCounters pins the measured rejection stage without accepting alternatives.
+func sadSelWantDropCounters(t *testing.T, row string, before, after, want sadSelDropCounters) {
+	t.Helper()
+	sadSelLogDropCounters(t, row, before, after)
+	if got := after.stateMismatch - before.stateMismatch; got != want.stateMismatch {
+		t.Errorf("%s: XfrmInStateMismatch moved by %d, want %d", row, got, want.stateMismatch)
+	}
+	if got := after.noPols - before.noPols; got != want.noPols {
+		t.Errorf("%s: XfrmInNoPols moved by %d, want %d", row, got, want.noPols)
+	}
+	if got := after.polBlock - before.polBlock; got != want.polBlock {
+		t.Errorf("%s: XfrmInPolBlock moved by %d, want %d", row, got, want.polBlock)
+	}
+}
+
 // sadSelChild installs one Child SA through createFirstChildSA over the real XFRM backend.
 // The negotiated pair is UDP, local port 5000, between tsLocal and tsRemote.
 func sadSelChild(t *testing.T, transportMode bool, tsLocal, tsRemote string) *ChildSA {
@@ -340,19 +378,22 @@ func sadSelDelivered(t *testing.T, conn *net.UDPConn) bool {
 // negotiated ones, as enforced for every decapsulated packet. Method: a tunnel-mode Child SA
 // negotiated for UDP from 10.1.0.0/16 to local port 5000 of 10.2.0.0/16; then one inner
 // packet inside the selectors (delivered), and one each outside them by source address, by
-// port and by protocol (each dropped as XfrmInNoPols, none delivered).
+// port and by protocol (each dropped by the SA selector as XfrmInStateMismatch before
+// the SPD lookup, none delivered, with XfrmInNoPols and XfrmInPolBlock unchanged).
 func TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy(t *testing.T) {
 	// RFC requirement: RFC4301-4.4.2-1 positive -- a tunnel-mode inbound packet whose inner
 	// source, protocol and destination port are the negotiated ones is decrypted and
 	// delivered, through the inbound policy createFirstChildSA installs.
 	// RFC requirement: RFC4301-4.4.2-1 negative -- a tunnel-mode inbound packet outside the
 	// negotiated selectors by inner source address, destination port or protocol is dropped
-	// by the kernel (XfrmInNoPols) and never delivered.
+	// by the SA selector before SPD lookup (XfrmInStateMismatch +1, XfrmInNoPols and
+	// XfrmInPolBlock unchanged) and never delivered.
 	// RFC requirement: RFC4301-5.2-2 positive -- after ESP processing on the tunnel-mode SA,
 	// an inner packet matching the SA's inbound selectors is delivered.
 	// RFC requirement: RFC4301-5.2-2 negative -- after ESP processing on the tunnel-mode SA,
 	// an inner packet not matching the SA's inbound selectors by source address, destination
-	// port or protocol is dropped (XfrmInNoPols) and never delivered.
+	// port or protocol is dropped by its own SA selector (XfrmInStateMismatch +1,
+	// XfrmInNoPols and XfrmInPolBlock unchanged) and never delivered.
 	if !sadSelOwnNamespace(t) {
 		return
 	}
@@ -377,7 +418,7 @@ func TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy(t *testi
 		{"protocol outside the pair", sadSelIPv4(sadSelInnerRemote, sadSelProtoICMP, sadSelICMPEcho()), nil},
 	}
 	for _, tc := range cases {
-		before := sadSelStat(t, sadSelStatNoPols)
+		observedBefore := sadSelReadDropCounters(t, sadSelStat)
 		sender.send(t, sadSelProtoIPv4, tc.packet)
 		if tc.listener != nil && sadSelDelivered(t, tc.listener) {
 			t.Errorf("%s: the packet was delivered", tc.name)
@@ -385,9 +426,7 @@ func TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy(t *testi
 		if tc.listener == nil {
 			time.Sleep(200 * time.Millisecond)
 		}
-		if got := sadSelStat(t, sadSelStatNoPols) - before; got != 1 {
-			t.Errorf("%s: %s moved by %d, want 1 (dropped by the inbound require-policy)", tc.name, sadSelStatNoPols, got)
-		}
+		sadSelWantDropCounters(t, tc.name, observedBefore, sadSelReadDropCounters(t, sadSelStat), sadSelDropCounters{stateMismatch: 1})
 	}
 }
 

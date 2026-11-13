@@ -14,13 +14,16 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
-// unmatchedDirections are the three halves of the database the catch-all joins.
+// unmatchedDirections are the three lookups whose final disposition is required.
 //
 // A security gateway forwards as well as terminates, and the kernel checks a
 // forwarded packet against its fwd policies rather than its in policies, so a
-// catch-all in and out alone would leave transit traffic with no entry to meet.
+// catch-all in and out alone would leave transit traffic with no disposition. A
+// ForwardDefaultInstaller supplies FWD through its namespace default instead of
+// an explicit entry, preserving the ICMP payload lookup before the final verdict.
 // The IKE bypass omits fwd for the opposite reason (ikeBypassPolicies): IKE is never
 // forwarded.
 var unmatchedDirections = [...]dataplane.SADir{
@@ -83,7 +86,9 @@ func spdCatchAllEntries(family net.IP, action dataplane.SPAction, ifID uint32) [
 	return out
 }
 
-// installUnmatched installs the catch-all for every address family.
+// installUnmatched installs the final disposition for every address family. A
+// ForwardDefaultInstaller claims FWD once per namespace; other directions and
+// backends keep explicit catch-all policies.
 //
 // It runs on every apply, ahead of the operator's entries (apply.go), and the backend
 // upserts a template-free policy (xfrmBackend.InstallPolicy), so a changed
@@ -106,7 +111,7 @@ func spdCatchAllEntries(family net.IP, action dataplane.SPAction, ifID uint32) [
 // matches meet no SPD-I entry on it, which rfc/short/rfc4301.md records as one of the
 // two open gaps of RFC4301-5.2-1 and RFC4301-5.2-9 (the other is OSPFv3 manual keying,
 // which installs its entries outside this engine with no catch-all).
-func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *slog.Logger) error {
+func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *slog.Logger) (err error) {
 	if dp == nil {
 		return errUnmatchedNoDataplane
 	}
@@ -117,6 +122,18 @@ func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *sl
 			return nil
 		}
 	}
+	defaults, usesDefault := forwardDefaultInstaller(dp)
+	if usesDefault {
+		undo, applyErr := defaults.ApplyForwardDefault(action)
+		if applyErr != nil {
+			return fmt.Errorf("ike: %w", applyErr)
+		}
+		defer func() {
+			if err != nil {
+				err = errors.Join(err, undo())
+			}
+		}()
+	}
 	for _, family := range ikeBypassFamilies {
 		policies, err := unmatchedPolicies(family, action)
 		if err != nil {
@@ -124,6 +141,9 @@ func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *sl
 		}
 		for i := range policies {
 			p := &policies[i]
+			if usesDefault && p.Dir == dataplane.SADirFwd {
+				continue
+			}
 			// RFC 4301 Section 4.4.1: "Every SPD SHOULD have a nominal, final entry
 			// that matches anything that is otherwise unmatched, and discards it."
 			// RFC 4301 Section 5.2: "If there is no match, discard the traffic." The
@@ -137,6 +157,13 @@ func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *sl
 		}
 	}
 	return nil
+}
+
+// Wrappers may expose this optional interface even when their wrapped backend does
+// not use namespace defaults, so the strategy declaration participates in selection.
+func forwardDefaultInstaller(dp dataplane.Dataplane) (dataplane.ForwardDefaultInstaller, bool) {
+	defaults, ok := dp.(dataplane.ForwardDefaultInstaller)
+	return defaults, ok && defaults.UsesForwardDefault()
 }
 
 // catchAllUnsupported answers the backend's own declaration that it has no node-wide
@@ -318,10 +345,15 @@ func countBypassEntries(cfg *ipsec.IPsecConfig) int {
 //
 // The disposition does not matter to a removal, because the kernel identifies a
 // policy by its selector alone, so the bypass form is built and its selector used.
-func removeUnmatched(dp dataplane.Dataplane, log *slog.Logger) {
+// A namespace FWD claim is restored only after every explicit final entry is gone;
+// releaseSPD already withheld this call while another Ze policy remained installed.
+func removeUnmatched(dp dataplane.Dataplane, log *slog.Logger, raisers ...espFormIssueRaiser) {
 	if dp == nil {
 		return
 	}
+	defaults, usesDefault := forwardDefaultInstaller(dp)
+	removed := true
+	var refusal *opererr.Error
 	for _, family := range ikeBypassFamilies {
 		policies, err := unmatchedPolicies(family, dataplane.SPActionBypass)
 		if err != nil {
@@ -330,9 +362,34 @@ func removeUnmatched(dp dataplane.Dataplane, log *slog.Logger) {
 		}
 		for i := range policies {
 			p := &policies[i]
-			if err := dp.RemovePolicyParams(*p); err != nil {
-				log.Debug("ike: remove SPD catch-all entry", "dir", p.Dir, "error", err)
+			if usesDefault && p.Dir == dataplane.SADirFwd {
+				continue
+			}
+			if err := dp.RemovePolicyParams(*p); !policyGone(err) {
+				removed = false
+				why := "The final IPsec entry remains installed until removal succeeds. Remove the entry named below before retrying the IPsec shutdown."
+				if usesDefault {
+					why += " Ze retains the namespace's forwarding-default claim while the entry remains."
+				}
+				failure := opererr.Wrap(err, "Ze could not remove a final IPsec policy", why, "sudo "+policyDeleteCommand(dp, p))
+				logForwardDefaultRefusal(log, failure)
+				if refusal == nil {
+					refusal = failure
+				}
 			}
 		}
+	}
+	if usesDefault && removed {
+		if err := defaults.ReleaseForwardDefault(); err != nil {
+			failure, ok := errors.AsType[*opererr.Error](err)
+			if !ok {
+				failure = opererr.Wrap(err, "Ze could not restore its IPsec forwarding default", "The namespace keeps its current forwarding disposition. Inspect its defaults and reconcile any other policy manager before retrying.", "ip xfrm policy getdefault")
+			}
+			logForwardDefaultRefusal(log, failure)
+			refusal = failure
+		}
+	}
+	if refusal != nil {
+		raiseForwardDefaultRefusal(log, refusal, raisers)
 	}
 }

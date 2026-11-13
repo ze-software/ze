@@ -95,6 +95,29 @@ is expected to reach the refusal.
 
 <!-- source: internal/component/ike/engine/create_child.go -- childEncapPorts -->
 
+**A representable inbound selector is bound to the XFRM state itself.** RFC
+4301 Sections 4.4.2 and 5.2 require the received packet to match the selectors of
+the SA that carried it. An SPD search alone can find a sibling SA's policy at the
+same endpoints and request id. Linux declares `InboundStateSelectorInstaller`,
+so `installChildDataplane` gives a tunnel-mode inbound state its own
+`SAParams.Sel` when one concrete same-family pair describes its entire scope.
+`__xfrm_policy_check` checks this immutable state selector before looking up the
+SPD and drops an outside packet as `XfrmInStateMismatch`. The selector is built
+from the same inbound policy fields, including the protocol and port masks.
+Transport mode retains its strict one-pair state selector independently of the
+optional tunnel declaration. An undeclared backend keeps its existing policy
+installation path; this makes no per-SA isolation claim for that backend.
+
+**General multiple-pair binding remains open.** One XFRM state selector cannot
+express arbitrary or mixed-family negotiated pairs. Those tunnel states still
+leave `SAParams.Sel` nil and install every negotiated policy. A missing-family
+legacy selector also keeps that path. The state selector correction does not
+settle isolation between unequal overlapping selector sets or the fragment
+obligations of RFC 4301 Sections 7.3 and 7.4; the architecture-gaps spec remains
+open for them. Identical-selector parallel SAs retain their shared policy, and
+each representable state carries its own scope through rekey overlap, including
+when the successor's scope is wider.
+
 **Kernel scope ABI under implementation.** The state-scope patch extends
 ordinary XFRM netlink construction with `XFRMA_STATE_SCOPE` (42). Its payload
 is native-endian `u32 flags`, `u32 count`, then 1 through 64 existing
@@ -136,6 +159,43 @@ the new attribute; their implementation and packet proof remain owed before
 the general scope boundary is declared supported.
 <!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- xfrm_get_default, xfrm_state_scope_hold_guard, xfrm_policy_hold_fragment_guard, xfrm_state_gc_destroy, xfrm_policy_destroy_rcu -->
 
+The vendored netlink API carries the ordered set in `XfrmState.StateScope`.
+Its writer validates the complete scope before writing into the caller's buffer.
+Its reader validates and copies each record, preserving exact masks and both
+address families. The 64-record limit counts canonical kernel selectors after
+policy expansion, rather than negotiated traffic-selector pairs.
+`XfrmZECapabilitiesGet` reads the live namespace's receipt.
+The parser requires the exact ABI, selector limit and known feature bits.
+A missing receipt, a duplicate receipt or an ignored request attribute proves
+no support. Individual feature predicates retain partial K1 receipts without
+claiming that the fragment path exists.
+<!-- source: vendor/github.com/vishvananda/netlink/xfrm_state_scope_linux.go -- WriteTo, ParseXfrmStateScope, XfrmZECapabilitiesGet, ParseXfrmZECapabilities -->
+<!-- source: vendor/github.com/vishvananda/netlink/xfrm_state_linux.go -- xfrmStateAddOrUpdate, parseXfrmState -->
+
+`SAParams.Scope` carries an immutable directional set constructed by
+`NewSAStateScope` from the expanded policy records. The constructor rejects more
+than 64 records and validates each prefix, port mask, protocol and interface
+index. It owns `netip` prefix values, and `Selectors` returns independent copies.
+A nil scope retains the direct caller's legacy `Sel` contract. XFRM preserves
+the complete ordered set without a covering selector. Transport mode requires
+one record and projects the same record into the legacy selector. A supplied
+legacy selector must equal that singleton. VPP refuses an explicit scope before
+sending an API request because its SAD entry cannot carry the set.
+<!-- source: internal/component/ike/dataplane/state_scope.go -- SAStateScope, NewSAStateScope, Selectors -->
+<!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- xfrmStateScopeFromParams -->
+<!-- source: internal/component/ike/dataplane/vpp.go -- vppUnsupportedSA -->
+
+Every explicit XFRM scope requires a fresh capability receipt with the exact
+ABI and 64-record limit, and every feature bit from 0 through 3. This applies
+even when that SA does not permit noninitial fragments. Partial K1 and K2
+receipts remain readable evidence but cannot authorize an installation.
+The check precedes state publication and ESP receiver setup. A missing,
+unreadable or incomplete receipt returns `ErrSAOptionRefused`, retains any
+read error and names the native Ze host-driver and runtime-kernel build
+commands. It never becomes the platform-wide `ErrNotSupported` result.
+<!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- checkXFRMStateScopeCapabilities, xfrmStateScopeRefusal -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- InstallSA -->
+
 **Fragment context isolation under implementation.** K2 extends the existing
 IPv4, local IPv6 and conntrack IPv6 fragment keys with the complete ordered
 vector of scope identities and its length. Clear traffic has an empty vector;
@@ -159,16 +219,112 @@ kernel compilation, queue-lifetime checks and the unchanged mixed-context
 packet tests; no queue-isolation runtime proof is claimed yet.
 <!-- source: gokrazy/kernel/patches/0004-ip-fragment-xfrm-context.patch -- inet_frag_xfrm_context_init, inet_frag_xfrm_context_get, inet_frag_xfrm_context_put, inet_frag_alloc, inet_frag_destroy_rcu, ip4_frag_init, ip4_frag_free, ip6frag_init, ip6frag_free -->
 
-**Which kernel object holds the inbound SA's selectors depends on the mode.** RFC
-4301 Section 4.4.2 makes the inbound SAD entry carry the negotiated selectors, and
-Linux checks a decrypted packet against them in two places. In tunnel mode
-`installChildSA` leaves `SAParams.Sel` nil and the inbound require-policy does the
-work: `__xfrm_policy_check` drops a decapsulated packet that matches no inbound
-policy while its secpath holds a tunnel-mode state (`XfrmInNoPols`). A
-transport-only secpath passes that check, so in transport mode the inbound state
-carries the selector itself (`SAParams.Sel`, the XFRM `x->sel`), built from the
-inbound policies' own fields so the two cannot disagree, and a packet outside it is
-dropped as `XfrmInStateMismatch`. strongSwan makes the same split.
+**Fragment gathering: uncompiled, unenrolled proposal.** K3 is preserved in
+`gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch`, outside the active
+series. Authenticated IPv6 transport plaintext fragments still need rejection
+before reassembly and before outbound transformation. Capability bit 3 remains
+absent, and the proposal has no native compilation or packet proof.
+<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_fragment_inbound_allowed, xfrm_output_fragment_allowed -->
+
+The proposal requires the optional
+`CONFIG_XFRM_FRAGMENT_GUARD`, with built-in IPv6 and netfilter. It selects both
+family defrag implementations as built-ins; XFRM with modular IPv6 can retain
+scope support without compiling this guard. Dedicated XFRM defrag-user ranges
+retain the existing conntrack helper's direction, bridge and visible zone
+separation. The gather path does not create a connection or change NOTRACK,
+marks or zones. IPv4 pre-routing queue expiration keeps the existing conntrack
+rule that suppresses timeout errors for forwarded fragments.
+Permanent namespace PRE_ROUTING and LOCAL_OUT hooks run immediately before conntrack defrag
+and use the actual automatic guard count. The hooks reuse `ip_defrag` with
+bottom halves disabled and `nf_ct_frag6_gather` with its existing queues.
+IPv4 nonzero gather results and IPv6 `-EINPROGRESS` mean that the queue consumed
+the skb; other IPv6 errors leave disposal to netfilter. Successful gathering
+continues in the current hook invocation. IPv6 gather also returns zero for
+some malformed fragments, so the hook checks that the fragment header was
+removed before it reports a completed packet. Valid atomic fragments continue
+without a queue. Jumbo fragments and incomplete or malformed fragments cannot
+continue as a whole packet through this path.
+<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_fragment_net_init, xfrm_fragment_net_exit, xfrm4_fragment_gather, xfrm6_fragment_gather -->
+
+Before a protected noninitial fragment enters a queue, every state in its
+secpath must permit it. Without the negotiated flag, any nonzero port/type
+mask in the state's selector set refuses the fragment and increments
+`XfrmInStateMismatch`. A mixed ANY/constrained set still needs permission;
+a protocol-specific set with only ANY ports does not. Whole-packet scope
+matching stays in the K1 matcher after reassembly. Legacy states with port
+masks also own a guard reference, even if their policies have ANY selectors.
+State construction and migration initialize the selector before getting that
+reference; final GC releases it.
+<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_state_noninitial_allowed, xfrm_state_scope_hold_guard, xfrm_fragment_inbound_allowed -->
+
+The authored raw IPv4 and IPv6 paths defer their initial XFRM lookup while the
+guard is active. Before ordinary routing they capture the original flow,
+socket mark, bound-interface flag, IPv6 source preferences and an immutable
+OUT socket-policy receipt, including explicit policy absence. The receipt
+copies selectors, templates and policy values, owns a deep LSM security copy,
+and contains no socket, namespace, device or original-policy pointer. Each
+policy caches one current generation under its lock; migration refreshes that
+generation while existing captures keep the old identity. The sender releases
+its stack reference on every exit.
+<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- raw_sendmsg, rawv6_sendmsg, xfrm_raw_route_capture, xfrm_policy_receipt_capture -->
+
+A private skb extension owns another
+reference and survives clone and first-fragment reassembly. Its presence also
+requires the final lookup after the last guarded object is destroyed.
+LOCAL_OUT decodes each deferred whole packet and every completed datagram,
+then replaces its route through ordinary routing and XFRM lookup using the
+capture. Every IPv6 source-selection, fallback and optimistic-DAD route lookup
+uses the captured bound-interface and source-preference values. The completing
+socket supplies neither route parameters nor policy authority.
+<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_raw_route_save, xfrm_fragment_local_out, xfrm_fragment_route, ip6_dst_lookup_params -->
+
+Socket-policy
+lookup materializes an unpublished, dead policy with another deep security
+copy and reuses the ordinary selector, mark, LSM, expansion and bundle paths.
+It inserts no state-cache links and owns no guard, timers or offload device;
+normal policy destruction releases it without accessing its namespace.
+A decode or route failure drops the packet. Successful lookup removes the
+extension from that skb. Ordinary whole UDP keeps its existing route producer.
+<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_policy_from_receipt, xfrm_lookup_raw, xfrm_fragment_route, xfrm_state_find -->
+
+Both fragment keys include canonical raw authority beside the complete SA
+vector and existing IP, user, interface and zone identity. They copy each
+flow-common member into a zeroed key, then add the deferred-presence flag,
+family, IPv6 flowlabel, captured socket values and receipt identity. Equal
+contexts with absent policies can combine across sockets; unequal authority
+or policy generations cannot. Queue construction owns a receipt reference
+even when the first fragment is later rejected.
+<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- inet_frag_raw_authority, inet_frag_xfrm_context_get -->
+
+Queues charge each receipt's
+actual allocation and security-copy allocation, and each successfully inserted
+skb's extension allocation plus its retained receipt bytes. Inactive allocated
+extension slots are included. Overflow rejects before publication or insertion;
+the charge stays until final RCU queue destruction. These charges bound
+queue-retained references. A live policy separately owns its single current
+cached receipt. Socket skb truesize and write-memory accounting stay with
+their existing owners.
+<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_policy_receipt_size, inet_frag_xfrm_context_get, inet_frag_queue_insert, inet_frag_destroy_rcu -->
+
+COW takes receipt refs for
+all allocated slots, including inactive ones; exclusive deletion clears its
+receipt, shared deletion retains it, and inactive-slot reuse releases it.
+<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- skb_ext_maybe_cow, skb_ext_add, __skb_ext_del, __skb_ext_put -->
+
+The transmit transform checks noninitial-fragment permission before it changes
+the inner headers. Selector checks remain in the original state lookup, so
+an ICMP error retains its authorized reverse-quote mapping. Before IPv6 inner
+fragmentation, every state in the bundle must permit the resulting tails.
+Otherwise the permitted branch transforms the whole packet and lets the outer
+output path fragment it. Existing explicit local DONTFRAG and PMTU errors keep
+their earlier priority.
+<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_output_fragment_allowed, xfrm_output_one, __xfrm6_output -->
+
+The raw-authority correction is preserved in this proposal. Source review
+identified the unresolved transport case above. Before enrollment, the proposal
+still owes that correction, native compilation, queue-lifetime checks and
+packet proofs over the complete route and transmit paths.
+<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- XFRM_FRAGMENT_GUARD, nf_ct_defrag_user, nf_ct6_defrag_user, frag_expire_skip_icmp -->
 
 **A tunnel-mode state with no selector carries `XFRM_STATE_AF_UNSPEC`.** A zero
 selector is not "any family" to the kernel. `copy_from_user_state`
@@ -184,9 +340,11 @@ from that of the inner header." With the flag the selector family stays
 sets the flag (`netlink.XfrmState.AFUnspec`, a field Ze's vendored-module patch
 `internal/le/vendorpatch/patches/netlink-xfrm-07-state-af-unspec.patch` adds) only for tunnel
 mode with a nil `SAParams.Sel`. Transport mode, the OSPF RFC 4552 states and any
-state given a selector keep that selector and its family. What enters the state is
-still decided by the policies: one per negotiated selector pair and direction,
-bound to the Child SA's `if_id`. The outer pair stays one family, and
+state given a selector keep that selector and its inner family. The outbound
+tunnel state leaves `Sel` nil, so cross-family output still takes the flag path;
+a single-pair inbound state knows its negotiated inner family explicitly.
+What enters the state is still decided by the policies: one per negotiated
+selector pair and direction, bound to the Child SA's `if_id`. The outer pair stays one family, and
 `xfrmStateFromParams` refuses a mixed pair (RFC 4301 Section 4.4.2.1). Readback
 decodes the endpoints with the message family, never the selector's, so a flagged
 state is still reported with its outer family.
@@ -316,6 +474,37 @@ and a Delete for the new pair on a rekey. The responder installs what it answers
 (`narrowChildSelectorsIn` sets `NegotiatedPairs`, which both `pairsToWire` and the
 policies read), so its narrowing is never a gap between the ends.
 
+**Protocol and port meaning is checked before narrowing and again before
+encoding.** `PortSelector.ValidForProtocol` shares the protocol classification
+with operator SPD validation. Undefined-port protocols, including protocol zero,
+GRE and ESP, require ANY ports. A received specific port under protocol zero is
+refused before intersection with a TCP policy can hide its invalid encoding.
+`ProgrammableForProtocol` also refuses DCCP-specific ports: DCCP defines ports,
+but Linux `xfrm_flowi_sport` and `xfrm_flowi_dport` omit them. UDP-Lite ports are
+supported by Linux. The VPP matcher compares ports only for TCP, UDP and SCTP,
+so its backend refuses constrained UDP-Lite and MH selectors.
+
+For MH protocol 135, RFC 7296 Section 3.13.1 carries the Type in the high octet
+of the IKE port value and requires a zero low octet. Type 5 has wire value 1280;
+the encoder preserves that value. Raw policy projection converts it to the
+bare Type 5, but that is insufficient: Linux 7.3 `decode_session6` does not
+populate the received MH Type read by `xfrm_flowi_sport`. The actual
+Child/backend guest probe delivered ANY Types 5/7 on both IN and FWD, while a
+correctly projected exact Type 5 policy dropped matching Type 5 on both paths.
+
+`ProgrammableForProtocol` therefore refuses constrained MH. Config verify and
+both negotiation roles use that decision, and `checkChildPolicyPairs` rejects
+a direct constructor or rekey before any selector claim, retry or dataplane
+mutation. An empty policy set must never turn that refusal into a successful
+SA install. ANY MH remains usable. Exact Type classification stays owed in
+`plan/post-release/kernel/spec-xfrm-ipv6-mh-selector.md`; this is a missing
+feature, not an RFC exclusion or a full-selector-support claim.
+
+<!-- source: internal/component/ike/ipsec/traffic_selector.go -- ValidForProtocol, ProgrammableForProtocol -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- acceptablePairs, wireToSelectors, answerSelectors, selectorsToWire -->
+<!-- source: internal/component/ike/engine/child.go -- childPairPolicy -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppICMPSelectorError -->
+
 **An IKE_AUTH response that accepts a Child SA without naming its traffic is
 refused.** RFC 7296 Section 2.9: "Two TS payloads appear in each of the messages in
 the exchange that creates a Child SA pair." A response carrying SAr2 and no TSi or no
@@ -341,7 +530,9 @@ and rekey directly: the IKE_AUTH path deletes the SA with TS_UNACCEPTABLE, a CRE
 deletes the pair and names the fix (`childResponseFixTransportPairs`), and a refused
 rekey keeps the Child SA in use. `inboundStateSelector` then copies
 the one inbound policy into the state, and refuses a transport-mode Child SA of
-several pairs as a Ze defect rather than widen it. Tunnel mode keeps every pair.
+several pairs as a Ze defect rather than widen it. Tunnel mode keeps every pair,
+and supplies an additional inbound state selector only when that set is exactly
+representable by one concrete same-family pair on a declaring backend.
 The interop scenario
 `responder-two-subnets` has strongSwan propose two subnets in one Child SA and
 reads both kernels: each must hold exactly the two ESP policy pairs.
@@ -553,12 +744,40 @@ generates through the outbound policy its reversed header matches; without it
 state flag on an SA flagged outbound, and the backend refuses either flag where
 the kernel never reads it.
 
-A FORWARDED ICMP error that arrives on a Child SA is not covered: the kernel
-reads its payload only when no fwd policy matches its own headers, and Ze's
-catch-all always does (LL-XFRM-ICMP-TRANSIT in
-`docs/architecture/linux-limitations.md`). Such an error is dropped, so nothing
-inconsistent is forwarded, but a consistent one is lost too. A forwarded error
-leaving towards a Child SA is mapped to the return SA (`xfrm_out_fwd_icmp`,
+A forwarded ICMP error arriving on a Child SA reaches Linux's
+`xfrm_in_fwd_icmp` only when no ordinary FWD policy matches its own headers.
+The XFRM backend therefore uses the namespace's FWD default disposition for
+`unmatched`, leaving explicit catch-alls in IN and OUT. An XFRM interface has
+no explicit FWD catch-all either; its Child SA's FWD PROTECT entries remain.
+The payload lookup runs before the namespace default, so a consistent quoted
+header can find its Child policy while an unmatched one is refused. A
+tunnel-mode secpath without a matching policy is refused even when the
+namespace default accepts. The inbound state selector and `icmp-error-check`
+still decide whether the error may pass the earlier per-SA selector check.
+
+`ForwardDefaultInstaller` is an optional backend strategy. XFRM reads the
+namespace defaults, snapshots FWD once, writes only FWD through
+`XFRM_MSG_SETDEFAULT`, and reads it back. IN and OUT defaults stay unchanged.
+A failed final-entry install rolls FWD back to the preceding apply. Release
+restores the original FWD value only after the SPD ledger and remaining final
+entries are clear; a failed removal keeps the lease. Reload, rollback and
+release refuse an observed change by another policy manager. Linux has no
+compare-and-swap operation for this value, so other policy managers must
+serialize their writes with Ze. Other backends keep their existing final-entry
+strategy.
+
+The runtime check `ipsec-forward-default`, under
+`doctor-ipsec-forward-default`, reads the same native defaults and held claim
+without changing either. It reports an unreadable host, an observed change by
+another policy manager, and an incomplete restoration even when the current
+value still equals Ze's last write. Public backend refusals carry the problem,
+consequence and next command as an operator error. A final-removal failure is
+also raised once per removal pass through SDK `RaiseIssue`; both process modes
+use that transport. The engine releases its dataplane before explicitly closing
+the SDK. A daemon disconnect may already have closed the connection, so a failed
+report attempt retains a coded warning with its own log command.
+
+A forwarded error leaving towards a Child SA is mapped to the return SA (`xfrm_out_fwd_icmp`,
 called by `__xfrm_route_forward`) only after the out lookup passed it
 untransformed: under `unmatched bypass` the catch-all does; under
 `unmatched discard` it blocks the error first. The VPP backend reads no ICMP payload on either path and refuses
@@ -604,6 +823,12 @@ no doctor check of its own for it.
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
 <!-- source: internal/component/ike/engine/child.go -- childPairPolicy -->
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppICMPErrorReturnError -->
+<!-- source: internal/component/ike/dataplane/xfrm_forward_default_linux.go -- ApplyForwardDefault, ReleaseForwardDefault, changeForwardDefault -->
+<!-- source: internal/component/ike/engine/unmatched.go -- installUnmatched, removeUnmatched, forwardDefaultInstaller -->
+<!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- interfaceForwardDefault -->
+<!-- source: internal/component/ike/engine/doctor_forward_default_linux.go -- answerForwardDefault -->
+<!-- source: internal/component/ike/engine/register_forward_default_linux.go -- init -->
+<!-- source: internal/component/ike/engine/register_forward_default.go -- raiseForwardDefaultRefusal, logForwardDefaultRefusal -->
 
 ## Path MTU of a Child SA
 
@@ -737,10 +962,12 @@ all three on rollback. An unnamed internal direction raises a `BUG` panic before
 migration proceeds.
 
 `unmatchedPolicies` (`engine/unmatched.go`) is the catch-all of RFC 4301 Section
-5: a wildcard selector in, out and fwd for both families at
-`PriorityUnmatched`, the largest u32 the kernel holds, so it is searched last.
-The kernel passes an unmatched packet with no policy at all, so the discard the
-section mandates is an entry Ze installs rather than a default it inherits. VPP
+5: wildcard selectors at `PriorityUnmatched`, the largest u32 the kernel
+holds, so they are searched last. XFRM installs IN and OUT and explicitly sets
+the namespace FWD default; the optional backend strategy above explains its
+ownership and restoration. Other backends receive the builder's three-direction
+policy set. Ze establishes the final disposition rather than inherits the
+kernel's initial accept default. VPP
 holds no entry bound to no interface (`vppPolicyInterface`), so it installs no
 catch-all at all. A DISCARD catch-all that is not installed is never a warning:
 config verify refuses `unmatched discard` when the loaded backend's
@@ -769,10 +996,11 @@ every operator order and Child SA policy), out and fwd for both families with
 the selector ifindex set to the interface, and out from each IPv6 address it
 holds.
 
-Each bound interface's SPD also gets its own final entry (RFC 4301 Sections
-4.4.1 and 5.2): `interfaceSPDCatchAll` builds the same wildcard in, out and fwd
-for both families as `unmatchedPolicies`, through the shared builder
-`spdCatchAllEntries`, at the interface's if_id and `PriorityUnmatched`, below
+Each bound interface's SPD also gets its own final entries (RFC 4301 Sections
+4.4.1 and 5.2): `interfaceSPDCatchAll` uses the same generic builder as
+`unmatchedPolicies`, and the installer omits its FWD entry when the backend
+uses the namespace default. IN and OUT remain for both families at the
+interface's if_id and `PriorityUnmatched`, below
 the interface's Child SA policies at `PriorityChildSA`. It is DISCARD under both
 values of `unmatched`: an XFRM interface has no cleartext path, since
 `xfrmi_xmit` drops a packet whose lookup returns no state and

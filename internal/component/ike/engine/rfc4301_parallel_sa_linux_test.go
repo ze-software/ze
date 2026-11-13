@@ -103,14 +103,17 @@ func TestRFC4301ParallelSAsWithOneSelectorAreEachReceived(t *testing.T) {
 // TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy proves that neither parallel SA is
 // processed differently from its sibling. Method: the same two Child SAs; an inner packet
 // whose source lies outside the shared selector is sent on each SA, and on each it is
-// dropped by the inbound policy (XfrmInNoPols moves by one) and never delivered.
+// dropped by its own SA selector before SPD lookup (XfrmInStateMismatch +1,
+// XfrmInNoPols and XfrmInPolBlock unchanged) and never delivered.
 func TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy(t *testing.T) {
 	// RFC requirement: RFC4301-4.1-9 negative -- an inner packet outside the shared
-	// selectors is dropped on each of the two parallel SAs alike (XfrmInNoPols moves by one
-	// per SA, nothing delivered), so neither SA is exempt from the policy its sibling obeys.
+	// selectors is dropped on each of the two parallel SAs alike (XfrmInStateMismatch
+	// moves by one per SA, XfrmInNoPols and XfrmInPolBlock stay unchanged, nothing
+	// delivered), so neither SA is exempt from the selector check its sibling obeys.
 	// RFC requirement: RFC4301-4.4.1-10 negative -- inbound traffic arriving on an SA that
 	// is inconsistent with the SPD (inner source outside the selector) is refused by the
-	// kernel's SPD search after decryption (XfrmInNoPols) and not delivered.
+	// actual SA selector check after decryption and before SPD lookup
+	// (XfrmInStateMismatch +1, XfrmInNoPols and XfrmInPolBlock unchanged), not delivered.
 	if !sadSelOwnNamespace(t) {
 		return
 	}
@@ -120,13 +123,12 @@ func TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy(t *testing.T) {
 
 	for which, child := range []*ChildSA{first, second} {
 		sender := newSadSelSender(t, child)
-		before := sadSelStat(t, sadSelStatNoPols)
+		observedBefore := sadSelReadDropCounters(t, sadSelStat)
 		sender.send(t, sadSelProtoIPv4, sadSelIPv4(sadSelInnerStray, sadSelProtoUDP, sadSelUDP(sadSelPort)))
 		if sadSelDelivered(t, inside) {
 			t.Errorf("SA %d: a packet from outside the shared selector was delivered", which)
 		}
-		if got := sadSelStat(t, sadSelStatNoPols) - before; got != 1 {
-			t.Errorf("SA %d: %s moved by %d, want 1 (dropped by the shared inbound policy)", which, sadSelStatNoPols, got)
-		}
+		t.Logf("parallel SA %d, SPI %#x", which, child.InboundSPI)
+		sadSelWantDropCounters(t, "outside shared selectors", observedBefore, sadSelReadDropCounters(t, sadSelStat), sadSelDropCounters{stateMismatch: 1})
 	}
 }

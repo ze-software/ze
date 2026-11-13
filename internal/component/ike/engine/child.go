@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // isXFRMUnsupported reports whether an install failure names a platform that offers
@@ -392,6 +393,12 @@ func createFirstChildSA(
 		return nil, fmt.Errorf("%w: %w", errChildAddress, err)
 	}
 
+	// RFC 7296 Section 2.9: retain no Child or selector claim for a pair that
+	// cannot be represented exactly, including the no-dataplane path.
+	if err := checkChildPolicyPairs(child); err != nil {
+		keys.Clear()
+		return nil, fmt.Errorf("%w: %w", errChildInstall, err)
+	}
 	if dp == nil {
 		// RFC 3948 Section 5.1: with nothing to install, the record is still taken, so
 		// the control plane never holds two peers' Child SAs for one inner address.
@@ -446,6 +453,11 @@ func warnDegraded(child *ChildSA, log *slog.Logger, err error) {
 // dataplane refuses as unsupported keeps it: the caller keeps that Child SA as a
 // degraded one (warnDegraded), and it still owns its selectors in the control plane.
 func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Dataplane, log *slog.Logger) error {
+	// RFC 7296 Section 2.9: a direct constructor or rekey must not turn a
+	// refused pair into installed states with an empty or partial policy set.
+	if err := checkChildPolicyPairs(child); err != nil {
+		return err
+	}
 	previous := child.installPrevious
 	child.installPrevious = nil
 	child.forwardPolicy = child.Mode != modeTransport && dp.RequiresForwardPolicy()
@@ -470,6 +482,24 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		releaseInnerRecord(child, dp, left, log)
 	}
 	return err
+}
+
+// checkChildPolicyPairs refuses a pair the policy producer would omit before
+// any selector claim, retry or dataplane mutation. The engine's exact-or-refuse
+// contract applies even when a direct constructor bypassed negotiation.
+// RFC 7296 Section 2.9: "If the responder's policy does not allow it to accept
+// any part of the proposed Traffic Selectors, it responds with a TS_UNACCEPTABLE
+// Notify message."
+func checkChildPolicyPairs(child *ChildSA) error {
+	for index, pair := range child.Selectors {
+		if _, ok := childPolicyPair(child, pair); !ok {
+			return opererr.Wrap(errTSUnacceptable,
+				fmt.Sprintf("child-sa: peer %q selector pair %d cannot be programmed exactly", child.Owner, index+1),
+				"Installing states without this negotiated pair would publish an unusable or differently scoped Child SA",
+				fmt.Sprintf("protocol %d; local { port any; } remote { port any; }", pair.I.Proto))
+		}
+	}
+	return nil
 }
 
 // installChildDataplane writes the Child SA's states and policies into the dataplane.
@@ -521,22 +551,26 @@ func installChildDataplane(child, previous *ChildSA, prop ipsec.ESPProposal, dp 
 		IsAEAD:    isAEAD,
 	}
 
-	// A tunnel-mode inbound state carries no selector. Linux enforces the negotiated
-	// selectors of a tunnel-mode SA through the inbound require-policy installed below:
-	// __xfrm_policy_check drops a decapsulated packet that matches no inbound policy
-	// while its secpath holds a tunnel-mode state (XfrmInNoPols). A transport-only
-	// secpath passes that check, so a transport-mode state carries the selector itself,
-	// and the kernel then drops a packet outside it (XfrmInStateMismatch).
+	// RFC 4301 Section 5.2: "Then match the packet against the inbound selectors
+	// identified by the SAD entry to verify that the received packet is appropriate
+	// for the SA via which it was received." An SPD lookup alone can find a sibling's
+	// policy at the same endpoints and reqid. A backend that declares state-selector
+	// support receives this state's own immutable negotiated pair too.
 	//
-	// The selector is built from the inbound policy, so the state and the policy cannot
-	// disagree. One XFRM state holds ONE selector (Linux limitation
-	// LL-XFRM-STATE-ONE-SELECTOR, docs/architecture/linux-limitations.md), so a transport-mode Child SA carries
-	// exactly one negotiated pair (inboundStateSelector).
-	if mode == modeTransport {
+	// One XFRM state holds ONE selector (LL-XFRM-STATE-ONE-SELECTOR). Tunnel states
+	// with several pairs still keep their complete policy set; general per-SA binding
+	// there remains open. Transport remains strict: negotiation guarantees one pair,
+	// and inboundStateSelector refuses a broken transport producer before any install.
+	inboundPolicies := childPolicies(child, dataplane.SADirIn)
+	bindState := mode == modeTransport
+	if mode == modeTunnel {
+		bindState = tunnelStateSelectorSupported(dp, inboundPolicies)
+	}
+	if bindState {
 		// RFC 4301 Section 4.4.2: "For each of the selectors defined in Section 4.4.1.1,
 		// the entry for an inbound SA in the SAD MUST be initially populated with the
 		// value or values negotiated at the time the SA was created."
-		sel, err := inboundStateSelector(childPolicies(child, dataplane.SADirIn))
+		sel, err := inboundStateSelector(inboundPolicies)
 		if err != nil {
 			return nil, fmt.Errorf("child-sa: inbound state selector: %w", err)
 		}
@@ -871,6 +905,12 @@ func appendChildPolicies(out []dataplane.SPParams, child *ChildSA, dir dataplane
 // (innerSelectorPairOf) both build from it, so what the registry compares is what the
 // dataplane installs.
 func childPolicyPair(child *ChildSA, pair tsPair) (policyPair, bool) {
+	if !pair.I.Port.ProgrammableForProtocol(pair.I.Proto) {
+		return policyPair{}, false
+	}
+	if !pair.R.Port.ProgrammableForProtocol(pair.R.Proto) {
+		return policyPair{}, false
+	}
 	// Selectors are in TSi/TSr orientation, and SelectorsLocalIsTSi says which half
 	// is ours. LocalIsInitiator answers a DIFFERENT question -- which KEYMAT half
 	// keys this pair -- and it flips at a rekey the peer starts while the selectors
@@ -995,6 +1035,21 @@ func childPairPolicy(child *ChildSA, dir dataplane.SADir, pair policyPair) datap
 			side = pair.remotePort
 		}
 		srcPort, dstPort = icmpSelectorFromIKE(side)
+	}
+	// RFC 7296 Section 3.13.1: "MIPv6 MH Type values are treated as a single
+	// 16-bit integer port number, with Type in the most significant eight bits
+	// and the least significant eight bits set to zero."
+	// Linux xfrm_flowi_sport compares the bare Type and xfrm_flowi_dport returns zero
+	// for MH (include/net/xfrm.h), so only this installation boundary shifts it.
+	if pair.upperProto == ipsec.MobilityHeaderProtocol {
+		side := pair.localPort
+		if dir != dataplane.SADirOut {
+			side = pair.remotePort
+		}
+		srcPort, dstPort = dataplane.AnyPortMatch(), dataplane.AnyPortMatch()
+		if !side.IsAny() {
+			srcPort = dataplane.ExactPortMatch(side.Port >> 8)
+		}
 	}
 
 	return dataplane.SPParams{
@@ -1369,8 +1424,38 @@ func selectorPort(side tsSelector) dataplane.PortMatch {
 	}
 }
 
-// inboundStateSelector builds the selector a transport-mode inbound state carries
-// from the inbound policies of the same Child SA.
+// tunnelStateSelectorSupported reports whether the backend declares support and
+// this tunnel's inbound policy set is one concrete same-family selector. Missing
+// prefixes have no inner-family answer, so they retain the existing AF_UNSPEC path.
+func tunnelStateSelectorSupported(dp dataplane.Dataplane, policies []dataplane.SPParams) bool {
+	capable, ok := dp.(dataplane.InboundStateSelectorInstaller)
+	if !ok {
+		return false
+	}
+	if !capable.InboundStateSelectorSupported() {
+		return false
+	}
+	if len(policies) != 1 {
+		return false
+	}
+	p := &policies[0]
+	if p.Src == nil {
+		return false
+	}
+	if p.Dst == nil {
+		return false
+	}
+	if p.Src.IP.To16() == nil {
+		return false
+	}
+	if p.Dst.IP.To16() == nil {
+		return false
+	}
+	return sameFamily(p.Src, p.Dst)
+}
+
+// inboundStateSelector builds an inbound state's selector from the inbound
+// policies of the same Child SA.
 //
 // RFC 4301 Section 4.4.2: "For each of the selectors defined in Section 4.4.1.1, the
 // entry for an inbound SA in the SAD MUST be initially populated with the value or
@@ -1381,8 +1466,9 @@ func selectorPort(side tsSelector) dataplane.PortMatch {
 // state holds the negotiated values exactly only when exactly one pair was negotiated.
 // Both producers guarantee that in transport mode: the responder narrows to one pair
 // (narrowChildSelectorsIn) and the initiator refuses an answer of several
-// (recordInitiatorSelectorsIn, ts_narrow.go). Several policies here are therefore a Ze
-// defect, refused rather than widened: a selector wider than the pairs would admit a
+// (recordInitiatorSelectorsIn, ts_narrow.go). The tunnel caller checks exact
+// representability before calling. Several policies here are therefore a Ze defect,
+// refused rather than widened: a selector wider than the pairs would admit a
 // decrypted packet the SA never negotiated (RFC 4301 Section 5.2).
 func inboundStateSelector(policies []dataplane.SPParams) (*dataplane.SASelector, error) {
 	if len(policies) != 1 {

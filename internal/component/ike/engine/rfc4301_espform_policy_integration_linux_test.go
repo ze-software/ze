@@ -7,13 +7,15 @@
 // template (newChildSA sets UDPEncap on port 4500) and AcceptBothESPForms, the shape of the
 // defect in plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md. Bare ESP inside
 // the selectors, whole and fragmented, is delivered; bare ESP whose inner source is outside
-// them is dropped by the SPD catch-all (XfrmInPolBlock) and never delivered. It holds on both
+// them is dropped by its own SA selector (XfrmInStateMismatch) and never delivered.
+// A temporary explicit DISCARD inside that selector separately proves the SPD is read
+// (XfrmInPolBlock), on both wire paths, before removal restores valid delivery. It holds on both
 // of the receiver's paths, and the test pins which path carried each datagram: a whole
 // datagram is rewritten to ESP-in-UDP by the fast path's tc ingress program on the veth
 // (its IPv4 rewrite counter, read through dataplane.ESPFormFastPathReporter, advances by
 // one), and a fragmented one is left to the complete path, which reads it reassembled from
 // the raw ESP socket and re-presents it on ze-espform (the counter does not move). Both
-// devices carry disable_policy=0, so both drop rows are policy drops.
+// devices carry disable_policy=0, so both paths run the SA and SPD checks.
 // PREVENTS: the inbound SPD bypass of the dual-form receive path. XFRM refuses the bare form
 // on a templated state, espFormReceiver re-presents it as ESP-in-UDP to Ze's own address,
 // and that datagram arrives on lo. Linux creates lo with disable_policy set
@@ -34,11 +36,11 @@
 // through installIKEBypass, in the order applyConfig (apply.go) runs them on the first
 // apply, and the test reads both back through the dataplane's policy listing, together
 // with the ESP form reader's per-socket policy (esp-form-socket). Two things follow from
-// that shape. An inner packet outside the selectors meets the catch-all, a DISCARD entry,
-// so the kernel counts it as XfrmInPolBlock (__xfrm_policy_check, net/xfrm/xfrm_policy.c:
-// a matched policy that is not ALLOW reaches `XFRM_INC_STATS(net,
-// LINUX_MIB_XFRMINPOLBLOCK);`), not as XfrmInNoPols, which counts a packet no entry
-// matched; the drop rows assert both counters. And the bare datagram itself, outer
+// that shape. An inner packet outside its own state selector is dropped before the
+// SPD lookup as XfrmInStateMismatch (__xfrm_policy_check, net/xfrm/xfrm_policy.c).
+// A more-specific temporary DISCARD inside the state selector makes the SPD reject
+// an otherwise admitted packet as XfrmInPolBlock. Both checks require XfrmInNoPols
+// unchanged. The bare datagram itself, outer
 // 192.0.2.2 -> 192.0.2.1 protocol 50, matches no Child SA entry, so on its way to the raw
 // ESP reader (raw_rcv runs xfrm4_policy_check, net/ipv4/raw.c) it meets the catch-all too:
 // only the reader's per-socket exemption lets the refused copy through.
@@ -525,30 +527,6 @@ func espPolStat(t *testing.T, name string) int {
 	return 0
 }
 
-// espPolDrops is the pair of inbound policy counters the drop rows read: XfrmInPolBlock,
-// which a packet matching a DISCARD entry advances, and XfrmInNoPols.
-type espPolDrops struct{ polBlock, noPols int }
-
-func espPolReadDrops(t *testing.T) espPolDrops {
-	t.Helper()
-	return espPolDrops{polBlock: espPolStat(t, inStepStatPolBlock), noPols: espPolNoPols(t)}
-}
-
-// espPolWantCatchAllDrop fails the test unless, since before, exactly one packet was
-// dropped by the catch-all (XfrmInPolBlock +1) and none for want of an entry
-// (XfrmInNoPols +0): under the production SPD an inner packet outside the selectors meets
-// the catch-all, so a policy miss would mean the catch-all is not in force.
-func espPolWantCatchAllDrop(t *testing.T, row string, before espPolDrops) {
-	t.Helper()
-	after := espPolReadDrops(t)
-	if moved := after.polBlock - before.polBlock; moved != 1 {
-		t.Errorf("%s: XfrmInPolBlock moved by %d, want 1 (dropped by the SPD catch-all)", row, moved)
-	}
-	if moved := after.noPols - before.noPols; moved != 0 {
-		t.Errorf("%s: XfrmInNoPols moved by %d, want 0; a packet met no SPD entry, so the catch-all is not in force", row, moved)
-	}
-}
-
 // espPolReassembled reads the IPv4 ReasmOKs counter of the thread's own namespace: the
 // number of datagrams Ze's side rebuilt from fragments.
 func espPolReassembled(t *testing.T) int {
@@ -659,7 +637,7 @@ func espPolFastPathUntil(t *testing.T, want string, done func(dataplane.ESPFormF
 }
 
 // RFC requirement: RFC4301-5.2-2 positive -- on a tunnel-mode Child SA installed by createFirstChildSA for an IKE SA on UDP port 4500 with no NAT detected, whose inbound state carries the ESP-in-UDP template, bare ESP received over a veth from a second network namespace, as one whole datagram and as a fragmented one, with an inner packet inside the SA's selectors, is decrypted and delivered.
-// RFC requirement: RFC4301-5.2-2 negative -- on the same Child SA, under the SPD a first configuration apply builds (the catch-all unmatched discard and the IKE bypass), the same bare ESP, whole and fragmented, with an inner source outside the SA's selectors, is dropped by the SPD catch-all (XfrmInPolBlock advances by one and XfrmInNoPols does not move) and never delivered.
+// RFC requirement: RFC4301-5.2-2 negative -- on the same Child SA under the first-apply SPD, bare ESP, whole and fragmented, with an inner source outside the SA's selectors is refused by its own state selector (XfrmInStateMismatch +1 for the whole fast-path datagram and +2 for the fragmented complete-path datagram, including its original bare-form rejection; XfrmInPolBlock and XfrmInNoPols unchanged) and never delivered. An additional explicit DISCARD inside the state scope separately drops both bare forms through the SPD (XfrmInPolBlock +1, XfrmInNoPols unchanged, XfrmInStateMismatch +0 whole or +1 fragmented for the original bare-form rejection), and its removal restores both valid deliveries (only the fragmented form adds its one original bare-form mismatch).
 //
 // RFC 4301 Section 5.2: "Then match the packet against the inbound selectors identified
 // by the SAD entry to verify that the received packet is appropriate for the SA via which
@@ -669,11 +647,12 @@ func espPolFastPathUntil(t *testing.T, want string, done func(dataplane.ESPFormF
 // spec-ipsec-dual-form-receive-spd-bypass for IPv4, under the production SPD (espPolSPD),
 // which the policy listing must show before the rows (espPolWantSPD). Method: a control row
 // first sends an inner packet whose source is outside the selectors in the state's own
-// form, ESP-in-UDP, which XFRM receives on the veth: it must be dropped by the catch-all
-// (XfrmInPolBlock +1, XfrmInNoPols +0), or the counters cannot judge the rows after it.
+// form, ESP-in-UDP, which XFRM receives on the veth: its own SA selector must drop it
+// before SPD lookup (XfrmInStateMismatch +1, XfrmInPolBlock and XfrmInNoPols +0),
+// or the counters cannot judge the rows after it.
 // Then four bare ESP rows: whole and inside the selectors (delivered), whole with the
-// source outside (dropped by the catch-all), fragmented and inside (delivered, and Ze's
-// side reassembled it), fragmented with the source outside (dropped by the catch-all).
+// source outside (dropped by its SA selector), fragmented and inside (delivered, and
+// Ze's side reassembled it), fragmented with the source outside (dropped by its SA selector).
 // While bare ESP is re-presented over lo, the two drop rows are delivered instead.
 //
 // The rows also pin which of the receiver's two paths carried each datagram. Before the
@@ -685,8 +664,13 @@ func espPolFastPathUntil(t *testing.T, want string, done func(dataplane.ESPFormF
 // received them on the veth. The control row, already ESP-in-UDP, and the fragment rows
 // (3 and 4) must leave the counter where it was: the program never rewrites UDP or a
 // fragment, so the fragments reach XFRM through the complete path, reassembled and
-// re-presented on ze-espform. Each path's drop row therefore proves the policy check on
-// that path.
+// re-presented on ze-espform. A final explicit DISCARD on the admitted host pair
+// separately proves the SPD check on both paths, then its removal restores both
+// deliveries. The outside-selector rows retain the independent own-SA check.
+// A complete-path row also counts the original bare ESP form rejection: +1
+// XfrmInStateMismatch even for an admitted packet, or +2 when the re-presented
+// inner packet also fails its own SA selector. The raw clone can finish first,
+// so the counter observer waits for exact terminal values, with a fixed bound.
 //
 //ze:guest-root
 func TestRFC4301BareESPOnTemplatedSAIsPolicyChecked(t *testing.T) {
@@ -711,15 +695,14 @@ func TestRFC4301BareESPOnTemplatedSAIsPolicyChecked(t *testing.T) {
 		t.Fatalf("the fragment rows' ESP datagram is %d octets, within the %d-octet link MTU; it would not be fragmented", outer, espPolLinkMTU)
 	}
 
-	// Control: the state's own form, received on the veth, meets the inbound policy, and
-	// the catch-all below the Child SA's entry drops it.
-	before := espPolReadDrops(t)
+	// Control: the state's own form, received on the veth, is held to its own SA selector.
+	observedBefore := sadSelReadDropCounters(t, espPolStat)
 	rewritten := espPolFastPath(t).Rewritten4
 	sender.sendEncap(t, whole(sadSelInnerStray))
 	if sadSelDelivered(t, inside) {
-		t.Fatal("control (ESP-in-UDP, inner source outside the selectors): delivered; want it dropped by the SPD catch-all, or the counters cannot judge the bare rows")
+		t.Fatal("control (ESP-in-UDP, inner source outside the selectors): delivered; want it dropped by its own SA selector, or the counters cannot judge the bare rows")
 	}
-	espPolWantCatchAllDrop(t, "control (ESP-in-UDP, inner source outside the selectors)", before)
+	sadSelWantDropCounters(t, "control (ESP-in-UDP, inner source outside the selectors)", observedBefore, sadSelReadDropCounters(t, espPolStat), sadSelDropCounters{stateMismatch: 1})
 	if t.Failed() {
 		t.FailNow()
 	}
@@ -738,18 +721,19 @@ func TestRFC4301BareESPOnTemplatedSAIsPolicyChecked(t *testing.T) {
 	}
 
 	// Row 2: whole bare ESP, inner source outside the selectors.
-	before = espPolReadDrops(t)
+	observedBefore = sadSelReadDropCounters(t, espPolStat)
 	rewritten = espPolFastPath(t).Rewritten4
 	sender.sendBare(t, whole(sadSelInnerStray))
 	if sadSelDelivered(t, inside) {
-		t.Error("row 2 (whole bare ESP, inner source outside the selectors): the inner packet was delivered, want it dropped by the inbound policy")
+		t.Error("row 2 (whole bare ESP, inner source outside the selectors): the inner packet was delivered, want it dropped by its own SA selector")
 	}
-	espPolWantCatchAllDrop(t, "row 2 (whole bare ESP, inner source outside the selectors)", before)
+	sadSelWantDropCounters(t, "row 2 (whole bare ESP, inner source outside the selectors)", observedBefore, sadSelReadDropCounters(t, espPolStat), sadSelDropCounters{stateMismatch: 1})
 	if moved := espPolFastPath(t).Rewritten4 - rewritten; moved != 1 {
 		t.Errorf("row 2 (whole bare ESP, outside the selectors): the fast path rewrote %d datagrams, want 1; the drop above did not judge the fast path", moved)
 	}
 
 	// Row 3: fragmented bare ESP, inside the selectors.
+	observedBefore = sadSelReadDropCounters(t, espPolStat)
 	reassembled := espPolReassembled(t)
 	rewritten = espPolFastPath(t).Rewritten4
 	sender.sendBare(t, large(sadSelInnerRemote))
@@ -760,25 +744,190 @@ func TestRFC4301BareESPOnTemplatedSAIsPolicyChecked(t *testing.T) {
 	if !deliveredLarge {
 		t.Fatal("row 3 (fragmented bare ESP, inner packet inside the selectors): not delivered; the probe cannot judge the drop in row 4")
 	}
+	espPolWaitDropCounters(t, "row 3 (fragmented bare ESP, inside the selectors)", observedBefore, sadSelDropCounters{stateMismatch: 1})
 	if moved := espPolFastPath(t).Rewritten4 - rewritten; moved != 0 {
 		t.Errorf("row 3 (fragmented bare ESP, inside the selectors): the fast path rewrote %d datagrams, want 0; a fragment belongs to the complete path", moved)
 	}
 
 	// Row 4: fragmented bare ESP, inner source outside the selectors.
-	before = espPolReadDrops(t)
+	observedBefore = sadSelReadDropCounters(t, espPolStat)
 	reassembled = espPolReassembled(t)
 	rewritten = espPolFastPath(t).Rewritten4
 	sender.sendBare(t, large(sadSelInnerStray))
 	if sadSelDelivered(t, inside) {
-		t.Error("row 4 (fragmented bare ESP, inner source outside the selectors): the inner packet was delivered, want it dropped by the inbound policy")
+		t.Error("row 4 (fragmented bare ESP, inner source outside the selectors): the inner packet was delivered, want it dropped by its own SA selector")
 	}
 	if moved := espPolReassembled(t) - reassembled; moved < 1 {
 		t.Errorf("row 4 (fragmented bare ESP, inner source outside the selectors): ReasmOKs moved by %d; the datagram did not reach Ze in fragments", moved)
 	}
-	espPolWantCatchAllDrop(t, "row 4 (fragmented bare ESP, inner source outside the selectors)", before)
+	espPolWaitDropCounters(t, "row 4 (fragmented bare ESP, inner source outside the selectors)", observedBefore, sadSelDropCounters{stateMismatch: 2})
 	if moved := espPolFastPath(t).Rewritten4 - rewritten; moved != 0 {
 		t.Errorf("row 4 (fragmented bare ESP, outside the selectors): the fast path rewrote %d datagrams, want 0; the drop above did not judge the complete path", moved)
 	}
+
+	espPolInsideDiscard(t, sender, inside, whole(sadSelInnerRemote), large(sadSelInnerRemote))
+}
+
+// espPolWaitDropCounters waits for the exact terminal counts of both copies.
+// raw_v4_input queues the raw clone before ip_protocol_deliver_rcu invokes the
+// original ESP handler. Inner delivery can therefore precede the original
+// bare-form mismatch. An excess counter is a failure, never an accepted floor.
+func espPolWaitDropCounters(t *testing.T, row string, before, want sadSelDropCounters) {
+	t.Helper()
+	target := sadSelDropCounters{
+		stateMismatch: before.stateMismatch + want.stateMismatch,
+		noPols:        before.noPols + want.noPols,
+		polBlock:      before.polBlock + want.polBlock,
+	}
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	deadline := time.NewTimer(espPolFastPathWait)
+	defer deadline.Stop()
+	for {
+		after := sadSelReadDropCounters(t, espPolStat)
+		if after == target {
+			sadSelWantDropCounters(t, row, before, after, want)
+			return
+		}
+		if after.stateMismatch > target.stateMismatch {
+			sadSelWantDropCounters(t, row, before, after, want)
+			return
+		}
+		if after.noPols > target.noPols {
+			sadSelWantDropCounters(t, row, before, after, want)
+			return
+		}
+		if after.polBlock > target.polBlock {
+			sadSelWantDropCounters(t, row, before, after, want)
+			return
+		}
+		select {
+		case <-ticker.C:
+		case <-deadline.C:
+			sadSelWantDropCounters(t, row, before, sadSelReadDropCounters(t, espPolStat), want)
+			return
+		}
+	}
+}
+
+// espPolWantInsideDiscard reads back the temporary host policy without matching a
+// Child SA's broader /16 selector or an ESP reader's per-socket exemption.
+func espPolWantInsideDiscard(t *testing.T, discard dataplane.SPParams, want bool) {
+	t.Helper()
+	policies, err := dataplane.Get().ListPolicies()
+	if err != nil {
+		t.Fatalf("list the SPD for the temporary DISCARD: %v", err)
+	}
+	found := false
+	for i := range policies {
+		p := &policies[i]
+		if p.PerSocket {
+			continue
+		}
+		if !sameIPNet(p.Src, discard.Src) {
+			continue
+		}
+		if !sameIPNet(p.Dst, discard.Dst) {
+			continue
+		}
+		if p.Dir != discard.Dir {
+			continue
+		}
+		if p.IfID != discard.IfID {
+			continue
+		}
+		if p.UpperProto != discard.UpperProto {
+			continue
+		}
+		if p.SrcPort != discard.SrcPort {
+			continue
+		}
+		if p.DstPort != discard.DstPort {
+			continue
+		}
+		found = true
+		if want {
+			if p.Action != discard.Action {
+				t.Fatalf("temporary host policy action is %d, want DISCARD", p.Action)
+			}
+			if p.Priority != discard.Priority {
+				t.Fatalf("temporary DISCARD priority is %d, want %d", p.Priority, discard.Priority)
+			}
+		}
+	}
+	if found != want {
+		t.Fatalf("temporary host DISCARD present=%t, want %t", found, want)
+	}
+}
+
+// espPolInsideDiscard proves that the SPD still decides after the actual SA's
+// selector accepts a packet. The host-specific entry cannot replace the Child's
+// /16 require-policy: InstallPolicy upserts by selector, independent of priority.
+// Its lower numerical priority wins before PriorityChildSA. Removing this exact
+// entry must restore valid delivery through both receiver paths.
+func espPolInsideDiscard(t *testing.T, sender *espPolSender, inside *net.UDPConn, whole, large []byte) {
+	t.Helper()
+	discard := dataplane.SPParams{
+		Src:        mustCIDRNet(t, sadSelInnerRemote+"/32"),
+		Dst:        mustCIDRNet(t, sadSelInnerLocal+"/32"),
+		Dir:        dataplane.SADirIn,
+		UpperProto: sadSelProtoUDP,
+		DstPort:    dataplane.ExactPortMatch(sadSelPort),
+		Action:     dataplane.SPActionDiscard,
+		Role:       dataplane.PolicyRoleOperator,
+		Priority:   dataplane.PriorityChildSA - 1,
+	}
+	espPolWantInsideDiscard(t, discard, false)
+	if err := dataplane.Get().InstallPolicy(discard); err != nil {
+		t.Fatalf("install the temporary DISCARD inside the SA's scope: %v", err)
+	}
+	installed := true
+	remove := func() {
+		if !installed {
+			return
+		}
+		if err := dataplane.Get().RemovePolicyParams(discard); err != nil {
+			t.Fatalf("remove the exact temporary DISCARD: %v", err)
+		}
+		installed = false
+	}
+	t.Cleanup(remove)
+	espPolWantInsideDiscard(t, discard, true)
+
+	exercise := func(row string, packet []byte, fragmented, wantDelivered bool) {
+		before := sadSelReadDropCounters(t, espPolStat)
+		rewritten := espPolFastPath(t).Rewritten4
+		reassembled := espPolReassembled(t)
+		sender.sendBare(t, packet)
+		if delivered := sadSelDelivered(t, inside); delivered != wantDelivered {
+			t.Errorf("%s: delivered=%t, want %t", row, delivered, wantDelivered)
+		}
+		wantDrops := sadSelDropCounters{polBlock: 1}
+		if wantDelivered {
+			wantDrops.polBlock = 0
+		}
+		if fragmented {
+			wantDrops.stateMismatch = 1
+		}
+		espPolWaitDropCounters(t, row, before, wantDrops)
+		wantRewritten := uint64(1)
+		if fragmented {
+			wantRewritten = 0
+			if moved := espPolReassembled(t) - reassembled; moved < 1 {
+				t.Errorf("%s: ReasmOKs moved by %d; the datagram did not reach Ze in fragments", row, moved)
+			}
+		}
+		if moved := espPolFastPath(t).Rewritten4 - rewritten; moved != wantRewritten {
+			t.Errorf("%s: fast-path rewrites moved by %d, want %d", row, moved, wantRewritten)
+		}
+	}
+	exercise("explicit DISCARD, whole bare ESP inside the SA scope", whole, false, false)
+	exercise("explicit DISCARD, fragmented bare ESP inside the SA scope", large, true, false)
+	remove()
+	espPolWantInsideDiscard(t, discard, false)
+	exercise("DISCARD removed, whole bare ESP inside the SA scope", whole, false, true)
+	exercise("DISCARD removed, fragmented bare ESP inside the SA scope", large, true, true)
+	espPolWantSPD(t)
 }
 
 // The ECN codepoints the ECN rows use, in the low two bits of the IPv4 TOS octet (RFC 3168

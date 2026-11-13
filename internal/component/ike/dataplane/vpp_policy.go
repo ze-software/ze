@@ -16,6 +16,7 @@ import (
 	"go.fd.io/govpp/binapi/ipsec"
 	"go.fd.io/govpp/binapi/ipsec_types"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -67,8 +68,8 @@ func vppPortRange(m PortMatch) (start, stop uint16, err error) {
 		ErrNotSupported, m.Mask)
 }
 
-// vppICMPSelectorError refuses an ICMP or ICMPv6 policy that constrains the message
-// type or code.
+// vppICMPSelectorError refuses an ICMP type/code or any other selector that
+// VPP's matcher would ignore. TCP, UDP and SCTP are its port-aware protocols.
 //
 // RFC 4301 Section 4.4.1.1: "If the Next Layer Protocol value is ICMP, then there is a
 // 16-bit selector for the ICMP message type and code."
@@ -84,11 +85,20 @@ func vppPortRange(m PortMatch) (start, stop uint16, err error) {
 // refusing what the entry asks for, never ErrNotSupported, which the engine reads as a
 // platform without IPsec and keeps the Child SA degraded (isXFRMUnsupported).
 func vppICMPSelectorError(p SPParams) error {
-	if !IsICMPProto(p.UpperProto) {
-		return nil
-	}
 	if p.SrcPort.IsAny() && p.DstPort.IsAny() {
 		return nil
+	}
+	// The same matcher limitation applies to every non-TCP/UDP/SCTP selector,
+	// including UDP-Lite ports and MH Type. Refuse before emitting a widened SPD.
+	switch p.UpperProto {
+	case 6, 17, 132:
+		return nil
+	}
+	if !IsICMPProto(p.UpperProto) {
+		return opererr.Wrap(ErrSAOptionRefused,
+			fmt.Sprintf("vpp: protocol %d has a constrained selector that this backend cannot match", p.UpperProto),
+			"VPP's SPD compares ports only for TCP, UDP and SCTP, so installing this selector would match every packet of that protocol",
+			"local { port any; } remote { port any; }")
 	}
 	return fmt.Errorf(
 		"%w: vpp: a policy for protocol %d names ICMP type %d mask %#04x and code %d mask %#04x, and VPP's SPD compares ports only for TCP, UDP and SCTP, so it would match every ICMP message; "+

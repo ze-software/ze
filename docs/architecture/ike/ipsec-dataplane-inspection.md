@@ -46,6 +46,16 @@ them collapses into an empty result.
 
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- activeDataplane, dataplaneReadError -->
 
+The Linux backend also reads each SA's complete directional state scope into
+`SAInfo.Scope`. `StateScopeRead` distinguishes a read legacy state, whose scope
+is nil, from a backend that did not inspect this field. The conversion validates
+every kernel record and owns its prefix values. Invalid scope data refuses the
+whole dump rather than returning a partial list or reporting a missing scope.
+These backend fields do not add scope columns to the command output.
+<!-- source: internal/component/ike/dataplane/dataplane.go -- SAInfo -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- ListSAs -->
+<!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- saStateScopeFromKernel -->
+
 The same rule shapes the counter columns of `show vpn ipsec sa`. That command
 reports engine belief and must keep working when the kernel cannot be read, so a
 failed dump is recorded as "not known" and every counter renders as null. A zero

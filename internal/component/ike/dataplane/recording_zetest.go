@@ -44,7 +44,9 @@ const recordingESPFormUnavailableCause = "the recording-esp-form-unavailable tes
 // (test/ipsec/ipsec-esp-form-fast-path-doctor.ci). Selected with
 // ze.test.ike.dataplane=recording-esp-form-unavailable.
 func newRecordingESPFormUnavailableBackend() (Dataplane, error) {
-	return &recordingESPFormUnavailable{policies: map[recordedPolicyKey]SPParams{}}, nil
+	return &recordingESPFormUnavailable{
+		recordingDataplane: recordingDataplane{policies: map[recordedPolicyKey]SPParams{}},
+	}, nil
 }
 
 // recordingESPFormUnavailable is the recording backend with a fast path that never

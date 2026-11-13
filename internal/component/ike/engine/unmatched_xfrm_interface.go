@@ -359,6 +359,9 @@ func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, pla
 			if entry.role != role {
 				continue
 			}
+			if interfaceForwardDefault(dp, entry) {
+				continue
+			}
 			if _, held := s.xfrmEntries[sel]; held {
 				continue
 			}
@@ -386,6 +389,13 @@ func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, pla
 		}
 	}
 	return interfaceCatchAllRefused(noFinalEntry)
+}
+
+// A namespace FWD default also closes every if_id's forward lookup. An explicit
+// interface final entry would prevent the ICMP payload lookup before that default.
+func interfaceForwardDefault(dp dataplane.Dataplane, entry *xfrmInterfaceEntry) bool {
+	_, usesDefault := forwardDefaultInstaller(dp)
+	return usesDefault && entry.role == dataplane.PolicyRoleInterfaceCatchAll && entry.params.Dir == dataplane.SADirFwd
 }
 
 // interfaceCatchAllRefused answers the error installXFRMInterfaceEntries returns for
@@ -436,7 +446,7 @@ func (s *ikeEngineState) pruneXFRMInterfaceEntries(dp dataplane.Dataplane, plan 
 			if held.role != role {
 				continue
 			}
-			if _, kept := next[sel]; kept {
+			if entry, kept := next[sel]; kept && !interfaceForwardDefault(dp, entry) {
 				continue
 			}
 			if dp != nil {

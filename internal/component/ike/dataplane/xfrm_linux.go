@@ -39,8 +39,10 @@ var xfrmPolicyDel = netlink.XfrmPolicyDel
 // map from a fixture proves it everywhere, and the integration tests beside it
 // still prove the dump itself against a real kernel.
 var (
-	xfrmStateList  = netlink.XfrmStateList
-	xfrmPolicyList = netlink.XfrmPolicyList
+	xfrmStateList     = netlink.XfrmStateList
+	xfrmPolicyList    = netlink.XfrmPolicyList
+	xfrmStateAdd      = netlink.XfrmStateAdd
+	xfrmScopeCapsRead = netlink.XfrmZECapabilitiesGet
 )
 
 type xfrmBackend struct {
@@ -67,6 +69,10 @@ type xfrmBackend struct {
 	// guard is the application override guard (override_guard_linux.go), held only
 	// while `vpn ipsec application-override deny` is applied.
 	guard overrideGuard
+
+	// forwardDefault retains the namespace's original FWD disposition across reloads.
+	// Failed policy removals keep this lease; Close must not restore it independently.
+	forwardDefault *xfrmForwardDefaultLease
 }
 
 func newXFRMBackend() (Dataplane, error) {
@@ -81,6 +87,11 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	if p.Scope != nil {
+		if err := checkXFRMStateScopeCapabilities(); err != nil {
+			return err
+		}
+	}
 	state, err := xfrmStateFromParams(p)
 	if err != nil {
 		return err
@@ -104,7 +115,7 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 				"set vpn ipsec site-to-site peer <peer> remote-address <IPv4 address>")
 		}
 	}
-	if err := netlink.XfrmStateAdd(state); err != nil {
+	if err := xfrmStateAdd(state); err != nil {
 		return fmt.Errorf("xfrm: state add spi=%d: %w", p.SPI, err)
 	}
 
@@ -200,11 +211,12 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 
 	// RFC 4552 OSPFv3: an explicit state selector (x->sel) lets one wildcard-address
 	// SA (Src=Dst=::) be resolved for any OSPF flow (ff02::5, ff02::6, neighbor
-	// unicast) instead of only flows whose daddr equals p.Dst. A transport-mode IKE
-	// Child SA sets it to its negotiated selector (RFC 4301 Section 4.4.2), and the
-	// kernel then drops a decrypted packet outside it (XfrmInStateMismatch). A
-	// tunnel-mode IKE Child SA leaves p.Sel nil; the branch after this one marks
-	// that state as serving either inner family.
+	// unicast) instead of only flows whose daddr equals p.Dst. IKE also supplies its
+	// negotiated selector for transport reception and a single-pair tunnel's inbound
+	// state (RFC 4301 Section 4.4.2). The kernel checks the state's own selector before
+	// looking up an SPD entry, so a sibling's matching policy cannot authorize traffic
+	// outside this state (XfrmInStateMismatch). A multiple-pair tunnel and an outbound
+	// tunnel state leave p.Sel nil; the next branch permits either inner family there.
 	if p.Sel != nil {
 		srcPort, err := xfrmSelectorPort("state source", p.Sel.SrcPort)
 		if err != nil {
@@ -218,6 +230,7 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 			Src:     p.Sel.Src,
 			Dst:     p.Sel.Dst,
 			Proto:   netlink.Proto(p.Sel.UpperProto), // 0 = any, 89 = OSPF
+			Ifindex: p.Sel.IfIndex,
 			SrcPort: srcPort,
 			DstPort: dstPort,
 
@@ -241,6 +254,9 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 		// RFC 4301 Section 5.1.2: "IPsec allows the IP version of the
 		// encapsulating header to be different from that of the inner header."
 		state.AFUnspec = true
+	}
+	if err := xfrmStateScopeFromParams(p, state); err != nil {
+		return nil, err
 	}
 
 	// RFC 4301 Section 6.2: "If an IPsec implementation receives an inbound ICMP error
@@ -504,6 +520,10 @@ func (b *xfrmBackend) CatchAllSupported() error {
 // RequiresForwardPolicy reports Linux's separate SPD-I lookup for transit traffic.
 // A tunnel packet for a protected host reaches XFRM_POLICY_FWD, not XFRM_POLICY_IN.
 func (b *xfrmBackend) RequiresForwardPolicy() bool { return true }
+
+// InboundStateSelectorSupported declares Linux's immutable x->sel check before
+// SPD lookup (__xfrm_policy_check, RFC 4301 Section 5.2).
+func (b *xfrmBackend) InboundStateSelectorSupported() bool { return true }
 
 func (b *xfrmBackend) InstallPolicy(p SPParams) error {
 	b.mu.Lock()
@@ -818,7 +838,16 @@ func (b *xfrmBackend) ListSAs(ifID uint32) ([]SAInfo, error) {
 		if ifID != 0 && uint32(s.Ifid) != ifID {
 			continue
 		}
-		out = append(out, saInfoFromState(s))
+		info := saInfoFromState(s)
+		if s.StateScope != nil {
+			scope, err := saStateScopeFromKernel(s.StateScope)
+			if err != nil {
+				return nil, fmt.Errorf("xfrm: state list spi=%d: %w", s.Spi, err)
+			}
+			info.Scope = scope
+		}
+		info.StateScopeRead = true
+		out = append(out, info)
 	}
 	return out, nil
 }

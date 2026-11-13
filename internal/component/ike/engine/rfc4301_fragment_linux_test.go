@@ -80,13 +80,15 @@ func TestRFC4301FragmentsOfACompliantPacketAreDelivered(t *testing.T) {
 // TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded proves the refusing side. Method:
 // the same Child SA; an inner packet whose source lies outside the selector is sent as
 // two fragments on the SA, non-initial first. Its non-initial fragment carries nothing
-// a selector names but the addresses; the packet is discarded (XfrmInNoPols moves by
-// one) and nothing is delivered.
+// a selector names but the addresses; the reassembled packet is discarded by its SA
+// selector before SPD lookup (XfrmInStateMismatch +1, XfrmInNoPols and XfrmInPolBlock
+// unchanged), and nothing is delivered.
 func TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded(t *testing.T) {
 	// RFC requirement: RFC4301-7.3-5 negative -- the non-initial fragment of an inner
 	// packet that does not comply with the inbound policy for the SA (source outside
-	// the selector) is discarded with the packet: XfrmInNoPols moves by one and nothing
-	// is delivered.
+	// the selector) is discarded with the packet by its own SA selector before SPD
+	// lookup: XfrmInStateMismatch moves by one, XfrmInNoPols and XfrmInPolBlock stay
+	// unchanged, and nothing is delivered.
 	if !sadSelOwnNamespace(t) {
 		return
 	}
@@ -96,13 +98,11 @@ func TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded(t *testing.T) {
 	inside := sadSelListen(t, sadSelInnerLocal, sadSelPort)
 
 	initial, nonInitial := fragSplit(sadSelIPv4(sadSelInnerStray, sadSelProtoUDP, sadSelUDP(sadSelPort)))
-	before := sadSelStat(t, sadSelStatNoPols)
+	observedBefore := sadSelReadDropCounters(t, sadSelStat)
 	sender.send(t, sadSelProtoIPv4, nonInitial)
 	sender.send(t, sadSelProtoIPv4, initial)
 	if sadSelDelivered(t, inside) {
 		t.Error("the fragments of a packet outside the negotiated selectors were delivered")
 	}
-	if got := sadSelStat(t, sadSelStatNoPols) - before; got != 1 {
-		t.Errorf("%s moved by %d, want 1 (the non-compliant packet's fragments discarded)", sadSelStatNoPols, got)
-	}
+	sadSelWantDropCounters(t, "non-compliant fragmented packet", observedBefore, sadSelReadDropCounters(t, sadSelStat), sadSelDropCounters{stateMismatch: 1})
 }

@@ -489,6 +489,12 @@ func runEngine(conn net.Conn) int {
 	// metricsStop ends the metrics worker started below; the deferred shutdown closes it.
 	metricsStop := make(chan struct{})
 
+	p := sdk.NewWithConn("ike", conn)
+	defer closeSDK(p)
+	state.issueRaiser = p
+
+	// Keep the SDK available through policy cleanup where the connection survives.
+	// A daemon disconnect already closed it; coded logs retain failed report attempts.
 	// The whole shutdown, for a clean return and an error return of p.Run alike
 	// (ikeEngineState.shutdown, apply.go, states the order).
 	defer func() {
@@ -498,9 +504,6 @@ func runEngine(conn net.Conn) int {
 			log.Warn("ike: dataplane close error", "error", err)
 		}
 	}()
-
-	p := sdk.NewWithConn("ike", conn)
-	defer closeSDK(p)
 
 	// The dual-form receiver's reader stops reach the daemon's report bus through this
 	// plugin's own report-issue request, which crosses the process boundary in-process and

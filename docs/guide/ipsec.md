@@ -1553,6 +1553,23 @@ the last state that decrypted the message carries `XFRM_STATE_ICMP`, the flag
 `icmp-error-check true` sets; `LL-XFRM-ICMP-TRANSIT` in
 [Linux limitations](../architecture/linux-limitations.md) records it.
 
+For an ICMP error forwarded to a protected host, Linux can search the reversed
+quoted header before applying the final forwarding disposition. Ze uses the
+namespace's XFRM forwarding default for `unmatched`, rather than a forwarding
+catch-all that would hide that lookup. The Child SA's forwarding PROTECT
+entries remain in force, including on an XFRM interface. With the check enabled,
+a consistent quoted header can select that SA's policy; an inconsistent one is
+dropped. Disabling the check requires the error's own headers to be allowed by
+the SA's selectors and receive policy. It does not authorize an error outside
+them. Ze preserves the namespace's inbound and outbound default dispositions
+and restores the previous forwarding default when its SPD is released. Another
+XFRM policy manager must coordinate default-policy writes with Ze; an observed
+external change refuses a reload or restoration rather than being overwritten.
+The diagnostic code `doctor-ipsec-forward-default` reports a missing host
+permission, an unreadable default, a conflicting policy manager, or a restoration
+that has not completed. Its finding names the next command. A shutdown failure
+also remains in the warning log when the daemon connection has already closed.
+
 So commit refuses a discard entry that is `in` or `both`, has protocol 0 or
 the ICMP protocol of its family, any `icmp-type`, and a family the selectors of
 a peer with `icmp-error-check true` can carry. Its prefixes and its order do
@@ -1590,10 +1607,10 @@ no key and no negotiation, so they are in force whether or not any tunnel is up.
 RFC 4301 Section 5: "If no policy is found in the SPD that matches a packet
 (for either inbound or outbound traffic), the packet MUST be discarded." The
 Linux kernel does the opposite with no matching policy: it passes the packet in
-the clear. So Ze installs a last entry itself, a wildcard selector in every
-direction (in, out and forward) for IPv4 and IPv6, at the largest priority the
-kernel holds, so every entry above is searched first. Its disposition is one
-leaf:
+the clear. Ze installs last IN and OUT entries for IPv4 and IPv6 at the largest
+priority the kernel holds, so every entry above is searched first. Forwarding
+uses the namespace's XFRM default disposition, after ordinary policies and the
+ICMP quoted-header lookup. Its disposition is one leaf:
 
 ```
 set vpn ipsec unmatched discard
@@ -1762,8 +1779,8 @@ the way and be dropped. So for every XFRM interface a peer binds, Ze installs
 None of these is installed under `unmatched bypass`, since the catch-all already
 passes the traffic.
 
-Each bound XFRM interface's own database also gets a final entry: a `discard`
-in, out and fwd for IPv4 and IPv6 at the interface's `if_id`, ranked last, so
+Each bound XFRM interface's own database also gets final `discard` entries in
+IN and OUT for IPv4 and IPv6 at the interface's `if_id`, ranked last, so
 the interface's Child SA policies are always searched first. A packet routed
 into the interface that no Child SA covers is dropped there and counted by the
 kernel's `XfrmOutPolBlock` counter. This entry discards under both values of
@@ -1771,7 +1788,9 @@ kernel's `XfrmOutPolBlock` counter. This entry discards under both values of
 drops a packet there that matches no Child SA whatever entry it meets, so a
 `bypass` at the interface would only be listed as one. It goes in before the
 `if_id` 0 entries above hand any packet to the interface, and comes out after
-them.
+them. Its FWD lookup uses the namespace default after the Child policies and
+ICMP quoted-header lookup; a tunnel-mode packet no policy covers is still
+rejected even when that default accepts.
 
 The entries follow the interface: Ze reads its index and
 addresses and `if_id` through the interface resolver, and reads them again when an
@@ -2566,6 +2585,28 @@ missing combination. Add the missing entries, or remove the entry that brings in
 extra prefix.
 
 <!-- source: internal/component/ike/engine/config.go -- validateSelectorCombinations -->
+
+An omitted `port`, or `port any`, leaves that side unconstrained. A specific port
+requires a protocol that defines the field: TCP (6), UDP (17), SCTP (132) or
+UDP-Lite (136). DCCP (33) defines ports too, but Linux XFRM cannot select them,
+so Ze refuses a specific DCCP port; DCCP with `port any` is accepted. Protocols
+without ports, including GRE (47) and ESP (50), require `port any`.
+
+For ICMP, the number is the IKE type/code value: type times 256 plus code.
+For IPv6 Mobility Header protocol 135, the IKE value is the Type times 256,
+with a zero low octet: Type 5 is 1280, rather than 5. Ze understands that
+encoding, but refuses every specific MH Type at config verify and negotiation.
+The Linux receive-flow decoder does not fill the Type used by XFRM: an exact
+Type 5 policy drops even matching received and forwarded packets.
+`protocol 135` with `port any` remains usable. The wanted exact-Type kernel
+feature is tracked in `plan/post-release/kernel/spec-xfrm-ipv6-mh-selector.md`.
+
+The VPP backend refuses constrained MH and UDP-Lite selectors because its SPD
+does not compare those fields. Linux supports UDP-Lite ports.
+
+<!-- source: internal/component/ike/ipsec/traffic_selector.go -- ValidForProtocol, ProgrammableForProtocol, checkPortProgrammable -->
+<!-- source: internal/component/ike/engine/child.go -- childPairPolicy -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppICMPSelectorError -->
 
 The inner family of a tunnel does not have to match its outer family. RFC 4301
 Section 5.1.2: "IPsec allows the IP version of the encapsulating header to be
