@@ -255,8 +255,11 @@ it does not rediscover a different checkout from the invocation directory.
    Docker's binaries under `/usr/lib/ze-docker-host/`, every member owned by
    root;
 4. gok builds the image through `le build gokrazy`'s path (prepared instance,
-   the arch's runtime kernel, `--target_storage_bytes` of the size, 16 GiB by
-   default, 2 to 1024 accepted);
+   the arch's runtime kernel, `--target_storage_bytes` of the size, 64 GiB by
+   default, 2 to 1024 accepted). `start` and the QEMU lab guest always boot
+   the default size, and `/perm` holds all of Docker's data, so the default
+   has to fit a runtime kernel build beside the lab images: 16 GiB did not.
+   The image file is sparse, so the size costs disk only as it fills;
 5. `/perm`, partition 4 of the image's GPT, is formatted ext4 when it carries
    no superblock: gok formats it only where `mkfs.ext4` is on its PATH, which
    a Mac does not have. The offset comes from the partition table.

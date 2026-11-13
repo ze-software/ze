@@ -158,7 +158,9 @@ func newRecordingBuilder(t *testing.T) *recordingBuilder {
 func TestDockerHostBuildActionBuildsTheInstance(t *testing.T) {
 	repo := fakeRepo(t)
 	recorder := newRecordingBuilder(t)
-	req := buildRequest{repo: repo, arch: "arm64", pins: fullPins(t), sizeGiB: imageSizeGiBDefault}
+	// 16 GiB is named, not the default: the byte count asserted below is this
+	// request's size, whatever the default is.
+	req := buildRequest{repo: repo, arch: "arm64", pins: fullPins(t), sizeGiB: 16}
 
 	first, err := recorder.build(context.Background(), req)
 	if err != nil {
@@ -252,6 +254,27 @@ func TestDockerHostBuildStopsAtAFetchRefusal(t *testing.T) {
 // VALIDATES: the size keyword's bounds (2 to 1024 GiB) and that the size is
 // part of the image key.
 // PREVENTS: an image too small for /perm, and a resized image reusing the old key.
+// TestDockerHostDefaultImageFitsAKernelBuild holds the default image size
+// above what the host is asked to do with it. `start` and the QEMU lab guest
+// boot only the default, and /perm carries all of Docker's data. A runtime
+// kernel build measured about 8 GiB of build tree beside 5 GiB of lab images
+// and 3 GiB of build cache, which a 16 GiB image (14.9 GiB of /perm) could
+// not hold, so a host with no cached kernel could not build the kernel its
+// own image needs. The request with no size is what both callers pass.
+func TestDockerHostDefaultImageFitsAKernelBuild(t *testing.T) {
+	const kernelBuildBesideLabImagesGiB = 32
+	req, err := parseBuildRequest("arm64", "", filepath.Join("..", "..", "..", "..", "..", PinFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.sizeGiB < kernelBuildBesideLabImagesGiB {
+		t.Fatalf("default image is %d GiB, below the %d GiB a kernel build beside the lab images needs", req.sizeGiB, kernelBuildBesideLabImagesGiB)
+	}
+	if req.sizeGiB != imageSizeGiBDefault {
+		t.Fatalf("a build that names no size asks for %d GiB, not the default %d", req.sizeGiB, imageSizeGiBDefault)
+	}
+}
+
 func TestDockerHostBuildSizeBounds(t *testing.T) {
 	cases := []struct {
 		size string

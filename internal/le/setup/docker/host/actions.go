@@ -48,7 +48,7 @@ var dockerHostActions = leaction.New(dockerHostArea,
 		Summary: "build Ze's docker-host image",
 		Why: "build Ze's docker-host image (Ze's runtime kernel, dockerd, containerd, sshd, sudo, iptables) from the" +
 			" pins in " + PinFile + " into ~/.cache/ze/docker-host/<arch>/<key>/ and print its path; the same inputs" +
-			" reuse the cached image. `arch` defaults to this host's, `size` (GiB, 2-1024) to 16, `pins` names another pin file",
+			" reuse the cached image. `arch` defaults to this host's, `size` (GiB, 2-1024) to 64, `pins` names another pin file",
 		Parameters: []leaction.Parameter{
 			{Keyword: archKeyword, Kind: leaction.KindEnum, Help: "the architecture to build for; this host's when absent", Value: "arch", Values: []string{archAMD64, archARM64},
 				ValueHelp: map[string]string{

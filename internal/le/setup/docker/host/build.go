@@ -31,10 +31,14 @@ const (
 	imageFileName = "docker-host.img"
 	// instanceName is the gokrazy instance the image is built from.
 	instanceName = "docker-host"
-	// imageSizeGiBDefault is the image size when the build names none: room
-	// for the lab images on /perm. The image file is sparse, so the Mac pays
-	// only for the blocks written (spec A-10).
-	imageSizeGiBDefault = 16
+	// imageSizeGiBDefault is the image size when the build names none, and
+	// the only size `start` and the QEMU lab guest ever boot. /perm holds all
+	// of Docker's data, so it MUST fit a runtime kernel build (about 8 GiB of
+	// build tree) beside the lab images and the build cache: at 16 GiB a host
+	// with no cached kernel could not build the one this image needs. The
+	// image file is sparse, so the Mac pays only for the blocks written (spec
+	// A-10).
+	imageSizeGiBDefault = 64
 	// imageSizeGiBMin holds the boot partitions with room for /perm.
 	imageSizeGiBMin = 2
 	// imageSizeGiBMax bounds a typing mistake.
