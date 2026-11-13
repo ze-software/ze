@@ -95,6 +95,32 @@ The four review commands serve different purposes:
 | `/ze-review-spec` | Selected spec | Spec vs code comparison | After implementing a spec |
 | `/ze-review-docs` | `docs/` directory | Accuracy and completeness | Periodic documentation audit |
 
+## Where a Skill Lives
+
+Each command above is a skill, and its text is one file: `ai/skills/<name>.md`.
+Edit that file. A change to its body takes effect the next time the skill is
+loaded, in every tool, with nothing to run.
+
+Claude Code, Codex, OpenCode and Pi each look for skills in their own directory
+(`.claude/skills/`, `.codex/skills/`, `.agents/skills/`). Those directories are
+generated and git-ignored. Each holds one stub per skill: the skill's name and
+description, and an instruction to read `ai/skills/<name>.md` in full. Never
+edit a stub.
+
+| You did | Run |
+|---------|-----|
+| Edited a skill's body | Nothing |
+| Added, removed or renamed a skill, or changed its `name` or `description` | `./le ai sync update` |
+| Cloned the repository, or saw "generated agent files are stale" at session start | `./le ai sync update` |
+
+The sync refuses a skill file whose frontmatter lacks a `description`, or a
+`name` equal to its file name, and says which line to add or edit. It removes
+the stub of a skill that is gone. Any other file it finds in those directories
+it leaves in place and names, with the command that deletes it if it is a
+leftover. `./le ai sync check` names what is stale and writes nothing.
+<!-- source: internal/le/ai/sync/ai.go -- stubOf, clearLeftovers, Check -->
+<!-- source: internal/le/ai/sync/report.go -- Report.Text -->
+
 ## Notes
 
 - `/ze-commit` does **not** run `git commit` or `git add` as direct calls. It generates a message file and executable commit script through `internal/le/commit.Answer` and runs that script, which is what commits.
