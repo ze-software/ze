@@ -83,6 +83,10 @@ plugin {
 {% endif %}
 }
 
+# Start interface monitoring; netlab configures the addresses.
+interface {
+}
+
 connected {
 }
 {% if 'bfd' in module %}
@@ -258,6 +262,7 @@ bgp {
 			send [ update ]
 		}
 		attach process redistribute-orchestrator {
+			receive [ state ]
 			send [ update ]
 		}
 	}

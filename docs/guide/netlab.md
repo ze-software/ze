@@ -160,8 +160,19 @@ that nothing reads.
 The node starts netlab's `/etc/dataplane-wait.sh` under `tini`. That wrapper waits
 for initial interface configuration, then replaces itself with
 `ze start /etc/ze/ze.conf`. Ze therefore starts after its configured local
-addresses exist. Its rendered configuration carries no interface block.
+addresses exist.
 <!-- source: contrib/netlab/ze.yml -- clab.node.cmd, clab.node.config_templates, clab.group_vars.netlab_dp_module -->
+
+The rendered empty `interface {}` block starts interface monitoring so
+`connected` can discover the addresses netlab installed. It declares no managed
+addresses; netlab keeps ownership of them. Applying the empty block still clears
+Ze's IPv6 reverse-path checks and interface IPv6 forwarding default. Each BGP peer's
+redistribution attachment receives `state` and can send `update`, allowing a
+peer that establishes later to request the current connected prefixes.
+<!-- source: contrib/netlab/ze/ze.j2 -- interface, redistribute-orchestrator -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfigPass -->
+<!-- source: internal/component/iface/config_sysctl.go -- applyIPv6ForwardingSwitch -->
+<!-- source: internal/plugins/redistribute/register.go -- runPlugin -->
 
 The explicit `clab.node_config.initial` shell method runs Linux interface setup
 through `docker exec`. The Ze initial template marks successful completion for

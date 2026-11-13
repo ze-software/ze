@@ -116,6 +116,12 @@ until `netlab initial` completes Linux interface setup and writes
 `/var/run/initial.done`, then replaces itself with Ze. Ze starts after its BGP
 local addresses exist, and its output and exit status reach Docker directly.
 
+The rendered empty `interface {}` block activates interface monitoring for
+`connected`. netlab owns the addresses, and this block declares no managed
+addresses. Applying it still clears Ze's IPv6 reverse-path checks and interface
+IPv6 forwarding default. Each peer's redistribution attachment receives `state` and
+can send `update`, so establishment triggers replay of the connected prefixes.
+
 The topology is three ze nodes:
 
     r1 ---- internal ---- r2      AS 65001, iBGP + OSPF + IS-IS + BFD

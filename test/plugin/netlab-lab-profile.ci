@@ -1,5 +1,7 @@
 # Test: the configuration netlab renders for a ze node runs, authenticates, and
 # answers the show command netlab validation parses.
+# A unit test cannot prove daemon startup, SSH authentication, and command
+# formatting through the running daemon.
 #
 # VALIDATES: spec-netlab-integration AC-9 and AC-10.
 #            AC-9  -- `ze config validate` accepts contrib/netlab/golden/r3.conf,
@@ -15,7 +17,7 @@
 #               refuses, or refuses to run with. `./le test netlab check`
 #               catches a drifted RENDER; only a daemon catches a drifted
 #               RUNTIME, and that check needs netlab installed while this test
-#               needs nothing.
+#               reads the committed render without an installed netlab.
 #            2. `netlab validate` gets YAML where it asked for JSON. That was
 #               real: `ze cli -c "show x | json compact"` ran the pipe and then
 #               printFormatted re-rendered its JSON back to YAML under the
@@ -27,8 +29,10 @@
 # not a copy pasted into this file. A copy is a second source of truth that goes
 # stale the first time the template changes, which is the whole failure this test
 # exists to catch. r3 is the node to use: it is the topology's bgp-only node, so
-# it carries no OSPF, IS-IS or BFD block, and those need real interfaces that no
-# unprivileged test host has.
+# it carries no OSPF, IS-IS or BFD block, which would need the topology's links.
+# Its empty interface block starts the real netlink monitor. This test therefore
+# runs under Ze's kernel in QEMU, with the addresses and all other configuration
+# from the committed render retained except for the two changes below.
 #
 # Two edits are applied to the golden, and each one is asserted to have changed
 # something so a rename in the template cannot make this test quietly stop
@@ -49,6 +53,8 @@
 
 # Native process driver validates the golden, starts the daemon, authenticates
 # over SSH, and parses the exact netlab JSON command.
+
+option=needs-linux
 
 cmd=foreground:seq=1:exec=le test fixture plugin/netlab-lab-profile:timeout=30s
 expect=exit:code=0
