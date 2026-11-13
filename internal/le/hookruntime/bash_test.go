@@ -984,7 +984,7 @@ func TestSpecValidationRefusesObsoletePlacements(t *testing.T) {
 // guardVerdict runs one Bash guard alone over a command and a checkout root,
 // and adds the command to the recorded corpus while collectCorpus runs.
 func guardVerdict(check hookCheck, root, command string) *verdict {
-	recordCorpusLine(command, false)
+	recordCorpusLine(command)
 	return check(context{root: root, input: map[string]any{"command": command}})
 }
 

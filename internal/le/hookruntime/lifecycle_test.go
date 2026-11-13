@@ -88,10 +88,12 @@ func TestSubagentContextResolvesClaim(t *testing.T) {
 
 // VALIDATES: AC-6, the identity line. The start text of a subagent whose
 // payload carries its agent id holds the full line the agent types in front of
-// a command; a payload with no agent id holds the session part alone and says
-// that part is the whole identity line, so no later refusal prints more, and
-// neither text speaks of a first refusal. Neither claims that the hook adds
-// the line, because the hook no longer changes a command.
+// a command; a payload with no agent id holds no identity line and no order
+// to type one, because the Bash hook reads a call with no agent id as the
+// main thread's and asks it for none, and says the refusal prints the line
+// should a call name an agent; and neither text speaks of a first refusal.
+// Neither claims that the hook adds the line, because the hook no longer
+// changes a command.
 // PREVENTS: a subagent learning its identity line only from a refused call.
 func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
 	tests := []struct {
@@ -109,10 +111,10 @@ func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
 		{
 			name:    "payload-without-agent-id",
 			payload: map[string]any{"session_id": "context-parent"},
-			// Review N2: with no agent id the session part is the whole line
-			// the identity check compares, so no later refusal prints more.
-			want:   []string{"\nexport CLAUDE_CODE_SESSION_ID=context-parent; \n", "your whole identity line"},
-			absent: []string{"ZE_AGENT_ID=", "first refusal"},
+			// With no agent id there is no line the identity check compares,
+			// so the start text prints none and does not order one typed.
+			want:   []string{"names no agent id", "refusal then prints the exact line", "Parent session ID: context-parent"},
+			absent: []string{"export CLAUDE_CODE_SESSION_ID=", "ZE_AGENT_ID=", "Start every Bash command", "first refusal"},
 		},
 		{
 			// Review N2: an agent id that cannot name a file gets no line to

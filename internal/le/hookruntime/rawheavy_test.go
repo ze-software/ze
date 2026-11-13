@@ -180,10 +180,6 @@ func TestRefusalAdviceIsAcceptedByTheHook(t *testing.T) {
 		t.Run("subagent/"+command, func(t *testing.T) {
 			judgeHandedBackAlone(t, command, subagentLine, runSubagentBash)
 		})
-		// A fork carries no agent id, and is a subagent all the same.
-		t.Run("fork/"+command, func(t *testing.T) {
-			judgeHandedBackAlone(t, command, identityLineOfFork, runForkBash)
-		})
 	}
 }
 

@@ -472,7 +472,6 @@ func TestNativeTranscriptSourceResolvesOnlyTheNamedSafeSession(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "session_1.safe")
-	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "")
 	dir := transcriptDirectory(root)
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		t.Fatalf("transcript directory: %v", err)

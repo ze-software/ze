@@ -23,11 +23,11 @@ const probeBashInput = "command"
 
 // probeBashCleared names the variables a pretool-bash check reads from the
 // hook's own environment rather than from the payload: GOFLAGS and CDPATH
-// change what bashRootBuild resolves (goFlags, cdTarget in gobuild.go), and
-// CLAUDE_CODE_FORK_SUBAGENT makes bashAgentIdentity judge a call with no agent
-// id as a fork subagent's. ProbeBash clears each one, so a verdict does not
-// depend on the shell that ran the probe.
-var probeBashCleared = [...]string{"GOFLAGS", "CDPATH", "CLAUDE_CODE_FORK_SUBAGENT"}
+// change what bashRootBuild resolves (goFlags, cdTarget in gobuild.go).
+// ProbeBash clears each one, so a verdict does not depend on the shell that
+// ran the probe. Who the caller is comes from the payload alone
+// (fromSubagent), so no variable is cleared for it.
+var probeBashCleared = [...]string{"GOFLAGS", "CDPATH"}
 
 // probeBashRoot is the variable Run resolves the checkout root from when the
 // payload gives none (newContext). ProbeBash points it at the probe tree.

@@ -51,7 +51,26 @@ type NativeTranscriptSource struct{}
 
 // TranscriptPath answers this session's transcript, or an empty path when it
 // cannot identify one. An explicit session id never falls back to a neighbor.
+//
+// The session is the one CLAUDE_CODE_SESSION_ID names, for a subagent too: a
+// subagent, a fork included, starts le behind its identity line, which exports
+// its parent's session id. Where the environment holds no session id, the
+// session is the one le already knows for this process
+// (lepath.KnownSessionID: the CLI ancestor's --session-id, the access token,
+// the identity cache), which mints nothing and creates nothing. A known
+// session answers its own transcript or none, never a neighbor's. Only a
+// process with no known session falls back to the newest transcript.
+// CLAUDE_CODE_FORK_SUBAGENT is not read: it is a setting of the harness, set
+// in the main thread's processes as well, so it says nothing about whose
+// process this is.
 func (NativeTranscriptSource) TranscriptPath(root string) string {
+	return nativeTranscriptPath(root, lepath.KnownSessionID)
+}
+
+// nativeTranscriptPath is NativeTranscriptSource.TranscriptPath with the
+// lookup of the known session passed in, so a test names the session instead
+// of inheriting the one its runner's process tree carries.
+func nativeTranscriptPath(root string, known func(root string) (string, error)) string {
 	dir := transcriptDirectory(root)
 	if dir == "" {
 		return ""
@@ -63,12 +82,22 @@ func (NativeTranscriptSource) TranscriptPath(root string) string {
 		}
 		return existingTranscript(filepath.Join(dir, rawSession+".jsonl"))
 	}
-	if os.Getenv("CLAUDE_CODE_FORK_SUBAGENT") != "" {
-		paths, err := lepath.ResolveSession(root, false)
-		if err != nil {
+	id, err := known(root)
+	// refuse-by-default: guards RunSessionCoverage -- an empty path is the unidentified transcript, which RunSessionCoverage reports as none resolved rather than read a neighbor's
+	if err != nil {
+		return ""
+	}
+	if id != "" {
+		if id == "." {
 			return ""
 		}
-		return existingTranscript(filepath.Join(dir, paths.ID+".jsonl"))
+		if id == ".." {
+			return ""
+		}
+		if !safeTranscriptSession.MatchString(id) {
+			return ""
+		}
+		return existingTranscript(filepath.Join(dir, id+".jsonl"))
 	}
 
 	entries, err := os.ReadDir(dir)

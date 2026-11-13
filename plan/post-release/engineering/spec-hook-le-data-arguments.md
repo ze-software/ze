@@ -121,7 +121,7 @@ job typed anywhere it can run.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `hook-existing-patterns-false-positive` | 2026-11-11 | `bashRawHeavy`, `rawHeavy` on a quoted `;`: prose after a `;` inside a `./le commit create` body read as a raw `go vet` |
-| `gate-verdict-depends-on-the-machine` | 2026-11-13 | `fromSubagent`: the hook reads a fork from an environment variable the harness uses as a setting |
+| `gate-verdict-depends-on-the-machine` | 2026-11-13 | `fromSubagent`: a workflow agent's payload was never probed, and one that names no agent id is judged as the main thread |
 | `hook-existing-patterns-false-positive` | 2026-11-12 | `bashTestDeletion` line-wide words: a reader `for` loop's test paths read as targets of a later top-level `rm -f` |
 | `hook-existing-patterns-false-positive` | 2026-11-11 | `bashTestDeletion` line-wide words: test paths given to `git ls-tree` piped into `git update-index --index-info` read as targets of a scratch `rm -f` |
 | `hook-existing-patterns-false-positive` | 2026-11-13 | `goBuildText` and `textLossyPipe`: `go build` and `test qemu` inside a quoted grep pattern of an `ssh` argument read as commands |

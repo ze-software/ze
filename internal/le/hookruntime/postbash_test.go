@@ -337,7 +337,6 @@ func TestPostBashGofmtSaysWhenItCouldNotReadTheCommand(t *testing.T) {
 func TestSubagentUnformattedFileAdviceNamesNoFormatterRun(t *testing.T) {
 	root := gitFixture(t)
 	writeHookFixture(t, root, "pkg/bad.go", unformattedGo)
-	t.Setenv(forkVariable, "")
 	const runIt = "If this command changed the file: gofmt -w <path>"
 	input := map[string]any{"command": "sed -i s/a/b/ pkg/bad.go"}
 

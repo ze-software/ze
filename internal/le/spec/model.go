@@ -39,7 +39,26 @@ func transcriptDir(root string) string {
 
 // TranscriptPath answers this session's transcript, or an empty path when it
 // cannot identify one without borrowing a neighboring session.
+//
+// The session is the one CLAUDE_CODE_SESSION_ID names, for a subagent too: a
+// subagent, a fork included, starts le behind its identity line, which exports
+// its parent's session id. Where the environment holds no session id, the
+// session is the one le already knows for this process
+// (lepath.KnownSessionID: the CLI ancestor's --session-id, the access token,
+// the identity cache), which mints nothing and creates nothing. A known
+// session answers its own transcript or none, never a neighbor's. Only a
+// process with no known session falls back to the newest transcript.
+// CLAUDE_CODE_FORK_SUBAGENT is not read: it is a setting of the harness, set
+// in the main thread's processes as well, so it says nothing about whose
+// process this is.
 func TranscriptPath(root string) string {
+	return transcriptPath(root, lepath.KnownSessionID)
+}
+
+// transcriptPath is TranscriptPath with the lookup of the known session
+// passed in, so a test names the session instead of inheriting the one its
+// runner's process tree carries.
+func transcriptPath(root string, known func(root string) (string, error)) string {
 	raw, present := os.LookupEnv("CLAUDE_CODE_SESSION_ID")
 	dir := transcriptDir(root)
 	if dir == "" {
@@ -48,15 +67,20 @@ func TranscriptPath(root string) string {
 	if sid := safeSessionID(raw); sid != "" {
 		return existingTranscript(dir, sid)
 	}
-	if os.Getenv("CLAUDE_CODE_FORK_SUBAGENT") != "" {
-		session, err := lepath.ResolveSession(root, false)
-		if err != nil {
-			return ""
-		}
-		return existingTranscript(dir, session.ID)
-	}
 	if present {
 		return ""
+	}
+	id, err := known(root)
+	// refuse-by-default: guards CurrentModel -- an empty path is the unidentified transcript, for which CurrentModel answers no model rather than a neighbor's
+	if err != nil {
+		return ""
+	}
+	if id != "" {
+		sid := safeSessionID(id)
+		if sid == "" {
+			return ""
+		}
+		return existingTranscript(dir, sid)
 	}
 
 	entries, err := os.ReadDir(dir)

@@ -793,11 +793,16 @@ A subagent runs under its parent's session, and it types its identity on the
 commands that need it. Its identity line is `export ZE_AGENT_ID=<agent_id>;
 export CLAUDE_CODE_SESSION_ID=<parent>; `, built from the ids in the hook
 payload (`identityLine`, `internal/le/hookruntime/session.go`). The start text
-of the subagent prints the line (`hookSubagentContext`), in full when the start
-payload carries the agent id. A start payload with no agent id, as a fork's
-is, gets the session part alone, with a note that this part is the whole
-identity line: the identity check compares nothing more, so no refusal prints
-more.
+of the subagent prints the line (`hookSubagentContext`) when the start payload
+carries the agent id. A start payload with no agent id gets no line, and a
+note that the Bash hook asks for one only on a call whose own payload names
+an agent, where its refusal prints the line.
+
+A caller is a subagent exactly when its hook payload carries an `agent_id`
+(`fromSubagent`). A fork is one: the harness sends a fork's calls with an
+agent id, like any other subagent's. The hook does not read
+`CLAUDE_CODE_FORK_SUBAGENT`, which is a setting of the harness that the main
+thread's hook process holds too.
 
 The pretool Bash hook checks the line and never adds it (`bashAgentIdentity`).
 A hook that changes a command leaves auto mode with no verdict for the changed
@@ -907,9 +912,8 @@ absent or unsafe `session_id` blocks the same way, and the pretool Write/Edit
 weakening check refuses its edits (`writeWeakening`,
 `internal/le/hookruntime/writeedit.go`), because either one would otherwise
 act as the main thread. The budget counts every agent id this identity accepts
-(`lepath.ValidAgentID`). A fork subagent (`CLAUDE_CODE_FORK_SUBAGENT`, no
-`agent_id` in its payload) types the session part alone, so it shares the main
-thread's identity and everything below. Every agent of a session shares the
+(`lepath.ValidAgentID`). A payload with no `agent_id` is the main thread's:
+it types no line and owns the main thread's files below. Every agent of a session shares the
 session directory and its scratch, and owns what follows:
 
 | Artifact | Keyed on | Main thread's file | An agent's file | Producer |

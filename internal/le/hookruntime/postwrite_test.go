@@ -412,20 +412,18 @@ func lintProbeFixture(t *testing.T) (root, edited, marker string) {
 }
 
 // VALIDATES: AC-12. A subagent's Go edit comes out formatted, starts no
-// linter process and gets no verdict, whether the payload names the agent or
-// the harness marked the hook process as a fork's.
+// linter process and gets no verdict: its payload names the agent, which is
+// what makes it a subagent's, with the harness's fork setting set or empty.
+// The same setting with no agent id is the main thread's edit, which lints
+// (TestForkVariableDoesNotMakeTheMainThreadASubagent).
 // PREVENTS: a subagent starting a 60s lint outside job admission on every Go
 // edit, and the opposite repair that skips the format step with the lint.
 func TestSubagentEditFormatsAndSkipsLint(t *testing.T) {
-	for name, fork := range map[string]bool{"agent id in the payload": false, "fork variable": true} {
+	for name, setting := range map[string]string{"agent id in the payload": "", "agent id in the payload, fork variable set": "1"} {
 		t.Run(name, func(t *testing.T) {
 			root, edited, marker := lintProbeFixture(t)
 			payload := Payload{ToolName: "Edit", ToolInput: map[string]any{"file_path": edited}, AgentID: "agent-1"}
-			t.Setenv(forkVariable, "")
-			if fork {
-				payload.AgentID = ""
-				t.Setenv(forkVariable, "1")
-			}
+			t.Setenv(forkVariable, setting)
 
 			code, message, found := Probe("postFormatGo", payload, root)
 			if !found {
@@ -453,7 +451,6 @@ func TestSubagentEditFormatsAndSkipsLint(t *testing.T) {
 // PREVENTS: the subagent branch swallowing the main thread's lint.
 func TestMainThreadEditStillLints(t *testing.T) {
 	root, edited, marker := lintProbeFixture(t)
-	t.Setenv(forkVariable, "")
 
 	code, message, found := Probe("postFormatGo", Payload{ToolName: "Edit", ToolInput: map[string]any{"file_path": edited}}, root)
 	if !found {

@@ -130,7 +130,6 @@ func TestModelCommandUsesPayloadTranscriptInsteadOfANewerNeighbor(t *testing.T) 
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("CLAUDE_PROJECT_DIR", root)
-	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "")
 	unsetDirectSessionID(t)
 
 	dir := transcriptDir(root)

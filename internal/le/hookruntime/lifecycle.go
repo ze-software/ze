@@ -526,24 +526,30 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 				}
 			}
 			text.Str("\nParent session ID: ").Str(id).
-				Str("\nParent session scratch: ").Str(paths.Scratch).
-				Str("\nStart every Bash command that runs anything but readers (grep, sed, cat, a git read verb) with your identity line, exactly as printed. The Bash hook checks the line and never adds it:\n")
-			// The line is the one bashAgentIdentity compares a command with.
-			// A payload with no agent id (a fork) owns the session part alone,
-			// which is the whole line bashAgentIdentity compares. An agent id
-			// that cannot name a file owns no line: bashAgentIdentity refuses
-			// every command, readers included, with stop-and-report, at the
-			// AgentFingerprint error before it reads the reader set.
+				Str("\nParent session scratch: ").Str(paths.Scratch)
+			// The line is the one bashAgentIdentity compares a command with,
+			// and it exists only for a payload that names an agent. A start
+			// payload with no agent id gets none: the Bash hook judges a call
+			// by its own payload (fromSubagent), reads one with no agent id as
+			// the main thread's and asks it for no line, so a line printed
+			// here would be one no check compares. Should this agent's Bash
+			// calls carry an agent id all the same, the refusal prints the
+			// line then. An agent id that cannot name a file owns no line
+			// either: bashAgentIdentity refuses every command, readers
+			// included, with stop-and-report, at the AgentFingerprint error
+			// before it reads the reader set.
+			const typeTheLine = "\nStart every Bash command that runs anything but readers (grep, sed, cat, a git read verb) with your identity line, exactly as printed. The Bash hook checks the line and never adds it:\n"
 			agent := ctx.payload.AgentID
 			switch {
-			case lepath.ValidAgentID(agent):
-				text.Str(identityLine(agent, id)).Byte('\n')
 			case agent == "":
-				text.Str(identityLine("", id)).
-					Str("\nThis start payload names no agent id, as a fork's does, so that session part is your whole identity line.\n")
+				text.Str("\nThis start payload names no agent id, so you have no identity line to type here. " +
+					"The Bash hook asks for one only on a call whose payload names an agent, and its refusal then prints the exact line.\n")
+			case lepath.ValidAgentID(agent):
+				text.Str(typeTheLine).Str(identityLine(agent, id)).Byte('\n')
 			default:
-				text.Str("This start payload's agent id cannot name a file, so you have no identity line: the Bash hook refuses every command, readers included. " +
-					"Next: stop and report the agent id to the main thread.\n")
+				text.Str(typeTheLine).
+					Str("This start payload's agent id cannot name a file, so you have no identity line: the Bash hook refuses every command, readers included. " +
+						"Next: stop and report the agent id to the main thread.\n")
 			}
 		}
 	}

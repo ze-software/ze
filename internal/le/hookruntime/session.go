@@ -61,15 +61,12 @@ const (
 
 // identityLine is the line a subagent types in front of a command so that le
 // resolves the identity the harness gave the agent: the agent's own id and the
-// parent's session id. A fork subagent has no agent id, and its line is the
-// session part alone. The start text prints this line and the identity check
-// compares a command with it, so the two cannot disagree.
+// parent's session id. The start text prints this line and the identity check
+// compares a command with it, so the two cannot disagree. Every caller holds
+// an agent id: a payload that names none is the main thread's (fromSubagent),
+// which types no line.
 func identityLine(agent, session string) string {
-	sessionPart := "export " + sessionVariable + "=" + session + "; "
-	if agent == "" {
-		return sessionPart
-	}
-	return "export " + agentVariable + "=" + agent + "; " + sessionPart
+	return "export " + agentVariable + "=" + agent + "; export " + sessionVariable + "=" + session + "; "
 }
 
 // commandOutsideReaders names what makes a line need the identity line: the
@@ -259,22 +256,19 @@ func textChangesEnvironment(rest string) bool {
 	return false
 }
 
-// forkVariable is the environment variable the harness sets in the hook
-// process of a fork subagent, which carries no agent id in its payload.
-const forkVariable = "CLAUDE_CODE_FORK_SUBAGENT"
-
-// fromSubagent reports whether the hook call comes from a subagent: its
-// payload names an agent, or the harness marked the hook process as a fork's
-// (forkVariable). It is the one answer to that question: the identity check
+// fromSubagent reports whether the hook call comes from a subagent, which is
+// exactly when its payload names an agent. A fork is such a caller: the
+// harness sends a fork's calls with an agent id, like any other subagent's.
+// It is the one answer to that question: the identity check
 // (bashAgentIdentity), the advice prefix (commandIdentityPrefix) and the
 // heavy-work check (bashSubagentHeavy) all read it, so no two of them can
-// judge one caller two ways. It reads the payload and the environment the
-// harness set, never text the agent typed.
+// judge one caller two ways. It reads the payload alone, never the hook's
+// environment and never text the agent typed: CLAUDE_CODE_FORK_SUBAGENT is a
+// setting of the harness, present in the main thread's hook process too, so
+// reading it judged the main thread as a subagent
+// (plan/journal/gate-verdict-depends-on-the-machine.md, 2026-11-13).
 func fromSubagent(ctx context) bool {
-	if ctx.payload.AgentID != "" {
-		return true
-	}
-	return os.Getenv(forkVariable) != ""
+	return ctx.payload.AgentID != ""
 }
 
 // ze point: planning/directives/brief-every-subagent-with-its-spec-phase-and-rules
@@ -300,9 +294,8 @@ func fromSubagent(ctx context) bool {
 // An agent id that cannot name a file refuses every call, because without its
 // own identity the command would run as the main thread, which is the sharing
 // this exists to end. A payload with an agent id and no usable session id
-// refuses the same way. A fork subagent carries no agent id, so it has no
-// identity of its own to lose: with no usable session id it runs unjudged.
-// The main thread is the identity le resolves by default and is never judged.
+// refuses the same way. The main thread, the caller whose payload names no
+// agent, is the identity le resolves by default and is never judged.
 func bashAgentIdentity(ctx context) *verdict {
 	if !fromSubagent(ctx) {
 		return nil
@@ -310,21 +303,16 @@ func bashAgentIdentity(ctx context) *verdict {
 	agent := ctx.payload.AgentID
 	session, _ := payloadSessionID(ctx.payload)
 	if session == "" {
-		if agent == "" {
-			return nil
-		}
 		return &verdict{2, red + bold + "BLOCKED: this subagent's hook payload carries no usable session id" + reset +
 			"\n  agent " + strconv.Quote(agent) + " arrived with a session_id that is absent or not a file name." +
 			"\n  With no identity line to type, the command would act as the main thread and share its commit namespace and spec claim." +
 			"\n  Next: stop and report the payload's session_id to the main thread. An id holds only letters, digits, '.', '_' and '-'."}
 	}
-	if agent != "" {
-		if _, err := lepath.AgentFingerprint(session, agent); err != nil {
-			return &verdict{2, red + bold + "BLOCKED: this subagent's identity cannot name its own files" + reset +
-				"\n  " + err.Error() +
-				"\n  With no identity line to type, the command would act as the main thread and share its commit namespace and spec claim." +
-				"\n  Next: stop and report the agent id to the main thread. An id holds only letters, digits, '.', '_' and '-'."}
-		}
+	if _, err := lepath.AgentFingerprint(session, agent); err != nil {
+		return &verdict{2, red + bold + "BLOCKED: this subagent's identity cannot name its own files" + reset +
+			"\n  " + err.Error() +
+			"\n  With no identity line to type, the command would act as the main thread and share its commit namespace and spec claim." +
+			"\n  Next: stop and report the agent id to the main thread. An id holds only letters, digits, '.', '_' and '-'."}
 	}
 	command := stringInput(ctx.input, "command")
 	own := identityLine(agent, session)
@@ -354,11 +342,11 @@ func bashAgentIdentity(ctx context) *verdict {
 }
 
 // commandIdentityPrefix answers the identity line a command another refusal
-// advises must start with: the caller's own line for a subagent (an agent id
-// or a fork), so that following the advice is not refused by
-// bashAgentIdentity, and "" for the main thread. A payload whose identity
-// cannot be typed answers "" too, because bashAgentIdentity refuses that
-// caller's every command with stop-and-report before any advice applies.
+// advises must start with: the caller's own line for a subagent, so that
+// following the advice is not refused by bashAgentIdentity, and "" for the
+// main thread. A payload whose identity cannot be typed answers "" too,
+// because bashAgentIdentity refuses that caller's every command with
+// stop-and-report before any advice applies.
 func commandIdentityPrefix(ctx context) string {
 	if !fromSubagent(ctx) {
 		return ""
@@ -368,10 +356,8 @@ func commandIdentityPrefix(ctx context) string {
 	if session == "" {
 		return ""
 	}
-	if agent != "" {
-		if _, err := lepath.AgentFingerprint(session, agent); err != nil {
-			return ""
-		}
+	if _, err := lepath.AgentFingerprint(session, agent); err != nil {
+		return ""
 	}
 	return identityLine(agent, session)
 }

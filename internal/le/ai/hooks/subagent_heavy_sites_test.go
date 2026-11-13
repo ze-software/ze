@@ -70,7 +70,7 @@ func TestSubagentHeavySitesAreJudgedByTheHook(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", tree)
 	// The variables a pretool-bash check reads from its own environment, as
 	// ProbeBash pins them, so the verdict does not depend on this shell.
-	for _, name := range []string{"GOFLAGS", "CDPATH", "CLAUDE_CODE_FORK_SUBAGENT"} {
+	for _, name := range []string{"GOFLAGS", "CDPATH"} {
 		t.Setenv(name, "")
 	}
 	sites := 0

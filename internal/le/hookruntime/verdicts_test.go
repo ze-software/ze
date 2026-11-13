@@ -45,7 +45,12 @@ const verdictsTablePath = "testdata/guard-verdicts-head.jsonl"
 const (
 	callerMain     = "main"
 	callerSubagent = "subagent"
-	callerFork     = "fork"
+	// callerFork is history. The three rows that name it were recorded when
+	// the hook read a fork from CLAUDE_CODE_FORK_SUBAGENT and a payload with
+	// no agent id. A fork's payload names an agent, so the rows are judged
+	// as a subagent's (refusingChecks, rowIdentity) and keep their recorded
+	// refusals, and no new fork row is recorded: collectCorpus yields none.
+	callerFork = "fork"
 )
 
 // verdictRow is one line of the recorded table.
@@ -81,10 +86,11 @@ var refusalProofs = map[string]bool{
 }
 
 // rowIdentity is the identity line a row's caller types in front of its
-// command: the agent's own for a subagent row, none for the main thread and
-// for a fork, which carries no agent id.
+// command: the agent's own for a subagent row and for a fork row, which is a
+// subagent's, and none for the main thread.
 func rowIdentity(row verdictRow) string {
-	if row.Caller == callerSubagent {
+	switch row.Caller {
+	case callerSubagent, callerFork:
 		return identityLineOfAgent
 	}
 	return ""
@@ -131,7 +137,7 @@ func (row verdictRow) key() verdictKey {
 //nolint:gochecknoglobals // test-only collector, active inside collectCorpus alone
 var corpusRecorder struct {
 	sync.Mutex
-	// lines maps a judged line to whether some source judged it as a fork.
+	// lines is the set of judged lines.
 	lines map[string]bool
 
 	// current is the source test collectCorpus is running, and judgedBy maps
@@ -143,7 +149,7 @@ var corpusRecorder struct {
 }
 
 // recordCorpusLine adds one judged line to the corpus while collectCorpus runs.
-func recordCorpusLine(line string, fork bool) {
+func recordCorpusLine(line string) {
 	corpusRecorder.Lock()
 	defer corpusRecorder.Unlock()
 	if corpusRecorder.lines == nil {
@@ -152,7 +158,7 @@ func recordCorpusLine(line string, fork bool) {
 	if line == "" {
 		return
 	}
-	corpusRecorder.lines[line] = corpusRecorder.lines[line] || fork
+	corpusRecorder.lines[line] = true
 	if corpusRecorder.judgedBy[line] == nil {
 		corpusRecorder.judgedBy[line] = map[string]bool{}
 	}
@@ -162,9 +168,7 @@ func recordCorpusLine(line string, fork bool) {
 // recordCorpusPayload adds the command of one pretool-bash payload runHook
 // sends. It decodes the bytes Run reads, so every payload shape a test builds
 // is read the way the hook reads it. A payload that does not decode is a fault
-// collectCorpus reports, never a line silently left out. The fork variable it
-// reads is pinned empty by collectCorpus, so a line is a fork row only when
-// its own source test set that variable, never because the runner's did.
+// collectCorpus reports, never a line silently left out.
 func recordCorpusPayload(kind string, body []byte) {
 	if kind != "pretool-bash" {
 		return
@@ -178,8 +182,7 @@ func recordCorpusPayload(kind string, body []byte) {
 		}
 		return
 	}
-	fork := payload.AgentID == "" && os.Getenv("CLAUDE_CODE_FORK_SUBAGENT") != ""
-	recordCorpusLine(stringInput(payload.ToolInput, "command"), fork)
+	recordCorpusLine(stringInput(payload.ToolInput, "command"))
 }
 
 // corpusSourceTests are the tests whose judged lines the corpus holds (the
@@ -648,15 +651,12 @@ func TestReaderLiftableChecksAreTheReaderGuards(t *testing.T) {
 
 // collectCorpus runs every corpus source test and every reader-line proof as a
 // subtest with the recorder on, then adds the parity, fixture and spec lines,
-// and answers each line once per caller it is judged as: main and subagent
-// always, fork too when a source judged it as a fork. It also answers, for
-// each line a test judged, the tests that judged it.
+// and answers each line once per caller it is judged as: main and subagent.
+// A fork is a subagent, so the corpus holds no fork key (callerFork). It also
+// answers, for each line a test judged, the tests that judged it.
 func collectCorpus(t *testing.T) (map[verdictKey]bool, map[string]map[string]bool) {
 	t.Helper()
 	holdSourcesComplete(t)
-	// The runner may itself be a forked agent: the fork rows come from the
-	// sources that set this variable, never from the environment of the run.
-	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "")
 
 	corpusRecorder.Lock()
 	corpusRecorder.lines = map[string]bool{}
@@ -696,23 +696,18 @@ func collectCorpus(t *testing.T) (map[verdictKey]bool, map[string]map[string]boo
 		t.Error(fault)
 	}
 	for _, line := range append(aihooksCorpusLines(t), specConstructLines...) {
-		if _, held := lines[line]; !held {
-			lines[line] = false
-		}
+		lines[line] = true
 	}
 
 	temporary := filepath.Join(os.TempDir(), "Test")
 	corpus := make(map[verdictKey]bool, 2*len(lines))
-	for line, fork := range lines {
+	for line := range lines {
 		if strings.Contains(line, temporary) {
 			t.Errorf("corpus line %q holds a test's temporary directory, which differs on every run: judge it under a fixed path", line)
 			continue
 		}
 		corpus[verdictKey{line: line, caller: callerMain}] = true
 		corpus[verdictKey{line: line, caller: callerSubagent}] = true
-		if fork {
-			corpus[verdictKey{line: line, caller: callerFork}] = true
-		}
 	}
 	return corpus, judgedBy
 }
@@ -769,17 +764,15 @@ func testFunctionName(test func(*testing.T)) string {
 func refusingChecks(t *testing.T, root string, key verdictKey) []string {
 	t.Helper()
 	payload := Payload{SessionID: "parent-17", ToolName: toolBash, ToolInput: map[string]any{"command": key.line}}
-	fork := ""
 	switch key.caller {
 	case callerMain:
-	case callerSubagent:
+	case callerSubagent, callerFork:
+		// A fork is a subagent: its payload names an agent, so the two
+		// callers are one caller here by construction.
 		payload.AgentID = "agent-1"
-	case callerFork:
-		fork = "1"
 	default:
 		t.Fatalf("row %q names the caller %q: a caller is main, subagent or fork", key.line, key.caller)
 	}
-	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", fork)
 	ctx, ok := newContext(payload, root)
 	if !ok {
 		t.Fatalf("no context for the root %s", root)

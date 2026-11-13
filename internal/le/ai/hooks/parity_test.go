@@ -126,7 +126,9 @@ func bashGoldenProbeTree(t *testing.T) string {
 // VALIDATES: each row's verdict and output are the hook's; each row's expected
 // code is that verdict; every row the hook refuses carries the hook's own
 // refusal text, which no hand model writes; the environment the probe pins
-// (GOFLAGS, CDPATH, CLAUDE_CODE_FORK_SUBAGENT, CLAUDE_PROJECT_DIR) is put back.
+// (GOFLAGS, CDPATH, CLAUDE_PROJECT_DIR) is put back; and the harness's fork
+// setting (CLAUDE_CODE_FORK_SUBAGENT), which the probe does not pin because
+// the hook does not read it, changes no verdict and is left as set.
 // PREVENTS: a golden judged by a model of the hook, which stays green when the
 // hook's verdict moves (the `go build ./...` row stayed at 0 after the build
 // guard began refusing it), and a verdict that depends on the caller's shell.

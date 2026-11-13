@@ -32,7 +32,6 @@ func TestHookSelftestIsAnExpensiveCommand(t *testing.T) {
 		t.Errorf("%q is registered expensive: only the selftest is", area+" pretool-bash")
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
-	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "")
 	for _, row := range []struct {
 		command string
 		code    int

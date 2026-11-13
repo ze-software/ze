@@ -1,6 +1,6 @@
 // Design: docs/contributing/running-commands.md -- session identity, and what each agent owns
 // Related: subagent_heavy.go -- bashSubagentHeavy, the check these tests drive through Run
-// Related: session_identity_test.go -- runSubagentBash, runForkBash and the identity lines
+// Related: session_identity_test.go -- runSubagentBash and the agent's identity line
 // Related: ../le/root/heavy.go -- HeavyLine, which reads the probe areas registered here
 
 package hookruntime
@@ -336,25 +336,6 @@ func TestSubagentLightCommandsPass(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-8. A forked subagent, which carries no agent id, is refused
-// a heavy command as any subagent is, and its light commands pass.
-// PREVENTS: a fork judged as the main thread and starting heavy work.
-func TestForkHeavyCommandIsHandedBack(t *testing.T) {
-	heavyProbe.Do(registerHeavyProbe)
-	for _, command := range []string{`go test ./x`, `golangci-lint run`, `gofmt -w x.go`, `./le heavy-probe run`, `./le test bgp plugin 42`} {
-		code, output, message := runForkBash(t, identityLineOfFork+command)
-		if code != 2 || output != "" || !handedBack(message, command) {
-			t.Errorf("fork %q: code=%d output=%q, want exit 2 with the hand-back: %s", command, code, output, message)
-		}
-	}
-	for _, command := range []string{`go version`, `./le spec current`, `./le heavy-probe list`} {
-		code, _, message := runForkBash(t, identityLineOfFork+command)
-		if code != 0 || strings.Contains(message, handBackHeader) {
-			t.Errorf("fork %q: code=%d, want 0 and no hand-back: %s", command, code, message)
-		}
-	}
-}
-
 // VALIDATES: AC-7. For the main thread the check adds nothing: no heavy line
 // is handed back, a raw go test, go vet and lint are still refused with the
 // admitted form, and an admitted le action, a heavy probe action and a
@@ -446,8 +427,9 @@ func TestSubagentHeavyLineCarriesOneRefusal(t *testing.T) {
 // guard it is a line whose text names `go build` in an argument of another
 // program (goBuildText). The raw-job guard leaves none: every tool it names
 // is handed back, which TestRefusalAdviceIsAcceptedByTheHook proves over its
-// corpus. Each line is sent as an agent and as a fork, and the command the
-// pipe refusal advises is sent back by the same caller.
+// corpus. Each line is sent as an agent, the one kind of subagent there is (a
+// fork's payload names an agent too), and the command the pipe refusal
+// advises is sent back by the same caller.
 //
 // VALIDATES: spec-main-thread-schedules-heavy-work D-1 and AC-9 for a line
 // that is refused and not handed back: the text names neither the admitted
@@ -466,7 +448,6 @@ func TestSubagentIsNeverAdvisedTheAdmittedForm(t *testing.T) {
 		run      func(*testing.T, string) (int, string, string)
 	}{
 		{"agent", identityLineOfAgent, runSubagentBash},
-		{"fork", identityLineOfFork, runForkBash},
 	}
 	banned := []string{"./le job run", "Use:", "ZE_ADMIT_RAW", "-o bin/", handBackHeader}
 	for _, row := range []struct {

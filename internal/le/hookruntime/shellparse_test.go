@@ -34,7 +34,6 @@ func withBashParser(t *testing.T, parser func(string) (*syntax.File, error)) {
 // main thread, which carries no agent id.
 func runMainBash(t *testing.T, command string) (code int, message string) {
 	t.Helper()
-	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "")
 	code, _, message = runHook(t, t.TempDir(), "pretool-bash", map[string]any{
 		"session_id": "parent-17", "tool_name": "Bash",
 		"tool_input": map[string]any{"command": command},

@@ -8,13 +8,9 @@ import (
 	"testing"
 )
 
-const (
-	// identityLineOfAgent is the line agent-1 of session parent-17 types.
-	identityLineOfAgent = "export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; "
-	// identityLineOfFork is the line a fork subagent of parent-17 types: it
-	// has no agent id, so the session part is the whole line.
-	identityLineOfFork = "export CLAUDE_CODE_SESSION_ID=parent-17; "
-)
+// identityLineOfAgent is the line agent-1 of session parent-17 types. A fork
+// is a subagent with an agent id like any other, so it types the same shape.
+const identityLineOfAgent = "export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; "
 
 // runSubagentBash sends one Bash command through the pretool-bash entry as
 // agent-1 of session parent-17.
@@ -22,17 +18,6 @@ func runSubagentBash(t *testing.T, command string) (code int, output, message st
 	t.Helper()
 	return runHook(t, t.TempDir(), "pretool-bash", map[string]any{
 		"session_id": "parent-17", "agent_id": "agent-1", "tool_name": "Bash",
-		"tool_input": map[string]any{"command": command},
-	})
-}
-
-// runForkBash sends one Bash command through the pretool-bash entry as a fork
-// subagent of session parent-17, which carries no agent id.
-func runForkBash(t *testing.T, command string) (code int, output, message string) {
-	t.Helper()
-	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "1")
-	return runHook(t, t.TempDir(), "pretool-bash", map[string]any{
-		"session_id": "parent-17", "tool_name": "Bash",
 		"tool_input": map[string]any{"command": command},
 	})
 }
@@ -71,10 +56,6 @@ func TestSubagentReaderCommandPassesUnchanged(t *testing.T) {
 			t.Errorf("%q: a reader command was asked for the identity line: %s", command, message)
 		}
 	}
-	code, output, message := runForkBash(t, `grep -n x notes.md | head -5`)
-	if code != 0 || output != "" {
-		t.Errorf("fork reader command: code=%d output=%q message=%s, want exit 0 and no output", code, output, message)
-	}
 }
 
 // VALIDATES: AC-2. A subagent's command holding any command outside the reader
@@ -108,13 +89,6 @@ func TestSubagentCommandOutsideTheReaderSetNeedsTheIdentityLine(t *testing.T) {
 			t.Errorf("%q: message lacks the line to type %q: %s", command, identityLineOfAgent, message)
 		}
 	}
-	code, output, message := runForkBash(t, `./le spec current`)
-	if code != 2 || output != "" {
-		t.Errorf("fork: code=%d output=%q, want exit 2 and no output", code, output)
-	}
-	if !strings.Contains(message, identityLineOfFork) || strings.Contains(message, "ZE_AGENT_ID=") {
-		t.Errorf("fork: message must print the session part alone, %q: %s", identityLineOfFork, message)
-	}
 }
 
 // VALIDATES: AC-3. A command that starts with the agent's exact identity line
@@ -133,10 +107,6 @@ func TestSubagentCommandCarryingItsIdentityLinePasses(t *testing.T) {
 		if code != 0 || output != "" {
 			t.Errorf("%q: code=%d output=%q message=%s, want exit 0 and no output", command, code, output, message)
 		}
-	}
-	code, output, message := runForkBash(t, identityLineOfFork+`./le spec current`)
-	if code != 0 || output != "" {
-		t.Errorf("fork: code=%d output=%q message=%s, want exit 0 and no output", code, output, message)
 	}
 }
 
@@ -173,12 +143,11 @@ func TestSubagentIdentityLineOfAnotherAgentIsRefused(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-5. A main-thread command, which carries no agent id and is no
-// fork, is never asked for the identity line and receives no changed input.
+// VALIDATES: AC-5. A main-thread command, which carries no agent id, is never
+// asked for the identity line and receives no changed input.
 // PREVENTS: the check binding the main thread, which is the identity le
 // resolves by default.
 func TestMainThreadCommandNeedsNoIdentityLine(t *testing.T) {
-	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "")
 	for _, command := range []string{`./le spec current`, `go version`, `grep "unclosed notes.md`} {
 		code, output, message := runHook(t, t.TempDir(), "pretool-bash", map[string]any{
 			"session_id": "parent-17", "tool_name": "Bash",
@@ -196,26 +165,26 @@ func TestMainThreadCommandNeedsNoIdentityLine(t *testing.T) {
 // TestCallerPredicateAgreesWithIdentityCheck asks whether the one caller
 // predicate (fromSubagent) answers what the identity check decided before it
 // existed. Its method: the predicate over a payload of each caller, then the
-// identity check through Run for the same three callers, on a line it
-// refuses only for a subagent.
+// identity check through Run for the same callers, on a line it refuses only
+// for a subagent, and the main thread again with the harness's fork setting
+// in the environment.
 //
 // VALIDATES: spec-main-thread-schedules-heavy-work, the caller predicate
-// behind AC-1, AC-7 and AC-8: a payload naming an agent and a fork (no agent
-// id, the fork variable set) are subagents, the main thread is not, and
-// bashAgentIdentity and commandIdentityPrefix judge each caller as the
-// predicate does.
+// behind AC-1, AC-7 and AC-8: a payload naming an agent is a subagent (a
+// fork's payload names one), a payload naming none is the main thread
+// whatever CLAUDE_CODE_FORK_SUBAGENT holds, and bashAgentIdentity and
+// commandIdentityPrefix judge each caller as the predicate does.
 // PREVENTS: the identity check and the heavy-work check judging one caller
-// two ways, and a fork read as the main thread.
+// two ways, and the main thread read as a fork because a setting is set.
 func TestCallerPredicateAgreesWithIdentityCheck(t *testing.T) {
 	agent := context{payload: Payload{SessionID: "parent-17", AgentID: "agent-1"}}
 	main := context{payload: Payload{SessionID: "parent-17"}}
 
-	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "")
 	if !fromSubagent(agent) {
 		t.Errorf("a payload naming an agent is not read as a subagent")
 	}
 	if fromSubagent(main) {
-		t.Errorf("a payload with no agent id and no fork variable is read as a subagent")
+		t.Errorf("a payload with no agent id is read as a subagent")
 	}
 	if got := commandIdentityPrefix(agent); got != identityLineOfAgent {
 		t.Errorf("the agent's advice prefix = %q, want its identity line %q", got, identityLineOfAgent)
@@ -231,16 +200,21 @@ func TestCallerPredicateAgreesWithIdentityCheck(t *testing.T) {
 		t.Errorf("main thread: code=%d, want exit 0 and no identity refusal: %s", code, message)
 	}
 
-	// A fork carries no agent id: the variable alone makes it a subagent.
-	code, _, message = runForkBash(t, `./le spec current`)
-	if code != 2 || !strings.Contains(message, identityLineOfFork) {
-		t.Errorf("fork: code=%d, want the identity refusal with the fork's line: %s", code, message)
+	// The fork setting is no mark of a caller: with it set, a payload that
+	// names no agent is still the main thread's.
+	t.Setenv(forkVariable, "1")
+	if fromSubagent(main) {
+		t.Errorf("a payload with no agent id is read as a subagent while the fork variable is set")
 	}
-	if !fromSubagent(main) {
-		t.Errorf("a payload with no agent id is not read as a subagent while the fork variable is set")
+	if got := commandIdentityPrefix(main); got != "" {
+		t.Errorf("the main thread's advice prefix with the fork variable set = %q, want none", got)
 	}
-	if got := commandIdentityPrefix(main); got != identityLineOfFork {
-		t.Errorf("the fork's advice prefix = %q, want its identity line %q", got, identityLineOfFork)
+	code, output, message := runHook(t, t.TempDir(), "pretool-bash", map[string]any{
+		"session_id": "parent-17", "tool_name": "Bash",
+		"tool_input": map[string]any{"command": `./le spec current`},
+	})
+	if code != 0 || output != "" || strings.Contains(message, "identity line") {
+		t.Errorf("main thread with the fork variable set: code=%d output=%q, want exit 0, no changed input and no identity refusal: %s", code, output, message)
 	}
 }
 
