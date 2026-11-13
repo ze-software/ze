@@ -3,10 +3,13 @@
 // Detail: jobkey.go -- the work an entry records
 // Related: waiter.go -- the record a job writes while it waits for a slot
 // Related: overview.go -- the report that reads entries and waiter records
+// Related: prune.go -- the removal of dead files, for `le scratch clean`
 //
-// tmp/.ze-jobs/<label>.<pid>.<claim>.job records one slot claim. Only its
-// holder removes its files. A waiter counts live or unassessable work as
-// occupied and ignores demonstrably dead work without changing its evidence.
+// tmp/.ze-jobs/<label>.<pid>.<claim>.job records one slot claim. Among jobs,
+// only its holder removes its files. A waiter counts live or unassessable
+// work as occupied and ignores demonstrably dead work without changing its
+// evidence. The files of dead work, and the receipts every release leaves,
+// go when `le scratch clean` prunes the registry (Prune, prune.go).
 //
 // Readers use the fields, not the filename, for holder identity. The unique
 // claim suffix keeps retained evidence safe across PID reuse and repeat runs.

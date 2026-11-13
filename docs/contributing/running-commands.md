@@ -1238,7 +1238,8 @@ Reach for the safe tools first, in this order, because other sessions are
 building against these caches while you read this:
 
 1. `./le scratch trim` trims the caches to their budgets now (see below).
-2. `./le scratch clean` cleans every cache. By default it removes every
+2. `./le scratch clean` cleans every cache, and the job registry's dead
+   files (the `jobs` row below). By default it removes every
    cache entry older than 3h, the store trim's floor, and keeps the younger
    ones. It is safe while other sessions build: an entry is safe for 2h after Go
    last looked it up (Go refreshes an entry's mtime at most hourly; the floor is
@@ -1305,6 +1306,41 @@ more than three hours old, which a killed tree build left
 stdpatch           KEEP     /path/to/checkout/cache/stdpatch/94a7…             27.0M, a patched GOROOT a running build may use
 stdpatch           DROP     /path/to/checkout/cache/stdpatch/398f…             26.8M, its toolchain links name nothing on this machine, so no build can use it
 ```
+
+The last row is the job registry, `tmp/.ze-jobs/`. It is not a cache, and
+scratch clean is still what cleans it, because no job and no waiter removes a
+file another process wrote: every finished job leaves its result receipt, and
+a killed one leaves its entry, its log and its waiter record. Both modes
+remove the dead files older than the 3h floor, and nothing else:
+
+- a result receipt, or a log, whose entry is gone, so its job has ended
+- an entry whose process is not running, with the log beside it, when neither
+  file was written inside the floor
+- a waiter record whose process is not running
+
+```
+jobs        /path/to/checkout/tmp/.ze-jobs                   removed 9.6M (4770 dead files older than 3h0m0s), kept 14 files: 11 younger than the age bound, 3 of a running process
+```
+
+Everything else stays and is counted under its reason: a file younger than the
+floor, a file of a running process, a file whose fields cannot be read, a name
+the registry does not write, and, when the process table cannot be read, every
+file that names a process. The lock stays and is not counted. The size is the
+length of the files. A checkout with no registry gets a `SKIP` row. A registry
+that cannot be listed or locked, or a dead file that cannot be removed, is a
+`REFUSE` row and exit 1.
+
+The floor is what makes the removal safe for a job that shares a run. A
+follower reads its holder's receipt within seconds of the holder writing it:
+one poll, one process query and the result wait, 17s with the defaults
+(`PruneAgeMin`). One stopped for longer than the floor finds no receipt,
+reports that nothing was observed and runs the job itself. The full empty uses
+the same floor: it proves that no job holds a slot, not that every receipt has
+been read. The removal holds the registry lock, so an admission scan never
+meets an entry that vanishes while it counts. `./le scratch trim` leaves the
+registry alone: it bounds stores by their bytes.
+<!-- source: internal/le/job/prune.go -- Prune, PruneAgeMin, PruneReason -->
+<!-- source: internal/le/scratch/registryclean.go -- cleanJobRegistry, RegistryClean -->
 
 The CHECKOUT cache is `cache/go-cache`. Every le action writes it, because
 `Overrides` (`internal/le/go/toolchain/gotoolchain.go`) points GOCACHE there, and
@@ -2366,11 +2402,15 @@ That record is what the `waiters` rows read.
 <!-- source: internal/le/job/waiter.go -- announceWait -->
 
 The files under `tmp/.ze-jobs/` are the registry itself. Dead entries and old
-result receipts can remain there: their presence alone does not prove that
+result receipts remain there until `./le scratch clean` runs, which removes
+the dead ones older than its 3h floor (see "When the disk is full"). Their
+presence alone does not prove that
 work is running, which is why the report judges each one against the process
 table. The registry is not a lock, and there is no
 shared owner-copy file. A waiter leaves foreign evidence untouched even when
 it cannot read it or the process has ended.
+<!-- source: internal/le/job/prune.go -- Prune -->
+<!-- source: internal/le/scratch/registryclean.go -- cleanJobRegistry -->
 `./le verify status check` reports the last verify's verdict.
 <!-- source: internal/le/job/registry.go -- scanAndClaim, take -->
 <!-- source: internal/le/job/holders.go -- Holders -->

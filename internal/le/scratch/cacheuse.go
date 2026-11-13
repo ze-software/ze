@@ -94,7 +94,7 @@ func (m *Manager) refuseFullEmpty(pass cleanPass) (string, []CacheUser) {
 // cacheUsers answers every process that may be using the caches, in the order
 // the scan listed them, leaving out the pids that are this run itself. A
 // registry entry counts only while its pid is in the scan: an entry outlives a
-// killed job until the next admission reaps it.
+// killed job until a scratch clean prunes it (cleanJobRegistry).
 func cacheUsers(processes []procscan.Process, holders []job.Holder, self []int) []CacheUser {
 	labels := make(map[int]string, len(holders))
 	for _, holder := range holders {

@@ -35,7 +35,9 @@ var actions = leaction.New(area,
 		" `" + everythingMode + "` empties every cache outright, and refuses, naming each process, while any" +
 		" go, compile, link, vet, staticcheck, golangci-lint or test binary runs, or a le job or verify run" +
 		" holds a slot; a build that starts while the empty runs is not seen. Both modes drop a patched GOROOT under cache/stdpatch whose toolchain links dangle," +
-		" and a staging directory a killed tree build left. Run it when unrelated packages fail to build," +
+		" and a staging directory a killed tree build left. Both modes also prune the job registry," +
+		" tmp/.ze-jobs, of its dead files older than that 3h floor: a result receipt or a log whose entry" +
+		" is gone, and the entry, log and waiter record of a process that is not running. Run it when unrelated packages fail to build," +
 		" when a linker says `no space left on device`, or when a whole suite goes red at once, after" +
 		" `./le scratch trim`. Read free space with `df -h` on the cache path, never with `stat -f`," +
 		" which is a format flag on macOS and prints the path back" +

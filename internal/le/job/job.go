@@ -3,6 +3,7 @@
 // Detail: attach.go -- what a second asker does instead of running the same job twice
 // Detail: treehash.go -- the fingerprint of the tree a job judges
 // Detail: jobkey.go -- the fingerprint of the work a job does
+// Detail: prune.go -- what removes the receipts and the files of dead jobs
 //
 // Package job determines whether each heavy job runs now.
 //
@@ -444,8 +445,11 @@ type Ticket struct {
 
 // Release drops the slot: it records the job's verdict where a follower can
 // find it, appends the run's duration and the ticket's Waited, and removes the
-// entry. Only a claim writes that row: an attached ticket and one inside a
-// parent's slot held no slot, so they record nothing here.
+// entry and the log. Only a claim writes that row: an attached ticket and one
+// inside a parent's slot held no slot, so they record nothing here.
+//
+// The receipt stays, because a follower reads it after the entry has gone.
+// Prune (prune.go) removes it once it is older than any follower's read.
 //
 // The result is written BEFORE the entry goes, never after. An attacher
 // watching the entry disappear must find the code already written rather than

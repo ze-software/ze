@@ -2,6 +2,7 @@
 // Overview: scratch.go -- filesystem policy and implementation
 // Related: cacheuse.go -- who may be using the caches, which a full empty refuses on
 // Related: cachetrim.go -- the entry walk, the age floor and the removal both share
+// Related: registryclean.go -- the job registry's row, pruned by the same floor
 //
 // This file cleans the five build caches a Ze checkout fills, and the stale
 // copies the link repair left, and reports the disk space each one returned. By default it removes only the entries older
@@ -192,15 +193,17 @@ type CacheClean struct {
 }
 
 // CleanReport is the answer of one scratch clean run: its mode, one row for each
-// cache, and one row for each patched GOROOT entry. A full empty that found a
-// process that may be using the caches carries that process list and the
-// refusal instead, and touched nothing.
+// cache, one row for each patched GOROOT entry, and the job registry's row
+// (registryclean.go). A full empty that found a process that may be using the
+// caches carries that process list and the refusal instead, and touched
+// nothing, so it carries no registry row either.
 type CleanReport struct {
-	Mode    string        `json:"mode"`
-	Refusal string        `json:"refusal,omitempty"`
-	Users   []CacheUser   `json:"users,omitempty"`
-	Caches  []CacheClean  `json:"caches"`
-	Trees   []PatchedTree `json:"trees"`
+	Mode     string         `json:"mode"`
+	Refusal  string         `json:"refusal,omitempty"`
+	Users    []CacheUser    `json:"users,omitempty"`
+	Caches   []CacheClean   `json:"caches"`
+	Trees    []PatchedTree  `json:"trees"`
+	Registry *RegistryClean `json:"registry,omitempty"`
 }
 
 // PatchedTree is one entry of a patched GOROOT directory (cache/stdpatch, or
@@ -280,6 +283,9 @@ func (r CleanReport) Text() string {
 				Str(", a patched GOROOT a running build may use")
 		}
 		text.Str(line.String()).Byte('\n')
+	}
+	if r.Registry != nil {
+		text.Str(r.Registry.line()).Byte('\n')
 	}
 	return text.String()
 }
@@ -439,6 +445,9 @@ func (m *Manager) cleanCaches(mode cleanMode, pass cleanPass) (CleanReport, int)
 		}
 	}
 	report.Trees = patchedTrees(m.Root, pass.entries.now)
+	// Both modes prune the registry by the same age floor: the full empty
+	// proves no job holds a slot now, never that a receipt has been read.
+	report.Registry = cleanJobRegistry(ctx, m.Root, pass)
 	return report, report.verdict()
 }
 
@@ -688,6 +697,11 @@ func (r CleanReport) verdict() int {
 			continue
 		}
 		if tree.Error != "" {
+			return 1
+		}
+	}
+	if r.Registry != nil {
+		if r.Registry.Error != "" {
 			return 1
 		}
 	}

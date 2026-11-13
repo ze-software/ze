@@ -10,9 +10,9 @@
 //
 // The record describes and decides nothing. No entry scan matches its suffix,
 // so it never occupies a slot and admission answers what it answered before
-// the record existed. A record whose process died stays on disk: only its
-// writer removes it, and a reader tells it from a live one by the process
-// table.
+// the record existed. A record whose process died stays on disk until
+// `le scratch clean` prunes it (Prune, prune.go): no job removes it but its
+// writer, and a reader tells it from a live one by the process table.
 
 package job
 
