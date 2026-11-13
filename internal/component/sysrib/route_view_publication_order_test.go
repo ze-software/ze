@@ -52,12 +52,13 @@ func awaitPublicationOrder(t *testing.T, ctx context.Context, published <-chan o
 	for len(order) < len(targets) {
 		select {
 		case batch := <-published:
-			for _, change := range batch.Changes {
+			for i := range batch.Changes {
+				change := &batch.Changes[i]
 				if !wanted[change.Prefix] {
 					continue
 				}
 				if change.Action != routeaction.Add {
-					t.Fatalf("%s reached publication as %v, want an install: %+v", change.Prefix, change.Action, change)
+					t.Fatalf("%s reached publication as %v, want an install: %+v", change.Prefix, change.Action, *change)
 				}
 				wanted[change.Prefix] = false
 				order = append(order, change.Prefix)

@@ -5,6 +5,7 @@ package fibkernel
 
 import (
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"reflect"
@@ -36,7 +37,7 @@ func newReplayFIBBackend() *replayFIBBackend {
 	return &replayFIBBackend{mockBackend: newMockBackend(), handled: true}
 }
 
-func (backend *replayFIBBackend) addRichRoute(route RichRoute) error {
+func (backend *replayFIBBackend) addRichRoute(route RichRoute) error { //nolint:unparam // richRouteBackend method: the interface returns an error, this double never fails
 	backend.richAdded = append(backend.richAdded, route)
 	return nil
 }
@@ -356,7 +357,7 @@ func TestFIBKernelReplayRefusalPreservesSuccessfulForwarding(t *testing.T) {
 		t.Error("handled replay refusal did not raise fib-sync-failure")
 	}
 	recorder := httptest.NewRecorder()
-	registry.Handler().ServeHTTP(recorder, httptest.NewRequest("GET", "/metrics", nil))
+	registry.Handler().ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody))
 	if !strings.Contains(recorder.Body.String(), "ze_fibkernel_errors_total{operation=\"add\"} 1\n") {
 		t.Error("handled replay refusal did not increment the add failure metric exactly once")
 	}

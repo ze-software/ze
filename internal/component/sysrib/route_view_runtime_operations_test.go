@@ -51,7 +51,7 @@ func TestRouteViewRuntimeResetReopensCurrentSelection(t *testing.T) {
 			if err := json.Unmarshal(request.Params, &input); err != nil {
 				return nil, true, err
 			}
-			return rpc.RouteViewCloseOutput{Session: input.Session}, true, nil
+			return rpc.RouteViewCloseOutput(input), true, nil
 		case rpc.MethodRouteViewCandidates:
 			var input rpc.RouteViewCandidatesInput
 			if err := json.Unmarshal(request.Params, &input); err != nil {
@@ -148,7 +148,7 @@ func testRouteViewRuntimeCompensation(t *testing.T, failRestore bool) {
 			if err := json.Unmarshal(request.Params, &input); err != nil {
 				return nil, true, err
 			}
-			return rpc.RouteViewCloseOutput{Session: input.Session}, true, nil
+			return rpc.RouteViewCloseOutput(input), true, nil
 		}
 		return nil, false, nil
 	})
@@ -299,7 +299,7 @@ func TestRouteViewRuntimeConfigurationResetUsesDesiredDeclaration(t *testing.T) 
 			if err := json.Unmarshal(request.Params, &input); err != nil {
 				return nil, true, err
 			}
-			return rpc.RouteViewCloseOutput{Session: input.Session}, true, nil
+			return rpc.RouteViewCloseOutput(input), true, nil
 		}
 		return nil, false, nil
 	})
@@ -365,7 +365,7 @@ func TestRouteViewRuntimeCanceledApplyStillRestores(t *testing.T) {
 			if err := json.Unmarshal(request.Params, &input); err != nil {
 				return nil, true, err
 			}
-			return rpc.RouteViewCloseOutput{Session: input.Session}, true, nil
+			return rpc.RouteViewCloseOutput(input), true, nil
 		}
 		return nil, false, nil
 	})

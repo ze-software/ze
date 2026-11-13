@@ -123,7 +123,8 @@ func (fixture *candidateForwardingFixture) offerCandidates(batch *incomingBatch)
 		fixture.t.Fatal("candidate fixture needs a typed batch and family")
 	}
 	keys := make(map[prefixKey]struct{})
-	for _, change := range batch.Changes {
+	for i := range batch.Changes {
+		change := &batch.Changes[i]
 		if !change.Prefix.IsValid() || change.Prefix != change.Prefix.Masked() {
 			fixture.t.Fatalf("candidate fixture has no canonical prefix: %s", change.Prefix)
 		}
@@ -136,8 +137,8 @@ func (fixture *candidateForwardingFixture) offerCandidates(batch *incomingBatch)
 				fixture.rib.Inspect(batch.Family, change.Prefix, func(group locrib.PathGroup) {
 					candidates = append(candidates, group.Paths...)
 				})
-				for _, candidate := range candidates {
-					fixture.rib.Remove(batch.Family, change.Prefix, candidate.Source, candidate.Instance)
+				for j := range candidates {
+					fixture.rib.Remove(batch.Family, change.Prefix, candidates[j].Source, candidates[j].Instance)
 				}
 			} else {
 				source, ok := redistevents.ProtocolIDOf(batch.Protocol)
@@ -158,7 +159,7 @@ func (fixture *candidateForwardingFixture) offerCandidates(batch *incomingBatch)
 	return batch.Family, batches[batch.Family]
 }
 
-func (fixture *candidateForwardingFixture) candidatePath(protocol string, change incomingChange) locrib.Path {
+func (fixture *candidateForwardingFixture) candidatePath(protocol string, change *incomingChange) locrib.Path {
 	fixture.t.Helper()
 	if protocol == "" {
 		fixture.t.Fatal("candidate fixture add has no producer")

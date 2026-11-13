@@ -28,11 +28,7 @@ func selectedFromAuthority(t *testing.T, rib *locrib.RIB, prefix netip.Prefix, p
 	t.Helper()
 	var prepared routeViewSelectedChange
 	var prepareErr error
-	if !projected {
-		rib.Inspect(family.IPv4Unicast, prefix, func(group locrib.PathGroup) {
-			prepared, prepareErr = prepareRouteViewLocal(family.IPv4Unicast, prefix, &group)
-		})
-	} else {
+	if projected {
 		var entry rpc.RouteViewEntry
 		rib.Inspect(family.IPv4Unicast, prefix, func(group locrib.PathGroup) {
 			prepareErr = routeViewCopyEntry(family.IPv4Unicast, prefix, &group, &entry)
@@ -49,8 +45,12 @@ func selectedFromAuthority(t *testing.T, rib *locrib.RIB, prefix netip.Prefix, p
 			t.Fatal(err)
 		}
 		projection.Inspect(family.IPv4Unicast, prefix, func(value *selectedProjectionPath) {
-			prepared, prepareErr = prepareRouteViewSelectedMetadata(locrib.Change{Kind: locrib.ChangeAdd,
+			prepared, prepareErr = prepareRouteViewSelectedMetadata(&locrib.Change{Kind: locrib.ChangeAdd,
 				Family: family.IPv4Unicast, Prefix: prefix, Best: value.path, ECMP: value.path.ECMP}, value.members)
+		})
+	} else {
+		rib.Inspect(family.IPv4Unicast, prefix, func(group locrib.PathGroup) {
+			prepared, prepareErr = prepareRouteViewLocal(family.IPv4Unicast, prefix, &group)
 		})
 	}
 	if prepareErr != nil {

@@ -197,7 +197,9 @@ func TestOwnerEngineOperationTypedDiscovery(t *testing.T) {
 	ownerError := errors.New("owner typed request reached")
 	registerTestEngineOperation(t, EngineOperation{
 		Method: method, Startup: EngineOperationRuntimeOnly,
-		Handler: func(*Server, context.Context, *process.Process, json.RawMessage) (any, error) { return nil, nil },
+		Handler: func(*Server, context.Context, *process.Process, json.RawMessage) (any, error) {
+			return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
+		},
 		TypedWire: func(_ *Server, proc *process.Process, bridge *rpc.DirectBridge) {
 			wiredProcess = proc
 			bridge.SetForwardCached(func(context.Context, []uint64, []string) error { return ownerError })

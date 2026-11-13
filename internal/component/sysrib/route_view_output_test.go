@@ -142,7 +142,10 @@ func TestRouteViewOutputFailureTracksAttemptedBatch(t *testing.T) {
 	}
 	seen := make(map[netip.Prefix]bool)
 	for _, event := range bus.events {
-		batch := event.Payload.(*sysribevents.BestChangeBatch)
+		batch, ok := event.Payload.(*sysribevents.BestChangeBatch)
+		if !ok {
+			t.Fatalf("bus event payload is %T, want *sysribevents.BestChangeBatch", event.Payload)
+		}
 		for _, change := range batch.Changes {
 			if change.Action == routeaction.Withdraw {
 				seen[change.Prefix] = true

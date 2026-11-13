@@ -147,18 +147,19 @@ func (authority *routeViewAuthority) publish(ctx context.Context, owner *process
 		}
 		emitted := prepared.Batch
 		emitted.Changes = make([]sysribevents.BestChangeEntry, 0, len(prepared.Batch.Changes))
-		for _, entry := range prepared.Batch.Changes {
+		for i := range prepared.Batch.Changes {
+			entry := &prepared.Batch.Changes[i]
 			key := prefixKey{family: prepared.Batch.Family, prefix: entry.Prefix}
 			if entry.Action == routeaction.Withdraw {
 				if _, owned := state.ledger[key]; !owned {
 					continue
 				}
-				emitted.Changes = append(emitted.Changes, entry)
+				emitted.Changes = append(emitted.Changes, *entry)
 				continue
 			}
 			// Record before the bus: it can deliver to some subscribers and fail.
-			state.ledger[key] = entry
-			emitted.Changes = append(emitted.Changes, entry)
+			state.ledger[key] = *entry
+			emitted.Changes = append(emitted.Changes, *entry)
 		}
 		shouldEmit := len(emitted.Changes) > 0
 		if len(prepared.Batch.Changes) == 0 {
@@ -175,13 +176,14 @@ func (authority *routeViewAuthority) publish(ctx context.Context, owner *process
 		}
 		// Retire withdrawals only after complete acceptance. Later entries for
 		// the same prefix still determine its final outstanding state.
-		for _, entry := range prepared.Batch.Changes {
+		for i := range prepared.Batch.Changes {
+			entry := &prepared.Batch.Changes[i]
 			key := prefixKey{family: prepared.Batch.Family, prefix: entry.Prefix}
 			if entry.Action == routeaction.Withdraw {
 				delete(state.ledger, key)
 				continue
 			}
-			state.ledger[key] = entry
+			state.ledger[key] = *entry
 		}
 		result = rpc.RouteViewPublishOutput{Session: session.token, Cursor: input.Cursor, Operation: input.Operation}
 		state.acknowledged = &routeViewOutputAck{input: prepared, output: result}
@@ -204,7 +206,7 @@ func (session *routeViewSession) provePublicationReset(input routeViewPublicatio
 	if session.fenceFailure != nil {
 		return
 	}
-	if _, rebuild := session.resetReason.(*routeViewRebuildReason); !rebuild {
+	if _, rebuild := errors.AsType[*routeViewRebuildReason](session.resetReason); !rebuild {
 		return
 	}
 	if previous := session.publicationReset; previous != nil {
@@ -229,16 +231,16 @@ func (output *routeViewOutput) withdraw(owner *process.Process) error {
 			failures = errors.Join(failures, err)
 			return
 		}
-		for _, entry := range entries {
-			delete(output.ledger, prefixKey{family: fam, prefix: entry.Prefix})
+		for i := range entries {
+			delete(output.ledger, prefixKey{family: fam, prefix: entries[i].Prefix})
 		}
 	}
-	for key, entry := range output.ledger {
+	for key := range output.ledger {
 		entries := groups[key.family]
 		if entries == nil {
 			entries = make([]sysribevents.BestChangeEntry, 0, rpc.RouteViewRecordsMax)
 		}
-		entries = append(entries, sysribevents.BestChangeEntry{Action: routeaction.Withdraw, Prefix: key.prefix, TableID: entry.TableID})
+		entries = append(entries, sysribevents.BestChangeEntry{Action: routeaction.Withdraw, Prefix: key.prefix, TableID: output.ledger[key].TableID})
 		if len(entries) == rpc.RouteViewRecordsMax {
 			emit(key.family, entries)
 			// Event subscribers may retain this storage. The next chunk MUST

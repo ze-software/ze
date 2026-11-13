@@ -205,7 +205,7 @@ func TestUnresolvableSRv6SIDIsNotPromotedOntoAnEqualCostMember(t *testing.T) {
 	// The control: the SID resolves, so the member carries the prefix.
 	reachable := netip.MustParsePrefix("10.53.0.0/24")
 	// Preserve the original member20 Add and BGP20 takeover under stable ties.
-	s.rib.Insert(family.IPv4Unicast, reachable, s.candidatePath("bgp", incomingChange{
+	s.rib.Insert(family.IPv4Unicast, reachable, s.candidatePath("bgp", &incomingChange{
 		NextHop: winnerNH, Interface: "eth0", SRv6SID: netip.MustParseAddr("2001:db8:cafe::3"), Priority: 21,
 	}))
 	addPath(s, "ospf", reachable, memberNH, "eth1", 20)
@@ -224,7 +224,7 @@ func TestUnresolvableSRv6SIDIsNotPromotedOntoAnEqualCostMember(t *testing.T) {
 	unreachable := netip.MustParsePrefix("10.54.0.0/24")
 	sid := netip.MustParseAddr("2001:db8:beef::4")
 	// Preserve the original member20 Add and BGP20 takeover under stable ties.
-	s.rib.Insert(family.IPv4Unicast, unreachable, s.candidatePath("bgp", incomingChange{
+	s.rib.Insert(family.IPv4Unicast, unreachable, s.candidatePath("bgp", &incomingChange{
 		NextHop: winnerNH, Interface: "eth0", SRv6SID: sid, Priority: 21,
 	}))
 	addPath(s, "ospf", unreachable, memberNH, "eth1", 20)

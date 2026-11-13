@@ -67,7 +67,8 @@ func testRouteViewReplayAdmission(t *testing.T, internal bool, invalid uint64) {
 	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
 	var hold atomic.Bool
 	unsubscribe := sysribevents.BestChange.Subscribe(endpoint.host, func(batch *sysribevents.BestChangeBatch) {
-		for _, entry := range batch.Changes {
+		for i := range batch.Changes {
+			entry := &batch.Changes[i]
 			if entry.Prefix != prefix {
 				continue
 			}
@@ -116,7 +117,8 @@ func testRouteViewReplayAdmission(t *testing.T, internal bool, invalid uint64) {
 				if batch.ReplayID != identity {
 					continue
 				}
-				for _, entry := range batch.Changes {
+				for i := range batch.Changes {
+					entry := &batch.Changes[i]
 					if entry.Prefix != prefix {
 						continue
 					}
@@ -127,10 +129,10 @@ func testRouteViewReplayAdmission(t *testing.T, internal bool, invalid uint64) {
 						continue
 					}
 					if entry.Protocol != "static" {
-						t.Fatalf("forwarding control changed protocol: %+v", entry)
+						t.Fatalf("forwarding control changed protocol: %+v", *entry)
 					}
 					if entry.RouteType != routetype.Blackhole {
-						t.Fatalf("forwarding control changed action: %+v", entry)
+						t.Fatalf("forwarding control changed action: %+v", *entry)
 					}
 					return
 				}

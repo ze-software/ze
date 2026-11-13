@@ -1,4 +1,4 @@
-// Design: docs/architecture/api/process-protocol.md -- a request the end of the engine session cancelled is answered by the close.
+// Design: docs/architecture/api/process-protocol.md -- a request the end of the engine session canceled is answered by the close.
 // Related: dispatch_registry.go -- serveEngineOpJSON, engineSessionEnded.
 
 package server
@@ -88,9 +88,8 @@ func (call *sessionEndCall) finish(t *testing.T) error {
 
 func requireAnsweredByClose(t *testing.T, err error) {
 	t.Helper()
-	var refusal *rpc.RPCCallError
-	if errors.As(err, &refusal) {
-		t.Fatalf("the engine answered a request its own stop cancelled with a refusal, which the plugin cannot tell from a live refusal: %q", refusal.Message)
+	if refusal, ok := errors.AsType[*rpc.RPCCallError](err); ok {
+		t.Fatalf("the engine answered a request its own stop canceled with a refusal, which the plugin cannot tell from a live refusal: %q", refusal.Message)
 	}
 	if errors.Is(err, io.EOF) {
 		return
@@ -123,12 +122,12 @@ func sessionEndStopped(cause error) error {
 }
 
 // Goal: at daemon stop the engine does not answer a runtime request that the
-// stop itself cancelled; the connection close answers it. This is the forked
+// stop itself canceled; the connection close answers it. This is the forked
 // system RIB's long-poll read at stop, which the daemon answered with a
 // refusal before the close, so the consumer logged a plugin failure. Method:
 // the handler waits on the server context, as the routing-view read waits,
 // and returns that cancellation wrapped in an operator error, as
-// routeViewStopped does. The server context is cancelled with the connection
+// routeViewStopped does. The server context is canceled with the connection
 // still open (Server.Stop cancels before ProcessManager.Stop closes), and the
 // engine end is closed only after the handler was served.
 func TestRuntimeRequestCancelledByServerStopIsLeftToConnectionClose(t *testing.T) {
@@ -188,7 +187,7 @@ func TestRuntimeRequestCancelledUnderLiveSessionIsAnswered(t *testing.T) {
 
 // Goal: during a stop only the stop's own cancellation goes unanswered; a
 // handler's refusal for another reason is still answered. Method: the server
-// context is cancelled before the request is served, and the handler returns
+// context is canceled before the request is served, and the handler returns
 // an operator refusal that wraps no cancellation.
 func TestRuntimeRefusalDuringServerStopIsAnswered(t *testing.T) {
 	s := &Server{}

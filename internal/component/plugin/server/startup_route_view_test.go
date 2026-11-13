@@ -35,9 +35,8 @@ func TestConfigureRefusesRuntimeEngineOperation(t *testing.T) {
 				return
 			}
 			_, err := remote.CallRPC(ctx, rpc.MethodRouteMetrics, nil)
-			var refused *rpc.RPCCallError
-			if !errors.As(err, &refused) {
-				peerDone <- fmt.Errorf("runtime call must be refused before configure completes, got %v", err)
+			if _, refused := errors.AsType[*rpc.RPCCallError](err); !refused {
+				peerDone <- fmt.Errorf("runtime call must be refused before configure completes, got %w", err)
 				return
 			}
 			peerDone <- remote.SendOK(ctx, request.ID)
@@ -109,9 +108,8 @@ func TestConfigureServesOwnerEngineOperation(t *testing.T) {
 			}
 			for _, denied := range []string{"ze-plugin:runtime-owner-test", "ze-plugin:unknown-test", rpc.MethodStateGet, "ze-plugin:panic-owner-test"} {
 				_, err := remote.CallRPC(ctx, denied, nil)
-				var refused *rpc.RPCCallError
-				if !errors.As(err, &refused) {
-					peerDone <- fmt.Errorf("%s must be refused during configure: %v", denied, err)
+				if _, refused := errors.AsType[*rpc.RPCCallError](err); !refused {
+					peerDone <- fmt.Errorf("%s must be refused during configure: %w", denied, err)
 					return
 				}
 			}
@@ -207,8 +205,7 @@ func TestConfigureFailsWhenNestedReplyCannotEncode(t *testing.T) {
 	err := conn.SendConfigureServing(ctx, nil, nil, func(request *rpc.Request) (bool, error) {
 		return s.serveConfigureEngineOp(ctx, proc, conn, request)
 	})
-	var unsupported *json.UnsupportedTypeError
-	if !errors.As(err, &unsupported) {
+	if _, unsupported := errors.AsType[*json.UnsupportedTypeError](err); !unsupported {
 		t.Errorf("configure must return the nested result encoding failure, got %v", err)
 	}
 	if ctx.Err() != nil {

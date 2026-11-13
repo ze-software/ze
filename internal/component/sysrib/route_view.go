@@ -412,8 +412,7 @@ func routeViewRefusal(problem, why, fix string) error {
 }
 
 func routeViewStopped(err error, owner *process.Process) error {
-	var operatorError *opererr.Error
-	if errors.As(err, &operatorError) {
+	if _, operator := errors.AsType[*opererr.Error](err); operator {
 		return err
 	}
 	return opererr.Wrap(err, "Selected routing request stopped before completion", "The request did not return a complete result", "ze request plugin restart "+owner.Name())

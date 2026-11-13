@@ -48,13 +48,13 @@ func TestOwnerNativeOperationErrorNormalization(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			result := engineOpCallError(testcase.input)
 			if testcase.identity != nil {
-				if result != testcase.identity {
+				if result != testcase.identity { //nolint:errorlint // the assertion is identity: the normalized error must be the unwrapped value itself, which errors.Is would also accept wrapped
 					t.Fatalf("error identity changed: %T %v", result, result)
 				}
 				return
 			}
 			if errors.Is(testcase.input, context.Canceled) || errors.Is(testcase.input, context.DeadlineExceeded) {
-				if result != testcase.input {
+				if result != testcase.input { //nolint:errorlint // the assertion is identity: a wrapped context error must come back unchanged, which errors.Is would also accept rewrapped
 					t.Fatal("wrapped context error identity changed")
 				}
 				return

@@ -45,9 +45,10 @@ func gatewayOrderChanges() (cover, dependent incomingChange) {
 // gatewayOrderRoute returns the Ze route the kernel holds for prefix.
 func gatewayOrderRoute(t *testing.T, h *netlink.Handle, prefix string) (netlink.Route, bool) {
 	t.Helper()
-	for _, route := range zeRoutes(t, h) {
-		if route.Dst != nil && route.Dst.String() == prefix {
-			return route, true
+	routes := zeRoutes(t, h)
+	for i := range routes {
+		if routes[i].Dst != nil && routes[i].Dst.String() == prefix {
+			return routes[i], true
 		}
 	}
 	return netlink.Route{}, false

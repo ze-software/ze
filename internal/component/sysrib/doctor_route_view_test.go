@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -148,9 +149,13 @@ func TestRouteViewDoctorTransitionsAndMeasuredMetrics(t *testing.T) {
 func assertRouteViewMetric(t *testing.T, reg *metrics.PrometheusRegistry, want string) {
 	t.Helper()
 	recorder := httptest.NewRecorder()
-	reg.Handler().ServeHTTP(recorder, httptest.NewRequest("GET", "/metrics", nil))
+	reg.Handler().ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody))
 	response := recorder.Result()
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
 	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		t.Fatal(err)

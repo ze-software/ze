@@ -94,13 +94,13 @@ func routeViewDecodeOutputBatch(data json.RawMessage) (sysribevents.BestChangeBa
 			var raw jsontext.Value
 			raw, err = decoder.ReadValue()
 			if err == nil {
-				err = routeViewDecode(json.RawMessage(raw), &fam)
+				err = routeViewDecode(raw, &fam)
 			}
 		case "replay":
 			var raw jsontext.Value
 			raw, err = decoder.ReadValue()
 			if err == nil {
-				err = routeViewDecode(json.RawMessage(raw), &replayed)
+				err = routeViewDecode(raw, &replayed)
 			}
 		case "changes":
 			changes, err = routeViewOutputRows(decoder)
@@ -108,8 +108,7 @@ func routeViewDecodeOutputBatch(data json.RawMessage) (sysribevents.BestChangeBa
 			return sysribevents.BestChangeBatch{}, routeViewRefusal("Routing publication has an undeclared field", "Only family, replay and changes are accepted", routeViewOutputFix)
 		}
 		if err != nil {
-			var refusal *opererr.Error
-			if errors.As(err, &refusal) {
+			if _, refused := errors.AsType[*opererr.Error](err); refused {
 				return sysribevents.BestChangeBatch{}, err
 			}
 			return sysribevents.BestChangeBatch{}, opererr.Wrap(err, "Routing publication field is malformed", "No part of the batch was applied", routeViewOutputFix)
@@ -181,7 +180,7 @@ func routeViewOutputRows(decoder *jsontext.Decoder) ([]json.RawMessage, error) {
 			return nil, routeViewRefusal("Routing publication change is malformed", "No part of the batch was applied", routeViewOutputFix)
 		}
 		// ReadValue lends its bytes only until the next decoder operation.
-		rows = append(rows, json.RawMessage(row.Clone()))
+		rows = append(rows, row.Clone())
 	}
 	if _, err := decoder.ReadToken(); err != nil {
 		return nil, routeViewRefusal("Routing publication changes is incomplete", "No part of the batch was applied", routeViewOutputFix)

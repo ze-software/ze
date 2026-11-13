@@ -160,7 +160,7 @@ func (p *promotionState) promote(t *testing.T) outgoingChange {
 	t.Helper()
 	// Seed authority order before the first selected value is consumed. The
 	// original member20 Add and winner20 takeover below remain unchanged.
-	p.sysrib.rib.Insert(family.IPv4Unicast, p.prefix, p.sysrib.candidatePath(p.winner.protocol, incomingChange{
+	p.sysrib.rib.Insert(family.IPv4Unicast, p.prefix, p.sysrib.candidatePath(p.winner.protocol, &incomingChange{
 		NextHop: p.winner.nextHop, Interface: p.winner.iface, Labels: p.winner.labels,
 		SRv6SID: p.winner.srv6SID, Priority: 21,
 	}))

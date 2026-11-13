@@ -36,9 +36,9 @@ func TestRouteViewOutputDecoderOwnsDistinctRows(t *testing.T) {
 		entry.ECMPPaths = make([]sysribevents.ECMPPath, sysribevents.MaxECMPPaths)
 		for member := range entry.ECMPPaths {
 			entry.ECMPPaths[member] = sysribevents.ECMPPath{
-				NextHop: netip.MustParseAddr("198.51.100.2"),
+				NextHop:   netip.MustParseAddr("198.51.100.2"),
 				Interface: strings.Repeat(devices[i], 160),
-				OnLink: true, Weight: uint8(member + 1),
+				OnLink:    true, Weight: uint8(member + 1),
 				Labels: []uint32{100 + uint32(member), 200 + uint32(i)},
 			}
 		}

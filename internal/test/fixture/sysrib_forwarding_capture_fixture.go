@@ -122,7 +122,10 @@ func (c *sysribFIBCapture) await(ctx context.Context, prefix string, replayAfter
 	}) {
 		return nil
 	}
-	return fmt.Errorf("FIB %s replay-after=%d: observed %+v, want %+v; delivery error: %v", prefix, replayAfter, last, want, lastErr)
+	if lastErr != nil {
+		return fmt.Errorf("FIB %s replay-after=%d: observed %+v, want %+v; delivery error: %w", prefix, replayAfter, last, want, lastErr)
+	}
+	return fmt.Errorf("FIB %s replay-after=%d: observed %+v, want %+v; delivery error: <nil>", prefix, replayAfter, last, want)
 }
 
 func (c *sysribFIBCapture) requestReplay(ctx context.Context, p *sdk.Plugin) (uint64, error) {
@@ -156,7 +159,8 @@ func sysribInstall(ctx context.Context, p *sdk.Plugin, entries ...rpc.RouteInsta
 
 func sysribRemove(ctx context.Context, p *sdk.Plugin, entries ...rpc.RouteInstallEntry) error {
 	routes := make([]rpc.RouteRemoveEntry, len(entries))
-	for i, entry := range entries {
+	for i := range entries {
+		entry := &entries[i]
 		routes[i] = rpc.RouteRemoveEntry{Protocol: entry.Protocol, AFI: entry.AFI, SAFI: entry.SAFI, Prefix: entry.Prefix, Instance: entry.Instance}
 	}
 	count, err := p.RouteRemove(ctx, routes)
@@ -199,5 +203,8 @@ func sysribKernel6(ctx context.Context, prefix string, want int, words ...string
 	}) {
 		return nil
 	}
-	return fmt.Errorf("IPv6 kernel %s: want %d entries containing %q; observed %q; read error %v", prefix, want, words, last, lastErr)
+	if lastErr != nil {
+		return fmt.Errorf("IPv6 kernel %s: want %d entries containing %q; observed %q; read error %w", prefix, want, words, last, lastErr)
+	}
+	return fmt.Errorf("IPv6 kernel %s: want %d entries containing %q; observed %q; read error <nil>", prefix, want, words, last)
 }

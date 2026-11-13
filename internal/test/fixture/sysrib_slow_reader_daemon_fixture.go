@@ -47,7 +47,7 @@ func sysribSlowDriver(ctx context.Context, args []string) error {
 		if err := importCreateLink(ctx, sysribSlowLink, "198.19.40.254/24"); err != nil {
 			return err
 		}
-		if _, err := importCommandOutput(ctx, "ip", "route", "add", "blackhole", sysribSlowForeign, "proto", "42"); err != nil {
+		if err := importCommandRun(ctx, "route", "add", "blackhole", sysribSlowForeign, "proto", "42"); err != nil {
 			return err
 		}
 		// The paired carrier joins daemon shutdown before its dedicated
@@ -56,10 +56,10 @@ func sysribSlowDriver(ctx context.Context, args []string) error {
 		if err := waitRIBWinner(ctx, p, sysribSlowConnected, "connected"); err != nil {
 			return err
 		}
-		old := rpc.RouteInstallEntry{Protocol: "static", AFI: 1, SAFI: 1, Prefix: stale, RouteType: 6}
+		old := rpc.RouteInstallEntry{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: stale, RouteType: 6}
 		control := old
 		control.Prefix = sysribSlowControl
-		withheld := rpc.RouteInstallEntry{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: sysribSlowWithheld, RouteType: 6, IsBGP: true, IsEBGP: true}
+		withheld := rpc.RouteInstallEntry{Protocol: protocolBGP, AFI: 1, SAFI: 1, Prefix: sysribSlowWithheld, RouteType: 6, IsBGP: true, IsEBGP: true}
 		if err := sysribInstall(ctx, p, old, control, withheld); err != nil {
 			return err
 		}
@@ -105,7 +105,7 @@ func sysribSlowDriver(ctx context.Context, args []string) error {
 		for start := 0; start < sysribSlowCount; start += 256 {
 			entries := make([]rpc.RouteInstallEntry, 0, 256)
 			for index := start; index < min(start+256, sysribSlowCount); index++ {
-				entries = append(entries, rpc.RouteInstallEntry{Protocol: "static", AFI: 1, SAFI: 1, Prefix: sysribSlowPrefix(index), RouteType: 6})
+				entries = append(entries, rpc.RouteInstallEntry{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: sysribSlowPrefix(index), RouteType: 6})
 			}
 			if err := sysribInstall(ctx, p, entries...); err != nil {
 				return fmt.Errorf("producer stalled behind stopped routing reader at prefix %d: %w", start, err)
@@ -114,7 +114,7 @@ func sysribSlowDriver(ctx context.Context, args []string) error {
 		if err := sysribRemove(ctx, p, old); err != nil {
 			return err
 		}
-		updated := rpc.RouteInstallEntry{Protocol: "static", AFI: 1, SAFI: 1, Prefix: changed, RouteType: 7}
+		updated := rpc.RouteInstallEntry{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: changed, RouteType: 7}
 		if err := sysribInstall(ctx, p, updated); err != nil {
 			return err
 		}
@@ -166,7 +166,7 @@ func sysribSlowDriver(ctx context.Context, args []string) error {
 		if current[0] != pid {
 			return fmt.Errorf("slow-reader reset used replacement PID %d, want same %d", current[0], pid)
 		}
-		if err := sysribProducerAbsent(ctx, p, "static", stale); err != nil {
+		if err := sysribProducerAbsent(ctx, p, protocolStatic, stale); err != nil {
 			return err
 		}
 		replayAt, err := capture.requestReplay(ctx, p)
@@ -177,7 +177,7 @@ func sysribSlowDriver(ctx context.Context, args []string) error {
 			prefix    string
 			routeType sysribevents.RouteType
 		}{{changed, 7}, {tail, 6}, {sysribSlowControl, 6}} {
-			want := sysribevents.BestChangeEntry{Action: routeaction.Add, Prefix: netip.MustParsePrefix(value.prefix), Protocol: "static", RouteType: value.routeType}
+			want := sysribevents.BestChangeEntry{Action: routeaction.Add, Prefix: netip.MustParsePrefix(value.prefix), Protocol: protocolStatic, RouteType: value.routeType}
 			if err := capture.await(ctx, value.prefix, replayAt, want); err != nil {
 				return err
 			}
@@ -333,7 +333,7 @@ func sysribSlowGeneratedAbsent(ctx context.Context) error {
 		return err
 	}
 	for line := range strings.SplitSeq(data, "\n") {
-		for _, field := range strings.Fields(line) {
+		for field := range strings.FieldsSeq(line) {
 			if strings.HasPrefix(field, "10.253.") {
 				return fmt.Errorf("slow-reader fixture prefix remains in kernel: %s", line)
 			}
@@ -365,7 +365,7 @@ func sysribSlowLinkCleanup(ctx context.Context, args []string) error {
 	if err := importKernel(ctx, sysribSlowForeign, 1, "6 "+sysribSlowForeign+" ", "proto 42 "); err != nil {
 		return err
 	}
-	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", sysribSlowLink); err != nil {
+	if err := importCommandRun(ctx, "link", "show", "dev", sysribSlowLink); err != nil {
 		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", sysribSlowLink, err)
 	}
 	if err := importDeleteForeignBlackhole(ctx, sysribSlowForeign); err != nil {

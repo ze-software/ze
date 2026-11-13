@@ -33,8 +33,8 @@ func heldFeedWorker(t *testing.T, ctx context.Context, prefix netip.Prefix, path
 		if !ok {
 			return
 		}
-		for _, entry := range batch.Changes {
-			if entry.Prefix == prefix && entry.Action == routeaction.Add {
+		for i := range batch.Changes {
+			if batch.Changes[i].Prefix == prefix && batch.Changes[i].Action == routeaction.Add {
 				first.Do(func() {
 					close(entered)
 					select {

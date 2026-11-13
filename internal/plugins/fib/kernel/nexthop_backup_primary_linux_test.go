@@ -62,7 +62,7 @@ func TestBuildRichRouteBackupSinglePathMatchesPrimaryAlone(t *testing.T) {
 		backup netip.Addr
 	}{
 		{
-			name: "on-link gateway, labelled backup",
+			name: "on-link gateway, labeled backup",
 			route: RichRoute{
 				Prefix:  netip.MustParsePrefix("198.18.253.0/24"),
 				NextHop: netip.MustParseAddr("198.18.247.1"), OnLink: true, Metric: 20,
@@ -73,7 +73,7 @@ func TestBuildRichRouteBackupSinglePathMatchesPrimaryAlone(t *testing.T) {
 			backup: backupGateway,
 		},
 		{
-			name: "labelled primary with path MTU",
+			name: "labeled primary with path MTU",
 			route: RichRoute{
 				Prefix:  netip.MustParsePrefix("10.20.0.0/24"),
 				NextHop: netip.MustParseAddr("10.0.0.2"), Metric: 110, Labels: []uint32{16003}, PathMTU: 1400,

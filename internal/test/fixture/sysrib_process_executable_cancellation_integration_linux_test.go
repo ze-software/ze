@@ -101,7 +101,11 @@ func TestSysribExecutablePrivilegedCancellationJoinsRootChild(t *testing.T) {
 		select {
 		case result := <-done:
 			joined = true
-			observation = fmt.Errorf("privileged command ended before its root barrier: %v; output=%q", result.err, result.output)
+			if result.err != nil {
+				observation = fmt.Errorf("privileged command ended before its root barrier: %w; output=%q", result.err, result.output)
+				return true
+			}
+			observation = fmt.Errorf("privileged command ended before its root barrier: <nil>; output=%q", result.output)
 			return true
 		default:
 		}

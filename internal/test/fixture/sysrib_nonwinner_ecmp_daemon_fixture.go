@@ -25,6 +25,15 @@ const (
 	sysribNonwinnerLinkA  = "zesrnwa"
 	sysribNonwinnerLinkB  = "zesrnwb"
 	sysribNonwinnerLinkC  = "zesrnwc"
+	// The connected subnets of the three fixture links: OS-owned routes that
+	// stay foreign-owned controls Ze must never sweep.
+	sysribNonwinnerConnectedA = "198.18.232.0/24"
+	sysribNonwinnerConnectedB = "198.18.233.0/24"
+	sysribNonwinnerConnectedC = "198.18.234.0/24"
+	// sysribNonwinnerSecondary is static's secondary gateway; the reload
+	// renames it to sysribNonwinnerSecondaryUpdated.
+	sysribNonwinnerSecondary        = "198.18.233.1"
+	sysribNonwinnerSecondaryUpdated = "198.18.233.2"
 )
 
 // sysribNonwinnerECMPDriver inserts the independent registered OSPF route
@@ -35,7 +44,7 @@ func sysribNonwinnerECMPDriver(ctx context.Context, args []string) error {
 		return err
 	}
 	capture := newSysribFIBCapture(sysribNonwinnerTarget, sysribNonwinnerStatic, sysribNonwinnerOSPF,
-		"198.18.232.0/24", "198.18.233.0/24", "198.18.234.0/24")
+		sysribNonwinnerConnectedA, sysribNonwinnerConnectedB, sysribNonwinnerConnectedC)
 	return observeConfigured(ctx, "sysrib-nonwinner-ecmp-test", &sdk.Registration{}, capture.setup, func(ctx context.Context, p *sdk.Plugin) error {
 		if err := sysribExecutionPlacement(ctx, p, args[0]); err != nil {
 			return err
@@ -56,7 +65,7 @@ func sysribNonwinnerECMPDriver(ctx context.Context, args []string) error {
 			return err
 		}
 		for _, prefix := range []string{sysribNonwinnerTarget, sysribNonwinnerOSPF} {
-			if err := sysribInstall(ctx, p, rpc.RouteInstallEntry{Protocol: "ospf", AFI: 1, SAFI: 1,
+			if err := sysribInstall(ctx, p, rpc.RouteInstallEntry{Protocol: protocolOSPF, AFI: 1, SAFI: 1,
 				Prefix: prefix, NextHop: "198.18.234.1", Interface: sysribNonwinnerLinkC,
 				OnLink: true, Weight: 3, Metric: 10, RouteType: 1}); err != nil {
 				return err
@@ -67,7 +76,7 @@ func sysribNonwinnerECMPDriver(ctx context.Context, args []string) error {
 		if err := sysribNonwinnerControls(ctx, p, true); err != nil {
 			return err
 		}
-		if err := importCandidateState(ctx, p, sysribNonwinnerTarget, "ospf", 20, nil, true, "", ""); err != nil {
+		if err := importCandidateState(ctx, p, sysribNonwinnerTarget, protocolOSPF, 20, nil, true, "", ""); err != nil {
 			return err
 		}
 		if err := capture.await(ctx, sysribNonwinnerTarget, 0, sysribNonwinnerWant(false, false)); err != nil {
@@ -110,12 +119,12 @@ func sysribNonwinnerECMPDriver(ctx context.Context, args []string) error {
 		if next == nil {
 			return errors.New("nonwinner static target omitted next")
 		}
-		secondary := next.GetList("hop")["198.18.233.1"]
+		secondary := next.GetList("hop")[sysribNonwinnerSecondary]
 		if secondary == nil {
 			return errors.New("nonwinner static target omitted secondary hop")
 		}
 		secondary.Set("weight", "7")
-		if err := next.RenameListEntry("hop", "198.18.233.1", "198.18.233.2"); err != nil {
+		if err := next.RenameListEntry("hop", sysribNonwinnerSecondary, sysribNonwinnerSecondaryUpdated); err != nil {
 			return err
 		}
 		if err := policyFinalReload(ctx, p, config.Serialize(tree, schema), "applied"); err != nil {
@@ -128,7 +137,7 @@ func sysribNonwinnerECMPDriver(ctx context.Context, args []string) error {
 		if rib == nil {
 			return errors.New("nonwinner fixture omitted rib distances")
 		}
-		rib.SetSlice("fib-withhold", []string{"static"})
+		rib.SetSlice("fib-withhold", []string{protocolStatic})
 		if err := policyFinalReload(ctx, p, config.Serialize(tree, schema), "applied"); err != nil {
 			return err
 		}
@@ -156,13 +165,13 @@ func sysribNonwinnerECMPDriver(ctx context.Context, args []string) error {
 }
 
 func sysribNonwinnerWant(updated, permitted bool) sysribevents.BestChangeEntry {
-	want := sysribevents.BestChangeEntry{Prefix: netip.MustParsePrefix(sysribNonwinnerTarget), Protocol: "ospf",
+	want := sysribevents.BestChangeEntry{Prefix: netip.MustParsePrefix(sysribNonwinnerTarget), Protocol: protocolOSPF,
 		NextHop: netip.MustParseAddr("198.18.234.1"), Interface: sysribNonwinnerLinkC, OnLink: true,
 		Weight: 3, Metric: 10, RouteType: 1}
 	if permitted {
-		secondary, weight := "198.18.233.1", uint8(5)
+		secondary, weight := sysribNonwinnerSecondary, uint8(5)
 		if updated {
-			secondary, weight = "198.18.233.2", 7
+			secondary, weight = sysribNonwinnerSecondaryUpdated, 7
 		}
 		want.ECMPPaths = []sysribevents.ECMPPath{
 			{NextHop: netip.MustParseAddr("198.18.232.1"), Interface: sysribNonwinnerLinkA, Weight: 2},
@@ -173,10 +182,10 @@ func sysribNonwinnerWant(updated, permitted bool) sysribevents.BestChangeEntry {
 }
 
 func sysribNonwinnerState(ctx context.Context, p *sdk.Plugin, capture *sysribFIBCapture, updated, withheld bool, replayAt uint64) error {
-	if err := importCandidateState(ctx, p, sysribNonwinnerTarget, "ospf", 20, nil, true, "", ""); err != nil {
+	if err := importCandidateState(ctx, p, sysribNonwinnerTarget, protocolOSPF, 20, nil, true, "", ""); err != nil {
 		return err
 	}
-	if err := importCandidateState(ctx, p, sysribNonwinnerTarget, "static", 20, nil, false, "", ""); err != nil {
+	if err := importCandidateState(ctx, p, sysribNonwinnerTarget, protocolStatic, 20, nil, false, "", ""); err != nil {
 		return err
 	}
 	want := sysribNonwinnerWant(updated, !withheld)
@@ -191,9 +200,9 @@ func sysribNonwinnerState(ctx context.Context, p *sdk.Plugin, capture *sysribFIB
 			return err
 		}
 	} else {
-		secondary, weight := "198.18.233.1", "5"
+		secondary, weight := sysribNonwinnerSecondary, "5"
 		if updated {
-			secondary, weight = "198.18.233.2", "7"
+			secondary, weight = sysribNonwinnerSecondaryUpdated, "7"
 		}
 		if err := sysribKernelMultipath(ctx, sysribNonwinnerTarget,
 			"nexthop via 198.18.234.1 dev "+sysribNonwinnerLinkC+" weight 3 ",
@@ -212,9 +221,9 @@ func sysribNonwinnerState(ctx context.Context, p *sdk.Plugin, capture *sysribFIB
 // is withheld; they must never be swept by fib-kernel's subscriber restart.
 func sysribNonwinnerCovers(ctx context.Context, p *sdk.Plugin) error {
 	for _, cover := range []struct{ prefix, link string }{
-		{"198.18.232.0/24", sysribNonwinnerLinkA},
-		{"198.18.233.0/24", sysribNonwinnerLinkB},
-		{"198.18.234.0/24", sysribNonwinnerLinkC},
+		{sysribNonwinnerConnectedA, sysribNonwinnerLinkA},
+		{sysribNonwinnerConnectedB, sysribNonwinnerLinkB},
+		{sysribNonwinnerConnectedC, sysribNonwinnerLinkC},
 	} {
 		if err := waitRIBWinner(ctx, p, cover.prefix, "connected"); err != nil {
 			return err
@@ -227,7 +236,7 @@ func sysribNonwinnerCovers(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func sysribNonwinnerControls(ctx context.Context, p *sdk.Plugin, staticPermitted bool) error {
-	if err := importCandidateState(ctx, p, sysribNonwinnerStatic, "static", 20, nil, true, "", ""); err != nil {
+	if err := importCandidateState(ctx, p, sysribNonwinnerStatic, protocolStatic, 20, nil, true, "", ""); err != nil {
 		return err
 	}
 	count := 0
@@ -237,7 +246,7 @@ func sysribNonwinnerControls(ctx context.Context, p *sdk.Plugin, staticPermitted
 	if err := importKernel(ctx, sysribNonwinnerStatic, count, "6 "+sysribNonwinnerStatic+" ", "proto 250 "); err != nil {
 		return err
 	}
-	if err := importCandidateState(ctx, p, sysribNonwinnerOSPF, "ospf", 20, nil, true, "", ""); err != nil {
+	if err := importCandidateState(ctx, p, sysribNonwinnerOSPF, protocolOSPF, 20, nil, true, "", ""); err != nil {
 		return err
 	}
 	if err := importKernel(ctx, sysribNonwinnerOSPF, 1, "via 198.18.234.1 ", "dev "+sysribNonwinnerLinkC+" ", "proto 250 "); err != nil {
@@ -264,13 +273,16 @@ func sysribNonwinnerKernelMembers(ctx context.Context, updated, withheld bool) e
 			return false
 		}
 		if updated {
-			return !strings.Contains(last, "198.18.233.1")
+			return !strings.Contains(last, sysribNonwinnerSecondary)
 		}
-		return !strings.Contains(last, "198.18.233.2")
+		return !strings.Contains(last, sysribNonwinnerSecondaryUpdated)
 	}) {
 		return nil
 	}
-	return fmt.Errorf("nonwinner kernel membership updated=%t withheld=%t: %q; read error %v", updated, withheld, last, readErr)
+	if readErr != nil {
+		return fmt.Errorf("nonwinner kernel membership updated=%t withheld=%t: %q; read error %w", updated, withheld, last, readErr)
+	}
+	return fmt.Errorf("nonwinner kernel membership updated=%t withheld=%t: %q; read error <nil>", updated, withheld, last)
 }
 
 func sysribNonwinnerECMPKernelEmpty(ctx context.Context, args []string) error {
@@ -278,7 +290,7 @@ func sysribNonwinnerECMPKernelEmpty(ctx context.Context, args []string) error {
 		return errors.New("nonwinner ECMP kernel-empty fixture takes no arguments")
 	}
 	for _, prefix := range []string{sysribNonwinnerTarget, sysribNonwinnerStatic, sysribNonwinnerOSPF,
-		"198.18.232.0/24", "198.18.233.0/24", "198.18.234.0/24"} {
+		sysribNonwinnerConnectedA, sysribNonwinnerConnectedB, sysribNonwinnerConnectedC} {
 		if err := importKernel(ctx, prefix, 0); err != nil {
 			return err
 		}
@@ -299,15 +311,15 @@ func sysribNonwinnerECMPLinksCleanup(ctx context.Context, args []string) error {
 		}
 	}
 	links := []struct{ prefix, name string }{
-		{"198.18.232.0/24", sysribNonwinnerLinkA},
-		{"198.18.233.0/24", sysribNonwinnerLinkB},
-		{"198.18.234.0/24", sysribNonwinnerLinkC},
+		{sysribNonwinnerConnectedA, sysribNonwinnerLinkA},
+		{sysribNonwinnerConnectedB, sysribNonwinnerLinkB},
+		{sysribNonwinnerConnectedC, sysribNonwinnerLinkC},
 	}
 	for _, link := range links {
 		if err := importKernel(ctx, link.prefix, 1, "dev "+link.name+" ", "proto 2 "); err != nil {
 			return err
 		}
-		if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", link.name); err != nil {
+		if err := importCommandRun(ctx, "link", "show", "dev", link.name); err != nil {
 			return fmt.Errorf("joined daemon stop removed fixture device %s: %w", link.name, err)
 		}
 	}

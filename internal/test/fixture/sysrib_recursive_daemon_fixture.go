@@ -21,6 +21,20 @@ const (
 	sysribRecursiveV6      = "2001:db8:244::/64"
 	sysribRecursiveCross   = "198.18.245.0/24"
 	sysribRecursiveControl = "198.18.246.0/24"
+	// The OSPF covers, and the tagged more-specific candidates hidden inside
+	// them, that the static subjects' recursive next hops resolve through.
+	sysribRecursiveCover4  = "10.242.0.0/16"
+	sysribRecursiveCover6  = "2001:db8:242::/48"
+	sysribRecursiveHidden4 = "10.242.1.0/24"
+	sysribRecursiveHidden6 = "2001:db8:242:1::/64"
+	// sysribRecursiveHop6 is the recursive IPv6 next hop inside
+	// sysribRecursiveHidden6; sysribRecursiveGateway6 is the on-link gateway
+	// the IPv6 cover resolves it to.
+	sysribRecursiveHop6     = "2001:db8:242:1::5"
+	sysribRecursiveGateway6 = "2001:db8:240::1"
+	// sysribRecursiveGateway4 is the on-link IPv4 gateway the IPv4 cover
+	// resolves the static subjects to.
+	sysribRecursiveGateway4 = "198.18.240.1"
 )
 
 func sysribRecursiveDriver(ctx context.Context, args []string) error {
@@ -43,23 +57,23 @@ func sysribRecursiveDriver(ctx context.Context, args []string) error {
 				return err
 			}
 		}
-		cover4 := rpc.RouteInstallEntry{Protocol: "ospf", AFI: 1, SAFI: 1, Prefix: "10.242.0.0/16", NextHop: "198.18.240.1", Interface: sysribRecursiveLink, OnLink: true, Metric: 13, RouteType: 1}
-		cover6 := rpc.RouteInstallEntry{Protocol: "ospf", AFI: 2, SAFI: 1, Prefix: "2001:db8:242::/48", NextHop: "2001:db8:240::1", Interface: sysribRecursiveLink, OnLink: true, Metric: 17, RouteType: 1}
+		cover4 := rpc.RouteInstallEntry{Protocol: protocolOSPF, AFI: 1, SAFI: 1, Prefix: sysribRecursiveCover4, NextHop: sysribRecursiveGateway4, Interface: sysribRecursiveLink, OnLink: true, Metric: 13, RouteType: 1}
+		cover6 := rpc.RouteInstallEntry{Protocol: protocolOSPF, AFI: 2, SAFI: 1, Prefix: sysribRecursiveCover6, NextHop: sysribRecursiveGateway6, Interface: sysribRecursiveLink, OnLink: true, Metric: 17, RouteType: 1}
 		hidden4 := cover4
-		hidden4.Prefix = "10.242.1.0/24"
+		hidden4.Prefix = sysribRecursiveHidden4
 		hidden4.HasTag = true
 		hidden4.Tag = 4242
 		hidden4.Metric = 99
 		hidden6 := cover6
-		hidden6.Prefix = "2001:db8:242:1::/64"
+		hidden6.Prefix = sysribRecursiveHidden6
 		hidden6.HasTag = true
 		hidden6.Tag = 4242
 		hidden6.Metric = 99
-		control := rpc.RouteInstallEntry{Protocol: "static", AFI: 1, SAFI: 1, Prefix: sysribRecursiveControl, RouteType: 6}
+		control := rpc.RouteInstallEntry{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: sysribRecursiveControl, RouteType: 6}
 		subjects := []rpc.RouteInstallEntry{
-			{Protocol: "static", AFI: 1, SAFI: 1, Prefix: sysribRecursiveV4, NextHop: "10.242.1.5", Metric: 5, MetricRecursive: true, RouteType: 1},
-			{Protocol: "static", AFI: 2, SAFI: 1, Prefix: sysribRecursiveV6, NextHop: "2001:db8:242:1::5", Metric: 5, MetricRecursive: true, RouteType: 1},
-			{Protocol: "static", AFI: 1, SAFI: 1, Prefix: sysribRecursiveCross, NextHop: "2001:db8:242:1::5", Metric: 5, MetricRecursive: true, RouteType: 1},
+			{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: sysribRecursiveV4, NextHop: "10.242.1.5", Metric: 5, MetricRecursive: true, RouteType: 1},
+			{Protocol: protocolStatic, AFI: 2, SAFI: 1, Prefix: sysribRecursiveV6, NextHop: sysribRecursiveHop6, Metric: 5, MetricRecursive: true, RouteType: 1},
+			{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: sysribRecursiveCross, NextHop: sysribRecursiveHop6, Metric: 5, MetricRecursive: true, RouteType: 1},
 		}
 		// The more-specific candidates are present and hidden before their
 		// dependent subjects arrive; selection must find each broader survivor.
@@ -68,7 +82,7 @@ func sysribRecursiveDriver(ctx context.Context, args []string) error {
 		}
 		tag := uint32(4242)
 		for _, prefix := range []string{hidden4.Prefix, hidden6.Prefix} {
-			if err := importCandidateState(ctx, p, prefix, "ospf", 110, &tag, false, "central", "rib import"); err != nil {
+			if err := importCandidateState(ctx, p, prefix, protocolOSPF, 110, &tag, false, "central", "rib import"); err != nil {
 				return err
 			}
 		}
@@ -140,12 +154,12 @@ func sysribRecursiveDriver(ctx context.Context, args []string) error {
 
 func sysribRecursiveResolved(ctx context.Context, p *sdk.Plugin, capture *sysribFIBCapture, replayAt uint64) error {
 	for _, value := range []struct{ prefix, gateway string }{
-		{sysribRecursiveV4, "198.18.240.1"}, {sysribRecursiveV6, "2001:db8:240::1"}, {sysribRecursiveCross, "2001:db8:240::1"},
+		{sysribRecursiveV4, sysribRecursiveGateway4}, {sysribRecursiveV6, sysribRecursiveGateway6}, {sysribRecursiveCross, sysribRecursiveGateway6},
 	} {
-		if err := waitRIBWinner(ctx, p, value.prefix, "static"); err != nil {
+		if err := waitRIBWinner(ctx, p, value.prefix, protocolStatic); err != nil {
 			return err
 		}
-		want := sysribevents.BestChangeEntry{Prefix: netip.MustParsePrefix(value.prefix), Protocol: "static", NextHop: netip.MustParseAddr(value.gateway), Interface: sysribRecursiveLink, OnLink: true, Metric: 5, RouteType: 1}
+		want := sysribevents.BestChangeEntry{Prefix: netip.MustParsePrefix(value.prefix), Protocol: protocolStatic, NextHop: netip.MustParseAddr(value.gateway), Interface: sysribRecursiveLink, OnLink: true, Metric: 5, RouteType: 1}
 		if replayAt != 0 {
 			want.Action = routeaction.Add
 		}
@@ -164,7 +178,7 @@ func sysribRecursiveResolved(ctx context.Context, p *sdk.Plugin, capture *sysrib
 }
 
 func sysribRecursiveMetrics(ctx context.Context, p *sdk.Plugin, resolved bool, cost4, cost6 uint64) (uint64, error) {
-	addresses := []string{"10.242.1.5", "2001:db8:242:1::5", "198.18.240.1"}
+	addresses := []string{"10.242.1.5", sysribRecursiveHop6, sysribRecursiveGateway4}
 	out, err := p.RouteMetrics(ctx, addresses)
 	if err != nil {
 		return 0, err
@@ -195,12 +209,12 @@ func sysribRecursiveKernelEmpty(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return fmt.Errorf("recursive kernel-empty fixture takes no arguments")
 	}
-	for _, prefix := range []string{sysribRecursiveV4, sysribRecursiveCross, sysribRecursiveControl, "198.18.240.0/24", "10.242.0.0/16", "10.242.1.0/24"} {
+	for _, prefix := range []string{sysribRecursiveV4, sysribRecursiveCross, sysribRecursiveControl, "198.18.240.0/24", sysribRecursiveCover4, sysribRecursiveHidden4} {
 		if err := importKernel(ctx, prefix, 0); err != nil {
 			return err
 		}
 	}
-	for _, prefix := range []string{sysribRecursiveV6, "2001:db8:240::/64", "2001:db8:242::/48", "2001:db8:242:1::/64"} {
+	for _, prefix := range []string{sysribRecursiveV6, "2001:db8:240::/64", sysribRecursiveCover6, sysribRecursiveHidden6} {
 		if err := sysribKernel6(ctx, prefix, 0); err != nil {
 			return err
 		}
@@ -217,12 +231,12 @@ func sysribRecursiveLinkCleanup(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return errors.New("recursive post-stop link cleanup takes no arguments")
 	}
-	for _, prefix := range []string{sysribRecursiveV4, sysribRecursiveCross, sysribRecursiveControl, "10.242.0.0/16", "10.242.1.0/24"} {
+	for _, prefix := range []string{sysribRecursiveV4, sysribRecursiveCross, sysribRecursiveControl, sysribRecursiveCover4, sysribRecursiveHidden4} {
 		if err := importKernel(ctx, prefix, 0); err != nil {
 			return err
 		}
 	}
-	for _, prefix := range []string{sysribRecursiveV6, "2001:db8:242::/48", "2001:db8:242:1::/64"} {
+	for _, prefix := range []string{sysribRecursiveV6, sysribRecursiveCover6, sysribRecursiveHidden6} {
 		if err := sysribKernel6(ctx, prefix, 0); err != nil {
 			return err
 		}
@@ -233,7 +247,7 @@ func sysribRecursiveLinkCleanup(ctx context.Context, args []string) error {
 	if err := sysribKernel6(ctx, "2001:db8:240::/64", 1, "dev "+sysribRecursiveLink+" ", "proto 2 "); err != nil {
 		return err
 	}
-	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", sysribRecursiveLink); err != nil {
+	if err := importCommandRun(ctx, "link", "show", "dev", sysribRecursiveLink); err != nil {
 		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", sysribRecursiveLink, err)
 	}
 	if err := importDeleteLink(ctx, sysribRecursiveLink); err != nil {

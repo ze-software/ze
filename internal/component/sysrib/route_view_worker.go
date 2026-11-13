@@ -80,7 +80,7 @@ func (worker *routeViewWorker) run(ctx context.Context) {
 		// (docs/architecture/api/process-protocol.md, "Shutdown"), and this
 		// worker's long-poll read can see that close before SDK Run returns
 		// and Close cancels it. The engine leaves a read its own stop
-		// cancelled unanswered, so the close answers that read too
+		// canceled unanswered, so the close answers that read too
 		// (pluginserver engineSessionEnded). A failed callback loop reports its own cause,
 		// and a live owner's refusal is an RPC error, never a transport end.
 		if routeViewTransportStopped(err) {
@@ -215,10 +215,10 @@ func (worker *routeViewWorker) readSelected(ctx context.Context) error {
 	}
 	changes := make([]routeViewSelectedChange, 0, len(keys))
 	for _, key := range keys {
-		var prepared routeViewSelectedChange = routeViewSelectedRemove{key: prefixKey{family: key.family, prefix: key.prefix}}
+		var prepared routeViewSelectedChange = routeViewSelectedRemove{key: prefixKey(key)}
 		var prepareErr error
 		p.Inspect(key.family, key.prefix, func(value *selectedProjectionPath) {
-			prepared, prepareErr = prepareRouteViewSelectedMetadata(locrib.Change{Kind: locrib.ChangeAdd, Family: key.family, Prefix: key.prefix, Best: value.path, ECMP: value.path.ECMP}, value.members)
+			prepared, prepareErr = prepareRouteViewSelectedMetadata(&locrib.Change{Kind: locrib.ChangeAdd, Family: key.family, Prefix: key.prefix, Best: value.path, ECMP: value.path.ECMP}, value.members)
 		})
 		if prepareErr != nil {
 			return prepareErr

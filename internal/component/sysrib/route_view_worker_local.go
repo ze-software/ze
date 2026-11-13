@@ -31,7 +31,7 @@ func newRouteViewLocalCapture(rib *locrib.RIB) *routeViewLocalCapture {
 	return capture
 }
 
-func (capture *routeViewLocalCapture) offer(change locrib.Change) {
+func (capture *routeViewLocalCapture) offer(change locrib.Change) { //nolint:gocritic // hugeParam: the signature is locrib.ChangeHandler's
 	key := prefixKey{family: change.Family, prefix: change.Prefix}
 	select {
 	case capture.keys <- key:
@@ -66,7 +66,7 @@ func prepareRouteViewLocal(fam family.Family, prefix netip.Prefix, group *locrib
 		hops[i] = members[i].NextHop
 		metadata[i] = projectionMemberMetadata{source: members[i].Source, labels: members[i].Labels, sid: members[i].SRv6SID}
 	}
-	return prepareRouteViewSelectedMetadata(locrib.Change{Kind: locrib.ChangeAdd, Family: fam, Prefix: prefix, Best: best, ECMP: hops}, metadata)
+	return prepareRouteViewSelectedMetadata(&locrib.Change{Kind: locrib.ChangeAdd, Family: fam, Prefix: prefix, Best: best, ECMP: hops}, metadata)
 }
 
 func (capture *routeViewLocalCapture) inspect(key prefixKey) (routeViewSelectedChange, error) {

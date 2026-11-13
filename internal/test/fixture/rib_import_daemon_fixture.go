@@ -31,6 +31,16 @@ const (
 	importRollbackArmed    = "import-rollback.armed"
 	importRollbackReached  = "import-rollback.reached"
 	importRollbackReceipt  = "import-rollback.undone"
+
+	// rollbackProofResource names the resource a rollback-proof fixture's
+	// decomposed config operation targets.
+	rollbackProofResource = "candidate"
+
+	// protocolOSPF is the protocol name the system RIB reports for an OSPF path.
+	protocolOSPF = "ospf"
+
+	// importPolicyRoot is the config root the import rollback fixture owns.
+	importPolicyRoot = "policy"
 )
 
 // importPolicyDriver leaves the zero-argument committed scenarios intact. The
@@ -71,10 +81,10 @@ func importPlacementArgs(args []string, count int) error {
 		return fmt.Errorf("import daemon fixture needs %d placement arguments", count)
 	}
 	for _, placement := range args {
-		if placement == "internal" {
+		if placement == sysribPlacementInternal {
 			continue
 		}
-		if placement != "forked" {
+		if placement != sysribPlacementForked {
 			return fmt.Errorf("unknown import placement %q: use internal or forked", placement)
 		}
 	}
@@ -82,7 +92,7 @@ func importPlacementArgs(args []string, count int) error {
 }
 
 func importCreateLink(ctx context.Context, name string, addresses ...string) (result error) {
-	if _, err := importCommandOutput(ctx, "ip", "link", "add", name, "type", "dummy"); err != nil {
+	if err := importCommandRun(ctx, "link", "add", name, "type", "dummy"); err != nil {
 		return err
 	}
 	defer func() {
@@ -90,11 +100,11 @@ func importCreateLink(ctx context.Context, name string, addresses ...string) (re
 			result = errors.Join(result, importDeleteLink(ctx, name))
 		}
 	}()
-	if _, err := importCommandOutput(ctx, "ip", "link", "set", name, "up"); err != nil {
+	if err := importCommandRun(ctx, "link", "set", name, "up"); err != nil {
 		return err
 	}
 	for _, address := range addresses {
-		if _, err := importCommandOutput(ctx, "ip", "addr", "add", address, "dev", name); err != nil {
+		if err := importCommandRun(ctx, "addr", "add", address, "dev", name); err != nil {
 			return err
 		}
 	}
@@ -104,7 +114,7 @@ func importCreateLink(ctx context.Context, name string, addresses ...string) (re
 func importDeleteLink(ctx context.Context, name string) error {
 	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 	defer cancel()
-	_, err := importCommandOutput(cleanup, "ip", "link", "del", name)
+	err := importCommandRun(cleanup, "link", "del", name)
 	return err
 }
 
@@ -113,7 +123,7 @@ func importDeleteLink(ctx context.Context, name string) error {
 func importDeleteForeignBlackhole(ctx context.Context, prefix string) error {
 	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 	defer cancel()
-	_, err := importCommandOutput(cleanup, "ip", "route", "del", "blackhole", prefix, "proto", "42")
+	err := importCommandRun(cleanup, "route", "del", "blackhole", prefix, "proto", "42")
 	return err
 }
 
@@ -147,7 +157,10 @@ func importKernel(ctx context.Context, prefix string, want int, words ...string)
 	}) {
 		return nil
 	}
-	return fmt.Errorf("kernel %s: want %d routes containing %q, observed %q; read error: %v", prefix, want, words, last, readErr)
+	if readErr != nil {
+		return fmt.Errorf("kernel %s: want %d routes containing %q, observed %q; read error: %w", prefix, want, words, last, readErr)
+	}
+	return fmt.Errorf("kernel %s: want %d routes containing %q, observed %q; read error: <nil>", prefix, want, words, last)
 }
 
 func importCentralKernel(ctx context.Context, p *sdk.Plugin) error {
@@ -266,7 +279,7 @@ func importStaticReload(ctx context.Context, p *sdk.Plugin) error {
 	if err := importStaticOutcome(ctx, p, protocolStatic, 5, false); err != nil {
 		return err
 	}
-	set := tree.GetContainer("policy").GetList("modify")["SLOW"].GetContainer("set")
+	set := tree.GetContainer(importPolicyRoot).GetList("modify")["SLOW"].GetContainer("set")
 	if set == nil {
 		return errors.New("static fixture omitted SLOW set")
 	}
@@ -353,8 +366,8 @@ func importRollbackParticipant(ctx context.Context, args []string) error {
 	const operation rpc.ConfigOperationType = "import-policy-rollback-check"
 	p.OnConfigOperationDecompose(func(sdk.ConfigOperationDecomposeInput) (*sdk.ConfigOperationDecomposeOutput, error) {
 		return &sdk.ConfigOperationDecomposeOutput{Status: rpc.StatusOK, Operations: []rpc.ConfigOperation{{
-			ID: "import-policy-observe", Root: "policy", Owner: "import-rollback", Type: operation, Verb: rpc.VerbModify,
-			Target: rpc.ResourceRef{Kind: "import-policy-proof", Name: "candidate"},
+			ID: "import-policy-observe", Root: importPolicyRoot, Owner: "import-rollback", Type: operation, Verb: rpc.VerbModify,
+			Target: rpc.ResourceRef{Kind: "import-policy-proof", Name: rollbackProofResource},
 		}}}, nil
 	})
 	p.OnConfigOperationVerify(func(sdk.ConfigOperationVerifyInput) error { return nil })
@@ -378,8 +391,8 @@ func importRollbackParticipant(ctx context.Context, args []string) error {
 		}
 		return fmt.Errorf("deliberate import-policy reversible commit refusal after transaction %s reached candidate and FIB", input.TransactionID)
 	})
-	return p.Run(ctx, &sdk.Registration{WantsConfig: []string{"policy"}, ApplyBudget: 30,
-		ConfigOperations: []rpc.ConfigOperationDecl{{Root: "policy", Decompose: true, Operations: []rpc.ConfigOperationType{operation}}},
+	return p.Run(ctx, &sdk.Registration{WantsConfig: []string{importPolicyRoot}, ApplyBudget: 30,
+		ConfigOperations: []rpc.ConfigOperationDecl{{Root: importPolicyRoot, Decompose: true, Operations: []rpc.ConfigOperationType{operation}}},
 	})
 }
 
@@ -527,7 +540,7 @@ func importDaemonGatewayLinkCleanup(ctx context.Context, args []string) error {
 	if err := importKernel(ctx, "198.51.100.0/31", 1, "dev "+importDaemonLink+" ", "proto 2 "); err != nil {
 		return err
 	}
-	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", importDaemonLink); err != nil {
+	if err := importCommandRun(ctx, "link", "show", "dev", importDaemonLink); err != nil {
 		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", importDaemonLink, err)
 	}
 	if err := importDeleteLink(ctx, importDaemonLink); err != nil {
@@ -552,7 +565,7 @@ func importConnectedLinkCleanup(ctx context.Context, args []string) error {
 			return err
 		}
 	}
-	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", importConnectedLink); err != nil {
+	if err := importCommandRun(ctx, "link", "show", "dev", importConnectedLink); err != nil {
 		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", importConnectedLink, err)
 	}
 	if err := importDeleteLink(ctx, importConnectedLink); err != nil {

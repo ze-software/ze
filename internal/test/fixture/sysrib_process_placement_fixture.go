@@ -27,8 +27,8 @@ func sysribProcessPlacementDriver(ctx context.Context, args []string) error {
 	}
 	want := 0
 	switch args[2] {
-	case "internal":
-	case "forked":
+	case sysribPlacementInternal:
+	case sysribPlacementForked:
 		want = 1
 	default:
 		return fmt.Errorf("unknown system RIB placement %q", args[2])

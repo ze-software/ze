@@ -701,8 +701,12 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool, ready chan<- erro
 	monitorDone.Wait()
 	// Join the backend operation admitted before beginStop, including when
 	// flush-on-stop retains forwarding state instead of taking this lock again.
+	// The critical section is empty on purpose: the lock is a barrier that
+	// waits for a processEvent batch holding f.mu to finish, and beginStop has
+	// already closed admission, so a batch that takes the lock after it sees
+	// f.stopped and returns before any backend write.
 	f.mu.Lock()
-	f.mu.Unlock()
+	f.mu.Unlock() //nolint:gocritic,staticcheck // badLock, SA2001: the empty critical section is a barrier that joins the batch admitted before beginStop
 
 	if flushOnStop {
 		f.flushRoutes()

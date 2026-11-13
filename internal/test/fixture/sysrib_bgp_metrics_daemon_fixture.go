@@ -50,12 +50,12 @@ func sysribBGPMetricDriver(ctx context.Context, args []string) error {
 		if err := waitRIBWinner(ctx, p, sysribBGPMetricConnected, "connected"); err != nil {
 			return err
 		}
-		terminal := rpc.RouteInstallEntry{Protocol: "ospf", AFI: 1, SAFI: 1, Prefix: sysribBGPMetricTerminal, Interface: sysribBGPMetricLink, Metric: 11, RouteType: 1}
-		static := rpc.RouteInstallEntry{Protocol: "static", AFI: 1, SAFI: 1, Prefix: sysribBGPMetricStatic, NextHop: "10.248.0.1", Metric: 999, MetricRecursive: true, RouteType: 1}
-		received := rpc.RouteInstallEntry{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: sysribBGPMetricReceived, NextHop: "10.248.0.2", Metric: 999, IsBGP: true, IsEBGP: true, AIGP: 7, AIGPPresent: true, RouteType: 1}
-		missing := rpc.RouteInstallEntry{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: sysribBGPMetricMissing, NextHop: "10.248.0.3", Metric: 999, IsBGP: true, IsEBGP: true, RouteType: 1}
-		zero := rpc.RouteInstallEntry{Protocol: "ospf", AFI: 1, SAFI: 1, Prefix: sysribBGPMetricZero, Interface: sysribBGPMetricLink, RouteType: 1}
-		control := rpc.RouteInstallEntry{Protocol: "static", AFI: 1, SAFI: 1, Prefix: sysribBGPMetricControl, RouteType: 6}
+		terminal := rpc.RouteInstallEntry{Protocol: protocolOSPF, AFI: 1, SAFI: 1, Prefix: sysribBGPMetricTerminal, Interface: sysribBGPMetricLink, Metric: 11, RouteType: 1}
+		static := rpc.RouteInstallEntry{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: sysribBGPMetricStatic, NextHop: "10.248.0.1", Metric: 999, MetricRecursive: true, RouteType: 1}
+		received := rpc.RouteInstallEntry{Protocol: protocolBGP, AFI: 1, SAFI: 1, Prefix: sysribBGPMetricReceived, NextHop: "10.248.0.2", Metric: 999, IsBGP: true, IsEBGP: true, AIGP: 7, AIGPPresent: true, RouteType: 1}
+		missing := rpc.RouteInstallEntry{Protocol: protocolBGP, AFI: 1, SAFI: 1, Prefix: sysribBGPMetricMissing, NextHop: "10.248.0.3", Metric: 999, IsBGP: true, IsEBGP: true, RouteType: 1}
+		zero := rpc.RouteInstallEntry{Protocol: protocolOSPF, AFI: 1, SAFI: 1, Prefix: sysribBGPMetricZero, Interface: sysribBGPMetricLink, RouteType: 1}
+		control := rpc.RouteInstallEntry{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: sysribBGPMetricControl, RouteType: 6}
 		if err := sysribInstall(ctx, p, terminal, static, received, missing, zero, control); err != nil {
 			return err
 		}
@@ -82,7 +82,7 @@ func sysribBGPMetricDriver(ctx context.Context, args []string) error {
 		// Each subject is offered once per peer. No subsequent topology step
 		// reinjects these routes: both real RIB placements must reselect them.
 		for _, offer := range []struct{ prefix, peer, hop string }{
-			{sysribBGPMetricSubject, "10.0.0.1", "10.249.1.1"},
+			{sysribBGPMetricSubject, addrPeerOne, "10.249.1.1"},
 			{sysribBGPMetricSubject, "10.0.0.2", "10.249.4.1"},
 			{sysribBGPMetricAIGPSubject, "10.0.0.3", "10.249.2.1"},
 			{sysribBGPMetricAIGPSubject, "10.0.0.4", "10.249.3.1"},
@@ -104,7 +104,7 @@ func sysribBGPMetricDriver(ctx context.Context, args []string) error {
 		if _, err := sysribBGPMetricValues(ctx, p, 11, 0, 0, false, true); err != nil {
 			return err
 		}
-		if err := sysribBGPMetricWinner(ctx, p, sysribBGPMetricSubject, "10.0.0.1", "10.249.1.1"); err != nil {
+		if err := sysribBGPMetricWinner(ctx, p, sysribBGPMetricSubject, addrPeerOne, "10.249.1.1"); err != nil {
 			return fmt.Errorf("lost zero-cost reachability must invalidate cached winner: %w", err)
 		}
 		zero.Metric = 23
@@ -114,7 +114,7 @@ func sysribBGPMetricDriver(ctx context.Context, args []string) error {
 		if _, err := sysribBGPMetricValues(ctx, p, 11, 23, 0, false, false); err != nil {
 			return err
 		}
-		if err := sysribBGPMetricWinner(ctx, p, sysribBGPMetricSubject, "10.0.0.1", "10.249.1.1"); err != nil {
+		if err := sysribBGPMetricWinner(ctx, p, sysribBGPMetricSubject, addrPeerOne, "10.249.1.1"); err != nil {
 			return err
 		}
 		terminal.Metric = 31
@@ -151,7 +151,7 @@ func sysribBGPMetricDriver(ctx context.Context, args []string) error {
 		if _, err := sysribBGPMetricValues(ctx, p, 0, 23, 0, false, false); err != nil {
 			return err
 		}
-		if err := sysribBGPMetricWinner(ctx, p, sysribBGPMetricSubject, "10.0.0.1", "10.249.1.1"); err != nil {
+		if err := sysribBGPMetricWinner(ctx, p, sysribBGPMetricSubject, addrPeerOne, "10.249.1.1"); err != nil {
 			return fmt.Errorf("resolved recursive zero must remain usable: %w", err)
 		}
 		if err := sysribBGPMetricWinner(ctx, p, sysribBGPMetricAIGPSubject, "10.0.0.4", "10.249.3.1"); err != nil {
@@ -231,7 +231,7 @@ func sysribBGPMetricWinner(ctx context.Context, p *sdk.Plugin, prefix, peer, hop
 		return fmt.Errorf("actual BGP winner %s is not %s: %s", prefix, peer, last)
 	}
 	if _, err := waitCandidates(ctx, p, prefix, func(row candidateRow) bool {
-		path, found := candidatePathOf(row, "bgp")
+		path, found := candidatePathOf(row, protocolBGP)
 		if !found {
 			return false
 		}
@@ -273,7 +273,7 @@ func sysribBGPMetricLinkCleanup(ctx context.Context, args []string) error {
 	if err := importKernel(ctx, sysribBGPMetricConnected, 1, "dev "+sysribBGPMetricLink+" ", "proto 2 "); err != nil {
 		return err
 	}
-	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", sysribBGPMetricLink); err != nil {
+	if err := importCommandRun(ctx, "link", "show", "dev", sysribBGPMetricLink); err != nil {
 		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", sysribBGPMetricLink, err)
 	}
 	if err := importDeleteLink(ctx, sysribBGPMetricLink); err != nil {

@@ -28,7 +28,7 @@ func TestRouteViewRuntimeSelectedReplacementHasNoStandby(t *testing.T) {
 	static := locrib.Path{Source: redistevents.RegisterProtocol("static"), AdminDistance: 7, RouteType: routetype.Blackhole}
 	bgp := locrib.Path{Source: redistevents.RegisterProtocol("bgp"), AdminDistance: 20, RouteType: routetype.Blackhole, IsBGP: true, IsEBGP: true}
 	for index, path := range []locrib.Path{static, bgp} {
-		changes, err := s.applySelected(locrib.Change{Family: key.family, Prefix: prefix, Kind: locrib.ChangeAdd, Best: path})
+		changes, err := s.applySelected(&locrib.Change{Family: key.family, Prefix: prefix, Kind: locrib.ChangeAdd, Best: path})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -43,7 +43,7 @@ func TestRouteViewRuntimeSelectedReplacementHasNoStandby(t *testing.T) {
 			t.Fatalf("consumer selected or retained a different route: %+v", s.routes[key])
 		}
 	}
-	changes, err := s.applySelected(locrib.Change{Family: key.family, Prefix: prefix, Kind: locrib.ChangeRemove})
+	changes, err := s.applySelected(&locrib.Change{Family: key.family, Prefix: prefix, Kind: locrib.ChangeRemove})
 	if err != nil {
 		t.Fatal(err)
 	}

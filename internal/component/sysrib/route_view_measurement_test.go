@@ -76,7 +76,7 @@ func newRouteViewMeasurementEndpoint(tb testing.TB, internal bool, wrap func(net
 		close(done)
 	} else {
 		endpoint.plugin = sdk.NewWithConn("rib", pluginEnd)
-		peer := net.Conn(engineEnd)
+		peer := engineEnd
 		if wrap != nil {
 			peer = wrap(peer)
 		}
@@ -193,9 +193,9 @@ func BenchmarkRouteViewWorkerAllocations(b *testing.B) {
 			path := locrib.Path{Source: redistevents.RegisterProtocol("static"), RouteType: routetype.Blackhole, Metric: 1}
 			observed := make(chan sysribevents.BestChangeEntry, 16)
 			unsubscribe := sysribevents.BestChange.Subscribe(endpoint.host, func(batch *sysribevents.BestChangeBatch) {
-				for _, entry := range batch.Changes {
-					if entry.Prefix == prefix {
-						observed <- entry
+				for i := range batch.Changes {
+					if batch.Changes[i].Prefix == prefix {
+						observed <- batch.Changes[i]
 					}
 				}
 			})

@@ -185,7 +185,8 @@ func newRouteViewNativeStopHarness(t *testing.T, ctx context.Context, fault erro
 		if !valid {
 			return nil, true, fmt.Errorf("native stop publication has invalid type %T", payload)
 		}
-		for _, change := range input.Batch.Changes {
+		for i := range input.Batch.Changes {
+			change := &input.Batch.Changes[i]
 			if change.Prefix != h.prefix {
 				continue
 			}
@@ -197,7 +198,7 @@ func newRouteViewNativeStopHarness(t *testing.T, ctx context.Context, fault erro
 				}
 			}
 			select {
-			case h.acknowledged <- change:
+			case h.acknowledged <- *change:
 			case <-ctx.Done():
 				return nil, true, ctx.Err()
 			}

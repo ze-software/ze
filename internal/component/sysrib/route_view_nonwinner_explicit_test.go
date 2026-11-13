@@ -50,7 +50,7 @@ func explicitSelectedFromAuthority(t *testing.T, rib *locrib.RIB, prefix netip.P
 	}
 	var prepared routeViewSelectedChange
 	projection.Inspect(family.IPv4Unicast, prefix, func(value *selectedProjectionPath) {
-		prepared, copyErr = prepareRouteViewSelectedMetadata(locrib.Change{Kind: locrib.ChangeAdd,
+		prepared, copyErr = prepareRouteViewSelectedMetadata(&locrib.Change{Kind: locrib.ChangeAdd,
 			Family: family.IPv4Unicast, Prefix: prefix, Best: value.path, ECMP: value.path.ECMP}, value.members)
 	})
 	if copyErr != nil {
@@ -106,7 +106,11 @@ func TestRouteViewNonwinnerExplicitGroupBothReaders(t *testing.T) {
 				t.Fatalf("secondary %s missing: %+v", device, changes)
 			}
 			assertGroup(apply(), "static-secondary", 5)
-			prepared := explicitSelectedFromAuthority(t, rib, prefix, projected).(routeViewSelectedAdd)
+			selected := explicitSelectedFromAuthority(t, rib, prefix, projected)
+			prepared, ok := selected.(routeViewSelectedAdd)
+			if !ok {
+				t.Fatalf("reader returned %T, want a selected add", selected)
+			}
 			if len(prepared.route.ecmpMetadata) != 2 {
 				t.Fatalf("reader lost member ownership: %+v", prepared.route.ecmpMetadata)
 			}

@@ -505,7 +505,7 @@ func TestWithheldProtocolIsNoMemberOfTheMultipath(t *testing.T) {
 	ospfNextHop := netip.MustParseAddr("192.0.2.2")
 	// Preserve the member-owned first Add, then the original BGP20 takeover.
 	// Preseed only the real authority, before any consumer ingestion.
-	s.rib.Insert(family.IPv4Unicast, pfx, s.candidatePath("bgp", incomingChange{
+	s.rib.Insert(family.IPv4Unicast, pfx, s.candidatePath("bgp", &incomingChange{
 		NextHop: netip.MustParseAddr("192.0.2.1"), Priority: 21,
 	}))
 	addPath(s, "ospf", pfx, ospfNextHop, "", 20)
@@ -537,7 +537,7 @@ func TestWithholdingAnECMPMemberRegroupsTheMultipath(t *testing.T) {
 	ospfNextHop := netip.MustParseAddr("192.0.2.2")
 	// Preserve the member-owned first Add, then the original BGP20 takeover.
 	// Preseed only the real authority, before any consumer ingestion.
-	s.rib.Insert(family.IPv4Unicast, pfx, s.candidatePath("bgp", incomingChange{
+	s.rib.Insert(family.IPv4Unicast, pfx, s.candidatePath("bgp", &incomingChange{
 		NextHop: netip.MustParseAddr("192.0.2.1"), Priority: 21,
 	}))
 	addPath(s, "ospf", pfx, ospfNextHop, "", 20)
@@ -576,7 +576,7 @@ func TestWithholdingAMemberRegroupsAPrefixWhoseGatewayDoesNotResolve(t *testing.
 	ospfNextHop := netip.MustParseAddr("192.0.2.2")
 	// Preserve the member-owned first Add, then the original BGP20 takeover.
 	// Preseed only the real authority, before any consumer ingestion.
-	s.rib.Insert(family.IPv4Unicast, pfx, s.candidatePath("bgp", incomingChange{
+	s.rib.Insert(family.IPv4Unicast, pfx, s.candidatePath("bgp", &incomingChange{
 		NextHop: netip.MustParseAddr("192.0.2.1"), Priority: 21,
 	}))
 	addPath(s, "ospf", pfx, ospfNextHop, "", 20)

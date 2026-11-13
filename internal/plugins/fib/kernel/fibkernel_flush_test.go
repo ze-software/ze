@@ -27,7 +27,7 @@ func newTableRecordingBackend() *tableRecordingBackend {
 func (backend *tableRecordingBackend) addRichRoute(RichRoute) error     { return nil }
 func (backend *tableRecordingBackend) replaceRichRoute(RichRoute) error { return nil }
 
-func (backend *tableRecordingBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
+func (backend *tableRecordingBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error { //nolint:unparam // richRouteBackend method: the interface returns an error, this double never fails
 	backend.richDeleted[prefix.String()] = tableID
 	return nil
 }

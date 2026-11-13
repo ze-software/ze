@@ -133,7 +133,7 @@ func withScopeBackend(t *testing.T, fn func(*netlinkBackend, *netlink.Handle, [2
 		addLoopback(t, h)
 		var indices [2]int
 		for i, name := range []string{"ze-scope0", "ze-scope1"} {
-			link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name}}
+			link := &netlink.Dummy{Name: name}
 			if err := h.LinkAdd(link); err != nil {
 				t.Fatalf("create %s: %v", name, err)
 			}

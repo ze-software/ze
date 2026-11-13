@@ -1,4 +1,4 @@
-// Design: docs/architecture/api/process-protocol.md -- a request the end of the engine session cancelled is answered by the fenced bridge in process.
+// Design: docs/architecture/api/process-protocol.md -- a request the end of the engine session canceled is answered by the fenced bridge in process.
 // Related: dispatch_native.go -- directCallError; dispatch_session_end_test.go -- the socket path's cases.
 
 package server
@@ -38,17 +38,17 @@ func startSessionEndDirectCall(t *testing.T, s *Server, native bool, fail func(*
 	t.Cleanup(cancel)
 	call := &sessionEndDirectCall{entered: make(chan struct{}), answer: make(chan error, 1)}
 	var once sync.Once
-	evaluate := func(srv *Server, proc *process.Process) (any, error) {
+	evaluate := func(srv *Server, proc *process.Process) error {
 		once.Do(func() { close(call.entered) })
-		return nil, fail(srv, proc)
+		return fail(srv, proc)
 	}
 	registerTestEngineOperation(t, EngineOperation{
 		Method: sessionEndNativeMethod, Startup: EngineOperationRuntimeOnly,
 		Handler: func(srv *Server, _ context.Context, proc *process.Process, _ json.RawMessage) (any, error) {
-			return evaluate(srv, proc)
+			return nil, evaluate(srv, proc)
 		},
 		Native: func(srv *Server, _ context.Context, proc *process.Process, _ any) (any, error) {
-			return evaluate(srv, proc)
+			return nil, evaluate(srv, proc)
 		},
 	})
 	call.proc = nativeOwnerProcess(t, s)
@@ -96,7 +96,7 @@ func requireBridgeClosedAnswer(t *testing.T, err error) {
 	if errors.Is(err, rpc.ErrBridgeClosed) {
 		return
 	}
-	t.Fatalf("an in-process request the stop cancelled came back as %T %v, which a live owner reads as a refusal; want rpc.ErrBridgeClosed, the fenced bridge's own answer", err, err)
+	t.Fatalf("an in-process request the stop canceled came back as %T %v, which a live owner reads as a refusal; want rpc.ErrBridgeClosed, the fenced bridge's own answer", err, err)
 }
 
 func waitServerStop(srv *Server, _ *process.Process) error {
@@ -109,12 +109,12 @@ func waitProcessStop(_ *Server, proc *process.Process) error {
 	return sessionEndStopped(context.Canceled)
 }
 
-// Goal: at daemon stop an in-process native request the stop cancelled comes
+// Goal: at daemon stop an in-process native request the stop canceled comes
 // back as the bridge's closed answer, never as the stop refusal. This is the
 // internal system RIB's native publication at stop, which the worker retained
 // as a failure. Method: the native handler waits on the server's lifetime
 // context and returns its cancellation wrapped as routeViewStopped wraps it;
-// the server context is cancelled while the caller's context stays live and
+// the server context is canceled while the caller's context stays live and
 // before any Process.Stop fences the bridge.
 func TestNativeRequestCancelledByServerStopAnswersBridgeClosed(t *testing.T) {
 	s := &Server{}
@@ -145,7 +145,7 @@ func TestNativeRequestCancelledByProcessStopAnswersBridgeClosed(t *testing.T) {
 
 // Goal: the JSON-shaped in-process path states the same rule as the native
 // one. Method: the raw handler waits on the server context, the plugin calls
-// it through DispatchRPC, and the server context is cancelled.
+// it through DispatchRPC, and the server context is canceled.
 func TestDirectRequestCancelledByServerStopAnswersBridgeClosed(t *testing.T) {
 	s := &Server{}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -174,15 +174,14 @@ func TestNativeRequestCancelledUnderLiveSessionKeepsItsFailure(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("a cancellation under a live session lost its failure: %T %v", err, err)
 	}
-	var stopped *opererr.Error
-	if !errors.As(err, &stopped) {
+	if _, stopped := errors.AsType[*opererr.Error](err); !stopped {
 		t.Fatalf("a cancellation under a live session lost its operator refusal: %T %v", err, err)
 	}
 }
 
 // Goal: during a stop only the stop's own cancellation becomes the closed
 // bridge; a native refusal for another reason is still an RPC refusal.
-// Method: the server context is cancelled before the call, and the handler
+// Method: the server context is canceled before the call, and the handler
 // returns an operator refusal that wraps no cancellation.
 func TestNativeRefusalDuringServerStopIsRefusal(t *testing.T) {
 	s := &Server{}

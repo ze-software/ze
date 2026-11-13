@@ -24,6 +24,15 @@ const (
 	sysribExecutionOwner  = "sysrib-owner"
 	sysribExecutionTagged = "198.18.211.0/24"
 	sysribExecutionPlain  = "198.18.212.0/24"
+
+	// sysribPlacementInternal and sysribPlacementForked are the two
+	// placement arguments a .ci passes: the system RIB runs as a goroutine in
+	// the daemon, or as a forked plugin process.
+	sysribPlacementInternal = "internal"
+	sysribPlacementForked   = "forked"
+
+	// sysribPluginName is the system RIB's plugin name, as in ze plugin rib.
+	sysribPluginName = "rib"
 )
 
 // sysribExecutionCandidate is the stored static path read over the command API.
@@ -48,8 +57,8 @@ func sysribExecutionDriver(ctx context.Context, args []string) error {
 		return errors.New("sysrib execution fixture takes placement internal|forked and proof kernel")
 	}
 	placement := args[0]
-	if placement != "internal" {
-		if placement != "forked" {
+	if placement != sysribPlacementInternal {
+		if placement != sysribPlacementForked {
 			return fmt.Errorf("unknown system RIB placement %q", placement)
 		}
 	}
@@ -90,7 +99,7 @@ func sysribExecutionDriver(ctx context.Context, args []string) error {
 // children. The daemon PID comes from its authenticated session RPC, rather
 // than assuming the observer's immediate parent survived a shell exec.
 func sysribExecutionPlacement(ctx context.Context, plugin *sdk.Plugin, placement string) error {
-	return sysribExecutionPluginPlacement(ctx, plugin, sysribExecutionOwner, "rib", placement)
+	return sysribExecutionPluginPlacement(ctx, plugin, sysribExecutionOwner, sysribPluginName, placement)
 }
 
 func sysribExecutionPluginPlacement(ctx context.Context, plugin *sdk.Plugin, configuredOwner, pluginName, placement string) error {
@@ -146,7 +155,7 @@ func sysribExecutionPluginPlacement(ctx context.Context, plugin *sdk.Plugin, con
 		return fmt.Errorf("%w; daemon descendants: %s", err, observed)
 	}
 	want := 0
-	if placement == "forked" {
+	if placement == sysribPlacementForked {
 		want = 1
 	}
 	if len(children) != want {
@@ -154,7 +163,7 @@ func sysribExecutionPluginPlacement(ctx context.Context, plugin *sdk.Plugin, con
 	}
 	var proof textbuf.Buffer
 	subject := pluginName
-	if pluginName == "rib" {
+	if pluginName == sysribPluginName {
 		subject = "sysrib"
 	}
 	proof.Str("OK: ").Str(subject).Str(" placement ").Str(placement).Str(", running owner and child count ").Uint(uint64(len(children)))
@@ -169,7 +178,7 @@ func sysribExecutionPluginPlacement(ctx context.Context, plugin *sdk.Plugin, con
 // retained shell count the real ze child once. A Running external owner can
 // only have passed process.startExternal's authenticated TLS waiter.
 func sysribExecutionChildren(ctx context.Context, daemon int) ([]int, string, error) {
-	return sysribExecutionPluginChildren(ctx, daemon, "rib")
+	return sysribExecutionPluginChildren(ctx, daemon, sysribPluginName)
 }
 
 func sysribExecutionPluginChildren(ctx context.Context, daemon int, pluginName string) ([]int, string, error) {
@@ -287,7 +296,7 @@ func sysribExecutionParentCensus(ctx context.Context, root string) (map[int]int,
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		raw, err := os.ReadFile(filepath.Join(root, entry.Name(), "status"))
+		raw, err := os.ReadFile(filepath.Join(root, entry.Name(), "status")) //nolint:gosec // <root>/<pid>/status of a PID directory this census just enumerated
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
@@ -343,7 +352,7 @@ func sysribExecutionParentStatus(raw []byte) (int, error) {
 // sysribExecutionRIBArgs identifies the selected CLI plugin before its flags.
 // The matching process must separately pass ancestry and executable identity.
 func sysribExecutionRIBArgs(args []string) bool {
-	return sysribExecutionPluginArgs(args, "rib")
+	return sysribExecutionPluginArgs(args, sysribPluginName)
 }
 
 func sysribExecutionPluginArgs(args []string, pluginName string) bool {

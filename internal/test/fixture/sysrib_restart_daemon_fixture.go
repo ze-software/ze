@@ -35,7 +35,7 @@ func sysribRestartDriver(ctx context.Context, args []string) error {
 		if err := importCreateLink(ctx, sysribRestartLink, "198.19.10.254/24"); err != nil {
 			return err
 		}
-		if _, err := importCommandOutput(ctx, "ip", "route", "add", "blackhole", sysribRestartForeign, "proto", "42"); err != nil {
+		if err := importCommandRun(ctx, "route", "add", "blackhole", sysribRestartForeign, "proto", "42"); err != nil {
 			return err
 		}
 		// The paired carrier joins daemon shutdown before its dedicated
@@ -45,9 +45,9 @@ func sysribRestartDriver(ctx context.Context, args []string) error {
 			return err
 		}
 		if err := sysribInstall(ctx, p,
-			rpc.RouteInstallEntry{Protocol: "static", AFI: 1, SAFI: 1, Prefix: sysribRestartForward, NextHop: "198.19.10.1", Interface: sysribRestartLink, OnLink: true, RouteType: 1},
-			rpc.RouteInstallEntry{Protocol: "static", AFI: 1, SAFI: 1, Prefix: sysribRestartDiscard, RouteType: 6},
-			rpc.RouteInstallEntry{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: sysribRestartWithheld, NextHop: "198.19.10.1", Interface: sysribRestartLink, OnLink: true, IsBGP: true, IsEBGP: true, RouteType: 1},
+			rpc.RouteInstallEntry{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: sysribRestartForward, NextHop: "198.19.10.1", Interface: sysribRestartLink, OnLink: true, RouteType: 1},
+			rpc.RouteInstallEntry{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: sysribRestartDiscard, RouteType: 6},
+			rpc.RouteInstallEntry{Protocol: protocolBGP, AFI: 1, SAFI: 1, Prefix: sysribRestartWithheld, NextHop: "198.19.10.1", Interface: sysribRestartLink, OnLink: true, IsBGP: true, IsEBGP: true, RouteType: 1},
 		); err != nil {
 			return err
 		}
@@ -59,7 +59,7 @@ func sysribRestartDriver(ctx context.Context, args []string) error {
 		beforeDiscard := capture.withdrawals[sysribRestartDiscard]
 		capture.mu.Unlock()
 		oldChild := 0
-		if args[0] == "forked" {
+		if args[0] == sysribPlacementForked {
 			var session struct {
 				PID int `json:"pid"`
 			}
@@ -157,13 +157,13 @@ func sysribRestartDriver(ctx context.Context, args []string) error {
 }
 
 func sysribRestartHealthy(ctx context.Context, p *sdk.Plugin) error {
-	if err := waitRIBWinner(ctx, p, sysribRestartForward, "static"); err != nil {
+	if err := waitRIBWinner(ctx, p, sysribRestartForward, protocolStatic); err != nil {
 		return err
 	}
-	if err := waitRIBWinner(ctx, p, sysribRestartDiscard, "static"); err != nil {
+	if err := waitRIBWinner(ctx, p, sysribRestartDiscard, protocolStatic); err != nil {
 		return err
 	}
-	if err := waitRIBWinner(ctx, p, sysribRestartWithheld, "bgp"); err != nil {
+	if err := waitRIBWinner(ctx, p, sysribRestartWithheld, protocolBGP); err != nil {
 		return err
 	}
 	if err := importKernel(ctx, sysribRestartForward, 1, "via 198.19.10.1 ", "dev "+sysribRestartLink+" ", "proto 250 "); err != nil {
@@ -260,7 +260,7 @@ func sysribRestartLinkCleanup(ctx context.Context, args []string) error {
 	if err := importKernel(ctx, sysribRestartForeign, 1, "6 "+sysribRestartForeign+" ", "proto 42 "); err != nil {
 		return err
 	}
-	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", sysribRestartLink); err != nil {
+	if err := importCommandRun(ctx, "link", "show", "dev", sysribRestartLink); err != nil {
 		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", sysribRestartLink, err)
 	}
 	if err := importDeleteForeignBlackhole(ctx, sysribRestartForeign); err != nil {

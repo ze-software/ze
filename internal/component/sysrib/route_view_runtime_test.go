@@ -139,9 +139,9 @@ func TestRouteViewRuntimeInternalPublicationUsesNativeValues(t *testing.T) {
 		if !value || input.Session != "native-owner" || input.Cursor != 0 || input.Operation == 0 {
 			return nil, true, fmt.Errorf("native publication is not a complete owned value: %T", payload)
 		}
-		for _, change := range input.Batch.Changes {
-			if change.Prefix == prefix {
-				published <- change
+		for i := range input.Batch.Changes {
+			if input.Batch.Changes[i].Prefix == prefix {
+				published <- input.Batch.Changes[i]
 			}
 		}
 		return rpc.RouteViewPublishOutput{Session: input.Session, Cursor: input.Cursor, Operation: input.Operation}, true, nil
@@ -293,9 +293,9 @@ func (feed *routeViewRuntimeFeed) awaitChange(t *testing.T, ctx context.Context,
 			if replay.IsReplay(batch.ReplayID) != replayed {
 				continue
 			}
-			for _, change := range batch.Changes {
-				if change.Prefix == prefix {
-					return change
+			for i := range batch.Changes {
+				if batch.Changes[i].Prefix == prefix {
+					return batch.Changes[i]
 				}
 			}
 		case <-ctx.Done():

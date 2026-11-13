@@ -84,8 +84,8 @@ func sysribProducerSDKDriver(ctx context.Context, args []string) error {
 
 func sysribProducerPublish(ctx context.Context, p *sdk.Plugin) error {
 	if err := sysribInstall(ctx, p,
-		rpc.RouteInstallEntry{Protocol: "ospf", AFI: 1, SAFI: 1, Prefix: sysribProducerSDK, RouteType: 6},
-		rpc.RouteInstallEntry{Protocol: "ospf", AFI: 1, SAFI: 1, Prefix: sysribProducerSDKHidden, RouteType: 6, HasTag: true, Tag: 4242},
+		rpc.RouteInstallEntry{Protocol: protocolOSPF, AFI: 1, SAFI: 1, Prefix: sysribProducerSDK, RouteType: 6},
+		rpc.RouteInstallEntry{Protocol: protocolOSPF, AFI: 1, SAFI: 1, Prefix: sysribProducerSDKHidden, RouteType: 6, HasTag: true, Tag: 4242},
 	); err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func sysribProducerDriver(ctx context.Context, args []string) error {
 		if err := importCreateLink(ctx, sysribProducerLink, "198.19.20.254/24"); err != nil {
 			return err
 		}
-		if _, err := importCommandOutput(ctx, "ip", "route", "add", "blackhole", sysribProducerForeign, "proto", "42"); err != nil {
+		if err := importCommandRun(ctx, "route", "add", "blackhole", sysribProducerForeign, "proto", "42"); err != nil {
 			return err
 		}
 		// The paired carrier joins daemon shutdown before its dedicated
@@ -133,8 +133,8 @@ func sysribProducerDriver(ctx context.Context, args []string) error {
 			return err
 		}
 		if err := sysribInstall(ctx, p,
-			rpc.RouteInstallEntry{Protocol: "static", AFI: 1, SAFI: 1, Prefix: sysribProducerOther, RouteType: 6, Instance: 601},
-			rpc.RouteInstallEntry{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: sysribProducerWithheld, RouteType: 6, Instance: 601, IsBGP: true, IsEBGP: true},
+			rpc.RouteInstallEntry{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: sysribProducerOther, RouteType: 6, Instance: 601},
+			rpc.RouteInstallEntry{Protocol: protocolBGP, AFI: 1, SAFI: 1, Prefix: sysribProducerWithheld, RouteType: 6, Instance: 601, IsBGP: true, IsEBGP: true},
 		); err != nil {
 			return err
 		}
@@ -165,7 +165,7 @@ func sysribProducerDriver(ctx context.Context, args []string) error {
 		if err := sysribProducerKill(ctx, children[0]); err != nil {
 			return err
 		}
-		if err := sysribProducerAbsent(ctx, p, "static", sysribProducerStatic, sysribProducerStaticHidden, sysribProducerStaticZero); err != nil {
+		if err := sysribProducerAbsent(ctx, p, protocolStatic, sysribProducerStatic, sysribProducerStaticHidden, sysribProducerStaticZero); err != nil {
 			return err
 		}
 		if err := sysribProducerSDKPresent(ctx, p); err != nil {
@@ -186,7 +186,7 @@ func sysribProducerDriver(ctx context.Context, args []string) error {
 		if err := sysribProducerKill(ctx, sdkPID); err != nil {
 			return err
 		}
-		if err := sysribProducerAbsent(ctx, p, "ospf", sysribProducerSDK, sysribProducerSDKHidden); err != nil {
+		if err := sysribProducerAbsent(ctx, p, protocolOSPF, sysribProducerSDK, sysribProducerSDKHidden); err != nil {
 			return err
 		}
 		if err := sysribProducerStaticPresent(ctx, p); err != nil {
@@ -282,7 +282,7 @@ func sysribProducerCheckIdentity(ctx context.Context, p *sdk.Plugin, daemon int,
 		return fmt.Errorf("producer PID %d is not a descendant of daemon %d", identity.PID, daemon)
 	}
 	root := "/proc/" + strconv.Itoa(identity.PID)
-	raw, err := os.ReadFile(root + "/cmdline")
+	raw, err := os.ReadFile(root + "/cmdline") //nolint:gosec // /proc/<pid>/cmdline of the producer PID just proved a descendant of the daemon
 	if err != nil {
 		return err
 	}
@@ -361,13 +361,13 @@ func sysribProducerKill(ctx context.Context, pid int) error {
 
 func sysribProducerStaticPresent(ctx context.Context, p *sdk.Plugin) error {
 	tag, zero := uint32(4242), uint32(0)
-	if err := importCandidateState(ctx, p, sysribProducerStaticHidden, "static", 10, &tag, false, "central", "rib import"); err != nil {
+	if err := importCandidateState(ctx, p, sysribProducerStaticHidden, protocolStatic, 10, &tag, false, "central", "rib import"); err != nil {
 		return err
 	}
-	if err := importCandidateState(ctx, p, sysribProducerStaticZero, "static", 10, &zero, true, "", ""); err != nil {
+	if err := importCandidateState(ctx, p, sysribProducerStaticZero, protocolStatic, 10, &zero, true, "", ""); err != nil {
 		return err
 	}
-	if err := importCandidateState(ctx, p, sysribProducerStatic, "static", 10, nil, true, "", ""); err != nil {
+	if err := importCandidateState(ctx, p, sysribProducerStatic, protocolStatic, 10, nil, true, "", ""); err != nil {
 		return err
 	}
 	for _, prefix := range []string{sysribProducerStatic, sysribProducerStaticZero} {
@@ -380,10 +380,10 @@ func sysribProducerStaticPresent(ctx context.Context, p *sdk.Plugin) error {
 
 func sysribProducerSDKPresent(ctx context.Context, p *sdk.Plugin) error {
 	tag := uint32(4242)
-	if err := importCandidateState(ctx, p, sysribProducerSDKHidden, "ospf", 110, &tag, false, "central", "rib import"); err != nil {
+	if err := importCandidateState(ctx, p, sysribProducerSDKHidden, protocolOSPF, 110, &tag, false, "central", "rib import"); err != nil {
 		return err
 	}
-	if err := importCandidateState(ctx, p, sysribProducerSDK, "ospf", 110, nil, true, "", ""); err != nil {
+	if err := importCandidateState(ctx, p, sysribProducerSDK, protocolOSPF, 110, nil, true, "", ""); err != nil {
 		return err
 	}
 	if err := importKernel(ctx, sysribProducerSDK, 1, "6 "+sysribProducerSDK+" ", "proto 250 "); err != nil {
@@ -393,10 +393,10 @@ func sysribProducerSDKPresent(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func sysribProducerSurvivors(ctx context.Context, p *sdk.Plugin) error {
-	if err := waitRIBWinner(ctx, p, sysribProducerOther, "static"); err != nil {
+	if err := waitRIBWinner(ctx, p, sysribProducerOther, protocolStatic); err != nil {
 		return err
 	}
-	if err := waitRIBWinner(ctx, p, sysribProducerWithheld, "bgp"); err != nil {
+	if err := waitRIBWinner(ctx, p, sysribProducerWithheld, protocolBGP); err != nil {
 		return err
 	}
 	if err := importKernel(ctx, sysribProducerOther, 1, "6 "+sysribProducerOther+" ", "proto 250 "); err != nil {
@@ -475,7 +475,7 @@ func sysribProducerLinkCleanup(ctx context.Context, args []string) error {
 	if err := importKernel(ctx, sysribProducerForeign, 1, "6 "+sysribProducerForeign+" ", "proto 42 "); err != nil {
 		return err
 	}
-	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", sysribProducerLink); err != nil {
+	if err := importCommandRun(ctx, "link", "show", "dev", sysribProducerLink); err != nil {
 		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", sysribProducerLink, err)
 	}
 	if err := importDeleteForeignBlackhole(ctx, sysribProducerForeign); err != nil {

@@ -22,6 +22,8 @@ const (
 	sysribDistanceArmed    = "sysrib-distance.armed"
 	sysribDistanceReached  = "sysrib-distance.reached"
 	sysribDistanceUndone   = "sysrib-distance.undone"
+	// sysribConfigRoot is the config root the distance rollback fixture owns.
+	sysribConfigRoot = "rib"
 )
 
 func sysribDistanceDriver(ctx context.Context, args []string) error {
@@ -32,11 +34,12 @@ func sysribDistanceDriver(ctx context.Context, args []string) error {
 		return err
 	}
 	var startup uint8
-	if args[1] == "defaults" {
+	switch args[1] {
+	case "defaults":
 		startup = 10
-	} else if args[1] == "configured" {
+	case "configured":
 		startup = 5
-	} else {
+	default:
 		return fmt.Errorf("unknown distance startup mode %q", args[1])
 	}
 	return Observe(ctx, "sysrib-distance-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
@@ -54,25 +57,25 @@ func sysribDistanceDriver(ctx context.Context, args []string) error {
 		}
 		override := uint8(3)
 		entries := []rpc.RouteInstallEntry{
-			{Protocol: "static", AFI: 1, SAFI: 1, Prefix: sysribDistancePrefix, RouteType: 6},
-			{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: sysribDistancePrefix, NextHop: "198.19.20.1", Interface: sysribDistanceLink, OnLink: true, IsBGP: true, IsEBGP: true, RouteType: 1},
-			{Protocol: "static", AFI: 1, SAFI: 1, Prefix: sysribDistanceOverride, RouteType: 6, DistanceOverride: &override},
-			{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: sysribDistanceOverride, NextHop: "198.19.20.1", Interface: sysribDistanceLink, OnLink: true, IsBGP: true, IsEBGP: true, RouteType: 1},
+			{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: sysribDistancePrefix, RouteType: 6},
+			{Protocol: protocolBGP, AFI: 1, SAFI: 1, Prefix: sysribDistancePrefix, NextHop: "198.19.20.1", Interface: sysribDistanceLink, OnLink: true, IsBGP: true, IsEBGP: true, RouteType: 1},
+			{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: sysribDistanceOverride, RouteType: 6, DistanceOverride: &override},
+			{Protocol: protocolBGP, AFI: 1, SAFI: 1, Prefix: sysribDistanceOverride, NextHop: "198.19.20.1", Interface: sysribDistanceLink, OnLink: true, IsBGP: true, IsEBGP: true, RouteType: 1},
 		}
 		if err := sysribInstall(ctx, p, entries...); err != nil {
 			return err
 		}
-		if err := sysribDistanceState(ctx, p, startup, "static"); err != nil {
+		if err := sysribDistanceState(ctx, p, startup, protocolStatic); err != nil {
 			return err
 		}
 		tree, schema, err := importReadConfig()
 		if err != nil {
 			return err
 		}
-		rib := tree.GetContainer("rib")
+		rib := tree.GetContainer(sysribConfigRoot)
 		if rib == nil {
 			rib = config.NewTree()
-			tree.SetContainer("rib", rib)
+			tree.SetContainer(sysribConfigRoot, rib)
 		}
 		dist := rib.GetContainer("distance")
 		if dist == nil {
@@ -84,7 +87,7 @@ func sysribDistanceDriver(ctx context.Context, args []string) error {
 			if err := policyFinalReload(ctx, p, config.Serialize(tree, schema), "applied"); err != nil {
 				return err
 			}
-			if err := sysribDistanceState(ctx, p, 5, "static"); err != nil {
+			if err := sysribDistanceState(ctx, p, 5, protocolStatic); err != nil {
 				return err
 			}
 		}
@@ -94,14 +97,14 @@ func sysribDistanceDriver(ctx context.Context, args []string) error {
 		if err := policyFinalReload(ctx, p, config.Serialize(tree, schema), "applied"); err != nil {
 			return err
 		}
-		if err := sysribDistanceState(ctx, p, 250, "bgp"); err != nil {
+		if err := sysribDistanceState(ctx, p, 250, protocolBGP); err != nil {
 			return err
 		}
 		dist.Set("static", "300")
 		if err := policyFinalReload(ctx, p, config.Serialize(tree, schema), "failed"); err != nil {
 			return err
 		}
-		if err := sysribDistanceState(ctx, p, 250, "bgp"); err != nil {
+		if err := sysribDistanceState(ctx, p, 250, protocolBGP); err != nil {
 			return err
 		}
 		dist.Set("static", "250")
@@ -122,7 +125,7 @@ func sysribDistanceDriver(ctx context.Context, args []string) error {
 		if _, err := os.Stat(sysribDistanceUndone); err != nil {
 			return fmt.Errorf("distance operation inverse never ran: %w", err)
 		}
-		if err := sysribDistanceState(ctx, p, 250, "bgp"); err != nil {
+		if err := sysribDistanceState(ctx, p, 250, protocolBGP); err != nil {
 			return err
 		}
 		restored, err := rfc8212ReloadActive()
@@ -132,11 +135,11 @@ func sysribDistanceDriver(ctx context.Context, args []string) error {
 		if !bytes.Equal(active, restored) {
 			return errors.New("failed distance apply changed durable active configuration")
 		}
-		tree.RemoveContainer("rib")
+		tree.RemoveContainer(sysribConfigRoot)
 		if err := policyFinalReload(ctx, p, config.Serialize(tree, schema), "applied"); err != nil {
 			return err
 		}
-		if err := sysribDistanceState(ctx, p, 10, "static"); err != nil {
+		if err := sysribDistanceState(ctx, p, 10, protocolStatic); err != nil {
 			return err
 		}
 		return importSay("startup distance, owner apply/reject/actual rollback and root removal reselect stored routes while the explicit distance3 survivor stays installed without reannouncement")
@@ -147,16 +150,16 @@ func sysribDistanceState(ctx context.Context, p *sdk.Plugin, distance uint8, win
 	if err := waitRIBWinner(ctx, p, sysribDistancePrefix, winner); err != nil {
 		return err
 	}
-	if err := importCandidateState(ctx, p, sysribDistancePrefix, "static", distance, nil, winner == "static", "", ""); err != nil {
+	if err := importCandidateState(ctx, p, sysribDistancePrefix, protocolStatic, distance, nil, winner == protocolStatic, "", ""); err != nil {
 		return err
 	}
-	if err := importCandidateState(ctx, p, sysribDistancePrefix, "bgp", 20, nil, winner == "bgp", "", ""); err != nil {
+	if err := importCandidateState(ctx, p, sysribDistancePrefix, protocolBGP, 20, nil, winner == protocolBGP, "", ""); err != nil {
 		return err
 	}
-	if err := importCandidateState(ctx, p, sysribDistanceOverride, "static", 3, nil, true, "", ""); err != nil {
+	if err := importCandidateState(ctx, p, sysribDistanceOverride, protocolStatic, 3, nil, true, "", ""); err != nil {
 		return err
 	}
-	if err := importCandidateState(ctx, p, sysribDistanceOverride, "bgp", 20, nil, false, "", ""); err != nil {
+	if err := importCandidateState(ctx, p, sysribDistanceOverride, protocolBGP, 20, nil, false, "", ""); err != nil {
 		return err
 	}
 	if err := importKernel(ctx, sysribDistanceOverride, 1, "6 "+sysribDistanceOverride+" ", "proto 250 "); err != nil {
@@ -165,7 +168,7 @@ func sysribDistanceState(ctx context.Context, p *sdk.Plugin, distance uint8, win
 	if err := importKernel(ctx, "198.19.20.0/24", 1, "dev "+sysribDistanceLink+" ", "proto 2 "); err != nil {
 		return err
 	}
-	if winner == "static" {
+	if winner == protocolStatic {
 		return importKernel(ctx, sysribDistancePrefix, 1, "6 "+sysribDistancePrefix+" ", "proto 250 ")
 	}
 	return importKernel(ctx, sysribDistancePrefix, 1, "via 198.19.20.1 ", "dev "+sysribDistanceLink+" ", "proto 250 ")
@@ -186,7 +189,7 @@ func sysribDistanceRollbackDriver(ctx context.Context, args []string) error {
 	p.OnConfigRollback(func(string) error { return nil })
 	const operation rpc.ConfigOperationType = "sysrib-distance-proof"
 	p.OnConfigOperationDecompose(func(sdk.ConfigOperationDecomposeInput) (*sdk.ConfigOperationDecomposeOutput, error) {
-		return &sdk.ConfigOperationDecomposeOutput{Status: rpc.StatusOK, Operations: []rpc.ConfigOperation{{ID: "sysrib-distance-observe", Root: "rib", Owner: "sysrib-distance-rollback", Type: operation, Verb: rpc.VerbModify, Target: rpc.ResourceRef{Kind: "sysrib-distance-proof", Name: "candidate"}}}}, nil
+		return &sdk.ConfigOperationDecomposeOutput{Status: rpc.StatusOK, Operations: []rpc.ConfigOperation{{ID: "sysrib-distance-observe", Root: sysribConfigRoot, Owner: "sysrib-distance-rollback", Type: operation, Verb: rpc.VerbModify, Target: rpc.ResourceRef{Kind: "sysrib-distance-proof", Name: rollbackProofResource}}}}, nil
 	})
 	p.OnConfigOperationVerify(func(sdk.ConfigOperationVerifyInput) error { return nil })
 	p.OnConfigOperationApply(func(sdk.ConfigOperationApplyInput) (*sdk.ConfigOperationApplyOutput, error) {
@@ -201,7 +204,7 @@ func sysribDistanceRollbackDriver(ctx context.Context, args []string) error {
 		} else if err != nil {
 			return err
 		}
-		if err := sysribDistanceState(ctx, p, 5, "static"); err != nil {
+		if err := sysribDistanceState(ctx, p, 5, protocolStatic); err != nil {
 			return fmt.Errorf("distance fault before actual changed FIB: %w", err)
 		}
 		if err := os.Rename(sysribDistanceArmed, sysribDistanceReached); err != nil {
@@ -209,7 +212,7 @@ func sysribDistanceRollbackDriver(ctx context.Context, args []string) error {
 		}
 		return fmt.Errorf("deliberate distance reversible commit refusal after %s reached actual static FIB", input.TransactionID)
 	})
-	return p.Run(ctx, &sdk.Registration{WantsConfig: []string{"rib"}, ApplyBudget: 30, ConfigOperations: []rpc.ConfigOperationDecl{{Root: "rib", Decompose: true, Operations: []rpc.ConfigOperationType{operation}}}})
+	return p.Run(ctx, &sdk.Registration{WantsConfig: []string{sysribConfigRoot}, ApplyBudget: 30, ConfigOperations: []rpc.ConfigOperationDecl{{Root: sysribConfigRoot, Decompose: true, Operations: []rpc.ConfigOperationType{operation}}}})
 }
 
 func sysribDistanceKernelEmpty(ctx context.Context, args []string) error {
@@ -240,7 +243,7 @@ func sysribDistanceLinkCleanup(ctx context.Context, args []string) error {
 	if err := importKernel(ctx, "198.19.20.0/24", 1, "dev "+sysribDistanceLink+" ", "proto 2 "); err != nil {
 		return err
 	}
-	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", sysribDistanceLink); err != nil {
+	if err := importCommandRun(ctx, "link", "show", "dev", sysribDistanceLink); err != nil {
 		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", sysribDistanceLink, err)
 	}
 	if err := importDeleteLink(ctx, sysribDistanceLink); err != nil {

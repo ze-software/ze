@@ -13,19 +13,25 @@ import (
 	"github.com/ze-software/ze/internal/test/runner"
 )
 
-const importCommandOutputLimit = 8192
+const (
+	importCommandOutputLimit = 8192
+	// importCommandProgram is the one program importCommandRun runs.
+	importCommandProgram = "ip"
+)
 
-// importCommandOutput runs one fixture-selected network mutation with the
-// observer's network authority. It MUST join the child before returning; an
-// earlier caller or cleanup deadline MUST remain authoritative.
-func importCommandOutput(ctx context.Context, name string, args ...string) (output string, result error) {
+// importCommandRun runs one fixture-selected ip network mutation with the
+// observer's network authority. Its stdout is still captured, bounded, so an
+// overflowing child fails the same way, but no caller reads it. It MUST join
+// the child before returning; an earlier caller or cleanup deadline MUST
+// remain authoritative.
+func importCommandRun(ctx context.Context, args ...string) (result error) {
 	attributes, err := importCommandAttributes()
 	if err != nil {
-		return "", err
+		return err
 	}
 	commandCtx, cancel := context.WithTimeout(ctx, WaitBudget(10, 15*time.Second))
 	defer cancel()
-	command := exec.CommandContext(commandCtx, name, args...) //nolint:gosec // the fixture selects the ip program and its complete arguments, never shell text.
+	command := exec.CommandContext(commandCtx, importCommandProgram, args...) //nolint:gosec // the fixture selects the ip program and its complete arguments, never shell text.
 	command.SysProcAttr = attributes
 	var stdout, stderr importCommandCapture
 	command.Stdout = &stdout
@@ -33,15 +39,15 @@ func importCommandOutput(ctx context.Context, name string, args ...string) (outp
 	command.WaitDelay = time.Second
 	child, err := runner.StartServerProcess(command)
 	if err != nil {
-		return "", fmt.Errorf("start route-policy fixture %s %q: %w", name, args, err)
+		return fmt.Errorf("start route-policy fixture %s %q: %w", importCommandProgram, args, err)
 	}
 	defer func() {
 		if err := errors.Join(result, child.Close(), commandCtx.Err()); err != nil {
-			result = fmt.Errorf("route-policy fixture %s %q failed (stderr %q): %w", name, args, stderr.buffer[:stderr.used], err)
+			result = fmt.Errorf("route-policy fixture %s %q failed (stderr %q): %w", importCommandProgram, args, stderr.buffer[:stderr.used], err)
 		}
 	}()
 	<-child.Done()
-	return string(stdout.buffer[:stdout.used]), nil
+	return nil
 }
 
 // importCommandCapture owns one bounded mutation-command stream. Its zero value

@@ -153,7 +153,7 @@ func TestOSInstalledLoserLeavesTheZeRouteProgrammed(t *testing.T) {
 	// original effective250 as the authority's explicit route override, retaining
 	// the original producer identity and historical stamp0 input.
 	input := incomingChange{Action: routeaction.Add, Prefix: pfx, Priority: 0}
-	candidate := s.candidatePath(osInstalledProtocol(t), input)
+	candidate := s.candidatePath(osInstalledProtocol(t), &input)
 	candidate.DistanceOverride = osDistance
 	s.rib.Insert(family.IPv4Unicast, pfx, candidate)
 	changes := s.forwardSelected(map[prefixKey]struct{}{{family: family.IPv4Unicast, prefix: pfx}: {}})[family.IPv4Unicast]

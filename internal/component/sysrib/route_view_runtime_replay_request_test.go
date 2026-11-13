@@ -11,7 +11,6 @@ import (
 	"time"
 
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
-	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -64,7 +63,7 @@ func TestRouteViewRuntimeReplayRetainsRequestAfterDelivery(t *testing.T) {
 			closeRuntimeFeedClient(t, ctx, client)
 		}
 	}()
-	h.await(t, client, h.oldPrefix, routeaction.Add, 1)
+	h.await(t, client, h.oldPrefix, 1)
 	payload, err := json.Marshal(replay.Request{ReplayID: replay.Broadcast})
 	if err != nil {
 		t.Fatal(err)

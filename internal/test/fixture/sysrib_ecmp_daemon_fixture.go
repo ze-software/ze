@@ -19,21 +19,35 @@ import (
 )
 
 const (
-	sysribECMPLinkA    = "zesrma"
-	sysribECMPLinkB    = "zesrmb"
-	sysribECMPPlain    = "198.18.249.0/24"
-	sysribECMPDevice   = "198.18.250.0/24"
-	sysribECMPLabels   = "198.18.251.0/24"
-	sysribECMPSID      = "198.18.252.0/24"
-	sysribECMPBackup   = "198.18.253.0/24"
-	sysribECMPWithheld = "198.18.254.0/24"
+	sysribECMPLinkA       = "zesrma"
+	sysribECMPLinkB       = "zesrmb"
+	sysribECMPPlain       = "198.18.249.0/24"
+	sysribECMPDevice      = "198.18.250.0/24"
+	sysribECMPLabels      = "198.18.251.0/24"
+	sysribECMPSID         = "198.18.252.0/24"
+	sysribECMPBackup      = "198.18.253.0/24"
+	sysribECMPFIBWithheld = "198.18.254.0/24"
+	// sysribECMPConnectedA and sysribECMPConnectedB are the connected subnets
+	// of the two fixture links: OS-owned routes Ze must never program or sweep.
+	sysribECMPConnectedA = "198.18.247.0/24"
+	sysribECMPConnectedB = "198.18.248.0/24"
+	// The IPv6 connected subnets of the same two links.
+	sysribECMPConnectedA6 = "2001:db8:247::/64"
+	sysribECMPConnectedB6 = "2001:db8:248::/64"
+	// sysribECMPCoverA and sysribECMPCoverB are the OSPF covers that resolve
+	// the static paths' recursive next hops sysribECMPNextHopA and
+	// sysribECMPNextHopB.
+	sysribECMPCoverA   = "10.249.1.0/24"
+	sysribECMPCoverB   = "10.249.2.0/24"
+	sysribECMPNextHopA = "10.249.1.1"
+	sysribECMPNextHopB = "10.249.2.1"
 )
 
 func sysribECMPDriver(ctx context.Context, args []string) error {
 	if err := importPlacementArgs(args, 1); err != nil {
 		return err
 	}
-	capture := newSysribFIBCapture(sysribECMPPlain, sysribECMPDevice, sysribECMPLabels, sysribECMPSID, sysribECMPBackup, sysribECMPWithheld, "198.18.247.0/24", "198.18.248.0/24")
+	capture := newSysribFIBCapture(sysribECMPPlain, sysribECMPDevice, sysribECMPLabels, sysribECMPSID, sysribECMPBackup, sysribECMPFIBWithheld, sysribECMPConnectedA, sysribECMPConnectedB)
 	return observeConfigured(ctx, "sysrib-ecmp-test", &sdk.Registration{}, capture.setup, func(ctx context.Context, p *sdk.Plugin) (result error) {
 		if err := sysribExecutionPlacement(ctx, p, args[0]); err != nil {
 			return err
@@ -47,14 +61,14 @@ func sysribECMPDriver(ctx context.Context, args []string) error {
 		// The paired carrier joins daemon shutdown before its dedicated
 		// cleanup driver removes these devices. Failed runs retain their
 		// namespace owner's cleanup rather than deleting live FIB targets.
-		for _, prefix := range []string{"198.18.247.0/24", "198.18.248.0/24", "2001:db8:247::/64", "2001:db8:248::/64"} {
+		for _, prefix := range []string{sysribECMPConnectedA, sysribECMPConnectedB, sysribECMPConnectedA6, sysribECMPConnectedB6} {
 			if err := waitRIBWinner(ctx, p, prefix, "connected"); err != nil {
 				return err
 			}
 		}
-		coverA := rpc.RouteInstallEntry{Protocol: "ospf", AFI: 1, SAFI: 1, Prefix: "10.249.1.0/24", NextHop: "198.18.247.1", Interface: sysribECMPLinkA, OnLink: true, Metric: 3, RouteType: 1}
-		coverB := rpc.RouteInstallEntry{Protocol: "ospf", AFI: 1, SAFI: 1, Prefix: "10.249.2.0/24", NextHop: "198.18.248.1", Interface: sysribECMPLinkB, OnLink: true, Metric: 5, RouteType: 1}
-		sidCover := rpc.RouteInstallEntry{Protocol: "ospf", AFI: 2, SAFI: 1, Prefix: "2001:db8:249::/64", NextHop: "2001:db8:248::1", Interface: sysribECMPLinkB, OnLink: true, Metric: 5, RouteType: 1}
+		coverA := rpc.RouteInstallEntry{Protocol: protocolOSPF, AFI: 1, SAFI: 1, Prefix: sysribECMPCoverA, NextHop: "198.18.247.1", Interface: sysribECMPLinkA, OnLink: true, Metric: 3, RouteType: 1}
+		coverB := rpc.RouteInstallEntry{Protocol: protocolOSPF, AFI: 1, SAFI: 1, Prefix: sysribECMPCoverB, NextHop: "198.18.248.1", Interface: sysribECMPLinkB, OnLink: true, Metric: 5, RouteType: 1}
+		sidCover := rpc.RouteInstallEntry{Protocol: protocolOSPF, AFI: 2, SAFI: 1, Prefix: "2001:db8:249::/64", NextHop: "2001:db8:248::1", Interface: sysribECMPLinkB, OnLink: true, Metric: 5, RouteType: 1}
 		if err := sysribInstall(ctx, p, coverA, coverB, sidCover); err != nil {
 			return err
 		}
@@ -64,24 +78,24 @@ func sysribECMPDriver(ctx context.Context, args []string) error {
 				return err
 			}
 		}
-		device := rpc.RouteInstallEntry{Protocol: "static", AFI: 1, SAFI: 1, Prefix: sysribECMPDevice, Interface: sysribECMPLinkA, Weight: 3, Metric: 7, RouteType: 1,
+		device := rpc.RouteInstallEntry{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: sysribECMPDevice, Interface: sysribECMPLinkA, Weight: 3, Metric: 7, RouteType: 1,
 			ECMP: []rpc.RouteNextHop{{Interface: sysribECMPLinkB, Weight: 7}}}
 		backup := sysribECMPPath(sysribECMPBackup, true)
 		backup.BackupNextHop = "198.18.248.1"
 		backup.BackupInterface = sysribECMPLinkB
 		backup.BackupOnLink = true
 		backup.BackupRepairLabels = []uint32{17001, 17002}
-		withheld := rpc.RouteInstallEntry{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: sysribECMPWithheld, NextHop: "198.18.247.1", Interface: sysribECMPLinkA, OnLink: true, IsBGP: true, IsEBGP: true, Metric: 7, RouteType: 1}
+		withheld := rpc.RouteInstallEntry{Protocol: protocolBGP, AFI: 1, SAFI: 1, Prefix: sysribECMPFIBWithheld, NextHop: "198.18.247.1", Interface: sysribECMPLinkA, OnLink: true, IsBGP: true, IsEBGP: true, Metric: 7, RouteType: 1}
 		if err := sysribInstall(ctx, p, device, backup, withheld); err != nil {
 			return err
 		}
-		if err := sysribECMPState(ctx, p, capture, false, 0); err != nil {
+		if err := sysribECMPState(ctx, capture, false, 0); err != nil {
 			return err
 		}
-		if err := waitRIBWinner(ctx, p, sysribECMPWithheld, "bgp"); err != nil {
+		if err := waitRIBWinner(ctx, p, sysribECMPFIBWithheld, protocolBGP); err != nil {
 			return err
 		}
-		if err := importKernel(ctx, sysribECMPWithheld, 0); err != nil {
+		if err := importKernel(ctx, sysribECMPFIBWithheld, 0); err != nil {
 			return err
 		}
 		// Only a cover changes. No selected path, label, SID, device member or
@@ -89,7 +103,7 @@ func sysribECMPDriver(ctx context.Context, args []string) error {
 		if err := sysribRemove(ctx, p, coverA); err != nil {
 			return err
 		}
-		if err := sysribECMPState(ctx, p, capture, true, 0); err != nil {
+		if err := sysribECMPState(ctx, capture, true, 0); err != nil {
 			return err
 		}
 		if err := sysribRemove(ctx, p, sidCover); err != nil {
@@ -104,13 +118,13 @@ func sysribECMPDriver(ctx context.Context, args []string) error {
 		if err := sysribInstall(ctx, p, sidCover); err != nil {
 			return err
 		}
-		if err := sysribECMPState(ctx, p, capture, true, 0); err != nil {
+		if err := sysribECMPState(ctx, capture, true, 0); err != nil {
 			return err
 		}
 		if err := sysribInstall(ctx, p, coverA); err != nil {
 			return err
 		}
-		if err := sysribECMPState(ctx, p, capture, false, 0); err != nil {
+		if err := sysribECMPState(ctx, capture, false, 0); err != nil {
 			return err
 		}
 		// Reload only permission, leaving every producer and selection alive.
@@ -126,17 +140,17 @@ func sysribECMPDriver(ctx context.Context, args []string) error {
 		if err := policyFinalReload(ctx, p, config.Serialize(tree, schema), "applied"); err != nil {
 			return err
 		}
-		if err := importKernel(ctx, sysribECMPWithheld, 1, "via 198.18.247.1 ", "proto 250 "); err != nil {
+		if err := importKernel(ctx, sysribECMPFIBWithheld, 1, "via 198.18.247.1 ", "proto 250 "); err != nil {
 			return err
 		}
-		rib.SetSlice("fib-withhold", []string{"bgp"})
+		rib.SetSlice("fib-withhold", []string{protocolBGP})
 		if err := policyFinalReload(ctx, p, config.Serialize(tree, schema), "applied"); err != nil {
 			return err
 		}
-		if err := waitRIBWinner(ctx, p, sysribECMPWithheld, "bgp"); err != nil {
+		if err := waitRIBWinner(ctx, p, sysribECMPFIBWithheld, protocolBGP); err != nil {
 			return err
 		}
-		if err := importKernel(ctx, sysribECMPWithheld, 0); err != nil {
+		if err := importKernel(ctx, sysribECMPFIBWithheld, 0); err != nil {
 			return err
 		}
 		// A real FIB restart creates a fresh subscriber after all transitions.
@@ -147,11 +161,11 @@ func sysribECMPDriver(ctx context.Context, args []string) error {
 		if _, err := requireDone02(ctx, p, "request plugin restart fib-kernel"); err != nil {
 			return err
 		}
-		if err := sysribECMPState(ctx, p, capture, false, replayAt); err != nil {
+		if err := sysribECMPState(ctx, capture, false, replayAt); err != nil {
 			return err
 		}
 		capture.mu.Lock()
-		for _, prefix := range []string{sysribECMPWithheld, "198.18.247.0/24", "198.18.248.0/24"} {
+		for _, prefix := range []string{sysribECMPFIBWithheld, sysribECMPConnectedA, sysribECMPConnectedB} {
 			if capture.replayedAt[prefix] >= replayAt {
 				result = fmt.Errorf("fresh FIB replay programmed withheld/OS-owned prefix %s", prefix)
 				break
@@ -161,7 +175,7 @@ func sysribECMPDriver(ctx context.Context, args []string) error {
 		if result != nil {
 			return result
 		}
-		if err := importKernel(ctx, sysribECMPWithheld, 0); err != nil {
+		if err := importKernel(ctx, sysribECMPFIBWithheld, 0); err != nil {
 			return err
 		}
 		return importSay("weighted and device-only ECMP, promoted labels and SID, SID-only loss, repair metadata and permitted FIB replay survive cover recovery without producer reinjection")
@@ -169,10 +183,10 @@ func sysribECMPDriver(ctx context.Context, args []string) error {
 }
 
 func sysribECMPPath(prefix string, first bool) rpc.RouteInstallEntry {
-	p := rpc.RouteInstallEntry{Protocol: "static", AFI: 1, SAFI: 1, Prefix: prefix, Instance: 101, NextHop: "10.249.1.1", Weight: 2, Metric: 7, RouteType: 1}
+	p := rpc.RouteInstallEntry{Protocol: protocolStatic, AFI: 1, SAFI: 1, Prefix: prefix, Instance: 101, NextHop: sysribECMPNextHopA, Weight: 2, Metric: 7, RouteType: 1}
 	if !first {
 		p.Instance = 102
-		p.NextHop = "10.249.2.1"
+		p.NextHop = sysribECMPNextHopB
 		p.Weight = 5
 	}
 	if prefix == sysribECMPLabels {
@@ -191,7 +205,7 @@ func sysribECMPPath(prefix string, first bool) rpc.RouteInstallEntry {
 }
 
 func sysribECMPWant(prefix string, promoted bool) sysribevents.BestChangeEntry {
-	entry := sysribevents.BestChangeEntry{Prefix: netip.MustParsePrefix(prefix), Protocol: "static", NextHop: netip.MustParseAddr("198.18.247.1"), Interface: sysribECMPLinkA, OnLink: true, Weight: 2, Metric: 7, RouteType: 1}
+	entry := sysribevents.BestChangeEntry{Prefix: netip.MustParsePrefix(prefix), Protocol: protocolStatic, NextHop: netip.MustParseAddr("198.18.247.1"), Interface: sysribECMPLinkA, OnLink: true, Weight: 2, Metric: 7, RouteType: 1}
 	member := sysribevents.ECMPPath{NextHop: netip.MustParseAddr("198.18.248.1"), Interface: sysribECMPLinkB, OnLink: true, Weight: 5}
 	if prefix == sysribECMPLabels {
 		entry.Labels = []uint32{16001}
@@ -212,7 +226,7 @@ func sysribECMPWant(prefix string, promoted bool) sysribevents.BestChangeEntry {
 	return entry
 }
 
-func sysribECMPState(ctx context.Context, p *sdk.Plugin, capture *sysribFIBCapture, promoted bool, replayAt uint64) error {
+func sysribECMPState(ctx context.Context, capture *sysribFIBCapture, promoted bool, replayAt uint64) error {
 	for _, prefix := range []string{sysribECMPPlain, sysribECMPLabels, sysribECMPSID} {
 		want := sysribECMPWant(prefix, promoted)
 		if replayAt != 0 {
@@ -222,7 +236,7 @@ func sysribECMPState(ctx context.Context, p *sdk.Plugin, capture *sysribFIBCaptu
 			return err
 		}
 	}
-	device := sysribevents.BestChangeEntry{Prefix: netip.MustParsePrefix(sysribECMPDevice), Protocol: "static", Interface: sysribECMPLinkA, Weight: 3, Metric: 7, RouteType: 1, ECMPPaths: []sysribevents.ECMPPath{{Interface: sysribECMPLinkB, Weight: 7}}}
+	device := sysribevents.BestChangeEntry{Prefix: netip.MustParsePrefix(sysribECMPDevice), Protocol: protocolStatic, Interface: sysribECMPLinkA, Weight: 3, Metric: 7, RouteType: 1, ECMPPaths: []sysribevents.ECMPPath{{Interface: sysribECMPLinkB, Weight: 7}}}
 	if replayAt != 0 {
 		device.Action = routeaction.Add
 	}
@@ -274,7 +288,7 @@ func sysribECMPState(ctx context.Context, p *sdk.Plugin, capture *sysribFIBCaptu
 	if err := sysribKernelMultipath(ctx, sysribECMPDevice, "dev "+sysribECMPLinkA+" ", "weight 3 ", "dev "+sysribECMPLinkB+" ", "weight 7 "); err != nil {
 		return err
 	}
-	for _, value := range []struct{ prefix, link string }{{"198.18.247.0/24", sysribECMPLinkA}, {"198.18.248.0/24", sysribECMPLinkB}} {
+	for _, value := range []struct{ prefix, link string }{{sysribECMPConnectedA, sysribECMPLinkA}, {sysribECMPConnectedB, sysribECMPLinkB}} {
 		if err := importKernel(ctx, value.prefix, 1, "dev "+value.link+" ", "proto 2 "); err != nil {
 			return err
 		}
@@ -327,19 +341,22 @@ func sysribKernelMultipath(ctx context.Context, prefix string, words ...string) 
 	}) {
 		return nil
 	}
-	return fmt.Errorf("multipath kernel %s: expected one proto250 route with %q, observed %q; error %v", prefix, words, last, lastErr)
+	if lastErr != nil {
+		return fmt.Errorf("multipath kernel %s: expected one proto250 route with %q, observed %q; error %w", prefix, words, last, lastErr)
+	}
+	return fmt.Errorf("multipath kernel %s: expected one proto250 route with %q, observed %q; error <nil>", prefix, words, last)
 }
 
 func sysribECMPKernelEmpty(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return fmt.Errorf("ECMP kernel-empty fixture takes no arguments")
 	}
-	for _, prefix := range []string{sysribECMPPlain, sysribECMPDevice, sysribECMPLabels, sysribECMPSID, sysribECMPBackup, sysribECMPWithheld, "198.18.247.0/24", "198.18.248.0/24", "10.249.1.0/24", "10.249.2.0/24"} {
+	for _, prefix := range []string{sysribECMPPlain, sysribECMPDevice, sysribECMPLabels, sysribECMPSID, sysribECMPBackup, sysribECMPFIBWithheld, sysribECMPConnectedA, sysribECMPConnectedB, sysribECMPCoverA, sysribECMPCoverB} {
 		if err := importKernel(ctx, prefix, 0); err != nil {
 			return err
 		}
 	}
-	for _, prefix := range []string{"2001:db8:247::/64", "2001:db8:248::/64", "2001:db8:249::/64"} {
+	for _, prefix := range []string{sysribECMPConnectedA6, sysribECMPConnectedB6, "2001:db8:249::/64"} {
 		if err := sysribKernel6(ctx, prefix, 0); err != nil {
 			return err
 		}
@@ -354,7 +371,7 @@ func sysribECMPLinksCleanup(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return errors.New("ECMP post-stop link cleanup takes no arguments")
 	}
-	for _, prefix := range []string{sysribECMPPlain, sysribECMPDevice, sysribECMPLabels, sysribECMPSID, sysribECMPBackup, sysribECMPWithheld, "10.249.1.0/24", "10.249.2.0/24"} {
+	for _, prefix := range []string{sysribECMPPlain, sysribECMPDevice, sysribECMPLabels, sysribECMPSID, sysribECMPBackup, sysribECMPFIBWithheld, sysribECMPCoverA, sysribECMPCoverB} {
 		if err := importKernel(ctx, prefix, 0); err != nil {
 			return err
 		}
@@ -363,8 +380,8 @@ func sysribECMPLinksCleanup(ctx context.Context, args []string) error {
 		return err
 	}
 	links := []struct{ prefix4, prefix6, name string }{
-		{"198.18.247.0/24", "2001:db8:247::/64", sysribECMPLinkA},
-		{"198.18.248.0/24", "2001:db8:248::/64", sysribECMPLinkB},
+		{sysribECMPConnectedA, sysribECMPConnectedA6, sysribECMPLinkA},
+		{sysribECMPConnectedB, sysribECMPConnectedB6, sysribECMPLinkB},
 	}
 	for _, link := range links {
 		if err := importKernel(ctx, link.prefix4, 1, "dev "+link.name+" ", "proto 2 "); err != nil {
@@ -373,7 +390,7 @@ func sysribECMPLinksCleanup(ctx context.Context, args []string) error {
 		if err := sysribKernel6(ctx, link.prefix6, 1, "dev "+link.name+" ", "proto 2 "); err != nil {
 			return err
 		}
-		if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", link.name); err != nil {
+		if err := importCommandRun(ctx, "link", "show", "dev", link.name); err != nil {
 			return fmt.Errorf("joined daemon stop removed fixture device %s: %w", link.name, err)
 		}
 	}

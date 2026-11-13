@@ -11,7 +11,6 @@ import (
 	"time"
 
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
-	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -67,7 +66,7 @@ func TestRouteViewRuntimeMalformedPublicationResetProofIsFatal(t *testing.T) {
 			})
 			client := h.start(t)
 			t.Cleanup(func() { closeRuntimeFeedClient(t, ctx, client) })
-			h.await(t, client, h.oldPrefix, routeaction.Add, 1)
+			h.await(t, client, h.oldPrefix, 1)
 			h.arm.Store(true)
 			h.rib.Insert(family.IPv4Unicast, h.oldPrefix, h.path(2))
 			h.awaitInterleaving(t, client)
@@ -130,7 +129,7 @@ func TestRouteViewRuntimeFencedReplayRetainsRequest(t *testing.T) {
 			closeRuntimeFeedClient(t, ctx, client)
 		}
 	}()
-	h.await(t, client, h.oldPrefix, routeaction.Add, 1)
+	h.await(t, client, h.oldPrefix, 1)
 	worker := client.worker
 	armed.Store(true)
 	payload, err := json.Marshal(replay.Request{ReplayID: replay.Broadcast})
@@ -145,7 +144,7 @@ func TestRouteViewRuntimeFencedReplayRetainsRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.awaitInterleaving(t, client)
-	h.await(t, client, h.freshPrefix, routeaction.Add, 3)
+	h.await(t, client, h.freshPrefix, 3)
 	select {
 	case batch := <-replayed:
 		if len(batch.Changes) != 1 {

@@ -35,7 +35,7 @@ type routeViewRecord struct {
 
 // offer never waits, copies a path, encodes, or retains Change.Forward. A full
 // capture invalidates the session; its next request fences output before reset.
-func (session *routeViewSession) offer(change locrib.Change) {
+func (session *routeViewSession) offer(change locrib.Change) { //nolint:gocritic // hugeParam: the signature is locrib.ChangeHandler's
 	select {
 	case <-session.ctx.Done():
 		return
@@ -214,7 +214,7 @@ func (session *routeViewSession) resetFailure(problem string) error {
 }
 
 func (session *routeViewSession) invalidate(reason error) error {
-	if _, rebuild := reason.(*routeViewRebuildReason); !rebuild {
+	if _, rebuild := errors.AsType[*routeViewRebuildReason](reason); !rebuild {
 		if session.terminalReason == nil {
 			session.terminalReason = reason
 		}
@@ -253,10 +253,6 @@ func (session *routeViewSession) setFence(fence func() error) error {
 }
 
 func (session *routeViewSession) authoritativeRIB() *locrib.RIB { return session.rib }
-
-func (session *routeViewSession) consumedCursor() (uint64, bool) {
-	return session.consumed, session.ready
-}
 
 // resetStatus distinguishes a recoverable view reset from a failed withdrawal.
 // The caller MUST hold the lease. A distance apply may acknowledge the former,
@@ -396,7 +392,7 @@ func (session *routeViewSession) readFailure(err error) (rpc.RouteViewReadOutput
 		return rpc.RouteViewReadOutput{}, err
 	}
 	if session.resetReason != nil {
-		return session.resetPage(), nil
+		return session.resetPage(), nil //nolint:nilerr // a reset view is answered in-band: the Reset phase page carries it, as readPage does
 	}
 	return rpc.RouteViewReadOutput{}, err
 }

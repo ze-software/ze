@@ -19,14 +19,14 @@ func (s *Server) serveConfigureEngineOp(ctx context.Context, proc *process.Proce
 	if req.Method == methodDeclareCapabilities {
 		return false, nil
 	}
-	// A recovered handler panic still consumes its request: it must not be
-	// mistaken for the next startup stage and replayed by ReadRequest.
-	consumed = true
 	defer engineOpPanics().request.Contain(
 		func() taskguard.Context {
 			return taskguard.Context{Unit: "configure request from plugin " + proc.Name(), MessageType: req.Method}
 		},
 		func(p *taskguard.Panic) {
+			// A recovered handler panic still consumes its request: it must not be
+			// mistaken for the next startup stage and replayed by ReadRequest.
+			consumed = true
 			err = conn.SendError(ctx, req.ID, engineOpPanicMessage(req.Method, p))
 		},
 	)

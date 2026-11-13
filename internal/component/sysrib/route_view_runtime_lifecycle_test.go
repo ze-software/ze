@@ -240,11 +240,12 @@ func TestRouteViewRuntimeNativePublicationDeadlineAndStop(t *testing.T) {
 				continue
 			}
 			deadline, finite := call.Deadline()
-			if !finite {
+			switch {
+			case !finite:
 				entered <- errors.New("native publication has no finite deadline")
-			} else if time.Until(deadline) > routeViewConfigurationTimeout {
+			case time.Until(deadline) > routeViewConfigurationTimeout:
 				entered <- errors.New("native publication exceeds its finite budget")
-			} else {
+			default:
 				entered <- nil
 			}
 			<-call.Done()

@@ -261,7 +261,7 @@ func (a *recordAnswer) TransportComplete() {
 // in-process callers see identical error text (AC-2).
 func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) {
 	result, err := op.handle(s, s.Context(), proc, req.Params)
-	// A runtime request that the end of the plugin's engine session cancelled
+	// A runtime request that the end of the plugin's engine session canceled
 	// is left unanswered: the connection close that ends the session answers
 	// it, as it answers every other call still pending then. An error line here
 	// would hand the plugin a well-formed refusal for an ordinary stop, and a
@@ -310,7 +310,7 @@ func (s *Server) serveEngineOpJSONContext(ctx, reply context.Context, proc *proc
 
 // answerEngineOpJSON writes a handler's outcome as the request's answer: an
 // error line, a record sequence or one result line. Runtime replies use the
-// uncancelled reply context, so an answer written during a stop is still sent.
+// uncanceled reply context, so an answer written during a stop is still sent.
 func answerEngineOpJSON(reply context.Context, proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, result any, err error) error {
 	if err != nil {
 		if sendErr := conn.SendError(reply, req.ID, rpcErrMessage(err)); sendErr != nil {

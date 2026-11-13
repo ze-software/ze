@@ -172,6 +172,11 @@ func (h *routeViewPluginHarness) pump() {
 	}
 }
 
+// routeViewEmptyAnswer answers an RPC that returns no result. SendResult
+// encodes it as null, which AppendResult writes as a bare ok, the same line
+// SendOK writes. Callers MUST NOT modify it.
+var routeViewEmptyAnswer = json.RawMessage("null")
+
 func (h *routeViewPluginHarness) answer(request *rpc.Request) (any, error) {
 	switch request.Method {
 	case rpc.MethodDeclareRegistration:
@@ -189,7 +194,7 @@ func (h *routeViewPluginHarness) answer(request *rpc.Request) (any, error) {
 		}
 		return rpc.MetricsPublishOutput{}, nil
 	case "ze-plugin-engine:declare-capabilities", "ze-plugin-engine:ready":
-		return nil, nil
+		return routeViewEmptyAnswer, nil
 	case rpc.MethodRouteViewOpen:
 		return rpc.RouteViewOpenOutput{Session: "runner-owner", Epoch: "daemon", Snapshot: "initial"}, nil
 	case rpc.MethodRouteViewDistances:

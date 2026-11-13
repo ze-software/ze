@@ -27,7 +27,7 @@ func withIPv4IdentityProbe(t *testing.T, fn func(*netlink.Handle, int)) {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
 		defer h.Close()
-		link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "ze-id-probe"}}
+		link := &netlink.Dummy{Name: "ze-id-probe"}
 		require.NoError(t, h.LinkAdd(link))
 		actual, err := h.LinkByName(link.Name)
 		require.NoError(t, err)

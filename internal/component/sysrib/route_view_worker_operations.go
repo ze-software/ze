@@ -150,7 +150,7 @@ func (task *routeViewCandidatesTask) perform(worker *routeViewWorker) error {
 func (task *routeViewConfigurationTask) perform(worker *routeViewWorker) error {
 	if err := task.ctx.Err(); err != nil {
 		task.done <- err
-		return nil
+		return nil //nolint:nilerr // the requester's own stop is its answer on task.done; the worker keeps serving
 	}
 	operation, cancel := worker.operation(task.ctx)
 	previous := worker.client.configuration
@@ -264,7 +264,8 @@ func (worker *routeViewWorker) configure(ctx context.Context, configuration rout
 	if ack.Operation != operation {
 		return routeViewRefusal("The distance acknowledgment has another operation", "The applied declaration is uncertain", "ze request reload")
 	}
-	if worker.projection != nil {
+	switch {
+	case worker.projection != nil:
 		for !worker.projection.projection.Synchronized() || worker.projection.projection.Cursor() < ack.Cursor {
 			if err := ctx.Err(); err != nil {
 				return err
@@ -276,9 +277,9 @@ func (worker *routeViewWorker) configure(ctx context.Context, configuration rout
 		if !worker.projection.projection.Synchronized() {
 			return routeViewRefusal("The selected view is incomplete after distance application", "Forwarding cannot acknowledge a partial authoritative snapshot", "ze request reload")
 		}
-	} else if ack.Cursor != 0 {
+	case ack.Cursor != 0:
 		return routeViewRefusal("The local distance acknowledgment has a stream cursor", "The local authority is synchronized at cursor zero", "ze request reload")
-	} else {
+	default:
 		changes, err := worker.local.scan(ctx, worker.client.rib)
 		if err != nil {
 			return err
@@ -361,16 +362,16 @@ func (worker *routeViewWorker) reopenOnce(ctx context.Context, configuration rou
 }
 
 func (worker *routeViewWorker) collect(fam family.Family, entries []outgoingChange) {
-	for _, entry := range entries {
-		worker.pending[prefixKey{family: fam, prefix: entry.Prefix}] = entry
+	for i := range entries {
+		worker.pending[prefixKey{family: fam, prefix: entries[i].Prefix}] = entries[i]
 	}
 	worker.client.health.setPending(len(worker.pending))
 }
 
 func (worker *routeViewWorker) flush(ctx context.Context) error {
 	batches := make(map[family.Family][]outgoingChange)
-	for key, entry := range worker.pending {
-		batches[key.family] = append(batches[key.family], entry)
+	for key := range worker.pending {
+		batches[key.family] = append(batches[key.family], worker.pending[key])
 	}
 	return worker.publish(ctx, batches, 0)
 }

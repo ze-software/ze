@@ -40,12 +40,12 @@ func TestRouteViewRuntimeFencedPublicationReadsReset(t *testing.T) {
 			closeRuntimeFeedClient(t, ctx, client)
 		}
 	})
-	h.await(t, client, h.oldPrefix, routeaction.Add, 1)
+	h.await(t, client, h.oldPrefix, 1)
 	worker := client.worker
 	h.arm.Store(true)
 	h.rib.Insert(family.IPv4Unicast, h.oldPrefix, h.path(2))
 	h.awaitInterleaving(t, client)
-	h.await(t, client, h.freshPrefix, routeaction.Add, 3)
+	h.await(t, client, h.freshPrefix, 3)
 	if client.worker != worker {
 		t.Fatal("a new worker replaced the current worker instead of reconstructing its reset lease")
 	}
@@ -105,7 +105,7 @@ func TestRouteViewRuntimePublicationFailureCannotStealReplacement(t *testing.T) 
 			h := newPublicationResetHarness(t, ctx, mode)
 			client := h.start(t)
 			t.Cleanup(func() { closeRuntimeFeedClient(t, ctx, client) })
-			h.await(t, client, h.oldPrefix, routeaction.Add, 1)
+			h.await(t, client, h.oldPrefix, 1)
 			h.arm.Store(true)
 			h.rib.Insert(family.IPv4Unicast, h.oldPrefix, h.path(2))
 			h.awaitInterleaving(t, client)
@@ -168,8 +168,8 @@ func (bus *publicationResetBus) Emit(namespace, event string, payload any) (int,
 	if !valid {
 		return count, errors.New("controlled publication bus received a noncanonical batch")
 	}
-	for _, entry := range batch.Changes {
-		if entry.Action != routeaction.Withdraw {
+	for i := range batch.Changes {
+		if batch.Changes[i].Action != routeaction.Withdraw {
 			return count, errors.New("controlled output delivery failure after publication")
 		}
 	}
@@ -217,17 +217,18 @@ func newPublicationResetHarness(t *testing.T, ctx context.Context, mode string) 
 		current: make(map[netip.Prefix]sysribevents.BestChangeEntry), withdrawals: make(map[netip.Prefix]int),
 	}
 	sysribevents.BestChange.Subscribe(h.bus, func(batch *sysribevents.BestChangeBatch) {
-		for _, entry := range batch.Changes {
+		for i := range batch.Changes {
+			entry := &batch.Changes[i]
 			h.mu.Lock()
 			if entry.Action == routeaction.Withdraw {
 				delete(h.current, entry.Prefix)
 				h.withdrawals[entry.Prefix]++
 			} else {
-				h.current[entry.Prefix] = entry
+				h.current[entry.Prefix] = *entry
 			}
 			h.mu.Unlock()
 			select {
-			case h.changes <- entry:
+			case h.changes <- *entry:
 			case <-ctx.Done():
 			}
 		}
@@ -313,7 +314,8 @@ func (h *publicationResetHarness) answer(request *rpc.Request) (any, error) {
 			h.resetReads.Add(1)
 		}
 		if h.arm.Load() {
-			for _, entry := range page.Entries {
+			for i := range page.Entries {
+				entry := &page.Entries[i]
 				if entry.Prefix != h.oldPrefix {
 					continue
 				}
@@ -414,8 +416,10 @@ func (h *publicationResetHarness) awaitInterleaving(t *testing.T, client *routeV
 	}
 }
 
-func (h *publicationResetHarness) await(t *testing.T, client *routeViewClient, prefix netip.Prefix, action routeaction.Action, metric uint32) {
+// await waits for an install of prefix with metric; every caller awaits an add.
+func (h *publicationResetHarness) await(t *testing.T, client *routeViewClient, prefix netip.Prefix, metric uint32) {
 	t.Helper()
+	const action = routeaction.Add
 	for {
 		select {
 		case entry := <-h.changes:

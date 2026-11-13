@@ -23,13 +23,15 @@ func (s *Server) dispatchPluginRPCNative(ctx context.Context, proc *process.Proc
 	if op.native == nil {
 		return nil, false, nil
 	}
-	handled = true
 	defer engineOpPanics().request.Contain(
 		func() taskguard.Context {
 			return taskguard.Context{Unit: "request from plugin " + proc.Name(), MessageType: method}
 		},
 		func(p *taskguard.Panic) {
+			// A recovered handler panic was still handled here: its refusal
+			// must not send the caller on to public RPC selection.
 			result = nil
+			handled = true
 			err = &rpc.RPCCallError{Message: engineOpPanicMessage(method, p)}
 		},
 	)

@@ -118,7 +118,7 @@ func (fixture *routeViewStartupDeclaration) answer(request *rpc.Request) (any, e
 	case rpc.MethodDeclareRegistration:
 		return rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}, nil
 	case "ze-plugin-engine:declare-capabilities", "ze-plugin-engine:ready":
-		return nil, nil
+		return routeViewEmptyAnswer, nil
 	case rpc.MethodRouteViewOpen:
 		var input rpc.RouteViewOpenInput
 		if err := json.Unmarshal(request.Params, &input); err != nil {

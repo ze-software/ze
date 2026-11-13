@@ -22,12 +22,13 @@ type routeViewSelectedAdd struct {
 
 type routeViewSelectedRemove struct{ key prefixKey }
 
-func (change routeViewSelectedAdd) selectedKey() prefixKey    { return change.key }
+func (change routeViewSelectedAdd) selectedKey() prefixKey    { return change.key } //nolint:gocritic // hugeParam: a value variant; a pointer variant would admit a typed nil
 func (change routeViewSelectedRemove) selectedKey() prefixKey { return change.key }
 
 // applySelected consumes the authority's one selected value for a prefix.
 // The caller MUST own its slices and apply the complete reader batch first.
-func (s *sysRIB) applySelected(change locrib.Change) ([]outgoingChange, error) {
+// The change is read and never retained.
+func (s *sysRIB) applySelected(change *locrib.Change) ([]outgoingChange, error) {
 	prepared, err := prepareRouteViewSelected(change)
 	if err != nil {
 		return nil, err
@@ -38,11 +39,13 @@ func (s *sysRIB) applySelected(change locrib.Change) ([]outgoingChange, error) {
 
 // prepareRouteViewSelected copies all retained metadata while the authority or
 // projection callback still owns its borrowed path. No forward handle escapes.
-func prepareRouteViewSelected(change locrib.Change) (routeViewSelectedChange, error) {
+func prepareRouteViewSelected(change *locrib.Change) (routeViewSelectedChange, error) {
 	return prepareRouteViewSelectedMetadata(change, nil)
 }
 
-func prepareRouteViewSelectedMetadata(change locrib.Change, members []projectionMemberMetadata) (routeViewSelectedChange, error) {
+// prepareRouteViewSelectedMetadata reads change and members and retains
+// neither: every slice the result keeps is cloned.
+func prepareRouteViewSelectedMetadata(change *locrib.Change, members []projectionMemberMetadata) (routeViewSelectedChange, error) {
 	key := prefixKey{family: change.Family, prefix: change.Prefix}
 	if !key.prefix.IsValid() || key.prefix != key.prefix.Masked() || key.family == (family.Family{}) {
 		return nil, routeViewRefusal("The selected routing change has no valid prefix or family", "No forwarding state was changed", "ze request reload")
@@ -134,8 +137,8 @@ func (s *sysRIB) applySelectedBatch(changes []routeViewSelectedChange) (map[fami
 	}
 	if current := sysribMetricsPtr.Load(); current != nil {
 		for _, batch := range batches {
-			for _, change := range batch {
-				if counter := current.routeChanges[change.Action]; counter != nil {
+			for i := range batch {
+				if counter := current.routeChanges[batch[i].Action]; counter != nil {
 					counter.Inc()
 				}
 			}

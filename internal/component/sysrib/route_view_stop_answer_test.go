@@ -22,7 +22,7 @@ import (
 // close answers the forked consumer; a read that dropped the cause would be
 // answered as a refusal again. Method: the read enters its bounded wait under
 // a context standing for the server's lifetime context, which the runtime
-// dispatch passes; the wait seam holds until that context is cancelled, so
+// dispatch passes; the wait seam holds until that context is canceled, so
 // the wait's timer cannot win.
 func TestRouteViewReadEndedByServerStopCarriesCancellation(t *testing.T) {
 	var authority routeViewAuthority
