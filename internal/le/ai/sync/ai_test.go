@@ -661,6 +661,50 @@ func TestASourceWhoseNameIsADotPathIsRefused(t *testing.T) {
 	}
 }
 
+// VALIDATES: A source named ".md" lists as the empty name, whose stub would be
+// written at the root of each skill tree. The sync refuses it, names the file
+// and writes nothing.
+func TestASourceWithNoNameBeforeItsExtensionIsRefused(t *testing.T) {
+	root := fixture(t)
+	write(t, root, "ai/skills/.md", "---\nname:\ndescription: d\n---\nbody\n")
+
+	_, err := Mirror{Root: root}.Sync()
+	if !errors.Is(err, ErrBadSkill) {
+		t.Fatalf("the sync answered %v, want ErrBadSkill", err)
+	}
+	if message := err.Error(); !strings.Contains(message, "ai/skills/.md") {
+		t.Errorf("the refusal does not name the file: %s", message)
+	}
+	if paths := generatedPaths(t, root); len(paths) != 0 {
+		t.Errorf("a refused run wrote %d files: %v", len(paths), paths)
+	}
+}
+
+// VALIDATES: A plain file sitting where a skill's directory belongs is
+// replaced by a real directory holding the stub (AC-8: the path belongs to
+// the source), and the other trees are written as usual.
+func TestASyncReplacesAFileWhereASkillDirectoryBelongs(t *testing.T) {
+	root := fixture(t)
+	write(t, root, filepath.Join(claudeSkills, "ze-close"), "a file, not a directory\n")
+
+	syncTree(t, root)
+
+	info, err := os.Lstat(filepath.Join(root, claudeSkills, "ze-close"))
+	if err != nil {
+		t.Fatalf("lstat: %v", err)
+	}
+	if !info.IsDir() {
+		t.Fatalf("%s/ze-close is still not a directory: mode %v", claudeSkills, info.Mode())
+	}
+	stub := read(t, root, filepath.Join(claudeSkills, "ze-close", skillFile))
+	if want := read(t, root, filepath.Join(codexSkills, "ze-close", skillFile)); stub != want {
+		t.Errorf("the stub written in place of the file differs from the .codex stub:\n%q\n%q", stub, want)
+	}
+	if !strings.Contains(stub, "ai/skills/ze-close.md") {
+		t.Errorf("the stub does not name its source:\n%s", stub)
+	}
+}
+
 // PRESERVES: Whatever sits at a current source's path is overwritten by what
 // the generation writes there (AC-8), so a pre-change full copy is replaced.
 func TestASyncOverwritesAnUnmarkedFileAtASourcesPath(t *testing.T) {

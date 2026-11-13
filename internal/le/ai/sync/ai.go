@@ -253,8 +253,13 @@ func instructionFor(name string) string {
 // It is the one composition, and generateInto is its only caller, so a sync
 // and a check judge the tree against the same bytes.
 func stubOf(name string, source []byte) ([]byte, error) {
-	// A source named "...md" or "..md" lists as ".." or ".", and its stub
-	// would be written outside its own skill directory.
+	// A source named "...md", "..md" or ".md" lists as "..", "." or the empty
+	// name, and its stub would be written outside its own skill directory.
+	if name == "" {
+		return nil, badSkill(name, "has a file name that is not a skill name",
+			"its skill file would be written outside its own directory in each harness tree",
+			"rename the file to the skill's name: mv "+sourcePath(name)+" "+skillSources+"/<skill name>"+markdown)
+	}
 	if name == "." || name == ".." {
 		return nil, badSkill(name, "has a file name that is not a skill name",
 			"its skill file would be written outside its own directory in each harness tree",
