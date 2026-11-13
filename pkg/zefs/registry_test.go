@@ -256,7 +256,7 @@ func TestAllProductionKeysRegistered(t *testing.T) {
 		"meta/ssh/default":                true,
 		"meta/auth/local/username":        true,
 		"meta/auth/local/password":        true,
-		"meta/ssh/authorized-keys":        true,
+		"meta/auth/local/authorized-keys": true,
 		"meta/instance/name":              true,
 		"meta/instance/managed":           true,
 		"meta/instance/admin-disabled":    true,

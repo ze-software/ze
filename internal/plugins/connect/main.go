@@ -248,7 +248,7 @@ func ListRemotes(dbPath string) int {
 	seen := make(map[string]*remoteEntry)
 
 	for _, key := range entries {
-		if key == "meta/ssh/default" || key == "meta/ssh/authorized-keys" {
+		if key == "meta/ssh/default" {
 			continue
 		}
 		rest := strings.TrimPrefix(key, "meta/ssh/")
