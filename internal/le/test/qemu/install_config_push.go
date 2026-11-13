@@ -511,8 +511,12 @@ func (guest *otaGuest) configPushPin(home string, key ssh.PublicKey) (ssh.HostKe
 	return knownhosts.New(path)
 }
 
+// configPushReboot stops the guest through its authenticated update server and
+// joins the QEMU process. gokrazy reboots by kexec unless told otherwise, and a
+// kexec loads the next kernel with no machine reset, so -no-reboot would never
+// exit. kexec=off asks for the reset that -no-reboot turns into an exit.
 func (guest *otaGuest) configPushReboot(ctx context.Context) error {
-	if err := guest.post(ctx, "/reboot"); err != nil {
+	if err := guest.post(ctx, "/reboot?kexec=off"); err != nil {
 		return err
 	}
 	deadline, cancel := context.WithTimeout(ctx, otaRebootTimeout)

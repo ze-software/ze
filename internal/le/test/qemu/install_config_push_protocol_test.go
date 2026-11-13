@@ -268,6 +268,13 @@ func (fixture *configPushProtocolFixture) management(w http.ResponseWriter, r *h
 	case "GET /":
 		_ = json.NewEncoder(w).Encode(otaStatus{BuildTimestamp: "same-current-image", PermUUID: "same-owned-perm"})
 	case "POST /reboot":
+		// gokrazy reboots by kexec unless asked otherwise. A kexec loads the
+		// next kernel without a machine reset, so QEMU's -no-reboot never
+		// exits and the proof would wait on a guest that keeps running.
+		if r.URL.Query().Get("kexec") != "off" {
+			http.Error(w, "kexec reboot does not reset the machine", 400)
+			return
+		}
 		fixture.mu.Lock()
 		input := fixture.input
 		fixture.input = nil
