@@ -55,11 +55,12 @@ not establish forwarding connectivity.
 <!-- source: examples/quickstart/r2.conf -- r2 endpoints, policy and update -->
 
 These files contain the known lab username and password `lab` / `lab`. They bind
-management to loopback. Do not use these credentials on a production system.
+management to loopback and disable resolver file output. Do not use these
+credentials on a production system.
 Explicit-file startup creates the private store beside each file, so each peer
 must have its own directory. No `ze init` step is needed for this configured-user
 lab; the later initialization section covers a real installation.
-<!-- source: examples/quickstart/r1.conf -- lab authentication and management binding -->
+<!-- source: examples/quickstart/r1.conf -- lab authentication, management binding and disabled resolver output -->
 <!-- source: cmd/ze/ze_core_start.go -- explicit configuration path -->
 
 Run the following from the repository root in one shell:

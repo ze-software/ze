@@ -4,9 +4,9 @@
 # accept-only: the native fixture checks each session and received prefix, rejects bad credentials, and joins both daemons
 #
 # VALIDATES: spec-deployment-user-journeys AC-4. The fixture reads the supplied
-# examples/quickstart/r1.conf and r2.conf from the checkout, changes ports and
-# resolver output paths in private copies through the product's config command,
-# validates them, and starts real daemons. No sink, synthetic query result, or local credential DB
+# examples/quickstart/r1.conf and r2.conf from the checkout, changes only ports
+# in private copies through the product's config command, preserves disabled
+# resolver file output, validates them, and starts real daemons. No sink, synthetic query result, or local credential DB
 # substitutes for their actual CLI and received RIB.
 #
 # The runner supplies both SSH ports and one BGP port. BGP uses different local

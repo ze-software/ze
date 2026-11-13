@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/system"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -27,7 +29,7 @@ import (
 type quickstartPorts [3]uint16
 
 // quickstartInput describes one source file and its private port substitutions.
-// Resolver output also stays under that daemon's private directory.
+// The public example must already disable resolver file output.
 // It carries raw filesystem inputs; prepareQuickstart validates the resulting file.
 type quickstartInput struct {
 	name    string
@@ -185,6 +187,9 @@ func prepareQuickstart(ctx context.Context, binary, repository, work string, inp
 	if err != nil {
 		return "", err
 	}
+	if err := checkQuickstartResolverOutput(body); err != nil {
+		return "", fmt.Errorf("public %s config: %w", input.name, err)
+	}
 	dir := filepath.Join(work, input.name)
 	if err := os.Mkdir(dir, 0o700); err != nil {
 		return "", err
@@ -198,7 +203,6 @@ func prepareQuickstart(ctx context.Context, binary, repository, work string, inp
 		{"environment", "ssh", "server", "main", leafPort, strconv.Itoa(int(input.sshPort))},
 		{"bgp", "peer", input.peer, "connection", "local", leafPort, strconv.Itoa(int(input.bgpPort))},
 		{"bgp", "peer", input.peer, "connection", "remote", leafPort, strconv.Itoa(int(input.bgpPort))},
-		{"system", "dns", "resolv-conf-path", filepath.Join(dir, "resolv.conf")},
 	}
 	for _, update := range updates {
 		argv := append([]string{binary, "config", "set", path}, update...)
@@ -217,12 +221,44 @@ func prepareQuickstart(ctx context.Context, binary, repository, work string, inp
 	if code != 0 {
 		return "", fmt.Errorf("validate private %s config: exit %d: %s%s", input.name, code, stdout, stderr)
 	}
+	adapted, err := os.ReadFile(path) //nolint:gosec // path is the fixture's private configuration copy
+	if err != nil {
+		return "", err
+	}
+	if err := checkQuickstartResolverOutput(adapted); err != nil {
+		return "", fmt.Errorf("adapted %s config: %w", input.name, err)
+	}
 	return path, nil
+}
+
+// checkQuickstartResolverOutput refuses unsafe lab input before a daemon starts.
+// ParseTreeForValidation prunes inactive statements as the daemon loader does.
+func checkQuickstartResolverOutput(body []byte) error {
+	tree, err := config.ParseTreeForValidation(string(body))
+	if err != nil {
+		return err
+	}
+	missing := errors.New("the local quickstart must explicitly disable resolver file output; restore system dns resolv-conf-path \"\" in its public example before running deployment-quickstart")
+	dns := tree.GetContainerPath("system/dns")
+	if dns == nil {
+		return missing
+	}
+	path, present := dns.Get("resolv-conf-path")
+	if !present {
+		return missing
+	}
+	if path != "" {
+		return fmt.Errorf("the local quickstart enables resolver file output at %q; restore an empty system dns resolv-conf-path in its public example before running deployment-quickstart", path)
+	}
+	if output := system.ExtractSystemConfig(tree).ResolvConfPath; output != "" {
+		return fmt.Errorf("the local quickstart would write resolver output at %q despite its disabled setting; fix ExtractSystemConfig before running deployment-quickstart", output)
+	}
+	return nil
 }
 
 func startQuickstart(ctx context.Context, binary, path string, output *lockedBuffer) (*runner.ServerProcess, error) {
 	command := exec.CommandContext(ctx, binary, "start", path) //nolint:gosec // binary and configuration belong to this functional run
-	command.Env = childEnvironment(daemonEnvironment(os.Environ(), filepath.Dir(path), daemonStoreDisk), map[string]string{
+	command.Env = childEnvironment(withoutEnv(os.Environ(), runner.DUTStoreKey, envConfigDirDotted), map[string]string{
 		envReadyFile: filepath.Join(filepath.Dir(path), quickstartReadyName),
 	})
 	command.Stdout, command.Stderr = output, output
