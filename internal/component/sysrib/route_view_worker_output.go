@@ -9,10 +9,31 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-func (worker *routeViewWorker) publish(ctx context.Context, batch outgoingBatch) error {
+// publish emits one publication: every forwarding change one consumer step
+// produced, in every family. It is the worker's only route to the daemon's
+// output, so orderForwarding runs for every live, cascade, configuration and
+// replay publication alike, and no caller can hand a FIB writer a route ahead
+// of the route that makes its gateway reachable. A replayID of zero is live.
+func (worker *routeViewWorker) publish(ctx context.Context, changes map[family.Family][]outgoingChange, replayID uint64) error {
+	batches, err := orderForwarding(changes, replayID)
+	if err != nil {
+		return err
+	}
+	for _, batch := range batches {
+		if err := worker.publishBatch(ctx, batch); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// publishBatch emits one ordered family batch in acknowledged chunks, in
+// order. Only publish calls it.
+func (worker *routeViewWorker) publishBatch(ctx context.Context, batch outgoingBatch) error {
 	for start := 0; start < len(batch.Changes); start += rpc.RouteViewRecordsMax {
 		end := min(start+rpc.RouteViewRecordsMax, len(batch.Changes))
 		chunk := batch

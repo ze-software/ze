@@ -63,6 +63,22 @@ func sysribBGPMetricDriver(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
+		// The three gateway routes arrive in one publication with the device
+		// route their gateways resolve through. The kernel refuses a gateway
+		// route sent ahead of that device route, and nothing retries it, so
+		// each one is read back.
+		if err := importKernel(ctx, sysribBGPMetricTerminal, 1, "dev "+sysribBGPMetricLink+" ", "proto 250 "); err != nil {
+			return err
+		}
+		for _, route := range []struct{ prefix, gateway string }{
+			{sysribBGPMetricStatic, "10.248.0.1"},
+			{sysribBGPMetricReceived, "10.248.0.2"},
+			{sysribBGPMetricMissing, "10.248.0.3"},
+		} {
+			if err := importKernel(ctx, route.prefix, 1, "via "+route.gateway+" ", "dev "+sysribBGPMetricLink+" ", "proto 250 "); err != nil {
+				return err
+			}
+		}
 		// Each subject is offered once per peer. No subsequent topology step
 		// reinjects these routes: both real RIB placements must reselect them.
 		for _, offer := range []struct{ prefix, peer, hop string }{

@@ -255,18 +255,18 @@ func (worker *routeViewWorker) apply(ctx context.Context, changes []routeViewSel
 	for fam, entries := range worker.client.rib.cascadeChanges(affected) {
 		batches[fam] = append(batches[fam], entries...)
 	}
-	for fam, entries := range batches {
-		if worker.pending != nil {
+	if worker.pending != nil {
+		for fam, entries := range batches {
 			worker.collect(fam, entries)
-			continue
 		}
-		if err := worker.publish(ctx, outgoingBatch{Family: fam, Changes: entries}); err != nil {
-			return err
-		}
+		return nil
 	}
-	if worker.pending == nil {
-		worker.client.health.markSynchronized()
+	// The selected changes and their cascade are one publication, so a
+	// dependent and the cover it resolves through are ordered together.
+	if err := worker.publish(ctx, batches, 0); err != nil {
+		return err
 	}
+	worker.client.health.markSynchronized()
 	return nil
 }
 
@@ -333,10 +333,8 @@ func (worker *routeViewWorker) replay(ctx context.Context) error {
 		}
 	}
 	for _, request := range requests {
-		for _, batch := range worker.client.rib.replayBatches(&replay.Request{ReplayID: request.identity}) {
-			if err := worker.publish(ctx, batch); err != nil {
-				return err
-			}
+		if err := worker.publish(ctx, worker.client.rib.replayChanges(), request.identity); err != nil {
+			return err
 		}
 		worker.client.mu.Lock()
 		if worker.client.replays[request.identity] == request.revision {

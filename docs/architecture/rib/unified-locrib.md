@@ -374,9 +374,12 @@ scan or paging are reread from the authority; corrections remain snapshot
 upserts or tombstones before completion. An older buffered add therefore cannot
 restore a withdrawn prefix. Each record advances the independent cursor once,
 and snapshot completion advances it once more, including an empty snapshot.
+Records keep the order their changes were captured in, and a prefix captured
+twice keeps its first position, so a delta page's order never comes from a map.
 Idle delta reads retain their cursor. A distance application takes its barrier
 after authoritative reselection; the metric revision is never a feed cursor.
-<!-- source: internal/component/sysrib/route_view_feed.go -- snapshotPage, synchronize, deltaPage -->
+<!-- source: internal/component/sysrib/route_view_feed.go -- snapshotPage, takeDirty, synchronize, deltaPage -->
+<!-- test: internal/component/sysrib/route_view_feed_order_test.go -- TestRouteViewDeltaKeepsCaptureOrder -->
 
 Only one current selected-table snapshot is pinned, proportional to the
 authority's selected prefixes and metadata, with a two-minute lifetime and no
@@ -494,7 +497,28 @@ awaits the daemon acknowledgment for each ordered batch. Internal placement
 requires the native value operation; external placement encodes the existing
 batch once. Batches have at most 4096 records and oversized frames split in
 bounded halves, preserving all metadata or refusing an oversized single route.
-<!-- source: internal/component/sysrib/route_view_worker_output.go -- publish, publishChunk -->
+<!-- source: internal/component/sysrib/route_view_worker_output.go -- publish, publishBatch, publishChunk -->
+
+**A publication reaches the FIB writer in an order it can apply.** The writer
+installs each entry as it reads it, and Linux refuses a route whose gateway no
+installed route reaches with ENETUNREACH. One consumer step is one
+publication: the selected changes with their cascade, a configuration flush,
+or a replay. Before it splits into family batches, `publish` places every Add
+or Update after each Add or Update in the same publication that reaches one of
+its gateways: a route with no gateway on any member, whose prefix contains the
+gateway. Sysrib programs the resolved gateway, so a recursive chain follows its
+device route. An on-link gateway and a provider outside the publication add no
+constraint. A withdrawal never moves, because the kernel deletes a cover and
+its dependent in either order. Entries for one prefix keep their order.
+Families go out in AFI then SAFI order, and a dependency across families
+splits the run. A publication with nothing to move keeps its storage. One that
+no order can apply is refused, which fails the worker and reports
+`doctor-rib-routing-view-unavailable`.
+<!-- source: internal/component/sysrib/forwarding_order.go -- orderForwarding, forwardingProvides, forwardingTopological -->
+<!-- test: internal/component/sysrib/route_view_publication_order_test.go -- TestRouteViewSelectedPublishesCoverFirst -->
+<!-- test: internal/component/sysrib/route_view_publication_order_test.go -- TestRouteViewLocalPublishesCoverFirst -->
+<!-- test: internal/plugins/fib/kernel/gateway_order_integration_linux_test.go -- TestFIBKernelRefusesDependentBeforeCover -->
+<!-- test: internal/plugins/fib/kernel/gateway_order_integration_linux_test.go -- TestFIBKernelDeletesCoverBeforeDependent -->
 
 A selected page can be admitted before the daemon fences its lease, then reach
 the consumer before an obsolete publication is refused. The publisher probes

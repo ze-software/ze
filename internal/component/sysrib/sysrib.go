@@ -1033,9 +1033,27 @@ func (s *sysRIB) replayBest(req *replay.Request) {
 	logger().Info("sysrib: replay published", "families", len(batches))
 }
 
-// replayBatches renders the same programmed state as live forwarding. Its
-// caller MUST publish through the active generation's acknowledged sink.
+// replayBatches renders the same programmed state as live forwarding, one
+// batch per family in no particular order. Only the in-process event-bus
+// replay and tests read it; the routing-view worker publishes replayChanges,
+// which its publish orders.
 func (s *sysRIB) replayBatches(req *replay.Request) []outgoingBatch {
+	changesByFamily := s.replayChanges()
+	batches := make([]outgoingBatch, 0, len(changesByFamily))
+	for famName, changes := range changesByFamily {
+		batches = append(batches, outgoingBatch{
+			Family:   famName,
+			ReplayID: req.ReplayID,
+			Changes:  changes,
+		})
+	}
+	return batches
+}
+
+// replayChanges renders the same programmed state as live forwarding, keyed by
+// family. Its caller MUST publish through the active generation's
+// acknowledged sink.
+func (s *sysRIB) replayChanges() map[family.Family][]outgoingChange {
 	s.mu.RLock()
 	changesByFamily := make(map[family.Family][]outgoingChange)
 	for key, route := range s.best {
@@ -1063,16 +1081,7 @@ func (s *sysRIB) replayBatches(req *replay.Request) []outgoingBatch {
 		changesByFamily[key.family] = append(changesByFamily[key.family], entry)
 	}
 	s.mu.RUnlock()
-
-	batches := make([]outgoingBatch, 0, len(changesByFamily))
-	for famName, changes := range changesByFamily {
-		batches = append(batches, outgoingBatch{
-			Family:   famName,
-			ReplayID: req.ReplayID,
-			Changes:  changes,
-		})
-	}
-	return batches
+	return changesByFamily
 }
 
 // showNHTable returns the NH resolver tracking table as JSON.

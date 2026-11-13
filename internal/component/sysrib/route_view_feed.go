@@ -78,16 +78,16 @@ func (session *routeViewSession) scanSnapshot(ctx context.Context, scan func(con
 		if len(keys) == 0 {
 			break
 		}
-		for key := range keys {
-			entry, err := routeViewInspect(session.rib, key)
+		for _, dirty := range keys {
+			entry, err := routeViewInspect(session.rib, dirty.key)
 			if err != nil {
 				return err
 			}
 			if entry.Action == rpc.RouteViewActionWithdraw {
-				delete(selected, key)
+				delete(selected, dirty.key)
 				continue
 			}
-			selected[key] = entry
+			selected[dirty.key] = entry
 		}
 	}
 	keys := make([]overflowKey, 0, len(selected))
@@ -108,15 +108,26 @@ func (session *routeViewSession) scanSnapshot(ctx context.Context, scan func(con
 	return nil
 }
 
-func (session *routeViewSession) takeDirty() map[overflowKey]time.Time {
-	keys := make(map[overflowKey]time.Time)
+// takeDirty drains the capture in arrival order. A key captured twice keeps
+// its first position and its first capture time, the age the journal bound
+// reads. This is the journal's record order and so a delta page's order: it
+// never comes from a map, so two reads of the same mutations page alike.
+func (session *routeViewSession) takeDirty() []routeViewDirty {
 	// The bounded initial depth is the barrier: new captures may remain for the
 	// next batch, while every mutation captured before this call is included.
-	for range len(session.capture) {
+	depth := len(session.capture)
+	if depth == 0 {
+		return nil
+	}
+	keys := make([]routeViewDirty, 0, depth)
+	seen := make(map[overflowKey]struct{}, depth)
+	for range depth {
 		dirty := <-session.capture
-		if _, exists := keys[dirty.key]; !exists {
-			keys[dirty.key] = dirty.since
+		if _, exists := seen[dirty.key]; exists {
+			continue
 		}
+		seen[dirty.key] = struct{}{}
+		keys = append(keys, dirty)
 	}
 	return keys
 }
@@ -148,7 +159,8 @@ func (session *routeViewSession) synchronize(ctx context.Context) (uint64, error
 	if session.beforeReconcile != nil {
 		session.beforeReconcile()
 	}
-	for key, since := range keys {
+	for _, dirty := range keys {
+		key, since := dirty.key, dirty.since
 		if err := session.checkRequest(ctx); err != nil {
 			reason := routeViewStopped(err, session.owner)
 			if fenceErr := session.invalidate(reason); fenceErr != nil {

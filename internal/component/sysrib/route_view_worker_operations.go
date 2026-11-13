@@ -372,10 +372,5 @@ func (worker *routeViewWorker) flush(ctx context.Context) error {
 	for key, entry := range worker.pending {
 		batches[key.family] = append(batches[key.family], entry)
 	}
-	for fam, entries := range batches {
-		if err := worker.publish(ctx, outgoingBatch{Family: fam, Changes: entries}); err != nil {
-			return err
-		}
-	}
-	return nil
+	return worker.publish(ctx, batches, 0)
 }
