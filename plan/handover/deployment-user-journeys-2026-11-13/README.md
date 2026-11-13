@@ -56,11 +56,37 @@ unit fixture shared with the runner, fixed at both ends:
 - `8793b59939`: the live configuration is compared answer against answer, and
   the two driver refusals must fail for their own printed cause.
 
-Limit of that evidence: the server's checkout was at `f95746bc27` with other
-sessions' uncommitted files, and the runner fixes were applied there as a
-patch. The proven host driver and image are that tree's, not a clean commit's.
-A run from the release source is owed with the preview artifacts, and arm64
-has not been run.
+It then passed a third time from a real commit, after the owner pulled the
+server to `990f785bca`: tree clean when the run started, host driver
+`0973af0618ed`, image `5a5a86c2d672`. Other sessions' uncommitted files
+appeared in that checkout before the run ended, so "clean at the start" is the
+honest claim. arm64 has not been run.
+
+**The FRR topology is proven** (remaining item 2, first half). Scenario
+`bgp-ospf-redistribute-default-frr` passes on that commit in three minutes.
+With the redistribution consumer's one call put back to the old explicit next
+hop it fails at the assertion that waits for FRR to accept the route, Ze
+logging that it withholds a route whose next hop is the peer's own address.
+The file was restored byte-exact.
+
+**The netlab topology is proven, after a template fix** (remaining item 2,
+second half). On the committed render three of six sourced pings passed: a
+node passed on only its own prefixes, because the render attached `bgp-rib`
+alone, which stores and elects and forwards nothing. `ef1a3cf33d` attaches
+`bgp-rs` and `bgp-adj-rib-in` and sets `next-hop self` toward external peers.
+All six pings then pass at the first attempt, the render check passes against
+goldens regenerated with netlab 26.10, and the golden-booting `.ci` passes.
+
+Two things from that work are the owner's to rule on, and neither is recorded
+as a decision yet:
+
+- Ze's default leaves a forwarded route's next hop unchanged toward an
+  external peer, against the YANG text and RFC 4271 Section 5.1.3. An existing
+  skeleton, `spec-bgp-next-hop-auto-rewrites-for-ebgp`, owns it.
+- Plain transit works only through `bgp-rs`, which forwards every received
+  UPDATE. No component advertises the elected best path, and a prefix that
+  both `bgp-rs` and redistribution send to one peer has no arbiter. Traced by
+  a read of the code, not reproduced as a failure.
 
 Not done, and why:
 
