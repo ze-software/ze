@@ -287,8 +287,11 @@ limited `ip` applet. Runtime proof still runs the kernel fixtures through
 On macOS, `./le setup docker host start` builds the host arch's image when
 needed and boots it as the Colima profile `ze`:
 `colima start --profile ze --vm-type vz --arch <aarch64|x86_64> --runtime docker
---disk-image <image> --force-disk-image --mount-type virtiofs --cpus 4
---memory 8 --activate=false`, plus `--vz-rosetta` on arm64. Every `start` that
+--disk-image <image> --force-disk-image --root-disk <image size>
+--mount-type virtiofs --cpus 4 --memory 8 --activate=false`, plus
+`--vz-rosetta` on arm64. `--root-disk` is the image's own size: Colima resizes
+the instance disk to that setting, 20 GiB when unnamed, and refuses to shrink,
+so an image larger than 20 GiB would never start. Every `start` that
 succeeds, the one that finds the profile already running its image included,
 then runs `docker context use colima-ze`, so a plain `docker` in the operator's
 shell reaches the ze VM, and reports the context as `context` in its JSON.

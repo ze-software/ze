@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	labhost "github.com/ze-software/ze/internal/le/dockerhost"
@@ -42,7 +43,9 @@ func colimaArgv(verb string, options ...string) []string {
 // where no colima command runs, so one place owns the switch and its error.
 // Colima still creates the `colima-ze` context while it provisions the
 // runtime, activate or not. `--force-disk-image` is needed because Colima
-// accepts only its own Ubuntu disk images without it.
+// accepts only its own Ubuntu disk images without it. `--root-disk` names the
+// image's own size: Colima resizes the instance disk to that setting, 20 GiB
+// when it is not named, and refuses to shrink, so a larger image never starts.
 func colimaStartArgv(image, arch string) []string {
 	options := []string{
 		"--vm-type", "vz",
@@ -50,6 +53,7 @@ func colimaStartArgv(image, arch string) []string {
 		"--runtime", dockerCLI,
 		"--disk-image", image,
 		"--force-disk-image",
+		"--root-disk", strconv.Itoa(imageSizeGiBDefault),
 		"--mount-type", "virtiofs",
 		"--cpus", "4",
 		"--memory", "8",

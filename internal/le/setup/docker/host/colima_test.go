@@ -110,7 +110,10 @@ func TestDockerHostStartRecreatesProfileOnNewImage(t *testing.T) {
 		t.Errorf("delete argv %v lacks --force", deleteArgv)
 	}
 	start := strings.Join(startArgv, " ")
-	for _, want := range []string{"--disk-image /cache/k2/docker-host.img", "--force-disk-image", "--vm-type vz", "--arch aarch64", "--runtime docker", "--vz-rosetta", "--activate=false"} {
+	// Colima resizes the instance disk to its root-disk setting, 20 GiB when
+	// unnamed, and refuses to shrink: an image larger than that never starts.
+	rootDisk := "--root-disk " + strconv.Itoa(imageSizeGiBDefault)
+	for _, want := range []string{"--disk-image /cache/k2/docker-host.img", "--force-disk-image", "--vm-type vz", "--arch aarch64", "--runtime docker", "--vz-rosetta", "--activate=false", rootDisk} {
 		if !strings.Contains(start, want) {
 			t.Errorf("start argv %q lacks %q", start, want)
 		}
