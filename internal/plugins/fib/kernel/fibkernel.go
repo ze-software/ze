@@ -187,7 +187,7 @@ type fibKernel struct {
 	// failure time. Used for fib-programming-lag detection (AC-14).
 	pending map[string]time.Time
 	backend routeBackend
-	stopped bool
+	stopped atomic.Bool
 	mu      sync.RWMutex
 }
 
@@ -305,7 +305,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.stopped {
+	if f.stopped.Load() {
 		return
 	}
 
@@ -313,6 +313,9 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 	rb := f.asRichBackend()
 
 	for i := range batch.Changes {
+		if f.stopped.Load() {
+			return
+		}
 		c := &batch.Changes[i]
 		if !c.Prefix.IsValid() {
 			logger().Warn("fib-kernel: skipping change with empty prefix")
@@ -321,7 +324,15 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 		pfx := c.Prefix.String()
 		switch c.Action.Verb() {
 		case routeaction.VerbInstall:
-			if err := f.addChange(c, pfx, rb); err != nil {
+			var err error
+			handled := false
+			if batch.ReplayID > 0 {
+				handled, err = f.tryReplay(c, pfx)
+			}
+			if !handled {
+				err = f.addChange(c, pfx, rb)
+			}
+			if err != nil {
 				logger().Error("fib-kernel: add route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
 					m.errors.With("add").Inc()
@@ -550,11 +561,13 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool, ready chan<- erro
 
 	logger().Info("fib-kernel: running")
 	<-ctx.Done()
+	f.beginStop()
 
 	// Wait for monitor to exit before closing backend.
 	monitorDone.Wait()
+	// Join the backend operation admitted before beginStop, including when
+	// flush-on-stop retains forwarding state instead of taking this lock again.
 	f.mu.Lock()
-	f.stopped = true
 	f.mu.Unlock()
 
 	if flushOnStop {

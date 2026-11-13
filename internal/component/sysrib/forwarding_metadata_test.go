@@ -52,7 +52,7 @@ func TestRecursiveCrossFamilyGroupReachesFIB(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	gateway := netip.MustParseAddr("fe80::2")
 	for index, cover := range []string{"192.0.2.1/32", "192.0.2.2/32"} {
 		path := recursivePath(gateway, 10)
@@ -61,7 +61,7 @@ func TestRecursiveCrossFamilyGroupReachesFIB(t *testing.T) {
 		loc.Insert(family.IPv4Unicast, netip.MustParsePrefix(cover), path)
 	}
 	prefix := netip.MustParsePrefix("198.51.100.0/24")
-	_, changes := s.processEvent(fromLocRIBBatch("static", family.IPv4Unicast, &incomingChange{
+	_, changes := s.offerCandidates(candidateBatch("static", family.IPv4Unicast, &incomingChange{
 		Action: routeaction.Add, Prefix: prefix, NextHop: netip.MustParseAddr("192.0.2.1"),
 		Weight: 3, Metric: 77,
 		ECMPNextHops: []nexthop.NextHop{{Addr: netip.MustParseAddr("192.0.2.2"), Weight: 2}},
@@ -98,7 +98,7 @@ func TestECMPRecursiveMemberLifecycle(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	prefix := netip.MustParsePrefix("198.51.100.0/24")
 	cover := netip.MustParsePrefix("2001:db8::/64")
 	gateway := netip.MustParseAddr("192.0.2.2")
@@ -106,7 +106,7 @@ func TestECMPRecursiveMemberLifecycle(t *testing.T) {
 	terminal := connectedPath(0)
 	terminal.Interface = "eth1"
 	loc.Insert(family.IPv6Unicast, cover, terminal)
-	_, changes := s.processEvent(fromLocRIBBatch("static", family.IPv4Unicast, &incomingChange{
+	_, changes := s.offerCandidates(candidateBatch("static", family.IPv4Unicast, &incomingChange{
 		Action: routeaction.Add, Prefix: prefix, Interface: "eth0",
 		ECMPNextHops: []nexthop.NextHop{{Addr: gateway, Weight: 3}},
 	}))
@@ -155,17 +155,17 @@ func TestLocRIBServiceSIDLifecycle(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	prefix := netip.MustParsePrefix("198.51.100.0/24")
 	cover := netip.MustParsePrefix("2001:db8::/64")
 	path := connectedPath(0)
 	path.Interface = "eth0"
 	path.SRv6SID = netip.MustParseAddr("2001:db8::1234")
-	var change locrib.Change
-	unsubscribe := loc.OnChange(func(c locrib.Change) { change = c })
-	defer unsubscribe()
 	loc.Insert(family.IPv4Unicast, prefix, path)
-	s.processLocRIBChange(&change)
+	selected := s.forwardSelected(map[prefixKey]struct{}{{family: family.IPv4Unicast, prefix: prefix}: {}})
+	for fam, changes := range selected {
+		publishChanges(changes, fam)
+	}
 	if got := publishedChanges(t, bus); len(got) != 0 {
 		t.Fatalf("unreachable SID installed: %+v", got)
 	}
@@ -197,12 +197,12 @@ func TestCascadeKeepsLostPathWithdrawn(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	cover := netip.MustParsePrefix("192.0.2.0/24")
 	gateway := netip.MustParseAddr("192.0.2.1")
 	prefix := netip.MustParsePrefix("198.51.100.0/24")
 	loc.Insert(family.IPv4Unicast, cover, connectedPath(0))
-	_, initial := s.processEvent(fromLocRIBBatch("static", family.IPv4Unicast, &incomingChange{
+	_, initial := s.offerCandidates(candidateBatch("static", family.IPv4Unicast, &incomingChange{
 		Action: routeaction.Add, Prefix: prefix, NextHop: gateway,
 	}))
 	if len(initial) != 1 || initial[0].Action != routeaction.Add {

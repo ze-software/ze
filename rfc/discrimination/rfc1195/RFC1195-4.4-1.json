@@ -8,7 +8,7 @@
     "route": "mutant",
     "producer": "internal/component/sysrib/sysrib.go::resolveMember",
     "producer-sha": "f952d0dbe8cf8f63",
-    "break": "line 1190: \"if path.OnLink {\" -\u003e \"if false \u0026\u0026 path.OnLink {\""
+    "break": "line 931: \"if path.OnLink {\" -\u003e \"if false \u0026\u0026 path.OnLink {\""
   },
   {
     "rid": "RFC1195-4.4-1",
@@ -19,7 +19,7 @@
     "route": "mutant",
     "producer": "internal/component/sysrib/sysrib.go::resolveMember",
     "producer-sha": "f952d0dbe8cf8f63",
-    "break": "line 1190: \"if path.OnLink {\" -\u003e \"if false \u0026\u0026 path.OnLink {\""
+    "break": "line 931: \"if path.OnLink {\" -\u003e \"if false \u0026\u0026 path.OnLink {\""
   },
   {
     "rid": "RFC1195-4.4-1",

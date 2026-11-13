@@ -2,7 +2,6 @@ package sysrib
 
 import (
 	"context"
-	"net"
 	"net/netip"
 	"slices"
 	"sync"
@@ -91,13 +90,13 @@ func TestSysRIBSelectByPriority(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	// eBGP route arrives with priority 20.
 	payload := makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
 	})
-	fam, changes := s.processEvent(payload)
+	fam, changes := s.offerCandidates(payload)
 	assert.Equal(t, family.IPv4Unicast, fam)
 
 	require.Len(t, changes, 1)
@@ -114,15 +113,15 @@ func TestSysRIBStaticWinsOverBGP(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	// BGP route first.
-	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
 	}))
 
 	// Static route arrives with lower priority (wins).
-	_, changes := s.processEvent(makePayload("static", family.IPv4Unicast, []incomingChange{
+	_, changes := s.offerCandidates(makePayload("static", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 10},
 	}))
 
@@ -139,18 +138,18 @@ func TestSysRIBFallback(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	// Install both routes.
-	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
 	}))
-	s.processEvent(makePayload("static", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("static", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 10},
 	}))
 
 	// Withdraw static.
-	_, changes := s.processEvent(makePayload("static", family.IPv4Unicast, []incomingChange{
+	_, changes := s.offerCandidates(makePayload("static", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Withdraw, Prefix: netip.MustParsePrefix("10.0.0.0/24")},
 	}))
 
@@ -167,14 +166,14 @@ func TestSysRIBWithdrawAll(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	// Install and then withdraw using IPv6 family.
-	s.processEvent(makePayload("bgp", family.IPv6Unicast, []incomingChange{
+	s.offerCandidates(makePayload("bgp", family.IPv6Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("2001:db8::/32"), NextHop: netip.MustParseAddr("fe80::1"), Priority: 20},
 	}))
 
-	_, changes := s.processEvent(makePayload("bgp", family.IPv6Unicast, []incomingChange{
+	_, changes := s.offerCandidates(makePayload("bgp", family.IPv6Unicast, []incomingChange{
 		{Action: routeaction.Withdraw, Prefix: netip.MustParsePrefix("2001:db8::/32")},
 	}))
 
@@ -188,14 +187,14 @@ func TestSysRIBWithdrawAll(t *testing.T) {
 // PREVENTS: Session teardown leaving stale FIB routes when the last BGP path
 // disappears from the shared Loc-RIB.
 func TestSysRIBWithdrawAllWithoutProtocol(t *testing.T) {
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	pfx := netip.MustParsePrefix("10.0.0.0/24")
 
-	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: pfx, NextHop: netip.MustParseAddr("192.0.2.1"), Priority: 20},
 	}))
 
-	_, changes := s.processEvent(makePayload("", family.IPv4Unicast, []incomingChange{
+	_, changes := s.offerCandidates(makePayload("", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Withdraw, Prefix: pfx},
 	}))
 
@@ -210,12 +209,12 @@ func TestSysRIBPublishChange(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	payload := makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
 	})
-	_, changes := s.processEvent(payload)
+	_, changes := s.offerCandidates(payload)
 	require.Len(t, changes, 1)
 
 	publishChanges(changes, family.IPv4Unicast)
@@ -234,10 +233,9 @@ func TestSysRIBPublishChange(t *testing.T) {
 	assert.Equal(t, "bgp", batch.Changes[0].Protocol)
 }
 
-// TestBroadcastReplayCharacterization pins A-1/AC-2: sysrib's consumer path
-// (processEvent) treats a replay-marked incoming batch identically to an
-// incremental one. The replay marker is not read on the consumer side, so
-// swapping the Replay bool for a token-derived marker cannot change behavior.
+// TestBroadcastReplayCharacterization pins A-1/AC-2: the current replay producer
+// retains the useful live entry for the same authority-selected candidate and
+// echoes the requested broadcast token.
 func TestBroadcastReplayCharacterization(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
@@ -251,16 +249,21 @@ func TestBroadcastReplayCharacterization(t *testing.T) {
 	}}
 
 	// Incremental incoming batch (token 0).
-	sInc := newSysRIB()
-	famInc, changesInc := sInc.processEvent(makePayload("bgp", family.IPv4Unicast, entry))
+	sInc := newCandidateForwardingFixture(t, fixtureRouteOverride)
+	famInc, changesInc := sInc.offerCandidates(makePayload("bgp", family.IPv4Unicast, entry))
 
 	// Same batch, marked as a full-table replay (broadcast token). A fresh
 	// sysrib so no state carries over from the incremental case.
-	sRep := newSysRIB()
+	sRep := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	repBatch := makePayload("bgp", family.IPv4Unicast, entry)
 	repBatch.ReplayID = replay.Broadcast
 	require.True(t, repBatch.IsReplay(), "batch must report as a replay")
-	famRep, changesRep := sRep.processEvent(repBatch)
+	sRep.offerCandidates(repBatch)
+	replayed := sRep.replayBatches(&replay.Request{ReplayID: repBatch.ReplayID})
+	require.Len(t, replayed, 1)
+	require.Len(t, replayed[0].Changes, 1)
+	require.Equal(t, repBatch.ReplayID, replayed[0].ReplayID)
+	famRep, changesRep := replayed[0].Family, replayed[0].Changes
 
 	assert.Equal(t, famInc, famRep, "family must not depend on the replay marker")
 	assert.Equal(t, changesInc, changesRep, "consumer output must be identical for replay vs incremental")
@@ -269,16 +272,16 @@ func TestBroadcastReplayCharacterization(t *testing.T) {
 // VALIDATES: AC-4 -- No change event when same route is re-announced.
 // PREVENTS: Spurious system RIB events.
 func TestSysRIBNoChangeOnSameRoute(t *testing.T) {
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	payload := makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
 	})
-	_, changes1 := s.processEvent(payload)
+	_, changes1 := s.offerCandidates(payload)
 	require.Len(t, changes1, 1)
 
 	// Same route again (update with identical data).
-	_, changes2 := s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
+	_, changes2 := s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Update, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
 	}))
 	assert.Empty(t, changes2, "no change when same route is re-announced")
@@ -288,10 +291,10 @@ func TestSysRIBNoChangeOnSameRoute(t *testing.T) {
 // sysrib stores route with priority 30, not the incoming 20.
 // PREVENTS: Configured admin distance not overriding incoming priority.
 func TestSysRIBAdminDistanceOverride(t *testing.T) {
-	s := newSysRIB()
-	s.adminDist = map[string]int{"ebgp": 30, "ibgp": 200}
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
+	s.acknowledgeDistances(map[string]int{"ebgp": 30, "ibgp": 200})
 
-	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: routeaction.ProtocolEBGP},
 	}))
 
@@ -308,12 +311,12 @@ func TestSysRIBAdminDistanceOverride(t *testing.T) {
 // sysrib uses default 20 from YANG default.
 // PREVENTS: Default admin distances not being applied.
 func TestSysRIBDefaultAdminDistance(t *testing.T) {
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
 	// Simulate YANG defaults: when rib { distance { } } is present
 	// but no leaves are overridden, YANG defaults apply.
-	s.adminDist = map[string]int{"connected": 0, "static": 10, "ebgp": 20, "ospf": 110, "isis": 115, "ibgp": 200}
+	s.acknowledgeDistances(map[string]int{"connected": 0, "static": 10, "ebgp": 20, "ospf": 110, "isis": 115, "ibgp": 200})
 
-	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: routeaction.ProtocolEBGP},
 	}))
 
@@ -330,10 +333,10 @@ func TestSysRIBDefaultAdminDistance(t *testing.T) {
 // sysrib stores route with priority 150.
 // PREVENTS: iBGP admin distance override not working.
 func TestSysRIBAdminDistanceOverrideIBGP(t *testing.T) {
-	s := newSysRIB()
-	s.adminDist = map[string]int{"ebgp": 20, "ibgp": 150}
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
+	s.acknowledgeDistances(map[string]int{"ebgp": 20, "ibgp": 150})
 
-	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 200, ProtocolType: routeaction.ProtocolIBGP},
 	}))
 
@@ -350,16 +353,16 @@ func TestSysRIBAdminDistanceOverrideIBGP(t *testing.T) {
 // Lowest distance wins (static, 10 < 30).
 // PREVENTS: Cross-protocol selection not using configured distances.
 func TestSysRIBCrossProtocolSelection(t *testing.T) {
-	s := newSysRIB()
-	s.adminDist = map[string]int{"ebgp": 30, "static": 10}
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
+	s.acknowledgeDistances(map[string]int{"ebgp": 30, "static": 10})
 
 	// eBGP route with configured distance 30.
-	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: routeaction.ProtocolEBGP},
 	}))
 
 	// Static route with configured distance 10.
-	s.processEvent(makePayload("static", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("static", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 10, ProtocolType: routeaction.ProtocolUnspecified},
 	}))
 
@@ -377,10 +380,10 @@ func TestSysRIBCrossProtocolSelection(t *testing.T) {
 // sysrib uses incoming priority as-is (no override).
 // PREVENTS: Unknown protocols being incorrectly overridden.
 func TestSysRIBUnknownProtocolNoOverride(t *testing.T) {
-	s := newSysRIB()
-	s.adminDist = map[string]int{"ebgp": 30, "ibgp": 150}
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
+	s.acknowledgeDistances(map[string]int{"ebgp": 30, "ibgp": 150})
 
-	s.processEvent(makePayload("ospf", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("ospf", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 110, ProtocolType: routeaction.ProtocolUnspecified},
 	}))
 
@@ -394,13 +397,13 @@ func TestSysRIBUnknownProtocolNoOverride(t *testing.T) {
 }
 
 // VALIDATES: AC-9 -- sysrib receives no sysrib config (no sysrib {} block).
-// sysrib uses incoming priority as-is for all protocols (empty override map).
+// The acknowledged complete defaults remain effective with no rib block.
 // PREVENTS: No-config case incorrectly overriding priorities.
 func TestSysRIBNoConfigPassthrough(t *testing.T) {
-	s := newSysRIB()
-	// No adminDist set -- simulates no sysrib {} config block.
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
+	// The fixture acknowledges the same defaults used for an absent rib block.
 
-	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: routeaction.ProtocolEBGP},
 	}))
 
@@ -420,14 +423,14 @@ func TestSysRIBAdminDistanceReload(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
-	s.adminDist = map[string]int{"ebgp": 20, "static": 10}
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
+	s.acknowledgeDistances(map[string]int{"ebgp": 20, "static": 10})
 
 	// Install eBGP route (distance 20) and static route (distance 10).
-	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: routeaction.ProtocolEBGP},
 	}))
-	s.processEvent(makePayload("static", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("static", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 10, ProtocolType: routeaction.ProtocolUnspecified},
 	}))
 
@@ -440,11 +443,7 @@ func TestSysRIBAdminDistanceReload(t *testing.T) {
 	assert.Equal(t, "static", best.protocol, "before reload: static should win")
 
 	// Reload: change ebgp distance to 5 (lower than static 10).
-	s.mu.Lock()
-	s.adminDist = map[string]int{"ebgp": 5, "static": 10}
-	s.mu.Unlock()
-
-	changes := s.reapplyAdminDistances()
+	changes := s.acknowledgeDistances(map[string]int{"ebgp": 5, "static": 10})
 
 	// eBGP now wins (5 < 10).
 	s.mu.RLock()
@@ -461,25 +460,29 @@ func TestSysRIBAdminDistanceReload(t *testing.T) {
 	assert.Equal(t, netip.MustParseAddr("192.168.1.1"), changes[family.IPv4Unicast][0].NextHop)
 }
 
-// TestUnknownProtocolTypeIsLoggedNotZeroed covers AC-8. The two states that
-// reach the fallback are not supposed to happen, and both used to reach it in
-// silence. The route still installs at the value the protocol stamped, which is
-// the safe direction, but an operator can now see that it did.
+// TestUnknownProtocolTypeIsLoggedNotZeroed covers AC-8 through the authority's
+// documented undeclared rank. Declared sources use their accepted declaration;
+// an unnamed source without an override receives the nonzero rank255.
 func TestUnknownProtocolTypeIsLoggedNotZeroed(t *testing.T) {
-	s := newSysRIB()
-	s.adminDist = map[string]int{"ebgp": 20}
-
-	require.Equal(t, 20, s.effectivePriority("ebgp", 99),
-		"a declared protocol answers from the declaration, not from what was stamped")
-
-	require.Equal(t, 99, s.effectivePriority("no-such-protocol", 99),
-		"an undeclared protocol keeps the stamped value rather than falling to zero")
-	require.True(t, s.distanceSpoken["no-such-protocol"], "and it is reported once")
-
-	// The second call must not report again: one line per protocol, not one per
-	// route. Without this the log would carry a line for every UPDATE.
-	require.Equal(t, 99, s.effectivePriority("no-such-protocol", 99))
-	require.Len(t, s.distanceSpoken, 1, "the set holds one entry per protocol")
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
+	s.acknowledgeDistances(map[string]int{"ebgp": 20})
+	declared := netip.MustParsePrefix("198.18.253.1/32")
+	unknown := netip.MustParsePrefix("198.18.253.2/32")
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{{
+		Action: routeaction.Add, Prefix: declared, Interface: "declared", Priority: 99, ProtocolType: routeaction.ProtocolEBGP,
+	}}))
+	require.Equal(t, 20, s.best[prefixKey{family: family.IPv4Unicast, prefix: declared}].priority,
+		"a declared protocol ranks from the declaration rather than the historical stamp")
+	input := makePayload("no-such-protocol", family.IPv4Unicast, []incomingChange{{
+		Action: routeaction.Add, Prefix: unknown, Interface: "unknown", Priority: 99,
+	}})
+	s.offerCandidates(input)
+	require.Equal(t, int(locrib.UndeclaredDistance), s.best[prefixKey{family: family.IPv4Unicast, prefix: unknown}].priority,
+		"authority ranks an undeclared protocol at the documented nonzero fallback")
+	before := s.rib.Revision()
+	_, again := s.offerCandidates(input)
+	require.Empty(t, again, "identical undeclared candidate must not emit duplicate output")
+	require.Equal(t, before, s.rib.Revision())
 }
 
 // TestDistanceMapIsPopulatedWithoutAConfigBlock covers AC-1 of
@@ -585,30 +588,17 @@ func TestParseAdminDistanceConfig(t *testing.T) {
 // VALIDATES: AC-8 - sysrib config change: admin distance updated via journal, rollback restores.
 // PREVENTS: Admin distance change without rollback capability.
 func TestSysribApplyJournal(t *testing.T) {
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
 
-	// Set initial admin distance.
-	s.mu.Lock()
-	s.adminDist = map[string]int{"ebgp": 20, "ibgp": 200}
-	s.mu.Unlock()
-
-	// Add a route so reapplyAdminDistances has something to work with.
-	s.mu.Lock()
+	s.acknowledgeDistances(map[string]int{"ebgp": 20, "ibgp": 200})
 	key := prefixKey{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}
-	s.routes[key] = map[string]*protocolRoute{
-		"bgp": {
-			protocol:         "bgp",
-			protocolType:     "ebgp",
-			nextHop:          netip.MustParseAddr("192.0.2.1"),
-			priority:         20,
-			incomingPriority: 20,
-		},
-	}
-	s.best[key] = s.routes[key]["bgp"]
-	s.mu.Unlock()
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{{
+		Action: routeaction.Add, Prefix: key.prefix, NextHop: netip.MustParseAddr("192.0.2.1"),
+		Priority: 20, ProtocolType: routeaction.ProtocolEBGP,
+	}}))
 
 	// Apply new admin distance via journal.
 	newDist := map[string]int{"ebgp": 30, "ibgp": 150}
@@ -617,17 +607,11 @@ func TestSysribApplyJournal(t *testing.T) {
 	j := &testJournal{}
 	err := j.Record(
 		func() error {
-			s.mu.Lock()
-			s.adminDist = newDist
-			s.mu.Unlock()
-			s.reapplyAdminDistances()
+			s.acknowledgeDistances(newDist)
 			return nil
 		},
 		func() error {
-			s.mu.Lock()
-			s.adminDist = oldDist
-			s.mu.Unlock()
-			s.reapplyAdminDistances()
+			s.acknowledgeDistances(oldDist)
 			return nil
 		},
 	)
@@ -636,6 +620,7 @@ func TestSysribApplyJournal(t *testing.T) {
 	// Verify new distance applied.
 	s.mu.RLock()
 	assert.Equal(t, 30, s.adminDist["ebgp"], "ebgp distance should be updated")
+	assert.Equal(t, 30, s.best[key].priority, "stored candidate must be re-ranked after apply")
 	s.mu.RUnlock()
 
 	// Rollback: should restore old distances.
@@ -645,6 +630,7 @@ func TestSysribApplyJournal(t *testing.T) {
 	s.mu.RLock()
 	assert.Equal(t, 20, s.adminDist["ebgp"], "ebgp distance should be restored after rollback")
 	assert.Equal(t, 200, s.adminDist["ibgp"], "ibgp distance should be restored after rollback")
+	assert.Equal(t, 20, s.best[key].priority, "stored candidate must be re-ranked after rollback")
 	s.mu.RUnlock()
 }
 
@@ -676,9 +662,8 @@ func (j *testJournal) Discard() {
 	j.entries = nil
 }
 
-// TestSysRIBConsumesLocRIB validates Phase 3d wiring: sysrib.run()
-// subscribes to locrib.OnChange (via SetLocRIB) and translates each Change
-// into a BestChangeBatch processed by the existing arbiter.
+// TestSysRIBConsumesLocRIB drives the current SDK worker over a private real
+// authority and checks its downstream FIB publication.
 //
 // VALIDATES: Loc-RIB Insert/Remove propagates through sysrib to the
 // downstream (system-rib, best-change) event stream, with correct admin-
@@ -701,12 +686,11 @@ func TestSysRIBConsumesLocRIB(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	done := make(chan struct{})
-	go func() { s.run(ctx); close(done) }()
+	client := startCurrentSysRIB(t, ctx, loc, s, bus)
+	done := client.worker.done
 
-	// Wait for run() to have registered the OnChange callback before
-	// triggering a Loc-RIB insert. A short busy-wait is enough because the
-	// only work run() does before subscribing is a few nil-checks.
+	// The current worker is already synchronized. No route has been offered
+	// yet, so its useful initial state must have emitted no FIB entry.
 	waitFor(t, 500*time.Millisecond, func() bool {
 		_, ok := loc.Best(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"))
 		_ = ok
@@ -760,7 +744,7 @@ func TestSysRIBConsumesLocRIB(t *testing.T) {
 // membership-only update reaches sysrib and is emitted as a changed multipath
 // set even when the primary next-hop stays stable.
 //
-// VALIDATES: Loc-RIB Change.ECMP -> changeToBatch -> sysrib recomputeBest ->
+// VALIDATES: authority forwarding membership -> current local SDK worker ->
 // BestChangeEntry.ECMPPaths for OSPF-shaped one-Path-per-next-hop sources.
 // PREVENTS: OSPF/IS-IS ECMP routes installing only the first next-hop because
 // later equal-cost sibling inserts did not change the primary best Path.
@@ -780,8 +764,8 @@ func TestSysRIBConsumesLocRIBECMPMembership(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	done := make(chan struct{})
-	go func() { s.run(ctx); close(done) }()
+	client := startCurrentSysRIB(t, ctx, loc, s, bus)
+	done := client.worker.done
 
 	pfx := netip.MustParsePrefix("10.60.0.0/24")
 	nh1 := netip.MustParseAddr("192.0.2.1")
@@ -875,8 +859,8 @@ func TestSysRIBReplaysLocRIBECMPMembership(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	done := make(chan struct{})
-	go func() { s.run(ctx); close(done) }()
+	client := startCurrentSysRIB(t, ctx, loc, s, bus)
+	done := client.worker.done
 
 	waitForSysribBest(t, bus, 0, pfx, routeaction.Add, "ospf", nh1, []netip.Addr{nh2})
 
@@ -911,8 +895,8 @@ func TestSysRIBOSPFLocRIBAdminDistanceArbitration(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	done := make(chan struct{})
-	go func() { s.run(ctx); close(done) }()
+	client := startCurrentSysRIB(t, ctx, loc, s, bus)
+	done := client.worker.done
 
 	pfx := netip.MustParsePrefix("10.61.0.0/24")
 	ospfNH := netip.MustParseAddr("192.0.2.10")
@@ -1018,12 +1002,12 @@ func TestNHCascadeWithdraw(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	done := make(chan struct{})
-	go func() { s.run(ctx); close(done) }()
+	client := startCurrentSysRIB(t, ctx, loc, s, bus)
+	done := client.worker.done
 
 	coverPfx := netip.MustParsePrefix("10.0.0.0/24")
 	loc.Insert(family.IPv4Unicast, coverPfx, locrib.Path{
-		Source: connID, AdminDistance: 0, Metric: 10,
+		Source: connID, Interface: "eth9", AdminDistance: 0, Metric: 10,
 	})
 
 	bgpPfx := netip.MustParsePrefix("192.168.1.0/24")
@@ -1066,12 +1050,12 @@ func TestNHCascadeCostChange(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	done := make(chan struct{})
-	go func() { s.run(ctx); close(done) }()
+	client := startCurrentSysRIB(t, ctx, loc, s, bus)
+	done := client.worker.done
 
 	coverPfx := netip.MustParsePrefix("10.0.0.0/24")
 	loc.Insert(family.IPv4Unicast, coverPfx, locrib.Path{
-		Source: connID, AdminDistance: 0, Metric: 10,
+		Source: connID, Interface: "eth9", AdminDistance: 0, Metric: 10,
 	})
 
 	bgpPfx := netip.MustParsePrefix("192.168.1.0/24")
@@ -1087,7 +1071,7 @@ func TestNHCascadeCostChange(t *testing.T) {
 	beforeCount := countSysribEvents(bus)
 
 	loc.Insert(family.IPv4Unicast, coverPfx, locrib.Path{
-		Source: connID, AdminDistance: 0, Metric: 999,
+		Source: connID, Interface: "eth9", AdminDistance: 0, Metric: 999,
 	})
 
 	waitFor(t, time.Second, func() bool {
@@ -1117,16 +1101,16 @@ func TestECMPMemberFail(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	done := make(chan struct{})
-	go func() { s.run(ctx); close(done) }()
+	client := startCurrentSysRIB(t, ctx, loc, s, bus)
+	done := client.worker.done
 
 	cover1 := netip.MustParsePrefix("10.0.0.0/24")
 	cover2 := netip.MustParsePrefix("10.1.0.0/24")
 	loc.Insert(family.IPv4Unicast, cover1, locrib.Path{
-		Source: connID, AdminDistance: 0, Metric: 10,
+		Source: connID, Interface: "eth9", AdminDistance: 0, Metric: 10,
 	})
 	loc.Insert(family.IPv4Unicast, cover2, locrib.Path{
-		Source: connID, AdminDistance: 0, Metric: 10,
+		Source: connID, Interface: "eth9", AdminDistance: 0, Metric: 10,
 	})
 
 	waitFor(t, 500*time.Millisecond, func() bool {
@@ -1134,26 +1118,37 @@ func TestECMPMemberFail(t *testing.T) {
 	})
 
 	bgpPfx := netip.MustParsePrefix("192.168.1.0/24")
-	s.processEvent(makePayload("bgp-peer1", family.IPv4Unicast, []incomingChange{
-		{Action: routeaction.Add, Prefix: bgpPfx,
-			NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 20, Metric: 100},
-	}))
-	s.processEvent(makePayload("bgp-peer2", family.IPv4Unicast, []incomingChange{
-		{Action: routeaction.Add, Prefix: bgpPfx,
-			NextHop: netip.MustParseAddr("10.1.0.1"), Priority: 20, Metric: 100},
-	}))
+	loc.Insert(family.IPv4Unicast, bgpPfx, locrib.Path{
+		Source: redistevents.RegisterProtocol("bgp-peer1"), NextHop: netip.MustParseAddr("10.0.0.1"),
+		DistanceOverride: 20, HasDistanceOverride: true, Metric: 100,
+	})
+	loc.Insert(family.IPv4Unicast, bgpPfx, locrib.Path{
+		Source: redistevents.RegisterProtocol("bgp-peer2"), NextHop: netip.MustParseAddr("10.1.0.1"),
+		DistanceOverride: 20, HasDistanceOverride: true, Metric: 100,
+	})
+	waitFor(t, time.Second, func() bool {
+		for _, change := range publishedChanges(t, bus) {
+			if change.Prefix == bgpPfx && change.NextHop == netip.MustParseAddr("10.0.0.1") &&
+				len(change.ECMPPaths) == 1 && change.ECMPPaths[0].NextHop == netip.MustParseAddr("10.1.0.1") {
+				return true
+			}
+		}
+		return false
+	})
+	seen := len(captureSysribEvents(bus))
 
 	loc.Remove(family.IPv4Unicast, cover1, connID, 0)
 
 	waitFor(t, time.Second, func() bool {
-		for _, e := range captureSysribEvents(bus) {
+		for _, e := range captureSysribEvents(bus)[seen:] {
 			b, ok := e.Payload.(*sysribevents.BestChangeBatch)
 			if !ok {
 				continue
 			}
 			for i := range b.Changes {
 				c := &b.Changes[i]
-				if c.Prefix == bgpPfx && c.Action == routeaction.Update {
+				if c.Prefix == bgpPfx && c.Action == routeaction.Update &&
+					c.NextHop == netip.MustParseAddr("10.1.0.1") && len(c.ECMPPaths) == 0 {
 					return true
 				}
 			}
@@ -1198,12 +1193,12 @@ func TestNHCascadeRestore(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	done := make(chan struct{})
-	go func() { s.run(ctx); close(done) }()
+	client := startCurrentSysRIB(t, ctx, loc, s, bus)
+	done := client.worker.done
 
 	coverPfx := netip.MustParsePrefix("10.0.0.0/24")
 	loc.Insert(family.IPv4Unicast, coverPfx, locrib.Path{
-		Source: connID, AdminDistance: 0, Metric: 10,
+		Source: connID, Interface: "eth9", AdminDistance: 0, Metric: 10,
 	})
 
 	bgpPfx := netip.MustParsePrefix("192.168.1.0/24")
@@ -1222,7 +1217,7 @@ func TestNHCascadeRestore(t *testing.T) {
 	})
 
 	loc.Insert(family.IPv4Unicast, coverPfx, locrib.Path{
-		Source: connID, AdminDistance: 0, Metric: 10,
+		Source: connID, Interface: "eth9", AdminDistance: 0, Metric: 10,
 	})
 
 	waitFor(t, time.Second, func() bool {
@@ -1325,24 +1320,26 @@ func captureSysribEvents(bus *testEventBus) []testEvent {
 // the fallback path is reachable in normal operation rather than only before
 // configure.
 func TestEffectivePriorityResolvesEveryProtocolType(t *testing.T) {
-	dist, err := parseAdminDistanceConfig(`{}`)
+	dist, err := parseAdminDistanceConfig("{}")
 	require.NoError(t, err)
-
-	s := newSysRIB()
-	s.adminDist = dist
-
-	// The two the BGP route layer produces, via routeaction.ProtocolType.String().
-	for _, proto := range []string{"ebgp", "ibgp"} {
-		got := s.effectivePriority(proto, 999)
-		require.NotEqual(t, 999, got,
-			"%s fell through to the stamped value; the declaration does not name it", proto)
-		require.Emptyf(t, s.distanceSpoken, "%s should not have been reported", proto)
-	}
-
-	// And the four other protocols that insert into the shared Loc-RIB.
-	for _, proto := range []string{"connected", "static", "ospf", "isis"} {
-		require.NotEqual(t, 999, s.effectivePriority(proto, 999),
-			"%s is not resolved by the declaration", proto)
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
+	s.acknowledgeDistances(dist)
+	for index, protocol := range []string{"ebgp", "ibgp", "connected", "static", "ospf", "isis"} {
+		producer, class := protocol, routeaction.ProtocolUnspecified
+		if protocol == "ebgp" {
+			producer, class = "bgp", routeaction.ProtocolEBGP
+		}
+		if protocol == "ibgp" {
+			producer, class = "bgp", routeaction.ProtocolIBGP
+		}
+		prefix := netip.PrefixFrom(netip.AddrFrom4([4]byte{198, 18, 254, byte(index)}), 32)
+		s.offerCandidates(makePayload(producer, family.IPv4Unicast, []incomingChange{{
+			Action: routeaction.Add, Prefix: prefix, Interface: protocol, Priority: 999, ProtocolType: class,
+		}}))
+		got := s.best[prefixKey{family: family.IPv4Unicast, prefix: prefix}]
+		require.NotNil(t, got)
+		require.Equal(t, dist[protocol], got.priority, "%s must resolve its exact declared value", protocol)
+		require.NotEqual(t, 999, got.priority, "%s fell through to the historical stamp", protocol)
 	}
 }
 
@@ -1352,66 +1349,59 @@ func TestEffectivePriorityResolvesEveryProtocolType(t *testing.T) {
 // updated s.adminDist without the seam would move sysrib and leave every
 // producer stamping the old value.
 func TestDistanceReloadRecomputesStoredRoutes(t *testing.T) {
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
 
 	first, err := parseAdminDistanceConfig(`{"rib":{"distance":{"ebgp":30}}}`)
 	require.NoError(t, err)
-	s.adminDist = first
-	require.Equal(t, 30, s.effectivePriority("ebgp", 999))
+	s.acknowledgeDistances(first)
+	prefix := netip.MustParsePrefix("198.18.253.3/32")
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{{
+		Action: routeaction.Add, Prefix: prefix, Interface: "bgp", Priority: 999, ProtocolType: routeaction.ProtocolEBGP,
+	}}))
+	key := prefixKey{family: family.IPv4Unicast, prefix: prefix}
+	require.Equal(t, 30, s.best[key].priority)
 
 	second, err := parseAdminDistanceConfig(`{"rib":{"distance":{"ebgp":250}}}`)
 	require.NoError(t, err)
-	s.adminDist = second
-	require.Equal(t, 250, s.effectivePriority("ebgp", 999),
+	s.acknowledgeDistances(second)
+	require.Equal(t, 250, s.best[key].priority,
 		"a reload must change what subsequent routes resolve to")
 
 	// A leaf the operator REMOVED reverts to the declared default rather than
 	// lingering at its previous configured value.
 	third, err := parseAdminDistanceConfig(`{"rib":{}}`)
 	require.NoError(t, err)
-	s.adminDist = third
-	require.Equal(t, 20, s.effectivePriority("ebgp", 999),
+	s.acknowledgeDistances(third)
+	require.Equal(t, 20, s.best[key].priority,
 		"dropping the leaf returns the schema default, not the last configured value")
 }
 
 func TestDistanceRollbackRestoresThePreviousMap(t *testing.T) {
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
 
 	previous, err := parseAdminDistanceConfig(`{"rib":{"distance":{"ebgp":30}}}`)
 	require.NoError(t, err)
-	s.adminDist = previous
+	s.acknowledgeDistances(previous)
+	prefix := netip.MustParsePrefix("198.18.253.4/32")
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{{
+		Action: routeaction.Add, Prefix: prefix, Interface: "bgp", Priority: 999, ProtocolType: routeaction.ProtocolEBGP,
+	}}))
+	key := prefixKey{family: family.IPv4Unicast, prefix: prefix}
+	require.Equal(t, 30, s.best[key].priority)
 
 	candidate, err := parseAdminDistanceConfig(`{"rib":{"distance":{"ebgp":250}}}`)
 	require.NoError(t, err)
-	s.adminDist = candidate
-	require.Equal(t, 250, s.effectivePriority("ebgp", 999))
+	s.acknowledgeDistances(candidate)
+	require.Equal(t, 250, s.best[key].priority)
 
-	s.adminDist = previous
-	require.Equal(t, 30, s.effectivePriority("ebgp", 999),
+	s.acknowledgeDistances(previous)
+	require.Equal(t, 30, s.best[key].priority,
 		"rollback must restore the map the daemon was running before the failed apply")
 }
 
-// TestDeclaredDistancesApplyWithNoRibBlock covers the VALUE half of AC-1 and
-// NOT the wiring half.
-//
-// It asserts that the declaration resolves completely with no config at all,
-// which is the value runSysRIBPlugin seeds from. It does NOT reach
-// runSysRIBPlugin, publishDistances or distance.Set: deleting the seeding block
-// leaves this test green, and no test in the tree calls either symbol. A closure
-// gate faulted an earlier version of this comment for claiming it "asserts where
-// the daemon starts". It does not. Proving the daemon seeds needs a case that
-// starts one.
-//
-// A config with no `rib {` block delivers NO section: ExtractConfigSubtree
-// returns nil for an absent path, so OnConfigure never runs for this root.
-// Every previous test called parseAdminDistanceConfig directly or assigned
-// s.adminDist by hand, so all of them passed while the daemon left every
-// producer on its own constant permanently. Exactly one config in the tree
-// carries a `rib {` block.
-//
-// PREVENTS: the declaration going back to deciding nothing on an ordinary
-// configuration, which is indistinguishable from working unless the assertion
-// starts where the daemon starts.
+// TestDeclaredDistancesApplyWithNoRibBlock preserves the complete schema values
+// and proves their acknowledged authority rank against an arbitrary historical
+// stamp. The separate startup test drives the actual plugin entry point.
 func TestDeclaredDistancesApplyWithNoRibBlock(t *testing.T) {
 	// The exact call runSysRIBPlugin makes before any config arrives.
 	declared, err := parseAdminDistanceConfig("{}")
@@ -1422,13 +1412,15 @@ func TestDeclaredDistancesApplyWithNoRibBlock(t *testing.T) {
 	require.Equal(t, 0, declared["connected"])
 	require.Len(t, declared, 6, "every protocol the schema declares")
 
-	// And the fallback must NOT be reached for a map shaped like the seed, so no
-	// warning is emitted on an ordinary configuration. This builds its own
-	// sysRIB rather than observing the daemon's.
-	s := newSysRIB()
-	s.adminDist = declared
-	require.Equal(t, 20, s.effectivePriority("ebgp", 999))
-	require.Empty(t, s.distanceSpoken, "an ordinary config must produce no distance warning")
+	// Apply the complete defaults through the real authority session before
+	// offering a candidate whose historical stamp must not decide its rank.
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
+	s.acknowledgeDistances(declared)
+	prefix := netip.MustParsePrefix("198.18.253.5/32")
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{{
+		Action: routeaction.Add, Prefix: prefix, Interface: "bgp", Priority: 999, ProtocolType: routeaction.ProtocolEBGP,
+	}}))
+	require.Equal(t, 20, s.best[prefixKey{family: family.IPv4Unicast, prefix: prefix}].priority)
 }
 
 // TestPublishDistancesReachesTheSeam closes the last unproven claim in
@@ -1480,17 +1472,12 @@ func TestPublishDistancesReachesTheSeam(t *testing.T) {
 // TestRunSysRIBPluginSeedsTheDeclarationAtStart asserts the CALL SITE, which is
 // the one step of this path every other test for the feature stopped short of.
 //
-// runSysRIBPlugin seeds s.adminDist and the seam from the declaration before any
-// config can arrive, because a config with no `rib {` block delivers no section
-// at all and OnConfigure never fires for this root. Deleting that seeding block
-// left the whole suite green while every producer stamped its own constant
-// permanently: publishDistances was proven to reach the seam, and nothing proved
-// the daemon ever called it.
-//
-// METHOD: the engine end of the pipe is closed before the plugin starts, so
-// p.Run fails at stage 1 and the function returns. The seeding runs before
-// p.Run, and receiving the return code is the happens-before edge that makes the
-// seam safe to read here.
+// runSysRIBPlugin must acknowledge the complete default declaration at the
+// daemon during configure, including when no rib section is delivered. The
+// fixture drives that actual entry point through all five SDK stages over a
+// socket, using a private authority, Loc-RIB and exact process owner. The
+// configure response is the happens-before edge for reading the distance seam.
+// Cleanup closes the engine and joins the actual entry point within ten seconds.
 //
 // PREVENTS: the declaration going back to reaching no producer on an ordinary
 // configuration, a state no other test in this package can observe.
@@ -1503,19 +1490,7 @@ func TestRunSysRIBPluginSeedsTheDeclarationAtStart(t *testing.T) {
 		t.Fatal("the seam answered before the daemon started")
 	}
 
-	pluginEnd, engineEnd := net.Pipe()
-	if err := engineEnd.Close(); err != nil {
-		t.Fatalf("close the engine end of the pipe: %v", err)
-	}
-
-	done := make(chan int, 1)
-	go func() { done <- runSysRIBPlugin(pluginEnd) }()
-
-	select {
-	case <-done:
-	case <-time.After(10 * time.Second):
-		t.Fatal("runSysRIBPlugin did not return on a closed connection")
-	}
+	startRouteViewDeclaration(t)
 
 	got, ok := distance.Of("ebgp")
 	require.True(t, ok,
@@ -1525,4 +1500,7 @@ func TestRunSysRIBPluginSeedsTheDeclarationAtStart(t *testing.T) {
 	ospf, ok := distance.Of("ospf")
 	require.True(t, ok, "the whole declaration is seeded, not the one leaf a producer asks for first")
 	require.Equal(t, uint8(110), ospf)
+	if _, ok := distance.Of("no-such-protocol"); ok {
+		t.Error("an unnamed protocol was answered rather than refused")
+	}
 }

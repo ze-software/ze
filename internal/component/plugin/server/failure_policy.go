@@ -155,7 +155,7 @@ func (s *Server) applyFailurePolicy(proc *process.Process) {
 		// The restart records the stop itself when it fails. This path holds
 		// no lock, so the replacement's handshake runs as long as the daemon
 		// does (restartPluginAfterExit).
-		if err := s.restartPluginAfterExit(name); err != nil {
+		if err := s.restartPluginAfterExit(proc); err != nil {
 			logger().Error("plugin exited and could not be started again, so it stays down",
 				"plugin", name, "error", err, "code", diagnostic.CodeDoctorPluginStopped)
 		}

@@ -77,6 +77,15 @@ field yet.
 
 ## 5-Stage Startup Protocol
 
+The system RIB (`rib`) runs in either placement. An internal instance uses
+the daemon's selected Loc-RIB reader. An external instance started with
+`run "ze plugin rib"` receives a selected projection over RPC. Both run the
+same resolver and forwarding worker. Candidate commands query the full daemon
+authority, so hidden paths remain visible with either placement.
+<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
+<!-- source: internal/component/sysrib/route_view_worker.go -- consume -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- candidates -->
+
 | Stage | Direction | RPC |
 |-------|-----------|-----|
 | 1. Declaration | Plugin -> Engine | `ze-plugin-engine:declare-registration` |
@@ -188,7 +197,7 @@ recorded nothing is listed as `unknown`.
 | Plugin | Purpose |
 |--------|---------|
 | `bgp` | BGP routing daemon subsystem plugin |
-| `rib` | System RIB: selects best route across protocols by admin distance |
+| `rib` | System RIB: resolves the daemon Loc-RIB's selected routes and publishes forwarding changes; runs internally or as `ze plugin rib` |
 | `static` | Static route management: main-table routes become Loc-RIB paths ranked by administrative distance, named-table routes are programmed directly |
 | `sysctl` | Kernel sysctl tuning |
 | `memlock` | Locks the running ze executable in memory, so its pages survive memory pressure |

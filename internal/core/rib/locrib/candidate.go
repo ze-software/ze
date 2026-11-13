@@ -20,6 +20,16 @@ import (
 // contract carries the same value, and neither package may depend on the other.
 type NextHop = nexthop.NextHop
 
+// ECMPMember is one selected sibling's target and forwarding metadata. Labels
+// follow Path's immutable producer-storage contract; a consumer retaining an
+// owned value MUST copy them. Its zero value names no forwarding target.
+// NextHop remains comparable for target membership and dependency tracking.
+type ECMPMember struct {
+	NextHop
+	Labels  []uint32
+	SRv6SID netip.Addr
+}
+
 // Path is one route option for a single (family, prefix), contributed by one
 // source (protocol + instance). Value-typed and self-contained so copies
 // cross component boundaries without pointer aliasing per rules/memory.md.
@@ -166,7 +176,7 @@ type Path struct {
 	// configured route names its whole next-hop set). siblingNextHops returns
 	// this set directly when present; intra-source producers leave it nil and
 	// let the PathGroup scan compute their siblings. EXCLUDED from key() and
-	// Equal (an ECMP-set change is detected via the Change.ECMP set comparison,
+	// Equal (an ECMP-set change is detected by the selected sibling comparison,
 	// not best identity), so it never affects arbitration. Built once per
 	// best-path change, shared not mutated, exactly like Labels.
 	ECMP []NextHop

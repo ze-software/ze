@@ -29,9 +29,10 @@ const pluginName = "static"
 
 var sourcesOnce sync.Once
 
-// pendingSection holds the routes the config-verify callback parsed, until the
-// config-apply callback consumes them. Safe for concurrent use. The routes
-// carry the interface classification verify gave them against the candidate
+// pendingSection holds one parsed delivery until its apply consumes it. Its
+// zero value holds no delivery. Safe for concurrent use. Startup uses one until
+// all-ready; transaction verify and apply share a separate one. The routes
+// carry the interface classification parsing gave them against the candidate
 // interface section (classifyDeclared), so apply never asks iface's published
 // state which names are dynamic.
 //
@@ -50,8 +51,9 @@ type pendingSection struct {
 
 // set records the routes parsed from a delivered static section. An empty or
 // nil routes argument is a delivered section that declares no route, which is
-// what a deletion looks like. The caller MUST have called reset earlier in the
-// same verify callback, so what it records belongs to one transaction.
+// what a deletion looks like. A transaction's verify callback MUST call reset
+// before set, so its delivery belongs to that transaction. Startup MUST use a
+// separate, initially empty pendingSection and consume it with take at all-ready.
 func (p *pendingSection) set(routes []staticRoute) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -76,9 +78,10 @@ func (p *pendingSection) reset() {
 	p.routes, p.delivered = nil, false
 }
 
-// take returns the parsed routes and reports whether a section was delivered by
-// the verify callback of THIS transaction. It clears the state, so a second
-// apply reports false rather than replaying the section.
+// take returns the parsed routes and reports whether a section was delivered.
+// Transaction callers MUST reset at verify, so this reports only their current
+// transaction. Startup MUST consume its separate delivery at all-ready. It clears
+// the state, so a second apply reports false rather than replaying the section.
 func (p *pendingSection) take() ([]staticRoute, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -392,61 +395,7 @@ func runStaticPlugin(conn net.Conn) int {
 		defer unsub()
 	}
 
-	var mu sync.Mutex
-	var currentRoutes []staticRoute
-	var pending pendingSection
-
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		// This transaction's delivery starts empty, so a section verified in a
-		// transaction that later aborted cannot be applied by a reload that
-		// carries no static section of its own.
-		pending.reset()
-		routes, found, err := verifyCandidateStatic(sections)
-		if err != nil {
-			return err
-		}
-		if found {
-			pending.set(routes)
-		}
-		return nil
-	})
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		// The startup config gets the same check a commit gets
-		// (verifyStaticSections, which reads the bfd section this plugin is
-		// delivered through ConfigReads). A route naming an undefined bfd
-		// profile therefore cannot boot, rather than boot and then have every
-		// later commit that reaches static refused for a profile the commit
-		// never touched.
-		routes, found, err := verifyCandidateStatic(sections)
-		if err != nil {
-			return err
-		}
-		if found {
-			mu.Lock()
-			currentRoutes = routes
-			mu.Unlock()
-			if applyErr := rm.applyRoutes(routes); applyErr != nil {
-				return fmt.Errorf("static routes: %w", applyErr)
-			}
-			logger().Info("static routes loaded", "count", len(routes))
-		}
-		return nil
-	})
-
-	tx := staticTx{pending: &pending, rm: rm, mu: &mu, current: &currentRoutes}
-	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error { return tx.apply() })
-	p.OnConfigRollback(func(_ string) error { return tx.rollback() })
-
-	p.OnStarted(func(_ context.Context) error {
-		if svc := bfdapi.GetService(); svc != nil {
-			rm.setBFD(svc)
-			logger().Info("static: BFD service available")
-		} else {
-			logger().Info("static: BFD service not available, running without BFD")
-		}
-		return nil
-	})
+	registerStaticCallbacks(p, rm)
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		if command == "show static" {
@@ -487,6 +436,98 @@ func runStaticPlugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// registerStaticCallbacks installs the configuration and startup handlers for one
+// route manager. The caller MUST retain rm until p.Run returns, then shut it down.
+func registerStaticCallbacks(p *sdk.Plugin, rm *routeManager) {
+	var mu sync.Mutex
+	var currentRoutes []staticRoute
+	var pending pendingSection
+	var startup pendingSection
+
+	applyConfigured := func(routes []staticRoute) error {
+		if err := rm.applyRoutes(routes); err != nil {
+			return fmt.Errorf("static routes: %w", err)
+		}
+		mu.Lock()
+		currentRoutes = routes
+		mu.Unlock()
+		logger().Info("static routes loaded", "count", len(routes))
+		return nil
+	}
+
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		// This transaction's delivery starts empty, so a section verified in a
+		// transaction that later aborted cannot be applied by a reload that
+		// carries no static section of its own.
+		pending.reset()
+		routes, found, err := verifyCandidateStatic(sections)
+		if err != nil {
+			return err
+		}
+		if found {
+			pending.set(routes)
+		}
+		return nil
+	})
+
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		// The startup config gets the same check a commit gets
+		// (verifyStaticSections, which reads the bfd section this plugin is
+		// delivered through ConfigReads). A route naming an undefined bfd
+		// profile therefore cannot boot, rather than boot and then have every
+		// later commit that reaches static refused for a profile the commit
+		// never touched.
+		routes, found, err := verifyCandidateStatic(sections)
+		if err != nil {
+			return err
+		}
+		if found {
+			startup.set(routes)
+		}
+		return nil
+	})
+
+	// Initial installs need runtime engine operations, and redistribution needs
+	// subscribers in later startup phases. Configuration MUST only retain the
+	// validated set above; all-ready MUST consume it after OnStarted binds BFD.
+	p.OnAllPluginsReady(func() error {
+		if routes, delivered := startup.take(); delivered {
+			if err := applyConfigured(routes); err != nil {
+				return err
+			}
+		}
+		// Once the initial set is applied, configure redelivery is a runtime
+		// operation. Replace its staging callback rather than retaining a
+		// second readiness flag beside the SDK's lifecycle.
+		p.OnConfigure(func(sections []sdk.ConfigSection) error {
+			routes, found, err := verifyCandidateStatic(sections)
+			if err != nil {
+				return err
+			}
+			if found {
+				return applyConfigured(routes)
+			}
+			return nil
+		})
+		return nil
+	})
+
+	tx := staticTx{pending: &pending, rm: rm, mu: &mu, current: &currentRoutes}
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error { return tx.apply() })
+	p.OnConfigRollback(func(_ string) error { return tx.rollback() })
+
+	p.OnStarted(func(_ context.Context) error {
+		if svc := bfdapi.GetService(); svc != nil {
+			rm.setBFD(svc)
+			logger().Info("static: BFD service available")
+		} else {
+			logger().Info("static: BFD service not available, running without BFD")
+		}
+		return nil
+	})
+
 }
 
 // applyStaticSection applies the section this transaction's verify delivered

@@ -66,6 +66,14 @@ that seal take a `registry.Snapshot` first: it records the seal state,
 <!-- source: internal/component/plugin/registry/seal_test.go -- TestEveryRegistryWriterIsGuardedOrASeam -->
 <!-- source: cmd/ze/main.go -- main -->
 
+Owner registries outside this package publish through `registry.WithRegistration`.
+It holds the same seal lock across validation and publication, so a concurrent
+`Seal` cannot interleave between their guard and write. Its publication callback
+must not reenter the registry. Engine operation and process-generation cleanup
+registration use this guard; neither maintains a second seal.
+<!-- source: internal/component/plugin/registry/extension.go -- WithRegistration -->
+<!-- source: internal/component/plugin/server/register_engine_op.go -- RegisterEngineOp, RegisterProcessGenerationCleanup -->
+
 `./le plugin registration-sites check` proves the call sites, over the
 committed HEAD's Ze packages (never `vendor/`, whose import of the registry Go
 refuses). Its registering functions are the registry's exported functions that
@@ -504,6 +512,17 @@ the engine resolves the dependencies of the config-path, family, event-type
 and send-type sets, and refuses startup when one names a plugin this build
 lacks (see Dependencies).
 
+Each dependency tier freezes its largest accepted Stage1 `apply-budget` when
+registration completes. For the configure barrier, a positive environment
+stage timeout allows at least that much work, capped at 600 seconds. An explicit
+per-process `stage-timeout` still wins, other stages keep their ordinary bounds,
+and the startup context can cancel earlier. An operator or rollback restart
+captures the outgoing process's accepted allowance before replacement and uses
+it for the configure window of its bounded five-stage handshake. Declare the
+time needed for initial configuration as well as later configuration applies.
+<!-- source: internal/component/plugin/startup_budget.go -- DeclareConfigureBudget, ConfigureStall -->
+<!-- source: internal/component/plugin/server/startup_budget.go -- declaredConfigureBudget, startupStageStall, previousConfigureBudget, restartConfigureHandshakeBound -->
+
 The config-path phase also resolves the FIB writer. When a plugin it is about to
 load declares `NeedsDataPlane`, and no `ProgramsFIB` plugin is configured or
 running, the engine adds the plugin whose `DataPlane` matches the backend
@@ -704,9 +723,15 @@ socket I/O.
 | Structured event delivery | DirectBridge `DeliverStructured` | The engine delivers pre-parsed event data to internal plugins with no JSON. Example: `StructuredEvent` for BGP UPDATEs |
 | Text command dispatch | `DispatchCommand`, over the bridge or the pipe | A plugin sends a text command to the engine's command registry. The slow path, for ad-hoc or external callers |
 
-The bridge struct carries a `Set*`/`Has*`/call triplet for each fast-path
-handler, so a new handler is a function type, an `atomic.Bool`, and those three
-methods.
+Builtin typed slots carry a `Set*`/`Has*`/call triplet. An owner operation can
+instead declare `EngineOperation.Native` beside its required public JSON handler.
+The server binds the actual process generation through one generic
+`DirectBridge.DispatchNative` dispatcher, using the same operation registry.
+Both owner adapters MUST call the same evaluator and exchange self-contained
+values. Native dispatch does no JSON conversion and starts no request goroutine.
+<!-- source: internal/component/plugin/server/register_engine_op.go -- EngineOperation, registerEngineOp -->
+<!-- source: internal/component/plugin/server/dispatch_native.go -- dispatchPluginRPCNative -->
+<!-- source: pkg/plugin/rpc/bridge_native.go -- DispatchNative -->
 
 Structured event delivery, the event payload of each event type, and the
 subscription namespace rules are in

@@ -48,6 +48,13 @@ static {
 The same prefix can appear in different tables independently.
 Routes in non-default tables are not redistributed into BGP.
 
+`static filter import` and `rib filter import` apply only to main-table
+routes. Named-table routes bypass the Loc-RIB and go directly to their
+configured backend, so neither import attachment filters them. Use a
+main-table route when it must participate in Loc-RIB policy or compete with
+another protocol.
+<!-- source: internal/plugins/static/locrib.go -- inMainTable, applyProgrammed -->
+
 Reserved table IDs (0, 253-255) are rejected. A 32-bit build additionally
 rejects a table ID or route metric above 2147483647, because the netlink
 bindings carry both in a machine int and would otherwise install the route in
@@ -75,7 +82,7 @@ static {
 When the interface is a `pppoe-client` the configuration declares, the route
 waits for the session rather than failing. It is committed while the session is
 down (at boot, before the access concentrator answers, or in the same commit
-that adds the client), and `static show` lists it with the next-hop inactive and
+that adds the client), and `show static` lists it with the next-hop inactive and
 not skipped. Once the session's device is up, the route is installed through it;
 when the session drops it is removed, and when the session comes back it is
 installed again, with no reload. This holds in the main table and in a named
@@ -351,7 +358,7 @@ re-ranks the routes already installed, and the kernel moves to the new winner.
 The number applies to main-table routes: a named-table route has nothing to be
 ranked against.
 <!-- source: internal/core/rib/locrib/distance.go -- resolvedDistance, Reselect -->
-<!-- source: internal/component/sysrib/register.go -- reselectLocRIB -->
+<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
 
 One route can carry its own distance, which wins over `static N` for that route
 alone:

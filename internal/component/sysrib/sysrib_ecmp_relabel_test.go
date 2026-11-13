@@ -28,18 +28,18 @@ func TestSysribECMPRelabelEmitsBestChange(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.60.0.0/24")
-	// "bgp-a" sorts before "bgp-b": the lexical tie-break makes "bgp-a" the
-	// winner (primary NextHop) and "bgp-b" the ECMP member.
+	// The first offered candidate remains selected at equal distance and metric;
+	// the later candidate contributes its own forwarding member.
 	winnerNH := netip.MustParseAddr("10.0.0.1")
 	memberNH := netip.MustParseAddr("10.0.0.2")
 
-	s.processEvent(makePayload("bgp-a", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("bgp-a", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: pfx, NextHop: winnerNH, Priority: 20, Metric: 100},
 	}))
-	_, changes := s.processEvent(makePayload("bgp-b", family.IPv4Unicast, []incomingChange{
+	_, changes := s.offerCandidates(makePayload("bgp-b", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: pfx, NextHop: memberNH, Priority: 20, Metric: 100, Labels: []uint32{100}},
 	}))
 	// Sanity: the second insert formed the ECMP group (member in ECMPPaths).
@@ -54,7 +54,7 @@ func TestSysribECMPRelabelEmitsBestChange(t *testing.T) {
 	}
 
 	// Relabel ONLY the ECMP member: same next-hop, new label stack.
-	_, relabel := s.processEvent(makePayload("bgp-b", family.IPv4Unicast, []incomingChange{
+	_, relabel := s.offerCandidates(makePayload("bgp-b", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Update, Prefix: pfx, NextHop: memberNH, Priority: 20, Metric: 100, Labels: []uint32{200}},
 	}))
 

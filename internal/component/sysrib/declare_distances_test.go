@@ -25,7 +25,7 @@ func TestDeclareDistancesReranksInstalledPaths(t *testing.T) {
 	SetLocRIB(loc)
 	t.Cleanup(func() { SetLocRIB(nil) })
 	t.Cleanup(func() { ribdistance.Set(nil) })
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureStampedRank)
 
 	declared, err := parseAdminDistanceConfig("{}")
 	if err != nil {
@@ -33,7 +33,7 @@ func TestDeclareDistancesReranksInstalledPaths(t *testing.T) {
 	}
 	low := maps.Clone(declared)
 	low["static"] = 5
-	s.declareDistances(low)
+	s.acknowledgeDistances(low)
 
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 	static := redistevents.RegisterProtocol("static")
@@ -46,7 +46,7 @@ func TestDeclareDistancesReranksInstalledPaths(t *testing.T) {
 
 	high := maps.Clone(declared)
 	high["static"] = 250
-	s.declareDistances(high)
+	s.acknowledgeDistances(high)
 	best, ok := loc.Best(family.IPv4Unicast, prefix)
 	if !ok {
 		t.Fatal("the prefix has no best path")

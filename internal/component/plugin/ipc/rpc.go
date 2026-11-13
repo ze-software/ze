@@ -32,6 +32,9 @@ type PluginConn struct {
 	bridge atomic.Pointer[rpc.DirectBridge] // Published after bridge transport negotiation.
 	// filters batches the routes sent to this plugin's filters (filter_batch.go).
 	filters filterBatcher
+	// pendingStartup belongs to the sequential startup request reader. Configure
+	// can receive the next stage before its callback waiter has been scheduled.
+	pendingStartup *rpc.Request
 }
 
 // NewPluginConn creates a PluginConn that reads from readConn and writes to writeConn.
@@ -50,6 +53,11 @@ func NewMuxPluginConn(mux *rpc.MuxConn) *PluginConn {
 // ReadRequest reads the next plugin request. In muxed mode, reads from
 // MuxConn.Requests() channel. In direct mode, reads from the underlying connection.
 func (pc *PluginConn) ReadRequest(ctx context.Context) (*rpc.Request, error) {
+	if pc.pendingStartup != nil {
+		request := pc.pendingStartup
+		pc.pendingStartup = nil
+		return request, nil
+	}
 	if pc.mux == nil {
 		return pc.Conn.ReadRequest(ctx)
 	}

@@ -20,7 +20,7 @@ func TestBackupNotFoldedIntoECMP(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	payload := makePayload("ospf", family.IPv4Unicast, []incomingChange{{
 		Action:             routeaction.Add,
@@ -30,7 +30,7 @@ func TestBackupNotFoldedIntoECMP(t *testing.T) {
 		BackupNextHop:      netip.MustParseAddr("192.168.9.9"),
 		BackupRepairLabels: []uint32{16010},
 	}})
-	_, changes := s.processEvent(payload)
+	_, changes := s.offerCandidates(payload)
 	require.Len(t, changes, 1)
 
 	assert.Empty(t, changes[0].ECMPPaths, "backup must not appear as an ECMP sibling")
@@ -47,7 +47,7 @@ func TestBackupCarriesDeviceAndOnLink(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	payload := makePayload("ospf", family.IPv4Unicast, []incomingChange{{
 		Action:          routeaction.Add,
@@ -58,7 +58,7 @@ func TestBackupCarriesDeviceAndOnLink(t *testing.T) {
 		BackupInterface: "eth13",
 		BackupOnLink:    true,
 	}})
-	_, changes := s.processEvent(payload)
+	_, changes := s.offerCandidates(payload)
 	require.Len(t, changes, 1)
 	require.Len(t, changes[0].Backup, 1)
 	assert.Equal(t, "eth13", changes[0].Backup[0].Interface)

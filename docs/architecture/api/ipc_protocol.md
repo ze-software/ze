@@ -64,6 +64,33 @@ is read as `ignore`, and a fourth spelling fails the whole registration. See
 <!-- source: pkg/plugin/rpc/types.go -- PipeDecl, CommandDecl, DeclareRegistrationInput -->
 <!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes, validateShapeDecls, registerPluginShapes -->
 
+### Authoritative routing values
+
+The system RIB's six `ze-sysrib:route-view-*` methods use the existing RPC
+framing. Public `RouteView*Input` and `RouteView*Output` values carry sessions,
+cursors, bounded selected pages, candidate snapshots, distance declarations and
+forwarding acknowledgments. Selected paths carry registered protocol names,
+presence bits and owned forwarding metadata. Process-local IDs and borrowed
+Loc-RIB storage do not cross the connection.
+<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewPath, RouteViewNextHop, RouteViewReadOutput -->
+
+These methods return ordinary `ok` or `error` responses. They do not use the
+command record-answer format. Request and result budgets include framing
+overhead, and Direct callers enforce the same limits. The
+[process protocol](process-protocol.md#system-routing-views) defines admission,
+reset and acknowledgment rules.
+<!-- source: pkg/plugin/sdk/sdk_route_view.go -- routeViewResult -->
+<!-- source: pkg/plugin/rpc/route_view_input_codec.go -- RouteViewRequestBudget -->
+<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewResultBudget -->
+
+A selected Reset may carry the optional positive `rejected-publication`
+operation. It proves that the same lease refused that validated publication
+before emission; it is not a publication acknowledgment. Consumers validate
+the exact operation and reset page before reconstruction. The ordinary error
+response remains unchanged, and its human-readable text grants no recovery.
+<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewReadOutput -->
+<!-- source: internal/component/sysrib/route_view_worker_output.go -- publicationReset -->
+
 ### Message Cache
 
 The engine exposes separate SDK RPCs for cached and stored UPDATEs:

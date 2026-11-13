@@ -168,6 +168,11 @@ func handlePluginRestart(ctx *CommandContext, validated command.ValidatedArgs) (
 // once that cleanup has finished, and ze knows only that it had not: it may
 // wait for a call the process made into ze, or still be running.
 func pluginRestartFailure(name string, err error) *opererr.Error {
+	if errors.Is(err, errRestartControllerBusy) {
+		return opererr.Wrap(err, "plugin "+name+" was not restarted: another restart is still in progress",
+			"the earlier restart owns its replacement until startup and cleanup finish. Run this command again after that restart answers",
+			process.RestartCommand(name))
+	}
 	if errors.Is(err, errReplacedCleanupLate) {
 		return opererr.Wrap(err, "plugin "+name+" did not start again",
 			"a new process cannot take the plugin's name until the process it replaces has finished its cleanup, "+

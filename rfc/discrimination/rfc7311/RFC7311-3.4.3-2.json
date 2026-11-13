@@ -51,8 +51,8 @@
     "claim-sha": "bf4b3b181e29c6f0",
     "route": "revert",
     "producer": "internal/core/rib/igpcost/igpcost.go::Resolve",
-    "producer-sha": "5f430ed4596fbbc1",
-    "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "32c6948359d19abd",
+    "break": "body of Resolve replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7311-3.4.3-2",
@@ -62,8 +62,8 @@
     "claim-sha": "0c60e4072529b0a3",
     "route": "revert",
     "producer": "internal/core/rib/igpcost/igpcost.go::Resolve",
-    "producer-sha": "5f430ed4596fbbc1",
-    "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "32c6948359d19abd",
+    "break": "body of Resolve replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7311-3.4.3-2",

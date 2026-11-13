@@ -6,8 +6,10 @@ package bgp
 import "github.com/ze-software/ze/internal/le/interoplab"
 
 func init() {
-	specialCheckers[isisImportPolicyScenario] = checkISISImportPolicy
-	specialCheckers[ospfImportPolicyScenario] = checkOSPFImportPolicy
+	specialCheckers[isisImportPolicyScenario] = checkISISImportPolicyInternal
+	specialCheckers[isisImportPolicyForkedScenario] = checkISISImportPolicyForked
+	specialCheckers[ospfImportPolicyScenario] = checkOSPFImportPolicyInternal
+	specialCheckers[ospfImportPolicyForkedScenario] = checkOSPFImportPolicyForked
 	// FRR-A -- Ze -- FRR-B: Ze meets FRR-A on eth1 (VLAN 101) and FRR-B on
 	// eth2 (VLAN 102); each FRR reaches its link as its own eth1. The FRRs
 	// share no link, so FRR-B can learn FRR-A's prefixes only from LSPs Ze
@@ -16,4 +18,5 @@ func init() {
 		{Name: "frr-a", VLAN: 101, IPv4: isisImportLinkA, Members: []string{"ze", peerFRR}},
 		{Name: "frr-b", VLAN: 102, IPv4: isisImportLinkB, Members: []string{"ze", peerFRRSink}},
 	}
+	linkDeclarations[isisImportPolicyForkedScenario] = linkDeclarations[isisImportPolicyScenario]
 }

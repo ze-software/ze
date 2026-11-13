@@ -74,7 +74,7 @@ func (f *fibKernel) handleMPLSEntry(batch *mplsfibevents.EntryBatch) {
 			batch.Acknowledge(result)
 		}
 	}()
-	if f.stopped {
+	if f.stopped.Load() {
 		result = errors.New("mpls-fib: forwarding owner stopped")
 		return
 	}

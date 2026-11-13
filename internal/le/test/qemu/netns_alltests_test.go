@@ -230,7 +230,8 @@ func TestTheCapabilityCopiesCarryTheHarnessTheDroppedDaemonExecs(t *testing.T) {
 	if !strings.Contains(first, "chmod 0755 "+target) {
 		t.Errorf("the le copy is not made executable by every user:\n  %s", first)
 	}
-	if !strings.Contains(first, setcapCommand+" "+wantNetnsGrant+" "+target) {
+	const fixtureGrant = "cap_net_admin,cap_net_raw,cap_net_bind_service,cap_bpf,cap_kill,cap_sys_ptrace+ep"
+	if !strings.Contains(first, setcapCommand+" "+fixtureGrant+" "+target) {
 		t.Errorf("the le copy does not carry the daemons' capabilities, so a fixture it runs"+
 			" as the dropped user cannot open its packet socket:\n  %s", first)
 	}

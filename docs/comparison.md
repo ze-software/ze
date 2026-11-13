@@ -98,13 +98,40 @@ other daemons here were not checked for it.
 
 ## Cross-Protocol Redistribute
 
+On a router with a configured BGP section, this imports main-table static
+routes into BGP through a named policy chain. A `match` member that does not
+match rejects the route. `final accept` accepts the routes that pass it.
+This does not filter routes received from BGP peers.
+
+```
+policy {
+    match EXPORT-STATIC-42 {
+        tag [ 42 ];
+    }
+}
+redistribute {
+    destination bgp {
+        import static {
+            filters [ EXPORT-STATIC-42 ];
+            final accept;
+        }
+    }
+}
+```
+<!-- source: internal/component/config/redistribute/route.go -- ImportRule, Accept -->
+<!-- source: internal/plugins/redistribute/config.go -- compileRuleChains -->
+<!-- source: internal/plugins/static/inject.go -- emitRouteChangeID -->
+<!-- source: internal/component/config/loader_redistribute.go -- RefuseRedistributeRules -->
+
 Ze advertises locally-originated routes from non-BGP protocols (connected,
 static, L2TP, IS-IS, OSPF) into BGP via the
 `redistribute-orchestrator` plugin. Operators enable it per-destination and per-source via
-`redistribute { destination <proto> { import <source> { family [...]; } } }`.
+`redistribute { destination <proto> { import <source> { filters [ <policy> ]; final accept; } } }`.
 The block never gates the routes a BGP peer announces into ze: the ingress
 filter that once did was retired. Per-peer NEXT_HOP substitution (`nhop self`) is automatic; explicit
 producer-supplied NEXT_HOP is passed through verbatim.
+<!-- source: internal/component/config/loader_redistribute.go -- ExtractRedistributeRules, importChain -->
+<!-- source: internal/plugins/redistribute/config.go -- compileRuleChains -->
 
 The block is the whole configuration, which is the behavior FRR and BIRD have.
 `import bgp` names ze's own Loc-RIB and derives the peer-to-plugin delivery it
@@ -116,7 +143,7 @@ IS-IS meshes with BGP in **both** directions, matching the vendor IGP<->BGP
 mutual-redistribution operators expect: `import isis` exports IS-IS SPF routes
 into BGP (single source `isis`, both levels), and `destination isis { import
 connected/static/bgp }` injects those prefixes into the IS-IS link-state database
-as Extended IP Reachability (TLV 135). Like FRR/bird, TLV 135 has no external bit;
+as Extended IP Reachability (TLV 135). TLV 135 has no external bit;
 the up/down bit (RFC 2966) is set only on a down-level leak. IS-IS is dual-stack
 (RFC 5308): IPv6 rides the same single-topology SPF tree (TLV 232 / 236, NLPID
 0x8E), and IPv6 redistribution works the same way — matching FRR's single-topology
@@ -263,6 +290,7 @@ reaches only the sessions that agreed. See
 
 | Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Per-protocol import/export route policy | Experimental: source/central import, IGP export, BGP peer policy | Yes: channels | Yes: channels | Yes: Zebra install filter and redistribution route-maps | BGP UPDATE policy | BGP RIB/peer policy | Unclear | Unclear | Unclear | Unclear | Unclear |
 | Prefix matching (ge/le) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | Partial | Yes | Yes |
 | AS-path regex | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | Yes | Yes |
 | Standard communities | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -281,6 +309,34 @@ reaches only the sessions that agreed. See
 | Custom filter language | No | Yes | Yes | No | Yes | No | No | No | No | No | No |
 | External process policy | Yes | No | No | No | No | No | No | Yes | No | No | No |
 | Plugin-based policy | Yes | No | No | No | No | No | No | No | No | No | No |
+
+The per-protocol row was checked against primary documentation on 2026-11-13.
+It compares where policy applies, rather than claiming identical route semantics.
+Ze's [Loc-RIB attachments](guide/route-policy.md) retain rejected candidates and
+leave IGP flooding intact. Its two system-RIB placements remain Experimental
+until paired execution proof is complete.
+<!-- source: internal/core/rib/locrib/policy.go -- admit -->
+<!-- source: internal/component/policy/fields.go -- CheckChain -->
+<!-- source: features/route-policy.md -- Meta -->
+
+[BIRD 3.4.0](https://bird.nic.cz/doc/bird-3.4.0.html)
+and [BIRD 2.20.0](https://bird.nic.cz/doc/bird-2.20.0.html)
+apply import/export filters on protocol channels. FRR documents
+[per-protocol Zebra kernel-install filters](https://docs.frrouting.org/en/stable-10.7/zebra.html#zebra-route-filtering)
+and export route-maps for [OSPF](https://docs.frrouting.org/en/stable-10.7/ospfd.html#redistribution)
+and [IS-IS redistribution](https://docs.frrouting.org/en/stable-10.7/isisd.html#isis-router).
+[OpenBGPD](https://man.openbsd.org/bgpd.conf.5#FILTER) documents incoming/outgoing
+BGP UPDATE filters. [GoBGP 4.11.0](https://github.com/osrg/gobgp/blob/v4.11.0/docs/sources/policy.md#4-attaching-policy)
+documents global RIB and peer policy assignments. These BGP-specific cells do
+not establish IGP policy support. The remaining cells are Unclear because
+their corresponding behavior was not verified.
+<!-- source: https://bird.nic.cz/doc/bird-3.4.0.html -- Protocols and channels -->
+<!-- source: https://bird.nic.cz/doc/bird-2.20.0.html -- Protocols and channels -->
+<!-- source: https://docs.frrouting.org/en/stable-10.7/zebra.html -- zebra Route Filtering -->
+<!-- source: https://docs.frrouting.org/en/stable-10.7/ospfd.html -- Redistribution -->
+<!-- source: https://docs.frrouting.org/en/stable-10.7/isisd.html -- ISIS router -->
+<!-- source: https://man.openbsd.org/bgpd.conf.5 -- FILTER -->
+<!-- source: https://github.com/osrg/gobgp/blob/v4.11.0/docs/sources/policy.md -- Attaching policy -->
 
 ## Security
 

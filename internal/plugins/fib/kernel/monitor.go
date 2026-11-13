@@ -40,7 +40,11 @@ func (f *fibKernel) handleExternalChange(ev routewatch.RouteEvent) {
 	prefix := ev.Prefix.String()
 	f.mu.Lock()
 	zeNextHop, managed := f.installed[prefix]
-	if !managed || f.stopped {
+	if !managed {
+		f.mu.Unlock()
+		return
+	}
+	if f.stopped.Load() {
 		f.mu.Unlock()
 		return
 	}

@@ -82,6 +82,21 @@ sweep behind `doctor-fib-vpp-stale-route` is in
 There is one phase set and one registry. A second registry of daemon-only
 checks would let a check pick the one the local route happens to run, so the
 phase is the only place that says when a check runs.
+
+The system RIB declares `rib-routing-view` through its SDK registration. It
+reports initialization, reconstruction and retained failure with
+`doctor-rib-routing-view-unavailable`. A complete selected snapshot or local
+authoritative scan becomes healthy after its forwarding output is acknowledged.
+A reset clears readiness until reconstruction succeeds. This callback reads
+the consumer's own monitor in both internal and external placement. Its fix
+uses the configured instance name acknowledged by the daemon:
+`ze request plugin restart <configured-name>`.
+When a declared callback can no longer answer because its plugin stopped or
+lost its connection, the daemon retains the `doctor-plugin-unreachable`
+finding and its cause, with the same configured instance's restart command.
+<!-- source: internal/component/sysrib/doctor_route_view.go -- routeViewDoctorDeclarations, findings -->
+<!-- source: internal/component/sysrib/register.go -- runRouteViewPlugin -->
+<!-- source: internal/component/doctor/cmd/show.go -- collectDoctorChecksFrom -->
 <!-- source: pkg/plugin/rpc/types.go -- DoctorPhaseRuntime -->
 <!-- source: internal/component/doctor/registry.go -- RunRuntimeChecks -->
 <!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor, answerDaemonDoctor, collectDoctorChecksFrom -->

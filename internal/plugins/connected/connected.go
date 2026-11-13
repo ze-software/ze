@@ -60,6 +60,7 @@ type routeObserver struct {
 	// Retirement drains accepted publications before its withdrawals; later
 	// events cannot revive the retired observer. An address set cannot change
 	// ahead of an earlier publication for the same prefix either.
+	// Address handlers MUST hold it through insertPath/removePath and emit.
 	emitMu  sync.RWMutex
 	retired bool // guarded by emitMu; set only after all stop withdrawals succeed.
 	// prefixes holds, for each connected prefix, the addresses that cover it.
@@ -118,16 +119,24 @@ func (o *routeObserver) handleAddrAdded(payload any) {
 		o.prefixes[prefix] = covering
 	}
 	_, known := covering[key]
+	if known {
+		o.mu.Unlock()
+		return
+	}
+	newDevice := !coversDevice(covering, key)
 	covering[key] = struct{}{}
-	first := !known && len(covering) == 1
+	first := len(covering) == 1
 	o.mu.Unlock()
+	if newDevice {
+		// One prefix path carries every covering device. Another address on
+		// the same device changes neither that path nor redistribution.
+		o.insertPath(prefix, covering)
+	}
 	if first {
 		// The prefix becomes visible to route arbitration and to recursive
 		// next-hop resolution the first time an address covers it, and stays
-		// visible until the last one goes. Both halves follow the address set,
-		// so a second address in the same prefix, or the same address announced
-		// again, inserts nothing new.
-		o.insertPath(prefix)
+		// visible until the last one goes. Redistribution follows that prefix
+		// lifetime, independently of changes to its covering devices.
 		o.emit(redistevents.ActionAdd, prefix)
 	}
 }
@@ -155,16 +164,38 @@ func (o *routeObserver) handleAddrRemoved(payload any) {
 		return
 	}
 	_, known := covering[key]
+	if !known {
+		o.mu.Unlock()
+		return
+	}
 	delete(covering, key)
-	last := known && len(covering) == 0
+	last := len(covering) == 0
 	if last {
 		delete(o.prefixes, prefix)
 	}
+	deviceRemoved := !coversDevice(covering, key)
 	o.mu.Unlock()
 	if last {
 		o.removePath(prefix)
 		o.emit(redistevents.ActionRemove, prefix)
+		return
 	}
+	if deviceRemoved {
+		o.insertPath(prefix, covering)
+	}
+}
+
+// coversDevice reports whether an address still covers the named device.
+func coversDevice(covering map[connectedAddr]struct{}, key connectedAddr) bool {
+	for address := range covering {
+		if address.name != key.name {
+			continue
+		}
+		if address.unit == key.unit {
+			return true
+		}
+	}
+	return false
 }
 
 func (o *routeObserver) parsePayload(payload any) (addrPayload, bool) {

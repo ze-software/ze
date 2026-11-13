@@ -30,7 +30,7 @@ func daemonAwaitExit(ctx context.Context, _ []string) error {
 		return fmt.Errorf("read daemon pid: %w", err)
 	}
 	var state string
-	if !Poll(ctx, 600, 100*time.Millisecond, func() bool {
+	if !Poll(ctx, WaitAttempts(75, 100*time.Millisecond, 600), 100*time.Millisecond, func() bool {
 		state, err = daemonProcessState(ctx, pid)
 		if err != nil {
 			return false

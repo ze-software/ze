@@ -111,7 +111,7 @@ func TestReplayAgreesWithTheLiveAddForAnUnresolvedGateway(t *testing.T) {
 	}
 }
 
-// TestInstalledIsASubsetOfBest pins the invariant recomputeBest's first
+// TestInstalledIsASubsetOfBest pins the invariant recomputeForwarding's first
 // Add relies on: a prefix with no previous winner has no install outstanding,
 // so the change it owes is an Add and never an Update. Every path that writes
 // the resolved next-hop writes the winner, and every path that takes a prefix

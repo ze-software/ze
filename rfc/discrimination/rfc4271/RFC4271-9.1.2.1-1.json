@@ -8,7 +8,7 @@
     "route": "revert",
     "producer": "internal/component/sysrib/sysrib.go::resolveMember",
     "producer-sha": "f952d0dbe8cf8f63",
-    "break": "body of resolveMember replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of resolveMember replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-9.1.2.1-1",
@@ -18,7 +18,7 @@
     "claim-sha": "0d4252f0532bf8ba",
     "route": "revert",
     "producer": "internal/component/sysrib/sysrib.go::cascadeRecompute",
-    "producer-sha": "5b424a33c53898f1",
-    "break": "body of cascadeRecompute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "413cd97e190021d5",
+    "break": "body of cascadeRecompute replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

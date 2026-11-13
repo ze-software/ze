@@ -11,7 +11,10 @@
 
 package testqemu
 
-import "github.com/ze-software/ze/internal/core/textbuf"
+import (
+	"github.com/ze-software/ze/internal/core/textbuf"
+	teststressrepro "github.com/ze-software/ze/internal/le/test/stressrepro"
+)
 
 // PhaseResult is one phase of the run. It is a functional suite, the unit pass,
 // or the integration pass.
@@ -39,8 +42,9 @@ type PhaseResult struct {
 	// The pair exists because an exit code cannot tell a suite that ran two
 	// thousand tests from one that ran none and answered 0
 	// (plan/journal/gate-excludes-part-of-its-population.md).
-	Tests   int  `json:"tests"`
-	Counted bool `json:"counted,omitempty"`
+	Tests   int                     `json:"tests"`
+	Counted bool                    `json:"counted,omitempty"`
+	Stress  *teststressrepro.Report `json:"stress,omitempty"`
 }
 
 // AllTestsReport is the whole answer of one run.
@@ -126,6 +130,13 @@ func (r AllTestsReport) Text() string {
 	}
 	if r.Test != "" {
 		tb.Str("selection: only ").Str(r.Test).Str(" ran\n")
+	}
+	for _, phase := range r.Phases {
+		if phase.Stress != nil {
+			tb.Str("stress: iterations=").Int(int64(phase.Stress.Iterations)).
+				Str(" completed=").Int(int64(phase.Stress.Completed)).Str(" executed=").Int(int64(phase.Stress.Executed)).
+				Str(" namespace=").Str(phase.Namespace).Str(" capture=").Str(phase.Stress.Log).Byte('\n')
+		}
 	}
 	tb.Str("phases: ").Int(int64(ran)).Str(" ran, ").Int(int64(skipped)).Str(" skipped, ").
 		Int(int64(len(r.Planned))).Str(" planned\n")

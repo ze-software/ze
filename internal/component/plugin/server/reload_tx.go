@@ -1015,15 +1015,37 @@ func (s *Server) restartPluginFn() transaction.RestartFunc {
 // reload answer distinguishes a refused restart from a failed replacement
 // without claiming the old process runs.
 func (s *Server) restartPlugin(pluginName string) error {
+	controller, err := s.restartControllers.tryAcquire(pluginName)
+	if err != nil {
+		return fmt.Errorf("restart %s: %w: %w", pluginName, transaction.ErrRestartRefused, err)
+	}
+	defer controller.release()
+
 	return s.restartPluginWithin(pluginName, s.boundedRestartHandshake)
 }
 
 // restartPluginAfterExit is restartPlugin for the failure policy, which holds
 // no lock: the replacement's handshake runs as long as the daemon does
 // (lifetimeRestartHandshake), so a slow replacement still comes up. Its other
-// waits are restartPlugin's.
-func (s *Server) restartPluginAfterExit(pluginName string) error {
-	return s.restartPluginWithin(pluginName, s.lifetimeRestartHandshake)
+// waits are restartPlugin's. An earlier controller retains its name until it
+// settles. This failure controller waits within the daemon lifetime, then
+// rechecks its outgoing process under the acquired reservation.
+func (s *Server) restartPluginAfterExit(outgoing *process.Process) error {
+	controller, err := s.restartControllers.wait(s.ctx, outgoing.Name())
+	if err != nil {
+		return err
+	}
+	defer controller.release()
+
+	pm := s.procManager.Load()
+	if pm == nil {
+		return fmt.Errorf("no process manager available to restart %s", outgoing.Name())
+	}
+	// refuse-by-default: guards applyFailurePolicy -- a superseded generation no longer owns a restart of this name
+	if pm.GetProcess(outgoing.Name()) != outgoing {
+		return nil
+	}
+	return s.restartPluginWithin(outgoing.Name(), s.lifetimeRestartHandshake)
 }
 
 // restartPluginWithin is the restart both entry points run, with the
@@ -1061,6 +1083,7 @@ func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScop
 	}
 
 	old := pm.GetProcess(pluginName)
+	configureBudget := previousConfigureBudget(old)
 	insertionsBefore := declaredInsertions(old)
 	newProc, err := pm.Respawn(pluginName)
 	if respawnRefused(err) {
@@ -1079,7 +1102,7 @@ func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScop
 		}
 		s.releasePluginRegistrations(old)
 	}
-	if err := s.restartHandshake(newProc, handshake); err != nil {
+	if err := s.restartHandshake(newProc, configureBudget, handshake); err != nil {
 		return fmt.Errorf("restart handshake %s: %w", pluginName, err)
 	}
 	s.announceInsertionChange(insertionsBefore, declaredInsertions(newProc))

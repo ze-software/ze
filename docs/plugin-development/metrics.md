@@ -559,6 +559,34 @@ boundary, not parity with native Prometheus's support for infinite aggregates:
 <!-- source: pkg/plugin/sdk/metrics.go -- MetricsPublisher, SetMetricsInterval, FlushMetrics, flushMetricsAtBye -->
 <!-- source: internal/component/plugin/server/dispatch_metrics.go -- pluginMetricSet -->
 
+## System RIB routing-view metrics
+
+The existing `ze_systemrib_events_received_total` counter counts each accepted
+nonempty authoritative selected-change batch, including a duplicate input that
+produces no FIB change. Malformed batches and empty selected-feed idle polls do
+not count. Route-change counters count the emitted forwarding effects separately.
+Both placements retain their existing metrics registration and transport.
+<!-- source: internal/component/sysrib/route_view_forwarding.go -- applySelectedBatch -->
+
+The system RIB's routing-view monitor creates three scalar metrics through
+`Plugin.MetricsRegistry` before `Run`. The SDK's existing publisher carries
+them in both placements; the monitor starts no publisher of its own.
+<!-- source: internal/component/sysrib/doctor_route_view.go -- newRouteViewHealth -->
+
+| Metric | Meaning |
+|--------|---------|
+| `ze_rib_view_resync_total` | Reconstruction attempts after the initial consumer starts, including selected-view reset and local capture overflow. |
+| `ze_rib_view_pending_prefixes` | Distinct prefixes held in an incomplete selected snapshot or collected forwarding work awaiting reconciliation. |
+| `ze_rib_view_ready` | One after the view and its forwarding output synchronize; zero during initialization, reconstruction, failure or shutdown. |
+<!-- source: internal/component/sysrib/doctor_route_view.go -- beginResync, setPending, markSynchronized, fail, stop -->
+
+These names have no labels, so route prefixes and session tokens cannot grow
+their series. The `ze_rib_view_` names describe the shared routing-view
+transport; the existing system RIB metrics retain `ze_systemrib_`.
+<!-- source: internal/component/sysrib/doctor_route_view.go -- newRouteViewHealth -->
+<!-- source: internal/component/sysrib/route_view_worker.go -- readSelected -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- reopen, collect -->
+
 ## NopRegistry Fallback
 
 When telemetry is disabled in config, plugins receive a `NopRegistry` that returns

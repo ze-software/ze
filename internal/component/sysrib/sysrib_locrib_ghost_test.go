@@ -1,12 +1,7 @@
-// Design: docs/architecture/rib/unified-locrib.md -- unified Loc-RIB best-change consumption.
-//
-// VALIDATES: a Loc-RIB best switching from protocol A to protocol B arrives as a
-// single FromLocRIB ChangeUpdate carrying only B; processEvent REPLACES the whole
-// per-prefix entry so A's stale slot is dropped (no ghost) and cannot win
-// recomputeBest after a distance change. The Loc-RIB already arbitrated, so
-// a single authoritative best per prefix is correct.
-// PREVENTS: the ghost-entry regression where a FromLocRIB update upserted B but left
-// A in s.routes[key], letting stale A resurface as best.
+// Design: docs/architecture/rib/unified-locrib.md -- selected-only consumer state.
+// VALIDATES: a best switch removes the old consumer value while authority
+// preserves every candidate for future selection and diagnostic inspection.
+// PREVENTS: a stale consumer candidate overriding the authority's chosen route.
 
 package sysrib
 
@@ -23,7 +18,7 @@ func TestSysribLocRIBBestSwitchDropsGhost(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.70.0.0/24")
 	nhA := netip.MustParseAddr("10.0.0.1")
@@ -34,8 +29,7 @@ func TestSysribLocRIBBestSwitchDropsGhost(t *testing.T) {
 	aBatch := makePayload("ospf", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: pfx, NextHop: nhA, Priority: 110, Metric: 10},
 	})
-	aBatch.FromLocRIB = true
-	s.processEvent(aBatch)
+	s.offerCandidates(aBatch)
 	if got := len(s.routes[key]); got != 1 {
 		t.Fatalf("after A add, s.routes[key] has %d entries, want 1", got)
 	}
@@ -45,8 +39,7 @@ func TestSysribLocRIBBestSwitchDropsGhost(t *testing.T) {
 	bBatch := makePayload("static", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Update, Prefix: pfx, NextHop: nhB, Priority: 20, Metric: 10},
 	})
-	bBatch.FromLocRIB = true
-	_, changes := s.processEvent(bBatch)
+	_, changes := s.offerCandidates(bBatch)
 
 	// The whole per-prefix entry is replaced: ONLY B remains; A's ghost is gone.
 	if got := len(s.routes[key]); got != 1 {
@@ -62,34 +55,43 @@ func TestSysribLocRIBBestSwitchDropsGhost(t *testing.T) {
 		t.Fatalf("emitted best NextHop = %#v, want %v", changes, nhB)
 	}
 
-	// Ghost-bite guard: A cannot resurface because it is gone from s.routes;
-	// recomputeBest sees only B and reports no further change.
-	if change := s.recomputeBest(key); change != nil {
-		t.Errorf("recomputeBest after switch unexpectedly changed best to %#v", change)
+	// Re-consuming unchanged authority state cannot revive A in the consumer.
+	// A remains a standby in the authority, where selection belongs.
+	if again := s.forwardSelected(map[prefixKey]struct{}{key: {}}); len(again[family.IPv4Unicast]) != 0 {
+		t.Errorf("unchanged authority selection unexpectedly changed best to %#v", again)
+	}
+	group, found := s.rib.Lookup(family.IPv4Unicast, pfx)
+	if !found || len(group.Paths) != 2 {
+		t.Fatalf("standby A was removed from the authority: %+v", group)
 	}
 }
 
-// TestSysribEventBusKeepsPerProtocol guards that the NON-Loc-RIB (event-bus) path
-// is unchanged: two independent protocols for one prefix both remain in
-// s.routes[key] so cross-protocol distance arbitration still works there.
+// TestSysribEventBusKeepsPerProtocol keeps both independently offered protocol
+// candidates in authority, with just its selected value held by the consumer.
 func TestSysribEventBusKeepsPerProtocol(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.71.0.0/24")
 	key := prefixKey{family: family.IPv4Unicast, prefix: pfx}
 
-	// Event-bus batches (FromLocRIB defaults false): each protocol emits
-	// independently and both must coexist for inter-protocol arbitration.
-	s.processEvent(makePayload("ospf", family.IPv4Unicast, []incomingChange{
+	// Both independent producers remain candidates in the real authority.
+	s.offerCandidates(makePayload("ospf", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: pfx, NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 110, Metric: 10},
 	}))
-	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{
 		{Action: routeaction.Add, Prefix: pfx, NextHop: netip.MustParseAddr("10.0.0.2"), Priority: 20, Metric: 10},
 	}))
-	if got := len(s.routes[key]); got != 2 {
-		t.Fatalf("event-bus path: s.routes[key] has %d entries, want 2 (both protocols retained)", got)
+	group, found := s.rib.Lookup(family.IPv4Unicast, pfx)
+	if !found || len(group.Paths) != 2 {
+		t.Fatalf("authority has %+v, want both independent protocol candidates", group)
+	}
+	if got := len(s.routes[key]); got != 1 {
+		t.Fatalf("selected consumer has %d entries, want one authority value", got)
+	}
+	if best := s.best[key]; best == nil || best.protocol != "bgp" {
+		t.Fatalf("selected consumer did not retain the authoritative BGP20 winner: %+v", best)
 	}
 }

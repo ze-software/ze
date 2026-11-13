@@ -15,12 +15,21 @@ external system RIB".
 `plan/release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md` now
 requires complete two-mode routing behavior, an authoritative daemon view,
 distance publication, candidates, external FIB output, and lifecycle proof.
-The owner approved implementation on 2026-11-12. It is now `ready`.
+The owner approved implementation on 2026-11-12. It is now `in-progress`.
 The proposed system RIB, VRRP, and AS112 commit refusals are withdrawn.
 
-The implementation claim was refused on 2026-11-12: 17 specs were already
-in progress against a cap of 12. No implementation code was changed. Starting
-this spec requires capacity under the cap or an explicit owner exception.
+The first implementation claim was refused: 17 specs were already in progress
+against a cap of 12. The owner then answered, "Yes, you can increase the number
+of specs." This spec was admitted with cap 18; that exception does not change
+the standing cap permanently.
+
+Implementation is active in the main checkout. The current per-spec state is
+`tmp/session/2026-11-12-205428/state/session-state-route-policy-1-gate-proof-and-forked-sysrib-01a1d178-88dd-7463-b4bb-ae4c147dd158.md`.
+The generic startup/registration and public contract packages are written and
+under review; the selected-view and projection packages are next. Only the
+related selectable-cover LPM repair has landed (`f52a5c7dfd`), with both store
+backends tested. This does not claim external system RIB parity or completion
+of any later phase. Nothing has been pushed.
 
 The umbrella closure instructions below remain a handoff for that separate
 work, subject to checking the current tree. The old design decision table,

@@ -140,7 +140,7 @@ reader goroutine routes incoming lines by verb: `ok`/`error` responses go to the
 #1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
 
 # Engine answers the protocol version both sides speak
-#1 ok {"protocol-version":1}
+#1 ok {"protocol-version":1,"plugin-name":"flow-export"}
 
 # Engine sends configure to plugin (Stage 2)
 #1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{...}"}]}
@@ -283,7 +283,7 @@ Set `afi` and `safi` for a custom family. A built-in family can omit both numeri
 
 ```
 #1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","short-help":"Show FlowSpec status"}],"wants-config":["bgp"]}
-#1 ok {"protocol-version":1}
+#1 ok {"protocol-version":1,"plugin-name":"flow-export"}
 ```
 
 **The protocol version.** The engine answers Stage 1 with the version both
@@ -297,6 +297,14 @@ contract. The Go SDK declares it and refuses an engine that answers any other.
 <!-- source: pkg/plugin/rpc/declaration.go -- NegotiateProtocolVersion -->
 <!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
 <!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
+
+The answer also includes `plugin-name`, the configured instance name of the
+authenticated process. It can differ from the implementation's name. The Go
+SDK exposes this through `Plugin.InstanceName()` before `OnConfigure` runs;
+before the Stage 1 answer it is empty. Use that configured identity in recovery
+commands that restart the plugin.
+<!-- source: pkg/plugin/rpc/declaration.go -- DeclareRegistrationOutput -->
+<!-- source: pkg/plugin/sdk/sdk_identity.go -- InstanceName -->
 
 ### Stage 2: Config (Engine to Plugin)
 
@@ -959,6 +967,138 @@ Plugins call the engine during runtime through these SDK methods:
 | `ze-plugin-engine:decode-mp-reach` | `DecodeMPReach` | `DecodeMPReachInput` | `DecodeMPReachOutput` | Decode MP_REACH_NLRI |
 | `ze-plugin-engine:decode-mp-unreach` | `DecodeMPUnreach` | `DecodeMPUnreachInput` | `DecodeMPUnreachOutput` | Decode MP_UNREACH_NLRI |
 | `ze-plugin-engine:decode-update` | `DecodeUpdate` | `DecodeUpdateInput` | `DecodeUpdateOutput` | Decode a BGP UPDATE |
+
+### System routing views
+
+Each selected path's `ecmp` list retains the owning source of every member.
+The optional member `protocol` is a registered name for an owner different from
+the primary. Omission means the primary's protocol owns that member. Consumers
+resolve supplied names from existing registrations and reject an unknown name.
+The authority keeps same-target members with different owners until the
+consumer applies each owner's FIB permission, then renders the target group.
+Member ownership never changes the primary protocol credited with the prefix.
+<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewNextHop -->
+<!-- source: internal/component/sysrib/projection_path.go -- projectionPath -->
+
+The system RIB owns the `ze-sysrib` namespace. Its routing view transfers the
+daemon's selected routes as values to either an internal or an external
+consumer. The daemon remains the authority for route admission, import policy,
+administrative distance and selection.
+<!-- source: pkg/plugin/rpc/route_view.go -- routing-view values and method names -->
+<!-- source: pkg/plugin/rpc/route_view_codec.go -- reply presence and atomic decoding -->
+<!-- source: internal/component/sysrib/yang/ze-sysrib-api.yang -- native RPC schema -->
+
+| Method | SDK method | Input/output types | Available |
+|--------|------------|--------------------|-----------|
+| `ze-sysrib:route-view-open` | `RouteViewOpen` | `RouteViewOpenInput` / `RouteViewOpenOutput` | Stage 2 and runtime |
+| `ze-sysrib:route-view-read` | `RouteViewRead` | `RouteViewReadInput` / `RouteViewReadOutput` | Runtime |
+| `ze-sysrib:route-view-candidates` | `RouteViewCandidates` | `RouteViewCandidatesInput` / `RouteViewCandidatesOutput` | Runtime |
+| `ze-sysrib:route-view-distances` | `RouteViewDistances` | `RouteViewDistancesInput` / `RouteViewDistancesOutput` | Stage 2 and runtime |
+| `ze-sysrib:route-view-publish` | `RouteViewPublish` | `RouteViewPublishInput` / `RouteViewPublishOutput` | Runtime |
+| `ze-sysrib:route-view-close` | `RouteViewClose` | `RouteViewCloseInput` / `RouteViewCloseOutput` | Runtime |
+<!-- source: pkg/plugin/sdk/sdk_route_view.go -- RouteViewOpen, RouteViewRead, RouteViewCandidates, RouteViewDistances, RouteViewPublish, RouteViewClose -->
+<!-- source: internal/component/sysrib/register_route_view.go -- init -->
+<!-- source: internal/component/sysrib/register_route_view_policy.go -- init -->
+<!-- source: internal/component/sysrib/register_route_view_output.go -- init -->
+
+`open` accepts an optional `reader`: `selected-feed` or `local-authority`.
+An empty input selects `selected-feed`. The authenticated process generation owns
+the returned session token. Subsequent requests carry that token and cannot choose
+another plugin's identity. A selected page carries the server epoch, cursor, explicit
+`snapshot`, `delta` or `reset` phase, and completion flag. The consumer MUST finish
+the initial snapshot before forwarding and MUST discard its projection on reset.
+An empty delta preserves the current projection.
+An explicit reset can advance the cursor to a newer fenced marker. It clears
+readiness and authorizes no forwarding. Older reset cursors remain invalid.
+<!-- source: internal/component/sysrib/projection.go -- validateSequence, Apply -->
+
+A refused publication does not by itself authorize reopening. For a benign
+selected-feed retention reset, a subsequent read on the exact refused session
+may return `rejected-publication`, a positive operation identity. The consumer
+MUST require its exact refused operation and validate the complete Reset page
+before rebuilding. The proof cannot carry entries, a snapshot or completion.
+Omission grants no proof; explicit zero and null are invalid. The daemon
+retains one fully validated refused batch, and only its exact operation,
+cursor and values can repeat that proof. Malformed attempts, output delivery
+errors and foreign or replaced leases cannot acquire it. Internal local readers
+do not use selected-feed publication recovery.
+<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewReadOutput -->
+<!-- source: pkg/plugin/rpc/route_view_codec.go -- RouteViewReadOutput.UnmarshalJSON -->
+<!-- source: internal/component/sysrib/route_view_output.go -- provePublicationReset -->
+<!-- source: internal/component/sysrib/route_view_worker_output.go -- publicationReset -->
+
+`local-authority` requires an authenticated internal system RIB with direct access
+to the daemon's Loc-RIB. It retains no selected snapshot or delta journal.
+Its direct reader is ready at logical cursor zero. Distance acknowledgment follows
+authoritative reselection and returns zero. Selected reads require reopening with
+`selected-feed`. Both transports provide the same reader choices and refusals.
+External system RIBs use `selected-feed`.
+<!-- source: internal/component/sysrib/route_view.go -- open, read -->
+<!-- source: internal/component/sysrib/route_view_feed.go -- synchronize, validateConsumed -->
+
+Requests require every mandatory field even when its value is zero. `read`
+requires explicit `cursor` and `wait-ms` fields. Candidate reads and publications
+also require an explicit cursor. Unknown request fields and null mandatory
+fields fail before the session changes. An omitted distance list remains empty.
+<!-- source: pkg/plugin/rpc/route_view_input_codec.go -- routing-view input decoding -->
+
+The complete request must fit `rpc.MaxMessageSize`, including its method and
+correlation ID. `rpc.RouteViewRequestBudget` reserves the widest ID and the
+method header. Direct calls enforce the same bound.
+<!-- source: pkg/plugin/rpc/route_view_input_codec.go -- RouteViewRequestBudget -->
+
+`read` accepts a record limit from 1 through 4096 and a wait from 0 through
+1000 milliseconds. The producer MUST also keep the complete encoded reply within
+`rpc.MaxMessageSize`; `rpc.RouteViewResultBudget()` reserves framing for the
+widest correlation ID. The same bounds apply to Direct calls. A selected path
+includes its protocol name and instance, resolved distance, recursive metric and
+BGP/AIGP metadata, primary and equal-cost targets, labels, SID and repair target.
+Presence flags preserve zero tags and zero AIGP. Protocol IDs local to a process
+never cross this boundary.
+The selected path requires non-null `protocol`, `instance`, `distance` and
+`metric` fields. Explicit zero ranking values remain valid. A distance row
+requires non-null `protocol` and `distance`, including an explicit zero distance.
+Malformed values leave the current decoded value unchanged.
+<!-- source: pkg/plugin/rpc/route_view_codec.go -- RouteViewPath.UnmarshalJSON, RouteViewDistance.UnmarshalJSON -->
+
+Candidate scans use their own snapshot and cursor. Their entries preserve the
+existing `show rib candidates` JSON, including hidden paths and a present zero
+tag. A candidate scan does not feed selection. `distances` carries a complete
+protocol distance declaration and an ordered operation ID. Its acknowledgment
+follows authoritative application and reselection.
+<!-- source: internal/component/sysrib/route_view_candidates.go -- readCandidates -->
+<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
+
+`publish` wraps the unchanged system `best-change` JSON with the consumed cursor
+and operation ID. The consumer MUST retain this operation until acknowledgment.
+The owner MUST fence stale generations before emission and return an identical
+retry's acknowledgment without emitting twice. A newer completed read preserves
+that original acknowledgment. A new operation requires the latest consumed cursor.
+<!-- source: internal/component/sysrib/route_view_output.go -- publish -->
+
+Each publication accepts at most 4096 changes. The JSON adapter refuses
+an excess row before decoding the remaining rows. Device and gateway-zone names
+must contain valid UTF-8 through both transports.
+<!-- source: internal/component/sysrib/register_route_view_output.go -- routeViewDecodeOutputBatch, routeViewOutputRows -->
+<!-- source: internal/component/sysrib/route_view_output.go -- routeViewValidateOutputTarget -->
+
+Publication withdrawals retain an explicit empty `protocol` field. Device-only
+`ecmp-paths` and `backup` members retain an explicit empty `next-hop` and name
+their `interface`. The publication schema accepts these existing event values.
+Add and update still require a registered protocol, and each member requires a
+gateway or interface. Selected-view addresses keep their nonempty address type.
+<!-- source: internal/component/sysrib/events/events.go -- BestChangeEntry, ECMPPath -->
+<!-- source: internal/component/sysrib/yang/ze-sysrib-api.yang -- route-view-publish, publication-member, next-hop -->
+<!-- source: internal/component/sysrib/route_view_output.go -- routeViewValidateOutputEntry -->
+
+`close` fences the session and releases its readers and pinned values before
+acknowledgment. Its cleanup withdraws only owned prefixes, in separate family
+batches of at most 4096 entries. Every emitted batch retains independent storage.
+A failed withdrawal keeps its ledger entries and blocks replacement until retry
+succeeds. Fencing releases the retained publication, and successful cleanup
+releases the empty ledger.
+<!-- source: internal/component/sysrib/route_view.go -- cleanupLocked -->
+<!-- source: internal/component/sysrib/route_view_output.go -- withdraw -->
 
 ## Message Flow Example
 

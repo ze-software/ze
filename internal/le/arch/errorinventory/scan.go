@@ -54,6 +54,12 @@ type funcRef struct {
 	file *sourceFile
 }
 
+// functionResult identifies one zero-based result of a source declaration.
+type functionResult struct {
+	decl     *ast.FuncDecl
+	position int
+}
+
 // treeIndex is every parsed file and the declarations the classifier
 // resolves names against. It is built once per scan and only read after,
 // except for typedFuncs, which the classifier fills as it answers; it is not
@@ -70,9 +76,9 @@ type treeIndex struct {
 	// findingTypes maps an ./le directory to the struct types it declares
 	// whose names end in findingSuffix.
 	findingTypes map[string]map[string]bool
-	// typedFuncs memoizes answersOperatorError per function; a function
-	// still being answered is present with false, which ends a recursion.
-	typedFuncs map[*ast.FuncDecl]bool
+	// typedFuncs memoizes each function/result pair. A pair still being
+	// answered is present with false, which ends a recursion.
+	typedFuncs map[functionResult]bool
 }
 
 // overlayFile replaces one file's working-tree bytes for a scan: a commit's
@@ -292,7 +298,7 @@ func indexTree(tree string, overlay map[string]overlayFile) (*treeIndex, error) 
 		funcs:        make(map[string]map[string]funcRef),
 		constants:    make(map[string]map[string]ast.Expr),
 		findingTypes: make(map[string]map[string]bool),
-		typedFuncs:   make(map[*ast.FuncDecl]bool),
+		typedFuncs:   make(map[functionResult]bool),
 	}
 	for _, path := range paths {
 		var source any

@@ -8,7 +8,7 @@ func init() {
 	// Both scenarios read the hidden paths through `show rib candidates`, which
 	// is the only surface that lists a path the Loc-RIB stored but never selects.
 	Register("plugin/rib-import-central-bogons",
-		observer02("rib-import-test", ribImportCentralBogons), StopsDaemon)
+		importPolicyDriver(ribImportCentralBogons, importCentralKernel), StopsDaemon)
 	Register("plugin/static-import-filter-distance",
-		observer02("rib-import-test", staticImportFilterDistance), StopsDaemon)
+		importPolicyDriver(staticImportFilterDistance, importStaticReload), StopsDaemon)
 }

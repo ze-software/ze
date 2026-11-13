@@ -132,7 +132,7 @@ func (s *sysRIB) recordWithheldWinner(key prefixKey, prev, winner *protocolRoute
 	// never taken. recomputeBest takes it again when a permitted protocol wins
 	// the prefix back, whether or not the next-hop changed.
 	if prev != nil {
-		untrackNextHops(key.prefix, prev)
+		s.untrackNextHops(key.prefix, prev)
 	}
 
 	if !hadZeRoute {
@@ -160,22 +160,26 @@ func (s *sysRIB) recordWithheldWinner(key prefixKey, prev, winner *protocolRoute
 //
 // The pair MUST balance. Every path that takes a prefix on calls this, and
 // every path that gives it up calls untrackNextHops.
-func trackNextHops(prefix netip.Prefix, route *protocolRoute) {
-	r := getNHResolver()
+func (s *sysRIB) trackNextHops(prefix netip.Prefix, route *protocolRoute) {
+	r := s.nextHopResolver()
 	if r == nil {
 		return
 	}
 	if route.nextHop.IsValid() && !route.nextHopOnLink {
 		r.Track(route.nextHop, prefix)
 	}
-	for _, member := range route.ecmpNextHops {
-		if !member.Addr.IsValid() {
+	for index, member := range route.ecmpNextHops {
+		if !s.fibPermitted(siblingProtocol(route, index)) {
 			continue
 		}
-		if member.OnLink {
-			continue
+		if member.Addr.IsValid() && !member.OnLink {
+			r.Track(member.Addr, prefix)
 		}
-		r.Track(member.Addr, prefix)
+		if route.ecmpMetadata != nil {
+			if sid := route.ecmpMetadata[index].sid; sid.IsValid() {
+				r.Track(sid, prefix)
+			}
+		}
 	}
 	if route.srv6SID.IsValid() {
 		r.Track(route.srv6SID, prefix)
@@ -185,8 +189,8 @@ func trackNextHops(prefix netip.Prefix, route *protocolRoute) {
 // untrackNextHops releases what trackNextHops took. It MUST be called by every
 // path that stops programming a prefix, or the resolver walks the prefix on
 // every cascade and `show rib next-hop` reports a dependency Ze does not hold.
-func untrackNextHops(prefix netip.Prefix, route *protocolRoute) {
-	r := getNHResolver()
+func (s *sysRIB) untrackNextHops(prefix netip.Prefix, route *protocolRoute) {
+	r := s.nextHopResolver()
 	if r == nil {
 		return
 	}
@@ -202,6 +206,11 @@ func untrackNextHops(prefix netip.Prefix, route *protocolRoute) {
 		}
 		r.Untrack(member.Addr, prefix)
 	}
+	for _, metadata := range route.ecmpMetadata {
+		if metadata.sid.IsValid() {
+			r.Untrack(metadata.sid, prefix)
+		}
+	}
 	if route.srv6SID.IsValid() {
 		r.Untrack(route.srv6SID, prefix)
 	}
@@ -211,11 +220,11 @@ func untrackNextHops(prefix netip.Prefix, route *protocolRoute) {
 // membership. The prior winner may already have left routes during an upsert.
 func (s *sysRIB) untrackNextHopGroup(key prefixKey) {
 	if previous := s.best[key]; previous != nil {
-		untrackNextHops(key.prefix, previous)
+		s.untrackNextHops(key.prefix, previous)
 	}
 	for _, route := range s.routes[key] {
 		if route != s.best[key] {
-			untrackNextHops(key.prefix, route)
+			s.untrackNextHops(key.prefix, route)
 		}
 	}
 }
@@ -234,7 +243,7 @@ func (s *sysRIB) trackNextHopGroup(key prefixKey) {
 	if !s.fibPermitted(winner.protocol) {
 		return
 	}
-	trackNextHops(key.prefix, winner)
+	s.trackNextHops(key.prefix, winner)
 	for _, route := range s.routes[key] {
 		if route == winner {
 			continue
@@ -248,7 +257,7 @@ func (s *sysRIB) trackNextHopGroup(key prefixKey) {
 		if !s.fibPermitted(route.protocol) {
 			continue
 		}
-		trackNextHops(key.prefix, route)
+		s.trackNextHops(key.prefix, route)
 	}
 }
 
@@ -333,7 +342,7 @@ func (s *sysRIB) applyFIBImport(permit map[string]bool) map[family.Family][]outg
 			// taken for a route Ze MEANS to program, and a prefix waiting on a
 			// next-hop or an SRv6 SID that does not resolve holds it with
 			// nothing installed (sysrib.go, recomputeBest).
-			untrackNextHops(key.prefix, route)
+			s.untrackNextHops(key.prefix, route)
 			delete(s.lastECMP, key)
 			if !s.programmedByZe(key) {
 				continue
@@ -359,7 +368,7 @@ func (s *sysRIB) applyFIBImport(permit map[string]bool) map[family.Family][]outg
 			// now. An OS-installed winner takes none, because Ze programs
 			// nothing for it whichever way the permission goes.
 			if !route.osInstalled {
-				trackNextHops(key.prefix, route)
+				s.trackNextHops(key.prefix, route)
 			}
 		}
 

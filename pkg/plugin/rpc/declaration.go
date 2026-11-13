@@ -45,6 +45,8 @@ type DeclareRegistrationOutput struct {
 	// ProtocolVersion is the plugin protocol version both sides speak from
 	// here on: the lower of the plugin's declared version and the engine's.
 	ProtocolVersion int `json:"protocol-version"`
+	// PluginName is the configured identity of the authenticated process.
+	PluginName string `json:"plugin-name"`
 }
 
 // protocolPage is where a plugin author reads the versioned contract.

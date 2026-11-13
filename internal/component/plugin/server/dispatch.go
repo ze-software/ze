@@ -850,14 +850,17 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 	b.SetDispatchRPC(func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
 		return s.dispatchPluginRPCDirect(ctx, proc, method, params)
 	})
+	b.SetDispatchNative(func(ctx context.Context, method string, input any) (any, bool, error) {
+		return s.dispatchPluginRPCNative(ctx, proc, method, input)
+	})
 
 	// Typed fast paths: skip JSON marshal/unmarshal, delegate to shared core
 	// methods. Only ops that declare a typedWire descriptor get a native slot;
 	// the rest (subscribe/unsubscribe, route-install/route-remove) intentionally
 	// have none and fall through to the generic DispatchRPC handler above.
-	for i := range engineOps {
-		if engineOps[i].typedWire != nil {
-			engineOps[i].typedWire(s, proc, b)
+	for _, op := range allEngineOps() {
+		if op.typedWire != nil {
+			op.typedWire(s, proc, b)
 		}
 	}
 }
@@ -896,6 +899,7 @@ func (s *Server) cleanupProcess(proc *process.Process) {
 		report.ClearSource(proc.Name())
 		s.forgetPluginReports(proc.Name())
 
+		runProcessGenerationCleanups(proc)
 		runProcessCleanupHooks(proc.Name())
 	})
 }

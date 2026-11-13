@@ -27,10 +27,10 @@ func TestBestChangeCarriesTheOutgoingDevice(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
-	_, changes := s.processEvent(fromLocRIBBatch("static", family.IPv4Unicast, &incomingChange{
+	_, changes := s.offerCandidates(candidateBatch("static", family.IPv4Unicast, &incomingChange{
 		Action:    routeaction.Add,
 		Prefix:    pfx,
 		Interface: "tun100",
@@ -53,12 +53,12 @@ func TestBestChangeCarriesTheDeclaredWeights(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
 	nh1 := netip.MustParseAddr("192.0.2.1")
 	nh2 := netip.MustParseAddr("192.0.2.2")
-	_, changes := s.processEvent(fromLocRIBBatch("static", family.IPv4Unicast, &incomingChange{
+	_, changes := s.offerCandidates(candidateBatch("static", family.IPv4Unicast, &incomingChange{
 		Action:       routeaction.Add,
 		Prefix:       pfx,
 		NextHop:      nh1,
@@ -135,9 +135,9 @@ func TestSysRIBEmitsNoTableID(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
-	_, changes := s.processEvent(fromLocRIBBatch("static", family.IPv4Unicast, &incomingChange{
+	_, changes := s.offerCandidates(candidateBatch("static", family.IPv4Unicast, &incomingChange{
 		Action:   routeaction.Add,
 		Prefix:   netip.MustParsePrefix("10.0.0.0/8"),
 		NextHop:  netip.MustParseAddr("192.0.2.1"),
@@ -156,7 +156,7 @@ func TestSysRIBEmitsNoTableID(t *testing.T) {
 // Loc-RIB Change into what sysrib consumes. A field dropped here is invisible to
 // every in-process deployment.
 func TestChangeToBatchCarriesTheDeviceAndWeight(t *testing.T) {
-	batch := changeToBatch(&locrib.Change{
+	change := locrib.Change{
 		Family: family.IPv4Unicast,
 		Prefix: netip.MustParsePrefix("10.0.0.0/8"),
 		Kind:   locrib.ChangeAdd,
@@ -167,14 +167,18 @@ func TestChangeToBatchCarriesTheDeviceAndWeight(t *testing.T) {
 			Weight:        7,
 			AdminDistance: 10,
 		},
-	})
-	if batch == nil {
-		t.Fatal("changeToBatch returned no batch for an Add")
 	}
-	if batch.Changes[0].Interface != "tun100" {
-		t.Errorf("Interface = %q, want tun100", batch.Changes[0].Interface)
+	fixture := newCandidateForwardingFixture(t, fixtureRouteOverride)
+	fixture.rib.Insert(change.Family, change.Prefix, change.Best)
+	batches := fixture.forwardSelected(map[prefixKey]struct{}{{family: change.Family, prefix: change.Prefix}: {}})
+	changes := batches[change.Family]
+	if len(changes) != 1 {
+		t.Fatalf("selected authority emitted %d changes, want one", len(changes))
 	}
-	if batch.Changes[0].Weight != 7 {
-		t.Errorf("Weight = %d, want 7", batch.Changes[0].Weight)
+	if changes[0].Interface != "tun100" {
+		t.Errorf("Interface = %q, want tun100", changes[0].Interface)
+	}
+	if changes[0].Weight != 7 {
+		t.Errorf("Weight = %d, want 7", changes[0].Weight)
 	}
 }

@@ -23,13 +23,13 @@ type ResolvedNH struct {
 	Resolved  bool
 }
 
-// nhResolver resolves recursive next-hops using the Loc-RIB's LPM. A next-hop
-// is "recursive" when it is not directly connected: the covering prefix in
-// the Loc-RIB itself has a next-hop that must be resolved, forming a chain.
+// nhResolver resolves recursive next-hops using a selected-path LPM reader.
+// A next-hop is "recursive" when it is not directly connected: its covering
+// selected path has a next-hop that must be resolved, forming a chain.
 // Resolution terminates when a connected route (zero next-hop) is found or
 // maxRecursionDepth is reached.
 type nhResolver struct {
-	rib *locrib.RIB
+	rib igpcost.Reader
 	mu  sync.RWMutex
 
 	// tracking maps next-hop addresses to the set of prefixes that depend on
@@ -38,7 +38,23 @@ type nhResolver struct {
 	tracking map[netip.Addr]map[netip.Prefix]struct{}
 }
 
-func newNHResolver(rib *locrib.RIB) *nhResolver {
+// newNHResolver returns nil when no usable reader exists. Resolve and IGPMetric
+// treat that unavailable receiver as unresolved, never as reachability proof.
+// A projection MUST complete its snapshot before a resolver is constructed.
+func newNHResolver(rib igpcost.Reader) *nhResolver {
+	if local, ok := rib.(*locrib.RIB); ok {
+		if local == nil {
+			return nil
+		}
+	}
+	if projection, ok := rib.(*selectedProjection); ok {
+		if !projection.Synchronized() {
+			return nil
+		}
+	}
+	if rib == nil {
+		return nil
+	}
 	return &nhResolver{
 		rib:      rib,
 		tracking: make(map[netip.Addr]map[netip.Prefix]struct{}),
@@ -49,6 +65,9 @@ func newNHResolver(rib *locrib.RIB) *nhResolver {
 // directly-connected next-hop and the accumulated IGP metric, or
 // Resolved=false if the next-hop is unreachable.
 func (r *nhResolver) Resolve(addr netip.Addr) ResolvedNH {
+	if r == nil {
+		return ResolvedNH{}
+	}
 	if !addr.IsValid() {
 		return ResolvedNH{}
 	}
@@ -134,6 +153,9 @@ func (r *nhResolver) Dependents(nextHop netip.Addr) []netip.Prefix {
 // route's metric already spans its whole path; following its forwarding gateway
 // and adding another metric would count links twice.
 func (r *nhResolver) IGPMetric(addr netip.Addr) igpcost.Distance {
+	if r == nil {
+		return igpcost.Distance{}
+	}
 	return igpcost.Resolve(r.rib, addr)
 }
 

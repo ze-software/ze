@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,20 +54,23 @@ const usageBanner = "\nCommands:\n"
 
 // Report records the bounded run and the first reproduction, if one completed.
 type Report struct {
-	Suite       string `json:"suite"`
-	Test        string `json:"test,omitempty"`
-	Burners     int    `json:"burners"`
-	Parallel    int    `json:"parallel"`
-	Iterations  int    `json:"iterations"`
-	Completed   int    `json:"completed"`
-	Race        bool   `json:"race"`
-	Reproduced  bool   `json:"reproduced"`
-	Exit        int    `json:"failure-exit,omitempty"`
-	Signature   string `json:"signature,omitempty"`
-	Excerpt     string `json:"excerpt,omitempty"`
-	Log         string `json:"log,omitempty"`
-	SetupError  string `json:"setup-error,omitempty"`
-	Interrupted bool   `json:"interrupted,omitempty"`
+	Suite       string   `json:"suite"`
+	Test        string   `json:"test,omitempty"`
+	Burners     int      `json:"burners"`
+	Parallel    int      `json:"parallel"`
+	Iterations  int      `json:"iterations"`
+	Completed   int      `json:"completed"`
+	Executed    int      `json:"executed,omitempty"`
+	Failed      int      `json:"failed,omitempty"`
+	Command     []string `json:"command,omitempty"`
+	Race        bool     `json:"race"`
+	Reproduced  bool     `json:"reproduced"`
+	Exit        int      `json:"failure-exit,omitempty"`
+	Signature   string   `json:"signature,omitempty"`
+	Excerpt     string   `json:"excerpt,omitempty"`
+	Log         string   `json:"log,omitempty"`
+	SetupError  string   `json:"setup-error,omitempty"`
+	Interrupted bool     `json:"interrupted,omitempty"`
 }
 
 // Text preserves the old tool's concise result and capture-path contract.
@@ -112,7 +116,9 @@ func valueOr(value, fallback string) string {
 }
 
 type invocation struct {
-	root string
+	root        string
+	environment []string
+	selector    string
 	// harness is the child's argv after `le test`, derived by harnessArgs.
 	harness   []string
 	test      string
@@ -145,6 +151,7 @@ type processRunner interface {
 }
 
 type runDependencies struct {
+	selected *selectedRun
 	runner   processRunner
 	now      func() time.Time
 	cpuCount int
@@ -268,26 +275,40 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 	if err := os.MkdirAll(outDir, 0o750); err != nil {
 		return setupFailure(report, fmt.Errorf("create capture directory: %w", err))
 	}
-	slug, err := runSlug(opts.Suite, opts.Test)
+	var slug string
+	var harness []string
+	var err error
+	if deps.selected != nil {
+		slug = runSlugWords([]string{opts.Suite, opts.Test})
+		harness = slices.Clone(deps.selected.request.Runner)
+	} else {
+		slug, err = runSlug(opts.Suite, opts.Test)
+		if err == nil {
+			harness, err = harnessArgs(opts.Suite)
+		}
+	}
 	if err != nil {
 		return setupFailure(report, err)
 	}
 	// Resolved before the daemon build and the burners, so a suite name that
 	// runs nothing is refused before any load starts.
-	harness, err := harnessArgs(opts.Suite)
-	if err != nil {
-		return setupFailure(report, err)
-	}
 	stamp := deps.now().Format("20060102-150405")
 
-	testBin, err := os.Executable()
-	if err != nil {
-		return setupFailure(report, fmt.Errorf("the harness is this le, and it cannot name its own file: %w", err))
-	}
 	// The daemon under test is built from the tree in hand unless ZE_BIN pins
 	// one. The shared bin/ze is never a fallback: it is whatever some earlier
 	// build left there, and a verdict over it says nothing about this tree.
-	zeBin, pinned := pinnedBinary("ze.bin")
+	var testBin, zeBin string
+	var pinned bool
+	if deps.selected != nil {
+		testBin = deps.selected.request.Executable
+		zeBin, pinned = deps.selected.zeBin, true
+	} else {
+		testBin, err = os.Executable()
+		if err != nil {
+			return setupFailure(report, fmt.Errorf("the harness is this le, and it cannot name its own file: %w", err))
+		}
+		zeBin, pinned = pinnedBinary("ze.bin")
+	}
 	if opts.Race || !pinned {
 		built, buildErr := buildDaemon(ctx, root, outDir, opts, deps)
 		if buildErr != nil {
@@ -304,9 +325,17 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 		root: root, harness: harness, test: opts.Test, zeBin: zeBin, testBin: testBin,
 		timeout: time.Duration(opts.Timeout) * time.Second, extraTags: opts.Tags,
 	}
+	if deps.selected != nil {
+		spec.selector = deps.selected.request.Selector
+		spec.environment = deps.selected.request.Environment
+		spec.timeout = deps.selected.request.Timeout
+	}
 	argv, err := spec.argv()
 	if err != nil {
 		return setupFailure(report, err)
+	}
+	if deps.selected != nil {
+		report.Command = append([]string{testBin}, argv...)
 	}
 	// The digest keeps the full selection's identity after sanitizing and
 	// bounding its readable prefix. Exclusive creation keeps fresh samples
@@ -333,6 +362,9 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 	}
 
 	deadline := deps.now().Add(time.Duration(opts.Minutes * float64(time.Minute)))
+	if deps.selected != nil {
+		deadline = deps.now().Add(deps.selected.request.Budget)
+	}
 	runCtx, cancelRun := context.WithDeadline(ctx, deadline)
 	defer cancelRun()
 	stopBurners := deps.burners(runCtx, burnerCount)
@@ -343,7 +375,7 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 	// every finished invocation failed, nothing passed, so "not reproduced"
 	// would be a verdict about a run that tested nothing.
 	ran, failed := 0, 0
-	for report.Completed < opts.Iterations && runCtx.Err() == nil && !report.Reproduced {
+	for report.Completed < opts.Iterations && runCtx.Err() == nil && !report.Reproduced && report.SetupError == "" {
 		batch := min(parallel, opts.Iterations-report.Completed)
 		batchSpec := spec
 		batchSpec.parallelFactor = 1
@@ -378,8 +410,26 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 				continue
 			}
 			ran++
+			if result.code != 0 {
+				report.Failed++
+			}
 			signature := crashSignature(result.output)
 			hit := signature != "" || (opts.AnyFailure && result.code != 0)
+			if deps.selected != nil && !hit {
+				count, err := deps.selected.request.Count(result.output)
+				if err != nil {
+					report.SetupError = err.Error()
+					_, _ = fmt.Fprintf(log, "\n===== invocation %d POPULATION ERROR =====\n%s\n%s", report.Completed, err, result.output)
+					cancelBatch()
+					continue
+				}
+				if count != 1 {
+					report.SetupError = "native stress child did not execute exactly one selected test"
+					cancelBatch()
+					continue
+				}
+				report.Executed += count
+			}
 			if !hit && result.code != 0 {
 				failed++
 			}
@@ -537,6 +587,10 @@ func runSlug(suite, test string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("split suite or test: %w", err)
 	}
+	return runSlugWords(words), nil
+}
+
+func runSlugWords(words []string) string {
 	var slug textbuf.Buffer
 	for _, word := range words {
 		clean := slugPart(word)
@@ -553,9 +607,9 @@ func runSlug(suite, test string) (string, error) {
 		}
 	}
 	if slug.Len() == 0 {
-		return "run", nil
+		return "run"
 	}
-	return slug.String(), nil
+	return slug.String()
 }
 
 func slugPart(word string) string {

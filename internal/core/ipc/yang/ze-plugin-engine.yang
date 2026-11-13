@@ -578,6 +578,17 @@ module ze-plugin-engine {
                      plugin's declared version and the engine's.";
                 ze:help "Plugin protocol version both sides speak";
             }
+            leaf plugin-name {
+                type string {
+                    length "1..64";
+                }
+                description
+                    "The configured identity of this authenticated plugin process.
+                     This can differ from the implementation the instance runs.
+                     The SDK receives it before configuration and uses it in
+                     operator recovery commands.";
+                ze:help "Configured plugin instance name";
+            }
         }
     }
 

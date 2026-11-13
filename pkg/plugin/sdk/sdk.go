@@ -50,7 +50,8 @@ type callbackHandler func(json.RawMessage) (json.RawMessage, error)
 
 // Plugin represents a ze plugin using the YANG RPC protocol.
 type Plugin struct {
-	name string
+	name         string
+	instanceName string
 
 	// Single bidirectional connection, multiplexed for concurrent RPCs.
 	engineConn *rpc.Conn    // Underlying connection (reads/writes)
@@ -516,6 +517,9 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	if err := acceptProtocolVersion(answer); err != nil {
 		return startupFailure(1, "declare-registration", err)
 	}
+	if err := p.acceptInstanceName(answer); err != nil {
+		return startupFailure(1, "declare-registration", err)
+	}
 
 	// Stage 2: wait for configure from engine. The extractor runs here and
 	// nowhere else, so a runtime configure redelivery cannot rewrite the
@@ -619,7 +623,7 @@ func (p *Plugin) callEngineWithResult(ctx context.Context, method string, params
 func (p *Plugin) callEngineRaw(ctx context.Context, method string, params any) (json.RawMessage, error) {
 	// Direct bridge path: bypass JSON framing and socket I/O entirely.
 	// Params are still marshaled to json.RawMessage for the bridge handler.
-	if p.bridge != nil && p.bridge.Ready() {
+	if p.engineBridgeActive() {
 		var paramsRaw json.RawMessage
 		if params != nil {
 			var err error

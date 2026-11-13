@@ -5,7 +5,7 @@
 // applyRouteRemove) do exactly two things to the engine Loc-RIB:
 // rib.InsertForward(fam, prefix, path, nil) and
 // rib.Remove(fam, prefix, source, instance). This file drives that exact pair
-// through the REAL locrib -> sysrib.run chain and asserts sysrib publishes an
+// through the real Loc-RIB -> current SDK worker chain and asserts sysrib publishes an
 // Add and then a Withdraw on (system-rib, best-change), which is what fib-kernel
 // consumes to program and unprogram the kernel FIB.
 
@@ -75,11 +75,8 @@ func TestForkedRouteRemovePublishesWithdraw(t *testing.T) {
 
 	s := newSysRIB()
 	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		s.run(ctx)
-	}()
+	client := startCurrentSysRIB(t, ctx, rib, s, bus)
+	done := client.worker.done
 	t.Cleanup(func() {
 		cancel()
 		<-done

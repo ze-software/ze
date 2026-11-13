@@ -105,11 +105,12 @@ func (r *RIB) reselectShard(fam family.Family, sh *shard) {
 	for _, prefix := range prefixes {
 		var prevBest, newBest Path
 		var hadBest, newHad bool
-		var prevECMP, ecmp []NextHop
+		var prevECMP, ecmp []ForwardingMember
+		var observed []NextHop
 		sh.store.Modify(prefix, func(g *PathGroup) {
 			prevBest, hadBest = g.best()
 			if hadBest {
-				prevECMP = siblingNextHops(g, prevBest)
+				prevECMP = forwardingMembers(g, &prevBest)
 			}
 			for j := range g.Paths {
 				stored := admit(snap, fam, prefix, producerPath(&g.Paths[j]))
@@ -119,11 +120,12 @@ func (r *RIB) reselectShard(fam family.Family, sh *shard) {
 			}
 			g.Best = selectBest(g.Paths)
 			newBest, newHad = g.best()
-			ecmp = siblingNextHops(g, newBest)
+			ecmp = forwardingMembers(g, &newBest)
+			observed = memberNextHops(siblingMembers(g, newBest))
 		})
 		r.dispatchReselected(sh, fam, prefix, reselected{
 			prevBest: prevBest, newBest: newBest, hadBest: hadBest, newHad: newHad,
-			prevECMP: prevECMP, ecmp: ecmp,
+			prevECMP: prevECMP, ecmp: ecmp, observed: observed,
 		})
 	}
 }
@@ -132,7 +134,8 @@ func (r *RIB) reselectShard(fam family.Family, sh *shard) {
 type reselected struct {
 	prevBest, newBest Path
 	hadBest, newHad   bool
-	prevECMP, ecmp    []NextHop
+	prevECMP, ecmp    []ForwardingMember
+	observed          []NextHop
 }
 
 // dispatchReselected tells the subscribers what a Reselect pass changed for one
@@ -148,11 +151,11 @@ func (r *RIB) dispatchReselected(sh *shard, fam family.Family, prefix netip.Pref
 		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeRemove})
 	case !s.hadBest:
 		r.revision.Add(1)
-		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: s.newBest, ECMP: s.ecmp})
-	case s.prevBest.Equal(s.newBest) && equalNextHopSets(s.prevECMP, s.ecmp):
+		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: s.newBest, ECMP: s.observed})
+	case s.prevBest.Equal(s.newBest) && equalForwardingMemberSets(s.prevECMP, s.ecmp):
 		// Nothing a consumer sees moved.
 	default:
 		r.revision.Add(1)
-		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: s.newBest, ECMP: s.ecmp})
+		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: s.newBest, ECMP: s.observed})
 	}
 }

@@ -1,6 +1,6 @@
 // VALIDATES: the three doors onto one install decision answer the same for a
 // prefix whose gateway the resolver cannot reach -- a route arriving live
-// (recomputeBest), the permission sweep (fibStateChange) and a cascade
+// (recomputeForwarding), the permission sweep (fibStateChange) and a cascade
 // (cascadeRecompute). Each leaves the prefix programmed over the target its
 // producer named, because the Loc-RIB is not the router's whole picture of
 // reachability: an OSPF or IS-IS next-hop on a link whose connected route no
@@ -8,7 +8,7 @@
 // PREVENTS: plan/journal/guard-added-to-one-half-of-a-pair.md, both rows. The
 // cascade read the same verdict as a path LOST and withdrew a prefix the live
 // path had deliberately programmed. The withdraw was PERMANENT: an identical
-// re-announcement is a no-op at recomputeBest, and a cascade fires only when a
+// re-announcement is a no-op at recomputeForwarding, and a cascade fires only when a
 // covering route changes, so a gateway the Loc-RIB never covers leaves the
 // prefix out of the FIB for the life of the process.
 
@@ -59,7 +59,7 @@ func TestEveryDoorProgramsAnUnresolvableGatewayTheSameWay(t *testing.T) {
 	}
 }
 
-// liveDoor is recomputeBest: the route arrives from its producer.
+// liveDoor is recomputeForwarding: the route arrives from its producer.
 func liveDoor(t *testing.T, pfx netip.Prefix) *sysRIB {
 	t.Helper()
 	bus := newTestEventBus()
@@ -70,7 +70,7 @@ func liveDoor(t *testing.T, pfx netip.Prefix) *sysRIB {
 	if len(changes) != 1 || changes[0].Action != routeaction.Add {
 		t.Fatalf("the live change published %+v, want one add for %s", changes, pfx)
 	}
-	return s
+	return s.sysRIB
 }
 
 // sweepDoor is fibStateChange: the operator permits the protocol again, which
@@ -91,7 +91,7 @@ func sweepDoor(t *testing.T, pfx netip.Prefix) *sysRIB {
 	if len(permitted) != 1 || permitted[0].Action != routeaction.Add {
 		t.Fatalf("the permission sweep published %+v, want one add for %s", permitted, pfx)
 	}
-	return s
+	return s.sysRIB
 }
 
 // cascadeDoor is cascadeRecompute: a covering route moved and the prefix is
@@ -111,7 +111,7 @@ func cascadeDoor(t *testing.T, pfx netip.Prefix) *sysRIB {
 			"prefix was programmed and it still does, so no path was lost",
 			cascaded, unresolvableGateway)
 	}
-	return s
+	return s.sysRIB
 }
 
 // TestCascadeWithdrawsAPathItLaterProved is the transition the install record

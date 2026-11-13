@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
@@ -23,10 +24,10 @@ import (
 // keyword before any free-form value).
 const candidatesSelectorPrefix = "prefix"
 
-// errNoLocRIB is the answer in a process that holds no Loc-RIB: sysrib forked
-// out of the daemon. The candidates live in the daemon's Loc-RIB, so an empty
-// list there would read as "no route" when the truth is "cannot see".
-var errNoLocRIB = errors.New("show rib candidates: this process holds no Loc-RIB, so it cannot list the paths; the system RIB plugin must run inside the daemon: remove any `plugin { external ... }` entry that forks it, then restart with `ze signal restart`")
+// errNoLocRIB refuses a candidate query with no authority reader. Both plugin
+// placements obtain candidates from the daemon; placement does not grant or
+// remove the capability to list them.
+var errNoLocRIB = opererr.New("The routing view for show rib candidates is unavailable", "The daemon authority must be connected before candidate paths can be listed", "ze request reload")
 
 // candidatePath is one path a protocol offered for a prefix: selected,
 // standing by, or hidden by an import chain.

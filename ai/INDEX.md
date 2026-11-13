@@ -573,6 +573,9 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | forward, reflect, wire cache | `core-design.md`, `encoding-context.md`, `update-building.md` |
 | route, rib, storage | `core-design.md`, `route-types.md`, `rib-transition.md`, `plugin/rib-storage-design.md` |
 | route selection, best path | `route-selection.md` |
+| route policy, source import, central import, hidden candidates | `docs/guide/route-policy.md`, `internal/core/rib/locrib/policy.go` (`admit`), `features/route-policy.md` |
+| external system RIB, routing view, selected projection, route-view-open, routing-view reset | `docs/architecture/rib/unified-locrib.md` (Authoritative selected views), `docs/architecture/api/process-protocol.md` (System routing views), `pkg/plugin/rpc/route_view.go`, `internal/component/sysrib/register_route_view.go` |
+| rib-routing-view, doctor-rib-routing-view-unavailable, ze_rib_view_ready | `docs/architecture/doctor-and-health-checks.md` (The runtime phase), `docs/plugin-development/metrics.md`, `internal/component/sysrib/doctor_route_view.go` (`findings`, `newRouteViewHealth`) |
 | FSM, state, session, peer | `behavior/fsm.md` |
 | signal, SIGHUP, SIGUSR | `behavior/signals.md` |
 | reload fence, reload generation, show reload-status, wait for reload, reject/no-op observability | `docs/architecture/api/commands.md` ("show reload-status"), `internal/component/plugin/server/reload_generation.go`, `cmd/ze/hub/main_reload.go` |

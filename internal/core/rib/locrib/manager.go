@@ -60,7 +60,8 @@ func (r *RIB) Revision() uint64 { return r.revision.Load() }
 
 // OnChange registers fn to receive a Change every time the best path for a
 // prefix is added, updated, removed, or keeps the same best with changed ECMP
-// membership. Handlers run synchronously under the owning shard's write lock, so
+// membership or forwarding metadata. Handlers run synchronously under the owning
+// shard's write lock, so
 // fn MUST NOT re-enter Insert/Remove on the same RIB and should defer any heavy
 // work to a goroutine. Returns a
 // function that, when called, removes fn from every shard; further changes
@@ -192,18 +193,20 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	if latest := ribpolicy.Current(); latest != snap {
 		stored = admit(latest, fam, prefix, p)
 	}
+	// upsert MUST receive this same resolved value: a second distance read
+	// could differ from the one used to judge whether membership changed.
+	stored.AdminDistance = resolvedDistance(stored)
 	var prevBest Path
 	var hadBest bool
 	var newBest Path
 	var newHad bool
 	var created bool
-	// prevECMP/new ECMP hold the intra-source equal-cost siblings of the old and
-	// new best paths, computed while the PathGroup is in hand under sh.mu so
-	// consumers (sysrib) never re-look-up the RIB to recover an ECMP group. Nil
-	// for single-path groups; populated only when the selected best is itself a
-	// multipath member.
-	var prevECMP []NextHop
+	// A changed effective path requires a before/after member comparison.
+	// An unchanged upsert needs no temporary forwarding or observation slices,
+	// but MUST still store producer originals and account for the offer below.
 	var ecmp []NextHop
+	var prevMembers, members []ForwardingMember
+	var sameEffective bool
 
 	// Lookup then Insert, the two trie walks store.Modify makes, without its
 	// callback: Modify hands the callback a pointer to its local copy, which
@@ -212,17 +215,27 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	g, found := sh.store.Lookup(prefix)
 	if found {
 		prevBest, hadBest = g.best()
-		if hadBest {
-			prevECMP = siblingNextHops(&g, prevBest)
+		for i := range g.Paths {
+			if g.Paths[i].key() != stored.key() {
+				continue
+			}
+			sameEffective = g.Paths[i].Equal(stored) && slices.Equal(g.Paths[i].ECMP, stored.ECMP)
+			break
 		}
 	} else {
 		g = PathGroup{Best: -1}
 		created = true
 	}
+	compareMembers := hadBest && !sameEffective
+	if compareMembers {
+		prevMembers = forwardingMembers(&g, &prevBest)
+	}
 	g.upsert(stored)
 	sh.store.Insert(prefix, g)
 	newBest, newHad = g.best()
-	ecmp = siblingNextHops(&g, newBest)
+	if compareMembers {
+		members = forwardingMembers(&g, &newBest)
+	}
 	depth := sh.store.Len()
 
 	// The path is valid (checked at entry) and upsert placed it into the group,
@@ -230,7 +243,7 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	// best. Six outcomes: no best before or after (a hidden path stored, no
 	// dispatch), a best before and none after (Remove: every remaining path is
 	// hidden), a first best (Add), best identity changed (Update), ECMP
-	// membership changed while the best stayed stable (Update without Forward),
+	// membership or metadata changed while best stayed stable (Update without Forward),
 	// or no dispatch. changed keeps its long-standing API meaning: true only
 	// when the selected best Path changed.
 	var (
@@ -238,9 +251,13 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 		changed bool
 	)
 	bestChanged := hadBest && !prevBest.Equal(newBest)
-	ecmpChanged := hadBest && !equalNextHopSets(prevECMP, ecmp)
-	if hadBest != newHad || bestChanged || ecmpChanged {
+	ecmpChanged := compareMembers && !equalForwardingMemberSets(prevMembers, members)
+	selectedChanged := hadBest != newHad || bestChanged || ecmpChanged
+	if selectedChanged {
 		r.revision.Add(1)
+		if newHad {
+			ecmp = siblingNextHops(&g, newBest)
+		}
 	}
 	switch {
 	case !hadBest && !newHad:
@@ -286,44 +303,75 @@ func siblingNextHops(g *PathGroup, best Path) []NextHop {
 	if !best.Valid() {
 		return nil
 	}
+	if len(best.ECMP) > 0 {
+		return best.ECMP
+	}
+	return memberNextHops(siblingMembers(g, best))
+}
+
+// siblingMembers supplies the intra-source membership for protocol observers.
+// Explicit groups on one Path share its metadata; separately inserted paths
+// contribute their own metadata. No slice is allocated for a single path.
+func siblingMembers(g *PathGroup, best Path) []ECMPMember {
+	if !best.Valid() {
+		return nil
+	}
 	// A source that carries its own equal-cost set on the best Path (BGP
 	// multipath, which arbitrates one winner across peers rather than inserting
 	// one Path per next-hop) supplies the ECMP next-hops directly. Intra-source
 	// producers (IS-IS/OSPF) leave Best.ECMP nil and are computed from the group.
 	if len(best.ECMP) > 0 {
-		return best.ECMP
+		members := make([]ECMPMember, len(best.ECMP))
+		for i := range best.ECMP {
+			members[i] = ECMPMember{NextHop: best.ECMP[i], Labels: best.Labels, SRv6SID: best.SRv6SID}
+		}
+		return members
 	}
 	if g == nil || len(g.Paths) <= 1 {
 		return nil
 	}
-	var out []NextHop
+	var out []ECMPMember
 	for i := range g.Paths {
 		p := g.Paths[i]
 		if p.Source != best.Source {
 			continue
 		}
-		// A hidden path was rejected by an import chain: it is never selected,
-		// so it is never an equal-cost member either.
-		if p.Hidden {
-			continue
-		}
-		if !p.NextHop.IsValid() && p.Interface == "" {
-			continue
-		}
-		if p.NextHop == best.NextHop {
-			if p.Interface == best.Interface {
-				continue
-			}
-		}
-		if p.AdminDistance != best.AdminDistance || p.Metric != best.Metric {
+		if !equalCostMember(&p, &best) {
 			continue
 		}
 		nh := NextHop{Addr: p.NextHop, Interface: p.Interface, OnLink: p.OnLink, Weight: p.Weight}
-		if !slices.Contains(out, nh) {
-			out = append(out, nh)
+		if !containsMemberTarget(out, nh) {
+			out = append(out, ECMPMember{NextHop: nh, Labels: p.Labels, SRv6SID: p.SRv6SID})
 		}
 	}
 	return out
+}
+
+func containsMemberTarget(members []ECMPMember, target NextHop) bool {
+	for i := range members {
+		if members[i].NextHop == target {
+			return true
+		}
+	}
+	return false
+}
+
+func memberNextHops(members []ECMPMember) []NextHop {
+	if len(members) == 0 {
+		return nil
+	}
+	hops := make([]NextHop, len(members))
+	for i := range members {
+		hops[i] = members[i].NextHop
+	}
+	return hops
+}
+
+// ECMPMembers returns the same selected membership as ECMPNextHops, with the
+// forwarding metadata owned by each member. Labels remain borrowed from the
+// PathGroup, so callers copy them before leaving its authority read lock.
+func (g PathGroup) ECMPMembers(best Path) []ECMPMember {
+	return siblingMembers(&g, best)
 }
 
 // ECMPNextHops returns the equal-cost sibling next-hops for best in this
@@ -332,18 +380,6 @@ func siblingNextHops(g *PathGroup, best Path) []NextHop {
 // without re-querying the RIB.
 func (g PathGroup) ECMPNextHops(best Path) []NextHop {
 	return siblingNextHops(&g, best)
-}
-
-func equalNextHopSets(a, b []NextHop) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for _, nh := range a {
-		if !slices.Contains(b, nh) {
-			return false
-		}
-	}
-	return true
 }
 
 // Remove deletes the Path matching (source, instance) at (fam, prefix).
@@ -372,23 +408,22 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 	var newHad bool
 	var removed bool
 	empty := false
-	// prevECMP/new ECMP hold the intra-source equal-cost siblings of the old and
-	// post-removal best paths, captured here under sh.mu with g in hand so the
-	// synthesized fallback ChangeUpdate carries membership changes without a
-	// re-lookup. Nil unless the selected best is itself a multipath member.
-	var prevECMP []NextHop
+	// Capture selected members before removal. Removing one of two identical
+	// targets can change the surviving target's metadata alone.
 	var ecmp []NextHop
+	var prevMembers, members []ForwardingMember
 
 	sh.store.Modify(prefix, func(g *PathGroup) {
 		prevBest, hadBest = g.best()
 		if hadBest {
-			prevECMP = siblingNextHops(g, prevBest)
+			prevMembers = forwardingMembers(g, &prevBest)
 		}
 		removed = g.remove(pathKey{source: source, instance: instance})
 		newBest, newHad = g.best()
 		if len(g.Paths) == 0 {
 			empty = true
 		}
+		members = forwardingMembers(g, &newBest)
 		ecmp = siblingNextHops(g, newBest)
 	})
 
@@ -402,7 +437,7 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 	}
 	depth := sh.store.Len()
 	changed := !prevBest.Equal(newBest)
-	ecmpChanged := !equalNextHopSets(prevECMP, ecmp)
+	ecmpChanged := !equalForwardingMemberSets(prevMembers, members)
 	if changed || ecmpChanged {
 		r.revision.Add(1)
 	}

@@ -28,8 +28,8 @@ const (
 
 	// ChangeUpdate fires when a prefix already had a valid best but the best
 	// identity changed (different source/instance/next-hop/metric) or the best
-	// stayed stable while its ECMP sibling set changed. Best carries the
-	// selected path.
+	// stayed stable while its forwarding sibling set, ownership or metadata changed.
+	// Best carries the selected path.
 	ChangeUpdate ChangeKind = 2
 
 	// ChangeRemove fires when the last valid path for a prefix goes away.
@@ -84,6 +84,10 @@ type Change struct {
 	// A protocol that inserts one Path per equal-cost next-hop (IS-IS ECMP,
 	// distinct Instance) is the producer this serves: the single best Path on
 	// Best would otherwise collapse the multipath to one next-hop downstream.
+	// Member metadata is available through PathGroup.ECMPMembers under an
+	// authority read lock. Forwarding consumers read the complete cross-source
+	// group through PathGroup.ForwardingMembers. Key-only consumers MUST reread
+	// their view after notification, including ownership-only changes.
 	ECMP []NextHop
 }
 

@@ -32,28 +32,31 @@ var coordinatorLogger = slogutil.LazyLogger("plugin.coordinator")
 type StartupCoordinator struct {
 	pluginCount int
 
-	mu             sync.Mutex
-	currentStage   PluginStage
-	stageStartTime time.Time     // when current stage began
-	lastProgress   time.Time     // when any plugin last completed a stage
-	stageComplete  []bool        // which plugins completed current stage
-	stageCh        chan struct{} // closed when stage advances
-	failedPlugin   int           // -1 if none failed
-	failedMsg      string
-	err            error
+	mu                sync.Mutex
+	currentStage      PluginStage
+	stageStartTime    time.Time     // when current stage began
+	lastProgress      time.Time     // when any plugin last completed a stage
+	stageComplete     []bool        // which plugins completed current stage
+	stageCh           chan struct{} // closed when stage advances
+	failedPlugin      int           // -1 if none failed
+	failedMsg         string
+	err               error
+	configureDeclared []bool        // accepted once per member during Registration
+	configureBudget   time.Duration // maximum, immutable once Registration advances
 }
 
 // NewStartupCoordinator creates a coordinator for the given number of plugins.
 func NewStartupCoordinator(pluginCount int) *StartupCoordinator {
 	now := time.Now()
 	return &StartupCoordinator{
-		pluginCount:    pluginCount,
-		currentStage:   StageRegistration,
-		stageStartTime: now,
-		lastProgress:   now,
-		stageComplete:  make([]bool, pluginCount),
-		stageCh:        make(chan struct{}),
-		failedPlugin:   -1,
+		pluginCount:       pluginCount,
+		currentStage:      StageRegistration,
+		stageStartTime:    now,
+		lastProgress:      now,
+		stageComplete:     make([]bool, pluginCount),
+		stageCh:           make(chan struct{}),
+		failedPlugin:      -1,
+		configureDeclared: make([]bool, pluginCount),
 	}
 }
 

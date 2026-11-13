@@ -163,8 +163,9 @@ func ContainerCapsDockerNames() ([]string, error) {
 // test runs ze with exactly the capabilities a production daemon holds. That
 // mode drops ze to ZE_TEST_UID (runOrchestrated, runner_exec.go), so ze holds no
 // capability of the runner's: it holds only the file capabilities the QEMU
-// harness writes on its copies of ze, ze-stripped and le, and NetnsDaemonSetcap
-// derives that setcap text from this list (internal/le/test/qemu,
+// harness writes on its copies of ze and ze-stripped, and NetnsDaemonSetcap
+// derives that setcap text from this list. The le fixture controller separately
+// receives NetnsFixtureSetcap (internal/le/test/qemu,
 // netnsCapabilities). The parse-time gate reads the same list
 // (netnsDaemonMissing), so a test declaring a capability the grant lacks is
 // skipped with the missing name rather than passing a probe of the root runner

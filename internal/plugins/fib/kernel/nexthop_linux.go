@@ -184,7 +184,45 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 		route.MultiPath = append(route.MultiPath, backup...)
 	}
 
+	route.Scope = forwardingScope(route)
 	return route, nil
+}
+
+// forwardingScope makes an IPv4 device-only cover available to the kernel's
+// gateway lookup. That lookup requires link scope even when the interface's
+// configured subnet does not cover the gateway. Judge the completed group so a
+// gateway in an ECMP or backup member cannot acquire a device-only scope.
+func forwardingScope(route *netlink.Route) netlink.Scope {
+	if route.Dst.IP.To4() == nil {
+		return netlink.SCOPE_UNIVERSE
+	}
+	if route.Type != unix.RTN_UNICAST {
+		return netlink.SCOPE_UNIVERSE
+	}
+	if len(route.Gw) > 0 {
+		return netlink.SCOPE_UNIVERSE
+	}
+	if route.Via != nil {
+		return netlink.SCOPE_UNIVERSE
+	}
+	if len(route.MultiPath) == 0 {
+		if route.LinkIndex > 0 {
+			return netlink.SCOPE_LINK
+		}
+		return netlink.SCOPE_UNIVERSE
+	}
+	for _, member := range route.MultiPath {
+		if len(member.Gw) > 0 {
+			return netlink.SCOPE_UNIVERSE
+		}
+		if member.Via != nil {
+			return netlink.SCOPE_UNIVERSE
+		}
+		if member.LinkIndex == 0 {
+			return netlink.SCOPE_UNIVERSE
+		}
+	}
+	return netlink.SCOPE_LINK
 }
 
 // buildBackupNexthops builds the link-down/backup multipath next-hops for a

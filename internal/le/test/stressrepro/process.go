@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	coreenv "github.com/ze-software/ze/internal/core/env"
@@ -31,9 +30,13 @@ func (realProcessRunner) Invoke(ctx context.Context, spec invocation) processRes
 	// The child runner sees only its own selected cases. Carry contention
 	// from sibling invocations through the existing runner factor, once.
 	factor := max(runner.ChildParallelFactor(), spec.parallelFactor)
-	env := coreenv.Without(os.Environ(), runner.ParallelFactorEnv)
+	env := os.Environ()
+	if spec.environment != nil {
+		env = spec.environment
+	}
+	env = coreenv.Without(env, runner.ParallelFactorEnv, "ze.bin")
 	env = setEnvironment(env, strings.ReplaceAll(runner.ParallelFactorEnv, ".", "_"), strconv.Itoa(factor))
-	env = setEnvironment(env, "ze.bin", spec.zeBin)
+	env = setEnvironment(env, "ZE_BIN", spec.zeBin)
 	env = setEnvironment(env, runner.EnvNoBuild, "1")
 	env = setEnvironment(env, "GOTRACEBACK", "all")
 	if spec.extraTags != "" {
@@ -50,9 +53,15 @@ func (realProcessRunner) Invoke(ctx context.Context, spec invocation) processRes
 // argv is shared by execution and capture so evidence retains the exact child
 // argument boundaries, including quoted selectors and registered suite options.
 func (spec invocation) argv() ([]string, error) {
-	testWords, err := shellWords(spec.test)
-	if err != nil {
-		return nil, fmt.Errorf("split test: %w", err)
+	var testWords []string
+	if spec.selector != "" {
+		testWords = []string{spec.selector}
+	} else {
+		var err error
+		testWords, err = shellWords(spec.test)
+		if err != nil {
+			return nil, fmt.Errorf("split test: %w", err)
+		}
 	}
 	argv := make([]string, 0, len(spec.harness)+2+max(1, len(testWords)))
 	argv = append(argv, "test")
@@ -91,37 +100,28 @@ func runCommand(ctx context.Context, dir string, env []string, program string, a
 	cmd := exec.CommandContext(ctx, program, argv...) //nolint:gosec // program and argv come only from the closed tool grammar
 	cmd.Dir = dir
 	cmd.Env = env
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.WaitDelay = 2 * time.Second
-	cmd.Cancel = func() error {
-		if cmd.Process == nil {
-			return nil
-		}
-		err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		if errors.Is(err, syscall.ESRCH) {
-			return nil
-		}
-		return err
-	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	if err := cmd.Start(); err != nil {
+	owner, err := runner.StartServerProcess(cmd)
+	if err != nil {
 		return processResult{code: 2, output: stdout.String() + stderr.String(), err: err}
 	}
-	err := cmd.Wait()
+	defer owner.Close() //nolint:errcheck // Wait retains cleanup errors; Close also covers panic unwinding.
+	err = owner.Wait()
 	output := stdout.String() + stderr.String()
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return processResult{code: 124, output: output, err: context.DeadlineExceeded}
+	}
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return processResult{code: 1, output: output, err: context.Canceled}
 	}
 	if err == nil {
 		return processResult{output: output}
 	}
 	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return processResult{code: exitErr.ExitCode(), output: output}
-	}
-	if errors.Is(ctx.Err(), context.Canceled) {
-		return processResult{code: 1, output: output, err: context.Canceled}
 	}
 	return processResult{code: 2, output: output, err: err}
 }

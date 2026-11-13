@@ -1,5 +1,5 @@
 // Design: plan/release/validation/spec-fib-depth.md -- ECMP grouping
-// Related: sysrib.go -- recomputeBest calls into ecmpGroup after selecting best
+// Related: sysrib.go -- recomputeForwarding renders authority-selected members.
 
 package sysrib
 
@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/nexthop"
 )
 
@@ -69,6 +70,34 @@ func memberPath(route *protocolRoute, nextHop netip.Addr, iface string, weight u
 	return forwardingPath{ECMPPath: path, srv6SID: route.srv6SID}
 }
 
+// siblingPath reads the target and its aligned metadata together. Explicit
+// sets on one producer Path share that Path's metadata; separately inserted
+// selected siblings retain the metadata each member owns, including an empty
+// stack or SID that differs from the winner's.
+func siblingPath(route *protocolRoute, index int) forwardingPath {
+	hop := route.ecmpNextHops[index]
+	path := memberPath(route, hop.Addr, hop.Interface, hop.Weight, hop.OnLink)
+	if route.ecmpMetadata != nil {
+		path.Labels = route.ecmpMetadata[index].labels
+		path.srv6SID = route.ecmpMetadata[index].sid
+	}
+	return path
+}
+
+// siblingProtocol resolves ownership independently of the rendered target.
+// Nil metadata is the producer's explicit same-source set; captured selected
+// metadata carries the authority's numeric member source.
+func siblingProtocol(route *protocolRoute, index int) string {
+	if route.ecmpMetadata == nil {
+		return route.protocol
+	}
+	source := route.ecmpMetadata[index].source
+	if source == redistevents.ProtocolUnspecified {
+		return route.protocol
+	}
+	return redistevents.ProtocolName(source)
+}
+
 // ecmpPaths renders a collected group as the wire form a FIB entry carries.
 func ecmpPaths(paths []forwardingPath) []sysribevents.ECMPPath {
 	if len(paths) == 0 {
@@ -81,11 +110,9 @@ func ecmpPaths(paths []forwardingPath) []sysribevents.ECMPPath {
 	return wire
 }
 
-// Intra-protocol equal-cost sibling next-hops (IS-IS ECMP, umbrella A-2) used
-// to be recomputed here via a per-change Loc-RIB Lookup. They are now computed
-// at Loc-RIB emit (locrib.siblingNextHops) and carried on locrib.Change.ECMP,
-// reaching this package as protocolRoute.ecmpNextHops; ecmpCollect below folds
-// them into the kernel multipath. No re-lookup happens on the best-change path.
+// The daemon supplies complete forwarding membership from its authoritative
+// group, including cross-source members. Both local capture and projection
+// retain each target's ownership and metadata before this collector runs.
 
 // ecmpCollect gathers all routes for a prefix that are equal-cost to the
 // winner (same effective priority and metric). It includes both INTER-protocol
@@ -161,14 +188,20 @@ func (s *sysRIB) ecmpGroup(protocols map[string]*protocolRoute, winner *protocol
 	}
 	// Intra-protocol equal-cost siblings of the winner (same source, same
 	// admin distance + metric, different next-hop), recovered from the Loc-RIB
-	// path-group. Each is another target of the WINNER's own route, so it
-	// carries the winner's labels and the winner's SID (a labeled ECMP group
-	// imposes the same stack on every member today).
-	for _, nh := range winner.ecmpNextHops {
-		if sameTarget(nh, winner) || !namesATarget(nh.Addr, nh.Interface) {
+	// path-group. The target and metadata belong to that selected member.
+	for i, nh := range winner.ecmpNextHops {
+		if !namesATarget(nh.Addr, nh.Interface) {
 			continue
 		}
-		paths = append(paths, memberPath(winner, nh.Addr, nh.Interface, nh.Weight, nh.OnLink))
+		if sameTarget(nh, winner) {
+			if siblingProtocol(winner, i) == winner.protocol {
+				continue
+			}
+		}
+		if !permits(siblingProtocol(winner, i)) {
+			continue
+		}
+		paths = append(paths, siblingPath(winner, i))
 	}
 	return finishECMP(paths)
 }

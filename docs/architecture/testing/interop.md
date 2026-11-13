@@ -1835,6 +1835,43 @@ its own path, so the static path's 150 cannot stand for the OSPF path's
 distance.
 <!-- source: internal/le/interoplab/bgp/check_import_policy.go -- checkOSPFImportPolicy -->
 
+Each import scenario has an internal and a `-forked` system-RIB variant.
+The shared wrapper checks the daemon PID, configured owner's Running state
+and commands, then observes actual subprocess placement through procfs. The
+forked case requires one descendant running `ze plugin rib`; the internal
+case requires none. Both retain the original import, distance and flooding
+assertions.
+<!-- source: internal/le/interoplab/bgp/check_import_policy_placement.go -- checkImportPolicyPlacement, checkISISImportPolicyForked, checkOSPFImportPolicyForked -->
+<!-- source: internal/test/fixture/sysrib_execution_fixture.go -- sysribExecutionPluginChildren, sysribExecutionPluginPlacement -->
+
+Both OSPF variants also require BIRD's untagged `10.88.3.0/24` in Ze's SPF
+result and hidden centrally at distance 110. It must be absent from system
+and kernel routes beside the installed `10.88.2.0/24` control. The IS-IS
+wrapper reads both FRR versions and consumed image identities. The OSPF
+wrapper reads BIRD's version and image identity. Checker unit tests exercise
+these predicates, but do not establish a successful live peer run.
+<!-- source: internal/le/interoplab/bgp/check_import_policy_placement.go -- checkOSPFImportCentral, checkISISImportPeerIdentity -->
+
+Run one scenario on Ze's Docker-host system with the native action below.
+Select each of `isis-import-policy-frr`, `isis-import-policy-frr-forked`,
+`ospf-import-policy-bird` and `ospf-import-policy-bird-forked` separately.
+Retain `isis-export-policy-frr` and `ospf-export-policy-frr` as export controls.
+
+```bash
+./le test qemu docker-lab lab 'test integration interop' env 'INTEROP_SCENARIO=isis-import-policy-frr'
+```
+<!-- source: internal/le/test/qemu/actions.go -- dockerLabParameters -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab, dockerLabHostArgv -->
+<!-- source: internal/le/interoplab/bgp/register_catalog.go -- selectorVariable -->
+
+The action boots Ze's image, probes the guest Docker engine and runs the
+selected lab through its host runner. When validating uncommitted checker
+changes, use the launcher's `--name` form. Its inherited build identity keeps
+the child launcher on the same current-tree build. A registered scenario is
+a proof target until its live run and discrimination results are retained.
+<!-- source: internal/le/test/qemu/dockerlab.go -- dockerLab, dockerLabEnviron, runHostLe -->
+<!-- source: le -- ZE_LE_BUILD_NAME, named working-tree build -->
+
 ### IGP export-policy scenarios
 
 `isis-export-policy-frr` and `ospf-export-policy-frr` read an IGP export
@@ -4609,6 +4646,8 @@ is not packet-forwarding evidence.
 | 60 | bgp-panic-cease | Ze (the ze_le daemon), FRR 10.7.1, BIRD 3.4.0 | RFC 4271 Section 6.7 and Section 4.5, a panic on one session's read path contained to that session: the scenario's `ze-le-daemon` file starts the ze_le build, the checker creates `/run/ze-inject/bgp-read-panic-<FRR address>` in ze's container and makes FRR redistribute 10.49.1.0/24, and the injected panic on that UPDATE must reach FRR as a received NOTIFICATION Cease / Unspecific (`lastResetDueTo` naming a received notification, `lastNotificationReason` a Cease with no named subcode). FRR's session must come back (two establishments, one drop), while ze counts one establishment and no drop toward BIRD and BIRD stays Established. Green on 2026-10-27, twice. Red on 2026-10-27, `ceaseAfterPanic` without its `tryNotificationWithin` send (a `GOFLAGS=-overlay` build, image rebuilt by the harness): assertion 5, FRR's `lastResetDueTo` "Peer closed the session" after ze logged the contained panic. The shipped `ze-linux` holds neither `injectReadPanic` nor the trigger path; only `ze-le-linux` does |
 | 61 | isis-import-policy-frr | Ze, FRR 10.7.1 twice (FRR-A, FRR-B on separate links) | `isis filter import` decides what Ze installs and nothing else: the hidden prefix is out of Ze's RIB and FIB, listed by `show rib candidates` as hidden by the `isis import` chain, and still flooded on, so FRR-B learns it through Ze ("Separate links between daemons") |
 | 62 | ospf-import-policy-bird | Ze, BIRD 3.4.0 | `ospf filter import` sets distance 200 on BIRD's tagged external, which then loses to a static path at 150, while the untagged one keeps 110 and wins, judged per path in `show rib candidates` |
+| Paired import | isis-import-policy-frr-forked | Ze with external system RIB, FRR 10.7.1 twice | Same source-hidden/control and onward-flooding assertions as the internal scenario, with exact subprocess placement and consumed peer identities. Live paired validation remains required. |
+| Paired import | ospf-import-policy-bird-forked | Ze with external system RIB, BIRD 3.4.0 | Same tagged-distance/control assertions as the internal scenario, plus the central-only reject on 10.88.3.0/24 in both placements. Live paired validation remains required. |
 | 63 | bgp-rfc8212-default-reject-frr | Ze (route server, bgp-rib), FRR 10.7.1 twice (FRR at host 3 with no Ze policy, the FRR sink at host 15 with an explicit Ze policy) | RFC 8212 Section 3, the EBGP default reject in both directions, against an FRR that keeps its own `bgp ebgp-requires-policy` and holds explicit route-maps toward Ze: with no policy on Ze's FRR session, Ze's `show bgp rib best` must hold the sink's 10.81.15.0/24 and not FRR's 10.81.1.0/24 (after FRR's `advertised-routes` names it and Ze counts its UPDATE and End-of-RIB), FRR must hold neither Ze's config-originated 10.81.0.0/24 nor the sink's route, and the sink must receive 10.81.0.0/24 from the same config `update` path. A reload adding a bgp-level `final accept` in both directions must then deliver every route across the FRR session, with FRR and the sink each counting one establishment and no drop. Results on 2026-10-31, each image built by the harness: unmodified (`sha256:16bb31efdbb8`), assertions 1 to 15 pass, so both default rejects hold and the reload's export recovery reaches FRR with no reset, and assertion 16 fails: FRR's 10.81.1.0/24 never reaches Ze's RIB after the reload, because the import policy rising did not yet re-learn the routes the absent policy discarded. Ze's FRR peer now negotiates Route Refresh (`route-refresh enable`), since a rising import on a peer without it is refused (spec D-1). On 2026-10-31, after the import-rise refresh (e9385df360 through 16744a9e7e), the unmodified build passes all assertions in 25s: the reload sends ROUTE-REFRESH to FRR and FRR's 10.81.1.0/24 reaches Ze's RIB with no session reset. `Policy.AcceptsAtEnd` answering `true` for an unconfigured policy (a `GOFLAGS=-overlay` build, `sha256:7a6490c76e9b`): red at assertion 7, Ze's RIB holds 10.81.1.0/24. An export-only break, the `PolicyFilterChain` final verdict skipped for export and `egressFinalAccepts`, `forward_rs.go` and `egress_inject_filter.go` admitting (overlay, `sha256:41f076b8fae9`): red at assertion 8, FRR holds 10.81.0.0/24. The same break without `egressFinalAccepts` left assertion 8 green, so the session write gate is the guard Ze's config-originated route meets |
 | 64 | isis-export-policy-frr | Ze, FRR 10.7.1 | `isis filter export` decides what enters Ze's LSP and at what metric: FRR installs the tagged /32 at its link metric plus the 77 the modify set, the untagged /32 at the link metric plus Ze's default 100, and no route for the /24 the prefix-list rejects ("IGP export-policy scenarios"). Results on 2026-10-31 at 697dc6a618, each image built by the harness: unmodified, pass; `exportVerdict` answering accepted at `DefaultRedistMetric`, assertion 2 red with "FRR's IS-IS route for 10.66.0.1/32 has metric 110, want 87"; restored, pass (`sha256:310feaf0c24f`) |
 | 65 | ospf-export-policy-frr | Ze, FRR 10.7.1 | `ospf filter export` decides which AS-External-LSAs Ze originates and what they carry: FRR holds the tagged route's LSA at metric 50, E1, tag 200, the untagged one at metric 20, E2, tag 0, and none for the rejected route ("IGP export-policy scenarios"). Results on 2026-10-31 at 697dc6a618, each image built by the harness: unmodified, pass (`sha256:7459d9f4deca`); `applyExportSets` returning its input, assertion 2 red with "FRR's AS-External-LSA for 10.67.1.0/24 has metric 20, want 50" (`sha256:49ebad4b55cc`); restored, pass (`sha256:8cfc88af0ea1`). The first run found FRR 10.7.1 writing "E2 (Larger than any link state path)" for type 2, which the checker now reads by its first word (697dc6a618) |

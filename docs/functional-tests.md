@@ -340,6 +340,26 @@ PPPoE is registered there as a non-gating suite too:
 `suite "pppoe --draft"` launches `le test pppoe --draft`. This does not
 override a test's platform or namespace requirements; kernel-dependent PPPoE
 tests still need the runtime-kernel QEMU path.
+
+For a kernel-dependent live or draft CI, use the selected guest action inside
+Ze's own-system `docker-lab harness` boot:
+
+```text
+<GuestBinaryEnvironment> tmp/qemu/linux-<arch>/le test qemu all test test/draft/plugin/<stable-name>.ci stress 80 stress-parallel 4
+```
+
+This prepares the selected test's declared namespace and conntrack once, then
+reuses stress-repro with the prepared binaries and environment. `stress` takes
+1..1000 iterations; `stress-parallel` takes 1..4 workers and defaults to one.
+The phase passes only after every requested invocation executed and passed that
+one test: skips, empty selections, interrupted or incomplete runs and any child
+failure fail the phase. The report and capture retain the exact command and
+requested, completed and executed counts. Its checked whole-run budget grows
+with the number of batches and the configured invocation timeout; give the host
+boot a timeout that covers the complete planned sequence and preparation, as
+described in [the QEMU selected-stress contract](architecture/testing/qemu-integration.md#running-one-ci-test-in-a-ze-guest).
+<!-- source: internal/le/test/qemu/alltests_stress.go -- allTestsRun.selectedStressPhase -->
+
 A runner given a verb it does not know prints its usage and **exits 0**, so
 `le test bgp ui --draft` reads as a pass and runs nothing (`ai/rules/commands.md`; the defect is recorded in
 `plan/journal/silent-fall-through.md`). The check is a `--- PASS` or
@@ -676,6 +696,51 @@ below.
 
 ---
 ## Functional Suite Inventory
+
+### Route policy and system-RIB placement
+
+Route-policy daemon tests must exercise the configured system RIB in both
+placements. The shared observer checks authenticated daemon identity, the
+configured owner's state and the actual `ze plugin rib` descendant process.
+An internal case requires no such child. Each case checks useful routes and
+commands as well as placement, so an idle subprocess cannot establish parity.
+<!-- source: internal/test/fixture/sysrib_execution_fixture.go -- sysribExecutionDriver, sysribExecutionPluginPlacement, sysribExecutionPluginChildren -->
+
+The import drivers preserve the central and static subjects, then add kernel
+observations, stored distance/tag values and policy reload. Connected tests
+create real interface addresses and read their connected candidates. Main-table
+static and central tests load both the interface monitor and connected producer
+before requiring their gateway cover. Kernel absence checks sit beside a
+permitted installed control and before/after cleanup checks.
+<!-- source: internal/test/fixture/rib_import_daemon_fixture.go -- importPolicyDriver, importCentralKernel, importStaticReload, importConnectedDriver, importTagDriver -->
+
+The companion system-RIB drivers cover runtime health, recursive next hops,
+multipath/replay, distance apply/rollback and process restart. A source or
+fixture test does not replace a daemon/kernel run. Drafts remain outside the
+tracked functional inventory until they pass discrimination and load proof and
+are promoted through the normal draft workflow. Feature run records remain
+the authority for completed real-path evidence.
+<!-- source: internal/test/fixture/sysrib_health_daemon_fixture.go -- sysribHealthDriver -->
+<!-- source: internal/test/fixture/sysrib_recursive_daemon_fixture.go -- sysribRecursiveDriver -->
+<!-- source: internal/test/fixture/sysrib_ecmp_daemon_fixture.go -- sysribECMPDriver -->
+<!-- source: internal/test/fixture/sysrib_distance_daemon_fixture.go -- sysribDistanceDriver -->
+<!-- source: internal/test/fixture/sysrib_restart_daemon_fixture.go -- sysribRestartDriver -->
+<!-- source: internal/le/feature/runrecord.go -- RunRecord -->
+
+The following additional carriers are drafted. Their source defines the
+assertion targets below. Successful live runs, controlled breaks and promotion
+remain required before they count as retained evidence.
+
+| Carrier | Assertion target |
+|---------|------------------|
+| `sysrib-forked-producer-kernel` | Kill actual external static and independent SDK producers. Require scoped candidate/FIB withdrawal, survivor controls and useful recovery. |
+| `sysrib-bgp-metric-callers` and `-forked` | Exercise actual internal/external BGP-RIB callers, recursive cost, resolved zero, missing/present AIGP and retained-input winner/kernel changes. |
+| `sysrib-slow-reader-reset` | Stop the real external reader, acknowledge 8209 input routes, require daemon fencing while stopped, then recover current snapshot/replay and health in the same process. |
+<!-- source: internal/test/fixture/sysrib_producer_daemon_fixture.go -- sysribProducerDriver -->
+<!-- source: internal/test/fixture/sysrib_bgp_metrics_daemon_fixture.go -- sysribBGPMetricDriver -->
+<!-- source: internal/test/fixture/sysrib_slow_reader_daemon_fixture.go -- sysribSlowDriver, sysribSlowCount -->
+
+### Choosing functional tests
 
 Native `le test <suite>` and `le test bgp <suite>` runners use the same
 selection contract after the suite name: `--list`, `--all`, `--start ID`,
@@ -1171,8 +1236,8 @@ capability bits the probe tests.
 The probe reads the runner's own effective set, which is the answer while the
 runner and ze share one credential. The per-test netns mode breaks that: the
 runner is root and ze is dropped to `ZE_TEST_UID`, holding only the file
-capabilities the QEMU harness writes on its copies of `ze`, `ze-stripped` and
-`le`. That grant is the set the systemd unit gives a non-root daemon:
+capabilities the QEMU harness writes on its copies of `ze` and `ze-stripped`.
+That grant is the set the systemd unit gives a non-root daemon:
 `netnsDaemonCapBits` (`internal/test/runner/caps.go`) derives it from
 `privilege.DaemonCapabilities` (`internal/core/privilege/capabilities.go`),
 `NetnsDaemonSetcap` derives the setcap text from it, currently
@@ -1187,6 +1252,66 @@ that declare `caps=net-admin,bpf` failed at stage Config with EPERM.
 <!-- source: internal/core/privilege/capabilities.go -- DaemonCapabilities -->
 <!-- source: internal/test/runner/record_parse_option.go -- applyNetnsDaemonCapsGate -->
 <!-- test: internal/test/runner/caps_netns_test.go -- TestNetnsDaemonSetcapNamesTheGrant, TestNetnsModeGateRefusesACapOutsideTheGrant -->
+
+The private `le` fixture copy receives that same set plus `CAP_KILL` and
+`CAP_SYS_PTRACE`, through `NetnsFixtureSetcap`. The first permits cancellation
+and reaping of an owned privileged helper; the second permits direct procfs
+identity reads of a nondumpable setcap daemon. Both belong only to the test
+process controller; neither daemon copy receives them, and `caps=` continues
+to judge the daemon's production grant. The namespace role always uses numeric
+UID1000, while the guest's cidata account has the host owner's UID. Direct
+inspection therefore works even when UID1000 has no passwd or sudo account.
+<!-- source: internal/test/runner/caps_fixture.go -- FixtureProcessControlCapability, NetnsFixtureSetcap -->
+<!-- source: internal/test/runner/caps_fixture_inspection.go -- FixtureProcessInspectionCapability -->
+<!-- test: internal/test/runner/caps_fixture_test.go -- TestNetnsFixtureSetcapAddsOnlyProcessControl, TestNetnsFixtureSetcapKeepsTheDaemonGrant -->
+<!-- test: internal/test/runner/caps_fixture_inspection_test.go -- TestNetnsFixtureSetcapCarriesAccountIndependentInspection -->
+<!-- test: internal/le/test/qemu/netns_fixture_capabilities_test.go -- TestNamespacePreparationKeepsFixtureProcessControlOffDaemons -->
+<!-- test: internal/le/test/qemu/netns_fixture_inspection_test.go -- TestNamespacePreparationMakesInspectionIndependentOfAccounts -->
+
+Route-policy fixture link and foreign-route mutations pass only the observer's
+existing `CAP_NET_ADMIN` to their owned `ip` child as an ambient capability.
+The child keeps the observer's numeric identity. This also supplies the
+inheritable capability iproute2 checks before retaining network authority.
+Each mutation takes ten percent of the published case budget, with a fifteen
+second fallback for a standalone fixture; earlier caller and cleanup deadlines
+still win. The child owner joins cleanup and limits each mutation-command stream
+to 8192 bytes. Kernel inspection commands
+retain their complete table output and remain independent assertions.
+<!-- source: internal/test/fixture/rib_import_command_fixture.go -- importCommandOutput, importCommandCapture -->
+<!-- source: internal/test/fixture/rib_import_command_linux.go -- importCommandAttributes -->
+<!-- test: internal/test/fixture/rib_import_command_linux_test.go -- TestImportCommandRetainsOnlyNetworkAdministration -->
+<!-- test: internal/test/runner/server_process_attributes_linux_test.go -- TestServerProcessPreservesCallerCredential -->
+
+Route-policy process observers retain the same exact executable, ancestry and
+NUL-delimited argument checks in this mode. A setcap daemon can be nondumpable,
+so Linux may refuse its executable link to a non-root observer even when both
+have the same UID. `sysribProcessExecutable` first reads that numeric PID's
+`/proc/<pid>/exe` directly, using the fixture's inspection grant in namespace
+runs. Outside that grant, only an `EACCES` refusal invokes the native guest's
+`sudo -n readlink` identity primitive against the same path where the caller's
+account permits it. The owned
+helper first requires root ownership or effective `CAP_KILL`, so cancellation
+can stop its privileged child; an absent or unreadable grant refuses before
+starting sudo. It has a deadline of at most fifteen seconds, respects an earlier
+observer deadline, caps each output stream at 8,192 bytes and accepts one exact absolute
+executable path. Missing sudo, a refused command or malformed output fails the
+observation; none means that the process is absent. Successful privileged reads
+retain a warning explaining the original permission refusal. This test-only
+inspection adds no daemon capability.
+<!-- source: internal/test/fixture/sysrib_process_executable_fixture.go -- sysribProcessExecutable, readSysribProcessExecutable, runSysribExecutableCommand -->
+<!-- test: internal/test/fixture/sysrib_process_executable_fixture_test.go -- TestSysribExecutablePermissionReadsSameNumericProcess, TestSysribExecutableOnlyPermissionEscalates, TestSysribExecutablePrivilegedReadKeepsParentDeadline -->
+<!-- source: internal/test/fixture/sysrib_process_executable_control.go -- requireSysribExecutableChildControl -->
+<!-- source: internal/test/fixture/sysrib_process_executable_control_linux.go -- sysribExecutableKillCapability -->
+<!-- test: internal/test/fixture/sysrib_process_executable_control_test.go -- TestSysribExecutableMissingKillRefusesChild, TestSysribExecutableUnknownKillRefusesChild -->
+
+The Linux integration cancellation case runs the fixture binary as a non-root
+user with that fixture grant. Its real sudo child proves it became root,
+publishes its identity and stops itself. The test checks the owned process
+group, cancels the actual inspector and requires the pinned root process to
+have exited after the join. A pidfd also reclaims that child if an ownership
+assertion fails. A host that cannot provide the fixture grant reports a skip;
+that is not the native guest's required execution evidence.
+<!-- test: internal/test/fixture/sysrib_process_executable_cancellation_integration_linux_test.go -- TestSysribExecutablePrivilegedCancellationJoinsRootChild -->
 
 #### A clamped path built by the test itself
 
@@ -2439,6 +2564,13 @@ needs its own `OK:` line. `test/plugin/api-peer-save.ci` and
 `test/plugin/api-peer-create-delete-rib.ci` use it.
 <!-- source: internal/test/fixture/daemon_await_exit_fixture.go -- daemonAwaitExit -->
 <!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+
+The exit barrier derives its poll count from 75 percent of the runner's
+published test budget and spaces attempts by 100 ms. An earlier
+caller cancellation still ends the wait. Without a published budget, a
+standalone invocation retains the 600-attempt fallback.
+<!-- source: internal/test/fixture/daemon_await_exit_fixture.go -- daemonAwaitExit -->
+<!-- source: internal/test/fixture/budget.go -- WaitAttempts -->
 
 #### Service clients that read what a daemon serves
 

@@ -208,7 +208,7 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err
 	}
-	if err := conn.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: version}); err != nil {
+	if err := conn.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: version, PluginName: sink.pluginName()}); err != nil {
 		return fmt.Errorf("stage 1 respond: %w", err)
 	}
 

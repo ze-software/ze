@@ -68,6 +68,17 @@ All families decode. Most encode. Use `ze show plugin list` to see the current s
 
 ### Infrastructure
 
+Route policy is Experimental. Source import chains and the central `rib`
+chain apply in the daemon's Loc-RIB. The system RIB has internal and external
+readers with shared forwarding behavior and a runtime `rib-routing-view`
+doctor check. Paired daemon, kernel, restart and peer evidence must be complete
+before a Supported declaration. See [Route Policy](route-policy.md) and its
+feature declaration in `features/route-policy.md` for scope and evidence.
+<!-- source: internal/core/rib/locrib/policy.go -- admit -->
+<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
+<!-- source: internal/component/sysrib/doctor_route_view.go -- findings -->
+<!-- source: features/route-policy.md -- Meta -->
+
 | Area | Status |
 |------|--------|
 | YANG configuration + validation | Working -- unknown keys rejected with suggestions |
@@ -78,6 +89,8 @@ All families decode. Most encode. Use `ze show plugin list` to see the current s
 | ExaBGP config migration | Working -- auto-detect and convert |
 | ExaBGP plugin bridge | Partial -- compatibility bridge exists, but not all ExaBGP behavior is equivalent |
 | Chaos testing (`le chaos run`) | Working -- deterministic replay, property validation |
+| MRT recording (RFC 6396) | Working -- the `mrt` plugin writes three independent streams: BGP4MP updates, BGP4MP all messages, and periodic TABLE_DUMP_V2 RIB snapshots, plus an on-demand `request mrt dump-rib`. Reading and analysis work via `./le mrt` |
+<!-- source: internal/plugins/mrt/component.go -- Component; internal/plugins/mrt/register.go -- request mrt dump-rib -->
 | Plugin setup results | Working -- each plugin records what its own `init()` achieved, `show plugin list` replays it in the `outcome` and `reason` columns, and the daemon refuses to start on a recorded hard failure. `memlock` is the migrated example; the other plugins record nothing yet and list as `unknown` |
 | Local certificate authority | Working -- ze generates a root at its first persistent start, keeps it in the managed store, and issues its own components' certificates from it. A genuinely storeless stdin daemon uses a process-lifetime root and warns that it changes on restart. `show pki local-ca pem` exports the root. `ze doctor` reports a persistent root as absent, unloadable, or within 90 days of expiry |
 | ICMP probe socket check | Working -- `ze doctor` tries the raw ICMP socket and then the unprivileged datagram one, and reports `doctor-icmp-probe` when neither opens or `doctor-icmp-probe-unprivileged` when ping runs on the datagram socket and traceroute cannot |
@@ -107,7 +120,6 @@ Unit tests run with the race detector enabled (`-race`). Functional, browser, an
 
 | Feature | Notes |
 |---------|-------|
-| MRT dump (RFC 6396) writing | Reading works via `./le mrt`. Writing is not implemented. |
 | Full BGP confederation behavior | AS path segment parsing exists, but full confederation deployment behavior is not listed as supported. |
 | Flowspec redirect to VRF | 4-byte ASN with IP redirect (Type 0x82) extended community not yet supported. |
 | External plugin filesystem discovery | External plugins must be configured. Built-in plugins auto-load by config roots, families, event types, and send types. |

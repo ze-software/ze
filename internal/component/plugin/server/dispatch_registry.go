@@ -28,12 +28,13 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// engineOp is one plugin->engine RPC operation. A single entry drives all three
-// transports:
+// engineOp is one plugin->engine RPC operation. A single entry drives its
+// transport adapters:
 //   - the JSON socket path (dispatchPluginRPC -> serveEngineOpJSON),
 //   - the in-process Direct path (dispatchPluginRPCDirect -> serveEngineOpDirect),
 //   - and, when typedWire is non-nil, the typed DirectBridge fast-path slot
 //     (wireBridgeDispatch iterates entries that declare one).
+//   - an owner's optional native Go-value adapter, through DispatchNative.
 type engineOp struct {
 	// method is the ze-plugin-engine:* wire method string (rpc.Method* constant).
 	method string
@@ -52,6 +53,14 @@ type engineOp struct {
 	// passes native Go values. nil means "no typed slot" (subscribe/unsubscribe,
 	// route-install/route-remove), exactly matching the pre-unification coverage.
 	typedWire func(s *Server, proc *process.Process, b *rpc.DirectBridge)
+
+	// native is an owner's optional Go-value adapter. The same entry retains
+	// the required raw handler and process identity for the public RPC path.
+	native func(*Server, context.Context, *process.Process, any) (any, error)
+
+	// startup is explicit for owner operations. Builtins retain the zero policy,
+	// which is never admitted while configure waits for its response.
+	startup EngineOperationStartup
 }
 
 // engineOps is the single source of truth for plugin->engine runtime RPCs. The
@@ -194,9 +203,8 @@ var engineOps = []engineOp{
 	},
 }
 
-// engineOpTable indexes engineOps by method for O(1) lookup. Built once at
-// package init; the pointers into the engineOps backing array are stable because
-// the slice is never reallocated after init.
+// engineOpTable indexes builtins and owner operations by method for O(1)
+// lookup. Owner registration is guarded by engineOperationMu and registry.Seal.
 var engineOpTable = buildEngineOpTable()
 
 func buildEngineOpTable() map[string]*engineOp {
@@ -210,6 +218,8 @@ func buildEngineOpTable() map[string]*engineOp {
 // lookupEngineOp returns the registered op for method, or nil if none. A nil
 // result is the fail-closed signal the dispatch paths turn into "unknown method".
 func lookupEngineOp(method string) *engineOp {
+	engineOperationMu.RLock()
+	defer engineOperationMu.RUnlock()
 	return engineOpTable[method]
 }
 
@@ -248,13 +258,21 @@ func (a *recordAnswer) TransportComplete() {
 // (rpcErrMessage), matching what serveEngineOpDirect returns so external and
 // in-process callers see identical error text (AC-2).
 func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) {
-	result, err := op.handle(s, s.Context(), proc, req.Params)
-	reply := s.replyContext()
+	_ = s.serveEngineOpJSONContext(s.Context(), s.replyContext(), proc, conn, req, op) //nolint:errcheck // Runtime reply failures are already logged by the shared wrapper.
+}
+
+// serveEngineOpJSONContext shares the wire result path while allowing startup
+// to retain its bounded request and reply context. Runtime lifecycle replies
+// keep the existing uncancelled reply context supplied above. Only response
+// transport or encoding failures are returned; a sent handler refusal succeeds.
+func (s *Server) serveEngineOpJSONContext(ctx, reply context.Context, proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) error {
+	result, err := op.handle(s, ctx, proc, req.Params)
 	if err != nil {
 		if sendErr := conn.SendError(reply, req.ID, rpcErrMessage(err)); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+			return sendErr
 		}
-		return
+		return nil
 	}
 	if completed, ok := result.(transportCompleteResponse); ok {
 		defer completed.TransportComplete()
@@ -262,12 +280,15 @@ func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginCo
 	if answer, records := result.(*recordAnswer); records {
 		if writeErr := answer.write(conn.AnswerWriter(reply), req.ID); writeErr != nil {
 			logger().Debug("rpc runtime: write answer failed", "plugin", proc.Name(), "error", writeErr)
+			return writeErr
 		}
-		return
+		return nil
 	}
 	if sendErr := conn.SendResult(reply, req.ID, result); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+		return sendErr
 	}
+	return nil
 }
 
 // serveEngineOpDirect runs an op for the in-process Direct path and marshals its
@@ -278,13 +299,7 @@ func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginCo
 func (s *Server) serveEngineOpDirect(ctx context.Context, proc *process.Process, op *engineOp, params json.RawMessage) (json.RawMessage, error) {
 	result, err := op.handle(s, ctx, proc, params)
 	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, err
-		}
-		if callErr, ok := errors.AsType[*rpc.RPCCallError](err); ok {
-			return nil, callErr
-		}
-		return nil, &rpc.RPCCallError{Message: err.Error()}
+		return nil, engineOpCallError(err)
 	}
 	if answer, records := result.(*recordAnswer); records {
 		// This is the JSON-shaped Direct path, so its result is one marshaled

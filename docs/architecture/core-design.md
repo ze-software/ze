@@ -2513,18 +2513,19 @@ for the RPC contract and push API.
 
 ## 16. FIB Pipeline
 
-The FIB pipeline carries best-path decisions from protocol RIBs through to kernel
-route installation. All communication flows through the Bus; no component imports
-another directly.
+The FIB pipeline carries the daemon Loc-RIB's authoritative selection through to
+kernel route installation. The system RIB consumes a local reader or selected
+SDK feed and publishes acknowledged FIB output through the daemon. Protocol
+observation events retain their separate subscribers.
 
 ```
-BGP RIB (bgp-rib plugin)
-  |  best-path change detected per prefix
-  |  publishes batch to Bus
+BGP, static, connected, OSPF, IS-IS producers
+  |  offer paths through daemon admission
   v
-bgp-rib/best-change/bgp  ──>  System RIB (rib plugin)
-                             |  selects system-wide best per prefix
-                             |  by administrative distance (lower wins)
+Daemon Loc-RIB          ──>  System RIB (rib plugin)
+  |  selects by distance     |  consumes selected values only
+  |  then metric            |  resolves gateway and member dependencies
+  |  then first seen        |  preserves selected path metadata
                              |  withholds a protocol named in rib { fib-withhold }
                              |  publishes batch to Bus
                              v
@@ -2537,7 +2538,9 @@ bgp-rib/best-change/bgp  ──>  System RIB (rib plugin)
                                                     Linux kernel routing table
 ```
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, bestChangeBatch, packBestPath -->
-<!-- source: internal/component/sysrib/sysrib.go -- system-rib topic, admin distance selection -->
+<!-- source: internal/core/rib/locrib/entry.go -- selectBest -->
+<!-- source: internal/component/sysrib/route_view_forwarding.go -- applySelectedBatch -->
+<!-- source: internal/component/sysrib/route_view_worker_output.go -- publish -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, netlink backend, stale sweep -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route change monitor -->
 
@@ -2558,25 +2561,41 @@ the winning path's label pool handle at emission time.
 
 ### System RIB
 
-The `rib` plugin subscribes to the `bgp-rib/best-change/` Bus topic prefix (matching
-all protocols). It maintains a per-prefix table of each protocol's best route and
-selects the system-wide best by administrative distance (lower wins). When the
-system best changes, it publishes a batch to `system-rib/best-change`, minus the
-protocols `rib { fib-withhold }` names.
+The `rib` plugin consumes the daemon Loc-RIB's authoritative selection. The
+Loc-RIB applies import policy and selects across protocols once; the consumer
+resolves next hops and builds forwarding changes from those selected values.
+It publishes `system-rib/best-change` through its generation-bound daemon sink,
+minus the protocols `rib { fib-withhold }` names. The production runner has no
+BGP event fallback or consumer-local distance publisher.
+<!-- source: internal/component/sysrib/register.go -- runRouteViewPlugin -->
+<!-- source: internal/component/sysrib/route_view_worker.go -- consume, readSelected -->
+<!-- source: internal/component/sysrib/route_view_forwarding.go -- applySelectedBatch -->
 
 Every protocol's administrative distance is declared once, in `rib { distance
 { } }` (`internal/component/sysrib/yang/ze-rib-conf.yang`). The table is complete
 whether or not an operator writes the block: `parseAdminDistanceConfig`
 (`internal/component/sysrib/sysrib.go`) fills it from the schema defaults.
 
+The routing-view configuration parser combines that complete distance table
+with the FIB permission table as one immutable value. An absent `rib` root is
+a declaration of defaults, so removing the root restores the defaults rather
+than leaving a prior override active. `sdk.ConfigTx` supplies verified apply,
+unchanged-config handling and rollback of this parsed value; a failed rollback
+keeps its original target for a retry.
+<!-- source: internal/component/sysrib/route_view_config.go -- parseRouteViewConfiguration -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- Verify, Apply, Rollback -->
+
 The declaration has to reach the Loc-RIB, not just sysrib, and that is why a
 seam exists. `locrib.selectBest` (`internal/core/rib/locrib/entry.go`) ranks
-paths across protocols, and `(*sysRIB).run` consumes one already-arbitrated best
-per prefix, so a value resolved in sysrib alone would change no cross-protocol
-selection. `internal/core/rib/distance` carries the resolved table from sysrib,
-which publishes it at start, on every configure and on rollback, to the Loc-RIB,
-the seam's one reader.
+paths across protocols, and the system RIB consumes one selected best per
+prefix, so a value resolved in a forked consumer alone would change no
+cross-protocol selection. The acknowledged `route-view-distances` operation
+publishes the resolved table through `internal/core/rib/distance` in the daemon,
+where the Loc-RIB reads it. The startup constructor sends a complete declaration
+even when Stage 2 delivers no `rib` section.
 <!-- source: internal/component/sysrib/register.go -- publishDistances -->
+<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
+<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewClient -->
 <!-- source: internal/core/rib/distance/distance.go -- Set, Of, Resolve -->
 
 Producers do not carry a distance. BGP, OSPF, IS-IS, static, connected and a
@@ -2601,22 +2620,29 @@ Loc-RIB stores, never on the producer's own values
 <!-- source: internal/plugins/static/locrib.go -- DistanceOverride -->
 
 A reload that changes `rib { distance { } }` re-ranks the routes already
-installed, not only the ones inserted after it. Every table sysrib takes on
-(the startup seed, the stage-2 configure, a transaction's apply and its
-rollback) goes through `declareDistances`, which publishes it and then calls
-`(*RIB).Reselect`. Reselect re-resolves every stored path's distance, re-runs
-selection per prefix, and dispatches a change for each prefix whose best path,
-its distance, or its equal-cost set moved. Those changes reach sysrib and the
-FIB as ordinary Loc-RIB changes.
-<!-- source: internal/component/sysrib/register.go -- declareDistances, reselectLocRIB -->
+installed, not only the ones inserted after it. `sdk.ConfigTx` is registered
+before the SDK handshake. Its first installer opens the consumer lease and
+waits for authoritative distance acknowledgment, then binds the runtime
+callbacks to that initialized client. Later configure delivery, apply and
+rollback use the same client's configuration operation. The daemon publishes
+the declaration and calls `(*RIB).Reselect`, which re-resolves every stored
+path's distance and dispatches each changed selected path or equal-cost set.
+The consumer declares a five-minute apply budget for acknowledged installation
+and bounded compensation; it does not retain the former two-second estimate.
+<!-- source: internal/component/sysrib/register.go -- runRouteViewPlugin -->
+<!-- source: internal/component/sysrib/route_view_client.go -- routeViewConfigurationApplyBudget -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- ApplyConfiguration -->
+<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
 <!-- source: internal/core/rib/locrib/distance.go -- Reselect, reselectShard -->
 
-A reload of a large table hands sysrib one change per re-ranked prefix in a
-burst, while Reselect holds the shard lock sysrib's next-hop resolution waits
-on. sysrib's feed queues 4096 changes; a change that does not fit records its
-prefix instead, and the worker re-reads those prefixes from the Loc-RIB once
-the queue is empty, so no winner is lost to the burst.
-<!-- source: internal/component/sysrib/locrib_feed.go -- locRIBFeed, takeOverflow, resyncOverflow -->
+A reload can produce more changes than the local worker's 4096-prefix queue
+holds. Its callback records overflow and retries a wakeup without waiting.
+The worker then scans the authority, including withdrawals for cached prefixes
+no longer present. Resolution and publication run outside the shard lock.
+The external selected feed instead returns an explicit reset when its bounded
+journal cannot retain the changes.
+<!-- source: internal/component/sysrib/route_view_worker_local.go -- offer, recordOverflow, scan, consumeLocal -->
+<!-- source: internal/component/sysrib/route_view_feed.go -- synchronize, invalidate -->
 
 Before sysrib's first publish, `Resolve` falls back to a bootstrap table holding
 the classical values. A protocol neither the declaration nor the bootstrap names,
@@ -2651,6 +2677,24 @@ nothing and WITHDRAWS the entry Ze had programmed for a previous winner, because
 leaving it would put a second route beside the one the kernel already holds. The
 prefix stays in the system RIB, so `show rib` reports who holds it.
 
+The connected producer keeps one path per prefix at instance 0. Its invalid
+next-hop terminates recursive resolution, while its `Interface` names the
+covering device, reconstructed from the interface monitor's parent/unit pair:
+unit 0 names the parent and a positive unit names `parent.unit`. These events
+already identify the provider's device, so connected does not resolve their
+names through a second configuration lookup. Multiple covering devices are
+sorted by name: the first becomes `Interface`, and the rest become device-only
+`Path.ECMP` members. Adding another address on an existing device publishes no
+new path; adding or removing a device updates the same path with the surviving
+set. Only the last address withdraws the prefix. Redistribution continues to
+announce the prefix on its first address and withdraw it on its last,
+independently of these device updates. Both the local Loc-RIB and forked
+route-install sink receive the same
+metadata; the OS-installed declaration still leaves the kernel's connected
+route under operating-system ownership.
+<!-- source: internal/plugins/connected/connected.go -- handleAddrAdded, handleAddrRemoved, coversDevice -->
+<!-- source: internal/plugins/connected/locrib.go -- insertPath, device, removePath -->
+
 The property is DECLARED rather than derived. An invalid next-hop, a route type
 and a protocol name each look like they could answer it, and the last would put a
 plugin's name inside a component (`ai/rules/plugins.md`). An unregistered protocol
@@ -2667,7 +2711,7 @@ The suppression therefore exists once, and each writer reads the same filtered
 stream with no code of its own.
 
 `publishChanges` does not hold the gate: it emits what it is handed. The
-producers do. `recomputeBest` sends a withheld winner to
+producers do. `recomputeForwarding` sends a withheld winner to
 `recordWithheldWinner`, which programs nothing and withdraws what the previous
 winner had. `cascadeRecompute` declines to re-resolve a withheld prefix.
 `replayBest` replays only the prefixes ze has an install outstanding for. The
@@ -2773,19 +2817,20 @@ over every registered protocol, and it is a different table from the
 resolved-next-hop one above.
 <!-- source: internal/component/sysrib/yang/ze-rib-conf.yang -- fib-withhold leaf-list -->
 <!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport, fibPermitted -->
-<!-- source: internal/component/sysrib/sysrib.go -- recomputeBest, cascadeRecompute, fibEntry, fibInstall, installedPath, replayBest -->
+<!-- source: internal/component/sysrib/sysrib.go -- recomputeForwarding, cascadeRecompute, fibEntry, fibInstall, installedPath, replayBest -->
 <!-- source: internal/component/sysrib/ecmp.go -- forwardingPath, ecmpCollect, ecmpRIBGroup -->
 
 After distance selection, the system RIB performs two additional phases:
 
 1. **Recursive NH resolution** (`nhresolver.go`): resolves next-hops that are not
-   directly connected by walking the Loc-RIB via LPM, up to 8 levels deep. Tracks
-   dependencies so that when a covering route changes (reachability or metric),
+   directly connected by walking a selected-path reader via LPM, up to 8 levels
+   deep. Tracks dependencies so that when a covering route changes (reachability or metric),
    all dependent prefixes are re-evaluated via cascade. Exposes `IGPMetric()` for
    best-path step 6 (RFC 4271 Section 9.1.2.2).
 
-2. **ECMP grouping** (`ecmp.go`): collects all protocol routes for a prefix that
-   share the winner's effective priority and metric into a single `BestChangeEntry`
+2. **ECMP grouping** (`ecmp.go`): reads the daemon's selected forwarding members
+   at the winner's distance and metric, retaining each member's protocol for FIB
+   permission filtering, and renders one `BestChangeEntry`
    with `ECMPPaths[]`. FIB backends receive one event per prefix, not N separate
    single-path events.
 
@@ -2799,6 +2844,25 @@ either command sees them.
 <!-- source: internal/component/sysrib/nhresolver.go -- recursive NH resolution, IGP metric, cascade -->
 <!-- source: internal/component/sysrib/ecmp.go -- ECMP path collection -->
 <!-- source: internal/component/sysrib/register.go -- rib plugin registration -->
+
+The reader contract is `igpcost.Reader`. The daemon Loc-RIB and a completed
+selected projection implement the same LPM operation, so forwarding recursion
+and IGP cost calculation use the same algorithms with either backing store.
+Daemon route-metric RPCs continue to read the authoritative Loc-RIB directly;
+`igpcost.Lookup` also uses that authority when no resolver is registered.
+<!-- source: internal/core/rib/igpcost/igpcost.go -- Reader, Resolve, Lookup -->
+<!-- source: internal/component/sysrib/nhresolver.go -- nhResolver, Resolve, IGPMetric -->
+<!-- source: internal/component/sysrib/projection.go -- LPM -->
+
+The selected-value consumer replaces a prefix's cached source with the one
+chosen by the authority. It calls `recomputeForwarding` directly, preserving
+FIB permissions, OS ownership, recursive resolution and ECMP without another
+distance selection. It installs a whole reader batch before evaluating its
+dependent routes. Each consumer instance owns its initialized resolver and
+dependency tracking, so a replacement cannot retarget an older instance's
+lookups through a process-global resolver pointer.
+<!-- source: internal/component/sysrib/route_view_forwarding.go -- prepareRouteViewSelected, applySelectedBatch -->
+<!-- source: internal/component/sysrib/sysrib.go -- recomputeForwarding, nextHopResolver -->
 
 ### Shared Route Watcher
 

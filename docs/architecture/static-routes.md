@@ -319,7 +319,7 @@ route family and never infers the family from the next hop.
 A per-route failure was once joined into one error that failed the whole static
 section. Now `applyRouteLocked` logs the failure, tears down the half-built
 state, drops the route from the route map and records it in a skipped map.
-`applyRoutes` returns nil, so `OnConfigure` proceeds and the good routes stay
+`applyRoutes` returns nil, so the apply succeeds and the good routes stay
 programmed.
 
 Which failures a route can still be skipped for depends on where it is installed.
@@ -353,6 +353,18 @@ loaded backend. The edge declares no config need, so the resolver pulls the
 interface plugin whenever static loads, with or without an `interface` stanza;
 it is optional only in that a build without the interface plugin still runs
 static.
+
+Startup configuration validates and retains the initial route set without
+installing it. `OnStarted` binds the available BFD service; `OnAllPluginsReady`
+then applies that set, including named-table routes. Main-table route-install
+RPCs are runtime operations, and redistribution subscribers in later startup
+phases must exist before static emits its initial routes. This ordering applies
+to both internal and external static, independently of system RIB placement.
+After all-ready, configure redelivery applies immediately. Transaction verify,
+apply and rollback retain their separate pending and undo sets, and shutdown
+withdraws the routes actually applied.
+<!-- source: internal/plugins/static/register.go -- registerStaticCallbacks -->
+<!-- test: internal/plugins/static/startup_routes_test.go TestStaticStartupRoutesWaitForAllPluginsReady -->
 
 Emit tracking uses a per-route `emitted` flag. A replacement, forward or
 blackhole or reject on either side, emits no remove, which avoids a

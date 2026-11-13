@@ -112,7 +112,9 @@ func netnsDevNodesScript() string {
 // netnsCapDir's group, and it carries the daemons' file capabilities because
 // such a fixture opens the AF_PACKET or netlink sockets the daemon itself
 // needs: file capabilities, not the dropped user's empty ambient set, are what
-// an exec under that user receives.
+// an exec under that user receives. NetnsFixtureSetcap additionally grants
+// CAP_KILL for owned privileged children and CAP_SYS_PTRACE for direct procfs
+// identity reads independent of guest account names.
 func netnsHarnessSource() (string, error) {
 	self, err := os.Executable()
 	if err != nil {
@@ -259,6 +261,10 @@ func (a *allTestsRun) prepareNamespace(environ []string, suites []vmSuite) error
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrNamespacePreparation, err)
 	}
+	fixtureCapabilities, err := runner.NetnsFixtureSetcap()
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrNamespacePreparation, err)
+	}
 
 	var tb textbuf.Buffer
 	tb.Str("set -e").
@@ -271,10 +277,10 @@ func (a *allTestsRun) prepareNamespace(environ []string, suites []vmSuite) error
 		Str("; chown ").Str(netnsUID).Byte(':').Str(netnsUID).Byte(' ').Str(netnsStateDir).
 		Str("; chmod 0750 ").Str(netnsStateDir).
 		Str("; ").Str(netnsDevNodesScript())
-	for _, binary := range []struct{ name, source string }{
-		{zeName, a.workspacePath(a.ZeBin)},
-		{zeStrippedName, a.workspacePath(a.StrippedBin)},
-		{leName, harness},
+	for _, binary := range []struct{ name, source, capabilities string }{
+		{zeName, a.workspacePath(a.ZeBin), capabilities},
+		{zeStrippedName, a.workspacePath(a.StrippedBin), capabilities},
+		{leName, harness, fixtureCapabilities},
 	} {
 		target := filepath.Join(netnsCapDir, binary.name)
 		// rm first: cp onto a binary a previous run in the same guest still
@@ -283,7 +289,7 @@ func (a *allTestsRun) prepareNamespace(environ []string, suites []vmSuite) error
 		tb.Str("; rm -f ").Str(target).
 			Str("; cp ").Str(binary.source).Byte(' ').Str(target).
 			Str("; chmod 0755 ").Str(target).
-			Str("; ").Str(setcapCommand).Byte(' ').Str(capabilities).Byte(' ').Str(target).
+			Str("; ").Str(setcapCommand).Byte(' ').Str(binary.capabilities).Byte(' ').Str(target).
 			Str("; ").Str(getcapCommand).Byte(' ').Str(target)
 	}
 

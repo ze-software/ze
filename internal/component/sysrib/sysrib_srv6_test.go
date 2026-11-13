@@ -1,7 +1,7 @@
 // VALIDATES: the one site that reads an SRv6 Service SID's resolvability --
 // fibEntry, which also covers the ECMP promotion below it -- and four of the
 // five call sites that act on the verdict it answers with: the two refusals in
-// recomputeBest, the replay, and the permission sweep. The fifth is
+// recomputeForwarding, the replay, and the permission sweep. The fifth is
 // cascadeRecompute, fibEntry's fourth caller, which no test here drives. A SID
 // the Loc-RIB does not cover leaves the prefix in the RIB with nothing
 // programmed, and a SID it covers is programmed like any other route.
@@ -36,8 +36,8 @@ import (
 // The SID is an IPv6 address whichever family the prefix belongs to, so its
 // reachability is a question the Loc-RIB answers separately from the
 // next-hop's, and every test below reads the two apart.
-func addSRv6Path(s *sysRIB, prefix netip.Prefix, nextHop, sid netip.Addr) {
-	fam, changes := s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{{
+func addSRv6Path(s *candidateForwardingFixture, prefix netip.Prefix, nextHop, sid netip.Addr) {
+	fam, changes := s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{{
 		Action:    routeaction.Add,
 		Prefix:    prefix,
 		NextHop:   nextHop,
@@ -56,7 +56,7 @@ func addSRv6Path(s *sysRIB, prefix netip.Prefix, nextHop, sid netip.Addr) {
 // ingress PE read.
 var srv6Locator = netip.MustParsePrefix("2001:db8:cafe::/48")
 
-// TestUnresolvableSRv6SIDIsNotProgrammed is the first refusal in recomputeBest:
+// TestUnresolvableSRv6SIDIsNotProgrammed is the first refusal in recomputeForwarding:
 // a prefix with no previous winner whose SID the Loc-RIB does not cover. The
 // route wins selection and enters the RIB, because withholding the FIB write is
 // not withdrawing the route, and nothing is published. Programming it would
@@ -132,7 +132,7 @@ func TestResolvableSRv6SIDIsProgrammed(t *testing.T) {
 }
 
 // TestSRv6SIDLossWithdrawsTheProgrammedPrefix is the second refusal in
-// recomputeBest, the one for a prefix Ze already holds an install for. A route
+// recomputeForwarding, the one for a prefix Ze already holds an install for. A route
 // with an unreachable SID takes the prefix from a route Ze programmed, so the
 // kernel entry is now stale: the RIB says the prefix belongs to a path Ze
 // cannot program, while the kernel still forwards over the path it beat.
@@ -204,6 +204,10 @@ func TestUnresolvableSRv6SIDIsNotPromotedOntoAnEqualCostMember(t *testing.T) {
 
 	// The control: the SID resolves, so the member carries the prefix.
 	reachable := netip.MustParsePrefix("10.53.0.0/24")
+	// Preserve the original member20 Add and BGP20 takeover under stable ties.
+	s.rib.Insert(family.IPv4Unicast, reachable, s.candidatePath("bgp", incomingChange{
+		NextHop: winnerNH, Interface: "eth0", SRv6SID: netip.MustParseAddr("2001:db8:cafe::3"), Priority: 21,
+	}))
 	addPath(s, "ospf", reachable, memberNH, "eth1", 20)
 	addSRv6Path(s, reachable, winnerNH, netip.MustParseAddr("2001:db8:cafe::3"))
 
@@ -219,6 +223,10 @@ func TestUnresolvableSRv6SIDIsNotPromotedOntoAnEqualCostMember(t *testing.T) {
 	// The same shape with a SID no locator route covers.
 	unreachable := netip.MustParsePrefix("10.54.0.0/24")
 	sid := netip.MustParseAddr("2001:db8:beef::4")
+	// Preserve the original member20 Add and BGP20 takeover under stable ties.
+	s.rib.Insert(family.IPv4Unicast, unreachable, s.candidatePath("bgp", incomingChange{
+		NextHop: winnerNH, Interface: "eth0", SRv6SID: sid, Priority: 21,
+	}))
 	addPath(s, "ospf", unreachable, memberNH, "eth1", 20)
 	addSRv6Path(s, unreachable, winnerNH, sid)
 

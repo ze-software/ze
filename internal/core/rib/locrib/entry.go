@@ -25,9 +25,9 @@ type PathGroup struct {
 
 // upsert inserts or replaces the Path at its (Source, Instance) key and
 // recomputes Best. p has already passed the import gate (admit), so its Hidden
-// flag and set actions are the RIB's own.
+// flag and set actions are the RIB's own. The caller MUST resolve AdminDistance
+// once before comparing the effective path and passing that same value here.
 func (g *PathGroup) upsert(p Path) {
-	p.AdminDistance = resolvedDistance(p)
 	k := p.key()
 	for i := range g.Paths {
 		if g.Paths[i].key() == k {

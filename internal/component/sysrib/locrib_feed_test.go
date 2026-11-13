@@ -1,43 +1,87 @@
-// Design: docs/architecture/core-design.md -- System RIB plugin, the Loc-RIB feed.
+// Design: docs/architecture/core-design.md -- current local routing-view capture.
+
 package sysrib
 
 import (
+	"context"
 	"net/netip"
+	"sync"
 	"testing"
+	"time"
 
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
-// A Loc-RIB change that does not fit in the feed still reaches the FIB.
-//
-// Method: a feed one change deep takes two, as a Reselect burst would hand it.
-// The worker's step (process the queued change, then resync the overflow) must
-// publish both prefixes, the second as the Loc-RIB holds it at the read. Before
-// the feed recorded overflow, the second change was dropped with a warning and
-// the kernel never followed that winner.
-func TestFeedOverflowIsReReadNotDropped(t *testing.T) {
-	loc := locrib.NewRIB()
-	SetLocRIB(loc)
-	t.Cleanup(func() { SetLocRIB(nil) })
+// heldFeedWorker holds the actual worker's initial publication while a test
+// fills its bounded input. The owner MUST release it before client cleanup.
+func heldFeedWorker(t *testing.T, ctx context.Context, prefix netip.Prefix, path locrib.Path) (*routeViewClient, *locrib.RIB, *testEventBus, func()) {
+	t.Helper()
+	rib := locrib.NewRIB()
+	rib.Insert(family.IPv4Unicast, prefix, path)
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	entered, release := make(chan struct{}), make(chan struct{})
+	var first, unblock sync.Once
+	releaseWorker := func() { unblock.Do(func() { close(release) }) }
+	bus.Subscribe(sysribevents.Namespace, sysribevents.EventBestChange, func(payload any) {
+		batch, ok := payload.(*outgoingBatch)
+		if !ok {
+			return
+		}
+		for _, entry := range batch.Changes {
+			if entry.Prefix == prefix && entry.Action == routeaction.Add {
+				first.Do(func() {
+					close(entered)
+					select {
+					case <-release:
+					case <-ctx.Done():
+					}
+				})
+			}
+		}
+	})
+	client := openCurrentSysRIB(t, ctx, rib, newSysRIB(), bus)
+	t.Cleanup(releaseWorker)
+	if err := client.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-entered:
+	case <-ctx.Done():
+		t.Fatalf("initial useful publication never reached the hold: %v", client.Failure())
+	}
+	return client, rib, bus, releaseWorker
+}
 
-	feed := newLocRIBFeed(1)
-	unsubscribe := loc.OnChange(func(c locrib.Change) { feed.offer(&c) })
-	t.Cleanup(unsubscribe)
-
+func TestFeedOverflowIsReReadNotDropped(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
 	queued := netip.MustParsePrefix("198.51.100.0/24")
 	overflowed := netip.MustParsePrefix("203.0.113.0/24")
-	loc.Insert(family.IPv4Unicast, queued, recursivePath(netip.MustParseAddr("192.0.2.1"), 1))
-	loc.Insert(family.IPv4Unicast, overflowed, recursivePath(netip.MustParseAddr("192.0.2.2"), 1))
-
-	c := <-feed.ch
-	s.processLocRIBChange(&c)
-	s.resyncOverflow(loc, feed)
-
+	path := recursivePath(netip.MustParseAddr("192.0.2.1"), 1)
+	path.Source = redistevents.RegisterProtocol("test-nhresolver")
+	client, rib, bus, release := heldFeedWorker(t, ctx, queued, path)
+	capture := client.worker.local
+	for range cap(capture.keys) {
+		capture.offer(locrib.Change{Family: family.IPv4Unicast, Prefix: queued, Kind: locrib.ChangeAdd})
+	}
+	second := path
+	second.NextHop = netip.MustParseAddr("192.0.2.2")
+	rib.Insert(family.IPv4Unicast, overflowed, second)
+	if !capture.overflow.Load() || len(capture.keys) != cap(capture.keys) {
+		t.Fatal("second authoritative input did not overflow the bounded queue")
+	}
+	release()
+	if _, ok := waitForEntry(t, bus, func(entry sysribevents.BestChangeEntry) bool {
+		return entry.Prefix == overflowed && entry.Action == routeaction.Add && entry.NextHop == second.NextHop
+	}); !ok {
+		t.Fatalf("overflowed prefix never reached the FIB: %+v", bestChangeEntries(bus))
+	}
 	published := map[netip.Prefix]netip.Addr{}
 	for _, change := range publishedChanges(t, bus) {
 		published[change.Prefix] = change.NextHop
@@ -50,52 +94,97 @@ func TestFeedOverflowIsReReadNotDropped(t *testing.T) {
 	}
 }
 
-// The overflow is not read while an older change is still queued.
-//
-// Method: overflow one prefix while the channel holds a change, and check that
-// takeOverflow answers nothing until the channel is drained. Reading the Loc-RIB
-// first and then applying the older queued change would leave the FIB on the
-// older state.
+// Capture holds keys rather than borrowed route values. A newer authority
+// value must survive the queued key and the overflow scan in either order.
 func TestFeedOverflowWaitsForTheQueue(t *testing.T) {
-	feed := newLocRIBFeed(1)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
 	first := locrib.Change{Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("198.51.100.0/24"), Kind: locrib.ChangeAdd}
 	second := locrib.Change{Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("203.0.113.0/24"), Kind: locrib.ChangeAdd}
-	feed.offer(&first)
-	feed.offer(&second)
-
-	if keys := feed.takeOverflow(); keys != nil {
-		t.Fatalf("overflow taken with a change still queued: %v", keys)
+	path := recursivePath(netip.MustParseAddr("192.0.2.1"), 1)
+	path.Source = redistevents.RegisterProtocol("test-nhresolver")
+	client, rib, bus, release := heldFeedWorker(t, ctx, first.Prefix, path)
+	capture := client.worker.local
+	for range cap(capture.keys) {
+		capture.offer(first)
 	}
-	<-feed.ch
-	keys := feed.takeOverflow()
-	if len(keys) != 1 || keys[0].prefix != second.Prefix {
-		t.Fatalf("overflow after drain = %v, want the second prefix", keys)
+	other := path
+	other.NextHop = netip.MustParseAddr("192.0.2.2")
+	rib.Insert(second.Family, second.Prefix, other)
+	newer := path
+	newer.NextHop = netip.MustParseAddr("192.0.2.3")
+	rib.Insert(first.Family, first.Prefix, newer)
+	if !capture.overflow.Load() || len(capture.keys) != cap(capture.keys) {
+		t.Fatal("test did not retain queued old input beside a newer authority value")
 	}
-	if again := feed.takeOverflow(); again != nil {
-		t.Fatalf("overflow taken twice: %v", again)
+	release()
+	if _, ok := waitForEntry(t, bus, func(entry sysribevents.BestChangeEntry) bool {
+		return entry.Prefix == first.Prefix && entry.Action == routeaction.Update && entry.NextHop == newer.NextHop
+	}); !ok {
+		t.Fatalf("queued old input overwrote the authority's latest value: %+v", bestChangeEntries(bus))
+	}
+	if _, ok := waitForEntry(t, bus, func(entry sysribevents.BestChangeEntry) bool {
+		return entry.Prefix == second.Prefix && entry.Action == routeaction.Add && entry.NextHop == other.NextHop
+	}); !ok {
+		t.Fatalf("second overflowed input was lost: %+v", bestChangeEntries(bus))
+	}
+	waitForCurrentSysRIB(t, client)
+	client.rib.mu.RLock()
+	selected := client.rib.best[prefixKey{family: first.Family, prefix: first.Prefix}]
+	client.rib.mu.RUnlock()
+	if selected == nil || selected.nextHop != newer.NextHop || len(capture.keys) != 0 || capture.overflow.Load() {
+		t.Fatalf("drained queue/overflow did not retain the latest selected value: %+v", selected)
 	}
 }
 
-// An overflow recorded after the worker drained the queue still wakes it.
-//
-// Method: fill the one-slot feed, drain it as the worker would, and only then
-// record an overflow, the interleaving where no later queued change exists to
-// trigger the resync. The feed must hold a wake for the worker.
+// Complete the real full-queue overflow operation only after the actual worker
+// drained its keys. No later routing event may wake it for the second prefix.
 func TestFeedOverflowWakesTheWorker(t *testing.T) {
-	feed := newLocRIBFeed(1)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
 	first := locrib.Change{Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("198.51.100.0/24"), Kind: locrib.ChangeAdd}
-	feed.offer(&first)
-	<-feed.ch
-	feed.ch <- first // the slot refills before the next offer, so that offer overflows
 	second := locrib.Change{Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("203.0.113.0/24"), Kind: locrib.ChangeAdd}
-	feed.offer(&second)
-	<-feed.ch
-	select {
-	case <-feed.wake:
-	default:
-		t.Fatal("an overflow recorded after the queue drained left the worker asleep")
+	path := recursivePath(netip.MustParseAddr("192.0.2.1"), 1)
+	path.Source = redistevents.RegisterProtocol("test-nhresolver")
+	client, rib, bus, release := heldFeedWorker(t, ctx, first.Prefix, path)
+	capture := client.worker.local
+	capture.offer(first)
+	<-capture.keys
+	capture.offer(first)
+	for range cap(capture.keys) - 1 {
+		capture.offer(first)
 	}
-	if keys := feed.takeOverflow(); len(keys) != 1 || keys[0].prefix != second.Prefix {
-		t.Fatalf("overflow on wake = %v, want the second prefix", keys)
+	if len(capture.keys) != cap(capture.keys) {
+		t.Fatal("the interrupted second offer did not observe a full queue")
+	}
+	// Suspend the offer at its full-queue branch, as the controlled late-
+	// overflow regression does. The authority changes without a second delivery.
+	capture.unsubscribe()
+	other := path
+	other.NextHop = netip.MustParseAddr("192.0.2.2")
+	rib.Insert(second.Family, second.Prefix, other)
+	newer := path
+	newer.NextHop = netip.MustParseAddr("192.0.2.3")
+	rib.Insert(first.Family, first.Prefix, newer)
+	release()
+	if _, ok := waitForEntry(t, bus, func(entry sysribevents.BestChangeEntry) bool {
+		return entry.Prefix == first.Prefix && entry.Action == routeaction.Update && entry.NextHop == newer.NextHop
+	}); !ok {
+		t.Fatalf("queued healthy control was not processed: %+v", bestChangeEntries(bus))
+	}
+	if len(capture.keys) != 0 {
+		t.Fatal("worker did not drain the queue before late overflow")
+	}
+	capture.recordOverflow(prefixKey{family: second.Family, prefix: second.Prefix})
+	if _, ok := waitForEntry(t, bus, func(entry sysribevents.BestChangeEntry) bool {
+		return entry.Prefix == second.Prefix && entry.Action == routeaction.Add && entry.NextHop == other.NextHop
+	}); !ok {
+		t.Fatalf("late overflow left the worker asleep without another input: %+v", bestChangeEntries(bus))
+	}
+	client.rib.mu.RLock()
+	control := client.rib.best[prefixKey{family: first.Family, prefix: first.Prefix}]
+	client.rib.mu.RUnlock()
+	if control == nil || control.nextHop != newer.NextHop {
+		t.Fatal("overflow recovery lost the useful queued control")
 	}
 }

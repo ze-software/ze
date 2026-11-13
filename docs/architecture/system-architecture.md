@@ -17,9 +17,9 @@
 >   removed; local AS is now `session { asn { local ... } }` and peer groups are
 >   `group` blocks (see [configuration syntax changes](config/deprecated-options.md)
 >   and [config syntax](config/syntax.md)).
-> - Shipped plugins (bgp, rib, gr) run in-process today rather than being forked
->   as separate `external ... { run "ze bgp" }` processes; the `external` block
->   is for third-party out-of-process plugins.
+> - Shipped plugins can also run through `external` blocks. For the system RIB,
+>   use `run "ze plugin rib"`. Its selected view and forwarding publication
+>   use the authenticated process protocol described below.
 > - The source tree is organised under `internal/core`, `internal/component`, and
 >   `internal/plugins`; there is no `internal/bgp/...` layout as sketched below.
 >
@@ -27,6 +27,28 @@
 > [Hub Architecture](hub-architecture.md).
 
 ---
+
+## System RIB process boundary
+
+The daemon's Loc-RIB applies import policy and selects across protocols once.
+The system RIB consumes that selection inside the daemon or in a subprocess.
+An internal instance reads the authority directly. An external instance holds
+a read-only selected projection and runs the same recursive resolver and
+forwarding worker. Candidate commands query the daemon's full candidate state.
+<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
+<!-- source: internal/component/sysrib/route_view_worker.go -- consume -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- candidates -->
+
+The daemon acknowledges distance changes after authoritative reselection. It
+also fences forwarding output by process generation and consumed cursor.
+Reset or process loss withdraws only that session's outstanding output. A
+replacement waits for cleanup, then reconstructs its view before publishing.
+The [unified Loc-RIB](rib/unified-locrib.md#authoritative-selected-views)
+and [process protocol](api/process-protocol.md#system-routing-views) specify
+the ordering and retention bounds.
+<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
+<!-- source: internal/component/sysrib/route_view.go -- open, cleanupLocked -->
+<!-- source: internal/component/sysrib/route_view_output.go -- publish, withdraw -->
 
 ## Build personalities
 

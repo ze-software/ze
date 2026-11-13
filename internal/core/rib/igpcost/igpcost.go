@@ -29,6 +29,14 @@ type Distance struct {
 // Func resolves the interior distance to addr.
 type Func func(addr netip.Addr) Distance
 
+// Reader supplies already-selected paths for recursive resolution. LPM results
+// and their slices are read-only. Implementations MUST safely answer a miss for
+// an unavailable view; callers distinguish synchronization before publication.
+// A nil Reader or typed-nil *locrib.RIB supplies no reachability.
+type Reader interface {
+	LPM(family.Family, netip.Addr) (locrib.Path, netip.Prefix, bool)
+}
+
 var fnPtr atomic.Pointer[Func]
 
 // Set registers the lookup. A nil function clears it.
@@ -59,8 +67,18 @@ func Add(a, b uint64) uint64 {
 
 // Resolve follows received BGP AIGP and recursive static hops, then counts the
 // terminal interior metric once. Missing reachability never yields a partial cost.
-func Resolve(rib *locrib.RIB, addr netip.Addr) Distance {
-	if rib == nil || !addr.IsValid() {
+func Resolve(rib Reader, addr netip.Addr) Distance {
+	if rib == nil {
+		return Distance{}
+	}
+	// Resolve accepted a concrete RIB before the reader seam. Preserve its
+	// typed-nil contract when Default returns nil in a forked process.
+	if local, ok := rib.(*locrib.RIB); ok {
+		if local == nil {
+			return Distance{}
+		}
+	}
+	if !addr.IsValid() {
 		return Distance{}
 	}
 	var distance Distance

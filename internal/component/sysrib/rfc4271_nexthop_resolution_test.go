@@ -50,8 +50,8 @@ func startRFC4271RecursiveTopology(t *testing.T) *rfc4271RecursiveTopology {
 
 	s := newSysRIB()
 	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	go s.runUntilDone(ctx, done)
+	client := startCurrentSysRIB(t, ctx, loc, s, bus)
+	done := client.worker.done
 	t.Cleanup(func() {
 		cancel()
 		<-done
@@ -76,13 +76,6 @@ func startRFC4271RecursiveTopology(t *testing.T) *rfc4271RecursiveTopology {
 		Source: bgpID, NextHop: topo.bgpNH, AdminDistance: 20, Metric: 0,
 	})
 	return topo
-}
-
-// runUntilDone runs the worker and closes done when it returns, so a test can
-// wait for the stop without an anonymous goroutine.
-func (s *sysRIB) runUntilDone(ctx context.Context, done chan<- struct{}) {
-	defer close(done)
-	s.run(ctx)
 }
 
 // bgpEntries returns every published change for prefix, in publication order.

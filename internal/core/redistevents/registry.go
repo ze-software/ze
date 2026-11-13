@@ -17,6 +17,7 @@
 package redistevents
 
 import (
+	"maps"
 	"slices"
 	"sync"
 )
@@ -224,4 +225,20 @@ func ResetForTest() {
 	defer mu.Unlock()
 	entries = []protocolEntry{{}}
 	byName = map[string]ProtocolID{}
+}
+
+// PreserveForTest returns an idempotent restoration of the entire registry.
+// Tests register its result as cleanup before creating registry-owning workers.
+// NOT for production use.
+func PreserveForTest() func() {
+	mu.RLock()
+	preservedEntries := slices.Clone(entries)
+	preservedNames := maps.Clone(byName)
+	mu.RUnlock()
+	return sync.OnceFunc(func() {
+		mu.Lock()
+		defer mu.Unlock()
+		entries = preservedEntries
+		byName = preservedNames
+	})
 }

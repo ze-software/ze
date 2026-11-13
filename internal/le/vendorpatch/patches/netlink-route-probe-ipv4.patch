@@ -1,0 +1,54 @@
+Ze-Reviewed-Against: github.com/vishvananda/netlink v1.3.1
+
+No upstream pull request is opened yet.
+
+The forwarding door requires: "Ze owns only what it marked."
+See ai/doors/forwarding.md, "Who depends on it from outside".
+
+The system FIB needs a live IPv4 route identity receipt before reasserting
+unchanged forwarding. An ownership decision cannot use a process-local cache.
+Linux 7.3 fib_table_insert answers EEXIST for an exact fib_info and route key,
+or ENOENT otherwise, when CREATE, REPLACE, EXCL and APPEND are all absent.
+IPv6 must be refused before sending: fib6_add_rt2node can insert a route or
+update duplicate expiry/MTU even without the creation flags.
+
+The method reuses the upstream route encoder and existing handle. Only ACK is
+requested; none of the four mutation flags is present. Invalid route inputs
+and IPv6 are refused before constructing a netlink request.
+
+diff --git a/vendor/github.com/vishvananda/netlink/route_probe_ipv4_linux.go b/vendor/github.com/vishvananda/netlink/route_probe_ipv4_linux.go
+new file mode 100644
+--- /dev/null
++++ b/vendor/github.com/vishvananda/netlink/route_probe_ipv4_linux.go
+@@ -0,0 +1,31 @@
++package netlink
++
++import (
++	"fmt"
++
++	"github.com/vishvananda/netlink/nl"
++	"golang.org/x/sys/unix"
++)
++
++// RouteProbeIPv4 checks an IPv4 route's complete kernel identity without
++// creating, replacing or deleting a route. EEXIST identifies an exact match;
++// ENOENT identifies a miss. Other errors do not establish either outcome.
++// IPv6 is deliberately unsupported: its insertion path can change routes even
++// when NLM_F_CREATE and NLM_F_REPLACE are absent.
++func (h *Handle) RouteProbeIPv4(route *Route) error {
++	if h == nil {
++		return fmt.Errorf("IPv4 route identity probe requires a handle: %w", unix.EINVAL)
++	}
++	if route == nil {
++		return fmt.Errorf("IPv4 route identity probe requires a route: %w", unix.EINVAL)
++	}
++	if route.Dst == nil {
++		return fmt.Errorf("IPv4 route identity probe requires a destination: %w", unix.EINVAL)
++	}
++	if route.Dst.IP.To4() == nil {
++		return unix.EAFNOSUPPORT
++	}
++	req := h.newNetlinkRequest(unix.RTM_NEWROUTE, unix.NLM_F_ACK)
++	_, err := h.routeHandle(route, req, nl.NewRtMsg())
++	return err
++}

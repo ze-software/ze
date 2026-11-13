@@ -35,10 +35,10 @@ func TestOSInstalledWinnerWithdrawsTheZeRoute(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.0.0.0/24")
-	_, changes := s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{{
+	_, changes := s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{{
 		Action:   routeaction.Add,
 		Prefix:   pfx,
 		NextHop:  netip.MustParseAddr("192.0.2.1"),
@@ -48,7 +48,7 @@ func TestOSInstalledWinnerWithdrawsTheZeRoute(t *testing.T) {
 		t.Fatalf("setup: want one Add for the BGP path, got %+v", changes)
 	}
 
-	_, changes = s.processEvent(makePayload(osInstalledProtocol(t), family.IPv4Unicast, []incomingChange{{
+	_, changes = s.offerCandidates(makePayload(osInstalledProtocol(t), family.IPv4Unicast, []incomingChange{{
 		Action:   routeaction.Add,
 		Prefix:   pfx,
 		Priority: 0,
@@ -72,10 +72,10 @@ func TestOSInstalledWinnerEmitsNothingWhenNothingWasProgrammed(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.1.0.0/24")
-	_, changes := s.processEvent(makePayload(osInstalledProtocol(t), family.IPv4Unicast, []incomingChange{{
+	_, changes := s.offerCandidates(makePayload(osInstalledProtocol(t), family.IPv4Unicast, []incomingChange{{
 		Action:   routeaction.Add,
 		Prefix:   pfx,
 		Priority: 0,
@@ -93,11 +93,11 @@ func TestOSInstalledWinnerStaysInTheSystemRIB(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	protocol := osInstalledProtocol(t)
 	pfx := netip.MustParsePrefix("10.2.0.0/24")
-	s.processEvent(makePayload(protocol, family.IPv4Unicast, []incomingChange{{
+	s.offerCandidates(makePayload(protocol, family.IPv4Unicast, []incomingChange{{
 		Action:   routeaction.Add,
 		Prefix:   pfx,
 		Priority: 0,
@@ -136,24 +136,27 @@ func TestOSInstalledLoserLeavesTheZeRouteProgrammed(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	// The operator raised the OS-installed protocol above BGP's 20.
-	s.adminDist = map[string]int{osInstalledProtocol(t): 250, "bgp": 20}
+	const osDistance = 250
 
 	pfx := netip.MustParsePrefix("10.3.0.0/24")
 	nextHop := netip.MustParseAddr("192.0.2.1")
-	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{{
+	s.offerCandidates(makePayload("bgp", family.IPv4Unicast, []incomingChange{{
 		Action:   routeaction.Add,
 		Prefix:   pfx,
 		NextHop:  nextHop,
 		Priority: 20,
 	}}))
 
-	_, changes := s.processEvent(makePayload(osInstalledProtocol(t), family.IPv4Unicast, []incomingChange{{
-		Action:   routeaction.Add,
-		Prefix:   pfx,
-		Priority: 0,
-	}}))
+	// The schema has no distance leaf for this test producer. Represent the
+	// original effective250 as the authority's explicit route override, retaining
+	// the original producer identity and historical stamp0 input.
+	input := incomingChange{Action: routeaction.Add, Prefix: pfx, Priority: 0}
+	candidate := s.candidatePath(osInstalledProtocol(t), input)
+	candidate.DistanceOverride = osDistance
+	s.rib.Insert(family.IPv4Unicast, pfx, candidate)
+	changes := s.forwardSelected(map[prefixKey]struct{}{{family: family.IPv4Unicast, prefix: pfx}: {}})[family.IPv4Unicast]
 
 	if len(changes) != 0 {
 		t.Errorf("got %+v, want nothing: the OS-installed path lost, so Ze's route stands", changes)

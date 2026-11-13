@@ -29,7 +29,7 @@ type ServerProcess struct {
 // existing runner teardown grace applies.
 // On success the caller MUST defer Close, Stop or StopGroup before another operation.
 func StartServerProcess(cmd *exec.Cmd) (*ServerProcess, error) {
-	cmd.SysProcAttr = plugin.NewSysProcAttr()
+	cmd.SysProcAttr = forkAttributes(cmd.SysProcAttr)
 	waitDelay := cmd.WaitDelay
 	owned := boundProcessDeadline(cmd)
 	if waitDelay > 0 {

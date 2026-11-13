@@ -1,0 +1,346 @@
+module ze-sysrib-api {
+    namespace "urn:ze:sysrib:api";
+    prefix sysrib;
+
+    import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
+
+    description
+        "The system RIB's authenticated, bounded routing-view transport.
+         The daemon owns selection and policy. Consumers receive selected values,
+         preserve their ordered cursor, and publish forwarding changes only for
+         the active session. Every complete encoded RPC frame MUST fit the
+         transport's 16777216-byte maximum, independently of record counts.";
+
+    revision 2026-11-12 {
+        description "Add selected views, candidate scans and forwarding acknowledgments.";
+    }
+
+    typedef token {
+        type string { length "1..128"; }
+        description "An opaque owner-issued identity; never a plugin-selected process name.";
+    }
+    typedef protocol-name {
+        type string { length "1..64"; }
+        description "A registered protocol name, independent of process-local numeric IDs.";
+    }
+    typedef route-address {
+        type union {
+            type zt:ip-address;
+            type string {
+                length "3..255";
+                pattern '[0-9a-fA-F:.]+%[^ \t\r\n]+';
+            }
+        }
+        description "An IP address, including scoped IPv6; the receiver also validates it with netip.";
+    }
+    typedef label {
+        type uint32 { range "0..1048575"; }
+        description "A twenty-bit MPLS label.";
+    }
+    typedef action {
+        type enumeration {
+            enum add;
+            enum update;
+            enum withdraw;
+        }
+        description "A selected-view or forwarding change; withdraw carries no selected path.";
+    }
+    grouping session {
+        leaf session { type token; mandatory true; }
+    }
+    grouping epoch {
+        leaf epoch { type token; mandatory true; }
+    }
+    grouping snapshot {
+        leaf snapshot { type token; mandatory true; }
+    }
+    grouping cursor {
+        leaf cursor { type uint64; mandatory true; }
+    }
+    grouping operation {
+        leaf operation { type uint64 { range "1..max"; } mandatory true; }
+    }
+    grouping page-limit {
+        leaf limit { type uint32 { range "1..4096"; } mandatory true; }
+    }
+    grouping family {
+        leaf afi { type uint16 { range "1..max"; } mandatory true; }
+        leaf safi { type uint8 { range "1..max"; } mandatory true; }
+    }
+    grouping next-hop-details {
+        leaf interface { type string { length "1..255"; } }
+        leaf on-link { type boolean; }
+        leaf weight { type uint8; }
+        leaf-list labels { type label; ordered-by user; }
+    }
+    grouping next-hop {
+        leaf next-hop { type route-address; }
+        uses next-hop-details;
+    }
+    grouping publication-member {
+        leaf next-hop {
+            type union {
+                type route-address;
+                type string { length "0"; }
+            }
+            ze:help "Name the forwarding member's gateway, or leave it empty for its device.";
+            description
+                "An empty value preserves the system best-change event's
+                 device-only member. The member MUST name an interface when
+                 its gateway is empty.";
+        }
+        uses next-hop-details;
+    }
+    grouping selected-path {
+        leaf protocol { type protocol-name; mandatory true; }
+        leaf instance { type uint32; mandatory true; }
+        leaf distance { type uint8; mandatory true; }
+        leaf metric { type uint32; mandatory true; }
+        uses next-hop;
+        leaf route-type { type uint8; }
+        leaf srv6-sid { type zt:ipv6-address; }
+        leaf is-ebgp { type boolean; }
+        leaf is-bgp { type boolean; }
+        leaf aigp { type uint64; }
+        leaf aigp-present { type boolean; }
+        leaf metric-recursive { type boolean; }
+        leaf tag { type uint32; }
+        leaf has-tag { type boolean; }
+        leaf level { type uint8; }
+        leaf ospf-route-type { type uint8; }
+        list ecmp {
+            ordered-by user;
+            description "Selected siblings retain every target fitting the complete message budget; the emitted FIB group is bounded separately.";
+            uses next-hop;
+            leaf protocol {
+                type protocol-name;
+                ze:help "Name a different protocol owning this ECMP member.";
+                description "A different registered source owns this member. Omission means the selected primary's protocol owns it.";
+            }
+            leaf srv6-sid { type zt:ipv6-address; }
+        }
+        leaf backup-next-hop { type route-address; }
+        leaf-list backup-repair-labels { type label; ordered-by user; }
+        leaf backup-interface { type string { length "1..255"; } }
+        leaf backup-on-link { type boolean; }
+    }
+
+    rpc route-view-open {
+        ze:method "ze-sysrib:route-view-open";
+        ze:help "Open the authenticated system routing view.";
+        description
+            "Available during Stage 2. The transport's process generation owns
+             the new session. Reader selection cannot claim another identity.";
+        input {
+            leaf reader {
+                type enumeration {
+                    enum selected-feed { ze:help "Read the daemon's selected route feed."; }
+                    enum local-authority { ze:help "Use the internal system RIB's direct reader."; }
+                }
+                ze:help "Choose the selected feed or an authenticated internal reader.";
+                description
+                    "Omission selects selected-feed. Local-authority requires an
+                     authenticated internal system RIB and a readable daemon RIB.";
+            }
+        }
+        output {
+            uses session;
+            uses epoch;
+            uses snapshot;
+            uses cursor;
+        }
+    }
+    rpc route-view-read {
+        ze:method "ze-sysrib:route-view-read";
+        ze:help "Read a bounded page of selected routes.";
+        description
+            "Runtime only. Pages belong to one epoch and session. A consumer
+             MUST finish its snapshot before forwarding. Reset invalidates the
+             projection explicitly. Empty deltas preserve it. The producer MUST
+             enforce both the record limit and the complete encoded frame bound.";
+        input {
+            uses session;
+            uses cursor;
+            uses page-limit;
+            leaf wait-ms { type uint32 { range "0..1000"; } mandatory true; }
+        }
+        output {
+            uses session;
+            uses epoch;
+            leaf snapshot { type token; }
+            uses cursor;
+            leaf phase {
+                type enumeration { enum snapshot; enum delta; enum reset; }
+                mandatory true;
+            }
+            leaf complete { type boolean; mandatory true; }
+            leaf rejected-publication {
+                type uint64 { range "1..max"; }
+                description
+                    "Reset-only proof of the exact validated publication refused
+                     before emission on this authenticated selected-feed lease.
+                     A consumer MUST validate this reset and its operation before
+                     reconstruction. Delivery failure grants no such proof.";
+            }
+            list entries {
+                max-elements 4096;
+                ordered-by user;
+                uses family;
+                leaf prefix { type zt:ip-prefix; mandatory true; }
+                leaf action { type action; mandatory true; }
+                container path {
+                    presence "Carry the selected path for an add or update";
+                    uses selected-path;
+                }
+            }
+        }
+    }
+    rpc route-view-candidates {
+        ze:method "ze-sysrib:route-view-candidates";
+        ze:help "Read a pinned page of visible and hidden candidates.";
+        description
+            "Runtime only. A missing snapshot opens a candidate scan. Its cursor
+             is independent of the selected view. The result preserves the
+             existing show rib candidates JSON, including a present zero tag.";
+        input {
+            uses session;
+            leaf snapshot { type token; }
+            uses cursor;
+            uses page-limit;
+            leaf afi { type uint16 { range "1..max"; } }
+            leaf safi { type uint8 { range "1..max"; } }
+            leaf prefix { type zt:ip-prefix; }
+        }
+        output {
+            uses session;
+            uses epoch;
+            uses snapshot;
+            uses cursor;
+            leaf complete { type boolean; mandatory true; }
+            list entries {
+                max-elements 4096;
+                ordered-by user;
+                leaf prefix { type zt:ip-prefix; mandatory true; }
+                leaf family { type string { length "1..64"; } mandatory true; }
+                list paths {
+                    ordered-by user;
+                    leaf source { type protocol-name; mandatory true; }
+                    leaf instance { type uint32; mandatory true; }
+                    leaf next-hop { type route-address; }
+                    leaf interface { type string { length "1..255"; } }
+                    leaf distance { type uint8; mandatory true; }
+                    leaf metric { type uint32; mandatory true; }
+                    leaf tag { type uint32; }
+                    leaf level { type uint8; }
+                    leaf route-type { type string { length "1..64"; } }
+                    leaf selected { type boolean; mandatory true; }
+                    leaf hidden { type boolean; mandatory true; }
+                    leaf hidden-by { type enumeration { enum source; enum central; } }
+                    leaf chain { type string { length "1..512"; } }
+                }
+            }
+        }
+    }
+    rpc route-view-distances {
+        ze:method "ze-sysrib:route-view-distances";
+        ze:help "Apply the system RIB's complete administrative distance table.";
+        description
+            "Available during Stage 2. The acknowledgment follows authoritative
+             application and reselection. An identical operation retry is
+             idempotent; reused identities with different values are refused.";
+        input {
+            uses session;
+            uses operation;
+            list distances {
+                max-elements 4096;
+                ordered-by user;
+                leaf protocol { type protocol-name; mandatory true; }
+                leaf distance { type uint8; mandatory true; }
+            }
+        }
+        output { uses session; uses operation; uses cursor; }
+    }
+    rpc route-view-publish {
+        ze:method "ze-sysrib:route-view-publish";
+        ze:help "Publish one consumed frontier's system forwarding changes.";
+        description
+            "Runtime only. The owner MUST fence stale process generations before
+             emitting this unchanged system best-change payload. The consumer
+             MUST retain the operation until acknowledgment. A repeated identical
+             operation returns its original acknowledgment without re-emission.";
+        input {
+            uses session;
+            uses cursor;
+            uses operation;
+            container batch {
+                presence "Carry one system best-change batch";
+                leaf family { type string { length "1..64"; } mandatory true; }
+                leaf replay { type boolean; }
+                list changes {
+                    max-elements 4096;
+                    ordered-by user;
+                    leaf action { type action; mandatory true; }
+                    leaf prefix { type zt:ip-prefix; mandatory true; }
+                    uses next-hop;
+                    leaf protocol {
+                        type union {
+                            type protocol-name;
+                            type string { length "0"; }
+                        }
+                        mandatory true;
+                        must "../action = 'withdraw' or . != ''" {
+                            error-message "Add and update require a nonempty registered protocol name.";
+                        }
+                        ze:help "Name the forwarding owner, or use an empty value for a withdrawal.";
+                        description
+                            "Add and update require a registered protocol name.
+                             Withdrawals retain the historical event's explicit
+                             empty protocol field.";
+                    }
+                    leaf route-type { type uint8; }
+                    leaf metric { type uint32; }
+                    leaf table-id { type uint32; }
+                    leaf srv6-sid { type zt:ipv6-address; }
+                    list ecmp-paths {
+                        max-elements 128;
+                        ordered-by user;
+                        must "next-hop != '' or interface" {
+                            error-message "Each ECMP member requires a gateway or interface.";
+                        }
+                        ze:help "Supply the additional forwarding members.";
+                        description
+                            "Each member retains its gateway or device, weight,
+                             on-link state and labels. Device-only members carry
+                             an explicit empty next-hop.";
+                        uses publication-member;
+                    }
+                    list backup {
+                        max-elements 128;
+                        ordered-by user;
+                        must "next-hop != '' or interface" {
+                            error-message "Each backup member requires a gateway or interface.";
+                        }
+                        ze:help "Supply the repair forwarding members.";
+                        description
+                            "Each repair member requires a gateway or device.
+                             A device-only repair retains the event's explicit
+                             empty next-hop.";
+                        uses publication-member;
+                    }
+                }
+            }
+        }
+        output { uses session; uses operation; uses cursor; }
+    }
+    rpc route-view-close {
+        ze:method "ze-sysrib:route-view-close";
+        ze:help "Fence and close the authenticated routing-view session.";
+        description
+            "Runtime only. Only the authenticated caller's session is closed.
+             The acknowledgment follows cancellation of that session's readers
+             and disposal of its pinned pages and retained acknowledgments.";
+        input { uses session; }
+        output { uses session; }
+    }
+}

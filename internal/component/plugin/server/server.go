@@ -157,6 +157,8 @@ type Server struct {
 	// lateCleanups holds each replaced process whose runtime cleanup outlived
 	// its restart's wait, until that cleanup has run (restart.go).
 	lateCleanups lateCleanupRecord
+	// restartControllers reserves a name through replacement cleanup and startup.
+	restartControllers restartControllerSet
 	// capabilityRestore is the latest failed capability restore since the
 	// last committed reload (doctor_reload_records.go).
 	capabilityRestore capabilityRestoreRecord

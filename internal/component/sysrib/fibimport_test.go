@@ -35,7 +35,7 @@ func withholdConfig(t *testing.T, names ...string) string {
 
 // configuredSysRIB returns a system RIB carrying the permission set the named
 // withholds produce, on an event bus the test reads back.
-func configuredSysRIB(t *testing.T, bus *testEventBus, withheld ...string) *sysRIB {
+func configuredSysRIB(t *testing.T, bus *testEventBus, withheld ...string) *candidateForwardingFixture {
 	t.Helper()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
@@ -44,7 +44,7 @@ func configuredSysRIB(t *testing.T, bus *testEventBus, withheld ...string) *sysR
 	if err != nil {
 		t.Fatalf("parse the withhold list: %v", err)
 	}
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	s.applyFIBImport(permit)
 	return s
 }
@@ -73,7 +73,7 @@ func publishedChanges(t *testing.T, bus *testEventBus) []outgoingChange {
 // addRoute hands sysrib one route over a gateway every test here shares, and
 // publishes whatever the arbitration decided, which is the pair of steps every
 // live path takes.
-func addRoute(s *sysRIB, protocol string, prefix netip.Prefix, priority int) {
+func addRoute(s *candidateForwardingFixture, protocol string, prefix netip.Prefix, priority int) {
 	addPath(s, protocol, prefix, netip.MustParseAddr("192.0.2.1"), "", priority)
 }
 
@@ -302,8 +302,8 @@ func wireLocRIB(t *testing.T) *locrib.RIB {
 
 // addPath hands sysrib one route naming a gateway, a device or both, and
 // publishes whatever the arbitration decided.
-func addPath(s *sysRIB, protocol string, prefix netip.Prefix, nextHop netip.Addr, iface string, priority int) {
-	fam, changes := s.processEvent(makePayload(protocol, family.IPv4Unicast, []incomingChange{{
+func addPath(s *candidateForwardingFixture, protocol string, prefix netip.Prefix, nextHop netip.Addr, iface string, priority int) {
+	fam, changes := s.offerCandidates(makePayload(protocol, family.IPv4Unicast, []incomingChange{{
 		Action:    routeaction.Add,
 		Prefix:    prefix,
 		NextHop:   nextHop,
@@ -317,8 +317,8 @@ func addPath(s *sysRIB, protocol string, prefix netip.Prefix, nextHop netip.Addr
 
 // withdrawPath takes one protocol's route for a prefix away, which hands the
 // prefix to the next best candidate sysrib holds.
-func withdrawPath(s *sysRIB, protocol string, prefix netip.Prefix) {
-	fam, changes := s.processEvent(makePayload(protocol, family.IPv4Unicast, []incomingChange{{
+func withdrawPath(s *candidateForwardingFixture, protocol string, prefix netip.Prefix) {
+	fam, changes := s.offerCandidates(makePayload(protocol, family.IPv4Unicast, []incomingChange{{
 		Action: routeaction.Withdraw,
 		Prefix: prefix,
 	}}))
@@ -330,13 +330,13 @@ func withdrawPath(s *sysRIB, protocol string, prefix netip.Prefix) {
 // reconfigure installs the permission set the named withholds produce and
 // publishes what the switch owes, which is the pair of steps a configure
 // callback takes.
-func reconfigure(t *testing.T, s *sysRIB, withheld ...string) {
+func reconfigure(t *testing.T, s *candidateForwardingFixture, withheld ...string) {
 	t.Helper()
 	permit, err := parseFIBImportConfig(withholdConfig(t, withheld...))
 	if err != nil {
 		t.Fatalf("parse the withhold list: %v", err)
 	}
-	publishFIBImport(s, permit)
+	publishFIBImport(s.sysRIB, permit)
 }
 
 // trackedPrefixes reports the prefixes the resolver re-evaluates when nextHop
@@ -503,6 +503,11 @@ func TestWithheldProtocolIsNoMemberOfTheMultipath(t *testing.T) {
 
 	pfx := netip.MustParsePrefix("10.11.0.0/24")
 	ospfNextHop := netip.MustParseAddr("192.0.2.2")
+	// Preserve the member-owned first Add, then the original BGP20 takeover.
+	// Preseed only the real authority, before any consumer ingestion.
+	s.rib.Insert(family.IPv4Unicast, pfx, s.candidatePath("bgp", incomingChange{
+		NextHop: netip.MustParseAddr("192.0.2.1"), Priority: 21,
+	}))
 	addPath(s, "ospf", pfx, ospfNextHop, "", 20)
 	addPath(s, "bgp", pfx, netip.MustParseAddr("192.0.2.1"), "", 20)
 
@@ -530,6 +535,11 @@ func TestWithholdingAnECMPMemberRegroupsTheMultipath(t *testing.T) {
 
 	pfx := netip.MustParsePrefix("10.12.0.0/24")
 	ospfNextHop := netip.MustParseAddr("192.0.2.2")
+	// Preserve the member-owned first Add, then the original BGP20 takeover.
+	// Preseed only the real authority, before any consumer ingestion.
+	s.rib.Insert(family.IPv4Unicast, pfx, s.candidatePath("bgp", incomingChange{
+		NextHop: netip.MustParseAddr("192.0.2.1"), Priority: 21,
+	}))
 	addPath(s, "ospf", pfx, ospfNextHop, "", 20)
 	addPath(s, "bgp", pfx, netip.MustParseAddr("192.0.2.1"), "", 20)
 
@@ -564,6 +574,11 @@ func TestWithholdingAMemberRegroupsAPrefixWhoseGatewayDoesNotResolve(t *testing.
 
 	pfx := netip.MustParsePrefix("10.17.0.0/24")
 	ospfNextHop := netip.MustParseAddr("192.0.2.2")
+	// Preserve the member-owned first Add, then the original BGP20 takeover.
+	// Preseed only the real authority, before any consumer ingestion.
+	s.rib.Insert(family.IPv4Unicast, pfx, s.candidatePath("bgp", incomingChange{
+		NextHop: netip.MustParseAddr("192.0.2.1"), Priority: 21,
+	}))
 	addPath(s, "ospf", pfx, ospfNextHop, "", 20)
 	addPath(s, "bgp", pfx, netip.MustParseAddr("192.0.2.1"), "", 20)
 
@@ -622,7 +637,7 @@ func TestWithdrawingAWithheldPrefixPublishesNothing(t *testing.T) {
 // fresh install decision, not reachability news. A gateway the Loc-RIB does not
 // cover is no proof of unreachability, because an OSPF or IS-IS next-hop on a
 // link whose connected route no plugin inserted resolves to nothing and is
-// on-link all the same. recomputeBest programs that prefix, so the sweep owes
+// on-link all the same. recomputeForwarding programs that prefix, so the sweep owes
 // the same answer.
 //
 // A sweep that took the cascade's rule instead publishes nothing here, and
@@ -790,7 +805,7 @@ func TestWithholdingAnUnreachableMemberPublishesNothing(t *testing.T) {
 // ribEntries reads `show rib` as an operator does, through the JSON the command
 // answers with: the entry type is declared inside the command, so the encoded
 // form is the only shape a test can name.
-func ribEntries(t *testing.T, s *sysRIB) []map[string]any {
+func ribEntries(t *testing.T, s *candidateForwardingFixture) []map[string]any {
 	t.Helper()
 	data, err := s.showRIB()
 	if err != nil {
@@ -800,7 +815,7 @@ func ribEntries(t *testing.T, s *sysRIB) []map[string]any {
 }
 
 // ecmpEntries reads `show ecmp-groups` the same way.
-func ecmpEntries(t *testing.T, s *sysRIB) []map[string]any {
+func ecmpEntries(t *testing.T, s *candidateForwardingFixture) []map[string]any {
 	t.Helper()
 	data, err := s.showECMPGroups()
 	if err != nil {
@@ -892,7 +907,7 @@ func tablePrefixes(first byte, count int) []netip.Prefix {
 // addRoutes hands sysrib one protocol's whole table in a single batch, which is
 // the shape a peer's initial convergence takes, and publishes whatever the
 // arbitration decided.
-func addRoutes(s *sysRIB, protocol string, prefixes []netip.Prefix, priority int) {
+func addRoutes(s *candidateForwardingFixture, protocol string, prefixes []netip.Prefix, priority int) {
 	incoming := make([]incomingChange, 0, len(prefixes))
 	for _, prefix := range prefixes {
 		incoming = append(incoming, incomingChange{
@@ -902,7 +917,7 @@ func addRoutes(s *sysRIB, protocol string, prefixes []netip.Prefix, priority int
 			Priority: priority,
 		})
 	}
-	fam, changes := s.processEvent(makePayload(protocol, family.IPv4Unicast, incoming))
+	fam, changes := s.offerCandidates(makePayload(protocol, family.IPv4Unicast, incoming))
 	if len(changes) > 0 {
 		publishChanges(changes, fam)
 	}

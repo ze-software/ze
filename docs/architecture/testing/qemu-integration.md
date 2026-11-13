@@ -216,6 +216,58 @@ The selected entry point creates the binary shim, prepares conntrack and any
 required network namespace, then runs that CI alone. A direct `test bgp plugin`
 command with a manual shim would bypass the kernel preparation.
 
+Add `save <directory>` to the guest's `test qemu all test <path>` command to
+retain the runner's complete stdout and stderr artifacts through its existing
+`--save` option. Use a directory beneath the shared checkout when the files
+must survive guest shutdown. This option accepts one ordinary selected CI;
+whole-suite and stress requests are refused so repeated runs cannot overwrite
+the same capture. Without `save`, output handling is unchanged.
+<!-- source: internal/le/test/qemu/actions.go -- runAllTestsHere -->
+<!-- source: internal/le/test/qemu/alltests.go -- verify, suiteCommand -->
+<!-- source: internal/test/runner/runner_output.go -- saveTestOutput -->
+
+If private namespace preparation fails, the selected run refuses before any
+test starts. Its operator error names the selected CI, retains the preparation
+failure as evidence and gives `./le test qemu ci test <path>` to start that
+test in a fresh guest. Successful preparation continues with the selected
+suite.
+<!-- source: internal/le/test/qemu/alltests.go -- executeOne -->
+
+Inside the same own-system guest, repeat one selected live or draft CI under
+load by adding `stress <iterations>` and optionally `stress-parallel <workers>`:
+
+```text
+<GuestBinaryEnvironment> tmp/qemu/linux-<arch>/le test qemu all test test/draft/plugin/<test-name>.ci stress 80 stress-parallel 4
+```
+
+Iterations must be 1..1000 and workers 1..4; the default is one worker.
+Both keywords require `test`, and `stress-parallel` also requires `stress`.
+Invalid counts and paths refuse before the shim or kernel preparation. The
+selected CI's parsed `netns-link` declaration still chooses its private network
+namespace. Namespace and conntrack preparation happen once, followed by the
+existing stress-repro orchestrator using the canonical suite words and stable
+test stem. Namespace children use the prepared capability copies of both `le`
+and `ze`; they retain the suite's environment, PATH and guest job parent, and
+never rebuild a pinned daemon.
+
+The invocation timeout remains `ZE_QEMU_SUITE_TIMEOUT`. The stress budget is
+`ceil(iterations / workers) * (invocation timeout + 15s) + 1m`, with checked
+duration arithmetic and another fifteen seconds on the enclosing stress
+context. The ordinary 900-second suite cap therefore does not cap the whole
+stress sequence. Set the host `docker-lab ... timeout` above the sum of these
+bounds for every selected command in that guest, allowing boot and preparation
+time too. A zero-minute stress-repro budget expires immediately and proves no
+repetitions.
+
+The phase retains a typed stress report, the exact executable and argument
+array, namespace and capture path. Success requires the requested and completed
+iteration counts to match exactly, one actually executed and passed selected
+test in every child, and no setup error, failed child, reproduction, skip or
+interruption. A zero-exit child with no summary or an all-skipped summary fails.
+The ordinary selected and whole-suite forms keep their existing behavior.
+<!-- source: internal/le/test/qemu/alltests_stress.go -- selectedStressOf, selectedStress.budget, allTestsRun.selectedStressPhase, selectedStressCount -->
+<!-- source: internal/le/test/stressrepro/selected.go -- RunSelected -->
+
 `test qemu all` supplies `LE_TEST_NO_BUILD=1` and the explicit `ZE_BIN` to every
 suite (`environment`, `internal/le/test/qemu/alltests.go`). Without them the runner
 builds its own ze from the source tree inside the guest and never looks at the
@@ -389,16 +441,23 @@ none is refused before the run starts.
 The runner enters the namespace itself, once per test (`enterTestNetns`,
 `internal/test/runner/netns_linux.go`), and only when `ZE_TEST_NETNS` is set
 with a non-root `ZE_TEST_UID`. `test qemu all` sets both for a routed suite, copies
-`ze`, `ze-stripped` and the running `le` to the guest's own tmpfs with the same
-file capabilities (a 9p mount carries no extended attribute, so a `setcap` on
-`/workspace` would buy nothing). The capabilities are the set the systemd unit
+`ze`, `ze-stripped` and the running `le` to the guest's own tmpfs with file
+capabilities (a 9p mount carries no extended attribute, so a `setcap` on
+`/workspace` would buy nothing). The two daemon copies receive the set the systemd unit
 grants a non-root daemon: `netnsDaemonCapBits` in `internal/test/runner/caps.go`
 derives them from `privilege.DaemonCapabilities`, and they are written
 through `runner.NetnsDaemonSetcap` as
 `cap_net_admin,cap_net_raw,cap_net_bind_service,cap_bpf+ep`, and the `.ci`
 runner's `caps=` gate reads the same list in this mode, so a test that needs a
 capability the dropped daemon will not hold is skipped with its name rather
-than admitted by the root runner's own probe. The preparation also gives the
+than admitted by the root runner's own probe. The fixture copy of `le` receives
+that same set plus `CAP_KILL` and `CAP_SYS_PTRACE` through
+`runner.NetnsFixtureSetcap`. It can stop an owned privileged metadata helper
+and inspect a nondumpable daemon's executable directly. The namespace role is
+numeric UID1000 even when the host owner's cidata UID is different, so direct
+inspection cannot depend on UID1000 having a passwd or sudo account. These
+test-controller authorities do not reach either daemon copy or the `caps=` gate.
+The preparation also gives the
 dropped user a state directory to
 write in. The `le` copy is what the dropped daemon finds when a plugin block runs
 `le test fixture ...` by name: the runner puts that tmpfs on the daemon's PATH as
@@ -428,6 +487,10 @@ outlives the run.
 <!-- source: internal/le/test/qemu/netns.go -- netnsDevNodes, netnsDevNodesScript -->
 <!-- source: internal/le/test/qemu/netns.go -- netnsHarnessSource -->
 <!-- source: internal/test/runner/caps.go -- netnsDaemonCapBits, NetnsDaemonSetcap -->
+<!-- source: internal/test/runner/caps_fixture.go -- FixtureProcessControlCapability, NetnsFixtureSetcap -->
+<!-- source: internal/test/runner/caps_fixture_inspection.go -- FixtureProcessInspectionCapability -->
+<!-- test: internal/le/test/qemu/netns_fixture_capabilities_test.go -- TestNamespacePreparationKeepsFixtureProcessControlOffDaemons -->
+<!-- test: internal/le/test/qemu/netns_fixture_inspection_test.go -- TestNamespacePreparationMakesInspectionIndependentOfAccounts -->
 <!-- source: internal/test/runner/record_parse_option.go -- applyNetnsDaemonCapsGate -->
 <!-- source: internal/core/privilege/capabilities.go -- DaemonCapabilities -->
 <!-- test: internal/le/test/qemu/netns_alltests_test.go -- TestTheCapabilityCopiesAreMadeBeforeTheFirstSuite, TestTheCapabilityCopiesLandOnATmpfsThatHonorsFileCapabilities, TestTheCapabilityCopiesCarryTheHarnessTheDroppedDaemonExecs, TestThePreparationLetsTheDroppedDaemonOpenDevPPP -->
@@ -474,7 +537,8 @@ The selector does not move the whole plugin suite into namespaces.
 and it also asserts the guest root nft ruleset is unchanged by the run. It is
 the tight loop; `test qemu all` retains the whole-suite namespace table above.
 It copies `ze`, `ze-stripped` and itself, as `le`, into its guest-local
-binary directory (`netnsCapDir`) with the same file capabilities, and runs the
+binary directory (`netnsCapDir`) with the daemon and fixture grants described
+above, and runs the
 suite through that copy. The daemon runs as uid 1000, and a `.ci` whose plugin
 block runs `le test fixture ...` makes it exec `le` by name: a link into the
 checkout failed with `le: Permission denied`, because the 9p root keeps the
@@ -1662,6 +1726,63 @@ A package holding `integration` tests that cannot run in the guest is named in
 `excludedIntegrationPackages` instead, against a reason a reader can check.
 `internal/le/interoplab` is one: `TestDockerKernelCheckOnThisHost` judges the
 kernel of the host's own Docker daemon, which the guest cannot stand in for.
+
+### Non-root fixture process-control proof
+
+`TestSysribExecutablePrivilegedCancellationJoinsRootChild` needs the non-root
+fixture role with effective `CAP_KILL` and the native guest's passwordless sudo
+account. The ordinary root package pass skips that role. Its dedicated carrier
+uses the existing `./le test qemu docker-lab kernel <vmlinuz> root command`
+action: compile `fixture.test` with CGO disabled on the host, copy it onto an
+executable guest tmpfs, grant only `cap_kill+ep`, then run it as the cidata user
+`ze`. The test requires an actual stopped root child, cancellation of the real
+inspection runner and that child's exit after the join. A named PASS with no
+skips is required; a successful boot or a root-role skip proves nothing.
+<!-- source: internal/test/fixture/sysrib_process_executable_cancellation_integration_linux_test.go -- TestSysribExecutablePrivilegedCancellationJoinsRootChild -->
+<!-- source: internal/le/test/qemu/alltests.go -- excludedIntegrationPackages -->
+
+From the checkout on the native host, build the guest test binary using the
+feature manifest. Pass `GOOS=linux` only to the admitted child build, so the
+host le stays native. The guest artifact's architecture stays the host's,
+matching the runtime kernel this action accepts.
+
+```bash
+. ./feature-tags
+rp5_tags="ze_core,$(feature_tags feature-gates.txt ,),integration"
+rp5_scratch="$(./le --name session session scratch ensure)"
+rp5_fixture="$rp5_scratch/fixture.test"
+CGO_ENABLED=0 ./le --name session job run label fixture-control-build quiet command \
+  env GOOS=linux go test -c -race=false -p 1 -tags "$rp5_tags" -o "$rp5_fixture" ./internal/test/fixture
+```
+
+Set `rp5_kernel` to the absolute matching runtime `vmlinuz` path from the image
+build. The command branch shares the checkout and scratch at their absolute
+host paths; `root` does not create a `/workspace` binding. Quote the compiled
+artifact path as shell data when constructing the guest command:
+
+```bash
+rp5_quote() { printf "'%s'" "${1//\'/\'\\\'\'}"; }
+rp5_fixture_argument="$(rp5_quote "$rp5_fixture")"
+rp5_guest_command="set -e
+mkdir -p /tmp/rp5-control-exec
+mount -t tmpfs -o mode=0755,nodev tmpfs /tmp/rp5-control-exec
+cp $rp5_fixture_argument /tmp/rp5-control-exec/fixture.test
+chmod 0755 /tmp/rp5-control-exec/fixture.test
+setcap cap_kill+ep /tmp/rp5-control-exec/fixture.test
+getcap /tmp/rp5-control-exec/fixture.test
+cd /tmp/rp5-control-exec
+sudo -n -u ze env HOME=/tmp TMPDIR=/tmp /tmp/rp5-control-exec/fixture.test -test.v -test.count=1 -test.timeout=1m -test.run '^TestSysribExecutablePrivilegedCancellationJoinsRootChild$'"
+CGO_ENABLED=0 ./le --name session job run label fixture-control-proof quiet command \
+  ./le --name session test qemu docker-lab kernel "$rp5_kernel" root timeout 45m command "$rp5_guest_command"
+```
+
+The private tmpfs omits `nosuid`, so the kernel honors its file capability.
+Its mode0755 also permits the cidata user to traverse it when that user's UID
+differs from the namespace role's UID1000. The cidata user `ze` has the host
+owner's UID in command mode and the existing passwordless sudo policy. This
+test needs only the observed `cap_kill+ep` grant on its compiled test binary;
+the namespace fixture's broader grant is a separate role. The native action
+stops the VM and reclaims the private mount after the selected command ends.
 
 ## The docker population
 

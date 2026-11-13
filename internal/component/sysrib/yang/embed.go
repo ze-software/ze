@@ -6,3 +6,6 @@ import _ "embed"
 
 //go:embed ze-rib-conf.yang
 var ZeRibConfYANG string
+
+//go:embed ze-sysrib-api.yang
+var ZeSysribAPIYANG string

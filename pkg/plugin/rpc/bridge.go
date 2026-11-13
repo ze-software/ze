@@ -56,6 +56,7 @@ type DirectBridge struct {
 	filterSlot            FilterSlotHandler
 	hasFilterSlot         atomic.Bool // set atomically when filterSlot is written (filter_slot.go)
 	dispatchRPC           func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error)
+	dispatchNative        func(context.Context, string, any) (any, bool, error)
 	dispatchCommand       DispatchCommandHandler       // Typed fast path (no JSON)
 	hasDispatchCmd        atomic.Bool                  // set atomically when dispatchCommand is written
 	dispatchCommandArgs   DispatchCommandArgsHandler   // Typed fast path with pre-tokenized args (no JSON)

@@ -104,6 +104,13 @@ variable of type `error` cannot be seen from the syntax, and reads as plain.
 <!-- source: internal/le/arch/errorinventory/classify.go -- classify, carries, namesCommand -->
 <!-- source: internal/le/arch/errorinventory/inventory.go -- preRankOf -->
 
+A multi-result call is judged at the result assigned to the writer's argument.
+Each non-nil return for that result must be an operator error with a fix; a
+plain alternative keeps it plain. An operator error in a different result
+does not type the selected result. Assignment and variable declarations retain
+the same result position through nested helper calls.
+<!-- source: internal/le/arch/errorinventory/classify.go -- assignmentValue, answersOperatorError, returnsOnlyOperatorErrors -->
+
 ### Adding a writer
 
 The inventory contains errors, refusals and warnings. Fixed positive progress

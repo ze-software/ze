@@ -28,7 +28,7 @@ func withNetns(t *testing.T, active bool) {
 	t.Cleanup(func() { netnsActive = original })
 }
 
-// The grant written on the netns-mode copies of ze, ze-stripped and le is the
+// The grant written on the netns-mode copies of ze and ze-stripped is the
 // declaration's own text, and carries cap_bpf.
 func TestNetnsDaemonSetcapNamesTheGrant(t *testing.T) {
 	got, err := NetnsDaemonSetcap()

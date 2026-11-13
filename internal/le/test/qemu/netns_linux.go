@@ -138,8 +138,16 @@ func prepareNetnsBinaries(ctx context.Context, binaries netnsBinaries) error {
 	if err != nil {
 		return err
 	}
+	fixtureCapabilities, err := runner.NetnsFixtureSetcap()
+	if err != nil {
+		return err
+	}
 	var tb textbuf.Buffer
-	copies := []struct{ name, source string }{{"ze", binaries.Ze}, {"ze-stripped", binaries.Stripped}, {leName, harness}}
+	copies := []struct{ name, source, capabilities string }{
+		{"ze", binaries.Ze, capabilities},
+		{"ze-stripped", binaries.Stripped, capabilities},
+		{leName, harness, fixtureCapabilities},
+	}
 	for _, pair := range copies {
 		destination := filepath.Join(netnsCapDir, pair.name)
 		// rm first: cp onto a binary a previous run still executes fails
@@ -153,7 +161,7 @@ func prepareNetnsBinaries(ctx context.Context, binaries netnsBinaries) error {
 			}
 			return fmt.Errorf("copy %s failed with exit %d", pair.source, result.Code)
 		}
-		if result, err := guestRun(ctx, "", []string{"setcap", capabilities, destination}, nil); err != nil || result.Code != 0 {
+		if result, err := guestRun(ctx, "", []string{"setcap", pair.capabilities, destination}, nil); err != nil || result.Code != 0 {
 			if err != nil {
 				return err
 			}

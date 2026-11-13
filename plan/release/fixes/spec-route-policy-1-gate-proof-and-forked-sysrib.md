@@ -2,17 +2,17 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | The external system RIB lacks the authoritative routing state and transport wiring its internal mode uses. Its BGP-only fallback bypasses the Loc-RIB import gate when an EventBus is injected. Repair both execution modes, prove the import chains through the daemon, and declare the shipped capability. |
 | RFC gaps | - |
 | Depends | `plan/post-release/features/spec-route-policy-0-umbrella.md` (the committed gate, chains, and fixture drivers; its closure review produced B-1, B-2, and B-3) |
-| Phase | - |
+| Phase | 5/6 (both runtime paths implemented; paired daemon, kernel, lifecycle and load proof in progress) |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-12 |
+| Updated | 2026-11-13 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -26,7 +26,7 @@ internal-only proposal. The owner approved the reviewed transport design for
 implementation on 2026-11-12.
 
 This spec owns the umbrella's three findings. The umbrella's ownership pointers
-still need its separate closure edits. Creating this spec did not change them.
+name this spec. Its independent closure remains separate from this implementation.
 
 | Finding | Required result |
 |---------|-----------------|
@@ -48,6 +48,7 @@ still need its separate closure edits. Creating this spec did not change them.
 | 2026-11-12, initial design | Proposed declaring the system RIB internal-only, refusing external configuration, and adding VRRP/AS112 refusals. | Rejected by the owner. These proposed refusals are withdrawn, including the proposed exception to the system door. They were a consequence of the rejected repair, not one of B-1 to B-3. |
 | 2026-11-12, this revision | Preserve and repair both system RIB modes. | Keep one authoritative Loc-RIB and gate in the daemon. Supply the missing process interfaces and prove parity. Existing VRRP/AS112 behavior is outside this system RIB repair and is not represented as repaired. |
 | 2026-11-12, implementation approval | The owner asked: "Okay, can you implement this specification?" | The revised design is approved for implementation. Native claim admission controls the transition to in-progress. |
+| 2026-11-12, WIP admission exception | After the 17/12 refusal, the owner answered: "Yes, you can increase the number of specs." | This spec was claimed with cap 18. This is the one-spec exception requested in the conversation, not a permanent change to the standing cap. |
 
 ## Required Reading
 
@@ -153,7 +154,7 @@ route-install. Operators use the same configuration and command paths in both mo
 ### Transformation Path
 
 1. The daemon Loc-RIB admits each offered path through the existing source and central chains, stores rejected candidates hidden, resolves distance, and selects.
-2. Internal system RIB input uses the local feed. External input opens a process-bound routing-view session with the daemon. An owner-registered adapter supplies authoritative selected entries and tombstones.
+2. Both modes open a process-bound routing-view session. Internal system RIB input requests the authenticated local-authority reader lease and uses direct Loc-RIB reads and its local feed. External input uses the default selected-feed reader. An owner-registered adapter supplies authoritative selected entries and tombstones.
 3. A bounded handoff records changes under the shard lock. A worker copies owned values, orders the feed, and performs snapshot/delta transport outside every shard lock.
 4. The external consumer builds a read-only prefix projection of selected paths. It runs no admission or cross-source selection and never inserts the projection into a second Loc-RIB.
 5. Both modes run the existing next-hop resolver, dependency tracking, cascade, ECMP, FIB permission, and replay algorithms. The resolver uses a narrow LPM reader: authoritative local reads or the completed external projection.
@@ -171,7 +172,7 @@ plugin name, or policy. Owner registration extends the existing engine-op regist
 
 | Operation | Request | Result and obligations |
 |-----------|---------|------------------------|
-| Open selected view | Authenticated caller and execution generation, established by the server rather than trusted from JSON. Allowed during Stage 2 after registration and during runtime. | One session per active system RIB owner, server epoch, initial cursor, and snapshot identity. This bootstrap operation establishes the token distance application needs. A replacement waits for old cleanup. |
+| Open selected view | Authenticated caller and execution generation, established by the server rather than trusted from JSON. Optional reader is selected-feed (the empty-input default) or local-authority. Allowed during Stage 2 after registration and during runtime. | One session per active system RIB owner, server epoch, initial cursor, and snapshot identity. Local-authority requires an authenticated internal process and a readable daemon Loc-RIB. This bootstrap operation establishes the token distance application needs. A replacement waits for old cleanup. |
 | Read selected view | Session token, cursor, record limit, bounded wait. | Ordered snapshot pages or deltas, completion marker, next cursor, epoch, and explicit reset-required result. Records contain selected entries or tombstones. |
 | Read candidates | Session token, optional family/prefix, bounded page cursor. | A separately pinned candidate snapshot with hidden and standby paths, selected flags, stored rejection attribution, and all existing display fields. Prefix queries use an atomic prefix read. |
 | Apply distances | Session token, complete validated protocol-name/distance table, ordered operation identity. | Publish at the daemon and reselect. Acknowledge the applied declaration and routing-view barrier. Retry is idempotent. Reject a stale operation or another process's session. |
@@ -190,11 +191,15 @@ plugin name, or policy. Owner registration extends the existing engine-op regist
 |-----------------------------|-------------------|
 | Snapshot and live changes | Subscribe before snapshot. Reconcile mutations during the scan before completing the initial view. Apply a completed snapshot as a unit before forwarding or replay. Buffered older state must never overwrite a later withdrawal. |
 | Feed cursor | The session worker assigns an epoch and ordered cursor. `locrib.Revision()` remains the metric invalidation signal and is not repurposed as that cursor. Reject impossible, future, stale, and cross-session cursors explicitly. |
+| Local reader lease | The explicit local-authority reader uses the same Open contract on both transports. It retains no selected snapshot, capture channel or journal. Its initialized direct reader is current at logical cursor zero. Distance acknowledgment follows authoritative reselection and uses zero without inventing a stream barrier. Generation checks, candidate maintenance, ordered output identities, fencing and cleanup remain required. Read refuses with instructions to reopen selected-feed. Refusal of an external optimization request never refuses ordinary external configuration. |
 | Overflow and resync | Record dirty prefixes without waiting for the consumer. Reread them after older work. If retained deltas cannot satisfy a cursor, fence publication, withdraw the session's output, and return reset-required. Rebuild and reconcile before publication resumes. |
+| Reset after an admitted reply | A valid selected reply can arrive after its lease was reset. If its publication is refused before emission, the same authenticated lease may expose an optional rejected-publication operation on its explicit reset reply. Recovery requires that exact fully validated publication identity and a valid same-session reset, then reconstructs current authority state in the existing worker. Delivery failures, foreign or replaced owners, malformed values, and mismatched retries grant no recovery proof. |
 | Next-hop ordering | Apply an entire selected-view batch before resolving its dependent routes. A full snapshot builds the complete LPM projection before computing FIB entries. Cover loss and recovery trigger recomputation without a producer event. |
 | Candidate consistency | Hidden-only changes can leave the selected revision unchanged. Candidate paging uses an immutable request snapshot and its own identity, not that revision. Close, timeout, or disconnect releases it. |
 | Startup | Extend the shared handshake to serve only owner-registered startup-safe engine operations while configure awaits its reply. Authenticate and bind the owner first. Stage 2 opens its session and applies distances, even when its sections are empty and it must use schema defaults. Only open and distance-apply are startup-safe. Feed reads, candidate reads, and forwarding publication wait for runtime admission. No second connection reader or wait for a later plugin tier is introduced. |
+| Startup configure allowance | Before completing accepted Stage 1 registration, record each member's declared apply budget and freeze one maximum for that dependency tier. Clamp positive seconds to the existing 600-second limit before duration conversion. Only the configure-stage default stall may extend to that maximum. Explicit operator stage-timeout, non-positive environment stall semantics, other stages, finite completion progress and earlier parent deadlines retain their behavior. A lock-holding restart captures the exact outgoing accepted declaration before respawn and allows its configure work alongside four ordinary stage windows; it never uses a per-name or all-process maximum. Automatic failure-policy restart retains its existing lifetime scope. |
 | Startup readiness | Synchronize the already-open selected view once runtime dispatch exists. Until complete, the plugin reports initializing and publishes no forwarding or replay. Retain early FIB replay requests and answer after synchronization, so a consumer need not request again. The daemon ready file alone does not prove view readiness. A synchronization failure closes the connection and follows the existing failed-plugin policy. |
+| Configuration deadline | Runtime configuration installation has a two-minute bound, matching the selected snapshot lifetime. A failed installation restores the previous complete declaration and permissions under an independent fresh two-minute context. The registered apply budget is 300 seconds, covering both bounds and cancellation/reply housekeeping within the coordinator's existing 600-second maximum. Success still requires authoritative reselection, a synchronized reader and acknowledged forwarding output. These are bounded failure contracts, not a throughput guarantee. A failed compensation reports that running configuration was lost and fences the consumer. |
 | Feed failure | Mark the session unhealthy, fence output, and withdraw only its outstanding routes through existing FIB events. Close the failed SDK connection and use the existing restart policy. Never fall back to BGP or treat unavailable state as an empty table or proved reachability. |
 | Output ownership | Generation fencing happens before emission. Cleanup and replacement serialize so an old cleanup cannot withdraw a new generation's output. OS-owned and withheld routes never enter the outstanding output ledger. |
 | Limits | Read limits are 1 through 4096 records. Wait is 0 through 1000 ms and cannot exceed the caller deadline. Bound retained deltas and snapshot lifetime. Expiration produces an explicit reset, not partial success. Malformed pages or field values fail atomically. |
@@ -260,11 +265,11 @@ after registration, SDK, schema, and tests are written.
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
 | A-1 | A narrow LPM reader covers the resolver's store dependency. | `nhResolver.Resolve` and `chainCovered` use LPM. | Reader design needs another operation. | Enumerate all resolver/cascade reads and run paired backend units. | Source-supported, runtime proof owed |
-| A-2 | Existing engine-op wrappers can serve an owner registry with process-bound context. | `engineOps` serves both transports, but current raw extension handlers lack that context. | Generic registration or lifecycle adaptation needs redesign. | Wiring units and actual fork startup with a named external block. | unvalidated |
-| A-3 | Startup-safe nested calls can preserve the existing handshake barriers. | `runStartupHandshake` currently waits synchronously for configure. | Distance bootstrap deadlocks. | Bounded configure test on socket and Direct transports, with a second plugin in the tier. | unvalidated |
-| A-4 | A complete selected projection contains all inputs to the existing FIB algorithms. | `changeToBatch`, `fibEntry`, resolver, and replay reads. | Add missing values to the contract before implementing consumers. | Field-by-field round trips and recursive/ECMP parity tests. | unvalidated |
-| A-5 | Existing cleanup order can serialize old session teardown with replacement. | `RegisterProcessCleanup` exists. Existing producer cleanup is not system-output cleanup. | Add explicit session-generation coordination. | Delayed old-publish/cleanup versus replacement interleavings and daemon restart test. | unvalidated |
-| A-6 | A real interface can provide the connected/static controls without an extra routing peer. | Existing connected-distance and static-distance functional tests. | Adjust fixture setup without reducing kernel proof. | Draft runs on Ze's kernel with net-admin. | unvalidated |
+| A-2 | Existing engine-op wrappers can serve an owner registry with process-bound context. | `internal/component/plugin/server/register_engine_op.go` `RegisterEngineOp` registers one authenticated `*process.Process` handler and optional native adapter. `internal/component/sysrib/register_route_view.go` registers the owner operations and exact-generation cleanup. | Generic registration or lifecycle adaptation needs redesign. | `TestOwnerEngineOperationTransportParity` and actual named external boot, with the full live matrix still required. | Confirmed at source; execution coverage remains an acceptance obligation. |
+| A-3 | Startup-safe nested calls can preserve the existing handshake barriers. | `internal/component/plugin/server/startup_engine_op.go` `serveConfigureEngineOp` admits only configure-safe registrations. System-RIB Open and Distances declare that policy, while Read, Candidates, Publish and Close remain runtime-only. | Distance bootstrap deadlocks. | `TestConfigureServesOwnerEngineOperation`, runtime-only refusal controls and the real tier/restart cases. | Confirmed at source; paired startup and tier proof remains required. |
+| A-4 | A complete selected projection contains all inputs to the existing FIB algorithms. | `pkg/plugin/rpc/route_view.go` `RouteViewPath` and `RouteViewNextHop` carry ranking, presence, target, repair and member ownership/metadata. `internal/component/sysrib/projection.go` `Apply` installs a whole prepared page before the shared forwarding worker reads it. | Add missing values to the contract before implementing consumers. | Field round trips and recursive/ECMP/permission/replay units, then paired daemon/kernel cases. | Confirmed at the value/consumer boundary; full runtime parity remains unproven. |
+| A-5 | Existing cleanup order can serialize old session teardown with replacement. | `internal/component/sysrib/route_view.go` `open` and `cleanupLocked` serialize replacement with exact-generation cleanup. `internal/component/sysrib/route_view_output.go` `withdraw` retains failed ledger entries and blocks a replacement until retry succeeds. | Add explicit session-generation coordination. | Delayed old-publish/cleanup interleavings, both restart controllers and real daemon restart/replay. | Confirmed at source; controlled and live lifecycle evidence is still owed before acceptance. |
+| A-6 | A real interface can provide the connected/static controls without an extra routing peer. | `internal/test/fixture/rib_import_daemon_fixture.go` `importPolicyDriver` creates a real /31 and waits for its connected candidate before the original assertions. The drafts explicitly load interface monitoring and the connected producer. | Adjust fixture setup without reducing kernel proof. | Both central placements passed in `job-rp5-kernel-batch-one-2aaa91d0.log`; both connected and static placements passed in `job-rp5-kernel-batch-two-6f1f143a.log`, on Ze kernel 7.3.0-ze. Final isolated carriers still owe their separate promotion and load evidence. | Confirmed by useful daemon and kernel controls. |
 
 ### Risks
 
@@ -279,6 +284,7 @@ after registration, SDK, schema, and tests are written.
 | R-7 | Refactoring batch processing weakens existing tests. | Units are deleted, assertions disappear, or a no-op backend passes. | Preserve assertions and use independent `ze-test-judge` for changes subject to that rule. |
 | R-8 | Slow consumers or abandoned snapshots retain unbounded memory. | Retention grows after timeout/disconnect. | Bound journals, one active owner session, bounded reads and snapshot lifetimes, explicit reset and cleanup. |
 | R-9 | Foreign callers change distances or forge a feed generation. | Another process can publish or acquire the owner lease. | Bind authority to the authenticated configured registration and process generation, never JSON names. |
+| R-10 | A full-table configure operation fits its declared bound but exceeds the ordinary startup stall or replacement handshake bound. | A fast sibling aborts the configuring owner, or a manual/recovery restart times out before configure finishes. | Freeze the same tier's accepted configure allowance and carry the outgoing accepted declaration into bounded replacement startup. Preserve explicit operator bounds, other stage limits, disabled stalls and earlier parent deadlines. Prove the actual registration, wait and restart paths with controlled tests. |
 
 ## Blast Radius
 
@@ -324,7 +330,7 @@ system RIB and once with an actual external subprocess.
 | AC-15 | Comparison and redistribution examples. | The comparison has a source-backed per-protocol import/export row and current filters/final syntax. | Unverified competitor cells say Unclear because unsupported claims are not evidence. |
 | AC-16 | Startup defaults, configured distances, per-route overrides, runtime change, rejected reload, rollback, and root removal. | Both placements publish the same daemon declaration and select the same existing routes without new announcements. A failed apply reports failure and restores the previous declaration. | Per-route overrides and schema defaults remain effective because they are part of existing ranking semantics. |
 | AC-17 | Snapshot concurrent with insert/update/withdraw, delta overflow, expired cursor, and restart. | A completed projection matches the authority. A newer withdrawal remains withdrawn. Reset reconstructs a complete current view and reinstalls the admitted control. | Other prefixes continue once a synchronized view permits publication. Partial snapshots never count as synchronized. |
-| AC-18 | Covering next-hop routes change across recursive IPv4, IPv6, and cross-family cases. | Both modes produce the same resolved gateway, device, on-link state, metric, and dependency updates. Loss and recovery of previously proved reachability update FIB state without producer reannouncement. | Preserve the existing internal distinction between never-proved and previously-proved targets. Missing routing-view state is always an error, never proof. |
+| AC-18 | Covering next-hop routes change across recursive IPv4, IPv6, and cross-family cases, including a more-specific prefix whose candidates are all hidden above a selectable broader cover. | Both modes produce the same resolved gateway, device, on-link state, metric, and dependency updates. LPM skips all-hidden groups and finds the most-specific selectable cover. Loss and recovery of previously proved reachability update FIB state without producer reannouncement. | Preserve the existing internal distinction between never-proved and previously-proved targets. Missing routing-view state is always an error, never proof. Hidden candidates remain inspectable, while a permitted broader cover remains usable. |
 | AC-19 | Weighted ECMP, member loss/recovery, primary promotion, device-only targets, labels, SRv6 SID, and repair backup. | Both placements preserve the complete forwarding targets and emit equivalent live and replay entries, including promoted metadata. | Remaining reachable members continue forwarding because one member's loss does not withdraw the whole group. |
 | AC-20 | FIB withholding and OS-installed selections, then reload and replay. | Both modes show the selected routes correctly and program the permitted Ze-owned control. Withheld/OS-owned selections create no Ze FIB write or stale replay entry. | OS and other-daemon routes survive because system selection does not transfer their ownership. |
 | AC-21 | Internal and external BGP RIB query route-metrics while the system RIB runs externally. | Metrics match authoritative daemon resolution, including resolved zero, recursive cost, and missing-AIGP distinction. Topology changes invalidate the metric result. | Existing received-AIGP handling survives because the metric RPC remains independent of the consumer process. |
@@ -356,6 +362,8 @@ system RIB and once with an actual external subprocess.
 | `TestRouteViewHiddenCandidatesStayFresh` | `internal/component/sysrib/route_view_test.go` | Hidden-only edits and separately pinned candidate paging. | |
 | `TestRouteViewResolverParity`, `TestRouteViewReplayParity` | `internal/component/sysrib/route_view_test.go` | Local and projection backends use the same forwarding algorithm. | |
 | `TestRouteViewOutputGenerationCleanup` | `internal/component/sysrib/route_view_test.go` | Acknowledged output, failure withdrawal, replacement fencing. | |
+| Nonwinner explicit forwarding groups and secondary-only changes | `internal/core/rib/locrib/forwarding_explicit_members_test.go`, `internal/component/sysrib/route_view_nonwinner_explicit_test.go` | Preserve every admitted equal-cost source's explicit targets, source metadata, notification and both readers; measure unchanged explicit-group insertion allocations. | |
+| Publication schema, replay admission and failure diagnostics | New scoped system RIB regression files | Canonical withdrawals and device-only members fit the published schema; system replay identities have one broadcast contract across both transports; routing-view error logs carry their declared diagnostic code. | |
 | Existing system RIB, resolver, permission, and forwarding units | `internal/component/sysrib/` | Preserve all prior assertions. Repoint obsolete BGP-arbitration subjects through independent test judgment where required. | |
 
 ### Boundary Tests (numeric inputs)
@@ -385,6 +393,7 @@ prove under load, then promote through `ze-test`.
 | `sysrib-distance-reload` | Defaults, override, apply/reject/rollback/root removal: AC-16. |
 | `sysrib-recursive-nexthop` | Recursive reachability and BGP metric checks: AC-18, AC-21. |
 | `sysrib-ecmp-replay` | Weighted paths, promotion, metadata, replay, FIB permissions: AC-19, AC-20. |
+| `sysrib-nonwinner-explicit-ecmp` | Actual static weighted groups alongside an independent equal-cost primary, secondary-only reload, permission changes and replay through each system RIB placement: AC-19, AC-20. |
 | `sysrib-feed-restart` | Overflow/reset, process failure/restart, scoped withdrawal, doctor recovery: AC-5, AC-17, AC-22, AC-25. |
 | `sysrib-forked-producer-kernel` (external system RIB) | Actual forked static producer and route-install fixture, authoritative gate, admitted kernel route, producer disconnect withdrawal: AC-3, AC-11, AC-23. |
 
@@ -418,15 +427,22 @@ attachment and external system RIB are connected.
 - `pkg/plugin/sdk/sdk.go` - Companion change for the preceding source.
 - `pkg/plugin/sdk/sdk_engine.go` - Companion change for the preceding source.
 - `internal/core/rib/igpcost/igpcost.go` - Generalize only the lookup dependency needed to reuse the existing resolver against both readers. Preserve the default authoritative route and metric semantics.
+- `internal/core/rib/locrib/manager.go` - Correct LPM so an all-hidden most-specific group cannot mask a selectable broader cover in the same shard. This is required for local authority and selected projection to agree.
 - `internal/core/bgp/ribevents/ribevents.go` - Remove the obsolete consumer-only marker if it has no remaining use after all batch callers are migrated. Preserve BGP JSON.
 - `internal/test/fixture/rib_import_policy_fixture.go` - Distance/tag observations, reload and connected-chain drivers.
 - `internal/test/fixture/register_rib_import_policy.go` - Companion change for the preceding source.
+- `internal/plugins/static/register.go` - Retain validated initial routes until all plugins are ready; preserve runtime configuration and transaction rollback. Real external static startup exposed an illegal configure-stage route-install request.
+- `internal/le/test/qemu/actions.go`, `internal/le/test/qemu/alltests.go`, `internal/le/test/qemu/alltests_report.go` - Extend the existing selected-test action with bounded stress after its existing namespace preparation, retaining exact execution counts.
+- `internal/le/test/stressrepro/` - Reuse the native stress runner with canonical selected-suite arguments and actual per-iteration execution validation.
+- `internal/test/runner/caps.go`, `internal/le/test/qemu/netns.go`, `internal/le/test/qemu/netns_linux.go` - Keep the production daemon grant unchanged. Give the isolated test launcher the permissions to inspect executable identities and join privileged inspection children. Refuse privileged inspection before spawning when its process-control permission is unavailable.
+- `internal/plugins/fib/kernel/fibwithhold_integration_linux_test.go` - Adapt the shared startup fixture to the real server, registered owner operations, and current command transport. Preserve every existing route input and forwarding assertion.
 - `internal/le/interoplab/bgp/check_import_policy.go` - Add required parity observations and placement runs without weakening existing checks.
 - `internal/core/diagnostic/codes.go` - Register the routing-view failure code and retain an exact recovery command.
 - `internal/component/sysrib/` - Preserve semantic coverage under the new input adapters and get independent judgment when required.
 
 ## Files to Create
 
+- `internal/core/rib/locrib/lpm_hidden_cover_test.go` - Deterministic one-shard IPv4/IPv6 hidden-cover regression, visible control, default/host boundaries and no-cover cases.
 - `internal/component/sysrib/route_view.go` - Owner daemon adapter, ordered session, snapshots and output ledger.
 - `internal/component/sysrib/route_view_client.go` - External read-only projection and local reader adapter.
 - `internal/component/sysrib/register_route_view.go` - Register process operations and cleanup from the owner.
@@ -492,7 +508,7 @@ the new transport is already implemented.
 | 2: selected view | Nonblocking handoff, ordered snapshot/deltas, bounded retention/reset, external read-only prefix projection, local reader. | Concurrent scan/withdraw and overflow interleavings, field round trips, local/direct allocation evidence. |
 | 3: full routing behavior | Distance apply/rollback, shared resolver/cascade/ECMP, authoritative candidates, generation-bound output sink and replay. Remove the unsafe BGP path and obsolete arbitration. | Paired distance, candidates, recursive, metadata, permission and metric tests, preserving old assertions. |
 | 4: lifecycle | Cleanup ledger, generation fence, failed view/output recovery, restart snapshot, runtime doctor and owner metrics. | Kill/replace/slow-consumer tests with kernel withdrawal/reinstallation and unaffected-route controls. |
-| 5: import-chain daemon proof | Extend committed drivers, add connected proof and forked producer cases, draft/discriminate/load-test/promote all paired carriers. | AC-6 and AC-8..AC-13 through a real daemon and FIB. Verify every promoted path is tracked. |
+| 5: import-chain daemon proof | Extend committed drivers, add connected proof and forked producer cases, draft/discriminate/load-test/promote all paired carriers. Reuse native per-test network namespaces so concurrent FIB daemons cannot sweep one another's routes. Extend the existing selected QEMU test action with bounded, counted stress through its existing namespace preparation and stress runner. | AC-6 and AC-8..AC-13 through a real daemon and FIB. Require 80 successful selected executions per final carrier, without skips or interruption, then verify every promoted path is tracked and registered in the isolated native subset. |
 | 6: routing peers and declaration | OSPF/BIRD and IS-IS/FRR placement runs, feature declaration, comparison and remaining source-backed page updates. | Retained original scenario assertions plus new parity checks, recorded red/green, feature report and scoped documentation validation. |
 
 ### Critical Review Checklist

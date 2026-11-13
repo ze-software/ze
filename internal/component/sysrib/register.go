@@ -2,19 +2,22 @@ package sysrib
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	sysribyang "github.com/ze-software/ze/internal/component/sysrib/yang"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/rib/distance"
-	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
@@ -23,6 +26,14 @@ import (
 const configRootRIB = "rib"
 
 func init() {
+	if err := diagnostic.Register(diagnostic.CodeMeta{
+		Code:        routeViewDoctorCode,
+		Title:       "The system routing view is unavailable",
+		Description: "The system RIB is initializing, reconstructing, stopped, or failed to synchronize its authoritative routing view and forwarding output. The runtime doctor finding reports the actual consumer state and the configured instance's restart command in either placement.",
+		Examples:    []string{"ze show doctor", "ze show diagnostic " + routeViewDoctorCode},
+	}); err != nil {
+		panic("BUG: sysrib routing-view diagnostic registration refused: " + err.Error())
+	}
 	// The filter attachment points this plugin's config holds, with the route
 	// fields their routes carry and a filter there may set (the route field
 	// vocabulary, internal/component/policy/fields.go).
@@ -38,13 +49,13 @@ func init() {
 
 	reg := registry.Registration{
 		Name:        configRootRIB,
-		Description: "System RIB: selects best route across protocols by admin distance",
+		Description: "System RIB: resolves authoritative routes and publishes forwarding changes",
 		Features:    "yang",
 		YANG:        sysribyang.ZeRibConfYANG,
 		ConfigRoots: []string{configRootRIB},
-		// StartAfter, never a load: the system RIB merges BGP's best changes
-		// with every other protocol's, and selects without them in a build or
-		// a config without BGP (./le plugin coupling check).
+		// StartAfter, never a load: BGP can populate the shared authority first,
+		// but the system RIB also consumes every other registered route source
+		// without a BGP process (./le plugin coupling check).
 		StartAfter: []string{"bgp-rib"},
 		// policy is a hard dependency of every protocol with a filter attachment:
 		// the filter instances its chains name live under the policy root.
@@ -84,9 +95,9 @@ func init() {
 // cross-protocol selection, however carefully it was resolved. The seam is how
 // the one declaration reaches the only layer that can act on it.
 //
-// Called only by declareDistances, which assigns s.adminDist beside it and
-// re-ranks the Loc-RIB after it, so the seam, the map and the installed winners
-// cannot disagree.
+// Callers MUST retain an immutable table and reselect the authoritative Loc-RIB
+// after publication. The authenticated routing-view distance handler performs
+// that operation and acknowledges its completed authority barrier.
 func publishDistances(dist map[string]int) {
 	distance.Set(func(protocol string) (uint8, bool) {
 		d, ok := dist[protocol]
@@ -97,259 +108,82 @@ func publishDistances(dist map[string]int) {
 	})
 }
 
-// declareDistances makes dist the declaration: sysrib's own table, the seam the
-// Loc-RIB ranks on, and a re-rank of every path the Loc-RIB already holds. It is
-// the one way a distance table takes effect, so no caller can publish a changed
-// table and leave the installed winners ranked on the old one.
-//
-// The caller MUST NOT hold s.mu.
-func (s *sysRIB) declareDistances(dist map[string]int) {
-	s.mu.Lock()
-	s.adminDist = dist
-	publishDistances(dist)
-	s.mu.Unlock()
-	reselectLocRIB()
-}
-
-// reselectLocRIB re-runs Loc-RIB best-path selection under the distances just
-// published, so a reload that changes `rib { distance { } }` re-ranks the routes
-// already installed rather than only the ones inserted after it. Every changed
-// winner reaches sysrib, and through it the FIB, as an ordinary Loc-RIB change.
-//
-// The caller MUST NOT hold s.mu: the Loc-RIB dispatches its changes to sysrib's
-// own subscription before Reselect returns.
-func reselectLocRIB() {
-	if loc := getLocRIB(); loc != nil {
-		loc.Reselect()
-	}
-}
-
 func verifySysRIBConfig(sections []sdk.ConfigSection) error {
-	for _, section := range sections {
-		if section.Root != configRootRIB {
-			continue
-		}
-		if _, err := parseAdminDistanceConfig(section.Data); err != nil {
-			return err
-		}
-		if _, err := parseFIBImportConfig(section.Data); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, _, err := parseRouteViewConfiguration(sections)
+	return err
 }
 
 func runSysRIBPlugin(conn net.Conn) int {
 	logger().Debug("sysrib plugin starting (RPC)")
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
+	if err := runRouteViewPlugin(ctx, sdk.NewWithConn(configRootRIB, conn)); err != nil {
+		logger().Error("sysrib plugin failed", "error", err, "code", diagnostic.CodeDoctorPluginStopped)
+		return 1
+	}
+	return 0
+}
 
-	p := sdk.NewWithConn(configRootRIB, conn)
-	defer func() { _ = p.Close() }()
-
-	// Wire the process-wide Loc-RIB so sysrib's run() picks the
-	// cross-protocol OnChange source when in-process plugins share a
-	// singleton; returns nil in forked subprocesses, leaving the
-	// EventBus fallback path active.
-	SetLocRIB(locrib.Default())
-
+// runRouteViewPlugin owns the consumer and SDK lifetimes. It MUST join and
+// close a successfully opened client before releasing its SDK connection.
+func runRouteViewPlugin(ctx context.Context, p *sdk.Plugin) (err error) {
+	health := newRouteViewHealth(p.MetricsRegistry(), p.InstanceName)
+	p.OnDoctorCheck(health.findings)
+	var client *routeViewClient
+	defer func() {
+		if client != nil {
+			err = errors.Join(err, client.Close(ctx), client.Failure())
+		}
+		if closeErr := p.Close(); closeErr != nil {
+			if !errors.Is(closeErr, net.ErrClosed) {
+				err = errors.Join(err, closeErr)
+			}
+		}
+	}()
+	initial, _, err := parseRouteViewConfiguration(nil)
+	if err != nil {
+		return err
+	}
 	s := newSysRIB()
-
-	// SEED THE DECLARATION BEFORE ANY CONFIG ARRIVES. A config with no `rib {`
-	// block delivers NO section at all: ExtractConfigSubtree
-	// (internal/component/config/plugin_verify.go) returns nil for an absent
-	// path, so OnConfigure never runs for this root and neither the map nor the
-	// seam would ever be populated. Exactly one config in the tree carries that
-	// block, so waiting for one left every producer on its own constant
-	// permanently rather than as a bootstrap, and made effectivePriority warn on
-	// an ordinary configuration.
-	//
-	// parseAdminDistanceConfig("{}") is the declaration itself: it fills every
-	// protocol from the YANG schema defaults. Seeding with it means the declared
-	// values apply from process start, and a config that DOES carry the block
-	// overrides them through OnConfigure below.
-	declared, declErr := parseAdminDistanceConfig("{}")
-	if declErr != nil {
-		// The schema is unreadable, so no protocol has a distance and every
-		// route would install at whatever its producer guessed. Refusing to
-		// start is the safe direction for a value that decides what the kernel
-		// forwards on.
-		logger().Error("sysrib: cannot resolve the declared distances, refusing to start", "error", declErr)
-		return 1
-	}
-	s.declareDistances(declared)
-
-	// SEED THE PERMISSION SET FOR THE SAME REASON, and read it from the same
-	// empty config: parseFIBImportConfig("{}") names every registered protocol
-	// and withholds none. Without it every protocol is undeclared until a
-	// config with a `rib {` block arrives, which is all but one config in this
-	// tree, so fibPermitted would take its fail-open branch and warn once per
-	// protocol on an ordinary router.
-	permit, permitErr := parseFIBImportConfig("{}")
-	if permitErr != nil {
-		logger().Error("sysrib: cannot resolve the FIB import declaration, refusing to start", "error", permitErr)
-		return 1
-	}
-	publishFIBImport(s, permit)
-
-	// pendingDist and pendingPermit hold the validated tables between verify
-	// and apply.
-	var pendingDist map[string]int
-	var pendingPermit map[string]bool
-
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootRIB {
-				continue
-			}
-			dist, err := parseAdminDistanceConfig(section.Data)
-			if err != nil {
-				return err
-			}
-			withhold, err := parseFIBImportConfig(section.Data)
-			if err != nil {
-				return err
-			}
-			pendingDist = dist
-			pendingPermit = withhold
-		}
-		return nil
-	})
-
-	// previousDist tracks the last applied admin distances for rollback, and is
-	// seeded with the DECLARATION rather than left nil.
-	//
-	// OnConfigure never fires for a config with no `rib {` block, which is all
-	// but one config in this tree, so a nil here meant the rollback below
-	// substituted an EMPTY map: every producer reverted to its bootstrap
-	// constant and effectivePriority warned once per protocol, until restart.
-	// That is the empty-map fallback this work exists to remove, re-entered
-	// through the rollback path.
-	previousDist := declared
-	// previousPermit tracks the last applied permission set for rollback, and is
-	// seeded with the DECLARATION for previousDist's reason: an empty map here
-	// would leave every protocol undeclared, and a rollback would then take the
-	// fail-open branch for each of them.
-	previousPermit := permit
-	var activeJournal *sdk.Journal
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootRIB {
-				continue
-			}
-			dist, err := parseAdminDistanceConfig(section.Data)
-			if err != nil {
-				logger().Error("distance config parse failed", "error", err)
-				return err
-			}
-			withhold, err := parseFIBImportConfig(section.Data)
-			if err != nil {
-				logger().Error("fib import config parse failed", "error", err)
-				return err
-			}
-			// A producer that started before this stage-2 delivery (connected
-			// has no dependency on rib, nor does a forked plugin) ranked its
-			// paths at the schema defaults seeded above, so this re-ranks too.
-			s.declareDistances(dist)
-			previousDist = dist
-			publishFIBImport(s, withhold)
-			previousPermit = withhold
-			logger().Info("distance config loaded", "distances", dist)
-			logger().Info("fib import config loaded", "permitted", withhold)
-		}
-		return nil
-	})
-
-	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
-		dist := pendingDist
-		newPermit := pendingPermit
-		pendingDist = nil
-		pendingPermit = nil
-		if dist == nil {
-			return nil
-		}
-
-		oldDist := previousDist
-		oldPermit := previousPermit
-		j := sdk.NewJournal()
-		err := j.Record(
-			func() error {
-				s.declareDistances(dist)
-
-				changes := s.reapplyAdminDistances()
-				for famName, ch := range changes {
-					if len(ch) > 0 {
-						publishChanges(ch, famName)
-					}
-				}
-				publishFIBImport(s, newPermit)
-				return nil
-			},
-			func() error {
-				// Rollback: restore previous admin distances.
-				// oldDist is never nil: previousDist is seeded with the
-				// declaration at start. An empty map here would strip every
-				// protocol of its declared distance, which is worse than any
-				// failed apply it would be rolling back.
-				rollbackDist := oldDist
-				if len(rollbackDist) == 0 {
-					rollbackDist = declared
-				}
-				s.declareDistances(rollbackDist)
-
-				changes := s.reapplyAdminDistances()
-				for famName, ch := range changes {
-					if len(ch) > 0 {
-						publishChanges(ch, famName)
-					}
-				}
-
-				// The permission set rolls back with it, and for the same
-				// reason: an empty map here would leave every protocol
-				// undeclared, so the routes this rollback re-programs would be
-				// judged by the fail-open branch rather than by a declaration.
-				rollbackPermit := oldPermit
-				if len(rollbackPermit) == 0 {
-					rollbackPermit = permit
-				}
-				publishFIBImport(s, rollbackPermit)
-				return nil
-			},
-		)
+	// ConfigTx serializes its installer. The boot installer transitions only
+	// after Open and the complete daemon distance declaration are acknowledged;
+	// every later configure, apply and rollback uses that same valid lease.
+	var install sdk.ConfigInstaller[routeViewConfiguration]
+	install = func(cfg routeViewConfiguration) error {
+		opened, err := openRouteViewMonitoredClient(ctx, p, s, cfg.distances, cfg.permitted, health)
 		if err != nil {
-			j.Rollback()
 			return err
 		}
-
-		previousDist = dist
-		previousPermit = newPermit
-		activeJournal = j
-		logger().Info("distance config reloaded via transaction", "distances", dist)
-		logger().Info("fib import config reloaded via transaction", "permitted", newPermit)
-		return nil
-	})
-
-	p.OnConfigRollback(func(_ string) error {
-		j := activeJournal
-		activeJournal = nil
-		if j == nil {
-			return nil
+		client = opened
+		p.OnStarted(opened.Start)
+		p.OnEvent(opened.HandleEvent)
+		p.OnExecuteCommand(routeViewCommandHandler(ctx, s, opened))
+		install = func(cfg routeViewConfiguration) error {
+			return opened.ApplyConfiguration(ctx, cfg.distances, cfg.permitted)
 		}
-		if errs := j.Rollback(); len(errs) > 0 {
-			return fmt.Errorf("sysrib rollback: %d errors", len(errs))
-		}
-		logger().Info("sysrib config rolled back")
 		return nil
+	}
+	tx := sdk.NewConfigTx(initial, parseRouteViewConfiguration, func(cfg routeViewConfiguration) error {
+		return install(cfg)
 	})
-
-	p.OnStarted(func(ctx context.Context) error {
-		go s.run(ctx)
-		return nil
+	// Register MUST precede Run. The parser declares defaults even when Stage2
+	// delivers no rib section, so the boot installer always reaches the daemon.
+	tx.Register(p)
+	p.SetStartupSubscriptionsIn(sysribevents.Namespace, []string{sysribevents.EventReplayRequest}, nil, "json")
+	p.SetEnvelope(true)
+	return p.Run(ctx, &sdk.Registration{
+		WantsConfig:  []string{configRootRIB},
+		VerifyBudget: 1,
+		ApplyBudget:  int(routeViewConfigurationApplyBudget / time.Second),
+		Commands:     commandDecls(),
+		DoctorChecks: routeViewDoctorDeclarations(),
 	})
+}
 
+func routeViewCommandHandler(ctx context.Context, s *sysRIB, client *routeViewClient) sdk.ExecuteCommandHandler {
 	const cmdDone = "done"
 	const cmdError = "error"
-
-	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
+	return func(_, command string, args []string, _ string) (string, any, error) {
 		switch command {
 		case "show rib":
 			data, err := s.showRIB()
@@ -358,7 +192,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 			}
 			return cmdDone, data, nil
 		case "show rib candidates":
-			data, err := showRIBCandidates(getLocRIB(), args)
+			data, err := client.Candidates(ctx, args)
 			if err != nil {
 				return cmdError, "", err
 			}
@@ -376,24 +210,11 @@ func runSysRIBPlugin(conn net.Conn) int {
 			}
 			return cmdDone, data, nil
 		default:
-			return cmdError, "", fmt.Errorf("unknown command: %s", command)
+			return cmdError, "", opererr.New("Unknown system routing command: "+command,
+				"The system RIB serves show rib, show rib candidates, show nexthop-table and show ecmp-groups",
+				"ze show rib")
 		}
-	})
-
-	ctx, cancel := sdk.SignalContext()
-	defer cancel()
-	err := p.Run(ctx, &sdk.Registration{
-		WantsConfig:  []string{configRootRIB},
-		VerifyBudget: 1,
-		ApplyBudget:  2,
-		Commands:     commandDecls(),
-	})
-	if err != nil {
-		logger().Error("sysrib plugin failed", "error", err)
-		return 1
 	}
-
-	return 0
 }
 
 // commandDecls names the commands this plugin serves and states what each

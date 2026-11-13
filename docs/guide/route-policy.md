@@ -323,6 +323,60 @@ the correct form.
 <!-- source: internal/component/sysrib/candidates.go -- showRIBCandidates, candidatesPrefix -->
 <!-- source: internal/core/rib/locrib/policy.go -- admit, rejectingChain -->
 
+## Internal and external system RIB
+
+The system RIB can run inside the daemon or as a subprocess. Both placements
+use the daemon's Loc-RIB for import policy, distance and selection. The
+subprocess receives selected routes, then resolves next hops and builds FIB
+output with the same forwarding worker as the internal plugin.
+<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
+<!-- source: internal/component/sysrib/route_view_worker.go -- consume -->
+
+Choose one of these plugin blocks. `rib` names the system RIB implementation,
+while `bgp-rib` names BGP route storage.
+
+```
+plugin {
+    internal system-rib {
+        use rib;
+    }
+}
+```
+
+```
+plugin {
+    external system-rib {
+        run "ze plugin rib";
+    }
+}
+```
+<!-- source: internal/component/sysrib/register.go -- init, runSysRIBPlugin -->
+<!-- source: internal/component/plugin/cli/cli.go -- RunPlugin -->
+
+Use the same `rib`, source import chains and `policy` instances with either
+block. `show rib candidates` reads the daemon's full candidates, including
+hidden paths. `show nexthop-table` and `show ecmp-groups` read the configured
+worker's resolved forwarding state. Changing placement does not change these
+commands or their selectors.
+<!-- source: internal/component/sysrib/register.go -- routeViewCommandHandler -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- Candidates, candidates -->
+
+At startup and after a distance change, the worker waits for the daemon to
+acknowledge the complete distance table. A reset stops publication until a
+fresh selected snapshot completes. Process loss withdraws that generation's
+published output. A replacement reconstructs current state before publishing.
+<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- reopen -->
+<!-- source: internal/component/sysrib/route_view.go -- cleanupLocked -->
+
+Use `show doctor` to diagnose an unavailable routing view. The runtime check
+reports initialization, reconstruction or failure and gives the configured
+instance's restart command, such as `ze request plugin restart system-rib`.
+Readiness means the view and emitted output are synchronized. It does not
+confirm a backend's kernel installation.
+<!-- source: internal/component/sysrib/doctor_route_view.go -- findings, markSynchronized -->
+<!-- source: internal/component/sysrib/route_view_output.go -- publish -->
+
 ## When an IGP filter blackholes transit traffic
 
 Filtering an IS-IS or OSPF prefix locally does not stop the IGP from flooding

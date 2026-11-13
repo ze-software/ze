@@ -26,7 +26,7 @@ import (
 // producerRoute is one protocol's route for the tests below: where it
 // forwards, out of which device, and what it imposes on the traffic it
 // carries. Every route here takes the same administrative distance, so the
-// routes are equal-cost and the winner is decided by protocol name.
+// routes are equal-cost and the authority keeps its first stored candidate.
 type producerRoute struct {
 	protocol string
 	nextHop  netip.Addr
@@ -38,8 +38,8 @@ type producerRoute struct {
 // addProducerRoute hands sysrib one producer's route for a prefix and
 // publishes what the arbitration decided, which is the pair of steps every
 // live path takes.
-func addProducerRoute(s *sysRIB, prefix netip.Prefix, route producerRoute) {
-	fam, changes := s.processEvent(makePayload(route.protocol, family.IPv4Unicast, []incomingChange{{
+func addProducerRoute(s *candidateForwardingFixture, prefix netip.Prefix, route producerRoute) {
+	fam, changes := s.offerCandidates(makePayload(route.protocol, family.IPv4Unicast, []incomingChange{{
 		Action:    routeaction.Add,
 		Prefix:    prefix,
 		NextHop:   route.nextHop,
@@ -57,11 +57,11 @@ func addProducerRoute(s *sysRIB, prefix netip.Prefix, route producerRoute) {
 // the Loc-RIB covers, and a winner whose gateway it does not, so the resolver
 // proves a path for the member alone and the member takes the prefix.
 //
-// The member is inserted FIRST and the winner second, because the winner is
-// the protocol whose name sorts first and a prefix that changes hands is what
-// the live path publishes.
+// The member is offered first and the winner second. promote explicitly seeds
+// the winner at distance21 before ingestion, retaining first-seen tie order
+// while preserving the original member Add and winner20 takeover.
 type promotionState struct {
-	sysrib *sysRIB
+	sysrib *candidateForwardingFixture
 	bus    *testEventBus
 	prefix netip.Prefix
 	member producerRoute
@@ -158,6 +158,12 @@ func newPromotionState(t *testing.T, prefix netip.Prefix) *promotionState {
 // the resolver proves no path for its gateway.
 func (p *promotionState) promote(t *testing.T) outgoingChange {
 	t.Helper()
+	// Seed authority order before the first selected value is consumed. The
+	// original member20 Add and winner20 takeover below remain unchanged.
+	p.sysrib.rib.Insert(family.IPv4Unicast, p.prefix, p.sysrib.candidatePath(p.winner.protocol, incomingChange{
+		NextHop: p.winner.nextHop, Interface: p.winner.iface, Labels: p.winner.labels,
+		SRv6SID: p.winner.srv6SID, Priority: 21,
+	}))
 	addProducerRoute(p.sysrib, p.prefix, p.member)
 
 	installed := publishedChanges(t, p.bus)

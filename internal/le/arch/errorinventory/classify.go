@@ -91,6 +91,11 @@ func (sc scope) carries(expr ast.Expr, depth int) bool {
 		if !found {
 			return false
 		}
+		if bound.callResult > 0 {
+			// isOperatorError already judged this exact tuple result. Arguments
+			// and other results cannot supply the selected result's type.
+			return false
+		}
 		if bound.value == nil {
 			return false
 		}
@@ -142,6 +147,13 @@ func (sc scope) isOperatorError(expr ast.Expr, depth int) bool {
 		if bound.value == nil {
 			return false
 		}
+		if bound.callResult > 0 {
+			call, isCall := ast.Unparen(bound.value).(*ast.CallExpr)
+			if !isCall {
+				return false
+			}
+			return bound.scope.callResultIsOperatorError(call, bound.callResult-1, depth+1)
+		}
 		return bound.scope.isOperatorError(bound.value, depth+1)
 	default:
 		return false
@@ -152,17 +164,28 @@ func (sc scope) isOperatorError(expr ast.Expr, depth int) bool {
 // opererr constructor handed a fix that is not the empty literal, or a
 // function of the tree that answers only operator errors.
 func (sc scope) callIsOperatorError(call *ast.CallExpr, depth int) bool {
+	return sc.callResultIsOperatorError(call, 0, depth)
+}
+
+// callResultIsOperatorError judges the zero-based result of a known call.
+func (sc scope) callResultIsOperatorError(call *ast.CallExpr, result, depth int) bool {
 	if sc.file.refersTo(call.Fun, opererrPath, opererrNew) {
+		if result != 0 {
+			return false
+		}
 		return fixArgument(call, opererrNewFix)
 	}
 	if sc.file.refersTo(call.Fun, opererrPath, opererrWrap) {
+		if result != 0 {
+			return false
+		}
 		return fixArgument(call, opererrWrapFix)
 	}
 	ref, found := sc.function(call.Fun)
 	if !found {
 		return false
 	}
-	return sc.index.answersOperatorError(ref, depth+1)
+	return sc.index.answersOperatorError(ref, result, depth+1)
 }
 
 // fixArgument reports whether a constructor call's fix argument, at index
@@ -209,12 +232,16 @@ func (sc scope) function(fun ast.Expr) (funcRef, bool) {
 }
 
 // answersOperatorError reports whether every answer a function gives is an
-// operator error: its first result is declared *opererr.Error, or it is
+// operator error at result: that result is declared *opererr.Error, or it is
 // declared error and each of its returns hands back nil or an operator
 // error, at least one the latter. A function already being judged answers
 // false, which ends a recursion through itself.
-func (index *treeIndex) answersOperatorError(ref funcRef, depth int) bool {
-	if answer, judged := index.typedFuncs[ref.decl]; judged {
+func (index *treeIndex) answersOperatorError(ref funcRef, result, depth int) bool {
+	if depth > resolveDepthMax {
+		return false
+	}
+	key := functionResult{decl: ref.decl, position: result}
+	if answer, judged := index.typedFuncs[key]; judged {
 		return answer
 	}
 	results := ref.decl.Type.Results
@@ -224,41 +251,54 @@ func (index *treeIndex) answersOperatorError(ref funcRef, depth int) bool {
 	if len(results.List) == 0 {
 		return false
 	}
-	first := results.List[0].Type
-	if ref.file.isOperatorErrorType(first) {
+	typ := resultTypeAt(results, result)
+	if ref.file.isOperatorErrorType(typ) {
 		return true
 	}
-	if !isErrorType(first) {
+	if !isErrorType(typ) {
 		return false
 	}
 	if ref.decl.Body == nil {
 		return false
 	}
-	index.typedFuncs[ref.decl] = false
-	answer := scope{index: index, file: ref.file, fn: ref.decl}.returnsOnlyOperatorErrors(depth)
-	index.typedFuncs[ref.decl] = answer
+	index.typedFuncs[key] = false
+	answer := scope{index: index, file: ref.file, fn: ref.decl}.returnsOnlyOperatorErrors(result, depth)
+	index.typedFuncs[key] = answer
 	return answer
+}
+
+// resultTypeAt counts named result groups as their individual result slots.
+// An absent position has no known type and cannot grant typed status.
+func resultTypeAt(results *ast.FieldList, position int) ast.Expr {
+	for _, field := range results.List {
+		count := max(1, len(field.Names))
+		if position < count {
+			return field.Type
+		}
+		position -= count
+	}
+	return nil
 }
 
 // returnsOnlyOperatorErrors reports whether each return of the scope's
 // function, outside its function literals, answers nil or an operator error
-// first, and at least one answers an operator error.
-func (sc scope) returnsOnlyOperatorErrors(depth int) bool {
+// at result, and at least one answers an operator error.
+func (sc scope) returnsOnlyOperatorErrors(result, depth int) bool {
 	typed, other := 0, 0
 	ast.Inspect(sc.fn.Body, func(node ast.Node) bool {
 		switch statement := node.(type) {
 		case *ast.FuncLit:
 			return false
 		case *ast.ReturnStmt:
-			if len(statement.Results) == 0 {
+			if result >= len(statement.Results) {
 				other++
 				return false
 			}
-			result := statement.Results[0]
-			if isNil(result) {
+			value := statement.Results[result]
+			if isNil(value) {
 				return false
 			}
-			if sc.isOperatorError(result, depth+1) {
+			if sc.isOperatorError(value, depth+1) {
 				typed++
 				return false
 			}
@@ -317,6 +357,9 @@ type nameBinding struct {
 	typ   ast.Expr
 	value ast.Expr
 	scope scope
+	// callResult is one-based for a tuple call's selected result. Zero means
+	// value is an ordinary expression, preserving its existing text tracing.
+	callResult int
 }
 
 // binding answers the declaration a name in the scope's function refers
@@ -341,7 +384,7 @@ func (sc scope) binding(use *ast.Ident) (nameBinding, bool) {
 func (sc scope) localBinding(use *ast.Ident) (nameBinding, bool) {
 	var found nameBinding
 	nearest := token.NoPos
-	consider := func(name *ast.Ident, typ, value ast.Expr) {
+	consider := func(name *ast.Ident, typ, value ast.Expr, callResult int) {
 		if name.Name != use.Name {
 			return
 		}
@@ -352,21 +395,18 @@ func (sc scope) localBinding(use *ast.Ident) (nameBinding, bool) {
 			return
 		}
 		nearest = name.Pos()
-		found = nameBinding{typ: typ, value: value, scope: sc}
+		found = nameBinding{typ: typ, value: value, scope: sc, callResult: callResult}
 	}
 	ast.Inspect(sc.fn, func(node ast.Node) bool {
 		switch declaration := node.(type) {
 		case *ast.Field:
 			for _, name := range declaration.Names {
-				consider(name, declaration.Type, nil)
+				consider(name, declaration.Type, nil, 0)
 			}
 		case *ast.ValueSpec:
 			for i, name := range declaration.Names {
-				var value ast.Expr
-				if i < len(declaration.Values) {
-					value = declaration.Values[i]
-				}
-				consider(name, declaration.Type, value)
+				value, result := assignmentValue(declaration.Values, len(declaration.Names), i)
+				consider(name, declaration.Type, value, result)
 			}
 		case *ast.AssignStmt:
 			for i, lhs := range declaration.Lhs {
@@ -374,22 +414,34 @@ func (sc scope) localBinding(use *ast.Ident) (nameBinding, bool) {
 				if !isName {
 					continue
 				}
-				var value ast.Expr
-				if len(declaration.Rhs) == len(declaration.Lhs) {
-					value = declaration.Rhs[i]
-				}
-				consider(name, nil, value)
+				value, result := assignmentValue(declaration.Rhs, len(declaration.Lhs), i)
+				consider(name, nil, value, result)
 			}
 		case *ast.RangeStmt:
 			for _, expr := range []ast.Expr{declaration.Key, declaration.Value} {
 				if name, isName := expr.(*ast.Ident); isName {
-					consider(name, nil, nil)
+					consider(name, nil, nil, 0)
 				}
 			}
 		}
 		return true
 	})
 	return found, nearest != token.NoPos
+}
+
+// assignmentValue preserves the selected result of a single tuple call.
+// Unknown tuple expressions remain unbound rather than borrowing a value.
+func assignmentValue(values []ast.Expr, count, position int) (ast.Expr, int) {
+	if len(values) == count {
+		return values[position], 0
+	}
+	if len(values) != 1 {
+		return nil, 0
+	}
+	if _, isCall := ast.Unparen(values[0]).(*ast.CallExpr); !isCall {
+		return nil, 0
+	}
+	return values[0], position + 1
 }
 
 // messageText answers the literal text of a message: each expression's

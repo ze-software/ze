@@ -25,6 +25,7 @@
 package testqemu
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -58,7 +59,11 @@ type suiteTally struct {
 	// Tests is how many tests the suite executed: passed plus failed plus timed
 	// out, which is the denominator the runner prints. Skipped tests are not in
 	// it, so a suite whose whole population skipped answers 0 with Seen true.
-	Tests int
+	Tests     int
+	Passed    int
+	Summaries int
+	Verdict   string
+	Skipped   bool
 }
 
 // Write assembles lines and reads the summary out of each completed one.
@@ -99,7 +104,7 @@ func (t *suiteTally) read(line string) {
 	if !strings.HasSuffix(fields[2], "%") {
 		return
 	}
-	_, total, ok := strings.Cut(fields[1], "/")
+	passed, total, ok := strings.Cut(fields[1], "/")
 	if !ok {
 		return
 	}
@@ -109,6 +114,13 @@ func (t *suiteTally) read(line string) {
 	}
 	t.Seen = true
 	t.Tests = executed
+	t.Summaries++
+	t.Verdict = fields[0]
+	t.Passed, err = strconv.Atoi(passed)
+	if err != nil {
+		t.Passed = -1
+	}
+	t.Skipped = slices.Contains(fields[3:], "skip")
 }
 
 // withoutANSI removes the color escapes the runner writes when its stdout is a

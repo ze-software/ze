@@ -72,6 +72,15 @@ plugin {
 
 ### Plugin Block Settings
 
+The system RIB uses the registration name `rib`. To run it externally, use
+`external system-rib { run "ze plugin rib"; }`. The equivalent internal
+block is `internal system-rib { use rib; }`. Keep the same route policy and
+distance configuration with either placement. `bgp-rib` is a different plugin:
+it stores BGP routes. See [Route Policy](route-policy.md#internal-and-external-system-rib)
+for the forwarding and recovery behavior.
+<!-- source: internal/component/sysrib/register.go -- init, runRouteViewPlugin -->
+<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
+
 | List | Setting | Description |
 |------|---------|-------------|
 | `internal` | `use` | Name of a built-in plugin to run in-process |
@@ -628,7 +637,7 @@ address. A session whose events named it nothing is selected by no name.
 | `iface-netlink` | Netlink backend for iface: manage, monitor, bridge, sysctl, mirror | -- (registered as iface backend) |
 | `iface-dhcp` | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal | -- (Bus events) |
 | `iface-ra` | IPv6 Router Advertisement sender (RFC 4861): advertises prefixes, flags, and RDNSS resolvers (RFC 8106) on a LAN unit. Hosts autoconfigure addresses, learn a default router, and learn resolvers. Linux and netlink only. [Guide](configuration.md#ipv6-router-advertisements) | -- (Config-driven, raw ICMPv6 socket per unit) |
-| `rib` | System RIB: selects best route across protocols by admin distance | -- (Bus events, no peer binding) |
+| `rib` | System RIB: resolves authoritative routes and publishes forwarding changes | Internal or external; no peer binding |
 | `fib-kernel` | FIB kernel: programs OS routes from system RIB via netlink | -- (Bus events, no peer binding) |
 | `fib-p4` | FIB P4: programs P4 switch from system RIB via gRPC/P4Runtime (noop backend) | -- (Bus events, no peer binding) |
 | `fib-vpp` | FIB VPP: programs VPP FIB from system RIB via GoVPP. MPLS label push (IPRouteAddDel with LabelStack), swap/pop (MplsRouteAddDel), interface enable (SwInterfaceSetMplsEnable). | -- (Bus events, no peer binding) |
@@ -699,10 +708,32 @@ Bus topics published:
 
 <!-- source: internal/component/iface/iface.go -- topic constants and payload types -->
 
-The `rib` plugin aggregates best routes from all protocol RIBs and selects
-the system-wide best per prefix by administrative distance (lower wins).
-Subscribes to `bgp-rib/best-change/` Bus topic prefix, publishes `system-rib/best-change`.
-<!-- source: internal/component/sysrib/sysrib.go -- system-rib topic, protocolRoute, admin distance selection -->
+The `rib` plugin consumes the daemon Loc-RIB's selected routes, after import
+policy and administrative-distance selection. It resolves next hops, retains
+equal-cost paths, and publishes forwarding changes through its authenticated
+output lease. `show rib candidates` queries the daemon's full candidate table,
+including hidden and standby paths, in either placement.
+<!-- source: internal/component/sysrib/register.go -- runRouteViewPlugin, routeViewCommandHandler -->
+<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewClient -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- Candidates -->
+
+An external placement uses the same `rib` implementation:
+
+```
+plugin {
+    external sysrib-owner {
+        run "ze plugin rib";
+        encoder json;
+    }
+}
+```
+
+For internal placement, use `internal sysrib-owner { use rib; }` in the
+`plugin` block. Both placements apply their distance declaration at the daemon;
+an external process never changes a disconnected local copy. Replay requests
+subscribe at startup and wait for the consumer's complete view before output.
+<!-- source: internal/component/sysrib/register.go -- runRouteViewPlugin -->
+<!-- source: internal/component/sysrib/route_view_worker.go -- Start, consume, HandleEvent -->
 
 The `fib-kernel` plugin programs OS routes from the system RIB into the kernel
 via netlink (Linux). Uses a custom rtm_protocol ID (RTPROT_ZE=250) to identify
@@ -714,15 +745,41 @@ withdrawn. Conflicting foreign replacements are retained and reported.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, startupSweep, sweepStale -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route monitor -->
 
+Repair replays reassert each unchanged, successfully installed IPv4 route after
+a fresh check of its exact kernel identity. The write cannot create a route or
+replace a preferred foreign alias. Missing or modified routes use the full
+ownership check and repair path. IPv6, startup routes, changed forwarding and
+pending failures also retain that full path.
+<!-- source: internal/plugins/fib/kernel/fibkernel_replay.go -- tryReplay, sameReplayRoute -->
+<!-- source: internal/plugins/fib/kernel/backend_replay_linux.go -- reassertRichRoute, reassertOwnedRoute -->
+<!-- source: internal/plugins/fib/kernel/backend_linux.go -- replaceOwnedRoute -->
+<!-- test: internal/plugins/fib/kernel/backend_replay_integration_linux_test.go -- TestKernelReplayPlainRoute, TestKernelReplayUnchangedRoute, TestKernelReplayRepairsMissingRoute, TestKernelReplayRepairsModifiedRoute, TestKernelReplayPreservesForeignReplacement, TestKernelReplayForeignAliasOrder, TestKernelReplayIPv6Fallback, TestKernelReplayFullPathCleansPriorities -->
+
+An IPv4 unicast route whose entire forwarding group names devices without
+gateways uses link scope. It can therefore resolve a recursive gateway outside
+the interface's configured subnet. A gateway in any primary, equal-cost or
+backup path keeps universe scope, including gateways from another address
+family. IPv6 and discard routes retain universe scope.
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute, forwardingScope -->
+<!-- test: internal/plugins/fib/kernel/backend_scope_integration_linux_test.go -- TestKernelDeviceOnlyCoverResolvesGateway, TestBuildRichRouteScope -->
+
+Shutdown closes IP forwarding admission before joining the route monitor. An
+already admitted backend operation can finish, but a replay admits no later
+entries. The writer joins that operation before closing the backend, including
+when forwarding is retained. With `flush-on-stop true`, it then runs the owned
+route cleanup. Ordinary repair replays still reassert installed routes.
+<!-- source: internal/plugins/fib/kernel/fibkernel_stop.go -- beginStop -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- processEvent, run, flushRoutes -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_stop_test.go -- TestFIBKernelReplayReassertsInstalledRoutes, TestFIBKernelStopEndsReplayAdmission -->
+
 Bus topics in the FIB pipeline:
 
 | Topic | Publisher | Subscriber | Payload |
 |-------|-----------|------------|---------|
-| `bgp-rib/best-change/bgp` | `bgp-rib` | `rib` | Batch of per-prefix best-path changes |
-| `system-rib/best-change` | `rib` | `fib-kernel`, `fib-p4` | Batch of system-wide best route changes |
+| `system-rib/best-change` | `rib`, through its daemon output lease | FIB plugins | Batch of system-wide forwarding changes |
 | `fib/external-change` | `fib-kernel` | monitoring | External route change on ze-managed prefix |
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, bestChangeBatch -->
-<!-- source: internal/component/sysrib/sysrib.go -- system-rib topic -->
+<!-- source: internal/component/sysrib/route_view_output.go -- publish, withdraw -->
+<!-- source: internal/component/sysrib/events/events.go -- BestChangeBatch -->
 <!-- source: internal/plugins/fib/kernel/monitor.go -- externalChangeEvent, publishExternalChange -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- system-rib/best-change subscription -->
 

@@ -939,9 +939,10 @@ func (p *Plugin) OnEnrichShow(fn EnrichShowHandler) {
 // OnStarted sets a callback that runs after the 5-stage startup completes
 // but before the event loop begins. This is the safe place to make engine
 // calls (e.g., SubscribeEvents) because the connection is no longer blocked
-// by the startup coordinator. Do NOT make engine calls inside OnShareRegistry
-// or OnConfigure -- those run while the engine is waiting for the response,
-// causing a deadlock.
+// by the startup coordinator. OnConfigure may call operations whose owner
+// registered ConfigureSafe startup admission. Ordinary runtime operations MUST
+// wait until OnStarted. OnShareRegistry MUST NOT make engine calls while the
+// engine waits for its response.
 //
 // IMPORTANT: OnStarted fires after THIS plugin's 5-stage handshake completes
 // but potentially BEFORE other plugins in later startup phases are loaded. Do

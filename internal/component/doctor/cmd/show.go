@@ -127,6 +127,7 @@ func collectDoctorChecksFrom(source doctorCheckSource, callerName string) []diag
 				Code:     "doctor-plugin-unreachable",
 				Severity: diagnostic.SeverityWarning,
 				Message:  "plugin " + pc.plugin + " doctor check " + pc.check.Name + " failed: " + err.Error(),
+				Fix:      "ze request plugin restart " + pc.plugin,
 			})
 			continue
 		}

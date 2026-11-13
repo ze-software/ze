@@ -11,9 +11,9 @@
 // ReplayRequest). External plugin processes receive JSON marshaling of the
 // same types; json tags on the payload struct are the contract with them.
 //
-// It lives in internal/core because the CONSUMER side is always-on: sysrib
-// arbitrates the Loc-RIB and flow-export enriches flows from best-change
-// batches, and both must keep compiling when the BGP engine is compiled out
+// It lives in internal/core because observation consumers such as flow-export
+// enrich flows from best-change batches and must keep compiling when the BGP
+// engine is compiled out
 // (//go:build ze_bgp). Only the producer (internal/component/bgp/plugins/rib)
 // is gated; with the engine absent nothing emits on the handle and the
 // subscribers simply never fire.
@@ -130,12 +130,10 @@ type BestChangeEntry struct {
 	// Monitoring (RFC 9069 Section 5.4) writes the best path's own attributes
 	// from here; an announce without it carries no attribute set to convey.
 	Attributes []byte `json:"attributes,omitempty"`
-	// ECMPNextHops are the in-process Loc-RIB intra-source equal-cost sibling
-	// next-hops of this entry's best, carried from sysrib's changeToBatch
-	// (computed at Loc-RIB emit on locrib.Change.ECMP). sysrib uses them to
-	// build the kernel multipath without re-reading the PathGroup. The forked
-	// (cross-process) event-bus path has no Loc-RIB and leaves it nil; json:"-"
-	// because it is an in-process hint only, never part of the wire contract.
+	// ECMPNextHops carries an in-process producer's equal-cost target hint.
+	// It remains available to BGP observation consumers and is not serialized
+	// (json:"-"). System forwarding reads authority-owned members through the
+	// routing-view contract rather than consuming this observation event.
 	//
 	// Each sibling carries its own outgoing interface and weight, because a
 	// producer whose one route names a whole weighted next-hop set (the static
@@ -169,15 +167,6 @@ type BestChangeBatch struct {
 	// while in-process code has no second field to keep consistent (json:"-").
 	ReplayID uint64            `json:"-"`
 	Changes  []BestChangeEntry `json:"changes"`
-	// FromLocRIB marks a batch built in-process from a unified Loc-RIB Change
-	// (sysrib's changeToBatch), as opposed to an independent per-protocol event.
-	// The Loc-RIB has already arbitrated across every source and emits exactly
-	// one authoritative best per prefix, so the consumer replaces (not upserts)
-	// its per-prefix entry and never re-arbitrates Loc-RIB sources by admin
-	// distance. json:"-" because it is an in-process hint only: the cross-process
-	// (forked-plugin) event-bus path never sets it and decodes it as false, which
-	// correctly selects the legacy per-protocol arbitration.
-	FromLocRIB bool `json:"-"`
 }
 
 // IsReplay reports whether this batch is a full-table replay (nonzero token)
@@ -219,7 +208,7 @@ func (b *BestChangeBatch) UnmarshalJSON(data []byte) error {
 var BestChange = events.Register[*BestChangeBatch](Namespace, EventBestChange)
 
 // ReplayRequest is the typed handle for (bgp-rib, replay-request). It carries
-// the shared replay.Request; downstream consumers (e.g., sysrib) emit it with
+// the shared replay.Request; BGP observation consumers emit it with
 // replay.Broadcast to request a full-table replay on startup. The handler
 // ignores the token because this hop is broadcast (every subscriber receives
 // the full table); the payload exists so all three replay hops share one

@@ -254,7 +254,7 @@ owner then announces its gate again, so a late subscriber still learns it.
 
 **Protocol version.** Every `declare-registration` carries `protocol-version`,
 the highest plugin protocol version the plugin speaks, and the engine's Stage 1
-answer, `{"protocol-version":N}`, is the version both sides speak from then on:
+answer includes `protocol-version`, the version both sides speak from then on:
 the lower of the two (`rpc.NegotiateProtocolVersion`). One plugin-level version
 serves every contract change, filters included. A declaration with none is the
 text era, and the stage driver refuses it before any sink sees the
@@ -263,6 +263,32 @@ declaration, with one error naming the plugin, the version to declare and
 (`rpc.ProtocolVersion`).
 <!-- source: pkg/plugin/rpc/declaration.go -- NegotiateProtocolVersion -->
 <!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
+
+The Stage 1 answer also carries `plugin-name`: the configured instance name
+from the authenticated process, which can differ from its implementation name.
+The SDK exposes it through `Plugin.InstanceName` before configuration runs.
+Before Stage 1 acknowledges it, that method returns an empty string. Runtime
+diagnostics use this identity when they name an instance to restart.
+<!-- source: pkg/plugin/rpc/declaration.go -- DeclareRegistrationOutput -->
+<!-- source: pkg/plugin/sdk/sdk_identity.go -- InstanceName -->
+
+**Nested engine calls during configuration.** The engine serves owner operations
+declared `EngineOperationConfigureSafe` while it waits for the Stage 2 configure
+answer. A handler receives the authenticated configured process and the bounded
+startup context. It must finish without waiting for a later stage. Runtime-only
+operations, state operations, codecs and unknown methods receive an immediate
+error directing the caller to wait until ready. A nested call does not advance
+the shared driver's barriers. The mux remains the only wire reader, and the
+startup reader retains an already-arrived Stage 3 request until configure has
+completed. A successfully sent nested refusal leaves configuration running.
+If a nested response cannot be encoded or sent, startup cancels and joins the
+configure waiter, then follows the normal configure-failure policy. Cancellation
+also joins that waiter before delivery returns.
+<!-- source: internal/component/plugin/server/startup_engine_op.go -- serveConfigureEngineOp -->
+<!-- source: internal/component/plugin/ipc/configure_serving.go -- SendConfigureServing -->
+<!-- test: internal/component/plugin/server/startup_route_view_test.go TestConfigureServesOwnerEngineOperation -->
+<!-- test: internal/component/plugin/server/startup_route_view_test.go TestConfigureFailsWhenNestedReplyCannotEncode -->
+<!-- test: internal/component/plugin/ipc/configure_serving_test.go TestConfigureServingRetainsNextStage -->
 
 **A Stage 2 error response is a REFUSAL, and a dead transport is not.** A
 plugin that cannot take the configuration it was sent answers `#<id> error`
@@ -359,7 +385,16 @@ substituting a sorted one.
 progress, not the total duration of a stage. A plugin's first completion
 extends that window; duplicate completions do not. If the tier makes no
 progress within the configured window, startup aborts for all its plugins.
+With no explicit per-process `stage-timeout`, the configure barrier allows the
+larger of the environment's positive stage timeout and the largest accepted
+`apply-budget` in that dependency tier. Budgets are integer seconds, capped at
+600 before duration conversion. Registration completion freezes this maximum;
+duplicate declarations cannot extend it. Other barriers retain their ordinary
+timeouts, and a nonpositive environment timeout still disables the stall check.
+The startup context can end any wait earlier.
 <!-- source: internal/component/plugin/startup_coordinator.go -- WaitForStageProgress, StageComplete -->
+<!-- source: internal/component/plugin/startup_budget.go -- DeclareConfigureBudget, ConfigureStall -->
+<!-- source: internal/component/plugin/server/startup_budget.go -- declaredConfigureBudget, startupStageStall -->
 
 **Post-Startup Callback.** Stages 1-5 run per-phase. Plugins load across up to
 five phases (config-path auto-load, explicit, family, event-type, send-type) in
@@ -839,12 +874,29 @@ handshake stops it, because the late cleanup removes what is keyed by the
 plugin's name, and each later restart of the name is refused until that
 cleanup has run.
 
+Each configured name has one restart controller through process replacement,
+outgoing cleanup, startup, and result recording. An operator or rollback restart
+refuses a name whose controller is still active, before changing its process or
+stop record. Failure-policy restart waits for the earlier controller within the
+daemon lifetime, then checks its exact outgoing process under that reservation.
+A delayed failure of an older generation cannot replace
+the current generation or remove its registrations.
+<!-- source: internal/component/plugin/server/restart_controller.go -- restartControllerSet.tryAcquire, restartControllerSet.wait, restartController.release -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- restartPlugin, restartPluginAfterExit, restartPluginWithin -->
+<!-- source: internal/component/plugin/server/register_plugin_restart.go -- pluginRestartFailure -->
+
 The operator's restart and a reload rollback's restart hold the config
 transaction lock, so each of their waits has a bound. The replacement's
-startup handshake gets one `stage-timeout` per stage, five in all (25s by
-default), because the handshake of a replacement runs outside any tier and
-no stall timeout applies to it. A handshake that runs out of that bound
-fails the restart the way a failed handshake does. The rollback that stops a
+startup handshake gets five ordinary stage windows (25s by default). When no
+per-process `stage-timeout` is explicit and the environment timeout is positive,
+the configure window is the larger of the ordinary window and the outgoing
+process's accepted, capped `apply-budget`. The daemon captures that allowance
+before replacing the process; the replacement's declaration cannot change its
+own bound. The other four windows retain their ordinary duration. A missing or
+unaccepted declaration adds no allowance, and an explicit process timeout or
+nonpositive environment timeout retains the old bound. The daemon's context
+can end the handshake earlier. A handshake that runs out of its bound fails
+the restart the way a failed handshake does. The rollback that stops a
 replacement waits for it for that process's own stop bound (2s for a forked
 plugin on Linux, 1s for one in the daemon), then releases it. A forked
 plugin still running then is killed by its exit supervisor, while an engine
@@ -853,6 +905,7 @@ returns. A restart the failure policy makes holds no lock: its replacement's
 handshake runs as long as the daemon does, so a slow replacement still comes
 up, and only its rollback wait is bounded.
 <!-- source: internal/component/plugin/server/restart.go -- restartHandshakeBound, boundedRestartHandshake, lifetimeRestartHandshake, rollbackReplacement -->
+<!-- source: internal/component/plugin/server/startup_budget.go -- previousConfigureBudget, restartConfigureHandshakeBound -->
 
 A process exit clears the active warnings the plugin raised through
 `report-issue`, after its admitted requests finish. Their owner is gone and
@@ -2574,11 +2627,10 @@ the pre-running stage so startup rollback stops the process and closes its bridg
 <!-- source: internal/component/plugin/server/startup.go -- handleProcessStartupRPC -->
 <!-- source: internal/component/plugin/ipc/rpc.go -- SetBridge -->
 
-**Engine-side dispatch registry:** all three transports for a plugin-to-engine RPC
-(the socket JSON path, the in-process Direct path, and the typed `DirectBridge`
-fast-path slot) derive from a single method registry -- one `engineOp` entry per
-operation carrying the `rpc.Method*` wire string, a handler receiving the request
-context and process, and an optional typed-slot descriptor. `wireBridgeDispatch`
+**Engine-side dispatch registry:** a plugin-to-engine RPC's socket JSON path,
+in-process Direct path, and typed `DirectBridge` adapters derive from one method
+registry. Each `engineOp` entry carries its wire method, a raw handler receiving
+the request context and process, and optional typed-slot or native-value adapters. `wireBridgeDispatch`
 installs the typed slots by iterating the entries that declare a descriptor (not a
 hand-written `Set*` list), and `dispatchPluginRPC` / `dispatchPluginRPCDirect` resolve
 the method through the same table, so adding an operation touches one place and the
@@ -2586,6 +2638,120 @@ JSON / Direct / bridge paths cannot drift. The `rpc.Method*` constants are share
 the SDK caller so the sent and dispatched method strings stay in lockstep.
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- engineOps, engineOp, lookupEngineOp -->
 <!-- source: internal/component/plugin/server/dispatch.go -- dispatchPluginRPC, dispatchPluginRPCDirect, wireBridgeDispatch -->
+
+An owner adds operations from its `register.go` initializer through
+`server.RegisterEngineOp(EngineOperation{...})`. Registration derives the method
+namespace from the caller's package, validates the handler and explicit startup
+policy, and applies the shared IPC method syntax and length limit. It refuses
+duplicate methods and writes after `registry.Seal`. The
+operation joins the same table as builtins, including optional typed bridge
+wiring; JSON and Direct retain the same result and error contract. A handler
+receives the actual `*process.Process`; names in its JSON are not authenticated
+identities. Owners must authorize the configured registration and scope leases
+or sessions by that process generation. `RegisterProcessGenerationCleanup`
+receives the same identity after admitted requests drain, before replacement,
+alongside the existing name-only cleanup hooks.
+<!-- source: internal/component/plugin/server/register_engine_op.go -- RegisterEngineOp, RegisterProcessGenerationCleanup -->
+<!-- test: internal/component/plugin/server/engine_op_register_test.go TestOwnerEngineOperationTransportParity -->
+
+An owner's optional `Native` handler receives self-contained Go values through
+`DispatchNative`, without JSON conversion. The required raw handler keeps the
+operation available to external plugins. Both handlers MUST validate their input
+and use the same evaluator. Native dispatch preserves caller context, uses the
+existing request panic guard, and joins the bridge's dispatch drain. It is
+available only after readiness; configure-safe startup calls retain their existing
+JSON admission. A native miss permits the caller to choose its public RPC form.
+An activated bridge's shutdown or failure returns an error, including through
+ordinary SDK RPC calls, and never returns to startup IPC.
+<!-- source: internal/component/plugin/server/dispatch_native.go -- dispatchPluginRPCNative, engineOpCallError -->
+<!-- source: pkg/plugin/rpc/bridge_native.go -- DispatchNative -->
+<!-- source: pkg/plugin/sdk/sdk_native.go -- TryEngineNative, engineBridgeActive -->
+<!-- source: pkg/plugin/sdk/sdk.go -- callEngineRaw -->
+
+### System routing views
+
+The system RIB registers six `ze-sysrib` operations with the shared engine
+registry. The handlers receive the authenticated process generation. Only the
+configured `rib` implementation can open a session, including an aliased instance.
+Payload fields cannot select another process's identity.
+<!-- source: internal/component/sysrib/register_route_view.go -- init, routeViewOpenHandler -->
+<!-- source: internal/component/sysrib/route_view.go -- routeViewAuthorize, match -->
+
+| Method suffix | Request | Result | Startup admission |
+|---------------|---------|--------|-------------------|
+| `route-view-open` | Optional reader: `selected-feed` or `local-authority` | Session, epoch, snapshot and initial cursor zero | Configure-safe |
+| `route-view-read` | Session, consumed cursor, limit and `wait-ms` | Ordered snapshot, delta or reset page, cursor and completion flag | Runtime |
+| `route-view-candidates` | Session, independent snapshot/cursor, limit and optional family/prefix | Whole-prefix candidate JSON, including hidden paths | Runtime |
+| `route-view-distances` | Session, positive operation and complete protocol/distance table | Applied operation and authoritative selected frontier | Configure-safe |
+| `route-view-publish` | Session, consumed cursor, positive operation and existing best-change batch | Accepted operation and cursor | Runtime |
+| `route-view-close` | Session | Session after fencing and cleanup | Runtime |
+<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewOpenInput through RouteViewCloseOutput -->
+<!-- source: internal/component/sysrib/yang/ze-sysrib-api.yang -- route-view-open through route-view-close -->
+<!-- source: internal/component/sysrib/register_route_view_policy.go -- init -->
+<!-- source: internal/component/sysrib/register_route_view_output.go -- init -->
+
+`selected-feed` is the default. It transfers only the daemon's selected routes,
+with resolved distance, metric, tag/AIGP presence, target ownership, multipath,
+labels, Service SID and repair metadata. The receiver completes its snapshot
+before forwarding. Reset invalidates the projection and requires a fresh view.
+An empty delta leaves the projection intact. `local-authority` requires an
+internal authenticated instance and uses the daemon reader at cursor zero.
+<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewPath, RouteViewNextHop -->
+<!-- source: internal/component/sysrib/route_view.go -- open, read -->
+<!-- source: internal/component/sysrib/projection.go -- Apply, Synchronized -->
+
+Selected and candidate pages contain at most 4096 records and must fit the
+complete RPC frame. Selected reads wait at most 1000 milliseconds. Mandatory
+zero-valued fields remain explicit, including cursor and `wait-ms`. Candidate
+snapshots have independent identities: a selected revision cannot validate a
+candidate scan after a hidden-only edit.
+<!-- source: pkg/plugin/rpc/route_view_input_codec.go -- RouteViewReadInput.UnmarshalJSON, RouteViewRequestBudget -->
+<!-- source: internal/component/sysrib/route_view_candidates.go -- readCandidates, page -->
+
+Distance acknowledgment follows validation of the complete schema-derived table,
+daemon publication and reselection. Retrying its ordered identity with the same
+values returns the original acknowledgment. A valid large-table change can
+acknowledge a reset frontier, which requires reconstruction before output resumes.
+<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances, distanceBarrier, routeViewDistanceTable -->
+
+Forwarding acknowledgment confirms event delivery, not backend installation.
+Identical publication retries do not emit twice. New operations require the
+latest consumed cursor. Reset, close and process cleanup fence the session and
+withdraw its outstanding output. Failed withdrawal retains ownership and blocks
+replacement until cleanup succeeds. The downstream BGP and FIB payloads retain
+their existing formats.
+<!-- source: internal/component/sysrib/route_view_output.go -- publish, withdraw -->
+<!-- source: internal/component/sysrib/route_view.go -- cleanupLocked -->
+
+System replay requests admit only the Broadcast `replay-id`. Zero and targeted
+tokens receive an operator refusal before the request queue changes, with
+`ze request reload` as the recovery command. Both placements keep useful live
+forwarding after that refusal. Repeated broadcast arrivals retain their own
+revision until acknowledged. Before answering, the local reader applies its
+captured authority changes, just as the selected reader applies its next page.
+<!-- source: internal/core/replay/replay.go -- Broadcast -->
+<!-- source: internal/component/sysrib/route_view_worker.go -- HandleEvent, replay -->
+<!-- source: internal/component/sysrib/route_view_worker_local.go -- applyLocal -->
+
+A valid publication can arrive after its selected feed was fenced. Its refusal
+is recoverable only when a read on that same authenticated lease returns an
+explicit Reset with `rejected-publication` equal to the refused operation.
+This optional positive identity proves complete batch validation and refusal
+before emission. It grants no forwarding acknowledgment. Only an exact retry
+of that retained batch, cursor and operation can repeat the proof; another
+admitted malformed or mismatched publication clears its visibility. Delivery
+failure, failed cleanup, foreign ownership and replacement grant no proof.
+The consumer validates the reset's epoch and shape before reconstructing its
+current view. Error text never decides recovery.
+<!-- source: internal/component/sysrib/route_view_output.go -- publish, provePublicationReset -->
+<!-- source: internal/component/sysrib/route_view_worker_output.go -- publicationReset -->
+<!-- source: pkg/plugin/rpc/route_view_codec.go -- RouteViewReadOutput.UnmarshalJSON -->
+
+The SDK's [routing-view reference](../../plugin-development/protocol.md#system-routing-views)
+defines the public types and calls. The [Loc-RIB architecture](../rib/unified-locrib.md#authoritative-selected-views)
+defines snapshot retention, overflow and worker lifetimes.
+
+### Direct bridge calls and shutdown
 
 Generic direct calls use `DispatchRPC(ctx, method, params)`. The typed route and
 command slots also carry the SDK caller's context into `CommandContext`.

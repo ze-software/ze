@@ -11,4 +11,5 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-rib-conf.yang", ZeRibConfYANG)
+	configyang.RegisterModule("ze-sysrib-api.yang", ZeSysribAPIYANG)
 }

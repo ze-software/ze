@@ -29,6 +29,7 @@
 package testqemu
 
 import (
+	"context"
 	"debug/elf"
 	"errors"
 	"fmt"
@@ -39,6 +40,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/job"
@@ -46,6 +48,7 @@ import (
 	"github.com/ze-software/ze/internal/le/population"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
+	teststressrepro "github.com/ze-software/ze/internal/le/test/stressrepro"
 	"github.com/ze-software/ze/internal/test/runner"
 )
 
@@ -380,6 +383,11 @@ var integrationPackages = []string{
 // Each exclusion needs a reason a reader can check. The map is what
 // TestEveryIntegrationPackageIsNamed accepts in place of QEMU membership.
 var excludedIntegrationPackages = map[string]string{
+	"internal/test/fixture": "TestSysribExecutablePrivilegedCancellationJoinsRootChild needs the non-root" +
+		" fixture role with CAP_KILL and passwordless sudo; the ordinary root package pass skips it." +
+		" Run its CGO-disabled fixture.test build and credential-dropped own-kernel" +
+		" ./le test qemu docker-lab kernel <vmlinuz> root command carrier as documented in" +
+		" docs/architecture/testing/qemu-integration.md#non-root-fixture-process-control-proof",
 	"internal/plugins/as112": "runs as its own verb, `./le test integration as112`" +
 		" (internal/le/test/integration/gates.go), so naming it here would run it twice",
 	"internal/le/interoplab": "TestDockerKernelCheckOnThisHost judges the host Docker daemon's kernel, which" +
@@ -468,6 +476,10 @@ type allTestsRun struct {
 	// phase runs. `le feature run` reaches a capability-gated test this
 	// way, because outside the guest the runner skips it.
 	Test string
+	// SaveDir requests the existing runner's complete output artifacts for one CI.
+	SaveDir   string
+	Stress    *selectedStress
+	StressRun func(context.Context, string, teststressrepro.SelectedRequest) (teststressrepro.Report, int)
 	// Parallel is the concurrency a scaled suite takes, and Timeout the
 	// wall-clock cap each suite runs under.
 	Parallel string
@@ -594,15 +606,15 @@ func (a *allTestsRun) Execute() (AllTestsReport, int) {
 		leaction.ReportError(err)
 		return AllTestsReport{}, 1
 	}
+	if a.Test != "" {
+		return a.executeOne()
+	}
 	if err := a.shim(); err != nil {
 		leaction.ReportError(err)
 		return AllTestsReport{}, 1
 	}
 
 	environ := a.environment()
-	if a.Test != "" {
-		return a.executeOne(environ)
-	}
 	report := AllTestsReport{Planned: plannedPhases()}
 	if a.LinuxOnly {
 		report.Selection = linuxOnlySelection
@@ -644,8 +656,29 @@ func (a *allTestsRun) Execute() (AllTestsReport, int) {
 
 // verify rejects any run that was unable to answer honestly.
 func (a *allTestsRun) verify() error {
-	if _, err := a.suiteTimeout(); err != nil {
+	if a.SaveDir != "" {
+		if a.Test == "" {
+			return opererr.New("qemu: save requires test <path> naming one CI",
+				"Complete output artifacts are retained for one ordinary selected CI execution",
+				"./le test qemu all test test/<dir>/<name>.ci save tmp/<directory>")
+		}
+		if a.Stress != nil {
+			return opererr.New("qemu: save cannot be combined with stress",
+				"Repeated invocations would overwrite the selected CI's output artifacts",
+				"./le test qemu all test test/<dir>/<name>.ci save tmp/<directory>")
+		}
+	}
+	timeout, err := a.suiteTimeout()
+	if err != nil {
 		return err
+	}
+	if a.Stress != nil {
+		if a.Test == "" {
+			return selectedStressError("stress requires test <path> naming one .ci")
+		}
+		if _, err := a.Stress.budget(timeout); err != nil {
+			return err
+		}
 	}
 	if info, err := os.Stat(a.Workspace); err != nil || !info.IsDir() {
 		var tb textbuf.Buffer
@@ -679,7 +712,7 @@ func (a *allTestsRun) verify() error {
 			return err
 		}
 	}
-	_, err := a.integrationArgs()
+	_, err = a.integrationArgs()
 	return err
 }
 
@@ -840,7 +873,7 @@ func setEnv(environ []string, key, value string) []string {
 // directory, under the shim, environment and namespace preparation its resource
 // declarations require. The runner prints the test's own PASS or SKIP line,
 // which is what a caller reads: the exit code alone does not say the test ran.
-func (a *allTestsRun) executeOne(environ []string) (AllTestsReport, int) {
+func (a *allTestsRun) executeOne() (AllTestsReport, int) {
 	suite, err := vmSuiteFor(a.Test)
 	if err != nil {
 		leaction.ReportError(err)
@@ -862,16 +895,28 @@ func (a *allTestsRun) executeOne(environ []string) (AllTestsReport, int) {
 		leaction.ReportError(err)
 		return report, 1
 	}
+	if err := a.shim(); err != nil {
+		leaction.ReportError(err)
+		return report, 1
+	}
+	environ := a.environment()
 	a.note(plan(report.Planned))
 	if err := a.prepareNamespace(environ, scope); err != nil {
-		leaction.ReportError(err)
+		leaction.ReportError(opererr.Wrap(err,
+			"qemu: private network namespace preparation failed for "+a.Test,
+			"The selected test cannot run without its capability-bearing binaries and private state",
+			"./le test qemu ci test "+a.Test))
 		return report, 1
 	}
 	if err := a.prepareConntrack(environ); err != nil {
 		leaction.ReportError(err)
 		return report, 1
 	}
-	report.add(a.suite(suite, environ))
+	if a.Stress != nil {
+		report.add(a.selectedStressPhase(suite, environ))
+	} else {
+		report.add(a.suite(suite, environ))
+	}
 	if len(report.Failed) > 0 {
 		return report, 1
 	}
@@ -901,6 +946,9 @@ const (
 )
 
 func vmSuiteFor(rel string) (vmSuite, error) {
+	if err := validOneCIPath(rel); err != nil {
+		return vmSuite{}, err
+	}
 	parts := strings.Split(rel, "/")
 	draft := len(parts) == 4 && parts[1] == runner.DraftDirName
 	if draft {
@@ -987,6 +1035,9 @@ func (a *allTestsRun) suiteCommand(suite vmSuite) []string {
 
 	// The runner reads its flags up to the first test name, so the one test
 	// comes last: a `-p` after it would be read as a second test name.
+	if a.SaveDir != "" {
+		argv = append(argv, "--save", a.SaveDir)
+	}
 	if suite.Only != "" {
 		argv = append(argv, suite.Only)
 	}

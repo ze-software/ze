@@ -3266,6 +3266,15 @@ unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
 | `show bgp rib rpf <family> <source-addr>` | read | RPF lookup: longest-prefix-match against Loc-RIB for CIDR families <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin --> |
 | `show rib candidates [prefix <prefix>]` | read-only | Every Loc-RIB path each protocol offered, selected, standing by or hidden by an import chain, with `hidden-by` and `chain` on a hidden path (`docs/guide/route-policy.md`, "Seeing the hidden paths") <!-- source: internal/component/sysrib/candidates.go -- showRIBCandidates --> |
 
+The system RIB serves `show rib`, `show rib candidates`, `show nexthop-table`
+and `show ecmp-groups` in either internal or external placement. Candidate
+queries read the daemon's full Loc-RIB. The other commands read the selected
+worker's route cache, recursive next hops and equal-cost groups. An unavailable
+authority returns an error, rather than an empty candidate table.
+<!-- source: internal/component/sysrib/register.go -- routeViewCommandHandler -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- candidates -->
+<!-- source: internal/component/sysrib/candidates.go -- errNoLocRIB -->
+
 ### IRR Filter Commands
 
 | Command | Access | Purpose |

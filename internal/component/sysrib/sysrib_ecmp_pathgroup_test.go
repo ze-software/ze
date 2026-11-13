@@ -1,23 +1,6 @@
-// Design: docs/architecture/isis/isis-9-spf-rib.md -- sysrib/locrib path-group ECMP expansion.
-//
-// VALIDATES: intra-source equal-cost siblings carried on a Loc-RIB-sourced
-// best-change (BestChangeEntry.ECMPNextHops, populated at Loc-RIB emit from
-// locrib.Change.ECMP) expand into BestChangeEntry.ECMPPaths so every next-hop
-// from an IS-IS ECMP group survives to the kernel as a multipath route
-// (committed deliverable, umbrella A-2); a change with no carried siblings is
-// unaffected (empty ECMPPaths).
-// PREVENTS: a regression where intra-protocol ECMP collapses to a single
-// next-hop because sysrib keys s.routes[key] by protocol string and a Loc-RIB
-// Change carries only the single best Path (R-5), and a regression where the
-// expansion adds spurious next-hops to single-Path sources (R-6).
-//
-// MIGRATION NOTE: siblings are no longer recomputed in sysrib via a per-change
-// loc.Lookup. They are computed once at Loc-RIB emit (locrib.siblingNextHops)
-// and ride on the Change to changeToBatch, which sets ECMPNextHops on the
-// FromLocRIB batch. These tests therefore drive processEvent directly with a
-// FromLocRIB batch whose change carries ECMPNextHops -- the exact shape
-// changeToBatch produces -- so they exercise the carried-sibling path without a
-// running Loc-RIB or a goroutine.
+// Design: docs/architecture/isis/isis-9-spf-rib.md -- authority-selected ECMP.
+// VALIDATES: the authority retains explicit producer members and emits every target.
+// PREVENTS: ECMP collapsing to one target, or inventing a sibling for a single path.
 
 package sysrib
 
@@ -31,33 +14,27 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
-// fromLocRIBBatch builds the single-entry FromLocRIB batch that changeToBatch
-// emits for one Loc-RIB best-change, with ECMPNextHops carrying the intra-source
-// equal-cost siblings computed at emit.
-func fromLocRIBBatch(proto string, fam family.Family, c *incomingChange) *incomingBatch {
-	b := makePayload(proto, fam, []incomingChange{*c})
-	b.FromLocRIB = true
-	return b
+// candidateBatch holds one typed producer candidate. It carries no selection marker.
+func candidateBatch(proto string, fam family.Family, c *incomingChange) *incomingBatch {
+	return makePayload(proto, fam, []incomingChange{*c})
 }
 
-// TestSysribECMPPathGroup feeds sysrib a Loc-RIB best-change for one prefix whose
-// ECMPNextHops carry one equal-cost sibling (the IS-IS ECMP shape: a multi-Path
-// Loc-RIB group collapsed to a single best plus its carried siblings), and
-// asserts the emitted change carries BOTH next-hops (one in NextHop, the other
-// in ECMPPaths).
+// TestSysribECMPPathGroup offers a producer's explicit ECMP candidate to the
+// real authority. Its selected value retains both next-hops through common
+// forwarding: one primary and one member in ECMPPaths.
 func TestSysribECMPPathGroup(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.50.0.0/24")
 	nh1 := netip.MustParseAddr("10.0.0.1")
 	nh2 := netip.MustParseAddr("10.0.0.2")
 
-	// Loc-RIB emit selected nh1 as best and carried nh2 as an equal-cost sibling
-	// on the Change (locrib.Change.ECMP -> BestChangeEntry.ECMPNextHops).
-	_, changes := s.processEvent(fromLocRIBBatch("isis", family.IPv4Unicast, &incomingChange{
+	// The producer's candidate names nh1 and its explicit equal-cost target nh2.
+	// Authority owns the group handed to common forwarding.
+	_, changes := s.offerCandidates(candidateBatch("isis", family.IPv4Unicast, &incomingChange{
 		Action:       routeaction.Add,
 		Prefix:       pfx,
 		NextHop:      nh1,
@@ -81,17 +58,16 @@ func TestSysribECMPPathGroup(t *testing.T) {
 	}
 }
 
-// TestSysribSinglePathNoECMP verifies a Loc-RIB best-change with no carried
-// siblings (single-Path prefix: nil ECMPNextHops) is unaffected by the
-// expansion: ECMPPaths stays empty.
+// TestSysribSinglePathNoECMP offers one candidate with no explicit siblings.
+// Its authoritative forwarding value must keep ECMPPaths empty.
 func TestSysribSinglePathNoECMP(t *testing.T) {
 	bus := newTestEventBus()
 	setEventBus(bus)
 	t.Cleanup(clearEventBus)
-	s := newSysRIB()
+	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.51.0.0/24")
-	_, changes := s.processEvent(fromLocRIBBatch("bgp", family.IPv4Unicast, &incomingChange{
+	_, changes := s.offerCandidates(candidateBatch("bgp", family.IPv4Unicast, &incomingChange{
 		Action:   routeaction.Add,
 		Prefix:   pfx,
 		NextHop:  netip.MustParseAddr("192.0.2.1"),

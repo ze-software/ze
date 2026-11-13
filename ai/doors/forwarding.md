@@ -14,8 +14,10 @@ programs Ze does not control, so most mistakes here are about ownership.
   plugins live under `internal/plugins/{iface,firewall,traffic}/`: netlink or
   nft for Linux, `vpp` for VPP. The YANG `backend` leaf selects one
   (`docs/architecture/core-design.md`, sections 14 and 14b).
-- **The route path.** Protocols insert paths into the shared Loc-RIB.
-  `sysrib` selects the system best and publishes `(system-rib, best-change)`.
+- **The route path.** Protocols insert paths into the shared Loc-RIB, which
+  applies import policy and selects the system route. `sysrib` follows that
+  selection through local reads or its authenticated routing view and publishes
+  `(system-rib, best-change)`.
   One FIB plugin writes it: `fib-kernel` for netlink, `fib-vpp` for VPP,
   `fib-p4` with no data plane yet (`ai/digests/fib-programming.md`,
   `docs/architecture/forked-route-install.md`). `rib { fib-withhold }` keeps a

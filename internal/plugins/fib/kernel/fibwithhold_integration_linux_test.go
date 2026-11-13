@@ -2,20 +2,20 @@
 
 // Design: docs/architecture/core-design.md -- selection, and the FIB write that follows it
 // Related: ../../../component/sysrib/fibimport.go -- fibPermitted, the gate this test drives
-// Related: ../../../component/sysrib/sysrib.go -- recomputeBest, which reads that gate
+// Related: ../../../component/sysrib/sysrib.go -- recomputeForwarding, the common permission gate
 // Related: integration_linux_test.go -- withNetNS, addLoopback, zeRoutes, newTestBackend
 //
-// The kernel's own answer to `rib { fib-withhold [ bgp ] }`. Every other test of
-// that feature reads a Ze map or a Ze event, so each of them would still pass
-// with the netlink path broken. This one runs the real system RIB and the real
-// FIB writer in one process and then reads the forwarding table.
+// The kernel's own answer to `rib { fib-withhold [ bgp ] }` through the
+// in-process system-RIB and FIB chain. This test starts the registered owner
+// through its real server, then reads both its command answer and the kernel
+// forwarding table. The daemon carriers separately exercise configuration and
+// process placement through their real entry points.
 
 package fibkernel
 
 import (
 	"context"
 	"encoding/json"
-	"net"
 	"net/netip"
 	"sync"
 	"testing"
@@ -24,7 +24,11 @@ import (
 	"github.com/vishvananda/netlink"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	pluginmanager "github.com/ze-software/ze/internal/component/plugin/manager"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	_ "github.com/ze-software/ze/internal/component/sysrib" // registers the "rib" plugin this test runs
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/family"
@@ -77,7 +81,7 @@ const withholdConfigText = `rib {
 // Loc-RIB the way a protocol producer enters them, and the assertions read the
 // kernel through netlink and the system RIB through the plugin's own command.
 //
-// MUTATION: comment out the fibPermitted gate in recomputeBest
+// MUTATION: comment out the fibPermitted gate in recomputeForwarding
 // (internal/component/sysrib/sysrib.go) and the BGP prefix is programmed, so the
 // second assertion goes red.
 func TestFIBWithholdLeavesNoKernelRoute(t *testing.T) {
@@ -193,77 +197,86 @@ func withholdSection(t *testing.T) rpc.ConfigSection {
 	return rpc.ConfigSection{Root: sysribRoot, Data: string(data)}
 }
 
-// startSysRIB runs the real system-RIB engine in this process and answers with
-// the engine side of its connection, so the caller can put a command to it.
-//
-// The five stages below are the engine's half of the SDK startup protocol
-// (pkg/plugin/sdk/sdk.go, Plugin.Run). Stage 2 is the one this test needs: it
-// delivers the `rib` section, which is where parseFIBImportConfig reads
-// fib-withhold. The plugin's OnStarted handler runs after stage 5, so the engine
-// is selecting routes by the time this returns.
-func startSysRIB(ctx context.Context, t *testing.T, bus ze.EventBus, section rpc.ConfigSection) *rpc.MuxConn {
+// startSysRIB starts the registered system RIB through the real server and
+// manager. The server MUST serve the plugin's nested configure requests and
+// retain the authenticated process until joined cleanup; the returned connection
+// reaches that process's current command transport.
+func startSysRIB(ctx context.Context, t *testing.T, bus ze.EventBus, section rpc.ConfigSection) *pluginipc.PluginConn {
 	t.Helper()
 
-	registration := registry.Lookup(sysribRoot)
-	if registration == nil {
-		t.Fatalf("plugin %q is not registered", sysribRoot)
+	var tree map[string]any
+	if err := json.Unmarshal([]byte(section.Data), &tree); err != nil {
+		t.Fatalf("decode the delivered %s section: %v", section.Root, err)
 	}
-	registration.ConfigureEventBus(bus)
-
-	pluginSide, engineSide := net.Pipe()
-	engine := rpc.NewMuxConn(rpc.NewConn(engineSide, engineSide))
-
-	engineDone := make(chan int, 1)
-	go func() { engineDone <- registration.RunEngine(pluginSide) }()
-
-	t.Cleanup(func() {
-		if err := engine.Close(); err != nil {
-			t.Errorf("close the engine connection: %v", err)
-		}
-		select {
-		case <-engineDone:
-		case <-time.After(withholdWait):
-			t.Error("the system RIB engine did not return after its connection closed")
+	needs := zeconfig.ConfigNeedHolds(tree)
+	dependencies, err := registry.ResolveDependencies([]string{sysribRoot}, nil, needs)
+	if err != nil {
+		t.Fatalf("resolve the system RIB's registered dependencies: %v", err)
+	}
+	configs := make([]plugin.PluginConfig, len(dependencies))
+	for i, name := range dependencies {
+		configs[i] = plugin.PluginConfig{Name: name, Internal: true}
+	}
+	host, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: configs, ConfigNeedHolds: needs}, plugin.NewCoordinator(tree))
+	if err != nil {
+		t.Fatalf("create the system RIB's server: %v", err)
+	}
+	manager := pluginmanager.NewManager()
+	previousBus := registry.GetEventBus()
+	registry.SetEventBus(host)
+	forward := sysribevents.BestChange.Subscribe(host, func(batch *sysribevents.BestChangeBatch) {
+		if _, err := sysribevents.BestChange.Emit(bus, batch); err != nil {
+			t.Errorf("deliver the accepted system RIB batch to its FIB writer: %v", err)
 		}
 	})
 
-	awaitCall := func(method string) {
-		t.Helper()
-		select {
-		case request := <-engine.Requests():
-			if request.Method != method {
-				t.Fatalf("startup: the plugin called %q, want %q", request.Method, method)
-			}
-			if err := engine.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
-				t.Fatalf("startup: answer %s: %v", method, err)
-			}
-		case <-time.After(withholdWait):
-			t.Fatalf("startup: timed out waiting for %s", method)
+	t.Cleanup(func() {
+		// Keep the relay alive through scoped output cleanup. The caller's
+		// startup context may already be canceled when testing runs cleanup.
+		defer forward()
+		defer registry.SetEventBus(previousBus)
+		joined, cancel := context.WithTimeout(context.WithoutCancel(ctx), withholdWait)
+		defer cancel()
+		host.Stop()
+		if err := manager.StopAll(joined); err != nil {
+			t.Errorf("stop the system RIB's manager: %v", err)
 		}
+		if err := host.Wait(joined); err != nil {
+			t.Errorf("join the system RIB's server: %v", err)
+		}
+	})
+	if err := manager.StartAll(ctx, host, nil); err != nil {
+		t.Fatalf("start the system RIB's manager: %v", err)
 	}
-
-	awaitCall(rpc.MethodDeclareRegistration)
-	if _, err := engine.CallRPC(ctx, "ze-plugin-callback:configure",
-		rpc.ConfigureInput{Sections: []rpc.ConfigSection{section}}); err != nil {
-		t.Fatalf("startup: configure: %v", err)
+	host.SetProcessSpawner(manager)
+	if err := host.StartWithContext(ctx); err != nil {
+		t.Fatalf("start the system RIB's server: %v", err)
 	}
-	awaitCall("ze-plugin-engine:declare-capabilities")
-	if _, err := engine.CallRPC(ctx, "ze-plugin-callback:share-registry",
-		rpc.ShareRegistryInput{}); err != nil {
-		t.Fatalf("startup: share-registry: %v", err)
+	if err := host.WaitForStartupComplete(ctx); err != nil {
+		t.Fatalf("startup: system RIB: %v", err)
 	}
-	awaitCall("ze-plugin-engine:ready")
-
-	return engine
+	processes := host.ProcessManager()
+	if processes == nil {
+		t.Fatal("startup completed without a system RIB process manager")
+	}
+	owner := processes.GetProcess(sysribRoot)
+	if owner == nil || !owner.Running() || owner.Stage() != plugin.StageRunning {
+		t.Fatal("startup completed without a running system RIB owner")
+	}
+	connection := owner.Conn()
+	if connection == nil {
+		t.Fatal("the running system RIB owner has no command connection")
+	}
+	return connection
 }
 
 // withholdRIBWinner answers which protocol the system RIB reports as the winner
 // of the prefix, and the empty string when the RIB holds no entry for it.
-func withholdRIBWinner(ctx context.Context, t *testing.T, engine *rpc.MuxConn, prefix string) string {
+func withholdRIBWinner(ctx context.Context, t *testing.T, engine *pluginipc.PluginConn, prefix string) string {
 	t.Helper()
 
-	answer, err := engine.CallAnswer(ctx, "ze-plugin-callback:execute-command",
-		rpc.ExecuteCommandInput{Serial: "1", Command: "show rib"})
+	answer, err := engine.SendExecuteCommandAnswer(ctx,
+		&rpc.ExecuteCommandInput{Serial: "1", Command: "show rib"})
 	if err != nil {
 		t.Fatalf("show rib: %v", err)
 	}

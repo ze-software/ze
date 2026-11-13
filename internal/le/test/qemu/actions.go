@@ -67,6 +67,9 @@ const onlyKeyword = "only"
 // testKeyword names the one .ci a test qemu all run narrows to.
 const testKeyword = "test"
 
+// saveKeyword forwards the selected CI's complete output directory to its runner.
+const saveKeyword = "save"
+
 var actions = leaction.New(area,
 	leaction.Action{Verb: "vpp-hugepages", Does: doesRun, Summary: "test boot-time hugepage reservation in QEMU", Why: "boot-time hugepage reservation, end to end: build an appliance carrying" +
 		" image.hugepages, boot it, then assert `show host kernel` and `show host" +
@@ -251,7 +254,9 @@ var actions = leaction.New(area,
 			" `only needs-linux` narrows the functional suites to the .ci tests marked" +
 			" option=needs-linux, which is the tight loop for a change to a Linux-only path." +
 			" `test <path>` runs that one .ci through the suite that walks its directory, and nothing else;" +
-			" a draft, test/draft/<dir>/<name>.ci, runs through the same suite with --draft",
+			" a draft, test/draft/<dir>/<name>.ci, runs through the same suite with --draft." +
+			" Add save <directory> to retain complete logs from one ordinary selected CI." +
+			" Add stress <iterations> for 1..1000 counted repetitions, and stress-parallel <workers> for 1..4 workers (default 1)",
 		Parameters: []leaction.Parameter{
 			{Keyword: onlyKeyword, Kind: leaction.KindEnum, Help: "run only the tests that need Linux", Value: "selection", Values: []string{linuxOnlySelection},
 				ValueHelp: map[string]string{
@@ -259,6 +264,9 @@ var actions = leaction.New(area,
 				},
 				Requirement: leaction.Optional},
 			{Keyword: testKeyword, Kind: leaction.KindPath, Help: "one .ci test to run, under test/ or test/draft/", Value: "test/<dir>/<name>.ci", Requirement: leaction.Optional},
+			{Keyword: saveKeyword, Kind: leaction.KindPath, Help: "save complete logs for one ordinary selected CI", Value: "directory", Requirement: leaction.Optional},
+			{Keyword: stressKeyword, Kind: leaction.KindUint, Help: "repeat the selected .ci 1..1000 times under load", Value: "iterations", Requirement: leaction.Optional},
+			{Keyword: stressParallelKeyword, Kind: leaction.KindUint, Help: "selected stress workers, 1..4; default 1", Value: "workers", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runAllTestsHere,
 	},
@@ -572,6 +580,13 @@ func runAllTestsHere(args leaction.Arguments) (any, int) {
 	}
 
 	run.Test = args.One(testKeyword)
+	run.SaveDir = args.One(saveKeyword)
+	stress, err := selectedStressOf(args)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	run.Stress = stress
 
 	report, code := run.Execute()
 	if len(report.Phases) == 0 {

@@ -54,16 +54,23 @@ func (s *Server) stageTransition(ctx context.Context, proc *process.Process, plu
 	}
 
 	logger().Debug("server: stageTransition START", "plugin", pluginName, "complete", completeStage, "wait_for", waitStage)
+	// Registration MUST record its accepted configure allowance before its
+	// completion can open the next stage for another member of this tier.
+	if completeStage == plugin.StageRegistration {
+		if err := coord.DeclareConfigureBudget(proc.Index(), declaredConfigureBudget(proc.Registration())); err != nil {
+			proc.SetStartupError(err)
+			coord.PluginFailed(proc.Index(), err.Error())
+			proc.Stop()
+			return false
+		}
+	}
 	logger().Debug("server: stageTransition calling StageComplete", "plugin", pluginName, "index", proc.Index())
 	coord.StageComplete(proc.Index(), completeStage)
 	logger().Debug("server: stageTransition StageComplete returned", "plugin", pluginName)
 
 	// Use per-plugin timeout if configured, else env var, else default.
 	// Priority: config > env > default.
-	timeout := proc.Config().StageTimeout
-	if timeout == 0 {
-		timeout = stageTimeoutFromEnv()
-	}
+	timeout := startupStageStall(coord, proc, completeStage, waitStage)
 
 	// The timeout bounds a STALL, not the stage. It expires only when no
 	// plugin in the tier completes a stage for that long.
@@ -1053,7 +1060,9 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 			"plugin", proc.Name(), "roles", claims)
 	}
 
-	if err := conn.SendConfigure(ctx, sections, claims); err != nil {
+	if err := conn.SendConfigureServing(ctx, sections, claims, func(req *rpc.Request) (bool, error) {
+		return s.serveConfigureEngineOp(ctx, proc, conn, req)
+	}); err != nil {
 		logger().Error("deliverConfigRPC failed", "plugin", proc.Name(), "error", err)
 		s.coordinatorMu.Lock()
 		coord := s.coordinator

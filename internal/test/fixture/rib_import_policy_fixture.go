@@ -38,11 +38,16 @@ type candidateRow struct {
 
 // candidateItem is one path of a candidateRow.
 type candidateItem struct {
-	Source   string `json:"source"`
-	Selected bool   `json:"selected"`
-	Hidden   bool   `json:"hidden"`
-	HiddenBy string `json:"hidden-by"`
-	Chain    string `json:"chain"`
+	Source    string  `json:"source"`
+	Distance  uint8   `json:"distance"`
+	Tag       *uint32 `json:"tag"`
+	Instance  uint32  `json:"instance"`
+	NextHop   string  `json:"next-hop"`
+	Interface string  `json:"interface"`
+	Selected  bool    `json:"selected"`
+	Hidden    bool    `json:"hidden"`
+	HiddenBy  string  `json:"hidden-by"`
+	Chain     string  `json:"chain"`
 }
 
 // ribImportCentralBogons proves the central `rib filter import` chain hides a
