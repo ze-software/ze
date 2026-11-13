@@ -471,15 +471,8 @@ func runOSPFEngine(conn net.Conn) int {
 	v6set.state = p
 
 	var (
-		cfgMu      sync.Mutex
-		activeCfg  ospfConfig
-		pendingCfg ospfConfig
-		// pendingExport is the export chain of pendingCfg's commit.
-		pendingExport exportChainConfig
-		// exports is the export chain installed and the one it replaced, for
-		// OnConfigRollback.
-		exports     exportChainSlot
-		havePending bool
+		cfgMu  sync.Mutex
+		active ospfTransactionConfig
 		// redistConsumer is the redistribution consumer OnStarted registered,
 		// nil before it. A config apply that installs a new export chain
 		// re-judges the routes it already holds.
@@ -488,9 +481,6 @@ func runOSPFEngine(conn net.Conn) int {
 		// Source OnStarted wired last, nil before it. OnStarted re-fires on an
 		// SDK reconnect with a fresh Source, which replaces the old one.
 		redistReplayUnsub func()
-		// enginesLost is true from an apply that failed and could not put the
-		// engines back to the running config until the rollback repairs them.
-		enginesLost bool
 	)
 	defer func() {
 		cfgMu.Lock()
@@ -502,69 +492,6 @@ func runOSPFEngine(conn net.Conn) int {
 		}
 	}()
 
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseOSPFConfig(sdkConfigSections(sections), systemRouterIDSource{})
-		if err != nil {
-			return err
-		}
-		if err := validateConfig(cfg); err != nil {
-			return err
-		}
-		if err := checkBFDOptIns(cfg, sdkConfigSections(sections)); err != nil {
-			return err
-		}
-		if err := checkUnnumberedNetworkTypes(cfg, sdkConfigSections(sections)); err != nil {
-			return err
-		}
-		// spec-ospf-ext-5: validate the SR ranges (SRGB/SRLB Range Size > 0,
-		// non-overlap, label bounds, prefix-SID index within the SRGB).
-		if err := validateSRConfig(sdkConfigSections(sections)); err != nil {
-			return err
-		}
-		export, err := parseExportChain(sdkConfigSections(sections))
-		if err != nil {
-			return err
-		}
-		cfgMu.Lock()
-		pendingCfg = cfg
-		pendingExport = export
-		havePending = true
-		cfgMu.Unlock()
-		return nil
-	})
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseOSPFConfig(sdkConfigSections(sections), systemRouterIDSource{})
-		if err != nil {
-			return err
-		}
-		if err := validateConfig(cfg); err != nil {
-			return err
-		}
-		// The startup config gets the commit's BFD opt-in check, so a config
-		// that opts into BFD while BFD is absent or disabled cannot boot.
-		if err := checkBFDOptIns(cfg, sdkConfigSections(sections)); err != nil {
-			return err
-		}
-		export, err := parseExportChain(sdkConfigSections(sections))
-		if err != nil {
-			return err
-		}
-		cfgMu.Lock()
-		exports.active = export
-		cfgMu.Unlock()
-		export.install()
-		cfgMu.Lock()
-		activeCfg = cfg
-		cfgMu.Unlock()
-		instances.setConfig(cfg)
-		v6set.configure(cfg.v6Families(), cfg.multiAF())
-		// spec-ospf-ext-5: resolve the SR config into srWire keyed by Router ID so
-		// the RI/Extended TLV builders originate SR TLVs (both address families).
-		applySRConfig(sdkConfigSections(sections), cfg)
-		return nil
-	})
-
 	// applyEngines reconciles the OSPFv2 instances and the OSPFv3 address
 	// families to cfg live.
 	applyEngines := func(cfg ospfConfig) error {
@@ -574,26 +501,30 @@ func runOSPFEngine(conn net.Conn) int {
 		return v6set.apply(cfg.v6Families(), cfg.multiAF())
 	}
 
-	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+	// ConfigTx retains one complete prior value for an accepted apply. The
+	// installer MUST undo its own partial failure before returning; ConfigTx's
+	// rollback installs the retained value after another participant fails.
+	tx := sdk.NewConfigTx(ospfTransactionConfig{}, parseOSPFTransactionSections, func(next ospfTransactionConfig) error {
 		cfgMu.Lock()
-		installed := havePending
-		previous := activeCfg
-		enginesLost = false
-		exports.disarm()
-		if havePending {
-			activeCfg = pendingCfg
-			exports.adopt(pendingExport)
-			havePending = false
-		}
-		cfg := activeCfg
+		previous := active
+		active = next
 		consumer := redistConsumer
 		cfgMu.Unlock()
-		// A reload delivers no route again, so the routes already offered to
-		// OSPF are judged against the chain just installed.
-		if installed && consumer != nil {
+		next.export.install()
+		instances.mu.Lock()
+		started := instances.started
+		instances.mu.Unlock()
+		if !started {
+			instances.setConfig(next.cfg)
+			v6set.configure(next.cfg.v6Families(), next.cfg.multiAF())
+			return nil
+		}
+		// Offered routes must be judged under the same config as the engines,
+		// including both a rollback and the self-undo of a failed install.
+		if consumer != nil {
 			consumer.Rejudge(context.Background())
 		}
-		applyErr := applyEngines(cfg)
+		applyErr := applyEngines(next.cfg)
 		if applyErr == nil {
 			return nil
 		}
@@ -602,45 +533,38 @@ func runOSPFEngine(conn net.Conn) int {
 		// failed (pkg/plugin/sdk/config_tx_gate.go). Put the running config,
 		// its export chain and the engines back.
 		cfgMu.Lock()
-		activeCfg = previous
-		restored := exports.restore()
+		active = previous
 		consumer = redistConsumer
 		cfgMu.Unlock()
-		if restored && consumer != nil {
+		previous.export.install()
+		if consumer != nil {
 			consumer.Rejudge(context.Background())
 		}
-		if undoErr := applyEngines(previous); undoErr != nil {
+		if undoErr := applyEngines(previous.cfg); undoErr != nil {
 			// The engines could not be put back either: say so, which opens
 			// the rollback gate so OnConfigRollback tries again, and answers
 			// the error that restarts the plugin when that fails too.
-			cfgMu.Lock()
-			enginesLost = true
-			cfgMu.Unlock()
 			return runningEnginesLost(applyErr, undoErr)
 		}
 		return applyErr
 	})
-
-	// OnConfigRollback: a transaction that fails after this plugin applied it
-	// takes its export chain back, so the chain of the config still running
-	// judges the routes OSPF holds again. After an apply that failed with
-	// ErrRunningConfigLost it reconciles the engines to the running config
-	// again, and a failure answers the error that restarts the plugin.
-	p.OnConfigRollback(func(_ string) error {
+	tx.Register(p)
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		if err := tx.Configure(sections); err != nil {
+			return err
+		}
 		cfgMu.Lock()
-		restored := exports.restore()
-		consumer := redistConsumer
-		repair := enginesLost
-		enginesLost = false
-		cfg := activeCfg
+		cfg := active.cfg
 		cfgMu.Unlock()
-		if restored && consumer != nil {
-			consumer.Rejudge(context.Background())
-		}
-		if !repair {
-			return nil
-		}
-		if err := applyEngines(cfg); err != nil {
+		// Resolve the startup SR config for both address families before their
+		// engines start, retaining the existing SR configuration owner.
+		applySRConfig(sdkConfigSections(sections), cfg)
+		return nil
+	})
+	// A failed rollback answers an error, so the daemon can restart the plugin
+	// rather than reporting a running config that its engines did not restore.
+	p.OnConfigRollback(func(_ string) error {
+		if err := tx.Rollback(); err != nil {
 			return fmt.Errorf("ospf: rollback could not put the running config back: %w", err)
 		}
 		return nil
@@ -659,7 +583,7 @@ func runOSPFEngine(conn net.Conn) int {
 			return nil, fmt.Errorf("unknown ospf doctor check %s", name)
 		}
 		cfgMu.Lock()
-		cfg := activeCfg
+		cfg := active.cfg
 		cfgMu.Unlock()
 		if !grRestarterConfigured(&cfg) {
 			return nil, nil
@@ -676,7 +600,7 @@ func runOSPFEngine(conn net.Conn) int {
 
 	p.OnStarted(func(_ context.Context) error {
 		cfgMu.Lock()
-		cfg := activeCfg
+		cfg := active.cfg
 		cfgMu.Unlock()
 		if cfg.Present() {
 			if err := eng.initializeState(); err != nil {

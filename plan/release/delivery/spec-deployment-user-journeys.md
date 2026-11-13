@@ -40,14 +40,25 @@ the host's package installation and configuration are never their targets.
 IS-IS circuit-open failure regressions are being added before the transaction
 repair, so failed self-repair cannot masquerade as a successful rollback.
 
-The native source repair now checks the canonical distribution package marker
+The native source repair, committed in `554704fe38`, checks the canonical distribution package marker
 before installation or shared-state purge, including when the selected binary
 is absent or `/usr/bin` is relocated. Ordinary removal preserves its existing
 binary-only checks. All 11 new isolated cases passed in
 `job-native-shared-state-green-15742d80.log`; the full local-plugin race package
 passed in `job-native-shared-state-local-package-e7aaa39a.log`. Independent
 bounded source review found no blocker or issue. The complete deployment
-review and current native CLI lifecycle run remain required.
+review and current native CLI lifecycle run remain required. All five committed
+build flavors passed at `554704fe38e3` in
+`job-deployment-shared-state-committed-compiles-7b943cb1.log`.
+
+OSPF now uses `sdk.ConfigTx` to retain its typed configuration and compiled
+export chain together. Socket/direct runtime and root-removal regressions,
+existing export rollback and self-failure recovery tests, and the independently
+judged replacement transaction test passed in
+`job-ospf-configtx-focused-green-80a7be8f.log`. The full OSPF/LSDB race packages
+passed in `job-ospf-configtx-full-package-a802fbce.log`. A new daemon reload
+scenario is being drafted to prove a later participant's failure reaches both
+IGPs' actual runtime undo; those callback regressions do not replace it.
 
 All eight IS-IS failed-open cases subsequently failed as intended in
 `job-isis-runtime-reopen-red-1424d32a.log`: callbacks accepted raw-circuit

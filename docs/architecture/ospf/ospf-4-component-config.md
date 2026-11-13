@@ -16,6 +16,18 @@ lifecycle callbacks, transport enrollment and config validation.
   config package owns custom YANG validation and cannot import the OSPF plugin
   without an import cycle.
   <!-- source: internal/component/config/validators.go -- ospfRouterIDValidator, ospfAreaIDValidator -->
+- **One SDK transaction owns runtime and export undo.** `sdk.ConfigTx` retains
+  the parsed OSPF configuration and its compiled export chain together. After
+  an accepted apply, rollback restores the previous interfaces, instance set,
+  address families and export chain through the same installer. A failed
+  install restores its own partial changes before returning. If that repair
+  fails, `ErrRunningConfigLost` makes rollback retry the running configuration,
+  with a plugin restart when it cannot recover. An explicit empty OSPF section
+  removes its configuration. A delivery without that root installs nothing.
+  Startup and verify use the same BFD, interface and Segment Routing checks.
+  <!-- source: internal/plugins/ospf/config_transaction.go -- ospfTransactionConfig, parseOSPFTransactionSections -->
+  <!-- source: internal/plugins/ospf/register.go -- runOSPFEngine -->
+  <!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply, ConfigTx.Rollback -->
 - **The dispatcher validates by the RECEIVING interface area, not by the
   declared area alone.** ISM, NSM and LSDB code must never see a packet from the
   wrong area on a valid interface.

@@ -436,7 +436,7 @@ new chain back, and the routes are judged again by the chain of the config
 still running.
 <!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict -->
 <!-- source: internal/plugins/isis/export_chain.go -- exportChainSlot -->
-<!-- source: internal/plugins/ospf/export_chain.go -- exportChainSlot -->
+<!-- source: internal/plugins/ospf/config_transaction.go -- ospfTransactionConfig -->
 <!-- source: internal/plugins/isis/redistribute/consumer.go -- Rejudge -->
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Rejudge -->
 <!-- source: internal/plugins/isis/register.go -- init, MustRegisterRouteAttachment exportAttachment -->

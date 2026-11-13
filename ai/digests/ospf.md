@@ -34,9 +34,12 @@ other lock held. Entry points are `registerOSPF` (`register.go`, plugin registra
    (`register.go`) stands up one more engine per configured OSPFv2 Instance ID (RFC 6549);
    `newV6EngineSet` (`register.go`, `register_multiaf.go`) stands up one engine per configured
    OSPFv3 address family (RFC 5838), each over its own `v3/transport` (`register_multiaf.go`).
-2. **Config -> open interfaces.** `OnConfigure`/`OnConfigApply` (`register.go`, `register.go`)
-   call `engine.setConfig` (`instance.go`, rebuilds `e.areas` via `newAreas`, `area.go`) then
-   `instances.reconcile`/`v6set.apply`. `OnStarted` (`register.go`) calls `instances.start(cfg)`
+2. **Config -> open interfaces.** `parseOSPFTransactionSections` (`config_transaction.go`)
+   returns the typed runtime config and compiled export chain. `runOSPFEngine` (`register.go`)
+   binds `sdk.ConfigTx` to one installer: startup calls `instances.setConfig`/`v6set.configure`,
+   while apply and rollback call `instances.reconcile`/`v6set.apply`. The SDK retains the
+   replaced complete config, and the installer undoes its own partial failure before returning.
+   `OnStarted` (`register.go`) calls `instances.start(cfg)`
    (`register.go`) and `v6set.start(...)` (`register.go`), both driving `engine.openInterfaces`
    (`instance.go`): opens each enrolled interface (`openConfiguredInterface`/`openInterface`,
    `instance.go`, `instance.go`), starts the shared receive loop once (`startReceiveLoop`,
