@@ -1,248 +1,171 @@
-# Deployment migration handover — 2026-11-13
+# Deployment user journeys: handover
 
-**Spec:** [deployment-user-journeys](../../release/delivery/spec-deployment-user-journeys.md), in progress.
-**Branch:** main. Wiki checkout: ../wiki, branch github.
-**Goal:** Reduce friction across Linux installation/removal, Docker, VM/ISO, containerlab/netlab and gokrazy, with accurate documentation and website guidance.
+**Spec:** [deployment-user-journeys](../../release/delivery/spec-deployment-user-journeys.md), in progress, not closed.
+**Branch:** main. Wiki checkout: `../wiki`, local branch `wiki` tracking `wiki/master`.
+**Goal:** Reduce friction across Linux installation and removal, Docker, VM and ISO, containerlab and netlab, and gokrazy, with accurate documentation and website guidance.
+**Written:** 2026-11-13, at the end of the first session after the machine migration. Resume from this page. Nothing was pushed or published.
 
-This is the owner's requested migration checkpoint. It intentionally preserves unfinished work. Resume from this document; do not resume the older scratch notes as if their active jobs or temporary mutations still existed. Nothing was pushed or published for this checkpoint.
+Start a new session with a new claim (`./le spec claim plan/release/delivery/spec-deployment-user-journeys.md`). Read `AGENTS.md` and its rule files first. Work in the main checkout, with native `./le` actions and session-private named outputs. No worktree, no test export, no `./le verify`.
 
-## Progress after the migration (2026-11-13, new session on the Mac)
+## Where the spec stands
 
-The three bundles needed no import: main, wiki and gh-pages on the Mac were
-already at the checkpoint commits. This section supersedes "First work on the
-new machine" below where the two differ.
+The spec's own evidence table (the rows headed `Criterion`, `Current
+evidence`, `Remaining proof or limit`) is the authority. This is its state by
+acceptance criterion. "Open" means the spec states it as not proven. Whether
+an open item is proven or accepted as a stated limit is decided at the Review
+Gate, never by leaving it out.
 
-Landed:
+| Criterion | Proven | Open in the spec |
+|-----------|--------|------------------|
+| AC-1 native installation and removal | Real distribution and systemd evidence | Nothing stated |
+| AC-2 upgrade, retention and refusal | Trust, unit, conflict, ownership and busy-store controls | **The combined changed-version script timed out and is not a pass** |
+| AC-3 source build and named executables | All five flavors compile at recorded revisions | The source-bound artifact bundle, see AC-10 |
+| AC-4 supplied two-peer quickstart | The control-plane tutorial | No production forwarding evidence. The whole-UI run was not green |
+| AC-5 deployment container persistence | Authenticated edit and recreation on a source-unbound image | **Recreation on a source-bound image** |
+| AC-6 live containerlab and netlab | All six sourced pings, this session | Passed on a patched tree identical to `ef1a3cf33d`, not on that commit |
+| AC-7 installer ISO and installed disk | amd64 under KVM | **arm64 boot was not run** |
+| AC-8 appliance image update and recovery | amd64 under KVM | **arm64 boot not established**. No routing or VPN traffic |
+| AC-9 website deployment journeys | An earlier full build and check | No push. **The generated site is older than the live command catalogue** (36 drift findings in this session's doc check), so a fresh build and check is owed |
+| AC-10 identified preview delivery | A private bundle at an older revision | **A bundle from the final pushed commit**, both architectures |
+| AC-11 production-evaluator guidance | The chooser and update guidance | "Outstanding actual deployment evidence remains required" |
+| AC-12 named appliance configuration push | amd64 under KVM and arm64 under HVF, this session | **A run from the release commit** on each host |
 
-- `ca9571e0e2`: Edits 1 and 2, plus a third defect that hid both. The proof's
-  generated seed wrote each list key as a `name` field, which the set parser
-  refuses, so the bootstrap boot never became ready in the orchestration tests.
-  Both upload clients now share one raw-channel exchange that requires the
-  device's own exit status, and the observer must log in and read the accepted
-  hostname before its edit-denial control. Each was red first. Independent
-  source review: no blocker.
-- `92b0b49dcc`: the proof asked gokrazy for a plain reboot, which is a kexec, so
-  QEMU's `-no-reboot` never exited. It now posts `kexec=off`. This is what the
-  first native amd64/KVM run failed on, after its bootstrap boot was ready.
-- `00d8e62202`: the zefs registry test expected the old authorized-keys name.
-  An independent test judge approved the correction; the stale name in the
-  connect command is gone too.
-- `10d888bda3`: journal row `parked-work-returns-out-of-order`, owned by
-  `spec-bgp-one-off-defects`, which still owes it an acceptance criterion.
+Also done this session, outside that table: the FRR topology with its
+counterfactual, the affected reactor repetitions (one failure in 20, traced and
+owned elsewhere), the RFC check for this spec's two next-hop requirements, and
+the zefs registry test.
 
-Observed:
+Still to come after every row above: source-review reconciliation, the Review
+Gate and the two closure commits.
 
-- `./le test unit pkg path ./internal/le/test/qemu/` passes: the nine intended
-  parents, the new `TestApplianceConfigPushObserverLoginRequired`, and the
-  ISO/OTA tests of the package.
-- Affected reactor repetitions (remaining item 3): 414 tests, 20 repetitions
-  under the race detector on darwin/arm64, no race report, one failure in one
-  repetition. That failure is the journal row above. Its cause is traced to
-  `takeOverflowReleased` and is outside the next-hop change.
-- Fresh RFC check on the Mac: red with 244 findings, 64 of them caused by
-  missing entries in the Mac's Go build cache. Neither `RFC4271-5.1.3-1` nor
-  `RFC8950-4-1` is among them, so the two stamped next-hop judgements hold.
+The arm64 rows (AC-7, AC-8) became runnable only at the end of this session,
+when the Mac's lab Docker was rebuilt and the arm64 runtime kernel cached. They
+have not been attempted since.
 
-**The native proof passed** (remaining item 1, Edit 3, AC-12): two consecutive
-passes of `./le test qemu appliance-config-push` on the `claude` server,
-amd64 under KVM, recorded in `docs/architecture/testing/qemu-integration.md`
-and in the spec's AC-12 evidence row. Each real run exposed one assumption the
-unit fixture shared with the runner, fixed at both ends:
+## What to do next, in order
 
-- `e4bdb55d1e`: a named appliance stores its configuration under its instance
-  name, not `ze.conf`.
-- `929b1aec14`: `show config` is a command group. The proof and four operator
-  messages named it; all now name `show config running`.
-- `8793b59939`: the live configuration is compared answer against answer, and
-  the two driver refusals must fail for their own printed cause.
+Step 0 needs nothing from the owner. Each later step waits on him for its
+first line.
 
-It then passed a third time from a real commit, after the owner pulled the
-server to `990f785bca`: tree clean when the run started, host driver
-`0973af0618ed`, image `5a5a86c2d672`. Other sessions' uncommitted files
-appeared in that checkout before the run ended, so "clean at the start" is the
-honest claim.
+0. **The arm64 rows, on the Mac.** `./le test qemu installer-iso` for AC-7
+   and `./le test qemu appliance-ota` for AC-8, each natively under HVF with
+   `ZE_INSTALL_QEMU_ACCEL=hvf`. Record the result in the spec's rows. Then
+   look at AC-2's combined changed-version script: reproduce its timeout and
+   find the cause before deciding anything about it.
+1. **Push.** The Mac was 48 commits ahead of origin when this was written, most from other sessions. An agent never pushes on its own: the owner orders it, through `./le commit push "<owner authorisation>"`. The `claude` server only has what is pushed and pulled there by the owner.
+2. **Preview artifacts**, from the pushed commit. `./le help build preview` names the action. The earlier preparation recorded in the spec's AC-10 row passed for an older source. The final one covers static Linux amd64 and arm64 binaries and archives, the deployment and lab exports, the manifest and checksums. Build amd64 on the server and arm64 on the Mac: a kernel is never cross-compiled or emulated. Rerun `./le test qemu appliance-config-push` from that same commit on each host, so the proof is bound to the release source.
+3. **Website and docs**, once the owner is happy with the pages. `./le site build`, then `./le site check`, against the canonical `../gh-pages` checkout. `./le doc check all` was red on 2026-11-13 for reasons outside this spec: six stale source anchors in `docs/guide/configuration.md` and `docs/guide/operational-reports.md`, a `show system ntp` command with no declared answer shape, and 36 drift findings because the generated site was older than the live command catalogue. The pages this spec edited had no finding. Review the news draft in `evidence/deployment-user-journeys-news-draft.md` only after its claims are true.
+4. **Source review, Review Gate, closure.** Reconcile the review with the retained population (below) and every later commit that intersects it, run the formal Review Gate, then the two closure commits. Do this last: each later commit makes a review stale.
 
-It also passes on arm64: on the Mac under HVF (QEMU 11.1.3, guest kernel
-7.3.0-ze) at `9bf21a753a`, host driver `08000cc46d7f`, image `cdcd2df65929`,
-with other sessions' uncommitted files in that tree. That run needed the Mac's
-lab Docker rebuilt first (below).
+A spec edit is gated on reading about a dozen doors and nine source files, so batch spec bookkeeping into one agent. Give that agent the facts and let it check them against the file: in this session it twice refused an edit that would have written something the spec contradicted.
 
-**The FRR topology is proven** (remaining item 2, first half). Scenario
-`bgp-ospf-redistribute-default-frr` passes on that commit in three minutes.
-With the redistribution consumer's one call put back to the old explicit next
-hop it fails at the assertion that waits for FRR to accept the route, Ze
-logging that it withholds a route whose next hop is the peer's own address.
-The file was restored byte-exact.
+The spec validator reports five structure errors after every edit of that file: no `### Unit Tests` heading, no `## Checklist`, and the checklist items "Tests written", "Tests FAIL" and "Tests PASS". They predate this session and no edit here caused them. Closure will need them resolved.
 
-**The netlab topology is proven, after a template fix** (remaining item 2,
-second half). On the committed render three of six sourced pings passed: a
-node passed on only its own prefixes, because the render attached `bgp-rib`
-alone, which stores and elects and forwards nothing. `ef1a3cf33d` attaches
-`bgp-rs` and `bgp-adj-rib-in` and sets `next-hop self` toward external peers.
-All six pings then pass at the first attempt, the render check passes against
-goldens regenerated with netlab 26.10, and the golden-booting `.ci` passes.
+## Environment facts the next session needs
 
-Two things from that work were put to the owner, who ruled on both on
-2026-11-13. Each needs a design pass with him in a session of its own:
+**The `claude` server (ssh host `claude`, Linux amd64, Ze's kernel, KVM).**
 
-- Ze's default leaves a forwarded route's next hop unchanged toward an
-  external peer, against the YANG text and RFC 4271 Section 5.1.3. He said
-  yes to running `spec-bgp-next-hop-auto-rewrites-for-ebgp`, which records it.
-- Plain transit works only through `bgp-rs`, which forwards every received
-  UPDATE, and no component advertises the elected best path. He ruled that Ze
-  passes its best route between peers by default. The ruling is in
-  `docs/architecture/rib-transition.md` and the work in the new skeleton
-  `spec-bgp-best-route-advertised-to-peers`. Whether a redistributed route
-  and a forwarded one for the same prefix reach the existing owner election
-  is untraced, and is one of that spec's open questions.
+- Its root disk aborts writes when a QEMU guest writes into a fresh image stored on it. The kernel log says "Aborted Command" and "potential data loss". It happened on most days from 2026-11-10 and again twelve minutes after a restart on 2026-11-13. A proof whose scratch is on that disk fails at the guest's first write to its persistent partition.
+- The second disk is mounted at `~/.cache` and logged no error. Put VM and lab scratch there: `TMPDIR=$HOME/.cache/<name>`. Docker's data already lives there.
+- A non-interactive ssh has no Go on `PATH`: prefix commands with `export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH GOPATH=$HOME/go`.
+- The Mac's Bash hook refuses any command whose text names `/tmp`, on the server too. A proof run with its default scratch is therefore unreadable from the Mac. Set `TMPDIR` as above.
+- netlab is not installed on the host, only inside the lab's tool image. For `./le test netlab check` and `update`, create a virtual environment with the version pinned in `contrib/netlab/Dockerfile.tools` and pass `NETLAB=<venv>/bin/netlab`.
+- Other sessions run guest and Docker tests there from uncommitted files, and mutate files for red proofs. Tell them before a mutation and when it is restored. A tree that is clean at the start of a run can be dirty before it ends.
 
-Not done, and why:
+**The Mac (arm64, HVF).**
 
-- **The `claude` server's root disk aborts writes** ("Aborted Command",
-  "potential data loss") when a QEMU guest writes into a fresh image stored on
-  it. It did so on most days since 2026-11-10 and again twelve minutes after a
-  restart on 2026-11-13. A proof whose scratch is on that disk fails at the
-  guest's first write to its persistent partition. The second disk, mounted at
-  `~/.cache`, logged no error: run with `TMPDIR` under it.
-- **Docker on the Mac had 14.9 GB in total**, whatever the Mac had free. The
-  `ze` Colima profile boots Ze's Docker-host image, which keeps Docker's data
-  on its own partition, sized when the image is built. Colima's 100 GiB data
-  disk is not used by that image. The default was 16 GiB, too small for a
-  kernel build beside the lab images, and `start` always boots the default,
-  so `build size <GiB>` never reached the profile. Fixed in the tooling:
-  `e2627d3e7b` makes the default 64 GiB (the file is sparse) and `995c46014d`
-  makes `start` pass Colima a root disk of that size, without which Colima
-  refuses the larger image. `./le setup docker host start` then recreates the
-  VM, which loses its images, volumes and cache.
-- Remaining items 2 (FRR and netlab topologies), 4 (preview artifacts, site
-  and docs checks) and 5 (review reconciliation, Review Gate, closure) are
-  untouched: the first two need Docker or a VM on a sound host.
-- Nothing of this session is left on either machine: the server's runner
-  files are back at their commit and every proof directory is removed.
+- The lab Docker is the `ze` Colima profile, which boots Ze's Docker-host image. That image keeps all of Docker's data on its own partition, sized when the image is built. Colima's 100 GiB data disk is not used by it.
+- That partition was 14.9 GB, too small for a kernel build beside the lab images. Fixed: `e2627d3e7b` makes the image default 64 GiB (the file is sparse) and `995c46014d` makes `start` pass Colima a root disk of that size. Docker there now has 61.6 GB and was emptied on 2026-11-13, so lab images rebuild on first use.
+- The arm64 runtime kernel for the current sources is cached under `~/.cache/ze/runtime-kernel/`.
+- An agent is not permitted to delete Docker images or volumes there. The owner ran those two removals.
+- A named build (`./le --name <name> ...`) compiles the whole working tree, so another session's half-finished edit breaks it. The plain `./le` runs a build of the committed tree and is not affected. When a named build fails on a package this work does not touch, say whose edit it is and wait, or use the committed build if the change under test is committed.
 
-## Status
+## What landed in this session
 
-Done and previously committed:
+| Commit | What it does |
+|--------|--------------|
+| `ca9571e0e2` | The config-push proof counts only a refusal the device answered. Three defects: the generated seed wrote list keys as `name` fields and was unparseable; both upload clients read a local error as a device refusal; a broken observer login passed as an edit refusal |
+| `92b0b49dcc` | The proof asks for a machine reset (`kexec=off`). gokrazy's plain reboot is a kexec, so QEMU's `-no-reboot` never exited |
+| `e4bdb55d1e` | The proof reads the configuration under the name the daemon's resolver gives it. A named appliance stores `<name>.conf`, not `ze.conf` |
+| `929b1aec14` | Four operator messages named `show config`, a command group that answers nothing. They name `show config running`, and a test holds the host driver's hint |
+| `8793b59939` | The live configuration is compared answer against answer of `show config running`. The two refusal controls that go through the host driver must fail for their own printed cause |
+| `00d8e62202` | The zefs registry test expects the local admin authorized-keys key. An independent test judge approved it |
+| `ef1a3cf33d` | The netlab render attaches `bgp-rs` and `bgp-adj-rib-in` and sets `next-hop self` toward external peers, so a node passes routes between its BGP peers |
+| `e2627d3e7b`, `995c46014d` | The Docker-host image default and Colima root disk, described above |
+| `10d888bda3` | Journal row `parked-work-returns-out-of-order`, owned by `spec-bgp-one-off-defects` |
 
-- Linux install/uninstall/purge lifecycle, native amd64/KVM ISO selected-disk installation with the other disk preserved and installed SSH access, and appliance OTA update/recovery checks are recorded in the spec. Their previous successful runs remain evidence for their recorded source, not for every later change.
-- Public two-peer quickstart, IS-IS transaction/rollback repairs, image/archive delivery helpers and deployment website source improvements landed earlier. A prior Compose persistence image was not tied to the final source; it is not final release-artifact evidence.
-- Interface address replay: 0ec5666e2e942a26e871ead6789b3a51bf44cd4e. Connected startup/retirement and doctor: c5baed81d002c3ccd0a9cb442b121165a5c9eab6.
-- Netlab tool compatibility: 994c2c115247423afd308245adc77179d606d419. Bootstrap/golden fixture: 4644c95058 (full SHA resolves in git); draft baseline, all eighty Ze-kernel stress invocations and promoted live path passed. Full topology traffic is still owed.
-- BGP Default next-hop handling: 7bf418baaa5c564a9b01163a48bbdf135c683fbf. RFC carrier-move tooling: 19086169f5d9775c8a49f15c51492d7709cee3ee. Interop diagnostics and actual TCP emission: 089f7edaaafc3bad57234d2fc4a41aad5e297ebc.
-- Complete set-format line reading, including actual four-MiB receiver boundary: 9b475acf09556b5b8ecc581ed7fe2fe4a0beb6b8. Correct carriage-return output expectation: 750362b574160f89c75186171227b62a2375830c. Every one of these Go commits passed all five committed build flavors.
+The plan commits that carry the evidence and this page are not listed.
 
-Implemented in this migration checkpoint:
+## Evidence observed in this session
 
-- Real authenticated, host-key-verified SSH configuration upload subsystem and canonical daemon transaction, replacing invented remote shell commands. Shared mutation ownership survives listener changes and shutdown; a stopped confirmed window refuses further uploads and source commits.
-- Named appliance bootstrap keys use the local credential namespace and accepted admin identity, respect disabled admin and configured-user precedence, and reject malformed/restricted/certificate keys. Doctor reports unusable bootstrap credentials and clears the finding after repair.
-- Corrected FRR OSPF-to-BGP fixture uses an ordinary dummy interface. The previous self-host prefix and loopback network-type fixtures were invalid; their failures do not prove the desired consumer behavior.
-- Native appliance-config-push action, one current image, three fresh processes using the same disk, private agent, out-of-band disk host pin and canonical selected-source inspection. **This runner has known findings below and is not proven.**
-- Appliance, authentication, storage and architecture documentation updated to the actual producer behavior. Website source chooser/tutorial improvements are already committed; final generated-site checks remain open.
-- Two next-hop audit records rejudged and stamped without widening their claims. This does not resolve the shared tree's other RFC failures.
-- Doctor functional test promoted at exact SHA256 bdb94769a89c4b0f0d0843b0809373e3ffea66d49916a48584823aaca2111d14.
+**Appliance configuration push**, `./le test qemu appliance-config-push`. Recorded in `docs/architecture/testing/qemu-integration.md`, "Appliance SSH configuration publication", and in the spec's AC-12 row.
 
-## First work on the new machine
+| Host | Source | Host driver | Image |
+|------|--------|-------------|-------|
+| amd64 Linux, KVM, QEMU 8.2.2 | `990f785bca`, tree clean at the start | `0973af0618ed` | `5a5a86c2d672` |
+| arm64 macOS, HVF, QEMU 11.1.3 | `9bf21a753a`, other sessions' files in the tree | `08000cc46d7f` | `cdcd2df65929` |
 
-Read AGENTS.md and its included rule files. Use the main checkout, native owning actions and session-private named outputs. No worktree, test export or whole-tree le verify. Check upstream before edits and claim the deployment spec with the new session identity. Do not reuse the old session ID to perform new work.
+Two earlier amd64 passes ran on a patched tree and are superseded by the first row. Neither row is release-artifact evidence. Each real run exposed one assumption the unit fixture shared with the runner, which is why every fix above changed the fixture as well.
 
-The checkpoint commit manifest is [checkpoint-paths.txt](checkpoint-paths.txt). The source-review reports in evidence/ preserve completed reads; they are preparation, **not a CLEAN Review Gate**. The earlier reviewed population includes 120 IKE paths carried by historical Spec-work commits. Retain that population and reconcile later intersecting commits; do not silently exclude it or restart a broad audit.
+**FRR topology**, `INTEROP_SCENARIO=bgp-ospf-redistribute-default-frr ./le test integration interop`. It passes at `990f785bca` in three minutes. With `internal/component/bgp/redistribute/consumer.go` sending the explicit next hop again, it fails at the assertion that waits for FRR to accept the route, and Ze logs that it withholds a route whose next hop is the peer's own address. The file was restored byte-exact (sha256 `80e43ceedf67...`).
 
-### Edit 1 — repair the two subsystem client lifecycles
+**netlab topology**, `./le test qemu docker-lab lab "test netlab run"`. On the committed render three of six sourced pings passed: a node passed on only its own prefixes. With `ef1a3cf33d` all six pass at the first attempt, `./le test netlab check` passes against goldens regenerated with netlab 26.10, and `test/plugin/netlab-lab-profile.ci` passes in the QEMU guest. The live pass ran with the template change applied to `990f785bca` as an uncommitted patch identical to the commit.
 
-Files: internal/le/test/qemu/install_config_push_ssh.go, configPushMalformed, around line 148; internal/le/test/qemu/install_config_push_protocol_test.go, productPush, around line 378.
+**Reactor repetitions**, the script in `evidence/deployment-bgp-affected-checks.sh`: 414 tests, 20 repetitions under the race detector on darwin/arm64, no race report. One test failed in one repetition, `TestPolicyFinalReplayPreservesPreAdmittedBatchOrder`: a withdraw then an announce reached the wire reversed. The cause is traced to `takeOverflowReleased` reading the ordering hold again for each parked item. It is outside the next-hop change and owned by `spec-bgp-one-off-defects`, which still owes it an acceptance criterion.
 
-Current sequence includes these exact calls:
+**RFC check** on the Mac: red with 244 findings, 64 of them from missing entries in the Mac's Go build cache at the time. Neither `RFC4271-5.1.3-1` nor `RFC8950-4-1` is among them.
 
-```go
-session.RequestSubsystem(configupload.Subsystem)
-session.Wait()
-```
+## Owner rulings from this session
 
-Replace that session-based subsystem exchange at both sites with the supported owned raw SSH session-channel exchange used by internal/appliance/cmd_config_push.go:sshExecReal: OpenChannel("session"), subsystem request with reply, framed input, CloseWrite, bounded stdout/stderr readers, explicit exit-status consumption and joined stream/request workers. Read the actual product helper before choosing the smallest shared helper. RequestSubsystem does not start Session's workers, so Wait currently returns "ssh: session not started"; accepting this local error as a remote refusal would be false evidence. Retain full framing, remote nonzero status, success-receipt and private-payload assertions. First reproduce using the existing sequence tests; no semantic RED is claimed yet for this final runner version.
+Both were made on 2026-11-13 and each needs a design conversation with the owner in a session of its own.
 
-### Edit 2 — prove observer authentication before edit denial
+- **Ze passes its best route between BGP peers by default**, as an ordinary speaker does, without a route-server plugin attached. Recorded in `docs/architecture/rib-transition.md`. The work is the skeleton `plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md`, which lists nine design questions. Whether a redistributed route and a forwarded one for the same prefix reach the existing owner election is untraced and is one of them.
+- **Run `spec-bgp-next-hop-auto-rewrites-for-ebgp`.** Under the default setting a forwarded route keeps its next hop toward an external peer, against the YANG text and RFC 4271 Section 5.1.3. That spec records the go-ahead. The netlab render's explicit `next-hop self` is a workaround it should make unnecessary without breaking.
 
-File: internal/le/test/qemu/install_config_push.go:configPushRefusals, around line 354.
+## Owned elsewhere
 
-Before the existing configPushTarget(namedPath, guest.sshPort, configPushObserver) and denied command, add a fresh pinned observer key login using guest.configPushSSH with configPushObserver, ssh.PublicKeys(signer), verify and HostnameQuery. Require its parsed hostname to equal configPushAcceptedHost. Then keep the existing nonzero/no-receipt, complete live-configuration and selected persistent-source comparisons. Otherwise a broken observer login can masquerade as an edit-authorization refusal.
+- Dedicated QEMU and Xen kernel profiles: `plan/proposals/spec-virtual-machine-kernel-profiles.md`, a skeleton. No implementation or Xen proof exists.
+- Unexpected redistribution producer loss: `plan/release/fixes/spec-redistribution-producer-exit-withdrawal.md`.
+- External-orchestrator nil bus: `plan/release/fixes/spec-plugin-event-bus-across-the-process-boundary.md`.
+- Recovery packing recurrence and the parked-batch reorder: `plan/release/fixes/spec-bgp-one-off-defects.md`. The refresh-policy recurrence stays with its refresh spec.
+- LDP formatter round trip: accepted nested `environment log ldp` input serializes to a flat form that reparsing refuses. The `ldp-backoff-clear-frr` work owns it.
+- The legacy boot inbox and `HealthRevert` write a legacy mirror while the canonical selected pointer takes precedence. The docs state the limit. The header of `cmd/ze/health_revert.go` is stale. No automatic live rollback is proven.
+- Historical IKE findings keep their owner. Deployment review preparation is not IKE acceptance.
+- `TestISOCaptureWaitsForActualPoweroff` gives a child process 250 ms to print and failed once at host load 48. It passes alone. Not journaled.
 
-### Edit 3 — record native evidence after the repairs
+## Review population to keep
 
-The exact existing documentation status is "The runner is an implementation checkpoint, not a completed native proof." Keep it until the nine intended action/helper/sequence parent tests and affected unchanged ISO/OTA tests pass, followed by the real native action. Record actual image/driver identities, all three joined boots, publication, persistence, both login methods and each refusal. Only then replace that status with the observed scope and update AC-12. Do not claim automatic live rollback or ISO installation from this configuration proof.
+The source-review reports in `evidence/` are completed reads and preparation, **not a clean Review Gate**. The checkpoint commit manifest is [checkpoint-paths.txt](checkpoint-paths.txt). The earlier reviewed population includes 120 IKE paths carried by historical spec-work commits. Keep that population and reconcile later intersecting commits. Do not silently exclude it and do not restart a broad audit. `evidence/deployment-complete-source-population-5797.txt` and its ledgers hold the exact-source reads to reuse.
 
-Phase 2 is needed after these edits: remaining labs, artifacts, documentation generation, immutable review and eventual closure are listed below.
+The two findings of `evidence/deployment-native-config-push-runner-independent-source-review.md` are closed by `ca9571e0e2`.
 
-### Then: scoped verification
+## Earlier history, before this session
 
-Use the native unit action, serialized in the main thread:
+Done and committed before the migration:
 
-```sh
-./le --name deployment-user-journeys test unit pkg path ./internal/le/test/qemu/ run '^TestApplianceConfigPush'
-```
+- Linux install, uninstall and purge lifecycle, native amd64/KVM ISO selected-disk installation with the other disk preserved and installed SSH access, and appliance OTA update and recovery checks are recorded in the spec. Those runs are evidence for their recorded source, not for every later change.
+- Public two-peer quickstart, IS-IS transaction and rollback repairs, image and archive delivery helpers and deployment website source improvements. A prior Compose persistence image was not tied to the final source and is not release-artifact evidence.
+- Interface address replay `0ec5666e2e`. Connected startup, retirement and doctor `c5baed81d0`.
+- Netlab tool compatibility `994c2c1152`. Bootstrap and golden fixture `4644c95058`.
+- BGP Default next-hop handling `7bf418baaa`. RFC carrier-move tooling `19086169f5`. Interop diagnostics and TCP emission `089f7edaaa`.
+- Complete set-format line reading, including the four-MiB receiver boundary, `9b475acf09`. Carriage-return output expectation `750362b574`.
+- The migration checkpoint `6f11891cab`: the authenticated, host-key-verified SSH configuration upload subsystem and daemon transaction; named appliance bootstrap keys in the local credential namespace with doctor reporting; the dummy-interface FRR fixture; the native config-push action; the documentation of the real producer behaviour; two next-hop audit records rejudged and stamped; the doctor functional test promoted.
 
-TestApplianceConfigPushFixtureProcess is a child-process fixture, not a tenth acceptance parent. The intended nine parents are the three action/admission tests, three host-command tests, agent lifecycle test and two sequence/cleanup tests. Also run the existing affected OTA/ISO tests before the VM proof. Use the existing job admission route for long runs and record actual invocation, output and exit status.
-
-On native amd64 with /dev/kvm available (or native arm64/HVF on the appropriate host), with room for built image and disk copies:
-
-```sh
-ZE_INSTALL_QEMU_ACCEL=kvm ZE_INSTALL_IMAGE_SIZE=1610612736 ZE_INSTALL_KEEP=1 ./le --name deployment-user-journeys test qemu appliance-config-push
-```
-
-Do not set ZE_INSTALL_IMAGE; this action must build the matching current native image. Init JSON must supply named authorized keys before secrets are created. Editing appliance.json afterwards does not regenerate secrets. Preserve the complete bootstrap-selected configuration, including discovered interfaces; change only hostname. The source uses one allocated SSH port before build for the guest listener and every host forward across all boots. Older scratch suggestions of fresh per-boot ports are superseded.
-
-## Verification already observed
-
-The identifiers below are suffixes/labels of the original native job logs. They describe actual runs; raw logs and generated coverage profiles remain optional scratch transfers.
+Verification observed before the migration. The identifiers are suffixes of the original native job logs, which were not transferred.
 
 | Scope | Observed result and limits |
 |---|---|
-| Hub, appliance, SSH, framing and configuration packages | Full race runs passed before the final shutdown/key/doctor repairs. The wider CLI run failed a CR spelling expectation (now corrected) and an unrelated LDP formatter round-trip case (still open). Do not report the whole CLI run green. |
-| Confirm-window shutdown | f1e44291 reproduced upload and source-commit acceptance after stop; focused 16077554 passed after stable-window repair, including no-pending/revert-reload controls. |
-| Bootstrap key login | Corrected e7e47c81 reproduced actual login failure; f57bc1e2 passed the key/assembly parents after repair. Initial fixture-path failure was not authentication evidence. |
-| Restricted certificates | 7e0c86f7 reproduced unrestricted actual SSH acceptance of four certificate cases; 03acd7d2 passed certificate/assembly parents and plain-key control after parser refusal. That job also had separate doctor failures, so was not an overall green run. |
-| Credential diagnostic | Actual missing-registration/report failures in 6398878a/03acd7d2; focused typed check, deduplication/clear and nil-store parents passed 6bc651c7. |
-| Shipped doctor fixture | Draft baseline 2b3d8004 passed. Stress job a5bec302 produced eighty actual exit=0 invocations, parallel 4, burners 2. Native stress exit 1 means NOT REPRODUCED in this harness, not eighty failures. Exact promoted live path passed job-migration-doctor-promoted-0178ac2d.log. |
-| Native proof helper frontier | Missing-action/helper semantic reds were observed before implementation; agent ownership/sign/verify/cleanup test passed 33bd91e2. Final full runner formatted e8ea6b6a, but the complete post-implementation nine-parent run and VM run have not happened. |
-| RFC check | b7f48cf9 failed 186 shared-tree findings. The two owned next-hop judgments were subsequently stamped; a fresh final check is owed. No claim that the rest are fixed. |
+| Hub, appliance, SSH, framing and configuration packages | Full race runs passed before the final shutdown, key and doctor repairs. The wider CLI run failed a carriage-return expectation (since corrected) and the LDP formatter round trip (still open). Do not report the whole CLI run green |
+| Confirm-window shutdown | `f1e44291` reproduced upload and source-commit acceptance after stop. `16077554` passed after the stable-window repair |
+| Bootstrap key login | `e7e47c81` reproduced the login failure. `f57bc1e2` passed after repair |
+| Restricted certificates | `7e0c86f7` reproduced unrestricted acceptance of four certificate cases. `03acd7d2` passed the certificate and plain-key parents after parser refusal |
+| Credential diagnostic | Failures in `6398878a` and `03acd7d2`. Passed in `6bc651c7` |
+| Shipped doctor fixture | Draft baseline `2b3d8004` passed. Stress job `a5bec302` produced eighty exit-0 invocations. The promoted live path passed |
 
-Previous coverage profiles predate the final repairs and are not final coverage. Allocation/coverage facts can be retained, but this development VM is not a source of publishable timing/throughput figures.
+Coverage profiles from before the repairs are not final coverage. The Linux development VM is not a source of publishable timing or throughput figures.
 
-## Remaining acceptance and ownership
+## Notes carried from the migration
 
-1. Complete the native SSH proof repairs above, affected race/tests and real VM run. The spec remains in progress until actual acceptance evidence and closure.
-2. Run corrected dummy FRR topology normally to GREEN first, then fresh old-explicit consumer counterfactual RED and exact source restoration. Run the unchanged full netlab topology with all six sourced pings. Earlier /32 and loopback failures are invalid discrimination. The pristine internal/component/bgp/redistribute/consumer.go SHA256 is 80e43ceedf6727f343765a74222c5af83a814f1f0682bb7b8fb4234b7108d4b0; no mutation remains applied at handover.
-3. Finish source-derived affected reactor repetitions. The old broad race/count-20 attempt failed separately owned refresh/packing assertions and the global deadline; it is not evidence for all affected cases. The affected script is retained in evidence/. Complete Default parser/redistribution/types leaf-package race passes need no repeat merely because time elapsed.
-4. Produce final source-bound preview artifacts for both Linux binary architectures and both images, verify manifest/checksums/CA, then docs indexes/links, wiki LLMS and the canonical ALL-producer website build/check. Final artifacts/website proof are not complete. Review the six-heading news draft only after its claims are true.
-5. Reconcile immutable source review with the retained original population and later intersecting foreign commits, then the formal Review Gate and two closure commits. No push or publication is authorized by this handover.
-
-Not done and separate owners:
-
-- Dedicated QEMU/Xen kernel profiles: plan/proposals/spec-virtual-machine-kernel-profiles.md is a committed SKELETON only. No kernel build-profile implementation or Xen runtime proof exists.
-- Unexpected redistribution producer loss: plan/release/fixes/spec-redistribution-producer-exit-withdrawal.md (new skeleton).
-- External-orchestrator nil bus: plan/release/fixes/spec-plugin-event-bus-across-the-process-boundary.md.
-- Recovery packing recurrence: plan/release/fixes/spec-bgp-one-off-defects.md, AC-5. Refresh-policy recurrence remains with its existing refresh spec/journal.
-- LDP formatter round trip: accepted nested environment/log/ldp input serializes to flat "log ldp info" which reparsing refuses. The foreign ldp-backoff-clear-frr fixture/lifecycle work owns this; preserve its assertions.
-- Legacy boot inbox checkPushedConfig and HealthRevert write a legacy mirror while the canonical selected pointer takes precedence. Docs now state the limit. cmd/ze/health_revert.go's old auto-revert header remains stale; no automatic 30-second live rollback is proven.
-- Source inspection during checkpoint preparation also found pkg/zefs/registry_test.go still expects the old meta/ssh/authorized-keys registry entry while this patch replaces its registration with the local credential key. internal/plugins/connect/main.go still names that old outbound namespace. Check the intended distinct outbound registration and the unchanged registry test before final acceptance; no test verdict or repair is claimed here.
-- Historical IKE findings retain their existing owner; deployment review preparation is not IKE acceptance.
-
-## Files already handled
-
-- cmd/ze/hub/config_upload*.go, confirm_window.go, main.go and SSH service wiring: canonical mutation/window ownership and actual receiver.
-- internal/appliance/cmd_config_push*.go; internal/component/ssh/subsystem.go; internal/core/configupload/: actual host client, subsystem and bounded frame contract.
-- cmd/ze/hub/bootstrap_credentials.go, register_bootstrap_credentials.go; internal/core/authorizedkeys/; pkg/zefs/keys.go; assembly and diagnostic fixture: bootstrap identity and refusal/reporting.
-- internal/le/test/qemu/install_config_push*.go plus changed ISO/OTA adapters: final independent source report is evidence/deployment-native-config-push-runner-independent-source-review.md; its two findings are still open.
-- internal/le/interoplab/bgp/*ospf_redistribute_default* and scenario: source-reviewed dummy correction; runtime topology evidence remains owed.
-- docs/guide/appliance.md and architectural boot/storage pages: distinguish canonical device source, named host assembly source and legacy mirror. Do not restore the old invented shell-command or live rollback claims.
-- evidence/deployment-complete-source-population-5797.txt and accompanying ledgers: reuse completed exact-source reads, then review deltas; no formal CLEAN.
-
-## Transfer and resumption
-
-The final user report gives the checkpoint SHAs and self-contained git bundle paths for main, wiki and the committed gh-pages branch. Copy those bundles to the new machine; validate with git bundle verify before importing into the normal checkout. They carry unpushed reachable commits. Dirty generated gh-pages content and unrelated sessions' uncommitted files are deliberately outside this session's checkpoint.
-
-Do not transfer the old session state as live authority. Create a new session claim. On this machine no deployment job, VM or agent-owned build remains active at checkpoint. Signing was working after the owner unlocked the local key; signing-agent sockets and unlocked state do not migrate with git.
-
-The wiki's .source-commit deliberately remains 31f16fc038ab9e63dee4d35b1b592b370f7f5073 because this was a partial documentation sync. Do not advance it as though every source change were documented.
-
-No private SSH identity, appliance secret store, disk image, GPG material, socket, machine-specific cache or generated binary is committed here. A new machine can rebuild from committed sources. If retaining raw proofs is desired, copy the protected old session scratch separately; use this handover's verdicts and review population, not its obsolete ACTIVE notes, to resume.
-
+- The wiki's `.source-commit` deliberately stays at `31f16fc038ab9e63dee4d35b1b592b370f7f5073`, because the documentation sync was partial. Do not advance it as though every source change were documented.
+- No private SSH identity, appliance secret store, disk image, GPG material, socket or generated binary is committed. A machine rebuilds from committed sources.
+- The migration archive on the server (`tmp/deployment-migration-2026-11-13.tar`) was never needed: all three checkouts on the Mac were already at its commits.
