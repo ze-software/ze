@@ -79,24 +79,41 @@ func xfrmForwardDefaultRefusal(cause error, problem string) error {
 	return opererr.Wrap(cause, problem, why, fix)
 }
 
-func readXFRMDefaults() (xfrmPolicyDefaults, error) {
+// xfrmGetDefaultAnswer sends XFRM_MSG_GETDEFAULT for the live namespace and
+// returns its one answer: struct xfrm_userpolicy_default, then any attribute the
+// kernel appends, such as Ze's capability receipt (xfrmaZECaps). The policy
+// defaults and the receipt are read from separate answers because their callers
+// need them at different times: ApplyForwardDefault at policy setup, and
+// InstallSA before each scoped state.
+func xfrmGetDefaultAnswer() ([]byte, error) {
 	req := nl.NewNetlinkRequest(xfrmMsgGetDefault, unix.NLM_F_REQUEST)
 	req.AddRawData([]byte{0, 0, 0})
 	messages, err := req.Execute(unix.NETLINK_XFRM, xfrmMsgGetDefault)
 	if err != nil {
+		return nil, fmt.Errorf("XFRM GETDEFAULT: %w", err)
+	}
+	if len(messages) != 1 {
+		return nil, fmt.Errorf("XFRM GETDEFAULT returned %d messages, want one", len(messages))
+	}
+	return messages[0], nil
+}
+
+func readXFRMDefaults() (xfrmPolicyDefaults, error) {
+	payload, err := xfrmGetDefaultAnswer()
+	if err != nil {
 		return xfrmPolicyDefaults{}, fmt.Errorf("read the namespace XFRM policy defaults: %w", err)
 	}
-	if len(messages) != 1 || len(messages[0]) < 3 {
-		return xfrmPolicyDefaults{}, fmt.Errorf("XFRM GETDEFAULT returned %d messages, want one three-byte policy payload", len(messages))
+	if len(payload) < 3 {
+		return xfrmPolicyDefaults{}, fmt.Errorf("XFRM GETDEFAULT returned %d bytes, want the three-byte policy payload", len(payload))
 	}
-	for direction, action := range messages[0][:3] {
+	for direction, action := range payload[:3] {
 		if xfrmDefaultAction(action) != xfrmDefaultBlock && xfrmDefaultAction(action) != xfrmDefaultAccept {
 			return xfrmPolicyDefaults{}, fmt.Errorf("XFRM default direction %d has unknown disposition %d", direction, action)
 		}
 	}
 	return xfrmPolicyDefaults{
-		in: xfrmDefaultAction(messages[0][0]), fwd: xfrmDefaultAction(messages[0][1]),
-		out: xfrmDefaultAction(messages[0][2]),
+		in: xfrmDefaultAction(payload[0]), fwd: xfrmDefaultAction(payload[1]),
+		out: xfrmDefaultAction(payload[2]),
 	}, nil
 }
 

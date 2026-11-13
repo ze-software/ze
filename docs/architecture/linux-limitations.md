@@ -644,8 +644,8 @@ For a `library` entry, read the module in the module cache:
 - **Re-check:** at a new module version, check each patch of the series
   `internal/le/vendorpatch/patches/netlink-xfrm-*.patch` against the
   module source; a patch the release already carries is deleted, and the
-  entry is lifted when only `netlink-xfrm-90-ze-state-scope.patch`, Ze's
-  private kernel ABI, remains. `TestNetlinkXFRMPatchApplied`
+  entry is lifted when only `netlink-xfrm-90-state-extra-attributes.patch`,
+  the generic hook that carries Ze's private kernel attribute, remains. `TestNetlinkXFRMPatchApplied`
   (`internal/le/vendorpatch`) fails when the vendored copy lacks the patch,
   for example after `go mod vendor`.
 - **Ze meanwhile:** works around it. Ze vendors the module and applies the

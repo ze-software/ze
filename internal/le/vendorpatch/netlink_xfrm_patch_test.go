@@ -17,7 +17,7 @@ var netlinkXFRMSeries = []string{
 	"netlink-xfrm-08-state-no-pmtu-disc.patch",
 	"netlink-xfrm-09-icmp-flag.patch",
 	"netlink-xfrm-10-selector-prefix-family.patch",
-	"netlink-xfrm-90-ze-state-scope.patch",
+	"netlink-xfrm-90-state-extra-attributes.patch",
 }
 
 // TestNetlinkXFRMPatchApplied keeps a re-vendor or a deletion from dropping

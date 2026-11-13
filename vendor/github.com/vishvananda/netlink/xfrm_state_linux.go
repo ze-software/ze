@@ -137,9 +137,18 @@ type XfrmState struct {
 	ICMP     bool
 	Replay   *XfrmReplayState
 	Selector *XfrmPolicy
-	// StateScope is an exact ordered OR-set of directional inner selectors.
-	// Nil keeps ordinary upstream state construction unchanged.
-	StateScope *XfrmStateScope
+	// ExtraAttrs are netlink attributes this package does not model. The state
+	// writer sends each one unchanged, in order, directly after
+	// xfrm_usersa_info. The state reader returns each attribute whose type is
+	// above nl.XFRMA_MAX, with its own copy of the value.
+	ExtraAttrs []XfrmAttr
+}
+
+// XfrmAttr is a netlink attribute of an XFRM message: its type and its value,
+// without the attribute header.
+type XfrmAttr struct {
+	Type  uint16
+	Value []byte
 }
 
 func (sa XfrmState) String() string {
@@ -286,6 +295,15 @@ func (h *Handle) XfrmStateUpdate(state *XfrmState) error {
 	return h.xfrmStateAddOrUpdate(state, nl.XFRM_MSG_UPDSA)
 }
 
+// addXfrmExtraAttrs appends attrs to req unchanged and in order. It is split
+// out of xfrmStateAddOrUpdate so that the request can be checked without
+// sending it.
+func addXfrmExtraAttrs(req *nl.NetlinkRequest, attrs []XfrmAttr) {
+	for _, attr := range attrs {
+		req.AddData(nl.NewRtAttr(int(attr.Type), attr.Value))
+	}
+}
+
 func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 
 	// A state with spi 0 can't be deleted so don't allow it to be set
@@ -309,18 +327,7 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 
 	limitsToLft(state.Limits, &msg.Lft)
 	req.AddData(msg)
-	if state.StateScope != nil {
-		if err := state.StateScope.validate(); err != nil {
-			return err
-		}
-		// This allocation belongs to this one control-plane request. The scope
-		// writer fills the caller's buffer and retains no references to it.
-		payload := make([]byte, 8+len(state.StateScope.Selectors)*nl.SizeofXfrmSelector)
-		if _, err := state.StateScope.WriteTo(payload, 0); err != nil {
-			return err
-		}
-		req.AddData(nl.NewRtAttr(nl.XFRMA_STATE_SCOPE, payload))
-	}
+	addXfrmExtraAttrs(req, state.ExtraAttrs)
 
 	if state.Auth != nil {
 		out := nl.NewRtAttr(nl.XFRMA_ALG_AUTH_TRUNC, writeStateAlgoAuth(state.Auth))
@@ -587,14 +594,6 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
-		case nl.XFRMA_STATE_SCOPE:
-			if state.StateScope != nil {
-				return nil, errors.New("XFRM state contains duplicate scope attributes")
-			}
-			state.StateScope, err = ParseXfrmStateScope(attr.Value)
-			if err != nil {
-				return nil, err
-			}
 		case nl.XFRMA_ALG_AUTH, nl.XFRMA_ALG_CRYPT:
 			var resAlgo *XfrmStateAlgo
 			if attr.Attr.Type == nl.XFRMA_ALG_AUTH {
@@ -681,6 +680,11 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 			state.Replay.OSeq = replay.OSeq
 			state.Replay.Seq = replay.Seq
 			state.Replay.BitMap = replay.BitMap
+		default:
+			if attr.Attr.Type > nl.XFRMA_MAX {
+				value := append([]byte(nil), attr.Value...)
+				state.ExtraAttrs = append(state.ExtraAttrs, XfrmAttr{Type: attr.Attr.Type, Value: value})
+			}
 		}
 	}
 

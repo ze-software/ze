@@ -1,12 +1,12 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- exact directional scope.
 // Related: state_scope.go -- ownership; xfrm_linux.go -- installation and readback.
-// Upstream: https://github.com/vishvananda/netlink, v1.3.1.
 
 //go:build linux
 
 package dataplane
 
 import (
+	"bytes"
 	"errors"
 	"net"
 	"reflect"
@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netlink/nl"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"golang.org/x/sys/unix"
 )
@@ -57,19 +58,20 @@ func TestSAStateScopeOwnsSelectors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.StateScope == nil || !reflect.DeepEqual(state.StateScope.Selectors, scopeWireSelectors()) {
-		t.Fatalf("netlink state lost its exact scope: %+v", state.StateScope)
+	value := stateScopeValue(t, state)
+	if !bytes.Equal(value, scopeWirePayload(1, scopeWireSelectors())) {
+		t.Fatalf("netlink state lost its exact scope or its flags: %x", value)
 	}
-	if state.StateScope.Flags != netlink.XfrmStateScopeNonInitial || !state.AFUnspec {
-		t.Fatalf("scope flags or mixed-inner-family flag lost: %+v", state)
+	if !state.AFUnspec {
+		t.Fatalf("mixed-inner-family flag lost: %+v", state)
 	}
-	state.StateScope.Selectors[0].Ifindex = 55
+	clear(value)
 	again, err := xfrmStateFromParams(scopeSAParams(scope))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(again.StateScope.Selectors, scopeWireSelectors()) {
-		t.Fatal("netlink DTO mutation changed the owned scope")
+	if !bytes.Equal(stateScopeValue(t, again), scopeWirePayload(1, scopeWireSelectors())) {
+		t.Fatal("netlink attribute mutation changed the owned scope")
 	}
 }
 
@@ -86,11 +88,12 @@ func TestSAStateScopeAccepts64ExpandedRecords(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.StateScope == nil {
-		t.Fatal("64-record scope was omitted")
+	wire := make([]nl.XfrmSelector, 64)
+	for i := range wire {
+		wire[i] = scopeWireSelectors()[i%2]
 	}
-	if len(state.StateScope.Selectors) != 64 || state.StateScope.Flags != 0 {
-		t.Fatalf("64-record scope changed: %+v", state.StateScope)
+	if value := stateScopeValue(t, state); !bytes.Equal(value, scopeWirePayload(0, wire)) {
+		t.Fatalf("64-record scope changed: %x", value)
 	}
 }
 
@@ -132,10 +135,10 @@ func TestXFRMStateScopeInstallRequiresCompleteReceipt(t *testing.T) {
 	readBefore, addBefore := xfrmScopeCapsRead, xfrmStateAdd
 	t.Cleanup(func() { xfrmScopeCapsRead, xfrmStateAdd = readBefore, addBefore })
 	for _, noninitial := range []bool{false, true} {
-		for _, features := range []netlink.XfrmZEFeature{0, 3, 7, 11, 13, 14, 15} {
+		for _, features := range []xfrmZEFeature{0, 3, 7, 11, 13, 14, 15} {
 			writes := 0
-			xfrmScopeCapsRead = func() (*netlink.XfrmZECapabilities, error) {
-				return &netlink.XfrmZECapabilities{Features: features, MaxSelectors: 64, ABI: 0x5a450001}, nil
+			xfrmScopeCapsRead = func() (*xfrmZECapabilities, error) {
+				return &xfrmZECapabilities{Features: features, MaxSelectors: 64, ABI: 0x5a450001}, nil
 			}
 			xfrmStateAdd = func(state *netlink.XfrmState) error { writes++; return nil }
 			scope, err := NewSAStateScope(scopeParamSelectors(), noninitial)
@@ -166,9 +169,9 @@ func TestXFRMStateScopeInstallRequiresCompleteReceipt(t *testing.T) {
 func TestXFRMStateScopeInstallRefusesUnreadableReceipt(t *testing.T) {
 	readBefore, addBefore := xfrmScopeCapsRead, xfrmStateAdd
 	t.Cleanup(func() { xfrmScopeCapsRead, xfrmStateAdd = readBefore, addBefore })
-	for _, cause := range []error{netlink.ErrXfrmZECapabilitiesAbsent, unix.EPERM} {
+	for _, cause := range []error{errXFRMZECapabilitiesAbsent, unix.EPERM} {
 		writes := 0
-		xfrmScopeCapsRead = func() (*netlink.XfrmZECapabilities, error) { return nil, cause }
+		xfrmScopeCapsRead = func() (*xfrmZECapabilities, error) { return nil, cause }
 		xfrmStateAdd = func(*netlink.XfrmState) error { writes++; return nil }
 		scope, err := NewSAStateScope(scopeParamSelectors(), false)
 		if err != nil {
@@ -188,8 +191,8 @@ func TestXFRMStateScopeReceiptRefusalPrecedesESPReceiver(t *testing.T) {
 	readBefore, addBefore := xfrmScopeCapsRead, xfrmStateAdd
 	t.Cleanup(func() { xfrmScopeCapsRead, xfrmStateAdd = readBefore, addBefore })
 	writes := 0
-	xfrmScopeCapsRead = func() (*netlink.XfrmZECapabilities, error) {
-		return &netlink.XfrmZECapabilities{Features: 7, MaxSelectors: 64, ABI: 0x5a450001}, nil
+	xfrmScopeCapsRead = func() (*xfrmZECapabilities, error) {
+		return &xfrmZECapabilities{Features: 7, MaxSelectors: 64, ABI: 0x5a450001}, nil
 	}
 	xfrmStateAdd = func(*netlink.XfrmState) error { writes++; return unix.EPERM }
 	scope, err := NewSAStateScope(scopeParamSelectors(), false)
@@ -218,8 +221,8 @@ func TestXFRMStateScopeTransportPreservesExactSingleton(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.StateScope == nil || !reflect.DeepEqual(state.StateScope.Selectors, scopeWireSelectors()[:1]) {
-		t.Fatalf("transport state has no exact scope: %+v", state.StateScope)
+	if value := stateScopeValue(t, state); !bytes.Equal(value, scopeWirePayload(0, scopeWireSelectors()[:1])) {
+		t.Fatalf("transport state has no exact scope: %x", value)
 	}
 	if state.Selector == nil {
 		t.Fatal("transport state has no legacy selector")
@@ -258,9 +261,9 @@ func TestXFRMStateScopeRejectsConflictingLegacySelector(t *testing.T) {
 }
 
 func TestXFRMStateScopeReadbackOwnsCompleteScope(t *testing.T) {
-	wire := &netlink.XfrmStateScope{Flags: netlink.XfrmStateScopeNonInitial, Selectors: scopeWireSelectors()}
+	wire := scopeWirePayload(1, scopeWireSelectors())
 	withStateList(t, func(int) ([]netlink.XfrmState, error) {
-		return []netlink.XfrmState{{Spi: 42, Ifid: 7, StateScope: wire}, {Spi: 43, Ifid: 7}}, nil
+		return []netlink.XfrmState{{Spi: 42, Ifid: 7, ExtraAttrs: []netlink.XfrmAttr{{Type: 42, Value: wire}}}, {Spi: 43, Ifid: 7}}, nil
 	})
 	got, err := (&xfrmBackend{}).ListSAs(7)
 	if err != nil {
@@ -275,20 +278,51 @@ func TestXFRMStateScopeReadbackOwnsCompleteScope(t *testing.T) {
 	if !got[1].StateScopeRead || got[1].Scope != nil {
 		t.Fatal("legacy SAD entry was reported as unread or scoped")
 	}
-	wire.Selectors[0].Ifindex = 44
+	clear(wire)
 	if !reflect.DeepEqual(got[0].Scope.Selectors(), scopeParamSelectors()) || !got[0].Scope.NonInitialFragments() {
 		t.Fatal("readback changed or aliases the netlink dump")
 	}
 }
 
 func TestXFRMStateScopeReadbackRefusesInvalidScope(t *testing.T) {
-	wire := &netlink.XfrmStateScope{Selectors: scopeWireSelectors()}
-	wire.Selectors[0].User = 1
+	selectors := scopeWireSelectors()
+	selectors[0].User = 1
+	wire := scopeWirePayload(0, selectors)
 	withStateList(t, func(int) ([]netlink.XfrmState, error) {
-		return []netlink.XfrmState{{Spi: 41}, {Spi: 42, StateScope: wire}}, nil
+		return []netlink.XfrmState{{Spi: 41}, {Spi: 42, ExtraAttrs: []netlink.XfrmAttr{{Type: 42, Value: wire}}}}, nil
 	})
 	got, err := (&xfrmBackend{}).ListSAs(0)
 	if err == nil || got != nil {
 		t.Fatalf("invalid scope became a partial successful dump: %+v, %v", got, err)
+	}
+}
+
+// TestXFRMStateScopeReadbackRefusesScopeOutsideFilter checks that a malformed
+// scope on a state of another interface still fails the dump: every dumped
+// state's scope is validated before the interface filter.
+func TestXFRMStateScopeReadbackRefusesScopeOutsideFilter(t *testing.T) {
+	selectors := scopeWireSelectors()
+	selectors[0].User = 1
+	wire := scopeWirePayload(0, selectors)
+	withStateList(t, func(int) ([]netlink.XfrmState, error) {
+		return []netlink.XfrmState{{Spi: 41, Ifid: 7}, {Spi: 42, Ifid: 8, ExtraAttrs: []netlink.XfrmAttr{{Type: 42, Value: wire}}}}, nil
+	})
+	got, err := (&xfrmBackend{}).ListSAs(7)
+	if err == nil || got != nil {
+		t.Fatalf("malformed scope outside the interface filter was skipped: %+v, %v", got, err)
+	}
+}
+
+// TestXFRMStateScopeReadbackRefusesDuplicateScope checks that a dumped state with
+// two scope attributes fails the dump instead of keeping either one.
+func TestXFRMStateScopeReadbackRefusesDuplicateScope(t *testing.T) {
+	wire := scopeWirePayload(0, scopeWireSelectors())
+	attrs := []netlink.XfrmAttr{{Type: 42, Value: wire}, {Type: 42, Value: wire}}
+	withStateList(t, func(int) ([]netlink.XfrmState, error) {
+		return []netlink.XfrmState{{Spi: 42, ExtraAttrs: attrs}}, nil
+	})
+	got, err := (&xfrmBackend{}).ListSAs(0)
+	if err == nil || got != nil {
+		t.Fatalf("duplicate scope became a successful dump: %+v, %v", got, err)
 	}
 }

@@ -35,8 +35,8 @@ const (
 	rfcScopeKnownFeatures = (1 << 5) - 1
 )
 
-// rfcScopeAttributeValue deliberately reads raw netlink replies: the existing
-// high-level state reader discards attributes it does not recognize.
+// rfcScopeAttributeValue deliberately reads raw netlink replies, so this proof
+// depends on neither the vendored state reader nor the dataplane's scope parser.
 func rfcScopeAttributeValue(t *testing.T, payload []byte, kind uint16) []byte {
 	t.Helper()
 	attrs, err := nl.ParseRouteAttr(payload)

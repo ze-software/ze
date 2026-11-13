@@ -159,18 +159,25 @@ the new attribute; their implementation and packet proof remain owed before
 the general scope boundary is declared supported.
 <!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- xfrm_get_default, xfrm_state_scope_hold_guard, xfrm_policy_hold_fragment_guard, xfrm_state_gc_destroy, xfrm_policy_destroy_rcu -->
 
-The vendored netlink API carries the ordered set in `XfrmState.StateScope`.
-Its writer validates the complete scope before writing into the caller's buffer.
-Its reader validates and copies each record, preserving exact masks and both
-address families. The 64-record limit counts canonical kernel selectors after
-policy expansion, rather than negotiated traffic-selector pairs.
-`XfrmZECapabilitiesGet` reads the live namespace's receipt.
+Ze's dataplane owns both attributes and their wire form. The vendored netlink
+library knows neither: a state request carries the scope as an opaque
+attribute in `XfrmState.ExtraAttrs`, which the library sends unchanged directly
+after `xfrm_usersa_info`, and a state dump returns it there. The dataplane's
+writer validates the flags, the count and every record before it writes into
+the caller's buffer. Its reader applies the same record rules, copies each
+record into the canonical `SAStateScope`, and preserves exact masks and both
+address families. A second scope attribute on one state fails the dump. The
+64-record limit counts canonical kernel selectors after policy expansion,
+rather than negotiated traffic-selector pairs.
+The dataplane reads the receipt from a fresh `GETDEFAULT` answer of the live
+namespace, built by the same request function as the forward-default read.
 The parser requires the exact ABI, selector limit and known feature bits.
 A missing receipt, a duplicate receipt or an ignored request attribute proves
 no support. Individual feature predicates retain partial K1 receipts without
 claiming that the fragment path exists.
-<!-- source: vendor/github.com/vishvananda/netlink/xfrm_state_scope_linux.go -- WriteTo, ParseXfrmStateScope, XfrmZECapabilitiesGet, ParseXfrmZECapabilities -->
-<!-- source: vendor/github.com/vishvananda/netlink/xfrm_state_linux.go -- xfrmStateAddOrUpdate, parseXfrmState -->
+<!-- source: internal/component/ike/dataplane/xfrm_state_scope_abi_linux.go -- xfrmStateScopeAttr, writeXFRMStateScope, xfrmStateScopeFromAttrs, parseXFRMStateScope, readXFRMZECapabilities, parseXFRMZECapabilities -->
+<!-- source: internal/component/ike/dataplane/xfrm_forward_default_linux.go -- xfrmGetDefaultAnswer -->
+<!-- source: vendor/github.com/vishvananda/netlink/xfrm_state_linux.go -- XfrmAttr, addXfrmExtraAttrs, xfrmStateAddOrUpdate, parseXfrmState -->
 
 `SAParams.Scope` carries an immutable directional set constructed by
 `NewSAStateScope` from the expanded policy records. The constructor rejects more
@@ -582,8 +589,8 @@ corrections (Linux limitation `LL-NETLINK-XFRM-DECODE`,
 `docs/architecture/linux-limitations.md`). Ze records them as an ordered
 series, one file per change, in `internal/le/vendorpatch/patches/netlink-xfrm-*.patch`,
 applied in file-name order. Each file's leading text names the patches it needs.
-`netlink-xfrm-90-ze-state-scope.patch` carries Ze's private kernel ABI, is never
-proposed upstream, and sorts last:
+`netlink-xfrm-90-state-extra-attributes.patch` carries the generic hook through
+which Ze sends and reads its private kernel attribute, and sorts last:
 
 - The state reader decodes `XFRMA_REPLAY_ESN_VAL`, restores the replay window,
   and reports the `XFRM_STATE_ESN` flag.
@@ -634,13 +641,15 @@ proposed upstream, and sorts last:
   `XFRM_STATE_ICMP` and `XFRM_POLICY_ICMP` when they are true, and the readers
   report them (see "ICMP error messages carried by a Child SA" below).
   Patch: `netlink-xfrm-09-icmp-flag.patch`.
-- `XfrmState` gains `StateScope`, an ordered list of 1..64 canonical IPv4 or
-  IPv6 selectors and a negotiated noninitial-fragment flag. Its writer and
-  reader validate and preserve every field. `XfrmZECapabilitiesGet` reads the
-  live namespace's GETDEFAULT receipt and refuses missing, duplicate,
-  malformed or foreign receipts. Individual feature bits let callers require
-  the kernel behavior their request needs before installation.
-  Patch: `netlink-xfrm-90-ze-state-scope.patch`.
+- `XfrmState` gains `ExtraAttrs`, a list of `XfrmAttr` values (an attribute
+  type and its raw value) for attributes the library does not model. The state
+  writer sends each one unchanged directly after `xfrm_usersa_info`, and the
+  state reader returns each attribute whose type is above `XFRMA_MAX`, with its
+  own copy of the value. Ze carries `XFRMA_STATE_SCOPE` through it. The hook
+  names no Ze concept: the scope's wire form and the GETDEFAULT capability
+  receipt live in Ze's dataplane (see "Kernel scope ABI under implementation"
+  above). No upstream pull request is opened for it.
+  Patch: `netlink-xfrm-90-state-extra-attributes.patch`.
 <!-- source: internal/le/vendorpatch/patches/ -- netlink-xfrm-*.patch, XFRM state and policy decoding corrections -->
 
 `TestXFRMReadbackPolicyTunnelAddressFamily` installs an IPv4 policy with IPv6

@@ -1,6 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- explicit capability receipt.
-// Related: xfrm_state_scope_linux.go -- refusal before scoped state publication.
-// Upstream: github.com/vishvananda/netlink v1.3.1, Ze's Linux 7.3 XFRM extension.
+// Related: xfrm_state_scope_abi_linux.go -- the receipt parser under test.
 
 //go:build linux
 
@@ -10,11 +9,10 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 )
 
-func scopeCapabilitiesReply(features netlink.XfrmZEFeature) []byte {
+func scopeCapabilitiesReply(features xfrmZEFeature) []byte {
 	var payload [16]byte
 	binary.NativeEndian.PutUint32(payload[:], uint32(features))
 	binary.NativeEndian.PutUint32(payload[4:], 64)
@@ -26,13 +24,13 @@ func scopeCapabilitiesReply(features netlink.XfrmZEFeature) []byte {
 // TestXFRMStateScopeCapabilitiesPreservePartialReceipt checks all five individual
 // feature bits and retains K1's partial receipt without claiming fragment support.
 func TestXFRMStateScopeCapabilitiesPreservePartialReceipt(t *testing.T) {
-	bits := []netlink.XfrmZEFeature{
-		netlink.XfrmZECapStateScope, netlink.XfrmZECapICMPQuote,
-		netlink.XfrmZECapFragmentContext, netlink.XfrmZECapFragmentGuard,
-		netlink.XfrmZECapICMPFinal,
+	bits := []xfrmZEFeature{
+		xfrmZECapStateScope, xfrmZECapICMPQuote,
+		xfrmZECapFragmentContext, xfrmZECapFragmentGuard,
+		xfrmZECapICMPFinal,
 	}
 	for _, bit := range bits {
-		caps, err := netlink.ParseXfrmZECapabilities(scopeCapabilitiesReply(bit))
+		caps, err := parseXFRMZECapabilities(scopeCapabilitiesReply(bit))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -45,7 +43,7 @@ func TestXFRMStateScopeCapabilitiesPreservePartialReceipt(t *testing.T) {
 			}
 		}
 	}
-	partial, err := netlink.ParseXfrmZECapabilities(scopeCapabilitiesReply(3))
+	partial, err := parseXFRMZECapabilities(scopeCapabilitiesReply(3))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +73,7 @@ func TestXFRMStateScopeCapabilitiesRejectMissingOrForeignReceipt(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := netlink.ParseXfrmZECapabilities(tc.change(scopeCapabilitiesReply(15))); err == nil {
+			if _, err := parseXFRMZECapabilities(tc.change(scopeCapabilitiesReply(15))); err == nil {
 				t.Fatal("accepted no exact capability receipt")
 			}
 		})

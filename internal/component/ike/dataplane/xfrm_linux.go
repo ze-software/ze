@@ -42,7 +42,7 @@ var (
 	xfrmStateList     = netlink.XfrmStateList
 	xfrmPolicyList    = netlink.XfrmPolicyList
 	xfrmStateAdd      = netlink.XfrmStateAdd
-	xfrmScopeCapsRead = netlink.XfrmZECapabilitiesGet
+	xfrmScopeCapsRead = readXFRMZECapabilities
 )
 
 type xfrmBackend struct {
@@ -835,17 +835,17 @@ func (b *xfrmBackend) ListSAs(ifID uint32) ([]SAInfo, error) {
 	out := make([]SAInfo, 0, len(states))
 	for i := range states {
 		s := &states[i]
+		// Every dumped state's scope is validated before the interface filter, so a
+		// malformed scope on any state fails the whole dump.
+		scope, err := xfrmStateScopeFromAttrs(s.ExtraAttrs)
+		if err != nil {
+			return nil, fmt.Errorf("xfrm: state list spi=%d: %w", s.Spi, err)
+		}
 		if ifID != 0 && uint32(s.Ifid) != ifID {
 			continue
 		}
 		info := saInfoFromState(s)
-		if s.StateScope != nil {
-			scope, err := saStateScopeFromKernel(s.StateScope)
-			if err != nil {
-				return nil, fmt.Errorf("xfrm: state list spi=%d: %w", s.Spi, err)
-			}
-			info.Scope = scope
-		}
+		info.Scope = scope
 		info.StateScopeRead = true
 		out = append(out, info)
 	}

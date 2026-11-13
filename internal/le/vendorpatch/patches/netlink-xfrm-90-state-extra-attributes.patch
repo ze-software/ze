@@ -1,0 +1,149 @@
+Ze-Reviewed-Against: github.com/vishvananda/netlink v1.3.1
+
+XfrmState gains ExtraAttrs, a list of XfrmAttr values, each a netlink
+attribute type and its raw value, for attributes this package does not model.
+The state writer, xfrmStateAddOrUpdate, appends each one unchanged and in
+order directly after struct xfrm_usersa_info, before the attributes it writes
+itself. The state reader, parseXfrmState, returns each attribute whose type is
+above nl.XFRMA_MAX, with its own copy of the value. An attribute the package
+defines but does not decode, such as XFRMA_LTIME_VAL, is not returned, so a
+state read back and written again does not resend it.
+
+Ze uses the hook to carry a private kernel attribute that only Ze's runtime
+kernel implements, XFRMA_STATE_SCOPE (42): Ze's dataplane encodes it on a
+state request and decodes it from a state dump
+(internal/component/ike/dataplane/xfrm_state_scope_abi_linux.go). The hook
+itself names no Ze concept and could be proposed upstream as a generic way to
+carry an attribute the package does not know yet. No upstream pull request is
+opened for it.
+
+The appending is split out of xfrmStateAddOrUpdate as addXfrmExtraAttrs, so
+that the request can be checked without sending it. Its test,
+TestXfrmStateExtraAttributes in xfrm_state_extra_attrs_linux_test.go, checks
+the attribute bytes written and the attributes read back, and passes
+unprivileged.
+
+Needs netlink-xfrm-09-icmp-flag.patch and the patches it needs: the
+ExtraAttrs field follows the ICMP field of XfrmState that 09 adds.
+
+Delete this patch when go.mod requires an upstream release that carries an
+equivalent hook, and Ze's dataplane uses that instead.
+
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_extra_attrs_linux_test.go b/vendor/github.com/vishvananda/netlink/xfrm_state_extra_attrs_linux_test.go
+new file mode 100644
+--- /dev/null
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_extra_attrs_linux_test.go
+@@ -0,0 +1,55 @@
++package netlink
++
++import (
++	"bytes"
++	"testing"
++
++	"github.com/vishvananda/netlink/nl"
++	"golang.org/x/sys/unix"
++)
++
++// TestXfrmStateExtraAttributes checks that the state writer appends each extra
++// attribute unchanged and in order, and that the state reader returns an
++// attribute it has no definition for, with its own copy of the value, while it
++// keeps an attribute it defines out of ExtraAttrs.
++func TestXfrmStateExtraAttributes(t *testing.T) {
++	first := uint16(nl.XFRMA_MAX + 8)
++	extra := []XfrmAttr{
++		{Type: first, Value: []byte{1, 2, 3, 4, 5}},
++		{Type: first + 1, Value: []byte{6, 7, 8, 9}},
++	}
++	req := nl.NewNetlinkRequest(nl.XFRM_MSG_NEWSA, 0)
++	addXfrmExtraAttrs(req, extra)
++	// Each attribute is a u16 length that excludes padding and a u16 type,
++	// then its value padded to four bytes.
++	want := make([]byte, 20)
++	native.PutUint16(want[0:], 4+5)
++	native.PutUint16(want[2:], first)
++	copy(want[4:], []byte{1, 2, 3, 4, 5})
++	native.PutUint16(want[12:], 4+4)
++	native.PutUint16(want[14:], first+1)
++	copy(want[16:], []byte{6, 7, 8, 9})
++	if got := req.Serialize()[unix.SizeofNlMsghdr:]; !bytes.Equal(got, want) {
++		t.Fatalf("request attributes = %x, want %x", got, want)
++	}
++
++	msg := nl.XfrmUsersaInfo{Family: nl.FAMILY_V4}
++	m := append(msg.Serialize(), nl.NewRtAttr(int(first), []byte{1, 2, 3, 4, 5}).Serialize()...)
++	m = append(m, nl.NewRtAttr(nl.XFRMA_LTIME_VAL, make([]byte, nl.SizeofXfrmLifetimeCur)).Serialize()...)
++	state, err := parseXfrmState(m, FAMILY_ALL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(state.ExtraAttrs) != 1 {
++		t.Fatalf("ExtraAttrs = %+v, want only attribute %d", state.ExtraAttrs, first)
++	}
++	if state.ExtraAttrs[0].Type != first || !bytes.Equal(state.ExtraAttrs[0].Value, []byte{1, 2, 3, 4, 5}) {
++		t.Fatalf("ExtraAttrs[0] = %+v, want attribute %d with value 0102030405", state.ExtraAttrs[0], first)
++	}
++	for i := range m {
++		m[i] = 0
++	}
++	if !bytes.Equal(state.ExtraAttrs[0].Value, []byte{1, 2, 3, 4, 5}) {
++		t.Fatal("ExtraAttrs shares the message buffer")
++	}
++}
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+--- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+@@ -137,6 +137,18 @@
+ 	ICMP     bool
+ 	Replay   *XfrmReplayState
+ 	Selector *XfrmPolicy
++	// ExtraAttrs are netlink attributes this package does not model. The state
++	// writer sends each one unchanged, in order, directly after
++	// xfrm_usersa_info. The state reader returns each attribute whose type is
++	// above nl.XFRMA_MAX, with its own copy of the value.
++	ExtraAttrs []XfrmAttr
++}
++
++// XfrmAttr is a netlink attribute of an XFRM message: its type and its value,
++// without the attribute header.
++type XfrmAttr struct {
++	Type  uint16
++	Value []byte
+ }
+ 
+ func (sa XfrmState) String() string {
+@@ -283,6 +295,15 @@
+ 	return h.xfrmStateAddOrUpdate(state, nl.XFRM_MSG_UPDSA)
+ }
+ 
++// addXfrmExtraAttrs appends attrs to req unchanged and in order. It is split
++// out of xfrmStateAddOrUpdate so that the request can be checked without
++// sending it.
++func addXfrmExtraAttrs(req *nl.NetlinkRequest, attrs []XfrmAttr) {
++	for _, attr := range attrs {
++		req.AddData(nl.NewRtAttr(int(attr.Type), attr.Value))
++	}
++}
++
+ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
+ 
+ 	// A state with spi 0 can't be deleted so don't allow it to be set
+@@ -306,6 +327,7 @@
+ 
+ 	limitsToLft(state.Limits, &msg.Lft)
+ 	req.AddData(msg)
++	addXfrmExtraAttrs(req, state.ExtraAttrs)
+ 
+ 	if state.Auth != nil {
+ 		out := nl.NewRtAttr(nl.XFRMA_ALG_AUTH_TRUNC, writeStateAlgoAuth(state.Auth))
+@@ -658,6 +680,11 @@
+ 			state.Replay.OSeq = replay.OSeq
+ 			state.Replay.Seq = replay.Seq
+ 			state.Replay.BitMap = replay.BitMap
++		default:
++			if attr.Attr.Type > nl.XFRMA_MAX {
++				value := append([]byte(nil), attr.Value...)
++				state.ExtraAttrs = append(state.ExtraAttrs, XfrmAttr{Type: attr.Attr.Type, Value: value})
++			}
+ 		}
+ 	}
+ 

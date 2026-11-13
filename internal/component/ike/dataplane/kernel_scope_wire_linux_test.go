@@ -1,6 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- exact state-scope ABI.
-// Related: xfrm_state_scope_linux.go -- immutable directional selector scope.
-// Upstream: github.com/vishvananda/netlink v1.3.1, Ze's Linux 7.3 XFRM extension.
+// Related: xfrm_state_scope_abi_linux.go -- the scope writer and reader under test.
 
 //go:build linux
 
@@ -35,15 +34,49 @@ func scopeWireSelectors() []nl.XfrmSelector {
 	}
 }
 
+// scopeWirePayload hand-builds an XFRMA_STATE_SCOPE value: native u32 flags,
+// u32 count, then each record as the kernel's struct xfrm_selector.
+func scopeWirePayload(flags uint32, selectors []nl.XfrmSelector) []byte {
+	payload := make([]byte, 8, 8+len(selectors)*nl.SizeofXfrmSelector)
+	binary.NativeEndian.PutUint32(payload, flags)
+	binary.NativeEndian.PutUint32(payload[4:], uint32(len(selectors)))
+	for i := range selectors {
+		payload = append(payload, selectors[i].Serialize()...)
+	}
+	return payload
+}
+
+// stateScopeValue returns the value of the one XFRMA_STATE_SCOPE attribute a
+// built state carries. The literal 42 checks the private attribute number.
+func stateScopeValue(t *testing.T, state *netlink.XfrmState) []byte {
+	t.Helper()
+	var value []byte
+	found := 0
+	for _, attr := range state.ExtraAttrs {
+		if attr.Type == 42 {
+			value = attr.Value
+			found++
+		}
+	}
+	if found != 1 {
+		t.Fatalf("state carries %d scope attributes, want one: %+v", found, state.ExtraAttrs)
+	}
+	return value
+}
+
 // TestXFRMStateScopeWirePreservesOrderedSelectors checks the actual wire offsets and
 // reads back both families, exact zero and masked ranges without a covering selector.
 func TestXFRMStateScopeWirePreservesOrderedSelectors(t *testing.T) {
-	want := netlink.XfrmStateScope{Flags: netlink.XfrmStateScopeNonInitial, Selectors: scopeWireSelectors()}
+	selectors := scopeWireSelectors()
+	want, err := NewSAStateScope(scopeParamSelectors(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var buf [8 + 64*nl.SizeofXfrmSelector + 7]byte
 	for i := range buf {
 		buf[i] = 0xa5
 	}
-	n, err := want.WriteTo(buf[:], 3)
+	n, err := writeXFRMStateScope(buf[:], 3, xfrmStateScopeNonInitial, selectors)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,21 +90,83 @@ func TestXFRMStateScopeWirePreservesOrderedSelectors(t *testing.T) {
 	if binary.NativeEndian.Uint32(payload) != 1 || binary.NativeEndian.Uint32(payload[4:]) != 2 {
 		t.Fatalf("scope header = %x", payload[:8])
 	}
-	for i := range want.Selectors {
-		if !bytes.Equal(payload[8+i*56:8+(i+1)*56], want.Selectors[i].Serialize()) {
+	for i := range selectors {
+		if !bytes.Equal(payload[8+i*56:8+(i+1)*56], selectors[i].Serialize()) {
 			t.Fatalf("selector %d lost its exact UAPI representation", i)
 		}
 	}
-	got, err := netlink.ParseXfrmStateScope(payload)
+	got, err := parseXFRMStateScope(payload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(got, &want) {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("scope readback = %+v, want %+v", got, want)
 	}
+	sent := bytes.Clone(payload)
 	clear(payload)
-	if !reflect.DeepEqual(got, &want) {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatal("readback aliases the netlink receive buffer")
+	}
+	again, err := got.xfrmStateScopeAttr()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Type != 42 || !bytes.Equal(again.Value, sent) {
+		t.Fatalf("readback re-encodes as type %d %x, want 42 %x", again.Type, again.Value, sent)
+	}
+}
+
+// TestXFRMStateScopeWritesSelectorFamilies checks that the scope writer accepts
+// a canonical selector of each family case and writes it byte for byte, so a
+// transport selector equals its scope record. The cases are the selector family
+// cases of the vendored netlink library's TestXfrmSelectorFamilyFromMask.
+func TestXFRMStateScopeWritesSelectorFamilies(t *testing.T) {
+	cases := []struct {
+		name   string
+		prefix int
+		family uint16
+		saddr  nl.XfrmAddress
+		daddr  nl.XfrmAddress
+	}{
+		{
+			name: "ipv4", prefix: 32, family: nl.FAMILY_V4,
+			saddr: nl.XfrmAddress{198, 51, 100, 9}, daddr: nl.XfrmAddress{192, 0, 2, 4},
+		},
+		{
+			name: "ipv4-in-sixteen-bytes", prefix: 32, family: nl.FAMILY_V4,
+			saddr: nl.XfrmAddress{198, 51, 100, 9}, daddr: nl.XfrmAddress{192, 0, 2, 4},
+		},
+		{
+			name: "native-ipv6", prefix: 64, family: nl.FAMILY_V6,
+			saddr: nl.XfrmAddress{0x20, 1, 0x0d, 0xb8, 0, 1}, daddr: nl.XfrmAddress{0x20, 1, 0x0d, 0xb8, 0, 2},
+		},
+		{
+			name: "mapped-ipv6-host", prefix: 128, family: nl.FAMILY_V6,
+			saddr: nl.XfrmAddress{10: 0xff, 11: 0xff, 12: 198, 13: 51, 14: 100, 15: 9},
+			daddr: nl.XfrmAddress{10: 0xff, 11: 0xff, 12: 192, 14: 2, 15: 4},
+		},
+		{
+			name: "mapped-ipv6-network", prefix: 120, family: nl.FAMILY_V6,
+			saddr: nl.XfrmAddress{10: 0xff, 11: 0xff, 12: 198, 13: 51, 14: 100},
+			daddr: nl.XfrmAddress{10: 0xff, 11: 0xff, 12: 192, 14: 2},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			want := nl.XfrmSelector{
+				Family: tc.family, Saddr: tc.saddr, Daddr: tc.daddr,
+				PrefixlenS: uint8(tc.prefix), PrefixlenD: uint8(tc.prefix), Proto: 17,
+				Sport: 0, SportMask: nl.Swap16(0xffff), Dport: nl.Swap16(0x1200), DportMask: nl.Swap16(0xff00),
+				Ifindex: 9,
+			}
+			var payload [8 + nl.SizeofXfrmSelector]byte
+			if _, err := writeXFRMStateScope(payload[:], 0, 0, []nl.XfrmSelector{want}); err != nil {
+				t.Fatalf("canonical scope rejected: %v", err)
+			}
+			if !bytes.Equal(payload[8:], want.Serialize()) {
+				t.Fatalf("scope record: got %x, want %x", payload[8:], want.Serialize())
+			}
+		})
 	}
 }
 
@@ -98,14 +193,13 @@ func TestXFRMStateScopeWireRejectsInvalidRecords(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			selector := scopeWireSelectors()[0]
 			tc.change(&selector)
-			scope := netlink.XfrmStateScope{Selectors: []nl.XfrmSelector{selector}}
 			var buf [64]byte
-			if _, err := scope.WriteTo(buf[:], 0); err == nil {
+			if _, err := writeXFRMStateScope(buf[:], 0, 0, []nl.XfrmSelector{selector}); err == nil {
 				t.Fatal("writer accepted a noncanonical selector")
 			}
 			binary.NativeEndian.PutUint32(buf[4:], 1)
 			copy(buf[8:], selector.Serialize())
-			if _, err := netlink.ParseXfrmStateScope(buf[:]); err == nil {
+			if _, err := parseXFRMStateScope(buf[:]); err == nil {
 				t.Fatal("reader accepted a noncanonical selector")
 			}
 		})
@@ -120,9 +214,8 @@ func TestXFRMStateScopeWireBounds(t *testing.T) {
 		for i := range selectors {
 			selectors[i] = scopeWireSelectors()[i%2]
 		}
-		scope := netlink.XfrmStateScope{Selectors: selectors}
 		buf := bytes.Repeat([]byte{0xa5}, 8+65*56)
-		n, err := scope.WriteTo(buf, 0)
+		n, err := writeXFRMStateScope(buf, 0, 0, selectors)
 		if count == 0 || count == 65 {
 			if err == nil || !bytes.Equal(buf, bytes.Repeat([]byte{0xa5}, len(buf))) {
 				t.Fatalf("count %d did not refuse without writing", count)
@@ -132,30 +225,30 @@ func TestXFRMStateScopeWireBounds(t *testing.T) {
 		if err != nil {
 			t.Fatalf("valid count %d: %v", count, err)
 		}
-		if _, err := netlink.ParseXfrmStateScope(buf[:n]); err != nil {
+		if _, err := parseXFRMStateScope(buf[:n]); err != nil {
 			t.Fatalf("valid count %d readback: %v", count, err)
 		}
-		if _, err := netlink.ParseXfrmStateScope(buf[:n-1]); err == nil {
+		if _, err := parseXFRMStateScope(buf[:n-1]); err == nil {
 			t.Fatal("reader accepted a truncated selector")
 		}
-		if _, err := netlink.ParseXfrmStateScope(buf[:n+1]); err == nil {
+		if _, err := parseXFRMStateScope(buf[:n+1]); err == nil {
 			t.Fatal("reader accepted trailing bytes")
 		}
-		if _, err := scope.WriteTo(buf[:n-1], 0); err == nil {
+		if _, err := writeXFRMStateScope(buf[:n-1], 0, 0, selectors); err == nil {
 			t.Fatal("writer accepted a short buffer")
 		}
 	}
-	scope := netlink.XfrmStateScope{Flags: 2, Selectors: scopeWireSelectors()}
+	selectors := scopeWireSelectors()
 	var buf [120]byte
-	if _, err := scope.WriteTo(buf[:], 0); err == nil {
+	if _, err := writeXFRMStateScope(buf[:], 0, 2, selectors); err == nil {
 		t.Fatal("writer accepted unknown flags")
 	}
 	binary.NativeEndian.PutUint32(buf[:], 2)
 	binary.NativeEndian.PutUint32(buf[4:], 2)
-	for i := range scope.Selectors {
-		copy(buf[8+i*56:], scope.Selectors[i].Serialize())
+	for i := range selectors {
+		copy(buf[8+i*56:], selectors[i].Serialize())
 	}
-	if _, err := netlink.ParseXfrmStateScope(buf[:]); err == nil {
+	if _, err := parseXFRMStateScope(buf[:]); err == nil {
 		t.Fatal("reader accepted unknown flags")
 	}
 }
@@ -166,7 +259,7 @@ func FuzzXFRMStateScopeReadback(f *testing.F) {
 	f.Add([]byte{})
 	f.Add([]byte{1, 0, 0, 0, 255, 255, 255, 255})
 	f.Fuzz(func(t *testing.T, payload []byte) {
-		_, err := netlink.ParseXfrmStateScope(payload)
+		_, err := parseXFRMStateScope(payload)
 		if err != nil {
 			return
 		}

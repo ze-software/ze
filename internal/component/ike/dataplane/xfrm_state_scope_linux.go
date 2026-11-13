@@ -1,6 +1,6 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- exact directional scope.
 // Related: state_scope.go -- immutable canonical records; xfrm_linux.go -- boundaries.
-// Upstream: https://github.com/vishvananda/netlink, v1.3.1, Ze's XFRM scope extension.
+// Related: xfrm_state_scope_abi_linux.go -- the private kernel ABI: wire form and receipt.
 
 //go:build linux
 
@@ -9,12 +9,9 @@ package dataplane
 import (
 	"errors"
 	"fmt"
-	"net/netip"
 	"runtime"
 
 	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netlink/nl"
-	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/opererr"
 )
@@ -30,15 +27,15 @@ func checkXFRMStateScopeCapabilities() error {
 	if caps == nil {
 		return xfrmStateScopeRefusal(errors.New("the kernel returned no capability receipt"))
 	}
-	if caps.ABI != netlink.XfrmZEABI {
-		return xfrmStateScopeRefusal(fmt.Errorf("kernel scope ABI %#x differs from %#x", caps.ABI, netlink.XfrmZEABI))
+	if caps.ABI != xfrmZEABI {
+		return xfrmStateScopeRefusal(fmt.Errorf("kernel scope ABI %#x differs from %#x", caps.ABI, xfrmZEABI))
 	}
 	if caps.MaxSelectors != saStateScopeMaxSelectors {
 		return xfrmStateScopeRefusal(fmt.Errorf("kernel scope selector limit %d differs from %d", caps.MaxSelectors, saStateScopeMaxSelectors))
 	}
-	const required = netlink.XfrmZECapStateScope | netlink.XfrmZECapICMPQuote |
-		netlink.XfrmZECapFragmentContext | netlink.XfrmZECapFragmentGuard
-	const known = required | netlink.XfrmZECapICMPFinal
+	const required = xfrmZECapStateScope | xfrmZECapICMPQuote |
+		xfrmZECapFragmentContext | xfrmZECapFragmentGuard
+	const known = required | xfrmZECapICMPFinal
 	if caps.Features & ^known != 0 {
 		return xfrmStateScopeRefusal(fmt.Errorf("kernel scope capabilities contain unknown features %#x", caps.Features & ^known))
 	}
@@ -87,14 +84,11 @@ func xfrmStateScopeFromParams(p SAParams, state *netlink.XfrmState) error {
 			return fmt.Errorf("%w: the legacy SA selector differs from its state scope", ErrSAOptionRefused)
 		}
 	}
-	scope := &netlink.XfrmStateScope{Selectors: make([]nl.XfrmSelector, len(p.Scope.selectors))}
-	if p.Scope.noninitial {
-		scope.Flags = netlink.XfrmStateScopeNonInitial
+	attr, err := p.Scope.xfrmStateScopeAttr()
+	if err != nil {
+		return err
 	}
-	for i := range p.Scope.selectors {
-		scope.Selectors[i] = p.Scope.selectors[i].xfrmSelector()
-	}
-	state.StateScope = scope
+	state.ExtraAttrs = append(state.ExtraAttrs, attr)
 	if p.Mode == ModeTransport {
 		selector := p.Scope.selectors[0].params()
 		state.Selector = &netlink.XfrmPolicy{Src: selector.Src, Dst: selector.Dst,
@@ -103,83 +97,4 @@ func xfrmStateScopeFromParams(p SAParams, state *netlink.XfrmState) error {
 			DstPort: int(selector.DstPort.Port), DstPortMask: selector.DstPort.Mask}
 	}
 	return nil
-}
-
-func (s saScopeSelector) xfrmSelector() nl.XfrmSelector {
-	selector := nl.XfrmSelector{Proto: s.proto, PrefixlenS: uint8(s.src.Bits()),
-		PrefixlenD: uint8(s.dst.Bits()), Sport: nl.Swap16(s.srcPort.Port),
-		SportMask: nl.Swap16(s.srcPort.Mask), Dport: nl.Swap16(s.dstPort.Port),
-		DportMask: nl.Swap16(s.dstPort.Mask), Ifindex: s.ifindex}
-	if s.src.Addr().Is4() {
-		selector.Family = unix.AF_INET
-		src, dst := s.src.Addr().As4(), s.dst.Addr().As4()
-		copy(selector.Saddr[:], src[:])
-		copy(selector.Daddr[:], dst[:])
-		return selector
-	}
-	selector.Family = unix.AF_INET6
-	selector.Saddr = nl.XfrmAddress(s.src.Addr().As16())
-	selector.Daddr = nl.XfrmAddress(s.dst.Addr().As16())
-	return selector
-}
-
-// saStateScopeFromKernel validates the mutable DTO again before publishing an
-// owned scope. Invalid data MUST fail the whole dump instead of becoming nil.
-func saStateScopeFromKernel(scope *netlink.XfrmStateScope) (*SAStateScope, error) {
-	if scope.Flags & ^netlink.XfrmStateScopeNonInitial != 0 {
-		return nil, errors.New("kernel state scope contains unknown flags")
-	}
-	if err := saStateScopeCount(len(scope.Selectors)); err != nil {
-		return nil, err
-	}
-	owned := make([]saScopeSelector, len(scope.Selectors))
-	for i := range scope.Selectors {
-		selector, err := saScopeSelectorFromKernel(&scope.Selectors[i])
-		if err != nil {
-			return nil, fmt.Errorf("kernel state scope selector %d: %w", i, err)
-		}
-		owned[i] = selector
-	}
-	return &SAStateScope{selectors: owned, noninitial: scope.Flags == netlink.XfrmStateScopeNonInitial}, nil
-}
-
-func saScopeSelectorFromKernel(raw *nl.XfrmSelector) (saScopeSelector, error) {
-	if raw.User != 0 {
-		return saScopeSelector{}, errors.New("user selector is unsupported")
-	}
-	if raw.Pad != [3]byte{} {
-		return saScopeSelector{}, errors.New("selector padding is nonzero")
-	}
-	src, err := saScopeAddressFromKernel(raw.Saddr, raw.Family)
-	if err != nil {
-		return saScopeSelector{}, fmt.Errorf("source address: %w", err)
-	}
-	dst, err := saScopeAddressFromKernel(raw.Daddr, raw.Family)
-	if err != nil {
-		return saScopeSelector{}, fmt.Errorf("destination address: %w", err)
-	}
-	selector := saScopeSelector{
-		src: netip.PrefixFrom(src, int(raw.PrefixlenS)), dst: netip.PrefixFrom(dst, int(raw.PrefixlenD)),
-		proto: raw.Proto, ifindex: raw.Ifindex,
-		srcPort: PortMatch{Port: nl.Swap16(raw.Sport), Mask: nl.Swap16(raw.SportMask)},
-		dstPort: PortMatch{Port: nl.Swap16(raw.Dport), Mask: nl.Swap16(raw.DportMask)},
-	}
-	if err := selector.validate(); err != nil {
-		return saScopeSelector{}, err
-	}
-	return selector, nil
-}
-
-func saScopeAddressFromKernel(address nl.XfrmAddress, family uint16) (netip.Addr, error) {
-	switch family {
-	case unix.AF_INET:
-		if [12]byte(address[4:]) != [12]byte{} {
-			return netip.Addr{}, errors.New("IPv4 address has a nonzero union tail")
-		}
-		return netip.AddrFrom4([4]byte(address[:4])), nil
-	case unix.AF_INET6:
-		return netip.AddrFrom16([16]byte(address)), nil
-	default:
-		return netip.Addr{}, fmt.Errorf("unknown address family %d", family)
-	}
 }

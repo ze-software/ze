@@ -92,12 +92,6 @@ const (
 
 const XFRMA_OUTPUT_MARK = XFRMA_SET_MARK
 
-// Private Ze Linux 7.3 ABI, appended after the upstream IPTFS attributes.
-const (
-	XFRMA_STATE_SCOPE = 42
-	XFRMA_ZE_CAPS     = 43
-)
-
 const (
 	SizeofXfrmAddress     = 0x10
 	SizeofXfrmSelector    = 0x38
