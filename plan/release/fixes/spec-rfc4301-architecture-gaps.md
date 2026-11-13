@@ -298,11 +298,14 @@ decided on 2026-08-30 to correct the public row to `Partial` with the gaps discl
 to open this spec for the implementation work, one phase per block, security-bearing
 blocks first.
 
-The row remains `Partial`. This spec owns the architecture obligations in its
-phase table, with the DISCARD, PAD and SPD-ordering deliveries retained as
-completed history. A return to `Supported` requires the lifetime-volume work
-and the extraction/sign-off owner's decision and evidence; completing this
-spec alone cannot authorise that publication.
+RFC 4301 remains a partial implementation. The current public ledger derives
+Proof, Evidence and Unmet from the summary and verified records; it no longer
+authors the old literal `Supported` status. This spec owns the architecture
+obligations in its phase table, with DISCARD, PAD and SPD-ordering deliveries
+retained as completed history. Completing it cannot erase wanted feature gaps
+or authorize a full-RFC support claim. The separate lifetime-volume release
+fix and extraction/sign-off ownership remain; neither is silently waived by
+the phase-9 publication correction below.
 
 **Fragment investigation.** `ikeBypassPolicies` installs port-scoped UDP
 500/4500 BYPASS policies. The original draft inferred an exploitable
@@ -457,7 +460,7 @@ Each row was checked against the source on 2026-11-10.
 | R-2 | The fragment work grows into a general connection-tracking subsystem | phase 2 starts naming a new package outside `internal/component/ike/` | the obligation is scoped to BYPASS and DISCARD entries with a non-trivial port range. Reassembly for exactly those entries is the deliverable (`ai/rules/simplicity.md`) |
 | R-3 | A new SPD config surface duplicates the `traffic-selector` list a peer already carries | two config paths describe one selector | one declaration, and the peer selector list derives from it or names it. `ai/rules/principles.md` forbids the second copy |
 | R-4 | An operator order leaf collides with `PriorityIKEBypass`, and a Child SA policy captures IKE | an interop scenario stops rekeying | the IKE bypass keeps a reserved band no operator order can reach, and a config validator refuses an order inside it |
-| R-5 | A completion report claims Supported before the external dependencies and owner sign-off are satisfied | phase 9 treats this spec's tests as sole publication authority | AC-12 remains blocked on lifetime-volume completion and the extraction/sign-off owner's recorded decision and evidence; no unilateral supportClaimingScope change |
+| R-5 | A completion report hides unmet RFC obligations or treats an owner-chosen refusal as conformance | phase 9 tries to clear every gap or restore the retired literal Supported status | AC-12 requires truthful derived disclosure and enforced evidence, preserving named feature debt and the separate lifetime-volume/sign-off owners; no unilateral publication-scope waiver |
 | R-6 | The ICMP block is large enough to exceed one agent, and gets trimmed to fit | an agent reports partial coverage of Section 6 | the package boundary is the BLOCK. An agent whose block is too big reports the size to the main thread, which re-cuts by section (`ai/rules/planning.md`) |
 | R-7 | A new selector field is programmed but never negotiated, so Ze installs a policy the peer never proposed | an interop scenario shows a selector mismatch | RFC 7296 Section 2.9 narrowing is the existing rule: a selector Ze programs is a selector Ze negotiated, or the install is refused |
 
@@ -482,7 +485,7 @@ Each row was checked against the source on 2026-11-10.
 | `set vpn ipsec policy <name> order <n>` committed | → | `SPParams.Priority` derived from the operator order | `TestPolicyOrderReachesTheBackend` |
 | `set vpn ipsec site-to-site peer <name> df-bit copy` committed | → | the DF treatment on the installed SA | `TestDFBitTreatmentReachesTheBackend` |
 | `set vpn ipsec site-to-site peer <name> dscp-map <value>` committed | → | the outer-header DSCP mapping | `TestOuterHeaderDSCPReachesTheBackend` |
-| `./le rfc check` over the closing tree | → | `checkSupportedSignoff` and `checkStatusAgreement` (`internal/le/rfc/check_status.go`) | `TestSupportedRowsHaveDerivableScope` |
+| `./le rfc check` over the closing tree | → | `checkStatusAgreement` and the derived proof/unmet figures | `TestStemFiguresListUnmetIDs`, `TestOneSummaryRendersExactlyOneStatusRow` |
 
 ## Acceptance Criteria
 
@@ -499,7 +502,7 @@ Each row was checked against the source on 2026-11-10.
 | AC-9 | A per-SA PMTU is learned and the aging period elapses | the PMTU returns to the first-hop data-link MTU and is relearned, and the period is configurable |
 | AC-10 | A packet enters a domain for which the inner DSCP value is not appropriate and a mapping is configured | the outer tunnel header carries the mapped value, observed on the wire |
 | AC-11 | `rfc/short/rfc4301.md` is read at closure | its prose describes the native IKEv2 engine rather than strongSwan and charon; the seven `{not-applicable}` annotations and the `{gap}` carry a fresh answer recorded from the owner; the `{single-polarity}` reason on `RFC4301-4.1-3` no longer says the child-SA path hardcodes tunnel mode |
-| AC-12 | `docs/features/rfc-status.md` and `./le rfc check` are read at closure | the RFC 4301 row reads `Supported` with a Remaining cell that claims no gap, `rfc4301` is back in `supportClaimingScope` with its pinning assertion removed, `rfc/extraction/rfc4301.json` is a sign-off the check accepts, and `./le rfc check` names `rfc4301` in no violation |
+| AC-12 | The generated RFC 4301 proof row, summary, records and native RFC check are read at closure | The derived Proof/Evidence/Unmet cells disclose every remaining gap or partial obligation and count only enforced records. Owner-chosen DF-set/fixed-DSCP refusals, OPAQUE feature debt and the absent exact-MH classifier retain their named homes and are never counted conformant. No stale Supported/no-gap criterion or retired supportClaimingScope edit overrides those decisions. This spec's current-capability defects and required proof still have to be completed; lifetime-volume and extraction/sign-off obligations retain their separate owners. |
 | AC-13 | A configured or peer-proposed selector names a port under a protocol with undefined ports, including 47 and 50 as well as 0 | Refuse or narrow the selector without emitting a specific port; RFC7296-3.13.1-1 and RFC7296-3.13.1-2 have discriminating tests and independent enforced verdicts. Owns the weak verdicts transferred under P-3 from spec-rfc-verdict-fix-ike-eap |
 
 AC-8 note (2026-11-10): `df-bit set` is refused at commit by owner decision,
@@ -578,8 +581,8 @@ covers `clear` and `copy`, and `RFC4301-8.1-2` keeps its `{gap}` for `set`.
 - `internal/core/diagnostic/codes.go` - a code per new runtime dependency a doctor check reads
 - `internal/component/ike/engine/doctor.go` - the doctor checks for the new dependencies
 - `rfc/short/rfc4301.md` - the prose repair, the fresh answers on the seven `{not-applicable}` annotations and the `{gap}`, the corrected `{single-polarity}` reason on `RFC4301-4.1-3`, and one new requirement id per obligation this spec implements
-- `docs/features/rfc-status.md` - the RFC 4301 row, raised to `Supported` in the closing phase
-- `internal/le/rfc/check_test.go` - `rfc4301` returns to `supportClaimingScope` and its pinning assertion is removed
+- `docs/features/rfc-status.md` - generated read surface only: inspect derived proof and unmet ids, never hand-edit or commit it
+- `internal/le/rfc/check_status.go`, `internal/le/rfc/profilecoverage_test.go` - existing publication/disclosure contracts to read, not a retired supportClaimingScope list to modify
 - `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - declared by the `// Design:` header of `dataplane.go`, `xfrm_linux.go`, `vpp_policy.go`, `bypass.go` and `child.go`. The SPD action set, the selector set and the policy ordering it describes all change
 - `docs/architecture/ike/ipsec-dataplane-inspection.md` - the policy fields the inspection path reads back
 - `docs/architecture/ike/ipsec-7-ikev2-engine.md` - declared by the `// Design:` header of `remote_id.go` and `doctor.go`. The PAD matching rules it describes change in phase 5, and it gains the new doctor checks in phase 3
@@ -682,9 +685,28 @@ phase 2a and phases 5 and 6 are delivered history and are not repeated.
    - Files: `dataplane.go`, `xfrm_linux.go`, `ze-ipsec-conf.yang`
    - Verify: the mapping is configurable per SA, and the emitted outer header carries the mapped value on the wire rather than only in the installed state
 9. **Phase: summary, annotations and the public row** -- the closing phase
-   - Tests: `TestSupportedRowsHaveDerivableScope`, `./le rfc check`
-   - Files: `rfc/short/rfc4301.md`, `docs/features/rfc-status.md`, `internal/le/rfc/check_test.go`, `rfc/extraction/rfc4301.json`
-   - Verify: every void annotation carries a fresh answer, every new obligation carries a new requirement id and a tagged test, the row reads `Supported`, and `./le rfc check` names `rfc4301` in no violation. The sign-off artifact lands under the rules of `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`
+   - Tests: `TestStemFiguresListUnmetIDs`, `TestOneSummaryRendersExactlyOneStatusRow`, `./le rfc check`
+   - Files: `rfc/short/rfc4301.md`, owned discrimination/audit records, and the existing extraction artifact under its separate owner's rules; read the generated public ledger without authoring it
+   - Verify: every changed annotation has source evidence, every new tagged claim has an observed red and an independent verdict, and the derived public row honestly discloses every unmet obligation. Do not remove gap/partial annotations to satisfy the superseded Supported criterion. Current-capability repairs and their proof remain mandatory; the separately owned extraction/sign-off scope is not decided here.
+
+**Phase-9 scope reconciliation, 2026-11-12.** The original AC-12/no-gap
+deliverable predates the owner's explicit first-release choice to refuse DF
+set and fixed DSCP values (decision table above, quoted 2026-11-12 instruction),
+and the standing release-timing rule in `ai/META-DECISIONS.md`. OPAQUE remains
+owned by `plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md`;
+the wanted exact-MH kernel classifier is now owned by
+`plan/post-release/kernel/spec-xfrm-ipv6-mh-selector.md`. Their absent features
+remain RFC gaps. DF/fixed-DSCP retain
+`plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md` and their partial rows.
+This does not reduce the current defect scope: accepted-but-ineffective
+selectors must be refused, ICMP/fragment/SA-binding defects and required
+interoperability proofs stay owed, and no missing field becomes conformant
+through disclosure. The byte-lifetime release fix and the extraction/sign-off
+spec remain named dependencies with their original ownership. The old
+`supportClaimingScope`, `checkSupportedSignoff` and
+`TestSupportedRowsHaveDerivableScope` names no longer exist in the current RFC
+tooling; `checkStatusAgreement` and derived Proof/Unmet are the present
+publication contract. No tooling behavior is changed by this reconciliation.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -706,13 +728,13 @@ phase 2a and phases 5 and 6 are delivered history and are not repeated.
 | DISCARD is expressible | `grep -n SPActionDiscard internal/component/ike/dataplane/dataplane.go` returns the constant and every backend returns a call site |
 | Fragments are checked | `test/ipsec/ipsec-bypass-fragment-check.ci` passes and the `bypass-fragment-forgery` scenario passes |
 | ICMP controls exist | `./le config schema` shows the ICMP leaves and `ipsec-icmp-unauthenticated-control.ci` passes |
-| Selectors are complete | `RFC4301-4.4.1.1-1` carries no `{gap}` annotation and `rfc/requirements/rfc4301.md` lists a test for it |
+| Selector behavior is exact or refused, with absent features disclosed | Supported selectors have enforced boundary evidence; unsupported constrained selectors refuse before state changes; `RFC4301-4.4.1.1-1` keeps each remaining feature gap and its owner |
 | PAD sub-tree matching exists | the `pad-subtree-identity` scenario passes against strongSwan |
 | SPD ordering exists | `ipsec-spd-order-readback.ci` passes |
 | DF and PMTU are configurable | the `tunnel-df-treatment` scenario passes and `TestPMTUAgingPeriodConfigurable` passes |
 | DSCP is mapped | `TestOuterHeaderDSCPReachesTheBackend` passes |
 | The summary is repaired | `grep -in strongswan rfc/short/rfc4301.md` returns nothing that describes Ze's own negotiation |
-| The public row is raised | the RFC 4301 row reads `Supported` and `./le rfc check` names `rfc4301` in no violation |
+| The public row is truthful | Derived Proof/Evidence/Unmet agree with the source-backed summary and enforced records; no wanted feature gap is hidden or counted conformant |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -768,8 +790,8 @@ phase 2a and phases 5 and 6 are delivered history and are not repeated.
 
 ## Known Limitations
 
-- **It does not implement the Section 4.4.2.1 byte-count SAD lifetime.** `plan/release/fixes/spec-ipsec-lifetime-volume.md` designs it and this spec depends on it. Closure of this spec needs that work landed, because the ledger row cannot read `Supported` while a MUST of Section 4.4.2.1 is unmet.
-- **It does not write `rfc/extraction/rfc4301.json`.** That artifact belongs to `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`. Phase 9 lands it under that spec's rules and its checks.
+- **It does not implement the Section 4.4.2.1 byte-count SAD lifetime.** `plan/release/fixes/spec-ipsec-lifetime-volume.md` designs it and remains a release-fix dependency. The phase-9 disclosure correction does not complete or demote that work, and the corresponding requirement stays unmet until its owner lands the implementation and proof.
+- **It does not independently approve `rfc/extraction/rfc4301.json` or its sign-off population.** That work belongs to `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`; this spec preserves its scope question and cannot settle it by regenerating a ledger.
 - **It does not answer the Section 6.1.1 MAY.** ICMP type-and-code granularity is a MAY, and `ai/rules/rfc-compliance.md` reserves a MAY to the owner. Phase 3 puts it to him with the cost of each option.
 - **It does not widen the class gate in `remoteIDMatches`.** Sub-tree matching is added inside each existing class. An asserted ID_FQDN still cannot satisfy an address-valued `remote-id`.
 
@@ -788,7 +810,7 @@ As of 2026-11-10. Each row stays owed; none is dropped.
 | Direction of Ze's own SAs in `show` (no `XFRMA_SA_DIR` set) | PENDING OWNER: set the SA direction at install, show the engine's belief, or leave it | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md` (2026-11-10 decisions) |
 | Phase 2b, Section 7.4 stateful fragment checking | unchanged, under investigation (A-3) | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md` |
 | Forwarded fragments of a port-specific Child SA meet the catch-all (port 0), crossing in clear under `unmatched bypass` | found 2026-11-10 reading LL-XFRM-FRAGMENT-SELECTOR; the fix belongs with phase 2b | this spec; journal row `silent-fall-through.md` 2026-11-10, owned above |
-| Protocol 135 (MH) selector installed with the IKE value (type in the high octet) as the port | found 2026-11-10; Linux `xfrm_flowi_sport` compares the bare type | this spec; journal row `field-carries-two-meanings.md` 2026-11-10, owned above |
+| Protocol 135 (MH): refuse exact Type while preserving ANY and RFC-valid encoding | 2026-11-12 runtime evidence: exact Type5 dropped matching IN/FWD packets; the repair's named race/verbose units and guest ANY4+typed exact-refusal controls now pass. The 13 mutation walks, four RFC port-field records and affected audit reseals remain owed | release repair here, journal row `field-carries-two-meanings.md` 2026-11-10; wanted classifier feature in `plan/post-release/kernel/spec-xfrm-ipv6-mh-selector.md` |
 | Shared reqid 1 with SPI-less templates across a peer's Child SAs | found 2026-11-10; strains Section 7.3 for fragments of an exact-port SA | this spec; journal row `two-owners-share-one-name.md` 2026-11-10, owned above |
 | RFC 7296 Section 3.13.1: a port under a portless protocol other than 0 | found by the 2026-11-10 audit re-judge (RFC7296-3.13.1-1 and -2 now `weak`) | this spec; journal row `guard-enumerates-instead-of-subtracting.md` 2026-11-10, owned above |
 | Phase 9, summary, annotations and the public row | unchanged, blocked on both Depends specs | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md` |
@@ -817,7 +839,7 @@ offsets, because each one parses a header an attacker controls.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-12 all demonstrated
+- [ ] AC-1..AC-13 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] Scoped tests of the changed packages, tagged units and named functional/interop scenarios pass in the main checkout. After a Go commit, `./le repo compiles check` judges committed dependencies; GitHub CI verifies a pushed commit. No agent runs a whole-tree verification or tests in a worktree

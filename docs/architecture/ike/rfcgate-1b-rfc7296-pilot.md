@@ -77,6 +77,25 @@ The rekey is abandoned, both selector sets are logged, and the SA in use stays.
 config parser validates the port form and the single-host constraint, so an
 unprogrammable policy is a config error rather than a runtime surprise.
 
+Specific transport ports are defined for TCP (6), UDP (17), DCCP (33), SCTP
+(132) and UDP-Lite (136). DCCP-specific ports are refused because Linux XFRM
+does not include them in its flow selector; DCCP with `port any` remains usable.
+Protocols without defined ports, including GRE and ESP, require `port any`.
+The responder validates this before narrowing against configured policy, and
+the initiator refuses an invalid answer. The final encoder also refuses invalid
+protocol/port combinations.
+
+For ICMP, the configured port is the IKE value, with type in the high octet and
+code in the low octet. For Mobility Header protocol 135, it is the MH Type in
+the high octet with a zero low octet: Type 5 has wire value 1280. That encoding
+is valid, but constrained MH is refused by configuration, negotiation and Child
+installation. Linux 7.3 does not fill the received MH Type in its selector flow;
+the guest packet probe delivered ANY Types 5/7 on both IN and FWD, while an exact
+Type 5 policy dropped matching Type 5. ANY MH remains usable. The wanted exact
+classifier is owned by `plan/post-release/kernel/spec-xfrm-ipv6-mh-selector.md`.
+VPP refuses constrained MH and UDP-Lite selectors because its SPD compares
+ports only for TCP, UDP and SCTP.
+
 <!-- source: internal/component/ike/ipsec/traffic_selector.go -- checkPortProgrammable, checkSingleHost, parsePortSelector -->
 <!-- source: internal/component/ike/engine/ts_narrow.go -- programmablePair, programmableSelector -->
 
