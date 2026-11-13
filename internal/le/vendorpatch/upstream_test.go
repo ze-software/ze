@@ -1,7 +1,9 @@
 // VALIDATES: every vendored module a patch under Dir changes is its upstream
-// release plus those patches, file for file, and nothing else.
+// release plus those patches, file for file, and nothing else, and every
+// patch applies forward to that release, the direction the re-vendor uses.
 // PREVENTS: a hand edit in a patched vendored module that no patch records,
-// and a patch that `go mod vendor` dropped or a re-vendor left half applied.
+// a patch that `go mod vendor` dropped or a re-vendor left half applied, and
+// a patch that reverts out of the vendored tree and cannot be applied again.
 
 package vendorpatch
 
@@ -21,7 +23,11 @@ import (
 
 // TestPatchedVendorModulesMatchUpstream reverts every patch of a module in a
 // copy of its vendored tree and requires the result to equal the module as
-// the Go module proxy serves it at the vendored version.
+// the Go module proxy serves it at the vendored version. It then applies the
+// patches, in set order, to a second tree written from the upstream files,
+// and requires each one to apply: `./le setup install` applies them in that
+// direction after `go mod vendor`, so a patch that only reverts cannot
+// rebuild the tree.
 //
 // The set is the patches present in Dir, grouped by the module their review
 // stamp names, so a new patch is checked with no edit here. A module carrying
@@ -72,7 +78,20 @@ func TestPatchedVendorModulesMatchUpstream(t *testing.T) {
 
 // compareWithUpstream copies vendor/<module> (without the nested vendored
 // modules under it), reverts patches in reverse order, and compares every
-// remaining file with the upstream module directory.
+// remaining file with the upstream module directory. It then applies patches
+// forward, in set order, to a second tree that holds those upstream files.
+//
+// The forward apply is not redundant with the revert. A patch that adds a
+// file under `--- /dev/null` with no `new file mode` line reverts cleanly,
+// and git refuses it forward with "dev/null: No such file or directory".
+//
+// THE SECOND TREE IS LOAD-BEARING. Git reads such a section as a change to a
+// file named dev/null, so the revert leaves an empty dev/null in the tree it
+// ran in, and a forward apply in that same tree finds it and passes. Measured
+// 2026-11-13: applied to the reverted copy the malformed patch passed, and
+// applied to a tree the revert never touched it was refused. That tree holds
+// the files a fresh `go mod vendor` writes, so a refusal here is the refusal
+// the re-vendor step would meet.
 func compareWithUpstream(t *testing.T, root, module, version string, patches []string, vendored map[string]string) {
 	t.Helper()
 	upstream := upstreamDir(t, root, module, version)
@@ -84,6 +103,7 @@ func compareWithUpstream(t *testing.T, root, module, version string, patches []s
 		gitApplyReverse(t, work, filepath.Join(root, filepath.FromSlash(relative)), relative)
 	}
 
+	pristine := t.TempDir()
 	for _, rel := range copied {
 		got, err := os.ReadFile(filepath.Join(work, "vendor", filepath.FromSlash(module), rel))
 		if os.IsNotExist(err) {
@@ -100,6 +120,26 @@ func compareWithUpstream(t *testing.T, root, module, version string, patches []s
 		if !bytes.Equal(got, want) {
 			t.Errorf("vendor/%s/%s differs from %s %s plus the patches under %s.\nRecovery: run `./le setup install` to re-vendor and re-apply the patches, or record the change as a patch.", module, rel, module, version, Dir)
 		}
+		writeUpstreamFile(t, filepath.Join(pristine, "vendor", filepath.FromSlash(module), rel), want)
+	}
+	if t.Failed() {
+		return // the vendored tree is not upstream plus the patches, and that is the finding to fix first
+	}
+
+	for _, relative := range patches {
+		gitApplyForward(t, pristine, filepath.Join(root, filepath.FromSlash(relative)), relative, module, version)
+	}
+}
+
+// writeUpstreamFile writes one upstream file into the tree the forward apply
+// runs in, creating its directory.
+func writeUpstreamFile(t *testing.T, target string, content []byte) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
+		t.Fatalf("prepare the tree the patches are applied to: %v", err)
+	}
+	if err := os.WriteFile(target, content, 0o600); err != nil {
+		t.Fatalf("prepare the tree the patches are applied to: %v", err)
 	}
 }
 
@@ -168,12 +208,34 @@ func upstreamDir(t *testing.T, root, module, version string) string {
 // so the patch paths resolve against work and not against a repository root.
 func gitApplyReverse(t *testing.T, work, patch, relative string) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "apply", "--reverse", patch)
-	cmd.Dir = work
-	cmd.Env = append(os.Environ(), "GIT_CEILING_DIRECTORIES="+filepath.Dir(work))
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if out, err := gitApply(t, work, "--reverse", patch); err != nil {
 		t.Fatalf("the vendored change is missing or differs from %s: %v\n%s\nRecovery: run `./le setup install`, which re-vendors and applies every patch under %s.", relative, err, out, Dir)
 	}
+}
+
+// gitApplyForward applies patch inside work, which MUST hold the upstream
+// files of module with every earlier patch of the set applied, and MUST NOT
+// be a tree a revert ran in (see compareWithUpstream). It is the `git apply`
+// the re-vendor step runs (internal/le/setup applyVendorPatches).
+func gitApplyForward(t *testing.T, work, patch, relative, module, version string) {
+	t.Helper()
+	if out, err := gitApply(t, work, patch); err != nil {
+		t.Fatalf("%s reverts out of vendor/%s and does not apply to %s %s: %v\n%s\n"+
+			"`./le setup install` applies every patch forward after `go mod vendor`, so it cannot rebuild vendor/%s from this patch.\n"+
+			"A file the patch adds needs a `new file mode 100644` line between its `diff --git` line and its `--- /dev/null` line.\n"+
+			"Recovery: write the patch again with `git diff --no-index`, as docs/contributing/patching-the-standard-library.md, section \"Patching a vendored module\", describes, then run:\n./le test unit pkg path ./%s/",
+			relative, module, module, version, err, out, module, filepath.ToSlash(filepath.Dir(Dir)))
+	}
+}
+
+// gitApply runs `git apply` with arguments inside work and answers its
+// output. GIT_CEILING_DIRECTORIES is set as gitApplyReverse describes.
+func gitApply(t *testing.T, work string, arguments ...string) ([]byte, error) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", append([]string{"apply"}, arguments...)...)
+	cmd.Dir = work
+	cmd.Env = append(os.Environ(), "GIT_CEILING_DIRECTORIES="+filepath.Dir(work))
+	return cmd.CombinedOutput()
 }
