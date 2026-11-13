@@ -80,6 +80,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   implement it. A feature he left out of the current work, or out of the first
   release, is wanted later: its rows stay gaps owed after the release, and no
   page calls them out of scope.
+- A public page says what Ze does not build and what is not built today, and
+  says nothing about whether or when it will be: no page publishes an intent
+  for an unmet requirement (never, not yet, undecided), because that answer
+  changes too easily. A requirement that has tests but no recorded proof is
+  published apart from one that is not built, never under one heading.
 - A declined feature leaves the count only on the RFC's own words. Either a
   sentence makes the feature optional, or a sentence makes the obligation
   conditional on using the feature (as in "If the client uses a delegated
@@ -90,7 +95,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - A requirement the operating system meets on Ze's behalf still owes a test
   that checks the OS behaviour on the state Ze installs. Until that test
   exists, the requirement is recorded as a gap in testing, never as a gap in
-  correctness.
+  correctness. Once that test proves it, the requirement counts as done in
+  every published figure, the same as one Ze's own code meets, unless a rule
+  here names a reason to keep it out.
 - A requirement the operating system blocks, because Linux cannot provide the
   primitive it needs and a verified limit entry shows it, is reported in a
   section of its own as a limit of the kernel. It is not missing coverage in
