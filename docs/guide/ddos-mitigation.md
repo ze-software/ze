@@ -220,6 +220,14 @@ happen.
 <!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeFromFlows returns on !CharacterizeEnable and on no flows (incFallback) -->
 <!-- source: internal/plugins/ddos/local/responder.go -- onDetected applies the coarse drop -->
 
+**A detection while the plugin starts.** ddos-flowspec acts on detections only
+after its start has withdrawn any rule a previous run left recorded. A
+detection that fires before that, during the plugin's startup handshake, is not
+seen. The detector reports each attack once, so that attack is announced only
+if its characterized event arrives after the start, or once the attack clears
+and triggers again.
+<!-- source: internal/plugins/ddos/flowspec/register.go -- runEngine: OnStarted withdraws the recorded rule, then subscribes -->
+
 **Clearing under FlowSpec mitigation:** once the upstream drops the attack
 traffic, Ze's local sensors go blind (the traffic never arrives). The responder
 uses a *leak-probe*: after the hold-down period, it periodically narrows the
@@ -583,13 +591,16 @@ recorded and withdrawn at the next start.
 | The end | The live announcement |
 |---------|-----------------------|
 | The plugin removed while the daemon runs (the engine's `bye`) | WITHDRAWN before the plugin answers the `bye`. The engine waits 500 ms for that answer, and the withdrawal has 400 ms of its own. A withdrawal that does not reach the engine in that time leaves the record |
-| A daemon stop | NOT withdrawn. The engine sends no `bye` and closes the connection, so no withdrawal can leave. The BGP sessions end with the daemon: a peer drops the rule with the session, or keeps it as stale under graceful restart until its restart timer runs out. The plugin logs one INFO line that ends `the BGP sessions end with the daemon, and the next start withdraws the recorded rule` |
+| A daemon stop | MAY be withdrawn, or may not. The engine sends no `bye`, but the plugin still tries the withdrawal on its way out, with 400 ms of its own. Which one happens depends on a race with the daemon's teardown. When the plugin's run ends while the engine still answers, the withdrawal reaches the engine and the plugin removes the record. When the daemon has already closed the plugin's connection, the withdrawal cannot leave, the record stays, and the next start withdraws the recorded rule. The plugin then logs one INFO line that ends `the BGP sessions end with the daemon, and the next start withdraws the recorded rule`. Either way the BGP sessions end with the daemon: a peer drops the rule with the session, or keeps it as stale under graceful restart until its restart timer runs out |
 | A crash | A panic that unwinds the plugin, or a plugin that stops on its own while the engine still answers, WITHDRAWS on the way out. A killed process withdraws nothing: the rule stays recorded, and the next start withdraws it |
-<!-- source: internal/plugins/ddos/flowspec/register.go -- stopResponder, exitWithdrawBudget, runEngine -->
+<!-- source: internal/plugins/ddos/flowspec/register.go -- stopResponder, exitWithdrawBudget, runEngine (the deferred exit calls stopResponder), transportClosed -->
+<!-- source: internal/component/plugin/process/manager.go -- ProcessManager.Stop closes each plugin's connection -->
 
 **The live-announcement record.** Each announcement is recorded in the runtime
 state key `meta/ddos-flowspec/announcement` before the plugin goes on, and every
-withdrawal that reaches the BGP engine removes the record. When the record cannot
+withdrawal the BGP engine accepts removes the record. A withdrawal the engine
+refuses (for example, when no peer gives the plugin permission to send) leaves
+the record. When the record cannot
 be written, the plugin logs a WARN line with the code
 `doctor-ddos-flowspec-orphan-announcement`, and the announcement still goes out:
 refusing to mitigate because of a failed record would be worse. When the plugin

@@ -249,8 +249,11 @@ const exitWithdrawBudget = 400 * time.Millisecond
 // that context is already canceled, and a withdrawal sent under it would be
 // refused before it left.
 //
-// At a daemon stop the engine sends no `bye` and closes the connection, so the
-// withdrawal cannot leave. That is one INFO line, not an error: the BGP
+// At a daemon stop the engine sends no `bye`: Process.Stop stops the bridge
+// dispatch and closes the plugin's connections (process.go Stop, closeConns),
+// and nothing orders that close against this plugin's exit. The withdrawal
+// leaves when the exit reaches the engine first, and cannot leave when the
+// close came first. The second case is one INFO line, not an error: the BGP
 // sessions end with the daemon, the peers drop the rule with the session (or
 // hold it as stale under graceful restart), and the record stays for the next
 // start to withdraw.
@@ -435,7 +438,13 @@ func runEngine(conn net.Conn) int {
 	}
 
 	var (
-		pending            pendingConfig
+		pending pendingConfig
+		// bus is the event bus OnConfigure loaded, for OnStarted to subscribe the
+		// responder on. started says OnStarted has run, so a configure delivered
+		// after it (a runtime redelivery) subscribes its responder itself.
+		// Both are touched only on the goroutine the SDK runs callbacks on.
+		bus                ze.EventBus
+		started            bool
 		unsubDetect        func()
 		unsubCharacterized func()
 		unsubCleared       func()
@@ -467,28 +476,63 @@ func runEngine(conn net.Conn) int {
 		}
 	}
 
+	// The startup configure (stage 2) builds the responder and does NOT subscribe
+	// it: OnStarted does, after the start-time withdrawal. A configure the engine
+	// redelivers after the start subscribes its responder here, as an apply does.
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		cfg, configured, err := parseSections(sections)
 		if err != nil {
 			return err
 		}
-		bus, err := loadBus()
+		loaded, err := loadBus()
 		if err != nil {
 			return err
 		}
+		bus = loaded
+		if started {
+			unsubscribe()
+		}
 		resp = replaceResponder(cfg, dispatcher, resp, configured)
-		subscribe(bus, resp)
+		if started {
+			subscribe(bus, resp)
+		}
 		log.Info("ddos-flowspec: configured", "response-level", cfg.ResponseLevel, "action", cfg.Action)
 		return nil
 	})
 
 	// The first engine call this plugin makes is here: the state calls are
 	// refused until the startup handshake ends. A rule a previous run left
-	// announced is withdrawn before any detector event can announce a new one,
-	// and nothing is adopted: protection after a restart comes from fresh
-	// detection, as it does for ddos local.
+	// announced is withdrawn first, and nothing is adopted: protection after a
+	// restart comes from fresh detection, as it does for ddos local.
+	//
+	// Only then is the responder subscribed to the detector, so no detection is
+	// acted on before the start-time withdrawal. Subscribed at configure, a
+	// detection inside the handshake reached announce while the state calls were
+	// still refused: the record read as unreadable and the announcement went
+	// ahead, and either the update was refused and the mitigation lost, or it
+	// went out with its record write refused, and the withdrawal here then took
+	// the previous run's rule away, which is the live one when both name the same
+	// rule, while show ddos flowspec still reported it.
+	//
+	// The cost: a detection the detector emits during the handshake reaches no
+	// responder and is not seen. The detector emits one AttackDetected per attack
+	// (ddos/detect emitDetected, once per attack generation) and at most one
+	// AttackCharacterized after it, and AttackOngoing carries no severity and
+	// only feeds the leak probe (onOngoing). So an attack detected during the
+	// handshake loses its blackhole-fallback announcement, is announced only when
+	// its characterized event arrives after this point, and when that event fell
+	// in the handshake too, this plugin does not mitigate the attack until it
+	// clears and triggers again.
+	//
+	// The config transaction callbacks (verify, apply) arrive only on the SDK's
+	// event loop, which starts after this returns, so no apply subscribes earlier.
 	p.OnStarted(func(startCtx context.Context) error {
+		if resp == nil {
+			return errors.New("ddos-flowspec: started without a configured responder; the SDK delivers configure (stage 2) before the start, so this is a defect in the plugin or the SDK")
+		}
 		withdrawRecordedAnnouncement(dispatcher.WithContext(startCtx))
+		subscribe(bus, resp)
+		started = true
 		return nil
 	})
 
@@ -523,10 +567,11 @@ func runEngine(conn net.Conn) int {
 			return errApplyWithoutVerify
 		}
 		unsubscribe()
-		bus, err := loadBus()
+		loaded, err := loadBus()
 		if err != nil {
 			return err
 		}
+		bus = loaded
 		resp = replaceResponder(cfg, dispatcher, resp, configured)
 		subscribe(bus, resp)
 		// Mirrors the "configured" line OnConfigure emits, so a reload that reached

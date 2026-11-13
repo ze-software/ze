@@ -63,6 +63,33 @@ func TestOrphanCheckReportsARecordWithNoLiveResponder(t *testing.T) {
 	}
 }
 
+// TestRuntimeOrphanReportNamesBothCausesOfAFailedWithdrawal proves that the
+// runtime report says why the withdrawal failed in words true for both causes:
+// an engine that did not take it, and an engine that took it and refused the
+// send (test/plugin/ddos-flowspec-orphan-doctor.ci, where the send permission
+// refuses it).
+//
+// VALIDATES: ai/rules/user-facing-errors.md, "why it matters", for the runtime
+// report: the reason it gives is true in every case that reaches it.
+// METHOD: the runtime report for orphanTestMatch, read for the reason and for
+// the claim it replaced.
+// PREVENTS: a report that says the withdrawal never reached the BGP engine,
+// when the engine took it and refused to send it.
+func TestRuntimeOrphanReportNamesBothCausesOfAFailedWithdrawal(t *testing.T) {
+	diag := unownedOrphanDiagnostic(orphanTestMatch())
+
+	const reason = "the last withdrawal of the rule did not reach the BGP peers, because the BGP engine did not take it or refused to send it"
+	if !strings.Contains(diag.Message, reason) {
+		t.Errorf("message %q does not carry the reason %q", diag.Message, reason)
+	}
+	if strings.Contains(diag.Message, "did not reach the BGP engine") {
+		t.Errorf("message %q says the withdrawal did not reach the BGP engine, which is false when the engine refused the send", diag.Message)
+	}
+	if diag.Fix != restartTestFix {
+		t.Errorf("fix = %q, want %q", diag.Fix, restartTestFix)
+	}
+}
+
 // TestCorruptRecordReportNamesTheReadCommand proves that the report of a record
 // that does not decode prints, as its fix, the command that reads the record,
 // and never the record's removal.
@@ -157,7 +184,7 @@ func TestRestartWithdrawsTheOrphanAndClearsTheReport(t *testing.T) {
 		t.Fatalf("withdrawals of %s by the restarted plugin = %d, want 1 (commands: %v)",
 			exitTestVictim, got, second.routeCommands())
 	}
-	if store.holds(announcementRecordKey) {
+	if store.holdsAnnouncementRecord() {
 		t.Fatalf("the record %s is still stored after the restarted plugin withdrew the rule", announcementRecordKey)
 	}
 	if after := second.doctorCheck(ctx, orphanRuntimeCheck); len(after) != 0 {

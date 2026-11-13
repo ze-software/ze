@@ -93,8 +93,9 @@ type engineStub struct {
 
 // startEngineStub runs runEngine over a net.Pipe against an engineStub, drives
 // the five-stage startup with a `ddos flowspec` section at response-level
-// enforce with blackhole-fallback, and returns once the plugin reached ready.
-// stored seeds what the plugin's state-get finds.
+// enforce with blackhole-fallback, and returns once the plugin has started:
+// past OnStarted and subscribed (finishStartup). stored seeds what the
+// plugin's state-get finds.
 func startEngineStub(t *testing.T, stored map[string][]byte) (*engineStub, *exitTestBus) {
 	t.Helper()
 	return startEngineStubOn(t, newStubStore(stored), "")
@@ -136,11 +137,12 @@ func (s *stubStore) apply(method, key string, data []byte) *rpc.StateOutput {
 	return &rpc.StateOutput{Status: rpc.StateOK}
 }
 
-// holds reports whether key is stored now.
-func (s *stubStore) holds(key string) bool {
+// holdsAnnouncementRecord reports whether the announcement record
+// (announcementRecordKey) is stored now.
+func (s *stubStore) holdsAnnouncementRecord() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, found := s.data[key]
+	_, found := s.data[announcementRecordKey]
 	return found
 }
 
@@ -151,6 +153,17 @@ func startEngineStubOn(t *testing.T, store *stubStore, routeRefusal string) (*en
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 
+	e, bus := launchEngineStub(ctx, t, store, routeRefusal)
+	e.configure(ctx)
+	e.finishStartup(ctx)
+	return e, bus
+}
+
+// launchEngineStub starts runEngine over a net.Pipe and the stub that serves
+// the engine's half, and returns before the plugin has declared anything. The
+// caller drives the startup: configure, then finishStartup.
+func launchEngineStub(ctx context.Context, t *testing.T, store *stubStore, routeRefusal string) (*engineStub, *exitTestBus) {
+	t.Helper()
 	bus := &exitTestBus{subs: make(map[string][]func(any))}
 	var eb ze.EventBus = bus
 	previousBus := eventBusPtr.Load()
@@ -178,16 +191,32 @@ func startEngineStubOn(t *testing.T, store *stubStore, routeRefusal string) (*en
 			t.Error("the ddos-flowspec engine did not exit after its transport closed")
 		}
 	})
+	return e, bus
+}
 
+// configure drives startup stages 1 and 2: it waits for the plugin's
+// declaration, then delivers a `ddos flowspec` section at response-level
+// enforce with blackhole-fallback, and returns once the plugin answered it.
+func (e *engineStub) configure(ctx context.Context) {
+	e.t.Helper()
 	section := `{"ddos":{"flowspec":{"response-level":"enforce","action":"discard","blackhole-fallback":"true"}}}`
 	e.waitRequest(ctx, rpc.MethodDeclareRegistration)
 	e.callback(ctx, "ze-plugin-callback:configure", rpc.ConfigureInput{
 		Sections: []rpc.ConfigSection{{Root: configRoot, Data: section}},
 	})
+}
+
+// finishStartup drives stages 3 to 5, then sends the post-startup callback the
+// daemon sends once every plugin is ready, and returns once the plugin answered
+// it. The plugin answers a callback only from its event loop, which the SDK
+// enters after OnStarted returned, so the answer means the start-time
+// withdrawal has run and the responder is subscribed to the detector.
+func (e *engineStub) finishStartup(ctx context.Context) {
+	e.t.Helper()
 	e.waitRequest(ctx, "ze-plugin-engine:declare-capabilities")
 	e.callback(ctx, "ze-plugin-callback:share-registry", rpc.ShareRegistryInput{})
 	e.waitRequest(ctx, "ze-plugin-engine:ready")
-	return e, bus
+	e.callback(ctx, "ze-plugin-callback:post-startup", struct{}{})
 }
 
 // run is the plugin's side: the production engine function over its end of the pipe.
@@ -386,21 +415,42 @@ func countCommands(cmds []string, mode string) int {
 // waits for the `bye` answer before it stops a removed plugin
 // (notifyPluginRemoval), so a withdrawal sent after the answer reaches nobody.
 // METHOD: runEngine over a real sdk.Plugin pair (A-11), one announcement through
-// the bus, then `bye`; the engine stub's record is read once the answer arrived.
+// the bus, then `bye`; the engine stub's record, its store and the responder
+// show ddos flowspec reads are checked once the answer arrived.
 // PREVENTS: plan/journal/component-rebuilt-during-reload.md (2026-09-20): the
 // plugin registered no `bye` handler, so a removal left the FlowSpec rule at
-// every peer for the life of the daemon.
+// every peer for the life of the daemon. Also a withdrawal that leaves the
+// record behind, so the next start withdraws the rule a second time and
+// ze doctor reports an orphan meanwhile, and one that leaves the responder
+// claiming the rule it withdrew.
 func TestByeWithdrawsTheLiveAnnouncement(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	e, bus := startEngineStub(t, nil)
 	announceVictim(t, e, bus)
+	// The responder handleShowDdosFlowspec reads. It is taken before the `bye`,
+	// because runEngine's deferred exit clears activeResponder once Run returns,
+	// and a nil there would answer "nothing announced" whatever the responder held.
+	shown := activeResponder.Load()
+	if shown == nil {
+		t.Fatalf("setup: no active responder after the announcement")
+	}
+	if !e.store.holdsAnnouncementRecord() {
+		t.Fatalf("setup: the announcement was not recorded under %s", announcementRecordKey)
+	}
 
 	e.bye(ctx)
 
 	if got := countCommands(e.routeCommands(), "/flow del "); got != 1 {
 		t.Fatalf("withdrawals for %s before the bye answer = %d, want 1 (commands: %v)",
 			exitTestVictim, got, e.routeCommands())
+	}
+	if e.store.holdsAnnouncementRecord() {
+		t.Fatalf("the record %s is still stored after the bye withdrew the rule (state calls: %v)",
+			announcementRecordKey, e.stateCalls())
+	}
+	if active, target, _ := shown.status(); active {
+		t.Fatalf("show ddos flowspec still reports %s announced after the bye withdrew it", target.DstPrefix)
 	}
 	e.waitExit(ctx)
 }

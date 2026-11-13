@@ -113,7 +113,8 @@ func decodeAnnouncementRecord(data []byte) (flowspecMatch, error) {
 // A withdrawal sent before any BGP session is established reaches no peer,
 // which is correct: a session that comes up later never held the rule.
 //
-// runEngine calls it once, from OnStarted, before any responder can announce.
+// runEngine calls it once, from OnStarted, before it subscribes the responder
+// to the detector, so no responder can announce before it has run.
 //
 // Every line names the code constant at the call, never through a local: `./le
 // arch doctor-coverage check` matches a log line to its doctor check by the
@@ -870,6 +871,14 @@ func (r *responder) withdraw() {
 // rule the engine may still hold stays recorded, for the next announcement or
 // the next start to withdraw and for `ze doctor` to report. It returns the
 // dispatch error.
+//
+// On a withdrawal that reached the engine the record goes BEFORE the live flag.
+// The runtime doctor check reads the live state lock-free and then the record
+// (answerOrphanRuntimeCheck), so a flag cleared first would show it a record
+// with no live owner, an orphan, for the instant between the two. In this
+// order it sees the record with its live owner, or no record. The flag is
+// cleared whether or not the removal succeeded: the rule is withdrawn, and a
+// record left behind is then the orphan the doctor is right to report.
 // Caller holds r.mu.
 func (r *responder) withdrawThrough(d routeDispatcher) error {
 	cmd := renderFlowspecCommand(r.match, "", 0, "del")
@@ -877,11 +886,8 @@ func (r *responder) withdrawThrough(d routeDispatcher) error {
 	if r.probe != nil {
 		r.probe.Stop()
 	}
-	// The probe is dropped, not merely stopped: announce always builds a fresh
-	// one, and probeTick reads it only while active. Keeping the target lets the
-	// log line and a post-withdraw read still name what was announced.
-	r.setAnnouncement(false, r.target, nil)
 	if err != nil {
+		r.endAnnouncement()
 		return err
 	}
 	logger().Info("ddos-flowspec: withdrawn", "target", r.target.DstPrefix)
@@ -889,7 +895,16 @@ func (r *responder) withdrawThrough(d routeDispatcher) error {
 		logger().Warn("ddos-flowspec: the FlowSpec rule was withdrawn, but its record could not be removed; ze doctor reports it until the next start removes it",
 			"target", r.target.DstPrefix, "error", forgetErr, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
 	}
+	r.endAnnouncement()
 	return nil
+}
+
+// endAnnouncement clears the live flag after a withdrawal. The probe is
+// dropped, not merely stopped: announce always builds a fresh one, and
+// probeTick reads it only while active. Keeping the target lets the log line
+// and a post-withdraw read still name what was announced. Caller holds r.mu.
+func (r *responder) endAnnouncement() {
+	r.setAnnouncement(false, r.target, nil)
 }
 
 // status returns the published snapshot for the show handler: whether an
