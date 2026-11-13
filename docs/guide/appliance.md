@@ -1041,7 +1041,7 @@ The separate boot inbox `/perm/ze/config-pushed.conf` validates its contents and
 writes the legacy active entry. Invalid contents cause deletion of that inbox
 file. The startup hash records this legacy entry in `meta/config/active-hash`
 inside the live store. It does not establish the current canonical version.
-Use authenticated `show config` to inspect the running configuration.
+Use authenticated `show config running` to inspect the running configuration.
 <!-- source: cmd/ze/pushed_config.go -- checkPushedConfig, writeConfigActiveHash -->
 <!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig -->
 

@@ -116,7 +116,7 @@ func (o *configMutationOwner) Upload(ctx context.Context, content []byte) error 
 		return opererr.New("configuration upload could not read the accepted source", "No replacement was staged; check the device storage", "ze doctor")
 	}
 	if err := runtime.commit(ctx, expected, content); err != nil {
-		return opererr.New("configuration upload was not accepted", "The daemon could not complete its configuration transaction; inspect the live configuration and daemon diagnostics before retrying", "show config")
+		return opererr.New("configuration upload was not accepted", "The daemon could not complete its configuration transaction; inspect the live configuration and daemon diagnostics before retrying", "show config running")
 	}
 	return nil
 }

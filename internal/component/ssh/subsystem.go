@@ -83,7 +83,7 @@ func (s *Server) serveSubsystem(sess ssh.Session, handler SubsystemHandler) {
 		return
 	}
 	if ctx.Err() != nil {
-		err = opererr.New("SSH operation ended before its receipt was delivered", "The result may already be applied; check the device before retrying", "show config")
+		err = opererr.New("SSH operation ended before its receipt was delivered", "The result may already be applied; check the device before retrying", "show config running")
 		io.WriteString(sess.Stderr(), err.Error()+"\n") //nolint:errcheck // The peer may have disconnected.
 		sess.Exit(1)                                    //nolint:errcheck // The peer may have disconnected.
 		return

@@ -370,10 +370,10 @@ func (r *sshUploadReceipt) readDiagnostic(reader io.Reader) {
 func configUploadVerifyCommand(addr, user string) string {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		return "show config"
+		return "show config running"
 	}
 	var command textbuf.Buffer
-	return command.Str("ssh -p ").Str(port).Byte(' ').Str(user).Byte('@').Str(host).Str(" 'show config'").String()
+	return command.Str("ssh -p ").Str(port).Byte(' ').Str(user).Byte('@').Str(host).Str(" 'show config running'").String()
 }
 
 func uncertainConfigUpload(addr, user string, cause error) error {
