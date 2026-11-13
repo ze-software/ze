@@ -23,7 +23,7 @@ The kernel config is split into a base (`kernel.config`) plus a profile:
 
 | Profile | File | Drivers | Use case |
 |---------|------|---------|----------|
-| `qemu` (default) | `qemu.config` | virtio NIC + block | QEMU tests, fast build |
+| `qemu` (default) | `qemu.config` | virtio NIC + block + SCSI (the arm64 ISO CD-ROM) | QEMU tests, fast build |
 | `hardware` | `hardware.config` | virtio + EFI + Intel/Realtek/Broadcom/Mellanox NICs + AHCI + NVMe + framebuffer | Bare metal PXE/ISO install (headless / serial console) |
 | `hardware-kms` | `hardware-kms.config` | hardware + Intel i915 KMS | Bare metal where a working monitor is needed |
 
