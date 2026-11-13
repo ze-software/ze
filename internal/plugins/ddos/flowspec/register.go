@@ -249,14 +249,23 @@ const exitWithdrawBudget = 400 * time.Millisecond
 // that context is already canceled, and a withdrawal sent under it would be
 // refused before it left.
 //
-// At a daemon stop the engine sends no `bye`: Process.Stop stops the bridge
-// dispatch and closes the plugin's connections (process.go Stop, closeConns),
-// and nothing orders that close against this plugin's exit. The withdrawal
-// leaves when the exit reaches the engine first, and cannot leave when the
-// close came first. The second case is one INFO line, not an error: the BGP
-// sessions end with the daemon, the peers drop the rule with the session (or
-// hold it as stale under graceful restart), and the record stays for the next
-// start to withdraw.
+// At a daemon stop the engine sends no `bye`, and the withdrawal cannot leave.
+// In process (the default placement), Process.Stop runs bridge.StopDispatch
+// first, then bridge.CloseCallbacks, then closeConns (process.go Stop). This
+// plugin's Run ends only when the callback channel closes or its own context
+// ends, and under sdk.HostOwnsSignals, which the daemon sets, SignalContext is
+// a plain cancel context that no signal ends. So Run returns after
+// StopDispatch, and the withdrawal meets DirectBridge.DispatchRPC refusing it
+// with rpc.ErrBridgeClosed (bridge.go beginDispatch). A forked plugin's Run
+// ends on closeConns, so its withdrawal meets a closed connection. The one
+// exception is a forked plugin that receives SIGINT or SIGTERM from outside
+// before the daemon's stop reaches it (a signal to its process group, for
+// example): its Run returns while the engine still answers, and the
+// withdrawal leaves (TestRunEndingWithoutByeWithdrawsTheLiveAnnouncement).
+// The closed transport is one INFO line, not an error: the BGP sessions end
+// with the daemon, the peers drop the rule with the session (or hold it as
+// stale under graceful restart), and the record stays for the next start to
+// withdraw.
 func stopResponder(r *responder) {
 	if r == nil {
 		return

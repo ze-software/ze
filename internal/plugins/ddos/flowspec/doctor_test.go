@@ -64,23 +64,40 @@ func TestOrphanCheckReportsARecordWithNoLiveResponder(t *testing.T) {
 }
 
 // TestRuntimeOrphanReportNamesBothCausesOfAFailedWithdrawal proves that the
-// runtime report says why the withdrawal failed in words true for both causes:
-// an engine that did not take it, and an engine that took it and refused the
-// send (test/plugin/ddos-flowspec-orphan-doctor.ci, where the send permission
-// refuses it).
+// runtime report says why the record outlived the withdrawal in words true for
+// all three causes: an engine that did not take the withdrawal, an engine that
+// took it and refused the send (test/plugin/ddos-flowspec-orphan-doctor.ci,
+// where the send permission refuses it), and a withdrawal the engine sent
+// whose record removal then failed (responder.go withdrawThrough and
+// withdrawRecordedRule, where Forget fails after a successful Dispatch). The
+// name predates the third cause.
 //
 // VALIDATES: ai/rules/user-facing-errors.md, "why it matters", for the runtime
-// report: the reason it gives is true in every case that reaches it.
-// METHOD: the runtime report for orphanTestMatch, read for the reason and for
-// the claim it replaced.
+// report: the reason it gives is true in every case that reaches it, and the
+// claim about the peers stays "may", which is true when the rule did leave them.
+// METHOD: the runtime report for orphanTestMatch, read for each cause, for the
+// hedged claim about the peers, and for the claim it replaced.
 // PREVENTS: a report that says the withdrawal never reached the BGP engine,
-// when the engine took it and refused to send it.
+// when the engine took it and refused to send it; and a report that says the
+// withdrawal did not reach the peers, when it did and only the record removal
+// failed.
 func TestRuntimeOrphanReportNamesBothCausesOfAFailedWithdrawal(t *testing.T) {
 	diag := unownedOrphanDiagnostic(orphanTestMatch())
 
 	const reason = "the last withdrawal of the rule did not reach the BGP peers, because the BGP engine did not take it or refused to send it"
 	if !strings.Contains(diag.Message, reason) {
 		t.Errorf("message %q does not carry the reason %q", diag.Message, reason)
+	}
+	const removalCause = "or the BGP engine sent the withdrawal and the plugin could not remove the record after it"
+	if !strings.Contains(diag.Message, removalCause) {
+		t.Errorf("message %q does not name the failed record removal %q", diag.Message, removalCause)
+	}
+	if !strings.Contains(diag.Message, "Either "+reason) {
+		t.Errorf("message %q states the undelivered withdrawal as the only cause; it is one of two alternatives", diag.Message)
+	}
+	const hedge = "Every BGP peer that took the rule may still discard or rate-limit traffic to "
+	if !strings.Contains(diag.Message, hedge) {
+		t.Errorf("message %q does not carry the hedged peer claim %q", diag.Message, hedge)
 	}
 	if strings.Contains(diag.Message, "did not reach the BGP engine") {
 		t.Errorf("message %q says the withdrawal did not reach the BGP engine, which is false when the engine refused the send", diag.Message)

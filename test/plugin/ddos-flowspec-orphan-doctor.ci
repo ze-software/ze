@@ -31,9 +31,12 @@
 #      written, so it is no barrier.
 #   2. The first daemon is KILLED. A killed process withdraws nothing, and the
 #      record stays in the disk store (docs/guide/ddos-mitigation.md, "What
-#      each end of the plugin does"). A SIGTERM would not do: an internal
-#      plugin's stop races the engine's teardown, and a withdrawal that still
-#      reaches the engine removes the record.
+#      each end of the plugin does"). A SIGTERM would leave the record too
+#      for this in-process plugin, because the daemon's stop refuses its
+#      calls before its run ends (register.go stopResponder), but the kill
+#      is the end that leaves the record whatever the placement: a forked
+#      plugin signalled before the daemon's stop reaches it withdraws the
+#      rule and removes the record.
 #   3. The second daemon starts on a config that keeps `ddos flowspec` but
 #      whose peer no longer attaches ddos-flowspec. The start-time withdrawal
 #      (withdrawRecordedAnnouncement) is refused by the send permission

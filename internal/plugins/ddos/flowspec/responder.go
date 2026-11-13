@@ -879,6 +879,13 @@ func (r *responder) withdraw() {
 // order it sees the record with its live owner, or no record. The flag is
 // cleared whether or not the removal succeeded: the rule is withdrawn, and a
 // record left behind is then the orphan the doctor is right to report.
+//
+// The price of this order: for the length of the record removal, `show ddos
+// flowspec` still reports the rule announced after its withdrawal went out.
+// The removal is one state call, bounded by stateCallTimeout (5 s), and on the
+// plugin's way out by the shorter exitWithdrawBudget (400 ms) that also covers
+// the withdrawal. That window is accepted so that the doctor never sees a
+// record without its owner.
 // Caller holds r.mu.
 func (r *responder) withdrawThrough(d routeDispatcher) error {
 	cmd := renderFlowspecCommand(r.match, "", 0, "del")

@@ -122,21 +122,25 @@ func recordRemovalToday(msg *textbuf.Buffer) {
 }
 
 // unownedOrphanDiagnostic is the runtime report: the plugin runs and its
-// responder does not hold the recorded rule as live, so the last withdrawal of
-// that rule failed. It did not reach the BGP peers for one of two reasons: the
-// engine did not take it (the engine was gone, the connection closed, the
-// budget ran out), or the engine took it and refused to send it (the send
-// permission, when no peer attaches the plugin). Its fix is the plugin restart: the restarted plugin's start
+// responder does not hold the recorded rule as live, so the record outlived the
+// last withdrawal of that rule. Three causes leave it: the engine did not take
+// the withdrawal (the engine was gone, the connection closed, the budget ran
+// out); the engine took it and refused to send it (the send permission, when
+// no peer attaches the plugin); or the engine sent it and the record removal
+// after it failed (responder.go withdrawThrough and withdrawRecordedRule log
+// that, and end the announcement). Only the first two leave the rule at the
+// peers, and the report cannot tell the three apart, so it names all three and
+// says the peers "may" still hold the rule. Its fix is the plugin restart: the restarted plugin's start
 // (withdrawRecordedAnnouncement, from OnStarted) withdraws the recorded rule and
 // removes the record in one step, which a withdrawal typed at the CLI does not.
 func unownedOrphanDiagnostic(m flowspecMatch) rpc.DoctorCheckDiagnostic {
 	victim := m.DstPrefix.String()
 	var msg textbuf.Buffer
 	msg.Str("ddos-flowspec holds the record of a FlowSpec rule it announced for ").Str(victim).
-		Str(", and no running responder holds that rule as its live announcement: the last withdrawal of the rule did not reach the BGP peers, because the BGP engine did not take it or refused to send it, and the plugin logged why under the code ").
+		Str(", and no running responder holds that rule as its live announcement. Either the last withdrawal of the rule did not reach the BGP peers, because the BGP engine did not take it or refused to send it, or the BGP engine sent the withdrawal and the plugin could not remove the record after it. The plugin logged why under the code ").
 		Str(diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement).
 		Str(". Every BGP peer that took the rule may still discard or rate-limit traffic to ").Str(victim).
-		Str(". A restart of the plugin withdraws the recorded rule and removes the record. If the cause of the failed withdrawal remains, the restart fails the same way, the plugin logs the cause again, and this report stays")
+		Str(". A restart of the plugin withdraws the recorded rule and removes the record; a second withdrawal of a rule the peers no longer hold changes nothing. If the cause of the failed withdrawal or removal remains, the restart fails the same way, the plugin logs the cause again, and this report stays")
 	return rpc.DoctorCheckDiagnostic{
 		Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
 		Severity: string(diagnostic.SeverityWarning),
