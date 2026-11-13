@@ -14,12 +14,12 @@
     "rid": "RFC3032-2.4.3-1",
     "polarity": "positive",
     "unit": "internal/plugins/fib/kernel/rfc3032_push_ttl_linux_test.go::TestBuildRichRoutePushCarriesNoTTL",
-    "unit-sha": "1444c5756f4b82e6",
-    "claim-sha": "6df51bc3640098af",
+    "unit-sha": "c9a3debace66fdd3",
+    "claim-sha": "67d6f615d4d0accf",
     "route": "mutant",
     "producer": "internal/plugins/fib/kernel/nexthop_linux.go::buildMPLSEncap",
     "producer-sha": "99f0540d061b123a",
-    "break": "line 317: \"func buildMPLSEncap(labels []uint32) *netlink.MPLSEncap {\" -\u003e \"func buildMPLSEncap(labels []uint32) netlink.Encap { return ttlEncap{plainMPLSEncap(labels)} }; type ttlEncap struct{ *netlink.MPLSEncap }; func (e ttlEncap) Encode() ([]byte, error) { b, err := e.MPLSEncap.Encode(); return append(b, 5, 0, unix.MPLS_IPTUNNEL_TTL, 0, 64, 0, 0, 0), err }; func plainMPLSEncap(labels []uint32) *netlink.MPLSEncap {\""
+    "break": "line 320: \"func buildMPLSEncap(labels []uint32) *netlink.MPLSEncap {\" -\u003e \"func buildMPLSEncap(labels []uint32) netlink.Encap { return ttlEncap{plainMPLSEncap(labels)} }; type ttlEncap struct{ *netlink.MPLSEncap }; func (e ttlEncap) Encode() ([]byte, error) { b, err := e.MPLSEncap.Encode(); return append(b, 5, 0, unix.MPLS_IPTUNNEL_TTL, 0, 64, 0, 0, 0), err }; func plainMPLSEncap(labels []uint32) *netlink.MPLSEncap {\""
   },
   {
     "rid": "RFC3032-2.4.3-1",
