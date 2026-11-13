@@ -148,8 +148,14 @@ show flow recent dst 203.0.113.42    # flows to a destination prefix or address
 
 Each signal carries a graded **severity** from the peak-to-threshold ratio:
 `medium` (>=1x), `high` (>=2x), `critical` (>=5x). The FlowSpec responder can use
-`critical` to engage an immediate blackhole (below).
+`critical` to engage an immediate blackhole (below). The severity is graded once,
+when the detector triggers, from the highest rate seen above the threshold up to
+that moment. It is not revised while the attack continues: the `AttackOngoing`
+events that follow carry the current rates and no severity.
 <!-- source: internal/core/ddosevent/event.go -- GradeSeverity -->
+<!-- source: internal/plugins/ddos/detect/detector.go -- applyTick (peakRxPps), onAttackStart (one grade at trigger) -->
+<!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeAndEmit calls GradeSeverity -->
+<!-- source: internal/core/ddosevent/event.go -- AttackOngoing has no severity -->
 
 ### Upstream FlowSpec mitigation
 
@@ -190,8 +196,12 @@ of `0` is valid and is equivalent to `discard`; `action rate-limit` without a
 **Blackhole fallback.** With `blackhole-fallback true`, a `critical`-severity
 attack (peak >= 5x threshold) engages an immediate upstream `discard` on the fast
 signal without waiting for characterization -- the escape hatch when local
-filtering cannot hold the flood.
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- onCharacterized announces; onDetected blackholes only on critical + policy -->
+filtering cannot hold the flood. Because the grade is fixed when the detector
+triggers, an attack that triggers below five times the threshold and then grows
+is not treated as `critical`, and blackhole-fallback does not fire for it. With
+characterization enabled, the characterized announcement still follows.
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- onCharacterized announces; onDetected blackholes only on critical + policy; onOngoing feeds only probeTick -->
+<!-- source: internal/plugins/ddos/detect/detector.go -- onAttackStart -->
 
 **When characterization does not happen.** ddos-flowspec announces on the fast
 signal only when `blackhole-fallback` is `true` and the attack is `critical`.
