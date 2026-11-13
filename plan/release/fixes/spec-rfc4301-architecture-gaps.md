@@ -7,11 +7,80 @@
 | Release reason | Retain remaining IPsec architecture obligations and fragment investigation without claiming an unproven vulnerability. |
 | Scope | protocol |
 | Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set); `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` (the dual-form SPD bypass that turns `icmp-error-payload-check` red; its red proofs (c) and (d) wait on that fix) |
-| Phase | - |
+| Phase | 2b/4/9 -- staged kernel and caller checkpoint; final proof remains owed |
 | Handoff | - |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-13 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Checkpoint for continuation, 2026-11-13
+
+The library repair landed in `352f231413`; its ordered series and upstream-style
+tests landed in `b43120b371` and `c9ce6ba81d`. The kernel K1/K2 patches and their
+series entries landed in `5c063bc8d6`, still without native C compilation or
+packet proof. The K3 proposal is preserved in `2ae4f0f3f4` at
+`gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch`, outside the active
+series. Capability bit 3 remains absent. The proposal still owes the authenticated
+transport-fragment correction, native build and packet/lifetime proof. These
+commits preserve work; they do not close the fragment or SA-appropriateness gaps.
+
+The Ze callers and regression probes landed separately in `466ab09fd8`. The
+library-series session can resume moving the private ABI; coordinate edits
+to `dataplane.go`, `state_scope.go`,
+`xfrm_state_scope_linux.go`, `xfrm_linux.go` and `xfrm_forward_default_linux.go`.
+The original scope/publication-reconciliation edits remain in the working tree
+for an explicit closure review, outside this lifecycle checkpoint. See
+`plan/handover/2026-11-13-ipsec-checkpoint.md` for the next tests, exact artifact
+locations and machine-transfer requirements. This spec remains in progress.
+
+## Resumed phase 2b, kernel K1, 2026-11-13
+
+The reviewed state-scope and fragment design is being implemented in stages.
+K1 owns the exact per-state OR-set, immutable identity and migration lifetime,
+own-state IN and directional OUT matching, availability-aware ICMP decoding,
+netlink validation/readback/capabilities, packet-offload refusal, and automatic
+guard-reference ownership. The ordinary netlink handlers are the entry points.
+K2 owns fragment queue identities/references/accounting; K3 owns hooks, raw
+routing deferral and output permission. K1 must not advertise those later
+bits before their producers exist. No mutable reassembly switch is introduced.
+
+The pinned Linux 7.3 C source is authored in the session's sparse third-party
+patch workspace. Main owns generation of the tracked patch, all compilation,
+kernel/image builds and execution. Existing real guest packet reds precede
+this source. New ABI and packet tests, native build, lifetime stress and
+independent review remain owed; source authoring is not proof. Phase4's
+selector mutation/RFC record and regression work also remains owed.
+
+## Resumed phase 4, 2026-11-12
+
+Wanted exact MH support remains owned by
+`plan/post-release/kernel/spec-xfrm-ipv6-mh-selector.md`. The 2026-11-12
+incoming/forward guest probe established that ANY Types5/7 deliver on both
+paths, while exact Type5 drops its matching packets on both paths. This
+release package must refuse that unsupported constrained selector; a high-octet
+projection alone is insufficient. The future kernel skeleton retains the
+decoder/extraction work without changing the selector requirement into an
+exclusion or a full-support claim.
+
+The current package repairs specific selectors under protocols with undefined
+ports, including AC-13 request, answer and encoder boundaries. RFC-valid MH
+Type encoding is retained, but every constrained MH Type is refused because
+the real kernel drops even matching received/forwarded packets. ANY MH remains
+usable. DCCP remains a defined-port protocol whose exact port Linux XFRM cannot
+select; UDP-Lite ports are accepted on Linux. VPP refuses constrained MH and
+UDP-Lite selectors that its matcher would ignore.
+
+The lead observed the named new tests fail before implementation, followed by
+the initial targeted three-package pass (`job-unit-pkg-e5bceb7c.log`). The
+subsequent real-MH packet failure forced exact refusal and a second constructor
+TDD red (`job-unit-pkg-caad188b.log`). After that repair, all new phase4 names
+pass under race/verbose execution (`job-ipsec-selector-default-units-87450c7b.log`),
+and the guest preserves all four ANY packet deliveries plus typed exact refusal
+(`job-ipsec-engine-boundary-guest-b39a72f7.log`). The 13 native mutation walks,
+four AC-13 RFC records, affected audit reseals and broader scoped regression
+remain owed. This does not close phase4 or another outstanding phase. The phase
+metadata was corrected at this resumption checkpoint; it had remained unset
+during the initial edits.
 
 ## Session progress, 2026-09-06
 
@@ -684,6 +753,7 @@ phase 2a and phases 5 and 6 are delivered history and are not repeated.
 | `field-carries-two-meanings.md` | 2026-11-10 | protocol 135: the IKE MH-type value is installed as a port, Linux compares the bare type |
 | `two-owners-share-one-name.md` | 2026-11-10 | reqid 1 and SPI-less templates on every Child SA of a peer; a sibling's any-port fwd policy accepts a fragment of an exact-port SA |
 | `guard-enumerates-instead-of-subtracting.md` | 2026-11-10 | RFC7296-3.13.1-1/2 weak: a port under a portless protocol other than 0 is committed and emitted |
+| `address-family-inferred-from-address-bytes.md` | 2026-11-13 | netlink `selFromPolicy` loses mapped IPv6 prefix family and transport scope byte identity |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -749,7 +819,7 @@ offsets, because each one parses a header an attacker controls.
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
+- [ ] Scoped tests of the changed packages, tagged units and named functional/interop scenarios pass in the main checkout. After a Go commit, `./le repo compiles check` judges committed dependencies; GitHub CI verifies a pushed commit. No agent runs a whole-tree verification or tests in a worktree
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

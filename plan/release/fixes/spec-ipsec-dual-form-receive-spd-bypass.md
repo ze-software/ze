@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-12 |
+| Updated | 2026-11-13 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -344,6 +344,56 @@ Accepted settled points (coordinator, 2026-11-12):
   refusals (`validateXFRMMigration`, `xfrmMigrationIPv4`, and `InstallSA`'s
   dual-form refusal) are operator errors (`opererr`) that name the problem, why, and
   the fix.
+- decided in review rounds 12 and 13 (coordinator, 2026-11-12), extending the
+  same receiver rather than adding a second recovery path:
+  → Decision: every host-caused failure to open the raw ESP socket, exempt it
+  from the inbound policy check, or configure `ze-espform` carries its own
+  operator error. `espFormSocketRefusal`, `espFormBypassRefusal` and
+  `espFormOpenFailure` distinguish EPERM (the daemon capability install), EACCES
+  (the security-module denial listing), EMFILE (the unit install that sets
+  `LimitNOFILE`), ENFILE (the host's `fs.file-max`), ENOMEM and ENOBUFS (the
+  free-memory listing), and an unclassified answer (the receiver's warnings).
+  `espFormTUNStepRefusal` uses the capability fix for EPERM and the warnings
+  otherwise; `espFormTUNSysctlWriteRefusal` names the exact
+  `net.ipv4.conf.default` write when the sysctl failure is not a read-only or
+  permission refusal. `xfrmMigrationUnserved` renders the cause's fix once;
+  a cause that is no operator error passes through as a Ze defect with no
+  invented operator remedy. Before the round-12 fix, doctor had no finding
+  for these causes, which is why the `ze show doctor` fallback was removed.
+  → Decision: the receiver records its last open failure and its time under
+  `mu`, clears it on the next successful open (`reopenReaderLocked`), and
+  returns it in `ESPFormFastPathState.CompletePathFailure`. The runtime doctor
+  check reads that record even when the fast-path counters cannot be read,
+  under `doctor-ipsec-esp-form-tun` (`espFormCompletePathFindings`). It reports
+  one error when the last apply's TUN record has the same cause, and two for
+  different causes (`espFormDeviceFindings`, `espFormSameCause`). No doctor
+  check opens a socket or device to learn this state.
+  → Decision: a read failure publishes the cause before closing that reader's
+  `dead` channel (`read`). A Watch or acquire that finds it dead opens new
+  paths or refuses, and the reader's revive worker opens them again while an
+  installed SA needs them, without waiting for a new Watch (`servingLocked`,
+  `revive`). Its backoff belongs to the receiver, doubles from one second to
+  `ESPFormCompletePathReopenMax` (30 seconds), and resets only after a reader
+  served for `espFormReopenResetAfter` (one minute), so repeated short-lived
+  readers cannot restart a tight retry loop (`reopenWaitLocked`,
+  `reviveLocked`). `Close` sets `closed`, retires the reader under `mu`, then
+  joins revive workers after unlocking; later Watch and acquire refuse with
+  `errESPFormReceiverClosed`. Recovery stays in this spec; it is not left to
+  the later doctor-coverage work.
+  → Decision: each reader stop is also a transient report-bus error event
+  under `doctor-ipsec-esp-form-reader-stopped`. `runEngine` registers
+  `espFormReaderStoppedSink` through `RegisterESPFormReaderStopped`, and the
+  sink uses the plugin's `RaiseIssue` request with a five-second bound, so the
+  stop reaches the daemon from an internal or forked engine and remains in
+  `show errors` after a successful reopen. The sink runs outside the receiver
+  lock; its code is registered through `RegisterEventCode` and a failed raise
+  is logged under the same code. `RaiseIssue`'s per-call request, multiplexed
+  pipe writes, direct-dispatch admission and the daemon report-store locks
+  support a revive worker calling it alongside another plugin RPC.
+  → Decision: ending an acquire's hold without one is a Ze defect, guarded
+  before changing the count in `watchHeld` and `release`. `MigrateTunnel`
+  defers release while its hold remains live, so a panic before normal
+  registration or rollback cannot leave the paths held with no watched SA.
 - trafficusage answers `TCX_NEXT` (owner decision on a side defect,
   2026-11-12): its programs returned `TCX_PASS` (0), which ends the TCX hook,
   so a TCX program behind them never ran and `sch_handle_ingress` and
@@ -441,6 +491,8 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 | Inbound catch-all | `ike/engine/unmatched.go` `installUnmatched` | Final DISCARD entry of the SPD | Unchanged; the fix makes it reach bare ESP again |
 | Inbound IKE bypass | `ike/engine/bypass.go` `ikeBypassPolicies`, `installIKEBypass` | dir-in BYPASS for UDP to ports 500 and 4500 at `PriorityIKEBypass`, installed after the catch-all at the first apply | Depends on it, unchanged: both paths hand the kernel UDP to port 4500, and `udp_queue_rcv_one_skb` (`net/ipv4/udp.c`, v7.0) checks the inbound policy before the encapsulation hook, so without the bypass the Child SA's policy would drop the datagram before XFRM sees it. Lo's `disable_policy` hid that check before |
 | Daemon capability set | `internal/core/privilege/capabilities.go` `DaemonCapabilities` | (new) one declaration of the non-root daemon's capabilities | Replaces three copies: the systemd unit (`buildUnitFile`), the test runner's netns grant (`internal/test/runner/caps.go` `daemonCapBits`) and `CheckPrivileges` derive from it, and `CAP_BPF` is added once |
+| Receiver open and reader lifetime | `ike/dataplane/espform_linux.go` `openLocked`, `reopenReaderLocked`, `Close`; `espform_open_linux.go` `read`, `revive` | The same receiver owns its socket, TUN, watched SAs and acquisition holds | Extends: host-caused refusals carry exact fixes and a recorded failure; a dead reader is reopened with receiver-level backoff, and Close joins every revive worker |
+| Plugin report-issue request | `pkg/plugin/sdk/report.go` `RaiseIssue`; `ike/engine/register_esp_form_reader.go` `espFormReaderStoppedSink` | An internal or forked plugin raises a problem on the daemon's report bus | Extends: each raw ESP reader stop is a registered error event, kept after a successful reopen; no process-global report call from the dataplane |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -452,6 +504,7 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 2. The kernel delivers the datagram to the port-4500 socket (`UDP_ENCAP_ESPINUDP`), `xfrm4_udp_encap_rcv`/`xfrm6_udp_encap_rcv` hand it to XFRM in the state's form, XFRM decrypts, and the decapsulated packet re-enters on the receiving link, where the inbound policy check runs.
 3. Complete path: bare ESP the program left alone is refused by XFRM; the raw ESP reader receives its copy (reassembled), and writes the ESP-in-UDP datagram, carrying the received outer TOS, into `ze-espform`. The kernel receives it on that TUN: its 192.0.0.8/32 address keeps loose `rp_filter` from dropping it, the inbound IKE bypass lets the UDP datagram reach the port-4500 socket, and step 2 runs with `skb->dev` the TUN, where the policy check runs.
 4. Both paths keep the outer TOS octet, so XFRM's decapsulation copies a CE mark into the inner header (RFC 7296 Section 2.24).
+5. A reader that stops records its read error before waking its revive worker. The worker reports the stop through the engine's plugin request and retries opening the same receiver's paths on receiver-level backoff; an open failure is recorded for the runtime doctor, and a successful open clears it. `Close` retires the reader before joining its workers and refuses later attempts to reopen it.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -534,7 +587,7 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | interop `icmp-error-payload-check`, strongSwan sending bare ESP (no `encap = yes`) | the scenario passes; its two red proofs in `plan/release/fixes/spec-rfc4301-architecture-gaps.md` are recorded | the in-selector error is still delivered, because the selector check passes it |
 | AC-2 | interop `esp-form-change` | one Child SA delivers traffic in both forms, before and after the peer changes form, and keeps its SPI | both forms delivered, because RFC 7296 Section 2.23 requires it |
-| AC-3 | bare ESP on a veth between two network namespaces, on a 4500-without-NAT tunnel-mode SA installed by `createFirstChildSA`, under the production SPD (`unmatched discard` through `installUnmatched`, then the inbound IKE bypass through `installIKEBypass`, in `applyConfig`'s order): whole datagram and fragmented datagram, each inside and outside the selectors | inside: delivered; outside: dropped by the SPD catch-all, each drop row counting `XfrmInPolBlock` +1 and `XfrmInNoPols` +0; each whole datagram advances the fast path's IPv4 rewrite counter (`Rewritten4`) by one, and each fragmented one leaves it unchanged and is re-presented through `ze-espform` | in-selector traffic delivered in both forms, because the SA carries it; `XfrmInNoPols` stays still, because under the production SPD every packet meets an entry |
+| AC-3 | bare ESP on a veth between two network namespaces, on a 4500-without-NAT tunnel-mode SA installed by `createFirstChildSA`, under the production SPD (`unmatched discard` through `installUnmatched`, then the inbound IKE bypass through `installIKEBypass`, in `applyConfig`'s order): whole and fragmented datagrams inside and outside the SA selectors, then an explicit higher-priority host DISCARD inside that scope and its exact removal | inside: delivered; outside: refused by the actual SA selector before SPD lookup. Exact `(XfrmInStateMismatch, XfrmInNoPols, XfrmInPolBlock)` deltas: whole outside `(1,0,0)`, fragmented outside `(2,0,0)`, fragmented inside `(1,0,0)`. The original bare-form refusal contributes one mismatch on the complete path. The explicit DISCARD separately proves SPD consultation: whole `(0,0,1)`, fragmented `(1,0,1)`, neither delivered; after removal both valid forms deliver, whole `(0,0,0)` and fragmented `(1,0,0)`. Whole datagrams advance `Rewritten4` by exactly one; fragmented datagrams leave it unchanged, advance reassembly and are re-presented through `ze-espform`. Counter observations wait for exact terminal deltas within a fixed bound | in-selector traffic delivered in both forms because the SA carries it, and again after the temporary DISCARD is removed; the production catch-all, inbound IKE bypass and reader exemption remain present in SPD readback |
 | AC-4 | `rfc/short/rfc4301.md` `RFC4301-5.2-2` | carries no `{partial}` annotation, with discrimination records for the new tests | other annotations unchanged |
 | AC-5 | the KNOWN DEFECT notes | `docs/guide/ipsec.md`, `LL-XFRM-STATE-ONE-ESP-FORM` and the `espFormBypassInboundPolicy` comment describe the two policy-checked paths and the firewall cost | the one-form limitation entry stays, because the kernel limit stands |
 | AC-6 | `BPF_PROG_TEST_RUN` over crafted frames | a watched SPI from its peer to its local address comes out as ESP-in-UDP with the template ports, correct lengths and a valid IPv4 header checksum, and the program returns `TCX_NEXT` | unwatched SPI, other source, other destination, a fragment, IPv4 options, IPv6 extension headers and non-ESP come out byte-identical, because the complete path or the kernel owns them |
@@ -590,6 +643,15 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 | `assertListenDrop` (judged change) | `internal/component/gtsm/gtsm_test.go` | review round 4: the GTSM listen-port drop's four matches, the protocol first | |
 | `TestXFRMMigrationIPv4RefusesAnAddressWithNoIPv4Form`, `TestValidateXFRMMigrationRefusesIPv6AsOperatorError` | `xfrm_migrate_linux_test.go` | AC-8: a MOBIKE move to an address with no IPv4 form is an operator error | |
 | `TestXFRMMigrationUnwatchedSAOpensThePathsBeforeTheMove` | `xfrm_migrate_linux_test.go` | review round 11: an unwatched SA's paths open, and are held, before the SAD moves; paths that cannot open refuse the move as an operator error with nothing moved; a landed move serves the SA on the new address with its peer and ports; a failed move ends the hold and registers nothing | |
+| `TestESPFormOpenRefusalsCarryTheirFix` | `espform_refusal_linux_test.go` | review rounds 12 and 13: EPERM, EACCES, file-limit, memory and unknown-error classes keep the kernel cause and each exact operator fix | written; final run owed |
+| `TestESPFormBypassRefusesASocketItCannotExempt` | `espform_linux_test.go` | review round 13: the `*net.IPConn` exemption seam refuses a socket it cannot exempt and carries the operator error | written; final run owed |
+| `TestXFRMMigrationUnservedRendersTheFixOnce`, `TestXFRMMigrationUnservedPassesADefectThrough` | `espform_refusal_linux_test.go` | review round 12: a migration refusal renders its cause's fix once; a Ze defect stays a wrapped defect without an invented operator fix | written; final run owed |
+| `TestESPFormReceiverWatchReopensAStoppedReader`, `TestESPFormReceiverWatchRefusesWithTheRecordedOpenFailure` | `espform_reopen_linux_test.go` | review rounds 12 and 13: Watch meets a stopped reader, reopens or refuses, and retains the refusal for the doctor | written; final run owed |
+| `TestESPFormReceiverReopensAStoppedReaderByItself` | `espform_reopen_linux_test.go` | review rounds 12 and 13: an installed SA is served again without a new Watch; the refused attempt is recorded and a successful open clears it | correction committed in `bd8e21b487`; targeted package run `job-unit-pkg-58fce57a.log` and race/count-20 scheduling run `job-ipsec-reopen-schedule-e00a01c8.log` passed; full final guest run owed |
+| `TestESPFormReceiverHandsEachReaderStopOnOnce`, `TestESPFormReceiverRefusesAfterClose`, `TestESPFormReceiverBacksOffAReaderThatDiesAtOnce` | `espform_reopen_linux_test.go` | review round 13: one report per stopped reader, no Watch or acquire after Close, and receiver-level backoff preserved across short-lived readers | written; final run owed |
+| `TestESPFormReceiverEndsOnlyAHoldItHolds`, `TestXFRMMigrationPanicDuringTheMoveEndsTheHold` | `espform_reopen_linux_test.go`, `espform_refusal_linux_test.go` | review round 12: an unmatched hold end panics before changing the count; panic during the SAD move releases its outstanding acquisition | written; final run owed |
+| `TestDoctorESPFormCompletePathFailure`, `TestDoctorESPFormDeviceFindingsReportOneCauseOnce` | `internal/component/ike/engine/doctor_esp_form_complete_path_test.go` | review rounds 12 and 13: the receiver's recorded refusal carries its cause, time, consequence and exact fix even when counters cannot be read; duplicate causes produce one finding | written; final run owed |
+| `TestESPFormReaderStoppedSinkRaisesEachStopOnce` | `internal/component/ike/engine/register_esp_form_reader_test.go` | review round 13: the sink raises the registered error event with its time, read error and warning-list fix | written; final run owed |
 | `TestXFRMMigrationReceiverFollowsTheMove`, subtest "lost rollback forgets the SA" | `xfrm_migrate_linux_test.go` | review round 11: a lost rollback answers `ErrTunnelMigrationLost` and leaves the SA watched on neither address | |
 | `TestXFRMMigrationFailedRollbackDiscardsStates` | `xfrm_migrate_integration_linux_test.go` | review round 11: the inbound SA is watched on its old address first, as `InstallSA` watches a templated SA, so the check reads a watch the lost rollback had to forget | |
 | `TestXFRMMigrationReceiverFollowsTheMove`, `TestXFRMMigrationRetargetRefusesAnotherSAsAddress`, `TestXFRMMigrationRetargetServedWithNoFastPathProgram`, `TestXFRMMigrationRetargetsBothFormReceiver` (judged change) | `xfrm_migrate_linux_test.go` | review rounds 9 and 10: the collision check before the SAD moves, and the receiver following the move | |
@@ -599,7 +661,7 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 | `TestESPFormFastPathWarnsOfASharedSPIWhileAttached` | `espform_fastpath_integration_linux_test.go` | review rounds 9 and 10: the shared-SPI warning while the fast path is attached (guest-root) | |
 | `TestESPFormTUNOpenRefusalNamesTheCause`, `TestESPFormTUNSetIffRefusalNamesTheCause`, `TestESPFormTUNMissingNodeCreated`, `TestESPFormTUNNodeCreationOutcomes`, `TestESPFormTUNNodeUserNamespace`, `TestESPFormTUNNodeCreatedAsRoot` | `espform_tun_open_linux_test.go` | AC-9, AC-14: the clone device's open and `TUNSETIFF` refusals name the cause and fix; a missing node is created, and an existing one never replaced | |
 | `TestESPFormTUNProbePredictsTheSysctlRefusal`, `TestESPFormTUNProbeAgreesWithTheReceiver`, `TestESPFormTUNSharedSysctlRule`, `TestESPFormTUNSysctlWritableWritesNothing` | `espform_tun_probe_linux_test.go` | AC-14: the apply's probe answers what the receiver's open would, and writes nothing | |
-| `TestESPFormTUNSysctlsWriteOnlyWhatTheKernelNeeds`, `TestESPFormTUNSysctlReadParsesTheValue` | `espform_tun_sysctl_linux_test.go` | AC-9: only the sysctls the receive path depends on are written | |
+| `TestESPFormTUNSysctlsWriteOnlyWhatTheKernelNeeds`, `TestESPFormTUNSysctlReadParsesTheValue` | `espform_tun_sysctl_linux_test.go` | AC-9: only the sysctls the receive path depends on are written; review round 13 adds the operator refusal for an EIO write, preserving its cause and naming the exact conf/default fix | final run owed |
 | `TestESPFormLinkSelection` | `espform_fastpath_linux_test.go` | link type to L2 offset, `lo` and `ze-espform` excluded | |
 | `TestESPFormReceiverHoldsTUNOnlyWhileWatching` | `espform_linux_test.go` | AC-7, AC-9: the TUN exists only while an SPI is watched, with its sysctls and its 192.0.0.8/32 address (guest-root) | |
 | `TestESPFormReceiverWatchCannotRaceTheLastForget` | `espform_linux_test.go` | a Watch racing the last Forget never finds the receiver stopping under it | |
@@ -673,7 +735,7 @@ Feature code:
 - `internal/plugins/ddos/local/match.go` - `buildDropTerm` puts the protocol match first, ahead of the victim address; `responder.go` - `MitigationTable`, exported as the one builder of the table `applyMitigation` installs, for the fast path's stock-ruleset test (Decision, review round 4).
 - `internal/component/doctor/register.go` - registers the `daemon-capabilities` check.
 - `cmd/ze/hub/main.go` - `warnDaemonPrivileges`: the start warning goes through the hub logger with `doctor-daemon-capability-missing`.
-- `internal/core/diagnostic/codes.go` (shared) - `doctor-ipsec-esp-form-fast-path`, `doctor-ipsec-esp-form-link`, `doctor-ipsec-esp-form-tun`, `doctor-ipsec-esp-form-firewall`, `doctor-ipsec-child-install-refused`, `doctor-daemon-capability-missing`, each with its entry.
+- `internal/core/diagnostic/codes.go` (shared) - `doctor-ipsec-esp-form-fast-path`, `doctor-ipsec-esp-form-link`, `doctor-ipsec-esp-form-tun`, `doctor-ipsec-esp-form-firewall`, `doctor-ipsec-esp-form-reader-stopped`, `doctor-ipsec-child-install-refused`, `doctor-daemon-capability-missing`, each with its entry.
 - `internal/core/privilege/check_linux.go` - `CheckPrivileges` reads `DaemonCapabilities`.
 - `internal/plugins/systemd/unit.go` - the unit grants `DaemonCapabilities`, `CAP_BPF` included.
 - `internal/plugins/trafficusage/program_linux.go` - `TCX_NEXT` (`tcxNext`) on every path, and the L4 port copied with `bpf_skb_load_bytes` at a scalar offset (AC-18, AC-12).
@@ -711,6 +773,7 @@ Docs and records:
 - `internal/component/ike/dataplane/espform_program_linux.go` - the rewrite program in `asm.Instructions`.
 - `internal/component/ike/dataplane/espform_fastpath_linux.go` - load, maps, TCX attach per link, link subscription.
 - `internal/component/ike/dataplane/espform_tun_linux.go` - the `ze-espform` TUN, its sysctls and its 192.0.0.8/32 address.
+- `internal/component/ike/dataplane/espform_open_linux.go` - host-caused open refusals, the raw reader's stop, and its revive worker with receiver-level backoff.
 - `internal/component/ike/dataplane/espform_state.go`, `espform_backend_linux.go`, `espform_backend_other.go` - `ESPFormFastPathState` and its reporter; the doctor codes are read from `internal/core/diagnostic` directly, with no alias in the dataplane.
 - `internal/component/ike/dataplane/espform_fastpath_gate_linux.go` - the firewall gate's manager: epoch, holds, judgment, publish, the watch and its restart (AC-13).
 - `internal/component/ike/dataplane/espform_firewall_linux.go` - `espFormFirewallBlocks`, the walk of the kernel ruleset (AC-13).
@@ -722,6 +785,9 @@ Docs and records:
 - `internal/component/ike/engine/doctor_runtime.go` - `engineDoctorChecks`, the engine's runtime checks declared at Stage 1 and answered in its own process.
 - `internal/component/ike/engine/doctor_child_install.go` - `ipsec-child-install`, `recordChildRefused` (AC-16).
 - `internal/component/ike/engine/register_firewall_observer.go` - `holdESPFormFastPathForCommit`, registered from `init()` (AC-13).
+- `internal/component/ike/engine/register_esp_form_reader.go` - the reader-stop event code and its bounded plugin report-bus sink, registered by `runEngine`.
+- `internal/component/ike/dataplane/espform_refusal_linux_test.go`, `espform_reopen_linux_test.go` - open-refusal fixes, migration cause rendering, reader recovery, retry backoff, closed-receiver refusals and hold-count guards.
+- `internal/component/ike/engine/doctor_esp_form_complete_path_test.go`, `register_esp_form_reader_test.go` - recorded open-failure findings, duplicate-cause handling and reader-stop events.
 - `internal/component/firewall/commit_observer.go` - `CommitObserver`, `RegisterCommitObserver`, `applyObserved` (AC-13).
 - `internal/component/doctor/checks_daemon_capabilities.go` - the `daemon-capabilities` runtime check (AC-17).
 - `internal/core/privilege/capabilities.go` - `DaemonCapabilities`, `DaemonCapabilitiesFix`, `DaemonCapabilitiesAdvice`.
@@ -745,7 +811,7 @@ Docs and records:
 | Pipe completeness | N-A | none |
 | Env var registration | N-A | none |
 | Doctor check for runtime dependencies | Yes | BPF, TCX, TUN and the nftables ruleset: `ipsec-esp-form-fast-path` (`ike/engine/doctor_esp_form_fast_path.go`, runtime phase, answered in the engine's process through `doctor_runtime.go`; AC-10, AC-14); the daemon's capability set: `daemon-capabilities` (`internal/component/doctor/checks_daemon_capabilities.go`, runtime phase; AC-17); the TUN device is also tried at every apply that configures a peer (`recordESPFormTUN`, `ike/engine/apply.go`), and the check reads that record |
-| Doctor code per problem class | Yes | `doctor-ipsec-esp-form-fast-path` (the fast path did not load or stopped following links), `doctor-ipsec-esp-form-link` (one link not served), `doctor-ipsec-esp-form-tun` (no usable `ze-espform`, so Child SAs on UDP 4500 are refused; also on the apply's Warn line), `doctor-ipsec-esp-form-firewall` (the gate is shut by a rule that could drop ESP, or by a ruleset Ze cannot read or watch), all four declared by `ipsec-esp-form-fast-path`; `doctor-ipsec-child-install-refused` (`ipsec-child-install`, `ike/engine/doctor_child_install.go`, runtime phase; the refusal's Warn lines in `established.go` and `create_child.go` carry it; AC-16); `doctor-daemon-capability-missing` (`daemon-capabilities`; the start warning `warnDaemonPrivileges` in `cmd/ze/hub/main.go` carries it; AC-17) |
+| Doctor code per problem class | Yes | `doctor-ipsec-esp-form-fast-path` (the fast path did not load or stopped following links), `doctor-ipsec-esp-form-link` (one link not served), `doctor-ipsec-esp-form-tun` (no usable `ze-espform`, so Child SAs on UDP 4500 are refused; also on the apply's Warn line), `doctor-ipsec-esp-form-firewall` (the gate is shut by a rule that could drop ESP, or by a ruleset Ze cannot read or watch), all four declared by `ipsec-esp-form-fast-path`; `doctor-ipsec-esp-form-reader-stopped` is a registered event code in `register_esp_form_reader.go`, raised through the plugin report bus and read by the recent-events doctor check; `doctor-ipsec-child-install-refused` (`ipsec-child-install`, `ike/engine/doctor_child_install.go`, runtime phase; the refusal's Warn lines in `established.go` and `create_child.go` carry it; AC-16); `doctor-daemon-capability-missing` (`daemon-capabilities`; the start warning `warnDaemonPrivileges` in `cmd/ze/hub/main.go` carries it; AC-17) |
 | Prometheus counters/metrics | No | the program's rewrite counter is read by the doctor check and tests only |
 | BGP family surface | N-A | not BGP |
 
@@ -766,8 +832,8 @@ Docs and records:
 | 12 | Internal architecture changed? | Yes | `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `docs/architecture/linux-limitations.md`, `docs/architecture/system-architecture.md` (the daemon's capability set), `docs/architecture/traffic/traffic-usage.md` (`TCX_NEXT`); `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` (the commit observers); `docs/architecture/doctor-and-health-checks.md` (the engine's runtime checks, the TUN record, `ipsec-child-install`, `daemon-capabilities`); `docs/architecture/core-design.md`, "Firewall reconcile concurrency" (the observers inside `reconcileMu`, owed: row 16) |
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | No | |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `./le spec citation anchors spec plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` lists them (the main thread runs it). Declared by `// Design:` headers: `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (`espform_state.go`, `espform_backend_linux.go`, `espform_program_linux.go`, `espform_fastpath_linux.go`, `doctor_esp_form_fast_path.go`, `override_guard_linux.go`), updated; `plan/release/validation/spec-ipsec-esp-dual-form-receive.md` (`espform_linux.go`, `espform.go`), a record of the earlier work, unaffected because a plan record is never repointed; `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` (`espform_tun_linux.go`), this spec; `docs/architecture/system-architecture.md` (`internal/core/privilege/capabilities.go`), updated; `docs/architecture/cli/plugin-modes.md` (`internal/plugins/systemd/unit.go`), unaffected because the unit's shape is unchanged and only its capability list grew; `docs/architecture/traffic/traffic-usage.md` (`internal/plugins/trafficusage/attach_linux.go`, `doctor.go`), updated; `docs/architecture/ike/ipsec-7-ikev2-engine.md` (`internal/component/ike/engine/register.go`), unaffected because it lists no doctor check of the engine's registration; `docs/architecture/testing/ci-format.md` (`internal/test/runner/caps.go`, `record_parse_option.go`), unaffected because it documents the `caps=` tokens and their gate, not the netns grant's members, which `docs/functional-tests.md` and `docs/architecture/testing/qemu-integration.md` carry and which are updated; `docs/features/ai-first.md` (`internal/core/diagnostic/codes.go`), unaffected because it describes the code registry, and the six new codes describe themselves through `ze show diagnostic`; `docs/architecture/core-design.md` (`internal/component/firewall/registry.go`), section "Firewall reconcile concurrency", to update: it says `reconcileMu` is held for the kernel round trip, and the commit observers now run inside it before and after `Backend.Apply`, which extends that hold by the IKE hold's cost (`commit_observer.go` says an observer MUST return quickly); `docs/architecture/hub-architecture.md` (`cmd/ze/hub/main.go`), unaffected because it documents the plugin model and the hub CLI entry, not the start-time capability warning, which `docs/architecture/system-architecture.md` carries |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `doctor-ipsec-esp-form-reader-stopped` is registered as an event code in `ike/engine/register_esp_form_reader.go`; `docs/guide/ipsec.md` and `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` describe its report-bus route and recovery |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `./le spec citation anchors spec plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` lists them (the main thread runs it). Declared by `// Design:` headers: `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (`espform_state.go`, `espform_backend_linux.go`, `espform_program_linux.go`, `espform_fastpath_linux.go`, `doctor_esp_form_fast_path.go`, `override_guard_linux.go`), updated; `plan/release/validation/spec-ipsec-esp-dual-form-receive.md` (`espform_linux.go`, `espform.go`), a record of the earlier work, unaffected because a plan record is never repointed; `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` (`espform_tun_linux.go`), this spec; `docs/architecture/system-architecture.md` (`internal/core/privilege/capabilities.go`), updated; `docs/architecture/cli/plugin-modes.md` (`internal/plugins/systemd/unit.go`), unaffected because the unit's shape is unchanged and only its capability list grew; `docs/architecture/traffic/traffic-usage.md` (`internal/plugins/trafficusage/attach_linux.go`, `doctor.go`), updated; `docs/architecture/ike/ipsec-7-ikev2-engine.md` (`internal/component/ike/engine/register.go`), unaffected because it lists no doctor check of the engine's registration; `docs/architecture/testing/ci-format.md` (`internal/test/runner/caps.go`, `record_parse_option.go`), unaffected because it documents the `caps=` tokens and their gate, not the netns grant's members, which `docs/functional-tests.md` and `docs/architecture/testing/qemu-integration.md` carry and which are updated; `docs/features/ai-first.md` (`internal/core/diagnostic/codes.go`), unaffected because it describes the code registry, and the registered codes describe themselves through `ze show diagnostic`; `docs/architecture/core-design.md` (`internal/component/firewall/registry.go`), section "Firewall reconcile concurrency", to update: it says `reconcileMu` is held for the kernel round trip, and the commit observers now run inside it before and after `Backend.Apply`, which extends that hold by the IKE hold's cost (`commit_observer.go` says an observer MUST return quickly); `docs/architecture/hub-architecture.md` (`cmd/ze/hub/main.go`), unaffected because it documents the plugin model and the hub CLI entry, not the start-time capability warning, which `docs/architecture/system-architecture.md` carries |
 | 17 | Existing docs show config/CLI/API examples for this area? | No | |
 
 ## Implementation Steps
@@ -823,7 +889,7 @@ Docs and records:
 
 - On a kernel with `esp4_offload` loaded, `esp4_gro_receive` (`net/ipv4/esp4_offload.c`) consumes bare ESP at GRO, before tc ingress and before raw sockets, and XFRM refuses it as a form mismatch, so neither path receives it. Ze's kernel does not build `CONFIG_INET_ESP_OFFLOAD`. Recorded as a journal row owned here (Known Limitations).
 - A TUN with no IPv4 address loses every datagram written into it to loose reverse-path filtering: `__fib_validate_source` (`net/ipv4/fib_frontend.c`, v7.0) reads `no_addr = idev->ifa_list == NULL;` and sends an address-less device to `last_resort`, where `if (rpf)` drops it. `ze-espform` therefore carries 192.0.0.8/32 scope host, RFC 7600's dummy address, which Linux already uses as `INADDR_DUMMY`.
-- The complete path depends on the inbound IKE bypass: `udp_queue_rcv_one_skb` (`net/ipv4/udp.c`, v7.0) runs `xfrm4_policy_check` before `encap_rcv`, so on a device with `disable_policy` 0 the Child SA's policy drops the re-presented UDP datagram unless the BYPASS for UDP 4500 ranks ahead of it. `lo` hid that check. The kernel tests now install the production SPD (`installUnmatched`, then `installIKEBypass`), which is why the drop rows count `XfrmInPolBlock`, not `XfrmInNoPols`.
+- The complete path depends on the inbound IKE bypass: `udp_queue_rcv_one_skb` (`net/ipv4/udp.c`, v7.0) runs `xfrm4_policy_check` before `encap_rcv`, so on a device with `disable_policy` 0 the Child SA's policy drops the re-presented UDP datagram unless the BYPASS for UDP 4500 ranks ahead of it. `lo` hid that check. The kernel tests install the production SPD (`installUnmatched`, then `installIKEBypass`). With exact inbound state binding, an out-of-selector packet is refused by its actual SA before SPD lookup (`XfrmInStateMismatch`). A host-specific explicit DISCARD inside the accepted state scope separately proves SPD consultation (`XfrmInPolBlock`), and its exact removal restores valid delivery. Complete-path rows also count the original bare-form mismatch; fast-path rows do not. AC-3 records the exact deltas.
 - Which process runs the PostConfig doctor checks (doctor.Answer dispatch) decides whether ipsec-esp-form-fast-path and doctor-traffic-usage-ebpf measure the daemon's capabilities or the CLI's: settled and fixed in this spec.
 
 ## Owned journal rows
@@ -835,7 +901,41 @@ Docs and records:
 | `kernel-refuses-what-the-installer-sends.md` | 2026-11-12 | the systemd unit granted no `CAP_BPF`, so the kernel refused every BPF load Ze makes under it |
 | `two-owners-share-one-name.md` | 2026-11-13 | concurrent kernel workers remove the same live extracted source tree on a shared volume |
 
+### State of the owned occurrences before closure
+
+- The loopback SPD bypass has its replacement paths written; the final
+  guest-root selector tests, RFC records and interop proofs still decide
+  whether its occurrence can be closed.
+- The missing-`CAP_BPF` producer is changed: `DaemonCapabilities` includes the
+  bit, `writeCapabilities` writes the unit's set from that declaration, and
+  `checkDaemonCapabilities` reports the daemon's missing grant. The final
+  guest-root tests must still prove the ESP rewrite, override guard and
+  traffic-usage programs load under exactly that set. A written grant is not
+  that proof.
+- The `esp4_offload` GRO occurrence remains owned here. Its diagnostic and
+  documentation repair landed in `bd8e21b487`: `answerESPFormOffload` reads the
+  active receiver and `kernelcap.LoadedModules`, warns for loaded IPv4 ESP
+  offload, and distinguishes an unreadable snapshot from module absence. Its
+  fix stops Ze, unloads `esp4_offload`, then starts Ze; the finding also names
+  the GRO-disable alternative and the built-in-feature detection limit.
+  The named offload doctor units passed in
+  `job-ipsec-binding-doctor-units-419db7fc.log`. Final functional stress and
+  guest proof still remain owed; this is not a closure verdict.
+- The concurrent kernel-worker source-tree collision was fixed in
+  `14bec40b17`. The named concurrent-worker regression and scoped race package
+  passed (`job-ipsec-kernel-workspace-green-9df4b9bb.log` and
+  `job-ipsec-kernel-workspace-package-81a675f5.log`); the optional Docker
+  cancellation proof was skipped because `KERNEL_CONTAINER_PROOF_IMAGE` was
+  unset. The committed-tree check compiled all five configurations.
+
 ## Test changes judged
+
+The rows below preserve preparation before checkpoint `abeb7d6535`. That commit
+published the selected independent approval trailers, including the corrected
+`TCX_NEXT` verdict reason; its historical references to an approval still owed
+are not the current queue. Further test corrections during final validation
+still require their own independent verdict before editing, and current
+approvals remain in the native untracked approval files rather than this spec.
 
 A change that could lower what a test proves is judged by an independent agent running `ze-test-judge` (`ai/META-DECISIONS.md`, "Test changes"). Its approval is recorded through `./le test weakened approve`, and the commit that carries the change carries the trailer.
 
@@ -893,6 +993,29 @@ Weakening-approved: trafficusage.runProg: APPROVED (b): the old want of 0 (TCX_P
 
 The four `Test-judge:` sentences were written from the coordinator's verdict classes (privilege_test (b), evidence_test (b), unit_test (a), service-unit-gen (a)), because no recorded approval file holds them.
 
+## Implementation deviations recorded before closure
+
+These rows record the round-12 and round-13 implementation decisions. They do
+not claim that their final-code tests or mutation proofs have run.
+
+| Earlier shape | Final implementation | Reason and producing source |
+|---------------|----------------------|-----------------------------|
+| An open refusal used a generic retry or doctor fix | The refusal keeps the kernel cause and names the capability, security-policy, process-limit, host-limit, memory or log command for that cause | `espFormSocketRefusal`, `espFormBypassRefusal`, `espFormOpenFailure` and `espFormTUNStepRefusal`; before the round-12 fix, doctor had no finding for these causes |
+| The receiver could refuse an install while doctor had no record of its open failure | The last failure and its time are read through `CompletePathFailure`, with duplicate TUN causes reported once | `reopenReaderLocked`, `espFormCompletePathFindings`, `espFormDeviceFindings`, `espFormSameCause` |
+| A failed reader remained installed until another Watch noticed it | The reader publishes its failure and its revive worker opens the same paths again, with receiver-level backoff and a closed-receiver guard | `read`, `revive`, `reopenWaitLocked`, `reviveLocked`, `Watch`, `acquire`, `Close`; recovery remains in this spec |
+| A successful reopen removed the only live state a doctor check could read | A registered reader-stop error event crosses the plugin boundary and remains in the daemon's error ring | `reportReaderStopped`, `RegisterESPFormReaderStopped`, `runEngine`, `espFormReaderStoppedSink` |
+| An unmatched hold end could decrement the count, and panic during a move could skip normal release | Hold ends check their acquire obligation before changing the count; migration defers release while its hold remains live | `watchHeld`, `release`, `MigrateTunnel` |
+
+## Verification state before closure
+
+| Evidence | Observed state |
+|----------|----------------|
+| Main-thread `./le repo compiles check` after checkpoint `abeb7d6535` | all five committed-tree build configurations compiled; this excludes test files and is not proof of the later working-tree edits |
+| Initial final-code main-thread `./le test unit pkg path ./internal/component/ike/dataplane/ path ./internal/component/ike/engine/ path ./internal/core/diagnostic/` | engine and diagnostic packages passed; three dataplane fixture/expectation failures were subsequently corrected and committed in `bd8e21b487`. The targeted package run `job-unit-pkg-58fce57a.log` and narrow race/count-20 scheduling run `job-ipsec-reopen-schedule-e00a01c8.log` passed. Final guest verification remains owed |
+| Receiver doctor and binding fixture units | the named tests passed under race/verbose execution in `job-ipsec-binding-doctor-units-419db7fc.log`; this includes the offload and complete-path doctor findings |
+| Host mutation walks 27, 31–33, 37, 39–49 | all sixteen returned the native red verdict, with clean own-test passes and broken own-test failures, in `job-ipsec-dualform-host-redwalks-aa95f75a.log`; guest mutant 20 remains owed |
+| Final guest-root tests, guest mutant 20, doctor draft stress/promotion, RFC records and interop | not completed on the final code; neither the host mutation results nor earlier batches close these obligations |
+
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
@@ -933,6 +1056,11 @@ The four `Test-judge:` sentences were written from the coordinator's verdict cla
 | The engine's runtime checks are declared at Stage 1 and answered by the engine's own process (`OnDoctorCheck`) | post-config `registry.DoctorCheckDef`s in the daemon | the state they read lives in the engine's process: a post-config check reads empty globals in the operator's `ze doctor` process and in a daemon whose engine runs forked, and answers healthy |
 | trafficusage answers `TCX_NEXT`, and copies the L4 port with `bpf_skb_load_bytes` at a scalar offset (owner decision on the side defect, 2026-11-12) | keep `TCX_PASS` and rely on the fast path attaching at the head; grant `CAP_PERFMON` | `TCX_PASS` also skipped every clsact filter on the link (policer, sFlow sampler, mirror); `CAP_PERFMON` widens what every program may do, while a helper read needs no packet-pointer arithmetic, which the unprivileged verifier refuses with a register operand |
 | Every lab Ze that can run IPsec holds `/dev/net/tun` (`TUNDeviceArguments`), the IPsec interop ze peer runs under the net-sysctl profile, and the QEMU per-test namespace widens `/dev/net/tun` | grant the device only to scenarios that encapsulate | Ze decides at run time whether an SA is encapsulated (NAT detection, MOBIKE, a peer arriving on 4500), and the install is refused without the device, so a per-scenario grant would fail scenarios that float |
+| Host-caused receiver open refusals are operator errors with a cause-specific fix (review rounds 12 and 13) | a generic retry command, a guessed configuration fix, or `ze show doctor` as the fallback | the cause distinguishes a capability, security policy, file limit, memory shortage or unclassified host answer; before the round-12 fix, doctor had no finding for these causes |
+| The receiver records its last failed open for doctor and deduplicates it with the apply's TUN record (review rounds 12 and 13) | infer health from fast-path status or report two errors for the same refusal | an attached fast path does not prove the raw reader and TUN can open, and a failed counter read must not hide a recorded refusal |
+| A stopped reader has a joined revive worker with receiver-level backoff and an explicit closed-receiver guard (review rounds 12 and 13) | wait for a new Watch; restart backoff on every newly opened reader; reopen after Close | installed SAs still need the receiver, a repeatedly short-lived socket must not cause a tight loop, and Close must leave no worker reopening resources |
+| A raw reader stop is a registered report-bus error event sent through the engine's plugin request (review round 13) | rely on a live doctor record after the first successful reopen; raise on a process-local bus from a forked engine | a transient stop leaves no open-failure record after recovery; the daemon's error ring retains the event and both plugin transports reach it |
+| Hold ends reject a missing acquire before changing the count, and migration defers release of a still-live hold (review round 12) | allow an unmatched decrement or rely only on normal return branches | an unmatched end is a Ze defect; panic during a SAD move must not hold paths open for an SA never registered |
 | IPv6 dual-form serving is a gap owed after the first release | building the IPv6 reader and builder now | no IPv6 IKE socket exists (`transport/udp.go` listens on `udp4`, `engine/probe.go` refuses IPv6), so no code could reach them; `plan/post-release/features/spec-ike-ipv6-transport.md` owns the work, and the refusal names the gap |
 
 ## Known Limitations
