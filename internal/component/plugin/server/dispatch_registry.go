@@ -253,20 +253,63 @@ func (a *recordAnswer) TransportComplete() {
 	a.resp.TransportComplete()
 }
 
-// serveEngineOpJSON runs an op for the JSON socket path, writes its result, then
-// completes any accepted lifecycle action. Error detail is the raw message
+// serveEngineOpJSON runs a runtime op for the JSON socket path, writes its
+// result, then completes any accepted lifecycle action. A failure that is the
+// end of the plugin's engine session gets no answer (engineSessionEnded); every
+// other failure is answered. Error detail is the raw message
 // (rpcErrMessage), matching what serveEngineOpDirect returns so external and
 // in-process callers see identical error text (AC-2).
 func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) {
-	_ = s.serveEngineOpJSONContext(s.Context(), s.replyContext(), proc, conn, req, op) //nolint:errcheck // Runtime reply failures are already logged by the shared wrapper.
+	result, err := op.handle(s, s.Context(), proc, req.Params)
+	// A runtime request that the end of the plugin's engine session cancelled
+	// is left unanswered: the connection close that ends the session answers
+	// it, as it answers every other call still pending then. An error line here
+	// would hand the plugin a well-formed refusal for an ordinary stop, and a
+	// plugin cannot tell that from a live engine's refusal.
+	if s.engineSessionEnded(proc, err) {
+		return
+	}
+	_ = answerEngineOpJSON(s.replyContext(), proc, conn, req, result, err) //nolint:errcheck // Runtime reply failures are already logged by the shared wrapper.
 }
 
-// serveEngineOpJSONContext shares the wire result path while allowing startup
-// to retain its bounded request and reply context. Runtime lifecycle replies
-// keep the existing uncancelled reply context supplied above. Only response
-// transport or encoding failures are returned; a sent handler refusal succeeds.
+// engineSessionEnded reports whether err is the cancellation that the end of
+// proc's engine session caused: the server is stopping, or this process
+// generation is. Each is followed by the close of proc's connection
+// (Server.Stop then ProcessManager.Stop, Process.Stop, Process.monitorCmd),
+// with no condition in between. Any other failure is answered, a refusal
+// during the stop and a cancellation under a live server and process included.
+func (s *Server) engineSessionEnded(proc *process.Process, err error) bool {
+	if !errors.Is(err, context.Canceled) {
+		return false
+	}
+	var serverDone <-chan struct{}
+	if s.ctx != nil {
+		serverDone = s.ctx.Done()
+	}
+	select {
+	case <-serverDone:
+		return true
+	case <-proc.Done():
+		return true
+	default:
+		return false
+	}
+}
+
+// serveEngineOpJSONContext serves a startup request under its bounded request
+// and reply context. Startup answers every failure, a cancellation included:
+// the session-end rule of serveEngineOpJSON is the runtime path's. Only
+// response transport or encoding failures are returned; a sent handler
+// refusal succeeds.
 func (s *Server) serveEngineOpJSONContext(ctx, reply context.Context, proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) error {
 	result, err := op.handle(s, ctx, proc, req.Params)
+	return answerEngineOpJSON(reply, proc, conn, req, result, err)
+}
+
+// answerEngineOpJSON writes a handler's outcome as the request's answer: an
+// error line, a record sequence or one result line. Runtime replies use the
+// uncancelled reply context, so an answer written during a stop is still sent.
+func answerEngineOpJSON(reply context.Context, proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, result any, err error) error {
 	if err != nil {
 		if sendErr := conn.SendError(reply, req.ID, rpcErrMessage(err)); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)

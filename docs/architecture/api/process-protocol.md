@@ -1264,6 +1264,21 @@ Plugins must distinguish live removal from connection closure: subsystem owners
 retain their daemon-shutdown policy, including firewall rule retention.
 <!-- source: internal/component/plugin/process/manager.go -- Stop -->
 
+A runtime request that the stop itself cancelled gets no answer. The daemon's
+stop cancels the server context before it closes the connections, and a stop
+of one process generation (a plugin restart, a removal after `bye`) cancels
+that generation's context before it closes its connection. A handler waiting
+on either context returns the cancellation while the connection is still
+open. The engine leaves that request unanswered, so the close answers it: the
+plugin's pending call ends with the connection's terminal error, like every
+other call still pending then, and never with an error line that the plugin
+would have to tell apart from a live engine's refusal by its text. Every other
+failure is answered, a refusal during the stop included. A startup request
+answers every failure.
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpJSON, engineSessionEnded -->
+<!-- source: internal/component/plugin/server/server.go -- Stop -->
+<!-- source: internal/component/plugin/process/process.go -- Stop, monitorCmd -->
+
 #### The stop drain
 
 Before whole-daemon shutdown closes any connection, the hub runs one drain
@@ -2706,7 +2721,9 @@ internal authenticated instance and uses the daemon reader at cursor zero.
 <!-- source: internal/component/sysrib/projection.go -- Apply, Synchronized -->
 
 Selected and candidate pages contain at most 4096 records and must fit the
-complete RPC frame. Selected reads wait at most 1000 milliseconds. Mandatory
+complete RPC frame. Selected reads wait at most 1000 milliseconds. A read
+whose wait the daemon's stop, or the stop of the owner's process generation,
+ends gets no answer: the connection close answers it ("Shutdown"). Mandatory
 zero-valued fields remain explicit, including cursor and `wait-ms`. Candidate
 snapshots have independent identities: a selected revision cannot validate a
 candidate scan after a hidden-only edit.

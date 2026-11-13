@@ -79,7 +79,9 @@ func (worker *routeViewWorker) run(ctx context.Context) {
 		// Forked, a daemon stop closes the connection without `bye`
 		// (docs/architecture/api/process-protocol.md, "Shutdown"), and this
 		// worker's long-poll read can see that close before SDK Run returns
-		// and Close cancels it. A failed callback loop reports its own cause,
+		// and Close cancels it. The engine leaves a read its own stop
+		// cancelled unanswered, so the close answers that read too
+		// (pluginserver engineSessionEnded). A failed callback loop reports its own cause,
 		// and a live owner's refusal is an RPC error, never a transport end.
 		if routeViewTransportStopped(err) {
 			return

@@ -442,13 +442,19 @@ plugin instance and its recovery command.
 The end of the consumer's engine session is a normal stop, never a failure,
 and the doctor check then reports the stopped state. Forked, a daemon stop
 closes the connection without `bye`, so the worker's read or publication can
-meet the closed connection before its owner context ends. Internally, the
-stop fences native dispatch first. Every other error under a live owner
-context is a failure, including an owner's refusal whose text names EOF or a
-closed connection: a refusal arrives as an RPC error and never as a transport
-end.
+meet the closed connection before its owner context ends. The daemon's stop
+also ends the daemon-side wait of a pending long-poll read before the
+connection closes, and so does a stop of only the system RIB's process
+generation. The engine leaves a request that its stop cancelled unanswered,
+so the read ends with the closed connection and never with a refusal.
+Internally, the stop fences native dispatch first. Every other error under a
+live owner context is a failure, including an owner's refusal whose text
+names EOF, a closed connection or a stopped request: a refusal arrives as an
+RPC error and never as a transport end.
 <!-- source: internal/component/sysrib/route_view_worker.go -- run -->
 <!-- source: internal/component/sysrib/route_view_client.go -- routeViewTransportStopped -->
+<!-- source: internal/component/sysrib/route_view_feed.go -- wait -->
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpJSON, engineSessionEnded -->
 
 Candidate commands and configuration changes enter the same worker through a
 sixteen-request queue. Each request's two-minute forward budget starts before
