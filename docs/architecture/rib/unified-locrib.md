@@ -439,6 +439,17 @@ plugin instance and its recovery command.
 <!-- source: internal/component/sysrib/doctor_route_view.go -- findings, newRouteViewHealth -->
 <!-- source: internal/component/sysrib/register_route_view.go -- reportRouteViewFailure -->
 
+The end of the consumer's engine session is a normal stop, never a failure,
+and the doctor check then reports the stopped state. Forked, a daemon stop
+closes the connection without `bye`, so the worker's read or publication can
+meet the closed connection before its owner context ends. Internally, the
+stop fences native dispatch first. Every other error under a live owner
+context is a failure, including an owner's refusal whose text names EOF or a
+closed connection: a refusal arrives as an RPC error and never as a transport
+end.
+<!-- source: internal/component/sysrib/route_view_worker.go -- run -->
+<!-- source: internal/component/sysrib/route_view_client.go -- routeViewTransportStopped -->
+
 Candidate commands and configuration changes enter the same worker through a
 sixteen-request queue. Each request's two-minute forward budget starts before
 enqueueing, so queue residence cannot renew its deadline. Candidate scans pin

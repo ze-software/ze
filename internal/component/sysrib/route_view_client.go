@@ -167,6 +167,14 @@ func (client *routeViewClient) Close(ctx context.Context) error {
 	return nil
 }
 
+// routeViewTransportStopped reports whether an engine call failed because this
+// plugin's session with the engine ended: the mux reader's terminal error
+// (EOF from the peer's close, a closed pipe or socket), a closed mux, or a
+// fenced DirectBridge. The worker and Close read it as a normal stop. Only the
+// transport produces these values: a live owner's refusal arrives as an
+// *rpc.RPCCallError, which carries text and no wrapped cause, so a refusal that
+// mentions EOF or a closed connection still fails. Reply decoding uses
+// json.Unmarshal, which reports truncated input as a syntax error, never EOF.
 func routeViewTransportStopped(err error) bool {
 	if errors.Is(err, io.EOF) {
 		return true

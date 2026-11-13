@@ -73,17 +73,19 @@ func (worker *routeViewWorker) run(ctx context.Context) {
 	defer close(worker.done)
 	defer worker.client.health.stop()
 	if err := worker.consume(ctx); err != nil {
-		// The engine's stop fences native dispatch before the owner context
-		// ends, so the fence itself is a normal stop. A failed callback loop
-		// reports its own cause, and a live owner's refusal is an RPC error.
-		if errors.Is(err, rpc.ErrBridgeClosed) {
+		// The end of the engine session is a normal stop in either placement,
+		// whether or not the owner context has ended yet. Internally the
+		// engine's stop fences native dispatch before the owner context ends.
+		// Forked, a daemon stop closes the connection without `bye`
+		// (docs/architecture/api/process-protocol.md, "Shutdown"), and this
+		// worker's long-poll read can see that close before SDK Run returns
+		// and Close cancels it. A failed callback loop reports its own cause,
+		// and a live owner's refusal is an RPC error, never a transport end.
+		if routeViewTransportStopped(err) {
 			return
 		}
 		if ctx.Err() != nil {
 			if errors.Is(err, ctx.Err()) {
-				return
-			}
-			if routeViewTransportStopped(err) {
 				return
 			}
 		}
