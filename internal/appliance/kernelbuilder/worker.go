@@ -65,7 +65,7 @@ type WorkerRequest struct {
 }
 
 // RunWorker downloads, configures, compiles, and publishes one Linux kernel.
-func RunWorker(ctx context.Context, req WorkerRequest) error {
+func RunWorker(ctx context.Context, req WorkerRequest) (runErr error) {
 	if req.Stdout == nil {
 		req.Stdout = os.Stdout
 	}
@@ -130,6 +130,21 @@ func RunWorker(ctx context.Context, req WorkerRequest) error {
 	if err != nil {
 		return err
 	}
+	if err := os.MkdirAll(req.BuildDir, 0o750); err != nil {
+		return fmt.Errorf("create build directory: %w", err)
+	}
+	workspace, err := os.MkdirTemp(req.BuildDir, "worker-")
+	if err != nil {
+		return fmt.Errorf("create kernel build workspace: %w", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(workspace); err != nil {
+			runErr = errors.Join(runErr, fmt.Errorf("remove kernel build workspace %s: %w", workspace, err))
+		}
+	}()
+	// Docker workers share BuildDir, but extraction, configuration and make
+	// mutate their trees. Keep those writes and cleanup inside this run's tree.
+	req.BuildDir = workspace
 	buildTree, err := restoreOrExtractTree(ctx, req, tarball)
 	if err != nil {
 		return err

@@ -46,6 +46,17 @@ The low-level Go worker invokes the kernel's `merge_config.sh`, `patch`, and
 `tar`. The container and QEMU guest run the compiled `ze-kernel-builder`
 command.
 
+Each low-level worker creates its own `worker-*` directory beneath its build
+directory (`/tmp/kbuild` by default). Extraction, configuration and compilation
+stay inside that directory, so a second patched build cannot remove or reuse a
+live worker's source tree. When `RunWorker` returns, after its commands finish,
+it removes only its own directory; a cleanup failure is returned alongside any
+build failure. Docker's shared build and work volumes remain mounted, and
+downloaded source tarballs and installer build archives remain in the shared
+work directory (`/build` by default).
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker, restoreOrExtractTree -->
+<!-- test: internal/appliance/kernelbuilder/workspace_test.go TestRunWorkerConcurrentPatchedBuildsKeepLiveTree -->
+
 Each Docker worker is created, without starting it, under a unique per-run name.
 Creation has a detached 2-minute bound (`containerLifecycleTimeout`), so
 canceling the build cannot kill the CLI before it returns the full container ID.

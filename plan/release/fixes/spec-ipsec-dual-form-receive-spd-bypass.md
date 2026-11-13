@@ -832,6 +832,7 @@ Docs and records:
 | `escape-hatch-scoped-wider-than-its-justification.md` | 2026-11-10 | `espFormReceiver` re-presents bare ESP through lo, so no inbound SPD check runs |
 | `kernel-refuses-what-the-installer-sends.md` | 2026-11-12 | `esp4_offload` GRO consumes bare ESP before tc ingress on a distro kernel |
 | `kernel-refuses-what-the-installer-sends.md` | 2026-11-12 | the systemd unit granted no `CAP_BPF`, so the kernel refused every BPF load Ze makes under it |
+| `two-owners-share-one-name.md` | 2026-11-13 | concurrent kernel workers remove the same live extracted source tree on a shared volume |
 
 ## Test changes judged
 
