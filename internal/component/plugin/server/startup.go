@@ -58,6 +58,21 @@ func (s *Server) stageTransition(ctx context.Context, proc *process.Process, plu
 	// completion can open the next stage for another member of this tier.
 	if completeStage == plugin.StageRegistration {
 		if err := coord.DeclareConfigureBudget(proc.Index(), declaredConfigureBudget(proc.Registration())); err != nil {
+			// A sibling failed the tier before this plugin declared: the plugin
+			// meets the barrier's abort one step early, and takes the wait
+			// failure's route below. The sibling's error is not this plugin's
+			// cause, so only its own end is recorded, and the handshake records
+			// the barrier abort otherwise. PluginFailed is not called: the tier
+			// already holds its failure, and the coordinator keeps only the first.
+			if errors.Is(err, plugin.ErrStartupTierFailed) {
+				if proc.PluginEnded() {
+					proc.SetStartupError(errStartupPluginEnded)
+				}
+				logger().Error("plugin startup ended because another plugin of its startup tier failed first; correct the failure this line names and reload",
+					"plugin", pluginName, "error", err, "code", diagnostic.CodeDoctorPluginStopped)
+				proc.Stop()
+				return false
+			}
 			proc.SetStartupError(err)
 			coord.PluginFailed(proc.Index(), err.Error())
 			proc.Stop()

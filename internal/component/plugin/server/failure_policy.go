@@ -269,9 +269,13 @@ func reloadOwnsStartup(ctx context.Context) bool {
 //
 // A barrier abort never does, under either state of ctx: the plugin finished its
 // stage and was waiting for its tier, so a sibling's failure or the caller ended
-// the wait. stageTransition has already recorded errStartupPluginEnded as the cause
-// of a plugin that died in that wait, and the first recorded cause stands, so an
-// abort that reaches here belongs to a plugin that was still connected.
+// the wait. A sibling's failure can also reach the plugin one step before the
+// wait, when its registration's configure allowance meets the failed tier, and
+// stageTransition answers that the same way and records nothing of the sibling's.
+// On both routes stageTransition has already recorded errStartupPluginEnded as
+// the cause of a plugin whose connection had ended, and the first recorded cause
+// stands, so an abort that reaches here belongs to a plugin that was still
+// connected.
 //
 // A context error counts only once ctx has really ended. The two halves are both
 // needed: ctx alone would forgive a plugin that crashed while a sibling held the

@@ -109,6 +109,61 @@ func TestStartupConfigureBudgetHonorsTierFailure(t *testing.T) {
 	}
 }
 
+// TestStartupConfigureBudgetNamesTheTierFailure separates a sibling's failure
+// from a refusal of the declaring plugin's own declaration.
+//
+// GOAL: a healthy plugin whose declaration arrives after another member failed
+// the tier can tell that the failure was not its own, while every refusal of its
+// own declaration cannot be mistaken for that.
+// METHOD: one tier failed by member 0, then a valid declaration from member 1;
+// separately, each own-declaration refusal on a tier nobody failed.
+// VALIDATES: the first answer wraps ErrStartupTierFailed and carries the tier's
+// failure; no own refusal wraps ErrStartupTierFailed.
+// PREVENTS: the sibling's failure recorded as the healthy plugin's startup cause,
+// which stopped the daemon through a fatal plugin that never failed.
+func TestStartupConfigureBudgetNamesTheTierFailure(t *testing.T) {
+	failed := NewStartupCoordinator(2)
+	failed.PluginFailed(0, "configure refused")
+	err := failed.DeclareConfigureBudget(1, time.Second)
+	if !errors.Is(err, ErrStartupTierFailed) {
+		t.Fatalf("a declaration after a sibling's failure answered %v, want ErrStartupTierFailed", err)
+	}
+	if got, want := err.Error(), "startup tier already failed: plugin 0 failed: configure refused"; got != want {
+		t.Fatalf("tier failure answer = %q, want %q", got, want)
+	}
+
+	advanced := NewStartupCoordinator(1)
+	if err := advanced.DeclareConfigureBudget(0, 0); err != nil {
+		t.Fatal(err)
+	}
+	advanced.StageComplete(0, StageRegistration)
+	duplicate := NewStartupCoordinator(2)
+	if err := duplicate.DeclareConfigureBudget(0, 0); err != nil {
+		t.Fatal(err)
+	}
+	for _, refusal := range []struct {
+		name   string
+		coord  *StartupCoordinator
+		id     int
+		budget time.Duration
+	}{
+		{name: "wrong stage", coord: advanced, id: 0, budget: time.Second},
+		{name: "unknown member", coord: NewStartupCoordinator(1), id: 1, budget: time.Second},
+		{name: "negative duration", coord: NewStartupCoordinator(1), id: 0, budget: -time.Second},
+		{name: "duplicate", coord: duplicate, id: 0, budget: time.Second},
+	} {
+		t.Run(refusal.name, func(t *testing.T) {
+			err := refusal.coord.DeclareConfigureBudget(refusal.id, refusal.budget)
+			if err == nil {
+				t.Fatal("invalid declaration was accepted")
+			}
+			if errors.Is(err, ErrStartupTierFailed) {
+				t.Fatalf("an own-declaration refusal reads as a tier failure: %v", err)
+			}
+		})
+	}
+}
+
 func configuredStartupBudget(t *testing.T, budget time.Duration) *StartupCoordinator {
 	t.Helper()
 	coord := NewStartupCoordinator(1)

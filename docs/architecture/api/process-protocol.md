@@ -929,8 +929,12 @@ A failure during a reload means the plugin failed. A startup handshake that ende
 because the reload's context did, a reload over its budget or abandoned by its
 client, refuses that reload and leaves the daemon running, whatever the plugin
 declared. So does a sibling's failure: a plugin aborted at the tier barrier while
-it waited, still connected, has not failed. A `fatal` plugin whose connection had
-already ended when that wait ended has failed, and stops the daemon.
+it waited, still connected, has not failed. The same holds when the sibling
+failed after the plugin's registration was answered and before the plugin reached
+the barrier: the plugin's configure allowance meets the failed tier, and the
+sibling's failure is not recorded as the plugin's own. A `fatal` plugin whose
+connection had already ended when that wait, or that declaration, ended has
+failed, and stops the daemon.
 
 Boot has no running state to keep. A `fatal` plugin that does not reach running
 stops ze in every startup phase, however its handshake ended, because running
@@ -942,6 +946,7 @@ aborted it, the error log line names the plugin and the sibling's failure.
 <!-- source: internal/component/plugin/server/failure_policy.go -- pluginFailurePolicy, refuseRespawnDisagreement, (*Server).applyFailurePolicy, (*Server).stopDaemonOnStartupFailure, reloadOwnsStartup, startupEndedOutsidePlugin -->
 <!-- source: internal/component/plugin/server/startup_failure.go -- tierFailureCause, withTierCause -->
 <!-- source: internal/component/plugin/server/startup.go -- (*Server).stageTransition -->
+<!-- source: internal/component/plugin/startup_budget.go -- ErrStartupTierFailed, DeclareConfigureBudget -->
 <!-- source: internal/component/plugin/process/process.go -- (*Process).PluginEnded -->
 <!-- source: internal/component/plugin/process/manager.go -- RespawnLimit, RespawnWindow, MaxTotalRespawns, RefuseRespawns, ErrDaemonStopping, ReportCrash, RemoveProcess -->
 <!-- source: internal/component/plugin/process/stopped.go -- StopCause, RecordStopped, ClearStopped, RestartCommand, Reenable -->

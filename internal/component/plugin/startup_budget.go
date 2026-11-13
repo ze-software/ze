@@ -4,18 +4,30 @@
 package plugin
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
 
+// ErrStartupTierFailed answers a declaration that arrived after another member
+// of the tier had already failed it. It says nothing about the declaring plugin:
+// that plugin met the tier's abort before it reached the barrier, and a caller
+// MUST NOT record the wrapped failure as the declaring plugin's own.
+var ErrStartupTierFailed = errors.New("startup tier already failed")
+
 // DeclareConfigureBudget records one accepted registration's configure allowance.
 // Callers MUST declare before completing Registration; completion MUST freeze
 // the tier's maximum before any member enters Config. Zero declares trivial work.
+//
+// The answer when the tier already failed wraps ErrStartupTierFailed around the
+// tier's failure. Every other refusal judges this plugin's own declaration and
+// never wraps ErrStartupTierFailed. The tier's state is read under the same
+// mutex that records a failure, so no failure can land between the two reads.
 func (c *StartupCoordinator) DeclareConfigureBudget(pluginID int, budget time.Duration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.failedPlugin >= 0 {
-		return c.err
+		return fmt.Errorf("%w: %w", ErrStartupTierFailed, c.err)
 	}
 	if c.currentStage != StageRegistration {
 		return fmt.Errorf("configure allowance for plugin %d declared after registration", pluginID)
