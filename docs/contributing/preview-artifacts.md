@@ -62,6 +62,13 @@ These checks bind the export to the image whose version the producer ran; they
 do not authenticate an unsigned bundle's sender.
 <!-- source: internal/le/build/preview/docker_archive.go -- checkDockerArchive, imageGraph.walk, archiveContent.layer -->
 
+Each regular file in the outer Docker archive must be dense and at most 16 GiB.
+The checker refuses sparse outer files and larger declared sizes before hashing
+their content. Filesystem layers inside those dense files can contain sparse
+entries. JSON metadata is limited to 16 MiB, and uncompressed filesystem layers
+are limited to 16 GiB.
+<!-- source: internal/le/build/preview/docker_archive.go -- scanImageArchive, archiveContent.json, archiveContent.layer -->
+
 Verify the checksums before extracting or installing a received bundle:
 
 ```console

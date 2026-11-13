@@ -232,6 +232,16 @@ func scanImageArchive(file *os.File) (*archiveContent, error) {
 		// or into TypeDir for a name ending in a slash, so TypeReg covers both.
 		switch header.Typeflag {
 		case tar.TypeReg:
+			// Sparse holes expand during hashing and cannot be read back through
+			// the physical offsets retained for dense outer archive entries.
+			for record := range header.PAXRecords {
+				if strings.HasPrefix(record, "GNU.sparse.") {
+					return nil, fmt.Errorf("unsupported sparse Docker archive entry %s", name)
+				}
+			}
+			if header.Size > layerSizeLimit {
+				return nil, fmt.Errorf("the Docker archive entry %s exceeds the size limit", name)
+			}
 			sum, err := readerSum(reader)
 			if err != nil {
 				return nil, err
