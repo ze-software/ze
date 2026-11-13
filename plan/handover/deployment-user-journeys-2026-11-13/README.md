@@ -6,6 +6,63 @@
 
 This is the owner's requested migration checkpoint. It intentionally preserves unfinished work. Resume from this document; do not resume the older scratch notes as if their active jobs or temporary mutations still existed. Nothing was pushed or published for this checkpoint.
 
+## Progress after the migration (2026-11-13, new session on the Mac)
+
+The three bundles needed no import: main, wiki and gh-pages on the Mac were
+already at the checkpoint commits. This section supersedes "First work on the
+new machine" below where the two differ.
+
+Landed:
+
+- `ca9571e0e2`: Edits 1 and 2, plus a third defect that hid both. The proof's
+  generated seed wrote each list key as a `name` field, which the set parser
+  refuses, so the bootstrap boot never became ready in the orchestration tests.
+  Both upload clients now share one raw-channel exchange that requires the
+  device's own exit status, and the observer must log in and read the accepted
+  hostname before its edit-denial control. Each was red first. Independent
+  source review: no blocker.
+- `92b0b49dcc`: the proof asked gokrazy for a plain reboot, which is a kexec, so
+  QEMU's `-no-reboot` never exited. It now posts `kexec=off`. This is what the
+  first native amd64/KVM run failed on, after its bootstrap boot was ready.
+- `00d8e62202`: the zefs registry test expected the old authorized-keys name.
+  An independent test judge approved the correction; the stale name in the
+  connect command is gone too.
+- `10d888bda3`: journal row `parked-work-returns-out-of-order`, owned by
+  `spec-bgp-one-off-defects`, which still owes it an acceptance criterion.
+
+Observed:
+
+- `./le test unit pkg path ./internal/le/test/qemu/` passes: the nine intended
+  parents, the new `TestApplianceConfigPushObserverLoginRequired`, and the
+  ISO/OTA tests of the package.
+- Affected reactor repetitions (remaining item 3): 414 tests, 20 repetitions
+  under the race detector on darwin/arm64, no race report, one failure in one
+  repetition. That failure is the journal row above. Its cause is traced to
+  `takeOverflowReleased` and is outside the next-hop change.
+- Fresh RFC check on the Mac: red with 244 findings, 64 of them caused by
+  missing entries in the Mac's Go build cache. Neither `RFC4271-5.1.3-1` nor
+  `RFC8950-4-1` is among them, so the two stamped next-hop judgements hold.
+
+Not done, and why:
+
+- **No native VM run has passed.** Edit 3 and AC-12 are unchanged. Three
+  attempts: the first failed on the kexec defect, now fixed; the second, on the
+  `claude` server, died on host disk write errors (below); the third, on the
+  Mac, could not build its image because Docker's disk there is full and the
+  arm64 runtime kernel is not cached.
+- **The `claude` server's root disk reports kernel write errors** ("Aborted
+  Command", "potential data loss") in bursts on most days since 2026-11-10. One
+  hit the proof's disk image. Do not treat a run there as evidence until the
+  disk is sound.
+- Remaining items 2 (FRR and netlab topologies), 4 (preview artifacts, site
+  and docs checks) and 5 (review reconciliation, Review Gate, closure) are
+  untouched: the first two need Docker or a VM on a sound host.
+- The first server run left its retained work directory under that machine's
+  temporary directory (`ze-appliance-config-push-*`, about 2 GB). The session
+  that created it may not touch that location; the owner removes it.
+- `internal/le/test/qemu/zz_probe_d3cd9f56_test.go` is an untracked probe from
+  this session that a hook would not let it delete. It passes. Remove it.
+
 ## Status
 
 Done and previously committed:
