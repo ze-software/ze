@@ -224,7 +224,7 @@ package manager. A custom prefix has its own state directory and can be
 installed or purged independently.
 <!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
 
-<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, nativeTarget.stateOwnership -->
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, packageStateOwnership -->
 
 ```bash
 sudo ze uninstall --dry-run
@@ -257,8 +257,12 @@ confirmation before proceeding.
 The lower-level `ze uninstall systemd` and `ze uninstall local` commands remain
 available for manual installations. Use the service command first. Unlike the
 default removal, `ze uninstall systemd --purge` also removes the service account.
-<!-- source: internal/plugins/systemd/cmd_uninstall.go -- cmdUninstall -->
+`ze uninstall local --purge` also refuses to delete shared package-owned state,
+even when the selected standalone binary is absent. Ordinary local removal
+retains that state.
+<!-- source: internal/plugins/systemd/cmd_uninstall.go -- serviceRuntime.cmdUninstall -->
 <!-- source: internal/plugins/local/cmd_uninstall.go -- cmdUninstall -->
+<!-- source: internal/plugins/local/native.go -- packageStateOwnership -->
 
 To check the service status, use `systemctl status ze.service` directly.
 

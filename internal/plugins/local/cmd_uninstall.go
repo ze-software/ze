@@ -51,6 +51,12 @@ func cmdUninstall(args []string) int {
 		fmt.Fprintln(os.Stderr, opererr.Wrap(err, "Local removal cannot change this executable", "Resolve package ownership before removing the selected installation.", "ze help uninstall"))
 		return exitError
 	}
+	if *purge {
+		if err := packageStateOwnership(configDir); err != nil {
+			fmt.Fprintln(os.Stderr, opererr.Wrap(err, "Local purge cannot remove this state", "Package-owned configuration and credentials must be removed by the package manager.", "ze help uninstall"))
+			return exitError
+		}
+	}
 
 	if !*yes {
 		if !confirmUninstall(binPath, configDir, *purge) {

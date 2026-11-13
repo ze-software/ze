@@ -29,13 +29,15 @@ type nativePurgeCase struct {
 	marker         string
 	binaryPresent  bool
 	install        bool
+	explicitLocal  bool
+	dryRun         bool
 	packageBinLink bool
 	purge          bool
 	refused        bool
 }
 
 func nativePurgeCases() []nativePurgeCase {
-	return []nativePurgeCase{
+	return append([]nativePurgeCase{
 		{name: "shared-package-state-install-without-standalone", prefix: "/usr/local", marker: "/usr/share/ze/install-method", install: true, refused: true},
 		{name: "shared-package-state-install-with-standalone", prefix: "/usr/local", marker: "/usr/share/ze/install-method", binaryPresent: true, install: true, refused: true},
 		{name: "shared-package-state-install-relocated-package-bin", prefix: "/usr/local", marker: "/usr/share/ze/install-method", packageBinLink: true, install: true, refused: true},
@@ -47,26 +49,29 @@ func nativePurgeCases() []nativePurgeCase {
 		{name: "standalone-state-only-purge", prefix: "/usr/local", purge: true},
 		{name: "custom-prefix-independent-of-package", prefix: "/opt/ze", marker: "/usr/share/ze/install-method", binaryPresent: true, purge: true},
 		{name: "ordinary-removal-preserves-shared-state", prefix: "/usr/local", marker: "/usr/share/ze/install-method", binaryPresent: true},
-	}
+	}, explicitLocalPurgeCases()...)
 }
 
 // TestNativePurgeRespectsSharedPackageState runs the actual default uninstall
 // inside a child-only filesystem. The parent also checks every survivor, so an
 // early refusal cannot stand in for a successful independent standalone purge.
 func TestNativePurgeRespectsSharedPackageState(t *testing.T) {
-	nativePurgeRunCases(t, false)
+	nativePurgeRunCases(t, false, false)
 }
 
 // TestNativeInstallRespectsSharedPackageState exercises the default installer
 // before it can replace a binary or adopt the package installation's store.
 func TestNativeInstallRespectsSharedPackageState(t *testing.T) {
-	nativePurgeRunCases(t, true)
+	nativePurgeRunCases(t, true, false)
 }
 
-func nativePurgeRunCases(t *testing.T, install bool) {
+func nativePurgeRunCases(t *testing.T, install, explicitLocal bool) {
 	t.Helper()
 	for _, test := range nativePurgeCases() {
 		if test.install != install {
+			continue
+		}
+		if test.explicitLocal != explicitLocal {
 			continue
 		}
 		t.Run(test.name, func(t *testing.T) {
@@ -116,7 +121,7 @@ func nativePurgeRunCases(t *testing.T, install bool) {
 				t.Logf("isolated native operation:\n%s", output)
 			}
 
-			if test.refused {
+			if test.refused || test.dryRun {
 				nativePurgeRetained(t, root, state, "selected-state")
 				if test.binaryPresent {
 					nativePurgeRetained(t, root, target.binary, "standalone-binary")
@@ -178,8 +183,25 @@ func TestNativePurgeWorker(t *testing.T) {
 		if test.purge {
 			args = append(args, "--purge")
 		}
+		if test.dryRun {
+			args = append(args, "--dry-run")
+		}
 		var code int
-		if test.install {
+		if test.explicitLocal {
+			args = []string{"--prefix", test.prefix, "--yes"}
+			if test.purge {
+				args = append(args, "--purge")
+			}
+			if test.dryRun {
+				args = append(args, "--dry-run")
+			}
+			var text string
+			code, text = explicitLocalPurgeOutput(t, args)
+			output.WriteString(text)
+			if test.refused {
+				explicitLocalPurgeRefusal(t, text, test.marker)
+			}
+		} else if test.install {
 			code = rt.install(args)
 		} else {
 			code = rt.uninstall(args)

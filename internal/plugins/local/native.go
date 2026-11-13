@@ -116,7 +116,7 @@ func (rt *nativeRuntime) install(args []string) (code int) {
 	if err != nil {
 		return rt.refuse(err)
 	}
-	if err := target.stateOwnership(); err != nil {
+	if err := packageStateOwnership(target.configDir); err != nil {
 		return rt.refuse(err)
 	}
 	if !existing {
@@ -228,7 +228,7 @@ func (rt *nativeRuntime) uninstall(args []string) int {
 		return rt.refuse(err)
 	}
 	if *purge {
-		if err := target.stateOwnership(); err != nil {
+		if err := packageStateOwnership(target.configDir); err != nil {
 			return rt.refuse(err)
 		}
 	}
@@ -429,11 +429,11 @@ func nativePath(path string) error {
 	return nil
 }
 
-// stateOwnership checks the package authority for state shared by the system
+// packageStateOwnership checks the package authority for state shared by the system
 // binary prefixes. The package marker has its own canonical path: relocating
 // /usr/bin does not transfer ownership of /etc/ze to a standalone installation.
-func (target nativeTarget) stateOwnership() error {
-	if target.configDir != paths.ConfigDirFromBinary("/usr/bin/ze") {
+func packageStateOwnership(configDir string) error {
+	if configDir != paths.ConfigDirFromBinary("/usr/bin/ze") {
 		return nil
 	}
 	return packageMarkerOwnership("/usr/share/ze/install-method")
