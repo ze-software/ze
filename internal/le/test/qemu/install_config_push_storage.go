@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -37,12 +38,18 @@ func (installer *Installer) configPushDisk(ctx context.Context, work, disk, phas
 		return "", nil, err
 	}
 	defer func() { resultErr = errors.Join(resultErr, store.Close()) }()
+	// The daemon stores a named appliance's configuration under its instance
+	// name, so the name comes from the product's own resolver, never a constant.
+	name, err := resolve.DefaultConfig(store)
+	if err != nil {
+		return "", nil, errors.New("stopped disk does not name its configuration")
+	}
 	// ReadActiveConfig permits a legacy mirror only without a pointer. This
 	// proof requires the selected version, and therefore checks the pointer first.
-	if _, err := store.ReadKey(zefs.KeyConfigActive.Key("ze.conf")); err != nil {
+	if _, err := store.ReadKey(zefs.KeyConfigActive.Key(name)); err != nil {
 		return "", nil, errors.New("stopped disk has no readable active configuration pointer")
 	}
-	selected, err := storage.ReadActiveConfig(store, "ze.conf")
+	selected, err := storage.ReadActiveConfig(store, name)
 	if err != nil {
 		return "", nil, err
 	}

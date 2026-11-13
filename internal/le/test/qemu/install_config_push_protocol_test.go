@@ -478,10 +478,16 @@ func (fixture *configPushProtocolFixture) snapshotStore(store storage.Storage) e
 	fixture.mu.Lock()
 	accepted := fixture.acceptedConfig
 	fixture.mu.Unlock()
-	if _, _, err := storage.EnsureActiveVersion(store, "ze.conf", []byte(accepted), time.Now()); err != nil {
+	// A named appliance records its name, and the daemon stores the selected
+	// configuration under that name, never under the seed's file name.
+	if err := store.WriteFile(zefs.KeyInstanceName.Pattern, []byte(InstallApplianceName), 0o600); err != nil {
 		return err
 	}
-	return store.WriteFile("ze.conf", []byte("set system host stale-mirror\n"), 0o600)
+	named := InstallApplianceName + ".conf"
+	if _, _, err := storage.EnsureActiveVersion(store, named, []byte(accepted), time.Now()); err != nil {
+		return err
+	}
+	return store.WriteFile(named, []byte("set system host stale-mirror\n"), 0o600)
 }
 
 func (fixture *configPushProtocolFixture) serve() {
