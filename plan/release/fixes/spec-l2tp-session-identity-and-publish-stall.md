@@ -349,6 +349,7 @@ The first three names came from
 | `plan/journal/key-omits-a-fact-the-builder-uses.md` | 2026-11-11 | L2TP `teardownSessionByID` ends the first session with an id on any tunnel |
 | `plan/journal/slow-reader-stalls-a-shared-goroutine.md` | 2026-11-11 | L2TP reactor goroutine waits on a synchronous Accounting-Stop |
 | `plan/journal/retry-forgets-consumed-input.md` | 2026-11-13 | L2TP `handleTick` drops the kernel setup events it collects |
+| `plan/journal/callback-reenters-held-lock.md` | 2026-11-13 | L2TP tunnel events emitted while the tunnel's session-order ticket is undelivered |
 
 ## Related specs
 

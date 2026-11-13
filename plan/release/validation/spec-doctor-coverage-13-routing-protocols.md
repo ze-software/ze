@@ -519,6 +519,7 @@ before the checks that read them.
 | `invariant-enforced-by-an-absent-call-site.md` | 2026-11-10 | LDP reload accepts `lsr-id`, transport and timer changes and applies only the interface set (AC-84) |
 | `invariant-enforced-by-an-absent-call-site.md` | 2026-11-10 | RSVP-TE reload ignores a changed or late `router-id` (AC-85) |
 | `mandatory-algorithm-absent.md` | 2026-11-10 | LDP has no passive role: RFC 5036 Section 2.5.2 role comparison and TCP 646 listener absent (AC-86) |
+| `lock-held-across-a-join.md` | 2026-11-13 | LDP `startSessionForAdj` holds `sessionsMu` across the 5s TCP dial |
 
 ## Key Design Decisions
 
