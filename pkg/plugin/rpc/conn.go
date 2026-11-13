@@ -181,7 +181,9 @@ func (c *Conn) armWatchdogLocked() {
 // the timer running for this write whenever the window is positive, so a Stop
 // that reports false means the timer fired: the connection is already being
 // torn down by fireWatchdog and the in-flight write returns an error, which is
-// the intended fail-fast outcome. writeFrame reads that as the write's timeout.
+// the intended fail-fast outcome. writeFailure reads that as the write's timeout
+// only under a context deadline. With none, the write answers the error it got
+// once fireWatchdog closed the writer, and nothing in it marks a timeout.
 func (c *Conn) disarmWatchdogLocked() (fired bool) {
 	if c.watchdog != nil {
 		fired = !c.watchdog.Stop() && c.watchdogWindow > 0
@@ -308,9 +310,9 @@ func (c *Conn) NextID() uint64 {
 // message.go as the appender; the helper writes into the pool buffer
 // with no intermediate allocation.
 //
-// This is the hot-path alternative to writeLineWithContext: it avoids
-// both the Format*-side []byte allocation and FrameWriter.Write's
-// per-call copy.
+// It avoids both the Format*-side []byte allocation and FrameWriter.Write's
+// per-call copy. writeLineWithContext also writes through it, for a line
+// another function already formatted.
 func (c *Conn) writeAppended(ctx context.Context, appender func([]byte) []byte) error {
 	bp := getFrameBuf()
 	defer putFrameBuf(bp)
@@ -330,16 +332,10 @@ func (c *Conn) writeAppended(ctx context.Context, appender func([]byte) []byte) 
 // It is the shared write core: writeAppended formats into a pooled buffer and
 // calls it, and answerWriter hands it a line another package framed.
 //
-// A failed write answers ctx.Err() once the context has ended. Under a context
-// deadline that has not yet shown in ctx.Err(), it answers
-// context.DeadlineExceeded only when the write itself timed out: the transport
-// ended it at its write deadline (os.ErrDeadlineExceeded), or the watchdog
-// fired on a transport with no write deadline. Any other failure, above all a
-// socket whose peer closed (EPIPE, ECONNRESET), is returned as "write frame:
-// %w", so the caller learns the connection is gone rather than that it was
-// slow. A net.Pipe whose remote end is closed never reaches the write: its
-// SetWriteDeadline already fails, and that is returned as "set write deadline:
-// %w".
+// A failed write is answered by writeFailure, with the write error wrapped as
+// "write frame: %w". A net.Pipe whose remote end is closed never reaches the
+// write: its SetWriteDeadline already fails, and that is returned as "set write
+// deadline: %w".
 func (c *Conn) writeFrame(ctx context.Context, buf []byte) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -376,21 +372,55 @@ func (c *Conn) writeFrame(ctx context.Context, buf []byte) error {
 	if writeErr == nil {
 		return nil
 	}
+	return writeFailure(ctx, hasDeadline, watchdogFired, fmt.Errorf("write frame: %w", writeErr))
+}
+
+// writeFailure answers for a write that failed. It is the one decision every
+// write path takes (writeFrame, which writeAppended, answerWriter and
+// writeLineWithContext reach, and writeBatchWithDeadline), so one dead plugin
+// reads the same cause on every call. writeErr is the failure as its path
+// wrapped it. hasDeadline reports whether ctx carries a deadline, and
+// watchdogFired whether disarmWatchdogLocked found the watchdog had fired.
+//
+// The answer, in order:
+//   - ctx.Err(), once the context has ended.
+//   - context.DeadlineExceeded, under a context deadline, when the write itself
+//     timed out: the transport ended it at its write deadline
+//     (os.ErrDeadlineExceeded), or the watchdog fired on a transport with no
+//     write deadline.
+//   - writeErr for any other failure, above all a socket whose peer closed
+//     (EPIPE, ECONNRESET), so the caller learns the connection is gone rather
+//     than that it was slow.
+//
+// With no context deadline, a write the watchdog ended answers writeErr: the
+// error the write returned once fireWatchdog closed the writer (io.ErrClosedPipe
+// for an io.Pipe), with nothing in it marking a timeout. The watchdog's WARN line
+// and its metric hook are then the only record that the write stalled.
+//
+// On TLS, a timeout is not confined to the write that timed out. A forked plugin
+// reaches the engine over TLS (sdk dialAndAuth), and crypto/tls documents:
+// "After a [Conn.Write] has timed out, the TLS state is corrupt and all future
+// writes will return the same error." That error unwraps to
+// os.ErrDeadlineExceeded, so under a context deadline every later write on the
+// connection is reported as a timeout too, though none of them waited for its
+// own deadline: from the first timeout on, the connection is unusable.
+func writeFailure(ctx context.Context, hasDeadline, watchdogFired bool, writeErr error) error {
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return ctxErr
+	}
+	if !hasDeadline {
+		return writeErr
 	}
 	// The kernel or net.Pipe can end the write at the context's deadline before
 	// Go's context timer has updated ctx.Err(), so a timed-out write is that
 	// deadline even while ctx.Err() is still nil.
-	if hasDeadline {
-		if errors.Is(writeErr, os.ErrDeadlineExceeded) {
-			return context.DeadlineExceeded
-		}
-		if watchdogFired {
-			return context.DeadlineExceeded
-		}
+	if errors.Is(writeErr, os.ErrDeadlineExceeded) {
+		return context.DeadlineExceeded
 	}
-	return fmt.Errorf("write frame: %w", writeErr)
+	if watchdogFired {
+		return context.DeadlineExceeded
+	}
+	return writeErr
 }
 
 // AnswerWriter returns the writer one answer sequence is written to. Each Write
@@ -427,57 +457,17 @@ func (w answerWriter) Write(line []byte) (int, error) {
 	return len(line), nil
 }
 
-// writeLineWithContext writes a line with context-derived write deadline.
-// The deadline set, write, and deadline clear are all performed under c.mu
-// to prevent interleaving when multiple goroutines write concurrently.
-// When the writer does not support SetWriteDeadline (e.g., os.Stdout),
-// deadline setting is skipped and writes may block longer.
+// writeLineWithContext writes one line that carries no newline terminator. It
+// copies the line into a pooled buffer through writeAppended, which adds the
+// terminator, so the line takes writeFrame's lock, write deadline, watchdog,
+// size limit and failure answer (writeFailure), and no second copy of them.
 //
-// Retained for tests and external callers that already hold a
-// pre-formatted []byte. Production hot paths use writeAppended to skip
-// both the Format*-side allocation and FrameWriter's per-write copy.
+// Only tests call it, with a line FormatRequest built. Production callers
+// format straight into the pooled buffer through writeAppended.
 func (c *Conn) writeLineWithContext(ctx context.Context, line []byte) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	dl, hasDeadline := ctx.Deadline()
-	deadline := dl
-	if !hasDeadline {
-		deadline = time.Now().Add(defaultWriteDeadline)
-	}
-
-	c.mu.Lock()
-	dlWriter, hasDL := c.writeCloser.(writeDeadliner)
-	if hasDL {
-		if err := dlWriter.SetWriteDeadline(deadline); err != nil {
-			c.mu.Unlock()
-			return fmt.Errorf("set write deadline: %w", err)
-		}
-	} else {
-		c.armWatchdogLocked()
-	}
-	writeErr := c.writer.Write(line)
-	if hasDL {
-		_ = dlWriter.SetWriteDeadline(time.Time{})
-	} else {
-		c.disarmWatchdogLocked()
-	}
-	c.mu.Unlock()
-
-	if writeErr != nil {
-		// When the write deadline came from the context, a write timeout
-		// IS a context deadline exceeded. Check ctx.Err() but also handle
-		// the race where the kernel fires the write timeout before Go's
-		// context timer updates ctx.Err().
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return ctxErr
-		}
-		if hasDeadline {
-			return context.DeadlineExceeded
-		}
-		return writeErr
-	}
-	return nil
+	return c.writeAppended(ctx, func(buf []byte) []byte {
+		return append(buf, line...)
+	})
 }
 
 // ReadRequest reads the next incoming RPC request from the read connection.
@@ -651,7 +641,10 @@ func (c *Conn) callBatchOnce(ctx context.Context, events [][]byte) (json.RawMess
 // from the context. Falls back to defaultWriteDeadline if ctx has no deadline.
 // The deadline set, write, and deadline clear are all performed under c.mu
 // to prevent interleaving when multiple goroutines write concurrently.
-// When the writer does not support SetWriteDeadline, deadline setting is skipped.
+// When the writer does not support SetWriteDeadline, deadline setting is skipped
+// and the watchdog guards the write instead. A failed write is answered by
+// writeFailure, with the error WriteBatchFrame wrapped as "write batch frame:
+// %w", so a closed peer reads the same on event delivery as on CallRPC.
 func (c *Conn) writeBatchWithDeadline(ctx context.Context, id uint64, events [][]byte) error {
 	dl, hasDeadline := ctx.Deadline()
 	deadline := dl
@@ -670,24 +663,18 @@ func (c *Conn) writeBatchWithDeadline(ctx context.Context, id uint64, events [][
 		c.armWatchdogLocked()
 	}
 	writeErr := WriteBatchFrame(c.writer.RawWriter(), id, events)
+	watchdogFired := false
 	if hasDL {
 		_ = dlWriter.SetWriteDeadline(time.Time{})
 	} else {
-		c.disarmWatchdogLocked()
+		watchdogFired = c.disarmWatchdogLocked()
 	}
 	c.mu.Unlock()
 
-	// Match writeLineWithContext: prioritize writeErr, translate to ctx error.
-	if writeErr != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return ctxErr
-		}
-		if hasDeadline {
-			return context.DeadlineExceeded
-		}
-		return writeErr
+	if writeErr == nil {
+		return nil
 	}
-	return nil
+	return writeFailure(ctx, hasDeadline, watchdogFired, writeErr)
 }
 
 // WriteRawFrame writes pre-framed data (including newline terminator) directly.

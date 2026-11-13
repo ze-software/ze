@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/ipc_protocol.md -- plugin RPC connection
-// Related: conn.go (writeFrame, disarmWatchdogLocked)
+// Related: conn.go (writeFrame, writeBatchWithDeadline, writeFailure, disarmWatchdogLocked)
 
 package rpc
 
@@ -117,6 +117,93 @@ func TestConnWritePastItsDeadlineIsATimeout(t *testing.T) {
 		defer cancel()
 
 		err := conn.SendOK(ctx, 1)
+		require.Error(t, err)
+		require.NoError(t, ctx.Err(), "the context must still be live, or ctx.Err decided the answer")
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
+	})
+}
+
+// batchEvents is one deliver-batch event, enough to put a frame on the wire.
+var batchEvents = [][]byte{[]byte(`{"type":"bgp"}`)}
+
+// TestConnBatchWriteToAClosedPeerKeepsItsCause proves that a deliver-batch write
+// to a socket whose peer closed reports that cause, as CallRPC does on the same
+// connection, even when the call carries a deadline.
+//
+// VALIDATES: writeBatchWithDeadline hands the failure to writeFailure, so
+// CallBatchRPC answers exactly "send batch: write batch frame: write tcp: write:
+// broken pipe", errors.Is finds syscall.EPIPE, and the error is not
+// context.DeadlineExceeded. This is the path every event delivery to a plugin
+// over a connection takes (process deliverViaConn, ipc SendDeliverBatch).
+// METHOD: the brokenPipeWriter of TestConnWriteToAClosedPeerKeepsItsCause, and a
+// call under a 5 s deadline that is still live when the write fails.
+// PREVENTS: one dead plugin reading as slow on event delivery ("send batch:
+// context deadline exceeded") while its RPCs read as gone ("send request: write
+// frame: ... broken pipe").
+//
+// MUTATION: restoring "if hasDeadline { return context.DeadlineExceeded }" in
+// writeBatchWithDeadline in place of the writeFailure call reddens all three
+// cause assertions, with "send batch: context deadline exceeded".
+func TestConnBatchWriteToAClosedPeerKeepsItsCause(t *testing.T) {
+	t.Parallel()
+
+	conn := NewConn(newBlockingReader(), brokenPipeWriter{})
+	defer closeConn(t, conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := conn.CallBatchRPC(ctx, batchEvents)
+	require.Error(t, err)
+	require.NoError(t, ctx.Err(), "the context must still be live, or ctx.Err decided the answer")
+	assert.EqualError(t, err, "send batch: write batch frame: write tcp: write: broken pipe")
+	assert.ErrorIs(t, err, syscall.EPIPE, "the broken pipe must survive as the cause")
+	assert.NotErrorIs(t, err, context.DeadlineExceeded, "no deadline passed, so the error is not a timeout")
+}
+
+// TestConnBatchWritePastItsDeadlineIsATimeout proves that a deliver-batch write
+// that timed out still answers context.DeadlineExceeded, on the deadline
+// transport and on the watchdog transport alike.
+//
+// VALIDATES: writeBatchWithDeadline gives writeFailure the two timeout forms
+// writeFrame gives it: a write error that is os.ErrDeadlineExceeded, here
+// wrapped by WriteBatchFrame as "write batch frame: %w", and the watchdog-fired
+// report from disarmWatchdogLocked on a transport with no write deadline.
+// METHOD: each case calls CallBatchRPC under a 5 s deadline, so the context is
+// still live when the write fails and only the reading of the write decides the
+// answer. The writers are the ones TestConnWritePastItsDeadlineIsATimeout uses.
+// PREVENTS: the closed-peer fix for the batch path ceasing to report a real
+// timeout, and the batch path dropping the watchdog's verdict.
+//
+// MUTATION: dropping the os.ErrDeadlineExceeded test in writeFailure reddens the
+// deadline case; leaving watchdogFired false in writeBatchWithDeadline (not
+// storing disarmWatchdogLocked's answer) reddens the watchdog case, with "send
+// batch: write batch frame: io: read/write on closed pipe".
+func TestConnBatchWritePastItsDeadlineIsATimeout(t *testing.T) {
+	t.Run("write deadline expired", func(t *testing.T) {
+		conn := NewConn(newBlockingReader(), expiredDeadlineWriter{})
+		defer closeConn(t, conn)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_, err := conn.CallBatchRPC(ctx, batchEvents)
+		require.Error(t, err)
+		require.NoError(t, ctx.Err(), "the context must still be live, or ctx.Err decided the answer")
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
+	})
+	t.Run("watchdog fired", func(t *testing.T) {
+		writer := newBlockingWriter()
+		conn := NewConn(newBlockingReader(), writer)
+		conn.SetWatchdogWindow(30 * time.Millisecond)
+		if _, ok := any(writer).(writeDeadliner); ok {
+			t.Fatal("blockingWriter must not implement SetWriteDeadline")
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_, err := conn.CallBatchRPC(ctx, batchEvents)
 		require.Error(t, err)
 		require.NoError(t, ctx.Err(), "the context must still be live, or ctx.Err decided the answer")
 		assert.ErrorIs(t, err, context.DeadlineExceeded)
