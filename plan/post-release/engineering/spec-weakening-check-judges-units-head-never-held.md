@@ -115,6 +115,7 @@ Draft row. The design pass confirms or rewrites it.
 | `plan/journal/two-owners-share-one-name.md` | 2026-11-12 | `./le test weakened approve` refuses a method unit whose bare name another type shares |
 | `plan/journal/hook-existing-patterns-false-positive.md` | 2026-11-12 | `weakenedUnits` refuses a new test function's guard skip; `ApprovalContentAdmits` stales a pre-edit approval of a file HEAD lacks |
 | `plan/journal/hook-existing-patterns-false-positive.md` | 2026-11-12 | `commentedAssertionPattern` (`detect`, called by `Proposed`) reads a doc comment naming `t.Errorf` as a commented-out assertion |
+| `plan/journal/hook-existing-patterns-false-positive.md` | 2026-11-13 | `weakenedUnits` counts an assertion moved into a same-file helper the unit calls as removed |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

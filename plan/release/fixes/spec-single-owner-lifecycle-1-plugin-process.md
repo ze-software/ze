@@ -473,6 +473,7 @@ Phase 6 (the firewall vpp backend) moved with AC-9 to `plan/release/fixes/spec-f
 | `plan/journal/false-synchronization-claim.md` | 2026-10-03 | process registration unsynchronized |
 | `plan/journal/late-write-lands-on-the-successor.md` | 2026-09-09 | engine event dispatch calls a retired handler |
 | `plan/journal/stop-leaves-the-work-running.md` | 2026-09-17 | plugins restarted between the stop signal and the drain |
+| `plan/journal/exit-cleanup-runs-after-its-transport-closed.md` | 2026-11-13 | in-process plugin's exit withdrawal refused after `Run` stops dispatch |
 
 ## Rows considered and not owned
 | Class file | Date | Surface (short) | Why not this root cause | Home |
