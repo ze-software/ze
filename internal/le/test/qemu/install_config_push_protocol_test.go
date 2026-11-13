@@ -89,6 +89,35 @@ func TestApplianceConfigPushFailureJoinsOwnedResources(t *testing.T) {
 	fixture.assertStopped(t)
 }
 
+// TestApplianceConfigPushObserverLoginRequired proves that the edit-denial
+// control cannot pass on a broken observer login. The fixture refuses the
+// observer's key, so the host driver fails at authentication and never reaches
+// edit authorization; the proof MUST fail rather than count that as a refusal.
+func TestApplianceConfigPushObserverLoginRequired(t *testing.T) {
+	fixture := newConfigPushProtocolFixture(t)
+	fixture.refuseObserver = true
+	runner, ok := any(fixture.installer).(applianceConfigPushRunner)
+	if !ok {
+		t.Fatal("missing native configuration push orchestration")
+	}
+	report, err := runner.executeApplianceConfigPush(t.Context())
+	if err == nil {
+		t.Fatalf("broken observer login passed as an edit refusal: report=%+v", report)
+	}
+	if report.Verdict == InstallVerdictPass {
+		t.Fatalf("failed proof reported a pass: report=%+v", report)
+	}
+	fixture.mu.Lock()
+	defer fixture.mu.Unlock()
+	if fixture.accepted != 1 || fixture.malformed != 1 {
+		t.Fatalf("proof did not reach the observer control: accepted=%d malformed=%d", fixture.accepted, fixture.malformed)
+	}
+	if fixture.denied != 0 || fixture.badPins != 0 {
+		t.Fatalf("proof continued past an unauthenticated observer: denied=%d bad pin=%d", fixture.denied, fixture.badPins)
+	}
+	fixture.assertStopped(t)
+}
+
 // TestApplianceConfigPushFixtureProcess is the bounded child used by the
 // process seam; EOF models QEMU's successful -no-reboot exit.
 func TestApplianceConfigPushFixtureProcess(t *testing.T) {
@@ -116,7 +145,7 @@ type configPushProtocolFixture struct {
 	ports                                                                                             []int
 	seed, acceptedConfig, home, socket, disk                                                          string
 	builds, boots, previews, pushes, accepted, malformed, denied, badPins, snapshots, passwords, keys int
-	failPush                                                                                          bool
+	failPush, refuseObserver                                                                          bool
 }
 
 func newConfigPushProtocolFixture(t *testing.T) *configPushProtocolFixture {
@@ -395,33 +424,18 @@ func (fixture *configPushProtocolFixture) productPush(ctx context.Context, appDi
 	}
 	client, err := ssh.Dial("tcp", address, &ssh.ClientConfig{User: named.Credentials.Username, Auth: []ssh.AuthMethod{ssh.PublicKeys(signers...)}, HostKeyCallback: verify, Timeout: time.Second})
 	if err != nil {
-		return commandResult{}, err
-	}
-	defer client.Close()
-	session, err := client.NewSession()
-	if err != nil {
-		return commandResult{}, err
-	}
-	defer session.Close()
-	input, err := session.StdinPipe()
-	if err != nil {
-		return commandResult{}, err
-	}
-	var output bytes.Buffer
-	session.Stdout = &output
-	if err := session.RequestSubsystem(configupload.Subsystem); err != nil {
-		return commandResult{}, err
-	}
-	if err := configupload.Write(input, content); err != nil {
-		return commandResult{}, err
-	}
-	if err := input.Close(); err != nil {
-		return commandResult{}, err
-	}
-	if err := session.Wait(); err != nil {
+		// The host driver exits 1 for every connection or login failure.
 		return commandResult{Code: 1}, nil
 	}
-	if output.String() != configupload.Receipt {
+	defer client.Close()
+	upload, err := configPushExchange(client, content)
+	if err != nil {
+		return commandResult{}, err
+	}
+	if upload.status != 0 {
+		return commandResult{Code: 1}, nil
+	}
+	if string(upload.output) != configupload.Receipt {
 		return commandResult{}, errors.New("receiver receipt absent")
 	}
 	return commandResult{Stdout: "config applied to " + InstallApplianceName + "\n"}, nil
@@ -495,6 +509,9 @@ func (fixture *configPushProtocolFixture) sshConnection(connection net.Conn) {
 	}, PublicKeyCallback: func(metadata ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 		if !bytes.Equal(key.Marshal(), fixture.operator.Marshal()) {
 			return nil, errors.New("unrelated key refused")
+		}
+		if fixture.refuseObserver && metadata.User() == configPushObserver {
+			return nil, errors.New("observer key refused")
 		}
 		fixture.mu.Lock()
 		fixture.keys++

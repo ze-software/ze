@@ -9,6 +9,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -33,9 +34,9 @@ func (guest *otaGuest) configPushAddress() string {
 	return net.JoinHostPort(forwardHost, strconv.Itoa(guest.sshPort))
 }
 
-// configPushSession owns the transport, cancellation callback and session.
+// configPushClient owns the transport, cancellation callback and client.
 // It MUST close the transport and join a running callback before returning.
-func (guest *otaGuest) configPushSession(ctx context.Context, user string, auth ssh.AuthMethod, verify ssh.HostKeyCallback, operation func(*ssh.Session) error) (resultErr error) {
+func (guest *otaGuest) configPushClient(ctx context.Context, user string, auth ssh.AuthMethod, verify ssh.HostKeyCallback, operation func(*ssh.Client) error) (resultErr error) {
 	deadline, cancel := context.WithTimeout(ctx, otaUploadTimeout)
 	defer cancel()
 	address := guest.configPushAddress()
@@ -52,7 +53,7 @@ func (guest *otaGuest) configPushSession(ctx context.Context, user string, auth 
 		if !stopCallback() {
 			<-callbackDone
 		}
-		connection.Close() //nolint:errcheck // The session result owns transport errors.
+		connection.Close() //nolint:errcheck // The operation result owns transport errors.
 		if deadline.Err() != nil {
 			resultErr = errors.Join(resultErr, deadline.Err())
 		}
@@ -67,18 +68,18 @@ func (guest *otaGuest) configPushSession(ctx context.Context, user string, auth 
 		return errors.New("native SSH identity or host pin was refused")
 	}
 	client := ssh.NewClient(transport, channels, requests)
-	defer client.Close() //nolint:errcheck // The session result owns transport errors.
-	session, err := client.NewSession()
-	if err != nil {
-		return errors.New("native SSH command session could not be opened")
-	}
-	defer session.Close() //nolint:errcheck // The operation result owns session errors.
-	return operation(session)
+	defer client.Close() //nolint:errcheck // The operation result owns transport errors.
+	return operation(client)
 }
 
 func (guest *otaGuest) configPushSSH(ctx context.Context, user string, auth ssh.AuthMethod, verify ssh.HostKeyCallback, command string) (string, error) {
 	var output configPushCapture
-	err := guest.configPushSession(ctx, user, auth, verify, func(session *ssh.Session) error {
+	err := guest.configPushClient(ctx, user, auth, verify, func(client *ssh.Client) error {
+		session, err := client.NewSession()
+		if err != nil {
+			return errors.New("native SSH command session could not be opened")
+		}
+		defer session.Close() //nolint:errcheck // The command result owns session errors.
 		session.Stdin = strings.NewReader("")
 		session.Stdout, session.Stderr = &output, io.Discard
 		if err := session.Run(command); err != nil {
@@ -92,18 +93,27 @@ func (guest *otaGuest) configPushSSH(ctx context.Context, user string, auth ssh.
 	return string(output.data), nil
 }
 
+// configPushHostname proves one fresh pinned login: the user authenticates, is
+// allowed to run the hostname query, and the guest answers the expected name.
+func (guest *otaGuest) configPushHostname(ctx context.Context, user string, auth ssh.AuthMethod, verify ssh.HostKeyCallback, hostname string) error {
+	output, err := guest.configPushSSH(ctx, user, auth, verify, HostnameQuery)
+	if err != nil {
+		return err
+	}
+	actual, err := hostnameOf(output)
+	if err != nil {
+		return errors.New("native SSH hostname response is invalid")
+	}
+	if actual != hostname {
+		return errors.New("native SSH reports an unexpected live hostname")
+	}
+	return nil
+}
+
 func (guest *otaGuest) configPushLive(ctx context.Context, signer ssh.Signer, verify ssh.HostKeyCallback, hostname string) (string, error) {
 	for _, auth := range []ssh.AuthMethod{ssh.Password(guest.installer.Options.SSHPassword), ssh.PublicKeys(signer)} {
-		output, err := guest.configPushSSH(ctx, guest.installer.Options.SSHUser, auth, verify, HostnameQuery)
-		if err != nil {
+		if err := guest.configPushHostname(ctx, guest.installer.Options.SSHUser, auth, verify, hostname); err != nil {
 			return "", err
-		}
-		actual, err := hostnameOf(output)
-		if err != nil {
-			return "", errors.New("native SSH hostname response is invalid")
-		}
-		if actual != hostname {
-			return "", errors.New("native SSH reports an unexpected live hostname")
 		}
 	}
 	content, err := guest.configPushSSH(ctx, guest.installer.Options.SSHUser, ssh.PublicKeys(signer), verify, "show config")
@@ -149,31 +159,15 @@ func (guest *otaGuest) configPushUnchanged(ctx context.Context, signer ssh.Signe
 
 func (guest *otaGuest) configPushMalformed(ctx context.Context, signer ssh.Signer, verify ssh.HostKeyCallback) error {
 	const private = "native-proof-private-malformed-payload"
-	return guest.configPushSession(ctx, guest.installer.Options.SSHUser, ssh.PublicKeys(signer), verify, func(session *ssh.Session) error {
-		input, err := session.StdinPipe()
+	return guest.configPushClient(ctx, guest.installer.Options.SSHUser, ssh.PublicKeys(signer), verify, func(client *ssh.Client) error {
+		upload, err := configPushExchange(client, "set "+private+" true\n")
 		if err != nil {
-			return err
+			return errors.Join(errors.New("malformed control did not complete the actual configuration upload exchange"), err)
 		}
-		var output, diagnostic configPushCapture
-		session.Stdout, session.Stderr = &output, &diagnostic
-		if err := session.RequestSubsystem(configupload.Subsystem); err != nil {
-			return errors.New("malformed control could not open the actual configuration upload adapter")
-		}
-		if err := configupload.Write(input, "set "+private+" true\n"); err != nil {
-			return errors.New("malformed control could not deliver its complete frame")
-		}
-		if err := input.Close(); err != nil {
-			return errors.New("malformed control could not complete its SSH input")
-		}
-		err = session.Wait()
-		exit, ok := errors.AsType[*ssh.ExitError](err)
-		if !ok {
-			return errors.New("malformed control has no remote nonzero exit status")
-		}
-		if exit.ExitStatus() == 0 {
+		if upload.status == 0 {
 			return errors.New("malformed control returned a zero exit status")
 		}
-		for _, data := range [][]byte{output.data, diagnostic.data} {
+		for _, data := range [][]byte{upload.output, upload.diagnostic} {
 			if strings.Contains(string(data), configupload.Receipt) {
 				return errors.New("malformed control returned a success receipt")
 			}
@@ -183,4 +177,111 @@ func (guest *otaGuest) configPushMalformed(ctx context.Context, signer ssh.Signe
 		}
 		return nil
 	})
+}
+
+// configPushUpload is the device's complete answer to one upload exchange:
+// its exit status and everything it wrote on both streams.
+type configPushUpload struct {
+	output, diagnostic []byte
+	status             uint32
+}
+
+// configPushExchange sends one framed configuration over a raw session channel
+// of an authenticated client and returns the device's own answer. It follows
+// the product client (internal/appliance, sshExecReal): x/crypto's
+// Session.RequestSubsystem never starts the session's workers, so Session.Wait
+// answers a local "session not started" error that says nothing about the
+// device. An error means the exchange has no device exit status; a refusal by
+// the device is a nil error with a nonzero status.
+//
+// It joins both stream workers before returning. On failure it MUST close the
+// client to unblock them, so the caller's client is unusable after an error.
+func configPushExchange(client *ssh.Client, content string) (upload configPushUpload, resultErr error) {
+	channel, requests, err := client.OpenChannel("session", nil)
+	if err != nil {
+		return upload, errors.New("configuration upload session channel could not be opened")
+	}
+	defer channel.Close() //nolint:errcheck // The device may already have closed.
+	answer := configPushAnswer{requests: requests, stderr: channel.Stderr()}
+	answer.workers.Go(answer.readRequests)
+	answer.workers.Go(answer.readDiagnostic)
+	defer func() {
+		if resultErr != nil {
+			client.Close() //nolint:errcheck // Closing the transport unblocks both workers.
+		}
+		answer.workers.Wait()
+	}()
+	accepted, err := channel.SendRequest("subsystem", true, ssh.Marshal(struct{ Name string }{configupload.Subsystem}))
+	if err != nil {
+		return upload, errors.New("configuration upload subsystem request was not answered")
+	}
+	if !accepted {
+		return upload, errors.New("device does not provide the configuration upload subsystem")
+	}
+	if err := configupload.Write(channel, content); err != nil {
+		return upload, errors.New("configuration upload frame was not delivered completely")
+	}
+	if err := channel.CloseWrite(); err != nil {
+		return upload, errors.New("configuration upload input could not be completed")
+	}
+	var output configPushCapture
+	if _, err := io.Copy(&output, channel); err != nil {
+		return upload, errors.New("configuration upload response could not be read completely")
+	}
+	answer.workers.Wait()
+	if answer.err != nil {
+		return upload, answer.err
+	}
+	if answer.diagnosticErr != nil {
+		return upload, answer.diagnosticErr
+	}
+	if !answer.hasStatus {
+		return upload, errors.New("device closed the configuration upload without an exit status")
+	}
+	return configPushUpload{output: output.data, diagnostic: answer.diagnostic.data, status: answer.status}, nil
+}
+
+// configPushAnswer owns the two incoming streams of one upload channel. Each
+// worker writes only its own fields; read them only after workers.Wait.
+type configPushAnswer struct {
+	requests      <-chan *ssh.Request
+	stderr        io.Reader
+	workers       sync.WaitGroup
+	diagnostic    configPushCapture
+	diagnosticErr error
+	hasStatus     bool
+	status        uint32
+	err           error
+}
+
+// readRequests runs until the device or the transport closes the channel.
+func (answer *configPushAnswer) readRequests() {
+	for request := range answer.requests {
+		if request.Type == "exit-status" {
+			answer.recordStatus(request.Payload)
+		}
+		if request.WantReply {
+			request.Reply(false, nil) //nolint:errcheck // The transport deadline bounds this reply.
+		}
+	}
+}
+
+func (answer *configPushAnswer) recordStatus(payload []byte) {
+	var decoded struct{ Status uint32 }
+	if err := ssh.Unmarshal(payload, &decoded); err != nil {
+		answer.err = errors.New("device returned a malformed upload exit status")
+		return
+	}
+	if answer.hasStatus {
+		answer.err = errors.New("device returned duplicate upload exit statuses")
+		return
+	}
+	answer.hasStatus, answer.status = true, decoded.Status
+}
+
+// readDiagnostic runs until the device's stderr ends or exceeds the capture.
+func (answer *configPushAnswer) readDiagnostic() {
+	if _, err := io.Copy(&answer.diagnostic, answer.stderr); err != nil {
+		answer.diagnosticErr = errors.New("configuration upload diagnostic could not be read completely")
+	}
 }

@@ -1271,9 +1271,8 @@ evidence.
 ## Appliance SSH configuration publication
 
 The runner is an implementation checkpoint, not a completed native proof.
-Its subsystem session lifecycle and authenticated-observer control still need
-the repairs recorded in the deployment migration handover. No successful VM
-run of this action has been recorded.
+Its orchestration unit tests pass, but no successful VM run of this action has
+been recorded.
 
 `./le test qemu appliance-config-push` builds one current native appliance image
 and drives its matching host driver's `appliance config-push` command. The
@@ -1296,7 +1295,16 @@ and an incorrect host pin must all refuse without a success receipt and leave
 the complete live and selected persistent configuration unchanged.
 <!-- source: internal/le/test/qemu/install_config_push.go -- configPushBootstrap, configPushReboot, configPushRefusals -->
 <!-- source: internal/le/test/qemu/install_config_push_storage.go -- configPushDisk -->
-<!-- source: internal/le/test/qemu/install_config_push_ssh.go -- configPushLive, configPushMalformed, configPushSession -->
+<!-- source: internal/le/test/qemu/install_config_push_ssh.go -- configPushLive, configPushMalformed, configPushClient -->
+
+A refusal counts only when the device itself answered it. The malformed control
+sends its frame over a raw SSH session channel, as the host driver does, and
+requires the device's own nonzero exit status: a client-side error is a failed
+proof, never a refusal. The observer must first log in with its key and read
+the accepted hostname, so that a login that fails cannot pass as an edit
+refusal.
+<!-- source: internal/le/test/qemu/install_config_push_ssh.go -- configPushExchange, configPushHostname -->
+<!-- test: internal/le/test/qemu/install_config_push_protocol_test.go -- TestApplianceConfigPushObserverLoginRequired -->
 
 The action requires native KVM or HVF, refuses `ZE_INSTALL_IMAGE`, and uses the
 named image's own runtime kernel. `ZE_INSTALL_KEEP=1` retains the disk and each

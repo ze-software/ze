@@ -215,22 +215,18 @@ func (installer *Installer) configPushSeed(key ssh.PublicKey, port int) (string,
 	server := servers.GetList("server")["default"]
 	if server == nil {
 		server = config.NewTree()
-		server.Set("name", "default")
 		servers.AddListEntry("server", "default", server)
 	}
 	server.Set("ip", "0.0.0.0")
 	server.Set("port", strconv.Itoa(port))
 	observer := config.NewTree()
-	observer.Set("name", configPushObserver)
 	observer.SetLeafListMembers("profile", []string{configPushObserver})
 	publicKey := config.NewTree()
-	publicKey.Set("name", "owned-operator")
 	publicKey.Set("type", key.Type())
 	publicKey.Set("key", base64.StdEncoding.EncodeToString(key.Marshal()))
 	observer.AddListEntry("public-keys", "owned-operator", publicKey)
 	configPushContainer(system, "authentication").AddListEntry("user", configPushObserver, observer)
 	profile := config.NewTree()
-	profile.Set("name", configPushObserver)
 	configPushContainer(profile, "run").Set("default-action", "allow")
 	configPushContainer(profile, "edit").Set("default-action", "deny")
 	configPushContainer(system, "authorization").AddListEntry("profile", configPushObserver, profile)
@@ -391,6 +387,12 @@ func (installer *Installer) configPushRefusals(ctx context.Context, work, disk s
 	}()
 	if err := configPushCandidate(seedPath, string(seed), "config-push-denied"); err != nil {
 		return err
+	}
+	// The observer MUST first be seen to log in and run an allowed command.
+	// Without that positive, a broken observer login makes the host driver
+	// fail at authentication, which reads the same as an edit refusal.
+	if err := guest.configPushHostname(ctx, configPushObserver, ssh.PublicKeys(signer), verify, configPushAcceptedHost); err != nil {
+		return errors.Join(errors.New("read-only observer could not log in and read the hostname before its edit-denial control"), err)
 	}
 	if err := configPushTarget(namedPath, guest.sshPort, configPushObserver); err != nil {
 		return err
