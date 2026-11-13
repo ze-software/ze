@@ -1,0 +1,124 @@
+// Design: docs/architecture/api/ipc_protocol.md -- plugin RPC connection
+// Related: conn.go (writeFrame, disarmWatchdogLocked)
+
+package rpc
+
+import (
+	"context"
+	"net"
+	"os"
+	"syscall"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// expiredDeadlineWriter is a deadline-capable writer whose every write fails as
+// a write past its deadline does: with os.ErrDeadlineExceeded, which is what
+// net.Conn and net.Pipe return when SetWriteDeadline expires. It lets a test
+// reach that answer while the call's own context is still live.
+type expiredDeadlineWriter struct{}
+
+func (expiredDeadlineWriter) Write([]byte) (int, error) { return 0, os.ErrDeadlineExceeded }
+
+func (expiredDeadlineWriter) Close() error { return nil }
+
+func (expiredDeadlineWriter) SetWriteDeadline(time.Time) error { return nil }
+
+// brokenPipeWriter is a deadline-capable writer that accepts SetWriteDeadline
+// and fails every write as a TCP socket whose peer closed does: EPIPE, wrapped
+// the way the net package wraps it. A real net.Pipe cannot stand in: once its
+// remote end is closed, SetWriteDeadline itself fails with io.ErrClosedPipe, so
+// writeFrame returns "set write deadline: %w" before it writes.
+type brokenPipeWriter struct{}
+
+func (brokenPipeWriter) Write([]byte) (int, error) {
+	return 0, &net.OpError{Op: "write", Net: "tcp", Err: os.NewSyscallError("write", syscall.EPIPE)}
+}
+
+func (brokenPipeWriter) Close() error { return nil }
+
+func (brokenPipeWriter) SetWriteDeadline(time.Time) error { return nil }
+
+// TestConnWriteToAClosedPeerKeepsItsCause proves that a write to a socket whose
+// peer closed reports that cause, even when the call carries a deadline.
+//
+// VALIDATES: writeFrame returns the write error wrapped as "write frame: %w",
+// so CallRPC answers "send request: write frame: write tcp: write: broken pipe"
+// and errors.Is finds syscall.EPIPE. It does not answer
+// context.DeadlineExceeded, because no deadline passed.
+// METHOD: a Conn whose writer accepts the write deadline and then fails the
+// write with EPIPE, the answer of a socket whose peer closed, and a call under
+// a 5 s deadline that is still live when the write fails.
+// PREVENTS: a closed socket read as a timeout because the call had a deadline,
+// which hides from every caller that the peer is gone.
+//
+// MUTATION: restoring "if hasDeadline { return context.DeadlineExceeded }" in
+// writeFrame reddens both cause assertions, with "send request: context
+// deadline exceeded".
+func TestConnWriteToAClosedPeerKeepsItsCause(t *testing.T) {
+	t.Parallel()
+
+	conn := NewConn(newBlockingReader(), brokenPipeWriter{})
+	defer closeConn(t, conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := conn.CallRPC(ctx, "never-sent", nil)
+	require.Error(t, err)
+	require.NoError(t, ctx.Err(), "the context must still be live, or ctx.Err decided the answer")
+	assert.ErrorIs(t, err, syscall.EPIPE, "the broken pipe must survive as the cause")
+	assert.NotErrorIs(t, err, context.DeadlineExceeded, "no deadline passed, so the error is not a timeout")
+}
+
+// TestConnWritePastItsDeadlineIsATimeout proves that a write the transport ends
+// at its write deadline still answers context.DeadlineExceeded, on the deadline
+// transport and on the watchdog transport alike.
+//
+// VALIDATES: the two forms writeFrame reads as a timeout under a context
+// deadline: a write error that is os.ErrDeadlineExceeded (SetWriteDeadline
+// expired), and a write the watchdog ended because it stalled past its window
+// (fireWatchdog closes the writer, and the write then fails with the writer's
+// close error).
+// METHOD: each case calls SendOK under a 5 s deadline, so the context is still
+// live when the write fails and only writeFrame's reading of the write decides
+// the answer. The deadline case uses a writer that answers
+// os.ErrDeadlineExceeded; the watchdog case uses the blocking writer of
+// conn_watchdog_test.go with a 30 ms window, which returns io.ErrClosedPipe once
+// the watchdog closed it.
+// PREVENTS: a fix for the closed-pipe case that stops reporting a real timeout.
+//
+// MUTATION: dropping the os.ErrDeadlineExceeded test in writeFrame reddens the
+// deadline case; dropping the watchdog-fired test reddens the watchdog case.
+func TestConnWritePastItsDeadlineIsATimeout(t *testing.T) {
+	t.Run("write deadline expired", func(t *testing.T) {
+		conn := NewConn(newBlockingReader(), expiredDeadlineWriter{})
+		defer closeConn(t, conn)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		err := conn.SendOK(ctx, 1)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
+	})
+	t.Run("watchdog fired", func(t *testing.T) {
+		writer := newBlockingWriter()
+		conn := NewConn(newBlockingReader(), writer)
+		conn.SetWatchdogWindow(30 * time.Millisecond)
+		if _, ok := any(writer).(writeDeadliner); ok {
+			t.Fatal("blockingWriter must not implement SetWriteDeadline")
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		err := conn.SendOK(ctx, 1)
+		require.Error(t, err)
+		require.NoError(t, ctx.Err(), "the context must still be live, or ctx.Err decided the answer")
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
+	})
+}
