@@ -5,14 +5,14 @@
 | Status | skeleton |
 | Scope | tooling, appliance, docs |
 | Priority | P3 |
-| Release reason | Proposal for smaller VM artifacts and faster native builds; existing deployment correctness remains owned by deployment-user-journeys. |
+| Release reason | Proposal for smaller VM artifacts and faster native builds while preserving existing deployment behavior. |
 | RFC gaps | - |
 | Depends | - |
 | Phase | Proposal drafted; partial Linux 7.3 Xen audit recorded; design approval and complete boot dependency audit outstanding |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-12 |
+| Updated | 2026-11-13 |
 
 ## Task
 
@@ -23,9 +23,12 @@ Keep physical hardware support available through the existing broad runtime prof
 Owner request, 2026-11-12: "Please write a spec about the need to create a kernel dedicated to running in QeMU, and/or xen."
 
 This is an unapproved implementation proposal. Creating this document does not
-authorize replacing the current kernel or claim Xen support. Continue the existing
-deployment work under `plan/release/delivery/spec-deployment-user-journeys.md`.
-That spec's kernel research supplies context, not boot evidence for this proposal.
+authorize replacing the current kernel or claim Xen support. Current runtime
+selection and image assembly are documented in
+`docs/architecture/appliance/kernel-profiles.md` and
+`docs/architecture/appliance/builder.md`. Those pages describe the existing
+mechanisms this proposal extends. Native boot evidence for the proposed profiles
+remains outstanding.
 
 ### Proposed target contract
 
@@ -228,7 +231,7 @@ than inheriting their defaults. No native Xen proof has run in this session.
 |----------|--------|
 | What breaks if wrong? | Guest boot, routing, persistence or recovery; a misselected hardware image can lose device access |
 | Recovery | Retain an image proven on the same hypervisor and boot mode, with its domain boot inputs and console/rescue path. Use a broad-profile fallback only where it has boot evidence. Preserve state and installed artifacts |
-| Concurrent work | deployment-user-journeys and docker-hosts-run-the-ze-kernel touch these producers; coordinate edits before implementation |
+| Concurrent work | Appliance and Docker-host image builds share these producers; audit current callers and coordinate edits before implementation |
 
 ## Wiring Test
 
@@ -322,7 +325,7 @@ the relevant deliberately broken selection or requirement before the fixed pass.
 | 13 | Route metadata? | N-A | No route metadata change |
 | 14 | Metrics? | N-A | No daemon metric change |
 | 15 | Registered inventory changed? | Yes | Profile discovery/help and `ai/INDEX.md` kernel row |
-| 16 | Source anchors? | Yes | Current Design headers identify appliance kernel/build pages; complete native citation-anchor census once edit set is approved |
+| 16 | Source anchors? | Yes | Audit Design headers and page source anchors: `kernelargs.go` names `docs/architecture/vpp-host-tuning.md`, and `kernelbuilder/worker.go` has no Design header. Existing appliance kernel-profile and builder pages anchor both files; complete the citation census once the edit set is approved |
 | 17 | Existing examples? | Yes | Audit named appliances, gokrazy builds, Docker-host and QEMU launch examples together |
 
 The discovery surface is the existing kernel-profile row in `ai/INDEX.md`.
