@@ -1,0 +1,1160 @@
+diff --git a/include/net/flow.h b/include/net/flow.h
+--- a/include/net/flow.h
++++ b/include/net/flow.h
+@@ -41,6 +41,11 @@
+ #define FLOWI_FLAG_KNOWN_NH		0x02
+ #define FLOWI_FLAG_L3MDEV_OIF		0x04
+ #define FLOWI_FLAG_ANY_SPORT		0x08
++/* XFRM packet/quote decoder: unavailable fields are never exact zero. */
++#define FLOWI_FLAG_XFRM_FIELDS		0x10
++#define FLOWI_FLAG_XFRM_PROTO		0x20
++#define FLOWI_FLAG_XFRM_SPORT		0x40
++#define FLOWI_FLAG_XFRM_DPORT		0x80
+ 	__u32	flowic_secid;
+ 	kuid_t  flowic_uid;
+ 	__u32		flowic_multipath_hash;
+diff --git a/include/net/netns/xfrm.h b/include/net/netns/xfrm.h
+--- a/include/net/netns/xfrm.h
++++ b/include/net/netns/xfrm.h
+@@ -2,6 +2,7 @@
+ #ifndef __NETNS_XFRM_H
+ #define __NETNS_XFRM_H
+ 
++#include <linux/atomic.h>
+ #include <linux/list.h>
+ #include <linux/wait.h>
+ #include <linux/workqueue.h>
+@@ -30,6 +31,7 @@
+ };
+ 
+ struct netns_xfrm {
++	atomic_t		fragment_guard_refs;
+ 	struct list_head	state_all;
+ 	/*
+ 	 * Hash table to find appropriate SA towards given target (endpoint of
+diff --git a/include/net/xfrm.h b/include/net/xfrm.h
+--- a/include/net/xfrm.h
++++ b/include/net/xfrm.h
+@@ -186,6 +186,34 @@
+ 	XFRM_REPLAY_MODE_ESN,
+ };
+ 
++struct xfrm_state;
++
++/* Immutable after construction; identity is the allocation, not its contents.
++ * Queue users MUST hold a reference and MUST release it at destruction.
++ * No namespace pointer: a queue may outlive the last state using this scope.
++ */
++struct xfrm_state_scope {
++	refcount_t refs;
++	u32 flags;
++	u32 count;
++	struct xfrm_selector selectors[];
++};
++
++static inline size_t xfrm_state_scope_size(const struct xfrm_state_scope *scope)
++{
++	return sizeof(*scope) + scope->count * sizeof(scope->selectors[0]);
++}
++
++static inline void xfrm_state_scope_get(struct xfrm_state_scope *scope)
++{
++	refcount_inc(&scope->refs);
++}
++
++void xfrm_state_scope_put(struct xfrm_state_scope *scope);
++bool xfrm_state_scope_match(const struct xfrm_state *x,
++			    const struct flowi *fl, unsigned short family);
++void xfrm_state_scope_hold_guard(struct xfrm_state *x);
++
+ /* Full description of state of transformer. */
+ struct xfrm_state {
+ 	possible_net_t		xs_net;
+@@ -208,6 +236,8 @@
+ 	u32			pcpu_num;
+ 	struct xfrm_id		id;
+ 	struct xfrm_selector	sel;
++	struct xfrm_state_scope *scope;
++	bool			fragment_guard_held;
+ 	struct xfrm_mark	mark;
+ 	u32			if_id;
+ 	u32			tfcpad;
+@@ -655,6 +685,7 @@
+ 	struct xfrm_policy_walk_entry walk;
+ 	struct xfrm_policy_queue polq;
+ 	bool                    bydst_reinsert;
++	bool			fragment_guard_held;
+ 	u8			type;
+ 	u8			action;
+ 	u8			flags;
+@@ -1350,6 +1381,9 @@
+ 
+ int __xfrm_decode_session(struct net *net, struct sk_buff *skb, struct flowi *fl,
+ 			  unsigned int family, int reverse);
++int xfrm_decode_session_fields(struct net *net, struct sk_buff *skb,
++			       struct flowi *fl, unsigned short family,
++			       bool reverse);
+ 
+ static inline int xfrm_decode_session(struct net *net, struct sk_buff *skb, struct flowi *fl,
+ 				      unsigned int family)
+@@ -1443,6 +1477,14 @@
+ {
+ 	return -ENOSYS;
+ }
++
++static inline int xfrm_decode_session_fields(struct net *net, struct sk_buff *skb,
++					     struct flowi *fl,
++					     unsigned short family, bool reverse)
++{
++	return -EOPNOTSUPP;
++}
++
+ static inline int xfrm4_policy_check_reverse(struct sock *sk, int dir,
+ 					     struct sk_buff *skb)
+ {
+diff --git a/include/uapi/linux/xfrm.h b/include/uapi/linux/xfrm.h
+--- a/include/uapi/linux/xfrm.h
++++ b/include/uapi/linux/xfrm.h
+@@ -333,6 +333,8 @@
+ 	XFRMA_IPTFS_INIT_DELAY,	/* __u32 out: initial packet wait delay (usec) */
+ 	XFRMA_IPTFS_MAX_QSIZE,	/* __u32 out: max ingress queue size (octets) */
+ 	XFRMA_IPTFS_PKT_SIZE,	/* __u32 out: size of outer packet, 0 for PMTU */
++	XFRMA_STATE_SCOPE,	/* struct xfrm_user_state_scope + selectors */
++	XFRMA_ZE_CAPS,		/* read-only struct xfrm_user_ze_caps */
+ 	__XFRMA_MAX
+ 
+ #define XFRMA_OUTPUT_MARK XFRMA_SET_MARK	/* Compatibility */
+@@ -342,6 +344,30 @@
+ struct xfrm_mark {
+ 	__u32           v; /* value */
+ 	__u32           m; /* mask */
++};
++
++#define XFRM_STATE_SCOPE_MAX 64
++#define XFRM_STATE_SCOPE_NONINITIAL 1U
++
++/* Selectors are directional inner-packet selectors, combined with OR. */
++struct xfrm_user_state_scope {
++	__u32 flags;
++	__u32 count;
++	struct xfrm_selector selectors[];
++};
++
++#define XFRM_ZE_CAP_STATE_SCOPE		(1U << 0)
++#define XFRM_ZE_CAP_ICMP_QUOTE		(1U << 1)
++#define XFRM_ZE_CAP_FRAGMENT_CONTEXT	(1U << 2)
++#define XFRM_ZE_CAP_FRAGMENT_GUARD		(1U << 3)
++#define XFRM_ZE_CAP_ICMP_FINAL		(1U << 4)
++#define XFRM_ZE_CAP_ABI			0x5a450001U
++
++struct xfrm_user_ze_caps {
++	__u32 features;
++	__u32 max_selectors;
++	__u32 guard_refs;
++	__u32 abi;
+ };
+ 
+ enum xfrm_sadattr_type_t {
+diff --git a/net/ipv4/icmp.c b/net/ipv4/icmp.c
+--- a/net/ipv4/icmp.c
++++ b/net/ipv4/icmp.c
+@@ -538,7 +538,7 @@
+ 	} else {
+ 		return rt;
+ 	}
+-	err = xfrm_decode_session_reverse(net, skb_in, flowi4_to_flowi(&fl4_dec), AF_INET);
++	err = xfrm_decode_session_fields(net, skb_in, flowi4_to_flowi(&fl4_dec), AF_INET, true);
+ 	if (err)
+ 		goto relookup_failed;
+ 
+@@ -1456,7 +1456,6 @@
+ 
+ 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+ 		struct sec_path *sp = skb_sec_path(skb);
+-		int nh;
+ 
+ 		if (!(sp && sp->xvec[sp->len - 1]->props.flags &
+ 				 XFRM_STATE_ICMP)) {
+@@ -1464,19 +1463,11 @@
+ 			goto drop;
+ 		}
+ 
+-		if (!pskb_may_pull(skb, sizeof(*icmph) + sizeof(struct iphdr)))
+-			goto drop;
+-
+-		nh = skb_network_offset(skb);
+-		skb_set_network_header(skb, sizeof(*icmph));
+-
+ 		if (!xfrm4_policy_check_reverse(NULL, XFRM_POLICY_IN,
+ 						skb)) {
+ 			reason = SKB_DROP_REASON_XFRM_POLICY;
+ 			goto drop;
+ 		}
+-
+-		skb_set_network_header(skb, nh);
+ 	}
+ 
+ 	__ICMP_INC_STATS(net, ICMP_MIB_INMSGS);
+diff --git a/net/ipv6/icmp.c b/net/ipv6/icmp.c
+--- a/net/ipv6/icmp.c
++++ b/net/ipv6/icmp.c
+@@ -389,7 +389,7 @@
+ 			return dst;
+ 	}
+ 
+-	err = xfrm_decode_session_reverse(net, skb, flowi6_to_flowi(&fl2), AF_INET6);
++	err = xfrm_decode_session_fields(net, skb, flowi6_to_flowi(&fl2), AF_INET6, true);
+ 	if (err)
+ 		goto relookup_failed;
+ 
+@@ -1109,7 +1109,6 @@
+ 
+ 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+ 		struct sec_path *sp = skb_sec_path(skb);
+-		int nh;
+ 
+ 		if (!(sp && sp->xvec[sp->len - 1]->props.flags &
+ 				 XFRM_STATE_ICMP)) {
+@@ -1117,19 +1116,11 @@
+ 			goto drop_no_count;
+ 		}
+ 
+-		if (!pskb_may_pull(skb, sizeof(*hdr) + sizeof(struct ipv6hdr)))
+-			goto drop_no_count;
+-
+-		nh = skb_network_offset(skb);
+-		skb_set_network_header(skb, sizeof(*hdr));
+-
+ 		if (!xfrm6_policy_check_reverse(NULL, XFRM_POLICY_IN,
+ 						skb)) {
+ 			reason = SKB_DROP_REASON_XFRM_POLICY;
+ 			goto drop_no_count;
+ 		}
+-
+-		skb_set_network_header(skb, nh);
+ 	}
+ 
+ 	__ICMP6_INC_STATS(dev_net_rcu(dev), idev, ICMP6_MIB_INMSGS);
+diff --git a/net/xfrm/xfrm_device.c b/net/xfrm/xfrm_device.c
+--- a/net/xfrm/xfrm_device.c
++++ b/net/xfrm/xfrm_device.c
+@@ -266,6 +266,14 @@
+ 	}
+ 
+ 	is_packet_offload = xuo->flags & XFRM_OFFLOAD_PACKET;
++	/* No driver API currently promises the complete selector/fragment
++	 * contract. Crypto-only offload still traverses software policy checks.
++	 */
++	if (is_packet_offload && x->scope->count) {
++		NL_SET_ERR_MSG(extack,
++			       "Scoped states require software packet processing; use crypto-only offload");
++		return -EOPNOTSUPP;
++	}
+ 
+ 	/* We don't yet support TFC padding. */
+ 	if (x->tfcpad) {
+diff --git a/net/xfrm/xfrm_policy.c b/net/xfrm/xfrm_policy.c
+--- a/net/xfrm/xfrm_policy.c
++++ b/net/xfrm/xfrm_policy.c
+@@ -242,6 +242,12 @@
+ bool xfrm_selector_match(const struct xfrm_selector *sel, const struct flowi *fl,
+ 			 unsigned short family)
+ {
++	if (fl->flowi_flags & FLOWI_FLAG_XFRM_FIELDS) {
++		if ((sel->proto && !(fl->flowi_flags & FLOWI_FLAG_XFRM_PROTO)) ||
++		    (sel->sport_mask && !(fl->flowi_flags & FLOWI_FLAG_XFRM_SPORT)) ||
++		    (sel->dport_mask && !(fl->flowi_flags & FLOWI_FLAG_XFRM_DPORT)))
++			return false;
++	}
+ 	if (family != sel->family && sel->family != AF_UNSPEC)
+ 		return false;
+ 
+@@ -455,6 +461,8 @@
+ {
+ 	struct xfrm_policy *policy = container_of(head, struct xfrm_policy, rcu);
+ 
++	if (policy->fragment_guard_held)
++		atomic_dec(&xp_net(policy)->xfrm.fragment_guard_refs);
+ 	security_xfrm_policy_free(policy->security);
+ 	kfree(policy);
+ }
+@@ -1569,6 +1577,20 @@
+ 	return delpol;
+ }
+ 
++/* Publication acquires ownership; final RCU destruction MUST release it.
++ * This includes template-free DISCARD/BYPASS and socket policies.
++ */
++static void xfrm_policy_hold_fragment_guard(struct xfrm_policy *policy)
++{
++	const struct xfrm_selector *sel = &policy->selector;
++
++	if (!policy->fragment_guard_held &&
++	    (sel->proto || sel->sport_mask || sel->dport_mask)) {
++		atomic_inc(&xp_net(policy)->xfrm.fragment_guard_refs);
++		policy->fragment_guard_held = true;
++	}
++}
++
+ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
+ {
+ 	struct net *net = xp_net(policy);
+@@ -1577,6 +1599,7 @@
+ 
+ 	/* Sanitize mark before store */
+ 	policy->mark.v &= policy->mark.m;
++	xfrm_policy_hold_fragment_guard(policy);
+ 
+ 	spin_lock_bh(&net->xfrm.xfrm_policy_lock);
+ 	chain = policy_hash_bysel(net, &policy->selector, policy->family, dir);
+@@ -2384,6 +2407,7 @@
+ 	old_pol = rcu_dereference_protected(sk->sk_policy[dir],
+ 				lockdep_is_held(&net->xfrm.xfrm_policy_lock));
+ 	if (pol) {
++		xfrm_policy_hold_fragment_guard(pol);
+ 		pol->curlft.add_time = ktime_get_real_seconds();
+ 		pol->index = xfrm_gen_index(net, XFRM_POLICY_MAX+dir, 0);
+ 		xfrm_sk_policy_link(pol, dir);
+@@ -2430,6 +2454,7 @@
+ 		newp->family = old->family;
+ 		memcpy(newp->xfrm_vec, old->xfrm_vec,
+ 		       newp->xfrm_nr*sizeof(struct xfrm_tmpl));
++		xfrm_policy_hold_fragment_guard(newp);
+ 		spin_lock_bh(&net->xfrm.xfrm_policy_lock);
+ 		xfrm_sk_policy_link(newp, dir);
+ 		spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
+@@ -3559,8 +3584,7 @@
+ 
+ 	if (family == AF_INET &&
+ 	    fl4->flowi4_proto == IPPROTO_ICMP &&
+-	    (fl4->fl4_icmp_type == ICMP_DEST_UNREACH ||
+-	     fl4->fl4_icmp_type == ICMP_TIME_EXCEEDED))
++	    icmp_is_err(fl4->fl4_icmp_type))
+ 		return true;
+ 
+ #if IS_ENABLED(CONFIG_IPV6)
+@@ -3568,47 +3592,303 @@
+ 		const struct flowi6 *fl6 = &fl->u.ip6;
+ 
+ 		if (fl6->flowi6_proto == IPPROTO_ICMPV6 &&
+-		    (fl6->fl6_icmp_type == ICMPV6_DEST_UNREACH ||
+-		    fl6->fl6_icmp_type == ICMPV6_PKT_TOOBIG ||
+-		    fl6->fl6_icmp_type == ICMPV6_TIME_EXCEED))
++		    fl6->fl6_icmp_type < ICMPV6_INFOMSG_MASK)
+ 			return true;
+ 	}
+ #endif
+ 	return false;
+ }
+ 
++#if IS_ENABLED(CONFIG_IPV6)
++/* The XFRM core can be built in while IPv6 is modular. Keep the decoder's
++ * extension classification local rather than linking ipv6_ext_hdr().
++ */
++static bool xfrm_ipv6_extension(unsigned int proto)
++{
++	return proto == NEXTHDR_HOP || proto == NEXTHDR_ROUTING ||
++		proto == NEXTHDR_FRAGMENT || proto == NEXTHDR_AUTH ||
++		proto == NEXTHDR_DEST;
++}
++
++/* A zero payload length permits bytes only with a valid Jumbo Payload option. */
++static int xfrm_jumbo_end(struct sk_buff *skb, int off, int end)
++{
++	struct ipv6_opt_hdr hop, *hdr;
++	u32 length = 0;
++	int pos, limit;
++
++	if (end - off < sizeof(hop))
++		return -EINVAL;
++	hdr = skb_header_pointer(skb, off, sizeof(hop), &hop);
++	if (!hdr || (hdr->hdrlen + 1) * 8 > end - off)
++		return -EINVAL;
++	limit = off + (hdr->hdrlen + 1) * 8;
++	for (pos = off + sizeof(hop); pos < limit;) {
++		u8 opt[2];
++
++		if (skb_copy_bits(skb, pos, opt, 1))
++			return -EINVAL;
++		if (opt[0] == IPV6_TLV_PAD1) {
++			pos++;
++			continue;
++		}
++		if (limit - pos < 2 || skb_copy_bits(skb, pos, opt, 2) ||
++		    opt[1] + 2 > limit - pos)
++			return -EINVAL;
++		if (opt[0] == IPV6_TLV_JUMBO) {
++			__be32 value;
++
++			if (length || opt[1] != 4 || (pos - off) % 4 != 2 ||
++			    skb_copy_bits(skb, pos + 2, &value, sizeof(value)))
++				return -EINVAL;
++			length = ntohl(value);
++			if (length <= IPV6_MAXPLEN)
++				return -EINVAL;
++		}
++		pos += opt[1] + 2;
++	}
++	if (!length)
++		return -EINVAL;
++	return off + min_t(u32, end - off, length);
++}
++#endif
++
++/* Decode only bytes present within both the skb and the IP length. A quoted
++ * packet may end before its ports: availability follows it through the same
++ * ordered SPD and state lookup used for complete packets.
++ */
++static int xfrm_packet_flow(struct sk_buff *skb, int start, int end,
++			    unsigned short family, bool reverse,
++			    struct flowi *fl, int *transport)
++{
++	union flowi_uli *uli;
++	unsigned int proto;
++	unsigned int fields = FLOWI_FLAG_XFRM_FIELDS | FLOWI_FLAG_XFRM_PROTO;
++	int off;
++	bool noninitial = false;
++	u8 bytes[4];
++
++	if (start > end)
++		return -EINVAL;
++	/* Callers may pass flowi4_to_flowi/flowi6_to_flowi on a family-sized
++	 * stack object, so clearing sizeof(struct flowi) would overrun it.
++	 */
++	if (family == AF_INET)
++		memset(&fl->u.ip4, 0, sizeof(struct flowi4));
++	else if (family == AF_INET6)
++		memset(&fl->u.ip6, 0, sizeof(struct flowi6));
++	else
++		return -EAFNOSUPPORT;
++	if (family == AF_INET) {
++		struct iphdr header, *ip;
++		unsigned int length;
++
++		if (end - start < sizeof(header))
++			return -EINVAL;
++		ip = skb_header_pointer(skb, start, sizeof(header), &header);
++		if (!ip || ip->version != 4 || ip->ihl < 5)
++			return -EINVAL;
++		length = ntohs(ip->tot_len);
++		off = start + ip->ihl * 4;
++		if (length < ip->ihl * 4 || off > end)
++			return -EINVAL;
++		end = start + min_t(int, end - start, length);
++		proto = ip->protocol;
++		noninitial = !!(ip->frag_off & htons(IP_OFFSET));
++		fl->u.ip4.saddr = reverse ? ip->daddr : ip->saddr;
++		fl->u.ip4.daddr = reverse ? ip->saddr : ip->daddr;
++		fl->u.ip4.flowi4_dscp = inet_dsfield_to_dscp(ip->tos);
++		uli = &fl->u.ip4.uli;
++	} else if (family == AF_INET6) {
++#if IS_ENABLED(CONFIG_IPV6)
++		struct ipv6hdr header, *ip;
++
++		if (end - start < sizeof(header))
++			return -EINVAL;
++		ip = skb_header_pointer(skb, start, sizeof(header), &header);
++		if (!ip || ip->version != 6)
++			return -EINVAL;
++		off = start + sizeof(header);
++		if (ip->payload_len) {
++			end = off + min_t(int, end - off, ntohs(ip->payload_len));
++		} else if (ip->nexthdr == NEXTHDR_HOP) {
++			end = xfrm_jumbo_end(skb, off, end);
++			if (end < 0)
++				return end;
++		} else {
++			end = off;
++		}
++		proto = ip->nexthdr;
++		fl->u.ip6.saddr = reverse ? ip->daddr : ip->saddr;
++		fl->u.ip6.daddr = reverse ? ip->saddr : ip->daddr;
++		uli = &fl->u.ip6.uli;
++		while (xfrm_ipv6_extension(proto)) {
++			struct ipv6_opt_hdr opt, *hdr;
++			unsigned int length;
++
++			if (end - off < sizeof(opt)) {
++				fields &= ~FLOWI_FLAG_XFRM_PROTO;
++				break;
++			}
++			hdr = skb_header_pointer(skb, off, sizeof(opt), &opt);
++			if (!hdr)
++				return -EINVAL;
++			if (proto == NEXTHDR_FRAGMENT) {
++				struct frag_hdr frag, *fh;
++
++				if (end - off < sizeof(frag)) {
++					fields &= ~FLOWI_FLAG_XFRM_PROTO;
++					break;
++				}
++				fh = skb_header_pointer(skb, off, sizeof(frag), &frag);
++				if (!fh)
++					return -EINVAL;
++				noninitial = !!(fh->frag_off & htons(IP6_OFFSET));
++				length = sizeof(frag);
++			} else if (proto == NEXTHDR_AUTH) {
++				length = (hdr->hdrlen + 2) * 4;
++				if (length < 12)
++					return -EINVAL;
++			} else {
++				length = (hdr->hdrlen + 1) * 8;
++			}
++			if (length > end - off) {
++				fields &= ~FLOWI_FLAG_XFRM_PROTO;
++				break;
++			}
++			proto = hdr->nexthdr;
++			off += length;
++			if (noninitial) {
++				if (xfrm_ipv6_extension(proto))
++					fields &= ~FLOWI_FLAG_XFRM_PROTO;
++				break;
++			}
++		}
++#else
++		return -EAFNOSUPPORT;
++#endif
++	} else {
++		return -EAFNOSUPPORT;
++	}
++	fl->flowi_proto = proto;
++	*transport = off;
++	if (noninitial || !(fields & FLOWI_FLAG_XFRM_PROTO))
++		goto done;
++	switch (proto) {
++	case IPPROTO_TCP:
++	case IPPROTO_UDP:
++	case IPPROTO_UDPLITE:
++	case IPPROTO_SCTP:
++		if (end - off >= 2 && skb_copy_bits(skb, off, bytes, 2) == 0) {
++			if (reverse)
++				memcpy(&uli->ports.dport, bytes, 2);
++			else
++				memcpy(&uli->ports.sport, bytes, 2);
++			fields |= reverse ? FLOWI_FLAG_XFRM_DPORT : FLOWI_FLAG_XFRM_SPORT;
++		}
++		if (end - off >= 4 && skb_copy_bits(skb, off + 2, bytes, 2) == 0) {
++			if (reverse)
++				memcpy(&uli->ports.sport, bytes, 2);
++			else
++				memcpy(&uli->ports.dport, bytes, 2);
++			fields |= reverse ? FLOWI_FLAG_XFRM_SPORT : FLOWI_FLAG_XFRM_DPORT;
++		}
++		break;
++	case IPPROTO_ICMP:
++	case IPPROTO_ICMPV6:
++		if (end - off >= 1 && skb_copy_bits(skb, off, bytes, 1) == 0) {
++			uli->icmpt.type = bytes[0];
++			fields |= FLOWI_FLAG_XFRM_SPORT;
++		}
++		if (end - off >= 2 && skb_copy_bits(skb, off + 1, bytes, 1) == 0) {
++			uli->icmpt.code = bytes[0];
++			fields |= FLOWI_FLAG_XFRM_DPORT;
++		}
++		break;
++	case IPPROTO_MH:
++		if (end - off >= 3 && skb_copy_bits(skb, off + 2, bytes, 1) == 0) {
++			uli->mht.type = bytes[0];
++			fields |= FLOWI_FLAG_XFRM_SPORT;
++		}
++		break;
++	case IPPROTO_GRE: {
++		struct gre_base_hdr header, *gre;
++
++		if (end - off < sizeof(header))
++			break;
++		gre = skb_header_pointer(skb, off, sizeof(header), &header);
++		if (!gre || (gre->flags & (GRE_VERSION | GRE_ROUTING)))
++			break;
++		if (!(gre->flags & GRE_KEY)) {
++			uli->gre_key = 0;
++			fields |= FLOWI_FLAG_XFRM_SPORT | FLOWI_FLAG_XFRM_DPORT;
++			break;
++		}
++		off += sizeof(header);
++		if (gre->flags & GRE_CSUM)
++			off += 4;
++		if (end - off >= sizeof(uli->gre_key) &&
++		    skb_copy_bits(skb, off, &uli->gre_key, sizeof(uli->gre_key)) == 0)
++			fields |= FLOWI_FLAG_XFRM_SPORT | FLOWI_FLAG_XFRM_DPORT;
++		break;
++	}
++	default:
++		/* Undefined transport fields remain unavailable, not exact zero. */
++		break;
++	}
++done:
++	fl->flowi_flags = fields;
++	fl->flowi_mark = skb->mark;
++	fl->flowi_oif = reverse ? skb->skb_iif : 0;
++	security_skb_classify_flow(skb, &fl->u.__fl_common);
++	return end;
++}
++
++int xfrm_decode_session_fields(struct net *net, struct sk_buff *skb,
++			       struct flowi *fl, unsigned short family,
++			       bool reverse)
++{
++	int transport;
++	int err = xfrm_packet_flow(skb, skb_network_offset(skb), skb->len,
++				  family, reverse, fl, &transport);
++
++	return err < 0 ? err : 0;
++}
++EXPORT_SYMBOL_GPL(xfrm_decode_session_fields);
++
+ static bool xfrm_icmp_flow_decode(struct sk_buff *skb, unsigned short family,
+ 				  const struct flowi *fl, struct flowi *fl1)
+ {
+-	bool ret = true;
+-	struct sk_buff *newskb = skb_clone(skb, GFP_ATOMIC);
+-	int hl = family == AF_INET ? (sizeof(struct iphdr) +  sizeof(struct icmphdr)) :
+-		 (sizeof(struct ipv6hdr) + sizeof(struct icmp6hdr));
+-
+-	if (!newskb)
++	struct flowi outer;
++	struct sk_buff *quoted;
++	int off, inner_off, end;
++
++	end = xfrm_packet_flow(skb, skb_network_offset(skb), skb->len,
++			       family, false, &outer, &off);
++	if (end < 0 || !icmp_err_packet(&outer, family) ||
++	    !(outer.flowi_flags & FLOWI_FLAG_XFRM_SPORT) || end - off < 8)
+ 		return true;
+-
+-	if (!pskb_pull(newskb, hl))
+-		goto out;
+-
+-	skb_reset_network_header(newskb);
+-
+-	if (xfrm_decode_session_reverse(dev_net(skb->dev), newskb, fl1, family) < 0)
+-		goto out;
+-
++	off += 8;
++	if (xfrm_packet_flow(skb, off, end, family, true, fl1, &inner_off) < 0)
++		return true;
++	quoted = skb_clone(skb, GFP_ATOMIC);
++	if (!quoted)
++		return true;
++	if (off < 0 || !pskb_pull(quoted, off)) {
++		consume_skb(quoted);
++		return true;
++	}
++	skb_reset_network_header(quoted);
+ 	fl1->flowi_oif = fl->flowi_oif;
+ 	fl1->flowi_mark = fl->flowi_mark;
+ 	fl1->flowi_dscp = fl->flowi_dscp;
+-	nf_nat_decode_session(newskb, fl1, family);
+-	ret = false;
+-
+-out:
+-	consume_skb(newskb);
+-	return ret;
++	nf_nat_decode_session(quoted, fl1, family);
++	consume_skb(quoted);
++	return false;
+ }
+ 
+ static bool xfrm_selector_inner_icmp_match(struct sk_buff *skb, unsigned short family,
+-					   const struct xfrm_selector *sel,
++					   const struct xfrm_state *x,
+ 					   const struct flowi *fl)
+ {
+ 	bool ret = false;
+@@ -3619,7 +3899,7 @@
+ 		if (xfrm_icmp_flow_decode(skb, family, fl, &fl1))
+ 			return ret;
+ 
+-		ret = xfrm_selector_match(sel, &fl1, family);
++		ret = xfrm_state_scope_match(x, &fl1, family);
+ 	}
+ 
+ 	return ret;
+@@ -3687,7 +3967,8 @@
+ 	int xfrm_nr;
+ 	int pi;
+ 	int reverse;
+-	struct flowi fl;
++	struct flowi fl = {};
++	struct flowi original;
+ 	int xerr_idx = -1;
+ 	const struct xfrm_if_cb *ifcb;
+ 	struct sec_path *sp;
+@@ -3709,26 +3990,53 @@
+ 	reverse = dir & ~XFRM_POLICY_MASK;
+ 	dir &= XFRM_POLICY_MASK;
+ 
+-	if (__xfrm_decode_session(net, skb, &fl, family, reverse) < 0) {
++	if (__xfrm_decode_session(net, skb, &fl, family, 0) < 0) {
+ 		XFRM_INC_STATS(net, LINUX_MIB_XFRMINHDRERROR);
+ 		return 0;
+ 	}
+-
+-	nf_nat_decode_session(skb, &fl, family);
+-
+-	/* First, check used SA against their selectors. */
++	original = fl;
++	nf_nat_decode_session(skb, &original, family);
++	if (reverse) {
++		struct flowi quoted = {};
++
++		if (xfrm_icmp_flow_decode(skb, family, &fl, &quoted)) {
++			XFRM_INC_STATS(net, LINUX_MIB_XFRMINHDRERROR);
++			return 0;
++		}
++		fl = quoted;
++	} else {
++		fl = original;
++	}
++
++	/* RFC 4301 Section 5.2:
++	 * "If an IPsec system receives an inbound packet on an SA and the
++	 * packet's header fields are not consistent with the selectors for
++	 * the SA, it MUST discard the packet."
++	 * Check the actual receiving state's set before any sibling SPD entry.
++	 */
+ 	sp = skb_sec_path(skb);
+ 	if (sp) {
+ 		int i;
+ 
+ 		for (i = sp->len - 1; i >= 0; i--) {
+ 			struct xfrm_state *x = sp->xvec[i];
++			struct flowi own;
++			const struct flowi *state_flow = &original;
+ 			int ret = 0;
+ 
+-			if (!xfrm_selector_match(&x->sel, &fl, family)) {
++			if (x->scope->count) {
++				if (xfrm_decode_session_fields(net, skb, &own, family, false)) {
++					XFRM_INC_STATS(net, LINUX_MIB_XFRMINHDRERROR);
++					return 0;
++				}
++				own.flowi_oif = original.flowi_oif;
++				nf_nat_decode_session(skb, &own, family);
++				state_flow = &own;
++			}
++			if (!xfrm_state_scope_match(x, state_flow, family)) {
+ 				ret = 1;
+ 				if (x->props.flags & XFRM_STATE_ICMP &&
+-				    xfrm_selector_inner_icmp_match(skb, family, &x->sel, &fl))
++				    xfrm_selector_inner_icmp_match(skb, family, x, state_flow))
+ 					ret = 0;
+ 				if (ret) {
+ 					XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEMISMATCH);
+@@ -4322,6 +4630,7 @@
+ 	int rv;
+ 
+ 	/* Initialize the per-net locks here */
++	atomic_set(&net->xfrm.fragment_guard_refs, 0);
+ 	spin_lock_init(&net->xfrm.xfrm_state_lock);
+ 	spin_lock_init(&net->xfrm.xfrm_policy_lock);
+ 	seqcount_spinlock_init(&net->xfrm.xfrm_policy_hash_generation, &net->xfrm.xfrm_policy_lock);
+diff --git a/net/xfrm/xfrm_state.c b/net/xfrm/xfrm_state.c
+--- a/net/xfrm/xfrm_state.c
++++ b/net/xfrm/xfrm_state.c
+@@ -589,6 +589,7 @@
+ 
+ void xfrm_state_free(struct xfrm_state *x)
+ {
++	xfrm_state_scope_put(x->scope);
+ 	kmem_cache_free(xfrm_state_cache, x);
+ }
+ EXPORT_SYMBOL(xfrm_state_free);
+@@ -618,6 +619,8 @@
+ 		put_page(x->xfrag.page);
+ 	xfrm_dev_state_free(x);
+ 	security_xfrm_state_free(x);
++	if (x->fragment_guard_held)
++		atomic_dec(&xs_net(x)->xfrm.fragment_guard_refs);
+ 	xfrm_state_free(x);
+ }
+ 
+@@ -731,11 +734,58 @@
+ 
+ static void xfrm_replay_timer_handler(struct timer_list *t);
+ 
++void xfrm_state_scope_put(struct xfrm_state_scope *scope)
++{
++	if (refcount_dec_and_test(&scope->refs))
++		kfree(scope);
++}
++EXPORT_SYMBOL_GPL(xfrm_state_scope_put);
++
++static bool xfrm_state_scope_equal(const struct xfrm_state_scope *a,
++				   const struct xfrm_state_scope *b)
++{
++	return a->flags == b->flags && a->count == b->count &&
++		!memcmp(a->selectors, b->selectors,
++			a->count * sizeof(a->selectors[0]));
++}
++
++bool xfrm_state_scope_match(const struct xfrm_state *x,
++			    const struct flowi *fl, unsigned short family)
++{
++	unsigned int i;
++
++	if (!x->scope->count)
++		return xfrm_selector_match(&x->sel, fl, family);
++	for (i = 0; i < x->scope->count; i++)
++		if (xfrm_selector_match(&x->scope->selectors[i], fl, family))
++			return true;
++	return false;
++}
++EXPORT_SYMBOL_GPL(xfrm_state_scope_match);
++
++/* Acquire before publication; final state GC MUST balance this ownership. */
++void xfrm_state_scope_hold_guard(struct xfrm_state *x)
++{
++	if (x->scope->count && !x->fragment_guard_held) {
++		atomic_inc(&xs_net(x)->xfrm.fragment_guard_refs);
++		x->fragment_guard_held = true;
++	}
++}
++EXPORT_SYMBOL_GPL(xfrm_state_scope_hold_guard);
++
+ struct xfrm_state *xfrm_state_alloc(struct net *net)
+ {
+ 	struct xfrm_state *x;
+ 
+ 	x = kmem_cache_zalloc(xfrm_state_cache, GFP_ATOMIC);
++	if (!x)
++		return NULL;
++	x->scope = kzalloc_obj(*x->scope, GFP_ATOMIC);
++	if (!x->scope) {
++		kmem_cache_free(xfrm_state_cache, x);
++		return NULL;
++	}
++	refcount_set(&x->scope->refs, 1);
+ 
+ 	if (x) {
+ 		write_pnet(&x->xs_net, net);
+@@ -1327,7 +1377,8 @@
+ 	 *    selector.
+ 	 */
+ 	if (x->km.state == XFRM_STATE_VALID) {
+-		if ((x->sel.family &&
++		if ((x->scope->count && !xfrm_state_scope_match(x, fl, family)) ||
++		    (!x->scope->count && x->sel.family &&
+ 		     (x->sel.family != family ||
+ 		      !xfrm_selector_match(&x->sel, fl, family))) ||
+ 		    !security_xfrm_state_pol_flow_match(x, pol,
+@@ -1730,6 +1781,8 @@
+ 	struct net *net = xs_net(x);
+ 	unsigned int h;
+ 
++	xfrm_state_scope_hold_guard(x);
++
+ 	list_add(&x->km.all, &net->xfrm.state_all);
+ 
+ 	/* Sanitize mark before store */
+@@ -2003,6 +2056,17 @@
+ 	} else {
+ 		x->sel = orig->sel;
+ 	}
++	/* Mobility preserves an installed selector array. */
++	if (memcmp(&x->sel, &orig->sel, sizeof(x->sel))) {
++		if (orig->scope->count)
++			goto error;
++		/* A legacy H2H selector change keeps its new, distinct identity. */
++	} else {
++		xfrm_state_scope_put(x->scope);
++		x->scope = orig->scope;
++		xfrm_state_scope_get(x->scope);
++	}
++	xfrm_state_scope_hold_guard(x);
+ 	memcpy(&x->lft, &orig->lft, sizeof(x->lft));
+ 	x->props.mode = orig->props.mode;
+ 	x->props.replay_window = orig->props.replay_window;
+@@ -2259,6 +2323,12 @@
+ 		__xfrm_state_insert(x);
+ 		x = NULL;
+ 	} else {
++		if (!xfrm_state_scope_equal(x1->scope, x->scope) ||
++		    memcmp(&x1->sel, &x->sel, sizeof(x1->sel))) {
++			to_put = x1;
++			err = -EOPNOTSUPP;
++			goto out;
++		}
+ 		if (x1->dir != x->dir) {
+ 			to_put = x1;
+ 			goto out;
+diff --git a/net/xfrm/xfrm_user.c b/net/xfrm/xfrm_user.c
+--- a/net/xfrm/xfrm_user.c
++++ b/net/xfrm/xfrm_user.c
+@@ -904,6 +904,95 @@
+ 	}
+ }
+ 
++static bool xfrm_scope_address_valid(const xfrm_address_t *addr,
++				     unsigned int prefix, unsigned int bits)
++{
++	unsigned int i;
++
++	for (i = 0; i < 128; i++)
++		if ((i >= prefix || i >= bits) &&
++		    (ntohl(addr->a6[i / 32]) & (1U << (31 - i % 32))))
++			return false;
++	return true;
++}
++
++static bool xfrm_scope_port_valid(__be16 value, __be16 mask)
++{
++	u32 inverse = (u16)~ntohs(mask);
++
++	return !(value & ~mask) && !(inverse & (inverse + 1));
++}
++
++static int xfrm_state_scope_from_user(struct xfrm_state *x,
++				      const struct nlattr *attr,
++				      struct netlink_ext_ack *extack)
++{
++	const struct xfrm_user_state_scope *user;
++	struct xfrm_state_scope *scope;
++	unsigned int i, bytes;
++
++	if (!attr)
++		return 0;
++	if (nla_len(attr) < sizeof(*user))
++		goto invalid;
++	user = nla_data(attr);
++	if (!user->count || user->count > XFRM_STATE_SCOPE_MAX ||
++	    (user->flags & ~XFRM_STATE_SCOPE_NONINITIAL))
++		goto invalid;
++	bytes = user->count * sizeof(user->selectors[0]);
++	if (nla_len(attr) != sizeof(*user) + bytes)
++		goto invalid;
++	for (i = 0; i < user->count; i++) {
++		const struct xfrm_selector *sel = &user->selectors[i];
++		unsigned int bits;
++
++		if (sel->family == AF_INET)
++			bits = 32;
++		else if (sel->family == AF_INET6 && IS_ENABLED(CONFIG_IPV6))
++			bits = 128;
++		else
++			goto invalid;
++		if (sel->prefixlen_s > bits || sel->prefixlen_d > bits ||
++		    !xfrm_scope_address_valid(&sel->saddr, sel->prefixlen_s, bits) ||
++		    !xfrm_scope_address_valid(&sel->daddr, sel->prefixlen_d, bits) ||
++		    !xfrm_scope_port_valid(sel->sport, sel->sport_mask) ||
++		    !xfrm_scope_port_valid(sel->dport, sel->dport_mask) ||
++		    sel->ifindex < 0 || sel->user ||
++		    memchr_inv((const u8 *)sel + offsetof(struct xfrm_selector, proto) +
++			       sizeof(sel->proto), 0,
++			       offsetof(struct xfrm_selector, ifindex) -
++			       offsetof(struct xfrm_selector, proto) - sizeof(sel->proto)))
++			goto invalid;
++		if ((sel->sport_mask || sel->dport_mask) &&
++		    sel->proto != IPPROTO_TCP && sel->proto != IPPROTO_UDP &&
++		    sel->proto != IPPROTO_UDPLITE && sel->proto != IPPROTO_SCTP &&
++		    sel->proto != IPPROTO_ICMP && sel->proto != IPPROTO_ICMPV6)
++			goto invalid;
++		if ((sel->proto == IPPROTO_ICMP && sel->family != AF_INET) ||
++		    (sel->proto == IPPROTO_ICMPV6 && sel->family != AF_INET6))
++			goto invalid;
++	}
++	if (x->props.mode == XFRM_MODE_TRANSPORT &&
++	    (user->count != 1 ||
++	     memcmp(&x->sel, &user->selectors[0], sizeof(x->sel))))
++		goto invalid;
++	scope = kzalloc(struct_size(scope, selectors, user->count), GFP_KERNEL);
++	if (!scope)
++		return -ENOMEM;
++	refcount_set(&scope->refs, 1);
++	scope->flags = user->flags;
++	scope->count = user->count;
++	memcpy(scope->selectors, user->selectors, bytes);
++	xfrm_state_scope_put(x->scope);
++	x->scope = scope;
++	xfrm_state_scope_hold_guard(x);
++	return 0;
++invalid:
++	NL_SET_ERR_MSG(extack,
++		       "Invalid state scope; provide 1..64 canonical IPv4/IPv6 selectors and supported flags");
++	return -EINVAL;
++}
++
+ static struct xfrm_state *xfrm_state_construct(struct net *net,
+ 					       struct xfrm_usersa_info *p,
+ 					       struct nlattr **attrs,
+@@ -917,6 +1006,10 @@
+ 		goto error_no_put;
+ 
+ 	copy_from_user_state(x, p);
++	err = xfrm_state_scope_from_user(x, attrs[XFRMA_STATE_SCOPE], extack);
++	if (err)
++		goto error;
++	err = -ENOMEM;
+ 
+ 	if (attrs[XFRMA_ENCAP]) {
+ 		x->encap = kmemdup(nla_data(attrs[XFRMA_ENCAP]),
+@@ -1387,6 +1480,19 @@
+ 	int ret = 0;
+ 
+ 	copy_to_user_state(x, p);
++	if (x->scope->count) {
++		struct xfrm_user_state_scope *user;
++		struct nlattr *attr;
++		unsigned int bytes = x->scope->count * sizeof(x->scope->selectors[0]);
++
++		attr = nla_reserve(skb, XFRMA_STATE_SCOPE, sizeof(*user) + bytes);
++		if (!attr)
++			return -EMSGSIZE;
++		user = nla_data(attr);
++		user->flags = x->scope->flags;
++		user->count = x->scope->count;
++		memcpy(user->selectors, x->scope->selectors, bytes);
++	}
+ 
+ 	if (x->props.extra_flags) {
+ 		ret = nla_put_u32(skb, XFRMA_SA_EXTRA_FLAGS,
+@@ -1494,6 +1600,8 @@
+ 	return ret;
+ }
+ 
++static inline unsigned int xfrm_sa_len(struct xfrm_state *x);
++
+ static int dump_one_state(struct xfrm_state *x, int count, void *ptr)
+ {
+ 	struct xfrm_dump_info *sp = ptr;
+@@ -1543,11 +1651,37 @@
+ 	return 0;
+ }
+ 
++static int xfrm_dump_sa_size(struct xfrm_state *x, int count, void *ptr)
++{
++	struct netlink_callback *cb = ptr;
++	unsigned int len = nlmsg_total_size(sizeof(struct xfrm_usersa_info)) +
++		xfrm_sa_len(x);
++
++	cb->min_dump_alloc = max_t(unsigned int, cb->min_dump_alloc, len);
++	return 0;
++}
++
++static int xfrm_dump_sa_start(struct netlink_callback *cb)
++{
++	struct net *net = sock_net(cb->skb->sk);
++	struct xfrm_state_walk walk;
++	int err;
++
++	/* Netlink reads min_dump_alloc before allocating its first skb. Size
++	 * accepted states here, before socket receive-memory accounting starts.
++	 */
++	xfrm_state_walk_init(&walk, 0, NULL);
++	err = xfrm_state_walk(net, &walk, xfrm_dump_sa_size, cb);
++	xfrm_state_walk_done(&walk, net);
++	return err == -ENOENT ? 0 : err;
++}
++
+ static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
+ {
+ 	struct net *net = sock_net(skb->sk);
+ 	struct xfrm_state_walk *walk = (struct xfrm_state_walk *) &cb->args[1];
+ 	struct xfrm_dump_info info;
++	int err;
+ 
+ 	BUILD_BUG_ON(sizeof(struct xfrm_state_walk) >
+ 		     sizeof(cb->args) - sizeof(cb->args[0]));
+@@ -1591,7 +1725,13 @@
+ 		cb->args[0] = 1;
+ 	}
+ 
+-	(void) xfrm_state_walk(net, walk, dump_one_state, &info);
++	err = xfrm_state_walk(net, walk, dump_one_state, &info);
++	/* Partial buffers continue at the saved walk position. An oversized
++	 * first record, including one installed after start, must report failure
++	 * rather than a successful empty dump that silently omits the state.
++	 */
++	if (err && err != -ENOENT && !skb->len)
++		return err;
+ 
+ 	return skb->len;
+ }
+@@ -1603,7 +1743,8 @@
+ 	struct sk_buff *skb;
+ 	int err;
+ 
+-	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
++	skb = nlmsg_new(NLMSG_ALIGN(sizeof(struct xfrm_usersa_info)) +
++			xfrm_sa_len(x), GFP_ATOMIC);
+ 	if (!skb)
+ 		return ERR_PTR(-ENOMEM);
+ 
+@@ -2565,7 +2706,14 @@
+ 	struct nlmsghdr *r_nlh;
+ 	struct net *net = sock_net(skb->sk);
+ 	struct xfrm_userpolicy_default *r_up;
+-	int len = NLMSG_ALIGN(sizeof(struct xfrm_userpolicy_default));
++	struct xfrm_user_ze_caps caps = {
++		.features = XFRM_ZE_CAP_STATE_SCOPE | XFRM_ZE_CAP_ICMP_QUOTE,
++		.max_selectors = XFRM_STATE_SCOPE_MAX,
++		.guard_refs = atomic_read(&net->xfrm.fragment_guard_refs),
++		.abi = XFRM_ZE_CAP_ABI,
++	};
++	int len = NLMSG_ALIGN(sizeof(struct xfrm_userpolicy_default)) +
++		nla_total_size(sizeof(caps));
+ 	u32 portid = NETLINK_CB(skb).portid;
+ 	u32 seq = nlh->nlmsg_seq;
+ 
+@@ -2583,6 +2731,10 @@
+ 	r_up->in = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_IN]);
+ 	r_up->fwd = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_FWD]);
+ 	r_up->out = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_OUT]);
++	if (nla_put(r_skb, XFRMA_ZE_CAPS, sizeof(caps), &caps)) {
++		kfree_skb(r_skb);
++		return -EMSGSIZE;
++	}
+ 	nlmsg_end(r_skb, r_nlh);
+ 
+ 	return nlmsg_unicast(xfrm_net_nlsk(net, skb), r_skb, portid);
+@@ -3721,6 +3873,10 @@
+ 	[XFRMA_IPTFS_INIT_DELAY]	= { .type = NLA_U32 },
+ 	[XFRMA_IPTFS_MAX_QSIZE]		= { .type = NLA_U32 },
+ 	[XFRMA_IPTFS_PKT_SIZE]	= { .type = NLA_U32 },
++	[XFRMA_STATE_SCOPE]	= { .type = NLA_BINARY,
++		.len = sizeof(struct xfrm_user_state_scope) +
++		       XFRM_STATE_SCOPE_MAX * sizeof(struct xfrm_selector) },
++	[XFRMA_ZE_CAPS]		= { .type = NLA_REJECT },
+ };
+ EXPORT_SYMBOL_GPL(xfrma_policy);
+ 
+@@ -3741,6 +3897,7 @@
+ 	[XFRM_MSG_NEWSA       - XFRM_MSG_BASE] = { .doit = xfrm_add_sa        },
+ 	[XFRM_MSG_DELSA       - XFRM_MSG_BASE] = { .doit = xfrm_del_sa        },
+ 	[XFRM_MSG_GETSA       - XFRM_MSG_BASE] = { .doit = xfrm_get_sa,
++						   .start = xfrm_dump_sa_start,
+ 						   .dump = xfrm_dump_sa,
+ 						   .done = xfrm_dump_sa_done  },
+ 	[XFRM_MSG_NEWPOLICY   - XFRM_MSG_BASE] = { .doit = xfrm_add_policy    },
+@@ -3773,6 +3930,11 @@
+ static int xfrm_reject_unused_attr(int type, struct nlattr **attrs,
+ 				   struct netlink_ext_ack *extack)
+ {
++	if (attrs[XFRMA_STATE_SCOPE] &&
++	    type != XFRM_MSG_NEWSA && type != XFRM_MSG_UPDSA) {
++		NL_SET_ERR_MSG(extack, "State scope is valid only on NEWSA/UPDSA");
++		return -EINVAL;
++	}
+ 	if (attrs[XFRMA_SA_DIR]) {
+ 		switch (type) {
+ 		case XFRM_MSG_NEWSA:
+@@ -4031,6 +4193,9 @@
+ static inline unsigned int xfrm_sa_len(struct xfrm_state *x)
+ {
+ 	unsigned int l = 0;
++	if (x->scope->count)
++		l += nla_total_size(sizeof(struct xfrm_user_state_scope) +
++			x->scope->count * sizeof(x->scope->selectors[0]));
+ 	if (x->aead)
+ 		l += nla_total_size(aead_len(x->aead));
+ 	if (x->aalg) {
+@@ -4057,6 +4222,8 @@
+ 		l += nla_total_size(sizeof(*x->coaddr));
+ 	if (x->props.extra_flags)
+ 		l += nla_total_size(sizeof(x->props.extra_flags));
++	if (x->mark.v | x->mark.m)
++		l += nla_total_size(sizeof(x->mark));
+ 	if (READ_ONCE(x->xso.dev))
+ 		l += nla_total_size(sizeof(struct xfrm_user_offload));
+ 	if (x->props.smark.v | x->props.smark.m) {

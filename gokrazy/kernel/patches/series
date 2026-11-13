@@ -1,2 +1,4 @@
 0001-nct6683.patch
 0002-mpls-ip-mtu.patch
+0003-xfrm-state-scope.patch
+0004-ip-fragment-xfrm-context.patch

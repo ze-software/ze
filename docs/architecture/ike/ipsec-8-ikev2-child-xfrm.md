@@ -95,6 +95,70 @@ is expected to reach the refusal.
 
 <!-- source: internal/component/ike/engine/create_child.go -- childEncapPorts -->
 
+**Kernel scope ABI under implementation.** The state-scope patch extends
+ordinary XFRM netlink construction with `XFRMA_STATE_SCOPE` (42). Its payload
+is native-endian `u32 flags`, `u32 count`, then 1 through 64 existing
+`xfrm_selector` records. Each record describes one directional inner flow;
+the set is an OR, not a covering selector. Flag bit 0 records negotiated
+noninitial-fragment permission. The parser rejects other flags, malformed
+lengths, invalid families, noncanonical prefixes and masks, nonzero padding
+or user selectors, and constrained fields for unsupported protocols. Specific
+fields are accepted only for TCP, UDP, UDP-Lite, SCTP, ICMP and ICMPv6.
+Transport mode retains one selector identical to its legacy selector.
+<!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- xfrm_state_scope_from_user -->
+
+Each state gets an immutable, refcounted scope object, including an empty
+identity for a legacy state. Rekeys get distinct objects. An unchanged-scope
+mobility clone shares the object; a legacy host-to-host selector change gets
+a distinct empty identity. Scoped selector changes and in-place scope updates
+are refused. IN checks the receiving state's own set before the SPD; OUT
+filters candidates through the directional set before choosing a valid state.
+The ICMP state flag permits only the reverse-quote fallback. With it clear,
+the error's own headers still have to match that state's set. The shared quote
+decoder checks IPv4 IHL, IPv6 extensions and available bytes; an absent port
+cannot match an exact zero port. Packet offload of a scoped state is refused;
+crypto-only offload retains software checks.
+<!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- xfrm_state_scope_match, xfrm_state_clone_and_setup, xfrm_state_update, xfrm_icmp_flow_decode, xfrm_dev_state_add -->
+
+`GETDEFAULT` appends read-only `XFRMA_ZE_CAPS` (43): four native-endian `u32`
+values, `features`, `max_selectors`, `guard_refs` and `abi`. The ABI word must
+equal `0x5a450001`; an absent or different receipt proves no support. Feature
+bits are 0 for state scope, 1 for quote availability, 2 for fragment context,
+3 for fragment gathering and 4 for strict ICMP final-policy mapping. K1
+advertises only bits 0 and 1; K2 adds bit 2 when both IP families are compiled.
+Guard references belong to scoped states and
+policies with a nonzero protocol or port mask, including socket policies and
+template-free BYPASS/DISCARD. Construction gets ownership before publication;
+state GC and final policy RCU destruction release it. The count has no disable
+control and is independent of the FWD-default lease. This staged kernel work
+does not establish fragment gathering, IKE negotiation or an engine writer for
+the new attribute; their implementation and packet proof remain owed before
+the general scope boundary is declared supported.
+<!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- xfrm_get_default, xfrm_state_scope_hold_guard, xfrm_policy_hold_fragment_guard, xfrm_state_gc_destroy, xfrm_policy_destroy_rcu -->
+
+**Fragment context isolation under implementation.** K2 extends the existing
+IPv4, local IPv6 and conntrack IPv6 fragment keys with the complete ordered
+vector of scope identities and its length. Clear traffic has an empty vector;
+legacy protected states still carry their distinct identities. Keys are fully
+zeroed before their fields are filled. Existing full-key hashing and comparison
+retain the addresses, fragment id, protocol, user, interface and zone separation
+the family already supplies. Unchanged-scope migration keeps the same object
+identity, while another SA or a rekey has its own identity.
+
+Queue construction holds each scope before publication, including an empty
+queue left by a rejected first fragment. Final queue destruction releases every
+hold, including failed hash insertion and namespace teardown. Each queue is
+charged its larger allocation and the full bytes of every scope it retains,
+even when a state or another queue shares that scope. The retained-object
+charge remains until the final RCU destructor releases those references;
+overflow is checked before publication. The existing fragment-directory memory
+thresholds and timers govern these charges. One lightweight header supplies the
+single transform-depth bound without importing XFRM's namespace-dependent
+helpers into fragment-key declarations. This is authored source awaiting native
+kernel compilation, queue-lifetime checks and the unchanged mixed-context
+packet tests; no queue-isolation runtime proof is claimed yet.
+<!-- source: gokrazy/kernel/patches/0004-ip-fragment-xfrm-context.patch -- inet_frag_xfrm_context_init, inet_frag_xfrm_context_get, inet_frag_xfrm_context_put, inet_frag_alloc, inet_frag_destroy_rcu, ip4_frag_init, ip4_frag_free, ip6frag_init, ip6frag_free -->
+
 **Which kernel object holds the inbound SA's selectors depends on the mode.** RFC
 4301 Section 4.4.2 makes the inbound SAD entry carry the negotiated selectors, and
 Linux checks a decrypted packet against them in two places. In tunnel mode

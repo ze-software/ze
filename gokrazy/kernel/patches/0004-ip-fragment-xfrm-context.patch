@@ -1,0 +1,396 @@
+diff --git a/include/net/inet_frag.h b/include/net/inet_frag.h
+--- a/include/net/inet_frag.h
++++ b/include/net/inet_frag.h
+@@ -8,6 +8,7 @@
+ #include <linux/rbtree_types.h>
+ #include <linux/refcount.h>
+ #include <net/dropreason-core.h>
++#include <net/xfrm_scope.h>
+ 
+ /* Per netns frag queues directory */
+ struct fqdir {
+@@ -52,6 +53,7 @@
+ 	u32		vif;
+ 	__be16		id;
+ 	u16		protocol;
++	struct xfrm_frag_context xfrm;
+ };
+ 
+ struct frag_v6_compare_key {
+@@ -60,6 +62,7 @@
+ 	u32		user;
+ 	__be32		id;
+ 	u32		iif;
++	struct xfrm_frag_context xfrm;
+ };
+ 
+ /**
+@@ -80,6 +83,7 @@
+  * @flags: fragment queue flags
+  * @max_size: maximum received fragment size
+  * @fqdir: pointer to struct fqdir
++ * @extra_mem: conservative charge for objects retained by this queue
+  * @rcu: rcu head for freeing deferall
+  */
+ struct inet_frag_queue {
+@@ -101,6 +105,7 @@
+ 	__u8			flags;
+ 	u16			max_size;
+ 	struct fqdir		*fqdir;
++	unsigned int		extra_mem;
+ 	struct rcu_head		rcu;
+ };
+ 
+@@ -129,6 +134,13 @@
+ void inet_frag_kill(struct inet_frag_queue *q, int *refs);
+ void inet_frag_destroy(struct inet_frag_queue *q);
+ struct inet_frag_queue *inet_frag_find(struct fqdir *fqdir, void *key);
++
++bool inet_frag_xfrm_context_init(struct xfrm_frag_context *context,
++				 const struct sk_buff *skb);
++/* Queue constructors MUST get each scope; final destructors MUST put it. */
++void inet_frag_xfrm_context_get(struct inet_frag_queue *q,
++				const struct xfrm_frag_context *context);
++void inet_frag_xfrm_context_put(const struct xfrm_frag_context *context);
+ 
+ void inet_frag_queue_flush(struct inet_frag_queue *q,
+ 			   enum skb_drop_reason reason);
+diff --git a/include/net/ipv6_frag.h b/include/net/ipv6_frag.h
+--- a/include/net/ipv6_frag.h
++++ b/include/net/ipv6_frag.h
+@@ -35,7 +35,13 @@
+ 	const struct frag_v6_compare_key *key = a;
+ 
+ 	q->key.v6 = *key;
++	inet_frag_xfrm_context_get(q, &q->key.v6.xfrm);
+ 	fq->ecn = 0;
++}
++
++static inline void ip6frag_free(struct inet_frag_queue *q)
++{
++	inet_frag_xfrm_context_put(&q->key.v6.xfrm);
+ }
+ 
+ static inline u32 ip6frag_key_hashfn(const void *data, u32 len, u32 seed)
+diff --git a/include/net/xfrm.h b/include/net/xfrm.h
+--- a/include/net/xfrm.h
++++ b/include/net/xfrm.h
+@@ -26,6 +26,7 @@
+ #include <net/ip6_fib.h>
+ #include <net/flow.h>
+ #include <net/gro_cells.h>
++#include <net/xfrm_scope.h>
+ 
+ #include <linux/interrupt.h>
+ 
+@@ -610,7 +611,6 @@
+ 	u32			calgos;
+ };
+ 
+-#define XFRM_MAX_DEPTH		6
+ #define XFRM_MAX_OFFLOAD_DEPTH	1
+ 
+ struct xfrm_policy_walk_entry {
+diff --git a/include/net/xfrm_scope.h b/include/net/xfrm_scope.h
+new file mode 100644
+--- /dev/null
++++ b/include/net/xfrm_scope.h
+@@ -0,0 +1,17 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _NET_XFRM_SCOPE_H
++#define _NET_XFRM_SCOPE_H
++
++#include <linux/types.h>
++
++/* Shared with fragment keys without importing XFRM's namespace users. */
++#define XFRM_MAX_DEPTH 6
++
++struct xfrm_state_scope;
++
++struct xfrm_frag_context {
++	struct xfrm_state_scope *scopes[XFRM_MAX_DEPTH];
++	u32 len;
++};
++
++#endif
+diff --git a/net/ipv4/inet_fragment.c b/net/ipv4/inet_fragment.c
+--- a/net/ipv4/inet_fragment.c
++++ b/net/ipv4/inet_fragment.c
+@@ -17,12 +17,70 @@
+ #include <linux/rtnetlink.h>
+ #include <linux/slab.h>
+ #include <linux/rhashtable.h>
++#include <linux/overflow.h>
+ 
+ #include <net/sock.h>
+ #include <net/inet_frag.h>
+ #include <net/inet_ecn.h>
+ #include <net/ip.h>
+ #include <net/ipv6.h>
++#include <net/xfrm.h>
++
++bool inet_frag_xfrm_context_init(struct xfrm_frag_context *context,
++				 const struct sk_buff *skb)
++{
++#ifdef CONFIG_XFRM
++	const struct sec_path *sp = skb_sec_path(skb);
++	unsigned int i;
++#endif
++	memset(context, 0, sizeof(*context));
++#ifdef CONFIG_XFRM
++	if (!sp)
++		return true;
++	if (sp->len > XFRM_MAX_DEPTH)
++		return false;
++	for (i = 0; i < sp->len; i++) {
++		const struct xfrm_state *x = sp->xvec[i];
++
++		if (!x || !x->scope || x->scope->count > XFRM_STATE_SCOPE_MAX)
++			return false;
++		context->scopes[i] = x->scope;
++	}
++	context->len = sp->len;
++#endif
++	return true;
++}
++EXPORT_SYMBOL_GPL(inet_frag_xfrm_context_init);
++
++/* MUST run before queue publication, balanced by the final destructor. */
++void inet_frag_xfrm_context_get(struct inet_frag_queue *q,
++				const struct xfrm_frag_context *context)
++{
++#ifdef CONFIG_XFRM
++	unsigned int i;
++
++	static_assert(XFRM_MAX_DEPTH *
++		      (sizeof(struct xfrm_state_scope) + XFRM_STATE_SCOPE_MAX *
++		       sizeof(struct xfrm_selector)) <= UINT_MAX);
++	for (i = 0; i < context->len; i++) {
++		xfrm_state_scope_get(context->scopes[i]);
++		q->extra_mem += xfrm_state_scope_size(context->scopes[i]);
++	}
++#endif
++}
++EXPORT_SYMBOL_GPL(inet_frag_xfrm_context_get);
++
++/* MUST balance construction even for empty or unpublished queues. */
++void inet_frag_xfrm_context_put(const struct xfrm_frag_context *context)
++{
++#ifdef CONFIG_XFRM
++	unsigned int i;
++
++	for (i = 0; i < context->len; i++)
++		xfrm_state_scope_put(context->scopes[i]);
++#endif
++}
++EXPORT_SYMBOL_GPL(inet_frag_xfrm_context_put);
+ 
+ /* Use skb->cb to track consecutive/adjacent fragments coming at
+  * the end of the queue. Nodes in the rb-tree queue will
+@@ -299,6 +357,7 @@
+ 
+ 	if (f->destructor)
+ 		f->destructor(q);
++	sub_frag_mem_limit(q->fqdir, q->extra_mem);
+ 	kmem_cache_free(f->frags_cachep, q);
+ }
+ 
+@@ -368,6 +427,7 @@
+ 					       void *arg)
+ {
+ 	struct inet_frag_queue *q;
++	unsigned int charge;
+ 
+ 	q = kmem_cache_zalloc(f->frags_cachep, GFP_ATOMIC);
+ 	if (!q)
+@@ -375,7 +435,13 @@
+ 
+ 	q->fqdir = fqdir;
+ 	f->constructor(q, arg);
+-	add_frag_mem_limit(fqdir, f->qsize);
++	if (check_add_overflow(f->qsize, q->extra_mem, &charge)) {
++		if (f->destructor)
++			f->destructor(q);
++		kmem_cache_free(f->frags_cachep, q);
++		return NULL;
++	}
++	add_frag_mem_limit(fqdir, charge);
+ 
+ 	timer_setup(&q->timer, f->frag_expire, 0);
+ 	spin_lock_init(&q->lock);
+diff --git a/net/ipv4/ip_fragment.c b/net/ipv4/ip_fragment.c
+--- a/net/ipv4/ip_fragment.c
++++ b/net/ipv4/ip_fragment.c
+@@ -88,6 +88,7 @@
+ 	struct inet_peer *p = NULL;
+ 
+ 	q->key.v4 = *key;
++	inet_frag_xfrm_context_get(q, &q->key.v4.xfrm);
+ 	qp->ecn = 0;
+ 	if (q->fqdir->max_dist) {
+ 		rcu_read_lock();
+@@ -106,6 +107,7 @@
+ 	qp = container_of(q, struct ipq, q);
+ 	if (qp->peer)
+ 		inet_putpeer(qp->peer);
++	inet_frag_xfrm_context_put(&q->key.v4.xfrm);
+ }
+ 
+ static bool frag_expire_skip_icmp(u32 user)
+@@ -196,18 +198,22 @@
+ /* Find the correct entry in the "incomplete datagrams" queue for
+  * this IP datagram, and create new one, if nothing is found.
+  */
+-static struct ipq *ip_find(struct net *net, struct iphdr *iph,
++static struct ipq *ip_find(struct net *net, struct sk_buff *skb,
+ 			   u32 user, int vif)
+ {
+-	struct frag_v4_compare_key key = {
+-		.saddr = iph->saddr,
+-		.daddr = iph->daddr,
+-		.user = user,
+-		.vif = vif,
+-		.id = iph->id,
+-		.protocol = iph->protocol,
+-	};
++	const struct iphdr *iph = ip_hdr(skb);
++	struct frag_v4_compare_key key;
+ 	struct inet_frag_queue *q;
++
++	memset(&key, 0, sizeof(key));
++	key.saddr = iph->saddr;
++	key.daddr = iph->daddr;
++	key.user = user;
++	key.vif = vif;
++	key.id = iph->id;
++	key.protocol = iph->protocol;
++	if (!inet_frag_xfrm_context_init(&key.xfrm, skb))
++		return NULL;
+ 
+ 	q = inet_frag_find(net->ipv4.fqdir, &key);
+ 	if (!q)
+@@ -479,7 +485,7 @@
+ 	rcu_read_lock();
+ 	dev = skb->dev ? : skb_dst_dev_rcu(skb);
+ 	vif = l3mdev_master_ifindex_rcu(dev);
+-	qp = ip_find(net, ip_hdr(skb), user, vif);
++	qp = ip_find(net, skb, user, vif);
+ 	if (qp) {
+ 		int ret, refs = 0;
+ 
+diff --git a/net/ipv6/netfilter/nf_conntrack_reasm.c b/net/ipv6/netfilter/nf_conntrack_reasm.c
+--- a/net/ipv6/netfilter/nf_conntrack_reasm.c
++++ b/net/ipv6/netfilter/nf_conntrack_reasm.c
+@@ -143,17 +143,21 @@
+ 
+ /* Creation primitives. */
+ static struct frag_queue *fq_find(struct net *net, __be32 id, u32 user,
+-				  const struct ipv6hdr *hdr, int iif)
++				  const struct sk_buff *skb, int iif)
+ {
+ 	struct nft_ct_frag6_pernet *nf_frag = nf_frag_pernet(net);
+-	struct frag_v6_compare_key key = {
+-		.id = id,
+-		.saddr = hdr->saddr,
+-		.daddr = hdr->daddr,
+-		.user = user,
+-		.iif = iif,
+-	};
++	const struct ipv6hdr *hdr = ipv6_hdr(skb);
++	struct frag_v6_compare_key key;
+ 	struct inet_frag_queue *q;
++
++	memset(&key, 0, sizeof(key));
++	key.id = id;
++	key.saddr = hdr->saddr;
++	key.daddr = hdr->daddr;
++	key.user = user;
++	key.iif = iif;
++	if (!inet_frag_xfrm_context_init(&key.xfrm, skb))
++		return NULL;
+ 
+ 	if (!(ipv6_addr_type(&hdr->daddr) & (IPV6_ADDR_MULTICAST |
+ 					    IPV6_ADDR_LINKLOCAL)))
+@@ -479,7 +483,7 @@
+ 	fhdr = (struct frag_hdr *)skb_transport_header(skb);
+ 
+ 	rcu_read_lock();
+-	fq = fq_find(net, fhdr->identification, user, hdr,
++	fq = fq_find(net, fhdr->identification, user, skb,
+ 		     skb->dev ? skb->dev->ifindex : 0);
+ 	if (fq == NULL) {
+ 		rcu_read_unlock();
+@@ -557,7 +561,7 @@
+ 	int ret = 0;
+ 
+ 	nf_frags.constructor = ip6frag_init;
+-	nf_frags.destructor = NULL;
++	nf_frags.destructor = ip6frag_free;
+ 	nf_frags.qsize = sizeof(struct frag_queue);
+ 	nf_frags.frag_expire = nf_ct_frag6_expire;
+ 	nf_frags.frags_cache_name = nf_frags_cache_name;
+diff --git a/net/ipv6/reassembly.c b/net/ipv6/reassembly.c
+--- a/net/ipv6/reassembly.c
++++ b/net/ipv6/reassembly.c
+@@ -82,16 +82,20 @@
+ }
+ 
+ static struct frag_queue *
+-fq_find(struct net *net, __be32 id, const struct ipv6hdr *hdr, int iif)
+-{
+-	struct frag_v6_compare_key key = {
+-		.id = id,
+-		.saddr = hdr->saddr,
+-		.daddr = hdr->daddr,
+-		.user = IP6_DEFRAG_LOCAL_DELIVER,
+-		.iif = iif,
+-	};
++fq_find(struct net *net, __be32 id, const struct sk_buff *skb, int iif)
++{
++	const struct ipv6hdr *hdr = ipv6_hdr(skb);
++	struct frag_v6_compare_key key;
+ 	struct inet_frag_queue *q;
++
++	memset(&key, 0, sizeof(key));
++	key.id = id;
++	key.saddr = hdr->saddr;
++	key.daddr = hdr->daddr;
++	key.user = IP6_DEFRAG_LOCAL_DELIVER;
++	key.iif = iif;
++	if (!inet_frag_xfrm_context_init(&key.xfrm, skb))
++		return NULL;
+ 
+ 	if (!(ipv6_addr_type(&hdr->daddr) & (IPV6_ADDR_MULTICAST |
+ 					    IPV6_ADDR_LINKLOCAL)))
+@@ -380,7 +384,7 @@
+ 
+ 	iif = skb->dev ? skb->dev->ifindex : 0;
+ 	rcu_read_lock();
+-	fq = fq_find(net, fhdr->identification, hdr, iif);
++	fq = fq_find(net, fhdr->identification, skb, iif);
+ 	if (fq) {
+ 		u32 prob_offset = 0;
+ 		int ret, refs = 0;
+@@ -577,7 +581,7 @@
+ 	int ret;
+ 
+ 	ip6_frags.constructor = ip6frag_init;
+-	ip6_frags.destructor = NULL;
++	ip6_frags.destructor = ip6frag_free;
+ 	ip6_frags.qsize = sizeof(struct frag_queue);
+ 	ip6_frags.frag_expire = ip6_frag_expire;
+ 	ip6_frags.frags_cache_name = ip6_frag_cache_name;
+diff --git a/net/xfrm/xfrm_user.c b/net/xfrm/xfrm_user.c
+--- a/net/xfrm/xfrm_user.c
++++ b/net/xfrm/xfrm_user.c
+@@ -2716,6 +2716,10 @@
+ 		nla_total_size(sizeof(caps));
+ 	u32 portid = NETLINK_CB(skb).portid;
+ 	u32 seq = nlh->nlmsg_seq;
++
++#if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
++	caps.features |= XFRM_ZE_CAP_FRAGMENT_CONTEXT;
++#endif
+ 
+ 	r_skb = nlmsg_new(len, GFP_ATOMIC);
+ 	if (!r_skb)
