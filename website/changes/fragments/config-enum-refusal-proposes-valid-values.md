@@ -1,5 +1,5 @@
 ---
-spec: spec-config-enum-refusal-proposes-valid-values
+spec: config-enum-refusal-proposes-valid-values
 topic: Config
 feature: configuration
 found-by: review

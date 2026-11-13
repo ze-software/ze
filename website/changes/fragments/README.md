@@ -26,8 +26,11 @@ you hope.
 
 | Change | File name | Owed |
 |--------|-----------|------|
-| A spec closure | `<spec-stem>.md`, the spec's file name | Always, or `no-news "<reason>"` on the commit that removes the spec (`ai/skills/ze-close.md`, step 6) |
+| A spec closure | `<stem>.md`, using the canonical spec stem without the leading `spec-` or the `.md` suffix | Always, or `no-news "<reason>"` on the commit that removes the spec (`ai/skills/ze-close.md`, step 6) |
 | A fix outside a spec | `<journal-class>-<slug>.md`, the journal class file's name and a short slug of the fix | When operators see the fix (`plan/journal/README.md`). No check enforces it |
+<!-- source: internal/le/commit/newsfragment.go -- newsFragmentPath, newsFragmentOwed -->
+<!-- source: internal/le/commit/review.go -- closedSpecStem -->
+<!-- source: internal/le/spec/path/specpath.go -- Stem -->
 
 A closure carrying both a fragment and `no-news` is refused. The `no-news`
 reason becomes a `No-news:` trailer; never write that line by hand.
@@ -36,10 +39,11 @@ reason becomes a `No-news:` trailer; never write that line by hand.
 
 | Key | Required | Value |
 |-----|----------|-------|
-| `spec` or `journal` | one of the two | The spec stem, or the journal row the fix closes (class file and date) |
+| `spec` or `journal` | one of the two | The canonical spec stem without `spec-` or `.md`, matching the fragment's filename stem, or the journal row the fix closes (class file and date) |
 | `topic` | yes | A tag family from `website/data/topics.json`. Add a missing family there, in the same commit |
 | `feature` | no | The feature id under `features/`, when the change belongs to one. Name it; do not restate its level or scope |
 | `found-by` | no | For a fix: what surfaced the defect. One of `rfc-check`, `interop`, `test-judge`, `review`, `operator-report`, `upstream` |
+<!-- source: internal/le/commit/newsfragment.go -- newsFragmentClosureProblem, newsMetadataProblems -->
 
 The date is read from git, so a fragment carries none.
 

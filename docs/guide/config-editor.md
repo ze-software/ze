@@ -167,7 +167,7 @@ The refusal's full shape, for every kind of value and every surface, is
 [Value refusals](../architecture/config/yang-config-design.md#value-refusals).
 
 Command input in the SSH editor, web terminal and web CLI bar uses the config
-token codec. Double-quoted words decode `\"`, `\\`, `\n` and `\t`. Single-quoted
+token codec. Double-quoted words decode `\"`, `\\`, `\n`, `\r` and `\t`. Single-quoted
 words keep their contents raw, so `'C:\Users\test'` preserves each backslash;
 the double-quoted form is `"C:\\Users\\test"`. A quoted `"|"` is a literal key or
 value; a bare `|` starts a pipe. For example, `show | match "|"` shows only

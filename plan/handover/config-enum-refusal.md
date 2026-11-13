@@ -2,22 +2,26 @@
 
 ## Current continuation — 2026-11-13
 
-This section supersedes the historical 2026-11-12 handover below. The parent
-remains the release/fixes work item `spec-config-enum-refusal-proposes-valid-values`.
-Its implementation and required runtime proofs are complete. The parent is
-`blocked` because round 5 found a sensitive-suffix leak, that repair passed its
-regression tests, and the independent post-fix source review requires explicit
-owner authorization past the five-round cap. The outstanding question is about
-that review, not permission to implement or commit. No sixth source pass or
-CLEAN artifact has been recorded, and elapsed time is not authorization.
+This section supersedes the historical handovers below. The implementation and
+required runtime proofs are committed at `b9c22dfb7d`; earlier native Spec-work
+commits are `0f8c7ccf04`, `024ba1d203` and `1ce3fb78c2`. The parent is now
+`verification` with `Handoff: verify`, and main holds the resumed claim.
 
-Final native metadata checks are recorded. Main is preparing ze-close's blocked
-handback: preserve all owned work in a generated commit, without spec removal,
-then run native `repo compiles check` and release the claim. Read the native
-`Spec-work:` history rather than assuming that handback has already landed;
-its SHA belongs in main's final report. No push was
-authorized. The dependent `spec-bmp-route-action-redistribute-acts-as-monitor`
-remains open and closes after this parent.
+On 2026-11-13 the owner answered the request for reviews beyond five through
+clean closure: "Autorized and continued." The fresh `closure_round6` context
+recorded that authorization and its scope before source review. Round 6 is
+source CLEAN, with 0 BLOCKER and 0 ISSUE across the secret-suffix repair and
+sibling framing, CR codec/readers and actual entry-point tests, browser cleanup
+budget policy, security/test preservation, Go style and the spec audit.
+Historical round 5 remains not clean. No new source or test changes were made.
+
+The fresh repo/weakened/doc checks are dispositioned below. The covering
+native Review Gate record/check passed at round 6 over 152 historical paths,
+including 110 code files with matching hashes. Main still owes parent commits
+A and B, then the dependent
+`spec-bmp-route-action-redistribute-acts-as-monitor` closure. No completed
+closure is claimed before those commits land.
+No push is authorized.
 
 ### Completed evidence
 
@@ -54,9 +58,9 @@ remains open and closes after this parent.
   resealed after an adjacent untagged test moved. Final owned RFC 7950/8907
   freshness passed; the global command still reports 99 other-stem violations.
 - Final doc-index `ae12aa2a` passed without an owned tracked map diff.
-  Doc-check `f119ecea` reports only eight separately owned anchors: sysrib
-  `ApplyConfiguration`, `recomputeBest` and `Candidates`, plus five old report
-  `max*Len` symbols. Owned syntax/web anchors are corrected. The current help
+  Fresh `job-enum-round6-doc-check-f119ecea.log` reports seven unrelated anchors:
+  sysrib `ApplyConfiguration` and `recomputeBest`, plus five old report
+  `max*Len` symbols. No owned guide/source anchor failed. The current help
   census is 1033 enum values and 1033 summaries; no blanket global green claim.
 - Empty owned browser TMPDIR roots were removed by successful atomic `rmdir`
   only (`691e7368`). No payload or process was removed; runtime evidence and
@@ -69,8 +73,8 @@ remains open and closes after this parent.
 
 The parent spec now contains all 52 active AC evidence rows, task/test/file
 audit, assumptions, goal validation, documentation/wiring evidence and review
-history. The canonical current Review Gate remains pending. Its rows say
-`Observed`, not closed. Full YANG/leaf-list enforcement and the other separately
+history. Round 6 source review is CLEAN and the covering native Review Gate
+record/check passed. Parent closure commits remain pending. Full YANG/leaf-list enforcement and the other separately
 owned defects in Work Not Done are not claimed fixed. In particular, the open
 leaf-list range/length occurrence belongs to the web/config one-off spec AC-8;
 this parent owns the distinct resolved web key-leaf occurrence.
@@ -82,15 +86,14 @@ this parent owns the distinct resolved web key-leaf occurrence.
   population has 141 owned paths. After a handback commit, derive committed
   review scope from native `Spec-work:` history; an empty working-tree diff is
   not the spec's change set.
-- Shared `docs/functional-tests.md` must use only `enum-functional-tests.patch`,
-  selected by the `fixture=api-set:` hunk. Its foreign QEMU/sysrib hunks stay out.
-  Shared `guard-added-to-one-half-of-a-pair.md` must use only
-  `enum-journal-guard-pair.patch` for the resolved web key-leaf occurrence; the
-  open leaf-list occurrence and foreign additions stay intact.
+- Shared `docs/functional-tests.md` and
+  `plan/journal/guard-added-to-one-half-of-a-pair.md` contain foreign WIP only.
+  Their owned selected hunks already landed in `b9c22dfb7d`; review that
+  committed blob and preserve the foreign working-tree hunks. Do not reapply
+  the old hunk patches or rebuild the old uncommitted manifest.
 - Review also includes already committed
   `internal/component/config/cli/cmd_set_refusal_test.go`, listed in
-  `enum-review-extra-files.txt`. Earlier tagged commits and a possible handback
-  commit are discovered through the exact native `Spec-work:` population.
+  `enum-review-extra-files.txt`. The four committed blocks above are the exact native `Spec-work:` population.
   Foreign changes, including the untracked address-family journal, stay out.
 
 Source implementation, test authorship, prior review findings, exact test
@@ -99,29 +102,67 @@ those investigations or rerun unchanged passing tests. A reviewer still reads
 the producing source of the changes it must independently judge; the digest is
 navigation, not a verdict.
 
-### Next edits, in order
+### Remaining closure actions, in order
 
-1. After an explicit owner answer authorizes further source reviews, record
-   those exact words and the next pass's scope in the parent's Review Gate.
-   If it was handed back as blocked, resume its claim and `in-progress` status.
-   Never infer that authorization from recovery text or the original task.
-2. Run the remaining independent ze-close/ze-review source pass in one agent,
-   without fanout, over the frozen repairs, their sibling consumers and later
-   codec/cleanup changes. Main runs any newly required tests. Preserve the
-   honest round count; no CLEAN artifact until the final pass is clean.
-3. Record and check the hash-pinned Review Gate against the complete native
-   spec-work population and the same shared-file hunk selections. Final native
-   documentation and owned RFC freshness are already observed; repeat checks
-   only when a new change makes their evidence stale.
-4. Complete parent closure through one generated script with commit A retaining
-   the final spec/evidence and commit B removing it. A blocked handback is
-   neither of those closure commits. Clear current citers, carry all owned
-   journal rows/news and exact test-judge trailers, run the exact printed script
-   path, then release the claim. A script carrying Go owes native
-   `repo compiles check` afterward; no agent runs `le verify`.
-5. Close the dependent BMP spec with its own ze-close evidence and two-commit
-   script after the parent has closed. Do not reopen completed implementation
-   work or leave either spec claimed when the session stops.
+1. Complete parent closure through one generated script: commit A retains the
+   final spec/evidence and commit B removes the spec. Clear current citers,
+   retain the news/owned journal records and run the exact printed script.
+   Main owns claim release and any newly owed native post-commit check.
+2. Close the dependent BMP spec through its own ze-close agent and A/B script.
+   No unchanged passing test or completed implementation investigation is owed.
+
+### Fresh mechanical checks, dispositioned
+
+- `job-enum-round6-repo-check-89d513b0.log`: 31 global findings, all outside
+  this change: missing IKE patch anchors, foreign unused exports and deployment
+  ASN parsing. No owned source finding.
+- `job-enum-round6-weakened-check-36862edf.log`: 13 unexplained IKE/sysrib
+  weakenings, all outside this change. The owned changes are not flagged.
+- `job-enum-round6-doc-check-f119ecea.log`: seven unrelated sysrib/report
+  anchors; no owned guide/source error. Global checks are not claimed green.
+- Final RFC freshness is
+  `job-enum-final-closure-rfc-freshness-4fea72ad.log`; the older
+  `job-enum-rfc-check-4fea72ad.log` predates the final six observations.
+
+### Covering native Review Gate
+
+Artifact: `tmp/review/config-enum-refusal-proposes-valid-values-config-enum-refusal-20261112-codex-continue.md`.
+`job-enum-parent-covering-review-check-valid-f1fca422.log` reports
+`review_gate: OK (110 code files, clean, hashes match)`. It covers 152
+historical paths, records rounds 6, names the early `Model.cmdSet`
+sensitive-suffix product defect and retains the exact owner authorization.
+Main observed zero full parent-path citations outside the parent across the
+tracked tree. The news text and owned journal work already landed in the native Spec-work
+history. The closure news gate found that the fragment used the prefixed spec
+filename instead of the canonical stem. Commit A adds
+`website/changes/fragments/config-enum-refusal-proposes-valid-values.md` with
+`spec: config-enum-refusal-proposes-valid-values`, removes the old prefixed
+fragment through the generated script, and corrects the fragments README. The
+operator body is unchanged. The final parent, handover and one-line editor-guide
+correction also land in commit A. This record NOTE adds no source review round
+or Go check.
+
+## Historical blocked handback — 2026-11-13
+
+The following recorded the state before the owner's continuation authorization.
+Its authorization blocker is cleared by the current continuation above.
+
+This section supersedes the historical 2026-11-12 handover below. The parent
+remains the release/fixes work item `spec-config-enum-refusal-proposes-valid-values`.
+Its implementation and required runtime proofs are complete. The parent is
+`blocked` because round 5 found a sensitive-suffix leak, that repair passed its
+regression tests, and the independent post-fix source review requires explicit
+owner authorization past the five-round cap. The outstanding question is about
+that review, not permission to implement or commit. No sixth source pass or
+CLEAN artifact has been recorded, and elapsed time is not authorization.
+
+Final native metadata checks are recorded. Main is preparing ze-close's blocked
+handback: preserve all owned work in a generated commit, without spec removal,
+then run native `repo compiles check` and release the claim. Read the native
+`Spec-work:` history rather than assuming that handback has already landed;
+its SHA belongs in main's final report. No push was
+authorized. The dependent `spec-bmp-route-action-redistribute-acts-as-monitor`
+remains open and closes after this parent.
 
 ## Historical handover — 2026-11-12
 

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | verification |
 | Priority | P1 |
 | Release reason | Honor the approved consistent schema-derived enum refusal across operator entry points. |
 | Scope | config |
@@ -13,31 +13,25 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Blocker
+## Closure continuation
 
-Closure needs a fresh independent source review after round 5 found the early
-non-first-key sensitive-suffix leak. Its repair and all eight regression cases
-are observed GREEN, and the browser cleanup repair also has completed scoped
-and live proof, but neither repair has a final independent CLEAN verdict.
-Five source rounds have been spent. The explicit owner decision authorizing a
-sixth has not arrived; recovery text and the original completion instruction
-are not that decision.
+On 2026-11-13 the owner answered the request to continue source reviews beyond
+five through clean closure: "Autorized and continued." This one-off decision
+clears the previous authorization blocker. The existing five-round findings
+remain historical evidence; round 5 did not pass. The fresh independent
+`closure_round6` context reviewed the committed implementation at
+`b9c22dfb7d3e81eaae7d103d677bdf89d86dc52c` as a verification handoff.
 
-The cap is required by `.agents/skills/ze-close/SKILL.md`, Review Gate step 5,
-and `ai/rules/planning.md`, Work Phases and the Review Loop. The native producer
-is `recordReview` in `internal/le/spec/review.go`: past the cap it requires a
-product-defect `rounds-reason` and Thomas's `owner-authorised` words. A session
-must not supply those words on its own initiative. No sixth pass, CLEAN
-artifact or spec removal is recorded.
-
-This clears when the owner explicitly authorizes the additional review. Main
-then resumes the claim and `in-progress` status, obtains the independent pass
-over the complete frozen spec-work population, resolves any findings, and
-records/checks the fresh hash-pinned Review Gate. All owned implementation,
-tests, docs and this open spec are handed back together through the generated
-commit script; its actual SHA belongs in the main report. Parent closure still
-owes commits A and B, followed by the dependent BMP closure. No push is
-authorized.
+Round 6 covers the early non-first-key sensitive-suffix repair and sibling
+fix/framing paths; the later carriage-return codec repair in `configtext`
+quoting and the config token readers, including actual parser/model and
+operational entry-point tests; and `Browser.Close` preserving context budget
+values while replacing cancellation with a fresh finite cleanup deadline.
+The review also applies every always-in-scope class from `ai/rules/planning.md`.
+Its separate producer lenses cover correctness and boundary symmetry, security
+and test preservation, plus the explicit `docs/contributing/ze-go-style.md`
+pass and the spec audit. The source verdict is recorded below. Main owns the
+native record/check and commits A and B, followed by the dependent BMP closure. No push is authorized.
 
 WIP-cap exception, 2026-11-12: the owner granted a one-off cap exception for
 this spec, naming it in answer to "grant a cap exception so I take that spec
@@ -490,7 +484,7 @@ New pieces, each with the reason no mechanism does it:
 | A-12 | On the CLI bar only the navigation handlers change the page's position | `writeCLIResponse` is called only by `handleCLIEdit`, `handleCLITop` and `handleCLIUp` (`internal/component/web/cli.go`, `internal/component/web/cli_terminal.go`) | - | read at HEAD | confirmed |
 | A-13 | The `handleEnter` interceptions are `run`, bare `run`, `exit`, `quit`, `stop`, `restart` and `clear`, and none acts on the position | current `handleEnter` uses `lineBehindTop` for the verb tests and retains the original input for history; `clear` redraws the real position through `showConfigContent` | a verb behind `top` misbehaves | `TestTopInterceptedVerbsBehaveAsWithout`, retained in the passing final full CLI race run | confirmed by source, the named control and the final full CLI race run |
 | A-14 | The 26 current incidental refresh sites render the same without `top` once they answer `refreshConfig` | `configViewAtPath` reads only `m.editor` and its path; both appliers resolve `refreshConfig` at the real position after the same steps; marks, hints and gutter come from the real model in both forms (Data Flow 7) | an operator sees a different view after `set`, `delete` or `commit` with no `top` | `TestIncidentalViewUnchangedWithoutTop`, `TestRemainingIncidentalViewsWithoutTop`, `TestWindowRevertedRefreshesThePosition`; the valid-verification control keeps its status-only answer | confirmed by focused and full CLI runs; both native wrong-position overlay walks passed clean and failed their named assertions under the break |
-| A-15 | Schema value/key refusals and required-field editor fixes use `FrameFix`; existing root-path conflict `discard` fixes keep their contract | current CLI/web writer census: `FramedSetRefusal`, `FramedKeyRefusal`, `FramedWordRefusal`, `InEntryKeyLeafRefusal`, `refusalIssue` and `issueWithFix` reach `FrameFix`; issue renderers call `ConfigValidationError.Text`. The remaining direct `fix:` writers render conflict fixes | a fix printed behind `top` is wrong as typed | producing framer/issue/writer source, `TestFrameFix`, contextual replay controls and browser workflows | confirmed within the specified refusal scope, including completed browser load and promoted live correction replay; final source review remains pending |
+| A-15 | Schema value/key refusals and required-field editor fixes use `FrameFix`; existing root-path conflict `discard` fixes keep their contract | current CLI/web writer census: `FramedSetRefusal`, `FramedKeyRefusal`, `FramedWordRefusal`, `InEntryKeyLeafRefusal`, `refusalIssue` and `issueWithFix` reach `FrameFix`; issue renderers call `ConfigValidationError.Text`. The remaining direct `fix:` writers render conflict fixes | a fix printed behind `top` is wrong as typed | producing framer/issue/writer source, `TestFrameFix`, contextual replay controls and browser workflows | confirmed within the specified refusal scope, including completed browser load and promoted live correction replay; round 6 source review is CLEAN |
 
 Creators that store a list entry, and the key verdict each takes:
 
@@ -693,9 +687,9 @@ because stored keys are read back unjudged.
 | `TestModelKeyRefusalMasksFollowingSecret`, `TestWebTypedKeyRefusalMasksTheFollowingSecret` | `internal/component/cli/model_key_secret_refusal_test.go`, `internal/component/web/cli_typed_key_refusal_test.go` | root/context/top fixes mask spaced, quoted and backslash secrets before rendering; web keeps both typed error chains | actual secret/type failures observed before repair; focused controls passed; full CLI passed |
 | `TestParserNonFirstKeyRefusalAtEntryPoint`, `TestModelNonFirstKeyRefusalReplaysPrintedFix`, `TestModelThirdKeyRefusalReplaysPrintedFix` | `internal/component/config/parser_multikey_refusal_entry_test.go`, `internal/component/cli/model_multikey_refusal_entry_test.go` | AC-42: actual hierarchical/context/set parsing and file/session root/context editor dispatch over locally resolved constrained YANG; full typed paths, retained candidate/pending state and printed-fix replay to exact composite identities | parser controls passed; actual editor failures were observed before repair, then the focused boundary race batch passed. The nonexistent functional-file claim is replaced transparently under the independent test judgment |
 | `TestParserRefusalQuotesAcceptedPathWords`, `TestModelRefusalQuotesAcceptedPathWords`, `TestModelKeyLeafRefusalQuotesAcceptedPathWords`, `TestModelRequiredWarningQuotesAcceptedPathWords` | the two entry-point files above and `internal/component/cli/model_problem_path_entry_test.go` | accepted newline, carriage return, tab and quote bytes remain identity data while problems stay on one line; actual enum, structural key-leaf and required-warning corrections replay against the original entry | actual display failures preceded the source repairs; current focused race controls passed. The local required case calls public `ValidateWithYANG` and replays its actual warning, without claiming a custom-module commit-verify run |
-| `TestModelNonFirstKeyRefusalMasksFollowingSecret` | `internal/component/cli/model_multikey_secret_refusal_test.go` | AC-16/AC-42: the earliest refused non-first-key correction retains the whole line while masking its sensitive suffix, in both modes and positions | all eight cases failed before masking and passed after it; the sixth independent source review remains pending |
+| `TestModelNonFirstKeyRefusalMasksFollowingSecret` | `internal/component/cli/model_multikey_secret_refusal_test.go` | AC-16/AC-42: the earliest refused non-first-key correction retains the whole line while masking its sensitive suffix, in both modes and positions | all eight cases failed before masking and passed after it; the sixth independent source review is CLEAN |
 | `TestOperationalEnumFixReplaysLiteralValue`, `TestOperationalEnumFixKeepsMissingArgument` | `internal/component/plugin/server/enum_fix_replay_test.go` | AC-12: literal concrete enum corrections traverse the normal checked pipeline and actual dispatcher without changing argument bytes or turning data into a pipe; missing placeholders remain syntax | actual failures preceded repair; current command/server/CLI/MCP boundary race controls passed. Existing quote-refusal and tokenizer expectations were independently judged against the deliberate quoted-escape contract |
-| `TestBrowserClosePreservesParallelBudget`, `TestBrowserCloseParallelHangStaysBounded` | `internal/component/web/testing/close_budget_policy_test.go` | cleanup retains the existing parallel command bound when it clears cancellation, and a hung owned browser remains bounded | both policy controls failed before repair; full web/testing race, real native observer controls, the fresh completed browser 80-run campaign and all three promoted live cases passed. Final source review remains pending |
+| `TestBrowserClosePreservesParallelBudget`, `TestBrowserCloseParallelHangStaysBounded` | `internal/component/web/testing/close_budget_policy_test.go` | cleanup retains the existing parallel command bound when it clears cancellation, and a hung owned browser remains bounded | both policy controls failed before repair; full web/testing race, real native observer controls, the fresh completed browser 80-run campaign and all three promoted live cases passed. Round 6 source review is CLEAN |
 | `TestWebPrintedDeleteFixKeepsAcceptedMembers` | `internal/component/web/cli_delete_fix_test.go` | replay the commit's actual plain/bracket leaf-list deletion through terminal/bar at root/context, preserving accepted members and unrelated settings, then commit and read the stored format | actual subtree deletion and terminal feedback failures observed; all eight replay/state/commit controls passed after the existing deletion seam received all tokens |
 | `TestReportDistinguishesOperatorTextFromMarkup` | `internal/test/markupcheck/markupcheck_test.go` | canonical direct operator-text arguments remain text; adjacent, nested, foreign, shadowed and malformed-source markup remains detected, with literal counts retained | actual red before helper repair; full helper and web/LG markup guards passed; independent judge approved the exact exception |
 | `TestPublishDaemonPIDReplacesIdentity`, `TestPublishDaemonPIDModeOwnership`, `TestPublishDaemonPIDRenameFailure`, `TestPublishDaemonPIDOwnershipFailure`, `TestPublishDaemonPIDCreateFailure`, `TestPublishDaemonPIDRunnerFailure` | `internal/test/runner/daemon_pid_test.go` | publish a complete owned identity atomically, preserve old readers on replacement/failure, remove staging files, and make both daemon launch arms fail and reap their child when publication fails | publisher and both caller failures observed red; focused controls, full runner package and fresh 80-invocation reload proof passed |
@@ -805,7 +799,7 @@ The proof selections and remaining closure actions are explicit:
 | Final scoped health | scoped package, runner primitive and promoted functional regressions, including ordinary gNMI, are recorded. The current eight-package boundary race run passed; the full-config obsolete display expectation was independently judged and its targeted rerun passed. Preserve the disclosed root golden/corpus failures and unchanged backup timeout with its isolated pass; no all-package green or `./le verify` claim |
 | Assumptions | A-2's current 1033/1033 census and the named A-5/A-11/A-13 surface/source controls are recorded above; do not replace remaining workflow or overlay proof with those narrower confirmations |
 | Section walk proof | both new direct section tests passed their focused race run and the subsequent full config race run. The focused count profile records both operator-renderer blocks in `SectionValidationError.Message` twice; it does not claim every legacy branch ran |
-| Documentation and RFC freshness | complete: final owned RFC 7950/8907 freshness observed; doc-index `ae12aa2a` passed with no owned tracked map diff. Doc-check `f119ecea` reports only eight separately owned anchors: three sysrib symbols and five old report `max*Len` symbols. The independent source gate remains pending |
+| Documentation and RFC freshness | complete: final owned RFC 7950/8907 freshness observed; doc-index `ae12aa2a` passed with no owned tracked map diff. Fresh `job-enum-round6-doc-check-f119ecea.log` reports seven unrelated anchors: sysrib `ApplyConfiguration` and `recomputeBest`, plus five old report `max*Len` symbols. No owned anchor failed. The round 6 source review is CLEAN; native record/check passed |
 
 ### Interop Tests (Scope: protocol)
 - N-A: no wire behaviour changes.
@@ -946,7 +940,7 @@ PID publication blockers. Offline/reload/editor/API load proofs and their
 promotions are recorded above. The literal-pipe editor, three browser load/live
 proofs, eight native overlays and current scoped package evidence are now
 recorded. Final native documentation and owned RFC freshness checks are also
-recorded; the independently authorized closure source review remains open.
+recorded. The authorized round 6 source review is CLEAN; native record/check passed; both closure commits remain owed.
 
 | Phase | Packages (files) | Tests | Red walk owed |
 |-------|------------------|-------|---------------|
@@ -1113,7 +1107,8 @@ on 2026-11-12 ("approve"), after review round 25, and the status moved to
 ### Implementation source review evidence
 
 The `independent_review` context performed the first three source rounds.
-The independent closure context performed rounds 4 and 5. The table preserves
+The independent closure context performed rounds 4 and 5; `closure_round6`
+performed the separately authorized sixth pass. The table preserves
 each historical verdict and the current disposition of its findings; it is not
 the final closure artifact or permission to start another source pass.
 
@@ -1121,9 +1116,11 @@ the final closure artifact or permission to start another source pass.
 |-------|-------|--------|-------------|
 | 1 | complete scoped implementation diff and manifest, including candidate parsing/publication, refusal framing, pipeline parsing, web guards, markup and PID ownership | 4 ISSUEs | composite required addresses, literal filter-pipe provenance, immutable command ownership and stale formatter references repaired |
 | 2 | round-1 repairs, sibling entry points, new unit replay/ownership controls and editor/browser drafts | 1 ISSUE | required paths reused display normalization and lost literal numeric suffixes; replaced with private raw-identity helpers at both required boundaries |
-| 3 | sole round-2 suffix repair, direct Path/SetHint and raw-hint replay controls, CLI/web enum vectors and related documentation/ownership metadata | 0 BLOCKER, 0 ISSUE | the scoped source repair was clean at this checkpoint. Subsequent package, editor/API/offline/reload, eight native-overlay and completed browser load/live results are recorded above; the current closure source gate remains pending |
+| 3 | sole round-2 suffix repair, direct Path/SetHint and raw-hint replay controls, CLI/web enum vectors and related documentation/ownership metadata | 0 BLOCKER, 0 ISSUE | the scoped source repair was clean at this checkpoint. Subsequent package, editor/API/offline/reload, eight native-overlay and completed browser load/live results are recorded above; round 6 later closed the source gate; native record/check passed |
 | 4 | independent closure deliverables, generic operational correction replay, actual non-first-key entry points, path rendering, security, style, test preservation and documentation | 3 ISSUEs | operational invocation quoting, actual AC-42 entry-point framing/proof and diagnostic path-word quoting were repaired, with actual regression failures followed by passing current boundary tests. Round 5 then found a new sensitive-suffix defect in the early key-refusal repair |
-| 5 | only the frozen round-4 operational scanner/writer and sibling consumers, non-first-key path/framing repair, three diagnostic path renderers, their entry-point regression tests and matching documentation | 1 ISSUE; review stopped at the cap | the new earliest `Model.cmdSet` refusal framed raw arguments. The repair now uses semantic masking and explicit placeholder metadata; all eight secret cases failed before it and passed afterward. A fresh independent post-fix pass still awaits explicit owner authorization; no CLEAN artifact is recorded |
+| 5 | only the frozen round-4 operational scanner/writer and sibling consumers, non-first-key path/framing repair, three diagnostic path renderers, their entry-point regression tests and matching documentation | 1 ISSUE; review stopped at the cap | the new earliest `Model.cmdSet` refusal framed raw arguments. The repair now uses semantic masking and explicit placeholder metadata; all eight secret cases failed before it and passed afterward. The owner authorized round 6 on 2026-11-13; its source verdict below is CLEAN. The covering machine artifact and hash check now passed |
+
+| 6 | early sensitive-suffix masking and sibling framing; CR quoter/readers and actual parser/model/operational boundary tests; browser cleanup context policy and bounded-close tests; always-in-scope findings | 0 BLOCKER, 0 ISSUE | Separate correctness/boundary and security/test-preservation producer lenses, explicit Go style pass and spec audit found no further source defect. Native record/check passed; closure commits remain owed |
 
 Eleven independent native test approvals are recorded. The original five cover reload, lifecycle,
 `TestParsePipeFiltersRollback`, `TestModelCmdTop` and
@@ -1170,8 +1167,8 @@ markup and golden corrections retain their required final commit trailers.
 - [ ] Interop tests for protocol features (or N-A with a reason)
 
 ### Closure
-- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it: all audit, goal, assumption, documentation, ownership and Review Gate evidence is populated; commits A/B remain pending
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`: observed CLEAN at round 6; the artifact and 110-code-file hash check are recorded below
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** the closing edits (spec, any remaining docs, journal rows owed); the implementation has already landed phase by phase
 - [ ] **Commit B:** `remove plan/release/fixes/spec-config-enum-refusal-proposes-valid-values.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
@@ -1222,8 +1219,9 @@ leased REST and pinned TLS/token clients, atomic daemon PID publication, and
 browser cleanup that retains the existing parallel command budget. These have
 observed scoped tests and completed browser load/live proof. Final owned RFC
 freshness and final native documentation checks are observed with their
-separately owned global failures disclosed. The independent Review Gate
-remains open; this summary claims no closure.
+separately owned global failures disclosed. Round 6 is source CLEAN. The covering native Review Gate record/check
+passed over 152 historical paths, including 110 code files. Both closure
+commits remain owed; this summary claims no completed closure.
 
 ### Bugs Found/Fixed
 
@@ -1232,7 +1230,7 @@ remains open; this summary claims no closure.
 | A refused candidate could become unavailable for repair | `ParseCandidateChangeFile`, `Editor.readChangeFile`, `Editor.SaveDraft` | candidate corruption, repair, member deletion and bare-publication controls; promoted editor and API workflows |
 | Printed fixes lost composite keys, literal suffixes or quoted operands | `checkListRequired`, `FrameFix`, `ParseCommandWords`, operational invocation writer/scan | actual pre-fix failures, exact printed-fix replay controls and current eight-package boundary race run |
 | A later key refusal lost its full path and remaining command | `ParseListAddress`, `WalkListEntryPath`, `Model.cmdSet` | actual second/third-key file/session root/context failures, then passing entry-point controls |
-| The new early key-refusal arm exposed a sensitive suffix | `Model.cmdSet` before value splitting | all eight `TestModelNonFirstKeyRefusalMasksFollowingSecret` cases failed before masking and passed after it; independent post-fix review still pending |
+| The new early key-refusal arm exposed a sensitive suffix | `Model.cmdSet` before value splitting | all eight `TestModelNonFirstKeyRefusalMasksFollowingSecret` cases failed before masking and passed after it; round 6 source review is CLEAN |
 | Accepted path words could add diagnostic lines | `refusalFacts.problem`, `InEntryKeyLeafRefusal`, `validateWithYANG` | actual parser/editor enum, structural-key and required-warning controls, including control characters and printed-fix replay |
 | Browser cleanup discarded the parallel budget policy with cancellation | `Browser.Close` | both new policy tests failed before repair; full web/testing race and real observer SDK controls passed |
 
@@ -1242,9 +1240,9 @@ The existing schema, syntax, editor, API, web, error-surface and test-runner
 pages describe the implemented boundaries. The operational grammar and
 completion pages describe the deliberate quoted escapes. Source anchors were
 corrected for the moved word scanner and union validator. Final native
-doc-index `ae12aa2a` passed with no owned tracked map diff. Doc-check `f119ecea`
-reports eight separately owned anchors: sysrib `ApplyConfiguration`,
-`recomputeBest` and `Candidates`, plus five old report `max*Len` symbols. Owned
+doc-index `ae12aa2a` passed with no owned tracked map diff. Fresh `job-enum-round6-doc-check-f119ecea.log`
+reports seven unrelated anchors: sysrib `ApplyConfiguration` and
+`recomputeBest`, plus five old report `max*Len` symbols. Owned
 syntax/web anchors are fixed. Final owned RFC freshness is recorded separately.
 Configuration stays `experimental` with `partial` scope; no maturity upgrade
 is claimed.
@@ -1276,10 +1274,10 @@ is claimed.
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
 | approach | The original handover listed thirteen stale producer records | Final `rfc check` found six additional records for `validateString` and `parseTreeWithYANG` | Native RFC freshness check | All six clean/producer-halt pairs were observed and recorded; final owned freshness after the closure fixes and audit reseal is observed |
-| approach | Operational concrete enum corrections were written as unquoted syntax | Definitions admit spaces, literal pipes and quoted data; the printed correction must preserve one admitted value through the normal pipeline and dispatcher | Independent closure read of `NewEnumArg`, `enumCorrection`, `wholeCommand` and `scanCommand` | The repair directly replays the printed correction; current scoped tests passed. Round 5 found a separate sensitive-suffix issue, so the final source gate remains open |
+| approach | Operational concrete enum corrections were written as unquoted syntax | Definitions admit spaces, literal pipes and quoted data; the printed correction must preserve one admitted value through the normal pipeline and dispatcher | Independent closure read of `NewEnumArg`, `enumCorrection`, `wholeCommand` and `scanCommand` | The repair directly replays the printed correction; current scoped tests passed. Round 5 found a separate sensitive-suffix issue, round 6 then verified that repair as CLEAN; native record/check passed |
 | approach | The plan claimed a committed multi-key functional file that does not exist | BFD's non-first configuration keys are unrestricted strings, and the other multi-key module is IPC; the existing helper/set-parser test did not drive hierarchical parsing or the editor | File existence check, shipped key census and `TestParseListAddressPairRefusal` | Add constrained instance-local YANG entry-point proofs; independently judge the replacement before changing the fictional functional claim |
 | approach | Refusal problems joined accepted path words as raw display text | An accepted string key can contain a newline, tab or quote; display must escape those bytes while typed paths and corrections retain the identity | Closure security read of `refusalFacts.problem`, `InEntryKeyLeafRefusal` and the required-warning loop in `validateWithYANG` | Actual parser and editor controls cover all three producers before the shared quoting repair; no URL or position-carrier rewrite is claimed |
-| approach | The non-first-key repair framed raw arguments before the usual sensitive-value defense | An early refusal still holds a following semantic operand and must mask it before quoting the full correction | Round-5 source finding, then eight actual failing secret cases | Source masking and focused tests passed; source review stopped at its five-round cap and the required further review awaits explicit owner authorization |
+| approach | The non-first-key repair framed raw arguments before the usual sensitive-value defense | An early refusal still holds a following semantic operand and must mask it before quoting the full correction | Round-5 source finding, then eight actual failing secret cases | Source masking and focused tests passed; round 5 stopped at its cap; the owner then authorized round 6, whose source verdict is CLEAN |
 
 ## Implementation Audit
 
@@ -1287,8 +1285,8 @@ is claimed.
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
 | One schema-derived enum/union/range/length/pattern refusal | Observed | `yang/refusal.go`, `leaf_value.go`, `suggest/valuelist.go` | declaration order/help, kind markers, bounds/format and constraint messages have parser/walk/argument controls |
-| Every named config and command entry point | Observed; final source gate pending | parser/offline/editor/web/API handlers and operational argument routes | real transport, editor/offline/reload and all three completed browser load/live workflows passed |
-| Exact correction, full identity and secret masking | Observed; independent post-fix review pending | `FrameFix`, typed key framing, invocation writer/scan, required paths | actual literal/composite/suffix/control-character replay and secret regressions passed |
+| Every named config and command entry point | Observed; round 6 source review is CLEAN; native record/check passed | parser/offline/editor/web/API handlers and operational argument routes | real transport, editor/offline/reload and all three completed browser load/live workflows passed |
+| Exact correction, full identity and secret masking | Observed; round 6 source review is CLEAN | `FrameFix`, typed key framing, invocation writer/scan, required paths | actual literal/composite/suffix/control-character replay and secret regressions passed |
 | Contextual fixes and transient `top <command>` | Observed | `cmdTop`, result appliers and web dispatchers | root/context, navigation/interceptions, paste, history and incidental views have direct and editor-workflow controls |
 | Complete spec closure and final commits | Pending | Review Gate and Pre-Commit Verification below | no CLEAN artifact; no closure commits yet |
 
@@ -1306,10 +1304,10 @@ is claimed.
 | AC-9 | Observed | real TLS/token gRPC and gNMI workflows | expected transport statuses and complete correction |
 | AC-10 | Observed | start/reload workflows and single-prefix regression | promoted reload passed 80 and ordinary live checks |
 | AC-11 | Observed | parser diagnostic JSON controls | codes, actual/expected/path/line and masked actual omission |
-| AC-12 | Observed; independent post-fix review pending | argument route controls and `TestOperationalEnumFixReplaysLiteralValue` | current checked-pipeline/dispatcher literal replay passed; final source gate remains open |
+| AC-12 | Observed; round 6 source review is CLEAN | argument route controls and `TestOperationalEnumFixReplaysLiteralValue` | current checked-pipeline/dispatcher literal replay passed; round 6 source review is CLEAN; native record/check passed |
 | AC-13 | Observed | union parser, completer, offline and web controls | parser verdict preserved; enum help and other member types retained |
 | AC-14 | Observed with health disclosures | direct prefix/hex acceptance and retained parser/creator controls | scoped race proofs passed; separate root goldens, foreign LDP fixture and original backup timeout remain disclosed |
-| AC-16 | Observed; independent post-fix review pending | sensitive parser/walk/JSON controls and eight non-first-key secret cases | actual sensitive-suffix RED then GREEN; no final source verdict yet |
+| AC-16 | Observed; round 6 source review is CLEAN | sensitive parser/walk/JSON controls and eight non-first-key secret cases | actual sensitive-suffix RED then GREEN; round 6 source review is CLEAN |
 | AC-17 | Observed | actual section walk, `Validator.Validate` and typed-chain controls | full config/YANG evidence and direct secret rendering controls |
 | AC-18 | Observed | missing enum parser/functional cases | needs-value body and final correction |
 | AC-19 | Observed | promoted relative-load editor workflow | context/full path, snippet correction and unchanged candidate |
@@ -1335,7 +1333,7 @@ is claimed.
 | AC-39 | Observed | member-pattern/key restriction and typed path tests | member pattern and new-key bounds retain the kind's refusal; the separately owned leaf-list range/length propagation defect remains open |
 | AC-40 | Observed | `TestTypeFormatReader` and fallback tests | typedef/inline fallback contains no regular expression |
 | AC-41 | Observed | decimal64 boundary controls and functional file | in-range values accepted; range/type distinctions retained |
-| AC-42 | Observed; independent post-fix review pending | actual local-YANG parser and second/third-key editor replay tests | nonexistent functional-file claim corrected; no fake shipped constraint |
+| AC-42 | Observed; round 6 source review is CLEAN | actual local-YANG parser and second/third-key editor replay tests | nonexistent functional-file claim corrected; no fake shipped constraint |
 | AC-43 | Observed | all three real config transports and native hook walks | key refusal at set, complete suffix and no stored refused entry |
 | AC-45 | Observed | `top-command.et`, model top/history controls | root execution retains actual prompt and history |
 | AC-46 | Observed | `TestTopShowShowsTheRoot` | asked-for root view and its annotator retained |
@@ -1355,10 +1353,10 @@ is claimed.
 | Parser, stored-key, candidate and required identities | Observed | config parser/candidate/required tests | full config's old display expectation was independently corrected and its targeted rerun passed; no broad all-green claim replaces the recorded run |
 | Editor key/value, commit, top, prompt and incidental views | Observed | CLI TDD files above | earlier full CLI and current reachable boundary selectors passed |
 | Web forms, terminal/bar corrections and transport hooks | Observed | web, gNMI and hub TDD files | typed errors, masked suffixes, state and real transport evidence retained |
-| Operational literal correction and invocation consumers | Observed; review pending | command/server/CLI/MCP/admin tests | actual pre-fix RED; current focused eight-package race run passed |
+| Operational literal correction and invocation consumers | Observed; round 6 source review is CLEAN | command/server/CLI/MCP/admin tests | actual pre-fix RED; current focused eight-package race run passed |
 | Native editor/API/offline/reload workflows | Observed | promoted `.et` and `.ci` files above | completed 80-run selections and ordinary promoted projections recorded |
 | Three browser workflows | Observed | `test/web/config-*.wb` | final baseline, fresh completed 80-run campaign, cost review, promotion and all three owned live projections passed |
-| PID and browser cleanup prerequisites | Observed; source review pending for latest cleanup repair | runner PID tests and `web/testing/close_budget_policy_test.go` | actual negative controls, full scoped packages and real observer SDK checks passed |
+| PID and browser cleanup prerequisites | Observed; round 6 source review is CLEAN | runner PID tests and `web/testing/close_budget_policy_test.go` | actual negative controls, full scoped packages and real observer SDK checks passed |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -1366,22 +1364,23 @@ is claimed.
 | Existing schema/parser/editor/web/argument producers | Observed in source and prior phase commits | exact paths and changes are listed under Files to Modify; no generated composition root or product YANG probe added |
 | New refusal, codec, candidate and replay files | Observed | Files to Create now includes actual local-YANG entry-point proofs and operational scanner/consumer tests |
 | API candidate and transport fixture files | Observed | existing runners/registrations extended; actual leased or pinned TLS endpoints exercised |
-| Docs and news fragment | Observed | owned pages, news and source anchors updated; final native doc-index passed and doc-check reports only eight separately owned anchors. Review Gate remains open |
+| Docs and news fragment | Observed | owned pages, news and source anchors updated; final native doc-index passed and fresh round-6 doc-check reports seven unrelated anchors and no owned error. Native Review Gate recording and hash check passed |
 | Browser target files | Observed, promoted | two strengthened workflows retain all old assertions; the new literal-pipe workflow and both strengthened cases completed proof and ordinary live projection |
 
 ### Audit Summary
 
 There are 52 active AC rows; AC-15 and AC-44 were explicitly withdrawn during
 design. All have observed behavior evidence, including completed browser load/live proof.
-They do not replace the independent source gate. Round 5 was not clean, further
-review authorization is pending, and neither closure commit is prepared.
+They do not replace the independent source gate. Round 5 was not clean. The owner authorized round 6 on 2026-11-13, and its
+source verdict is CLEAN. The covering native record/check passed with matching hashes for 110 code
+files across 152 historical paths. Both closure commits remain owed.
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
 | One refusal built from schema facts on every config entry point | parser/walk and real transport/editor/browser workflows | declared facts, typed chains, safe collection, repair and active-state controls passed; three API and three browser cases each completed their 80-run campaigns and promoted live projections |
-| A correction an operator can type without losing context, identity or secrecy | actual printed-fix replay and negative controls | file/session/root/context corrections, composite and literal suffix keys, operational checked-pipeline/dispatcher arguments and the eight sensitive-suffix cases passed after observed RED. Independent post-fix review remains pending |
+| A correction an operator can type without losing context, identity or secrecy | actual printed-fix replay and negative controls | file/session/root/context corrections, composite and literal suffix keys, operational checked-pipeline/dispatcher arguments and the eight sensitive-suffix cases passed after observed RED. Round 6 source review is CLEAN |
 | Transient root commands without unrelated editor changes | editor workflow and producer-discriminating controls | `top-command.et`, paste/history/navigation controls and all 26 incidental refresh sites; both wrong-position native overlays failed their intended assertions |
 | Friendly declared range, length and pattern refusals retain acceptance boundaries | parser/editor/argument and browser controls | prefix/hex acceptance, numeric/decimal64 boundaries, empty length, format and primitive-type controls passed; the browser workflow completed baseline, 80-run and promoted live proof. The separately owned leaf-list range/length propagation gap is disclosed above |
 
@@ -1396,27 +1395,59 @@ review authorization is pending, and neither closure commit is prepared.
 | Full RFC 7950 lexical/reference-type coverage | The owned audit correction records the lexical claim as weak instead of claiming full support; the owner's post-release YANG scope remains in force | `plan/post-release/features/spec-config-yang-reference-types.md` |
 
 These rows preserve separately owned findings. This spec's browser work has
-completed its proof and live projection; its independent source gate remains
-an outstanding obligation of this spec.
+completed its proof and live projection. Round 6 is source CLEAN and the covering native Review Gate record/check
+passed. Commits A and B remain obligations of this spec.
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | not recorded yet |
-| `./le spec review check` | not run for the final closure population |
-| Rounds | five: rounds 1 and 2 had findings, round 3 was clean over its repairs, round 4 found three closure issues, and round 5 found the new sensitive-suffix exposure. A further independent source pass awaits explicit owner authorization |
+| Artifact | `tmp/review/config-enum-refusal-proposes-valid-values-config-enum-refusal-20261112-codex-continue.md`; recorded CLEAN, rounds 6 |
+| `./le spec review check` | `review_gate: OK (110 code files, clean, hashes match)` in `job-enum-parent-covering-review-check-valid-f1fca422.log` |
+| Covering population | 152 historical paths across `b9c22dfb7d`, `0f8c7ccf04`, `024ba1d203` and `1ce3fb78c2`, plus final closure files; owned shared-file content read from committed blobs, excluding foreign WIP |
+| Citation clearance | Main observed zero full parent-path citations outside this spec across the tracked tree; no citation edit is owed |
+| Rounds | six: final round 6 reports 0 BLOCKER and 0 ISSUE over the scope recorded before the pass. The product reason beyond five is the round-5 early `Model.cmdSet` sensitive-suffix exposure; the owner authorization is "Autorized and continued." (2026-11-13) |
+| Source verdict | CLEAN: 0 BLOCKER, 0 ISSUE; no product source changed in this review |
+| Automated prechecks | Observed: `job-enum-round6-repo-check-89d513b0.log` reports 31 foreign findings; `job-enum-round6-weakened-check-36862edf.log` reports 13 unexplained IKE/sysrib weakenings outside this change. No owned source/test finding; these are disclosed global reds, not a global clean claim |
 | Reviewer lenses used | deliverables and wiring; security and edge cases; style, documentation and test preservation |
+
+### Run 6
+
+The fresh `closure_round6` context read the early `Model.cmdSet` mask through
+`DisplayValueAtPath`, `secretAtPath` and `Schema.LookupTokenPath`, then the
+`FramedWordRefusal`, `correctionFix` and `FrameFix` producers and sibling paths.
+The CR pass read `configtext.QuoteToken`, both config token readers, the shared
+operational scanner/writer and actual parser/model/dispatcher replay tests.
+The cleanup pass read `Browser.Close`, `runAgentCore`, `Bound`, ownership and
+the actual successful-close and bounded-hang controls.
+
+Correctness/boundary symmetry, security/test preservation and the explicit
+`docs/contributing/ze-go-style.md` pass report 0 BLOCKER and 0 ISSUE. Loops are
+input-bounded, cleanup has a fresh finite command deadline, and no new panic
+is reachable. The spec audit retains all 52 active ACs, goals, 13 assumptions
+and separately owned Work Not Done rows; no scope moved. Historical round 5
+remains not clean. The two record NOTEs were fixed in one prose edit: the
+editor guide now lists escaped CR, and the RFC evidence below names the full
+final log rather than the ambiguous suffix alone.
+
+### Record NOTES
+
+The closure news gate found a fragment identity mismatch. `newsFragmentPath`
+and `newsFragmentClosureProblem` require the canonical stem, without `spec-`,
+in both filename and front matter. Commit A adds the correctly named fragment
+with the same operator text, removes the old tracked copy through the generated
+script, and corrects the fragments README at those producers. This is a record
+correction; the 110-code-file CLEAN review and round count remain unchanged.
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
 | 1 | ISSUE | Composite required fixes, pipe provenance, command ownership and formatter references | round-1 producing boundaries listed above | source repairs and actual replay/ownership controls; round 3 later closed its scoped source review |
 | 2 | ISSUE | Required identities lost literal numeric suffixes through display normalization | `storedListKeyTokens`, `checkListRequired` | private identity-preserving helpers; actual RED/GREEN and raw hint replay |
-| 3 | ISSUE | Concrete operational enum corrections were emitted as syntax and cut by a quote-blind pipeline | invocation writer/scan and argument correction producers | actual checked-pipeline/dispatcher replay; scoped race tests passed; final independent source gate pending |
-| 4 | ISSUE | AC-42 cited a nonexistent test and missed actual non-first-key editor framing | `ParseListAddress`, `WalkListEntryPath`, `Model.cmdSet` | independently judged local-YANG actual entry-point tests and full-address corrections; scoped race tests passed; final gate pending |
-| 5 | ISSUE | Accepted path words could add diagnostic lines | typed refusal, structural key-leaf and required-warning renderers | explicit display quoting with typed identity and actual correction replay retained; final gate pending |
-| 6 | ISSUE | The new earliest non-first-key refusal printed its sensitive suffix | `Model.cmdSet` | actual eight-case RED then masking/GREEN; round 5 remains not clean until a separately authorized fresh pass |
+| 3 | ISSUE | Concrete operational enum corrections were emitted as syntax and cut by a quote-blind pipeline | invocation writer/scan and argument correction producers | actual checked-pipeline/dispatcher replay; scoped race tests passed; round 6 source review is CLEAN |
+| 4 | ISSUE | AC-42 cited a nonexistent test and missed actual non-first-key editor framing | `ParseListAddress`, `WalkListEntryPath`, `Model.cmdSet` | independently judged local-YANG actual entry-point tests and full-address corrections; scoped race tests passed; round 6 source review is CLEAN |
+| 5 | ISSUE | Accepted path words could add diagnostic lines | typed refusal, structural key-leaf and required-warning renderers | explicit display quoting with typed identity and actual correction replay retained; round 6 source review is CLEAN |
+| 6 | ISSUE | The new earliest non-first-key refusal printed its sensitive suffix | `Model.cmdSet` | actual eight-case RED then masking/GREEN; round 5 remains historically not clean; the separately authorized round 6 is CLEAN |
 
 ## Pre-Commit Verification
 
@@ -1428,14 +1459,14 @@ an outstanding obligation of this spec.
 | API `.ci` files and registered transport clients | Yes | all three promoted real-transport workflows and their clean native overlay projections ran |
 | Editor/offline/reload workflows | Yes | promoted files ran through their ordinary native projections |
 | Three final browser workflows | Yes, promoted | all three canonical `test/web/config-*.wb` cases completed fresh load proof and ordinary live projection |
-| News fragment | Yes | `website/changes/fragments/spec-config-enum-refusal-proposes-valid-values.md` prepared for commit A |
+| News fragment | Yes | `website/changes/fragments/config-enum-refusal-proposes-valid-values.md`, with `spec: config-enum-refusal-proposes-valid-values`; commit A adds it and removes the old prefixed fragment |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
 | AC-1 to AC-6, AC-10, AC-11, AC-18 to AC-21, AC-24 to AC-26, AC-28 to AC-32, AC-34, AC-39 to AC-41 | file/editor/offline/creator verdicts and correction boundaries | actual parser/walk and current boundary race controls; promoted editor/offline/reload projections and their completed load campaigns |
 | AC-8, AC-9, AC-43 | real config transports retain refusal and active state | three leased or pinned TLS/token client workflows, each in every API load invocation; hook/transport overlays discriminated |
-| AC-12 to AC-14, AC-16, AC-17, AC-22, AC-23, AC-38, AC-42, AC-51 | typed acceptance, operational replay, secret/candidate/required boundaries | current eight-package boundary race run passed; actual source RED/GREEN controls recorded above; independent source gate remains pending |
+| AC-12 to AC-14, AC-16, AC-17, AC-22, AC-23, AC-38, AC-42, AC-51 | typed acceptance, operational replay, secret/candidate/required boundaries | current eight-package boundary race run passed; actual source RED/GREEN controls recorded above; round 6 source review is CLEAN; native record/check passed |
 | AC-45 to AC-49, AC-52 to AC-54 | top dispatch, completion, paste, history and views | full earlier CLI result, current reachable controls and both wrong-position overlays; later codec changes have selected boundary coverage |
 | AC-7, AC-27, AC-33, AC-35 to AC-37, AC-50 | browser delivery and retained state | final baseline, all 80 unique successful invocations, cost review, plain promotion and all three owned ordinary live cases passed |
 
@@ -1465,17 +1496,17 @@ an outstanding obligation of this spec.
 | A-12 | confirmed | recorded web position-writer census; only navigation changes the page's position |
 | A-13 | confirmed | interception source and corresponding top controls; original input history retained |
 | A-14 | confirmed | 26-site inventory, original/remaining/restored-window comparisons and both discriminating native overlays |
-| A-15 | confirmed at observed boundaries; final review pending | shared typed framer, actual root/context and required/member/key replay, completed browser campaign and promoted live cases |
+| A-15 | confirmed at observed boundaries; round 6 source review is CLEAN | shared typed framer, actual root/context and required/member/key replay, completed browser campaign and promoted live cases |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
 | Feature declaration | `features/configuration.md`; native feature report retained `experimental` / `configuration` / `daemon` / `experimental`, with scope `partial` | observed; no maturity or scope upgrade |
-| Schema, syntax and error surface | `yang/refusal.go`, `leaf_value.go`, tokenizer/quoter and typed editor issue producers | relevant pages updated and owned source anchors corrected; final native docs results recorded below. Independent source gate remains pending |
+| Schema, syntax and error surface | `yang/refusal.go`, `leaf_value.go`, tokenizer/quoter and typed editor issue producers | relevant pages updated and owned source anchors corrected; final native docs results recorded below. Round 6 source review is CLEAN; native record/check passed |
 | Editor and web usage | model/web dispatch, typed framing, candidate and required/member corrections | guide examples, `top` behavior, masking and actual canonical readback documented |
 | API and RPC usage | actual session hook, transport status mapping and registered real clients | API pages describe retained candidate and unchanged running-state behavior |
-| Test infrastructure | API candidate fixture, PID publication and browser cleanup policy | existing runner pages updated; scoped runtime proof includes the completed browser campaign and all three owned promoted live cases; final source gate remains pending |
+| Test infrastructure | API candidate fixture, PID publication and browser cleanup policy | existing runner pages updated; scoped runtime proof includes the completed browser campaign and all three owned promoted live cases; round 6 source review is CLEAN; native record/check passed |
 | Operational grammar and completion | shared invocation scan/writer and normal checked pipeline | deliberate quoted escapes documented; obsolete quote-refusal tests independently judged |
 | Plugin SDK, wire, metadata, counters and comparison | no product registration, SDK/protocol, wire encoding, route metadata or counter change in the owned scope | no new product dependency or comparison/maturity claim |
-| RFC records | thirteen original observations plus six additional clean/producer-halt pairs; RFC 8907 audit resealed for unchanged accounting units | final owned RFC 7950/8907 freshness observed; no owned stale/shifted record errors. Global other-stem violations and honest RFC 7950 partial/weak disclosures remain |
-| Native checks | final doc-index `ae12aa2a` passed with no owned tracked map diff; doc-check `f119ecea` reports only three foreign sysrib and five old report `max*Len` anchors | observed with separately owned global failures disclosed; help census remains 1033 enum values / 1033 summaries. No blanket green claim |
+| RFC records | thirteen original observations plus six additional clean/producer-halt pairs; RFC 8907 audit resealed for unchanged accounting units | final `job-enum-final-closure-rfc-freshness-4fea72ad.log` reports no owned RFC 7950/8907 stale/shifted record errors. Global other-stem violations and honest RFC 7950 partial/weak disclosures remain |
+| Native checks | final doc-index `ae12aa2a` passed with no owned tracked map diff; fresh `job-enum-round6-doc-check-f119ecea.log` reports two foreign sysrib and five old report `max*Len` anchors, with no owned guide/source error | observed with separately owned global failures disclosed; help census remains 1033 enum values / 1033 summaries. No blanket green claim |
