@@ -131,7 +131,9 @@
 ## Pre-Commit Verification
 
 <!-- BLOCKING. Do NOT trust the audit above: re-verify independently and paste
-     the evidence. For each row run a command (ls, grep, go test -run) now.
+     the evidence. For each row get the evidence now: a reader (ls, grep) is the
+     closing agent's own, and a test run (go test -run) is an owed command the
+     main thread runs.
 
      EVERY sub-table needs at least one data row: pre_commit_verification_gaps
      in internal/le/commit/prepare.go checks them one by one and names the empty

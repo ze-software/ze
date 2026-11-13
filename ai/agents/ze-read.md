@@ -14,6 +14,13 @@ limitation to work around. When the work needs an edit, report what to change
 and where. When it needs a fan-out, report the packages. The main thread owns
 both decisions.
 
+You run no test, build, lint, formatter or other code. Bash is yours for
+readers, git read verbs, `gopls` and `./le help`, and the Bash hook refuses the
+rest from a subagent.
+When a finding needs a run to confirm it, end your report with an `Owed
+commands` list: each exact command line, what it proves and the result you
+expect. The main thread runs it.
+
 **You hold no LSP tool, so every symbol question goes to `gopls` from Bash.**
 This is the second of the two routes `ai/rules/context-economy.md` names, not a
 missing capability: same server, same answers. `gopls symbols <file>` maps a

@@ -36,6 +36,22 @@ phase itself.
   not (`ai/rules/context-economy.md`). You cannot ask the user, so when you hit a
   STOP-and-ask condition, hand the spec back ("How a closure ends") and put the
   question in your report for the main thread to carry.
+- **The closing agent runs no heavy command, and the main thread makes the two
+  closure commits.** A subagent runs no test, build, lint, formatter, compile
+  check, `./le job run`, `./le rfc check`, `./le rfc record` or generator, and
+  the Bash hook refuses them. The light actions stay the agent's:
+  `./le spec review record`, `./le spec review check`, `./le rfc update`,
+  `./le rfc tree`, `./le doc check all`, `./le repo check`,
+  `./le test weakened check` and the spec bookkeeping. The agent ends its
+  report with an `Owed commands` list: each exact command line, what it
+  proves, the result it expects, and last the two `./le commit create` lines
+  of step 6d. The main thread reads `./le job report`, runs the owed commands
+  one CPU-intensive job at a time, and on green runs the two commit lines and
+  the script. On a red it resumes the closing agent with the failure lines
+  (`SendMessage`), or briefs a fresh fix agent when the closing agent waited
+  more than five minutes and lost its prompt cache. The blocked hand-back
+  commit of "How a closure ends" stays the closing agent's, because it owes
+  no execution.
 - **Either way:** every claim in the report names the function that PRODUCES the
   behavior, as the file plus the symbol (`ai/rules/evidence.md`). The main
   thread verifies each one against source before acting; relaying a report
@@ -115,7 +131,7 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
      sections (Implementation Summary, Mistake Log, Implementation Audit, Goal
      Validation, Work Not Done, Review Gate, Pre-Commit Verification) are
      what the steps below fill. They are deliberately absent until now.
-   - Run the verification method specified in the table
+   - Run the verification method specified in the table. A method that runs a test, a build or another heavy command is listed as an owed command, and the main thread runs it
    - Paste evidence (grep output, test output, ls output)
    - If anything is missing or incomplete, return to `/ze-implement` and implement it
    - Also re-read Acceptance Criteria -- verify each AC-N against the producing function
@@ -136,11 +152,14 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
      - Information leakage (error messages exposing internals, sensitive data in logs)
      - Any OWASP Top 10 relevant to the code's context
    - Fix every issue found. If a fix requires design changes, present to user before proceeding.
-3. **Re-run what the step 2 fixes touched:** the scoped package test for each
-   package a fix changed, under `./le job run`, and the functional test of the
-   behavior it changed. Skip this step when step 2 changed nothing. Never run
-   any `./le verify` command: GitHub CI verifies the pushed commit, and these
-   scoped runs, in the main checkout, are the evidence.
+3. **List as owed the reruns of what the step 2 fixes touched:** the scoped
+   package test for each package a fix changed
+   (`./le test unit pkg path <dir>/`), its changed-code lint
+   (`./le go lint run scope "<pkg>"`), and the functional test of the
+   behavior it changed. The main thread runs them. Skip this step when step 2
+   changed nothing. Nobody runs any `./le verify` command: GitHub CI verifies
+   the pushed commit, and these scoped runs, in the main checkout, are the
+   evidence.
 4. **Documentation review (BLOCKING):** This step VERIFIES the pages `/ze-implement` already updated, and finds the gaps it left. It is not where documentation starts (`ai/rules/documentation.md`). A page this step finds stale is a defect of the phase that changed the behavior. Repair it here. Record a Mistake Log row, so the next spec does not repeat it. Use the spec's **Documentation Update Checklist** table. For each row:
    - Answer Yes or No. Every Yes MUST name the file and the update, and MUST point at the commit or diff hunk that already made it.
    - Every No MUST be backed by source-aware evidence. At minimum, grep `docs/` for source anchors pointing at changed files and check the category does not apply.
@@ -153,8 +172,8 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
    - If any existing doc has a `<!-- source: changed/file.go -- ... -->` anchor, re-read that doc claim and update it if stale.
    - Every factual doc update MUST include or update a `<!-- source: path -- symbol -->` anchor immediately after the claim.
    - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, external socket, kernel module, listen port, external binary, TLS cert), verify a corresponding `ze doctor` check exists per `ai/rules/repo-maintenance.md`. Add missing checks and register diagnostic codes in `internal/core/diagnostic/codes.go`.
-   - **RFC status (BLOCKING):** If the change implements, changes, or newly proves any RFC-level protocol behavior, bring that RFC's requirement rows in `rfc/short/<stem>.md` up to date, then run `./le rfc update`. The public row is derived: its Proof, Evidence and Unmet cells come from the requirement rows and the verified discrimination records. `./le rfc tree` prints the coverage figures before you regenerate, and the rendered page names the unmet ids. **Do NOT edit `docs/features/rfc-status.md`.** It is generated, so a hand edit to it is destroyed at the next run with nothing saying so. A newly proven requirement gets its test tag and a discrimination record (`./le rfc record`). An obligation the change leaves unmet is disclosed only as an annotated requirement row (`{gap}`, `{partial}`, `{linux-limit}`); no summary authors a status or a remainder. Whether a capability is available is the Scope of its `features/<id>.md` declaration: update it, and reconcile `docs/comparison.md`, when the change moves that scope. Per `ai/rules/repo-maintenance.md`.
-   - Repair whatever this check found stale, run `./le doc check all`, and record the result in the spec's Documentation Updates or Pre-Commit Verification section. Include docs in Commit A.
+   - **RFC status (BLOCKING):** If the change implements, changes, or newly proves any RFC-level protocol behavior, bring that RFC's requirement rows in `rfc/short/<stem>.md` up to date, then run `./le rfc update`. The public row is derived: its Proof, Evidence and Unmet cells come from the requirement rows and the verified discrimination records. `./le rfc tree` prints the coverage figures before you regenerate, and the rendered page names the unmet ids. **Do NOT edit `docs/features/rfc-status.md`.** It is generated, so a hand edit to it is destroyed at the next run with nothing saying so. A newly proven requirement gets its test tag and a discrimination record (`./le rfc record`, an owed command the main thread runs). An obligation the change leaves unmet is disclosed only as an annotated requirement row (`{gap}`, `{partial}`, `{linux-limit}`); no summary authors a status or a remainder. Whether a capability is available is the Scope of its `features/<id>.md` declaration: update it, and reconcile `docs/comparison.md`, when the change moves that scope. Per `ai/rules/repo-maintenance.md`.
+   - Repair whatever this check found stale, run `./le doc check all` yourself (it is a light action, as `./le rfc update` is), and record the result in the spec's Documentation Updates or Pre-Commit Verification section. Include docs in Commit A.
 5. **/ze-review gate (BLOCKING -- the final review before closure):** `/ze-implement`'s inline reviews check the diff against the spec's own checklists. This gate runs the generic adversarial `/ze-review` over the COMPLETE diff -- including every fix those reviews produced -- and loops until it is clean. It satisfies the Review Gate defined in `ai/rules/planning.md`; the inline reviews do not substitute for it (they check the spec's own checklists; `/ze-review` checks what nobody planned for).
    - Run `/ze-review`'s steps YOURSELF over the uncommitted changes. Its own Delegation section tells a main thread to spawn a reviewer; you are not a main thread, so that paragraph does not apply to you and you MUST NOT spawn one (see Delegation above). Read the skill, then work its steps in this context. It runs its own automated pre-checks (`./le repo check`, `./le test weakened check`) as its step 0.
    - **The style pass is part of that gate, and it is the part a reviewer under time pressure drops.** `/ze-review` step 18 checks every changed Go file against `docs/contributing/ze-go-style.md`. It asks six questions there. The first one is a BLOCKER whenever its trace reaches a socket: can a peer reach this `panic()`? A run that reports no style finding on a diff carrying new Go states that it ran the pass.
@@ -164,24 +183,28 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
    - **More than five passes is THOMAS'S decision.** A sixth round is also refused without `owner-authorised <reason>` (owner ruling 2026-08-17). Both tolls are owed past the cap, and neither substitutes for the other. You MUST NOT set that keyword on your own initiative. At the cap you stop, report what the loop keeps finding, and ask him whether it runs another pass.
    - Record every BLOCKER/ISSUE under `### Findings fixed` (Severity / Finding / Location / Fixed by). NOTEs do not block: record and proceed.
    - Fix every BLOCKER and ISSUE (anything above NOTE) per `ai/rules/completion.md`. Write the root cause traced to the producing function. Take the `[source]` fix and record it under `### Fixes applied`. NOTE-only findings do not block -- record them and proceed.
-   - Re-run only what the fixes touched: the scoped package test of each
-     package a fix changed, and the functional test of each behavior it changed.
+   - List as owed the reruns of only what the fixes touched: the scoped package
+     test of each package a fix changed, its changed-code lint, and the
+     functional test of each behavior it changed. The main thread runs them,
+     and a red comes back to you as a finding of the next round.
    - Re-run `/ze-review`; add a `### Run 2+` block. Loop until a run reports 0 BLOCKER and 0 ISSUE. No cap on re-runs -- each fix is new code that needs a fresh review. If the same finding survives 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask the user.
    - Paste the final clean run into the Review Gate section. The gate is satisfied only when the last run shows 0 BLOCKER, 0 ISSUE.
-6. **Close spec and commit (BLOCKING -- do ALL of this BEFORE running the commit script):**
+6. **Close spec and commit (BLOCKING -- do ALL of this BEFORE the commit lines are handed back and run):**
    Precondition: the spec's **Review Gate** section (step 5) shows a final `/ze-review` run with
-   0 BLOCKER and 0 ISSUE. Do not prepare the commit script until it does.
+   0 BLOCKER and 0 ISSUE. Do not write the commit lines until it does.
 
-   **RFC proof records are fresh.** Run `./le rfc check` and read its
+   **RFC proof records are fresh.** List `./le rfc check` as an owed command:
+   it is heavy, so the main thread runs it before the commit lines and reads its
    discrimination and audit lines for every RFC stem this spec touched. Every
    tagged unit the diff adds or changes carries a verified record, and no audit
    verdict is stale. You check them and do not write them
    (`ai/rules/planning.md`, "Work Phases and the Review Loop"). A record a
    closure fix staled is re-recorded by that fix, under `/ze-implement` step 5,
    because a fix is implementation. A record stale or missing for any other
-   reason is an implementation-phase defect: add a Mistake Log row and hand the
-   spec back ("How a closure ends") naming the units, so `/ze-implement` writes
-   them.
+   reason is an implementation-phase defect: the main thread makes no closure
+   commit and resumes the closing agent with the check's lines, which adds a
+   Mistake Log row and hands the spec back ("How a closure ends") naming the
+   units, so `/ze-implement` writes them.
 
    Two more closure sections gate the script, both checked by `./le commit create`:
    - **Pre-Commit Verification:** EVERY sub-table needs at least one evidence row.
@@ -240,9 +263,11 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
       `Review-owed:` finds commit A only through that line
       (`specWorkPopulation`, `internal/le/commit/review.go`). A claim released
       before step d leaves commits A and B untagged, so the discharge judges
-      fewer files than the closure gate did. Step e releases it.
+      fewer files than the closure gate did. The main thread runs
+      `./le commit create`, so it holds a claim on this spec when it does.
+      Step e releases it.
    c. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
-   d. Prepare ONE commit script with `./le commit create` that produces TWO commits:
+   d. Write the two `./le commit create` lines that make ONE commit script producing TWO commits. The closing agent writes them out in full as the last owed commands and does not run them; the main thread runs them after the other owed commands passed:
       - **Clear the citers first (BLOCKING).** Commit B removes the spec, and
         every sibling that cites it keeps a citation of a file that is gone.
 
@@ -288,11 +313,11 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
       - **Sweep EVERY journal row this session wrote, not only step 6a's.** Run `git status --porcelain plan/journal/` and add `file <path>` for each row whose text this session added: a defect met while implementing is written the moment it is found, and it then waits, uncommitted, for a commit that names it. Rows belonging to another session stay out. An uncommitted row lives in one working tree and dies at the next clean or checkout, so a closure that leaves them behind loses the knowledge the closure exists to preserve (`ai/rules/completion.md`, "Recording").
       - **Commit B (spec closure):** run `./le commit create append remove <spec-path>` using the same actual path with the spec closure commit message, plus `no-news "<reason>"` when commit A carries no fragment. Leave the spec file on disk: once commit B succeeds, the script deletes it, because commit A's `file <spec-path>` committed exactly that content. A copy edited after `create` ran is kept and named on stderr (`NOTE: kept <path>`); decide about that copy, never delete it blind.
       - The native command owns the session ID, message files, executable script, ignored-path rejection, the commit itself, and journal-row checks.
-   e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then release this session's spec claim, `./le spec release`, which also frees a slot against the WIP cap (`./le spec wip`). Report the resulting commit SHA(s), the script path, message files, commit subjects, and included files.
+   e. The main thread runs the generated script, with `bash` and the path from its `script=` line, then `./le repo compiles check` when commit A carried Go. Then the spec claim is released, `./le spec release`, which also frees a slot against the WIP cap (`./le spec wip`). The main thread reports the resulting commit SHA(s), the script path, message files, commit subjects, and included files.
    f. **No verify run over the closing commits.** No agent runs any `./le
       verify` command, `./le verify changed` included: GitHub CI verifies the
-      pushed commit. The scoped runs of steps 3 and 5 are the closure's
-      evidence, and the report names them. A red CI later reports gets a fix
+      pushed commit. The scoped runs owed at steps 3 and 5, which the main
+      thread ran, are the closure's evidence, and the report names them. A red CI later reports gets a fix
       commit of its own. It does not reopen the spec and does not hold the
       closing commits (`ai/rules/pre-release.md`).
 
@@ -306,10 +331,10 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
 
 - **Diagnosis before fix (BLOCKING).** When a review finding or a red gate appears, write the five-part Diagnosis before editing (`ai/rules/completion.md`). It gives the symptom, the root cause as a producing function, the owning layer, two fixes labeled `[workaround]`/`[source]`, and why not the workaround. Renaming, skipping, special-casing, or weakening a test to reach green is a workaround, not a fix.
 - **No deferred work.** Closure is not a place to discover that something was skipped. If a deliverable is missing, the spec is not ready to close: return to `/ze-implement` and finish it, or raise the scope question with the user (`ai/rules/completion.md`).
-- **The Review Gate (step 5) is BLOCKING and is not optional.** Step 6 may not prepare the commit script until the spec's **Review Gate** section shows a final `/ze-review` run with 0 BLOCKER and 0 ISSUE.
+- **The Review Gate (step 5) is BLOCKING and is not optional.** Step 6 may not write the commit lines until the spec's **Review Gate** section shows a final `/ze-review` run with 0 BLOCKER and 0 ISSUE.
 - If the spec is missing a **Deliverables Checklist**, **Security Review Checklist**, or **Documentation Update Checklist**, STOP and inform the user that the spec needs updating before it can be closed.
 - Before reporting done, re-read the spec and confirm each item is actually implemented in the code.
 
 ## Done when
 
-Done when commits A and B have landed, `./le spec release` has run, and the report names both SHAs and the scoped test runs that are the evidence; or, when blocked, the spec has `Status` `blocked`, a `## Blocker` section, and its handback commit SHA is reported.
+The closing agent is done when its report hands back the owed commands and the two commit lines. The closure is done when the main thread ran them, commits A and B have landed, `./le spec release` has run, and the report names both SHAs and the scoped test runs that are the evidence; or, when blocked, the spec has `Status` `blocked`, a `## Blocker` section, and its handback commit SHA is reported.

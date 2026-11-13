@@ -10,6 +10,14 @@ strengthen tests or fix code bugs exposed by the mutations.
 
 See also: `./le test mutation` (report combination and history actions)
 
+## Who runs this
+
+Steps 2 and 6 and the test run of step 5 execute code, so they run in the
+main thread, one CPU-intensive job at a time (`ai/rules/commands.md`). An
+agent running this skill does steps 3 and 4 and the edits of step 5 from the
+report the main thread produced, and hands the runs back as owed commands:
+each exact line, what it proves and the result it expects.
+
 ## Instructions
 
 1. Accept `$ARGUMENTS` as the target package path (e.g., `./internal/core/textbuf/`).
@@ -40,7 +48,9 @@ See also: `./le test mutation` (report combination and history actions)
    - For a code bug that changes documented behavior: update the pages
      `ai/CODE-TO-DOCS.md` lists for that file in the same batch, never at the end
      (`ai/rules/documentation.md`)
-   - Run `go test -race "$ARGUMENTS"` after each batch
+   - Run `./le test unit pkg path "$ARGUMENTS"` after each batch
+     (`docs/contributing/running-commands.md`, "Testing one package while you
+     develop it"). A raw `go test` is refused for every caller
 
 6. Re-run the same `go run github.com/sivchari/gomu/cmd/gomu run ... "$ARGUMENTS"` command to measure improvement. Use `./le test mutation record report mutation-report.json` when the run must enter the committed history.
 

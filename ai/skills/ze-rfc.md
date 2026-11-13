@@ -21,6 +21,18 @@ figures per RFC, then the optional members under their own rollup, then the
 candidates (RFCs one citation edge away that no tier lists, never owed). An RFC
 named `not walked` owes its extraction sign-off.
 
+## Who runs this
+
+`./le rfc check`, `./le rfc record` and `./le rfc discriminate` are heavy, so
+they run in the main thread, one CPU-intensive job at a time
+(`ai/rules/commands.md`): the check of instruction 6, the check that follows
+the extraction walk, and rows 1 to 3 of "The proof a new tag owes". An agent
+running this skill does the reading and writing instructions (1 to 5, the
+`./le rfc update` of 6, and 7) and the light actions (`next`, `tree`,
+`update`, `extraction`, `quote-backfill`, `approve`), and hands the heavy
+lines back as owed commands: each exact line, what it proves and the result
+it expects.
+
 ## Instructions
 1. Use ULTRATHINK for deep analysis
 2. READ: `rfc/full/$ARGUMENTS.txt` (drafts: `rfc/drafts/$ARGUMENTS.txt`). If it is not

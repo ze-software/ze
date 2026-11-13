@@ -12,6 +12,15 @@ optional.
 See also: `/ze-debug` (a test is failing and you do not know why), `/ze-verify`
 (the gate, after promotion)
 
+## Who runs this
+
+Steps 2 and 6 and the suite run of step 7 start tests, so they run in the
+main thread, one CPU-intensive job at a time (`ai/rules/commands.md`). An
+agent running this skill does steps 0, 1, 3, 4 and 5 and hands the runs back
+as owed commands: each exact line, what it proves and the result it expects.
+Step 7's promotion follows the step 6 run, so the main thread makes it, or
+resumes the agent to make it.
+
 ## Step 0 — Name the one question
 
 Before drafting, write in the test's header the one question it answers and

@@ -25,25 +25,30 @@ missing capability: same server, same answers. `gopls symbols <file>` maps a
 file and costs about a tenth of reading it. Never read a whole file to hunt for
 a symbol, and never report that you cannot look.
 
-**Your prompt cache lives five minutes, so you run no command that can take
-longer:** no `./le go lint run`, no `./le test unit all`, no `./le test
-functional` suite, and no `./le verify` command at all, which no agent runs. A call that outlasts the
-window ends the cache, and your next call rewrites every token you hold for one
-result. Prove your package with the scoped package test under `./le job run`,
-name the gates you owe in your handoff, and let the main thread run them, or a
-fresh agent that holds nothing else (`ai/rules/commands.md`). Never write a polling loop:
-`internal/le/hookruntime/bash.go` blocks one.
+**You run no test, build, vet, lint, formatter, compile check or generator,
+and no `./le job run` or `./le rfc record`.** The main thread schedules heavy
+work on the shared machine, so the Bash hook refuses these from a subagent and
+names the hand-back. Readers, `gopls`, git read verbs, `./le help` and spec
+bookkeeping (`./le spec ...`, `./le session scratch ensure`) stay yours. After
+your Go edit the post-edit hook formats the file and does not lint it. Never
+write a polling loop: `internal/le/hookruntime/bash.go` blocks one. Never
+develop or test in a worktree, an export or a copy of the tree
+(`ai/rules/commands.md`).
 
-**Land your change yourself, the moment its package tests pass.** Landing is
-`./le commit create`, the script it prints, and `./le repo compiles check` when
-the commit carried Go. Never build an export, archive or copy of HEAD to
-pre-test your commit set, and never develop or test in a worktree or a copy of
-the tree: `./le repo compiles check` already judges what git holds, GitHub CI
-verifies the pushed commit, and a red either finds is fixed forward in a new
-commit. When another session's edit breaks the build, report it and wait. Never investigate a red your own diff did not cause:
-name it in the commit body and move on. A finished change left uncommitted at
-your call budget costs a whole successor agent just to commit it
-(`ai/rules/precommit-verify.md`).
+**End your report with an `Owed commands` list.** Each entry is one exact
+command line, what it proves, and the result you expect: which test is red
+before the fix and green after it. The scoped package test and the changed-code
+lint (`./le go lint run scope "<pkg>"`) are on it whenever you edited Go. The
+main thread runs the list, one CPU-intensive job at a time, and decides when.
+On a red it resumes you with the failure lines, or briefs a fresh fix agent.
+
+**You do not land code.** The main thread commits it after your owed commands
+passed, and runs `./le repo compiles check` after a commit that carried Go.
+You commit only a change that owes no execution: prose, spec bookkeeping, a
+blocked hand-back, through `./le commit create` and the script it prints. A
+red your own diff did not cause is not yours to investigate: name it in your
+report and leave it. When another session's edit breaks the tree you are
+editing, report it and wait (`ai/rules/precommit-verify.md`).
 
 <!--
 The `tools:` list above holds ONLY names this harness resolves for a subagent.
@@ -52,7 +57,7 @@ capability is simply absent. Verified by probe on 2026-08-07, which is the only
 way to know. `LSP`, `TaskCreate`, `TaskUpdate`, `TaskList` and `TaskGet` were
 listed here and all silently dropped, so they were removed. `Monitor` and
 `TaskOutput` were proposed in review and probed: this harness serves neither to
-a subagent, and the five-minute paragraph above removes the need for either.
+a subagent, and an agent that runs nothing heavy needs neither.
 Probe before you add a name:
 spawn this agent and ask it to enumerate its own registry. Do not add a name
 because it exists in the MAIN thread's registry.

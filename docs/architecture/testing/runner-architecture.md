@@ -1048,6 +1048,15 @@ run", documents it.
 <!-- source: internal/test/runner/hostload.go -- HostLoad, isNearTimeout -->
 <!-- source: internal/core/hostload/hostload.go -- Load.Contended -->
 
+`internal/core/hostload` holds two kinds of reader. `Snapshot` serves the
+contended verdict below and answers zero for a sample it could not take. The
+readings beside it (`LoadAverages`, `MemoryTotal`, `MemoryAvailable`,
+`HarnessProcesses`, `GoTestProcesses`) serve a reader who shows the number,
+`./le job report`, and answer an error instead, so a failed reading is never
+shown as an idle machine.
+<!-- source: internal/core/hostload/readings.go -- LoadAverages, MemoryTotal, MemoryAvailable, HarnessProcesses, GoTestProcesses -->
+<!-- source: internal/core/hostload/hostload.go -- Snapshot -->
+
 On a loaded machine the failure index is headed
 `VERIFY FAILURE INDEX (CONTENDED RUN)` with host load details. That means load
 exceeded the CPU count with concurrent `le test <name>` or `go test` processes. The harness count reads each process's argument list (`le` with `test` as its first argument), because the harness has no binary name of its own.

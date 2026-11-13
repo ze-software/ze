@@ -9,6 +9,13 @@ Scan encoding paths for `make([]byte, ...)` allocations that should use buffer-w
 
 See also: `/ze-fix-alloc` (fix a specific allocation)
 
+## Who runs this
+
+Pattern 6 compiles the package, so its command runs in the main thread
+(`ai/rules/commands.md`). An agent running this skill scans Patterns 1 to 5
+by reading and hands the Pattern 6 command back as an owed command, then
+reads the log the main thread produced.
+
 ## Instructions
 
 1. Use ULTRATHINK for thorough analysis

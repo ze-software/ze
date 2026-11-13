@@ -9,10 +9,18 @@ Run completeness and health checks on uncommitted changes without preparing a co
 
 See also: `/ze-commit` (commit without verification), `/ze-commit-check` (commit with verification)
 
+## Who runs this
+
+Step 1 and sub-check 4e start tests, so they run in the main thread, one
+CPU-intensive job at a time (`ai/rules/commands.md`). An agent running this
+skill does the reading steps (2, 3, 4a-4d, 4f, 4g, 5) and hands step 1 and 4e
+back as owed commands in its report: each exact line, what it proves and the
+result it expects.
+
 ## Steps
 
 1. **Targeted verify (if Go code changed):** Check if any `.go` files are modified. If yes:
-   run the scoped package test of each changed package under `./le job run`, the targeted set
+   run the scoped package test of each changed package (`./le test unit pkg path <dir>/`), the targeted set
    `./le repo changed scope print both` names. If it fails, report every failure. If no `.go` files
    changed: skip. Never run any `./le verify` command, `./le verify changed` included: GitHub CI
    verifies the pushed commit, and these scoped runs, in the main checkout, are the evidence.

@@ -21,6 +21,12 @@ Never trade their model down for cost; cut their NUMBER instead
 (`ai/rules/planning.md`). You do not need to ask permission to spawn them
 (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
 
+The lens agents read and run nothing heavy. `./le test weakened check` is a
+light action and stays theirs. A test rerun, a lint or another heavy gate a
+lens wants goes in its report as an owed command: the exact line, what it
+proves and the result it expects. You run those yourself, one at a time,
+after reading `./le job report` (`/ze-verify` step 1).
+
 The user may optionally specify a scope and/or agent selection:
 - `/ze-review-deep` -- all uncommitted changes, ask which agents to run
 - `/ze-review-deep internal/plugin/` -- path scope

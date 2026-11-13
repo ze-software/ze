@@ -120,6 +120,9 @@ launcher, and the test trees it runs. Here "outside" does not mean a customer. I
 
 ## Gates
 
+The main thread runs every gate and package test this page names; a subagent
+lists the command as owed in its report (`ai/rules/commands.md`).
+
 | Command | Judges |
 |---------|--------|
 | `./le ai hooks unit` | Every hook golden row and behavioral fixture, in process |

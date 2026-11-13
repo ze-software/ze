@@ -1,14 +1,14 @@
 ---
 name: ze-verify
-description: Run the scoped tests that cover what changed, directly in the main checkout, and report. Never runs any ./le verify command; GitHub CI verifies a pushed commit.
+description: Run the scoped tests that cover what changed, directly in the main checkout, and report. Runs in the main thread, never in an agent. Never runs any ./le verify command; GitHub CI verifies a pushed commit.
 ---
 
 # Verify
 
 Run the tests that cover what changed and report results clearly. No agent
 runs any `./le verify` command, `./le verify changed` included: GitHub CI/CD
-verifies a pushed commit, and the scoped test runs below are the agent's
-evidence (`ai/rules/precommit-verify.md`).
+verifies a pushed commit, and the scoped test runs below, which the main
+thread runs, are the evidence (`ai/rules/precommit-verify.md`).
 
 | Mode | When | What runs |
 |------|------|-----------|
@@ -23,30 +23,28 @@ See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after
 
 ## Delegation
 
-`ai/rules/planning.md`: the main thread supervises, it does not run this
-phase itself.
+This skill runs in the main thread, inline. The main thread schedules heavy
+work on the shared machine and is the only caller allowed to start it, so no
+agent runs these steps (`ai/rules/commands.md`).
 
-- **If you are the main thread:** spawn an agent to run this skill, hand it the
-  spec path and the phase, then stop. Use `subagent_type: ze-read`, which costs
-  about 6k fewer startup tokens per agent than the default
-  (`ai/rules/context-economy.md`). Do not run the steps below inline. You do
-  not need to ask permission first (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
-  Independent work goes out in ONE message with parallel `Agent` calls.
-- **If you are that agent:** run the steps below. Resolve symbols with the LSP
-  tool if your registry carries it and with `gopls` from Bash if it does not
-  (`ai/rules/context-economy.md`). You cannot ask the user, so when you hit a
-  STOP-and-ask condition, halt and put the question in your report for the main
-  thread to carry.
-- **Either way:** every claim in the report names the function that PRODUCES the
-  behavior, as the file plus the symbol (`ai/rules/evidence.md`). The main
-  thread verifies each one against source before acting; relaying a report
-  unverified is fabrication with an extra hop. Report the conclusion and the
-  evidence that would overturn it, never the search. Under 40 lines
-  (`ai/rules/writing.md`).
+- **If you are the main thread:** run the steps below yourself, one
+  CPU-intensive job at a time. The commands come from the `Owed commands` lists
+  your agents handed back and from step 2's selector.
+- **If you are a subagent:** do not run this skill. The Bash hook refuses its
+  commands from a subagent. List the exact commands as `Owed commands` in your
+  report, each with what it proves and the result you expect.
 
 ## Steps
 
-1. **Run the scoped tests** in the foreground, giving each call the largest
+1. **Read `./le job report` and decide when to start.** It shows the job
+   slots, who holds and who waits for them, the load, the available memory and
+   the free disk. Start when a slot is free and memory is available. When the
+   slots are full or a waiter is listed, do not queue: send your agents work
+   that needs no run, and read the report again later. Never read a low load
+   average alone as permission, because a run started at a low load has been
+   killed for memory: read available memory beside it. Read the report again
+   before each further job.
+2. **Run the scoped tests** in the foreground, giving each call the largest
    timeout the harness allows. Never poll or kill a slow live run. Native job
    admission queues or attaches equivalent work.
    - **Targeted:** run `./le repo changed scope print both` to name the changed
@@ -66,10 +64,10 @@ phase itself.
      row as a `NOTE:` line, never as a failure: a row is a candidate to read
      against `ai/rules/testing.md`, "one question per test". A full-mode run
      ran nothing, so it prints none.
-2. **Parse results:** On failure, search each run's output:
+3. **Parse results:** On failure, search each run's output:
    - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL"` over the output
    - Also check exit code
-3. **Report** using this format:
+4. **Report** using this format:
 
    **On success:**
    ```
@@ -94,7 +92,7 @@ phase itself.
    - Functional tests: pass/fail
    ```
 
-4. **On failure:** Do NOT propose fixes automatically. Report all failures and ask the user how to proceed.
+5. **On failure:** Do NOT propose fixes automatically. Report all failures and ask the user how to proceed.
 
 ## Fallback
 

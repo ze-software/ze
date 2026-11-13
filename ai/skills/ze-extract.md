@@ -9,6 +9,13 @@ Move Go symbols (functions, types, vars, consts) from one file to another.
 
 See also: `/ze-implement` (full spec implementation)
 
+## Who runs this
+
+Post-Extract step 4 starts a vet, so it runs in the main thread
+(`ai/rules/commands.md`). An agent running this skill does the pre-flight, the
+extraction and Post-Extract steps 1 to 3 and 5, and hands step 4 back as an
+owed command, expected to pass.
+
 ## Instructions
 
 ### Arguments

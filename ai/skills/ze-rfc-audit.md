@@ -13,6 +13,14 @@ This skill is the other half. Read the requirement, read the tests, and judge wh
 tests would **fail if the implementation stopped complying**. That question is the whole
 audit; everything below serves it.
 
+## Who runs this
+
+Instruction 7 (`./le rfc check`) and `./le rfc discriminate` are heavy, so
+they run in the main thread (`ai/rules/commands.md`). An agent running this
+skill does instructions 1 to 6, `./le rfc audit-stamp` and `./le rfc reseal`
+included, and hands the heavy lines back as owed commands: each exact line,
+what it proves and the result it expects.
+
 ## Instructions
 
 1. Use ULTRATHINK. This is judgement, not pattern-matching.

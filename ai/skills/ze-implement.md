@@ -32,6 +32,26 @@ phase itself.
 - **Order the phase agents by their dependencies.** Phases that do not depend on
   each other go out in ONE message with parallel `Agent` calls. A phase that
   consumes what an earlier phase wrote waits for that phase's handoff.
+- **A phase agent edits and runs nothing; you run what it hands back.** A
+  subagent runs no test, build, lint, formatter, compile check,
+  `./le job run`, `./le rfc record` or generator, and the Bash hook refuses
+  them. When a phase agent returns:
+  1. Read `./le job report` and decide when to start, by `/ze-verify` step 1.
+  2. Run its `Owed commands` yourself, one CPU-intensive job at a time.
+  3. Green: commit that piece with `./le commit create`, then run
+     `./le repo compiles check` when the commit carried Go.
+  4. Red: resume the same agent with the failure lines (`SendMessage`). When
+     the agent waited more than five minutes its prompt cache is gone, so
+     brief a fresh fix agent with the failure lines instead.
+- **TDD holds, and the red and the green are your runs.** The phase agent
+  writes the test first and says which run it expects red. You run it red, the
+  agent or its continuation implements, and you run it green. An agent may
+  also write the test and the implementation in one pass and list two
+  expectations: the test fails without the implementation, and passes with it.
+  Then you run the green, and where the red matters you prove it by the
+  discrimination route: revert the change, run the test red, restore it
+  (`ai/rules/interop-and-goal-validation.md`), or `./le rfc record` for an
+  RFC-tagged unit.
 - **Resolve every symbol BEFORE you spawn, and put `file + symbol + line range`
   in the agent's prompt.** This is an optimisation, not a precondition: an agent
   can resolve symbols itself, by the LSP tool where its registry carries one and
@@ -58,7 +78,9 @@ phase itself.
   finishes it in about 60 calls, and cut a phase the spec wrote too large into
   two packages. Splitting cuts the turns each agent carries. It does not cut
   the work: every phase still runs the full steps below.
-- **If you are a phase agent:** run the steps below for YOUR phase. When an
+- **If you are a phase agent:** do the steps below for YOUR phase, and where a
+  step runs a test, a lint, a compile check or `./le rfc record`, list the
+  command under `Owed commands` in your report instead of running it. When an
   earlier phase already did steps 1-3, take what it FOUND from the state file
   rather than re-deriving it. To place a symbol your prompt did not resolve, use
   the LSP tool if your registry carries it and `gopls symbols` / `definition` /
@@ -100,7 +122,7 @@ A handoff carries four things:
 |------|---------|
 | Files changed | one line per file, in the digest format `.claude/rules/post-compaction.md` already defines: `` - `path/to/file.go` (380L): what it holds. Key: `Run()`, `handleOpen()`. Uses `wire.SessionBuffer`. `` |
 | Acceptance criteria covered | each AC-N this phase now satisfies, with the test name or command that is its evidence |
-| Verified green | the exact targets run and their result (the scoped package test, the wiring test name, the phase's Verify line from the spec), then the targeted runs OWED and not run: the component group (`./le test unit <group>`) and the functional suite (`./le test functional <suite>`) for the behavior this phase touched, which the main thread runs (`ai/rules/commands.md`). No phase and no agent owes any `./le verify` run: GitHub CI verifies the pushed commit |
+| Owed commands | each exact command line the phase owes and did not run, what it proves and the result expected: the scoped package test, the wiring test name, the phase's Verify line from the spec, the changed-code lint (`./le go lint run scope "<pkg>"`), the component group (`./le test unit <group>`) and the functional suite (`./le test functional <suite>`) for the behavior this phase touched. The main thread runs them and appends each result here (`ai/rules/commands.md`). No phase and no agent owes any `./le verify` run: GitHub CI verifies the pushed commit |
 | Do not assume | what the next phase must NOT take for granted. A stub still standing, an A-N still `unvalidated`, a gate not yet run, a file left untouched |
 
 ### Work-package size (BLOCKING)
@@ -125,7 +147,7 @@ thing that changed is how many agents share the work.
 
 This skill ends when the implementation is complete and green. It does NOT run
 the deliverables review, the security review, the documentation review, the
-Review Gate, or the commits. Those are `/ze-close`, for two reasons:
+Review Gate, or the two closure commits. Those are `/ze-close`, for two reasons:
 
 - **Context.** Closure instructions reached at the tail of a long skill get
   partially followed. Across 161 specs the closure tables were byte-identical to
@@ -162,12 +184,11 @@ and the feature tags the change reaches (`docs/contributing/running-commands.md`
 test, the component group and the functional suite for the behavior touched.
 Those runs are the evidence; no agent runs any `./le verify` command, `./le
 verify changed` included, and GitHub CI verifies the pushed commit. Every run
-happens in the main checkout, never in a worktree or a copy of the tree. WHO
-runs them depends on the context. A phase agent's prompt cache lives five
-minutes, so a phase agent runs only the scoped package test and names the rest
-as owed in its handoff; the main thread runs them after the phase agents
-return, itself or through a fresh `/ze-verify` agent, and dispatches findings to
-a fix agent (`ai/rules/commands.md`). The full verification is a release
+happens in the main checkout, never in a worktree or a copy of the tree. The
+main thread runs every one of them. A phase agent runs none: it lists each
+command as owed in its report and its handoff, and the main thread runs them
+when the phase agent returns, by `/ze-verify`, and sends a red back to the
+agent or to a fix agent (`ai/rules/commands.md`). The full verification is a release
 check that GitHub CI runs and Thomas starts himself when he chooses
 (`docs/contributing/running-commands.md`, "A full verification is Thomas's to
 start").
@@ -191,7 +212,9 @@ start").
    - **Validate assumptions (BLOCKING):** Read the spec's **Risks & Assumptions** Assumptions
      table. For every A-N row whose validation method is cheap (grep, read a file, run an
      existing test), run it NOW — before any feature code — and flip Status to `confirmed`
-     or `broken`. A `broken` assumption gets a Mistake Log "Wrong Assumptions" row; if it
+     or `broken`. A phase agent validates by reading, and lists a validation that needs a
+     test run as an owed command, leaving that row `unvalidated` until the main thread
+     ran it. A `broken` assumption gets a Mistake Log "Wrong Assumptions" row; if it
      invalidates the approved design, STOP and present to the user before coding.
    - **Documentation first (BLOCKING):** For every file in **Files to Modify**, read the pages
      `ai/CODE-TO-DOCS.md` lists for it, and the file's own `// Design:` header
@@ -204,17 +227,19 @@ start").
    - Identify the entry point (CLI command, web route, config leaf, plugin event, RPC handler).
    - If the entry point does not exist yet: implement the registration/skeleton now (handler that returns "not implemented" or equivalent). This is Phase 1 regardless of what the spec's Implementation Phases say.
    - If the entry point exists: verify it with `grep` or LSP and record file + symbol.
-   - Write the wiring test (the `.ci` or `_test.go` that exercises entry-point-to-feature-code). It should fail because the feature logic is a stub.
+   - Write the wiring test (the `.ci` or `_test.go` that exercises entry-point-to-feature-code). It should fail because the feature logic is a stub. A phase agent lists the wiring test as an owed command, expected red, and the main thread runs it.
    Gate: every Wiring Test row has a registered entry point and a failing test before proceeding.
 5. **Implement feature phases:** Follow the spec's **Implementation Phases** section in order, filling in the stubs created in step 4. For each phase:
-   - Write the tests listed for that phase (TDD — test must fail before implementation)
+   - Write the tests listed for that phase (TDD — test must fail before implementation; the main thread runs the red and the green, see Delegation)
    - A new behaviour gets a new test, never assertions appended to an existing one (`ai/rules/testing.md`, "one question per test")
    - Implement minimal code to pass
-   - Run the scoped package test until green: the `go test -race` recipe under
-     `./le job run` in `docs/contributing/running-commands.md`, over the packages
-     this phase changed. The component group and the functional suite are the
-     main thread's, after the phase returns (`ai/rules/commands.md`)
-   - Confirm the wiring test from step 4 now passes (or progresses) after each phase
+   - List the scoped package test as owed: `./le test unit pkg path <dir>/`
+     over each package this phase changed
+     (`docs/contributing/running-commands.md`, "Testing one package while you
+     develop it"), with the tests you expect red before the implementation
+     and green after it. The component group and the functional suite are
+     owed the same way. The main thread runs them all (`ai/rules/commands.md`)
+   - List the wiring test from step 4 as owed, with the result you expect after this phase: passes, or progresses to a named point
    - Update the **Risks & Assumptions** tables: flip A-N statuses as evidence arrives;
      when an assumption breaks mid-phase, add the Mistake Log row immediately and STOP
      if the approved design no longer holds. Add new A-N/R-N rows as they surface.
@@ -228,23 +253,27 @@ start").
      Write the page edit next to the code edit, in the same phase and the same diff.
      `/ze-close` step 4 CHECKS these pages. It is not where they get written, and a phase that
      changed behavior and touched no page has to say why in its report.
-   - **Write the RFC proof records this phase owes, IN this phase (BLOCKING,
+   - **Prepare the RFC proof records this phase owes, IN this phase (BLOCKING,
      `ai/rules/planning.md`, "Work Phases and the Review Loop").** For every
      `RFC requirement:` tagged unit the phase added, or whose behavior or claim it
-     changed, run `./le rfc record` until it records the red
+     changed, prepare what `./le rfc record` needs: the tagged unit, its claim
+     and the break of the producing code that turns it red
      (`docs/contributing/rfc-conformance-gates.md`, "Producing a record: the two
-     proof routes"). Then run `./le rfc check` and re-judge every audit verdict it
-     reports stale for this change: `./le rfc reseal stem <rfc>` when the unit only shifted,
+     proof routes"). List the exact `./le rfc record ...` line for each unit,
+     then `./le rfc check`, as owed commands. The main thread runs them. For
+     every audit verdict the check reports stale for this change, the re-judging
+     is an agent's: `./le rfc reseal stem <rfc>` when the unit only shifted,
      `/ze-rfc-audit` and `./le rfc audit-stamp ... mode rejudge` when its scope
-     changed. The records and verdicts go in the same commit as the code they
-     prove. `/ze-close` checks them and does not write them.
+     changed. The records and verdicts still go in the same commit as the code
+     they prove, because the main thread makes that commit after the owed
+     commands passed. `/ze-close` checks them and does not write them.
    - Move to next phase
 6. **Run targeted verification:** run `./le repo changed scope print both`,
    then the component group for each package it names (`./le test unit <group>`),
    the functional suite for each behavior the work touched
-   (`./le test functional <suite>`). In a phase agent this step is the scoped package test only; the rest is
-   OWED, named in the handoff, and the main thread runs it after the phase
-   agents return, itself or through a fresh `/ze-verify` agent
+   (`./le test functional <suite>`). This step is the main thread's, by
+   `/ze-verify`. A phase agent runs none of it: every command is OWED, listed
+   in its report and its handoff with the result it expects
    (`ai/rules/commands.md`). Never run any `./le verify` command, `./le test
    unit all` or `./le test functional gating`: GitHub CI verifies the pushed
    commit, and the full verification is Thomas's release check.
@@ -267,9 +296,8 @@ start").
 8. **Fix every issue found** in the review. For each fix apply `ai/rules/completion.md`: write the root cause traced to the producing function and choose the `[source]` fix over the `[workaround]` before editing. Never make a finding disappear by weakening a test, renaming a symbol, or special-casing the failing input — that fixes where the problem shows up, not where it is.
 9. **Re-run verification:** rerun only the tests that failed, each alone, until
    every one passes (`ai/rules/pre-release.md`). Then run step 6's targeted set
-   once over what the fixes touched, under the same split as step 6: the scoped
-   package test in a phase agent, the group and the suite from the main
-   thread.
+   once over what the fixes touched, under the same split as step 6: the fix
+   agent lists the reruns as owed, and the main thread runs them.
 10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. There is no cap on the NUMBER of passes, because each fix is new code that needs a fresh review. Each pass covers LESS than the one before it: round 1 the whole diff, round N+1 only round N's fixes and what they touched. Stop when a pass finds no BLOCKER and no ISSUE inside its own scope. "Stop only when a pass finds nothing anywhere" has no state in which it stops, which is why finished work fails to close (`ai/rules/planning.md`, "Work Phases and the Review Loop").
 11. **Stop here and hand off to `/ze-close`.** The implementation is done when
     steps 7-9 find nothing, every target is green, AND you have read the whole
@@ -281,7 +309,8 @@ start").
     plainly that closure (deliverables, security, docs, Review Gate, commits) is
     `/ze-close`, and that `ai/rules/planning.md` puts it on the review
     model. Do NOT append `plan/templates/TEMPLATE-CLOSURE.md`, do NOT run `/ze-review` as
-    the gate, and do NOT prepare a commit script here. The one exception is the
+    the gate, and do NOT prepare a closure commit here: the per-phase commits
+    of Delegation are the main thread's, made as each piece went green. The one exception is the
     two-session handoff below, which the spec declares before implementation
     starts.
     - **Write the handoff first.** Before you report, append your phase handoff
@@ -294,15 +323,19 @@ start").
     - **`| Handoff | verify |` in the spec metadata changes this step, and
       nothing else in this skill.** The mode is declared before implementation
       starts, so read the row rather than choosing here. When the row says
-      `verify` and the LAST phase is green, commit the work before you stop:
+      `verify` and the LAST phase is green, the main thread commits the work
+      before the session stops. A phase agent does step 1 and reports that the
+      rest is the main thread's:
       1. Set `| Status | verification |` and `| Updated |` to today.
-      2. Prepare ONE commit with `./le commit create`, carrying the code, the
+      2. The main thread prepares ONE commit with `./le commit create`, for
+         whatever the per-phase commits have not yet landed: the code, the
          tests, the docs, the step 5 RFC proof records and the spec file. Carry NO `plan/learned/` file and no
          `remove` keyword for the spec: those two make it a closure commit, and
          a closure commit needs the Review Gate artifact this session MUST NOT
-         produce. Run the script path the command prints
-         (`ai/rules/git-safety.md`).
-      3. Run `./le spec release`.
+         produce. It runs the script path the command prints
+         (`ai/rules/git-safety.md`), then `./le repo compiles check` when the
+         commit carried Go.
+      3. The main thread runs `./le spec release`.
       4. Report the commit SHA, and state that `/ze-close` is the next
          phase. It reviews that commit.
       When the row is absent or `-`, none of this applies: hand the uncommitted

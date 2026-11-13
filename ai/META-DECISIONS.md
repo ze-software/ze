@@ -352,6 +352,16 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   overloading the shared machine. Subagents read, review and edit sources, then
   hand the required commands to the main thread; they do not run tests, builds,
   lint, formatters or other code themselves.
+- The main thread schedules heavy work. Before it starts a test, a build, a
+  lint or a lab it reads `./le job report`, which shows the job slots, who
+  holds and waits for them, and the machine's load, memory and disk, and it
+  decides when each job runs. The Bash hook refuses a subagent's test, build,
+  lint, formatter and heavy `./le` action, so the main thread is the only
+  source of that work in its session.
+- A subagent ends its report with its owed commands: each exact command and
+  what it proves. The main thread runs them and commits the code. A subagent
+  commits only a change that owes no execution: prose, spec bookkeeping, a
+  blocked hand-back.
 - A serialized run never leaves agents idle. While a test batch, lab or record
   run blocks the main thread, every piece of work that does not need that run
   goes out to agents at once: diagnosing the run's partial logs as they appear,

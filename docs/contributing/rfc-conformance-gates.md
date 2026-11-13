@@ -2028,9 +2028,11 @@ read by today's code, `interopScenarioOf` over the `to` export.
 
 ## Producing a record: the two proof routes
 
-Records are written in the implementation phase, by the agent that adds or
-changes the tagged unit, and they land in the same commit as that code
-(`/ze-implement` step 5). Spec closure only checks them with `./le rfc check`
+Records are written in the implementation phase, with the change that adds or
+alters the tagged unit, and they land in the same commit as that code
+(`/ze-implement` step 5). The agent lists the exact `./le rfc record` and
+`./le rfc check` lines as owed commands, and the main thread runs them and
+makes that commit. Spec closure only checks them with `./le rfc check`
 (`/ze-close` step 6), so a record stale at closure is a defect of the phase
 that changed the unit. The rule is in `ai/rules/planning.md`, "Work Phases and
 the Review Loop".

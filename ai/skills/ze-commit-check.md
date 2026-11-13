@@ -11,6 +11,16 @@ through the script. This is not a late implementation review.
 
 See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone verification)
 
+## Who runs this
+
+Step 3's verification runs in the main thread, and the main thread makes the
+commit of steps 6 and 7 whenever the change owes a run: it commits code after
+the owed commands passed, and runs `./le repo compiles check` after a commit
+that carried Go (`ai/rules/commands.md`). An agent running this skill does
+steps 1, 2, 4 and 5 and hands step 3's commands and the step 6 line back as
+owed commands. An agent runs steps 6 and 7 itself only for a change that owes
+no execution: prose, spec bookkeeping, a blocked hand-back.
+
 ## Steps
 
 1. **Commit scope:** Use the user's request and current session context. If the
@@ -39,7 +49,7 @@ See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone v
    - If the scope is only `docs/`, `ai/`, `.claude/`, `plan/`, or `README.md`
      files, skip verification entirely and record the skip reason.
    - Otherwise run, in the main checkout, the scoped package test for each
-     changed package under `./le job run` and the functional test of each
+     changed package (`./le test unit pkg path <dir>/`) and the functional test of each
      behavior the commit changed. A run already made over the same tree is
      the evidence and is not run again.
    - Never run any `./le verify` command, `./le verify status check` and

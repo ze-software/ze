@@ -38,8 +38,9 @@ you have broken one, stop and tell the user.
 - Development and testing never happen in a worktree, an export or any copy
   of the tree: code is tested in the main checkout. No agent runs any `./le verify`
   command, `./le verify changed` included: GitHub CI/CD verifies a pushed
-  commit, and an agent's evidence is the scoped test runs of what its change
-  reaches. A spec's closure never waits on a whole-tree check.
+  commit, and the evidence for a change is the scoped test runs of what it
+  reaches, which the main thread runs from the agent's owed commands
+  (`ai/rules/commands.md`). A spec's closure never waits on a whole-tree check.
 - A worktree agent works and commits on its own branch. It never merges,
   cherry-picks, rebases or copies into main.
 

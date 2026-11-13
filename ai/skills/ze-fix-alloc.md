@@ -9,6 +9,14 @@ Convert a `make([]byte, ...)` allocation to buffer-writing pattern.
 
 See also: `/ze-find-alloc` (find allocations to fix)
 
+## Who runs this
+
+Instruction 8 and Verification steps 1 and 2 build and test, so they run in
+the main thread, one CPU-intensive job at a time (`ai/rules/commands.md`). An
+agent running this skill does instructions 1 to 7 and Verification steps 4
+and 5, and hands the build and the tests back as owed commands: each exact
+line, what it proves and the result it expects.
+
 ## Instructions
 
 1. Use ULTRATHINK for careful analysis

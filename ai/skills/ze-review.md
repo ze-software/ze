@@ -72,7 +72,7 @@ phase itself.
 
 ## Steps
 
-0. **Automated pre-checks (run both, fix or report findings before proceeding):**
+0. **Automated pre-checks (run both, fix or report findings before proceeding).** Both are light actions that read the tree, so a reviewing agent runs them itself. Every other run this review wants is heavy: a test rerun that would confirm a finding, a lint, a compile check, `./le rfc check`. A reviewing agent lists each as an owed command in its report (the exact line, what it proves, the result it expects), and the main thread runs them one at a time:
     - `./le repo check` catches the mechanical subset of steps 2-4 (stale source anchors, line-number anchors, unwired exports, spec AC completeness, CLI handler coverage) without manual review.
     - `./le test weakened check` for uncommitted changes, or `./le test weakened check base origin/main` to also cover committed-but-unpushed work (this repo commits directly to main, so `main` is normally HEAD and auditing against it would compare nothing; the tool refuses that with exit 2 rather than reporting clean). The audit reads accepted rows from each commit in the audited range and suppresses each matching structural finding. Treat every remaining `[DELETED]` and `[WEAKENED]` finding as a **BLOCKER**. A test edited to match broken code IS the defect, not the fix.
 

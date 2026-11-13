@@ -186,7 +186,11 @@ Name the cheapest mechanical gate that would retire the top class permanently
 
 ## Beyond grep (escalation, only when asked or scope is "thorough")
 
-Grep catches the recorded *shapes*. To find unknown bugs, escalate:
+Grep catches the recorded *shapes*. To find unknown bugs, escalate. Every
+command in this list is heavy, so the main thread runs it, one at a time,
+after reading `./le job report` (`/ze-verify` step 1). A hunt agent runs none
+of them: it lists the ones it wants as owed commands in its report, each with
+what it proves and the result it expects.
 
 - `go run github.com/sivchari/gomu/cmd/gomu run --workers 2 --timeout 120 --threshold 0 --output json --incremental=false --fail-on-gate=false <dir>`: surviving mutants reveal untested logic. Start with wire codecs, FSMs, and RIB code.
 - `./le test fuzz` on wire, NLRI, and attribute decoders with an MRT-seeded corpus.

@@ -120,6 +120,9 @@ these contracts. It is not a refactor.
 
 ## Gates
 
+The main thread runs these gates; a subagent lists the command as owed in its
+report (`ai/rules/commands.md`).
+
 | Command | What it judges |
 |---------|----------------|
 | `./le arch tier check` | Core import direction, placement, compile-out |

@@ -698,7 +698,7 @@ obligation; a helper-only unit test does not discharge one.
 
 The Goal Gates name the targeted tests for what changed: the scoped package
 tests, the component groups and functional suites the change reaches, run in
-the main checkout. No agent runs any `./le verify` command, `./le verify
+the main checkout by the main thread. No agent runs any `./le verify` command, `./le verify
 changed` included: GitHub CI verifies the pushed commit. The full verification
 (`./le verify current`) is Thomas's release check, and the terminal gate
 refuses it from an agent. The general checklist check asks that a spec name

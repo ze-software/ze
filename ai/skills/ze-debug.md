@@ -26,6 +26,14 @@ Launch the agents this skill defines, all in ONE message, with
 You do not need to ask permission to spawn them
 (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
 
+A lens agent edits and runs nothing: the Bash hook refuses a test, build, lint
+or formatter from a subagent. Each lens ends its report with an `Owed
+commands` list: the exact rerun line, what it proves and the result it
+expects. You run those reruns yourself, one at a time, after reading
+`./le job report` (`/ze-verify` step 1), and you commit the fix once they
+passed. On a red, resume that lens with the failure lines, or brief a fresh
+fix agent when the lens waited more than five minutes.
+
 ## Steps
 
 1. **Read the failing test output** provided by the user
@@ -50,11 +58,11 @@ You do not need to ask permission to spawn them
    - Produce a Diagnosis: **symptom**, **root cause traced to the exact function** where behavior diverges from intent (cite it — no guessing), the **owning layer**, **two candidate fixes labeled `[workaround]` vs `[source]`**, and one line on **why the workaround is wrong**.
    - If the failure is a check/validation rejecting the input, answer the three-way question: is the check wrong, is the input wrong, or is the check's data/config incomplete?
    - **Only then** implement the `[source]` fix at the owning layer.
-   - Rerun only the failing test to verify the fix: the one Go test with `-run` over its package, or the one `.ci` selection (`ai/rules/pre-release.md`).
+   - List as owed the rerun of only the failing test, expected green with the fix: the one Go test as `./le test unit pkg path <dir>/ run <regex>`, or the one `.ci` selection (`ai/rules/pre-release.md`). The main thread runs it.
 6. **Confirm the fix is at the source, not the symptom:** before accepting any fix, re-read its Diagnosis. If the change makes the test pass by editing the test, renaming a symbol, or special-casing the failing input rather than correcting the traced root cause, reject it and return to step 5. Changing a test to match broken code is never the fix (`ai/rules/testing.md`).
 7. **Update the pages the fix made wrong, in this diff (BLOCKING, `ai/rules/documentation.md`):** the pages are the ones step 3 read. Two things get repaired here. A page the fix made wrong, and a page step 3 found wrong about the code. Neither waits for closure.
-8. **Widen one step, then stop:** once the failing test passes alone, run its package or its suite. Do not run the full verification after each fix. Run `./le go lint run && ./le test unit all && ./le test functional gating` once, when every failure on the list passes its targeted rerun (`ai/rules/pre-release.md`)
-9. **Report back** on each fixed failure. Give the Diagnosis (symptom, root-cause function, owning layer). Give the correct hypothesis, the `[source]` fix chosen over the `[workaround]`, the page updated, the targeted rerun that went green, and whether the full verification has run or is still owed
+8. **Widen one step, then stop (main thread):** once the failing test passes alone, run its package or its suite, one job at a time. Do not widen further: never run `./le test unit all`, `./le test functional gating`, a full lint or any `./le verify` command. When every failure on the list passes its targeted rerun, run once the changed-code lint and the scoped set `./le repo changed scope print both` names for what the fixes touched (`ai/rules/pre-release.md`). GitHub CI verifies the pushed commit
+9. **Report back** on each fixed failure. Give the Diagnosis (symptom, root-cause function, owning layer). Give the correct hypothesis, the `[source]` fix chosen over the `[workaround]`, the page updated, the targeted rerun that went green, and which scoped runs of step 8 have run or are still owed
 
 ## Fallback
 

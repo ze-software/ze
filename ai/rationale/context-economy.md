@@ -61,13 +61,24 @@ context at the write price for one result.
 
 Over the eight sessions: 65 such rewrites in subagents, 19.2M tokens written
 again, about 10% of the spend. The price is the context at that moment, so a
-fresh agent spawned for the gate alone (`/ze-verify` on `ze-read`) loses only
-its 45k floor, while an implementation agent at 500k loses 500k. The commands that ran past five minutes, in
+fresh agent spawned for the gate alone (`/ze-verify` on `ze-read`, as it ran
+then) lost only its 45k floor, while an implementation agent at 500k lost 500k. The commands that ran past five minutes, in
 subagents only: `./le go lint run` (21 of 112 runs), `./le job run` (10 of
 399), `./le test functional ui` (4 of 9), `./le test functional encode`, `./le test unit
 config`. Twenty-one of the lint runs hit the 600-second Bash timeout, so the
 agent lost the cache and got no result. The main thread ran no command past
 five minutes and had no expiry of this kind.
+
+Since 2026-11-04 no subagent runs a gate at all. The owner's rule put every
+test, build and lint in the main thread, so that one agent sees the machine and
+schedules it (`ai/rules/commands.md`). `/ze-verify` runs there too, and no
+agent is spawned for the gate alone. The five-minute directive still holds for
+the calls a subagent does make. The decision accepts two costs:
+
+| Cost | What limits it |
+|------|----------------|
+| Every test summary lands in the main thread, the largest context | A quiet run answers a verdict, a log path and the failure lines, and nothing else |
+| An agent that waits more than five minutes for its owed commands is resumed on an expired cache, and rewrites its whole context | After a long wait the main thread hands a red to a fresh fix agent with the failure lines, in place of resuming |
 
 ## What a subagent reads
 

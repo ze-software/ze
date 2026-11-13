@@ -19,8 +19,10 @@ test proves the checkout builds and its tests run under the feature tags
 `./le verify current` is the full verification, Thomas's release check, which
 GitHub CI also runs on a pushed commit. It runs only when stdin and stdout are
 both terminals, so Thomas starts it by hand at one. No agent runs any
-`./le verify` command, `./le verify changed` included: an agent's evidence is
-the scoped test runs of what its change reaches, run in the main checkout.
+`./le verify` command, `./le verify changed` included: the evidence for a
+change is the scoped test runs of what it reaches. The main thread runs them in
+the main checkout, from the owed commands a subagent lists in its report
+(`ai/rules/commands.md`).
 
 `./le` is the compiled repository development entry point. Each area exposes
 its own verbs, for example `./le test functional plugin`,
@@ -56,7 +58,7 @@ current`, `./le verify current fast` and every form of `./le verify worktree`
 unless stdin and stdout are both terminals, because a full run
 loads the whole shared machine and only Thomas knows when that is safe. The
 refusal prints the exact command line for Thomas, and the scoped tests that
-are the agent's own evidence. No keyword or environment variable
+are the change's evidence, which the main thread runs. No keyword or environment variable
 skips it. When Thomas starts `./le verify current`, it runs every stage in a fresh detached worktree
 at HEAD, through the same lifecycle as `./le verify worktree`, so an edit made
 while it runs cannot move the tree it judges; `./le verify current fast` runs

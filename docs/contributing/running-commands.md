@@ -1696,6 +1696,11 @@ killed process and a real defect read the same in a log. The repository-wide
 verify lock says this for one target; the one-owner rule says it for every suite
 and names who holds the right to run one.
 
+Inside a session that owner is the main thread. A subagent runs no suite, no
+package test, no build and no lint: it lists each command under `Owed
+commands` in its report, and the main thread runs them one CPU-intensive job
+at a time (`ai/rules/commands.md`).
+
 ## How long a verify takes, and what silence means
 
 Never take a timeout from a duration written in a rule. How long a full pass takes
@@ -1856,8 +1861,8 @@ tool call reaches le through pipes; Thomas's shell reaches it with his terminal.
 The refusal names which stream is not a terminal, says why (a full run loads
 the whole shared machine, and only Thomas knows when that is safe), then gives
 two lines: the exact command this invocation was given, for Thomas, and the
-agent's own evidence, the scoped tests of what its change reaches, run in the
-main checkout. No agent runs any `./le verify` command, `./le verify changed`
+evidence for the change, the scoped tests of what it reaches, which the main
+thread runs in the main checkout. No agent runs any `./le verify` command, `./le verify changed`
 included: GitHub CI verifies a pushed commit. A
 terminal question that errors is refused the same way, naming the error.
 
@@ -1966,6 +1971,10 @@ inside another job's slot uses its parent's entry rather than queueing behind it
 <!-- source: internal/le/job/job.go -- Admission.insideParent -->
 
 ## Testing one package while you develop it
+
+In this section "you" is the main thread. A subagent runs none of these
+commands: it writes the exact line under `Owed commands` in its report, and the
+main thread runs it (`ai/rules/commands.md`).
 
 `./le test unit pkg` is the route for a package you are developing:
 
@@ -2285,9 +2294,73 @@ and RFC freshness. `internal/le/repo` owns the generated repository artifacts.
 
 ## Waiting for another session's job
 
-Read `tmp/.ze-jobs/*.job` for each holder's label, PID and log.
-Dead entries and old result receipts can remain: their presence alone does
-not prove that work is running. The registry is not a lock, and there is no
+`./le job report` shows who holds the job slots of this checkout, who waits
+for one, and what the machine is doing. It only reads: it writes no file,
+takes no lock and signals no process, so it is safe to run while other
+sessions hold and wait.
+
+```
+job slots: 4 total, 1 occupied, 3 free
+holders:
+  unit-pkg pid 48213, running, 95s, session 5f0c2a7e-91d3-4b6a-8e42-0c1d9a7b3e55, entry tmp/.ze-jobs/unit-pkg.48213.531207368.job
+    go test -race ./internal/le/job/
+waiters:
+  none
+machine:
+  cores: 16
+  load 1m: 6.42 (0.40 per core)
+  load 5m: 5.10
+  load 15m: 3.87
+  memory available: 21.4 GiB of 64.0 GiB total
+  disk free, tmp and Go build cache (one volume): 412.3 GiB
+  le test processes: 1
+  go test processes: 9
+the slots count only jobs admitted through this checkout's registry (tmp/.ze-jobs): Docker labs, raw commands and other checkouts appear only in the machine readings
+```
+
+| Part | What it says |
+|------|--------------|
+| `job slots` | How many admitted jobs run at once, how many entries occupy a slot, and how many are left |
+| `holders` | One row per entry whose process is running: its label, PID, age, the session and the agent that asked for it, the entry file, and its command on the next line. An entry that could not be read is a row marked `unreadable`, and it occupies a slot, as admission counts it |
+| `waiters` | One row per job queued for a slot, with how long it has waited and who asked for it |
+| `machine` | The core count, the 1, 5 and 15 minute load averages with the 1 minute load per core, available and total memory, the free space on the volumes that hold `tmp/` and the Go build cache (one line when they are one volume), and the number of `le test` and Go test processes running on the whole machine |
+| The last line | What the slots leave out |
+
+An entry or a waiter record whose process has ended is in no row and no
+count, because it holds nothing. A reading that failed prints `unavailable`
+with its reason, and never a number: a `0` in the report is a reading that
+succeeded and was zero. When the process table itself cannot be read, every
+row's liveness is `unknown`, every entry counts as occupied, and the report
+says so. `./le job report | json` answers the same document as data, with
+memory and disk in bytes, and `| yaml` and `| table` render that document.
+<!-- source: internal/le/job/overview.go -- Overview, readMachine, Reading -->
+<!-- source: internal/le/job/answer.go -- answerReport -->
+<!-- source: internal/core/hostload/readings.go -- LoadAverages, MemoryAvailable, MemoryTotal, HarnessProcesses, GoTestProcesses -->
+
+The slots count only the jobs admitted through this checkout's registry. A
+Docker interop lab, a command run under the raw-admission escape and a job in
+another checkout take no slot here, so free slots do not mean a free machine.
+Such work shows only in the machine readings: the load, the memory and the
+process counts.
+
+The main thread reads the report before it starts a heavy job. The report
+states readings and no verdict, and admission still queues whatever is
+started. A low load average alone is never permission to start: read the
+available memory beside it, because a run started on a quiet load average has
+been killed for memory. On macOS the available figure is the free, speculative
+and inactive pages `vm_stat` counts, an upper estimate; on Linux it is the
+kernel's `MemAvailable`.
+<!-- source: internal/core/hostload/parse.go -- parseVMStatAvailable, parseMeminfo -->
+
+A job that finds every slot taken records that it waits, in a file of its own
+beside the entries, and removes the record when it is admitted or attaches.
+That record is what the `waiters` rows read.
+<!-- source: internal/le/job/waiter.go -- announceWait -->
+
+The files under `tmp/.ze-jobs/` are the registry itself. Dead entries and old
+result receipts can remain there: their presence alone does not prove that
+work is running, which is why the report judges each one against the process
+table. The registry is not a lock, and there is no
 shared owner-copy file. A waiter leaves foreign evidence untouched even when
 it cannot read it or the process has ended.
 `./le verify status check` reports the last verify's verdict.
