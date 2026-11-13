@@ -47,8 +47,10 @@ func DefaultConfig() *Config {
 	return &Config{
 		ResponseLevel: "alert",
 		// Action has no default: the operator must choose rate-limit or discard
-		// (YANG `mandatory`). A bare/absent block runs in alert mode and never
-		// announces, so Action stays empty and unused.
+		// (YANG `mandatory`). An absent block runs in alert mode and never
+		// announces, so Action stays empty and unused, and the plugin does not
+		// Validate it (runEngine parseSections). A present block naming no
+		// action fails Validate.
 		HoldDown:              300,
 		ProbeInterval:         60,
 		ProbeWindow:           10,
@@ -66,8 +68,9 @@ func DefaultConfig() *Config {
 // DELETES the block still reaches the plugin: the server sends an empty body for
 // a root the new tree no longer holds
 // (internal/component/plugin/server/reload.go), which parses to the same values
-// as a block that names no leaf. The caller acts on the difference, so it may
-// not be folded into the returned Config
+// as a block that names no leaf. The caller acts on the difference: it
+// validates only a configured section, and withdraws a live announcement when
+// the section is gone. So it may not be folded into the returned Config
 // (ai/rules/principles.md -- a value that is silently wrong must not be
 // reachable).
 func ParseConfig(data string) (*Config, bool, error) {

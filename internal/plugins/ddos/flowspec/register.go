@@ -406,6 +406,14 @@ func runEngine(conn net.Conn) int {
 		stopResponder(resp)
 	}()
 
+	// parseSections validates only a section the config holds. An absent one (a
+	// removed `ddos flowspec` block, or a `ddos` block without it) parses to
+	// DefaultConfig, whose Action is empty by design, and Validate refuses an
+	// empty action: validating it refused every reload that removed the section,
+	// so the section-removed withdrawal in replaceResponder never ran. The default
+	// is alert, and both announce paths (onDetected, onCharacterized) return
+	// unless response-level is enforce, so an unvalidated default announces
+	// nothing.
 	parseSections := func(sections []sdk.ConfigSection) (*Config, bool, error) {
 		for _, s := range sections {
 			if s.Root != configRoot {
@@ -414,6 +422,9 @@ func runEngine(conn net.Conn) int {
 			cfg, configured, err := ParseConfig(s.Data)
 			if err != nil {
 				return nil, false, fmt.Errorf("ddos-flowspec config: %w", err)
+			}
+			if !configured {
+				return cfg, false, nil
 			}
 			if err := cfg.Validate(); err != nil {
 				return nil, false, fmt.Errorf("ddos-flowspec config: %w", err)
