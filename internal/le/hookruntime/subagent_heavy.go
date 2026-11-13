@@ -1,6 +1,7 @@
 // Design: docs/contributing/running-commands.md -- session identity, and what each agent owns
 // Related: session.go -- fromSubagent, the caller predicate this check opens with
-// Related: rawheavy.go -- the launcher reading and the lint subcommands this judgment reuses
+// Related: rawheavy.go -- the launcher reading this judgment reuses
+// Related: ../heavytool/heavytool.go -- Name, the one definition of a heavy tool this judgment and `le exec` read
 // Related: parsedcommands.go -- everyCommand, the parsed commands the tree judgment reads
 // Related: ../le/root/heavy.go -- HeavyCommand, which reads an le line from what its area declared and names its command
 package hookruntime
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ze-software/ze/internal/le/heavytool"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -206,36 +208,21 @@ func handBackOf(command string, parse commandParse, identity string) (refusal ha
 // heavyTool names the heavy work tokens, one command's words, start, and
 // answers "" when they start none. The assignments and launchers in front of
 // the program are read through (programTokens, over launcherValueOptions), a
-// stated reason to run raw among them. The program is then judged by name:
-// the Go toolchain's executing verbs, `go fmt` and `go fix` among them, the
-// linters and the formatters, which are external programs and cannot
-// register; and le, typed as `le` or as the
-// `ze le` personality (leWords), whose line is heavy when the area or the
-// action it names declared so (leroot.HeavyCommand, which also answers the
+// stated reason to run raw among them. The program is then judged by name.
+// An external program, which cannot register, is heavy when the shared
+// definition names it (heavytool.Name, which holds the Go toolchain's
+// executing verbs, the linters and the formatters, and which `le exec` reads
+// too, so this function holds no list of them). le, typed as `le` or as the
+// `ze le` personality (leWords), is heavy when the area or the action its
+// line names declared so (leroot.HeavyCommand, which also answers the
 // command the line resolved to), so this function names no le area.
 func heavyTool(tokens []string) string {
 	program := programTokens(tokens)
 	if len(program) == 0 {
 		return ""
 	}
-	base := filepath.Base(program[0])
-	if base == "go" {
-		// version, env, list, doc and help read and start no build of the tree.
-		// fmt and fix are the toolchain's own formatter and rewriter: each
-		// runs over every package the line names, as gofmt and the linter do.
-		if len(program) > 1 && oneOf(program[1], goTestVerb, "build", goVetVerb, "run", "generate", "install", "fmt", "fix") {
-			return "`go " + program[1] + "`"
-		}
-		return ""
-	}
-	if base == lintCommand {
-		if lintRunsNoAnalysis(program) {
-			return ""
-		}
-		return "`" + lintCommand + "`"
-	}
-	if oneOf(base, "staticcheck", "govulncheck", "gofmt", "goimports", "gofumpt") {
-		return "`" + base + "`"
+	if name, heavy := heavytool.Name(program); heavy {
+		return "`" + name + "`"
 	}
 	words, typed := leWords(program)
 	if !typed {

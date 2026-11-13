@@ -423,7 +423,7 @@ func TestSubagentHeavyLineCarriesOneRefusal(t *testing.T) {
 // hand back, advises only what a subagent can do. Its method: every shape of
 // such a line the three guards leave. For the piped-command guard that is a
 // command it classes as expensive and the heavy-work check does not: each
-// linter subcommand that runs no analysis (lintRunsNoAnalysis). For the build
+// linter subcommand that runs no analysis (heavytool.LintRunsNoAnalysis). For the build
 // guard it is a line whose text names `go build` in an argument of another
 // program (goBuildText). The raw-job guard leaves none: every tool it names
 // is handed back, which TestRefusalAdviceIsAcceptedByTheHook proves over its

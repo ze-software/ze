@@ -587,6 +587,8 @@ var hookSourcePackages = [...]string{
 	"internal/le/doc/consistency",
 	"internal/le/doc/index",
 	"internal/le/doc/ste",
+	// The heavy-tool definition bashSubagentHeavy and the raw-job guard read.
+	"internal/le/heavytool",
 	"internal/le/hookruntime",
 	"internal/le/le/path",
 	"internal/le/rfc",

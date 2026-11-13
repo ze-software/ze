@@ -7,11 +7,14 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/heavytool"
 )
 
 // lintCommand is the command word of the Go linter, which the cost judgment,
-// the raw-job refusal and the piped-command refusal all name.
-const lintCommand = "golangci-lint"
+// the raw-job refusal and the piped-command refusal all name. The name is
+// declared once, in the shared heavy-tool definition.
+const lintCommand = heavytool.Linter
 
 // goTestVerb is the go subcommand that runs tests, and goVetVerb the one
 // that vets.

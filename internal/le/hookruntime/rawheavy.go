@@ -2,6 +2,7 @@
 // Related: bash.go -- bashRawHeavy, the guard whose refusal this writes
 // Related: lossypipe.go -- goTest, goVet and the short package form both refusals name
 // Related: parsedcommands.go -- everyCommand, the parsed commands the tree judgment reads
+// Related: ../heavytool/heavytool.go -- LintRunsNoAnalysis, the linter's cheap subcommands the word judgment reads
 package hookruntime
 
 import (
@@ -9,6 +10,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/heavytool"
 )
 
 // rawRefusal is what the raw-job refusal advises for one segment: what ran
@@ -169,7 +172,10 @@ func rawHeavyWords(tokens, written, moves []string, root string) rawRefusal {
 		return refusal
 	}
 	if filepath.Base(tokens[0]) == lintCommand {
-		if lintRunsNoAnalysis(tokens) {
+		// The linter's subcommands that run no analysis are one list, in the
+		// shared heavy-tool definition the subagent heavy-work check reads
+		// too (heavytool.Name).
+		if heavytool.LintRunsNoAnalysis(tokens) {
 			return rawRefusal{}
 		}
 		return rawRefusal{what: "`golangci-lint`", use: admittedCommand("lint", kept), uncarried: uncarried}
@@ -184,22 +190,6 @@ func rawHeavyWords(tokens, written, moves []string, root string) rawRefusal {
 // heavy-work check reads through it like any assignment (heavyTool,
 // subagent_heavy.go).
 const admitRawAssignment = "ZE_ADMIT_RAW="
-
-// lintRunsNoAnalysis reports whether tokens, a golangci-lint command from its
-// program on, name one of the linter's subcommands that run no analysis: the
-// first word that is not an option is the subcommand. It is the one list of
-// them, read by the raw-job guard (rawHeavyWords) and by the subagent
-// heavy-work check (heavyTool). MUST be called with at least one token.
-func lintRunsNoAnalysis(tokens []string) bool {
-	sub := ""
-	for _, token := range tokens[1:] {
-		if !strings.HasPrefix(token, "-") {
-			sub = token
-			break
-		}
-	}
-	return oneOf(sub, "config", "version", "help", "linters", "cache", "completion")
-}
 
 // assignmentWord reports a word the shell reads as an assignment in front of
 // a program: a name, then `=`, before any `/`.
