@@ -28,6 +28,9 @@ lifecycle callbacks, transport enrollment and config validation.
   <!-- source: internal/plugins/ospf/config_transaction.go -- ospfTransactionConfig, parseOSPFTransactionSections -->
   <!-- source: internal/plugins/ospf/register.go -- runOSPFEngine -->
   <!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply, ConfigTx.Rollback -->
+  The [combined daemon rollback test](../../../test/reload/igp-runtime-rollback.ci)
+  checks candidate acceptance and restored live cost/instances after a later
+  participant refuses the same reload, alongside IS-IS level/metric restoration.
 - **The dispatcher validates by the RECEIVING interface area, not by the
   declared area alone.** ISM, NSM and LSDB code must never see a packet from the
   wrong area on a valid interface.

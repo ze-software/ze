@@ -71,6 +71,12 @@ equal candidate cannot bypass a necessary repair.
 <!-- source: internal/plugins/isis/server.go -- reconcile, reconcileResult, openCircuit -->
 <!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply, ConfigTx.Rollback -->
 
+The [combined daemon rollback test](../../../test/reload/igp-runtime-rollback.ci)
+observes both IS-IS and OSPF accepting a candidate before a later participant
+refuses it. After the daemon reports the failed reload complete, it checks the
+original live protocol settings. The test runs in Ze's kernel guest and waits
+for the runner's PID/readiness handoff before signalling the reload.
+
 ## Decision: a commit is written into the running circuit where it can be
 
 The reconcile splits a changed interface in two. `applyCircuitParams` writes the

@@ -1,0 +1,122 @@
+# Test: Does a later participant's failure restore both IGP runtimes through
+# the real daemon reload coordinator after both accepted the candidate?
+# A unit test cannot decide whether config routing, ordered coarse application,
+# SDK rollback delivery and the operator's live show commands work together.
+# accept-only: the compiled observer asserts candidate and restored runtime state, not packets
+# VALIDATES: deployment-user-journeys runtime rollback after a rejected commit.
+# PREVENTS: restoring only the accepted config tree or export policy while the
+# IS-IS level/metric and OSPF cost/instance engines retain the candidate.
+#
+# The observer's zz- name sorts after the two protocol coarse participants.
+# Its failing apply first reads BOTH live candidate runtimes; the scenario then
+# waits for show reload-status generation to advance with outcome failed before
+# reading the old runtime. This prevents a pass against a reload not yet started
+# or a shutdown that interrupts a rollback still in progress.
+# Passive lo interfaces need no protocol sockets. Their interface dependency
+# subscribes to kernel address changes, so this test requires NET_ADMIN and
+# runs in Ze's disposable guest. Resolver-file output is disabled in both
+# configurations so the reload never writes the host's shared resolv.conf.
+#
+# DISCRIMINATION: override either protocol's registered config rollback callback
+# with a no-op. Rebuild both binaries, then this test must reject the retained
+# candidate runtime after observing the processed failed reload.
+
+option=needs-linux:caps=net-admin
+option=timeout:value=60s
+
+stdin=ze-bgp:terminator=EOF_INITIAL
+system {
+	dns {
+		resolv-conf-path ""
+	}
+}
+plugin {
+	external zz-igp-runtime-rollback {
+		run "le test fixture reload/igp-runtime-rollback"
+		encoder json
+	}
+}
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l2
+	interfaces {
+		interface lo {
+			passive true
+			metric 10
+		}
+	}
+}
+ospf {
+	router-id 10.0.0.1
+	timers {
+		min-ls-interval-ms 1
+	}
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface lo {
+			area 0.0.0.0
+			passive true
+			cost 17
+			instance-id 0
+			instance-id 5
+		}
+	}
+}
+EOF_INITIAL
+
+tmpfs=config2.conf:terminator=EOF_CANDIDATE
+system {
+	dns {
+		resolv-conf-path ""
+	}
+}
+plugin {
+	external zz-igp-runtime-rollback {
+		run "le test fixture reload/igp-runtime-rollback"
+		encoder json
+	}
+}
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1
+	interfaces {
+		interface lo {
+			passive true
+			metric 20
+		}
+	}
+}
+ospf {
+	router-id 10.0.0.1
+	timers {
+		min-ls-interval-ms 1
+	}
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface lo {
+			area 0.0.0.0
+			passive true
+			cost 29
+			instance-id 0
+			instance-id 6
+		}
+	}
+}
+EOF_CANDIDATE
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: IGP rollback candidate reached both protocol runtimes
+expect=stderr:contains=OK: failed reload restored IS-IS level and metric, OSPF cost and instances
+expect=stderr:contains=config apply partial failure
+expect=stderr:contains=reload error
+reject=stderr:contains=unknown method
+reject=stderr:contains=ZE-OBSERVER-FAIL
