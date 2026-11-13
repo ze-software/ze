@@ -4,6 +4,7 @@
 package flowspec
 
 import (
+	"encoding/json"
 	"net/netip"
 	"strings"
 	"testing"
@@ -32,7 +33,8 @@ const writeFailedFact = "the announced FlowSpec rule could not be recorded, so"
 // PREVENTS: a WARN with no fix, for a state that needs none.
 //
 // MUTATION: with the recordsNext arm in announce logging at WARN, the WARN
-// count is 1 and the INFO count 0.
+// count is 1 and the INFO count 0; with its error attribute dropped, the count
+// of INFO lines carrying the write's error is 0.
 func TestAnnounceOverARecordOfTheSameRuleLogsAFailedWriteAtInfo(t *testing.T) {
 	logs := captureExitLog(t)
 	earlier := buildMatch(ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix(exitTestVictim), Proto: 17})
@@ -53,21 +55,36 @@ func TestAnnounceOverARecordOfTheSameRuleLogsAFailedWriteAtInfo(t *testing.T) {
 	if rewrite != 1 {
 		t.Errorf("INFO lines saying %q = %d, want 1 (log: %+v)", rewriteFailedFact, rewrite, logs.lines(t))
 	}
+	var withError int
+	for _, logged := range loggedErrors(t, logs, "INFO") {
+		if logged == refusedRecordError {
+			withError++
+		}
+	}
+	if withError != 1 {
+		t.Errorf("INFO lines carrying the write's error %q = %d, want 1 (log: %+v)", refusedRecordError, withError, logs.lines(t))
+	}
 }
 
+// refusedRecordError is the error recordRefusingDispatcher answers every
+// record write with (exit_record_test.go).
+const refusedRecordError = "state put: the daemon did not acknowledge the write"
+
 // TestAnnounceWithNoRecordOfTheRuleWarnsOfAFailedWrite proves that a failed
-// record write stays a WARN, with the doctor code, when no stored record names
-// the announced rule.
+// record write stays a WARN, with the doctor code and the withdrawal by hand
+// under fix, when no stored record names the announced rule.
 //
 // VALIDATES: the other half of the pair above: the plugin then cannot confirm
 // that any record names the live rule, so a crash or daemon stop may leave it at
-// the peers with nothing to withdraw it, and the operator is told.
+// the peers with nothing to withdraw it, and the operator is told, with the
+// command that withdraws the rule and when to send it.
 // METHOD: the dispatcher holds no record and refuses every write; the
 // responder announces.
-// PREVENTS: the INFO of the same-rule case applied to every failed write.
+// PREVENTS: the INFO of the same-rule case applied to every failed write, and a
+// WARN that names the risk with no next step.
 //
 // MUTATION: with the !recordsNext branch in announce logging at INFO, the WARN
-// count is 0.
+// count is 0; with its fix attribute dropped, the fix check reddens.
 func TestAnnounceWithNoRecordOfTheRuleWarnsOfAFailedWrite(t *testing.T) {
 	logs := captureExitLog(t)
 	disp := &fakeDispatcher{}
@@ -82,7 +99,45 @@ func TestAnnounceWithNoRecordOfTheRuleWarnsOfAFailedWrite(t *testing.T) {
 	if !strings.Contains(warns[0].Msg, writeFailedFact) {
 		t.Errorf("WARN %q does not say %q", warns[0].Msg, writeFailedFact)
 	}
+	if !strings.Contains(warns[0].Msg, writeFailedNextStep) {
+		t.Errorf("WARN %q does not say when to use the fix (%q)", warns[0].Msg, writeFailedNextStep)
+	}
 	if warns[0].Code != orphanTestCode {
 		t.Errorf("WARN code = %q, want %q", warns[0].Code, orphanTestCode)
 	}
+	announced := buildMatch(ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix(exitTestVictim), Proto: 17})
+	if want := withdrawalCommand(announced); warns[0].Fix != want {
+		t.Errorf("WARN fix = %q, want the withdrawal by hand %q", warns[0].Fix, want)
+	}
+}
+
+// writeFailedNextStep is the part of the failed-write WARN that says when the
+// withdrawal under fix is to be sent.
+const writeFailedNextStep = "if the plugin ends before it withdraws the rule"
+
+// loggedErrors returns the error attribute of every line logged at level so
+// far, in order. exitLogLine decodes no error field, and widening it would touch
+// the decoding every exit test shares, so this reads the same JSON buffer for
+// that one attribute.
+func loggedErrors(t *testing.T, logs *exitLog, level string) []string {
+	t.Helper()
+	logs.mu.Lock()
+	defer logs.mu.Unlock()
+	var out []string
+	for raw := range strings.SplitSeq(strings.TrimSpace(logs.buf.String()), "\n") {
+		if raw == "" {
+			continue
+		}
+		var line struct {
+			Level string `json:"level"`
+			Error string `json:"error"`
+		}
+		if err := json.Unmarshal([]byte(raw), &line); err != nil {
+			t.Fatalf("log line %q is not JSON: %v", raw, err)
+		}
+		if line.Level == level {
+			out = append(out, line.Error)
+		}
+	}
+	return out
 }

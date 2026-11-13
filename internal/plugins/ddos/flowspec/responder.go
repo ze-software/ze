@@ -752,8 +752,9 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 				"target", target.DstPrefix, "error", err)
 			return
 		}
-		logger().Warn("ddos-flowspec: the announced FlowSpec rule could not be recorded, so a crash or daemon stop before its withdrawal may leave it at the peers unknown to the next start",
-			"target", target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		logger().Warn("ddos-flowspec: the announced FlowSpec rule could not be recorded, so a crash or daemon stop before its withdrawal may leave it at the peers unknown to the next start; if the plugin ends before it withdraws the rule, send the command under fix to withdraw it by hand",
+			"target", target.DstPrefix, "error", err, "fix", withdrawalCommand(r.match),
+			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
 		return
 	}
 	r.recorded = true

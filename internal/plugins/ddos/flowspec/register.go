@@ -398,7 +398,7 @@ func stopResponder(r *responder, end exitKind) {
 			return
 		}
 	case exitUnspecified:
-		panic("unreachable: ddos-flowspec: stopResponder refuses an unset exit kind at its entry")
+		panic("BUG: ddos-flowspec: stopResponder reached its exit-kind switch with no exit kind, past the entry check that refuses one")
 	}
 	// The plugin is on its way out, so its own runtime check no longer answers.
 	// While ddos flowspec stays configured, doctor reports the stopped plugin
@@ -417,7 +417,13 @@ func stopResponder(r *responder, end exitKind) {
 // error when the engine closed its end first (rpc.MuxConn closedErr wraps it
 // as "mux conn read error: %w"): io.EOF for an orderly close, which is what a
 // forked plugin meets at a daemon stop, io.ErrClosedPipe or net.ErrClosed when
-// the stream itself was closed.
+// the stream itself was closed. A call whose request meets the closed end
+// first answers io.ErrClosedPipe from the write path: "send request: set write
+// deadline: %w" on a net.Pipe, whose SetWriteDeadline fails once the remote
+// end is closed, and "send request: write frame: %w" on an io.Pipe. A socket
+// whose peer closed fails the write with EPIPE or ECONNRESET, which this does
+// not read as closed (see stopResponder). A timeout is not a closed
+// connection, so context.DeadlineExceeded answers false.
 func transportClosed(err error) bool {
 	if errors.Is(err, rpc.ErrMuxConnClosed) {
 		return true
