@@ -184,11 +184,13 @@ func (m Mirror) generateInto(dest string, skills, agents []string) error {
 		}
 		stubs[i] = stub
 	}
+	if err := skillTreesAreDirectories(dest); err != nil {
+		return err
+	}
 
 	for i, name := range skills {
-		leaf := filepath.Join(name, skillFile)
 		for _, tree := range skillTrees {
-			if err := writeSkillUnder(dest, filepath.Join(tree, leaf), stubs[i]); err != nil {
+			if err := writeSkillUnder(dest, tree, name, stubs[i]); err != nil {
 				return err
 			}
 		}
@@ -251,6 +253,13 @@ func instructionFor(name string) string {
 // It is the one composition, and generateInto is its only caller, so a sync
 // and a check judge the tree against the same bytes.
 func stubOf(name string, source []byte) ([]byte, error) {
+	// A source named "...md" or "..md" lists as ".." or ".", and its stub
+	// would be written outside its own skill directory.
+	if name == "." || name == ".." {
+		return nil, badSkill(name, "has a file name that is not a skill name",
+			"its skill file would be written outside its own directory in each harness tree",
+			"rename the file to the skill's name: mv "+sourcePath(name)+" "+skillSources+"/<skill name>"+markdown)
+	}
 	block, _, found := frontmatterOf(source)
 	if !found {
 		return nil, badSkill(name, "does not open with a frontmatter block",
@@ -358,15 +367,45 @@ func (m Mirror) source(dir, name string) ([]byte, error) {
 	return os.ReadFile(filepath.Join(m.Root, dir, name+markdown)) //nolint:gosec // a name this run listed from the checkout
 }
 
-// writeSkillUnder writes one skill stub as a regular file, never through what
-// already sits at its path.
+// skillTreesAreDirectories refuses the run when a skill tree root exists and
+// is not a real directory. Every call below it (Lstat of a deeper path,
+// Remove, MkdirAll, WriteFile) follows a symlinked tree root, so a sync would
+// write into the link's target, outside the three trees. It runs before the
+// first write, so a refusal writes nothing, the same as a bad source.
+func skillTreesAreDirectories(dest string) error {
+	for _, tree := range skillTrees {
+		info, err := os.Lstat(filepath.Join(dest, tree))
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if err == nil && !info.IsDir() {
+			var tb textbuf.Buffer
+			return errors.New(tb.Str(tree).Str(" is a symbolic link or a file, not a directory, so no skill file was written.\n").
+				Str("A sync would write through it into another directory.\n").
+				Str("remove the link, and the next sync creates the directory: rm ").Str(tree).String())
+		}
+	}
+	return nil
+}
+
+// writeSkillUnder writes one skill stub as a regular file at
+// <tree>/<name>/SKILL.md, never through what already sits on that path.
 //
-// os.WriteFile follows a symlink. A SKILL.md linked to its source would then
-// have the source overwritten with the stub, so an entry that is neither a
-// regular file nor a directory is removed first and the stub written in its
-// place. A directory at the path is an error, because removing it could drop
-// files le did not write.
-func writeSkillUnder(dest, rel string, body []byte) error {
+// os.MkdirAll and os.WriteFile follow a symlink. A <name> directory linked
+// elsewhere would have the SKILL.md of the link's target overwritten, so a
+// <name> entry that is not a real directory is removed (only the link, never
+// its target) and a real directory is created in its place. The tree root
+// above it was judged by skillTreesAreDirectories.
+//
+// A SKILL.md linked to its source would have the source overwritten with the
+// stub, so an entry there that is neither a regular file nor a directory is
+// removed first and the stub written in its place. A directory at that path
+// is an error, because removing it could drop files le did not write.
+func writeSkillUnder(dest, tree, name string, body []byte) error {
+	if err := removeNonDirectory(filepath.Join(dest, tree, name)); err != nil {
+		return err
+	}
+	rel := filepath.Join(tree, name, skillFile)
 	info, err := os.Lstat(filepath.Join(dest, rel))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -385,6 +424,21 @@ func writeSkillUnder(dest, rel string, body []byte) error {
 		}
 	}
 	return writeUnder(dest, rel, body)
+}
+
+// removeNonDirectory removes the entry at path when it exists and is not a
+// real directory: a symlink (to a directory or not) or a file. Lstat never
+// follows the link, and Remove removes the link, never its target. An absent
+// path or a real directory is left for the write to use.
+func removeNonDirectory(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err == nil && !info.IsDir() {
+		return os.Remove(path)
+	}
+	return nil
 }
 
 // writeUnder writes one generated file, creating the directories it needs.

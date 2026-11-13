@@ -8,7 +8,7 @@
 | Release reason | Release-independent development tooling: it changes how each agent harness reaches a skill's text and changes no shipped binary. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 1/5 |
+| Phase | 5/5 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -194,11 +194,11 @@ Not applicable: Scope is tooling.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | An agent that loads a stub performs the read it orders before acting | Rex's stub (`~/.claude/skills/rex/SKILL.md`, 13 lines) works this way in Claude Code, Codex, OpenCode and Pi on this machine (`rex skill status`, 2026-11-13) | Agents act on a skill's description alone; the change is reverted | A live load of one skill in a fresh session after the sync: the agent's first action is the read of `ai/skills/<name>.md` | unvalidated |
-| A-2 | Every source's frontmatter `name` equals its file stem | The 34 sources each carry one `name` (counted 2026-11-13); equality not yet compared | The refusal for a mismatched name fires on real sources and they are corrected in the same work | The first `./le ai sync update` after the change answers no refusal | unvalidated |
-| A-3 | A single read returns a whole skill | Claude Code's read returns up to 25,000 tokens per call; the largest source is 44,270 bytes, about 11,000 tokens | A large skill arrives cut; the stub's wording then orders the read in parts | Read of `ai/skills/ze-rfc.md` in one call returns all 710 lines | unvalidated |
-| A-4 | An agent's working directory is the checkout root when it loads a skill | Sessions start in the checkout; subagents inherit it | A repository-relative path does not resolve; the stub names the path as relative to the repository root so the agent can still find it | The live load of A-1, repeated from a subagent | unvalidated |
-| A-5 | No test outside `internal/le/ai/sync` asserts the content of a generated skill file | The census search found no other reader in Go | A second test goes red and is brought into this work | The package tests the change reaches (`./le repo changed scope print both`) pass | unvalidated |
+| A-1 | An agent that loads a stub performs the read it orders before acting | Rex's stub (`~/.claude/skills/rex/SKILL.md`, 13 lines) works this way in Claude Code, Codex, OpenCode and Pi on this machine (`rex skill status`, 2026-11-13) | Agents act on a skill's description alone; the change is reverted | A live load of one skill in a fresh session after the sync: the agent's first action is the read of `ai/skills/<name>.md` | confirmed: on build f43c8ce222 the main session's Skill `ze-mutation-fix` returned the stub with the harness's `ARGUMENTS:` line appended, and its next call was a Read of `ai/skills/ze-mutation-fix.md` with no offset or limit; a fresh ze-read agent's Skill `ze-find-alloc` was followed by exactly one Read, of `ai/skills/ze-find-alloc.md`, whole (main thread evidence, per-spec state file) |
+| A-2 | Every source's frontmatter `name` equals its file stem | The 34 sources each carry one `name` (counted 2026-11-13); equality not yet compared | The refusal for a mismatched name fires on real sources and they are corrected in the same work | The first `./le ai sync update` after the change answers no refusal | confirmed: `./le ai sync update` answered "synced 34 skill(s) + 3 agent(s) + AGENTS.md" with no refusal (main thread); the closure agent's search of the 34 sources for a first `name:` line other than `name: <stem>` found none |
+| A-3 | A single read returns a whole skill | Claude Code's read returns up to 25,000 tokens per call; the largest source is 44,270 bytes, about 11,000 tokens | A large skill arrives cut; the stub's wording then orders the read in parts | Read of `ai/skills/ze-rfc.md` in one call returns all 710 lines | confirmed: one Read of `ai/skills/ze-rfc.md` (44,270 bytes, 710 lines) with no offset or limit returned through its last line, "Done when" (main thread); the closure agent measured the same size and line count |
+| A-4 | An agent's working directory is the checkout root when it loads a skill | Sessions start in the checkout; subagents inherit it | A repository-relative path does not resolve; the stub names the path as relative to the repository root so the agent can still find it | The live load of A-1, repeated from a subagent | confirmed: both fresh ze-read agents resolved the root-relative path on their first Read; the harness prints `.claude/skills/<name>` as the base directory above the stub, and the stub names the path as relative to the repository root (main thread evidence) |
+| A-5 | No test outside `internal/le/ai/sync` asserts the content of a generated skill file | The census search found no other reader in Go | A second test goes red and is brought into this work | The package tests the change reaches (`./le repo changed scope print both`) pass | confirmed: `./le test unit pkg path ./internal/le/ai/sync/` exit 0 (main thread); the closure agent's search of tracked files outside `internal/le/ai/sync` for `SKILL.md` and the three skill directories found no test; `internal/le/rfc`, whose one change is a path inside a refusal string that no test asserts, does not compile under another session's uncommitted edits |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -472,3 +472,157 @@ Existing tests the change reaches: `TestASyncWritesEveryMirrorOfEverySource` kee
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/le/ai/sync/ai.go`: `generateInto` composes every stub through `stubOf` before the first write and writes identical bytes to the three skill trees through `writeSkillUnder`. `stubOf` refuses a source with no frontmatter block, no `name`, no or an empty `description`, or a `name` that is not the stem (`badSkill`, `ErrBadSkill`). `markerFor` and `instructionFor` hold the marker line and the five orders. The `.agents` path rewrite and its constants are gone. `Sync` calls `clearLeftovers`, which removes a leftover stub (`isLeftoverStub`, `stubName`, `removeStub`) and names every other extra path in the four trees. `writeSkillUnder` replaces a symlinked `SKILL.md` with a regular file and refuses a directory at that path. `Check`, `driftIn`, `filesUnder` and `sameFile` are byte-identical to `474ee2221d^`.
+- `internal/le/ai/sync/report.go`: `Report.Removed` (`removed`) and `Report.Left` (`left`), omitted when empty, and their text lines with the fix.
+- `internal/le/ai/sync/actions.go`, `register.go`: the `update` summary and the area description say what is written.
+- Readers: `ai/skills/ze-check.md` (4a, 4b), `ai/agents/ze-read.md`, `ai/agents/ze-work.md`, `internal/le/rfc/check_ratchets.go` (enrolment refusal), `ai/rationale/documentation.md`, the repo-maintenance rule point and its render, `ai/INDEX.md`.
+- Commits: spec `474ee2221d`, implementation `32d3c76e4a`, summary fix `f43c8ce222`.
+
+### Bugs Found/Fixed
+- `32d3c76e4a` gave the `update` action a 70-character Summary; `leroot.requireShort` (limit 60) panics at le start, so the launcher's smoke test failed that build and no session ran it. Fixed by `f43c8ce222` (57 characters); build `20261113T194640Z-f43c8ce222` published.
+- Round 2 of the implementation review: `writeUnder` follows a symlinked `SKILL.md`, which would overwrite its target. Fixed by `writeSkillUnder`; covered by `TestASyncReplacesASymlinkedSkillFileAndLeavesItsTargetAlone`.
+
+### Documentation Updates
+- `ai/rationale/documentation.md` (placement row 2, the generated-files passage), the rule point `ai/rules/points/repo-maintenance/canonical-sources-and-sync-direction/sync-generated-files-from-their-canonical-source.md` and its render `ai/rules/repo-maintenance.md` line 24, `ai/INDEX.md` line 327, `ai/skills/ze-check.md` 4a and 4b: all in `32d3c76e4a`.
+- `./le doc check all`: exit 1, every finding outside this work (the published website behind three product commands, six stale source anchors in `docs/guide/configuration.md` and `docs/guide/operational-reports.md`); the rules render, round trip, gate map, format, digest and discovery index stages clean (main thread).
+
+### Deviations from Plan
+- `writeSkillUnder` was added beyond Files to Modify, from the implementation review's symlink finding.
+- `stubOf` also refuses an empty `description:` line and an unclosed frontmatter block (two extra rows of `TestASourceThatCannotMakeAStubIsRefused`), the same refusal AC-5 asks for a missing one.
+- From closure review round 1: `skillTreesAreDirectories` refuses a run when a skill tree root exists and is not a real directory, before any write. `writeSkillUnder` first calls `removeNonDirectory` on `<tree>/<name>`, so a symlinked skill directory is replaced by a real one and its target is never written. `stubOf` refuses the names `.` and `..`.
+- `removeNonDirectory` also removes a regular file sitting at `<tree>/<name>`. Judged under AC-8: that path belongs to a current source's stub, a file there is one entry (removing it can drop nothing else), and leaving it would make every sync fail at `MkdirAll`. A directory at `<tree>/<name>/SKILL.md` stays refused, because removing it could drop many files le did not write.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The `update` action's Summary grew to 70 characters, and the package tests stayed green | le refuses to start with an action Summary over 60 characters (`leroot.requireShort`), a check the package's own tests do not reach | The launcher's smoke test failed build `32d3c76e4a` (`bin/builds/.failed-32d3c76e4a...log`) | Shortened in `f43c8ce222` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A harness's skill file carries no copy of the skill's body | Done | `internal/le/ai/sync/ai.go` `stubOf`, `generateInto` | 34 stubs per tree, largest 979 bytes |
+| The text an agent follows is the one in `ai/skills/` | Done | `instructionFor`; `ai/agents/ze-read.md`, `ai/agents/ze-work.md` | Live proof, AC-11 |
+| A change to a skill's body owes no sync | Done | `Check` unchanged, compared against stubs | `TestTheCheckVerbAnswersZeroAfterASkillBodyChanges` |
+| The leftover cleanup the owner approved | Done | `clearLeftovers`, `isLeftoverStub`, `removeStub` | AC-6, AC-7, AC-12 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `stubOf`; `TestAStubCarriesTheSourcesFrontmatterByteForByte`, `TestAStubCarriesNoLineOfTheSourcesBody`, `TestTheSyncVerbWritesAStubThatNamesItsSource` | A copying generator fails the no-body test |
+| AC-2 | Done | `generateInto` (one `stubs[i]` for all trees); `TestTheThreeFilesOfASkillAreByteIdentical` | The fixture's `closeBody` holds `.claude/`, so the deleted rewrite would fail it |
+| AC-3 | Done | `Check` over stubs; `TestTheCheckVerbAnswersZeroAfterASkillBodyChanges` | Red against full copies |
+| AC-4 | Done | `stubOf` copies the block; `TestAChangedDescriptionIsStaleUntilSynced` | Asserts the exact three stale paths, then fresh |
+| AC-5 | Done | `generateInto` composes before writing; `stubOf`, `badSkill`; `TestASourceThatCannotMakeAStubIsRefused` | Six rows, sync and check, bad source sorts last, no file written |
+| AC-6 | Done | `clearLeftovers`, `removeStub`; `TestASyncRemovesTheStubOfADeletedSkill`, `TestACheckIsCleanOnceTheLeftoverStubIsRemoved` | |
+| AC-7 | Done | `isLeftoverStub`, `Report.Text`; `TestASyncNamesAFileItLeftInASkillTree`, `TestAMarkerElsewhereInTheFileDoesNotMakeItALeftoverStub` | Four kinds plus the marker-elsewhere case |
+| AC-8 | Done | `writeSkillUnder`, `writeUnder`; `TestASyncOverwritesAnUnmarkedFileAtASourcesPath` | Preservation test |
+| AC-9 | Done | `instructionFor`; `TestTheStubOrdersAFullReadOfItsSourceAndHoldsNoArgumentPlaceholder` | |
+| AC-10 | Done | The eight readers in `32d3c76e4a` | Search in Documentation Verified |
+| AC-11 | Done | Live proof on build `f43c8ce222` (per-spec state file) | Claude Code only, as the AC states |
+| AC-12 | Done | `clearLeftovers` (agents tree never removed); `TestASyncNamesALeftoverAgentDefinitionAndTheCheckStillCallsItStale` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The 14 unit tests and 3 preservation tests of the TDD plan | Done | `internal/le/ai/sync/ai_test.go`, `actions_test.go` | Each name present; `TestASyncReplacesASymlinkedSkillFileAndLeavesItsTargetAlone` added |
+| `TestTheAgentsMirrorRepointsClaudePathsAndTheOthersDoNot` | Changed | removed | Judge approval carried as `Weakening-approved:` in `32d3c76e4a`; `./le test weakened check base 474ee2221d` clean |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/ai/sync/ai.go`, `report.go`, `actions.go`, `register.go`, both test files | Done | `32d3c76e4a`, `f43c8ce222` |
+| `ai/agents/ze-read.md`, `ai/agents/ze-work.md`, `ai/skills/ze-check.md`, `ai/rationale/documentation.md`, the rule point, `ai/rules/repo-maintenance.md`, `ai/INDEX.md`, `internal/le/rfc/check_ratchets.go` | Done | `32d3c76e4a` |
+
+### Audit Summary
+- **Total items:** 12 ACs, 4 task requirements, 18 tests, 15 files
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** the repoint test, removed under judge approval (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A harness's skill file carries no copy of the skill's body | file evidence | 34 `SKILL.md` in each of `.claude/skills`, `.codex/skills`, `.agents/skills`, largest 979 bytes (was 44,270); `cmp` of the three `ze-rfc` files identical; `.claude/skills/ze-rfc/SKILL.md` holds frontmatter, marker and five orders (closure agent) |
+| The text an agent follows is always the one in `ai/skills/` | live load (user workflow) | Main session: Skill `ze-mutation-fix` with an argument, then a whole Read of `ai/skills/ze-mutation-fix.md`; agent A: Skill `ze-find-alloc`, then one whole Read of `ai/skills/ze-find-alloc.md`; agent B, told only a skill name: one whole Read of `ai/skills/ze-debrief.md` (main thread, build `f43c8ce222`) |
+| A change to a skill's body owes no sync | unit test through the verb | `TestTheCheckVerbAnswersZeroAfterASkillBodyChanges`; `./le ai sync check` answered "generated agent files in sync", exit 0, after the live sync |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None | Every AC is done. Proof in Codex, OpenCode and Pi is outside AC-11 by its own text and named in Known Limitations | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` (path in the closure report) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | logic and wiring, security and deletion scope, removed behaviour and docs (closure agent, inline) |
+
+### Run 1 (closure agent, over `474ee2221d^..f43c8ce222` in `internal/le/ai/sync`, `internal/le/rfc/check_ratchets.go` and the eight readers)
+- Step 0: `./le test weakened check base 474ee2221d` clean (8 test files); `./le repo check` 7 issues, none in a file this work changed.
+- ISSUE 1: `writeSkillUnder` Lstats only the last path element. A symlinked `<tree>/<name>` directory, or a symlinked tree root, is followed by `os.Lstat`, `os.Remove`, `os.MkdirAll` and `os.WriteFile`, so the sync overwrites a file, or removes a non-regular entry, outside the skill trees. The Security Review row "A symlink in a tree is never followed out of it" does not hold for the write path, and it is the same shape the round-2 symlinked-file fix closed. Open.
+- NOTE: a stub whose lines became CRLF is not recognised by `isLeftoverStub` and is left and named, the safe direction.
+- NOTE: a source file named `...md` would give the name `..` and a write to `<tree>/../SKILL.md`; source names are repository-controlled. `stubOf` could refuse a name that is not one clean path element.
+- NOTE: the stub's order 3 names "the argument placeholder" without spelling it, because spelling it would be substituted; the live proof showed agents binding it.
+- NOTE: the session-start warning still says "skills mirrors" (`reportAgentFiles`, preserved by the spec) and `website/data/wiki.json` says the slash commands are under `.claude/skills/`; both still true of where a harness finds the stubs.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A symlinked skill directory or tree root is written and removed through | `internal/le/ai/sync/ai.go` `writeSkillUnder` | `skillTreesAreDirectories`, `removeNonDirectory`; tests `TestASyncReplacesASymlinkedSkillDirectoryAndLeavesItsTargetAlone`, `TestASyncRefusesASymlinkedSkillTreeAndWritesNothing`; the `..` NOTE taken with `TestASourceWhoseNameIsADotPathIsRefused` |
+
+### Run 2 (closure agent, over the fix only: `git diff` of `ai.go` and `ai_test.go`)
+- 0 BLOCKER, 0 ISSUE. The tree check runs after every stub is composed and before the first write, so a refusal writes nothing; in `Check` the destination is the scratch tree, so the check's verdict is unchanged. `Check`, `driftIn`, `sameFile`, `filesUnder` and `clearLeftovers` are not edited. Each refusal names the path and ends with the fix.
+- NOTE: the regular-file branch of `removeNonDirectory` has no test of its own; the symlink test drives the same `!IsDir` branch.
+- NOTE: a source named `.md` lists as the empty name and writes `<tree>/SKILL.md`, inside the tree; harmless.
+- Runs after the fix (main thread): `./le test unit pkg path ./internal/le/ai/sync/` exit 0; `./le go lint run scope "./internal/le/ai/sync/..."` 0 issues on both builds. `./le rfc check` not run: this work touches no RFC-tagged unit or summary, and the `internal/le/rfc` test build is broken by another session's uncommitted edits.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| Files to Create: none | n/a | The spec creates no file; the 34 stubs in each of the three trees were counted with `find` (closure agent) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-9, AC-12 | The unit tests named in the audit pass | `./le test unit pkg path ./internal/le/ai/sync/` exit 0 (main thread, after the symlink guard) |
+| AC-10 | No reader names a generated directory as where a skill's text is | `git grep` of tracked files outside `vendor/`, `tmp/`, `bin/`, specs and `plan/learned` for the three directories, `SKILL.md`, "skills mirror" and "Read that skill": only `.gitignore`, the generator's constants, the rule row and rationale passage describing the stubs, the hook warning, two historical journal rows and `website/data/wiki.json` (closure agent) |
+| AC-11 | Live load in a fresh session and a subagent | Per-spec state file, "Live proof (AC-11)" (main thread) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le ai sync update`, `./le ai sync check` | none: le verbs carry no `.ci` suite | `TestTheSyncVerbWritesAStubThatNamesItsSource` and `TestTheCheckVerbAnswersZeroAfterASkillBodyChanges` drive `Answer`; the live `./le ai sync update` and `check` on build `f43c8ce222` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Live loads in the main session and agent A |
+| A-2 | confirmed | The live sync answered no refusal; no source's `name:` differs from its stem |
+| A-3 | confirmed | One whole Read of `ai/skills/ze-rfc.md`, 710 lines |
+| A-4 | confirmed | Both subagents resolved the root-relative path |
+| A-5 | confirmed | No test outside the package names a generated skill file; the package test is green |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 12: `ai/rationale/documentation.md` and the rule row say the sync writes a stub with name, description and pointer, copies the agents and `AGENTS.md`, removes a root `CLAUDE.md` | `generateInto`, `Sync` | yes |
+| Row 16: `ai/rules/repo-maintenance.md` (the `// Design:` header of the package) matches the code | rendered line 24 | yes |
+| Row 17: `ai/skills/ze-check.md` 4a and 4b scan `ai/skills/*.md`; `ai/INDEX.md` line 327 equals the registered `Description` | `register.go` `init` | yes |
+| Rows 1 to 11, 13 to 15: no | `git grep` of `docs/` for `ai sync` finds only the help-spelling example in `docs/contributing/running-commands.md` line 184, still true | yes |

@@ -559,6 +559,108 @@ func TestASyncReplacesASymlinkedSkillFileAndLeavesItsTargetAlone(t *testing.T) {
 	}
 }
 
+// VALIDATES: A skill directory that is a symlink to a directory elsewhere is
+// replaced by a real directory holding the stub, and the SKILL.md in the
+// link's target keeps its bytes. MkdirAll and WriteFile follow the link, so
+// writing through it would overwrite a file outside the three trees.
+func TestASyncReplacesASymlinkedSkillDirectoryAndLeavesItsTargetAlone(t *testing.T) {
+	root := fixture(t)
+	const outside = "outside, not written by le\n"
+	write(t, root, "elsewhere/ze-close/SKILL.md", outside)
+	link := filepath.Join(root, claudeSkills, "ze-close")
+	if err := os.MkdirAll(filepath.Dir(link), 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.Symlink(filepath.Join(root, "elsewhere", "ze-close"), link); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	syncTree(t, root)
+	if body := read(t, root, "elsewhere/ze-close/SKILL.md"); body != outside {
+		t.Errorf("the sync wrote through the symlinked directory into its target: %q", body)
+	}
+	info, err := os.Lstat(link)
+	if err != nil {
+		t.Fatalf("lstat: %v", err)
+	}
+	if !info.IsDir() {
+		t.Errorf("%s is %v after the sync, want a real directory", link, info.Mode())
+	}
+	got := read(t, root, filepath.Join(claudeSkills, "ze-close", skillFile))
+	if want := read(t, root, filepath.Join(codexSkills, "ze-close", skillFile)); got != want {
+		t.Errorf("the skill file holds %q, want the stub %q", got, want)
+	}
+}
+
+// VALIDATES: A skill tree root that is a symlink refuses the sync before any
+// write, with a message naming the tree and ending in the fix. Nothing lands
+// in the link's target or in the other two trees.
+func TestASyncRefusesASymlinkedSkillTreeAndWritesNothing(t *testing.T) {
+	root := fixture(t)
+	target := filepath.Join(root, "elsewhere-tree")
+	if err := os.MkdirAll(target, 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".codex"), 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.Symlink(target, filepath.Join(root, codexSkills)); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	_, err := Mirror{Root: root}.Sync()
+	if err == nil {
+		t.Fatal("a sync over a symlinked skill tree succeeded")
+	}
+	message := err.Error()
+	if !strings.Contains(message, codexSkills) {
+		t.Errorf("the refusal does not name %s: %s", codexSkills, message)
+	}
+	lines := strings.Split(message, "\n")
+	if last := lines[len(lines)-1]; !strings.Contains(last, "rm "+codexSkills) {
+		t.Errorf("the refusal's last line %q does not give the fix", last)
+	}
+	entries, readErr := os.ReadDir(target)
+	if readErr != nil {
+		t.Fatalf("read the link's target: %v", readErr)
+	}
+	if len(entries) != 0 {
+		t.Errorf("the sync wrote %d entries into the link's target", len(entries))
+	}
+	for _, tree := range []string{claudeSkills, agentsSkills} {
+		if _, statErr := os.Lstat(filepath.Join(root, tree)); !os.IsNotExist(statErr) {
+			t.Errorf("the refused sync created %s: %v", tree, statErr)
+		}
+	}
+}
+
+// VALIDATES: A source named "...md" lists as the skill "..", whose stub would
+// be written above its tree; it is refused like any source that cannot make a
+// stub, the file named and the rename as the fix, and nothing is written.
+func TestASourceWhoseNameIsADotPathIsRefused(t *testing.T) {
+	root := fixture(t)
+	write(t, root, "ai/skills/...md", "---\nname: ..\ndescription: d\n---\nbody\n")
+
+	_, err := Mirror{Root: root}.Sync()
+	if !errors.Is(err, ErrBadSkill) {
+		t.Fatalf("the sync answered %v, want ErrBadSkill", err)
+	}
+	message := err.Error()
+	if !strings.Contains(message, "ai/skills/...md") {
+		t.Errorf("the refusal does not name the file: %s", message)
+	}
+	lines := strings.Split(message, "\n")
+	if last := lines[len(lines)-1]; !strings.Contains(last, "mv ai/skills/...md") {
+		t.Errorf("the refusal's last line %q does not give the rename", last)
+	}
+	if paths := generatedPaths(t, root); len(paths) != 0 {
+		t.Errorf("a refused run wrote %d files: %v", len(paths), paths)
+	}
+	if _, statErr := os.Lstat(filepath.Join(root, ".claude", skillFile)); !os.IsNotExist(statErr) {
+		t.Errorf("a stub was written above the tree: %v", statErr)
+	}
+}
+
 // PRESERVES: Whatever sits at a current source's path is overwritten by what
 // the generation writes there (AC-8), so a pre-change full copy is replaced.
 func TestASyncOverwritesAnUnmarkedFileAtASourcesPath(t *testing.T) {
