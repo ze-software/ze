@@ -158,7 +158,7 @@ docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
 
 ```bash
 # Record events
-./le chaos run --event-log run.ndjson --seed 42 | ./bin/ze -
+./le chaos run --pipe --event-log run.ndjson --seed 42 | ./bin/ze -
 
 # Replay a recorded failure
 ./le chaos run --replay run.ndjson
@@ -171,7 +171,7 @@ docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
 ### Property Validation
 
 ```bash
-./le chaos run --properties all --convergence-deadline 5s | ./bin/ze -
+./le chaos run --pipe --properties all --convergence-deadline 5s | ./bin/ze -
 ./le chaos run --properties list    # Show available properties
 ```
 

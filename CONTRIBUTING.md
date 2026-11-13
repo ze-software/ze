@@ -10,7 +10,7 @@ By contributing, you agree to the terms of the
 1. **Open an issue** describing what you want to work on.
 2. **Wait for a spec.** The maintainer will create a spec from `plan/templates/TEMPLATE.md`
    so the work follows the project's structure and standards.
-3. **Implement the spec.** Follow the rules in `.claude/rules/` -- they apply to
+3. **Implement the spec.** Follow the rules in `ai/rules/` -- they apply to
    all contributions, whether written by hand or with AI assistance.
 4. **Run `/ze-review-deep` before submitting.** The maintainer reviews contributions
    with Claude Code. Submitting pre-reviewed code makes that process smooth.
@@ -19,12 +19,16 @@ By contributing, you agree to the terms of the
 
 ## Rules
 
-The `.claude/rules/` directory contains the project's coding standards, testing
-requirements, and workflow expectations. Key points:
+The `ai/rules/` directory contains the project's coding standards, testing
+requirements, and workflow expectations (`ai/rules/TRIGGERS.md` names when
+each one applies). Key points:
 
 - **TDD:** tests written before implementation
 - **Specs drive work:** no code without a spec
-- **`./le verify current` must pass** before any submission
+- **Test what the change reaches:** run the tests of the packages and
+  functional suites your change touches. The full verification
+  (`./le verify current`) is the release check that GitHub CI runs on a pushed
+  commit; a contributor does not run it
 - **No partial deliveries:** code + tests + docs in one piece
 
 ## License

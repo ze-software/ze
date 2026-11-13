@@ -605,12 +605,10 @@ and the error names what you typed:
 | The config says | What happens |
 |-----------------|--------------|
 | `import rip`, and no component registers `rip` | the load fails: `redistribute: unknown source "rip" under destination "ospf"` |
-| `family [ ipv9/unicast ]` | the load fails naming the family |
 | `destination ospf { }` with no import | the load fails: the destination imports nothing |
 | `import bgp` or `destination bgp`, and no `bgp { }` block | the load, `ze config validate` and a commit fail: `redistribute: "destination bgp" needs bgp configured, and this config has no bgp { } block`, with the fix on its own line |
 | `import isis` or `destination isis`, and no `isis { }` block | the same refusal: `redistribute: "destination isis" needs isis configured, and this config has no isis { } block` |
 | `import ospf` or `destination ospf`, and no `ospf { }` block | the same refusal: `redistribute: "destination ospf" needs ospf configured, and this config has no ospf { } block` |
-
 | `destination ospv3 { import connected }`, a name no protocol in this build declares | the load, `ze config validate` and a commit fail: `redistribute: "destination ospv3" names no protocol that receives redistributed routes`, then a line listing the declared destinations (read from the registry, so it is what this build carries) and the fix |
 
 A refusal is deliberate. Ze used to warn once and carry on with redistribution

@@ -102,9 +102,13 @@ ECMP emits one path per equal-cost next hop with a distinct instance, but sysrib
 keys its routes by protocol **string** and the Loc-RIB change historically
 carried only the single best path, so siblings collapsed to one next hop.
 
-Equal-cost siblings now travel on the Loc-RIB change, and sysrib expands them
-into the best-change entry's ECMP paths. The change is additive: a single-path
-source leaves the ECMP list empty, so static, connected and BGP are unaffected.
+Equal-cost sibling targets travel on the Loc-RIB change. The system RIB copies
+each selected sibling's labels and Service SID through `ECMPMembers` while it
+holds the authority read lock. External selected entries carry the same values.
+A single-path source leaves the ECMP list empty.
+<!-- source: internal/core/rib/locrib/manager.go -- siblingMembers, ECMPMembers -->
+<!-- source: internal/component/sysrib/route_view_worker_local.go -- prepareRouteViewLocal -->
+<!-- source: internal/component/sysrib/route_view_path.go -- routeViewCopyEntry -->
 
 The group sysrib WRITES is filtered once more. `ecmpCollect` drops a member
 whose protocol `rib { fib-withhold }` names, and answers with no group at all
@@ -112,6 +116,7 @@ when the winner's own protocol is named, so `fib-withhold [ isis ]` keeps an
 IS-IS multipath out of the FIB. Selection is untouched: `show rib` and `show
 ecmp-groups` read `ecmpRIBGroup`, which filters nothing, so an operator still
 reads the equal-cost paths that competed for the prefix.
+<!-- source: internal/component/sysrib/ecmp.go -- ecmpCollect, ecmpRIBGroup -->
 
 <!-- source: internal/core/rib/locrib/change.go -- Change.ECMP -->
 <!-- source: internal/core/rib/locrib/manager.go -- siblingNextHops -->
@@ -124,7 +129,8 @@ rode onto the member, which is an MPLS misforward wherever the two protocols
 impose different labels.
 
 <!-- source: internal/component/sysrib/ecmp.go -- forwardingPath, ecmpCollect, ecmpRIBGroup -->
-<!-- source: internal/component/sysrib/sysrib.go -- BestChangeEntry.ECMPPaths, fibChange -->
+<!-- source: internal/component/sysrib/fibimport.go -- fibChange -->
+<!-- source: internal/component/sysrib/ecmp.go -- siblingPath -->
 
 ## Decision: leaking is a one-pass fixpoint
 

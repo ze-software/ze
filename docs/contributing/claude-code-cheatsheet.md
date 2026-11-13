@@ -20,7 +20,7 @@ are available inside Claude Code when working in the ze repository.
 | `/ze-review-deep` | Multi-agent exhaustive review (9 specialized agents) |
 | `/ze-review-spec` | Post-implementation: did we build what the spec says? |
 | `/ze-review-docs` | Documentation accuracy, completeness, and quality |
-| `/ze-commit` | Prepare a scoped commit script through `internal/le/commit.Answer` (does not commit directly) |
+| `/ze-commit` | Commit the named changes through a scoped commit script from `internal/le/commit.Answer`, run at once; no verification (`/ze-commit-check` adds it) |
 | `/ze-debrief` | Summarize current session state |
 | `/ze-handoff` | Generate a handoff document for the next session |
 | `/ze-rfc` | Generate an implementation summary from an RFC |
@@ -43,7 +43,7 @@ are available inside Claude Code when working in the ze repository.
 /ze-spec                   -- write the spec (design, ACs, test plan)
 /ze-audit                  -- check what's already implemented
 /ze-implement              -- TDD implementation with built-in reviews
-/ze-verify                 -- run full test suite
+/ze-verify                 -- run the scoped tests the change reaches
 /ze-review-deep            -- multi-agent review before submission
 /ze-commit                 -- prepare the commit
 ```
@@ -52,7 +52,7 @@ are available inside Claude Code when working in the ze repository.
 
 ```
 /ze-debug                  -- paste test output, get parallel investigation
-/ze-verify                 -- confirm fix doesn't break anything
+/ze-verify                 -- confirm the fix with the tests it reaches
 /ze-review                 -- quick review of the fix
 /ze-commit                 -- prepare the commit
 ```
@@ -97,7 +97,7 @@ The four review commands serve different purposes:
 
 ## Notes
 
-- `/ze-commit` does **not** run `git commit`. It generates a message file and executable commit script through `internal/le/commit.Answer`; you run the script yourself.
+- `/ze-commit` does **not** run `git commit` or `git add` as direct calls. It generates a message file and executable commit script through `internal/le/commit.Answer` and runs that script, which is what commits.
 <!-- source: internal/le/commit/actions.go -- Answer -->
 - `/ze-verify` runs the scoped tests for what changed and formats the output as a structured report. It never runs any `./le verify` command: GitHub CI verifies a pushed commit, and `./le verify current` is Thomas's release check.
 - `/ze-review-deep` accepts arguments: path scope, agent names, or `branch` for branch review.

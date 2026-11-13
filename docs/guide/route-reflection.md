@@ -116,25 +116,20 @@ bgp {
 }
 ```
 
-The `role { import rs }` leaf makes both `filter` chains mandatory: a declared RFC 9234 role obliges each bound chain to name a filter that can refuse a path through a transit provider (RFC 7454 Section 9), and `rs` binds both. To run a session without the check, name the filter with the `inactive:` member prefix. The chain records the decision, and the filter never executes:
+The `role { import rs }` leaf inserts the RFC 7454 Section 9 upstream check, `bgp-role:upstream-asn`, on each member's import chain: a route whose AS path carries one of your transit providers' ASNs is rejected, with no filter for you to write. The check is not required. To run a session without it, name the member with the `inactive:` prefix. The chain records the decision, and the check never executes:
 
 ```
 filter {
     import {
-        filters [ inactive:reject-asn-NO-TRANSIT ];
-        final accept;
-    }
-    export {
-        filters [ inactive:reject-asn-NO-TRANSIT ];
+        filters [ inactive:bgp-role:upstream-asn ];
         final accept;
     }
 }
 ```
 
-The prefix goes on the member, inside the brackets. Inside each direction block,
-`inactive: filters reject-asn-NO-TRANSIT;` deactivates an existing member. Keep the
-`final accept;` decision when the member is inactive. See
-[config deactivation](config-deactivate.md) for both forms.
+The prefix goes on the member, inside the brackets. Keep the `final accept;` decision when the member is inactive. See
+[config deactivation](config-deactivate.md) for both forms, and [BGP role](bgp-role.md) for the derived provider set.
+<!-- source: internal/component/bgp/plugins/role/upstream.go -- upstreamInsertions -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 A member inherits the group's whole settings, its `attach process` blocks and its per-peer plugin config included. A static peer whose address falls inside the range keeps its own session and its own settings. See [BGP peering](bgp-peering.md) for the group leaves and the reload rules.

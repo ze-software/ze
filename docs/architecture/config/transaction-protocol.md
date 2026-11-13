@@ -1054,14 +1054,18 @@ apply succeeds but another plugin triggers rollback, the engine logs a warning.
 The active pointer is not promoted on rollback; it remains the source of truth
 for the last accepted runtime state.
 
-Participation is declared in Stage 1 of the 5-stage startup protocol:
+At Stage 1, the plugin sends `sdk.Registration` with the roots it reads and
+its initial time estimates. A compiled-in plugin declares its owned roots in
+`registry.Registration.ConfigRoots`; that ownership is not a Stage 1 field.
 
-| Stage 1 field | SDK method | Effect |
-|---------------|-----------|--------|
-| `ConfigRoots` | `sdk.DeclareConfigRoots(...)` | Plugin owns config + receives diffs for those roots |
-| `WantsConfig` | `sdk.WantsConfig(...)` | Plugin receives diffs for these roots (no ownership, read-only) |
-| `VerifyBudget` | `sdk.SetVerifyBudget(...)` | Initial estimate for verify phase timeout |
-| `ApplyBudget` | `sdk.SetApplyBudget(...)` | Initial estimate for apply phase timeout |
+| Declaration | Go field | Effect |
+|-------------|----------|--------|
+| Owned config roots | `registry.Registration.ConfigRoots` | The daemon loads the owner and delivers changes to those roots |
+| `wants-config` | `sdk.Registration.WantsConfig` | Plugin receives the named config roots |
+| `verify-budget` | `sdk.Registration.VerifyBudget` | Initial verify estimate in seconds |
+| `apply-budget` | `sdk.Registration.ApplyBudget` | Initial apply estimate in seconds |
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput -->
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.ConfigRoots -->
 
 ---
 
