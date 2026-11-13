@@ -1644,6 +1644,15 @@ link, a link-local on it, an nft table. A prestart for an owner whose
 placeholder no scenario file carries would never run, so preparation refuses
 it by name rather than skipping it.
 
+A scenario that needs an extra lab address on a peer's `eth0` before the daemon
+starts declares it in `scenarioHostAddresses`, as a peer and a host number.
+`addHostAddresses` renders the address on the run's subnet and puts its
+`ip address add` at the head of that peer's prestart, and refuses a declaration
+that names a peer the scenario does not start. `ldp-backoff-clear-frr` declares
+ze's .250 transport address there.
+<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioHostAddresses, addHostAddresses -->
+<!-- source: internal/le/interoplab/bgp/register_ldp_backoff_clear.go -- the declaration -->
+
 `bgp-rfc2545-linklocal-nexthop-frr` uses IPv6 host 2 for Ze and host 3 for FRR:
 the speaker, its on-link global next hop and the recipient share ONE IPv6 subnet,
 not separate IPv4 and IPv6 connected prefixes. Its `ze.conf` carries
@@ -2544,7 +2553,8 @@ To commit a recording as a fixture, copy it from the session scratch into
 commit like any fixture: it carries environment names only, but an answer can
 still print a secret, and such a recording is never committed. The BGP lab's
 `TestLocalPrefStripReplaysTheLabRecording` replays the recording of
-`bgp-local-pref-strip-gobgp`.
+`bgp-local-pref-strip-gobgp`, and `TestLDPBackoffClearReplaysTheLabRecording`
+that of `ldp-backoff-clear-frr`.
 <!-- source: internal/le/interoplab/record.go -- checkerRecorder, recordingPlan, recordChecker, recordingAnswerOctetsMax -->
 <!-- source: internal/le/interoplab/replay.go -- ReplayScenario, ReplayRefusal, replayLab -->
 <!-- source: internal/le/interoplab/lab.go -- CheckerLab, Suite.Recordings, Suite.runScenario -->
@@ -4628,6 +4638,7 @@ is not packet-forwarding evidence.
 | 38 | bgp-vpn-addpath-frr | Ze, FRR | ipv4/mpls-vpn over ADD-PATH with no path-information: FRR holds the exact RD, prefix and label, so ze wrote Path Identifier 0 (RFC 7911 Section 3) |
 | 39 | ldp-keepalive-expiry-frr | Ze, FRR ldpd | ze's LDP KeepAlive Timer expires after an `ldplab` nft table in ze's container rewrites the TCP window ze advertises on the session to zero, so FRR can send ze no PDU while its kernel still acknowledges ze's segments (a drop of FRR's segments would also drop the ACKs they carry and stall ze's own stream); FRR logs `msg[in]: notification: ... status KeepAlive Timer Expired (fatal error)` (RFC 5036 Section 3.5.1.2.3) and leaves OPERATIONAL. Red with the send reverted: FRR logs only `connection closed by remote end`. Ships its own `daemons` (`ldpd=yes`) and gives ze transport address 172.30.0.250 so ze is the active LSR |
 | 53 | ldp-init-unknown-tlv-frr | Ze, FRR ldpd | RFC 5036 Section 3.3 on ze's receive side: "if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored". FRR cannot send an unknown TLV, so an `ldplab` nft rule in ze's container rewrites the type of the first Capability TLV in FRR's real Initialization (0x8506, the Dynamic Capability Announcement ldpd's `send_init` writes at LDP offset 36) to 0x3f00, U and F clear, and counts each match. FRR, the originator, logs `msg[in]: notification: ... status Unknown TLV`, and stays short of OPERATIONAL for 10 s because ze never answers the ignored Initialization with a KeepAlive. With the rule removed the same peers reach OPERATIONAL, the positive control. FRR proves the Notification reached the originator and decodes as Unknown TLV; the rule's counter proves ze was shown the TLV. Red with `skipTLV` returning nil for every TLV: FRR logs no received `status Unknown TLV` Notification. Shares the `daemons` and the 172.30.0.250 transport address of `ldp-keepalive-expiry-frr` |
+| 66 | ldp-backoff-clear-frr | Ze, FRR ldpd | A session that reached OPERATIONAL leaves no setup backoff when it ends (RFC 5036 Section 2.5.3, "After such a configuration action, there is no further need to throttle subsequent session establishment attempts"). Once FRR has reported the session OPERATIONAL for 3 s, FRR runs `clear mpls ldp neighbor <ze's transport address>`: ldpd's `nbr_clear_ctl` calls `session_shutdown` with S_SHUTDOWN, so FRR sends a Shutdown Notification and closes the TCP connection while the adjacency stays. FRR holds the passive role and ze dials on each Hello FRR sends (`processDiscoveryPacket`, `startSessionForAdj`), every 1 s by `discovery hello interval 1`. FRR's `show mpls ldp neighbor json` must report ze OPERATIONAL again with an `upTime` no older than the clear (`nbr_to_ctl` restarts it on each entry to OPERATIONAL) within 8 s of the clear: the released backoff lands near 2 s, a recorded one forbids the dial for 15 s. ze's own log, read at info (`environment { log { ldp info } }`), must carry a new fatal Notification and a new session end, the proof that the clear reached ze and that info lines are read, and no new `ldp: session setup failed, next attempt delayed`. Red with the operational arm of `startSessionForAdj`'s session-end callback recording a setup failure (one line changed in the working tree for the run, because the ze image builds from the tree; image `sha256:3c4dee38ac2e` between greens `sha256:a218f6cd97d5` and `sha256:c58b3f2734ff`, 2026-11-13): `ze logged "ldp: session setup failed, next attempt delayed" 1 time(s) after FRR cleared a session that had reached OPERATIONAL: its end recorded a setup backoff, which delays the redial by 15 s or more (the probes ended 15.454s after the clear)`. Shares the `daemons` of `ldp-keepalive-expiry-frr`. The lab adds ze's 172.30.0.250 transport address in ze's prestart (`scenarioHostAddresses`), because ze dials from it on FRR's first Hello: added by the checker, the address could arrive after that dial, and each dial that fails to bind costs a backoff step of 15 s or more |
 | 40 | bgp-attr-flags-low-nibble-gobgp | Ze, GoBGP, raw injector | RFC 4271 Section 4.3: attribute 241 sent to Ze at flags 0xCF reaches GoBGP at 0xE0 (low nibble cleared, Partial stamped by Section 5), never 0xEF |
 | 41 | bgp-large-community-no-repeat-gobgp | Ze, GoBGP, raw injector, native speaker | RFC 8092 Section 3: an export policy adding values the route already carries leaves GoBGP with each Large Community once, and the native speaker's `no-repeated-large-community` oracle finds no value sent twice on the wire. GoBGP alone cannot go red: it removes repeats on receipt, as the same section requires of a receiver (v4.10.0 decodes every value, then `ValidateAttribute` in `pkg/packet/bgp/validate.go` drops each repeat). Red on GoBGP v4.10.0 with the `largeCommunityRedundant` branch of the egress normalizer disabled: GoBGP still printed each value once, and the oracle failed on 65000:1:1 and 65000:2:2 transmitted twice in one UPDATE | <!-- doc-links: ignore (GoBGP v4.10.0 source in github.com/osrg/gobgp, outside this repository) -->
 | 42 | bgp-mup-malformed-t1st-withdraw-gobgp | Ze, GoBGP, raw injector | draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up |
@@ -4663,6 +4674,7 @@ is not packet-forwarding evidence.
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 <!-- source: internal/le/interoplab/bgp/check_route_server_replacement.go -- checkRouteServerReplacement, waitBIRDReplacement, holdBIRDASPath -->
 <!-- source: internal/le/interoplab/bgp/check_ldp_init_unknown_tlv.go -- checkLDPInitUnknownTLV, ldpInitRewrite -->
+<!-- source: internal/le/interoplab/bgp/check_ldp_backoff_clear.go -- checkLDPBackoffClear, requireLDPBackoffReleased, requireLDPRedialWithin -->
 <!-- source: internal/le/interoplab/bgp/check_panic_cease.go -- checkPanicCease, frrReceivedCeaseUnspecific -->
 
 ### Running

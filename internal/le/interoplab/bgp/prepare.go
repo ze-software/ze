@@ -285,6 +285,10 @@ func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareCo
 	if err != nil {
 		return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, err
 	}
+	peers, err = addHostAddresses(peers, prepare.Source.Name, scenarioHostAddresses[prepare.Source.Name], prepare.Network)
+	if err != nil {
+		return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, err
+	}
 	// A container owns the link-local its placeholder names because some file
 	// of the scenario uses that address, never because of the scenario's name.
 	// It is assigned in the container's Prestart, which the core's start
@@ -905,6 +909,47 @@ var scenarioPrestarts = map[string]ownerPrestarts{}
 // hands it to the core, which builds the links in each member's start
 // wrapper. A scenario with no entry runs every daemon on eth0 alone.
 var linkDeclarations = map[string][]interoplab.Link{}
+
+// hostAddress is one extra IPv4 address a peer's eth0 carries before its
+// daemon starts: host number host on the run's selected lab subnet.
+type hostAddress struct {
+	peer string
+	host uint8
+}
+
+// scenarioHostAddresses holds, by scenario name, the extra lab addresses each
+// scenario puts on its peers' eth0 before their daemons start, such as an LDP
+// transport address the daemon dials from as soon as it hears a Hello. An
+// address a checker adds once the containers run races the daemon's first
+// use of it. A scenario's register file adds its entry, so prepare.go names
+// no scenario.
+var scenarioHostAddresses = map[string][]hostAddress{}
+
+// addHostAddresses puts each declared address at the head of its peer's
+// Prestart, rendered on network's IPv4 subnet the way networkHostAddress
+// renders the address a checker reads, so the daemon's first interface
+// snapshot holds it. It refuses a declaration that names a peer the scenario
+// does not start, or a run with no IPv4 network to render it on.
+func addHostAddresses(peers []interoplab.PeerConfig, scenario string, addresses []hostAddress, network interoplab.Network) ([]interoplab.PeerConfig, error) {
+	if len(addresses) == 0 {
+		return peers, nil
+	}
+	if !network.IPv4.IsValid() {
+		return peers, errors.New(scenario + " declares lab host addresses, and the run selected no IPv4 network to put them on")
+	}
+	for _, address := range addresses {
+		index := slices.IndexFunc(peers, func(peer interoplab.PeerConfig) bool { return peer.Name == address.peer })
+		if index < 0 {
+			return peers, errors.New(scenario + " declares a lab host address for peer " + address.peer + ", which the scenario does not start")
+		}
+		var command textbuf.Buffer
+		command.Str("ip ").Str(ipObjectAddress).Byte(' ').Str(ipActionAdd).Byte(' ').
+			Str(networkHostAddress(network, address.host)).Str("/32 ").Str(ipOptionDevice).Byte(' ').
+			Str(containerInterface).Byte('\n')
+		peers[index].Prestart = command.String() + peers[index].Prestart
+	}
+	return peers, nil
+}
 
 // renderPrestarts renders a scenario's prestarts for network. A prestart runs
 // inside the wrapper that assigns its container's link-local, so one for an

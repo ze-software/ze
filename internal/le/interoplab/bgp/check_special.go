@@ -38,6 +38,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	bfdLinkLocalScenario:                       checkBFDLinkLocal,
 	ldpKeepaliveExpiryScenario:                 checkLDPKeepaliveExpiry,
 	ldpInitUnknownTLVScenario:                  checkLDPInitUnknownTLV,
+	ldpBackoffClearScenario:                    checkLDPBackoffClear,
 	bfdProfileEditScenario:                     checkBFDProfileEditLive,
 	attachReceiveOnlyLiveScenario:              checkAttachReceiveOnlyLive,
 	bfdEnableLiveScenario:                      checkBFDEnableLive,

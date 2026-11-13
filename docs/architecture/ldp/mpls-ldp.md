@@ -239,6 +239,16 @@ An adjacency that expires drops its backoff entry, so a neighbor rediscovered
 later is dialed on its first Hello. `expireAdjacencies` marks the session as
 ended by the expiry before it stops it, and `onDone` records no setup failure
 for such a session, so the entry stays gone whatever state the session was in.
+RFC 5036 section 2.5.3 does not say what becomes of the backoff when the
+adjacency is lost, and FRR's ldpd forgets it too: `adj_del` calls `nbr_del` once
+a neighbor has no adjacency left in its address family, `nbr_del` stops the
+initialization delay timer and frees the neighbor with its delay count, and
+`nbr_new` allocates the next one zeroed, so a neighbor rediscovered later is
+dialed with no delay.
+
+The interop scenario `ldp-backoff-clear-frr` checks the operational case against
+FRR: after `clear mpls ldp neighbor` ends a session that was OPERATIONAL, ze
+dials again on FRR's next Hello and logs no setup backoff for that end.
 
 No timer goroutine exists for this: the Hello is the tick, and an adjacency that
 stops sending Hellos retries nothing.
@@ -246,6 +256,7 @@ stops sending Hellos retries nothing.
 <!-- source: internal/plugins/ldp/register.go -- startSessionForAdj, runSession, setupRetry, recordSetupFailure, expireAdjacencies, processDiscoveryPacket -->
 <!-- source: internal/plugins/ldp/session.go -- markAdjacencyExpired, endedByAdjacencyExpiry, ReadLoop -->
 <!-- source: internal/plugins/ldp/session_end_test.go -- TestSessionEndAfterOperationalClearsBackoff, TestSessionEndBeforeOperationalPublishesNoSessionDown, TestRunSessionReportsOperationalToOnDone -->
+<!-- source: internal/le/interoplab/bgp/check_ldp_backoff_clear.go -- checkLDPBackoffClear, requireLDPBackoffReleased -->
 
 ## Decision: LDP names no forwarding writer
 
