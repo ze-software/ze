@@ -1,0 +1,12 @@
+--- a/internal/component/bgp/plugins/rib/rib_aigp.go
++++ b/internal/component/bgp/plugins/rib/rib_aigp.go
+@@ -30,6 +30,9 @@
+ 	}
+ 	changed := make(chan struct{}, 1)
+ 	unsubscribe := loc.OnChange(func(_ locrib.Change) {
++		if loc != nil { // MUTATION-APPLIED: ignore topology notification
++			return
++		}
+ 		select {
+ 		case changed <- struct{}{}:
+ 		default:

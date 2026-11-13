@@ -1,0 +1,12 @@
+--- a/internal/plugins/fib/kernel/fibkernel_replay.go
++++ b/internal/plugins/fib/kernel/fibkernel_replay.go
+@@ -48,7 +48,8 @@
+ 	handled, err := backend.reassertRichRoute(route)
+ 	if err != nil {
+ 		// A failed backend attempt MUST never become an ordinary replacement.
+-		return true, err
++		// MUTATION-APPLIED: preserve false on a failed optional replay attempt.
++		return handled, err
+ 	}
+ 	return handled, nil
+ }

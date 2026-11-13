@@ -1,0 +1,11 @@
+--- a/internal/component/sysrib/ecmp.go
++++ b/internal/component/sysrib/ecmp.go
+@@ -79,7 +79,7 @@
+ 	path := memberPath(route, hop.Addr, hop.Interface, hop.Weight, hop.OnLink)
+ 	if route.ecmpMetadata != nil {
+ 		path.Labels = route.ecmpMetadata[index].labels
+-		path.srv6SID = route.ecmpMetadata[index].sid
++		path.srv6SID = route.srv6SID // MUTATION-APPLIED: promote wrong SID
+ 	}
+ 	return path
+ }

@@ -1,0 +1,37 @@
+# Test: can insertion progress while the actual external routing child is
+# stopped, and does bounded-feed reset recover the complete current kernel table?
+# A unit cannot stop the configured TLS child, require real RPC acknowledgements
+# during that stop, or observe scoped withdrawal/reconstruction in the kernel.
+# VALIDATES: spec-route-policy-1-gate-proof-and-forked-sysrib AC-5/17/24/25 slow-reader leg.
+option=needs-linux:caps=net-admin
+# A private unaddressed link declares per-test network isolation.
+option=netns-link:name=zesrproof
+option=timeout:value=240s
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+ external sysrib-slow-test { run "le test fixture plugin/sysrib-slow-reader-reset"; encoder json; }
+ external sysrib-owner { run "ze plugin rib"; encoder json; respawn false; }
+ internal fib-kernel { use fib-kernel; }
+}
+interface { backend netlink; }
+connected { }
+fib { kernel { flush-on-stop true; } }
+rib { fib-withhold [ bgp ]; }
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/sysrib-slow-reader-kernel-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=240s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement forked, running owner and child count 1
+expect=stderr:contains=input routes were acknowledged while the actual routing child stayed stopped, and daemon reset fenced its old output
+expect=stderr:contains=OK: the same slow routing child reconstructed the complete current multi-page table after explicit reset, retained the newer withdrawal/action and fresh replay, and recovered healthy doctor/telemetry
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-slow-reader-kernel-empty:exit=0
+expect=stderr:contains=OK: slow-reader fixture prefixes are absent from every kernel table
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0

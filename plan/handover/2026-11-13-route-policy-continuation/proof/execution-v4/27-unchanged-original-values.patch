@@ -1,0 +1,13 @@
+--- a/internal/core/rib/locrib/manager.go
++++ b/internal/core/rib/locrib/manager.go
+@@ -230,7 +230,9 @@
+ 	if compareMembers {
+ 		prevMembers = forwardingMembers(&g, &prevBest)
+ 	}
+-	g.upsert(stored)
++	if !sameEffective { // MUTATION-APPLIED: unchanged offers skip storing the latest producer originals.
++		g.upsert(stored)
++	}
+ 	sh.store.Insert(prefix, g)
+ 	newBest, newHad = g.best()
+ 	if compareMembers {

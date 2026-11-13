@@ -1,0 +1,35 @@
+# Test: do owner distance changes, rejection, actual rollback and root removal
+# reselect already stored routes while a per-route override survives unchanged?
+# This configured startup case authenticates actual internal placement and
+# reads real candidate/FIB winners; unit tests cannot prove that daemon path.
+# VALIDATES: spec-route-policy-1-gate-proof-and-forked-sysrib AC-16.
+option=needs-linux:caps=net-admin
+# A private unaddressed link declares per-test network isolation.
+option=netns-link:name=zesrproof
+option=storage:value=disk
+option=timeout:value=180s
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+ external sysrib-distance-test { run "le test fixture plugin/sysrib-distance-reload internal configured"; encoder json; }
+ external sysrib-distance-rollback { run "le test fixture plugin/sysrib-distance-rollback"; encoder json; }
+ internal sysrib-owner { use rib; }
+ internal fib-kernel { use fib-kernel; }
+}
+interface { backend netlink; }
+connected { }
+fib { kernel { flush-on-stop true; } }
+rib { distance { static 5; } }
+EOF_CONF
+cmd=foreground:seq=1:exec=le test fixture plugin/sysrib-distance-kernel-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=180s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement internal, running owner and child count 0
+expect=stderr:contains=OK: startup distance, owner apply/reject/actual rollback and root removal reselect stored routes while the explicit distance3 survivor stays installed without reannouncement
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-distance-kernel-empty:exit=0
+expect=stderr:contains=OK: distance fixture prefixes are absent from every kernel table
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0

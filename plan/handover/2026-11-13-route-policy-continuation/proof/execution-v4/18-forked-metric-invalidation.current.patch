@@ -1,0 +1,11 @@
+--- a/internal/component/bgp/plugins/rib/rib_remote.go
++++ b/internal/component/bgp/plugins/rib/rib_remote.go
+@@ -98,7 +98,7 @@
+ 				return
+ 			}
+ 			r.forkRIB.mu.Lock()
+-			changed := out.Revision != r.forkRIB.revision
++			changed := false && out.Revision != r.forkRIB.revision // MUTATION-APPLIED: retain cached metric
+ 			if changed {
+ 				r.forkRIB.revision = out.Revision
+ 				clear(r.forkRIB.costs)

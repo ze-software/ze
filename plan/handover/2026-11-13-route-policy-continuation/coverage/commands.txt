@@ -1,0 +1,92 @@
+# PREPARED ONLY. Root executes serially, from the MAIN checkout.
+# Use root's current session environment / patched Go toolchain. No race here.
+# Each command produces a different profile. Do not run this as an unreviewed script.
+rp6_root=/home/thomas/Code/github.com/ze-software/ze/main
+rp6_cov="$rp6_root/tmp/session/2026-11-12-205428/scratch/rp6-scoped-coverage-preparation/results"
+rp6_tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
+mkdir -p "$rp6_cov"
+
+# Sysrib: all Test functions cover new selected-view producers AND changed old
+# forwarding/resolution/permission paths. -run excludes fuzz functions/seeds.
+GOMAXPROCS=4 CGO_ENABLED=0 ./le --name session job run label rp6-count-sysrib quiet command go test -json -p 1 -timeout 20m -tags "$rp6_tags" -run '^Test' -covermode=count -coverprofile "$rp6_cov/sysrib.count.out" ./internal/component/sysrib
+
+# Server: new owner operations, native parity/normalization, configure admission,
+# startup budget and generation-controller cases; avoids the unrelated full server population.
+GOMAXPROCS=4 CGO_ENABLED=0 ./le --name session job run label rp6-count-server quiet command go test -json -p 1 -timeout 20m -tags "$rp6_tags" -run '^Test(OwnerEngineOperation.*|OwnerNativeOperation.*|ProcessGenerationCleanupIdentity|Configure(RefusesRuntimeEngineOperation|ServesOwnerEngineOperation|OwnerCallCancellation|FailsWhenNestedReplyCannotEncode)|StartupConfigureBudget.*|RestartConfigureBudget.*|RestartUsesOutgoingConfigureBudget|RestartController.*|StartupAcknowledgesConfiguredInstanceName|StartupBridgePublicationBoundary|StartupStopBeforeBridgePublication)$' -covermode=count -coverprofile "$rp6_cov/server.count.out" ./internal/component/plugin/server
+
+# The three small generic startup packages may share one profile; default coverpkg
+# records each tested package's own counters and go test merges text safely.
+GOMAXPROCS=4 CGO_ENABLED=0 ./le --name session job run label rp6-count-startup quiet command go test -json -p 1 -timeout 20m -tags "$rp6_tags" -run '^Test(StartupConfigureBudget.*|ConfigureServing.*|OwnerRegistrationUsesRegistrySeal)$' -covermode=count -coverprofile "$rp6_cov/startup.count.out" ./internal/component/plugin ./internal/component/plugin/ipc ./internal/component/plugin/registry
+
+# RPC codec/presence/phase/reset/native units. Explicitly includes the two paired
+# guards that previously had zero counts. No -fuzz: bounded campaigns already done.
+GOMAXPROCS=4 CGO_ENABLED=0 ./le --name session job run label rp6-count-rpc quiet command go test -json -p 1 -timeout 20m -tags "$rp6_tags" -run '^Test(RouteView.*|DirectBridgeNative.*)$' -covermode=count -coverprofile "$rp6_cov/rpc.count.out" ./pkg/plugin/rpc
+
+# SDK public/native selection, identity and routing operation validation.
+GOMAXPROCS=4 CGO_ENABLED=0 ./le --name session job run label rp6-count-sdk quiet command go test -json -p 1 -timeout 20m -tags "$rp6_tags" -run '^Test(RouteViewSDK.*|TryEngineNative.*|EngineRawStoppedBridgeDoesNotUseStartupIPC|InstanceNameAcknowledgedBeforeConfigure)$' -covermode=count -coverprofile "$rp6_cov/sdk.count.out" ./pkg/plugin/sdk
+
+# Changed authority producer/member ownership and registry preservation helpers.
+GOMAXPROCS=4 CGO_ENABLED=0 ./le --name session job run label rp6-count-authority quiet command go test -json -p 1 -timeout 20m -tags "$rp6_tags" -run '^Test' -covermode=count -coverprofile "$rp6_cov/authority.count.out" ./internal/core/rib/locrib ./internal/core/redistevents
+
+# igpcost has no own tests: instrument it in the actual current producer's unit
+# (not a meaningless 0-test igpcost package run). Existing RFC records stay intact.
+GOMAXPROCS=4 CGO_ENABLED=0 ./le --name session job run label rp6-count-igpcost quiet command go test -json -p 1 -timeout 20m -tags "$rp6_tags" -run '^TestRFC7311RecursiveAIGPChangeReachesWire$' -covermode=count -coverpkg ./internal/core/rib/igpcost -coverprofile "$rp6_cov/igpcost.count.out" ./internal/component/bgp/reactor
+
+# Kernel synchronous units: final 68-line backend implementation was reread after
+# its stable handoff. Main retains final-source execution and all actual counts.
+# This selector currently names 16 top-level Test functions; derive/check names
+# from final source rather than accepting a cached/missing-name exit 0.
+GOMAXPROCS=4 CGO_ENABLED=0 ./le --name session job run label rp6-count-fib-units quiet command go test -json -p 1 -timeout 20m -tags "$rp6_tags" -run '^Test(FIBKernelReplay.*|FIBKernelStopEndsReplayAdmission|FIBKernelLiveChangesNeverUseReplayReassertion|ReplayRouteOperations.*|ReplayRichRouteRejectsInvalidDescription)$' -covermode=count -coverprofile "$rp6_cov/fib-units.count.out" ./internal/plugins/fib/kernel
+
+# Kernel integration: compile CURRENT main source, CGO0 and ALL feature tags plus
+# integration. Explicit netlink instrumentation includes new RouteProbeIPv4.
+GOMAXPROCS=4 CGO_ENABLED=0 ./le --name session job run label rp6-count-fib-build quiet command go test -c -p 1 -timeout 20m -tags "$rp6_tags integration" -covermode=count -coverpkg ./internal/plugins/fib/kernel,github.com/vishvananda/netlink -o "$rp6_cov/fib-integration.count.test" ./internal/plugins/fib/kernel
+
+# Write this exact CONTENT to $rp6_cov/guest-count.sh before running the next
+# native action. Use a fresh guest directory on every run (mktemp -d), as the
+# established RFC guest route does. Paths below are shared main-checkout paths.
+# ---- guest-count.sh begins ----
+set -e
+rp6_guest_cov=$(mktemp -d /tmp/rp6-route-count.XXXXXX)
+cp /home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-11-12-205428/scratch/rp6-scoped-coverage-preparation/results/fib-integration.count.test "$rp6_guest_cov/fib.test"
+chmod 0755 "$rp6_guest_cov/fib.test"
+mkdir "$rp6_guest_cov/counters"
+cd /home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/fib/kernel
+"$rp6_guest_cov/fib.test" -test.v -test.count=1 -test.timeout=180s -test.run '^(TestIPv4RouteIdentityProbe(Exact|Changed|Missing|ForeignAliases|RefusesIPv6)|TestKernelDeviceOnlyCoverResolvesGateway|TestBuildRichRouteScope|TestKernelReplay(PlainRoute|UnchangedRoute|RepairsMissingRoute|RepairsModifiedRoute|PreservesForeignReplacement|ForeignAliasOrder|IPv6Fallback|FullPathCleansPriorities)|TestFIBOnLinkAdjacencyAndUnsupportedPrefix)$' -test.coverprofile=/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-11-12-205428/scratch/rp6-scoped-coverage-preparation/results/fib-integration.count.out -test.gocoverdir="$rp6_guest_cov/counters"
+# ---- guest-count.sh ends ----
+
+GOMAXPROCS=4 CGO_ENABLED=0 ./le --name session job run label rp6-count-fib-native quiet command ./le --name session test qemu docker-lab kernel /home/thomas/.cache/ze/runtime-kernel/7.3-runtime-amd64-runtime-docker-16f81fff-c79de00c/vmlinuz command "sh '$rp6_cov/guest-count.sh'"
+
+# Result reads, after every own job finishes. For each profile: exact mode, full
+# new-source block counts, then all remaining zero ranges. Percentages are only
+# navigation, never per-outcome evidence. No project action is run by these reads.
+head -n 1 "$rp6_cov/sysrib.count.out"
+awk 'NR==1 || /\/route_view[^/]*\.go:/ || /\/register[^/]*\.go:/ || /\/projection[^/]*\.go:/ || /\/doctor_route_view\.go:/ || /\/(locrib_feed|nhresolver|sysrib|fibimport|ecmp|candidates)\.go:/' "$rp6_cov/sysrib.count.out" > "$rp6_cov/sysrib-outcome-counts.txt"
+awk 'NR==1 || /\/dispatch[^/]*\.go:/ || /\/register_engine_op\.go:/ || /\/startup[^/]*\.go:/ || /\/(restart|restart_controller|reload_tx|failure_policy|register_plugin_restart)\.go:/' "$rp6_cov/server.count.out" > "$rp6_cov/server-outcome-counts.txt"
+awk 'NR==1 || /\/bridge_native\.go:/ || /\/route_view[^/]*\.go:/' "$rp6_cov/rpc.count.out" > "$rp6_cov/rpc-outcome-counts.txt"
+awk 'NR==1 || /\/sdk_native\.go:/ || /\/sdk_identity\.go:/ || /\/sdk_route_view\.go:/' "$rp6_cov/sdk.count.out" > "$rp6_cov/sdk-outcome-counts.txt"
+awk 'NR==1 || /\/fibkernel_(replay|stop)\.go:/ || /\/backend_replay_linux\.go:/ || /\/nexthop_linux\.go:/ || /\/route_probe_ipv4_linux\.go:/' "$rp6_cov/fib-integration.count.out" > "$rp6_cov/fib-native-outcome-counts.txt"
+awk 'NR==1 || /\/fibkernel[^/]*\.go:/ || /\/backend_replay_linux\.go:/' "$rp6_cov/fib-units.count.out" > "$rp6_cov/fib-unit-outcome-counts.txt"
+awk 'NR>1 && $3==0 {print FILENAME ":" $0}' "$rp6_cov"/*.count.out > "$rp6_cov/zero-blocks.txt"
+
+# For host jobs copy ONLY actual JSON lines from the native job logfile to a
+# sibling *.tests.jsonl. This selects top-level results and prints EVERY name,
+# pass/fail/skip counts, then refuses empty population, failed or skipped tests.
+# Test names containing / are subtests and may be listed separately if wanted.
+# Reject a (cached) line before attributing these events to fresh execution;
+# rerun only an actually cached invocation with -count=1 if fresh proof is owed.
+rg '\(cached\)' ACTUAL.tests.jsonl
+jq -s 'map(select(.Test != null and (.Test|contains("/")|not) and (.Action=="pass" or .Action=="fail" or .Action=="skip"))) | {named:map({package:.Package,test:.Test,outcome:.Action}),pass:map(select(.Action=="pass"))|length,fail:map(select(.Action=="fail"))|length,skip:map(select(.Action=="skip"))|length}' ACTUAL.tests.jsonl
+jq -se 'map(select(.Test != null and (.Test|contains("/")|not) and (.Action=="pass" or .Action=="fail" or .Action=="skip"))) as $r | ($r|length)>0 and all($r[]; .Action=="pass")' ACTUAL.tests.jsonl
+
+# Native ELF output is plain verbose text. Native own-kernel log EXPECTS 16
+# top-level names in the final selector (5 probe +2 scope +8 replay +1 OnLink).
+# Only column-zero parent result lines count; indented userns child output must
+# not double the actual top-level count. Compare full name set to selector too.
+awk '/^--- (PASS|FAIL|SKIP): / {print; counts[$2]++; total++} END {print "top-level=" total, "PASS=" counts["PASS:"], "FAIL=" counts["FAIL:"], "SKIP=" counts["SKIP:"]; if (total!=16 || counts["PASS:"]!=16 || counts["FAIL:"] || counts["SKIP:"]) exit 1}' ACTUAL-native-job.log
+
+# Optional source-outcome isolation ONLY for shared-count ambiguity. These paired
+# guard tests each have one healthy successful dispatch plus one guarded refusal.
+GOMAXPROCS=4 CGO_ENABLED=0 ./le --name session job run label rp6-count-before-ready quiet command go test -json -p 1 -timeout 20m -tags "$rp6_tags" -run '^TestDirectBridgeNativeRefusesBeforeReady$' -covermode=count -coverprofile "$rp6_cov/native-before-ready.count.out" ./pkg/plugin/rpc
+GOMAXPROCS=4 CGO_ENABLED=0 ./le --name session job run label rp6-count-callback-failure quiet command go test -json -p 1 -timeout 20m -tags "$rp6_tags" -run '^TestDirectBridgeNativeRetainsCallbackFailure$' -covermode=count -coverprofile "$rp6_cov/native-callback-failure.count.out" ./pkg/plugin/rpc
+awk '/\/bridge_native.go:/ {print FILENAME ":" $0}' "$rp6_cov"/native-*.count.out

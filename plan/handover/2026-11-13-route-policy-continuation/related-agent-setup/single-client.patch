@@ -1,0 +1,31 @@
+diff --git a/internal/le/test/qemu/install_config_push_agent_test.go b/internal/le/test/qemu/install_config_push_agent_test.go
+--- a/internal/le/test/qemu/install_config_push_agent_test.go
++++ b/internal/le/test/qemu/install_config_push_agent_test.go
+@@ -62,7 +62,8 @@ func TestApplianceConfigPushAgentOwnsWorkers(t *testing.T) {
+ 	t.Cleanup(func() { _ = connection.Close() })
+-	keys, err := agent.NewClient(connection).List()
++	client := agent.NewClient(connection)
++	keys, err := client.List()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	if len(keys) != 1 {
+ 		t.Fatalf("agent keys=%d, want one", len(keys))
+@@ -70,7 +71,7 @@ func TestApplianceConfigPushAgentOwnsWorkers(t *testing.T) {
+ 	}
+-	signer, err := agent.NewClient(connection).Signers()
++	signer, err := client.Signers()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	signature, err := signer[0].Sign(rand.Reader, []byte("owned native proof"))
+ 	if err != nil {
+@@ -104,7 +105,7 @@ func TestApplianceConfigPushAgentOwnsWorkers(t *testing.T) {
+ 		t.Fatal("agent cleanup did not close and join its accepted idle connection")
+ 	}
+-	if _, err := agent.NewClient(connection).List(); err == nil {
++	if _, err := client.List(); err == nil {
+ 		t.Fatal("agent connection survived cleanup")
+ 	}
+ 	if _, err := os.Stat(socket); !os.IsNotExist(err) {
+ 		t.Fatalf("agent socket survived cleanup: %v", err)

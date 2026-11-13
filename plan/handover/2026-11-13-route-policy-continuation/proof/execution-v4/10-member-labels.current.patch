@@ -1,0 +1,11 @@
+--- a/internal/component/sysrib/ecmp.go
++++ b/internal/component/sysrib/ecmp.go
+@@ -78,7 +78,7 @@
+ 	hop := route.ecmpNextHops[index]
+ 	path := memberPath(route, hop.Addr, hop.Interface, hop.Weight, hop.OnLink)
+ 	if route.ecmpMetadata != nil {
+-		path.Labels = route.ecmpMetadata[index].labels
++		path.Labels = nil // MUTATION-APPLIED: discard member labels
+ 		path.srv6SID = route.ecmpMetadata[index].sid
+ 	}
+ 	return path

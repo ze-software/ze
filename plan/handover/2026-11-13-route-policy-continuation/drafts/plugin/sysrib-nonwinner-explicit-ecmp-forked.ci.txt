@@ -1,0 +1,40 @@
+# Test: does a configured static explicit ECMP group behind an unchanged OSPF
+# primary retain both weighted members through secondary-only reload, FIB
+# permission changes and a fresh kernel writer replay?
+# Unit tests cannot authenticate configured placement, run real config
+# transactions or inspect weighted Linux routes and joined daemon cleanup.
+# The OSPF source is a registered SDK producer, not an OSPF wire peer.
+# VALIDATES: spec-route-policy-1-gate-proof-and-forked-sysrib AC-19, AC-20.
+option=needs-linux:caps=net-admin
+option=netns-link:name=zesrnwproof
+option=storage:value=disk
+option=timeout:value=180s
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+ external sysrib-nonwinner-ecmp-test { run "le test fixture plugin/sysrib-nonwinner-explicit-ecmp forked"; encoder json; }
+ external sysrib-owner { run "ze plugin rib"; encoder json; }
+ internal fib-kernel { use fib-kernel; }
+}
+interface { backend netlink; }
+connected { }
+fib { kernel { flush-on-stop true; } }
+rib { distance { static 20; ospf 20; } }
+static {
+ table default {
+  route 198.18.236.0/24 { distance 20; metric 10; blackhole { } }
+ }
+}
+EOF_CONF
+cmd=foreground:seq=1:exec=le test fixture plugin/sysrib-nonwinner-explicit-ecmp-kernel-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=180s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement forked, running owner and child count 1
+expect=stderr:contains=OK: nonwinner configured static ECMP retains both weighted members through secondary-only reload, withholding, repermit and fresh FIB replay beside the unchanged OSPF primary and OS controls
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-nonwinner-explicit-ecmp-kernel-empty:exit=0
+expect=stderr:contains=OK: nonwinner ECMP fixture prefixes are absent from every kernel table
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0

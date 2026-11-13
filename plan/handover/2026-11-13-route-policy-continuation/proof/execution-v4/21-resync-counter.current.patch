@@ -1,0 +1,13 @@
+--- a/internal/component/sysrib/doctor_route_view.go
++++ b/internal/component/sysrib/doctor_route_view.go
+@@ -98,7 +98,9 @@
+ 		return
+ 	}
+ 	health.state = routeViewResynchronizing{}
+-	health.resync.Inc()
++	if false { // MUTATION-APPLIED: omit resync counter
++		health.resync.Inc()
++	}
+ 	health.pendingCount = 0
+ 	health.pending.Set(0)
+ 	health.synchronized.Set(0)

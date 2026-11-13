@@ -1,0 +1,11 @@
+--- a/internal/component/sysrib/candidates.go
++++ b/internal/component/sysrib/candidates.go
+@@ -149,7 +149,7 @@
+ 	if name, ok := policy.RouteTypeName(p.OSPFRouteType); ok {
+ 		c.RouteType = name
+ 	}
+-	if p.HiddenBy != ribpolicy.ChainRoleUnspecified {
++	if false && p.HiddenBy != ribpolicy.ChainRoleUnspecified { // MUTATION-APPLIED: omit rejection attribution
+ 		c.HiddenBy = p.HiddenBy.String()
+ 		if chain, ok := policy.ImportAttachment(p.Source, p.HiddenBy); ok {
+ 			c.Chain = chain

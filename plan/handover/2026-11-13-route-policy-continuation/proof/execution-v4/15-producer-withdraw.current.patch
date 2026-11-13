@@ -1,0 +1,12 @@
+--- a/internal/component/plugin/server/dispatch_route.go
++++ b/internal/component/plugin/server/dispatch_route.go
+@@ -377,6 +377,9 @@
+ // withdrawPluginRoutes removes every route a plugin installed from the engine
+ // Loc-RIB and clears its tracking. Called from cleanupProcess on disconnect (AC-8).
+ func (s *Server) withdrawPluginRoutes(pluginName string) {
++	if pluginName != "" { // MUTATION-APPLIED: retain disconnected candidates
++		return
++	}
+ 	s.routeMu.Lock()
+ 	set := s.installedByPlugin[pluginName]
+ 	delete(s.installedByPlugin, pluginName)

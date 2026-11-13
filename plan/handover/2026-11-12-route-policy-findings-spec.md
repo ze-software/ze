@@ -1,5 +1,9 @@
 # Handover: route policy's three closure findings now have their own spec
 
+Implementation continuation: [2026-11-13 route-policy handover](2026-11-13-route-policy-continuation.md).
+It records the committed implementation, two unfinished teardown repairs,
+interrupted daemon proof and the exact draft/proof archives for transfer.
+
 Written 2026-11-12 by the session that continued
 `plan/handover/2026-11-10-close-open-specs.md`. It replaces that handover's
 route-policy section. Everything else in that handover (lint-tooling, the

@@ -1,0 +1,12 @@
+--- a/internal/test/fixture/sysrib_process_executable_fixture.go
++++ b/internal/test/fixture/sysrib_process_executable_fixture.go
+@@ -122,7 +122,8 @@
+ 	if err := sysribExecutableChildControl(); err != nil {
+ 		return nil, err
+ 	}
+-	command := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // fixed sudo/readlink argv and validated numeric procfs path, never shell text.
++	// MUTATION-APPLIED: detach only the actual child from request cancellation.
++	command := exec.CommandContext(context.WithoutCancel(ctx), argv[0], argv[1:]...) //nolint:gosec // fixed sudo/readlink argv and validated numeric procfs path, never shell text.
+ 	var stdout, stderr sysribExecutableCapture
+ 	command.Stdout = &stdout
+ 	command.Stderr = &stderr

@@ -1,0 +1,10 @@
+--- a/internal/component/sysrib/route_view_worker.go
++++ b/internal/component/sysrib/route_view_worker.go
+@@ -324,6 +324,7 @@
+ 	}
+ 	for _, request := range requests {
+ 		for _, batch := range worker.client.rib.replayBatches(&replay.Request{ReplayID: request.identity}) {
++			batch.ReplayID = 0 // MUTATION-APPLIED: erase replay marker while preserving every Add
+ 			if err := worker.publish(ctx, batch); err != nil {
+ 				return err
+ 			}

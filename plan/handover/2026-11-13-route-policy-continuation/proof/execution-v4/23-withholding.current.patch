@@ -1,0 +1,11 @@
+--- a/internal/component/sysrib/fibimport.go
++++ b/internal/component/sysrib/fibimport.go
+@@ -92,7 +92,7 @@
+ 	defer s.fibMu.Unlock()
+ 
+ 	if _, declared := s.fibPermit[protocol]; declared {
+-		return fibPermits(s.fibPermit, protocol)
++		return true // MUTATION-APPLIED: program withheld owner
+ 	}
+ 
+ 	if !s.fibSpoken[protocol] {

@@ -1,0 +1,11 @@
+--- a/internal/core/rib/policy/policy.go
++++ b/internal/core/rib/policy/policy.go
+@@ -254,7 +254,7 @@
+ // Safe for concurrent use: a Snapshot never changes after NewSnapshot.
+ func (s *Snapshot) Evaluate(r Route) Verdict {
+ 	var sets Sets
+-	if int(r.Source) < len(s.bySource) {
++	if false && int(r.Source) < len(s.bySource) { // MUTATION-APPLIED: bypass source admission
+ 		if chain := s.bySource[r.Source]; chain != nil {
+ 			v := chain.Evaluate(r)
+ 			if v.Action != ActionAccept {

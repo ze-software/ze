@@ -1,0 +1,66 @@
+# Test: does a real TLS subprocess system RIB carry permitted static controls
+# from the operator configuration through authoritative commands into the kernel?
+# A unit test cannot fork `ze plugin rib`, authenticate it through the daemon's
+# TLS acceptor, or inspect what the real fib-kernel consumer installs.
+# The internal sibling changes only system RIB placement and observer mode.
+# Running owner, actual child command/PID, candidates and selected controls are
+# positive barriers: dropping every input cannot pass this test.
+# VALIDATES: spec-route-policy-1-gate-proof-and-forked-sysrib AC-1, AC-25 healthy runtime.
+option=needs-linux:caps=net-admin
+# A private unaddressed link declares per-test network isolation.
+option=netns-link:name=zesrproof
+option=timeout:value=90s
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external sysrib-execution-test {
+		run "le test fixture plugin/sysrib-execution-health forked"
+		encoder json
+	}
+	external sysrib-owner {
+		run "ze plugin rib"
+		encoder json
+	}
+	internal fib-kernel {
+		use fib-kernel
+	}
+}
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+
+rib {
+	distance { static 7; }
+}
+fib {
+	kernel { flush-on-stop true; }
+}
+static {
+	table default {
+		route 198.18.211.0/24 {
+			blackhole { }
+			distance 7
+			tag 0
+		}
+		route 198.18.212.0/24 {
+			blackhole { }
+			distance 7
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/sysrib-execution-kernel-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement forked, running owner and child count 1
+expect=stderr:contains=OK: static controls reached the kernel as blackhole proto 250
+expect=stderr:contains=OK: actual system RIB is healthy through doctor and ready telemetry after both useful kernel controls
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-execution-kernel-empty:exit=0
+expect=stderr:contains=OK: system RIB fixture prefixes are absent from every kernel table
+# Keep the existing quick-exit validation last: the file exit then asserts
+# the foreground daemon, while this command checks its own exit independently.
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0

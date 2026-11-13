@@ -1,0 +1,11 @@
+--- a/internal/component/doctor/cmd/show.go
++++ b/internal/component/doctor/cmd/show.go
+@@ -127,7 +127,7 @@
+ 				Code:     "doctor-plugin-unreachable",
+ 				Severity: diagnostic.SeverityWarning,
+ 				Message:  "plugin " + pc.plugin + " doctor check " + pc.check.Name + " failed: " + err.Error(),
+-				Fix:      "ze request plugin restart " + pc.plugin,
++				Fix:      "ze request reload", // MUTATION-APPLIED: lose exact restart command
+ 			})
+ 			continue
+ 		}

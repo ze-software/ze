@@ -1,0 +1,35 @@
+# Test: does replacing a real routing owner withdraw its old output and
+# recover current routes without producer input, preserving unrelated ownership?
+# The forked case kills the actual authenticated child and checks failed doctor;
+# the internal case uses the operator restart because its owner shares the daemon.
+# A unit test cannot kill that child or read real kernel/foreign routes.
+# VALIDATES: spec-route-policy-1-gate-proof-and-forked-sysrib AC-5/17/22/25 lifecycle leg.
+option=needs-linux:caps=net-admin
+# A private unaddressed link declares per-test network isolation.
+option=netns-link:name=zesrproof
+option=timeout:value=150s
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+ external sysrib-restart-test { run "le test fixture plugin/sysrib-feed-restart internal"; encoder json; }
+ internal sysrib-owner { use rib; }
+ internal fib-kernel { use fib-kernel; }
+}
+interface { backend netlink; }
+connected { }
+fib { kernel { flush-on-stop true; } }
+rib { fib-withhold [ bgp ]; }
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+EOF_CONF
+cmd=foreground:seq=1:exec=le test fixture plugin/sysrib-restart-kernel-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=150s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement internal, running owner and child count 0
+expect=stderr:contains=OK: owner replacement withdrew old output, preserved OS/foreign/withheld survivors and reinstalled both current controls without producer input, with healthy doctor recovery
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-restart-kernel-empty:exit=0
+expect=stderr:contains=OK: restart fixture prefixes are absent from every kernel table
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0

@@ -1,0 +1,13 @@
+--- a/internal/component/sysrib/route_view_distances.go
++++ b/internal/component/sysrib/route_view_distances.go
+@@ -66,7 +66,9 @@
+ 		previous := authority.distanceTable
+ 		publishDistances(table)
+ 		authority.distanceTable = table
+-		session.authoritativeRIB().Reselect()
++		if false { // MUTATION-APPLIED: omit new-distance reselection
++			session.authoritativeRIB().Reselect()
++		}
+ 		cursor, err := session.distanceBarrier(ctx)
+ 		if err != nil {
+ 			// The published map is immutable, so the original declaration remains

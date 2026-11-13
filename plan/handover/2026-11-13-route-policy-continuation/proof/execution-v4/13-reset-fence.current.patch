@@ -1,0 +1,11 @@
+--- a/internal/component/sysrib/route_view_feed.go
++++ b/internal/component/sysrib/route_view_feed.go
+@@ -215,7 +215,7 @@
+ 	session.journalBytes = 0
+ 	session.ready = false
+ 	session.releaseCandidates()
+-	if session.fence != nil {
++	if false && session.fence != nil { // MUTATION-APPLIED: omit output fence
+ 		session.fenceFailure = session.fence()
+ 		return session.fenceFailure
+ 	}

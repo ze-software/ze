@@ -1,0 +1,57 @@
+# Test: does the actual internal BGP RIB reselect retained routes on authoritative
+# zero/recursive/AIGP metric changes while the system RIB runs externally?
+# A unit cannot prove the real configured process calls its transport, invalidates
+# its cache, publishes a changed BGP winner and reaches the actual kernel writer.
+# VALIDATES: spec-route-policy-1-gate-proof-and-forked-sysrib AC-21.
+option=needs-linux:caps=net-admin
+# A private unaddressed link declares per-test network isolation.
+option=netns-link:name=zesrproof
+option=timeout:value=150s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+ external sysrib-bgp-metric-test { run "le test fixture plugin/sysrib-bgp-metric-callers internal"; encoder json; }
+ external sysrib-owner { run "ze plugin rib"; encoder json; }
+ internal bgp-rib { use bgp-rib; }
+ internal fib-kernel { use fib-kernel; }
+}
+interface { backend netlink; }
+connected { }
+fib { kernel { flush-on-stop true; } }
+bgp {
+ filter { import { final accept; } export { final accept; } }
+ peer peer1 {
+  connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+  session {
+   asn { local 1; remote 1; }
+   router-id 1.2.3.4
+   family { ipv4/unicast { prefix { maximum 10000; } } }
+   capability { graceful-restart disable; }
+  }
+  behavior { group-updates disable; }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/sysrib-bgp-metric-kernel-empty:exit=0
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=150s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement forked, running owner and child count 1
+expect=stderr:contains=OK: bgp-rib placement internal, running owner and child count 0
+expect=stderr:contains=OK: actual internal BGP RIB resolves zero, recursive cost and received/missing AIGP through the daemon authority with external system RIB, and topology-only changes reselect retained routes into the kernel
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=4:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=5:exec=le test fixture plugin/sysrib-bgp-metric-kernel-empty:exit=0
+expect=stderr:contains=OK: BGP metric fixture prefixes are absent from every kernel table
+cmd=foreground:seq=6:exec=ze config validate -:stdin=ze-conf:exit=0

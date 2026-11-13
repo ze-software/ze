@@ -1,0 +1,18 @@
+{
+  "cut": "27-unchanged-original-values",
+  "source": "internal/core/rib/locrib/manager.go",
+  "sha256": "f5bd2a647684165ce563de9a2a7803f0ecd07a81d8f54f9a61138b5e7a553c08",
+  "patch": "27-unchanged-original-values.patch",
+  "older_patch": "../execution-v3/27-unchanged-original-values.patch",
+  "compiled": false,
+  "applied": false,
+  "observed_red": false,
+  "restored_green": false,
+  "source_sha256_current_verified": true,
+  "primary_carriers": [
+    "internal/core/rib/locrib/unchanged_effective_path_test.go::TestLocRIBUnchangedEffectivePathKeepsLatestProducerValues"
+  ],
+  "control_before_expected_red": "Initial selected explicit group and unchanged effective offer retain useful route and no extra selected event.",
+  "expected_semantic_red": "Latest producer original tag/distance were not stored; clearing policy restores tag 1 and distance 30 instead of tag 2 and distance 40. Other new explicit ECMP roots remain controls.",
+  "review": "UNAPPLIED proposal; only g.upsert(stored) is conditionalized on !sameEffective, preserving locks and the remaining insert pipeline."
+}

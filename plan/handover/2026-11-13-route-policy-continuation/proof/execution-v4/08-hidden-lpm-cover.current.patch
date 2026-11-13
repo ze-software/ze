@@ -1,0 +1,13 @@
+--- a/internal/core/rib/locrib/manager.go
++++ b/internal/core/rib/locrib/manager.go
+@@ -562,6 +562,10 @@
+ 				// Hidden candidates stay in the store for inspection, so its
+ 				// longest match can obscure a selectable ancestor in this shard.
+ 				// Only that case walks parents: at most 32 or 128 exact lookups.
++				if pfx.Contains(addr) { // MUTATION-APPLIED: hidden cover is a hard negative across all shards
++					sh.mu.RUnlock()
++					return Path{}, netip.Prefix{}, false
++				}
+ 				for bits := pfx.Bits() - 1; bits >= 0; bits-- {
+ 					cover := netip.PrefixFrom(addr, bits).Masked()
+ 					ancestor, exists := sh.store.Lookup(cover)

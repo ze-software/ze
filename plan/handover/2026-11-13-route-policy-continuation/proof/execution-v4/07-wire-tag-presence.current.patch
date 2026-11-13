@@ -1,0 +1,11 @@
+--- a/internal/component/plugin/server/dispatch_route.go
++++ b/internal/component/plugin/server/dispatch_route.go
+@@ -217,7 +217,7 @@
+ 				// omits them sends a route that does not carry them, which
+ 				// is what the gate then judges (rpc.RouteInstallEntry).
+ 				Tag:           e.Tag,
+-				HasTag:        e.HasTag,
++				HasTag:        e.HasTag && e.Tag != 0, // MUTATION-APPLIED: lose only explicit-zero wire presence
+ 				Level:         level,
+ 				OSPFRouteType: routeType,
+ 			},

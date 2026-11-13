@@ -1,0 +1,16 @@
+*** Begin Patch
+*** Update File: internal/test/fixture/sysrib_nonwinner_ecmp_daemon_fixture.go
+@@
+-	return observeConfigured(ctx, "sysrib-nonwinner-ecmp-test", &sdk.Registration{}, capture.setup, func(ctx context.Context, p *sdk.Plugin) (result error) {
++	return observeConfigured(ctx, "sysrib-nonwinner-ecmp-test", &sdk.Registration{}, capture.setup, func(ctx context.Context, p *sdk.Plugin) error {
+@@
+ 			if err := importCreateLink(ctx, link.name, link.address); err != nil {
+ 				return err
+ 			}
+-			defer func() { result = errors.Join(result, importDeleteLink(ctx, link.name)) }()
+ 		}
++		// The paired carrier joins daemon shutdown before its dedicated
++		// cleanup driver removes these devices. Failed runs retain their
++		// namespace owner's cleanup rather than deleting live FIB targets.
+ 		if err := sysribNonwinnerCovers(ctx, p); err != nil {
+*** End Patch

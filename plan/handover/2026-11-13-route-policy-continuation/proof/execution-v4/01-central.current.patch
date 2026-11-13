@@ -1,0 +1,11 @@
+--- a/internal/core/rib/policy/policy.go
++++ b/internal/core/rib/policy/policy.go
+@@ -266,7 +266,7 @@
+ 			}
+ 		}
+ 	}
+-	if s.central != nil {
++	if false && s.central != nil { // MUTATION-APPLIED: bypass central admission
+ 		v := s.central.Evaluate(r)
+ 		if v.Action != ActionAccept {
+ 			return Verdict{Action: ActionReject, RejectedBy: ChainRoleCentral}

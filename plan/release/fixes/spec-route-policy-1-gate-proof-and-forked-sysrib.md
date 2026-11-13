@@ -18,6 +18,13 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+Continuation on 2026-11-13: the owner requested transfer to another agent.
+The implementation checkpoint is committed at d73a860caf; the spec remains
+in-progress. See [the implementation handover](../../handover/2026-11-13-route-policy-continuation.md)
+for two unfinished teardown repairs, two unverified regression files,
+18 completed daemon cases from an interrupted 30-case matrix, and all
+remaining proof and closure work. No acceptance criterion is waived.
+
 Repair the system RIB so an operator gets correct routing with either an
 internal plugin or an external subprocess. The owner requirement is recorded
 verbatim in `docs/architecture/rib/unified-locrib.md`, “Owner requirement:

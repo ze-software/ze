@@ -1,0 +1,11 @@
+--- a/internal/component/sysrib/doctor_route_view.go
++++ b/internal/component/sysrib/doctor_route_view.go
+@@ -137,7 +137,7 @@
+ 	health.state = routeViewHealthy{}
+ 	health.pendingCount = 0
+ 	health.pending.Set(0)
+-	health.synchronized.Set(1)
++	health.synchronized.Set(0) // MUTATION-APPLIED: never report ready
+ }
+ 
+ func (health *routeViewHealth) fail(err error) {

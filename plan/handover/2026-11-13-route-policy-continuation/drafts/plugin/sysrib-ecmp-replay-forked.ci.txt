@@ -1,0 +1,33 @@
+# Test: do rich ECMP targets survive member loss/recovery and reach a fresh
+# FIB subscriber with current labels/SID/repair and permission/OS exclusions?
+# A unit test cannot authenticate actual configured plugin placements, inspect
+# Linux weighted routes, or restart the real FIB subscriber after selection.
+# VALIDATES: spec-route-policy-1-gate-proof-and-forked-sysrib AC-19, AC-20.
+option=needs-linux:caps=net-admin
+# A private unaddressed link declares per-test network isolation.
+option=netns-link:name=zesrproof
+option=timeout:value=180s
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+ external sysrib-ecmp-test { run "le test fixture plugin/sysrib-ecmp-replay forked"; encoder json; }
+ external sysrib-owner { run "ze plugin rib"; encoder json; }
+ internal fib-kernel { use fib-kernel; }
+}
+interface { backend netlink; }
+connected { }
+fib { kernel { flush-on-stop true; } }
+rib { fib-withhold [ bgp ]; }
+EOF_CONF
+cmd=foreground:seq=1:exec=le test fixture plugin/sysrib-ecmp-kernel-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=180s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement forked, running owner and child count 1
+expect=stderr:contains=OK: weighted and device-only ECMP, promoted labels and SID, SID-only loss, repair metadata and permitted FIB replay survive cover recovery without producer reinjection
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-ecmp-kernel-empty:exit=0
+expect=stderr:contains=OK: ECMP fixture prefixes are absent from every kernel table
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0

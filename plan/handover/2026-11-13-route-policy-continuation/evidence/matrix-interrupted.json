@@ -1,0 +1,92 @@
+{
+  "cases": [
+    {
+      "outcome": "PASS",
+      "name": "sysrib-nonwinner-explicit-ecmp"
+    },
+    {
+      "outcome": "PASS",
+      "name": "sysrib-nonwinner-explicit-ecmp-forked"
+    },
+    {
+      "outcome": "PASS",
+      "name": "connected-import-filter-hides-forked"
+    },
+    {
+      "outcome": "PASS",
+      "name": "connected-import-filter-hides"
+    },
+    {
+      "outcome": "PASS",
+      "name": "rib-import-central-bogons-forked"
+    },
+    {
+      "outcome": "PASS",
+      "name": "rib-import-central-bogons"
+    },
+    {
+      "outcome": "PASS",
+      "name": "rib-import-tag-forked-forked"
+    },
+    {
+      "outcome": "PASS",
+      "name": "rib-import-tag-forked-internal"
+    },
+    {
+      "outcome": "PASS",
+      "name": "rib-import-tag-internal-forked"
+    },
+    {
+      "outcome": "PASS",
+      "name": "rib-import-tag-internal-internal"
+    },
+    {
+      "outcome": "PASS",
+      "name": "static-import-filter-distance-forked"
+    },
+    {
+      "outcome": "PASS",
+      "name": "static-import-filter-distance"
+    },
+    {
+      "outcome": "PASS",
+      "name": "sysrib-bgp-metric-callers-forked"
+    },
+    {
+      "outcome": "PASS",
+      "name": "sysrib-bgp-metric-callers"
+    },
+    {
+      "outcome": "PASS",
+      "name": "sysrib-distance-reload-configured-forked"
+    },
+    {
+      "outcome": "PASS",
+      "name": "sysrib-distance-reload-configured"
+    },
+    {
+      "outcome": "PASS",
+      "name": "sysrib-distance-reload-forked"
+    },
+    {
+      "outcome": "PASS",
+      "name": "sysrib-distance-reload"
+    }
+  ],
+  "counts": {
+    "PASS": 18
+  },
+  "interrupted": true,
+  "overall": "interrupted for owner-requested transfer; not a completed 30-case proof",
+  "stressAdmission": {
+    "iterations": 2,
+    "completed": 2,
+    "executed": 2,
+    "final80Each": false
+  },
+  "sourceLog": "tmp/session/2026-11-12-205428/scratch/job-rp6-final-thirty-daemon-and-stress-admission-ca20a59b.log",
+  "knownDefects": [
+    "fixture deletes live devices before joined daemon exit",
+    "normal native dispatch stop can become retained worker failure"
+  ]
+}

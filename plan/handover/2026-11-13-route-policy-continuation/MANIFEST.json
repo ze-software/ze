@@ -1,0 +1,391 @@
+{
+  "implementationCommit": "d73a860caf8af26ffed1a2270f464ab0cbf79136",
+  "note": "Unpromoted draft source and UNAPPLIED proof preparation; not evidence of execution.",
+  "assets": [
+    {
+      "source": "test/draft/plugin/connected-import-filter-hides-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/connected-import-filter-hides-forked.ci.txt",
+      "sha256": "2288092ea7d4e1887c1b616ff0f4d5132208110a41d4a58c0b951d118dc677e0"
+    },
+    {
+      "source": "test/draft/plugin/connected-import-filter-hides.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/connected-import-filter-hides.ci.txt",
+      "sha256": "1ab572ae3c464bc24059baf4e019945427f2c49cd3cadbd6f4184dd04d37d663"
+    },
+    {
+      "source": "test/draft/plugin/rib-import-central-bogons-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/rib-import-central-bogons-forked.ci.txt",
+      "sha256": "a37e659099bb6775d0c1155fe42ce5231bbd764ffa608f38925b38c22814eecc"
+    },
+    {
+      "source": "test/draft/plugin/rib-import-central-bogons.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/rib-import-central-bogons.ci.txt",
+      "sha256": "1e8b07b17437ac662e53e5443d1a4a443cfa838ed8202ccd5c00b90f592ad9ee"
+    },
+    {
+      "source": "test/draft/plugin/rib-import-tag-forked-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/rib-import-tag-forked-forked.ci.txt",
+      "sha256": "ec9eaac569abf776c32d0ad8fcc73298a1b4e4a3800e123e59c0f0940fc641e6"
+    },
+    {
+      "source": "test/draft/plugin/rib-import-tag-forked-internal.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/rib-import-tag-forked-internal.ci.txt",
+      "sha256": "0704f6dcd9563e150d5c505bd36732a5cc11556c73253b4327f4ab8ce957d2c6"
+    },
+    {
+      "source": "test/draft/plugin/rib-import-tag-internal-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/rib-import-tag-internal-forked.ci.txt",
+      "sha256": "e515f2c26d6e53d205b6b9b956702e89084dd890ae1822bed9198bd1b320bbe0"
+    },
+    {
+      "source": "test/draft/plugin/rib-import-tag-internal-internal.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/rib-import-tag-internal-internal.ci.txt",
+      "sha256": "a8297086961774be593e4c003b3879162cd3f0b6d0b1071a6cb0b0f22272cc16"
+    },
+    {
+      "source": "test/draft/plugin/static-import-filter-distance-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/static-import-filter-distance-forked.ci.txt",
+      "sha256": "da2e9a234b7133758e31297f3b041b0c32450b2bf68c5e2678d48d556aca6dc4"
+    },
+    {
+      "source": "test/draft/plugin/static-import-filter-distance.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/static-import-filter-distance.ci.txt",
+      "sha256": "7f8fce86351efbab5efa8583018eb54f95220b67b7e489335bcfc6f687d0dc08"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-bgp-metric-callers-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-bgp-metric-callers-forked.ci.txt",
+      "sha256": "a5af60366f750b89a15f6ea2e4d80ef4285ac0f85a5e873bef2109f2611f8f0e"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-bgp-metric-callers.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-bgp-metric-callers.ci.txt",
+      "sha256": "50c71b3b199a68d1b50bf3fb791d94056d67415631905215db352ef54c2e0b33"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-distance-reload-configured-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-distance-reload-configured-forked.ci.txt",
+      "sha256": "4892f89543996f33113a10182d217468786190a1ab05b6068165b7289e9167a4"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-distance-reload-configured.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-distance-reload-configured.ci.txt",
+      "sha256": "799103764f298880c9632319770df0f8bbcd792d25606e68dee91bb4e06a7ae6"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-distance-reload-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-distance-reload-forked.ci.txt",
+      "sha256": "6936d02c88e1c45c8b6408c88961b2f1c7711e63c3682a222877854cd2ac406a"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-distance-reload.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-distance-reload.ci.txt",
+      "sha256": "b66f3b788ad6515ccc05791db046a14b38da97430f57ed322ac9ba4cb4615d23"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-ecmp-replay-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-ecmp-replay-forked.ci.txt",
+      "sha256": "6b1722e7577df3d62aff74bf6afc1a6006b436f43dc6fa080b7377578e123682"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-ecmp-replay.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-ecmp-replay.ci.txt",
+      "sha256": "4a0605f36ef82121860e6323d5d3daad799be68953e01676a6cd382463a3cb89"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-execution-health-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-execution-health-forked.ci.txt",
+      "sha256": "a4a091b7f591e85929d119f245e5f3d5c65770cce69f3995da41eb5e4f887493"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-execution-health.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-execution-health.ci.txt",
+      "sha256": "0c4ef8c6dd27da077ea163a80970e562dd3db9b0eb897c773e1022384cc159d9"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-execution-parity-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-execution-parity-forked.ci.txt",
+      "sha256": "67bf856bd7ff607765f6f6af89d5066d2bf20291eeee8d02efccc5750b408f69"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-execution-parity.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-execution-parity.ci.txt",
+      "sha256": "119d0e11aa5a364622f5f105a670f2e5162574dad9cfa7046cc36f45999301e3"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-feed-restart-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-feed-restart-forked.ci.txt",
+      "sha256": "34aa78d888ef939114963a84f34eb480a5a1fbf20a6797c6962f5e132f4b1d45"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-feed-restart.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-feed-restart.ci.txt",
+      "sha256": "0eaf1d1d1a3e406be3b7b963964ec7529a4291af7b7115691159879d1c5b5325"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-forked-producer-kernel.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-forked-producer-kernel.ci.txt",
+      "sha256": "c5c9fb76a8259ad96d5f8521b909cf684767dd5ae7ddcd287a00f1f7a8955b5f"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-nonwinner-explicit-ecmp-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-nonwinner-explicit-ecmp-forked.ci.txt",
+      "sha256": "b7b02b11e87152c8d822e117f24502567393f51b2bd3ac85f0447c1c555e9cbf"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-nonwinner-explicit-ecmp.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-nonwinner-explicit-ecmp.ci.txt",
+      "sha256": "12be256b8706770e43b67c33f1dbdd763ed8c65b94bb4e0c0608be086a222500"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-recursive-nexthop-forked.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-recursive-nexthop-forked.ci.txt",
+      "sha256": "7277b4373751a42df819eae3bc7e96993da71a716d49ab45bcf61f1362fa2c19"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-recursive-nexthop.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-recursive-nexthop.ci.txt",
+      "sha256": "47245d79edd820101a4f7ec052b7f1764133e1c25dc87b4e8ad4db7b237eb223"
+    },
+    {
+      "source": "test/draft/plugin/sysrib-slow-reader-reset.ci",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/drafts/plugin/sysrib-slow-reader-reset.ci.txt",
+      "sha256": "fe49f0fe1a9f725cc56ef83b0e7eb61872ee6e086d955a19b16af3a2d319e9ca"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/01-central.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/01-central.current.patch",
+      "sha256": "9ade4d14cd3809e002caab09da4c309485b2cd59d5e2c943f8a35d2e0567b5e8"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/02-source.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/02-source.current.patch",
+      "sha256": "4f3d644cd10592af1152a281f5f3469dde9ffcea6e93d119e487d1222a7cbbe7"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/03-policy-readmit.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/03-policy-readmit.current.patch",
+      "sha256": "ca5d2a040860a824f1a590b4f46d3a1157a21c94f2723eaf36be5a4e37bc6376"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/04-distance-reselect.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/04-distance-reselect.current.patch",
+      "sha256": "84710dc6ce8d861fc1f016bc57570e0c0ee3fd03947fb7239ac4482909d48f21"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/05-candidate-attribution.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/05-candidate-attribution.current.patch",
+      "sha256": "464712cb344634f87e20108b483a0d00d57a4165b1182e7f8d1ca4b2b3959d7c"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/06-candidate-tag-presence.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/06-candidate-tag-presence.current.patch",
+      "sha256": "fffa2f6eebf87b8a17d9b594fec8e2ceebdd0a9f482d49eb0b4fbb7b679241b4"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/07-wire-tag-presence.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/07-wire-tag-presence.current.patch",
+      "sha256": "f2e86afc62e8ac72aac326b004fe8af5d40cc15404d57707c1a6a470adb222bd"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/08-hidden-lpm-cover.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/08-hidden-lpm-cover.current.patch",
+      "sha256": "fe88cd0d36538ec198c7161ae4a2d8b320512d3d9b3c3db07529ab9b08795bed"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/09-resolver-dependency.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/09-resolver-dependency.current.patch",
+      "sha256": "0fc90b6d6a700c20c55edd82933fd3d93918c9ea6a80713faa9dc774dcc8c5f1"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/10-member-labels.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/10-member-labels.current.patch",
+      "sha256": "515c1fdc94e93bee51bfafe632c1210cc6e5c029f782ea7d5ef1123eeec61ed9"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/11-member-sid.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/11-member-sid.current.patch",
+      "sha256": "efca55eeb73bdeef245ebca9cdaf5e12e9ad90b5a39a3a575a0c40e1f5f41439"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/12-replay.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/12-replay.current.patch",
+      "sha256": "ad573852d942d7cb9c6cff22cb78e971ad6cc3b4686727f45844b0d2b82f5d13"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/13-reset-fence.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/13-reset-fence.current.patch",
+      "sha256": "4b32fdfd9f800bbf5c5df4b81426906280bb5d93eed643b2c1090f0aba1be56b"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/14-owner-output-withdraw.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/14-owner-output-withdraw.current.patch",
+      "sha256": "06de4fe48fc5c7e50aaf703c890b61fbdba375f952ed4be19c11ccb8a65411b2"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/15-producer-withdraw.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/15-producer-withdraw.current.patch",
+      "sha256": "3f92c876db6fa6d8cfdb1abaf408ab910a22f5b39c100248d8eaa7dc83b659a0"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/16-recursive-static-metric.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/16-recursive-static-metric.current.patch",
+      "sha256": "d743e0a98a36da47e91ace143e949cfc30b013a59a26632b5a03ac3ee2e403d6"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/17-missing-aigp.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/17-missing-aigp.current.patch",
+      "sha256": "4b0d07ff114a51bd1a8748d02db0c8a1fb9674b7a897e4491098a9e76584df37"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/18-forked-metric-invalidation.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/18-forked-metric-invalidation.current.patch",
+      "sha256": "e80c195658ca0dd6a34cb77a4bc331abf596e9c476ee6f74d0429aad9c5cd393"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/19-internal-metric-invalidation.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/19-internal-metric-invalidation.current.patch",
+      "sha256": "576f910dd6e3b6580b997299bf5a6efa319f60bf9dfa2278b09fcd4f5a8250a8"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/20-ready-metric.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/20-ready-metric.current.patch",
+      "sha256": "2e2dbd4916e6a820ace3eedc5f778870544ebc9939103c6f20eec97ec9650d95"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/21-resync-counter.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/21-resync-counter.current.patch",
+      "sha256": "641fe3626071289c6ad5a2f147b3d5eba5195fc53bba0173a2e91ca62dff0185"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/22-failed-owner-recovery-command.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/22-failed-owner-recovery-command.current.patch",
+      "sha256": "d350ad6fd9d0536d48a9808176d9e563b337c8b9c7c685245dbaa712c8759908"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/23-withholding.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/23-withholding.current.patch",
+      "sha256": "58a1abcec5d9d30098eaa4e335dfcfddd02e513118ea769dd7b60dd502f142b8"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/24-output-action.current.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/24-output-action.current.patch",
+      "sha256": "5c2e34f0acd3a1d76f0357ac8a007407c09dc75c1a4cfe2cea2e8dfdc1f31547"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/25-replay-unhandled-error.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/25-replay-unhandled-error.patch",
+      "sha256": "e3f6a34a7292906c352464cd0f82a7bc4df99cd03cd182246253bbd38e765a0e"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/26-privileged-cancellation.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/26-privileged-cancellation.patch",
+      "sha256": "b470da1baec3966440b06fbaf622654fa179456417ae702cf53281e13fe468ad"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/27-unchanged-original-values.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/27-unchanged-original-values.patch",
+      "sha256": "b3b710ac3a79952ad73c0dc62943f8c3bb282b54853ad639abe82d9694eba649"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/README.md",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/README.md",
+      "sha256": "eaeeb091317aed70678e2b3c0ccbbd42a9df2964e2119ecb68623184b56a318b"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/carrier-commands.md",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/carrier-commands.md",
+      "sha256": "258dcea4fd0d26fcbca34c9557f132d60dcf6fde57b238caf8835a09c7de4bb5"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/cuts.current.json",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/cuts.current.json",
+      "sha256": "4c26f7e0dfefce8409feb9d5c0379fb28716262dbf3858d0d8a159149764d7a2"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/hunk-checks.json",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/hunk-checks.json",
+      "sha256": "00c260fdbbaf50cd4b38635778add8055cfa1cf718f6db109170e4d1f234af82"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/outcomes.json",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/outcomes.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/refresh.json",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/refresh.json",
+      "sha256": "91674191518e10521e873663b303d69eb03ded0b1a254a672bb2737319c8d5b5"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/run-proof-cuts.md",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/run-proof-cuts.md",
+      "sha256": "10b4a75eadf485afc9170912f9290d48e09344eb18335e0904e1d21e3ae3af01"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v4/run-proof-cuts.py",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v4/run-proof-cuts.py",
+      "sha256": "5fd3f719aa6297c5de15e58385b1d4e1a41028f303174e640e84152f6304e56a"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v3/source-cycle.md",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v3/source-cycle.md",
+      "sha256": "f6add36f5284d7f54ee350f0bb018e623d7040d2f1f706651d69a625bd7769da"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v3/supplemental.md",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v3/supplemental.md",
+      "sha256": "1df5ee10780c91d0f0af2f014a771583d433e65184ed7f79784a57469d01cd8e"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v3/27-unchanged-original-values.md",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v3/27-unchanged-original-values.md",
+      "sha256": "d0f59753b9df62ec89df0d30285ec3bbadb88636637a4ad650bd91ea9da7f2b4"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v3/27-unchanged-original-values.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v3/27-unchanged-original-values.patch",
+      "sha256": "b3b710ac3a79952ad73c0dc62943f8c3bb282b54853ad639abe82d9694eba649"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp5-proof-execution-plan/execution-v3/27-unchanged-original-values.json",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/proof/execution-v3/27-unchanged-original-values.json",
+      "sha256": "cb493c0d384159e5925fde1016b6ef45ca21fdbce676614b31417be866b53805"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp6-scoped-coverage-preparation/README.md",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/coverage/README.md",
+      "sha256": "537c38831b72ec62c2562d11cb7e1c9d655ce8ca5d19a1de5ec6c3f337904df8"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp6-scoped-coverage-preparation/commands.txt",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/coverage/commands.txt",
+      "sha256": "41855623dfccf37c075baa2254bb805528f082fe19f627c1548c84a32f2660e3"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp6-scoped-coverage-preparation/outcome-checklist.tsv",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/coverage/outcome-checklist.tsv",
+      "sha256": "a87db9afff1dcb7e5bcdb24cc4d3771f5590ec06a2ccc334b741f40add9b22ce"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp6-nonwinner-cleanup-proof-regression.apply-patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/cleanup/rp6-nonwinner-cleanup-proof-regression.apply-patch",
+      "sha256": "024d66f31820851fb954b2fb6b0abbec3d8f1c1af2bb49ed0cf9ce761069b111"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp6-nonwinner-cleanup-lifetime-fix.apply-patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/cleanup/rp6-nonwinner-cleanup-lifetime-fix.apply-patch",
+      "sha256": "abeefa22ea5e6efe1847fc34b17411c696798dd1424260fbd04c6bd4b08dc931"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp6-agent-client-setup-review/single-client.patch",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/related-agent-setup/single-client.patch",
+      "sha256": "088bc92a512516b84a35175487f35e466b0c26c50ffbd32172a75adcb5fc92c5"
+    },
+    {
+      "source": "tmp/session/2026-11-12-205428/scratch/rp6-agent-client-setup-review/verdict.md",
+      "path": "plan/handover/2026-11-13-route-policy-continuation/related-agent-setup/verdict.md",
+      "sha256": "00d449683b30b5fcf7c968d2b2810893e99b99c66530b7f5526af850c2e1595b"
+    }
+  ]
+}

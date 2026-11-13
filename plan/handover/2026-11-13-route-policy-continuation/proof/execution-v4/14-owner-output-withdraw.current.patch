@@ -1,0 +1,12 @@
+--- a/internal/component/sysrib/route_view_output.go
++++ b/internal/component/sysrib/route_view_output.go
+@@ -219,6 +219,9 @@
+ // withdraw never scans a RIB or a data plane. Only retained owned prefixes are
+ // eligible, and a failed emission keeps its entire uncertain batch for retry.
+ func (output *routeViewOutput) withdraw(owner *process.Process) error {
++	if owner != nil { // MUTATION-APPLIED: retain stopped-owner output
++		return nil
++	}
+ 	// Fencing ends publication, even when an uncertain withdrawal needs retry.
+ 	output.acknowledged = nil
+ 	groups := make(map[family.Family][]sysribevents.BestChangeEntry)

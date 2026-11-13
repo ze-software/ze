@@ -1,0 +1,11 @@
+--- a/internal/core/rib/locrib/policy.go
++++ b/internal/core/rib/locrib/policy.go
+@@ -118,5 +118,7 @@
+ 	if rib == nil {
+ 		return
+ 	}
+-	rib.Reselect()
++	if false { // MUTATION-APPLIED: omit retained-path policy reselection
++		rib.Reselect()
++	}
+ }

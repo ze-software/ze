@@ -1,0 +1,11 @@
+--- a/internal/component/sysrib/fibimport.go
++++ b/internal/component/sysrib/fibimport.go
+@@ -165,7 +165,7 @@
+ 	if r == nil {
+ 		return
+ 	}
+-	if route.nextHop.IsValid() && !route.nextHopOnLink {
++	if false && route.nextHop.IsValid() && !route.nextHopOnLink { // MUTATION-APPLIED: omit recursive dependency
+ 		r.Track(route.nextHop, prefix)
+ 	}
+ 	for index, member := range route.ecmpNextHops {

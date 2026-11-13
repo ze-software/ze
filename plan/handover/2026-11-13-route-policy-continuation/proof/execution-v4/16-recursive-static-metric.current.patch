@@ -1,0 +1,11 @@
+--- a/internal/core/rib/igpcost/igpcost.go
++++ b/internal/core/rib/igpcost/igpcost.go
+@@ -92,7 +92,7 @@
+ 		if !found || path.RouteType.Discards() {
+ 			return Distance{MissingAIGP: distance.MissingAIGP}
+ 		}
+-		if !path.IsBGP && !path.MetricRecursive {
++		if !path.IsBGP { // MUTATION-APPLIED: charge recursive static metric
+ 			distance.Cost = Add(distance.Cost, uint64(path.Metric))
+ 			distance.Resolved = true
+ 			return distance

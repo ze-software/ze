@@ -1,0 +1,11 @@
+--- a/internal/core/rib/igpcost/igpcost.go
++++ b/internal/core/rib/igpcost/igpcost.go
+@@ -102,7 +102,7 @@
+ 			if path.AIGPPresent {
+ 				distance.Cost = Add(distance.Cost, path.AIGP)
+ 			} else {
+-				distance.MissingAIGP = true
++				distance.MissingAIGP = false // MUTATION-APPLIED: erase absent AIGP
+ 			}
+ 		}
+ 		if !path.NextHop.IsValid() || path.NextHop == current {

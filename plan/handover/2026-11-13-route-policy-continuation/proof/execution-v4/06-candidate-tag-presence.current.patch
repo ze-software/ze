@@ -1,0 +1,11 @@
+--- a/internal/component/sysrib/candidates.go
++++ b/internal/component/sysrib/candidates.go
+@@ -142,7 +142,7 @@
+ 		Selected:  selected,
+ 		Hidden:    p.Hidden,
+ 	}
+-	if p.HasTag {
++	if p.HasTag && (p.Tag != 0 || !p.Hidden) { // MUTATION-APPLIED: omit hidden explicit-zero tag after initial positive state
+ 		tag := p.Tag
+ 		c.Tag = &tag
+ 	}

@@ -1,0 +1,47 @@
+# Test: do independent static/RIB placements preserve absent, zero and nonzero tags through rejection and re-admission?
+# A unit test cannot authenticate the real configured process, drive daemon
+# reloads, and read the resulting Linux FIB through the real fib-kernel.
+# VALIDATES: spec-route-policy-1-gate-proof-and-forked-sysrib AC-11.
+option=needs-linux:caps=net-admin
+# A private unaddressed link declares per-test network isolation.
+option=netns-link:name=zesrproof
+option=timeout:value=150s
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+    external rib-import-test { run "le test fixture plugin/rib-import-tag-placement internal forked"; encoder json; }
+    internal sysrib-owner { use rib; }
+    internal fib-kernel { use fib-kernel; }
+    external static-owner { run "ze plugin static"; encoder json; }
+}
+fib { kernel { flush-on-stop true; } }
+rib {
+    distance { static 7; }
+    filter { import { filters [ NO4242 ]; final accept; } }
+}
+policy {
+    match NO4242 { action reject; tag [ 4242 ]; }
+    match NOZERO { action reject; tag [ 0 ]; }
+}
+static { table default {
+    route 198.18.231.0/24 { blackhole { } distance 7; tag 4242; }
+    route 198.18.232.0/24 { blackhole { } distance 7; tag 0; }
+    route 198.18.233.0/24 { blackhole { } distance 7; }
+} }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/import-policy-kernel-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=150s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement internal, running owner and child count 0
+expect=stderr:contains=OK: static placement forked, running owner and child count 1
+expect=stderr:contains=OK: independent static and RIB placements retain tag 4242, explicit zero and absence through central rejection and re-admission
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/import-policy-kernel-empty:exit=0
+expect=stderr:contains=OK: import fixture prefixes are absent from every kernel table
+# Quick validation is last so the file exit still checks the real daemon.
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0

@@ -1,0 +1,49 @@
+# Test: do actual forked static and SDK producer disconnects remove their paths
+# through an external system RIB while independent owners survive and recover?
+# A unit test cannot authenticate and kill both real child processes or inspect
+# the real kernel FIB beside OS-owned, foreign and withheld selections.
+# VALIDATES: spec-route-policy-1-gate-proof-and-forked-sysrib AC-3/11/20/23 producer leg.
+option=needs-linux:caps=net-admin
+# A private unaddressed link declares per-test network isolation.
+option=netns-link:name=zesrproof
+option=timeout:value=180s
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+ external sysrib-producer-test { run "le test fixture plugin/sysrib-forked-producer-kernel"; encoder json; }
+ external sysrib-owner { run "ze plugin rib"; encoder json; respawn false; }
+ external static-owner { run "ze plugin static"; encoder json; respawn false; }
+ external route-producer { run "le test fixture plugin/sysrib-forked-route-producer"; encoder json; respawn false; }
+ internal fib-kernel { use fib-kernel; }
+}
+interface { backend netlink; }
+connected { }
+fib { kernel { flush-on-stop true; } }
+rib {
+ fib-withhold [ bgp ];
+ filter { import { filters [ NO4242 ]; final accept; } }
+}
+policy { match NO4242 { action reject; tag [ 4242 ]; } }
+static { table default {
+ route 198.19.21.0/24 { blackhole { } }
+ route 198.19.22.0/24 { blackhole { } tag 4242; }
+ route 198.19.23.0/24 { blackhole { } tag 0; }
+} }
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/sysrib-producer-kernel-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=180s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement forked, running owner and child count 1
+expect=stderr:contains=OK: static placement forked, running owner and child count 1
+expect=stderr:contains=OK: SDK route-install producer has a live authenticated daemon descendant PID
+expect=stderr:contains=OK: real forked static and SDK producer disconnects withdraw only their admitted and hidden paths, preserve OS/foreign/withheld/other-owner controls and recover through fresh producers
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-producer-kernel-empty:exit=0
+expect=stderr:contains=OK: producer fixture prefixes are absent from every kernel table
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0

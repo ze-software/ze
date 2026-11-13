@@ -1,0 +1,34 @@
+# Test: do real recursive routes follow selectable broader IPv4/IPv6 covers,
+# withdraw after proved cover loss, and recover/replay without subject reinjection?
+# A unit test cannot authenticate the actual configured RIB process or inspect
+# the real Linux FIB after daemon-selected and cross-family resolution.
+# VALIDATES: spec-route-policy-1-gate-proof-and-forked-sysrib AC-18; daemon metric seam of AC-21.
+option=needs-linux:caps=net-admin
+# A private unaddressed link declares per-test network isolation.
+option=netns-link:name=zesrproof
+option=timeout:value=150s
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+ external sysrib-recursive-test { run "le test fixture plugin/sysrib-recursive-nexthop forked"; encoder json; }
+ external sysrib-owner { run "ze plugin rib"; encoder json; }
+ internal fib-kernel { use fib-kernel; }
+}
+interface { backend netlink; }
+connected { }
+fib { kernel { flush-on-stop true; } }
+rib { distance { ospf 110; } filter { import { filters [ NO4242 ]; final accept; } } }
+policy { match NO4242 { action reject; tag [ 4242 ]; } }
+EOF_CONF
+cmd=foreground:seq=1:exec=le test fixture plugin/sysrib-recursive-kernel-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=150s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement forked, running owner and child count 1
+expect=stderr:contains=OK: recursive IPv4, IPv6 and cross-family outputs use broader selectable covers, withdraw on proved loss, recover without reinjection and retain current replay and metric revision
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-recursive-kernel-empty:exit=0
+expect=stderr:contains=OK: recursive fixture prefixes are absent from every kernel table
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0

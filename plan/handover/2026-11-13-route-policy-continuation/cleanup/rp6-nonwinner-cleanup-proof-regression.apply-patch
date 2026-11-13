@@ -1,0 +1,66 @@
+*** Begin Patch
+*** Update File: internal/test/fixture/sysrib_nonwinner_ecmp_daemon_fixture.go
+@@
+ 	return importSay("nonwinner ECMP fixture prefixes are absent from every kernel table")
+ }
++
++// This runs only after daemon/await-exit. Ze must have flushed its own
++// prefixes while the actual devices and OS-owned routes still exist; deleting
++// a device first could erase a stale FIB entry and make that absence vacuous.
++func sysribNonwinnerECMPLinksCleanup(ctx context.Context, args []string) error {
++	if len(args) != 0 {
++		return errors.New("nonwinner ECMP post-stop link cleanup takes no arguments")
++	}
++	for _, prefix := range []string{sysribNonwinnerTarget, sysribNonwinnerStatic, sysribNonwinnerOSPF} {
++		if err := importKernel(ctx, prefix, 0); err != nil {
++			return err
++		}
++	}
++	links := []struct{ prefix, name string }{
++		{"198.18.232.0/24", sysribNonwinnerLinkA},
++		{"198.18.233.0/24", sysribNonwinnerLinkB},
++		{"198.18.234.0/24", sysribNonwinnerLinkC},
++	}
++	for _, link := range links {
++		if err := importKernel(ctx, link.prefix, 1, "dev "+link.name+" ", "proto 2 "); err != nil {
++			return err
++		}
++		if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", link.name); err != nil {
++			return fmt.Errorf("joined daemon stop removed fixture device %s: %w", link.name, err)
++		}
++	}
++	for _, link := range links {
++		if err := importDeleteLink(ctx, link.name); err != nil {
++			return err
++		}
++	}
++	return importSay("joined daemon flushed Ze routes while all three fixture devices and OS routes survived before owned link cleanup")
++}
+*** Update File: internal/test/fixture/register_sysrib_nonwinner_ecmp_daemon.go
+@@
+ 	Register("plugin/sysrib-nonwinner-explicit-ecmp-kernel-empty", sysribNonwinnerECMPKernelEmpty)
++	Register("plugin/sysrib-nonwinner-explicit-ecmp-links-cleanup", sysribNonwinnerECMPLinksCleanup)
+ }
+*** Update File: test/draft/plugin/sysrib-nonwinner-explicit-ecmp.ci
+@@
+ cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+ expect=stderr:contains=OK: the first daemon exited
+-cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-nonwinner-explicit-ecmp-kernel-empty:exit=0
++cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-nonwinner-explicit-ecmp-links-cleanup:exit=0
++expect=stderr:contains=OK: joined daemon flushed Ze routes while all three fixture devices and OS routes survived before owned link cleanup
++cmd=foreground:seq=5:exec=le test fixture plugin/sysrib-nonwinner-explicit-ecmp-kernel-empty:exit=0
+ expect=stderr:contains=OK: nonwinner ECMP fixture prefixes are absent from every kernel table
+-cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0
++cmd=foreground:seq=6:exec=ze config validate -:stdin=ze-conf:exit=0
+*** Update File: test/draft/plugin/sysrib-nonwinner-explicit-ecmp-forked.ci
+@@
+ cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+ expect=stderr:contains=OK: the first daemon exited
+-cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-nonwinner-explicit-ecmp-kernel-empty:exit=0
++cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-nonwinner-explicit-ecmp-links-cleanup:exit=0
++expect=stderr:contains=OK: joined daemon flushed Ze routes while all three fixture devices and OS routes survived before owned link cleanup
++cmd=foreground:seq=5:exec=le test fixture plugin/sysrib-nonwinner-explicit-ecmp-kernel-empty:exit=0
+ expect=stderr:contains=OK: nonwinner ECMP fixture prefixes are absent from every kernel table
+-cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0
++cmd=foreground:seq=6:exec=ze config validate -:stdin=ze-conf:exit=0
+*** End Patch
