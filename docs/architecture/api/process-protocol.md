@@ -2056,6 +2056,20 @@ permission to receive their events.
 <!-- source: internal/component/plugin/server/subscribe.go -- (*PeerFilter).Matches, (*SubscriptionManager).getMatching -->
 <!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs -->
 
+### Interface address replay
+
+A plugin that needs the interface address inventory subscribes to
+`interface/addr-added` and `interface/addr-removed`, then emits
+`interface/address-replay-request` with no payload. An active interface
+monitor replays its current usable addresses through `addr-added`, using the
+same JSON fields as live changes: `name`, `unit`, `index`, `address`,
+`prefix-length`, `family`, and optional `origin`. Consumers MUST tolerate
+duplicate adds. A request does not load or start an interface backend, and
+there is no completion response when a provider is absent.
+<!-- source: internal/core/iface/events/register.go -- AddressReplayRequest -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- addrEventPayload, run, handleAddrUpdate -->
+<!-- source: internal/plugins/iface/vpp/monitor.go -- addrEventPayload, seedAddresses, replayAddresses -->
+
 ### The `system-dns` namespace
 
 The router's resolver registry (`system.Resolvers`) publishes its state on

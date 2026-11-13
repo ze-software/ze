@@ -1200,8 +1200,9 @@ A `ze doctor` check (`doctor-iface-macvlan`) probes kernel macvlan capability
 | `interface/created` | First RTM_NEWLINK for an index | name, unit, type, index, mtu |
 | `interface/up` | OperUp or OperUnknown+IFF_UP | name, unit, index |
 | `interface/down` | Other oper states or RTM_DELLINK | name, unit, index; deletion also carries type and mtu |
-| `interface/addr-added` | RTM_NEWADDR (DAD complete), and once for every address the kernel holds when the monitor starts | name, unit, index, address, prefix-length, family, origin |
-| `interface/addr-removed` | RTM_DELADDR | name, unit, index, address, prefix-length, family, origin |
+| `interface/addr-added` | Usable address added, initial netlink dump, or retained address replay | name, unit, index, address, prefix-length, family, origin |
+| `interface/addr-removed` | Address removed, or its interface deleted | name, unit, index, address, prefix-length, family, origin |
+| `interface/address-replay-request` | Consumer requests the active monitor's current usable addresses | none |
 | `interface/dhcp-acquired` | DHCPv4 ACK | name, unit, address, prefix-length, router, dns, lease-time |
 | `interface/dhcp-renewed` | Renewal success | name, unit, address, prefix-length, router, dns, lease-time |
 | `interface/dhcp-expired` | Lease timeout | name, unit, address, prefix-length, router, dns, lease-time |
@@ -1223,6 +1224,25 @@ addresses keys them by identity: `connected` keeps the set of addresses that
 cover each prefix, not a count of events.
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go -- start, ListExisting -->
 <!-- source: internal/plugins/connected/connected.go -- routeObserver.prefixes, handleAddrAdded, handleAddrRemoved -->
+
+A late subscriber emits `interface/address-replay-request` after subscribing
+to the address events. The active monitor publishes its retained addresses as
+ordinary `addr-added` events. Replay and live changes share one publication
+order, so a removed address cannot return from an older snapshot. Requests
+coalesce while a replay is pending. A request starts no backend and has no
+answer when the interface provider is inactive.
+<!-- source: internal/core/iface/events/register.go -- AddressReplayRequest -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- run, requestReplay, handleAddrUpdate, handleLinkUpdate -->
+<!-- source: internal/plugins/iface/vpp/monitor.go -- seedAddresses, replayAddresses, emitAddress, handleEvent -->
+
+The VPP monitor seeds its retained addresses from the interface and address
+API dumps. Monitor startup and complete address changes share a lock, so an
+address changed during startup cannot overwrite the newer state with an older
+dump. Stopping either monitor removes its replay subscription and joins its
+worker before returning.
+<!-- source: internal/plugins/iface/vpp/monitor.go -- StartMonitor, seedAddresses, stop -->
+<!-- source: internal/plugins/iface/vpp/ifacevpp.go -- AddAddress, RemoveAddress -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- run, stop -->
 
 Neighbor table changes are not a bus topic. These topics come from the
 interface monitor, which starts only when an `interface` block configures a

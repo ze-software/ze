@@ -83,6 +83,9 @@ type vppBackendImpl struct {
 	// monMu guards mon; the pointer is only mutated under the lock.
 	monMu sync.Mutex
 	mon   *monitor
+	// addressMu serializes monitor seeding with complete address API changes,
+	// including publication. It MUST be acquired before monMu.
+	addressMu sync.Mutex
 
 	// mirMu guards mirrors. VPP's sw_interface_span_enable_disable delete
 	// path is keyed on the (from, to, is_l2) triple, but RemoveMirror only
@@ -593,6 +596,8 @@ func (b *vppBackendImpl) AddAddress(ifaceName, cidr string) error {
 	if err != nil {
 		return err
 	}
+	b.addressMu.Lock()
+	defer b.addressMu.Unlock()
 	req := &interfaces.SwInterfaceAddDelAddress{
 		SwIfIndex: idx,
 		IsAdd:     true,
@@ -618,6 +623,8 @@ func (b *vppBackendImpl) RemoveAddress(ifaceName, cidr string) error {
 	if err != nil {
 		return err
 	}
+	b.addressMu.Lock()
+	defer b.addressMu.Unlock()
 	req := &interfaces.SwInterfaceAddDelAddress{
 		SwIfIndex: idx,
 		IsAdd:     false,

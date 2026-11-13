@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -37,11 +38,16 @@ var (
 // start MUST be called exactly once. stop MUST be called after a successful
 // start to release resources. stop is safe to call multiple times.
 type monitor struct {
-	eventBus     ze.EventBus
-	done         chan struct{}
-	stopCh       chan struct{}
-	stopFn       sync.Once
-	started      atomic.Bool
+	eventBus ze.EventBus
+	done     chan struct{}
+	stopCh   chan struct{}
+	stopFn   sync.Once
+	started  atomic.Bool
+	ready    chan struct{}
+	replay   chan struct{} // Depth one: simultaneous replay requests coalesce.
+	// addresses is owned by run and bounded by the addresses currently held
+	// on observed interfaces. Removals and link deletion reclaim entries.
+	addresses    map[addressKey]addrEventPayload
 	known        sync.Map // map[int]struct{} — known link indices
 	linkNames    sync.Map // map[int]string — index to name, updated by link events
 	knownRouters sync.Map // map[neighKey]struct{} — neighbors seen with NTF_ROUTER
@@ -58,11 +64,19 @@ type neighKey struct {
 	ip        string
 }
 
+type addressKey struct {
+	index  int
+	prefix netip.Prefix
+}
+
 func newMonitor(eb ze.EventBus) *monitor {
 	return &monitor{
-		eventBus: eb,
-		done:     make(chan struct{}),
-		stopCh:   make(chan struct{}),
+		eventBus:  eb,
+		done:      make(chan struct{}),
+		stopCh:    make(chan struct{}),
+		ready:     make(chan struct{}),
+		replay:    make(chan struct{}, 1),
+		addresses: make(map[addressKey]addrEventPayload),
 	}
 }
 
@@ -144,6 +158,8 @@ func (m *monitor) start() error {
 	m.seedLinkNames()
 
 	go m.run(linkCh, addrCh, neighCh)
+	// StartMonitor MUST return only after the request subscription is live.
+	<-m.ready
 	return nil
 }
 
@@ -202,8 +218,24 @@ func (m *monitor) stop() {
 
 func (m *monitor) run(linkCh <-chan netlink.LinkUpdate, addrCh <-chan netlink.AddrUpdate, neighCh <-chan netlink.NeighUpdate) {
 	defer close(m.done)
+	unsubscribe := ifaceevents.AddressReplayRequest.Subscribe(m.eventBus, m.requestReplay)
+	defer unsubscribe()
+	close(m.ready)
+	// This owner runs until stop or a producer closes. All address changes
+	// and replay publications are serialized here, including link deletion.
 	for {
 		select {
+		case <-m.stopCh:
+			return
+		default:
+		}
+		select {
+		case <-m.stopCh:
+			return
+		case <-m.replay:
+			for _, payload := range m.addresses {
+				m.emit(ifaceevents.EventAddrAdded, payload)
+			}
 		case lu, ok := <-linkCh:
 			if !ok {
 				return
@@ -220,6 +252,18 @@ func (m *monitor) run(linkCh <-chan netlink.LinkUpdate, addrCh <-chan netlink.Ad
 			}
 			m.safeHandleNeighUpdate(nu)
 		}
+	}
+}
+
+func (m *monitor) requestReplay() {
+	select {
+	case <-m.stopCh:
+		return
+	default:
+	}
+	select {
+	case m.replay <- struct{}{}:
+	default: // One pending replay already covers this request.
 	}
 }
 
@@ -298,6 +342,24 @@ func (m *monitor) handleLinkUpdate(lu netlink.LinkUpdate) {
 
 	switch lu.Header.Type {
 	case unix.RTM_NEWLINK:
+		parent, unit, _ := resolveVLANUnit(name)
+		for key, payload := range m.addresses {
+			if key.index != idx {
+				continue
+			}
+			identityUnchanged := payload.Name == parent && payload.Unit == unit
+			if identityUnchanged {
+				continue
+			}
+			previous := payload
+			payload.Name = parent
+			payload.Unit = unit
+			m.addresses[key] = payload
+			// A rename changes the consumer's address identity. Withdraw the
+			// old identity before announcing and retaining its replacement.
+			m.emit(ifaceevents.EventAddrRemoved, previous)
+			m.emit(ifaceevents.EventAddrAdded, payload)
+		}
 		if _, seen := m.known.LoadOrStore(idx, struct{}{}); !seen {
 			m.emit(ifaceevents.EventCreated, linkEventPayload{
 				Name: name, Type: lu.Type(), Index: idx, MTU: attrs.MTU,
@@ -313,6 +375,12 @@ func (m *monitor) handleLinkUpdate(lu netlink.LinkUpdate) {
 	case unix.RTM_DELLINK:
 		m.known.Delete(idx)
 		m.linkNames.Delete(idx)
+		for key, payload := range m.addresses {
+			if key.index == idx {
+				delete(m.addresses, key)
+				m.emit(ifaceevents.EventAddrRemoved, payload)
+			}
+		}
 		// Interface deletion maps to (interface, down): there is no
 		// separate "deleted" event type in the stream registry. Down is
 		// the closest semantic match (link is no longer operational).
@@ -323,11 +391,30 @@ func (m *monitor) handleLinkUpdate(lu netlink.LinkUpdate) {
 }
 
 func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
-	if au.LinkAddress.IP == nil {
+	ip, ok := netip.AddrFromSlice(au.LinkAddress.IP)
+	if !ok {
 		return
 	}
-	if au.Flags&unix.IFA_F_TENTATIVE != 0 && au.LinkAddress.IP.To4() == nil {
+	ip = ip.Unmap()
+	if ip.IsUnspecified() {
 		return
+	}
+	if ip.IsMulticast() {
+		return
+	}
+	ones, bits := au.LinkAddress.Mask.Size()
+	if bits != ip.BitLen() {
+		return
+	}
+	key := addressKey{index: au.LinkIndex, prefix: netip.PrefixFrom(ip, ones)}
+	if !ip.Is4() {
+		if au.Flags&(unix.IFA_F_TENTATIVE|unix.IFA_F_DADFAILED) != 0 {
+			if payload, exists := m.addresses[key]; exists {
+				delete(m.addresses, key)
+				m.emit(ifaceevents.EventAddrRemoved, payload)
+			}
+			return
+		}
 	}
 
 	nameVal, ok := m.linkNames.Load(au.LinkIndex)
@@ -341,8 +428,7 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 		return
 	}
 	parent, unit, _ := resolveVLANUnit(ifaceName)
-	addr := au.LinkAddress.IP.String()
-	ones, _ := au.LinkAddress.Mask.Size()
+	addr := ip.String()
 
 	fam, ok := addrFamily(au.LinkAddress.String())
 	if !ok {
@@ -360,7 +446,7 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 	}
 
 	eventType := addrUpdateToEventType(au.NewAddr)
-	m.emit(eventType, addrEventPayload{
+	payload := addrEventPayload{
 		Name:         parent,
 		Unit:         unit,
 		Index:        au.LinkIndex,
@@ -368,7 +454,13 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 		PrefixLength: ones,
 		Family:       fam,
 		Origin:       origin,
-	})
+	}
+	if au.NewAddr {
+		m.addresses[key] = payload
+	} else {
+		delete(m.addresses, key)
+	}
+	m.emit(eventType, payload)
 }
 
 // handleNeighUpdate processes neighbor table changes. It emits router

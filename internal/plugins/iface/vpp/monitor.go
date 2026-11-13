@@ -18,7 +18,9 @@ import (
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -34,13 +36,25 @@ var errIfacevppStartmonitorRequiresNonNilEvent = errors.New("ifacevpp: StartMoni
 // start to release the subscription and drain the goroutine. stop is safe to
 // call multiple times.
 type monitor struct {
-	b        *vppBackendImpl
-	eventBus ze.EventBus
-	sub      api.SubscriptionCtx
-	notif    chan api.Message
-	stopped  chan struct{}
-	done     chan struct{}
-	stopOnce sync.Once
+	b                 *vppBackendImpl
+	eventBus          ze.EventBus
+	sub               api.SubscriptionCtx
+	notif             chan api.Message
+	stopped           chan struct{}
+	done              chan struct{}
+	stopOnce          sync.Once
+	replay            chan struct{} // Depth one: simultaneous requests coalesce.
+	unsubscribeReplay func()
+	// publicationMu orders replay, address mutations and interface deletion.
+	// addresses holds only addresses on current VPP interfaces, seeded from
+	// the API and reclaimed on removal or deletion. Zero monitor has no cache.
+	publicationMu sync.Mutex
+	addresses     map[addressKey]addrEventPayload
+}
+
+type addressKey struct {
+	index  interface_types.InterfaceIndex
+	prefix netip.Prefix
 }
 
 // linkEventPayload matches the shape ifacenetlink emits on (interface,
@@ -92,7 +106,7 @@ func (b *vppBackendImpl) emitAddress(eventType, ifaceName string, idx interface_
 	if prefix.Addr().Is4() {
 		family = "ipv4"
 	}
-	m.emit(eventType, addrEventPayload{
+	payload := addrEventPayload{
 		Name:         parent,
 		Unit:         unit,
 		Index:        int(idx),
@@ -100,7 +114,21 @@ func (b *vppBackendImpl) emitAddress(eventType, ifaceName string, idx interface_
 		PrefixLength: prefix.Bits(),
 		Family:       family,
 		Origin:       "static",
-	})
+	}
+	m.publicationMu.Lock()
+	defer m.publicationMu.Unlock()
+	select {
+	case <-m.stopped:
+		return
+	default:
+	}
+	key := addressKey{index: idx, prefix: prefix}
+	if eventType == ifaceevents.EventAddrAdded {
+		m.addresses[key] = payload
+	} else {
+		delete(m.addresses, key)
+	}
+	m.emit(eventType, payload)
 }
 
 // emitCreated announces an interface the backend has just created.
@@ -164,24 +192,27 @@ func (b *vppBackendImpl) StartMonitor(eb ze.EventBus) error {
 	if err := b.ensureChannel(); err != nil {
 		return err
 	}
+	b.addressMu.Lock()
+	defer b.addressMu.Unlock()
 	// Idempotent: a second StartMonitor after a first success is a no-op.
 	// This is important because the iface register-time code retries
 	// StartMonitor on vppevents.EventConnected when the initial attempt
 	// fired too early (backend not ready); the retry must not error out
 	// after the backend has reconnected and monitor was already installed.
 	b.monMu.Lock()
+	defer b.monMu.Unlock()
 	if b.mon != nil {
-		b.monMu.Unlock()
 		return nil
 	}
-	b.monMu.Unlock()
 
 	m := &monitor{
-		b:        b,
-		eventBus: eb,
-		notif:    make(chan api.Message, 64),
-		stopped:  make(chan struct{}),
-		done:     make(chan struct{}),
+		b:         b,
+		eventBus:  eb,
+		notif:     make(chan api.Message, 64),
+		stopped:   make(chan struct{}),
+		done:      make(chan struct{}),
+		replay:    make(chan struct{}, 1),
+		addresses: make(map[addressKey]addrEventPayload),
 	}
 	sub, err := b.ch.SubscribeNotification(m.notif, &interfaces.SwInterfaceEvent{})
 	if err != nil {
@@ -200,9 +231,15 @@ func (b *vppBackendImpl) StartMonitor(eb ze.EventBus) error {
 		return fmt.Errorf("ifacevpp: WantInterfaceEvents retval=%d", reply.Retval)
 	}
 
-	b.monMu.Lock()
+	if err := m.seedAddresses(); err != nil {
+		disable := &interfaces.WantInterfaceEvents{EnableDisable: 0}
+		_ = b.ch.SendRequest(disable).ReceiveReply(&interfaces.WantInterfaceEventsReply{}) //nolint:errcheck // failed startup releases its notification request
+		_ = sub.Unsubscribe()                                                              //nolint:errcheck // failed startup releases its subscription
+		return opererr.Wrap(err, "The VPP interface monitor could not read its initial addresses",
+			"Connected routes need a complete interface address inventory", "ze show errors")
+	}
+	m.unsubscribeReplay = ifaceevents.AddressReplayRequest.Subscribe(eb, m.requestReplay)
 	b.mon = m
-	b.monMu.Unlock()
 
 	go m.run()
 	return nil
@@ -211,6 +248,8 @@ func (b *vppBackendImpl) StartMonitor(eb ze.EventBus) error {
 // StopMonitor halts the monitor goroutine and unsubscribes. Safe to call
 // when no monitor is running.
 func (b *vppBackendImpl) StopMonitor() {
+	b.addressMu.Lock()
+	defer b.addressMu.Unlock()
 	b.monMu.Lock()
 	m := b.mon
 	b.mon = nil
@@ -227,6 +266,10 @@ func (b *vppBackendImpl) StopMonitor() {
 // even when an unsuccessful unsubscribe leaves notif open.
 func (m *monitor) stop() {
 	m.stopOnce.Do(func() {
+		m.publicationMu.Lock()
+		close(m.stopped)
+		m.publicationMu.Unlock()
+		m.unsubscribeReplay()
 		// Tell VPP to stop emitting. Ignore errors: the channel may
 		// already be closed by the time Stop is called.
 		req := &interfaces.WantInterfaceEvents{EnableDisable: 0}
@@ -236,7 +279,6 @@ func (m *monitor) stop() {
 		if m.sub != nil {
 			_ = m.sub.Unsubscribe() //nolint:errcheck // best-effort on stop
 		}
-		close(m.stopped)
 	})
 	<-m.done
 }
@@ -246,6 +288,7 @@ func (m *monitor) stop() {
 // not close notif. A closed producer channel also ends dispatch.
 func (m *monitor) run() {
 	defer close(m.done)
+	defer m.unsubscribeReplay()
 	for {
 		// Prefer the stop signal even if a failed unsubscribe left a
 		// producer continuously ready to send.
@@ -259,6 +302,8 @@ func (m *monitor) run() {
 		case <-m.stopped:
 			m.drainQueued()
 			return
+		case <-m.replay:
+			m.replayAddresses()
 		case msg, ok := <-m.notif:
 			if !ok {
 				return
@@ -308,6 +353,14 @@ func (m *monitor) handleEvent(ev *interfaces.SwInterfaceEvent) {
 		name = bIdx.Reset().Str("sw_if_index_").Int(int64(idx)).String()
 	}
 	if ev.Deleted {
+		m.publicationMu.Lock()
+		defer m.publicationMu.Unlock()
+		for key, payload := range m.addresses {
+			if uint32(key.index) == idx {
+				delete(m.addresses, key)
+				m.emit(ifaceevents.EventAddrRemoved, payload)
+			}
+		}
 		m.b.names.Remove(name)
 		m.emit(ifaceevents.EventDown, linkEventPayload{
 			Name: name, Index: int(idx),
@@ -323,6 +376,73 @@ func (m *monitor) handleEvent(ev *interfaces.SwInterfaceEvent) {
 	m.emit(ifaceevents.EventDown, stateEventPayload{
 		Name: name, Index: int(idx),
 	})
+}
+
+// seedAddresses MUST run while addressMu excludes complete Add/Remove calls.
+// No event is emitted until the monitor is installed and a consumer asks.
+func (m *monitor) seedAddresses() error {
+	details, err := m.b.dumpAllRaw()
+	if err != nil {
+		return err
+	}
+	for i := range details {
+		var info iface.InterfaceInfo
+		if err := m.b.fillAddresses(&info, details[i].SwIfIndex); err != nil {
+			return err
+		}
+		name, found := m.b.names.lookupName(uint32(details[i].SwIfIndex))
+		if !found {
+			name = trimCString(details[i].InterfaceName)
+		}
+		parent, unit := splitUnit(name)
+		for _, address := range info.Addresses {
+			ip, err := netip.ParseAddr(address.Address)
+			if err != nil {
+				return err
+			}
+			ip = ip.Unmap()
+			if ip.IsUnspecified() {
+				continue
+			}
+			if ip.IsMulticast() {
+				continue
+			}
+			prefix := netip.PrefixFrom(ip, address.PrefixLength)
+			if !prefix.IsValid() {
+				return fmt.Errorf("ifacevpp: invalid address prefix %q/%d in interface dump", address.Address, address.PrefixLength)
+			}
+			m.addresses[addressKey{index: details[i].SwIfIndex, prefix: prefix}] = addrEventPayload{
+				Name: parent, Unit: unit, Index: int(details[i].SwIfIndex),
+				Address: ip.String(), PrefixLength: prefix.Bits(), Family: address.Family,
+			}
+		}
+	}
+	return nil
+}
+
+func (m *monitor) requestReplay() {
+	select {
+	case <-m.stopped:
+		return
+	default:
+	}
+	select {
+	case m.replay <- struct{}{}:
+	default: // One pending replay covers all requests received before it.
+	}
+}
+
+func (m *monitor) replayAddresses() {
+	m.publicationMu.Lock()
+	defer m.publicationMu.Unlock()
+	select {
+	case <-m.stopped:
+		return
+	default:
+	}
+	for _, payload := range m.addresses {
+		m.emit(ifaceevents.EventAddrAdded, payload)
+	}
 }
 
 // emit marshals payload and publishes it on the EventBus under the iface

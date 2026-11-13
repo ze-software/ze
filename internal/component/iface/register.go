@@ -169,6 +169,7 @@ func init() {
 	_ = events.RegisterNamespace(ifaceevents.Namespace,
 		ifaceevents.EventCreated, ifaceevents.EventUp, ifaceevents.EventDown,
 		ifaceevents.EventAddrAdded, ifaceevents.EventAddrRemoved,
+		ifaceevents.EventAddressReplayRequest,
 		ifaceevents.EventDHCPAcquired, ifaceevents.EventDHCPRenewed,
 		ifaceevents.EventDHCPExpired, ifaceevents.EventRollback,
 		ifaceevents.EventRouterDiscovered, ifaceevents.EventRouterLost,
