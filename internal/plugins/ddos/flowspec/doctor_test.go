@@ -64,13 +64,15 @@ func TestOrphanCheckReportsARecordWithNoLiveResponder(t *testing.T) {
 }
 
 // TestRuntimeOrphanReportNamesBothCausesOfAFailedWithdrawal proves that the
-// runtime report says why the record outlived the withdrawal in words true for
-// all three causes: an engine that did not take the withdrawal, an engine that
-// took it and refused the send (test/plugin/ddos-flowspec-orphan-doctor.ci,
-// where the send permission refuses it), and a withdrawal the engine sent
-// whose record removal then failed (responder.go withdrawThrough and
-// withdrawRecordedRule, where Forget fails after a successful Dispatch). The
-// name predates the third cause.
+// runtime report says why the record outlived its rule in two alternatives,
+// each true for every case it covers. The first is that no withdrawal is known
+// to have reached the BGP peers: none was sent (the start read the record as
+// unreadable), the engine did not take it, the engine took it and refused the
+// send (test/plugin/ddos-flowspec-orphan-doctor.ci, where the send permission
+// refuses it), or the dispatch errored after the engine sent it. The second is
+// a withdrawal the engine sent whose record removal then failed (responder.go
+// withdrawThrough and withdrawRecordedRule, where Forget fails after a
+// successful Dispatch).
 //
 // VALIDATES: ai/rules/user-facing-errors.md, "why it matters", for the runtime
 // report: the reason it gives is true in every case that reaches it, and the
@@ -84,7 +86,7 @@ func TestOrphanCheckReportsARecordWithNoLiveResponder(t *testing.T) {
 func TestRuntimeOrphanReportNamesBothCausesOfAFailedWithdrawal(t *testing.T) {
 	diag := unownedOrphanDiagnostic(orphanTestMatch())
 
-	const reason = "the last withdrawal of the rule did not reach the BGP peers, because the BGP engine did not take it or refused to send it"
+	const reason = "no withdrawal of the rule is known to have reached the BGP peers (none was sent, the BGP engine did not take it or refused to send it, or its answer did not come back)"
 	if !strings.Contains(diag.Message, reason) {
 		t.Errorf("message %q does not carry the reason %q", diag.Message, reason)
 	}
@@ -98,6 +100,9 @@ func TestRuntimeOrphanReportNamesBothCausesOfAFailedWithdrawal(t *testing.T) {
 	const hedge = "Every BGP peer that took the rule may still discard or rate-limit traffic to "
 	if !strings.Contains(diag.Message, hedge) {
 		t.Errorf("message %q does not carry the hedged peer claim %q", diag.Message, hedge)
+	}
+	if strings.Contains(diag.Message, "the last withdrawal of the rule did not reach the BGP peers") {
+		t.Errorf("message %q says a withdrawal was sent and lost, which is false when none was sent", diag.Message)
 	}
 	if strings.Contains(diag.Message, "did not reach the BGP engine") {
 		t.Errorf("message %q says the withdrawal did not reach the BGP engine, which is false when the engine refused the send", diag.Message)

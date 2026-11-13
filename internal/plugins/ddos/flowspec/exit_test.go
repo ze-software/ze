@@ -518,7 +518,7 @@ func TestStopResponderWithdrawsUnderItsOwnContext(t *testing.T) {
 	announceOnce(t, r, exitTestVictim)
 
 	cancelSignal()
-	stopResponder(r)
+	stopResponder(r, false)
 
 	if got := countCommands(cmds, "/flow del "); got != 1 {
 		t.Fatalf("withdrawals after the signal context ended = %d, want 1 (commands: %v)", got, cmds)
@@ -548,19 +548,81 @@ func TestStopResponderOnAClosedTransportLogsOnce(t *testing.T) {
 	disp.err = fmt.Errorf("update-route: %w", rpc.ErrMuxConnClosed)
 	logs.Reset()
 
-	stopResponder(r)
+	stopResponder(r, false)
 
 	var closedLines int
 	for line := range strings.SplitSeq(strings.TrimSpace(logs.String()), "\n") {
 		if strings.Contains(line, "level=ERROR") || strings.Contains(line, "level=WARN") {
 			t.Errorf("a stop on a closed connection logged %q, want no warning or error", line)
 		}
-		if strings.Contains(line, "level=INFO") && strings.Contains(line, "the BGP sessions end with the daemon") {
+		if strings.Contains(line, "level=INFO") && strings.Contains(line, closedTransportFact) {
 			closedLines++
 		}
 	}
 	if closedLines != 1 {
-		t.Errorf("INFO lines saying the BGP sessions end with the daemon = %d, want 1 (log: %s)", closedLines, logs.String())
+		t.Errorf("INFO lines saying %q = %d, want 1 (log: %s)", closedTransportFact, closedLines, logs.String())
+	}
+	if disp.recorded == nil {
+		t.Errorf("the record was removed although the withdrawal never left")
+	}
+}
+
+// closedTransportFact is the part of the closed-transport line that holds
+// whether or not the daemon is stopping.
+const closedTransportFact = "because the plugin's connection to the engine is closed; the rule stays recorded"
+
+// TestStopResponderAfterAFailedRunWarnsWithTheRestart proves that a stop on a
+// closed connection after the plugin's Run failed logs one WARN line that
+// names the doctor code and the plugin restart, and leaves the record.
+//
+// VALIDATES: an in-process ddos-flowspec that stops on its own (a callback
+// panic the SDK recovers) while the daemon keeps running. Its Run closes the
+// bridge on its way out, so the deferred withdrawal meets rpc.ErrBridgeClosed,
+// the rule stays at the peers, and the plugin declares no failure policy, so
+// nothing withdraws it until the plugin starts again.
+// METHOD: a responder announces through fakeDispatcher, the dispatcher then
+// answers the bridge-closed error, and stopResponder runs with runFailed set,
+// as runEngine's deferred exit does after a failed Run.
+// PREVENTS: an INFO line, which Ze's default WARN level hides, as the only
+// record that a rule was left at the peers by a plugin that died alone.
+//
+// MUTATION: with the runFailed branch in stopResponder removed, the line is
+// INFO and the WARN count is 0.
+func TestStopResponderAfterAFailedRunWarnsWithTheRestart(t *testing.T) {
+	var logs bytes.Buffer
+	previous := loggerPtr.Load()
+	setLogger(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { loggerPtr.Store(previous) })
+
+	disp := &fakeDispatcher{}
+	r := newResponder(enforcingConfig(), disp)
+	announceOnce(t, r, exitTestVictim)
+	disp.err = fmt.Errorf("update-route: %w", rpc.ErrBridgeClosed)
+	logs.Reset()
+
+	stopResponder(r, true)
+
+	var warnLines int
+	for line := range strings.SplitSeq(strings.TrimSpace(logs.String()), "\n") {
+		if strings.Contains(line, "level=ERROR") {
+			t.Errorf("a stop after a failed run logged %q, want a WARN and no error", line)
+		}
+		if !strings.Contains(line, "level=WARN") {
+			continue
+		}
+		warnLines++
+		if !strings.Contains(line, closedTransportFact) {
+			t.Errorf("WARN line %q does not say %q", line, closedTransportFact)
+		}
+		if !strings.Contains(line, "code=doctor-ddos-flowspec-orphan-announcement") {
+			t.Errorf("WARN line %q does not name the doctor code", line)
+		}
+		if !strings.Contains(line, `fix="`+restartTestFix+`"`) {
+			t.Errorf("WARN line %q does not carry the fix %q", line, restartTestFix)
+		}
+	}
+	if warnLines != 1 {
+		t.Errorf("WARN lines after a failed run = %d, want 1 (log: %s)", warnLines, logs.String())
 	}
 	if disp.recorded == nil {
 		t.Errorf("the record was removed although the withdrawal never left")

@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -223,6 +224,11 @@ func replaceResponder(cfg *Config, dispatcher routeDispatcher, prev *responder, 
 // for `ze doctor`, and never the removal itself.
 const exitWithdrawBudget = 400 * time.Millisecond
 
+// closedTransportMessage is the line stopResponder logs when its withdrawal
+// meets a closed connection to the engine. It holds whether or not the daemon
+// is stopping, because the plugin cannot tell which.
+const closedTransportMessage = "ddos-flowspec: the FlowSpec rule was not withdrawn on the way out, because the plugin's connection to the engine is closed; the rule stays recorded. If the daemon is stopping, the BGP sessions end with it. Otherwise the next start of the plugin withdraws the rule, and the command under fix starts it"
+
 // stopResponder takes r out of service on the plugin's way out and withdraws
 // the FlowSpec rule it still announces. A nil r is the engine that never
 // configured, and an r with nothing live sends nothing.
@@ -241,8 +247,17 @@ const exitWithdrawBudget = 400 * time.Millisecond
 //   - the `bye` handler, the one moment the engine waits for this plugin with
 //     the connection open (notifyPluginRemoval sends `bye` and waits for the
 //     answer before Process.Stop refuses the plugin's calls);
-//   - the deferred call in runEngine, for every other end where the engine
-//     still answers: Run returning, a panic unwinding the engine function.
+//   - the deferred call in runEngine, for every other end. It reaches the
+//     engine only when the plugin runs as its own process and its connection
+//     is still open: Run returning on a signal from outside, or a panic
+//     unwinding the engine function. In process (the default
+//     placement) it never does, on any end: sdk.Plugin.Run closes the bridge
+//     on its way out (its deferred bridge.CloseCallbacks runs
+//     bridge.StopDispatch), so by the time this deferred call runs,
+//     DirectBridge.DispatchRPC refuses every call with rpc.ErrBridgeClosed
+//     (bridge.go beginDispatch). The rule then stays recorded, and the next
+//     start of the plugin withdraws it from OnStarted
+//     (withdrawRecordedAnnouncement).
 //
 // The withdrawal runs under a context of its own, bounded by
 // exitWithdrawBudget and NOT derived from the signal context: on the way out
@@ -250,23 +265,27 @@ const exitWithdrawBudget = 400 * time.Millisecond
 // refused before it left.
 //
 // At a daemon stop the engine sends no `bye`, and the withdrawal cannot leave.
-// In process (the default placement), Process.Stop runs bridge.StopDispatch
-// first, then bridge.CloseCallbacks, then closeConns (process.go Stop). This
-// plugin's Run ends only when the callback channel closes or its own context
-// ends, and under sdk.HostOwnsSignals, which the daemon sets, SignalContext is
-// a plain cancel context that no signal ends. So Run returns after
-// StopDispatch, and the withdrawal meets DirectBridge.DispatchRPC refusing it
-// with rpc.ErrBridgeClosed (bridge.go beginDispatch). A forked plugin's Run
-// ends on closeConns, so its withdrawal meets a closed connection. The one
+// In process, Process.Stop runs bridge.StopDispatch first, then
+// bridge.CloseCallbacks, then closeConns (process.go Stop). A forked plugin's
+// Run ends on closeConns, so its withdrawal meets a closed connection. The one
 // exception is a forked plugin that receives SIGINT or SIGTERM from outside
 // before the daemon's stop reaches it (a signal to its process group, for
 // example): its Run returns while the engine still answers, and the
 // withdrawal leaves (TestRunEndingWithoutByeWithdrawsTheLiveAnnouncement).
-// The closed transport is one INFO line, not an error: the BGP sessions end
-// with the daemon, the peers drop the rule with the session (or hold it as
-// stale under graceful restart), and the record stays for the next start to
-// withdraw.
-func stopResponder(r *responder) {
+//
+// The closed transport is one log line, and the line cannot know whether the
+// daemon is stopping, so it says what holds in both cases. runFailed sets its
+// level. When Run ended because the engine stopped the plugin (a daemon stop, a
+// plugin restart) the line is INFO: at a daemon stop the BGP sessions end with
+// the daemon, the peers drop the rule with the session (or hold it as stale
+// under graceful restart), and a restart withdraws the rule when it starts.
+// When Run failed, or never returned because a panic unwound runEngine, the
+// plugin stopped on its own while the daemon may keep running with the rule at
+// the peers, and nothing withdraws it until the plugin starts again: the
+// plugin declares no failure policy, so the engine does not restart it
+// (failure_policy.go applyFailurePolicy, FailureUnspecified), and the line is
+// a WARN that the operator sees.
+func stopResponder(r *responder, runFailed bool) {
 	if r == nil {
 		return
 	}
@@ -285,12 +304,24 @@ func stopResponder(r *responder) {
 		return
 	}
 	if transportClosed(err) {
-		logger().Info("ddos-flowspec: the connection to the engine is closed, so the FlowSpec rule is not withdrawn on the way out; the BGP sessions end with the daemon, and the next start withdraws the recorded rule",
-			"target", r.target.DstPrefix)
+		if runFailed {
+			logger().Warn(closedTransportMessage,
+				"target", r.target.DstPrefix, "fix", process.RestartCommand(Name),
+				"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			return
+		}
+		logger().Info(closedTransportMessage,
+			"target", r.target.DstPrefix, "fix", process.RestartCommand(Name))
 		return
 	}
-	logger().Warn("ddos-flowspec: the FlowSpec rule could not be withdrawn on the way out; it stays recorded, the next start withdraws it and ze doctor reports it until then",
-		"target", r.target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+	// The plugin is on its way out, so its own runtime check no longer answers.
+	// While ddos flowspec stays configured, doctor reports the stopped plugin
+	// (doctor-plugin-stopped, process.RecordStopped) or, after a restart, the
+	// restarted plugin withdraws the rule at start; once the section is removed,
+	// orphanRecordCheck reports the record with the withdrawal by hand.
+	logger().Warn("ddos-flowspec: the FlowSpec rule could not be withdrawn on the way out; it stays recorded and may still be at the BGP peers. The next start of the plugin withdraws it. While ddos flowspec is configured and the plugin is not running, ze doctor reports the plugin as stopped and the command under fix starts it; once the section is removed, ze doctor reports the recorded rule and prints the withdrawal to send by hand",
+		"target", r.target.DstPrefix, "error", err, "fix", process.RestartCommand(Name),
+		"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
 }
 
 // transportClosed reports whether err says the connection to the engine is
@@ -407,15 +438,20 @@ func runEngine(conn net.Conn) int {
 	dispatcher := sdkDispatcher{p: p, ctx: ctx}
 
 	var resp *responder
+	// runFailed stays true until Run returns nil, so a Run that failed and a
+	// panic that unwinds runEngine before Run returned both read as the plugin
+	// stopping on its own (stopResponder, the level of its closed-transport line).
+	runFailed := true
 
 	// Registered BEFORE the cap worker's own defer, so LIFO runs it AFTER the
 	// worker has been canceled and waited for, and before p.Close: the
 	// withdrawal is then the last thing this plugin sends the engine.
-	// stopResponder says why the rule cannot be left behind, and why a `bye`
-	// that already withdrew leaves this call nothing to do.
+	// stopResponder says why the rule cannot be left behind, why a `bye` that
+	// already withdrew leaves this call nothing to do, and why in process this
+	// call never reaches the engine.
 	defer func() {
 		activeResponder.Store(nil)
-		stopResponder(resp)
+		stopResponder(resp, runFailed)
 	}()
 
 	// parseSections validates only a section the config holds. An absent one (a
@@ -551,7 +587,7 @@ func runEngine(conn net.Conn) int {
 	// which the next start withdraws and `ze doctor` reports, while an error
 	// answer would only keep a plugin the engine is removing alive.
 	p.OnBye(func(_ string) error {
-		stopResponder(resp)
+		stopResponder(resp, false)
 		return nil
 	})
 
@@ -623,6 +659,7 @@ func runEngine(conn net.Conn) int {
 		unsubscribe()
 		return 1
 	}
+	runFailed = false
 
 	unsubscribe()
 	log.Info("ddos-flowspec plugin stopped")

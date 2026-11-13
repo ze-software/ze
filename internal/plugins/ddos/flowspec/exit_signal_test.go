@@ -25,7 +25,10 @@ import (
 // withdraw. An internal plugin never takes this route: the daemon calls
 // sdk.HostOwnsSignals (cmd/ze/hub/main.go), so its signal context ends only by
 // its own cancel, and the daemon ends it by closing its connection
-// (process.Process.Stop), after which no withdrawal can reach the engine.
+// (process.Process.Stop), after which no withdrawal can reach the engine. No
+// other end of an internal plugin reaches it either: sdk.Plugin.Run closes the
+// bridge on its way out (bridge.CloseCallbacks), so the deferred stopResponder
+// always meets rpc.ErrBridgeClosed in process, and the next start withdraws.
 // METHOD: runEngine over a real sdk.Plugin pair, one announcement through the
 // bus, then SIGTERM to the test process. The test registers its own SIGTERM
 // handler first, so the signal never takes its default action and end the test

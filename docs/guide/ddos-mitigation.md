@@ -584,16 +584,22 @@ one no operator can lift.
 <!-- source: internal/component/plugin/server/reload.go -- rootHasChanges -->
 
 **What each end of the plugin does to a live FlowSpec announcement.** A commit
-is not the only way the plugin ends. Where the BGP engine still answers, the
-plugin withdraws the rule on its way out. Where it does not, the rule is
-recorded and withdrawn at the next start.
+is not the only way the plugin ends. Where the plugin can still reach the BGP
+engine, it withdraws the rule on its way out. Where it cannot, the rule stays
+recorded and the next start of the plugin withdraws it. The plugin runs in the
+daemon by default, and then it cannot reach the engine on its way out on any
+end other than the `bye`: the plugin's calls are refused once its run ends.
 
 | The end | The live announcement |
 |---------|-----------------------|
 | The plugin removed while the daemon runs (the engine's `bye`) | WITHDRAWN before the plugin answers the `bye`. The engine waits 500 ms for that answer, and the withdrawal has 400 ms of its own. A withdrawal that does not reach the engine in that time leaves the record |
-| A daemon stop | NOT withdrawn. The engine sends no `bye`. The plugin still tries the withdrawal on its way out, but the daemon's stop refuses the plugin's calls before the plugin's run ends, so the withdrawal cannot leave. The record stays, and the next start withdraws the recorded rule. The plugin logs one INFO line that ends `the BGP sessions end with the daemon, and the next start withdraws the recorded rule`. The BGP sessions end with the daemon: a peer drops the rule with the session, or keeps it as stale under graceful restart until its restart timer runs out. The one exception is a plugin that runs as its own process (`external`) and receives SIGINT or SIGTERM from outside before the daemon's stop reaches it, for example a signal sent to its process group: its run then ends while the engine still answers, the withdrawal reaches the engine, and the plugin removes the record |
-| A crash | A panic that unwinds the plugin, or a plugin that stops on its own while the engine still answers, WITHDRAWS on the way out. A killed process withdraws nothing: the rule stays recorded, and the next start withdraws it |
-<!-- source: internal/plugins/ddos/flowspec/register.go -- stopResponder, exitWithdrawBudget, runEngine (the deferred exit calls stopResponder), transportClosed -->
+| A daemon stop | NOT withdrawn. The engine sends no `bye`. The plugin still tries the withdrawal on its way out, but the daemon's stop refuses the plugin's calls before the plugin's run ends, so the withdrawal cannot leave. The record stays, and the next start withdraws the recorded rule. The plugin logs one INFO line that says `because the plugin's connection to the engine is closed; the rule stays recorded`, with the plugin restart under `fix`. The BGP sessions end with the daemon: a peer drops the rule with the session, or keeps it as stale under graceful restart until its restart timer runs out. The one exception is a plugin that runs as its own process (`external`) and receives SIGINT or SIGTERM from outside before the daemon's stop reaches it, for example a signal sent to its process group: its run then ends while the engine still answers, the withdrawal reaches the engine, and the plugin removes the record |
+| The plugin stops on its own (a panic, a failed run) while the daemon runs | In the daemon (the default placement): NOT withdrawn, because the plugin's calls are refused once its run ends. The rule stays at the peers and stays recorded. The plugin logs the same line as at a daemon stop, at WARN with the code `doctor-ddos-flowspec-orphan-announcement`. The plugin declares no failure policy, so the daemon does not start it again: `ze doctor` reports it as stopped (`doctor-plugin-stopped`), and its fix, `ze request plugin restart ddos-flowspec`, starts it, and that start withdraws the recorded rule. As its own process (`external`): WITHDRAWN on the way out when its run ends while its connection to the engine is still open; a stop that closed the connection first leaves the rule recorded, as in the daemon |
+| The plugin is killed | NOT withdrawn: a killed process runs nothing on its way out. The rule stays recorded, and the next start withdraws it |
+<!-- source: internal/plugins/ddos/flowspec/register.go -- stopResponder, closedTransportMessage, exitWithdrawBudget, runEngine (the deferred exit calls stopResponder, runFailed), transportClosed -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run: its deferred bridge.CloseCallbacks closes dispatch before the plugin's deferred exit runs -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- applyFailurePolicy: no declared policy records the plugin stopped -->
+<!-- source: internal/component/plugin/process/stopped.go -- RecordStopped raises doctor-plugin-stopped with RestartCommand -->
 <!-- source: internal/component/plugin/process/manager.go -- ProcessManager.Stop closes each plugin's connection -->
 <!-- source: internal/component/plugin/process/process.go -- Process.Stop: StopDispatch, then CloseCallbacks, then closeConns -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.DispatchRPC refuses through beginDispatch with ErrBridgeClosed -->
@@ -631,8 +637,11 @@ announcement replaces it at the peers.
 
 `ze doctor` reports a recorded rule that no running responder holds, under
 `doctor-ddos-flowspec-orphan-announcement`. It names the victim and says why the
-rule may still be at the peers. What it prints as the fix depends on whether the
-plugin runs:
+rule may still be at the peers. While `ddos flowspec` is configured and the
+plugin is stopped, no check reads the record: doctor reports the stopped plugin
+under `doctor-plugin-stopped`, and its fix, the plugin restart, withdraws the
+recorded rule when the plugin starts. What it prints as the fix depends on
+whether the plugin runs:
 
 | `ddos flowspec` | Who answers | Fix | What clears the report |
 |-----------------|-------------|-----|------------------------|
