@@ -119,12 +119,27 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 	sel.Family = uint16(nl.FAMILY_V4)
 	if policy.Dst != nil {
 		sel.Family = uint16(nl.GetIPFamily(policy.Dst.IP))
-		sel.Daddr.FromIP(policy.Dst.IP)
-		prefixlenD, _ := policy.Dst.Mask.Size()
+		prefixlenD, bits := policy.Dst.Mask.Size()
+		// The mask declares the family; To4 would erase mapped IPv6 prefixes.
+		switch bits {
+		case 32:
+			sel.Family = uint16(nl.FAMILY_V4)
+		case 128:
+			sel.Family = uint16(nl.FAMILY_V6)
+		}
+		if sel.Family == uint16(nl.FAMILY_V6) {
+			copy(sel.Daddr[:], policy.Dst.IP.To16())
+		} else {
+			sel.Daddr.FromIP(policy.Dst.IP)
+		}
 		sel.PrefixlenD = uint8(prefixlenD)
 	}
 	if policy.Src != nil {
-		sel.Saddr.FromIP(policy.Src.IP)
+		if sel.Family == uint16(nl.FAMILY_V6) {
+			copy(sel.Saddr[:], policy.Src.IP.To16())
+		} else {
+			sel.Saddr.FromIP(policy.Src.IP)
+		}
 		prefixlenS, _ := policy.Src.Mask.Size()
 		sel.PrefixlenS = uint8(prefixlenS)
 	}

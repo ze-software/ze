@@ -334,6 +334,10 @@ corrections (Linux limitation `LL-NETLINK-XFRM-DECODE`,
 - The policy writer copies the selector family into any template that carries no
   destination, which in ze is every transport-mode template. An explicit
   destination still determines the template family.
+- The selector writer takes its family from a valid destination prefix's mask
+  width and preserves all sixteen address bytes for IPv6, including mapped
+  IPv6 prefixes. Policies and a state's legacy selector use the same writer,
+  so a transport selector can match its canonical state-scope record exactly.
 - The policy reader preserves source and destination port masks, including partial
   masks and an exact port zero. The writer sends a non-zero mask as given and
   derives the mask from the port value only when the mask is zero, so Ze can
@@ -359,6 +363,12 @@ corrections (Linux limitation `LL-NETLINK-XFRM-DECODE`,
 - `XfrmState` gains `ICMP` and `XfrmPolicy` gains `ICMP`. The writers set
   `XFRM_STATE_ICMP` and `XFRM_POLICY_ICMP` when they are true, and the readers
   report them (see "ICMP error messages carried by a Child SA" below).
+- `XfrmState` gains `StateScope`, an ordered list of 1..64 canonical IPv4 or
+  IPv6 selectors and a negotiated noninitial-fragment flag. Its writer and
+  reader validate and preserve every field. `XfrmZECapabilitiesGet` reads the
+  live namespace's GETDEFAULT receipt and refuses missing, duplicate,
+  malformed or foreign receipts. Individual feature bits let callers require
+  the kernel behavior their request needs before installation.
 <!-- source: internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch -- XFRM state and policy decoding corrections -->
 
 `TestXFRMReadbackPolicyTunnelAddressFamily` installs an IPv4 policy with IPv6

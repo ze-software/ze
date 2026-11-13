@@ -137,6 +137,9 @@ type XfrmState struct {
 	ICMP     bool
 	Replay   *XfrmReplayState
 	Selector *XfrmPolicy
+	// StateScope is an exact ordered OR-set of directional inner selectors.
+	// Nil keeps ordinary upstream state construction unchanged.
+	StateScope *XfrmStateScope
 }
 
 func (sa XfrmState) String() string {
@@ -299,6 +302,18 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 
 	limitsToLft(state.Limits, &msg.Lft)
 	req.AddData(msg)
+	if state.StateScope != nil {
+		if err := state.StateScope.validate(); err != nil {
+			return err
+		}
+		// This allocation belongs to this one control-plane request. The scope
+		// writer fills the caller's buffer and retains no references to it.
+		payload := make([]byte, 8+len(state.StateScope.Selectors)*nl.SizeofXfrmSelector)
+		if _, err := state.StateScope.WriteTo(payload, 0); err != nil {
+			return err
+		}
+		req.AddData(nl.NewRtAttr(nl.XFRMA_STATE_SCOPE, payload))
+	}
 
 	if state.Auth != nil {
 		out := nl.NewRtAttr(nl.XFRMA_ALG_AUTH_TRUNC, writeStateAlgoAuth(state.Auth))
@@ -549,6 +564,9 @@ func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 }
 
 func parseXfrmState(m []byte, family int) (*XfrmState, error) {
+	if len(m) < nl.SizeofXfrmUsersaInfo {
+		return nil, errors.New("XFRM state header is truncated")
+	}
 	msg := nl.DeserializeXfrmUsersaInfo(m)
 	// This is mainly for the state dump
 	if family != FAMILY_ALL && family != int(msg.Family) {
@@ -562,6 +580,14 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
+		case nl.XFRMA_STATE_SCOPE:
+			if state.StateScope != nil {
+				return nil, errors.New("XFRM state contains duplicate scope attributes")
+			}
+			state.StateScope, err = ParseXfrmStateScope(attr.Value)
+			if err != nil {
+				return nil, err
+			}
 		case nl.XFRMA_ALG_AUTH, nl.XFRMA_ALG_CRYPT:
 			var resAlgo *XfrmStateAlgo
 			if attr.Attr.Type == nl.XFRMA_ALG_AUTH {
