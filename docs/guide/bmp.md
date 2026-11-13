@@ -53,6 +53,8 @@ environment {
 | `max-sessions` | 100 | Maximum concurrent BMP sessions (1-1000) |
 | `route-action` | monitor | `monitor` is the only value: routes go to the BMP RIB for visibility, never to best-path or the FIB |
 
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- environment container, route-action -->
+
 Multiple listeners are supported (same pattern as SSH/web):
 
 ```

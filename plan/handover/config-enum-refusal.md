@@ -1,6 +1,33 @@
 # Handover: config-enum-refusal-proposes-valid-values
 
-## Current continuation — 2026-11-13
+## Completed work and closure navigation — 2026-11-13
+
+The enum-refusal parent is closed. Commit A is
+`13310151fbd2893eee161f623d60aa2446d69886` and commit B is
+`9b4f33044a799197dad5d39f81baaafc57cf5930`. Its implementation, required
+runtime proofs and independent CLEAN round-6 review are retained in history.
+The source-check result covers five checked build flavors at b9c22dfb7d:
+distro, appliance, setup, host and installer. Host is development tooling.
+
+The dependent `spec-bmp-route-action-redistribute-acts-as-monitor` has its
+implementation and proofs in fa74dc4c00 and fb0f9181ec. The parent closure
+satisfies its A-2b dependency. This record belongs to the BMP closing
+transaction: commit A retains the final audit, operator news and journal
+evidence, and commit B removes that spec. The generated script and resulting
+SHAs are reported by main after both commits land. No push is authorized.
+
+BMP monitoring remains isolated from best-path and the FIB. Its unit recorder
+proves the exact SDK injection call. The preserved ingest/isolation tests
+prove stored routes, and the existing FRR receiver scenario proves the
+surviving monitor configuration interoperates. No new redistribution feature
+or full RFC-conformance claim is made.
+
+The sections below are historical navigation only. Their open tasks, old
+claims, drafts, pending proofs and review-cap blockers are superseded by the
+committed final evidence and this closing transaction. Separately owned
+defects remain with the specs named in the parent's final Work Not Done.
+
+## Historical continuation — 2026-11-13
 
 This section supersedes the historical handovers below. The implementation and
 required runtime proofs are committed at `b9c22dfb7d`; earlier native Spec-work

@@ -14,9 +14,9 @@
 #
 # Two fences, the shape of test/reload/config-reload-invalid-validator.ci:
 #   the reload FAILS -- the stderr expectations, which name the leaf, the
-#   refused value and the value the schema accepts. Only those three words are
-#   pinned, because spec-config-enum-refusal-proposes-valid-values replaces the
-#   generic enum message text and both texts carry them.
+#   refused value, accepted monitor value and exact configuration fix. The
+#   friendly refusal is delivered by the closed
+#   spec-config-enum-refusal-proposes-valid-values.
 #   the daemon KEEPS RUNNING -- the SIGTERM after the SIGHUP, and exit code 0.
 #   A daemon that died on the SIGHUP cannot take the SIGTERM and cannot exit 0.
 #

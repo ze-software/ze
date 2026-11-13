@@ -2,7 +2,7 @@
 # also listed redistribute, which committed and then acted as monitor, with one
 # warning line in the log as the only signal (owner Q-1: BMP is monitoring
 # only). With the value gone from ze-bmp-conf.yang the native enum refusal
-# (ValidateLeafValue, internal/component/config/schema.go) rejects it.
+# (ValidateLeafValue, internal/component/config/leaf_value.go) rejects it.
 #
 # VALIDATES: spec-bmp-route-action-redistribute-acts-as-monitor AC-1 (validate
 #            refuses redistribute), AC-2 (daemon start refuses it), AC-4
@@ -11,10 +11,10 @@
 #            accepted counterparts make the test fail if the refusal ever widens
 #            into "route-action rejected" or "environment bmp rejected".
 #
-# Only route-action, redistribute and monitor are pinned. The generic enum
-# refusal text is replaced by spec-config-enum-refusal-proposes-valid-values,
-# and both the current and the replacement text carry these three words. No
-# needle holds a ':' because the directive splits on it.
+# The shared enum refusal names the full setting path, the rejected value,
+# monitor as the accepted value, and the exact configuration fix. These
+# assertions cover the friendly refusal delivered by the closed
+# spec-config-enum-refusal-proposes-valid-values.
 
 stdin=redistribute:terminator=EOF_REDIST
 environment {

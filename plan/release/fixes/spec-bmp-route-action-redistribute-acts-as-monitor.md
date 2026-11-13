@@ -6,14 +6,20 @@
 | Priority | P1 |
 | Release reason | Accepted receiver action must not silently perform monitoring instead of redistribution. |
 | Scope | protocol |
-| Depends | closure only: `spec-config-enum-refusal-proposes-valid-values` must be closed before this spec closes, because A-2b is validated by its tests. Implementation and commits do not wait on it |
+| Depends | Satisfied: `spec-config-enum-refusal-proposes-valid-values` closed in 13310151fb and 9b4f33044a, with its multi-surface enum-refusal proofs. |
 | Phase | 4/4 |
 | Handoff | - |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-13 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+**Closure outcome (2026-11-13).** Approach A is implemented in fa74dc4c00 and
+fb0f9181ec: the receiver accepts `monitor` alone and refuses `redistribute`.
+The Task, Current Behavior and design records below describe the research
+baseline. The closure audit records the current source and proof. Owner Q-1
+settles the goal: "NO BMP is MONITORING ONLY" (2026-10-13).
 
 **Research note (2026-10-13, HEAD 6b2f7cfa40).** The Task text below was
 written 2026-09-06. Two of its facts moved since and are corrected here rather
@@ -183,12 +189,12 @@ no direction, so one change cannot fix both.
      Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The owner does not want BMP redistribution built now, so refusing the value is the fix rather than a placeholder | RFC 7854 defines no station-side use of received routes (Sections 1, 2) and warns of false information without mutual authentication (Section 11); `plan/README.md` immediate-bucket test is "Ze accepts a configuration and then does something else" | If redistribution is wanted, approach C replaces this spec's design and a trust and loop-prevention design is owed first; the refusal still lands as the interim per Q-1 | Owner answer to Q-1 | unvalidated |
-| A-2a | A value outside the enumeration is refused by `ze config validate`, by file load at daemon start, and by reload | Read at the producer (round-1 review): the file parser (`config/parser.go`) and the set parser (`config/setparser.go`) both call `ValidateLeafValue`. `environment/bmp` has no env-var route (no `ze.bmp.*` key) | One of these paths would still accept `redistribute` and the plugin would then silently ignore it | This spec's own tests: AC-1 `.ci` (validate), AC-2 `.ci` (daemon start refuses), AC-3 `.ci` (reload refused) | unvalidated |
-| A-2b | A value outside the enumeration is refused on the SSH editor `set`, the web form, a REST config session commit and a gNMI `Set`. This is generic over every YANG enum, not BMP-specific, and this spec claims it only through the citation | Read at the producer (round-1 review): editor set uses `ValidateValueAtPath`; web set today refuses only at commit; REST and gNMI commit go through `ValidateContent` (`config/cli/cmd_validate.go`). No test at HEAD 8e1595acf2 proves enum refusal on editor set, REST or gNMI (round-2 review grep over `test/editor`, `test/plugin`, the cli, api and gnmi tests) | One of these paths would still accept `redistribute` | `spec-config-enum-refusal-proposes-valid-values` AC-6 to AC-9: `TestValidateValueAtPathEnumRefusal`, `test/editor/validation/enum-refusal-set.et`, `TestWebFormRefusesEnumAtSet`, `test/web/config-enum-refusal.wb`, `test/plugin/api-config-enum-refusal.ci`, `test/plugin/gnmi-set-enum-refusal.ci` (driven by the `le test fixture` gNMI client that spec's settled A-6 adds). Validated when that spec closes; this spec does not close before then (metadata Depends, closure only) | unvalidated |
-| A-3 | No config in the repository, test, or interop scenario writes `route-action redistribute` | `grep -rn "route-action" test etc docs internal` at HEAD: only `bmp-locrib-receiver-frr/ze.conf` (`monitor`) and the guide | A fixture would go red at implementation | Re-run the grep in Phase 1 | confirmed 2026-11-11: only `bmp-locrib-receiver-frr/ze.conf` (`monitor`) and `docs/guide/bmp.md`; the `internal/chaos` `route-action` hits are an unrelated event name |
-| A-4 | The site fixtures `internal/le/site/testdata/published-*.{md,json}` are snapshots and do not follow the live YANG | `configurationPaths` copies `published-yang-config-tree.json` in as input | `TestTheConfigurationMirrorReadsAsThePublishedMirror` would redden | Run `./le go test package internal/le/site` scoped after the YANG edit | unvalidated |
-| A-5 | Nothing outside the BMP plugin reads `route-action` or `receiverConfig.RouteAction` | grep for `RouteAction` and `route-action` at HEAD: only `bmp.go`, `receiver.go`, `route_action_test.go` (the `redistevents.RouteAction` hits are an unrelated type) | Deleting the field breaks a build | `gopls references` on the field before deleting it | confirmed 2026-11-11 by grep (gopls not run): readers were `receiver.go` (warning, deleted) and `route_action_test.go` `TestReceiverConfig_RouteActionDefault` (deletion waits on the ze-test-judge approval, see Q-4 note) |
+| A-1 | BMP redistribution is unwanted; monitoring is the complete receiver goal. | Owner Q-1, 2026-10-13: "NO BMP is MONITORING ONLY". | A different owner design would be required. | Q-1 and the approved approach A. | confirmed |
+| A-2a | Out-of-enum values are refused by validate, startup and reload. | `leaf_value.go` `ValidateLeafValue` / `validateLeafRestrictions`; YANG `validateEnumeration`. | Unsupported intent could silently reach the plugin. | Owned parse/start and reload tests: recorded YANG-revert RED, restored GREEN and 80 load invocations each. | confirmed |
+| A-2b | Generic enum refusal covers editor, web, REST and gNMI config paths. | Closed enum-refusal parent and its final multi-surface audit. | A caller could bypass the config restriction. | Parent A 13310151fb / B 9b4f33044a, with committed unit, live and load proofs. This is the cited generic proof, not new BMP-specific transport proof. | confirmed |
+| A-3 | No intended-valid repository config requests receiver redistribution. | Tracked `route-action` search, with the FRR scenario as positive control. | An existing valid user would need conversion. | Only the FRR receiver scenario explicitly selects monitor. New refusal tests intentionally hold invalid redistribute input; published-site files are snapshot test inputs. | confirmed |
+| A-4 | Published site fixtures are snapshot inputs, independent of live YANG. | `internal/le/site/config_test.go` `configurationPaths` copies `published-yang-config-tree.json`. | The published-mirror assertion could change. | Main ran `./le --name session test unit pkg path ./internal/le/site/ run '^TestTheConfigurationMirrorReadsAsThePublishedMirror$'`: package PASS, 125.826s, job-unit-pkg-77898dc0.log. | confirmed |
+| A-5 | The removed RouteAction field had no surviving runtime reader outside BMP. | Current `receiverConfig` and `applyReceiverConfig`; historical field/reference search. | Deletion could break another consumer. | Tracked BMP `RouteAction` search now matches only the singleton-enum test name. The approved vacuous-field-test deletion landed in fa74dc4c00. | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -257,7 +263,7 @@ no direction, so one change cannot fix both.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestRouteActionEnumIsMonitorOnly` (new) | `internal/component/bgp/plugins/bmp/yang_enum_agreement_test.go` | the `ze-bmp-conf` enumeration at `environment/bmp/route-action` is exactly `[monitor]` and its default is `monitor` (AC-6). Red before the YANG edit (two values) | |
-| `TestReceiverConfig_RouteActionDefault` (DELETE, owner Q-4 "ok", 2026-10-13) | `internal/component/bgp/plugins/bmp/route_action_test.go` | asserts an empty Go field is empty; reads a field this spec deletes, so it cannot compile once the field is gone, and it proved nothing about the YANG default, which `TestRouteActionEnumIsMonitorOnly` now proves. Not RFC-tagged. `ai/rules/testing.md` requires the owner's answer before a `*_test.go` deletion; owner Q-4 answered "ok" (2026-10-13, commit f8c0c10c3b), so it is deleted, and a `test/weakened/<session>.md` row is owed (see Q-4) | |
+| `TestReceiverConfig_RouteActionDefault` (DELETE, owner Q-4 "ok", 2026-10-13) | `internal/component/bgp/plugins/bmp/route_action_test.go` | The removed test asserted only a Go zero value. `TestRouteActionEnumIsMonitorOnly` proves the actual YANG default. Independent judge approval and deletion are retained in fa74dc4c00's `Weakening-approved:` trailer. | Done |
 | `TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB`, `TestProcessRouteMonitoring_ShortUpdate_Skipped` (REWRITE, owner Q-3) | `internal/component/bgp/plugins/bmp/route_action_test.go` | rewritten per AC-9 through the bridged-conn seam: the first asserts one injection with protocol `bmp`, the peer key `bmpCompositeKey` builds from the remote address and the per-peer header, and the UPDATE bytes after the 19-byte header (`bgpHeaderSize`) as body; the second asserts no injection for an UPDATE shorter than 19 bytes. Red: the first with the `InjectWireRoute` call removed, the second with the length guard removed. No journal row: owner Q-3 says strengthen here. Both are listed today in `docs/features/test-health.md` under "no reachable failure call"; that page is generated and follows by `./le test health update`, with no hand edit | |
 
 **RFC-tagged tests that change: none.** `grep "RFC requirement"` over `route_action_test.go`, `rib_inject_test.go`, `test/parse/bmp-config.ci`, `test/plugin/bmp-lg-ingest.ci` and `test/plugin/bmp-lg-bestpath-isolation.ci` returns nothing, and the new tests carry no tag because no RFC 7854 row governs station-side use of routes. No owner approval for an RFC-tagged test is owed under approach A. Under approach C (implement redistribution) that answer would have to be re-derived.
@@ -301,7 +307,7 @@ no direction, so one change cannot fix both.
 - `internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang` - delete `enum redistribute`; rewrite the leaf `description` to say `monitor` is the only action, what it does, and why the leaf stays with one value (a removed leaf would be skipped silently, a removed value is refused); keep `ze:help` of `monitor`
 - `internal/component/bgp/plugins/bmp/receiver.go` - delete the `RouteAction == "redistribute"` warning in `applyReceiverConfig`
 - `internal/component/bgp/plugins/bmp/bmp.go` - delete `receiverConfig.RouteAction`
-- `internal/component/bgp/plugins/bmp/route_action_test.go` - rewrite `TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB` and `TestProcessRouteMonitoring_ShortUpdate_Skipped` per AC-9 through the bridged-conn seam: a direct bridge from `rpc.NewDirectBridge` with its inject handler set to a recorder by `SetInjectWireRoute` and `SetReady` called, wrapped by `rpc.NewBridgedConn` around one end of a pipe and handed to `sdk.NewWithConn`; delete `TestReceiverConfig_RouteActionDefault` (owner Q-4 "ok", 2026-10-13), with its `test/weakened/<session>.md` row written before the edit
+- `internal/component/bgp/plugins/bmp/route_action_test.go` - rewrite `TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB` and `TestProcessRouteMonitoring_ShortUpdate_Skipped` per AC-9 through the bridged-conn seam: a direct bridge from `rpc.NewDirectBridge` with its inject handler set to a recorder by `SetInjectWireRoute` and `SetReady` called, wrapped by `rpc.NewBridgedConn` around one end of a pipe and handed to `sdk.NewWithConn`; delete `TestReceiverConfig_RouteActionDefault` (owner Q-4 "ok", 2026-10-13), with prior independent test-judge approval, retained in fa74dc4c00's native trailer
 - `internal/component/bgp/plugins/bmp/yang_enum_agreement_test.go` - factor the path walk out of `yangEnumValues` into a leaf-entry accessor that returns the goyang entry, make `yangEnumValues` reuse it, and add `TestRouteActionEnumIsMonitorOnly`, which reads the values through `yangEnumValues` and the default through the accessor and `SingleDefaultValue` (AC-6)
 - `docs/guide/bmp.md` - receiver field table row and the Looking Glass Integration paragraph (`// Design:` header of `receiver.go` names this page)
 - `plan/journal/unwired-feature.md` - the 2026-09-04 row naming `bmp/route-action` records the fix (append, do not rewrite the row's history)
@@ -371,7 +377,7 @@ Steps follow approach A, which owner answers Q-1 (monitoring only, the refusal i
 2. **Phase: Schema** -- delete `enum redistribute`, rewrite the leaf `description`, edit `docs/guide/bmp.md` in the same phase
    - Tests: the three above go green; `test/parse/bmp-config.ci`, `test/plugin/bmp-lg-bestpath-isolation.ci`, `test/plugin/bmp-lg-ingest.ci` stay green; scoped `internal/le/site` package test stays green (A-4)
    - Files: `ze-bmp-conf.yang`, `docs/guide/bmp.md`
-3. **Phase: Dead code** -- delete the warning branch, `receiverConfig.RouteAction`, and `TestReceiverConfig_RouteActionDefault` (owner Q-4 "ok", 2026-10-13), with the `test/weakened/<session>.md` row written before the edit
+3. **Phase: Dead code** -- delete the warning branch, `receiverConfig.RouteAction`, and `TestReceiverConfig_RouteActionDefault` (owner Q-4 "ok", 2026-10-13), with prior independent test-judge approval, retained in fa74dc4c00
    - Tests: scoped `internal/component/bgp/plugins/bmp` package test green; `gopls references` on the field empty before deletion (A-5); grep for the warning text empty (R-4)
    - Files: `receiver.go`, `bmp.go`, `route_action_test.go`
 4. **Phase: Proof** -- revert walk on the YANG edit (rebuild `ze`, both `.ci` red, restore, green, record); run `bmp-locrib-receiver-frr` (AC-8); append the fix to the `plan/journal/unwired-feature.md` row
@@ -407,7 +413,7 @@ Steps follow approach A, which owner answers Q-1 (monitoring only, the refusal i
 - Refusal: `test/parse/bmp-route-action-refuses-redistribute.ci` and `test/reload/bmp-route-action-redistribute-refused.ci` went red with `enum redistribute` restored (validate exit 0, reload accepted) and green with it removed; each passed 80 invocations under `./le test stress-repro` load; promoted in fb0f9181ec (the parse test's daemon-start deadline raised from 10s to 30s, as other parse tests use).
 - Unit: `TestRouteActionEnumIsMonitorOnly` and both `TestProcessRouteMonitoring` tests pass (`go test -tags ze_bgp,ze_bmp`).
 - `monitor` unchanged: `bmp-lg-bestpath-isolation`, `bmp-lg-ingest`, `bmp-lg-disconnect`, `bmp-lg-http-routes` and `bmp-config` pass; AC-8 `bmp-locrib-receiver-frr` against FRR passes (`./le test integration interop`, 1 passed, 0 failed).
-- Closure still waits only on `spec-config-enum-refusal-proposes-valid-values` (Depends, A-2b), which is at status design.
+- The closure-only dependency is satisfied: `spec-config-enum-refusal-proposes-valid-values` closed in 13310151fb and 9b4f33044a on 2026-11-13. Its committed multi-surface proofs resolve A-2b.
 
 ### Security Review Checklist
 
@@ -416,7 +422,21 @@ Steps follow approach A, which owner answers Q-1 (monitoring only, the refusal i
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | the refusal holds on every config path so no path can enable a value the plugin silently ignores. This spec proves validate, start and reload (A-2a); editor set, web, REST and gNMI are proven by the enum spec's AC-6 to AC-9 tests, cited in A-2b and validated when that spec closes; `environment/bmp` has no env-var route |
-| Fail-open | the change removes a path that could later fail open: an unauthenticated BMP feed (RFC 7854 Section 11) can no longer be configured toward best-path by a leftover value |
+| Fail-open | No forwarding bypass is claimed fixed: the old value already only monitored. The enum now refuses unsupported intent, while `processRouteMonitoring` still injects only `protocolBMP` and `handleInjectWireRoute` stores outside BGP candidates. |
+
+### Closure security review
+
+| Concern | Producer evidence and disposition |
+|---------|-----------------------------------|
+| Validation and authorization | The singleton YANG enum is the authority before plugin config delivery. Parse/start/reload assertions include accepted monitor/absent controls. Parent closure proves generic editor, web, REST, gRPC and gNMI paths. No env override or new authorization surface is added. |
+| Injection, path traversal and output leakage | No command, file path, query, format string or secret handling is added. The shared refusal and fix rendering are the closed parent's work. The receiver field/warning are deleted, with no substitute execution path. |
+| Bounds, allocation and denial of service | No runtime allocation, loop, queue, retry, wire parser or numeric input changes. Test recorder allocations depend only on fixed test bodies. Listener reconcile and session cap remain unchanged. |
+| Concurrency and lifecycle | The removed branch had no shared-state effects. Existing receiver locking, listener cleanup and atomic session cap remain. Refusal occurs before reload apply, so plugin crash/restart, shutdown/drain, handshake and startup-dispatch scenarios cannot be newly reached by this change. |
+| Cryptography and privileges | No key, random source, cipher, socket privilege or dependency changes. BMP transport remains unauthenticated TCP. This fix does not claim transport authentication or a security-vulnerability repair. |
+| Protocol boundary | RFC 7854 Section 3.2: "No BMP message is ever sent from the monitoring station to the monitored router." No BMP/BGP bytes or protocol state transitions change here. The existing FRR AC-8 proof is retained. |
+
+Security review found no product defect in this change. No security fix or
+follow-up test run is required by step 3 of `/ze-close`.
 
 ### Failure Routing
 
@@ -461,7 +481,7 @@ Recorded as R-1 to R-5 (stored config stops loading, message lacks the reason, l
 | Q-1 | Is BMP redistribution (routes learned as a monitoring station entering best-path and the FIB) wanted at all? If yes, it becomes its own spec in `plan/` with a trust and loop-prevention design, and this spec's refusal is the placeholder until it lands. If no, the refusal is the end state | No. RFC 7854 frames the station as an observer (Sections 1, 2) and warns it can be fed false information without mutual authentication (Section 11) | decides whether the refusal is final and whether a feature spec is created. **Answered by the owner, 2026-10-13: "NO BMP is MONITORING ONLY". The refusal is the end state; no redistribution spec is created** |
 | Q-2 | Is the native enum error ("invalid value for route-action ... expected one of monitor") enough, or must the refusal say why `redistribute` is gone (approach B, a custom validator with its own message)? | Native error is enough: it names the leaf, the value, and what is allowed, and the guide states the reason | B adds a central validator registration and keeps a refused value in completion. **Answered by the owner, 2026-10-13: no approach B; error messages must be user friendly and "propose what is known is valid from the yang".** The generic enum refusal (today `invalid enum: %q (expected one of: %s)`, `config/schema.go` and `config/parser_list.go`) is made friendly for every YANG enum in a separate spec, spec-config-enum-refusal-proposes-valid-values; this spec relies on that generic message and adds no BMP-specific text |
 | Q-3 | The two existing `processRouteMonitoring` tests in `route_action_test.go` assert only "does not panic". Journal row only (recommended, out of this goal), or strengthen them here? | Strengthen here | **Answered by the owner, 2026-10-13: "Yes", strengthen here.** `TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB` is wrong about what it asserts (its nil plugin returns before the store, so it passes with storing removed) and the monitor path is what AC-5 relies on, so `ai/rules/rule-precedence.md` fixes it on the spot. See AC-9 |
-| Q-4 | May `TestReceiverConfig_RouteActionDefault` (`route_action_test.go`) be deleted? It asserts only that an empty Go field is empty, so it proves nothing about the YANG default (AC-6's `TestRouteActionEnumIsMonitorOnly` proves that), and once this spec removes `receiverConfig.RouteAction` it cannot compile. `ai/rules/testing.md` requires the owner's answer before deleting any `*_test.go` content, and Q-3 covered only the two `processRouteMonitoring` tests | Delete it | Decides Phase 3. A `test/weakened/<session>.md` row IS owed for the deletion: `docs/contributing/testing.md`, "When a test must be weakened", records a removal whose coverage "is genuinely gone, because the feature it proved was removed or another test now proves it", and the compiled detector (`internal/le/test/weakened`, `docs/architecture/testing/test-health.md`) refuses an edit that deletes assertions without that row. The row names `bmp.TestReceiverConfig_RouteActionDefault` with the reason "field removed; YANG default proven by TestRouteActionEnumIsMonitorOnly", is written before the edit, and is named in the commit. Not RFC-tagged, so no `./le rfc approve`. **Answered by the owner, 2026-10-13 (commit f8c0c10c3b): "ok". The test is deleted in Phase 3, with the weakened row above written before the edit** |
+| Q-4 | May the vacuous `TestReceiverConfig_RouteActionDefault` be deleted when its field is removed and the YANG default has a real test? | Delete it | **Owner answer, 2026-10-13 (f8c0c10c3b): "ok".** Deletion landed in fa74dc4c00 after independent `ze-test-judge` approval. The commit's `Weakening-approved:` trailer retains the verdict. The old unit established no schema-default behavior. |
 
 Q-1 to Q-4 are answered (2026-10-13). Round 3 of the design review is clean.
 
@@ -469,7 +489,7 @@ Q-1 to Q-4 are answered (2026-10-13). Round 3 of the design review is clean.
 - The design (approach A) is approved, so Status moved `design` to `ready` and the spec was then claimed for implementation.
 - One-off WIP cap exception: this one spec may be claimed above the WIP cap. It was claimed with `ZE_SPEC_WIP_CAP=19` when 18 specs were in progress. This is a permission for this piece of work, not a rule, and is recorded here only.
 
-**Q-4 route correction (2026-11-11).** The `test/weakened/<session>.md` row named above is not the route the tooling holds. `docs/contributing/testing.md`, "When a test must be weakened", and the edit hook require an independent `ze-test-judge` agent to approve the deletion before the edit, recorded by `./le test weakened approve unit bmp.TestReceiverConfig_RouteActionDefault reason "<verdict>"` into `tmp/commit-weakening-approved-<session>.md`; the commit then carries a `Weakening-approved:` line. The owner's Q-4 "ok" is the scope decision; the judge's verdict is the recorded approval. The edit hook refused the deletion until then.
+**Q-4 route correction (2026-11-11).** The historical design named an obsolete `test/weakened/` ledger. The edit hook required independent `ze-test-judge` approval through `./le test weakened approve`, recorded in the main session's native approval file. fa74dc4c00 carries the approved deletion and its `Weakening-approved:` trailer. Owner Q-4 settled scope; the independent verdict settled the test change.
 
 ## Known Limitations
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
@@ -477,7 +497,7 @@ Q-1 to Q-4 are answered (2026-10-13). Round 3 of the design review is clean.
      belongs to, and name that spec here (ai/rules/planning.md). -->
 - None. Owner Q-1 (2026-10-13): BMP is monitoring only, so BMP redistribution is not a deferred feature and no spec for it is created.
 
-## Review Gate
+## Design Review Record
 
 ### Design review history
 
@@ -513,7 +533,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
+- [ ] Scoped tests of the affected behavior pass in the main checkout. No agent runs any `./le verify` command or develops/tests in a worktree. GitHub CI verifies a pushed commit.
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -532,6 +552,271 @@ constraints, message ordering, and every MUST/MUST NOT.
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+- [ ] Route any new lesson to its governing surface. Closure requires no separate learned summary.
+- [ ] **Commit A:** edited spec, closure documentation, news and journal evidence, through `./le commit create`.
+- [ ] **Commit B:** remove the spec through the same generated script, after A preserves it in history. Leave the file in place until the script runs.
+
+## Implementation Summary
+
+### What Was Implemented
+
+The receiver YANG retains `monitor`, its default, and removes `redistribute`.
+The unused `receiverConfig.RouteAction` field and warning in
+`BMPPlugin.applyReceiverConfig` are gone. The data path is unchanged.
+
+### Bugs Found/Fixed
+
+The accepted value previously selected behavior Ze did not implement.
+The parse/start and reload tests now reject it and retain accepted counterparts.
+The two `processRouteMonitoring` tests now assert the actual SDK injection
+instead of returning early through a nil plugin handle.
+
+### Documentation Updates
+
+`docs/guide/bmp.md` receiver field table and Looking Glass Integration now
+state monitor-only behavior and the valid replacement. fa74dc4c00 carries the
+behavior update. Closure adds the field table's immediate source anchor and
+the canonical operator news fragment. Main owns the required doc check.
+
+### Deviations from Plan
+
+Q-4's historical weakening-ledger instructions were obsolete. The independent
+judge approval used the native approval route, and fa74dc4c00 carries both
+`Weakening-approved:` trailers. No behavior or coverage was removed to clear a red.
+
+### Risks and observations
+
+| Risk | Closure disposition |
+|------|---------------------|
+| R-1, a saved redistribute config no longer loads. | Intended refusal. Remove the setting or select monitor. Ze is pre-release and no migration is required. |
+| R-2, an unclear refusal. | Resolved by the closed generic enum-refusal work; current tests assert the full refusal and exact valid fix. |
+| R-3, a later cleanup deletes the one-value leaf. | The schema description explains why the leaf remains. Entry-point refusal and singleton/default tests discriminate its removal or widening. |
+| R-4, stale warning references. | Current runtime source has no warning or field. Historical design/commit records remain evidence of the old defect. |
+| R-5, a refused reload appears successful. | The reload emits the refusal and retains the running daemon. The test asserts this sequence; it does not assert the listener set. |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The spec named an old weakening ledger. | Native independent-judge approval is required. | Edit-hook refusal recorded in the 2026-11-11 Q-4 correction. | Approval trailers landed in fa74dc4c00. |
+| approach | The record retained worktree verification and a mandatory learned summary. | Main-checkout scoped proof and lesson routing are the current rules. | Closure rule review. | Corrected the checklist, with no prohibited verification run. |
+| approach | The promised BMP journal annotation was absent. | The 2026-09-04 row still included the BMP symptom without a fix record. | Closure read of `plan/journal/unwired-feature.md`. | Added a separate concise fixed BMP row, preserving the original row's other open surfaces. |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Refuse the unsupported receiver action. | Done | `ze-bmp-conf.yang` `route-action`. | Exactly `monitor`, default `monitor`; parse/start and reload RED-to-GREEN proof in fb0f9181ec. |
+| Preserve monitoring without best-path or FIB input. | Done | `BMPPlugin.processRouteMonitoring`, `RIBManager.handleInjectWireRoute`. | BMP namespace remains separate. Preserved ingest/isolation and FRR proof recorded in Deliverables. |
+| Remove false promises and unreachable warning code. | Done | `receiverConfig`, `BMPPlugin.applyReceiverConfig`, `docs/guide/bmp.md`. | fa74dc4c00 deletes the field and warning and corrects the guide. |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `bmp-route-action-refuses-redistribute.ci`, validate step. | Exit 1, full path, rejected value, accepted value and exact fix are asserted. |
+| AC-2 | Done | Same parse `.ci`, daemon-start step. | Exit 1 with refusal, no vacuous listener-log assertion. |
+| AC-3 | Done | `bmp-route-action-redistribute-refused.ci`. | After BGP UPDATE and EOR, rewrite/SIGHUP must emit the refusal and accept SIGTERM with exit 0. |
+| AC-4 | Done | Parse `.ci` monitor and absent cases; `bmp-config.ci`. | Both accepted counterparts remain and passed. |
+| AC-5 | Done | `TestBMPRoutesExcludedFromBestPath`, `bmp-lg-bestpath-isolation.ci`. | Actual namespace storage and BGP-only candidate selection. Preserved proof recorded in Deliverables. |
+| AC-6 | Done | `TestRouteActionEnumIsMonitorOnly`, `yangLeafEntry`, `yangEnumValues`. | Exact singleton enumeration and `SingleDefaultValue` asserted from embedded YANG. |
+| AC-7 | Done | `receiverConfig`, `applyReceiverConfig`, receiver schema and guide. | Source grep finds no warning or runtime field. The guide mentions `redistribute` only to explain its refusal. |
+| AC-8 | Done | `bmp-locrib-receiver-frr` scenario. | Recorded native integration run: 1 passed, 0 failed, with explicit `route-action monitor`. |
+| AC-9 | Done | Both `TestProcessRouteMonitoring` tests via `bridgedBMPPlugin`. | Exact one-call protocol/key/body and zero calls for a short UPDATE. This recorder proves forwarding, not RIB parsing or storage. Valid route ingestion has separate preserved controls. |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRouteActionEnumIsMonitorOnly` | Done | `bmp/yang_enum_agreement_test.go`. | Singleton enumeration/default asserted, recorded green. |
+| Delete `TestReceiverConfig_RouteActionDefault` | Done | `bmp/route_action_test.go`, fa74dc4c00. | Owner Q-4 and independent judge approval retained in commit trailer. It proved only a removed field's zero value. |
+| `TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB` | Done | `bmp/route_action_test.go`. | Ready bridge recorder asserts exact injection. Recorded green and injection-removed RED control. |
+| `TestProcessRouteMonitoring_ShortUpdate_Skipped` | Done | `bmp/route_action_test.go`. | Set SDK handle reaches the real length guard. Recorded green and guard-removed RED control. |
+| `bmp-route-action-refuses-redistribute` | Done | `test/parse/`. | Promoted in fb0f9181ec after YANG revert RED, restored GREEN and 80 load invocations. |
+| `bmp-route-action-redistribute-refused` | Done | `test/reload/`. | Promoted in fb0f9181ec after YANG revert RED, restored GREEN and 80 load invocations. |
+| Preserved config, ingest, isolation, disconnect and HTTP route tests | Done | `bmp-config.ci`, `bmp-lg-ingest.ci`, `bmp-lg-bestpath-isolation.ci`, `bmp-lg-disconnect.ci`, `bmp-lg-http-routes.ci`. | Recorded passing Deliverables proof. No new claim is inferred from their names. |
+| `bmp-locrib-receiver-frr` | Done | Existing interop scenario. | FRR receiver integration result recorded above. No protocol bytes changed. |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang` | Done | Enum removal and rationale in fa74dc4c00. |
+| `internal/component/bgp/plugins/bmp/receiver.go` | Done | Warning removal in fa74dc4c00. Listener reconcile and session cap unchanged. |
+| `internal/component/bgp/plugins/bmp/bmp.go` | Done | Runtime field removal and monitor-only comment in fa74dc4c00. |
+| `internal/component/bgp/plugins/bmp/route_action_test.go` | Done | Bridge assertions and approved vacuous-test deletion in fa74dc4c00. |
+| `internal/component/bgp/plugins/bmp/yang_enum_agreement_test.go` | Done | Shared leaf accessor and singleton/default test in fa74dc4c00. Old helper checks survive. |
+| `docs/guide/bmp.md` | Done | Operator behavior corrected in fa74dc4c00. Immediate field-table source anchor added at closure. |
+| `plan/journal/unwired-feature.md` | Done | Closure adds a fixed BMP addendum. The multi-surface historical row stays open for its other occurrences. |
+| `test/parse/bmp-route-action-refuses-redistribute.ci` | Done | Promoted in fb0f9181ec, later strengthened with the shared friendly refusal. |
+| `test/reload/bmp-route-action-redistribute-refused.ci` | Done | Promoted in fb0f9181ec, later strengthened with the shared friendly refusal and correct corpus diagnostic. |
+
+### Audit Summary
+
+29 planned items: 29 Done, 0 Partial, 0 Skipped, 0 scope changes.
+Source review is CLEAN. The native hash check passed, and the final
+documentation findings are dispositioned below. The schema-tightening
+corpus obligation is satisfied: main ran `./le --name session test unit pkg path
+./internal/component/config/cli/ run '^TestRepositoryConfigsValidate$'` and the
+package passed in 153.598s, with no skips or failures reported. The named
+selector, native test-run handling and actual package result are retained in
+`job-unit-pkg-edd5d381.log`; this is scoped proof, not a whole-tree green claim.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Ze refuses an action it does not honor. | Functional and discrimination | Both promoted `.ci` files went RED with the deleted enum restored, then GREEN, each over 80 load invocations. fb0f9181ec retains the result and reason. |
+| Monitoring remains visible and isolated. | Functional, unit and interop | Preserved ingest/isolation/disconnect/HTTP/config tests pass. `TestBMPRoutesExcludedFromBestPath` pins the BGP-only candidate. `bmp-locrib-receiver-frr`: 1 passed, 0 failed. |
+| No current surface promises receiver redistribution. | Source and documentation | `route-action` declares `monitor` alone. Runtime field and warning are absent. Guide field table and Looking Glass Integration explain monitoring and the valid replacement. Published-site snapshots are fixture inputs, covered by A-4. |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None of the agreed BMP work is intentionally omitted. | Owner Q-1 makes monitoring the complete receiver goal. | None. |
+
+## Review Gate
+
+Round 1 scope, declared before the final producer-lens verdict: the complete
+BMP changes in fa74dc4c00 and fb0f9181ec, the subsequently strengthened owned
+parse/reload assertions, and sibling enum, SDK bridge, RIB-isolation,
+functional-fixture and interop-checker producers. The commits carry the
+foreign `Spec-work: fib-depth` label, so native history alone is insufficient.
+Main pinned the seven owned code files and seven clean control files. The
+two `.ci` pins include this closure's comment-only corrections. Foreign SDK,
+RIB and fixture edits are excluded from the pinned change set.
+Design-review rounds above are not source-review rounds.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bmp-route-action-redistribute-acts-as-monitor-config-enum-refusal-20261112-codex-continue.md`, 14 files, verdict clean, round 1. |
+| `./le spec review check` | PASS: `review_gate: OK (13 code files, clean, hashes match)`, over all 14 recorded paths. |
+| Rounds | 1. Final source verdict: 0 BLOCKER, 0 ISSUE. Design history is separate. |
+| Reviewer lenses used | Logic, wiring and spec completeness; security, boundaries and vacuity; Go style and removed-behavior audit. |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| None | None | Round 1 found no product BLOCKER or ISSUE. | Complete owned change and sibling producers. | Not applicable. |
+
+### Final source verdict
+
+Round 1 is CLEAN. All lenses read producers: logic, wiring and the nine ACs;
+security, boundary cases and vacuity; Go style and removed-behavior preservation.
+The style pass found no peer-reachable panic, new unbounded runtime loop or
+allocation, misleading name, lifecycle gap, invalid-state operation or unused
+return dimension. The test-only recorder copies the fixed input to preserve
+its observation and closes both pipe endpoints through `t.Cleanup`.
+
+The changed guard has accepted monitor/absent controls and rejecting validate,
+startup and reload controls. The owned RED walks prove those guards are reached.
+The two bridge units retain their original no-panic property and add exact
+injection assertions. Their opaque body does not claim real RIB parsing.
+Valid ingestion is proven separately by the preserved fixture and RIB tests.
+
+The existing functional producers `bmpIngest04`, `bmpBestpath04`,
+`bmpDisconnect04` and `bmpLGHTTPRoutes04` inspect actual route results and
+return failures through `withBMP04`/`Observe`. Candidate producers
+`gatherPrefixCandidatesLocked` and `gatherKeyCandidatesLocked` iterate only
+`bgpPeers`. The existing FRR checker verifies the session, AS, address and
+IPv4 family from the received OPEN. No new interop assertion is authored here.
+
+Record-only NOTEs corrected in this round: old dependency/Q-4/checklist state,
+missing immediate table anchor, missing journal addendum, and stale headers in
+the two `.ci` files. The comment fixes were drafted, compared with the live
+tests with every non-comment line unchanged, then promoted by main. They
+change no directive, config, assertion or deadline and owe no runtime rerun.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/parse/bmp-route-action-refuses-redistribute.ci` | Yes | `ls` returned this promoted path. Read all commands, configs and assertions. |
+| `test/reload/bmp-route-action-redistribute-refused.ci` | Yes | `ls` returned this promoted path. Read all actions and assertions. |
+| `test/parse/bmp-config.ci` | Yes | `ls` returned this path and its accepted receiver/sender config was read. |
+| `test/plugin/bmp-lg-bestpath-isolation.ci`, `bmp-lg-ingest.ci`, `bmp-lg-disconnect.ci`, `bmp-lg-http-routes.ci` | Yes | `ls` returned all four paths. Registrations and actual fixture assertions were read in `plugin_fixture_04.go` / `plugin_fixture_04_bmp.go`. |
+| `test/interop/scenarios/bmp-locrib-receiver-frr/ze.conf` | Yes | `ls` returned this path; it explicitly selects monitor. |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Validate refuses the value. | Read parse `.ci`: exit 1 and friendly refusal/fix assertions. Recorded RED-to-GREEN and 80-load proof in fb0f9181ec. |
+| AC-2 | Startup refuses the value. | Read same `.ci`: daemon exit 1 and identical refusal assertions, accepted counterparts intact. |
+| AC-3 | Reload refuses and preserves the running daemon. | Read reload `.ci`: UPDATE/EOR fence, rewrite/SIGHUP/SIGTERM, refusal plus exit 0. Recorded GREEN and YANG-revert RED in fb0f9181ec. |
+| AC-4 | Monitor and omitted leaf remain accepted. | Read parse `.ci` steps 2/3 and `bmp-config.ci`, retained passing proof. |
+| AC-5 | BMP never enters best path. | Read `handleInjectWireRoute` protocol namespace and `TestBMPRoutesExcludedFromBestPath` exact one-BGP-candidate assertion, preserved live isolation proof. |
+| AC-6 | Enumeration/default are monitor only. | Read `TestRouteActionEnumIsMonitorOnly`: exact `[monitor]`, one default, equal to `monitor`. |
+| AC-7 | Dead warning/field and false promise are gone. | Tracked source grep for old warning has no hits. `RouteAction` matches only the surviving schema test name. Guide agrees with current YANG. |
+| AC-8 | Existing FRR monitor config still works. | Read scenario `ze.conf` with explicit monitor; retained native scenario result 1 passed, 0 failed. |
+| AC-9 | Actual bridge injection is asserted. | Read both rewritten units and SDK `Plugin.InjectWireRoute`/`DirectBridge.InjectWireRoute`: one exact call or zero short-input calls. Recorded mutation controls prove both assertions discriminate. |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Config validate with redistribute. | `test/parse/bmp-route-action-refuses-redistribute.ci` | Step 1 asserts exit 1, full path, rejected value, accepted monitor and exact fix. |
+| Daemon start with redistribute. | Same parse `.ci`. | Step 4 asserts startup exit 1 and the same refusal. |
+| SIGHUP reload with redistribute. | `test/reload/bmp-route-action-redistribute-refused.ci` | Established UPDATE/EOR precedes rewrite/SIGHUP/SIGTERM. Refusal and exit 0 are required. |
+| Monitor written or leaf absent. | Parse `.ci` steps 2/3 and `test/parse/bmp-config.ci`. | Accepted configurations assert exit 0, preventing blanket receiver refusal. |
+| Editor, web, REST and gNMI generic config paths. | Closed enum-refusal parent's cited live/editor/browser tests. | A-2b resolved by that work's final multi-surface unit/live/load proof and A/B closure; no new BMP transport proof is claimed. |
+| Route Monitoring from a monitored router. | Both `TestProcessRouteMonitoring` units and preserved ingest/isolation `.ci` controls. | Ready SDK bridge observes exact protocol/key/body. Real fixture routes appear in BMP results and are absent from BGP best path. |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-2b | confirmed | Parent closure 13310151fb / 9b4f33044a and its retained multi-surface unit/live/load proofs. |
+| A-1 | confirmed | Owner Q-1 makes monitoring the end state. No redistribution feature was deferred. |
+| A-2a | confirmed | Owned validate/start/reload functional proof, with rejected and accepted values and recorded YANG-revert RED controls. |
+| A-3 | confirmed | Whole tracked config census found the explicit-monitor FRR scenario and intentional negative tests. No intended-valid redistribute config survives. |
+| A-4 | confirmed | `configurationPaths` copies snapshot inputs. Named site mirror run PASS, `ok github.com/ze-software/ze/internal/le/site 125.826s`. |
+| A-5 | confirmed | Current field/warning absence and approved test deletion verified against source and fa74dc4c00. |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Receiver accepts monitor alone. | `ze-bmp-conf.yang` `route-action` enumeration and default. | Yes, guide field table and Looking Glass Integration. |
+| Monitoring remains separate from BGP best path. | `processRouteMonitoring` sends `protocolBMP`; `handleInjectWireRoute` stores by protocol. The best-path unit asserts only the BGP peer is a candidate. | Yes, guide behavior retained. |
+| Feature declaration, comparison and architecture need no change. | `features/bmp-delivery.md` declares experimental/partial BMP delivery and no receiver redistribution. Searches for `route-action` in configuration/syntax/comparison/core-design pages find no BMP leaf claim. | Yes. No feature level, architecture, wire format or comparison promise changes. |
+| CLI, API/RPC, SDK, inventory, metadata, metrics and test infrastructure need no change. | Source diff removes one field and warning, retains all registrations and public methods, and uses existing test directives. Existing source-anchor search reaches the BMP guide and unrelated `bmpCompositeKey` documentation only. | Yes. No new command, registration or runtime dependency. |
+| RFC records and feature support are unchanged. | No owned changed test has an `RFC requirement:` tag. The final 2026-11-13 `./le rfc check` log `job-enum-final-closure-rfc-freshness-4fea72ad.log` reports 99 foreign violations and no BMP producer/unit violation. | Yes. No claim of global RFC green or complete BMP conformance. |
+
+### Closure record notes
+
+The original BMP state checkpoint preceded the final proofs. Its not-run
+statements are historical, superseded by the committed Deliverables proof.
+The old weakening-ledger instructions were obsolete: the native judge
+approvals in fa74dc4c00 are authoritative, and the active design rows now
+name that completed route.
+No new learned-summary file is required. The schema explains why the leaf
+remains, and the guide carries the operator decision.
+
+The unchanged repo/weakened prechecks are retained from the current closure
+session: `job-enum-round6-repo-check-89d513b0.log` has 31 foreign findings,
+and `job-enum-round6-weakened-check-36862edf.log` has 13 foreign IKE/sysrib
+findings. Neither reports an owned BMP finding. The final documentation check
+retains the same seven foreign anchors and reports no owned BMP anchor error.
+Unchanged runtime proof was not repeated.
+
+### Final native checks
+
+| Check | Command / evidence | Result |
+|-------|--------------------|--------|
+| Site mirror, A-4 | `./le --name session test unit pkg path ./internal/le/site/ run '^TestTheConfigurationMirrorReadsAsThePublishedMirror$'` | PASS: `ok github.com/ze-software/ze/internal/le/site 125.826s`; no failed/skipped result reported. |
+| Repository configuration corpus | `./le --name session test unit pkg path ./internal/component/config/cli/ run '^TestRepositoryConfigsValidate$'` | PASS: `ok github.com/ze-software/ze/internal/component/config/cli 153.598s`; no failed/skipped result reported. |
+| Documentation | `./le --name session doc check all` after the guide anchor edit. | Seven foreign anchor errors: sysrib `ApplyConfiguration`/`recomputeBest` and five report `max*Len` symbols. No owned BMP error. The index warning is handled by the following row. |
+| Discovery indexes | `./le --name session doc index update` | PASS: regenerated both indexes, 382 design docs and 4718 code paths across 819 packages. No tracked index diff remained. |
+| Review artifact | `./le --name session spec review record` and `spec review check`, naming every path in the artifact above. | PASS: 14 recorded paths, 13 code files, CLEAN round 1, hashes match. |
+
+No Go source changed in closure. The two `.ci` edits change comments only,
+so the completed runtime proof remains applicable. No build or unchanged
+passing BMP test was repeated for confirmation. No `./le verify` ran, and no
+whole-tree, global RFC or release-green result is claimed.
