@@ -60,7 +60,12 @@ It then passed a third time from a real commit, after the owner pulled the
 server to `990f785bca`: tree clean when the run started, host driver
 `0973af0618ed`, image `5a5a86c2d672`. Other sessions' uncommitted files
 appeared in that checkout before the run ended, so "clean at the start" is the
-honest claim. arm64 has not been run.
+honest claim.
+
+It also passes on arm64: on the Mac under HVF (QEMU 11.1.3, guest kernel
+7.3.0-ze) at `9bf21a753a`, host driver `08000cc46d7f`, image `cdcd2df65929`,
+with other sessions' uncommitted files in that tree. That run needed the Mac's
+lab Docker rebuilt first (below).
 
 **The FRR topology is proven** (remaining item 2, first half). Scenario
 `bgp-ospf-redistribute-default-frr` passes on that commit in three minutes.
@@ -99,13 +104,16 @@ Not done, and why:
   restart on 2026-11-13. A proof whose scratch is on that disk fails at the
   guest's first write to its persistent partition. The second disk, mounted at
   `~/.cache`, logged no error: run with `TMPDIR` under it.
-- **Docker on the Mac has 14.9 GB in total**, whatever the Mac has free. The
+- **Docker on the Mac had 14.9 GB in total**, whatever the Mac had free. The
   `ze` Colima profile boots Ze's Docker-host image, which keeps Docker's data
-  on its own partition, sized when the image is built (16 GiB default).
-  Colima's 100 GiB data disk is not used by that image. A kernel build tree
-  alone takes 7.6 GB. Rebuild larger with `./le setup docker host build size
-  <GiB>`, then `./le setup docker host start`, which recreates the VM and
-  loses its images, volumes and cache.
+  on its own partition, sized when the image is built. Colima's 100 GiB data
+  disk is not used by that image. The default was 16 GiB, too small for a
+  kernel build beside the lab images, and `start` always boots the default,
+  so `build size <GiB>` never reached the profile. Fixed in the tooling:
+  `e2627d3e7b` makes the default 64 GiB (the file is sparse) and `995c46014d`
+  makes `start` pass Colima a root disk of that size, without which Colima
+  refuses the larger image. `./le setup docker host start` then recreates the
+  VM, which loses its images, volumes and cache.
 - Remaining items 2 (FRR and netlab topologies), 4 (preview artifacts, site
   and docs checks) and 5 (review reconciliation, Review Gate, closure) are
   untouched: the first two need Docker or a VM on a sound host.

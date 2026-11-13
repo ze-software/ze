@@ -1270,14 +1270,19 @@ evidence.
 
 ## Appliance SSH configuration publication
 
-The action passed twice on 2026-11-13 on a native amd64 host under KVM (QEMU
-8.2.2, guest kernel 7.3.0-ze), each run building its own image and host
-driver: three joined boots of one disk, publication by the real host driver,
-retention of the hostname and of both logins across a fresh boot, and the
-three refusals. It has not been run on arm64. The host driver and image it
-proved were built from the tree of commit `f95746bc27` with that checkout's
-uncommitted files, not from a clean commit, so it is not release-artifact
-evidence.
+The action passed on 2026-11-13 on both architectures, each run building its
+own image and host driver: three joined boots of one disk, publication by the
+real host driver, retention of the hostname and of both logins across a fresh
+boot, and the three refusals.
+
+| Host | Accelerator | QEMU | Guest kernel | Source |
+|------|-------------|------|--------------|--------|
+| amd64 Linux | KVM | 8.2.2 | 7.3.0-ze | commit `990f785bca`, tree clean when the run started |
+| arm64 macOS | HVF | 11.1.3 | 7.3.0-ze | commit `9bf21a753a`, with other sessions' uncommitted files in the tree |
+
+Neither run is release-artifact evidence: the amd64 tree was not verified
+clean throughout, and the arm64 tree was not clean. A run from the release
+commit belongs with the preview artifacts.
 
 `./le test qemu appliance-config-push` builds one current native appliance image
 and drives its matching host driver's `appliance config-push` command. The
