@@ -142,6 +142,14 @@ Rejected/No Hello.
 <!-- source: internal/plugins/ldp/session.go -- processMessages, rejectInit -->
 <!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj -->
 
+With the LDP log at info (`environment { log { ldp info } }`), ze logs
+`ldp: session operational` with the peer address when a session reaches
+OPERATIONAL, and `ldp: session ended` with the peer and the cause when a session
+ends on an error, so the log shows when each session came up and went down.
+
+<!-- source: internal/plugins/ldp/session.go -- processMessages -->
+<!-- source: internal/plugins/ldp/register.go -- runSession -->
+
 Inspect LDP state with `show ldp neighbor` (session state, transport address)
 and `show ldp binding` (FEC-to-label bindings). A label binding learned from a
 neighbor programs an ingress push entry toward that neighbor, in the kernel MPLS

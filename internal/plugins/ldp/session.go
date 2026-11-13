@@ -570,7 +570,7 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, peerLabelSpace
 		switch msgHdr.Type {
 		case MsgTypeKeepAlive:
 			if s.keepaliveReceived() {
-				s.log.Debug("ldp: session operational", "peer", s.peerAddr.String())
+				s.log.Info("ldp: session operational", "peer", s.peerAddr.String())
 			}
 		case MsgTypeInitialize:
 			initMsg, err := DecodeInit(msgHdr.MessageID, msgBody)
