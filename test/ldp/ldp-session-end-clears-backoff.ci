@@ -1,0 +1,69 @@
+# Test: an LDP session that reached operational and then ended leaves no setup
+# backoff, so Ze dials its neighbor again on the neighbor's next Hello, and
+# publishes exactly one session-down for that session.
+#
+# VALIDATES: spec-single-owner-lifecycle-5-session-end-locals AC-1 and AC-2 --
+#            startSessionForAdj's session-end callback deletes the backoff of
+#            a session that reached OPERATIONAL, and publishes one SessionDown
+#            for it, through the daemon on a real link.
+# PREVENTS:  a session that ran for days being redialled only after 15 seconds,
+#            then 30, up to 2 minutes, because its end was recorded as a failed
+#            setup attempt (plan/journal/state-read-after-teardown-reset-it.md,
+#            2026-10-02).
+#
+# WHY A .ci. internal/plugins/ldp/session_end_test.go drives the same callback
+# over net.Pipe with a test dialer. This test answers whether the daemon does it
+# end to end: a multicast Link Hello on a veth link, discovery, Ze's dial to TCP
+# 646, the Initialization exchange, the session end, and the redial a real
+# neighbor sees.
+#
+# HOW. `ldp/neighbor-link` runs the daemon in its own network namespace, joined
+# by a veth pair to a second one that holds the neighbor's link
+# (internal/test/fixture/ldp_neighbor_linux.go says why both are needed). The
+# observer plugin `ldp/session-end-clears-backoff` is the neighbor: it sends
+# Hellos, accepts Ze's session and brings it to operational, then closes it
+# with its Hellos paused. Once `show ldp neighbor` reads `discovered` and the
+# observer holds the session-down, it sends ONE Hello and requires Ze's next
+# session to open within 10 seconds, below the 15-second floor a failed setup
+# waits. The decision log is the second half: a session end recorded as a
+# failed setup logs `session setup failed, next attempt delayed` for the
+# neighbor, rejected below.
+#
+# The observer requires the neighbor's session events to be exactly
+# session-up, session-down, session-up, each naming peer 10.99.0.1 and
+# interface ldpz0. The second session is left operational and ends with the
+# daemon, after the Hellos stop, so nothing dials after it.
+#
+# STATUS: a Linux/QEMU test. The fixture creates network namespaces and a veth
+# pair, which needs root (`./le test qemu ci test test/ldp/ldp-session-end-clears-backoff.ci`).
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.ldp:value=info
+option=timeout:value=90s
+
+tmpfs=ldp.conf:terminator=EOF_CONF
+plugin {
+	external ldp-neighbor {
+		run "le test fixture ldp/session-end-clears-backoff netns zls$PORT-n"
+		encoder json
+	}
+}
+
+ldp {
+	lsr-id 10.99.0.2
+	transport-address 10.99.0.2
+	hello-interval 5
+	hello-hold-time 15
+	keepalive-time 60
+	interfaces ldpz0
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture ldp/neighbor-link netns zls$PORT run ze start ldp.conf:timeout=85s
+expect=exit:code=0
+expect=stderr:contains=ldp: discovery started on interface
+expect=stderr:contains=OK: Ze dialed 10.99.0.1:0
+expect=stderr:pattern=OK: .*events \[session-up session-down session-up\]
+reject=stderr:pattern=session setup failed, next attempt delayed.*peer=10\.99\.0\.1:0
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

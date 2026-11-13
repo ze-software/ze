@@ -1666,6 +1666,42 @@ subject of the test.
 <!-- source: test/traffic/traffic-boot-qdisc-tc.ci -- needs-linux tc qdisc assertion -->
 <!-- source: internal/chaos/peer/simulator_actions_iface_linux.go -- iface fault executor -->
 
+#### An LDP neighbor on a veth pair
+
+The `ldp` suite's live-neighbor tests run the daemon through `le test fixture
+ldp/neighbor-link netns <prefix> run <argv...>`
+(`internal/test/fixture/ldp_neighbor_linux.go`). The fixture builds two network
+namespaces, `<prefix>-z` for the daemon and `<prefix>-n` for the neighbor,
+joins them with one veth pair (`ldpz0` at 10.99.0.2/24 on Ze's side, `ldpn0` at
+10.99.0.1/24 on the neighbor's), runs argv in `<prefix>-z`, and removes both
+namespaces when argv exits. Both namespaces are needed. In one namespace the
+neighbor's Hello arrives from an address that namespace owns, and Linux drops
+it as a martian. In the guest root namespace, where the `ldp` suite runs, every
+LDP daemon binds 224.0.0.2:646, and with `IP_MULTICAST_ALL` on by default each
+of them would hear this neighbor's Hellos. The namespaces also keep the fixed
+ports 646 apart, so these tests need no exclusive group.
+
+The neighbor is the observer plugin the daemon forks. It opens its Hello socket
+and its TCP 646 listener inside `<prefix>-n` (`inNamedNetns`), and speaks
+RFC 5036 through its own encoder, because `internal/plugins/ldp` is gated by
+`ze_ldp` and the fixture package is always-on. Its transport address is the
+lower one, so Ze plays the active role and dials. The scenario subscribes to
+the `ldp` namespace's session-up and session-down with an envelope, reads `show
+ldp neighbor` for the daemon's view, and either brings Ze's session to
+operational or rejects Ze's Initialization with a fatal Session
+Rejected/Parameters Max PDU Length Notification. The neighbor's sockets are
+closed only after the daemon stopped, so a session a scenario leaves
+operational ends with the daemon and never as a failed setup attempt.
+
+`test/ldp/ldp-session-end-clears-backoff.ci` ends an operational session and
+requires Ze to dial again on the first Hello after `show ldp neighbor` reads
+`discovered`. `test/ldp/ldp-setup-failure-publishes-no-session-down.ci` rejects
+the first attempt and requires the event history to be the next session's up
+and down alone. Both declare `option=needs-linux:caps=net-admin` and run as
+root in the QEMU guest.
+<!-- source: internal/test/fixture/ldp_neighbor_linux.go -- ldpNeighborLinkDriver, wireLDPNeighborLink, openLDPNeighbor, inNamedNetns, ldpNeighborSession -->
+<!-- source: internal/test/fixture/ldp_session_end_linux.go -- ldpSessionEndClearsBackoff, ldpSetupFailurePublishesNoSessionDown, ldpSessionEventLog -->
+
 ### How a suite's concurrency is chosen
 
 A `.ci` suite runs `-p N` tests at once. Where N comes from depends on the suite:

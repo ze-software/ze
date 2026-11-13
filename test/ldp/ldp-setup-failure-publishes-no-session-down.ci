@@ -1,0 +1,64 @@
+# Test: an LDP setup attempt the neighbor rejects is recorded as a failed setup,
+# delayed 15 seconds, and publishes no session event.
+#
+# VALIDATES: spec-single-owner-lifecycle-5-session-end-locals AC-3 and AC-4 --
+#            startSessionForAdj's session-end callback records a setup failure
+#            for a session that never reached OPERATIONAL, and publishes no
+#            SessionDown for it, through the daemon on a real link.
+# PREVENTS:  a setup attempt that never published a session-up publishing a
+#            session-down, which costs an OSPF LDP-sync interface its link and
+#            re-arms its stuck alert (plan/journal/state-read-after-teardown-reset-it.md,
+#            2026-10-02); and a NAK'd Initialization redialled before the RFC 5036
+#            Section 2.5.3 floor.
+#
+# WHY A .ci. internal/plugins/ldp/session_end_test.go drives the same callback
+# over net.Pipe. This test answers whether the daemon does it end to end, with a
+# neighbor that NAKs Ze's Initialization on the wire and an observer plugin that
+# hears the `ldp` namespace through the engine's event delivery.
+#
+# HOW. `ldp/neighbor-link` runs the daemon in its own network namespace, joined
+# by a veth pair to a second one that holds the neighbor's link. The observer
+# plugin `ldp/setup-failure-publishes-no-session-down` is the neighbor and the
+# observer: subscribed to ldp session-up and session-down, it rejects Ze's
+# first Initialization with a fatal Session Rejected/Parameters Max PDU Length
+# Notification and closes the connection. It keeps sending Hellos, requires
+# Ze's next session to come no sooner than 15 seconds after the rejection,
+# brings that one to operational, and ends it.
+#
+# The second session is the positive control: its session-up and session-down
+# reach the observer, so silence for the rejected attempt is Ze's and not a
+# deaf observer. Delivery to one plugin keeps Ze's emit order, so the history
+# MUST be exactly session-up, session-down. The decision log names the delay.
+#
+# STATUS: a Linux/QEMU test. The fixture creates network namespaces and a veth
+# pair, which needs root (`./le test qemu ci test test/ldp/ldp-setup-failure-publishes-no-session-down.ci`).
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.ldp:value=info
+option=timeout:value=120s
+
+tmpfs=ldp.conf:terminator=EOF_CONF
+plugin {
+	external ldp-neighbor {
+		run "le test fixture ldp/setup-failure-publishes-no-session-down netns zlf$PORT-n"
+		encoder json
+	}
+}
+
+ldp {
+	lsr-id 10.99.0.2
+	transport-address 10.99.0.2
+	hello-interval 5
+	hello-hold-time 15
+	keepalive-time 60
+	interfaces ldpz0
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture ldp/neighbor-link netns zlf$PORT run ze start ldp.conf:timeout=115s
+expect=exit:code=0
+expect=stderr:contains=ldp: discovery started on interface
+expect=stderr:pattern=session setup failed, next attempt delayed.*peer=10\.99\.0\.1:0.*delay=15s
+expect=stderr:pattern=OK: the rejected attempt published no session event.*events \[session-up session-down\]
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
