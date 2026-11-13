@@ -217,7 +217,14 @@ Run `ze uninstall` to stop and remove the service before removing its binary.
 A stop failure leaves the binary installed. Ordinary removal preserves private
 state, credentials and the service account. Use `--purge` only when the selected
 installation's state should also be removed.
+The default `/usr/local` prefix shares `/etc/ze` with distribution packages.
+Standalone installation and purge refuse while a package owns that shared
+state, including with `--no-service`. Remove a packaged installation with its
+package manager. A custom prefix has its own state directory and can be
+installed or purged independently.
 <!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, nativeTarget.stateOwnership -->
 
 ```bash
 sudo ze uninstall --dry-run

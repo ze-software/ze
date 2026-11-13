@@ -8,11 +8,55 @@
 | Release reason | Essential installation, appliance boot, and onboarding paths must work before users can evaluate a release. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | Finishing IGP validation before actual FRR and netlab reruns; native, ISO, OTA, preview and completed-path website evidence retained |
+| Phase | Reproducing review findings in IGP rollback and native purge ownership before FRR, netlab and closure |
 | Handoff | `tmp/session/2026-11-10-225434/scratch/deployment-runtime-handoff.md` |
-| Updated | 2026-11-12 |
+| Updated | 2026-11-13 |
 
 ## Current continuation, 2026-11-12
+
+Independent source review at `755fdd91dead5656ba54cc2144a037f5792e0e82`
+found three blockers. Root subsequently reproduced each through its real
+entry point. No clean Review Gate is claimed.
+
+| Symptom and producer | Owning layer and source repair | Rejected workaround |
+|----------------------|--------------------------------|---------------------|
+| IS-IS can retain an accepted candidate after a later participant fails. `runISISEngine` in `internal/plugins/isis/register.go` changes `activeCfg` during apply, but rollback restores export policy only. | The plugin owns runtime undo. Exercise real SDK callbacks, then retain and reinstall the previous typed configuration through the existing transaction mechanism, preserving export policy and startup ordering. | Restarting the daemon or suppressing the rollback test would hide a successful acknowledgement that failed to undo. |
+| OSPF can retain an accepted candidate after a later participant fails. `runOSPFEngine` in `internal/plugins/ospf/register.go` keeps `previous` only during its own apply; ordinary rollback reapplies engines only after lost-engine failure. | The plugin owns runtime undo. Exercise real SDK callbacks and restore the previous configuration while preserving self-failure undo, lost-engine recovery and export ownership. | Dropping rollback assertions or restoring policy alone leaves interfaces, instances and advertisements inconsistent with running configuration. |
+| Default foreground purge can reach package-owned `/etc/ze`. `nativeRuntime.uninstall` and `packageOwnership` in `internal/plugins/local/native.go` inspect the selected binary prefix, while `/usr/bin/ze` and `/usr/local/bin/ze` share configuration. | Native installation owns package authority. Reproduce in an isolated filesystem and check package ownership across prefixes sharing the selected state before removal. | Relying on systemd checks misses `--no-service`; requiring manual package removal would evade the promised ownership boundary. |
+
+Implementation is divided into three bounded packages. Actual FRR semantic
+RED/GREEN runs, the complete netlab traffic proof, refreshed artifacts/site,
+and independent whole-population review remain required after these repairs.
+
+| Observed regression | Actual failure |
+|---------------------|----------------|
+| `TestISISConfigRollbackRestoresRuntime`, socket/direct × last-NET removal/level change | All four cases retained candidate typed configuration after rollback. Removed-NET cases retained zero circuits; level-change cases retained L1 Hello schedules. Startup and candidate controls passed. `job-isis-runtime-rollback-semantic-red-8fa6ba54.log`. |
+| `TestOSPFConfigRollbackRestoresRuntime`, socket/direct | Both cases retained passive eth0 cost 29 after rollback to cost 17. Startup and candidate checks included the live Router-LSA. `job-ospf-runtime-rollback-red-6a1ee70d.log`. |
+| `TestNativePurgeRespectsSharedPackageState` | Both shared-state cases removed the package credential file in the child-only filesystem; the five control cases passed. `job-native-shared-purge-red-be099815.log`. |
+| `TestNativeInstallRespectsSharedPackageState` | Both shared-state cases installed over the package marker: one created a standalone binary, the other replaced its bytes. `job-native-shared-install-red-2b606c85.log`. |
+
+The native regressions use a user namespace and chroot into a private fixture;
+the host's package installation and configuration are never their targets.
+IS-IS circuit-open failure regressions are being added before the transaction
+repair, so failed self-repair cannot masquerade as a successful rollback.
+
+The native source repair now checks the canonical distribution package marker
+before installation or shared-state purge, including when the selected binary
+is absent or `/usr/bin` is relocated. Ordinary removal preserves its existing
+binary-only checks. All 11 new isolated cases passed in
+`job-native-shared-state-green-15742d80.log`; the full local-plugin race package
+passed in `job-native-shared-state-local-package-e7aaa39a.log`. Independent
+bounded source review found no blocker or issue. The complete deployment
+review and current native CLI lifecycle run remain required.
+
+All eight IS-IS failed-open cases subsequently failed as intended in
+`job-isis-runtime-reopen-red-1424d32a.log`: callbacks accepted raw-circuit
+failure, self-repair was not attempted, and rollback reported success without
+reopening. `engine.reconcile` in `internal/plugins/isis/server.go` logs open
+errors and continues. Its source repair must return these failures to the
+installer, undo a failed apply itself and report lost running state when that
+undo also fails. Logging alone would hide the missing circuit. Implementation
+and GREEN proof remain pending.
 
 The requested dedicated VM-kernel proposal is recorded separately in
 `plan/proposals/spec-virtual-machine-kernel-profiles.md`. It remains unapproved;

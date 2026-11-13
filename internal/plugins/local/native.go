@@ -116,6 +116,9 @@ func (rt *nativeRuntime) install(args []string) (code int) {
 	if err != nil {
 		return rt.refuse(err)
 	}
+	if err := target.stateOwnership(); err != nil {
+		return rt.refuse(err)
+	}
 	if !existing {
 		if rt.bootstrap == nil {
 			return rt.refuse(errors.New("this binary has no initializer; use a normal distro build"))
@@ -223,6 +226,11 @@ func (rt *nativeRuntime) uninstall(args []string) int {
 	existing, err := target.preflight("")
 	if err != nil {
 		return rt.refuse(err)
+	}
+	if *purge {
+		if err := target.stateOwnership(); err != nil {
+			return rt.refuse(err)
+		}
 	}
 	service, useService, err := rt.selectedService(*noService)
 	if err != nil {
@@ -421,6 +429,16 @@ func nativePath(path string) error {
 	return nil
 }
 
+// stateOwnership checks the package authority for state shared by the system
+// binary prefixes. The package marker has its own canonical path: relocating
+// /usr/bin does not transfer ownership of /etc/ze to a standalone installation.
+func (target nativeTarget) stateOwnership() error {
+	if target.configDir != paths.ConfigDirFromBinary("/usr/bin/ze") {
+		return nil
+	}
+	return packageMarkerOwnership("/usr/share/ze/install-method")
+}
+
 // packageOwnership is shared by the native and explicit local operations.
 func packageOwnership(binaries ...string) error {
 	for _, binary := range binaries {
@@ -437,11 +455,20 @@ func packageOwnership(binaries ...string) error {
 			continue
 		}
 		marker := filepath.Join(filepath.Dir(dir), "share", "ze", "install-method")
-		if _, err := os.Lstat(marker); err == nil {
-			return fmt.Errorf("package-managed installation marker %s exists; use its package manager to upgrade or remove Ze", marker)
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("inspect package ownership %s: %w; repair access before installing", marker, err)
+		if err := packageMarkerOwnership(marker); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func packageMarkerOwnership(marker string) error {
+	_, err := os.Lstat(marker)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("inspect package ownership %s: %w; repair access before installing", marker, err)
+	}
+	return fmt.Errorf("package-managed installation marker %s exists; use its package manager to upgrade or remove Ze", marker)
 }

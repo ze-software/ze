@@ -467,7 +467,14 @@ the unit, enablement, executable and state. The stop lease resumes only a
 previously active service when that lock refuses removal. State and the service
 account remain unless state removal is explicitly requested with `--purge`.
 Purge removes the selected config directory and retains the account.
+The system binary prefixes share `/etc/ze`. Before installation or purge, the
+local owner checks the distribution's canonical package marker independently
+of the selected binary's presence or the service manager. A marker under
+`/usr/share/ze` refuses adoption or deletion of that shared state. Binary-only
+ordinary removal retains the state and its existing ownership checks. A custom
+prefix's separate state does not acquire the system package's ownership.
 <!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, nativeTarget.stateOwnership -->
 <!-- source: internal/plugins/systemd/cmd_uninstall.go -- serviceRuntime.cmdUninstall -->
 <!-- source: internal/plugins/systemd/native.go -- nativeStoppedService.Restore -->
 
