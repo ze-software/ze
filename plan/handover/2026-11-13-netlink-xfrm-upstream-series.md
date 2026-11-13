@@ -66,19 +66,23 @@ one-off exception.
 |------|-------|------------|
 | Upstream-style tests, and the two selector gaps (AC-3, AC-7, AC-8) | Done, `c9ce6ba81d` | |
 | Each upstream-candidate patch checked against a clone of upstream `main` (AC-2) | Done: all ten apply unchanged in order, and their tests pass there. Clone at `~/Code/github.com/vishvananda/netlink` | |
-| Private kernel ABI moved into `internal/component/ike/dataplane` (AC-5, AC-6) | Not started | The RFC 4301 session's uncommitted dataplane callers (`xfrm_linux.go`, `state_scope.go`, `xfrm_state_scope_linux.go`, `xfrm_forward_default_linux.go`): the move edits those files |
+| Private kernel ABI moved into `internal/component/ike/dataplane` (AC-5, AC-6) | Done, `8afd1ff560`. Patch 90 is now the 151-line hook `netlink-xfrm-90-state-extra-attributes.patch` | |
+| Integration tests on Ze's kernel for the moved scope (install, read-back, forward default) | Not run | A guest on Ze's kernel; the spec's Design Insights names the four files |
+| Closure of the spec | Not started | The integration run above |
 | Pull requests (AC-11) | Not started | The owner's order |
 
-Also in the working tree, not this spec's: `rfc7296_vpp_message_test.go` carries
-an approved repair of `TestVPPInstallPolicyPartialPortMaskRefused` and a new
-`TestVPPInstallPolicyAnyProtocolPortRefused`. They pass only with the RFC 4301
-session's uncommitted change to `vpp_policy.go`, so they land in that session's
-commit. The judge's approval row is in `tmp/commit-weakening-approved-ea3b8173.md`.
+The VPP test repair this session made for the RFC 4301 work landed in that
+session's own commit, `466ab09fd8`.
+
+One red met in passing is journaled in `plan/journal/test-asserts-superseded-behaviour.md`
+(2026-11-13) and owned by `spec-rfc4301-architecture-gaps`: the engine test
+`TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry`.
 
 Scratch kept in `tmp/session/2026-11-13-112345/scratch/`, all removable now, about
 20 MB together: `xfrm-series/` (the scripts and stages that built the series),
 `series-commit/`, and three copies of the upstream clone used to apply the
-patches to `main` (`upstream-main-a`, `-b`, `-c`). They are left because the
+patches to `main` (`upstream-main-a`, `-b`, `-c`), `xfrm-abi-move/`, and the one-line stub
+`p5-stub-left-by-commit.go`. They are left because the
 hook that guards test deletion refuses an agent removing a directory that holds
 copies of test files.
 

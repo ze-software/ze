@@ -748,6 +748,7 @@ phase 2a and phases 5 and 6 are delivered history and are not repeated.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `test-asserts-superseded-behaviour.md` | 2026-11-13 | `TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry` wants XfrmInPolBlock for an out-of-selector packet |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-11-10 | RFC4301-6-1: operator SPD entries install out and in, never fwd |
 | `silent-fall-through.md` | 2026-11-10 | forwarded fragments (port 0) miss a port-specific Child SA policy and meet the catch-all, in clear under `unmatched bypass` |
 | `field-carries-two-meanings.md` | 2026-11-10 | protocol 135: the IKE MH-type value is installed as a port, Linux compares the bare type |
