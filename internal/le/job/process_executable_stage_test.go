@@ -244,12 +244,19 @@ func TestPortableNativeArgv(t *testing.T) {
 // of another artifact that happens to occupy the stage's former name.
 func TestPortableExecutableCleanupOwnFile(t *testing.T) {
 	portableScratch(t)
-	file, err := os.Open("/bin/sh")
+	// The staged file is this test binary, whose TestPortableNativeArgv child
+	// branch exits 0. A copy of a system binary such as /bin/sh is killed by
+	// macOS when it runs, so the host would decide a host-independent proof.
+	path, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close() //nolint:errcheck // Borrowed executable.
-	cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", "exit 0")
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close() //nolint:errcheck // Borrowed test executable.
+	cmd := exec.CommandContext(t.Context(), path, "-test.run=^TestPortableNativeArgv$", "--", "--portable-native-child")
 	cleanup, err := stageProcessExecutable(cmd, file)
 	if err != nil {
 		t.Fatal(err)
