@@ -232,11 +232,14 @@ const exitWithdrawBudget = 400 * time.Millisecond
 const closedTransportMessage = "ddos-flowspec: the FlowSpec rule was not withdrawn on the way out, because the plugin's connection to the engine is closed; the rule stays recorded. If the daemon is stopping, the BGP sessions end with it. Otherwise the next start of the plugin withdraws the rule, and the command under fix starts it"
 
 // unrecordedExitMessage is the line stopResponder logs when it cannot withdraw
-// a live rule whose record write failed when it was announced (announce). No
-// start reads a record that is not there, and no doctor check reports it, so
-// the withdrawal by hand is the only fix, on every end. It opens with the
+// a live rule whose record write failed when it was announced (announce). The
+// plugin does not know whether the store holds a record of the rule: a write
+// can time out after the store wrote it, and the read before the announcement
+// can answer unreadable for a record that names this rule. So the line says a
+// start may not withdraw it and ze doctor may not report it, which holds either
+// way, and the withdrawal by hand is the fix, on every end. It opens with the
 // phrase test/reload/ddos-flowspec-parent-removed-withdraws.ci rejects.
-const unrecordedExitMessage = "ddos-flowspec: the FlowSpec rule could not be withdrawn on the way out, and it is not recorded, because its record write failed when it was announced; no start of the plugin withdraws it and ze doctor does not report it, so it may stay at the BGP peers. If the daemon is stopping, the BGP sessions end with it. Otherwise withdraw the rule by hand with the command in fix"
+const unrecordedExitMessage = "ddos-flowspec: the FlowSpec rule could not be withdrawn on the way out, and the plugin could not confirm a record of it, because its record write failed when it was announced; a start of the plugin may not withdraw it and ze doctor may not report it, so it may stay at the BGP peers. If the daemon is stopping, the BGP sessions end with it. Otherwise withdraw the rule by hand with the command in fix"
 
 // removedExitMessage is the line stopResponder logs when the `bye` of a removal
 // cannot withdraw a recorded rule. The section is gone, so no plugin starts to
@@ -246,7 +249,8 @@ const removedExitMessage = "ddos-flowspec: the FlowSpec rule could not be withdr
 
 // exitKind is how the plugin's run ended, which decides what stopResponder
 // tells the operator about a rule it could not withdraw. The zero value is no
-// end: stopResponder refuses it as a defect.
+// end: stopResponder refuses it as a defect at its entry, before any return,
+// so an unset kind panics on every path and not only when a withdrawal fails.
 type exitKind uint8
 
 const (
@@ -308,9 +312,10 @@ const (
 //
 // A withdrawal that did not leave is one log line, chosen in this order:
 //
-//   - The live rule is not recorded (its record write failed in announce): no
-//     start withdraws it and no doctor check reports it, on any end, so the line
-//     is a WARN whose fix is the withdrawal by hand (unrecordedExitMessage).
+//   - The live rule is not known to be recorded (its record write failed in
+//     announce): a start may not withdraw it and no doctor check may report
+//     it, on any end, so the line is a WARN whose fix is the withdrawal by hand
+//     (unrecordedExitMessage).
 //   - The end is the `bye` of a removal: the section is gone, so no start
 //     follows, and the fix is the withdrawal by hand (removedExitMessage).
 //   - The connection is closed. The line cannot know whether the daemon is
@@ -334,6 +339,11 @@ const (
 // not one sentinel: io.ErrClosedPipe on a pipe, EPIPE or ECONNRESET on a
 // socket, a TLS error over TLS. The WARN's text holds in both cases.
 func stopResponder(r *responder, end exitKind) {
+	// Both callers always pass a kind, a failed start's nil responder included,
+	// so an unset kind is a Ze defect whatever r holds.
+	if end == exitUnspecified {
+		panic("BUG: ddos-flowspec: stopResponder called with no exit kind")
+	}
 	if r == nil {
 		return
 	}
@@ -388,7 +398,7 @@ func stopResponder(r *responder, end exitKind) {
 			return
 		}
 	case exitUnspecified:
-		panic("BUG: ddos-flowspec: stopResponder called with no exit kind")
+		panic("unreachable: ddos-flowspec: stopResponder refuses an unset exit kind at its entry")
 	}
 	// The plugin is on its way out, so its own runtime check no longer answers.
 	// While ddos flowspec stays configured, doctor reports the stopped plugin

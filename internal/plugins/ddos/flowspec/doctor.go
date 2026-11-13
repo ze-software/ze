@@ -163,14 +163,11 @@ func unconfiguredOrphanDiagnostic(m flowspecMatch) rpc.DoctorCheckDiagnostic {
 		Str(", and the ddos flowspec section is not configured, so no running plugin can withdraw it. Every BGP peer that took the rule may still discard or rate-limit traffic to ").Str(victim).
 		Str(". The command below withdraws the rule at the peers. It does not remove the record, so this report stays: the plugin removes the record when it next starts (configure ddos flowspec again, and its start withdraws the rule and removes the record), and ")
 	recordRemovalToday(&msg)
-	var fix textbuf.Buffer
-	fix.Str(`ze cli -c "send bgp `).Str(flowspecSelector).Byte(' ').
-		Str(renderFlowspecCommand(m, "", 0, "del")).Byte('"')
 	return rpc.DoctorCheckDiagnostic{
 		Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
 		Severity: string(diagnostic.SeverityWarning),
 		Message:  msg.String(),
-		Fix:      fix.String(),
+		Fix:      withdrawalCommand(m),
 	}
 }
 

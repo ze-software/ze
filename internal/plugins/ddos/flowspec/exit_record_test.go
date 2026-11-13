@@ -91,8 +91,9 @@ func captureExitLog(t *testing.T) *exitLog {
 // orphanTestCode is the doctor code every exit WARN names.
 const orphanTestCode = "doctor-ddos-flowspec-orphan-announcement"
 
-// unrecordedFact is the part of the exit line for a live rule with no record.
-const unrecordedFact = "and it is not recorded"
+// unrecordedFact is the part of the exit line for a live rule the plugin could
+// not confirm a record of.
+const unrecordedFact = "and the plugin could not confirm a record of it"
 
 // recordRefusingDispatcher is fakeDispatcher with every record write refused,
 // as a state put the daemon does not acknowledge. The record fakeDispatcher
@@ -110,12 +111,13 @@ func (d recordRefusingDispatcher) WithContext(context.Context) routeDispatcher {
 
 // TestStopResponderOnAClosedTransportWithAnUnrecordedRuleWarns proves that a
 // stop which cannot withdraw a live rule whose record write failed logs one
-// WARN that says the rule is not recorded and carries the withdrawal by hand.
+// WARN that says the plugin could not confirm a record of the rule and carries
+// the withdrawal by hand.
 //
-// VALIDATES: the exit line claims a record only when one exists. announce sets
-// the rule live before it writes the record, and a failed write does not undo
-// the announcement, so no start reads a record and no doctor check reports the
-// rule.
+// VALIDATES: the exit line claims a record only when the plugin knows one
+// exists. announce sets the rule live before it writes the record, and a failed
+// write does not undo the announcement, so a start may read no record and no
+// doctor check may report the rule.
 // METHOD: a responder announces through a dispatcher that refuses the record
 // write, the dispatcher then answers the closed-connection error, and
 // stopResponder runs for a stop the engine caused (exitStopped).
@@ -202,12 +204,12 @@ func TestStopResponderKeepsTheRecordOfAnAdoptedRule(t *testing.T) {
 }
 
 // TestFailedWithdrawOfAnUnrecordedRuleNamesTheManualWithdrawal proves that a
-// running withdrawal (the probe or the cap) that fails for a rule with no
-// record says so, and carries the withdrawal by hand.
+// running withdrawal (the probe or the cap) that fails for a rule the plugin
+// could not confirm a record of says so, and carries the withdrawal by hand.
 //
 // VALIDATES: the same fact as the exit lines, on the path that runs while the
 // plugin is up: the runtime doctor check reads the record, so a rule with none
-// is not reported, and the line is the only pointer to the fix.
+// may not be reported, and the line is the only sure pointer to the fix.
 // METHOD: a responder announces through a dispatcher that refuses the record
 // write, the dispatcher then refuses the withdrawal, and withdraw runs under
 // the responder's lock, as probeTick and enforceMaxDuration call it.
@@ -233,6 +235,9 @@ func TestFailedWithdrawOfAnUnrecordedRuleNamesTheManualWithdrawal(t *testing.T) 
 		t.Fatalf("ERROR lines for a failed withdrawal = %d, want 1 (log: %+v)", len(errs), logs.lines(t))
 	}
 	line := errs[0]
+	if !strings.Contains(line.Msg, unrecordedFact) {
+		t.Errorf("ERROR %q does not say %q", line.Msg, unrecordedFact)
+	}
 	if strings.Contains(line.Msg, "stays recorded") {
 		t.Errorf("ERROR %q claims a record the plugin never wrote", line.Msg)
 	}

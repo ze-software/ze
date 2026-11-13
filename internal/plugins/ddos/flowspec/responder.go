@@ -312,9 +312,11 @@ type responder struct {
 	target ddosevent.VectorTuple
 	match  flowspecMatch
 	probe  *probe
-	// recorded says the stored announcement record names the live rule, so a
-	// start withdraws it and ze doctor reports it when this responder cannot.
-	// Meaningful only while active. announce sets it, endAnnouncement clears
+	// recorded says the plugin knows the stored announcement record names the
+	// live rule, so a start withdraws it and ze doctor reports it when this
+	// responder cannot. False is not known, never known absent: a write that
+	// timed out may still have been stored, and a read that answered unreadable
+	// may hide a record of this rule. Meaningful only while active. announce sets it, endAnnouncement clears
 	// it, and adoptAnnouncement carries it with the rule. Guarded by mu.
 	recorded bool
 	// retired says this responder is out of service: a config apply replaced it,
@@ -732,16 +734,25 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 	// daemon stop or a kill leaves no connection to withdraw it through, and the
 	// record is what the next start withdraws. A failed write does not undo the
 	// announcement, because refusing to mitigate over a record would be worse.
-	// recorded keeps what the store holds, for the exit lines: a record that
+	// recorded keeps what the plugin knows the store holds, for the exit lines: a record that
 	// already named this rule (recordsNext) still names it after a failed write.
 	if err := r.dispatcher.Record(r.match); err != nil {
 		r.recorded = recordsNext
 		if recordsNext {
-			logger().Warn("ddos-flowspec: the announced FlowSpec rule could not be recorded again; the record an earlier failed withdrawal left still names this same rule, so the next start withdraws it",
-				"target", target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			// Logged below WARN on purpose, the same reading as the daemon-stop
+			// INFO in stopResponder: ai/rules/go-standards.md asks for WARN
+			// because the log line is the only record that the operation did not
+			// happen, and here the store holds what the write would have left, a
+			// record of this same rule, which the next start withdraws and ze
+			// doctor reports. Nothing is owed to the operator, and a line that
+			// reports nothing wrong is INFO (ai/rules/user-facing-errors.md). A
+			// store that keeps refusing is reported at WARN by the branch below,
+			// on the first announcement whose rule no record names.
+			logger().Info("ddos-flowspec: the announced FlowSpec rule could not be recorded again, and nothing is lost: the record an earlier failed withdrawal left still names this same rule, so the next start withdraws it",
+				"target", target.DstPrefix, "error", err)
 			return
 		}
-		logger().Warn("ddos-flowspec: the announced FlowSpec rule could not be recorded, so a crash or daemon stop before its withdrawal would leave it at the peers unknown to the next start",
+		logger().Warn("ddos-flowspec: the announced FlowSpec rule could not be recorded, so a crash or daemon stop before its withdrawal may leave it at the peers unknown to the next start",
 			"target", target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
 		return
 	}
@@ -750,7 +761,7 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 
 // withdrawalCommand is the command that withdraws m by hand at the BGP peers:
 // the withdrawal the plugin sends, typed at the CLI. It does not remove the
-// record. doctor.go unconfiguredOrphanDiagnostic writes the same command.
+// record. doctor.go unconfiguredOrphanDiagnostic gives it as its fix.
 func withdrawalCommand(m flowspecMatch) string {
 	var tb textbuf.Buffer
 	return tb.Str(`ze cli -c "send bgp `).Str(flowspecSelector).Byte(' ').
@@ -895,8 +906,8 @@ func (r *responder) enforceMaxDuration() {
 // dispatcher. Caller holds r.mu.
 //
 // withdrawThrough ends the announcement, which clears recorded, so it is read
-// first: a rule whose record write failed is not reported by ze doctor, and its
-// line carries the withdrawal by hand instead.
+// first: a rule whose record write failed may not be reported by ze doctor, and
+// its line carries the withdrawal by hand instead.
 func (r *responder) withdraw() {
 	recorded := r.recorded
 	err := r.withdrawThrough(r.dispatcher)
@@ -904,7 +915,7 @@ func (r *responder) withdraw() {
 		return
 	}
 	if !recorded {
-		logger().Error("ddos-flowspec: withdraw failed, and the rule is not recorded, because its record write failed when it was announced; it may stay at the BGP peers, no start of the plugin withdraws it and ze doctor does not report it, so withdraw it by hand with the command in fix",
+		logger().Error("ddos-flowspec: withdraw failed for the FlowSpec rule, and the plugin could not confirm a record of it, because its record write failed when it was announced; it may stay at the BGP peers, a start of the plugin may not withdraw it and ze doctor may not report it, so withdraw it by hand with the command in fix",
 			"target", r.target.DstPrefix, "error", err, "fix", withdrawalCommand(r.match),
 			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
 		return
