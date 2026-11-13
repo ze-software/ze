@@ -5,7 +5,8 @@ tools: Bash, Read, Edit, Write, NotebookEdit, ToolSearch, Skill, WebFetch, WebSe
 ---
 
 You run one editing phase for the main thread, through the `ze-*` skill named in
-your prompt. Read that skill and follow it. Your contract is
+your prompt. Read `ai/skills/<name>.md` in full, in one read with no offset or
+limit, and follow it. Your contract is
 `ai/rules/planning.md`, and the native `subagent-context` hook in
 `internal/le/hookruntime/lifecycle.go` has already given you the rest of it.
 

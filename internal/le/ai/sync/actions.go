@@ -22,7 +22,9 @@ import (
 )
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "update", Summary: "write every tool's agent files from ai/", Why: "write every tool's copy of the skills, the subagents and AGENTS.md from ai/, and remove a stale CLAUDE.md",
+	leaction.Action{Verb: "update", Summary: "write every tool's agent files from ai/, removing leftover skill stubs",
+		Why: "write each tool's skill stub (the frontmatter and a pointer to ai/skills/<name>.md), the subagents and AGENTS.md from ai/," +
+			" remove a stale CLAUDE.md and every stub whose skill is gone, and name each other file it left in place",
 		Writes: true,
 		Answer: syncHere},
 	leaction.Action{Verb: "check", Summary: "name generated agent files that no longer match", Why: "name every generated agent file that no longer matches its source." +

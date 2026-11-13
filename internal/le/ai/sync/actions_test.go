@@ -58,6 +58,41 @@ func TestTheSyncVerbWritesTheCheckoutTheEnvironmentNames(t *testing.T) {
 	}
 }
 
+// VALIDATES: `./le ai sync update`, through the action table, leaves a stub
+// that names its source and carries no line of the source's body (AC-1).
+func TestTheSyncVerbWritesAStubThatNamesItsSource(t *testing.T) {
+	root := fixture(t)
+	useCheckout(t, root)
+
+	if _, code := Answer([]string{"update"}); code != 0 {
+		t.Fatalf("the sync verb exited %d", code)
+	}
+	body := read(t, root, filepath.Join(claudeSkills, "ze-spec", skillFile))
+	if !strings.Contains(body, "ai/skills/ze-spec.md") {
+		t.Errorf("the generated skill file does not name its source:\n%s", body)
+	}
+	if strings.Contains(body, specBody) {
+		t.Errorf("the generated skill file carries the source's body:\n%s", body)
+	}
+}
+
+// VALIDATES: `./le ai sync check`, through the action table, answers 0 after
+// a skill's body is edited, because no generated file holds the body (AC-3).
+func TestTheCheckVerbAnswersZeroAfterASkillBodyChanges(t *testing.T) {
+	root := fixture(t)
+	useCheckout(t, root)
+
+	if _, code := Answer([]string{"update"}); code != 0 {
+		t.Fatalf("the sync verb exited %d", code)
+	}
+	write(t, root, filepath.Join(skillSources, "ze-spec.md"), specFrontmatter+specBody+"\na line added after the sync\n")
+
+	payload, code := Answer([]string{"check"})
+	if code != 0 {
+		t.Errorf("the check verb exited %d after a body edit, want 0: %v", code, payload)
+	}
+}
+
 func TestTheCheckVerbAnswersZeroForAFreshTreeAndOneForAStaleOne(t *testing.T) {
 	root := fixture(t)
 	useCheckout(t, root)

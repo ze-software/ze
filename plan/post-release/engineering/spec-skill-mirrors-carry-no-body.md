@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Release-independent development tooling: it changes how each agent harness reaches a skill's text and changes no shipped binary. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/5 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |

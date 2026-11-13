@@ -324,7 +324,7 @@ disagree, the manifest is right and the row is stale.
 | `./le ai digest` | `internal/le/ai/digest.Answer` | every file:line anchor in ai/digests/*.md resolves to a real file and an in-range line |
 | `./le ai hooks` | `internal/le/ai/hooks.Answer` | native hook dispatcher golden and behavioral fixture selftests |
 | `./le ai rules` | `internal/le/ai/rules.Answer` | the rule corpus in ai/rules/: lint and render it, map hook enforcement, and report matched rules unread in a session transcript (`ai rules report`) |
-| `./le ai sync` | `internal/le/ai/sync.Answer` | the generated agent files: sync every tool's copy of the skills and instructions, or check them |
+| `./le ai sync` | `internal/le/ai/sync.Answer` | the generated agent files: sync each tool's skill stubs (a pointer to ai/skills/) and the copies of the subagent definitions and instructions, or check them |
 | `./le ai tokens` | `internal/le/ai/tokens.Answer` | where this repository's sessions spend their tokens: API calls, the context carried at each one, the size histogram and a capped-context counterfactual, read from the machine-local transcript store |
 | `./le arch compound-guard` | `internal/le/arch/compoundguard.Answer` | a changed guard holds one fact: an if whose condition is a top-level `\|\|` and whose body only leaves is split into one guard per fact |
 | `./le arch enumeration` | `internal/le/arch/enumeration.Answer` | no Go literal, const block or switch enumerates what a live registry already holds, so a set has one declaration and cannot drift from a copy of itself |

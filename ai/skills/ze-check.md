@@ -63,7 +63,7 @@ result it expects.
 
 ### 4a. Stale file references
 
-Scan `.claude/rules/*.md`, `.claude/skills/*/SKILL.md`, and `ai/rationale/*.md` for
+Scan `.claude/rules/*.md`, `ai/skills/*.md`, and `ai/rationale/*.md` for
 backtick-quoted file paths (containing `/`, ending in `.go`, `.md`, `.yang`, `.sh`).
 For each: does the file exist? If not: **STALE REF**.
 
@@ -71,8 +71,8 @@ Skip URLs, rule references like `rules/foo.md`, and relative `.claude/` paths. <
 
 ### 4b. Skill cross-references
 
-Scan all `.claude/skills/*/SKILL.md` for `/ze-` references. For each:
-does the target skill directory exist? If not: **BROKEN SKILL REF**.
+Scan all `ai/skills/*.md` for `/ze-` references. For each `/ze-<name>`:
+does `ai/skills/ze-<name>.md` exist? If not: **BROKEN SKILL REF**.
 
 ### 4c. INDEX.md link check
 

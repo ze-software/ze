@@ -35,7 +35,7 @@ AGENT.md had UPPERCASE doc paths and TOP 5 rules while CLAUDE.md had moved to lo
 ## Placement Decision Tree
 0. A behavior rule every agent must follow? -> `ai/rules/points/<rule>/`, then render
 1. Claude-only workflow rules? -> `.claude/rules/`
-2. Agent skills/hooks? -> `ai/skills/` (synced to `.claude/skills/`), `.claude/hooks/`
+2. Agent skills/hooks? -> `ai/skills/` (each tool's skill directory gets a stub pointing at `ai/skills/`), `.claude/hooks/`
 3. Architecture/design docs? -> `docs/architecture/`
 4. RFC summaries? -> `rfc/short/`
 5. Wire format reference? -> `docs/architecture/wire/`
@@ -72,10 +72,12 @@ plan/journal/
   <class>.md               # One file per problem class, one row per occurrence
 ```
 
-`ai/` is where an author edits. The tooling installs each agent's own copy
-elsewhere, and those copies are generated and gitignored. `./le ai sync update`
-writes `.claude/skills/`, `.claude/agents/`, `CLAUDE.md` and `AGENTS.md` from
-`ai/`, and `./le ai rules update render` writes `ai/rules/*.md` from
+`ai/` is where an author edits. The tooling generates what each agent loads
+elsewhere, and those files are gitignored. `./le ai sync update` writes a skill
+stub per skill into `.claude/skills/`, `.codex/skills/` and `.agents/skills/`:
+the skill's name and description, and a pointer to its text in `ai/skills/`.
+It copies `ai/agents/` to `.claude/agents/` and `ai/INSTRUCTIONS.md` to
+`AGENTS.md`, and removes a root `CLAUDE.md`. `./le ai rules update render` writes `ai/rules/*.md` from
 `ai/rules/points/`. Two directories stay hand-written and Claude-only, because
 no other agent reads them: `.claude/rules/` and `.claude/hooks/`.
 

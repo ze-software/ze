@@ -2,14 +2,22 @@
 // Related: actions.go -- the verbs that reach this mirror
 // Related: report.go -- what a run answers
 //
-// Package aisync generates the tool-specific copies of Ze's agent instructions
+// Package aisync generates the tool-specific files of Ze's agent instructions
 // from their one canonical source.
 //
-// Three things are mirrored. A skill is ai/skills/<name>.md, copied verbatim
-// for Claude and Codex and with .claude/ repointed at .agents/ for the Codex
-// CLI. A subagent definition is ai/agents/<name>.md, copied flat, and Claude
-// Code is the only tool that reads one. AGENTS.md is a copy of
-// ai/INSTRUCTIONS.md, and every agent reads it, Claude Code included.
+// Three things are generated. A skill is ai/skills/<name>.md, and each harness
+// directory gets the same STUB for it: the source's frontmatter byte for byte,
+// a marker line naming the source, and an order to read that source in full.
+// No line of the skill's body is copied, so an edit to the body owes no sync;
+// only the frontmatter, which a harness lists the skill by, can go stale. A
+// subagent definition is ai/agents/<name>.md, copied flat, and Claude Code is
+// the only tool that reads one. AGENTS.md is a copy of ai/INSTRUCTIONS.md, and
+// every agent reads it, Claude Code included.
+//
+// A sync removes a leftover stub, a <name>/SKILL.md in a skill tree whose
+// first line after its frontmatter is the marker for <name> and that no source
+// produces. Every other file a generation does not produce is left byte for
+// byte and named in the answer, because le cannot show it wrote that file.
 //
 // A root CLAUDE.md MUST NOT exist. Claude Code reads AGENTS.md only when no
 // CLAUDE.md is present, so a leftover CLAUDE.md silently replaces the rules
@@ -27,6 +35,7 @@ package aisync
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -67,11 +76,16 @@ const skillFile = "SKILL.md"
 // markdown is the extension every source carries.
 const markdown = ".md"
 
-// The path prefix a skill names, and what the Codex CLI's own mirror needs it
-// to say instead.
+// skillTrees are the harness directories that each receive one stub per skill.
+var skillTrees = []string{claudeSkills, codexSkills, agentsSkills}
+
+// fence is the line that opens and closes a frontmatter block.
+const fence = "---"
+
+// The frontmatter keys a stub needs. Every harness lists a skill by them.
 const (
-	claudePrefix = ".claude/"
-	agentsPrefix = ".agents/"
+	nameKey        = "name"
+	descriptionKey = "description"
 )
 
 // Directory and file modes for what this writes. The mirrors are generated
@@ -84,6 +98,9 @@ const (
 // ErrNoSource says a canonical source this mirror is generated from is not in
 // the checkout at all.
 var ErrNoSource = errors.New("aisync: a canonical source is missing, so this is not a Ze checkout")
+
+// ErrBadSkill says a skill source cannot make a stub, so the run wrote nothing.
+var ErrBadSkill = errors.New("aisync: a skill source cannot make a stub")
 
 // Mirror generates one checkout's agent files.
 type Mirror struct {
@@ -150,23 +167,30 @@ func (m Mirror) markdownIn(dir string) ([]string, error) {
 // dest is the checkout for a sync and a scratch tree for a check. Thus, both
 // answers come from ONE generator. A check cannot judge the tree against a
 // second implementation of the sync output.
+//
+// Every stub is composed before the first write. A source that cannot make
+// one refuses the whole run, so a refusal never leaves some skills written and
+// others not.
 func (m Mirror) generateInto(dest string, skills, agents []string) error {
-	for _, name := range skills {
-		body, err := m.source(skillSources, name)
+	stubs := make([][]byte, len(skills))
+	for i, name := range skills {
+		source, err := m.source(skillSources, name)
 		if err != nil {
 			return err
 		}
-		var tb textbuf.Buffer
-		leaf := tb.Str(name).Byte('/').Str(skillFile).String()
-		if err := writeUnder(dest, filepath.Join(claudeSkills, leaf), body); err != nil {
+		stub, err := stubOf(name, source)
+		if err != nil {
 			return err
 		}
-		if err := writeUnder(dest, filepath.Join(codexSkills, leaf), body); err != nil {
-			return err
-		}
-		repointed := bytes.ReplaceAll(body, []byte(claudePrefix), []byte(agentsPrefix))
-		if err := writeUnder(dest, filepath.Join(agentsSkills, leaf), repointed); err != nil {
-			return err
+		stubs[i] = stub
+	}
+
+	for i, name := range skills {
+		leaf := filepath.Join(name, skillFile)
+		for _, tree := range skillTrees {
+			if err := writeSkillUnder(dest, filepath.Join(tree, leaf), stubs[i]); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -187,9 +211,180 @@ func (m Mirror) generateInto(dest string, skills, agents []string) error {
 	return writeUnder(dest, agentsInstructions, body)
 }
 
+// sourcePath answers the repository path of one skill's source. The name is
+// one this run listed from ai/skills, never text read from a frontmatter.
+func sourcePath(name string) string {
+	var tb textbuf.Buffer
+	return tb.Str(skillSources).Byte('/').Str(name).Str(markdown).String()
+}
+
+// markerFor answers the line that shows le generated a skill's stub. It is the
+// first line after the stub's frontmatter, and a sync removes a file with no
+// source only when that line is byte-equal to this one.
+func markerFor(name string) string {
+	var tb textbuf.Buffer
+	return tb.Str("<!-- Generated by ./le ai sync update from ").Str(sourcePath(name)).
+		Str(". Do not edit this file: edit that one. -->").String()
+}
+
+// instructionFor answers the body of a stub after its marker: the orders that
+// send the agent to the source.
+//
+// It MUST hold no argument placeholder. A harness substitutes one wherever it
+// finds it, and one that finds none appends the arguments to the stub, which
+// is what the third order relies on.
+func instructionFor(name string) string {
+	path := sourcePath(name)
+	var tb textbuf.Buffer
+	tb.Str("\nThis skill's instructions are in `").Str(path).Str("`, relative to the repository root.\n\n")
+	tb.Str("1. Read `").Str(path).Str("` in full now, in one read with no offset and no limit.\n")
+	tb.Str("2. Follow that file as this skill's instructions.\n")
+	tb.Str("3. The argument placeholder in that file stands for the arguments given to this skill.\n")
+	tb.Str("4. Read that file again after a context compaction, before you go on.\n")
+	tb.Str("5. If that file cannot be read, stop and say so. Do not work from this skill's description.\n")
+	return tb.String()
+}
+
+// stubOf composes the stub every harness directory receives for one skill:
+// the source's frontmatter block byte for byte, the marker, the instruction.
+//
+// It is the one composition, and generateInto is its only caller, so a sync
+// and a check judge the tree against the same bytes.
+func stubOf(name string, source []byte) ([]byte, error) {
+	block, _, found := frontmatterOf(source)
+	if !found {
+		return nil, badSkill(name, "does not open with a frontmatter block",
+			"a harness lists a skill by the name and description in that block",
+			"add at its top the lines: "+fence+", "+nameKey+": "+name+", "+descriptionKey+": <when to use this skill>, "+fence)
+	}
+	declared, hasName := fieldOf(block, nameKey)
+	if !hasName {
+		return nil, badSkill(name, "has no `name:` line in its frontmatter",
+			"a harness lists a skill by its name",
+			"add this line to its frontmatter: "+nameKey+": "+name)
+	}
+	description, hasDescription := fieldOf(block, descriptionKey)
+	if !hasDescription {
+		return nil, badSkill(name, "has no `description:` line in its frontmatter",
+			"a harness describes a skill by it, and Pi does not load a skill without one",
+			"add this line to its frontmatter: "+descriptionKey+": <when to use this skill>")
+	}
+	if description == "" {
+		return nil, badSkill(name, "has an empty `description:` line in its frontmatter",
+			"a harness describes a skill by it, and Pi does not load a skill without one",
+			"edit that line to: "+descriptionKey+": <when to use this skill>")
+	}
+	if declared != name {
+		return nil, badSkill(name, "names itself \""+declared+"\" in its frontmatter, not its file name",
+			"Claude Code names a skill by its directory and the other harnesses by `name`, so the skill would carry two names",
+			"edit that line to: "+nameKey+": "+name)
+	}
+
+	marker := markerFor(name)
+	instruction := instructionFor(name)
+	stub := make([]byte, 0, len(block)+1+len(marker)+1+len(instruction))
+	stub = append(stub, block...)
+	if !bytes.HasSuffix(block, []byte{'\n'}) {
+		stub = append(stub, '\n')
+	}
+	stub = append(stub, marker...)
+	stub = append(stub, '\n')
+	stub = append(stub, instruction...)
+	return stub, nil
+}
+
+// badSkill builds the refusal for a source that cannot make a stub: the file
+// and what is wrong first, why it matters next, and the edit that fixes it on
+// the last line.
+func badSkill(name, problem, why, fix string) error {
+	var tb textbuf.Buffer
+	tb.Str(sourcePath(name)).Byte(' ').Str(problem).Str(", so no skill file was written.\n")
+	tb.Str(why).Str(".\n")
+	tb.Str(fix)
+	return fmt.Errorf("%w: %s", ErrBadSkill, tb.String())
+}
+
+// frontmatterOf answers the frontmatter block that opens source, from its
+// opening fence line through its closing fence line and that line's newline,
+// and the bytes after it. found is false when source opens with no block, or
+// its block is never closed.
+func frontmatterOf(source []byte) (block, rest []byte, found bool) {
+	first, _, hasNewline := bytes.Cut(source, []byte{'\n'})
+	if !hasNewline {
+		return nil, nil, false
+	}
+	if !isFence(first) {
+		return nil, nil, false
+	}
+	at := len(first) + 1
+	// Bounded by len(source): each pass moves at past one line.
+	for at < len(source) {
+		line, _, _ := bytes.Cut(source[at:], []byte{'\n'})
+		end := at + len(line)
+		if end < len(source) {
+			end++
+		}
+		if isFence(line) {
+			return source[:end], source[end:], true
+		}
+		at = end
+	}
+	return nil, nil, false
+}
+
+// isFence reports whether one line is a frontmatter fence.
+func isFence(line []byte) bool {
+	return string(bytes.TrimSuffix(line, []byte{'\r'})) == fence
+}
+
+// fieldOf answers the value of one top-level key of a frontmatter block, with
+// surrounding space and quotes removed. found is false when no line sets it.
+func fieldOf(block []byte, key string) (value string, found bool) {
+	prefix := key + ":"
+	for line := range strings.SplitSeq(string(block), "\n") {
+		rest, has := strings.CutPrefix(strings.TrimSuffix(line, "\r"), prefix)
+		if !has {
+			continue
+		}
+		value = strings.TrimSpace(rest)
+		value = strings.Trim(value, `"'`)
+		return strings.TrimSpace(value), true
+	}
+	return "", false
+}
+
 // source reads one canonical file by its directory and base name.
 func (m Mirror) source(dir, name string) ([]byte, error) {
 	return os.ReadFile(filepath.Join(m.Root, dir, name+markdown)) //nolint:gosec // a name this run listed from the checkout
+}
+
+// writeSkillUnder writes one skill stub as a regular file, never through what
+// already sits at its path.
+//
+// os.WriteFile follows a symlink. A SKILL.md linked to its source would then
+// have the source overwritten with the stub, so an entry that is neither a
+// regular file nor a directory is removed first and the stub written in its
+// place. A directory at the path is an error, because removing it could drop
+// files le did not write.
+func writeSkillUnder(dest, rel string, body []byte) error {
+	info, err := os.Lstat(filepath.Join(dest, rel))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err == nil {
+		if info.IsDir() {
+			var tb textbuf.Buffer
+			return errors.New(tb.Str(rel).Str(" is a directory, so the sync cannot write the skill file there.\n").
+				Str("Each harness reads a skill from that exact file path.\n").
+				Str("remove it, keeping anything you need from it: rm -r ").Str(rel).String())
+		}
+		if !info.Mode().IsRegular() {
+			if err := os.Remove(filepath.Join(dest, rel)); err != nil {
+				return err
+			}
+		}
+	}
+	return writeUnder(dest, rel, body)
 }
 
 // writeUnder writes one generated file, creating the directories it needs.
@@ -201,7 +396,8 @@ func writeUnder(dest, rel string, body []byte) error {
 	return os.WriteFile(full, body, fileMode)
 }
 
-// Sync writes every mirror into the checkout.
+// Sync writes every generated file into the checkout, then removes each
+// leftover stub and names every other file it found and left in place.
 func (m Mirror) Sync() (Report, error) {
 	skills, agents, err := m.sources()
 	if err != nil {
@@ -214,7 +410,146 @@ func (m Mirror) Sync() (Report, error) {
 	if err := os.Remove(shadow); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return Report{}, err
 	}
-	return Report{Mode: modeSync, Skills: skills, Agents: agents}, nil
+	removed, left, err := m.clearLeftovers(skills, agents)
+	if err != nil {
+		return Report{}, err
+	}
+	return Report{Mode: modeSync, Skills: skills, Agents: agents, Removed: removed, Left: left}, nil
+}
+
+// clearLeftovers walks the four generated trees for every path this run did
+// not generate. In a skill tree, a leftover stub is removed, with its
+// directory when that leaves it empty. Every other such path, in any of the
+// four trees, is left byte for byte. Both answers are repository-relative and
+// sorted.
+func (m Mirror) clearLeftovers(skills, agents []string) (removed, left []string, err error) {
+	generated := make(map[string]bool, len(skills))
+	for _, name := range skills {
+		generated[filepath.Join(name, skillFile)] = true
+	}
+	for _, tree := range skillTrees {
+		extras, err := extrasIn(m.Root, tree, generated)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, rel := range extras {
+			isStub, err := isLeftoverStub(m.Root, tree, rel)
+			if err != nil {
+				return nil, nil, err
+			}
+			if !isStub {
+				left = append(left, filepath.Join(tree, rel))
+				continue
+			}
+			if err := removeStub(m.Root, tree, rel); err != nil {
+				return nil, nil, err
+			}
+			removed = append(removed, filepath.Join(tree, rel))
+		}
+	}
+
+	// A subagent definition carries no marker, so le can never show it wrote
+	// one: an extra file in this tree is always left and named.
+	definitions := make(map[string]bool, len(agents))
+	for _, name := range agents {
+		definitions[name+markdown] = true
+	}
+	extras, err := extrasIn(m.Root, claudeAgents, definitions)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, rel := range extras {
+		left = append(left, filepath.Join(claudeAgents, rel))
+	}
+
+	slices.Sort(removed)
+	slices.Sort(left)
+	return removed, left, nil
+}
+
+// extrasIn answers every path below one generated tree, relative to that tree,
+// that is not in generated. It reuses the check's walk, so the sync and the
+// check agree on what is extra.
+func extrasIn(root, tree string, generated map[string]bool) ([]string, error) {
+	paths, err := filesUnder(filepath.Join(root, tree))
+	if err != nil {
+		return nil, err
+	}
+	var extras []string
+	for rel := range paths {
+		if !generated[rel] {
+			extras = append(extras, rel)
+		}
+	}
+	slices.Sort(extras)
+	return extras, nil
+}
+
+// stubName answers the skill name a tree-relative path would be the stub of:
+// a path of the exact shape <name>/SKILL.md. found is false for any other
+// shape.
+func stubName(rel string) (name string, found bool) {
+	dir, file := filepath.Split(rel)
+	if file != skillFile {
+		return "", false
+	}
+	name = strings.TrimSuffix(dir, string(filepath.Separator))
+	if name == "" {
+		return "", false
+	}
+	if strings.ContainsRune(name, filepath.Separator) {
+		return "", false
+	}
+	return name, true
+}
+
+// isLeftoverStub reports whether one extra path of a skill tree is a stub le
+// wrote: a <name>/SKILL.md that is a regular file, never a symlink, whose
+// first line after its frontmatter block is byte-equal to the marker for
+// <name>. The marker anywhere else in the file does not count, so a
+// hand-written file quoting it is never removed.
+func isLeftoverStub(root, tree, rel string) (bool, error) {
+	name, shaped := stubName(rel)
+	if !shaped {
+		return false, nil
+	}
+	full := filepath.Join(root, tree, rel)
+	info, err := os.Lstat(full)
+	if err != nil {
+		return false, err
+	}
+	if !info.Mode().IsRegular() {
+		return false, nil
+	}
+	body, err := os.ReadFile(full) //nolint:gosec // a regular file this run found under its own generated tree
+	if err != nil {
+		return false, err
+	}
+	_, rest, found := frontmatterOf(body)
+	if !found {
+		return false, nil
+	}
+	line, _, _ := bytes.Cut(rest, []byte{'\n'})
+	return string(line) == markerFor(name), nil
+}
+
+// removeStub removes one leftover stub, then its directory when that leaves
+// the directory empty. A directory holding another file is kept, and the walk
+// names that file as left.
+func removeStub(root, tree, rel string) error {
+	full := filepath.Join(root, tree, rel)
+	if err := os.Remove(full); err != nil {
+		return err
+	}
+	dir := filepath.Dir(full)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	if len(entries) > 0 {
+		return nil
+	}
+	return os.Remove(dir)
 }
 
 // Preview names what a sync would write, and writes nothing.
