@@ -379,6 +379,7 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | `zero-value-as-valid-answer` | 2026-09-01 | mvpn `parseBody` reads a Leaf A-D Route Key as an RD (zero-RD face fixed by `rdPresent`) |
 | `expected-message-never-sent` | 2026-10-31 | `test/plugin/rpki-aspa-*` time out waiting for Ze's EOR |
 | `bound-too-small-for-its-own-burst` | 2026-11-13 | AC-5: recovery departure packing, all routes received but UPDATE count exceeds fit |
+| `parked-work-returns-out-of-order` | 2026-11-13 | forward pool `takeOverflowReleased`: a hold lowered mid-scan releases a later parked live batch ahead of an earlier one |
 
 ## Rows found already fixed
 

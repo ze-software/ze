@@ -15,7 +15,7 @@ reactor_scope_files=$(
   } | sort -u
 )
 reactor_scope_names=$(rg --no-filename '^func Test[^ (]+\(' $reactor_scope_files | sed -E 's/^func (Test[^ (]+)\(.*/\1/' | sort -u)
-reactor_scope_run="^($(printf '%s\n' "$reactor_scope_names" | paste -sd '|'))$"
+reactor_scope_run="^($(printf '%s\n' "$reactor_scope_names" | paste -sd '|' -))$"
 printf 'Affected reactor population: %s files, %s named tests\n' \
   "$(printf '%s\n' "$reactor_scope_files" | wc -l)" \
   "$(printf '%s\n' "$reactor_scope_names" | wc -l)"
