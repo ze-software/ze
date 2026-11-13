@@ -54,15 +54,18 @@ of the RFC 4301 spec. It is not caused by the library.
 ## Progress and what is next
 
 Landed in `b43120b371`: the single patch is a series of eleven files, the guard
-judges a patch at its place in the stack, and every page names the series. The
+judges a patch at its place in the stack, and every page names the series.
+Landed in `c9ce6ba81d`: each upstream-candidate patch carries a test upstream
+can run unprivileged, the source-only selector gap is closed, and each patch's
+notes say how it applies to upstream `main`. The
 spec's Design Insights section lists the series, its order and what each patch
 needs. The spec is `in-progress`, claimed one above the WIP cap on the owner's
 one-off exception.
 
 | Next | State | Blocked by |
 |------|-------|------------|
-| Upstream-style tests, and the two selector gaps (AC-3, AC-7, AC-8) | Not started | Nothing |
-| Each upstream-candidate patch checked against a clone of upstream `main` (AC-2) | Not started | Nothing; needs a clone outside the checkout |
+| Upstream-style tests, and the two selector gaps (AC-3, AC-7, AC-8) | Done, `c9ce6ba81d` | |
+| Each upstream-candidate patch checked against a clone of upstream `main` (AC-2) | Done: all ten apply unchanged in order, and their tests pass there. Clone at `~/Code/github.com/vishvananda/netlink` | |
 | Private kernel ABI moved into `internal/component/ike/dataplane` (AC-5, AC-6) | Not started | The RFC 4301 session's uncommitted dataplane callers (`xfrm_linux.go`, `state_scope.go`, `xfrm_state_scope_linux.go`, `xfrm_forward_default_linux.go`): the move edits those files |
 | Pull requests (AC-11) | Not started | The owner's order |
 
@@ -72,9 +75,12 @@ an approved repair of `TestVPPInstallPolicyPartialPortMaskRefused` and a new
 session's uncommitted change to `vpp_policy.go`, so they land in that session's
 commit. The judge's approval row is in `tmp/commit-weakening-approved-ea3b8173.md`.
 
-Scratch kept in `tmp/session/2026-11-13-112345/scratch/`: `xfrm-series/` (the
-scripts and stages that built the series) and `series-commit/`. Both can be
-removed once the upstream-style tests phase has regenerated the patches.
+Scratch kept in `tmp/session/2026-11-13-112345/scratch/`, all removable now, about
+20 MB together: `xfrm-series/` (the scripts and stages that built the series),
+`series-commit/`, and three copies of the upstream clone used to apply the
+patches to `main` (`upstream-main-a`, `-b`, `-c`). They are left because the
+hook that guards test deletion refuses an agent removing a directory that holds
+copies of test files.
 
 ## Design choices
 
