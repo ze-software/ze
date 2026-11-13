@@ -107,6 +107,15 @@ generated and git-ignored. Each holds one stub per skill: the skill's name and
 description, and an instruction to read `ai/skills/<name>.md` in full. Never
 edit a stub.
 
+What each tool was seen to do with a stub, on 2026-11-13:
+
+| Tool | Reads its stubs from | Follows the stub to the source |
+|------|----------------------|--------------------------------|
+| Claude Code | `.claude/skills/` | Yes: the next action after the stub was a full read of `ai/skills/<name>.md`, in the main session and in two fresh agents |
+| Codex CLI 0.169.0 | `.agents/skills/` | Yes: it read the stub, then the whole source, and bound the argument it was given |
+| OpenCode 1.19.4 | `.agents/skills/` and `.claude/skills/`, each skill listed once | Not run: it discovered all 34 stubs, and no model was available to it that day |
+| Pi 0.73.1 | `.agents/skills/` (by its source) | Not run: no model was available to it that day |
+
 | You did | Run |
 |---------|-----|
 | Edited a skill's body | Nothing |
