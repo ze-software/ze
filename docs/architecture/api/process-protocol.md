@@ -1272,10 +1272,17 @@ on either context returns the cancellation while the connection is still
 open. The engine leaves that request unanswered, so the close answers it: the
 plugin's pending call ends with the connection's terminal error, like every
 other call still pending then, and never with an error line that the plugin
-would have to tell apart from a live engine's refusal by its text. Every other
-failure is answered, a refusal during the stop included. A startup request
-answers every failure.
-<!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpJSON, engineSessionEnded -->
+would have to tell apart from a live engine's refusal by its text. In process
+the rule is the same, and the fenced bridge answers: a native or JSON-shaped
+direct call that the stop cancelled returns `rpc.ErrBridgeClosed`, the answer
+every call gets once `Process.Stop` fences the bridge's dispatch. A call
+already admitted can meet the cancellation before that fence, because a daemon
+stop cancels the server context before `ProcessManager.Stop` reaches each
+process. Every other failure is answered, a refusal during the stop included,
+on both transports. A startup request answers every failure.
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpJSON, engineSessionEnded, serveEngineOpDirect -->
+<!-- source: internal/component/plugin/server/dispatch_native.go -- dispatchPluginRPCNative, directCallError -->
+<!-- source: pkg/plugin/rpc/bridge.go -- StopDispatch, DispatchRPC -->
 <!-- source: internal/component/plugin/server/server.go -- Stop -->
 <!-- source: internal/component/plugin/process/process.go -- Stop, monitorCmd -->
 

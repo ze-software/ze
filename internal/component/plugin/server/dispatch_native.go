@@ -35,9 +35,24 @@ func (s *Server) dispatchPluginRPCNative(ctx context.Context, proc *process.Proc
 	)
 	result, err = op.native(s, ctx, proc, input)
 	if err != nil {
-		return nil, true, engineOpCallError(err)
+		return nil, true, s.directCallError(proc, err)
 	}
 	return result, true, nil
+}
+
+// directCallError is the in-process answer to a failed runtime request, for
+// the native and the JSON-shaped Direct paths alike. A failure that is the end
+// of the plugin's engine session (engineSessionEnded) answers
+// rpc.ErrBridgeClosed, the bridge's own answer once Process.Stop fences its
+// dispatch, as the connection close answers it on the socket path. An admitted
+// call can meet the stop's cancellation before that fence: a daemon stop
+// cancels the server context before ProcessManager.Stop reaches Process.Stop.
+// Every other failure is engineOpCallError's answer.
+func (s *Server) directCallError(proc *process.Process, err error) error {
+	if s.engineSessionEnded(proc, err) {
+		return rpc.ErrBridgeClosed
+	}
+	return engineOpCallError(err)
 }
 
 // engineOpCallError gives native and JSON-shaped Direct calls the same refusal

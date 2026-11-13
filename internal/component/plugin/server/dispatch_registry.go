@@ -276,7 +276,9 @@ func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginCo
 // proc's engine session caused: the server is stopping, or this process
 // generation is. Each is followed by the close of proc's connection
 // (Server.Stop then ProcessManager.Stop, Process.Stop, Process.monitorCmd),
-// with no condition in between. Any other failure is answered, a refusal
+// with no condition in between; in process, Process.Stop also fences the
+// bridge, and directCallError answers rpc.ErrBridgeClosed. Any other failure
+// is answered, a refusal
 // during the stop and a cancellation under a live server and process included.
 func (s *Server) engineSessionEnded(proc *process.Process, err error) bool {
 	if !errors.Is(err, context.Canceled) {
@@ -338,11 +340,12 @@ func answerEngineOpJSON(reply context.Context, proc *process.Process, conn *plug
 // result before completing any accepted lifecycle action. Errors are returned
 // as *rpc.RPCCallError, matching the SDK's CallRPC protocol; an
 // existing RPCCallError passes through unwrapped so its detail is not
-// double-prefixed.
+// double-prefixed. A failure that is the end of the plugin's engine session
+// answers rpc.ErrBridgeClosed instead (directCallError).
 func (s *Server) serveEngineOpDirect(ctx context.Context, proc *process.Process, op *engineOp, params json.RawMessage) (json.RawMessage, error) {
 	result, err := op.handle(s, ctx, proc, params)
 	if err != nil {
-		return nil, engineOpCallError(err)
+		return nil, s.directCallError(proc, err)
 	}
 	if answer, records := result.(*recordAnswer); records {
 		// This is the JSON-shaped Direct path, so its result is one marshaled

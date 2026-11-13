@@ -447,7 +447,9 @@ also ends the daemon-side wait of a pending long-poll read before the
 connection closes, and so does a stop of only the system RIB's process
 generation. The engine leaves a request that its stop cancelled unanswered,
 so the read ends with the closed connection and never with a refusal.
-Internally, the stop fences native dispatch first. Every other error under a
+Internally, the stop fences native dispatch, and a native publication or read
+the stop cancelled after admission returns the same closed-bridge answer, so
+it is a normal stop too. Every other error under a
 live owner context is a failure, including an owner's refusal whose text
 names EOF, a closed connection or a stopped request: a refusal arrives as an
 RPC error and never as a transport end.
@@ -455,6 +457,7 @@ RPC error and never as a transport end.
 <!-- source: internal/component/sysrib/route_view_client.go -- routeViewTransportStopped -->
 <!-- source: internal/component/sysrib/route_view_feed.go -- wait -->
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpJSON, engineSessionEnded -->
+<!-- source: internal/component/plugin/server/dispatch_native.go -- directCallError -->
 
 Candidate commands and configuration changes enter the same worker through a
 sixteen-request queue. Each request's two-minute forward budget starts before
