@@ -611,6 +611,13 @@ protocol to know about the node but treat it as administratively down.
 
 ### Comments
 
+Plain and metadata-bearing set files read complete lines without a scanner's
+64-KiB token ceiling. Comments and unconstrained string values can exceed that
+length. Both parsers retain line numbers and accept LF or CRLF endings.
+Transport body limits and each leaf's YANG constraints still apply.
+<!-- source: internal/component/config/setparser.go -- SetParser.Parse -->
+<!-- source: internal/component/config/setparser_meta.go -- SetParser.ParseWithMeta -->
+
 A comment runs from `#` to the end of the line, anywhere whitespace may stand,
 and is the only comment form. It changes no value. The parser keeps each one on
 the statement it was written beside, and the hierarchical printer

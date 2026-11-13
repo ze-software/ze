@@ -4,7 +4,6 @@
 package config
 
 import (
-	"bufio"
 	"fmt"
 	"strings"
 	"time"
@@ -24,12 +23,11 @@ func (p *SetParser) ParseWithMeta(input string) (*Tree, *MetaTree, error) {
 	tree := NewTree()
 	meta := NewMetaTree()
 
-	scanner := bufio.NewScanner(strings.NewReader(input))
 	lineNum := 0
 
-	for scanner.Scan() {
+	for raw := range strings.SplitSeq(input, "\n") {
 		lineNum++
-		line := trimTokenSpace(scanner.Text())
+		line := trimTokenSpace(raw)
 
 		if line == "" {
 			continue
@@ -56,7 +54,7 @@ func (p *SetParser) ParseWithMeta(input string) (*Tree, *MetaTree, error) {
 		}
 	}
 
-	return tree, meta, scanner.Err()
+	return tree, meta, nil
 }
 
 // maxMetaFieldLen caps metadata field values from change files to prevent abuse.

@@ -98,7 +98,7 @@ func ParseSetDiagnostics(schema *Schema, input string, format ConfigFormat) (*Tr
 	return nil, p.refusals
 }
 
-// collectLineRefusal records only typed value failures. The scanner has
+// collectLineRefusal records only typed value failures. The parser has
 // already consumed the whole line, so the next line starts independently.
 func (p *SetParser) collectLineRefusal(err error) bool {
 	if !p.collecting {

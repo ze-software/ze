@@ -9,7 +9,6 @@
 package config
 
 import (
-	"bufio"
 	"slices"
 	"strings"
 
@@ -101,12 +100,11 @@ func (p *SetParser) skipUnknownField(lineNum int, name string) {
 func (p *SetParser) Parse(input string) (*Tree, error) {
 	tree := NewTree()
 
-	scanner := bufio.NewScanner(strings.NewReader(input))
 	lineNum := 0
 
-	for scanner.Scan() {
+	for raw := range strings.SplitSeq(input, "\n") {
 		lineNum++
-		line := trimTokenSpace(scanner.Text())
+		line := trimTokenSpace(raw)
 
 		// Skip empty lines and comments
 		if line == "" || strings.HasPrefix(line, "#") {
@@ -121,7 +119,7 @@ func (p *SetParser) Parse(input string) (*Tree, error) {
 		}
 	}
 
-	return tree, scanner.Err()
+	return tree, nil
 }
 
 // parseLine parses a single set/delete line.
