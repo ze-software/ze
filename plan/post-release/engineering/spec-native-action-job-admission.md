@@ -243,3 +243,5 @@ N/A - Scope is tooling; no wire-visible behavior changes.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | lifetime-ends-before-its-last-reader.md | 2026-10-24 | verify slot entry in the job registry |
+| artifact-written-with-no-remover.md | 2026-11-13 | result receipts in the job registry are never removed |
+| gate-verdict-depends-on-the-machine.md | 2026-11-13 | the job package's staged-executable test copies a system shell macOS kills |
