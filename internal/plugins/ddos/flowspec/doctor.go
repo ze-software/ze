@@ -3,13 +3,21 @@
 // Related: responder.go -- encodeAnnouncementRecord, decodeAnnouncementRecord, classifyRecord
 //
 // The record of the live announcement is judged by two checks, because no one
-// process can see every case. While ddos flowspec is configured the plugin runs
-// and holds its live responder, so it answers a runtime check itself, internal
-// and forked alike. Once the plugin is gone (its section removed, the daemon
-// stopped) the daemon no longer asks it anything: collectDoctorChecksFrom
+// process can see every case. While the plugin runs it holds its live
+// responder, so it answers a runtime check itself, internal and forked alike.
+// Once the plugin is not running (its section removed, the plugin stopped while
+// its section is still configured, the daemon stopped) the daemon no longer
+// asks it anything: collectDoctorChecksFrom
 // (internal/component/doctor/cmd/show.go) asks only the processes the process
 // manager still holds. A registered post-config check then reads the record
-// from the store doctor opened, whenever the section is absent.
+// from the store doctor opened. With the section configured it first asks the
+// daemon's plugin snapshot (plugin/server PluginDoctorSnapshot) whether the
+// plugin runs: configured is not running, because this plugin declares no
+// failure policy, so after it ends on its own the daemon records it stopped and
+// does not start it again (server/failure_policy.go applyFailurePolicy). The
+// snapshot answers for both placements, because the daemon's process manager
+// holds an in-process and a forked plugin alike; the package's own
+// activeResponder would see only an in-process one.
 package flowspec
 
 import (
@@ -21,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -39,10 +48,12 @@ var orphanRuntimeCheckDecl = rpc.DoctorCheckDecl{
 	Codes: []string{diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement},
 }
 
-// orphanRecordCheck is the registered check for the record while ddos flowspec
-// is not configured, so no plugin runs to answer orphanRuntimeCheck. It reads
-// config and the store only, so it takes a config phase and runs in whichever
-// process answers doctor.
+// orphanRecordCheck is the registered check for the record while no plugin
+// runs to answer orphanRuntimeCheck: ddos flowspec is not configured, or it is
+// configured and the daemon's plugin snapshot says the plugin is not running.
+// It reads config, the store and that snapshot, so it takes a config phase and
+// runs in whichever process answers doctor; outside the daemon the snapshot is
+// not published, and the check says what it cannot tell.
 var orphanRecordCheck = diagnostic.DoctorCheck{
 	Name:         "ddos-flowspec-orphan-record",
 	Phase:        diagnostic.DoctorPhasePostConfig,
@@ -211,9 +222,17 @@ func recordReadCommand() string {
 	return tb.Str("ze data cat ").Str(announcementKey.Pattern).String()
 }
 
-// checkOrphanRecord reports a recorded rule while ddos flowspec is not
-// configured, reading the record from the store doctor opened.
+// checkOrphanRecord reports a recorded rule no running plugin holds, reading
+// the record from the store doctor opened and the plugin's run from the
+// daemon's plugin snapshot.
 func checkOrphanRecord(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return judgeOrphanRecord(ctx, readPluginRun)
+}
+
+// judgeOrphanRecord is checkOrphanRecord with the question "does the plugin
+// run" passed in, so a test can answer it for each case the daemon can be in.
+// readRun is asked only while the section is configured.
+func judgeOrphanRecord(ctx diagnostic.DoctorCheckContext, readRun func() pluginRun) []diagnostic.Diagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok {
 		return []diagnostic.Diagnostic{{
@@ -223,9 +242,14 @@ func checkOrphanRecord(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 			Fix:      recordReadCommand(),
 		}}
 	}
+	report := orphanReport(unconfiguredOrphanDiagnostic)
 	if tree.GetContainerPath(configRoot) != nil {
-		// refuse-by-default: guards orphanRuntimeCheckDecl -- a configured section runs the plugin, whose runtime check judges the record against its live responder
-		return nil
+		var running bool
+		report, running = configuredOrphanReport(readRun())
+		if running {
+			// refuse-by-default: guards orphanRuntimeCheckDecl -- the running plugin's runtime check judges the record against its live responder, so a second report here would repeat it or flag a healthy mitigation
+			return nil
+		}
 	}
 	if ctx.Store == nil {
 		return []diagnostic.Diagnostic{{
@@ -253,10 +277,159 @@ func checkOrphanRecord(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 	case recordCorrupt:
 		return doctorDiagnostics([]rpc.DoctorCheckDiagnostic{corruptRecordDiagnostic(reading.err)})
 	case recordedRule:
-		return doctorDiagnostics(ruleFindings(reading.rule, flowspecMatch{}, false, unconfiguredOrphanDiagnostic))
+		return doctorDiagnostics(ruleFindings(reading.rule, flowspecMatch{}, false, report))
 	}
-	panic("BUG: ddos-flowspec: checkOrphanRecord met a record reading of no known kind")
+	panic("BUG: ddos-flowspec: judgeOrphanRecord met a record reading of no known kind")
 }
+
+// pluginRun is what the daemon's plugin snapshot says of ddos-flowspec. It is
+// exactly one of four outcomes, each holding only its own payload:
+// pluginRunning, pluginNotRunning, pluginNotRun and pluginRunUnknown. A failure
+// to ask is its own outcome, never "not running": outside the daemon nothing
+// can say whether a daemon holds the rule live.
+type pluginRun interface{ pluginRun() }
+
+// pluginRunning: the daemon runs the plugin, internal or forked, so its runtime
+// check judges the record.
+type pluginRunning struct{}
+
+// pluginNotRunning: the daemon holds the plugin configured and it is not
+// running. why is the sentence that says so, with the stop's cause when the
+// daemon recorded one.
+type pluginNotRunning struct{ why string }
+
+// pluginNotRun: the daemon's plugin set does not name ddos-flowspec, so the
+// daemon runs no plugin for the section this doctor run read.
+type pluginNotRun struct{}
+
+// pluginRunUnknown: this process has no plugin snapshot to ask (the local
+// doctor process, or a daemon whose plugin startup has not begun).
+type pluginRunUnknown struct{ err error }
+
+func (pluginRunning) pluginRun()    {}
+func (pluginNotRunning) pluginRun() {}
+func (pluginNotRun) pluginRun()     {}
+func (pluginRunUnknown) pluginRun() {}
+
+// notStartedWhy is the reason of a configured plugin the daemon holds that has
+// not reached running and that no stop recorded: it is starting, or between a
+// stop and its record.
+const notStartedWhy = "configured plugin " + Name + " has not reached the running stage"
+
+// readPluginRun asks the daemon's plugin snapshot whether ddos-flowspec runs.
+func readPluginRun() pluginRun {
+	snapshot, err := pluginserver.PluginDoctorSnapshot()
+	return pluginRunFromSnapshot(&snapshot, err)
+}
+
+// pluginRunFromSnapshot reads ddos-flowspec's run from one snapshot answer.
+func pluginRunFromSnapshot(snapshot *pluginserver.DoctorSnapshot, err error) pluginRun {
+	if err != nil {
+		return pluginRunUnknown{err: err}
+	}
+	for i := range snapshot.Plugins {
+		state := &snapshot.Plugins[i]
+		if state.Name != Name {
+			continue
+		}
+		if state.Running {
+			return pluginRunning{}
+		}
+		if !state.Configured {
+			return pluginNotRun{}
+		}
+		if state.Down {
+			return pluginNotRunning{why: process.StoppedMessage(Name, &state.Stop)}
+		}
+		return pluginNotRunning{why: notStartedWhy}
+	}
+	return pluginNotRun{}
+}
+
+// configuredOrphanReport answers, for a configured section, the report a
+// recorded rule gets, or running true when the plugin runs and its runtime
+// check owns the judgement.
+func configuredOrphanReport(run pluginRun) (report orphanReport, running bool) {
+	switch r := run.(type) {
+	case pluginRunning:
+		return nil, true
+	case pluginNotRunning:
+		return stoppedOrphanReport(r.why), false
+	case pluginNotRun:
+		return unrunOrphanDiagnostic, false
+	case pluginRunUnknown:
+		return unknownRunOrphanReport(r.err), false
+	}
+	panic("BUG: ddos-flowspec: configuredOrphanReport met a plugin run of no known kind")
+}
+
+// stoppedOrphanReport is the report while ddos flowspec is configured and the
+// plugin is not running, so neither its runtime check nor a responder answers
+// for the rule. Its fix is the plugin restart: the start
+// (withdrawRecordedAnnouncement, from OnStarted) withdraws the recorded rule
+// and removes the record, which a withdrawal typed at the CLI does not.
+func stoppedOrphanReport(why string) orphanReport {
+	return func(m flowspecMatch) rpc.DoctorCheckDiagnostic {
+		victim := m.DstPrefix.String()
+		var msg textbuf.Buffer
+		msg.Str("ddos-flowspec holds the record of a FlowSpec rule it announced for ").Str(victim).
+			Str(", and no running plugin holds that rule: ").Str(why).
+			Str(". Nothing withdraws the rule until the plugin runs again. Every BGP peer that took the rule may still discard or rate-limit traffic to ").Str(victim).
+			Str(". A restart of the plugin withdraws the recorded rule and removes the record; a second withdrawal of a rule the peers no longer hold changes nothing. If that withdrawal fails, the plugin logs the cause under the code ").
+			Str(diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement).
+			Str(", and the running plugin's own check reports the record")
+		return rpc.DoctorCheckDiagnostic{
+			Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+			Severity: string(diagnostic.SeverityWarning),
+			Message:  msg.String(),
+			Fix:      process.RestartCommand(Name),
+		}
+	}
+}
+
+// unrunOrphanDiagnostic is the report while the configuration doctor read
+// names ddos flowspec and the daemon's plugin set does not name the plugin:
+// the daemon loaded another configuration. No plugin runs to restart, so its
+// fix is the exact withdrawal the plugin would send.
+func unrunOrphanDiagnostic(m flowspecMatch) rpc.DoctorCheckDiagnostic {
+	victim := m.DstPrefix.String()
+	var msg textbuf.Buffer
+	msg.Str("ddos-flowspec announced a FlowSpec rule for ").Str(victim).
+		Str(", and the configuration names ddos flowspec, but the daemon runs no ddos-flowspec plugin, because the configuration it loaded does not name the section, so nothing withdraws the rule. Every BGP peer that took the rule may still discard or rate-limit traffic to ").Str(victim).
+		Str(". The command below withdraws the rule at the peers. It does not remove the record, so this report stays: the plugin removes the record when it next starts (load the configuration that names ddos flowspec, and its start withdraws the rule and removes the record), and ")
+	recordRemovalToday(&msg)
+	return rpc.DoctorCheckDiagnostic{
+		Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+		Severity: string(diagnostic.SeverityWarning),
+		Message:  msg.String(),
+		Fix:      withdrawalCommand(m),
+	}
+}
+
+// unknownRunOrphanReport is the report of a doctor run that holds no plugin
+// snapshot to ask: it found the record and cannot tell whether a running
+// plugin holds the rule as its live announcement, which is the normal state of
+// a running mitigation. It says both, and its fix asks the daemon, whose run of
+// this check can tell.
+func unknownRunOrphanReport(err error) orphanReport {
+	return func(m flowspecMatch) rpc.DoctorCheckDiagnostic {
+		victim := m.DstPrefix.String()
+		var msg textbuf.Buffer
+		msg.Str("ddos-flowspec holds the record of a FlowSpec rule it announced for ").Str(victim).
+			Str(", and ddos flowspec is configured, but this doctor run cannot tell whether the plugin runs and holds the rule as its live announcement (").Err(err).
+			Str("). A running mitigation keeps this record, so the record alone is not a fault. While ze runs, the command below asks the daemon, which can tell. While ze is stopped, the next start of the plugin withdraws the recorded rule and removes the record")
+		return rpc.DoctorCheckDiagnostic{
+			Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+			Severity: string(diagnostic.SeverityWarning),
+			Message:  msg.String(),
+			Fix:      daemonDoctorCommand,
+		}
+	}
+}
+
+// daemonDoctorCommand is the doctor run through the daemon, whose plugin
+// snapshot says whether the plugin runs.
+const daemonDoctorCommand = "ze show doctor"
 
 // storedRecordReading reads the record from the store doctor opened. The
 // store's not-exist answer is the absence of the record, never a failure to
