@@ -529,6 +529,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - Split a spec that mixes fixes with new features when release planning needs
   them apart, keeping every fix, feature, acceptance criterion and dependency in
   its owning spec.
+- A fix or follow-up Thomas has ordered done is done directly. No spec is
+  created or claimed for it unless the work is complex enough to need a design
+  of its own, and a spec is never a way to hold work in place of doing it: the
+  WIP cap is not a reason to stop work he ordered.
 - Never present your own unfinished work as a question: do it. An ask that
   remains carries the evidence needed to answer it (the identifier, the current
   value, what each answer changes); one that cannot is not ready to be asked.
