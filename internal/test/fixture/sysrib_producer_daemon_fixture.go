@@ -113,7 +113,7 @@ func sysribProducerDriver(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return errors.New("forked producer kernel fixture takes no arguments")
 	}
-	return Observe(ctx, "sysrib-producer-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) (result error) {
+	return Observe(ctx, "sysrib-producer-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		if err := sysribExecutionPlacement(ctx, p, "forked"); err != nil {
 			return err
 		}
@@ -123,16 +123,12 @@ func sysribProducerDriver(ctx context.Context, args []string) error {
 		if err := importCreateLink(ctx, sysribProducerLink, "198.19.20.254/24"); err != nil {
 			return err
 		}
-		defer func() { result = errors.Join(result, importDeleteLink(ctx, sysribProducerLink)) }()
 		if _, err := importCommandOutput(ctx, "ip", "route", "add", "blackhole", sysribProducerForeign, "proto", "42"); err != nil {
 			return err
 		}
-		defer func() {
-			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
-			defer cancel()
-			_, err := importCommandOutput(cleanup, "ip", "route", "del", "blackhole", sysribProducerForeign, "proto", "42")
-			result = errors.Join(result, err)
-		}()
+		// The paired carrier joins daemon shutdown before its dedicated
+		// cleanup driver removes this device and the foreign route. Failed runs
+		// retain their namespace owner's cleanup rather than deleting live FIB targets.
 		if err := waitRIBWinner(ctx, p, sysribProducerConnected, "connected"); err != nil {
 			return err
 		}
@@ -458,4 +454,35 @@ func sysribProducerKernelEmpty(ctx context.Context, args []string) error {
 		}
 	}
 	return importSay("producer fixture prefixes are absent from every kernel table")
+}
+
+// This runs only after daemon/await-exit. Ze must have flushed its own
+// prefixes while the actual device, its OS-owned route and the foreign proto
+// 42 route still exist; deleting them first could erase a stale FIB entry and
+// make that absence vacuous, and would hide a stop that flushed foreign state.
+func sysribProducerLinkCleanup(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return errors.New("producer post-stop link cleanup takes no arguments")
+	}
+	for _, prefix := range []string{sysribProducerStatic, sysribProducerStaticHidden, sysribProducerStaticZero, sysribProducerSDK, sysribProducerSDKHidden, sysribProducerOther, sysribProducerWithheld} {
+		if err := importKernel(ctx, prefix, 0); err != nil {
+			return err
+		}
+	}
+	if err := importKernel(ctx, sysribProducerConnected, 1, "dev "+sysribProducerLink+" ", "proto 2 "); err != nil {
+		return err
+	}
+	if err := importKernel(ctx, sysribProducerForeign, 1, "6 "+sysribProducerForeign+" ", "proto 42 "); err != nil {
+		return err
+	}
+	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", sysribProducerLink); err != nil {
+		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", sysribProducerLink, err)
+	}
+	if err := importDeleteForeignBlackhole(ctx, sysribProducerForeign); err != nil {
+		return err
+	}
+	if err := importDeleteLink(ctx, sysribProducerLink); err != nil {
+		return err
+	}
+	return importSay("joined daemon flushed Ze producer routes while the fixture device, its OS route and the foreign proto 42 route survived before owned cleanup")
 }

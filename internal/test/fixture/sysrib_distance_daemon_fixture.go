@@ -39,14 +39,16 @@ func sysribDistanceDriver(ctx context.Context, args []string) error {
 	} else {
 		return fmt.Errorf("unknown distance startup mode %q", args[1])
 	}
-	return Observe(ctx, "sysrib-distance-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) (result error) {
+	return Observe(ctx, "sysrib-distance-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		if err := sysribExecutionPlacement(ctx, p, args[0]); err != nil {
 			return err
 		}
 		if err := importCreateLink(ctx, sysribDistanceLink, "198.19.20.254/24"); err != nil {
 			return err
 		}
-		defer func() { result = errors.Join(result, importDeleteLink(ctx, sysribDistanceLink)) }()
+		// The paired carrier joins daemon shutdown before its dedicated
+		// cleanup driver removes this device. Failed runs retain their
+		// namespace owner's cleanup rather than deleting live FIB targets.
 		if err := waitRIBWinner(ctx, p, "198.19.20.0/24", "connected"); err != nil {
 			return err
 		}
@@ -220,4 +222,29 @@ func sysribDistanceKernelEmpty(ctx context.Context, args []string) error {
 		}
 	}
 	return importSay("distance fixture prefixes are absent from every kernel table")
+}
+
+// This runs only after daemon/await-exit. Ze must have flushed its own
+// prefixes while the actual device and its OS-owned route still exist;
+// deleting the device first could erase a stale FIB entry and make that
+// absence vacuous.
+func sysribDistanceLinkCleanup(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return errors.New("distance post-stop link cleanup takes no arguments")
+	}
+	for _, prefix := range []string{sysribDistancePrefix, sysribDistanceOverride} {
+		if err := importKernel(ctx, prefix, 0); err != nil {
+			return err
+		}
+	}
+	if err := importKernel(ctx, "198.19.20.0/24", 1, "dev "+sysribDistanceLink+" ", "proto 2 "); err != nil {
+		return err
+	}
+	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", sysribDistanceLink); err != nil {
+		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", sysribDistanceLink, err)
+	}
+	if err := importDeleteLink(ctx, sysribDistanceLink); err != nil {
+		return err
+	}
+	return importSay("joined daemon flushed Ze distance routes while the fixture device and its OS route survived before owned link cleanup")
 }

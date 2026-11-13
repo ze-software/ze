@@ -47,16 +47,12 @@ func sysribSlowDriver(ctx context.Context, args []string) error {
 		if err := importCreateLink(ctx, sysribSlowLink, "198.19.40.254/24"); err != nil {
 			return err
 		}
-		defer func() { result = errors.Join(result, importDeleteLink(ctx, sysribSlowLink)) }()
 		if _, err := importCommandOutput(ctx, "ip", "route", "add", "blackhole", sysribSlowForeign, "proto", "42"); err != nil {
 			return err
 		}
-		defer func() {
-			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
-			defer cancel()
-			_, err := importCommandOutput(cleanup, "ip", "route", "del", "blackhole", sysribSlowForeign, "proto", "42")
-			result = errors.Join(result, err)
-		}()
+		// The paired carrier joins daemon shutdown before its dedicated
+		// cleanup driver removes this device and the foreign route. Failed runs
+		// retain their namespace owner's cleanup rather than deleting live FIB targets.
 		if err := waitRIBWinner(ctx, p, sysribSlowConnected, "connected"); err != nil {
 			return err
 		}
@@ -318,6 +314,20 @@ func sysribSlowKernelEmpty(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return errors.New("slow reader kernel-empty fixture takes no arguments")
 	}
+	if err := sysribSlowGeneratedAbsent(ctx); err != nil {
+		return err
+	}
+	for _, prefix := range []string{sysribSlowConnected, sysribSlowControl, sysribSlowForeign, sysribSlowWithheld} {
+		if err := importKernel(ctx, prefix, 0); err != nil {
+			return err
+		}
+	}
+	return importSay("slow-reader fixture prefixes are absent from every kernel table")
+}
+
+// sysribSlowGeneratedAbsent refuses any generated 10.253.0.0/16 host route in
+// any kernel table, so a partial flush of the multi-page table cannot pass.
+func sysribSlowGeneratedAbsent(ctx context.Context) error {
 	data, err := netfilterCommandOutput(ctx, "ip", "-N", "-o", "route", "show", "table", "all")
 	if err != nil {
 		return err
@@ -329,10 +339,40 @@ func sysribSlowKernelEmpty(ctx context.Context, args []string) error {
 			}
 		}
 	}
-	for _, prefix := range []string{sysribSlowConnected, sysribSlowControl, sysribSlowForeign, sysribSlowWithheld} {
+	return nil
+}
+
+// This runs only after daemon/await-exit. Ze must have flushed its own
+// prefixes while the actual device, its OS-owned route and the foreign proto
+// 42 route still exist; deleting them first could erase a stale FIB entry and
+// make that absence vacuous, and would hide a stop that flushed foreign state.
+// The scenario stops and resumes the routing child, never the device.
+func sysribSlowLinkCleanup(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return errors.New("slow reader post-stop link cleanup takes no arguments")
+	}
+	if err := sysribSlowGeneratedAbsent(ctx); err != nil {
+		return err
+	}
+	for _, prefix := range []string{sysribSlowControl, sysribSlowWithheld} {
 		if err := importKernel(ctx, prefix, 0); err != nil {
 			return err
 		}
 	}
-	return importSay("slow-reader fixture prefixes are absent from every kernel table")
+	if err := importKernel(ctx, sysribSlowConnected, 1, "dev "+sysribSlowLink+" ", "proto 2 "); err != nil {
+		return err
+	}
+	if err := importKernel(ctx, sysribSlowForeign, 1, "6 "+sysribSlowForeign+" ", "proto 42 "); err != nil {
+		return err
+	}
+	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", sysribSlowLink); err != nil {
+		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", sysribSlowLink, err)
+	}
+	if err := importDeleteForeignBlackhole(ctx, sysribSlowForeign); err != nil {
+		return err
+	}
+	if err := importDeleteLink(ctx, sysribSlowLink); err != nil {
+		return err
+	}
+	return importSay("joined daemon flushed every Ze slow-reader route while the fixture device, its OS route and the foreign proto 42 route survived before owned cleanup")
 }

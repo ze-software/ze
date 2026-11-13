@@ -5,4 +5,5 @@ package fixture
 func init() {
 	Register("plugin/sysrib-recursive-nexthop", sysribRecursiveDriver, StopsDaemon)
 	Register("plugin/sysrib-recursive-kernel-empty", sysribRecursiveKernelEmpty)
+	Register("plugin/sysrib-recursive-link-cleanup", sysribRecursiveLinkCleanup)
 }

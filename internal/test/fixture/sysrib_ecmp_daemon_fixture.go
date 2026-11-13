@@ -41,11 +41,12 @@ func sysribECMPDriver(ctx context.Context, args []string) error {
 		if err := importCreateLink(ctx, sysribECMPLinkA, "198.18.247.254/24", "2001:db8:247::fe/64"); err != nil {
 			return err
 		}
-		defer func() { result = errors.Join(result, importDeleteLink(ctx, sysribECMPLinkA)) }()
 		if err := importCreateLink(ctx, sysribECMPLinkB, "198.18.248.254/24", "2001:db8:248::fe/64"); err != nil {
 			return err
 		}
-		defer func() { result = errors.Join(result, importDeleteLink(ctx, sysribECMPLinkB)) }()
+		// The paired carrier joins daemon shutdown before its dedicated
+		// cleanup driver removes these devices. Failed runs retain their
+		// namespace owner's cleanup rather than deleting live FIB targets.
 		for _, prefix := range []string{"198.18.247.0/24", "198.18.248.0/24", "2001:db8:247::/64", "2001:db8:248::/64"} {
 			if err := waitRIBWinner(ctx, p, prefix, "connected"); err != nil {
 				return err
@@ -260,7 +261,13 @@ func sysribECMPState(ctx context.Context, p *sdk.Plugin, capture *sysribFIBCaptu
 		if err := sysribKernelMultipath(ctx, sysribECMPSID, "via 198.18.247.1 ", "via 198.18.248.1 ", "2001:db8:247::a"); err != nil {
 			return err
 		}
-		if err := sysribKernelMultipath(ctx, sysribECMPBackup, "via 198.18.247.1 ", "via 198.18.248.1 ", "17001"); err != nil {
+		// The kernel has no standby member, so a route with a fast-reroute
+		// backup is installed with its primary path alone and the backup next
+		// hop and its repair labels never reach it.
+		if err := importKernel(ctx, sysribECMPBackup, 1, "via 198.18.247.1 ", "dev "+sysribECMPLinkA+" ", "proto 250 "); err != nil {
+			return err
+		}
+		if err := sysribKernelLacks(ctx, sysribECMPBackup, "via 198.18.248.1 ", "17001"); err != nil {
 			return err
 		}
 	}
@@ -270,6 +277,24 @@ func sysribECMPState(ctx context.Context, p *sdk.Plugin, capture *sysribFIBCaptu
 	for _, value := range []struct{ prefix, link string }{{"198.18.247.0/24", sysribECMPLinkA}, {"198.18.248.0/24", sysribECMPLinkB}} {
 		if err := importKernel(ctx, value.prefix, 1, "dev "+value.link+" ", "proto 2 "); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// sysribKernelLacks reads the kernel routes for prefix once and fails when the
+// record holds any forbidden token. -o keeps every nexthop on the route's one
+// line, so a multipath member cannot hide on a continuation line. A failed read
+// is an error, never a pass.
+func sysribKernelLacks(ctx context.Context, prefix string, forbidden ...string) error {
+	out, err := netfilterCommandOutput(ctx, "ip", "-N", "-o", "route", "show", "table", "all", "exact", prefix)
+	if err != nil {
+		return fmt.Errorf("kernel %s: read routes: %w", prefix, err)
+	}
+	line := strings.Join(strings.Fields(out), " ") + " "
+	for _, word := range forbidden {
+		if strings.Contains(line, word) {
+			return fmt.Errorf("kernel %s: route holds %q, which must not reach the kernel; observed %q", prefix, word, out)
 		}
 	}
 	return nil
@@ -320,4 +345,42 @@ func sysribECMPKernelEmpty(ctx context.Context, args []string) error {
 		}
 	}
 	return importSay("ECMP fixture prefixes are absent from every kernel table")
+}
+
+// This runs only after daemon/await-exit. Ze must have flushed its own
+// prefixes while the actual devices and OS-owned routes still exist; deleting
+// a device first could erase a stale FIB entry and make that absence vacuous.
+func sysribECMPLinksCleanup(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return errors.New("ECMP post-stop link cleanup takes no arguments")
+	}
+	for _, prefix := range []string{sysribECMPPlain, sysribECMPDevice, sysribECMPLabels, sysribECMPSID, sysribECMPBackup, sysribECMPWithheld, "10.249.1.0/24", "10.249.2.0/24"} {
+		if err := importKernel(ctx, prefix, 0); err != nil {
+			return err
+		}
+	}
+	if err := sysribKernel6(ctx, "2001:db8:249::/64", 0); err != nil {
+		return err
+	}
+	links := []struct{ prefix4, prefix6, name string }{
+		{"198.18.247.0/24", "2001:db8:247::/64", sysribECMPLinkA},
+		{"198.18.248.0/24", "2001:db8:248::/64", sysribECMPLinkB},
+	}
+	for _, link := range links {
+		if err := importKernel(ctx, link.prefix4, 1, "dev "+link.name+" ", "proto 2 "); err != nil {
+			return err
+		}
+		if err := sysribKernel6(ctx, link.prefix6, 1, "dev "+link.name+" ", "proto 2 "); err != nil {
+			return err
+		}
+		if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", link.name); err != nil {
+			return fmt.Errorf("joined daemon stop removed fixture device %s: %w", link.name, err)
+		}
+	}
+	for _, link := range links {
+		if err := importDeleteLink(ctx, link.name); err != nil {
+			return err
+		}
+	}
+	return importSay("joined daemon flushed Ze ECMP routes while both fixture devices and their IPv4 and IPv6 OS routes survived before owned link cleanup")
 }

@@ -5,4 +5,5 @@ package fixture
 func init() {
 	Register("plugin/sysrib-feed-restart", sysribRestartDriver, StopsDaemon)
 	Register("plugin/sysrib-restart-kernel-empty", sysribRestartKernelEmpty)
+	Register("plugin/sysrib-restart-link-cleanup", sysribRestartLinkCleanup)
 }

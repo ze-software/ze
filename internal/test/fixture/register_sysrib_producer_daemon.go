@@ -7,4 +7,5 @@ func init() {
 	Register("plugin/sysrib-forked-producer-kernel", sysribProducerDriver, StopsDaemon)
 	Register(sysribProducerFixture, sysribProducerSDKDriver)
 	Register("plugin/sysrib-producer-kernel-empty", sysribProducerKernelEmpty)
+	Register("plugin/sysrib-producer-link-cleanup", sysribProducerLinkCleanup)
 }

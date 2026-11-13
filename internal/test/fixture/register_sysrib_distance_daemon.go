@@ -6,4 +6,5 @@ func init() {
 	Register("plugin/sysrib-distance-reload", sysribDistanceDriver, StopsDaemon)
 	Register("plugin/sysrib-distance-rollback", sysribDistanceRollbackDriver)
 	Register("plugin/sysrib-distance-kernel-empty", sysribDistanceKernelEmpty)
+	Register("plugin/sysrib-distance-link-cleanup", sysribDistanceLinkCleanup)
 }

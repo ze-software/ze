@@ -31,7 +31,7 @@ func sysribBGPMetricDriver(ctx context.Context, args []string) error {
 	if err := importPlacementArgs(args, 1); err != nil {
 		return err
 	}
-	return Observe(ctx, "sysrib-bgp-metric-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) (result error) {
+	return Observe(ctx, "sysrib-bgp-metric-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		if err := sysribExecutionPlacement(ctx, p, "forked"); err != nil {
 			return err
 		}
@@ -44,7 +44,9 @@ func sysribBGPMetricDriver(ctx context.Context, args []string) error {
 		if err := importCreateLink(ctx, sysribBGPMetricLink, "198.19.30.254/24"); err != nil {
 			return err
 		}
-		defer func() { result = errors.Join(result, importDeleteLink(ctx, sysribBGPMetricLink)) }()
+		// The paired carrier joins daemon shutdown before its dedicated
+		// cleanup driver removes this device. Failed runs retain their
+		// namespace owner's cleanup rather than deleting live FIB targets.
 		if err := waitRIBWinner(ctx, p, sysribBGPMetricConnected, "connected"); err != nil {
 			return err
 		}
@@ -237,4 +239,29 @@ func sysribBGPMetricKernelEmpty(ctx context.Context, args []string) error {
 		}
 	}
 	return importSay("BGP metric fixture prefixes are absent from every kernel table")
+}
+
+// This runs only after daemon/await-exit. Ze must have flushed its own
+// prefixes while the actual device and its OS-owned route still exist;
+// deleting the device first could erase a stale FIB entry and make that
+// absence vacuous.
+func sysribBGPMetricLinkCleanup(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return errors.New("BGP metric post-stop link cleanup takes no arguments")
+	}
+	for _, prefix := range []string{sysribBGPMetricTerminal, sysribBGPMetricStatic, sysribBGPMetricReceived, sysribBGPMetricMissing, sysribBGPMetricZero, sysribBGPMetricSubject, sysribBGPMetricAIGPSubject, sysribBGPMetricControl} {
+		if err := importKernel(ctx, prefix, 0); err != nil {
+			return err
+		}
+	}
+	if err := importKernel(ctx, sysribBGPMetricConnected, 1, "dev "+sysribBGPMetricLink+" ", "proto 2 "); err != nil {
+		return err
+	}
+	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", sysribBGPMetricLink); err != nil {
+		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", sysribBGPMetricLink, err)
+	}
+	if err := importDeleteLink(ctx, sysribBGPMetricLink); err != nil {
+		return err
+	}
+	return importSay("joined daemon flushed Ze BGP metric routes while the fixture device and its OS route survived before owned link cleanup")
 }

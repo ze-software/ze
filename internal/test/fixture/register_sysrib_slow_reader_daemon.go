@@ -6,4 +6,5 @@ package fixture
 func init() {
 	Register("plugin/sysrib-slow-reader-reset", sysribSlowDriver, StopsDaemon)
 	Register("plugin/sysrib-slow-reader-kernel-empty", sysribSlowKernelEmpty)
+	Register("plugin/sysrib-slow-reader-link-cleanup", sysribSlowLinkCleanup)
 }

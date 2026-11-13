@@ -28,14 +28,16 @@ func sysribRecursiveDriver(ctx context.Context, args []string) error {
 		return err
 	}
 	capture := newSysribFIBCapture(sysribRecursiveV4, sysribRecursiveV6, sysribRecursiveCross, sysribRecursiveControl)
-	return observeConfigured(ctx, "sysrib-recursive-test", &sdk.Registration{}, capture.setup, func(ctx context.Context, p *sdk.Plugin) (result error) {
+	return observeConfigured(ctx, "sysrib-recursive-test", &sdk.Registration{}, capture.setup, func(ctx context.Context, p *sdk.Plugin) error {
 		if err := sysribExecutionPlacement(ctx, p, args[0]); err != nil {
 			return err
 		}
 		if err := importCreateLink(ctx, sysribRecursiveLink, "198.18.240.254/24", "2001:db8:240::fe/64"); err != nil {
 			return err
 		}
-		defer func() { result = errors.Join(result, importDeleteLink(ctx, sysribRecursiveLink)) }()
+		// The paired carrier joins daemon shutdown before its dedicated
+		// cleanup driver removes this device. Failed runs retain their
+		// namespace owner's cleanup rather than deleting live FIB targets.
 		for _, prefix := range []string{"198.18.240.0/24", "2001:db8:240::/64"} {
 			if err := waitRIBWinner(ctx, p, prefix, "connected"); err != nil {
 				return err
@@ -204,4 +206,38 @@ func sysribRecursiveKernelEmpty(ctx context.Context, args []string) error {
 		}
 	}
 	return importSay("recursive fixture prefixes are absent from every kernel table")
+}
+
+// This runs only after daemon/await-exit. Ze must have flushed its own
+// prefixes while the actual device and its OS-owned routes still exist;
+// deleting the device first could erase a stale FIB entry and make that
+// absence vacuous. The scenario removes and restores only the OSPF covers,
+// never the device, so both connected routes must still be present here.
+func sysribRecursiveLinkCleanup(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return errors.New("recursive post-stop link cleanup takes no arguments")
+	}
+	for _, prefix := range []string{sysribRecursiveV4, sysribRecursiveCross, sysribRecursiveControl, "10.242.0.0/16", "10.242.1.0/24"} {
+		if err := importKernel(ctx, prefix, 0); err != nil {
+			return err
+		}
+	}
+	for _, prefix := range []string{sysribRecursiveV6, "2001:db8:242::/48", "2001:db8:242:1::/64"} {
+		if err := sysribKernel6(ctx, prefix, 0); err != nil {
+			return err
+		}
+	}
+	if err := importKernel(ctx, "198.18.240.0/24", 1, "dev "+sysribRecursiveLink+" ", "proto 2 "); err != nil {
+		return err
+	}
+	if err := sysribKernel6(ctx, "2001:db8:240::/64", 1, "dev "+sysribRecursiveLink+" ", "proto 2 "); err != nil {
+		return err
+	}
+	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", sysribRecursiveLink); err != nil {
+		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", sysribRecursiveLink, err)
+	}
+	if err := importDeleteLink(ctx, sysribRecursiveLink); err != nil {
+		return err
+	}
+	return importSay("joined daemon flushed Ze recursive routes while the fixture device and its IPv4 and IPv6 OS routes survived before owned link cleanup")
 }

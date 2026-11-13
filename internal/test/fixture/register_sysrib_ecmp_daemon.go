@@ -5,4 +5,5 @@ package fixture
 func init() {
 	Register("plugin/sysrib-ecmp-replay", sysribECMPDriver, StopsDaemon)
 	Register("plugin/sysrib-ecmp-kernel-empty", sysribECMPKernelEmpty)
+	Register("plugin/sysrib-ecmp-links-cleanup", sysribECMPLinksCleanup)
 }

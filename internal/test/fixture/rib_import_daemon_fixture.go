@@ -43,7 +43,7 @@ func importPolicyDriver(original, additional ObserverScenario) Driver {
 		if err := importPlacementArgs(args, 1); err != nil {
 			return err
 		}
-		return Observe(ctx, "rib-import-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) (result error) {
+		return Observe(ctx, "rib-import-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 			if err := sysribExecutionPlacement(ctx, p, args[0]); err != nil {
 				return err
 			}
@@ -52,7 +52,9 @@ func importPolicyDriver(original, additional ObserverScenario) Driver {
 			if err := importCreateLink(ctx, importDaemonLink, "198.51.100.0/31"); err != nil {
 				return err
 			}
-			defer func() { result = errors.Join(result, importDeleteLink(ctx, importDaemonLink)) }()
+			// The paired carrier joins daemon shutdown before its dedicated
+			// cleanup driver removes this device. Failed runs retain their
+			// namespace owner's cleanup rather than deleting live FIB targets.
 			if err := waitRIBWinner(ctx, p, "198.51.100.0/31", "connected"); err != nil {
 				return err
 			}
@@ -103,6 +105,15 @@ func importDeleteLink(ctx context.Context, name string) error {
 	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 	defer cancel()
 	_, err := importCommandOutput(cleanup, "ip", "link", "del", name)
+	return err
+}
+
+// importDeleteForeignBlackhole removes the proto 42 blackhole a fixture added
+// to stand for a route another owner installed.
+func importDeleteForeignBlackhole(ctx context.Context, prefix string) error {
+	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+	defer cancel()
+	_, err := importCommandOutput(cleanup, "ip", "route", "del", "blackhole", prefix, "proto", "42")
 	return err
 }
 
@@ -376,14 +387,16 @@ func importConnectedDriver(ctx context.Context, args []string) error {
 	if err := importPlacementArgs(args, 1); err != nil {
 		return err
 	}
-	return Observe(ctx, "rib-import-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) (result error) {
+	return Observe(ctx, "rib-import-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		if err := sysribExecutionPlacement(ctx, p, args[0]); err != nil {
 			return err
 		}
 		if err := importCreateLink(ctx, importConnectedLink, "198.18.221.1/24", "198.18.222.1/24"); err != nil {
 			return err
 		}
-		defer func() { result = errors.Join(result, importDeleteLink(ctx, importConnectedLink)) }()
+		// The paired carrier joins daemon shutdown before its dedicated
+		// cleanup driver removes this device. Failed runs retain their
+		// namespace owner's cleanup rather than deleting live FIB targets.
 		if err := waitRIBWinner(ctx, p, importConnectedPermit, "connected"); err != nil {
 			return err
 		}
@@ -497,6 +510,55 @@ func importDaemonKernelEmpty(ctx context.Context, args []string) error {
 		}
 	}
 	return importSay("import fixture prefixes are absent from every kernel table")
+}
+
+// This runs only after daemon/await-exit. Ze must have flushed its own
+// prefixes while the gateway device and its OS-owned /31 still exist; deleting
+// the device first could erase a stale FIB entry and make that absence vacuous.
+func importDaemonGatewayLinkCleanup(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return errors.New("import gateway post-stop link cleanup takes no arguments")
+	}
+	for _, prefix := range []string{importJudgedPrefix, importControlPrefix, importBGPPrefix} {
+		if err := importKernel(ctx, prefix, 0); err != nil {
+			return err
+		}
+	}
+	if err := importKernel(ctx, "198.51.100.0/31", 1, "dev "+importDaemonLink+" ", "proto 2 "); err != nil {
+		return err
+	}
+	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", importDaemonLink); err != nil {
+		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", importDaemonLink, err)
+	}
+	if err := importDeleteLink(ctx, importDaemonLink); err != nil {
+		return err
+	}
+	return importSay("joined daemon flushed Ze import routes while the gateway fixture device and its OS route survived before owned link cleanup")
+}
+
+// This runs only after daemon/await-exit. Ze must have flushed its static
+// control while the connected device and both OS-owned routes still exist;
+// deleting the device first could erase a stale FIB entry and make that
+// absence vacuous.
+func importConnectedLinkCleanup(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return errors.New("connected import post-stop link cleanup takes no arguments")
+	}
+	if err := importKernel(ctx, importConnectedControl, 0); err != nil {
+		return err
+	}
+	for _, prefix := range []string{importConnectedReject, importConnectedPermit} {
+		if err := importKernel(ctx, prefix, 1, "dev "+importConnectedLink+" ", "proto 2 "); err != nil {
+			return err
+		}
+	}
+	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", importConnectedLink); err != nil {
+		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", importConnectedLink, err)
+	}
+	if err := importDeleteLink(ctx, importConnectedLink); err != nil {
+		return err
+	}
+	return importSay("joined daemon flushed the Ze connected-import control while the connected fixture device and both OS routes survived before owned link cleanup")
 }
 
 func importSay(message string) error {

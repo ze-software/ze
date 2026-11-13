@@ -28,23 +28,19 @@ func sysribRestartDriver(ctx context.Context, args []string) error {
 		return err
 	}
 	capture := newSysribFIBCapture(sysribRestartForward, sysribRestartDiscard, sysribRestartWithheld)
-	return observeConfigured(ctx, "sysrib-restart-test", &sdk.Registration{}, capture.setup, func(ctx context.Context, p *sdk.Plugin) (result error) {
+	return observeConfigured(ctx, "sysrib-restart-test", &sdk.Registration{}, capture.setup, func(ctx context.Context, p *sdk.Plugin) error {
 		if err := sysribExecutionPlacement(ctx, p, args[0]); err != nil {
 			return err
 		}
 		if err := importCreateLink(ctx, sysribRestartLink, "198.19.10.254/24"); err != nil {
 			return err
 		}
-		defer func() { result = errors.Join(result, importDeleteLink(ctx, sysribRestartLink)) }()
 		if _, err := importCommandOutput(ctx, "ip", "route", "add", "blackhole", sysribRestartForeign, "proto", "42"); err != nil {
 			return err
 		}
-		defer func() {
-			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
-			defer cancel()
-			_, err := importCommandOutput(cleanup, "ip", "route", "del", "blackhole", sysribRestartForeign, "proto", "42")
-			result = errors.Join(result, err)
-		}()
+		// The paired carrier joins daemon shutdown before its dedicated
+		// cleanup driver removes this device and the foreign route. Failed runs
+		// retain their namespace owner's cleanup rather than deleting live FIB targets.
 		if err := waitRIBWinner(ctx, p, "198.19.10.0/24", "connected"); err != nil {
 			return err
 		}
@@ -240,4 +236,38 @@ func sysribRestartKernelEmpty(ctx context.Context, args []string) error {
 		}
 	}
 	return importSay("restart fixture prefixes are absent from every kernel table")
+}
+
+// This runs only after daemon/await-exit. Ze must have flushed its own
+// prefixes while the actual device, its OS-owned route and the foreign proto
+// 42 route still exist; deleting them first could erase a stale FIB entry and
+// make that absence vacuous, and would hide a stop that flushed foreign state.
+// The forked placement kills the routing owner on purpose, but a replacement
+// reinstalls both controls before the scenario returns, so the same end state
+// holds for both placements.
+func sysribRestartLinkCleanup(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return errors.New("restart post-stop link cleanup takes no arguments")
+	}
+	for _, prefix := range []string{sysribRestartForward, sysribRestartDiscard, sysribRestartWithheld} {
+		if err := importKernel(ctx, prefix, 0); err != nil {
+			return err
+		}
+	}
+	if err := importKernel(ctx, "198.19.10.0/24", 1, "dev "+sysribRestartLink+" ", "proto 2 "); err != nil {
+		return err
+	}
+	if err := importKernel(ctx, sysribRestartForeign, 1, "6 "+sysribRestartForeign+" ", "proto 42 "); err != nil {
+		return err
+	}
+	if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", sysribRestartLink); err != nil {
+		return fmt.Errorf("joined daemon stop removed fixture device %s: %w", sysribRestartLink, err)
+	}
+	if err := importDeleteForeignBlackhole(ctx, sysribRestartForeign); err != nil {
+		return err
+	}
+	if err := importDeleteLink(ctx, sysribRestartLink); err != nil {
+		return err
+	}
+	return importSay("joined daemon flushed Ze restart routes while the fixture device, its OS route and the foreign proto 42 route survived before owned cleanup")
 }

@@ -6,4 +6,5 @@ package fixture
 func init() {
 	Register("plugin/sysrib-bgp-metric-callers", sysribBGPMetricDriver, StopsDaemon)
 	Register("plugin/sysrib-bgp-metric-kernel-empty", sysribBGPMetricKernelEmpty)
+	Register("plugin/sysrib-bgp-metric-link-cleanup", sysribBGPMetricLinkCleanup)
 }
