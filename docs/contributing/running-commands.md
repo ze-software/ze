@@ -1674,18 +1674,26 @@ starts no run.
 The answer is structured data, so `| json`, `| yaml` and `| table` each render
 it.
 
-The pretool-bash guard refuses that pipe for the areas that RUN something
-(`heavyArea` in `internal/le/hookruntime/bash.go`): every `verify` area,
-`go lint`, the suites `test functional`, `test unit`, `test integration` and
-`test qemu` when a word follows the suite (`./le test unit` and
-`./le test functional` alone print a listing), every `test` area whose
-registration is admitted to the job queue, such as `test bgp` and `test ospf`,
-and every action that registered its run as expensive
-(`leroot.RegisterExpensive`), such as the hook selftest `ai hooks unit`, under
-`le`, `./le` or `ze le` alike.
-It reads the two-word area name, so `./le verify status check` and
-`./le verify summary` stay pipeable: they read and write the verification
-certificate and start no run.
+The pretool-bash guard refuses a pipe through a filter that drops lines for
+the le lines that RUN something (`expensiveWords` in
+`internal/le/hookruntime/bash.go`), under `le`, `./le` or `ze le` alike. The
+hook holds no list of them: `leroot.HeavyLine` resolves the line as dispatch
+does and answers from what each area declared where its verb registers, which
+is an action row that declares `Heavy` (`verify current`, `go lint run`,
+`rfc check`), an area registered heavy as a whole (`test unit`,
+`test integration`, `test qemu`), an area whose run is admitted to the job
+queue (`test bgp`, `test ospf`), or an action registered as expensive (the
+hook selftest `ai hooks unit`). A carrier, which runs a command the line names
+as an argument (`job run`, `exec`), is not the expensive command of its
+pipeline.
+<!-- source: internal/le/hookruntime/bash.go -- expensiveWords -->
+<!-- source: internal/le/le/root/heavy.go -- HeavyLine, CarrierLine -->
+An action that only reads declares nothing, so `./le verify reds`,
+`./le verify list`, `./le verify status check` and `./le verify summary` stay
+pipeable: they read the run directory or the verification certificate and
+start no run. The bare name of an area that lists its actions
+(`./le test unit`, `./le test functional`) prints a listing and is pipeable
+too.
 
 ## Why one owner runs the suites
 

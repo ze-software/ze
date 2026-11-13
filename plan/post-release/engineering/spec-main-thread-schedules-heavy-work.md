@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Development tooling: it changes which agent may start a test, build or lint and what the main thread can see of the machine. It changes nothing in the shipped binary |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 7/7, closure |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -197,24 +197,24 @@ Thomas's decisions, all on 2026-11-13:
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The hook reads an le line through `leroot.resolveLine` (`internal/le/le/root/heavy.go`), which calls the functions dispatch runs (`withoutLauncherWords`, `splitChain`, `retiredSpelling`, `resolve`, `nestedNamespace`, `asksForUsage`), so the hook and the binary resolve one line one way. The report reads the registry through `readEntry` and `readWaiter`, the readers admission uses, and the machine through `internal/core/hostload` and `internal/core/diskspace` |
+| No unintended coupling (components stay isolated) | Yes | `internal/core/hostload` imports the standard library, `golang.org/x/sys/unix` and `internal/core/textbuf` only (`memory_darwin.go`, `hostload.go`). `internal/le/hookruntime` imports `leroot` and no area package: `heavy_declared_test.go` links the areas it judges by blank import, in the test binary alone |
+| No duplicated functionality (extends existing, does not recreate) | Yes | `totalMemoryGiB` (`internal/le/go/toolchain/gotoolchain.go`) reads `hostload.MemoryTotal` and its own parser, `sysctl` call and `atoi` are deleted. `lintRunsNoAnalysis` is the one list of the linter's cheap subcommands, read by `rawHeavyWords` and `heavyTool`. `fromSubagent` is the one caller predicate. Closure review found one duplicate and folded it: `Snapshot` counted Go test processes through `sh -c "ps \| grep -c"` beside `GoTestProcesses`; `goTestProcessCount` (`hostload.go`) now reads `GoTestProcesses` |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | Development tooling with no wire path. Strings are built through `textbuf.Buffer` |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | `job report` is a row of the `job` area's action table (`area`, `internal/le/job/answer.go`) with its shape registered in `register.go`. Each heavy action declares `Heavy: true` on its own row or calls `leroot.RegisterHeavy` from its own `register.go`; `exec` calls `leroot.RegisterCarrier`. `leaction.Action.Heavy` is a field every area may set, beside `WholeTree`, and names no area |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | Searched at closure: `git grep -n "heavyArea\|expensiveAction" -- internal/le` returns the guarded set `heavyAreas` in `heavy.go` and dated history comments in `internal/le/ai/hooks/fixtures.go`, and no function: `heavyArea`, `expensiveAction` and `expensiveNameWordsMax` are deleted from `internal/le/hookruntime/bash.go`. `expensiveWords` (`bash.go`) and `heavyTool` (`subagent_heavy.go`) ask `leroot.HeavyLine`, `CarrierLine` and `HeavyCommand`, which derive from the action tables (`ActionsOf`) and the `RegisterAdmitted`, `RegisterHeavy`, `RegisterExpensive` and `RegisterCarrier` sets. What the hook files still name are external programs, which cannot register: `go` and its verbs, `golangci-lint`, `staticcheck`, `govulncheck`, `gofmt`, `goimports`, `gofumpt`. `verifyArea` (`lossypipe.go`) remains, read only to choose the advice of a refusal already made (`verifyCommand`). Help, completion and `le help ai` derive `job report` from the action table. `heavyCensus` (`internal/le/heavy_census_test.go`) is a test's expectation, not a reader the product consults |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A forked subagent is detected by the `CLAUDE_CODE_FORK_SUBAGENT` environment variable of the hook process | `session.go` `bashAgentIdentity` relies on it; `spec-design-needs-owner-approval.md` lists the same assumption as unvalidated | A fork is judged as the main thread and can run heavy work | A probe: a fork runs a refused command and the hook's verdict is read back | unvalidated |
-| A-2 | The post-tool payload of a subagent's Write or Edit carries its agent id | `Payload` decodes it for every hook kind; no post-write test or code reads it | The hook cannot tell whose edit it is, and D-5 cannot be built as decided: the choice goes back to Thomas | A probe: a subagent edits a scratch Go file and the recorded payload is read | unvalidated |
-| A-3 | An agent of another kind (a workflow or teammate agent) delivers an agent id like a subagent | Not documented in the repository | Such an agent is judged as the main thread | The same probe, for each agent kind this harness offers | unvalidated |
-| A-4 | No shell or Python program reads the registry entry format | The census search above | A reader breaks on the new fields | The census search, rerun at closure | unvalidated |
-| A-5 | Available memory on darwin can be read from the system's page statistics without a new module | `go.mod` vendors `golang.org/x/sys`; hostload already execs `sysctl` on darwin | The darwin reading answers unavailable, which the report states | The darwin unit test on the owner's Mac | unvalidated |
-| A-6 | Every census action marked "verdict owed" can be judged by reading its code | The census agent did not read them whole | An undeclared heavy action stays runnable by a subagent, which D-1 accepts | The implementer records a verdict per action in this spec | unvalidated |
+| A-1 | A forked subagent is detected by the `CLAUDE_CODE_FORK_SUBAGENT` environment variable of the hook process | `session.go` `bashAgentIdentity` relies on it; `spec-design-needs-owner-approval.md` lists the same assumption as unvalidated | A fork is judged as the main thread and can run heavy work | A probe: a fork runs a refused command and the hook's verdict is read back | broken as written. The fact: a fork's hook payload carries an agent id, and the live probe judged a fork as a subagent with the variable unset. The variable is a harness setting (the harness documents it only as what turns fork mode off when set to 0), so it marks no hook process, and a session that set it would have its main thread read as a subagent. `fromSubagent` (`internal/le/hookruntime/session.go`) still reads it beside the agent id; the journal row is in `plan/journal/gate-verdict-depends-on-the-machine.md` (2026-11-13), owned by `spec-hook-le-data-arguments` |
+| A-2 | The post-tool payload of a subagent's Write or Edit carries its agent id | `Payload` decodes it for every hook kind; no post-write test or code reads it | The hook cannot tell whose edit it is, and D-5 cannot be built as decided: the choice goes back to Thomas | A probe: a subagent edits a scratch Go file and the recorded payload is read | confirmed. The harness documents that PostToolUse carries `agent_id` and `agent_type` for a subagent's tool call, and the live probe showed it: a `ze-work` subagent's unformatted Go Write came back formatted with no lint message, although the file held a word the linter flags (`postFormatGo`, `internal/le/hookruntime/postwrite.go`) |
+| A-3 | An agent of another kind (a workflow or teammate agent) delivers an agent id like a subagent | Not documented in the repository | Such an agent is judged as the main thread | The same probe, for each agent kind this harness offers | partly confirmed. A teammate carries an agent id, per the harness documentation. A workflow agent is not stated there and was not probed. If it carries none it is judged as the main thread, so its heavy line passes the hand-back and meets the raw-job guard's advice instead: the fail-open the deny-list accepts (D-1), listed under Known Limitations |
+| A-4 | No shell or Python program reads the registry entry format | The census search above | A reader breaks on the new fields | The census search, rerun at closure | confirmed at closure: `git grep -lE "ze-jobs\|JobsDir\|STARTED=\|SESSION=\|AGENT="` over `*.sh` and `*.py` outside `vendor/` and `plan/` returns no file. The Go hits are `internal/le/job`, its tests, and two compiled fixtures. The QEMU guest's `printf` writes the label line only (`guestJobParentEntry`, `internal/le/test/qemu/guestle.go`) |
+| A-5 | Available memory on darwin can be read from the system's page statistics without a new module | `go.mod` vendors `golang.org/x/sys`; hostload already execs `sysctl` on darwin | The darwin reading answers unavailable, which the report states | The darwin unit test on the owner's Mac | confirmed. `readMemoryAvailable` (`internal/core/hostload/memory_darwin.go`) runs `vm_stat`, and `parseVMStatAvailable` (`parse.go`) answers the "Pages free", "Pages speculative" and "Pages inactive" counts multiplied by the page size the header states. It is an upper estimate: a dirty inactive page is compressed or written out before reuse, and purgeable pages are left out. Total memory is `unix.SysctlUint64("hw.memsize")`. The report on the owner's Mac read 18.6 GiB of 64.0 GiB |
+| A-6 | Every census action marked "verdict owed" can be judged by reading its code | The census agent did not read them whole | An undeclared heavy action stays runnable by a subagent, which D-1 accepts | The implementer records a verdict per action in this spec | confirmed. No census cell says "verdict owed": each names its verdict and the producing function, and `TestCensusActionsDeclareHeavy` (`internal/le/heavy_census_test.go`) reads every census area's registered table |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -230,6 +230,9 @@ Thomas's decisions, all on 2026-11-13:
 | R-9 | The hook fixture and source digests are re-sealed without the discrimination checks | A fixture passes that could not go red | `.claude/hooks/README.md`, "Hook tests", order is followed: discrimination, independent review, then the digests |
 | R-10 | An area declares an action heavy that an agent needs for its own bookkeeping | A subagent cannot do what its skill tells it | The census marks the light actions of each mixed area. The pass rows name `./le test weakened approve`, `./le rfc approve`, `./le spec` commands and `./le commit create` |
 | R-11 | Other sessions run an le built before this spec while this one runs a later build | A waiter of an older le is invisible; an entry has no owner | Both read as unknown or absent, never as an error. The report says what it could not see |
+| R-12 | An older guard that returned nil for a handed-back line would change which guard the recorded verdict table says refused it | `TestGuardVerdictsOfHeadStand` (`internal/le/hookruntime/verdicts_test.go`) loses a subagent row's refusal | Found in implementation: the first build of AC-9 did exactly that and lost 158 rows. The three guards keep their verdict and drop only their text (`withoutHandedBackAdvice`, `internal/le/hookruntime/subagent_heavy.go`) |
+| R-13 | A guard's own text reaches a subagent on a line the heavy-work check did not hand back, and names the admitted form or the escape | A subagent types `./le job run ...` after reading a refusal | Each guard builds a second text for that caller (`unhanded`), which names only the command with no filter or the hand-back. `TestSubagentIsNeverAdvisedTheAdmittedForm` types the advised command back as the same caller |
+| R-14 | The quote-blind text judgment reads a heavy tool's name after a separator inside a quoted argument (a commit body holding `; gofmt x`) and hands the line back | A subagent's prose commit is refused as a formatter run | Kept on purpose so the check covers every line the raw-job guard refuses for every caller. The class is `plan/journal/hook-existing-patterns-false-positive.md`, owned by `spec-hook-le-data-arguments`. The agent rewords the text |
 
 ## Blast Radius
 
@@ -334,6 +337,7 @@ Thomas's decisions, all on 2026-11-13:
 - `.claude/hooks/README.md` - the check's row, the identity section, the fixture counts
 - `docs/contributing/running-commands.md` - "Waiting for another session's job", "Why one owner runs the suites", "Session identity, and what each agent owns", "Testing one package while you develop it", "The Bash guard matches your command text"
 - `docs/contributing/testing.md`, `docs/contributing/rfc-conformance-gates.md`, `docs/contributing/claude-code-cheatsheet.md`, `docs/contributing/spec-workflow.md` - who runs what
+- `docs/architecture/testing/runner-architecture.md` - "Contended run verdicts": the two kinds of reader `internal/core/hostload` holds. It is the design page the new hostload files name in their `// Design:` header
 - `ai/doors/le-tooling.md`, `ai/doors/core.md` - the boundary and gate rows name the caller
 - `ai/agents/ze-work.md`, `ai/agents/ze-read.md` - no package test, no landing of code, the owed-commands report
 - `ai/skills/ze-verify.md` - main thread
@@ -364,7 +368,7 @@ Each row declares itself heavy. "Verdict owed" rows are read by the implementer,
 
 | Area | Heavy actions | Light actions of the same area |
 |------|---------------|--------------------------------|
-| `verify` | `current`, `worktree`, `changed` | `reds`, `list`, `status`, `summary` |
+| `verify` | `current`, `worktree`, `changed` | `reds`, `list`, and the bare name, which prints the listing: the table holds no default action. `verify status` and `verify summary` are areas of their own and declare nothing |
 | `verify deps` | `evidence-vet`, `vulnerability`, `unit-cached`, `unit-changed`, `unit-race-changed`, `alloc` | - |
 | `verify evidence` | `release-candidate` | - |
 | `go lint` | `run` | - |
@@ -375,17 +379,17 @@ Each row declares itself heavy. "Verdict owed" rows are read by the implementer,
 | `test unit` | every group and `pkg` | bare listing |
 | `test functional` | `gating` and every suite name | `list`, `preview`, bare listing |
 | the 27 suite areas and `test stress-repro` | already registered as admitted | - |
-| `test integration` | every action but `clean` | `clean`, bare listing |
+| `test integration` | the area: every action, `clean` included, because each drives the Docker daemon every session shares (`leroot.RegisterHeavy(Area)`, `internal/le/test/integration/register.go`) | bare listing |
 | `test qemu` | every action | bare listing |
 | `test deployment` | every action | bare listing |
 | `test fuzz` | `run` | `list` |
 | `test attribution` | `report` | - |
 | `test redwalk` | `check` | - |
-| `test netlab` | `run` | Verdict owed: `check`, `update` |
-| `rfc` | `check`, `record`, `discriminate` | `approve`, `tagged-scope`, `reseal`, `audit-stamp`, `evidence-split`, `move`, `tree`, `next`, `update`, `quote-backfill`, `extraction`, `skeletons`. Verdict owed: `selftest` |
-| `repo compiles` | `check` | `matrix`. Verdict owed: `selftest` |
+| `test netlab` | `run`, and `check` and `update`: each starts `netlab create` for the rendered lab and `ze config validate` for every golden (`runNetlabCreate`, `internal/le/test/netlab/netlab.go`), a golden test run | `package`, which copies files |
+| `rfc` | `check`, `record`, `discriminate` | `approve`, `tagged-scope`, `reseal`, `audit-stamp`, `evidence-split`, `move`, `tree`, `next`, `update`, `quote-backfill`, `extraction`, `skeletons`, and `selftest`: it judges in-process fixtures and starts only `git` in a throwaway repository (`selftestGit`, `internal/le/rfc/selftest_core.go`) |
+| `repo compiles` | `check`, and `selftest`: each case calls `Build`, which starts `go build` (`selftestCases`, `internal/le/repo/compiles/selftest.go`) | `matrix` |
 | `repo bootstraps` | `check` | - |
-| `repo` | `check generated` | bare `check`, `tree`, `update` |
+| `repo` | `check generated`: it runs `rfc check`, a heavy action, among the generated-artifact checks (`generationChecks`, `internal/le/repo/generate.go`). The selection is a value of the `check` action, so the area registers it (`leroot.RegisterHeavy`) | `check`, `check tree`, `update` |
 | `build` | `host-driver run`, `installer`, `preview run`, `gokrazy` | `gosum check`, `preview check` |
 | `chaos selftest` | `lint`, `unit`, `cli-unit`, `all` | - |
 | `chaos run` | the area | - |
@@ -395,11 +399,17 @@ Each row declares itself heavy. "Verdict owed" rows are read by the implementer,
 | `site` | `build`, `config-tree`, `talk` | `check`, `facts`, `history`, `wiki`, `release`, `bundle`, `activity` |
 | `site terminal-demo` | `build`, `render`, `pty` | - |
 | `setup` | `install`, `tools`, `proto`, `claude-server`, `web`, `appliance-modules`, `docker host build`, `docker host start`, `docker host stop`, `docker kernel install`, `docker kernel apparmor` | `check` |
-| `weekly` | `report` | - |
+| `weekly` | `report` | `publish`, the default action |
 | `job` | `run` | `report` |
 | `exec` | the area | - |
 | `ai hooks` | `unit`, already registered as expensive | - |
-| Verdict owed | `repo codeql`, `doc wiring check`, `test fail-syscall`, `test scale`, `test local-data-coverage`, `test interop-bgp`, `mrt` | - |
+| `repo codeql` | `check`: it starts the CodeQL executable against a database (`runExtractionCodeQL`, `internal/le/repo/codeql/extraction_check.go`) | `packages`, `prepare`: each starts `go list` and `git` only |
+| `test fail-syscall` | the area: it executes the command typed after `--`, whatever it is (`Run`, `internal/test/failsyscall/failsyscall_linux.go`), as `exec` does | - |
+| `test scale` | the area: `l2tp` starts a mock RADIUS server and loads a running LNS with 10 tunnels of 200 sessions by default (`CmdL2tpScale`, `internal/test/cli/cmd_l2tp_scale.go`) | - |
+| `test local-data-coverage` | the area: it starts the `ze` binary once for every local data command (`run`, `internal/test/localdatacoverage/localdatacoverage.go`) | - |
+| `doc wiring` | - | `check` (the default action) and the templ orphan report: linked Go checkers that read files and query `git` (`goActions`, `internal/le/doc/wiring/delegate.go`) |
+| `test interop-bgp` | - | the area: it runs one compiled personality a scenario starts, and starts nothing itself (`Helper`, `internal/le/interoplab/bgp/helper.go`) |
+| `mrt` | - | the area: the analyzer reads MRT files in process and starts no program (`Answer`, `internal/le/mrt/mrt.go`) |
 
 `repo changed` and `scratch clean`, `scratch trim` stay light by decision: the first lists packages in seconds and tells an agent what it owes, the second frees disk and runs no work.
 
@@ -552,9 +562,20 @@ Phases 2, 5 and 7 touch disjoint files and run in parallel once phase 1 has land
 | The report judges liveness with one process-table scan | Call `alive` per entry as admission does | Admission forks one `ps` per entry; the registry holds thousands of files |
 | Memory and load are read in `internal/core/hostload` | A reader inside `internal/le/job`; reuse the product's `readMeminfo` | hostload is the existing tooling reader on both platforms, and `spec-test-verdicts-independent-of-load` needs the same readings for admission |
 | The report shows readings and decides nothing | The report prints a go or wait verdict | Thresholds belong to admission by class (`spec-test-verdicts-independent-of-load`). The goal is that the main agent decides |
+| A carrier is heavy for the subagent check and not expensive for the piped-command guard (`leroot.RegisterCarrier`, `CarrierLine`; `exec` registers, `job run` is one by its argv parameter) | One predicate for both guards | The two guards ask different questions. The subagent check asks whether the line starts heavy work, and `job run` and `exec` do. The pipe guard asks whether a filter truncates the verdict the command prints, and it judges commands, never arguments: the command a carrier runs is its argument, and refusing `./le job run ... \| tail` would advise wrapping the admitted form in a second one |
+| The three older guards keep their verdict on a handed-back line and drop only their text (`withoutHandedBackAdvice`) | The guards return nil for a line the heavy-work check refuses | The recorded verdict table pins which guard refused each line, and a nil verdict removed 158 subagent rows. An empty text still counts in the exit code and prints nothing (`shownVerdicts`), so the agent reads one refusal |
+| On a line a subagent is refused without a hand-back, the guard's text names only a route that caller has | Show the main thread's advice | The admitted form and the stated-reason escape are refused to a subagent on every line, so advice naming them teaches the violation (`plan/journal/guard-message-teaches-the-violation.md`) |
+| `test integration` is heavy as an area, `clean` included | `clean` stays light because it starts no test | Every action drives the Docker daemon every session shares, and a subagent removes nothing on it (`ai/META-DECISIONS.md`, "How agents work") |
+| The report takes no registry lock | Read under the lock admission takes | Taking the lock creates the lock file, a write AC-17 forbids, and holds up every admission for a process-table scan. The cost is stated in the header of `internal/le/job/overview.go`: an entry caught between its creation and its fields reads as unreadable and occupied for that instant |
+| `Reading` renders as a value or as `unavailable: <reason>`, with unexported fields and two constructors | A float with a sentinel, or a pointer | A failed reading then cannot be written as a number by any renderer, and the zero `Reading` is unavailable too (`MarshalJSON`, `internal/le/job/overview.go`) |
+| The refusal's heading names the command le resolved (`leroot.HeavyCommand`) | Print the first words typed after `./le` | Counting words named a keyword as the action (`./le job run label`). The name comes from the resolution that gave the verdict |
+| `go fmt` and `go fix` are refused beside the six executing verbs (added at closure review) | Leave them to the deny-list's fail-open | Each is the toolchain's own formatter or rewriter over whole packages, the work D-1 names by "formatters", and a subagent refused `gofmt` would reach for `go fmt` |
 
 ## Known Limitations
 - A subagent can still start heavy work through a script file, a string handed to a shell, `make`, Docker, QEMU, a compiled binary, or an `./le` action nobody declared. Thomas accepted this with the deny-list (D-1). The report's load, memory and process counts are where such work shows.
+- The hook reads a program behind the launchers its launcher table names (`launcherValueOptions`, `internal/le/hookruntime/rawheavy.go`: `env`, `timeout`, `time`, `nice`, `sudo`, a shell). A heavy tool behind another launcher (`nohup`, `xargs`, `command`) is read as that launcher and passes, for the raw-job guard and for the subagent check alike. It is the same deny-list limit.
+- A workflow agent whose hook payload carries no agent id is judged as the main thread (A-3).
+- The subagent check keeps the quote-blind text judgment, so a heavy tool's name after `;`, `&&` or a bar inside a quoted argument hands the line back (R-14); `plan/post-release/engineering/spec-hook-le-data-arguments.md` owns reading a quoted argument as data.
 - The slots count only admitted jobs. `./le test integration` and a command run under the raw-admission escape take none; `plan/post-release/engineering/spec-native-action-job-admission.md` owns admitting them.
 - The report shows this checkout's registry. Another checkout's jobs appear only in the machine readings.
 - The report shows readings and applies no threshold; `plan/post-release/engineering/spec-test-verdicts-independent-of-load.md` owns admission by memory and disk.
@@ -600,3 +621,239 @@ Phases 2, 5 and 7 touch disjoint files and run in parallel once phase 1 has land
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/post-release/engineering/spec-main-thread-schedules-heavy-work.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The Bash hook check `bashSubagentHeavy` (`internal/le/hookruntime/subagent_heavy.go`), listed in `nativeHookActions["pretool-bash"]` before the build, pipe and raw-job guards. It refuses a subagent's test, build, vet, lint, formatter and heavy `./le` line with one hand-back whose last line is the command as typed.
+- The heavy declaration: `leaction.Action.Heavy` on an action row, `leroot.RegisterHeavy` for an area or one selection of an action, `leroot.RegisterCarrier` for an area that runs a program its line names, and the readers `HeavyLine`, `HeavyCommand` and `CarrierLine` (`internal/le/le/root/heavy.go`). About forty areas declare. The hook's literal list (`heavyArea`, `expensiveAction`) is deleted.
+- One caller predicate, `fromSubagent` (`internal/le/hookruntime/session.go`), read by the identity check, the advice prefix, the heavy-work check, the post-edit hook and the post-Bash advice.
+- The post-edit hook formats a subagent's Go edit and starts no linter (`postFormatGo`), and the start text names the owed commands, the owed lint and the commit rule (`subagentCallRules`).
+- The job registry records who asked (`SESSION`, `AGENT`, written by `take` and `writeWaiter` through `writeField`), a waiting job writes and withdraws a waiter record (`internal/le/job/waiter.go`), and `./le job report` answers the slots, holders, waiters and machine readings (`Admission.Overview`, `internal/le/job/overview.go`).
+- Machine readings that report failure (`internal/core/hostload/readings.go`, `parse.go`, `memory_*.go`), and `totalMemoryGiB` reads through them.
+- The text: two agent definitions, sixteen skills, the rule points and their rendered rules, two rationale pages, the contributing pages, two doors, the templates, `ai/INSTRUCTIONS.md`, `ai/META-DECISIONS.md`, `ai/INDEX.md` and `.claude/hooks/README.md`.
+
+### Bugs Found/Fixed
+- A caller-controlled argv word holding a line break followed by `SESSION=x` wrote a field line a reader took as the owner. `writeField` (`internal/le/job/registry.go`) keeps every text value on one line. Covered by `TestCommandTextCannotForgeTheOwner` and `TestWaiterCommandTextCannotForgeTheOwner`.
+- The first build of AC-9 made three guards return nil for a handed-back line, which removed their refusals from the recorded verdict table. `withoutHandedBackAdvice` keeps the verdict and drops the text. Covered by `TestGuardVerdictsOfHeadStand` and `TestSubagentHeavyLineCarriesOneRefusal`.
+- A guard's own text advised a subagent the admitted form on a line the check did not hand back. Each guard now builds a text for that caller. Covered by `TestSubagentIsNeverAdvisedTheAdmittedForm`.
+- The refusal heading counted words after `./le` and named a keyword as the action. `leroot.HeavyCommand` names the resolved command. Covered by `TestSubagentHeavyRefusalNamesTheResolvedAction` and `TestHeavyCommandNamesWhatTheLineResolvedTo`.
+- Found by the closure review: `go fmt` and `go fix` passed for a subagent while `gofmt` was refused. `heavyTool` now names both. Covered by two rows of `heavyToolLines` in `TestSubagentHeavyCommandIsHandedBack`.
+- Found by the closure review: `Snapshot` and the report counted Go test processes through two implementations. `goTestProcessCount` (`internal/core/hostload/hostload.go`) reads `GoTestProcesses`.
+
+### Documentation Updates
+- `docs/contributing/running-commands.md`: "Waiting for another session's job", "Why one owner runs the suites", the identity and package-test sections, and at closure the passage on which le lines the pipe guard refuses, with anchors on `expensiveWords` and `HeavyLine, CarrierLine`.
+- `docs/architecture/testing/runner-architecture.md`, "Contended run verdicts": the two kinds of hostload reader, anchored on `readings.go` and `Snapshot`.
+- `.claude/hooks/README.md`: the `bashSubagentHeavy` section and the rows of the guards it changed; at closure the verb list gained `fmt` and `fix`.
+- `ai/INDEX.md`: the `./le job` row.
+- `./le doc check all` at closure: every red line is under `../gh-pages` (the published command catalog, another session's). It reports `PUBLISHED: 0 disagreement(s) with .claude/hooks/README.md` and names no page this spec edited.
+
+### Deviations from Plan
+- `test integration` is heavy as an area, `clean` included. The plan kept `clean` light.
+- `job run` and `exec` are heavy and are not expensive for the pipe guard (the carrier rule). The plan had one predicate for both guards.
+- The three older guards refuse a handed-back line without text. The plan had them add no refusal.
+- `leroot.RegisterHeavy` takes a second form, an area, a verb and a selection (`repo check generated`).
+- `TestAvailableMemoryIsParsed` sits in `hostload_test.go`, because the parsers are untagged and one file tests both platforms' text.
+- The report answer shape is `ShapeDoc`: the document holds two row sets.
+- A-1 was wrong as written: a fork carries an agent id (see Assumptions).
+- `go fmt` and `go fix` join the refused verbs of AC-1.
+- `ai/skills/ze-test-judge.md` and the point `a-closure-ends-closed-or-handed-back.md` needed no edit: neither tells a subagent to run a test.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The first wording of D-1 assumed the hook already classed a broad set of commands as heavy | It refused three programs (`rawHeavyWords`) and classed a few areas by literal for the pipe guard only | Research before the spec was written | D-1 was reworded as a deny-list with declarations. Recorded under Design Insights |
+| assumption | A-1: a fork is told by `CLAUDE_CODE_FORK_SUBAGENT` in the hook process | A fork's payload carries an agent id, and the variable is a harness setting | The live fork probe and the harness documentation | Journal row in `plan/journal/gate-verdict-depends-on-the-machine.md`, owned by `spec-hook-le-data-arguments` |
+| approach | AC-9 was first built by making three guards return nil for a handed-back line | The recorded verdict table pins which guard refused each line, and lost 158 subagent rows | The main thread's run of the hookruntime package | `withoutHandedBackAdvice` keeps the verdict and drops the text |
+| approach | The main thread started a lint while its own agent was editing the linted package, twice | A lint judges the tree at the instant it runs, so the run judged a half-written file | The main thread's own account of its runs | The rule point's procedure: an owed command runs after the agent that owes it has handed back |
+| approach | A test was added to a file after the judge's verdict on that file | The approval is pinned to the content the judge read, so the later edit staled it | The gate refused the stale approval | An approval is asked for once the file is final |
+| approach | Implementation left `running-commands.md` naming `heavyArea`, a function it deleted, and a `Related:` header naming `expensiveAction` | A page and a header that name a deleted symbol are stale the moment the symbol goes | The closure review's grep for the deleted names | Both repaired at closure. A deleted symbol is grepped across `docs/` and headers in the commit that deletes it |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| G-1: a subagent's heavy command is refused and handed back | Done | `internal/le/hookruntime/subagent_heavy.go` `bashSubagentHeavy`, `heavyTool` | Deny-list, by D-1 |
+| G-2: one command shows slots, holders, waiters and the machine | Done | `internal/le/job/overview.go` `Admission.Overview`; `answer.go` `answerReport` | |
+| G-3: every text says the same thing | Done | commit 3726eca6b2 and the closure repairs | |
+| D-1 to D-5 | Done | as the ACs below | D-4: `ai/skills/ze-verify.md` declares the main thread |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `heavyTool` reads `go` with `test`, `build`, `vet`, `run`, `generate`, `install`, `fmt`, `fix` behind `programTokens`; `handBackOf` walks every parsed command. `TestSubagentHeavyCommandIsHandedBack`, `TestSubagentHeavyRefusalEndsWithTheCommandToHandBack` (five lines, the command last) | Live probe: `go test` refused |
+| AC-2 | Done | `heavyTool`, `lintRunsNoAnalysis`. Same tests; `TestSubagentLightCommandsPass` rows `golangci-lint version` and `linters` | Live probe: `gofmt` refused |
+| AC-3 | Done | `programTokens` reads through the assignment, so `heavyTool` judges the program. `TestSubagentAdmitRawReasonDoesNotLiftTheRefusal`, with the main-thread half passing | Live probe |
+| AC-4 | Done | `leroot.HeavyCommand`, `heavyInTable`. `TestSubagentHeavyActionIsReadFromItsDeclaration`, `TestSubagentHeavyRefusalNamesTheResolvedAction` (`job run`, `exec`, `test unit pkg`), `TestCensusActionsDeclareHeavy` light rows | Live probe: `./le test unit pkg`, `./le job run` refused; `./le job report` passed |
+| AC-5 | Done | `resolveLine` (help, namespace), `heavyInTable` (listing, a pass-through area's trailing help). `TestHeavyLineReadsActionAreaAndHelp`, census rows `test unit`, `help test unit`, `exec --help` | Live probe: bare `./le test functional`, `./le help job` |
+| AC-6 | Done | `bashSubagentHeavy` opens with `ctxReaderLine`. `TestSubagentLightCommandsPass` grep rows and the `commit create` row | A quoted separator before a tool name is still read (R-14) |
+| AC-7 | Done | `bashSubagentHeavy` answers nil and `withoutHandedBackAdvice` answers the guard's own verdict when `fromSubagent` is false. `TestMainThreadHeavyVerdictsAreUnchanged`, `TestGuardVerdictsOfHeadStand`, the main-thread control of `TestSubagentHeavySitesAreJudgedByTheHook` | The pipe guard's set changed as AC-11 states |
+| AC-8 | Done | `fromSubagent`. `TestForkHeavyCommandIsHandedBack`, `TestCallerPredicateAgreesWithIdentityCheck` | Live probe: a fork was judged by its agent id |
+| AC-9 | Done | `withoutHandedBackAdvice`, `shownVerdicts`. `TestSubagentHeavyLineCarriesOneRefusal` (one `BLOCKED`, five lines, a git refusal still beside it), `TestSubagentIsNeverAdvisedTheAdmittedForm` | |
+| AC-10 | Done | `Action.Heavy`, `RegisterHeavy`, the declarations. `TestCensusActionsDeclareHeavy` reads each registered table. `heavyArea` is gone | |
+| AC-11 | Done | `expensiveWords` asks `HeavyLine` and `CarrierLine`. `TestLossyPipeReadsTheDeclarations` (`verify list` pipeable, `rfc check` refused, `job run ... \| tail` passes); census row `verify reds` light | |
+| AC-12 | Done | `postFormatGo` returns after the two formatters when `fromSubagent`. `TestSubagentEditFormatsAndSkipsLint` (a stand-in linter leaves a marker if started), `TestMainThreadEditStillLints` | Live probe |
+| AC-13 | Done | `Admission.caller`, `take`, `writeOwner`, `ownerOf`. `TestEntryRecordsSessionAndAgent` (through `Admit`), `TestEntryWithoutOwnerFieldsReadsAsUnknown`, `TestEntryOfAMainThreadRecordsNoAgent` | |
+| AC-14 | Done | `queue`, `announceWait`, `withdrawWait`, `writeWaiter`. `TestWaitingJobWritesAndRemovesItsRecord` (two processes), `TestCanceledWaitRemovesItsRecord`, `TestWaiterRecordNeverOccupiesASlot` | |
+| AC-15 | Done | `overview`, `Overview.Text`, `RegisterShape("job report", ShapeDoc)`. `TestWaitingJobIsListedByTheReport`, `TestReportListsLiveHoldersAndOmitsDeadEntries`, `TestReportReadingRendersInEveryFormat`, `test/ui/le-job-report.ci` | Run at closure, pasted under Goal Validation |
+| AC-16 | Done | `Reading`, `readMachine`, the hostload readers. `TestReportShowsAnUnavailableReadingAsUnavailable` (a failed load beside a measured zero), `TestReadingReportsFailure` | `answerReport` exits 0 whenever it answered |
+| AC-17 | Done | `overview` takes no lock and writes nothing. `TestReportWritesNothing` (bytes and modification times, no lock file, no directory created), the fixture's `judgeReadOnly` | |
+| AC-18 | Done | `subagentCallRules`. `TestSubagentStartTextNamesOwedCommands` | This closing agent's own start text carried the three lines |
+| AC-19 | Done | The files of commit 3726eca6b2. The Deliverables greps return none; `./le ai sync check` answers in sync | |
+| AC-20 | Done | The point `ai/rules/points/commands/directives/heavy-work-starts-in-the-main-thread.md`, third bullet, rendered into `ai/rules/commands.md` | Prose; `./le ai rules report gate-map` binds the point to the check |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The eight tests of `subagent_heavy_test.go` | Done | `internal/le/hookruntime/subagent_heavy_test.go` | Plus `TestSubagentHeavyRefusalNamesTheResolvedAction` and `TestSubagentIsNeverAdvisedTheAdmittedForm` |
+| `TestCallerPredicateAgreesWithIdentityCheck` | Done | `internal/le/hookruntime/session_identity_test.go` | |
+| `TestHeavyLineReadsActionAreaAndHelp` | Done | `internal/le/le/root/heavy_test.go` | Plus the carrier, command-name and read-only tests |
+| `TestCensusActionsDeclareHeavy` | Done | `internal/le/heavy_census_test.go` | |
+| `TestLossyPipeReadsTheDeclarations` | Done | `internal/le/hookruntime/bash_test.go` | |
+| `TestSubagentEditFormatsAndSkipsLint`, `TestMainThreadEditStillLints` | Done | `internal/le/hookruntime/postwrite_test.go` | |
+| `TestSubagentUnformattedFileAdviceNamesNoFormatterRun` | Done | `internal/le/hookruntime/postbash_test.go` | |
+| `TestEntryRecordsSessionAndAgent`, `TestEntryWithoutOwnerFieldsReadsAsUnknown` | Done | `internal/le/job/registry_owner_test.go` | |
+| `TestWaitingJobWritesAndRemovesItsRecord`, `TestWaiterRecordNeverOccupiesASlot` | Done | `internal/le/job/waiter_test.go` | |
+| `TestWaitingJobIsListedByTheReport`, `TestReportListsLiveHoldersAndOmitsDeadEntries`, `TestReportShowsAnUnavailableReadingAsUnavailable`, `TestReportWritesNothing` | Done | `internal/le/job/overview_test.go` | |
+| `TestJobAreaDeclaresRunAndReport` | Done | `internal/le/job/answer_test.go` | Replaced the one-action test under a judge's approval |
+| `TestReadingReportsFailure` | Done | `internal/core/hostload/hostload_test.go` | |
+| `TestAvailableMemoryIsParsed` | Changed | `internal/core/hostload/hostload_test.go` | One file for both platforms' text |
+| `TestSubagentStartTextNamesOwedCommands` | Done | `internal/le/hookruntime/lifecycle_test.go` | |
+| `le-job-report` | Done | `test/ui/le-job-report.ci`, `internal/test/fixture/ui_fixture_le_job_report.go` | Held 80 stress iterations before promotion |
+| Hook fixture sites | Done | `internal/le/ai/hooks/fixture_catalog.go`, `subagent_heavy_sites_test.go` | Five sites, each run through `hookruntime.Run` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file under Files to Create | Done | Listed under Pre-Commit Verification |
+| `internal/le/hookruntime/` and `internal/le/le/` files | Done | Also `lossypipe.go`, which holds the pipe refusal's texts |
+| The census areas | Done | Each area's own `actions.go` or `register.go` |
+| `internal/le/job/`, `internal/core/hostload/`, `gotoolchain.go` | Done | |
+| The prose files | Done | Two needed no edit (Deviations) |
+| `internal/le/ai/hooks/fixtures.go` digests | Done at the seal step | Sealed after this review, as `.claude/hooks/README.md`, "Hook tests", orders |
+
+### Audit Summary
+- **Total items:** 3 goals, 5 decisions, 20 acceptance criteria, 27 planned tests, the file groups above
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** the nine entries under Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1: a subagent's heavy command is refused and handed back | Live probe on the committed hook, beyond the unit assertions | A `ze-read` subagent was refused `go test`, a `ZE_ADMIT_RAW`-prefixed `go test`, `./le test unit pkg`, `./le job run` and `gofmt`, each with the hand-back, and passed `./le job report`, `./le spec current`, `go version`, a reader naming `go test`, bare `./le test functional` and `./le help job`. A fork was judged the same by its agent id. This closure ran under the same hook: its readers and light gates passed |
+| G-2: one command shows the slots, who holds and waits, and the machine | The command, run at closure on the owner's Mac | `./le job report` printed: `job slots: 4 total, 0 occupied, 4 free`; `holders: none`; `waiters: none`; `cores: 16`; `load 1m: 7.27 (0.45 per core)`; `load 5m: 15.42`; `load 15m: 19.20`; `memory available: 18.6 GiB of 64.0 GiB total`; `disk free, tmp and Go build cache (one volume): 45.7 GiB`; `le test processes: 0`; `go test processes: 0`; and the notice on what the slots do not count. `./le job report \| json` rendered each reading as `{"value": n}`. Holders and waiters with their sessions: `test/ui/le-job-report.ci` |
+| G-3: every text says the same thing | Greps and the generated-copy check, run at closure | `grep -rn "Land your change yourself\|Prove your package"` over `ai/agents`, `ai/skills`, `ai/rules/points`, `ai/rationale`, `docs/contributing`, `ai/INSTRUCTIONS.md`, `ai/doors`, `plan/templates` and `.claude/hooks/README.md` returns nothing. `ai/skills/ze-verify.md` holds no "spawn an agent to run this skill". `./le ai sync check` answers `generated agent files in sync`. `./le ai rules report gate-map` lists `commands/directives/heavy-work-starts-in-the-main-thread <- bashSubagentHeavy`, `DANGLING: 0`, `REGRESSED: 0` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A probe of a workflow agent's hook payload (A-3), and keying the caller on the agent id alone (A-1) | The harness offered no workflow agent to probe, and changing the predicate rewrites the fork tests | `plan/post-release/engineering/spec-hook-le-data-arguments.md` (journal row `gate-verdict-depends-on-the-machine`, 2026-11-13) |
+| Reading a quoted argument as data in the text judgment the subagent check reuses (R-14) | The same split serves the build and pipe guards, and one change fixes all three | `plan/post-release/engineering/spec-hook-le-data-arguments.md` |
+| Admitting `./le test integration` and raw-escape commands to the slots, and pruning result receipts | Outside this spec from its design: the report shows what admission does today | `plan/post-release/engineering/spec-native-action-job-admission.md` |
+| Admission acting on memory and disk | The report shows the readings and decides nothing, by design | `plan/post-release/engineering/spec-test-verdicts-independent-of-load.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/main-thread-schedules-heavy-work-ed46d90a-75f4-4e5a-81eb-76bf12dc5a18.md` (96 files, verdict clean), recorded after the seal over the final content of `internal/le/ai/hooks/fixtures.go` |
+| `./le spec review check` | `review_gate: OK (96 code files, clean, hashes match ...)` |
+| Rounds | 3 |
+| Reviewer lenses used | hook correctness and escape shapes; fail-open and fail-closed; messages; no central list; text agreement and the skill walk; stale comments and anchored pages; security; the style pass |
+
+Round 1 scope, written before it ran: the whole diff of the commits that carry this spec's `Spec-work:` line (4f23dad6cf, a7e6646804, 3726eca6b2, 6ed5abeb73, 6ec0050f8d, 76ce134b55, ee00f04a8d), every lens above, each reading the producer.
+
+Round 2 scope, written before it ran: the fixes of round 1 and what they touch: `heavyTool` and its two test rows, `goTestProcessCount` and `Snapshot`, the two comments in `waiter.go`, the passage in `running-commands.md`, the README verb list, the `Related:` header of `expensive_test.go`.
+
+Pre-checks: `./le test weakened check base origin/main` answered clean over 19 changed test files. `./le repo check` named 7 issues, none in a file of this change set (`page.go`, `rfc/next.go`, `rfc/profilecoverage.go`, `site/buildproducer.go`, `test/deployment/vppevidencempls.go`).
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `go fmt` and `go fix` pass for a subagent while `gofmt` is refused: the toolchain's own formatter over whole packages escapes G-1 | `heavyTool`, `internal/le/hookruntime/subagent_heavy.go` | Both verbs added, two rows in `heavyToolLines`, the README verb list |
+| 2 | ISSUE | A page names a deleted function and states verdicts the change reversed (`verify reds` and `verify list` are pipeable now) | `docs/contributing/running-commands.md`, the passage after "It is a query, never a certificate" | Passage rewritten from `expensiveWords` and `HeavyLine`, with anchors |
+| 3 | ISSUE | Two implementations of one count: `processCount` through a shell pipeline beside `GoTestProcesses` (style guide, "State that goes stale") | `internal/core/hostload/hostload.go` | `goTestProcessCount` reads `GoTestProcesses`; `processCount` deleted |
+| 4 | ISSUE | A paired call states its obligation on neither side (style guide, "Comments say why and state the contract") | `announceWait`, `withdrawWait`, `internal/le/job/waiter.go` | MUST on both |
+| 5 | NOTE | A file header names the deleted `expensiveAction` | `internal/le/ai/hooks/expensive_test.go` | Header names `expensiveWords` |
+| 6 | NOTE | A launcher outside the hook's table (`nohup`, `xargs`) hides a heavy tool, for the raw-job guard and this check alike | `launcherValueOptions`, `internal/le/hookruntime/rawheavy.go` | Recorded under Known Limitations: the deny-list's accepted limit |
+| 7 | NOTE | The quote-blind text judgment hands back a line whose quoted argument holds a separator and a tool name | `handBackOf` | R-14, owned by `spec-hook-le-data-arguments` |
+| 8 | NOTE | A recorded command line is printed with its control characters other than line breaks | `truncate(held.command)`, `internal/le/job/overview.go` | Not fixed: the registry is written by this user's own sessions. Recorded here |
+
+Judged: the fold of finding 3 left `parseDigits` with no caller but `TestParseDigitsStopsAtNonDigit`. An independent `ze-test-judge` approved deleting both: the new path never turns text into a number, and each old input's concern is proved by `TestReadingReportsFailure` (`processLines`) and `TestGoTestProcessesAreCountedByName`. Both are deleted, and `TestSnapshot` gained the assertion the judge recommended: `GoTestProcs` is at least 1, because the test binary is itself a `.test` process, which proves the wiring the fold changed.
+
+Round 3 scope, written before it ran: the three digest constants pasted into `internal/le/ai/hooks/fixtures.go` with their comments, the judged deletion, and the added assertion. Result: 0 BLOCKER, 0 ISSUE. Each constant holds the bytes `TestEveryStoredDigestMatchesTheTreeItRatchets` printed; the site refusal of `TestFixtureCatalogExactPopulationAndContent` reads the same `fixtureSiteDigest` constant (`fixtures.go`, the check that prints "site content changed"), so no second literal exists. `internal/core/hostload`, `internal/le/job` and `internal/le/ai/hooks` are outside `hookSourcePackages`, so those edits do not move the source digest. The digest hashes the working tree, where `internal/le/rfc`, a watched package, carries another session's uncommitted edits. The first literal sealed those edits, so it was replaced: `hookSourcesDigest` is the digest of the content the committed tree holds, computed by an independent read-only agent with the code's own framing and the edited files taken from their `HEAD` blobs, after it reproduced the working-tree value over the same file set. It was computed again against `f43c8ce222` after that session committed into the package. The seal test is therefore red in a working tree that still holds those edits and green on a clean checkout of the commit. That replacement is the one edit after round 3, a constant and its comment, re-recorded in the artifact above.
+
+Round 2 result: 0 BLOCKER, 0 ISSUE. `heavyTool` reads the verb at `program[1]`, where Go takes it; the two new rows run through `TestSubagentHeavyCommandIsHandedBack` and through the main-thread loop of `TestMainThreadHeavyVerdictsAreUnchanged`; no recorded verdict row and no fixture site names either verb. `GoTestProcesses` and the pipeline it replaces count the same thing, a `ps` name holding `.test`, and a failed sample is still zero for `Contended`, named as a guard.
+
+The style pass ran over every changed Go file. No `panic` is reachable from input: `liveness.word` is called only after the gone verdict returned, and `Unavailable` is called with a fixed or non-empty reason. Every loop is bounded by a listing, a table or a path's depth, and the queue's endless loop says so. The report takes a validated `*Admission`.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/hookruntime/subagent_heavy.go`, `subagent_heavy_test.go` | Yes | `ls` at closure, 12K and 26K |
+| `internal/le/le/root/heavy.go`, `heavy_test.go` | Yes | `ls`, 14K and 17K |
+| `internal/le/heavy_census_test.go` | Yes | `ls`, 8.5K |
+| `internal/le/job/overview.go`, `overview_test.go`, `waiter.go`, `waiter_test.go`, `registry_owner_test.go` | Yes | `ls`, 25K, 24K, 5.7K, 11K, 7.5K |
+| `internal/core/hostload/memory_linux.go`, `memory_darwin.go`, `memory_other.go` | Yes | `ls`, 812, 1.2K, 627 bytes. Their tests are in `hostload_test.go` |
+| `test/ui/le-job-report.ci`, `internal/test/fixture/ui_fixture_le_job_report.go`, `register_ui_le_job_report.go` | Yes | `ls`, 2.2K, 17K, 430 bytes |
+| `ai/rules/points/commands/directives/heavy-work-starts-in-the-main-thread.md` | Yes | `ls`, 1.9K |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-9 | The hook's verdicts and texts | The producers and the test bodies read at closure (Implementation Audit). The package run is the main thread's: `./le test unit pkg path ./internal/le/hookruntime/`, owed again after the closure fix |
+| AC-10 | Declarations, no list | `git grep -n "Heavy: *true\|RegisterHeavy(\|RegisterCarrier("` over `internal/le` lists each declaration in its own area's `actions.go` or `register.go`; `git grep "heavyArea\|expensiveAction" -- internal/le` finds no function |
+| AC-11 | The pipe guard reads the declarations | `expensiveWords` read; `TestLossyPipeReadsTheDeclarations` rows read |
+| AC-12 | Format, no lint | `postFormatGo` read: the return sits above `exec.LookPath("golangci-lint")`. This closure's own Go edits came back with no lint verdict |
+| AC-13, AC-14 | Owner fields, waiter record | `take`, `writeWaiter`, `readEntry`, `readWaiter` read; the test bodies read |
+| AC-15 to AC-17 | The report | `./le job report` and `./le job report \| json` run at closure; `./le help job` lists `report` |
+| AC-18 | Start text | This agent's start text held the three lines |
+| AC-19, AC-20 | Text | The greps of Goal Validation; the point file read |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le job report` typed at the launcher | `test/ui/le-job-report.ci` | Read: it runs `le test fixture ui/le-job-report`, whose driver starts two `le job run` processes in a scratch checkout, polls `le job report \| json` until the waiter is listed, judges the rows and the read-only property, and expects `OK` |
+| A subagent's Bash payload through `pretool-bash` | none: a hook has no `.ci`; the fixture sites are its end-to-end form | `TestSubagentHeavySitesAreJudgedByTheHook` runs each site through `hookruntime.Run`; the live probes ran the installed hook |
+| A subagent's Edit payload through `posttool-writeedit` | none | `Probe("postFormatGo", ...)` in `TestSubagentEditFormatsAndSkipsLint`; the live probe |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | A fork carries an agent id; the variable is a harness setting. Mistake Log, Deviations, journal row |
+| A-2 | confirmed | Harness documentation and the live edit probe |
+| A-3 | confirmed for a teammate, not established for a workflow agent | Harness documentation. The consequence and its owner are under Known Limitations and Work Not Done |
+| A-4 | confirmed | The census search at closure: no `.sh` or `.py` reader |
+| A-5 | confirmed | `readMemoryAvailable`, `parseVMStatAvailable`; 18.6 GiB of 64.0 GiB read on the Mac |
+| A-6 | confirmed | Every census cell holds a verdict and its producer; the producers were read at closure |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 3, CLI command: `docs/contributing/running-commands.md`, "Waiting for another session's job" | `answerReport`, `Overview.Text` | Yes |
+| 10, test infrastructure: `docs/contributing/testing.md` names the main thread as the runner | commit 3726eca6b2 | Yes |
+| 12, architecture: `docs/architecture/core-design.md` does not describe `WholeTree` (`grep -n WholeTree docs/architecture/core-design.md` returns nothing), so it is unaffected. The declaration is documented in `running-commands.md` and `.claude/hooks/README.md` | `leaction.Action.Heavy` | Yes |
+| 15, inventory: `ai/INDEX.md` `./le job` row; `.claude/hooks/README.md` check table | `./le doc check all`: 0 disagreement with the README | Yes |
+| 16, anchored pages: the seven pages `./le spec citation anchors` names anchor on `Environment`, `RunContext`, `New`, `Answer`, `Run`, `Action.WholeTree` and session-start symbols, none of which changed meaning | `grep -n "source: internal/le/..."` over those pages | Yes |
+| 17, examples: the doors name the main thread above their gate tables | `ai/doors/le-tooling.md`, `ai/doors/core.md`, "Gates" | Yes |
+| 1, 2, 4 to 9, 11, 13, 14: not applicable | Development tooling: no feature, config, RPC, plugin, wire, RFC, comparison, metadata or metric surface changed | Yes |
+| Doctor check | None owed: the report reads the development machine and states an unavailable reading itself | Yes |
+
+### Security Review
+| Check | Result |
+|-------|--------|
+| Identity cannot be dropped | `fromSubagent` reads `ctx.payload.AgentID` and the hook process's environment. An assignment typed on the line does not reach the hook's environment |
+| Registry fields are data | `ownerOf` passes each value through `lepath.ValidSessionID` and `ValidAgentID`; a hostile value reads as unknown (`TestEntryWithoutOwnerFieldsReadsAsUnknown`). `writeField` keeps a value on one line |
+| Waiter record path | `os.CreateTemp` in the jobs directory creates it exclusively; the report reads a `.wait` name only when the listing says it is a regular file |
+| Report output | The command is truncated to 200 bytes and printed; nothing executes it |
+| Resource use | One `procscan.Scan`, two `ps` reads and one `vm_stat` or `/proc` read, whatever the registry holds. The closure fold removed a `sh -c` pipeline |

@@ -59,7 +59,8 @@ type waitNotice struct {
 //
 // A failure is reported once and never retried. It MUST NOT fail or delay the
 // admission: the job keeps waiting exactly as it did before the record
-// existed, and the report then does not list it.
+// existed, and the report then does not list it. The caller MUST call
+// withdrawWait with the same notice on every way out of its wait.
 func (a *Admission) announceWait(job *pending, since time.Time, notice *waitNotice) {
 	if notice.path != "" {
 		return
@@ -80,8 +81,9 @@ func (a *Admission) announceWait(job *pending, since time.Time, notice *waitNoti
 }
 
 // withdrawWait removes this invocation's own waiter record, if it wrote one.
-// The queue defers it, so every way out of the wait passes through here:
-// admitted, attached, canceled, refused.
+// It MUST be called with the notice announceWait filled, and is safe to call
+// when nothing was written. The queue defers it, so every way out of the wait
+// passes through here: admitted, attached, canceled, refused.
 func (a *Admission) withdrawWait(notice *waitNotice) {
 	if notice.path == "" {
 		return

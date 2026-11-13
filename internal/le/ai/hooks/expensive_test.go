@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- le's composition, one import per tool
 // Related: register.go -- the expensive mark of the unit selftest
-// Related: ../../hookruntime/bash.go -- expensiveAction, the hook's reader of the mark
+// Related: ../../hookruntime/bash.go -- expensiveWords, the hook's reader of the mark through leroot.HeavyLine
 
 package aihooks
 

@@ -207,8 +207,9 @@ func handBackOf(command string, parse commandParse, identity string) (refusal ha
 // answers "" when they start none. The assignments and launchers in front of
 // the program are read through (programTokens, over launcherValueOptions), a
 // stated reason to run raw among them. The program is then judged by name:
-// the Go toolchain's executing verbs, the linters and the formatters, which
-// are external programs and cannot register; and le, typed as `le` or as the
+// the Go toolchain's executing verbs, `go fmt` and `go fix` among them, the
+// linters and the formatters, which are external programs and cannot
+// register; and le, typed as `le` or as the
 // `ze le` personality (leWords), whose line is heavy when the area or the
 // action it names declared so (leroot.HeavyCommand, which also answers the
 // command the line resolved to), so this function names no le area.
@@ -220,7 +221,9 @@ func heavyTool(tokens []string) string {
 	base := filepath.Base(program[0])
 	if base == "go" {
 		// version, env, list, doc and help read and start no build of the tree.
-		if len(program) > 1 && oneOf(program[1], goTestVerb, "build", goVetVerb, "run", "generate", "install") {
+		// fmt and fix are the toolchain's own formatter and rewriter: each
+		// runs over every package the line names, as gofmt and the linter do.
+		if len(program) > 1 && oneOf(program[1], goTestVerb, "build", goVetVerb, "run", "generate", "install", "fmt", "fix") {
 			return "`go " + program[1] + "`"
 		}
 		return ""

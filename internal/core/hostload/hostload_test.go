@@ -51,25 +51,10 @@ func TestLoadString(t *testing.T) {
 	}
 }
 
-func TestParseDigitsStopsAtNonDigit(t *testing.T) {
-	tests := []struct {
-		input string
-		want  int
-	}{
-		{"42\n", 42},
-		{"0\n", 0},
-		{"", 0},
-		{"error 42", 0},
-		{"  7  ", 7},
-		{"123abc", 123},
-	}
-	for _, tc := range tests {
-		if got := parseDigits(tc.input); got != tc.want {
-			t.Errorf("parseDigits(%q) = %d, want %d", tc.input, got, tc.want)
-		}
-	}
-}
-
+// VALIDATES: Snapshot samples this machine, and its Go test count is the one
+// GoTestProcesses makes (goTestProcessCount).
+// PREVENTS: a Snapshot whose Go test count is wired to nothing and stays zero,
+// which would read a loaded machine running tests as uncontended.
 func TestSnapshot(t *testing.T) {
 	l := Snapshot()
 	if l.CPUs <= 0 {
@@ -77,6 +62,10 @@ func TestSnapshot(t *testing.T) {
 	}
 	if l.LoadAvg1 < 0 {
 		t.Errorf("LoadAvg1 = %f, want >= 0", l.LoadAvg1)
+	}
+	// This test binary is itself a running `.test` process.
+	if l.GoTestProcs < 1 {
+		t.Errorf("GoTestProcs = %d, want at least this test binary", l.GoTestProcs)
 	}
 }
 

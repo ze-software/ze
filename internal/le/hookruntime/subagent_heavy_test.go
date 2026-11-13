@@ -27,6 +27,9 @@ var heavyToolLines = []string{
 	"go " + "run ./cmd/x",
 	`go generate ./x`,
 	`go install ./x`,
+	// The toolchain's own formatter and rewriter, which run over packages.
+	`go fmt ./x`,
+	`go fix ./x`,
 	`timeout 60 go test ./x`,
 	`GOFLAGS=-count=1 go test ./x`,
 	`env GOFLAGS=-mod=mod go build ./x`,

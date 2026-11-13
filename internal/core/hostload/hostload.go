@@ -59,7 +59,7 @@ func Snapshot() Load {
 	}
 	l.LoadAvg1 = loadAvg1()
 	l.ZeProcs = harnessProcessCount()
-	l.GoTestProcs = processCount("\\.test")
+	l.GoTestProcs = goTestProcessCount()
 	return l
 }
 
@@ -123,32 +123,16 @@ func isHarnessCommand(args string) bool {
 	return fields[1] == "test"
 }
 
-// processCount counts processes whose comm field matches pattern.
-// Uses "ps -eo comm" piped to "grep -c" which works on both macOS and Linux
-// (pgrep -c and pgrep -f are Linux-only extensions).
-func processCount(pattern string) int {
-	ctx, cancel := context.WithTimeout(context.Background(), procTimeout)
-	defer cancel()
-	var tb textbuf.Buffer
-	shellCmd := tb.Str("ps -eo comm | grep -c '").Str(pattern).Byte('\'').String()
-	cmd := exec.CommandContext(ctx, "sh", "-c", shellCmd) //nolint:gosec // pattern is a compile-time constant
-	out, err := cmd.Output()
+// goTestProcessCount counts the running compiled Go test binaries for
+// Snapshot. It is GoTestProcesses, the one counter of them, so the report and
+// the contended verdict cannot count two ways. A failed sample answers 0, as
+// Snapshot documents; GoTestProcesses is the reading that reports the failure
+// instead.
+func goTestProcessCount() int {
+	count, err := GoTestProcesses()
+	// refuse-by-default: guards Contended -- no counted Go test is the uncontended verdict Snapshot documents for a failed sample
 	if err != nil {
 		return 0
 	}
-	return parseDigits(string(out))
-}
-
-// parseDigits extracts the leading integer from s.
-// Stops at the first non-digit to avoid interpreting error messages as counts.
-func parseDigits(s string) int {
-	s = strings.TrimSpace(s)
-	n := 0
-	for _, b := range s {
-		if b < '0' || b > '9' {
-			break
-		}
-		n = n*10 + int(b-'0')
-	}
-	return n
+	return count
 }

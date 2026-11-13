@@ -69,7 +69,8 @@ func HarnessProcesses() (int, error) {
 
 // GoTestProcesses counts the running compiled Go test binaries on the whole
 // machine, or answers the error that says why the process list could not be
-// read. It counts what Snapshot counts: a process whose name holds ".test".
+// read: a process whose name holds ".test". Snapshot reads this same count
+// (goTestProcessCount), with a failed reading answered as zero.
 //
 // Safe for concurrent use.
 func GoTestProcesses() (int, error) {
