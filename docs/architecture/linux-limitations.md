@@ -350,7 +350,7 @@ For a `library` entry, read the module in the module cache:
   gets mask 0. "Exactly port 0" (OPAQUE) cannot be built through it and would
   install as any port. The kernel is not the limit: it stores the selector
   masks it is given and matches with them.
-- **Blocks:** nothing in a Ze build: `netlink-xfrm-fixes.patch` carries the
+- **Blocks:** nothing in a Ze build: `netlink-xfrm-06-selector-port-masks.patch` carries the
   fix, which is why the entry constrains design. Without the patch, a selector
   for exactly port 0 (an ICMP type or code of 0, an OPAQUE port) installs as
   any port. Ze's OPAQUE support is not held back by this library any more; it
@@ -364,7 +364,7 @@ For a `library` entry, read the module in the module cache:
 - **Re-check:** read `selFromPolicy` in the module version `go.mod` requires.
   Lifted when the library takes a mask from the caller, or when Ze builds the
   selector itself.
-- **Ze meanwhile:** works around it. `netlink-xfrm-fixes.patch` makes
+- **Ze meanwhile:** works around it. `netlink-xfrm-06-selector-port-masks.patch` makes
   `selFromPolicy` send a non-zero `SrcPortMask` or `DstPortMask` as given, and
   Ze writes every selector's mask (`xfrmSelectorPort`, xfrm_linux.go), so an
   exact ICMP type or code of 0 and an ICMP code block install exactly. OPAQUE
@@ -638,16 +638,17 @@ For a `library` entry, read the module in the module cache:
   while the reader's attribute switch handles only `case nl.XFRMA_REPLAY_VAL:`
   and has no `XFRMA_REPLAY_ESN_VAL` case. The full list of corrections is in
   `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, "Vendored netlink patch".
-- **Re-check:** at a new module version, check each hunk of
-  `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` against the
-  module source; a hunk the release already carries is dropped, and the
-  entry is lifted when no hunk remains. `TestNetlinkXFRMPatchApplied`
+- **Re-check:** at a new module version, check each patch of the series
+  `internal/le/vendorpatch/patches/netlink-xfrm-*.patch` against the
+  module source; a patch the release already carries is deleted, and the
+  entry is lifted when only `netlink-xfrm-90-ze-state-scope.patch`, Ze's
+  private kernel ABI, remains. `TestNetlinkXFRMPatchApplied`
   (`internal/le/vendorpatch`) fails when the vendored copy lacks the patch,
   for example after `go mod vendor`.
-- **Ze meanwhile:** works around it. Ze vendors the module and applies
-  `netlink-xfrm-fixes.patch`.
+- **Ze meanwhile:** works around it. Ze vendors the module and applies the
+  series in file-name order.
 
-<!-- source: internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch -- XFRM state and policy decoding corrections -->
+<!-- source: internal/le/vendorpatch/patches/ -- netlink-xfrm-*.patch, XFRM state and policy decoding corrections -->
 
 ### LL-NETLINK-NO-CTA-ID
 

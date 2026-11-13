@@ -118,7 +118,7 @@ from that of the inner header." With the flag the selector family stays
 `AF_UNSPEC`, `__xfrm_init_state` fills the tunnel inner mode of both families, and
 `xfrm_ip2inner_mode` picks one for each decapsulated packet. `xfrmStateFromParams`
 sets the flag (`netlink.XfrmState.AFUnspec`, a field Ze's vendored-module patch
-`internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` adds) only for tunnel
+`internal/le/vendorpatch/patches/netlink-xfrm-07-state-af-unspec.patch` adds) only for tunnel
 mode with a nil `SAParams.Sel`. Transport mode, the OSPF RFC 4552 states and any
 state given a selector keep that selector and its family. What enters the state is
 still decided by the policies: one per negotiated selector pair and direction,
@@ -324,52 +324,68 @@ SAD-ID allocation uses `IpsecSaV3Dump`. Public SAD and SPD inspection still retu
 
 The pinned `github.com/vishvananda/netlink` release lacks these XFRM
 corrections (Linux limitation `LL-NETLINK-XFRM-DECODE`,
-`docs/architecture/linux-limitations.md`). Ze records them in
-`internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch`:
+`docs/architecture/linux-limitations.md`). Ze records them as an ordered
+series, one file per change, in `internal/le/vendorpatch/patches/netlink-xfrm-*.patch`,
+applied in file-name order. Each file's leading text names the patches it needs.
+`netlink-xfrm-90-ze-state-scope.patch` carries Ze's private kernel ABI, is never
+proposed upstream, and sorts last:
 
 - The state reader decodes `XFRMA_REPLAY_ESN_VAL`, restores the replay window,
   and reports the `XFRM_STATE_ESN` flag.
+  Patch: `netlink-xfrm-01-state-readback-esn-replay.patch`.
+- The state reader refuses a message shorter than `struct xfrm_usersa_info`
+  before it reads the header. Patch: `netlink-xfrm-05-state-truncated-header.patch`.
 - The state writer uses `XFRMA_REPLAY_ESN_VAL` for replay windows of more than 32. It
   sets `XFRM_STATE_ESN` only when the SA uses extended sequence numbers.
+  Patch: `netlink-xfrm-02-state-replay-window-above-32.patch`.
 - The policy writer copies the selector family into any template that carries no
   destination, which in ze is every transport-mode template. An explicit
   destination still determines the template family.
+  Patch: `netlink-xfrm-03-template-family-no-destination.patch`.
 - The selector writer takes its family from a valid destination prefix's mask
   width and preserves all sixteen address bytes for IPv6, including mapped
   IPv6 prefixes. Policies and a state's legacy selector use the same writer,
   so a transport selector can match its canonical state-scope record exactly.
+  Patch: `netlink-xfrm-10-selector-prefix-family.patch`.
 - The policy reader preserves source and destination port masks, including partial
   masks and an exact port zero. The writer sends a non-zero mask as given and
   derives the mask from the port value only when the mask is zero, so Ze can
   install an exact ICMP type or code of 0 and a mask-aligned ICMP code block
   (RFC 4301 Section 4.4.1.1, `xfrmSelectorPort`).
+  Patch: `netlink-xfrm-06-selector-port-masks.patch`.
 - The policy reader decodes selectors using each message's selector family.
   An all-family dump keeps `0.0.0.0/0` and `::/0` distinct, and IPv6 prefixes
   whose trailing bytes are zero retain their IPv6 identity. Tunnel endpoints use
   their template's family, which can differ from the selector family.
+  Patch: `netlink-xfrm-04-readback-message-family.patch`.
 - The state reader uses the SAD message family for both outer addresses and the
   nested selector's family for its prefixes. The same address conversion serves
   the policy reader, so `2001:db8::` remains distinct from `32.1.13.184` even when
-  SPI, protocol and interface id agree. Nested selectors retain raw port masks.
+  SPI, protocol and interface id agree. Patch: `netlink-xfrm-04-readback-message-family.patch`.
+  Nested selectors retain raw port masks. Patch: `netlink-xfrm-06-selector-port-masks.patch`.
 - `XfrmState` gains `AFUnspec`. The state writer sets `XFRM_STATE_AF_UNSPEC` in
   `xfrm_usersa_info.flags` when it is true, and the state reader reports the flag.
   Upstream sets no flag but `XFRM_STATE_ESN`, so a tunnel-mode state with no
   selector could not be stored as serving both inner families (see "A tunnel-mode
   state with no selector carries `XFRM_STATE_AF_UNSPEC`" above).
+  Patch: `netlink-xfrm-07-state-af-unspec.patch`.
 - `XfrmState` gains `NoPMTUDisc`. The state writer sets `XFRM_STATE_NOPMTUDISC`
   when it is true, and the state reader reports the flag. It is the only way to
   ask the kernel for a clear DF bit in the tunnel header (see "The outer header
   DF bit" below).
+  Patch: `netlink-xfrm-08-state-no-pmtu-disc.patch`.
 - `XfrmState` gains `ICMP` and `XfrmPolicy` gains `ICMP`. The writers set
   `XFRM_STATE_ICMP` and `XFRM_POLICY_ICMP` when they are true, and the readers
   report them (see "ICMP error messages carried by a Child SA" below).
+  Patch: `netlink-xfrm-09-icmp-flag.patch`.
 - `XfrmState` gains `StateScope`, an ordered list of 1..64 canonical IPv4 or
   IPv6 selectors and a negotiated noninitial-fragment flag. Its writer and
   reader validate and preserve every field. `XfrmZECapabilitiesGet` reads the
   live namespace's GETDEFAULT receipt and refuses missing, duplicate,
   malformed or foreign receipts. Individual feature bits let callers require
   the kernel behavior their request needs before installation.
-<!-- source: internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch -- XFRM state and policy decoding corrections -->
+  Patch: `netlink-xfrm-90-ze-state-scope.patch`.
+<!-- source: internal/le/vendorpatch/patches/ -- netlink-xfrm-*.patch, XFRM state and policy decoding corrections -->
 
 `TestXFRMReadbackPolicyTunnelAddressFamily` installs an IPv4 policy with IPv6
 tunnel endpoints whose trailing bytes are zero, including `2001:db8::`.
@@ -377,16 +393,18 @@ It checks both endpoints through the backend and checks that removal clears the
 policy from the kernel dump.
 <!-- source: internal/component/ike/dataplane/xfrm_readback_integration_linux_test.go -- TestXFRMReadbackPolicyTunnelAddressFamily -->
 
-Keep the patch and its drift test outside `vendor/` because `go mod vendor`
-replaces that directory. Run this command from the repository root after every
-vendor refresh:
+Keep the patches and their drift test outside `vendor/` because `go mod vendor`
+replaces that directory. After every vendor refresh, run this command from the
+repository root. It vendors the modules again and applies every patch under
+`internal/le/vendorpatch/patches/` in file-name order:
 
 ```sh
-git apply internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch
+./le setup install
 ```
 
 `TestNetlinkXFRMPatchApplied` uses `git apply --reverse --check` to require the
-exact corrections with their context lines. It lives in
+exact corrections with their context lines, in a subtest named after each file
+of the XFRM series under `internal/le/vendorpatch/patches/`. It lives in
 `internal/le/vendorpatch`; run it alone with
 `go test ./internal/le/vendorpatch -run TestNetlinkXFRMPatchApplied`.
 

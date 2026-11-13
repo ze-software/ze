@@ -1,0 +1,57 @@
+Ze-Reviewed-Against: github.com/vishvananda/netlink v1.3.1
+
+XfrmState gains NoPMTUDisc, which sets XFRM_STATE_NOPMTUDISC in
+xfrm_usersa_info.flags and is read back from it. Upstream exposes no general
+flags field, so a caller cannot ask the kernel to clear the DF bit of a tunnel
+header: xfrm4_tunnel_encap_add (net/xfrm/xfrm_output.c) writes
+"top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) || small_ipv6 ? 0 :
+(XFRM_MODE_SKB_CB(skb)->frag_off & htons(IP_DF));". RFC 4301 Section 8.1:
+"This means that it MUST be possible to configure the implementation's
+treatment of the DF bit (set, clear, copy from inner header) for each SA."
+
+No upstream pull request is opened yet for this change.
+
+Needs netlink-xfrm-07-state-af-unspec.patch, and so
+netlink-xfrm-01-state-readback-esn-replay.patch: its field, reader and
+writer lines follow the ones 07 adds.
+
+Not yet checked against upstream main.
+
+Delete this patch when go.mod requires an upstream release that contains the
+change.
+
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+--- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+@@ -127,8 +127,12 @@
+ 	// with no selector family the outer family, so a tunnel-mode state carries
+ 	// inner packets of that family only.
+ 	AFUnspec bool
+-	Replay   *XfrmReplayState
+-	Selector *XfrmPolicy
++	// NoPMTUDisc sets XFRM_STATE_NOPMTUDISC. The kernel's
++	// xfrm4_tunnel_encap_add then writes a clear DF bit into the outer IPv4
++	// header instead of copying the inner header's.
++	NoPMTUDisc bool
++	Replay     *XfrmReplayState
++	Selector   *XfrmPolicy
+ }
+ 
+ func (sa XfrmState) String() string {
+@@ -522,6 +526,7 @@
+ 	state.ReplayWindow = int(msg.ReplayWindow)
+ 	state.ESN = msg.Flags&nl.XFRM_STATE_ESN != 0
+ 	state.AFUnspec = msg.Flags&nl.XFRM_STATE_AF_UNSPEC != 0
++	state.NoPMTUDisc = msg.Flags&nl.XFRM_STATE_NOPMTUDISC != 0
+ 	lftToLimits(&msg.Lft, &state.Limits)
+ 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
+ 	state.Selector = &XfrmPolicy{
+@@ -724,5 +729,8 @@
+ 	if state.AFUnspec {
+ 		msg.Flags |= nl.XFRM_STATE_AF_UNSPEC
+ 	}
++	if state.NoPMTUDisc {
++		msg.Flags |= nl.XFRM_STATE_NOPMTUDISC
++	}
+ 	return msg
+ }

@@ -1,0 +1,99 @@
+Ze-Reviewed-Against: github.com/vishvananda/netlink v1.3.1
+
+XfrmState gains ICMP and XfrmPolicy gains ICMP, which set XFRM_STATE_ICMP in
+xfrm_usersa_info.flags and XFRM_POLICY_ICMP in xfrm_userpolicy_info.flags and
+are read back from them. Upstream sets neither. icmp_rcv (net/ipv4/icmp.c) and
+icmpv6_rcv re-check an ICMP error that failed the inbound policy check against
+the header it embeds only when the last state of its secpath carries
+XFRM_STATE_ICMP, and xfrm_lookup_with_ifid answers -ENOENT to an
+XFRM_LOOKUP_ICMP lookup whose policy lacks XFRM_POLICY_ICMP. RFC 4301
+Section 6.2: "Thus, an IPsec implementation MUST be configurable to check that
+this payload header information is consistent with the SA via which it
+arrives."
+
+No upstream pull request is opened yet for this change.
+
+Needs netlink-xfrm-06-selector-port-masks.patch, netlink-xfrm-08-state-no-pmtu-disc.patch,
+and the patches those need: the XfrmPolicy field follows the port masks 06
+adds, and the XfrmState field, reader and writer lines follow the ones 08
+adds.
+
+Not yet checked against upstream main.
+
+Delete this patch when go.mod requires an upstream release that contains the
+change.
+
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
+--- a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
++++ b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
+@@ -99,8 +99,17 @@
+ 	// exact for any other value).
+ 	DstPortMask uint16
+ 	SrcPortMask uint16
++	// ICMP sets XFRM_POLICY_ICMP and is read back from it. The kernel's
++	// xfrm_lookup refuses a policy without it to a lookup made with
++	// XFRM_LOOKUP_ICMP, the lookup icmp_route_lookup and xfrm_out_fwd_icmp
++	// make for an ICMP error on the reversed header of the packet it reports.
++	ICMP bool
+ }
+ 
++// xfrmPolicyFlagICMP is XFRM_POLICY_ICMP of include/uapi/linux/xfrm.h, which
++// the nl package names only in a comment.
++const xfrmPolicyFlagICMP = 2
++
+ func (p XfrmPolicy) String() string {
+ 	return fmt.Sprintf("{Dst: %v, Src: %v, Proto: %s, DstPort: %d, SrcPort: %d, Dir: %s, Priority: %d, Index: %d, Action: %s, Ifindex: %d, Ifid: %d, Mark: %s, Tmpls: %s}",
+ 		p.Dst, p.Src, p.Proto, p.DstPort, p.SrcPort, p.Dir, p.Priority, p.Index, p.Action, p.Ifindex, p.Ifid, p.Mark, p.Tmpls)
+@@ -174,6 +183,9 @@
+ 	msg.Index = uint32(policy.Index)
+ 	msg.Dir = uint8(policy.Dir)
+ 	msg.Action = uint8(policy.Action)
++	if policy.ICMP {
++		msg.Flags |= xfrmPolicyFlagICMP
++	}
+ 	msg.Lft.SoftByteLimit = nl.XFRM_INF
+ 	msg.Lft.HardByteLimit = nl.XFRM_INF
+ 	msg.Lft.SoftPacketLimit = nl.XFRM_INF
+@@ -375,6 +387,7 @@
+ 	policy.Index = int(msg.Index)
+ 	policy.Dir = Dir(msg.Dir)
+ 	policy.Action = PolicyAction(msg.Action)
++	policy.ICMP = msg.Flags&xfrmPolicyFlagICMP != 0
+ 
+ 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+ 	if err != nil {
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+--- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+@@ -131,8 +131,12 @@
+ 	// xfrm4_tunnel_encap_add then writes a clear DF bit into the outer IPv4
+ 	// header instead of copying the inner header's.
+ 	NoPMTUDisc bool
+-	Replay     *XfrmReplayState
+-	Selector   *XfrmPolicy
++	// ICMP sets XFRM_STATE_ICMP. On an inbound state, icmp_rcv and
++	// icmpv6_rcv then re-check an ICMP error that failed the inbound policy
++	// check against the header it embeds, with addresses and ports reversed.
++	ICMP     bool
++	Replay   *XfrmReplayState
++	Selector *XfrmPolicy
+ }
+ 
+ func (sa XfrmState) String() string {
+@@ -527,6 +531,7 @@
+ 	state.ESN = msg.Flags&nl.XFRM_STATE_ESN != 0
+ 	state.AFUnspec = msg.Flags&nl.XFRM_STATE_AF_UNSPEC != 0
+ 	state.NoPMTUDisc = msg.Flags&nl.XFRM_STATE_NOPMTUDISC != 0
++	state.ICMP = msg.Flags&nl.XFRM_STATE_ICMP != 0
+ 	lftToLimits(&msg.Lft, &state.Limits)
+ 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
+ 	state.Selector = &XfrmPolicy{
+@@ -732,5 +737,8 @@
+ 	if state.NoPMTUDisc {
+ 		msg.Flags |= nl.XFRM_STATE_NOPMTUDISC
+ 	}
++	if state.ICMP {
++		msg.Flags |= nl.XFRM_STATE_ICMP
++	}
+ 	return msg
+ }

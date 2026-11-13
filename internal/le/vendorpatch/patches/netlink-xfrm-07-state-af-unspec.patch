@@ -1,0 +1,57 @@
+Ze-Reviewed-Against: github.com/vishvananda/netlink v1.3.1
+
+XfrmState gains AFUnspec, which sets XFRM_STATE_AF_UNSPEC in
+xfrm_usersa_info.flags and is read back from it. Upstream sets no flag but
+ESN, so a tunnel-mode state installed with no selector reaches the kernel's
+copy_from_user_state (net/xfrm/xfrm_user.c), where "if (!x->sel.family &&
+!(p->flags & XFRM_STATE_AF_UNSPEC)) x->sel.family = p->family;" gives the
+selector the outer family, and xfrm_state_look_at then skips the state for a
+flow of the other inner family. RFC 4301 Section 5.1.2: "IPsec allows the
+IP version of the encapsulating header to be different from that of the
+inner header."
+
+No upstream pull request is opened yet for this change.
+
+Needs netlink-xfrm-01-state-readback-esn-replay.patch: the line that
+reads the flag back follows the ESN line that patch adds.
+
+Not yet checked against upstream main.
+
+Delete this patch when go.mod requires an upstream release that contains the
+change.
+
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+--- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+@@ -123,8 +123,12 @@
+ 	ESN           bool
+ 	DontEncapDSCP bool
+ 	OSeqMayWrap   bool
+-	Replay        *XfrmReplayState
+-	Selector      *XfrmPolicy
++	// AFUnspec sets XFRM_STATE_AF_UNSPEC. Without it the kernel gives a state
++	// with no selector family the outer family, so a tunnel-mode state carries
++	// inner packets of that family only.
++	AFUnspec bool
++	Replay   *XfrmReplayState
++	Selector *XfrmPolicy
+ }
+ 
+ func (sa XfrmState) String() string {
+@@ -517,6 +521,7 @@
+ 	state.Reqid = int(msg.Reqid)
+ 	state.ReplayWindow = int(msg.ReplayWindow)
+ 	state.ESN = msg.Flags&nl.XFRM_STATE_ESN != 0
++	state.AFUnspec = msg.Flags&nl.XFRM_STATE_AF_UNSPEC != 0
+ 	lftToLimits(&msg.Lft, &state.Limits)
+ 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
+ 	state.Selector = &XfrmPolicy{
+@@ -716,5 +721,8 @@
+ 	if state.Selector != nil {
+ 		selFromPolicy(&msg.Sel, state.Selector)
+ 	}
++	if state.AFUnspec {
++		msg.Flags |= nl.XFRM_STATE_AF_UNSPEC
++	}
+ 	return msg
+ }

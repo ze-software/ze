@@ -786,7 +786,7 @@ func xfrmPolicyAction(a SPAction) (netlink.PolicyAction, error) {
 // (flow ^ sel) & mask is zero (net/xfrm/xfrm_policy.c, __xfrm4_selector_match). Every
 // PortMatch is therefore expressible, provided the mask reaches the kernel with it:
 // the caller writes p.Mask into XfrmPolicy.SrcPortMask or DstPortMask, which the
-// vendored library sends as given (internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch,
+// vendored library sends as given (internal/le/vendorpatch/patches/netlink-xfrm-06-selector-port-masks.patch,
 // selFromPolicy). Upstream derives the mask from the port value instead, so exactly
 // port 0 and a partial mask would install as any port without that patch
 // (docs/architecture/linux-limitations.md, LL-NETLINK-XFRM-PORT-MASK).

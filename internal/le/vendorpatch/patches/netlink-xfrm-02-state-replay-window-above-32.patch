@@ -1,0 +1,69 @@
+Ze-Reviewed-Against: github.com/vishvananda/netlink v1.3.1
+
+The state writer sends a replay window wider than 32 in
+XFRMA_REPLAY_ESN_VAL, and still sets XFRM_STATE_ESN only when XfrmState.ESN
+asks for it. xfrm_usersa_info.replay_window maps onto struct
+xfrm_replay_state, whose bitmap is one u32, and the kernel's
+copy_from_user_state (net/xfrm/xfrm_user.c) clamps the field to the 32 bits
+of that bitmap without an error. Upstream sends XFRMA_REPLAY_ESN_VAL only
+with ESN, so a window of 64 without ESN is installed as 32 while
+XfrmStateAdd returns nil. Without XFRM_STATE_ESN, xfrm_init_replay
+(net/xfrm/xfrm_replay.c) reads the attribute as a plain large bitmap
+(XFRM_REPLAY_MODE_BMP). A window the kernel refuses in that attribute now
+returns the kernel's error instead of being installed as 32. RFC 4303
+Section 3.4.3: "A minimum window size of 32 packets MUST be supported when
+32-bit sequence numbers are employed; a window size of 64 is preferred and
+SHOULD be employed as the default."
+
+No upstream pull request is opened yet for this change. Upstream issue 1213
+of vishvananda/netlink ("xfrm: three bugs in state read-back, replay window
+and template family", opened 2026-08-25) proposes it and has no maintainer
+answer yet.
+
+Its hunks need no earlier patch, but its upstream test reads the window
+back through the reader netlink-xfrm-01-state-readback-esn-replay.patch
+adds, so it is proposed after that patch.
+
+Not yet checked against upstream main.
+
+Delete this patch when go.mod requires an upstream release that contains the
+change.
+
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+--- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+@@ -205,6 +205,10 @@
+ 	return mark.Serialize()
+ }
+ 
++// xfrm_usersa_info carries a 32-bit legacy replay bitmap. Larger windows use
++// XFRMA_REPLAY_ESN_VAL; without XFRM_STATE_ESN, Linux selects bitmap mode.
++const xfrmLegacyReplayWindow = 32
++
+ func writeReplayEsn(replayWindow int) []byte {
+ 	replayEsn := &nl.XfrmReplayStateEsn{
+ 		OSeq:         0,
+@@ -270,11 +274,14 @@
+ 
+ 	msg := xfrmUsersaInfoFromXfrmState(state)
+ 
++	useReplayESN := state.ESN || state.ReplayWindow > xfrmLegacyReplayWindow
+ 	if state.ESN {
+ 		if state.ReplayWindow == 0 {
+ 			return fmt.Errorf("ESN flag set without ReplayWindow")
+ 		}
+ 		msg.Flags |= nl.XFRM_STATE_ESN
++	}
++	if useReplayESN {
+ 		msg.ReplayWindow = 0
+ 	}
+ 
+@@ -307,7 +314,7 @@
+ 		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
+ 		req.AddData(out)
+ 	}
+-	if state.ESN {
++	if useReplayESN {
+ 		out := nl.NewRtAttr(nl.XFRMA_REPLAY_ESN_VAL, writeReplayEsn(state.ReplayWindow))
+ 		req.AddData(out)
+ 	}

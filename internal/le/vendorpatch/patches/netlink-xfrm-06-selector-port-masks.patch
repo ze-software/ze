@@ -1,0 +1,95 @@
+Ze-Reviewed-Against: github.com/vishvananda/netlink v1.3.1
+
+selFromPolicy sends a non-zero XfrmPolicy.SrcPortMask or DstPortMask as
+given, in network byte order. Upstream derives each selector mask from its
+port alone, all ones for a non-zero port and zero for port 0, so neither an
+exact port 0 nor a mask-aligned block can be asked for. The kernel matches a
+selector port as (flow ^ sel) & mask (__xfrm4_selector_match,
+net/xfrm/xfrm_policy.c) and reads an ICMP type into the source port and its
+code into the destination port (xfrm_flowi_sport, xfrm_flowi_dport,
+include/net/xfrm.h), so the
+upstream rule cannot express ICMP type 0 (Echo Reply) exactly, nor a code
+range as the aligned blocks that cover it. RFC 4301 Section 4.4.1.1: "This
+16-bit selector can contain a single type and a range of codes, a single type
+and ANY code, and ANY type and ANY code." A zero mask keeps the upstream
+derivation, so every caller that sets no mask is unchanged. XfrmPolicy gains
+DstPortMask and SrcPortMask, which the policy reader and the reader of a
+state's nested selector fill from the kernel.
+
+No upstream pull request is opened yet for this change.
+
+Needs netlink-xfrm-04-readback-message-family.patch, and so
+netlink-xfrm-01-state-readback-esn-replay.patch: its state hunk realigns
+the nested selector literal that 04 rewrites.
+
+Not yet checked against upstream main.
+
+Delete this patch when go.mod requires an upstream release that contains the
+change.
+
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
+--- a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
++++ b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
+@@ -93,6 +93,12 @@
+ 	Ifid     int
+ 	Mark     *XfrmMark
+ 	Tmpls    []XfrmPolicyTmpl
++	// Selector port masks, in host byte order. The reader fills them from the
++	// kernel. The writer sends a non-zero mask as given; a zero mask keeps the
++	// upstream rule of deriving the mask from the port value (any port for 0,
++	// exact for any other value).
++	DstPortMask uint16
++	SrcPortMask uint16
+ }
+ 
+ func (p XfrmPolicy) String() string {
+@@ -122,6 +128,16 @@
+ 	if sel.Sport != 0 {
+ 		sel.SportMask = ^uint16(0)
+ 	}
++	// An explicit mask wins over the derived one. The kernel matches
++	// (flow ^ sel) & mask, so a caller can ask for exactly port 0, or for a
++	// mask-aligned block such as an ICMP code range (the kernel reads an ICMP
++	// type into the source port and its code into the destination port).
++	if policy.DstPortMask != 0 {
++		sel.DportMask = nl.Swap16(policy.DstPortMask)
++	}
++	if policy.SrcPortMask != 0 {
++		sel.SportMask = nl.Swap16(policy.SrcPortMask)
++	}
+ 	sel.Ifindex = int32(policy.Ifindex)
+ }
+ 
+@@ -352,6 +368,8 @@
+ 	policy.Proto = Proto(msg.Sel.Proto)
+ 	policy.DstPort = int(nl.Swap16(msg.Sel.Dport))
+ 	policy.SrcPort = int(nl.Swap16(msg.Sel.Sport))
++	policy.DstPortMask = nl.Swap16(msg.Sel.DportMask)
++	policy.SrcPortMask = nl.Swap16(msg.Sel.SportMask)
+ 	policy.Ifindex = int(msg.Sel.Ifindex)
+ 	policy.Priority = int(msg.Priority)
+ 	policy.Index = int(msg.Index)
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+--- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+@@ -520,12 +520,14 @@
+ 	lftToLimits(&msg.Lft, &state.Limits)
+ 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
+ 	state.Selector = &XfrmPolicy{
+-		Dst:     xfrmIPNetFromAddress(&msg.Sel.Daddr, msg.Sel.PrefixlenD, msg.Sel.Family),
+-		Src:     xfrmIPNetFromAddress(&msg.Sel.Saddr, msg.Sel.PrefixlenS, msg.Sel.Family),
+-		Proto:   Proto(msg.Sel.Proto),
+-		DstPort: int(nl.Swap16(msg.Sel.Dport)),
+-		SrcPort: int(nl.Swap16(msg.Sel.Sport)),
+-		Ifindex: int(msg.Sel.Ifindex),
++		Dst:         xfrmIPNetFromAddress(&msg.Sel.Daddr, msg.Sel.PrefixlenD, msg.Sel.Family),
++		Src:         xfrmIPNetFromAddress(&msg.Sel.Saddr, msg.Sel.PrefixlenS, msg.Sel.Family),
++		Proto:       Proto(msg.Sel.Proto),
++		DstPort:     int(nl.Swap16(msg.Sel.Dport)),
++		SrcPort:     int(nl.Swap16(msg.Sel.Sport)),
++		DstPortMask: nl.Swap16(msg.Sel.DportMask),
++		SrcPortMask: nl.Swap16(msg.Sel.SportMask),
++		Ifindex:     int(msg.Sel.Ifindex),
+ 	}
+ 
+ 	return &state

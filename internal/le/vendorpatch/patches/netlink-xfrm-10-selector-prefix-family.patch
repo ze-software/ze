@@ -1,0 +1,56 @@
+Ze-Reviewed-Against: github.com/vishvananda/netlink v1.3.1
+
+selFromPolicy uses a valid destination prefix's mask width to choose the
+selector family and copies all sixteen address bytes for AF_INET6, including
+IPv4-mapped IPv6 prefixes. Upstream derives the family from the address bytes
+and FromIP unmaps those prefixes, so a transport state's legacy selector
+cannot equal its canonical AF_INET6 state-scope record. Ordinary IPv4 and
+IPv6 prefixes retain their families, and port masks retain their semantics.
+
+No upstream pull request is opened yet for this change.
+
+Its hunk needs no earlier patch. Its test,
+TestZeXfrmSelectorUsesPrefixFamily, takes its expected bytes through Ze's
+private state-scope writer and sets the port masks of
+netlink-xfrm-06-selector-port-masks.patch, so the test file is carried by
+netlink-xfrm-90-ze-state-scope.patch until it is rewritten without Ze.
+
+Not yet checked against upstream main.
+
+Delete this patch when go.mod requires an upstream release that contains the
+change.
+
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
+--- a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
++++ b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
+@@ -119,12 +119,27 @@
+ 	sel.Family = uint16(nl.FAMILY_V4)
+ 	if policy.Dst != nil {
+ 		sel.Family = uint16(nl.GetIPFamily(policy.Dst.IP))
+-		sel.Daddr.FromIP(policy.Dst.IP)
+-		prefixlenD, _ := policy.Dst.Mask.Size()
++		prefixlenD, bits := policy.Dst.Mask.Size()
++		// The mask declares the family; To4 would erase mapped IPv6 prefixes.
++		switch bits {
++		case 32:
++			sel.Family = uint16(nl.FAMILY_V4)
++		case 128:
++			sel.Family = uint16(nl.FAMILY_V6)
++		}
++		if sel.Family == uint16(nl.FAMILY_V6) {
++			copy(sel.Daddr[:], policy.Dst.IP.To16())
++		} else {
++			sel.Daddr.FromIP(policy.Dst.IP)
++		}
+ 		sel.PrefixlenD = uint8(prefixlenD)
+ 	}
+ 	if policy.Src != nil {
+-		sel.Saddr.FromIP(policy.Src.IP)
++		if sel.Family == uint16(nl.FAMILY_V6) {
++			copy(sel.Saddr[:], policy.Src.IP.To16())
++		} else {
++			sel.Saddr.FromIP(policy.Src.IP)
++		}
+ 		prefixlenS, _ := policy.Src.Mask.Size()
+ 		sel.PrefixlenS = uint8(prefixlenS)
+ 	}

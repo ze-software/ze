@@ -1,0 +1,55 @@
+Ze-Reviewed-Against: github.com/vishvananda/netlink v1.3.1
+
+The state reader reports the ESN flag and the replay window.
+xfrmStateFromXfrmUsersaInfo sets XfrmState.ESN from XFRM_STATE_ESN in
+xfrm_usersa_info.flags, and parseXfrmState reads replay_window out of
+XFRMA_REPLAY_ESN_VAL. Upstream reads neither, so every state read back
+reports ESN as false, and a state whose window travels in
+XFRMA_REPLAY_ESN_VAL reports a window of 0: the kernel's verify_replay
+(net/xfrm/xfrm_user.c) refuses a legacy replay_window beside the ESN flag
+("ESN not compatible with legacy replay_window"), so the base message
+carries 0. A caller that lists a state and installs it again turns ESN off.
+The window is read at its offset, 20, the sixth u32 of struct
+xfrm_replay_state_esn, rather than through nl.XfrmReplayStateEsn, whose Go
+struct ends in a slice header for bmp.
+
+No upstream pull request is opened yet for this change. Upstream issue 1213
+of vishvananda/netlink ("xfrm: three bugs in state read-back, replay window
+and template family", opened 2026-08-25) proposes it and has no maintainer
+answer yet.
+
+Needs no earlier patch.
+
+Not yet checked against upstream main.
+
+Delete this patch when go.mod requires an upstream release that contains the
+change.
+
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+--- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+@@ -509,6 +509,7 @@
+ 	state.Spi = int(nl.Swap32(msg.Id.Spi))
+ 	state.Reqid = int(msg.Reqid)
+ 	state.ReplayWindow = int(msg.ReplayWindow)
++	state.ESN = msg.Flags&nl.XFRM_STATE_ESN != 0
+ 	lftToLimits(&msg.Lft, &state.Limits)
+ 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
+ 	state.Selector = &XfrmPolicy{
+@@ -605,6 +606,16 @@
+ 		case nl.XFRMA_SA_PCPU:
+ 			pcpuNum := native.Uint32(attr.Value)
+ 			state.Pcpunum = &pcpuNum
++		case nl.XFRMA_REPLAY_ESN_VAL:
++			// xfrm_replay_state_esn is {bmp_len, oseq, seq, oseq_hi, seq_hi,
++			// replay_window} u32s then bmp[]. Read the window at its offset
++			// rather than casting the buffer to the Go struct: that struct
++			// carries a slice header for bmp, so a pointer conversion over a
++			// SizeofXfrmReplayStateEsn buffer would build a slice out of
++			// whatever follows the attribute.
++			if len(attr.Value) >= nl.SizeofXfrmReplayStateEsn {
++				state.ReplayWindow = int(native.Uint32(attr.Value[20:24]))
++			}
+ 		case nl.XFRMA_REPLAY_VAL:
+ 			if state.Replay == nil {
+ 				state.Replay = new(XfrmReplayState)

@@ -1,0 +1,59 @@
+Ze-Reviewed-Against: github.com/vishvananda/netlink v1.3.1
+
+parseXfrmState refuses a message shorter than struct xfrm_usersa_info
+before it reads the header. Upstream hands the buffer to
+nl.DeserializeXfrmUsersaInfo, which slices it to SizeofXfrmUsersaInfo with
+no length check, so a truncated reply either panics or is decoded from
+bytes past its end. TestZeXfrmStateParserRejectsTruncatedHeader calls the
+parser for every short length, the empty reply included. The test file
+still carries a Ze design header and a name from Ze's state scope work, so
+it is not yet in the form an upstream pull request would carry.
+
+No upstream pull request is opened yet for this change.
+
+Needs no earlier patch.
+
+Not yet checked against upstream main.
+
+Delete this patch when go.mod requires an upstream release that contains the
+change.
+
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+--- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
+@@ -532,6 +532,9 @@
+ }
+ 
+ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
++	if len(m) < nl.SizeofXfrmUsersaInfo {
++		return nil, errors.New("XFRM state header is truncated")
++	}
+ 	msg := nl.DeserializeXfrmUsersaInfo(m)
+ 	// This is mainly for the state dump
+ 	if family != FAMILY_ALL && family != int(msg.Family) {
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_scope_linux_test.go b/vendor/github.com/vishvananda/netlink/xfrm_state_scope_linux_test.go
+new file mode 100644
+--- /dev/null
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_scope_linux_test.go
+@@ -0,0 +1,21 @@
++// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- safe state readback.
++// Related: xfrm_state_linux.go -- parseXfrmState.
++
++package netlink
++
++import (
++	"testing"
++
++	"github.com/vishvananda/netlink/nl"
++)
++
++// TestZeXfrmStateParserRejectsTruncatedHeader calls the actual SA parser for
++// every short header length, including empty replies that must not panic.
++func TestZeXfrmStateParserRejectsTruncatedHeader(t *testing.T) {
++	var header [nl.SizeofXfrmUsersaInfo]byte
++	for size := 0; size < len(header); size++ {
++		if _, err := parseXfrmState(header[:size], FAMILY_ALL); err == nil {
++			t.Fatalf("accepted a %d-byte SA header", size)
++		}
++	}
++}
