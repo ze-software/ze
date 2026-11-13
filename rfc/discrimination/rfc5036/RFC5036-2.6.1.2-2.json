@@ -7,7 +7,7 @@
     "claim-sha": "b61b1c01e4691498",
     "route": "revert",
     "producer": "internal/plugins/ldp/register.go::runSession",
-    "producer-sha": "8a4b11c387f32e07",
+    "producer-sha": "13550b432418da3c",
     "break": "body of runSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "333ba8bf4e5a02c6",
     "route": "revert",
     "producer": "internal/plugins/ldp/register.go::runSession",
-    "producer-sha": "8a4b11c387f32e07",
+    "producer-sha": "13550b432418da3c",
     "break": "body of runSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -29,7 +29,7 @@
     "claim-sha": "999261814c81ce31",
     "route": "revert",
     "producer": "internal/component/l2tp/reactor.go::handleTick",
-    "producer-sha": "a2fd4b3153af60ff",
+    "producer-sha": "e33e85d347352c1f",
     "break": "body of handleTick replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "bfa5deef0eebab3b",
     "route": "revert",
     "producer": "internal/component/l2tp/reactor.go::handleTick",
-    "producer-sha": "a2fd4b3153af60ff",
+    "producer-sha": "e33e85d347352c1f",
     "break": "body of handleTick replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

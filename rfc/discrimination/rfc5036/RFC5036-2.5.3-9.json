@@ -7,7 +7,7 @@
     "claim-sha": "931da7b17516573b",
     "route": "revert",
     "producer": "internal/plugins/ldp/session.go::processMessages",
-    "producer-sha": "4e6a27693e573322",
+    "producer-sha": "88ce8170fb83b313",
     "break": "body of processMessages replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
