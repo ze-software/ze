@@ -79,6 +79,7 @@ capture obligation has been met.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `wait-outlives-the-process-it-waits-on.md` | 2026-11-01 | runner `waitReady` polls daemon.ready to its deadline after a foreground ze exited |
+| `session-up-before-its-subscriber.md` | 2026-11-13 | LDP interop checkers add ze's transport address after ze may already dial from it |
 | `assertion-reads-state-the-scheduler-owns.md` | 2026-11-02 | `TestVirtualLinkPacketDemux` (`internal/plugins/ospf/virtual |
 
 ## Required Reading
