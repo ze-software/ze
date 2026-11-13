@@ -31,10 +31,11 @@ type RichRoute struct {
 	PathMTU   uint32
 	SRv6SID   netip.Addr
 	ECMPPaths []sysribevents.ECMPPath
-	// Backup is the fast-reroute backup next-hop set: programmed as link-down /
-	// backup multipath next-hop(s) with the repair MPLS encap, so the kernel
-	// forwards to a backup only when the primary next-hop's link is down. Distinct
-	// from ECMPPaths (which load-share in steady state).
+	// Backup is the fast-reroute backup next-hop set the routing protocol
+	// computed, distinct from ECMPPaths (which load-share in steady state). It
+	// is part of the route's identity for replay, and it is not programmed: the
+	// kernel has no standby member, so buildRichRoute sends the primary path(s)
+	// alone and backup_report.go reports the backups the kernel lacks.
 	Backup []sysribevents.ECMPPath
 }
 

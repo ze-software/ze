@@ -68,8 +68,10 @@ func TestKernelDeviceOnlyCoverResolvesGateway(t *testing.T) {
 	}
 }
 
-// Scope follows the completed forwarding group. A gateway in an ECMP or backup
-// member requires universe scope even when the primary is device-only. IPv6
+// Scope follows the completed forwarding group. A gateway in an ECMP member
+// requires universe scope even when the primary is device-only. A fast-reroute
+// backup is not part of the group the kernel gets, so its gateway does not
+// change the scope. IPv6
 // retains universe scope, including routes that carry an encapsulation.
 func TestBuildRichRouteScope(t *testing.T) {
 	if !userns.Enter(t) {
@@ -100,7 +102,7 @@ func TestBuildRichRouteScope(t *testing.T) {
 			{"device primary gateway ECMP", RichRoute{Prefix: v4, Interface: "ze-scope0", ECMPPaths: []events.ECMPPath{{NextHop: gateway4, Interface: "ze-scope1"}}}, netlink.SCOPE_UNIVERSE},
 			{"gateway primary device ECMP", RichRoute{Prefix: v4, NextHop: gateway4, Interface: "ze-scope0", ECMPPaths: []events.ECMPPath{{Interface: "ze-scope1"}}}, netlink.SCOPE_UNIVERSE},
 			{"device backup", RichRoute{Prefix: v4, Interface: "ze-scope0", Backup: []events.ECMPPath{{Interface: "ze-scope1"}}}, netlink.SCOPE_LINK},
-			{"device primary gateway backup", RichRoute{Prefix: v4, Interface: "ze-scope0", Backup: []events.ECMPPath{{NextHop: gateway4, Interface: "ze-scope1"}}}, netlink.SCOPE_UNIVERSE},
+			{"device primary, unprogrammed gateway backup", RichRoute{Prefix: v4, Interface: "ze-scope0", Backup: []events.ECMPPath{{NextHop: gateway4, Interface: "ze-scope1"}}}, netlink.SCOPE_LINK},
 			{"gateway primary device backup", RichRoute{Prefix: v4, NextHop: gateway4, Interface: "ze-scope0", Backup: []events.ECMPPath{{Interface: "ze-scope1"}}}, netlink.SCOPE_UNIVERSE},
 			{"Via primary device backup", RichRoute{Prefix: v4, NextHop: gateway6, Interface: "ze-scope0", Backup: []events.ECMPPath{{Interface: "ze-scope1"}}}, netlink.SCOPE_UNIVERSE},
 			{"blackhole", RichRoute{Prefix: v4, NextHop: gateway4, Interface: "ze-scope0", RouteType: events.RouteTypeBlackhole}, netlink.SCOPE_UNIVERSE},

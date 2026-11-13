@@ -69,7 +69,7 @@ func (n *netlinkBackend) replaceRichRoute(r RichRoute) error {
 }
 
 func needsLabelSpace(r RichRoute) bool {
-	if len(r.Labels) > 0 || len(r.Backup) > 0 {
+	if len(r.Labels) > 0 {
 		return true
 	}
 	for i := range r.ECMPPaths {
@@ -157,32 +157,16 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 
 	// An ECMP member owns its encapsulation. A route-level stack would also
 	// apply to a member whose producer supplied a different stack or plain IP.
-	if len(route.MultiPath) == 0 && len(r.Backup) == 0 {
+	if len(route.MultiPath) == 0 {
 		route.Encap = buildRouteEncap(r.Labels, r.SRv6SID)
 	}
 
-	// Fast-reroute backup (RFC 5286 / TI-LFA): program the backup next-hop(s) as
-	// link-down-flagged multipath next-hops carrying the repair MPLS encap, so the
-	// kernel forwards to a backup only when the primary link is down. A backup
-	// requires a multipath route to hold both primary and backup, so a single-path
-	// route is promoted to multipath first (its primary label stack moves onto the
-	// primary next-hop).
-	if len(r.Backup) > 0 {
-		if route.MultiPath == nil {
-			route.MultiPath, err = buildMultiPath(r, nil)
-			if err != nil {
-				return nil, err
-			}
-			route.Gw = nil
-			route.Via = nil
-			route.Flags &^= unix.RTNH_F_ONLINK
-		}
-		backup, backupErr := buildBackupNexthops(r.Prefix, r.Backup)
-		if backupErr != nil {
-			return nil, backupErr
-		}
-		route.MultiPath = append(route.MultiPath, backup...)
-	}
+	// r.Backup, a fast-reroute backup (RFC 5286 LFA, TI-LFA), is not encoded.
+	// RTA_MULTIPATH has no standby member: every member load-shares, and Linux
+	// refuses RTNH_F_LINKDOWN from userspace with EINVAL for the whole route,
+	// primary included (net/ipv4/fib_semantics.c, fib_get_nhs: "Invalid flags
+	// for nexthop - can not contain DEAD or LINKDOWN"). The kernel gets the
+	// primary path(s) alone, and backup_report.go reports the backups it lacks.
 
 	route.Scope = forwardingScope(route)
 	return route, nil
@@ -191,7 +175,7 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 // forwardingScope makes an IPv4 device-only cover available to the kernel's
 // gateway lookup. That lookup requires link scope even when the interface's
 // configured subnet does not cover the gateway. Judge the completed group so a
-// gateway in an ECMP or backup member cannot acquire a device-only scope.
+// gateway in an ECMP member cannot acquire a device-only scope.
 func forwardingScope(route *netlink.Route) netlink.Scope {
 	if route.Dst.IP.To4() == nil {
 		return netlink.SCOPE_UNIVERSE
@@ -223,25 +207,6 @@ func forwardingScope(route *netlink.Route) netlink.Scope {
 		}
 	}
 	return netlink.SCOPE_LINK
-}
-
-// buildBackupNexthops builds the link-down/backup multipath next-hops for a
-// fast-reroute backup: each carries the RTNH_F_LINKDOWN flag (used only when the
-// primary link is down) and, for a TI-LFA repair, the SR repair MPLS encap.
-func buildBackupNexthops(prefix netip.Prefix, backup []events.ECMPPath) ([]*netlink.NexthopInfo, error) {
-	out := make([]*netlink.NexthopInfo, 0, len(backup))
-	for _, b := range backup {
-		nhi, err := buildNexthopInfo(prefix, b.NextHop, b.Interface, b.Weight, b.OnLink)
-		if err != nil {
-			return nil, err
-		}
-		nhi.Flags |= unix.RTNH_F_LINKDOWN
-		if len(b.Labels) > 0 {
-			nhi.Encap = buildMPLSEncap(b.Labels)
-		}
-		out = append(out, nhi)
-	}
-	return out, nil
 }
 
 func routeTypeToLinux(rt events.RouteType) int {

@@ -148,27 +148,20 @@ func TestKernelGatewayFamilyBackupPromotion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if route.Gw != nil || route.Via != nil || len(route.MultiPath) != 2 {
-		t.Fatalf("backup promotion left a route-level gateway: %+v", route)
+	// The backup is not promoted into a multipath group: the kernel has no
+	// standby member, so the route keeps its primary IPv6 gateway alone.
+	if route.Gw != nil || len(route.MultiPath) != 0 {
+		t.Fatalf("backup changed the single-path encoding: %+v", route)
 	}
-	for index, member := range route.MultiPath {
-		via, ok := member.Via.(*netlink.Via)
-		want := netip.MustParseAddr("fe80::1")
-		flags := unix.RTNH_F_ONLINK
-		if index == 1 {
-			want = netip.MustParseAddr("fe80::2")
-			flags |= unix.RTNH_F_LINKDOWN
-		}
-		if !ok || via.AddrFamily != unix.AF_INET6 || !via.Addr.Equal(want.AsSlice()) || member.Gw != nil {
-			t.Fatalf("member %d gateway encoding = %+v", index, member)
-		}
-		if member.Flags != flags || member.Hops != 2-index {
-			t.Fatalf("member %d lost weight or flags: %+v", index, member)
-		}
+	via, ok := route.Via.(*netlink.Via)
+	if !ok || via.AddrFamily != unix.AF_INET6 || !via.Addr.Equal(netip.MustParseAddr("fe80::1").AsSlice()) {
+		t.Fatalf("route gateway encoding = %+v, want RTA_VIA AF_INET6 fe80::1", route.Via)
 	}
-	encap, ok := route.MultiPath[1].Encap.(*netlink.MPLSEncap)
-	if !ok || !slices.Equal(encap.Labels, []int{16000}) {
-		t.Fatalf("backup lost repair stack: %v", route.MultiPath[1].Encap)
+	if route.Flags&unix.RTNH_F_ONLINK == 0 {
+		t.Fatalf("route lost its on-link flag: %+v", route)
+	}
+	if via.Addr.Equal(netip.MustParseAddr("fe80::2").AsSlice()) {
+		t.Fatal("route reaches the backup fe80::2")
 	}
 }
 

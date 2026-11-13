@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/configvalue"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/health"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -139,6 +140,17 @@ func init() {
 	// programming layer owns its health row.
 	health.Register("fib", report.HealthProbeDegraded(
 		"fib-sync-failure", "fib-orphan", "fib-programming-lag"))
+
+	// The backup warning (backup_report.go) is a state this plugin raises on
+	// the report bus. It is described first, because RegisterEventCode refuses
+	// a code `ze show diagnostic` cannot describe. It stays out of the health
+	// row: the routes it counts forward on their primary path.
+	if err := diagnostic.Register(fibBackupDiagnosticCode); err != nil {
+		panic("BUG: register fib-kernel backup diagnostic code: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: reportCodeFIBBackupNotProgrammed}); err != nil {
+		panic("BUG: register fib-kernel backup event code: " + err.Error())
+	}
 
 	_ = events.RegisterNamespace(fibevents.Namespace, fibevents.EventExternalChange)
 

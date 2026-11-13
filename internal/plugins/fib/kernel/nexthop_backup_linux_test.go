@@ -1,14 +1,19 @@
-// VALIDATES: AC-11 / R-7 -- buildRichRoute emits a fast-reroute backup as a
-// link-down-flagged multipath next-hop carrying the SR repair MPLS encap, so the
-// kernel forwards to it only when the primary link is down. Linux-only (netlink);
-// runs under QEMU per ai/rules/platform-linux.md.
-// PREVENTS: a backup that is never installed, or one the kernel always uses.
+// VALIDATES: AC-11 / R-7 -- buildRichRoute sends a route that carries a
+// fast-reroute backup with its primary next-hop alone: no multipath list, the
+// primary gateway, no RTNH_F_LINKDOWN on the route or any member, and no member
+// for the backup gateway. Linux has no standby multipath member and refuses
+// RTNH_F_LINKDOWN from userspace (net/ipv4/fib_semantics.c, fib_get_nhs), so a
+// link-down backup member would make the kernel refuse the whole route.
+// Linux-only (netlink); runs under QEMU per ai/rules/platform-linux.md.
+// PREVENTS: the backup costing the protected prefix its kernel route, or the
+// backup load-sharing as an ordinary multipath member.
 
 //go:build linux
 
 package fibkernel
 
 import (
+	"net"
 	"net/netip"
 	"testing"
 
@@ -31,22 +36,25 @@ func TestBuildRichRouteBackupLinkDown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildRichRoute: %v", err)
 	}
-	// A single primary + one backup becomes a two-way multipath.
-	if len(route.MultiPath) != 2 {
-		t.Fatalf("MultiPath len = %d, want 2 (primary + backup)", len(route.MultiPath))
+	if len(route.MultiPath) != 0 {
+		t.Fatalf("MultiPath len = %d, want 0 (the primary alone): %+v", len(route.MultiPath), route.MultiPath)
 	}
-	backup := route.MultiPath[1]
-	if backup.Gw.String() != "10.0.0.9" {
-		t.Fatalf("backup next-hop = %v, want 10.0.0.9", backup.Gw)
+	if !route.Gw.Equal(net.ParseIP("10.0.0.2")) {
+		t.Fatalf("route gateway = %v, want the primary 10.0.0.2", route.Gw)
 	}
-	if backup.Flags&int(unix.RTNH_F_LINKDOWN) == 0 {
-		t.Fatal("backup next-hop is not RTNH_F_LINKDOWN flagged")
+	if route.Flags&int(unix.RTNH_F_LINKDOWN) != 0 {
+		t.Fatal("route carries RTNH_F_LINKDOWN")
 	}
-	if backup.Encap == nil {
-		t.Fatal("backup next-hop missing SR repair MPLS encap")
+	backup := net.ParseIP("10.0.0.9")
+	for index, member := range route.MultiPath {
+		if member.Flags&int(unix.RTNH_F_LINKDOWN) != 0 {
+			t.Fatalf("member %d carries RTNH_F_LINKDOWN: %+v", index, member)
+		}
+		if member.Gw.Equal(backup) {
+			t.Fatalf("member %d is the backup gateway 10.0.0.9: %+v", index, member)
+		}
 	}
-	// The primary next-hop is NOT link-down flagged (used in steady state).
-	if route.MultiPath[0].Flags&int(unix.RTNH_F_LINKDOWN) != 0 {
-		t.Fatal("primary next-hop must not be link-down flagged")
+	if route.Gw.Equal(backup) {
+		t.Fatal("route gateway is the backup 10.0.0.9")
 	}
 }

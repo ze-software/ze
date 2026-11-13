@@ -204,8 +204,9 @@ func (in *Installer) insert(r RouteEntry) {
 		}
 		// RFC 5286 / TI-LFA: carry this primary's pre-computed backup (address +
 		// optional SR repair label stack) as carry-through metadata on the Path. It
-		// is excluded from arbitration and installed by the FIB as a link-down/backup
-		// next-hop. Shared, never mutated, mirroring the primary Labels contract.
+		// is excluded from arbitration and reaches the FIB writer beside the primary;
+		// the kernel FIB does not program it (the kernel has no standby multipath
+		// member). Shared, never mutated, mirroring the primary Labels contract.
 		var backupNH netip.Addr
 		var backupIface string
 		var repair []uint32

@@ -174,6 +174,7 @@ show warnings source bgp
 | `fib-sync-failure` | fib | error | Backend add/replace/delete failed |
 | `fib-orphan` | fib | warning | Orphan routes swept at startup |
 | `fib-programming-lag` | fib | warning | Routes pending >30s |
+| `doctor-fib-backup-not-programmed` | fib | warning | Installed routes hold a fast-reroute backup the kernel does not carry; the detail counts them. Cleared when none is left |
 | `firewall-stale-table` | firewall | warning | ze_* table in kernel not in config |
 | `firewall-drift` | firewall | warning | Chain count mismatch vs config, or a ze_* table the kernel no longer has |
 | `doctor-plugin-crashed` | plugin | error | Plugin process exited unexpectedly; carries the exit status and the failure policy ze applies, and clears every warning the plugin raised itself |

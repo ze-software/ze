@@ -144,9 +144,10 @@ type Path struct {
 	// interface require this resolution; an IGP route's Metric is terminal.
 	MetricRecursive bool
 
-	// BackupNextHop is a pre-computed fast-reroute backup next-hop the FIB
-	// programs alongside NextHop as a link-down/backup path (an IP fast-reroute
-	// alternate). It is generic carry-through metadata: an invalid Addr means "no
+	// BackupNextHop is a pre-computed fast-reroute backup next-hop for NextHop
+	// (an IP fast-reroute alternate). sysrib forwards it to the FIB writer, which
+	// does not program it yet: the Linux kernel has no standby multipath member.
+	// It is generic carry-through metadata: an invalid Addr means "no
 	// backup". Like Labels it is EXCLUDED from key() and from best-path
 	// arbitration (arbitration stays AdminDistance then Metric), so a source's
 	// backup can never change which path wins. It IS compared by Equal so a

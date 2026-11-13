@@ -183,6 +183,12 @@ type fibKernel struct {
 	mplsInstalled map[string]bool
 	// mplsSwaps records the source that owns each AF_MPLS incoming label.
 	mplsSwaps map[uint32]uint16
+	// backups holds the installed prefixes whose route carries a fast-reroute
+	// backup the kernel does not hold (backup_report.go).
+	backups map[string]struct{}
+	// backupsReported is the count the report bus last heard. Zero is both
+	// the initial state and the cleared one: nothing is raised in either.
+	backupsReported int
 	// pending tracks routes that failed FIB programming with their first
 	// failure time. Used for fib-programming-lag detection (AC-14).
 	pending map[string]time.Time
@@ -206,6 +212,7 @@ func newFIBKernel(backend routeBackend) *fibKernel {
 		retained:      make(map[string]bool),
 		mplsInstalled: make(map[string]bool),
 		mplsSwaps:     make(map[uint32]uint16),
+		backups:       make(map[string]struct{}),
 		pending:       make(map[string]time.Time),
 		backend:       backend,
 	}
@@ -346,6 +353,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			f.forwarding[pfx] = cloneForwardingChange(c)
 			delete(f.retained, pfx)
 			delete(f.pending, pfx)
+			f.trackBackupLocked(pfx, c)
 			if len(c.Labels) > 0 {
 				f.mplsInstalled[pfx] = true
 			}
@@ -372,6 +380,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			f.forwarding[pfx] = cloneForwardingChange(c)
 			delete(f.retained, pfx)
 			delete(f.pending, pfx)
+			f.trackBackupLocked(pfx, c)
 			// A replace may toggle a prefix between labeled and unlabeled;
 			// keep the MPLS membership set in sync so the gauge is accurate.
 			wasMPLS := f.mplsInstalled[pfx]
@@ -401,6 +410,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			delete(f.forwarding, pfx)
 			delete(f.retained, pfx)
 			delete(f.pending, pfx)
+			delete(f.backups, pfx)
 			wasMPLS := f.mplsInstalled[pfx]
 			delete(f.mplsInstalled, pfx)
 			if m := fibMetricsPtr.Load(); m != nil {
@@ -418,6 +428,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 	}
 
 	f.checkPendingLagLocked(now)
+	f.reportBackupsLocked()
 }
 
 // trackPendingLocked records a failed route's first-failure time.
@@ -463,6 +474,8 @@ func (f *fibKernel) flushRoutes() {
 	f.installed = make(map[string]string)
 	clear(f.forwarding)
 	clear(f.retained)
+	clear(f.backups)
+	f.reportBackupsLocked()
 
 	if m := fibMetricsPtr.Load(); m != nil {
 		m.routesInstalled.Set(0)
@@ -510,8 +523,10 @@ func (f *fibKernel) sweepStale(stale map[string]string) {
 		delete(f.installed, prefix)
 		delete(f.forwarding, prefix)
 		delete(f.retained, prefix)
+		delete(f.backups, prefix)
 		orphanCount++
 	}
+	f.reportBackupsLocked()
 
 	if orphanCount > 0 {
 		report.RaiseWarning(reportSourceFIB, reportCodeFIBOrphan, "sweep",

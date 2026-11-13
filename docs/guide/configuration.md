@@ -348,8 +348,9 @@ ospf {
 <!-- source: internal/plugins/ospf/sr_config.go -- parseSegmentRouting, applySRConfig -->
 
 The `fast-reroute` container enables RFC 5286 LFA / TI-LFA IP fast reroute: SPF
-pre-computes a loop-free backup next-hop per primary and programs it into the FIB
-as a link-down backup. `enable` (default `false`) turns it on; `mode` selects
+pre-computes a loop-free backup next-hop per primary. The backup is not yet
+programmed into the kernel FIB, so it is not used when the primary link fails
+(see the fast reroute section of the OSPF guide). `enable` (default `false`) turns it on; `mode` selects
 `lfa` (default, base loop-free alternates only) or `ti-lfa` (adds a Segment-Routing
 repair-list fallback, which requires `segment-routing` and carries repair labels on
 IPv4 only); `node-protection` (default `true`) prefers node-protecting alternates.

@@ -28,8 +28,11 @@ post-convergence path. This is a COMPUTE, CARRY-THROUGH and INSTALL feature. RFC
   <!-- source: internal/plugins/ospf/spf/graph.go -- Graph -->
 - **A backup is PER-PRIMARY, never an ECMP sibling.** The route entry carries
   backups parallel to next-hops, the Loc-RIB path carries the backup next-hop
-  and repair labels, sysrib forwards them on a dedicated list, and the kernel
-  programs a link-down backup next-hop with the repair encapsulation.
+  and repair labels, and sysrib forwards them on a dedicated list. The kernel
+  FIB does not program the backup: Linux has no standby multipath member and
+  refuses `RTNH_F_LINKDOWN` from userspace, so fib-kernel sends the primary
+  path alone and raises `doctor-fib-backup-not-programmed`.
+  <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute -->
   <!-- source: internal/plugins/ospf/spf/route.go -- RouteEntry -->
   <!-- source: internal/plugins/ospf/sr_tilfa.go -- srRemoteAdjSID -->
 
@@ -37,7 +40,7 @@ post-convergence path. This is a COMPUTE, CARRY-THROUGH and INSTALL feature. RFC
 
 - **The Loc-RIB path equality INCLUDES the backup fields, and the key and
   best-path selection EXCLUDE them.** A backup-only change must re-install so
-  the kernel reprograms, while arbitration stays distance then metric.
+  the FIB writer sees it, while arbitration stays distance then metric.
   Equality is used only for change detection, never in arbitration, so other
   protocols are unaffected.
 

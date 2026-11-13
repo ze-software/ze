@@ -100,7 +100,11 @@ Route wins in a protocol, then gets programmed in the kernel:
    `replaceRoute:71`, `delRoute:59`); labels are validated first
    (`mplsfib.ValidateOutLabels`, `internal/core/mplsfib/label.go`). Failures raise a `fib-sync-failure` report
    and track the prefix as pending for a 30s `fib-programming-lag` warning
-   (`fibkernel.go`, `:359`).
+   (`fibkernel.go`, `:359`). A fast-reroute backup is not programmed: `buildRichRoute`
+   (`nexthop_linux.go`) sends the primary path(s) alone, because Linux has no standby
+   multipath member and refuses `RTNH_F_LINKDOWN` from userspace; `reportBackupsLocked`
+   (`backup_report.go`) keeps one `doctor-fib-backup-not-programmed` warning while any
+   installed route holds a backup.
 9. **Deletion/withdraw.** A Loc-RIB `ChangeRemove` (protocol withdraws, or the whole
    `PathGroup` empties) becomes `RouteActionWithdraw` in `changeToBatch`
    (`sysrib.go`); `processEvent`'s withdraw branch deletes the protocol's `routes[key]`
@@ -171,7 +175,7 @@ Route wins in a protocol, then gets programmed in the kernel:
 | `core/mplsfib/label.go` | `ValidateEntry`/`ValidateOutLabels`: the one label validation every writer applies |
 | `fib/kernel/fibkernel.go` | `fibKernel`: `processEvent` (best-change dispatch), pending/lag tracking, `startupSweep`/`sweepStale`/`flushRoutes` |
 | `fib/kernel/backend_linux.go` | Linux netlink backend: `addRoute`/`delRoute`/`replaceRoute`/`listZeRoutes`, `RTPROT_ZE` |
-| `fib/kernel/richroute.go` | `RichRoute`/`richRouteBackend`: labels/ECMP/SRv6/backup/table-ID programming interface |
+| `fib/kernel/richroute.go` | `RichRoute`/`richRouteBackend`: labels/ECMP/SRv6/table-ID programming interface; `Backup` is carried for replay identity and not programmed |
 | `fib/kernel/mplsentry.go` | `handleMPLSEntry`: push (rich-route) vs swap/pop (AF_MPLS) dispatch for the RSVP-TE/LDP channel |
 | `fib/kernel/monitor.go`, `monitor_linux.go` | External route-change detection (routewatch) and re-assertion |
 | `fib/kernel/register.go` | Plugin registration, `Dependencies: [rib, sysctl]`, startup sweep sequencing |

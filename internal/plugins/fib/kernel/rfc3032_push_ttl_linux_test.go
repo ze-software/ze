@@ -2,8 +2,8 @@
 // Related: nexthop_linux.go -- buildRichRoute, buildMPLSEncap
 //
 // VALIDATES: every label push fib-kernel hands the kernel (the route-level
-// stack, each ECMP member's stack, and each fast-reroute backup's repair
-// stack) is an MPLS lwtunnel whose encoded attributes are the label stack
+// push, each ECMP member's push, and the primary's push on a route that
+// carries a backup) is an MPLS lwtunnel whose encoded attributes are the label stack
 // (MPLS_IPTUNNEL_DST) alone, with no MPLS_IPTUNNEL_TTL. Method: build each
 // route with buildRichRoute, encode every Encap the route carries exactly as
 // netlink sends it, and walk the attributes.
@@ -92,7 +92,7 @@ func assertPushCarriesNoTTL(t *testing.T, where string, encap netlink.Encap, wan
 	}
 }
 
-// RFC requirement: RFC3032-2.4.3-1 positive -- every label push fib-kernel builds (route-level, ECMP member and fast-reroute backup) is an MPLS lwtunnel that carries the label stack and no MPLS_IPTUNNEL_TTL, so the push itself imposes no fixed TTL in place of the IP TTL.
+// RFC requirement: RFC3032-2.4.3-1 positive -- every label push fib-kernel builds (the route-level push, each ECMP member's push, and the primary's push on a route that carries a backup) is an MPLS lwtunnel that carries the label stack and no MPLS_IPTUNNEL_TTL, so the push itself imposes no fixed TTL in place of the IP TTL.
 func TestBuildRichRoutePushCarriesNoTTL(t *testing.T) {
 	prefix := netip.MustParsePrefix("198.51.100.0/24")
 
@@ -133,16 +133,15 @@ func TestBuildRichRoutePushCarriesNoTTL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildRichRoute backup: %v", err)
 	}
-	var repairs int
-	for _, nh := range backup.MultiPath {
-		if nh.Flags&unix.RTNH_F_LINKDOWN == 0 {
-			assertPushCarriesNoTTL(t, "primary beside a backup", nh.Encap, []uint32{16003})
-			continue
-		}
-		repairs++
-		assertPushCarriesNoTTL(t, "fast-reroute repair", nh.Encap, []uint32{16010, 24003})
+	// The kernel gets the primary path alone, so the primary's push is the
+	// route-level encap and the route carries no member that could hold another.
+	assertPushCarriesNoTTL(t, "primary beside a backup", backup.Encap, []uint32{16003})
+	if len(backup.MultiPath) != 0 {
+		t.Fatalf("route with a backup carries %d multipath members, want 0", len(backup.MultiPath))
 	}
-	if repairs != 1 {
-		t.Fatalf("backup route carries %d repair next hops, want 1", repairs)
+	for index, nh := range backup.MultiPath {
+		if nh.Encap != nil {
+			t.Fatalf("route with a backup carries an encap on member %d: %v", index, nh.Encap)
+		}
 	}
 }

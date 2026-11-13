@@ -85,9 +85,10 @@ type BestChangeEntry struct {
 	SRv6SID   netip.Addr `json:"srv6-sid,omitzero"`
 	ECMPPaths []ECMPPath `json:"ecmp-paths,omitempty"`
 	// Backup carries pre-computed fast-reroute backup next-hop(s) (an IP FRR
-	// alternate + optional MPLS repair label stack). Each is programmed by the FIB
-	// as a link-down/backup next-hop, DISTINCT from ECMPPaths (which load-share):
-	// the kernel forwards to a backup only when the primary link is down.
+	// alternate + optional MPLS repair label stack), DISTINCT from ECMPPaths
+	// (which load-share). fib-kernel does not program it: Linux has no standby
+	// multipath member, so the kernel gets the primary path(s) alone and the
+	// backup is not used on a primary link failure.
 	Backup []ECMPPath `json:"backup,omitempty"`
 }
 

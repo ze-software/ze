@@ -604,7 +604,11 @@ ospf {
 }
 ```
 
-`show ospf route fast-reroute` lists each prefix's primary next-hops with their backup next-hop, protection class (node/link/downstream), and TI-LFA repair label stack; unprotected primaries are shown as unprotected. Fast-reroute activity is exposed by the `ze_ospf_fast_reroute_*` metric series: `ze_ospf_fast_reroute_protected_prefixes{area,class}`, `ze_ospf_fast_reroute_unprotected_prefixes{area,reason}`, `ze_ospf_fast_reroute_backups_installed{kind}`, `ze_ospf_fast_reroute_compute_seconds{area}`, and `ze_ospf_fast_reroute_ti_lfa_repair_labels{area}`. On Linux the backup is programmed as a link-down/backup multipath next-hop carrying the repair MPLS encap, so the kernel forwards to it only when the primary link is down.
+`show ospf route fast-reroute` lists each prefix's primary next-hops with their backup next-hop, protection class (node/link/downstream), and TI-LFA repair label stack; unprotected primaries are shown as unprotected. Fast-reroute activity is exposed by the `ze_ospf_fast_reroute_*` metric series: `ze_ospf_fast_reroute_protected_prefixes{area,class}`, `ze_ospf_fast_reroute_unprotected_prefixes{area,reason}`, `ze_ospf_fast_reroute_backups_installed{kind}`, `ze_ospf_fast_reroute_compute_seconds{area}`, and `ze_ospf_fast_reroute_ti_lfa_repair_labels{area}`.
+
+**Gap: the backup is computed and shown, but not used for forwarding.** The Linux kernel route holds the primary path only. The kernel has no standby next-hop in a multipath route, and it refuses the link-down flag from userspace, so Ze does not program the backup. When the primary link fails, traffic is not moved to the backup: it recovers only when OSPF converges again. While any installed route holds a backup that is not programmed, `show warnings` carries one `doctor-fib-backup-not-programmed` warning with the number of such routes.
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute -->
+<!-- source: internal/plugins/fib/kernel/backup_report.go -- reportBackupsLocked -->
 <!-- source: internal/plugins/ospf/spf/lfa.go -- RFC 5286 base LFA selection -->
 <!-- source: internal/plugins/ospf/spf/tilfa.go -- TI-LFA post-convergence repair-list builder -->
 <!-- source: internal/plugins/ospf/spf/lfa_multiarea.go -- RFC 5286 §6.3 multi-area suppression -->
