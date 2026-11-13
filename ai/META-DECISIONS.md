@@ -473,7 +473,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   sessions' work. Check available space before large copies and reuse suitable
   outputs. Record the purpose and removal condition of anything retained,
   explain large retained items, and report substantial space recovered.
-- A defect you walk into while working on something else gets one journal row in
+- A problem found while working is fixed in the work in hand. A new spec is
+  created only when the problem is so big that fixing it would derail the work
+  it was found in. Reading a rule as an order to open a spec for anything
+  smaller is a misreading, and it is never what Thomas meant.
+- A defect too big to fix in the work in hand gets one journal row in
   `plan/journal/<class>.md`; grep `plan/journal/` first, because other sessions
   meet the same defect. List that row in the owned journal rows table of the
   spec that will fix it: an existing spec whose mechanism fits, or a new one.
