@@ -73,6 +73,12 @@ func (worker *routeViewWorker) run(ctx context.Context) {
 	defer close(worker.done)
 	defer worker.client.health.stop()
 	if err := worker.consume(ctx); err != nil {
+		// The engine's stop fences native dispatch before the owner context
+		// ends, so the fence itself is a normal stop. A failed callback loop
+		// reports its own cause, and a live owner's refusal is an RPC error.
+		if errors.Is(err, rpc.ErrBridgeClosed) {
+			return
+		}
 		if ctx.Err() != nil {
 			if errors.Is(err, ctx.Err()) {
 				return
