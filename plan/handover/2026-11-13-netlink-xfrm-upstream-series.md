@@ -51,12 +51,30 @@ In the working tree the ike dataplane package has one red,
 `TestVPPInstallPolicyPartialPortMaskRefused`, in the uncommitted VPP policy work
 of the RFC 4301 spec. It is not caused by the library.
 
-## Order of work
+## Progress and what is next
 
-Nothing blocks the split any more: the vendored netlink XFRM files and their
-patch are clean in git. What remains before the first edit is Thomas moving the
-spec from `design` to `ready`, and the check of `git status` that risk R-7 asks
-for, since the RFC 4301 work may touch the library again.
+Landed in `b43120b371`: the single patch is a series of eleven files, the guard
+judges a patch at its place in the stack, and every page names the series. The
+spec's Design Insights section lists the series, its order and what each patch
+needs. The spec is `in-progress`, claimed one above the WIP cap on the owner's
+one-off exception.
+
+| Next | State | Blocked by |
+|------|-------|------------|
+| Upstream-style tests, and the two selector gaps (AC-3, AC-7, AC-8) | Not started | Nothing |
+| Each upstream-candidate patch checked against a clone of upstream `main` (AC-2) | Not started | Nothing; needs a clone outside the checkout |
+| Private kernel ABI moved into `internal/component/ike/dataplane` (AC-5, AC-6) | Not started | The RFC 4301 session's uncommitted dataplane callers (`xfrm_linux.go`, `state_scope.go`, `xfrm_state_scope_linux.go`, `xfrm_forward_default_linux.go`): the move edits those files |
+| Pull requests (AC-11) | Not started | The owner's order |
+
+Also in the working tree, not this spec's: `rfc7296_vpp_message_test.go` carries
+an approved repair of `TestVPPInstallPolicyPartialPortMaskRefused` and a new
+`TestVPPInstallPolicyAnyProtocolPortRefused`. They pass only with the RFC 4301
+session's uncommitted change to `vpp_policy.go`, so they land in that session's
+commit. The judge's approval row is in `tmp/commit-weakening-approved-ea3b8173.md`.
+
+Scratch kept in `tmp/session/2026-11-13-112345/scratch/`: `xfrm-series/` (the
+scripts and stages that built the series) and `series-commit/`. Both can be
+removed once the upstream-style tests phase has regenerated the patches.
 
 ## Design choices
 

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | The XFRM corrections already work through the single vendored patch; reshaping them so upstream can take them changes no shipped behavior, so it does not block release correctness or proof. |
@@ -396,6 +396,13 @@ through the daemon that the states and policies still install.
 
 ## Design Insights
 
+- Phases landed in `b43120b371` (2026-11-13): the split into eleven files (AC-1, AC-4, AC-10), the guard (AC-9 as amended below, AC-13) and the pages (AC-12). Open: the upstream-style tests and the two selector gaps (AC-3, AC-7, AC-8), the check of each patch against upstream `main` (AC-2), the move of the private ABI into the dataplane (AC-5, AC-6), and the pull requests on the owner's order (AC-11).
+- AC-9 is amended by the independent test judge's refusal: the hand-named guards stay. A guard derived from the directory cannot notice a patch file that is gone, so each named guard pins that its patch is present, and `TestNetlinkXFRMPatchApplied` names the eleven files. `TestEveryVendorPatchIsApplied` guards every file present beside them. Returning to one list needs a check that refuses the removal of a patch file, such as the commit gate treating it as it treats a removed test; that is separate work and the owner's choice.
+- A patch of a series does not reverse out of the final vendored tree when a later patch sits on its lines, so `assertVendorPatchApplied` judges a patch at its place in its module's stack: the later patches of the same module are reversed first, in a copy.
+- The already-applied probe of the re-vendor step (`applyVendorPatches`) and of the Dependabot workflow asks the same standalone question. Both run on a freshly vendored tree, where applying the series in order works. Run on an already patched tree, the probe would misjudge a stacked patch as not applied and then fail its forward check. Nothing does that today; it is a limit to remove before anything does.
+- Patch 05 carries `xfrm_state_scope_linux_test.go` (it tests only the truncated-header refusal) and patch 90 carries `xfrm_selector_family_linux_test.go` (it calls the private scope writer). Both are rewritten without Ze in the upstream-style tests phase, where the selector test moves to patch 10.
+- The series order and each patch's predecessors: 01 state read-back (ESN flag, replay window), 02 replay window above 32, 03 template family with no destination (these three are upstream issue 1213); 04 read-back by message family (needs 01); 05 truncated state header; 06 selector port masks (needs 01, 04); 07 AFUnspec (needs 01); 08 NoPMTUDisc (needs 07); 09 ICMP flag (needs 06, 08); 10 selector family from the prefix mask; 90 Ze state scope (needs 09).
+- The owner granted a one-off exception to the WIP cap for this spec on 2026-11-13: it was claimed one above the cap, on his order to implement it. The cap itself is unchanged.
 - AC-13 is already met: commit `ce3a0e0fd7` made `TestPatchedVendorModulesMatchUpstream` apply every patch forward, and the journal row this spec owned for it is `fixed:`. The remaining guard work of this spec is the one derived guard over the patch directory.
 - The starting state, the order of work and the findings behind A-1, A-5 and A-6 are in `plan/handover/2026-11-13-netlink-xfrm-upstream-series.md`.
 
