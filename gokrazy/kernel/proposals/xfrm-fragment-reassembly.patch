@@ -1,0 +1,1813 @@
+Uncompiled, unenrolled proposal.
+Transport plaintext-fragment rejection remains unresolved.
+This proposal is not proof of support.
+
+Base: K1 state scope followed by K2 fragment context on Linux 7.3.
+Original proposal SHA256:
+a106cdf1e964a08281f90fd7cac0c7ee881c3ee66b47ed22a87faf04101e648e
+Only the new-file creation header was repaired in this preserved copy.
+
+diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
+--- a/include/linux/skbuff.h
++++ b/include/linux/skbuff.h
+@@ -5033,6 +5033,9 @@
+ #ifdef CONFIG_XFRM
+ 	SKB_EXT_SEC_PATH,
+ #endif
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	SKB_EXT_XFRM_RAW_ROUTE,
++#endif
+ #if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+ 	TC_SKB_EXT,
+ #endif
+@@ -5072,6 +5075,7 @@
+ void *__skb_ext_set(struct sk_buff *skb, enum skb_ext_id id,
+ 		    struct skb_ext *ext);
+ void *skb_ext_add(struct sk_buff *skb, enum skb_ext_id id);
++unsigned int skb_ext_allocation_size(void);
+ void __skb_ext_del(struct sk_buff *skb, enum skb_ext_id id);
+ void __skb_ext_put(struct skb_ext *ext);
+ 
+diff --git a/include/net/inet_frag.h b/include/net/inet_frag.h
+--- a/include/net/inet_frag.h
++++ b/include/net/inet_frag.h
+@@ -137,7 +137,9 @@
+ 
+ bool inet_frag_xfrm_context_init(struct xfrm_frag_context *context,
+ 				 const struct sk_buff *skb);
+-/* Queue constructors MUST get each scope; final destructors MUST put it. */
++/* Queue constructors MUST get scopes and receipt; final destructors MUST put
++ * them, including an empty/unpublished queue rejected for charge overflow.
++ */
+ void inet_frag_xfrm_context_get(struct inet_frag_queue *q,
+ 				const struct xfrm_frag_context *context);
+ void inet_frag_xfrm_context_put(const struct xfrm_frag_context *context);
+diff --git a/include/net/ip.h b/include/net/ip.h
+--- a/include/net/ip.h
++++ b/include/net/ip.h
+@@ -762,6 +762,12 @@
+ 	IP_DEFRAG_VS_FWD,
+ 	IP_DEFRAG_AF_PACKET,
+ 	IP_DEFRAG_MACVLAN,
++	IP_DEFRAG_XFRM_IN,
++	__IP_DEFRAG_XFRM_IN_END = IP_DEFRAG_XFRM_IN + USHRT_MAX,
++	IP_DEFRAG_XFRM_OUT,
++	__IP_DEFRAG_XFRM_OUT_END = IP_DEFRAG_XFRM_OUT + USHRT_MAX,
++	IP_DEFRAG_XFRM_BRIDGE_IN,
++	__IP_DEFRAG_XFRM_BRIDGE_IN_END = IP_DEFRAG_XFRM_BRIDGE_IN + USHRT_MAX,
+ };
+ 
+ /* Return true if the value of 'user' is between 'lower_bond'
+diff --git a/include/net/ip6_route.h b/include/net/ip6_route.h
+--- a/include/net/ip6_route.h
++++ b/include/net/ip6_route.h
+@@ -92,6 +92,8 @@
+ 
+ struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
+ 					 struct flowi6 *fl6, int flags);
++struct dst_entry *ip6_route_output_params(struct net *net, struct flowi6 *fl6,
++					int flags, bool bound, u16 srcprefs);
+ 
+ static inline struct dst_entry *ip6_route_output(struct net *net,
+ 						 const struct sock *sk,
+diff --git a/include/net/ipv6.h b/include/net/ipv6.h
+--- a/include/net/ipv6.h
++++ b/include/net/ipv6.h
+@@ -1059,6 +1059,8 @@
+ 
+ int ip6_dst_lookup(struct net *net, struct sock *sk, struct dst_entry **dst,
+ 		   struct flowi6 *fl6);
++int ip6_dst_lookup_params(struct net *net, struct dst_entry **dst,
++			  struct flowi6 *fl6, bool bound, u16 srcprefs);
+ #if IS_ENABLED(CONFIG_IPV6)
+ struct dst_entry *ip6_dst_lookup_flow(struct net *net, const struct sock *sk, struct flowi6 *fl6,
+ 				      const struct in6_addr *final_dst);
+diff --git a/include/net/ipv6_frag.h b/include/net/ipv6_frag.h
+--- a/include/net/ipv6_frag.h
++++ b/include/net/ipv6_frag.h
+@@ -15,6 +15,12 @@
+ 	__IP6_DEFRAG_CONNTRACK_OUT	= IP6_DEFRAG_CONNTRACK_OUT + USHRT_MAX,
+ 	IP6_DEFRAG_CONNTRACK_BRIDGE_IN,
+ 	__IP6_DEFRAG_CONNTRACK_BRIDGE_IN = IP6_DEFRAG_CONNTRACK_BRIDGE_IN + USHRT_MAX,
++	IP6_DEFRAG_XFRM_IN,
++	__IP6_DEFRAG_XFRM_IN_END = IP6_DEFRAG_XFRM_IN + USHRT_MAX,
++	IP6_DEFRAG_XFRM_OUT,
++	__IP6_DEFRAG_XFRM_OUT_END = IP6_DEFRAG_XFRM_OUT + USHRT_MAX,
++	IP6_DEFRAG_XFRM_BRIDGE_IN,
++	__IP6_DEFRAG_XFRM_BRIDGE_IN_END = IP6_DEFRAG_XFRM_BRIDGE_IN + USHRT_MAX,
+ };
+ 
+ /*
+diff --git a/include/net/netfilter/ipv4/nf_defrag_ipv4.h b/include/net/netfilter/ipv4/nf_defrag_ipv4.h
+--- a/include/net/netfilter/ipv4/nf_defrag_ipv4.h
++++ b/include/net/netfilter/ipv4/nf_defrag_ipv4.h
+@@ -2,8 +2,12 @@
+ #ifndef _NF_DEFRAG_IPV4_H
+ #define _NF_DEFRAG_IPV4_H
+ 
++#include <linux/types.h>
++
+ struct net;
++struct sk_buff;
+ int nf_defrag_ipv4_enable(struct net *net);
+ void nf_defrag_ipv4_disable(struct net *net);
++u32 nf_ct_defrag_user(unsigned int hooknum, struct sk_buff *skb);
+ 
+ #endif /* _NF_DEFRAG_IPV4_H */
+diff --git a/include/net/netfilter/ipv6/nf_defrag_ipv6.h b/include/net/netfilter/ipv6/nf_defrag_ipv6.h
+--- a/include/net/netfilter/ipv6/nf_defrag_ipv6.h
++++ b/include/net/netfilter/ipv6/nf_defrag_ipv6.h
+@@ -7,6 +7,7 @@
+ 
+ int nf_defrag_ipv6_enable(struct net *net);
+ void nf_defrag_ipv6_disable(struct net *net);
++u32 nf_ct6_defrag_user(unsigned int hooknum, struct sk_buff *skb);
+ 
+ int nf_ct_frag6_init(void);
+ void nf_ct_frag6_cleanup(void);
+diff --git a/include/net/xfrm.h b/include/net/xfrm.h
+--- a/include/net/xfrm.h
++++ b/include/net/xfrm.h
+@@ -214,6 +214,74 @@
+ bool xfrm_state_scope_match(const struct xfrm_state *x,
+ 			    const struct flowi *fl, unsigned short family);
+ void xfrm_state_scope_hold_guard(struct xfrm_state *x);
++bool xfrm_state_noninitial_allowed(const struct xfrm_state *x);
++
++/* Presence is the deferred-lookup flag. Immutable while queued; clone/morph
++ * MUST retain the offset-zero packet's seed until successful final lookup.
++ * Each stack owner and extension MUST own a separate policy receipt ref.
++ */
++struct xfrm_raw_route {
++	struct flowi flow;
++	struct xfrm_policy_receipt *policy;
++	u32 sk_mark;
++	unsigned short family;
++	u16 srcprefs;
++	bool bound;
++};
++
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++struct nf_hook_state;
++
++void xfrm_policy_receipt_get(struct xfrm_policy_receipt *receipt);
++void xfrm_policy_receipt_put(struct xfrm_policy_receipt *receipt);
++unsigned int xfrm_policy_receipt_size(const struct xfrm_policy_receipt *receipt);
++struct xfrm_policy_receipt *xfrm_policy_receipt_capture(const struct sock *sk);
++struct dst_entry *xfrm_lookup_raw(struct net *net, struct dst_entry *dst,
++				const struct flowi *fl,
++				const struct xfrm_raw_route *saved);
++int xfrm_raw_route_capture(struct xfrm_raw_route *saved, const struct sock *sk,
++			   const void *flow, unsigned short family);
++void xfrm_raw_route_release(struct xfrm_raw_route *saved);
++bool xfrm_fragment_guard_ready(void);
++static inline bool xfrm_fragment_guard_active(const struct net *net)
++{
++	return xfrm_fragment_guard_ready() &&
++		atomic_read(&net->xfrm.fragment_guard_refs);
++}
++
++int xfrm_raw_route_save(struct sk_buff *skb, const struct xfrm_raw_route *saved);
++
++/* NF_ACCEPT keeps a live skb; NF_STOLEN means gather consumed it.
++ * NF_DROP leaves disposal to netfilter. A LOCAL_OUT caller MUST reroute
++ * every successful reassembly before it continues through later hooks.
++ */
++unsigned int xfrm4_fragment_gather(struct sk_buff *skb,
++				 const struct nf_hook_state *state,
++				 bool force, bool *reassembled);
++unsigned int xfrm6_fragment_gather(struct sk_buff *skb,
++				 const struct nf_hook_state *state,
++				 bool force, bool *reassembled);
++#else
++static inline bool xfrm_fragment_guard_active(const struct net *net)
++{
++	return false;
++}
++
++static inline int xfrm_raw_route_capture(struct xfrm_raw_route *saved,
++					const struct sock *sk, const void *flow,
++					unsigned short family)
++{
++	return 0;
++}
++
++static inline void xfrm_raw_route_release(struct xfrm_raw_route *saved) {}
++
++static inline int xfrm_raw_route_save(struct sk_buff *skb,
++				     const struct xfrm_raw_route *saved)
++{
++	return 0;
++}
++#endif
+ 
+ /* Full description of state of transformer. */
+ struct xfrm_state {
+@@ -686,6 +754,10 @@
+ 	struct xfrm_policy_queue polq;
+ 	bool                    bydst_reinsert;
+ 	bool			fragment_guard_held;
++	bool			detached_receipt;
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	struct xfrm_policy_receipt *raw_receipt;
++#endif
+ 	u8			type;
+ 	u8			action;
+ 	u8			flags;
+diff --git a/include/net/xfrm_scope.h b/include/net/xfrm_scope.h
+--- a/include/net/xfrm_scope.h
++++ b/include/net/xfrm_scope.h
+@@ -3,14 +3,29 @@
+ #define _NET_XFRM_SCOPE_H
+ 
+ #include <linux/types.h>
++#include <net/flow.h>
+ 
+ /* Shared with fragment keys without importing XFRM's namespace users. */
+ #define XFRM_MAX_DEPTH 6
+ 
+ struct xfrm_state_scope;
++struct xfrm_policy_receipt;
++
++/* Canonical fields only: hash keys MUST leave every padding byte zero. */
++struct xfrm_raw_authority {
++	struct flowi_common common;
++	struct xfrm_policy_receipt *policy;
++	__be32 flowlabel;
++	u32 sk_mark;
++	u16 family;
++	u16 srcprefs;
++	u8 bound;
++	u8 present;
++};
+ 
+ struct xfrm_frag_context {
+ 	struct xfrm_state_scope *scopes[XFRM_MAX_DEPTH];
++	struct xfrm_raw_authority raw;
+ 	u32 len;
+ };
+ 
+diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+--- a/net/core/skbuff.c
++++ b/net/core/skbuff.c
+@@ -5158,6 +5158,9 @@
+ #ifdef CONFIG_XFRM
+ 	[SKB_EXT_SEC_PATH] = SKB_EXT_CHUNKSIZEOF(struct sec_path),
+ #endif
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	[SKB_EXT_XFRM_RAW_ROUTE] = SKB_EXT_CHUNKSIZEOF(struct xfrm_raw_route),
++#endif
+ #if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+ 	[TC_SKB_EXT] = SKB_EXT_CHUNKSIZEOF(struct tc_skb_ext),
+ #endif
+@@ -7178,6 +7181,17 @@
+ 	memcpy(new, old, old->chunks * SKB_EXT_ALIGN_VALUE);
+ 	refcount_set(&new->refcnt, 1);
+ 
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	/* memcpy copies allocated inactive slots as well. Final destruction
++	 * visits offsets, so EACH copied allocated receipt MUST own a ref.
++	 */
++	if (__skb_ext_exist(new, SKB_EXT_XFRM_RAW_ROUTE)) {
++		struct xfrm_raw_route *raw;
++
++		raw = skb_ext_get_ptr(new, SKB_EXT_XFRM_RAW_ROUTE);
++		xfrm_policy_receipt_get(raw->policy);
++	}
++#endif
+ #ifdef CONFIG_XFRM
+ 	if (old_active & (1 << SKB_EXT_SEC_PATH)) {
+ 		struct sec_path *sp = skb_ext_get_ptr(old, SKB_EXT_SEC_PATH);
+@@ -7250,8 +7264,18 @@
+ 		if (!new)
+ 			return NULL;
+ 
+-		if (__skb_ext_exist(new, id))
++		if (__skb_ext_exist(new, id)) {
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++			if (id == SKB_EXT_XFRM_RAW_ROUTE &&
++			    !(skb->active_extensions & (1 << id))) {
++				struct xfrm_raw_route *raw = skb_ext_get_ptr(new, id);
++
++				xfrm_policy_receipt_put(raw->policy);
++				memset(raw, 0, sizeof(*raw));
++			}
++#endif
+ 			goto set_active;
++		}
+ 
+ 		newoff = new->chunks;
+ 	} else {
+@@ -7265,6 +7289,10 @@
+ 	newlen = newoff + skb_ext_type_len[id];
+ 	new->chunks = newlen;
+ 	new->offset[id] = newoff;
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	if (id == SKB_EXT_XFRM_RAW_ROUTE)
++		memset(skb_ext_get_ptr(new, id), 0, sizeof(struct xfrm_raw_route));
++#endif
+ set_active:
+ 	skb->slow_gro = 1;
+ 	skb->extensions = new;
+@@ -7273,6 +7301,15 @@
+ }
+ EXPORT_SYMBOL(skb_ext_add);
+ 
++/* Extensions are separate allocations, outside a socket's skb truesize.
++ * Queues retaining them MUST charge the actual cache allocation separately.
++ */
++unsigned int skb_ext_allocation_size(void)
++{
++	return kmem_cache_size(skbuff_ext_cache);
++}
++EXPORT_SYMBOL_GPL(skb_ext_allocation_size);
++
+ #ifdef CONFIG_XFRM
+ static void skb_ext_put_sp(struct sec_path *sp)
+ {
+@@ -7299,6 +7336,14 @@
+ 	if (skb->active_extensions == 0) {
+ 		skb->extensions = NULL;
+ 		__skb_ext_put(ext);
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	} else if (id == SKB_EXT_XFRM_RAW_ROUTE &&
++		   refcount_read(&ext->refcnt) == 1) {
++		struct xfrm_raw_route *raw = skb_ext_get_ptr(ext, id);
++
++		xfrm_policy_receipt_put(raw->policy);
++		raw->policy = NULL;
++#endif
+ #ifdef CONFIG_XFRM
+ 	} else if (id == SKB_EXT_SEC_PATH &&
+ 		   refcount_read(&ext->refcnt) == 1) {
+@@ -7322,6 +7367,14 @@
+ 	if (!refcount_dec_and_test(&ext->refcnt))
+ 		return;
+ free_now:
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	if (__skb_ext_exist(ext, SKB_EXT_XFRM_RAW_ROUTE)) {
++		struct xfrm_raw_route *raw;
++
++		raw = skb_ext_get_ptr(ext, SKB_EXT_XFRM_RAW_ROUTE);
++		xfrm_policy_receipt_put(raw->policy);
++	}
++#endif
+ #ifdef CONFIG_XFRM
+ 	if (__skb_ext_exist(ext, SKB_EXT_SEC_PATH))
+ 		skb_ext_put_sp(skb_ext_get_ptr(ext, SKB_EXT_SEC_PATH));
+diff --git a/net/ipv4/inet_fragment.c b/net/ipv4/inet_fragment.c
+--- a/net/ipv4/inet_fragment.c
++++ b/net/ipv4/inet_fragment.c
+@@ -26,6 +26,47 @@
+ #include <net/ipv6.h>
+ #include <net/xfrm.h>
+ 
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++/* RFC 4301 Section 7.4: "All implementations MUST support DISCARDing of
++ * fragments using the normal SPD packet classification mechanisms."
++ * inet_frag_xfrm_context_init retains that authority for the completed
++ * packet's xfrm_fragment_route lookup. Both compare keys are zeroed first.
++ * Copy members individually:
++ * flowi_common padding is not authority and MUST NOT enter the hash key.
++ */
++static void inet_frag_raw_authority(struct xfrm_raw_authority *raw,
++				    const struct sk_buff *skb)
++{
++	const struct xfrm_raw_route *saved;
++	const struct flowi_common *common;
++
++	saved = skb_ext_find(skb, SKB_EXT_XFRM_RAW_ROUTE);
++	if (!saved)
++		return;
++	common = &saved->flow.u.__fl_common;
++	raw->common.flowic_oif = common->flowic_oif;
++	raw->common.flowic_iif = common->flowic_iif;
++	raw->common.flowic_l3mdev = common->flowic_l3mdev;
++	raw->common.flowic_mark = common->flowic_mark;
++	raw->common.flowic_dscp = common->flowic_dscp;
++	raw->common.flowic_scope = common->flowic_scope;
++	raw->common.flowic_proto = common->flowic_proto;
++	raw->common.flowic_flags = common->flowic_flags;
++	raw->common.flowic_secid = common->flowic_secid;
++	raw->common.flowic_uid = common->flowic_uid;
++	raw->common.flowic_multipath_hash = common->flowic_multipath_hash;
++	raw->common.flowic_tun_key.tun_id = common->flowic_tun_key.tun_id;
++	raw->policy = saved->policy;
++	raw->sk_mark = saved->sk_mark;
++	raw->family = saved->family;
++	raw->srcprefs = saved->srcprefs;
++	raw->bound = saved->bound;
++	raw->present = 1;
++	if (saved->family == AF_INET6)
++		raw->flowlabel = saved->flow.u.ip6.flowlabel;
++}
++#endif
++
+ bool inet_frag_xfrm_context_init(struct xfrm_frag_context *context,
+ 				 const struct sk_buff *skb)
+ {
+@@ -34,6 +75,10 @@
+ 	unsigned int i;
+ #endif
+ 	memset(context, 0, sizeof(*context));
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	/* Raw LOCAL_OUT traffic normally has no secpath at all. */
++	inet_frag_raw_authority(&context->raw, skb);
++#endif
+ #ifdef CONFIG_XFRM
+ 	if (!sp)
+ 		return true;
+@@ -64,8 +109,21 @@
+ 		       sizeof(struct xfrm_selector)) <= UINT_MAX);
+ 	for (i = 0; i < context->len; i++) {
+ 		xfrm_state_scope_get(context->scopes[i]);
+-		q->extra_mem += xfrm_state_scope_size(context->scopes[i]);
+-	}
++		if (check_add_overflow(q->extra_mem,
++				       (unsigned int)xfrm_state_scope_size(context->scopes[i]),
++				       &q->extra_mem))
++			q->extra_mem = UINT_MAX;
++	}
++#endif
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	xfrm_policy_receipt_get(context->raw.policy);
++	/* Saturation forces inet_frag_alloc's qsize addition to reject before
++	 * publication; its destructor MUST still release every acquired ref.
++	 */
++	if (check_add_overflow(q->extra_mem,
++			       xfrm_policy_receipt_size(context->raw.policy),
++			       &q->extra_mem))
++		q->extra_mem = UINT_MAX;
+ #endif
+ }
+ EXPORT_SYMBOL_GPL(inet_frag_xfrm_context_get);
+@@ -78,6 +136,9 @@
+ 
+ 	for (i = 0; i < context->len; i++)
+ 		xfrm_state_scope_put(context->scopes[i]);
++#endif
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	xfrm_policy_receipt_put(context->raw.policy);
+ #endif
+ }
+ EXPORT_SYMBOL_GPL(inet_frag_xfrm_context_put);
+@@ -506,6 +567,25 @@
+ 			   int offset, int end)
+ {
+ 	struct sk_buff *last = q->fragments_tail;
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	unsigned int extra_mem, charge = 0;
++
++	/* Inactive allocated slots can still own receipts after shared
++	 * deletion. Charge their retained bytes too, exactly as final put does.
++	 */
++	if (skb->active_extensions &&
++	    __skb_ext_exist(skb->extensions, SKB_EXT_XFRM_RAW_ROUTE)) {
++		struct skb_ext *ext = skb->extensions;
++		const struct xfrm_raw_route *raw;
++
++		raw = (void *)ext + (ext->offset[SKB_EXT_XFRM_RAW_ROUTE] << 3);
++		if (check_add_overflow(skb_ext_allocation_size(),
++				       xfrm_policy_receipt_size(raw->policy), &charge))
++			return IPFRAG_OVERLAP;
++	}
++	if (check_add_overflow(q->extra_mem, charge, &extra_mem))
++		return IPFRAG_OVERLAP;
++#endif
+ 
+ 	/* An IP fragment is never a GSO packet, but an untrusted source
+ 	 * (virtio_net_hdr) may have attached GSO metadata to it. Do not let
+@@ -571,6 +651,13 @@
+ 	if (offset)
+ 		nf_reset_ct(skb);
+ 
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	/* Charge only successful insertion, even when the allocation is shared.
++	 * The final RCU destructor MUST release this with other retained bytes.
++	 */
++	q->extra_mem = extra_mem;
++	add_frag_mem_limit(q->fqdir, charge);
++#endif
+ 	return IPFRAG_OK;
+ }
+ EXPORT_SYMBOL(inet_frag_queue_insert);
+diff --git a/net/ipv4/ip_fragment.c b/net/ipv4/ip_fragment.c
+--- a/net/ipv4/ip_fragment.c
++++ b/net/ipv4/ip_fragment.c
+@@ -116,7 +116,11 @@
+ 	       ip_defrag_user_in_between(user, IP_DEFRAG_CONNTRACK_IN,
+ 					 __IP_DEFRAG_CONNTRACK_IN_END) ||
+ 	       ip_defrag_user_in_between(user, IP_DEFRAG_CONNTRACK_BRIDGE_IN,
+-					 __IP_DEFRAG_CONNTRACK_BRIDGE_IN);
++					 __IP_DEFRAG_CONNTRACK_BRIDGE_IN) ||
++	       ip_defrag_user_in_between(user, IP_DEFRAG_XFRM_IN,
++					 __IP_DEFRAG_XFRM_IN_END) ||
++	       ip_defrag_user_in_between(user, IP_DEFRAG_XFRM_BRIDGE_IN,
++					 __IP_DEFRAG_XFRM_BRIDGE_IN_END);
+ }
+ 
+ /*
+diff --git a/net/ipv4/netfilter/nf_defrag_ipv4.c b/net/ipv4/netfilter/nf_defrag_ipv4.c
+--- a/net/ipv4/netfilter/nf_defrag_ipv4.c
++++ b/net/ipv4/netfilter/nf_defrag_ipv4.c
+@@ -38,8 +38,7 @@
+ 	return err;
+ }
+ 
+-static enum ip_defrag_users nf_ct_defrag_user(unsigned int hooknum,
+-					      struct sk_buff *skb)
++u32 nf_ct_defrag_user(unsigned int hooknum, struct sk_buff *skb)
+ {
+ 	u16 zone_id = NF_CT_DEFAULT_ZONE_ID;
+ #if IS_ENABLED(CONFIG_NF_CONNTRACK)
+@@ -58,6 +57,7 @@
+ 	else
+ 		return IP_DEFRAG_CONNTRACK_OUT + zone_id;
+ }
++EXPORT_SYMBOL_GPL(nf_ct_defrag_user);
+ 
+ static unsigned int ipv4_conntrack_defrag(void *priv,
+ 					  struct sk_buff *skb,
+diff --git a/net/ipv4/raw.c b/net/ipv4/raw.c
+--- a/net/ipv4/raw.c
++++ b/net/ipv4/raw.c
+@@ -333,7 +333,8 @@
+ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
+ 			   struct msghdr *msg, size_t length,
+ 			   struct rtable **rtp, unsigned int flags,
+-			   const struct sockcm_cookie *sockc)
++			   const struct sockcm_cookie *sockc,
++			   const struct xfrm_raw_route *route_seed)
+ {
+ 	struct inet_sock *inet = inet_sk(sk);
+ 	struct net *net = sock_net(sk);
+@@ -416,6 +417,12 @@
+ 				skb_transport_header(skb))->type);
+ 	}
+ 
++	if (route_seed) {
++		err = xfrm_raw_route_save(skb, route_seed);
++		if (err)
++			goto error_free;
++	}
++
+ 	err = NF_HOOK(NFPROTO_IPV4, NF_INET_LOCAL_OUT,
+ 		      net, sk, skb, NULL, rt->dst.dev,
+ 		      dst_output);
+@@ -495,6 +502,8 @@
+ 	struct ipcm_cookie ipc;
+ 	struct rtable *rt = NULL;
+ 	struct flowi4 fl4;
++	struct xfrm_raw_route route_seed = {};
++	bool defer_xfrm;
+ 	u8 scope;
+ 	int free = 0;
+ 	__be32 daddr;
+@@ -633,7 +642,15 @@
+ 	}
+ 
+ 	security_sk_classify_flow(sk, flowi4_to_flowi_common(&fl4));
+-	rt = ip_route_output_flow(net, &fl4, sk);
++	defer_xfrm = hdrincl && xfrm_fragment_guard_active(net);
++	if (defer_xfrm) {
++		err = xfrm_raw_route_capture(&route_seed, sk, &fl4, AF_INET);
++		if (err)
++			goto done;
++		rt = ip_route_output_key(net, &fl4);
++	} else {
++		rt = ip_route_output_flow(net, &fl4, sk);
++	}
+ 	if (IS_ERR(rt)) {
+ 		err = PTR_ERR(rt);
+ 		rt = NULL;
+@@ -650,7 +667,8 @@
+ 
+ 	if (hdrincl)
+ 		err = raw_send_hdrinc(sk, &fl4, msg, len,
+-				      &rt, msg->msg_flags, &ipc.sockc);
++				      &rt, msg->msg_flags, &ipc.sockc,
++				      defer_xfrm ? &route_seed : NULL);
+ 
+ 	 else {
+ 		if (!ipc.addr)
+@@ -674,6 +692,7 @@
+ 	ip_rt_put(rt);
+ 
+ out:
++	xfrm_raw_route_release(&route_seed);
+ 	if (err < 0)
+ 		return err;
+ 	return len;
+diff --git a/net/ipv6/ip6_output.c b/net/ipv6/ip6_output.c
+--- a/net/ipv6/ip6_output.c
++++ b/net/ipv6/ip6_output.c
+@@ -1134,8 +1134,9 @@
+ 	return dst;
+ }
+ 
+-static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
+-			       struct dst_entry **dst, struct flowi6 *fl6)
++static int ip6_dst_lookup_tail_params(struct net *net, struct dst_entry **dst,
++				      struct flowi6 *fl6, bool bound,
++				      u16 srcprefs)
+ {
+ #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
+ 	struct neighbour *n;
+@@ -1157,13 +1158,13 @@
+ 		struct fib6_info *from;
+ 		struct rt6_info *rt;
+ 
+-		*dst = ip6_route_output(net, sk, fl6);
++		*dst = ip6_route_output_params(net, fl6, 0, bound, srcprefs);
+ 		rt = (*dst)->error ? NULL : dst_rt6_info(*dst);
+ 
+ 		rcu_read_lock();
+ 		from = rt ? rcu_dereference(rt->from) : NULL;
+ 		err = ip6_route_get_saddr(net, from, &fl6->daddr,
+-					  sk ? READ_ONCE(inet6_sk(sk)->srcprefs) : 0,
++					  srcprefs,
+ 					  fl6->flowi6_l3mdev,
+ 					  &fl6->saddr);
+ 		rcu_read_unlock();
+@@ -1185,7 +1186,7 @@
+ 	}
+ 
+ 	if (!*dst)
+-		*dst = ip6_route_output_flags(net, sk, fl6, flags);
++		*dst = ip6_route_output_params(net, fl6, flags, bound, srcprefs);
+ 
+ 	err = (*dst)->error;
+ 	if (err)
+@@ -1227,7 +1228,8 @@
+ 			dst_release(*dst);
+ 			memcpy(&fl_gw6, fl6, sizeof(struct flowi6));
+ 			memset(&fl_gw6.daddr, 0, sizeof(struct in6_addr));
+-			*dst = ip6_route_output(net, sk, &fl_gw6);
++			*dst = ip6_route_output_params(net, &fl_gw6, 0,
++						     bound, srcprefs);
+ 			err = (*dst)->error;
+ 			if (err)
+ 				goto out_err_release;
+@@ -1250,6 +1252,25 @@
+ 		IP6_INC_STATS(net, NULL, IPSTATS_MIB_OUTNOROUTES);
+ 	return err;
+ }
++
++static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
++			       struct dst_entry **dst, struct flowi6 *fl6)
++{
++	return ip6_dst_lookup_tail_params(net, dst, fl6,
++					 sk && READ_ONCE(sk->sk_bound_dev_if),
++					 sk ? READ_ONCE(inet6_sk(sk)->srcprefs) : 0);
++}
++
++/* Like ip6_dst_lookup, but the caller supplies captured route authority.
++ * Every source-selection/fallback/DAD lookup MUST use these same values.
++ */
++int ip6_dst_lookup_params(struct net *net, struct dst_entry **dst,
++			  struct flowi6 *fl6, bool bound, u16 srcprefs)
++{
++	*dst = NULL;
++	return ip6_dst_lookup_tail_params(net, dst, fl6, bound, srcprefs);
++}
++EXPORT_SYMBOL_GPL(ip6_dst_lookup_params);
+ 
+ /**
+  *	ip6_dst_lookup - perform route lookup on flow
+diff --git a/net/ipv6/netfilter/nf_defrag_ipv6_hooks.c b/net/ipv6/netfilter/nf_defrag_ipv6_hooks.c
+--- a/net/ipv6/netfilter/nf_defrag_ipv6_hooks.c
++++ b/net/ipv6/netfilter/nf_defrag_ipv6_hooks.c
+@@ -28,8 +28,7 @@
+ 
+ static DEFINE_MUTEX(defrag6_mutex);
+ 
+-static enum ip6_defrag_users nf_ct6_defrag_user(unsigned int hooknum,
+-						struct sk_buff *skb)
++u32 nf_ct6_defrag_user(unsigned int hooknum, struct sk_buff *skb)
+ {
+ 	u16 zone_id = NF_CT_DEFAULT_ZONE_ID;
+ #if IS_ENABLED(CONFIG_NF_CONNTRACK)
+@@ -48,6 +47,7 @@
+ 	else
+ 		return IP6_DEFRAG_CONNTRACK_OUT + zone_id;
+ }
++EXPORT_SYMBOL_GPL(nf_ct6_defrag_user);
+ 
+ static unsigned int ipv6_defrag(void *priv,
+ 				struct sk_buff *skb,
+diff --git a/net/ipv6/raw.c b/net/ipv6/raw.c
+--- a/net/ipv6/raw.c
++++ b/net/ipv6/raw.c
+@@ -594,7 +594,8 @@
+ 
+ static int rawv6_send_hdrinc(struct sock *sk, struct msghdr *msg, int length,
+ 			struct flowi6 *fl6, struct dst_entry **dstp,
+-			unsigned int flags, const struct sockcm_cookie *sockc)
++			unsigned int flags, const struct sockcm_cookie *sockc,
++			const struct xfrm_raw_route *route_seed)
+ {
+ 	struct net *net = sock_net(sk);
+ 	struct ipv6hdr *iph;
+@@ -644,6 +645,13 @@
+ 		goto error;
+ 	}
+ 
++	if (route_seed) {
++		err = xfrm_raw_route_save(skb, route_seed);
++		if (err) {
++			kfree_skb(skb);
++			goto error;
++		}
++	}
+ 	skb_dst_set(skb, &rt->dst);
+ 	*dstp = NULL;
+ 
+@@ -753,6 +761,8 @@
+ 	struct dst_entry *dst = NULL;
+ 	struct raw6_frag_vec rfv;
+ 	struct flowi6 fl6;
++	struct xfrm_raw_route route_seed = {};
++	bool defer_xfrm;
+ 	struct ipcm6_cookie ipc6;
+ 	int addr_len = msg->msg_namelen;
+ 	int hdrincl;
+@@ -892,10 +902,21 @@
+ 
+ 	fl6.flowlabel = ip6_make_flowinfo(ipc6.tclass, fl6.flowlabel);
+ 
+-	dst = ip6_dst_lookup_flow(sock_net(sk), sk, &fl6, final_p);
+-	if (IS_ERR(dst)) {
+-		err = PTR_ERR(dst);
+-		goto out;
++	defer_xfrm = hdrincl && xfrm_fragment_guard_active(sock_net(sk));
++	if (defer_xfrm) {
++		err = xfrm_raw_route_capture(&route_seed, sk, &fl6, AF_INET6);
++		if (err)
++			goto out;
++		err = ip6_dst_lookup_params(sock_net(sk), &dst, &fl6,
++					    route_seed.bound, route_seed.srcprefs);
++		if (err)
++			goto out;
++	} else {
++		dst = ip6_dst_lookup_flow(sock_net(sk), sk, &fl6, final_p);
++		if (IS_ERR(dst)) {
++			err = PTR_ERR(dst);
++			goto out;
++		}
+ 	}
+ 	if (ipc6.hlimit < 0)
+ 		ipc6.hlimit = ip6_sk_dst_hoplimit(np, &fl6, dst);
+@@ -906,7 +927,8 @@
+ back_from_confirm:
+ 	if (hdrincl)
+ 		err = rawv6_send_hdrinc(sk, msg, len, &fl6, &dst,
+-					msg->msg_flags, &ipc6.sockc);
++					msg->msg_flags, &ipc6.sockc,
++					defer_xfrm ? &route_seed : NULL);
+ 	else {
+ 		ipc6.opt = opt;
+ 		lock_sock(sk);
+@@ -923,6 +945,7 @@
+ done:
+ 	dst_release(dst);
+ out:
++	xfrm_raw_route_release(&route_seed);
+ 	fl6_sock_release(flowlabel);
+ 	txopt_put(opt_to_free);
+ 	return err < 0 ? err : len;
+diff --git a/net/ipv6/route.c b/net/ipv6/route.c
+--- a/net/ipv6/route.c
++++ b/net/ipv6/route.c
+@@ -2684,9 +2684,9 @@
+ }
+ 
+ static struct dst_entry *ip6_route_output_flags_noref(struct net *net,
+-						      const struct sock *sk,
+ 						      struct flowi6 *fl6,
+-						      int flags)
++						      int flags, bool bound,
++						      u16 srcprefs)
+ {
+ 	bool any_src;
+ 
+@@ -2704,28 +2704,29 @@
+ 
+ 	flags |= RT6_LOOKUP_F_DST_NOREF;
+ 	any_src = ipv6_addr_any(&fl6->saddr);
+-	if ((sk && sk->sk_bound_dev_if) || rt6_need_strict(&fl6->daddr) ||
++	if (bound || rt6_need_strict(&fl6->daddr) ||
+ 	    (fl6->flowi6_oif && any_src))
+ 		flags |= RT6_LOOKUP_F_IFACE;
+ 
+ 	if (!any_src)
+ 		flags |= RT6_LOOKUP_F_HAS_SADDR;
+-	else if (sk)
+-		flags |= rt6_srcprefs2flags(READ_ONCE(inet6_sk(sk)->srcprefs));
++	else
++		flags |= rt6_srcprefs2flags(srcprefs);
+ 
+ 	return fib6_rule_lookup(net, fl6, NULL, flags, ip6_pol_route_output);
+ }
+ 
+-struct dst_entry *ip6_route_output_flags(struct net *net,
+-					 const struct sock *sk,
+-					 struct flowi6 *fl6,
+-					 int flags)
++/* Explicit immutable socket-derived route values, also used for each
++ * deferred raw lookup after the originating socket has gone away.
++ */
++struct dst_entry *ip6_route_output_params(struct net *net, struct flowi6 *fl6,
++					int flags, bool bound, u16 srcprefs)
+ {
+ 	struct dst_entry *dst;
+ 	struct rt6_info *rt6;
+ 
+ 	rcu_read_lock();
+-	dst = ip6_route_output_flags_noref(net, sk, fl6, flags);
++	dst = ip6_route_output_flags_noref(net, fl6, flags, bound, srcprefs);
+ 	rt6 = dst_rt6_info(dst);
+ 	/* For an uncached dst, refcnt is already taken. */
+ 	if (!rt6->dst.rt_uncached_list && !dst_hold_safe(dst)) {
+@@ -2735,6 +2736,17 @@
+ 	rcu_read_unlock();
+ 
+ 	return dst;
++}
++EXPORT_SYMBOL_GPL(ip6_route_output_params);
++
++struct dst_entry *ip6_route_output_flags(struct net *net,
++					 const struct sock *sk,
++					 struct flowi6 *fl6,
++					 int flags)
++{
++	return ip6_route_output_params(net, fl6, flags,
++				       sk && READ_ONCE(sk->sk_bound_dev_if),
++				       sk ? READ_ONCE(inet6_sk(sk)->srcprefs) : 0);
+ }
+ EXPORT_SYMBOL_GPL(ip6_route_output_flags);
+ 
+diff --git a/net/ipv6/xfrm6_output.c b/net/ipv6/xfrm6_output.c
+--- a/net/ipv6/xfrm6_output.c
++++ b/net/ipv6/xfrm6_output.c
+@@ -101,9 +101,23 @@
+ 		return -EMSGSIZE;
+ 	}
+ 
+-	if (toobig)
++	if (toobig) {
++		struct dst_entry *child;
++
++		/* Preflight the whole bundle before emitting any inner fragment.
++		 * A forbidden tail MUST NOT follow an already emitted first piece.
++		 * Existing local DONTFRAG and PMTU errors above still take priority.
++		 */
++		for (child = dst; child && child->xfrm;
++		     child = xfrm_dst_child(child)) {
++			if (!xfrm_state_noninitial_allowed(child->xfrm)) {
++				skb->ignore_df = 1;
++				goto skip_frag;
++			}
++		}
+ 		return ip6_fragment(net, sk, skb,
+ 				    __xfrm6_output_finish);
++	}
+ 
+ skip_frag:
+ 	return xfrm_output(sk, skb);
+diff --git a/net/xfrm/Kconfig b/net/xfrm/Kconfig
+--- a/net/xfrm/Kconfig
++++ b/net/xfrm/Kconfig
+@@ -10,6 +10,16 @@
+ 
+ config XFRM_OFFLOAD
+ 	bool
++
++config XFRM_FRAGMENT_GUARD
++	bool "XFRM fragment classification before policy lookup"
++	depends on XFRM && NETFILTER && IPV6=y
++	select NF_DEFRAG_IPV4
++	select NF_DEFRAG_IPV6
++	help
++	  Gather fragments before XFRM policy classification while scoped
++	  states or protocol/port-constrained policies exist. This requires
++	  both IP families and their defragmentation code built in.
+ 
+ config XFRM_ALGO
+ 	tristate
+diff --git a/net/xfrm/Makefile b/net/xfrm/Makefile
+--- a/net/xfrm/Makefile
++++ b/net/xfrm/Makefile
+@@ -16,6 +16,7 @@
+ 		      xfrm_sysctl.o xfrm_replay.o xfrm_device.o \
+ 		      xfrm_nat_keepalive.o
+ obj-$(CONFIG_XFRM_STATISTICS) += xfrm_proc.o
++obj-$(CONFIG_XFRM_FRAGMENT_GUARD) += xfrm_fragment.o
+ obj-$(CONFIG_XFRM_ALGO) += xfrm_algo.o
+ obj-$(CONFIG_XFRM_USER) += xfrm_user.o
+ obj-$(CONFIG_XFRM_USER_COMPAT) += xfrm_compat.o
+diff --git a/net/xfrm/xfrm_fragment.c b/net/xfrm/xfrm_fragment.c
+new file mode 100644
+--- /dev/null
++++ b/net/xfrm/xfrm_fragment.c
+@@ -0,0 +1,395 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/* RFC 4301 Sections 7.1, 7.3 and 7.4 -- see rfc/short/rfc4301.md. */
++
++#include <linux/init.h>
++#include <linux/netfilter.h>
++#include <linux/netfilter_ipv4.h>
++#include <linux/netfilter_ipv6.h>
++#include <net/ip.h>
++#include <net/ip6_route.h>
++#include <net/ipv6_frag.h>
++#include <net/l3mdev.h>
++#include <net/route.h>
++#include <net/netfilter/ipv4/nf_defrag_ipv4.h>
++#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
++#include <net/xfrm.h>
++
++static bool xfrm_fragment_ready __ro_after_init;
++
++bool xfrm_fragment_guard_ready(void)
++{
++	return READ_ONCE(xfrm_fragment_ready);
++}
++EXPORT_SYMBOL_GPL(xfrm_fragment_guard_ready);
++
++/* A stack capture MUST be released on every send exit. It owns no socket,
++ * namespace or original policy; absence is captured just as explicitly.
++ */
++int xfrm_raw_route_capture(struct xfrm_raw_route *saved, const struct sock *sk,
++			   const void *flow, unsigned short family)
++{
++	struct xfrm_policy_receipt *receipt;
++
++	if (family != AF_INET && family != AF_INET6)
++		return -EAFNOSUPPORT;
++	receipt = xfrm_policy_receipt_capture(sk);
++	if (IS_ERR(receipt))
++		return PTR_ERR(receipt);
++	memset(saved, 0, sizeof(*saved));
++	saved->policy = receipt;
++	saved->sk_mark = READ_ONCE(sk->sk_mark);
++	saved->bound = !!READ_ONCE(sk->sk_bound_dev_if);
++	saved->family = family;
++	if (family == AF_INET) {
++		memcpy(&saved->flow.u.ip4, flow, sizeof(struct flowi4));
++	} else {
++		memcpy(&saved->flow.u.ip6, flow, sizeof(struct flowi6));
++		saved->srcprefs = READ_ONCE(inet6_sk(sk)->srcprefs);
++	}
++	return 0;
++}
++EXPORT_SYMBOL_GPL(xfrm_raw_route_capture);
++
++void xfrm_raw_route_release(struct xfrm_raw_route *saved)
++{
++	xfrm_policy_receipt_put(saved->policy);
++	saved->policy = NULL;
++}
++EXPORT_SYMBOL_GPL(xfrm_raw_route_release);
++
++/* The extension MUST own a reference distinct from the sender's stack.
++ * skb_ext_add initializes new slots and releases inactive reused slots.
++ */
++int xfrm_raw_route_save(struct sk_buff *skb, const struct xfrm_raw_route *seed)
++{
++	struct xfrm_raw_route *saved;
++
++	saved = skb_ext_add(skb, SKB_EXT_XFRM_RAW_ROUTE);
++	if (!saved)
++		return -ENOMEM;
++	xfrm_policy_receipt_get(seed->policy);
++	xfrm_policy_receipt_put(saved->policy);
++	*saved = *seed;
++	return 0;
++}
++EXPORT_SYMBOL_GPL(xfrm_raw_route_save);
++
++/* RFC 4301 Section 7.4: "All implementations MUST support DISCARDing of
++ * fragments using the normal SPD packet classification mechanisms."
++ * xfrm_fragment_local_out applies that classification to the whole packet.
++ */
++static int xfrm_fragment_route(struct sk_buff *skb,
++			       const struct nf_hook_state *state,
++			       unsigned short family)
++{
++	const struct xfrm_raw_route *saved;
++	struct sock *sk = sk_to_full_sk(state->sk);
++	struct net_device *dev = skb_dst_dev(skb);
++	struct dst_entry *dst;
++	struct flowi fl;
++	unsigned int hh_len;
++	u8 proto, flags;
++	int err;
++
++	/* The quote decoder deliberately accepts truncated quoted payloads.
++	 * Here a whole packet MUST contain the full declared IP length.
++	 */
++	if (family == AF_INET) {
++		if (!pskb_may_pull(skb, sizeof(struct iphdr)) ||
++		    ip_hdr(skb)->version != 4 ||
++		    ntohs(ip_hdr(skb)->tot_len) != skb->len ||
++		    ip_is_fragment(ip_hdr(skb)))
++			return -EINVAL;
++	} else {
++		if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)) ||
++		    ipv6_hdr(skb)->version != 6 ||
++		    (ipv6_hdr(skb)->payload_len &&
++		     ntohs(ipv6_hdr(skb)->payload_len) + sizeof(struct ipv6hdr) !=
++		     skb->len))
++			return -EINVAL;
++	}
++	err = xfrm_decode_session_fields(state->net, skb, &fl, family, false);
++	if (err)
++		return err;
++	if (!(fl.flowi_flags & FLOWI_FLAG_XFRM_PROTO))
++		return -EINVAL;
++
++	saved = skb_ext_find(skb, SKB_EXT_XFRM_RAW_ROUTE);
++	if (saved) {
++		if (saved->family != family)
++			return -EINVAL;
++		proto = fl.flowi_proto;
++		flags = fl.flowi_flags;
++		fl.u.__fl_common = saved->flow.u.__fl_common;
++		fl.flowi_proto = proto;
++		fl.flowi_flags |= flags;
++		if (family == AF_INET6)
++			fl.u.ip6.flowlabel = saved->flow.u.ip6.flowlabel;
++	} else {
++		fl.flowi_iif = LOOPBACK_IFINDEX;
++		fl.flowi_oif = sk ? sk->sk_bound_dev_if : 0;
++		fl.flowi_l3mdev = l3mdev_master_ifindex(dev);
++		fl.flowi_uid = sock_net_uid(state->net, sk);
++		fl.flowi_flags |= sk ? inet_sk_flowi_flags(sk) : 0;
++		if (family == AF_INET) {
++			fl.u.ip4.flowi4_scope = RT_SCOPE_UNIVERSE;
++		} else if (!fl.flowi_oif &&
++			   (ipv6_addr_type(&fl.u.ip6.daddr) &
++			    (IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL))) {
++			fl.flowi_oif = dev->ifindex;
++		}
++		if (family == AF_INET6)
++			fl.u.ip6.flowlabel = ip6_flowinfo(ipv6_hdr(skb));
++	}
++
++	if (family == AF_INET) {
++		struct rtable *rt;
++
++		rt = ip_route_output_key(state->net, &fl.u.ip4);
++		if (IS_ERR(rt))
++			return PTR_ERR(rt);
++		dst = &rt->dst;
++		/* Match ip_route_output_flow after the preserved oif selected
++		 * the ordinary route: XFRM sees that route's actual interface.
++		 */
++		fl.u.ip4.flowi4_oif = dst->dev->ifindex;
++	} else {
++		if (saved)
++			err = ip6_dst_lookup_params(state->net, &dst, &fl.u.ip6,
++						    saved->bound, saved->srcprefs);
++		else
++			err = ip6_dst_lookup(state->net, sk, &dst, &fl.u.ip6);
++		if (err)
++			return err;
++	}
++	/* Drop even a cached XFRM dst. Only the completed datagram's freshly
++	 * decoded flow can authorize its route. xfrm_lookup consumes dst.
++	 */
++	skb_dst_drop(skb);
++	if (saved)
++		dst = xfrm_lookup_raw(state->net, dst, &fl, saved);
++	else
++		dst = xfrm_lookup(state->net, dst, &fl, sk, 0);
++	if (IS_ERR(dst))
++		return PTR_ERR(dst);
++	skb_dst_set(skb, dst);
++	if (dst->error)
++		return dst->error;
++	hh_len = dst->dev->hard_header_len;
++	if (skb_headroom(skb) < hh_len &&
++	    pskb_expand_head(skb, HH_DATA_ALIGN(hh_len - skb_headroom(skb)),
++			     0, GFP_ATOMIC))
++		return -ENOMEM;
++	/* Exclusive deletion drops this receipt; shared extensions retain theirs. */
++	skb_ext_del(skb, SKB_EXT_XFRM_RAW_ROUTE);
++	return 0;
++}
++
++static bool xfrm_fragment_inbound_allowed(struct sk_buff *skb,
++					 struct net *net)
++{
++	const struct sec_path *sp = skb_sec_path(skb);
++	unsigned int i;
++
++	if (!sp)
++		return true;
++	if (sp->len > XFRM_MAX_DEPTH)
++		goto reject;
++	for (i = 0; i < sp->len; i++)
++		if (!xfrm_state_noninitial_allowed(sp->xvec[i]))
++			goto reject;
++	return true;
++
++reject:
++	XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEMISMATCH);
++	return false;
++}
++
++unsigned int xfrm4_fragment_gather(struct sk_buff *skb,
++				 const struct nf_hook_state *state,
++				 bool force, bool *reassembled)
++{
++	u32 user;
++	int err;
++
++	*reassembled = false;
++	if (!force && !atomic_read(&state->net->xfrm.fragment_guard_refs))
++		return NF_ACCEPT;
++	if (!ip_is_fragment(ip_hdr(skb)))
++		return NF_ACCEPT;
++	if ((ip_hdr(skb)->frag_off & htons(IP_OFFSET)) &&
++	    !xfrm_fragment_inbound_allowed(skb, state->net))
++		return NF_DROP;
++
++	/* Preserve the existing direction, bridge and visible zone mapping.
++	 * The disjoint XFRM range never changes conntrack or NOTRACK state.
++	 */
++	user = IP_DEFRAG_XFRM_IN +
++		nf_ct_defrag_user(state->hook, skb) - IP_DEFRAG_CONNTRACK_IN;
++	local_bh_disable();
++	err = ip_defrag(state->net, skb, user);
++	local_bh_enable();
++	if (err)
++		return NF_STOLEN;
++	skb->ignore_df = 1;
++	*reassembled = true;
++	return NF_ACCEPT;
++}
++
++unsigned int xfrm6_fragment_gather(struct sk_buff *skb,
++				 const struct nf_hook_state *state,
++				 bool force, bool *reassembled)
++{
++	struct frag_hdr header, *fh;
++	unsigned int offset = 0;
++	unsigned short fragoff;
++	u32 user;
++	int err;
++
++	*reassembled = false;
++	if (!force && !atomic_read(&state->net->xfrm.fragment_guard_refs))
++		return NF_ACCEPT;
++	err = ipv6_find_hdr(skb, &offset, NEXTHDR_FRAGMENT, &fragoff, NULL);
++	if (err == -ENOENT)
++		return NF_ACCEPT;
++	if (err < 0)
++		return NF_DROP;
++	/* A Fragment header is forbidden in a Jumbo Payload packet. */
++	if (!ipv6_hdr(skb)->payload_len)
++		return NF_DROP;
++	fh = skb_header_pointer(skb, offset, sizeof(header), &header);
++	if (!fh)
++		return NF_DROP;
++	/* Atomic fragments keep the existing continuation without a queue. */
++	if (!(fh->frag_off & htons(IP6_OFFSET | IP6_MF)))
++		return NF_ACCEPT;
++	if (fragoff && !xfrm_fragment_inbound_allowed(skb, state->net))
++		return NF_DROP;
++
++	user = IP6_DEFRAG_XFRM_IN +
++		nf_ct6_defrag_user(state->hook, skb) - IP6_DEFRAG_CONNTRACK_IN;
++	err = nf_ct_frag6_gather(state->net, skb, user);
++	if (err == -EINPROGRESS)
++		return NF_STOLEN;
++	if (err)
++		return NF_DROP;
++	/* Gather also returns zero for malformed-fragment continuation.
++	 * Only a packet whose fragment header was removed is reassembled.
++	 */
++	offset = 0;
++	err = ipv6_find_hdr(skb, &offset, NEXTHDR_FRAGMENT, NULL, NULL);
++	if (err != -ENOENT)
++		return NF_DROP;
++	*reassembled = true;
++	return NF_ACCEPT;
++}
++
++static unsigned int xfrm4_fragment_prerouting(void *priv,
++					     struct sk_buff *skb,
++					     const struct nf_hook_state *state)
++{
++	bool reassembled;
++
++	return xfrm4_fragment_gather(skb, state, false, &reassembled);
++}
++
++static unsigned int xfrm6_fragment_prerouting(void *priv,
++					     struct sk_buff *skb,
++					     const struct nf_hook_state *state)
++{
++	bool reassembled;
++
++	return xfrm6_fragment_gather(skb, state, false, &reassembled);
++}
++
++static unsigned int xfrm_fragment_local_out(struct sk_buff *skb,
++					    const struct nf_hook_state *state,
++					    unsigned short family)
++{
++	bool deferred = skb_ext_exist(skb, SKB_EXT_XFRM_RAW_ROUTE);
++	bool reassembled;
++	unsigned int verdict;
++	int err;
++
++	/* Omitted raw lookup remains owed after the last guard is destroyed. */
++	if (family == AF_INET)
++		verdict = xfrm4_fragment_gather(skb, state, deferred, &reassembled);
++	else
++		verdict = xfrm6_fragment_gather(skb, state, deferred, &reassembled);
++	if (verdict != NF_ACCEPT)
++		return verdict;
++	if (!reassembled && !deferred)
++		return NF_ACCEPT;
++	err = xfrm_fragment_route(skb, state, family);
++	return err ? NF_DROP_ERR(err) : NF_ACCEPT;
++}
++
++static unsigned int xfrm4_fragment_local_out(void *priv, struct sk_buff *skb,
++					    const struct nf_hook_state *state)
++{
++	return xfrm_fragment_local_out(skb, state, AF_INET);
++}
++
++static unsigned int xfrm6_fragment_local_out(void *priv, struct sk_buff *skb,
++					    const struct nf_hook_state *state)
++{
++	return xfrm_fragment_local_out(skb, state, AF_INET6);
++}
++
++static const struct nf_hook_ops xfrm_fragment_ops[] = {
++	{
++		.hook = xfrm4_fragment_prerouting,
++		.pf = NFPROTO_IPV4,
++		.hooknum = NF_INET_PRE_ROUTING,
++		.priority = NF_IP_PRI_CONNTRACK_DEFRAG - 1,
++	},
++	{
++		.hook = xfrm6_fragment_prerouting,
++		.pf = NFPROTO_IPV6,
++		.hooknum = NF_INET_PRE_ROUTING,
++		.priority = NF_IP6_PRI_CONNTRACK_DEFRAG - 1,
++	},
++	{
++		.hook = xfrm4_fragment_local_out,
++		.pf = NFPROTO_IPV4,
++		.hooknum = NF_INET_LOCAL_OUT,
++		.priority = NF_IP_PRI_CONNTRACK_DEFRAG - 1,
++	},
++	{
++		.hook = xfrm6_fragment_local_out,
++		.pf = NFPROTO_IPV6,
++		.hooknum = NF_INET_LOCAL_OUT,
++		.priority = NF_IP6_PRI_CONNTRACK_DEFRAG - 1,
++	},
++};
++
++static int __net_init xfrm_fragment_net_init(struct net *net)
++{
++	return nf_register_net_hooks(net, xfrm_fragment_ops,
++				     ARRAY_SIZE(xfrm_fragment_ops));
++}
++
++static void __net_exit xfrm_fragment_net_exit(struct net *net)
++{
++	nf_unregister_net_hooks(net, xfrm_fragment_ops,
++				ARRAY_SIZE(xfrm_fragment_ops));
++}
++
++static struct pernet_operations xfrm_fragment_net_ops = {
++	.init = xfrm_fragment_net_init,
++	.exit = xfrm_fragment_net_exit,
++};
++
++/* Both built-in defrag families initialize their fqdirs at module_init.
++ * Register later so every namespace has those bounded queues before hooks.
++ * Per-net exit MUST remove the hooks before the earlier fqdir exits run.
++ */
++static int __init xfrm_fragment_init(void)
++{
++	int err = register_pernet_subsys(&xfrm_fragment_net_ops);
++
++	if (!err)
++		WRITE_ONCE(xfrm_fragment_ready, true);
++	return err;
++}
++late_initcall(xfrm_fragment_init);
+diff --git a/net/xfrm/xfrm_output.c b/net/xfrm/xfrm_output.c
+--- a/net/xfrm/xfrm_output.c
++++ b/net/xfrm/xfrm_output.c
+@@ -496,6 +496,63 @@
+ EXPORT_SYMBOL_GPL(pktgen_xfrm_outer_mode_output);
+ #endif
+ 
++/* RFC 4301 Section 7.3: enforce permission before changing inner headers.
++ * This deliberately does not recheck selectors: an ICMP error may already
++ * have been authorized using its reversed quoted flow.
++ */
++static bool xfrm_output_fragment_allowed(const struct xfrm_state *x,
++					 const struct sk_buff *skb)
++{
++	if (xfrm_state_noninitial_allowed(x))
++		return true;
++	if (skb->protocol == htons(ETH_P_IP)) {
++		struct iphdr header, *iph;
++
++		iph = skb_header_pointer(skb, skb_network_offset(skb),
++					 sizeof(header), &header);
++		return iph && !(iph->frag_off & htons(IP_OFFSET));
++	}
++#if IS_ENABLED(CONFIG_IPV6)
++	if (skb->protocol == htons(ETH_P_IPV6)) {
++		struct ipv6hdr header, *ip6h;
++		unsigned int proto;
++		int offset = skb_network_offset(skb);
++
++		ip6h = skb_header_pointer(skb, offset, sizeof(header), &header);
++		if (!ip6h)
++			return false;
++		proto = ip6h->nexthdr;
++		offset += sizeof(header);
++		/* Local parsing avoids a built-in XFRM dependency on modular IPv6. */
++		for (;;) {
++			struct ipv6_opt_hdr option, *opt;
++			unsigned int length;
++
++			if (proto == NEXTHDR_FRAGMENT) {
++				struct frag_hdr fragment, *fh;
++
++				fh = skb_header_pointer(skb, offset,
++							sizeof(fragment), &fragment);
++				return fh && !(fh->frag_off & htons(IP6_OFFSET));
++			}
++			if (proto != NEXTHDR_HOP && proto != NEXTHDR_ROUTING &&
++			    proto != NEXTHDR_AUTH && proto != NEXTHDR_DEST)
++				return true;
++			opt = skb_header_pointer(skb, offset, sizeof(option), &option);
++			if (!opt)
++				return false;
++			length = proto == NEXTHDR_AUTH ? (opt->hdrlen + 2) * 4 :
++				 (opt->hdrlen + 1) * 8;
++			if (length > skb->len - offset)
++				return false;
++			proto = opt->nexthdr;
++			offset += length;
++		}
++	}
++#endif
++	return true;
++}
++
+ static int xfrm_output_one(struct sk_buff *skb, int err)
+ {
+ 	struct dst_entry *dst = skb_dst(skb);
+@@ -506,6 +563,11 @@
+ 		goto resume;
+ 
+ 	do {
++		if (!xfrm_output_fragment_allowed(x, skb)) {
++			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATEMODEERROR);
++			err = -EPERM;
++			goto error_nolock;
++		}
+ 		err = xfrm_skb_check_space(skb);
+ 		if (err) {
+ 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
+@@ -768,6 +830,11 @@
+ 	}
+ 
+ 	if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET) {
++		if (!xfrm_output_fragment_allowed(x, skb)) {
++			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATEMODEERROR);
++			kfree_skb(skb);
++			return -EPERM;
++		}
+ 		if (!xfrm_dev_offload_ok(skb, x)) {
+ 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
+ 			kfree_skb(skb);
+diff --git a/net/xfrm/xfrm_policy.c b/net/xfrm/xfrm_policy.c
+--- a/net/xfrm/xfrm_policy.c
++++ b/net/xfrm/xfrm_policy.c
+@@ -16,6 +16,7 @@
+ 
+ #include <linux/err.h>
+ #include <linux/slab.h>
++#include <linux/overflow.h>
+ #include <linux/kmod.h>
+ #include <linux/list.h>
+ #include <linux/spinlock.h>
+@@ -457,12 +458,183 @@
+ }
+ EXPORT_SYMBOL(xfrm_policy_alloc);
+ 
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++/* No namespace, policy, device or socket reference may enter this object.
++ * The live policy MUST own one current generation; each capture MUST own
++ * another reference, released independently of policy/socket destruction.
++ */
++struct xfrm_policy_receipt {
++	refcount_t refs;
++	u32 genid;
++	unsigned int charge;
++	u32 priority;
++	u32 index;
++	u32 if_id;
++	struct xfrm_mark mark;
++	struct xfrm_selector selector;
++	struct xfrm_lifetime_cfg lft;
++	struct xfrm_lifetime_cur curlft;
++	u8 type;
++	u8 action;
++	u8 flags;
++	u8 xfrm_nr;
++	u16 family;
++	struct xfrm_sec_ctx *security;
++	struct xfrm_tmpl xfrm_vec[XFRM_MAX_DEPTH];
++};
++
++void xfrm_policy_receipt_get(struct xfrm_policy_receipt *receipt)
++{
++	if (receipt)
++		refcount_inc(&receipt->refs);
++}
++EXPORT_SYMBOL_GPL(xfrm_policy_receipt_get);
++
++void xfrm_policy_receipt_put(struct xfrm_policy_receipt *receipt)
++{
++	if (receipt && refcount_dec_and_test(&receipt->refs)) {
++		security_xfrm_policy_free(receipt->security);
++		kfree(receipt);
++	}
++}
++EXPORT_SYMBOL_GPL(xfrm_policy_receipt_put);
++
++unsigned int xfrm_policy_receipt_size(const struct xfrm_policy_receipt *receipt)
++{
++	return receipt ? receipt->charge : 0;
++}
++EXPORT_SYMBOL_GPL(xfrm_policy_receipt_size);
++
++/* Caller holds pol->lock for write with BH disabled. The security clone
++ * hook, like the existing socket policy clone, MUST allocate atomically.
++ */
++static struct xfrm_policy_receipt *
++xfrm_policy_receipt_alloc(const struct xfrm_policy *pol)
++{
++	struct xfrm_policy_receipt *receipt;
++	size_t charge;
++	int err;
++
++	if (pol->xfrm_nr > XFRM_MAX_DEPTH)
++		return ERR_PTR(-EINVAL);
++	receipt = kzalloc_obj(struct xfrm_policy_receipt, GFP_ATOMIC);
++	if (!receipt)
++		return ERR_PTR(-ENOMEM);
++	refcount_set(&receipt->refs, 1);
++	err = security_xfrm_policy_clone(pol->security, &receipt->security);
++	if (err)
++		goto fail;
++	charge = ksize(receipt);
++	if (receipt->security &&
++	    check_add_overflow(charge, ksize(receipt->security), &charge)) {
++		err = -EOVERFLOW;
++		goto fail;
++	}
++	if (charge > UINT_MAX) {
++		err = -EOVERFLOW;
++		goto fail;
++	}
++	receipt->charge = charge;
++	receipt->genid = atomic_read(&pol->genid);
++	receipt->priority = pol->priority;
++	receipt->index = pol->index;
++	receipt->if_id = pol->if_id;
++	receipt->mark = pol->mark;
++	receipt->selector = pol->selector;
++	receipt->lft = pol->lft;
++	receipt->curlft = pol->curlft;
++	receipt->type = pol->type;
++	receipt->action = pol->action;
++	receipt->flags = pol->flags;
++	receipt->xfrm_nr = pol->xfrm_nr;
++	receipt->family = pol->family;
++	memcpy(receipt->xfrm_vec, pol->xfrm_vec,
++	       pol->xfrm_nr * sizeof(struct xfrm_tmpl));
++	return receipt;
++fail:
++	xfrm_policy_receipt_put(receipt);
++	return ERR_PTR(err);
++}
++
++/* An absent policy is an explicit NULL receipt, not permission to consult a
++ * later socket. RCU protects the original only until the copy is complete.
++ */
++struct xfrm_policy_receipt *xfrm_policy_receipt_capture(const struct sock *sk)
++{
++	struct xfrm_policy_receipt *receipt = NULL, *old = NULL;
++	struct xfrm_policy *pol;
++
++	rcu_read_lock();
++	pol = rcu_dereference(sk->sk_policy[XFRM_POLICY_OUT]);
++	if (!pol)
++		goto out;
++	write_lock_bh(&pol->lock);
++	receipt = pol->raw_receipt;
++	if (!receipt || receipt->genid != atomic_read(&pol->genid)) {
++		receipt = xfrm_policy_receipt_alloc(pol);
++		if (IS_ERR(receipt))
++			goto unlock;
++		old = pol->raw_receipt;
++		pol->raw_receipt = receipt;
++	}
++	xfrm_policy_receipt_get(receipt);
++unlock:
++	write_unlock_bh(&pol->lock);
++out:
++	rcu_read_unlock();
++	xfrm_policy_receipt_put(old);
++	return receipt;
++}
++EXPORT_SYMBOL_GPL(xfrm_policy_receipt_capture);
++
++/* Fresh, unpublished and dead from birth: no timers, offload, state-cache
++ * links, guard ownership or receipt-owner ref may outlive this lookup.
++ * The bundle MUST take normal ownership, or the caller MUST put the policy.
++ */
++static struct xfrm_policy *
++xfrm_policy_from_receipt(struct net *net,
++			 const struct xfrm_policy_receipt *receipt)
++{
++	struct xfrm_policy *pol = xfrm_policy_alloc(net, GFP_ATOMIC);
++	int err;
++
++	if (!pol)
++		return ERR_PTR(-ENOMEM);
++	pol->walk.dead = 1;
++	pol->detached_receipt = true;
++	err = security_xfrm_policy_clone(receipt->security, &pol->security);
++	if (err) {
++		xfrm_pol_put(pol);
++		return ERR_PTR(err);
++	}
++	atomic_set(&pol->genid, receipt->genid);
++	pol->priority = receipt->priority;
++	pol->index = receipt->index;
++	pol->if_id = receipt->if_id;
++	pol->mark = receipt->mark;
++	pol->selector = receipt->selector;
++	pol->lft = receipt->lft;
++	pol->curlft = receipt->curlft;
++	pol->type = receipt->type;
++	pol->action = receipt->action;
++	pol->flags = receipt->flags;
++	pol->xfrm_nr = receipt->xfrm_nr;
++	pol->family = receipt->family;
++	memcpy(pol->xfrm_vec, receipt->xfrm_vec,
++	       receipt->xfrm_nr * sizeof(struct xfrm_tmpl));
++	return pol;
++}
++#endif
++
+ static void xfrm_policy_destroy_rcu(struct rcu_head *head)
+ {
+ 	struct xfrm_policy *policy = container_of(head, struct xfrm_policy, rcu);
+ 
+ 	if (policy->fragment_guard_held)
+ 		atomic_dec(&xp_net(policy)->xfrm.fragment_guard_refs);
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	xfrm_policy_receipt_put(policy->raw_receipt);
++#endif
+ 	security_xfrm_policy_free(policy->security);
+ 	kfree(policy);
+ }
+@@ -2254,6 +2426,49 @@
+ 					 dir, if_id);
+ }
+ 
++/* RFC 4301 Section 7.4: "All implementations MUST support DISCARDing of
++ * fragments using the normal SPD packet classification mechanisms."
++ * xfrm_sk_policy_lookup and xfrm_raw_policy_lookup use this same matcher.
++ * The socket and a detached receipt MUST use the same selector/mark/LSM
++ * matcher. A miss allows namespace SPD lookup; any other LSM error fails.
++ */
++static int xfrm_socket_policy_match(const struct xfrm_policy *pol, u32 mark,
++				    const struct flowi *fl, u16 family,
++				    u32 if_id)
++{
++	if (pol->family != family ||
++	    !xfrm_selector_match(&pol->selector, fl, family) ||
++	    (mark & pol->mark.m) != pol->mark.v || pol->if_id != if_id)
++		return -ESRCH;
++	return security_xfrm_policy_lookup(pol->security, fl->flowi_secid);
++}
++
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++/* RFC 4301 Section 7.4: "All implementations MUST support DISCARDing of
++ * fragments using the normal SPD packet classification mechanisms."
++ * xfrm_lookup_raw supplies xfrm_fragment_route's captured socket authority
++ * to the shared matcher and then the ordinary expand/resolve path.
++ */
++static struct xfrm_policy *
++xfrm_raw_policy_lookup(struct net *net, const struct xfrm_raw_route *raw,
++			const struct flowi *fl, u16 family, u32 if_id)
++{
++	struct xfrm_policy *pol;
++	int err;
++
++	if (!raw->policy)
++		return NULL;
++	pol = xfrm_policy_from_receipt(net, raw->policy);
++	if (IS_ERR(pol))
++		return pol;
++	err = xfrm_socket_policy_match(pol, raw->sk_mark, fl, family, if_id);
++	if (!err)
++		return pol;
++	xfrm_pol_put(pol);
++	return err == -ESRCH ? NULL : ERR_PTR(err);
++}
++#endif
++
+ static struct xfrm_policy *xfrm_sk_policy_lookup(const struct sock *sk, int dir,
+ 						 const struct flowi *fl,
+ 						 u16 family, u32 if_id)
+@@ -2264,35 +2479,18 @@
+  again:
+ 	pol = rcu_dereference(sk->sk_policy[dir]);
+ 	if (pol != NULL) {
+-		bool match;
+-		int err = 0;
+-
+-		if (pol->family != family) {
++		int err = xfrm_socket_policy_match(pol, READ_ONCE(sk->sk_mark),
++						   fl, family, if_id);
++
++		if (!err) {
++			if (!xfrm_pol_hold_rcu(pol))
++				goto again;
++		} else if (err == -ESRCH) {
+ 			pol = NULL;
+-			goto out;
+-		}
+-
+-		match = xfrm_selector_match(&pol->selector, fl, family);
+-		if (match) {
+-			if ((READ_ONCE(sk->sk_mark) & pol->mark.m) != pol->mark.v ||
+-			    pol->if_id != if_id) {
+-				pol = NULL;
+-				goto out;
+-			}
+-			err = security_xfrm_policy_lookup(pol->security,
+-						      fl->flowi_secid);
+-			if (!err) {
+-				if (!xfrm_pol_hold_rcu(pol))
+-					goto again;
+-			} else if (err == -ESRCH) {
+-				pol = NULL;
+-			} else {
+-				pol = ERR_PTR(err);
+-			}
+-		} else
+-			pol = NULL;
+-	}
+-out:
++		} else {
++			pol = ERR_PTR(err);
++		}
++	}
+ 	rcu_read_unlock();
+ 	return pol;
+ }
+@@ -3190,7 +3388,10 @@
+ 	return ret;
+ }
+ 
+-/* Finds/creates a bundle for given flow and if_id
++/* RFC 4301 Section 7.4: "All implementations MUST support DISCARDing of
++ * fragments using the normal SPD packet classification mechanisms."
++ * xfrm_lookup_with_ifid and xfrm_lookup_raw share this lookup path.
++ * Finds/creates a bundle for given flow and if_id.
+  *
+  * At the moment we eat a raw IP route. Mostly to speed up lookups
+  * on interfaces with disabled IPsec.
+@@ -3198,11 +3399,12 @@
+  * xfrm_lookup uses an if_id of 0 by default, and is provided for
+  * compatibility
+  */
+-struct dst_entry *xfrm_lookup_with_ifid(struct net *net,
++static struct dst_entry *xfrm_lookup_context(struct net *net,
+ 					struct dst_entry *dst_orig,
+ 					const struct flowi *fl,
+ 					const struct sock *sk,
+-					int flags, u32 if_id)
++					int flags, u32 if_id,
++					const struct xfrm_raw_route *raw)
+ {
+ 	struct xfrm_policy *pols[XFRM_POLICY_TYPE_MAX];
+ 	struct xfrm_dst *xdst;
+@@ -3216,10 +3418,15 @@
+ 	route = NULL;
+ 
+ 	sk = sk_const_to_full_sk(sk);
+-	if (sk && sk->sk_policy[XFRM_POLICY_OUT]) {
++	if (raw || (sk && sk->sk_policy[XFRM_POLICY_OUT])) {
+ 		num_pols = 1;
+-		pols[0] = xfrm_sk_policy_lookup(sk, XFRM_POLICY_OUT, fl, family,
+-						if_id);
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++		if (raw)
++			pols[0] = xfrm_raw_policy_lookup(net, raw, fl, family, if_id);
++		else
++#endif
++			pols[0] = xfrm_sk_policy_lookup(sk, XFRM_POLICY_OUT, fl,
++							family, if_id);
+ 		err = xfrm_expand_policies(fl, family, pols,
+ 					   &num_pols, &num_xfrms);
+ 		if (err < 0)
+@@ -3351,7 +3558,32 @@
+ 	xfrm_pols_put(pols, drop_pols);
+ 	return ERR_PTR(err);
+ }
++
++struct dst_entry *xfrm_lookup_with_ifid(struct net *net,
++					struct dst_entry *dst_orig,
++					const struct flowi *fl,
++					const struct sock *sk,
++					int flags, u32 if_id)
++{
++	return xfrm_lookup_context(net, dst_orig, fl, sk, flags, if_id, NULL);
++}
+ EXPORT_SYMBOL(xfrm_lookup_with_ifid);
++
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++/* RFC 4301 Section 7.4: "All implementations MUST support DISCARDing of
++ * fragments using the normal SPD packet classification mechanisms."
++ * xfrm_fragment_route calls this after whole-packet decoding. The raw
++ * receipt is authoritative even when its policy is absent.
++ * Caller transfers dst ownership and MUST retain the receipt until return.
++ */
++struct dst_entry *xfrm_lookup_raw(struct net *net, struct dst_entry *dst,
++				const struct flowi *fl,
++				const struct xfrm_raw_route *saved)
++{
++	return xfrm_lookup_context(net, dst, fl, NULL, 0, 0, saved);
++}
++EXPORT_SYMBOL_GPL(xfrm_lookup_raw);
++#endif
+ 
+ /* Main function: finds/creates a bundle for given flow.
+  *
+diff --git a/net/xfrm/xfrm_state.c b/net/xfrm/xfrm_state.c
+--- a/net/xfrm/xfrm_state.c
++++ b/net/xfrm/xfrm_state.c
+@@ -763,10 +763,31 @@
+ }
+ EXPORT_SYMBOL_GPL(xfrm_state_scope_match);
+ 
++/* RFC 4301 Section 7.3 -- see rfc/short/rfc4301.md.
++ * Permission belongs to the SA, including every selector in its OR-set.
++ * Protocol-only selectors retain the ANY-port behavior of Section 7.1.
++ */
++bool xfrm_state_noninitial_allowed(const struct xfrm_state *x)
++{
++	const struct xfrm_state_scope *scope = x->scope;
++	unsigned int i;
++
++	if (scope->flags & XFRM_STATE_SCOPE_NONINITIAL)
++		return true;
++	if (!scope->count)
++		return !x->sel.sport_mask && !x->sel.dport_mask;
++	for (i = 0; i < scope->count; i++)
++		if (scope->selectors[i].sport_mask || scope->selectors[i].dport_mask)
++			return false;
++	return true;
++}
++EXPORT_SYMBOL_GPL(xfrm_state_noninitial_allowed);
++
+ /* Acquire before publication; final state GC MUST balance this ownership. */
+ void xfrm_state_scope_hold_guard(struct xfrm_state *x)
+ {
+-	if (x->scope->count && !x->fragment_guard_held) {
++	if (!x->fragment_guard_held &&
++	    (x->scope->count || x->sel.sport_mask || x->sel.dport_mask)) {
+ 		atomic_inc(&xs_net(x)->xfrm.fragment_guard_refs);
+ 		x->fragment_guard_held = true;
+ 	}
+@@ -1684,6 +1705,7 @@
+ 	}
+ 
+ 	if (x && x->km.state == XFRM_STATE_VALID && !cached &&
++	    !pol->detached_receipt &&
+ 	    (!(pol->flags & XFRM_POLICY_CPU_ACQUIRE) || x->pcpu_num == pcpu_id)) {
+ 		spin_lock_bh(&net->xfrm.xfrm_state_lock);
+ 		if (hlist_unhashed(&x->state_cache))
