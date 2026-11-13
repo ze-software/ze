@@ -153,7 +153,8 @@ func (installer *Installer) executeApplianceConfigPush(ctx context.Context) (rep
 	}
 	report.passed("bootstrap", "named password and SSH key installed; host pin read from stopped owned disk")
 	identity := []string{"HOME=" + home, "SSH_AUTH_SOCK=" + socket}
-	if err := installer.configPushPublish(ctx, work, disk, image, certificate, string(token), home, identity, signer, hostKey, bootstrap, port); err != nil {
+	published, err := installer.configPushPublish(ctx, work, disk, image, certificate, string(token), home, identity, signer, hostKey, bootstrap, port)
+	if err != nil {
 		return report, err
 	}
 	stored, retainedKey, err := installer.configPushDisk(ctx, work, disk, "publication")
@@ -176,7 +177,7 @@ func (installer *Installer) executeApplianceConfigPush(ctx context.Context) (rep
 	report.passed("live-publication", "current host driver accepted the previewed complete replacement; fresh pinned SSH reads its hostname and configuration")
 	report.passed("selected-source", "stopped disk active pointer resolves to the accepted hostname")
 	accepted := stored
-	if err := installer.configPushRefusals(ctx, work, disk, image, certificate, string(token), home, identity, signer, hostKey, bootstrap, port); err != nil {
+	if err := installer.configPushRefusals(ctx, work, disk, image, certificate, string(token), home, identity, signer, hostKey, bootstrap, port, published); err != nil {
 		return report, err
 	}
 	stored, retainedKey, err = installer.configPushDisk(ctx, work, disk, "refusals")
@@ -285,69 +286,70 @@ func (installer *Installer) configPushBootstrap(ctx context.Context, work, disk 
 	return status, guest.configPushReboot(ctx)
 }
 
-func (installer *Installer) configPushPublish(ctx context.Context, work, disk string, image installISOImage, certificate []byte, token, home string, identity []string, signer ssh.Signer, hostKey ssh.PublicKey, bootstrap otaStatus, port int) (resultErr error) {
+// configPushPublish returns the running configuration the daemon answered
+// after it accepted the push. The stopped-disk read then proves the stored
+// source equals the preview, and the next boot must answer the same running
+// configuration, which ties what the push applied to what was previewed.
+func (installer *Installer) configPushPublish(ctx context.Context, work, disk string, image installISOImage, certificate []byte, token, home string, identity []string, signer ssh.Signer, hostKey ssh.PublicKey, bootstrap otaStatus, port int) (published string, resultErr error) {
 	guest, err := installer.configPushLaunch(ctx, work, disk, certificate, token, "publication", port)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer func() { resultErr = joinInstallCleanup(resultErr, guest.stop, "stop publication guest") }()
 	verify, err := guest.configPushPin(home, hostKey)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := guest.configPushReady(ctx, verify, bootstrap); err != nil {
-		return err
+		return "", err
 	}
 	namedPath := filepath.Join(image.AppDir, "appliance.json")
 	namedBefore, err := os.ReadFile(namedPath) //nolint:gosec // Owned named appliance.
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer func() {
 		resultErr = joinInstallCleanup(resultErr, func() error { return os.WriteFile(namedPath, namedBefore, 0o600) }, "restore owned named target")
 	}()
 	if err := configPushTarget(namedPath, guest.sshPort, installer.Options.SSHUser); err != nil {
-		return err
+		return "", err
 	}
 	seedPath := filepath.Join(image.AppDir, "ze.conf")
 	seed, err := os.ReadFile(seedPath) //nolint:gosec // Owned complete replacement.
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer func() {
 		resultErr = joinInstallCleanup(resultErr, func() error { return os.WriteFile(seedPath, seed, 0o600) }, "restore owned seed")
 	}()
 	if err := configPushCandidate(seedPath, string(seed), configPushAcceptedHost); err != nil {
-		return err
+		return "", err
 	}
 	preview, err := installer.configPushCommand(ctx, image, identity, true)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := configPushHost(preview.Stdout, configPushAcceptedHost); err != nil {
-		return err
+		return "", err
 	}
 	candidate, err := os.ReadFile(seedPath) //nolint:gosec // Preview baseline in the owned named directory.
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := configPushUnchanged(string(candidate), preview.Stdout); err != nil {
-		return err
+		return "", err
 	}
 	if _, err := installer.configPushCommand(ctx, image, identity, false); err != nil {
-		return err
+		return "", err
 	}
-	live, err := guest.configPushLive(ctx, signer, verify, configPushAcceptedHost)
+	published, err = guest.configPushLive(ctx, signer, verify, configPushAcceptedHost)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if err := configPushUnchanged(preview.Stdout, live); err != nil {
-		return err
-	}
-	return guest.configPushReboot(ctx)
+	return published, guest.configPushReboot(ctx)
 }
 
-func (installer *Installer) configPushRefusals(ctx context.Context, work, disk string, image installISOImage, certificate []byte, token, home string, identity []string, signer ssh.Signer, hostKey ssh.PublicKey, bootstrap otaStatus, port int) (resultErr error) {
+func (installer *Installer) configPushRefusals(ctx context.Context, work, disk string, image installISOImage, certificate []byte, token, home string, identity []string, signer ssh.Signer, hostKey ssh.PublicKey, bootstrap otaStatus, port int, published string) (resultErr error) {
 	guest, err := installer.configPushLaunch(ctx, work, disk, certificate, token, "refusals", port)
 	if err != nil {
 		return err
@@ -363,6 +365,12 @@ func (installer *Installer) configPushRefusals(ctx context.Context, work, disk s
 	baseline, err := guest.configPushLive(ctx, signer, verify, configPushAcceptedHost)
 	if err != nil {
 		return err
+	}
+	// This boot loaded the stored source the stopped-disk read proved equal to
+	// the preview. Running the same configuration as the publication boot
+	// proves the push applied exactly that source.
+	if err := configPushRunningEqual(published, baseline); err != nil {
+		return errors.Join(errors.New("a fresh boot of the stored configuration does not run what the publication applied"), err)
 	}
 	if err := guest.configPushMalformed(ctx, signer, verify); err != nil {
 		return err
@@ -398,7 +406,7 @@ func (installer *Installer) configPushRefusals(ctx context.Context, work, disk s
 		return err
 	}
 	result, err := installer.configPushCommand(ctx, image, identity, false)
-	if err := configPushRefused(result, err); err != nil {
+	if err := configPushRefused(result, err, configPushCauseDevice); err != nil {
 		return err
 	}
 	if err := guest.configPushUnchanged(ctx, signer, verify, baseline); err != nil {
@@ -424,7 +432,7 @@ func (installer *Installer) configPushRefusals(ctx context.Context, work, disk s
 	}
 	defer func() { _, err := guest.configPushPin(home, hostKey); resultErr = errors.Join(resultErr, err) }()
 	result, err = installer.configPushCommand(ctx, image, identity, false)
-	if err := configPushRefused(result, err); err != nil {
+	if err := configPushRefused(result, err, configPushCausePin); err != nil {
 		return err
 	}
 	if err := guest.configPushUnchanged(ctx, signer, verify, baseline); err != nil {
@@ -433,12 +441,28 @@ func (installer *Installer) configPushRefusals(ctx context.Context, work, disk s
 	return guest.configPushReboot(ctx)
 }
 
-func configPushRefused(result commandResult, err error) error {
+// The host driver names why a push failed (internal/appliance,
+// sshExecReal and applianceHostKeyCallback). A refusal control MUST see its
+// own cause: a nonzero exit alone is also what a failed login, an unreachable
+// device or a lost receipt produce.
+const (
+	// configPushCauseDevice is printed only when an authenticated session
+	// reached the upload subsystem and the device answered a nonzero status.
+	configPushCauseDevice = "device refused the configuration upload"
+	// configPushCausePin is printed only when the device presented a key
+	// other than the one pinned for it.
+	configPushCausePin = "host key mismatch"
+)
+
+func configPushRefused(result commandResult, err error, cause string) error {
 	if err == nil {
 		return errors.New("native push refusal control unexpectedly succeeded")
 	}
 	if result.Code == 0 {
 		return errors.New("native push refusal control has no nonzero command status")
+	}
+	if !strings.Contains(result.Stderr, cause) {
+		return errors.New("native push refusal control failed for another cause than: " + cause)
 	}
 	for _, output := range []string{result.Stdout, result.Stderr} {
 		if strings.Contains(output, "config applied to "+InstallApplianceName) {

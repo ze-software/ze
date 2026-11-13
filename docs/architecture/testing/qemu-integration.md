@@ -1270,9 +1270,14 @@ evidence.
 
 ## Appliance SSH configuration publication
 
-The runner is an implementation checkpoint, not a completed native proof.
-Its orchestration unit tests pass, but no successful VM run of this action has
-been recorded.
+The action passed twice on 2026-11-13 on a native amd64 host under KVM (QEMU
+8.2.2, guest kernel 7.3.0-ze), each run building its own image and host
+driver: three joined boots of one disk, publication by the real host driver,
+retention of the hostname and of both logins across a fresh boot, and the
+three refusals. It has not been run on arm64. The host driver and image it
+proved were built from the tree of commit `f95746bc27` with that checkout's
+uncommitted files, not from a clean commit, so it is not release-artifact
+evidence.
 
 `./le test qemu appliance-config-push` builds one current native appliance image
 and drives its matching host driver's `appliance config-push` command. The
@@ -1288,8 +1293,13 @@ Three fresh QEMU processes boot the same disk with `-no-reboot`. Authenticated
 gokrazy reboot must exit and join each process before read-only persistent
 partition inspection. The first inspection supplies the host pin; later ones
 require the active configuration pointer and resolve its selected version,
-rather than accepting a stale active-file mirror. Fresh pinned password and
-key logins check live configuration and retention after publication and reboot.
+rather than accepting a stale active-file mirror. The stored configuration is
+read under the name the daemon's own resolver gives it, which for a named
+appliance is its instance name and not `ze.conf`. Each boot ends with a reboot
+that asks for a machine reset (`kexec=off`): gokrazy's default reboot is a
+kexec, which resets nothing, so `-no-reboot` would never exit. Fresh pinned
+password and key logins check live configuration and retention after
+publication and reboot.
 Malformed receiver input, an authenticated observer denied configuration edits,
 and an incorrect host pin must all refuse without a success receipt and leave
 the complete live and selected persistent configuration unchanged.
@@ -1297,13 +1307,26 @@ the complete live and selected persistent configuration unchanged.
 <!-- source: internal/le/test/qemu/install_config_push_storage.go -- configPushDisk -->
 <!-- source: internal/le/test/qemu/install_config_push_ssh.go -- configPushLive, configPushMalformed, configPushClient -->
 
+The live configuration is the daemon's answer to `show config running | json`,
+the one command that answers what the daemon applied. The proof compares that
+answer only with other answers of the same command, so it holds no copy of the
+daemon's projection or secret masking. The answer after the push is kept. The
+stopped-disk read proves the stored source equals the preview, and the next
+boot, which loads that stored source, must give the same answer. Each refusal
+is followed by the same comparison against the answer taken before it.
+<!-- source: internal/le/test/qemu/install_config_push_ssh.go -- configPushRunningQuery, configPushRunningEqual -->
+
 A refusal counts only when the device itself answered it. The malformed control
 sends its frame over a raw SSH session channel, as the host driver does, and
 requires the device's own nonzero exit status: a client-side error is a failed
 proof, never a refusal. The observer must first log in with its key and read
 the accepted hostname, so that a login that fails cannot pass as an edit
-refusal.
+refusal. The two controls that go through the host driver also require the
+cause it prints: a refusal by the device to an authenticated session for the
+edit denial, and a host key mismatch for the wrong pin. A nonzero exit alone
+is also what a failed login or an unreachable device produces.
 <!-- source: internal/le/test/qemu/install_config_push_ssh.go -- configPushExchange, configPushHostname -->
+<!-- source: internal/le/test/qemu/install_config_push.go -- configPushRefused, configPushCauseDevice, configPushCausePin -->
 <!-- test: internal/le/test/qemu/install_config_push_protocol_test.go -- TestApplianceConfigPushObserverLoginRequired -->
 
 The action requires native KVM or HVF, refuses `ZE_INSTALL_IMAGE`, and uses the

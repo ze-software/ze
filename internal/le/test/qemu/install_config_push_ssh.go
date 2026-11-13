@@ -4,9 +4,11 @@ package testqemu
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -110,20 +112,62 @@ func (guest *otaGuest) configPushHostname(ctx context.Context, user string, auth
 	return nil
 }
 
+// configPushLive proves both retained logins read the expected hostname and
+// returns the daemon's answer for the configuration it runs.
 func (guest *otaGuest) configPushLive(ctx context.Context, signer ssh.Signer, verify ssh.HostKeyCallback, hostname string) (string, error) {
 	for _, auth := range []ssh.AuthMethod{ssh.Password(guest.installer.Options.SSHPassword), ssh.PublicKeys(signer)} {
 		if err := guest.configPushHostname(ctx, guest.installer.Options.SSHUser, auth, verify, hostname); err != nil {
 			return "", err
 		}
 	}
-	content, err := guest.configPushSSH(ctx, guest.installer.Options.SSHUser, ssh.PublicKeys(signer), verify, "show config")
+	running, err := guest.configPushSSH(ctx, guest.installer.Options.SSHUser, ssh.PublicKeys(signer), verify, configPushRunningQuery)
 	if err != nil {
 		return "", err
 	}
-	if err := configPushHost(content, hostname); err != nil {
+	actual, err := configPushRunningHost(running)
+	if err != nil {
 		return "", err
 	}
-	return content, nil
+	if actual != hostname {
+		return "", errors.New("native running configuration has an unexpected hostname")
+	}
+	return running, nil
+}
+
+// configPushRunningQuery asks the daemon for the configuration it applied, as
+// one JSON object with every secret leaf masked. It is the only command that
+// answers the running configuration: `show config` alone is a command group.
+const configPushRunningQuery = "show config running | json"
+
+func configPushRunningHost(running string) (string, error) {
+	var answer struct {
+		System struct {
+			Host string `json:"host"`
+		} `json:"system"`
+	}
+	if err := json.Unmarshal([]byte(running), &answer); err != nil {
+		return "", errors.New("native running configuration is not one JSON object")
+	}
+	if answer.System.Host == "" {
+		return "", errors.New("native running configuration has no system host")
+	}
+	return answer.System.Host, nil
+}
+
+// configPushRunningEqual compares two answers of the same daemon command, so
+// it needs no copy of the daemon's projection or masking.
+func configPushRunningEqual(before, after string) error {
+	var previous, current any
+	if err := json.Unmarshal([]byte(before), &previous); err != nil {
+		return errors.New("native proof baseline is not a running configuration answer")
+	}
+	if err := json.Unmarshal([]byte(after), &current); err != nil {
+		return errors.New("native proof observation is not a running configuration answer")
+	}
+	if !reflect.DeepEqual(previous, current) {
+		return errors.New("native running configuration changed outside the accepted publication")
+	}
+	return nil
 }
 
 func configPushUnchanged(before, after string) error {
@@ -154,7 +198,7 @@ func (guest *otaGuest) configPushUnchanged(ctx context.Context, signer ssh.Signe
 	if err != nil {
 		return err
 	}
-	return configPushUnchanged(baseline, observed)
+	return configPushRunningEqual(baseline, observed)
 }
 
 func (guest *otaGuest) configPushMalformed(ctx context.Context, signer ssh.Signer, verify ssh.HostKeyCallback) error {

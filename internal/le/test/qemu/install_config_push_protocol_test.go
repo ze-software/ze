@@ -418,7 +418,7 @@ func (fixture *configPushProtocolFixture) productPush(ctx context.Context, appDi
 	address := net.JoinHostPort(named.Device.Address, named.SSH.Port)
 	if err := verify(address, fixture.listener.Addr(), fixture.host.PublicKey()); err != nil {
 		fixture.badPins++
-		return commandResult{Code: 1}, nil
+		return commandResult{Code: 1, Stderr: "error: host key mismatch for " + address + "\n"}, nil
 	}
 	connection, err := net.Dial("unix", fixture.socket)
 	if err != nil {
@@ -431,8 +431,9 @@ func (fixture *configPushProtocolFixture) productPush(ctx context.Context, appDi
 	}
 	client, err := ssh.Dial("tcp", address, &ssh.ClientConfig{User: named.Credentials.Username, Auth: []ssh.AuthMethod{ssh.PublicKeys(signers...)}, HostKeyCallback: verify, Timeout: time.Second})
 	if err != nil {
-		// The host driver exits 1 for every connection or login failure.
-		return commandResult{Code: 1}, nil
+		// The host driver exits 1 for every connection or login failure, and
+		// names authentication, never a device refusal.
+		return commandResult{Code: 1, Stderr: "error: authenticate device " + address + "\n"}, nil
 	}
 	defer client.Close()
 	upload, err := configPushExchange(client, content)
@@ -440,7 +441,7 @@ func (fixture *configPushProtocolFixture) productPush(ctx context.Context, appDi
 		return commandResult{}, err
 	}
 	if upload.status != 0 {
-		return commandResult{Code: 1}, nil
+		return commandResult{Code: 1, Stderr: "error: " + configPushCauseDevice + "\n"}, nil
 	}
 	if string(upload.output) != configupload.Receipt {
 		return commandResult{}, errors.New("receiver receipt absent")
@@ -592,8 +593,13 @@ func (fixture *configPushProtocolFixture) sshConnection(connection net.Conn) {
 						}
 						_, _ = fmt.Fprintf(channel, `{"host":{"hostname":%q}}`, name)
 					}
-				case "show config":
-					_, _ = io.WriteString(channel, content)
+				case configPushRunningQuery:
+					tree, err := config.ParseTreeForValidation(content)
+					if err != nil {
+						code = 1
+						break
+					}
+					_ = json.NewEncoder(channel).Encode(tree.ToMap())
 				default:
 					code = 1
 				}
