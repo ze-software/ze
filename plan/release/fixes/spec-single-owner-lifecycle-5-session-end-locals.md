@@ -8,7 +8,7 @@
 | Release reason | Three shipped-daemon defects an operator meets in production: an LDP session that ended cleanly is retried as if it had failed and costs an OSPF link out, an L2TP subscriber that hung up stays in the subscriber table with an accounting record nobody stops, and a FlowSpec discard rule stays at every peer after the plugin that announced it is gone. |
 | RFC gaps | - |
 | Depends | `plan/release/fixes/spec-single-owner-lifecycle.md` (parent: decision record and row routing; no code dependency). No dependency on children 1 to 4: this child edits no file they edit |
-| Phase | 3/3: all three code phases committed (`4f1e24bf66`, `bae3903dbb`, `bec9096156`). The five daemon-level proofs are committed and green; the orphan proof's green run at its promoted path and the interop `ldp-backoff-clear-frr` are open |
+| Phase | 3/3: all three code phases committed (`4f1e24bf66`, `bae3903dbb`, `bec9096156`). The five daemon-level proofs and the interop `ldp-backoff-clear-frr` (`e299b1e031`) are committed and proven; one run is owed: the orphan proof's green run at its promoted path |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
@@ -271,7 +271,7 @@ SessionDown, FlowSpec withdrawal) or the order messages are sent in (L2TP).
 | R-7 | The plugin logs an error on every daemon stop with a live rule, because the connection is closed | An `ERROR` line at each stop | A closed transport on the way out is one `INFO` line that says the BGP sessions end with the daemon |
 | R-8 | The state write fails and a later crash leaves an unrecorded rule | A `WARN` line at announce time | The warning names the doctor code. The announcement still goes out: refusing to mitigate because the record failed would be worse |
 | R-9 | The start-time withdrawal runs before any peer is established and reaches nobody, then the record is removed | None needed: sessions that start after it never held the rule | Stated in the guide |
-| R-10 | The LDP interop check asserts an FRR command or output FRR does not have | The scenario cannot pass | Read FRR's `ldpd` source for the clear command and the neighbor output at the lab's version, and name the function in the scenario, before writing the check |
+| R-10 | The LDP interop check asserts an FRR command or output FRR does not have | The scenario cannot pass | Read FRR's `ldpd` source for the clear command and the neighbor output at the lab's version, and name the function in the scenario, before writing the check. Done: FRR 10.7.1 `ldp_vty_clear_nbr`, `nbr_clear_ctl` and `show_nbr_msg_json` are named in `check_ldp_backoff_clear.go`, and the scenario passed green, red, green (`e299b1e031`) |
 
 ## Blast Radius
 
@@ -330,7 +330,7 @@ AC-16, who clears an orphan record:
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Restarts LDP on a neighbor of a Ze router | neighbor closes TCP -> `runSession` ends -> `onDone` clears backoff, publishes SessionDown -> next Hello -> `startSessionForAdj` dials | `ldp-backoff-clear-frr`, `test/ldp/ldp-session-end-clears-backoff.ci` |
+| 1 | Restarts LDP on a neighbor of a Ze router | neighbor closes TCP -> `runSession` ends -> `onDone` clears backoff, publishes SessionDown -> next Hello -> `startSessionForAdj` dials | `ldp-backoff-clear-frr` (`e299b1e031`, redial 110 ms after FRR's clear), `test/ldp/ldp-session-end-clears-backoff.ci` (`0617ddff57`) |
 | 2 | Runs OSPF LDP-sync beside a neighbor that rejects Ze's session parameters | NAK -> `onDone` records the failure, publishes nothing -> OSPF state unchanged | `TestSessionEndBeforeOperationalPublishesNoSessionDown`, `test/ldp/ldp-setup-failure-publishes-no-session-down.ci` |
 | 3 | Clears a subscriber session while it is still negotiating its address | CLI -> `teardownSessionByID` and `handleSessionIPAssigned` -> ordered publication -> readers | `TestSessionIPAssignedIsPublishedBeforeTheTeardownThatFollowsIt`, `test/l2tp/session-clear-leaves-no-subscriber.ci` |
 | 4 | Deletes the `ddos` block during an attack | reload -> apply with the section absent -> withdrawal -> peer | `test/reload/ddos-flowspec-parent-removed-withdraws.ci` |
@@ -397,7 +397,7 @@ code. It uses `bye` on removal and the reload's apply as they are.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `ldp-backoff-clear-frr` | `test/interop/scenarios/` | FRR | An operational session cleared on FRR is re-established by Ze within one Hello interval, where the unfixed code waits 15 seconds or more. Red with the fix reverted and the image rebuilt | Open: the first run failed at the establish wait (note below) |
+| `ldp-backoff-clear-frr` | `test/interop/scenarios/` | FRR | An operational session cleared on FRR is re-established by Ze within one Hello interval, where the unfixed code waits 15 seconds or more. Red with the fix reverted and the image rebuilt | Committed `e299b1e031`. Green, red, green on 2026-11-13 (paragraph below). AC-1 interop half, user story 1, R-10 |
 
 L2TP: none owed. Nothing a LAC or LNS can observe changes: the fix orders
 events between Ze's own components.
@@ -408,14 +408,38 @@ in hex, on connection 1. `ddos-flowspec-orphan-doctor.ci` cannot show one on the
 wire: after the kill the new session never held the rule, so the engine
 withholds the withdrawal, and the test asserts the withheld line instead.
 
-LDP interop `ldp-backoff-clear-frr` (AC-1, interop half) is open, not proven.
-The first run on 2026-11-13 failed at the establish wait: at the end of the
-120-second wait FRR showed the session OPERATIONAL with an upTime of 1 second,
-and Ze logged no session end and no failed dial. The sibling
-`ldp-keepalive-expiry-frr` formed its session within about ten polls on the same
-host, so the delay belongs to this scenario and is not yet explained. The
-checker now records failure evidence (FRR's debug log, Ze's `show ldp neighbor`,
-a state trail) and waits for its next run.
+LDP interop `ldp-backoff-clear-frr` (AC-1 interop half, user story 1) is proven,
+committed in `e299b1e031`: the scenario, the checker
+`internal/le/interoplab/bgp/check_ldp_backoff_clear.go` with its tests,
+`register_ldp_backoff_clear.go`, `prepare.go` (`scenarioHostAddresses`,
+`addHostAddresses`), the recording under `testdata/ldp-backoff-clear-frr/` with
+`TestLDPBackoffClearReplaysTheLabRecording`, and the inventory row in
+`docs/architecture/testing/interop.md`. The runs, on 2026-11-13 on a Docker host
+running Ze's kernel (7.2.9-ze), FRR in the lab image:
+
+| Run | Image | Result |
+|-----|-------|--------|
+| Green | `sha256:a218f6cd97d5` (2m46s) | The first session was operational 5 s after ze started. FRR's clear ended it at 19:04:57.959, and ze logged a new `ldp: session operational` at 19:04:58.069, 110 ms later, with no `session setup failed` line |
+| Red | `sha256:3c4dee38ac2e` | The operational arm of `startSessionForAdj`'s session-end callback changed to `recordSetupFailure`, one line in the working tree for the run, because the ze image builds from the tree; restored and checksum-verified in the same command. Failure: `ze logged "ldp: session setup failed, next attempt delayed" 1 time(s) after FRR cleared a session that had reached OPERATIONAL: its end recorded a setup backoff, which delays the redial by 15 s or more (the probes ended 15.454s after the clear)` |
+| Green again | `sha256:c58b3f2734ff` (2m31s) | Passes after the restore |
+
+R-10: the checker drives FRR 10.7.1's `clear mpls ldp neighbor <address>`
+(`ldp_vty_clear_nbr`, then `nbr_clear_ctl`, which matches the transport address)
+and reads `show mpls ldp neighbor json` (`show_nbr_msg_json`), both named in the
+checker's comments.
+
+The first failed run was a startup race in the scenario, now removed. Ze dials
+from its transport address on FRR's first Hello, and the checker added that
+address only when it started, so a dial could fail with
+`bind: cannot assign requested address` and cost a backoff step (seen in a later
+run: a failed dial at 18:53:24.679 with `delay=15s`, operational at
+18:53:39.691). The lab now adds the address in ze's prestart
+(`scenarioHostAddresses`). An earlier red attempt through a host build overlay
+did not count: the overlay never reached the image, the run passed, and the
+missing `session setup failed` line showed the mutation was absent. The sibling
+scenarios `ldp-keepalive-expiry-frr` and `ldp-init-unknown-tlv-frr` still add the
+address from their checkers and carry the same race: a journal row owned by
+another spec, not this one.
 
 ## Files to Modify
 - `internal/plugins/ldp/register.go` - `runSession` hands the operational fact to `onDone`. `onDone` branches on it. The backoff comment quotes each RFC sentence on its own
