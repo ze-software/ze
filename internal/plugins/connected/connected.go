@@ -6,11 +6,13 @@ package connected
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/netip"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
@@ -45,15 +47,21 @@ type addrPayload struct {
 }
 
 type routeObserver struct {
-	bus ze.EventBus
+	// publish consumes the batch synchronously. It MUST finish encoding or
+	// dispatching before returning: emitID returns the batch to its pool.
+	// Nil disables redistribution, as a nil bus does in newRouteObserver.
+	publish func(*redistevents.RouteChangeBatch) (int, error)
+	// reportReplay reports a complete replay's outcome under emitMu. Nil
+	// disables reporting for an observer with no SDK connection.
+	reportReplay func(error) error
 
 	mu sync.Mutex
-	// emitMu orders a replay against the incremental emits. Each incremental
-	// emit holds it shared, after its prefix's address set changed under mu;
-	// reemitAll holds it exclusive from its snapshot to its last emit. A Remove
-	// whose set emptied after the snapshot is then published after the replay's
-	// Add, never before it, so the replay cannot revive the prefix.
-	emitMu sync.RWMutex
+	// emitMu orders each complete address change, replay and retirement.
+	// Retirement drains accepted publications before its withdrawals; later
+	// events cannot revive the retired observer. An address set cannot change
+	// ahead of an earlier publication for the same prefix either.
+	emitMu  sync.RWMutex
+	retired bool // guarded by emitMu; set only after all stop withdrawals succeed.
 	// prefixes holds, for each connected prefix, the addresses that cover it.
 	// It is a SET rather than a count of events, because the kernel announces
 	// one address more than once: the iface monitor's startup dump can overlap
@@ -78,10 +86,15 @@ type connectedAddr struct {
 }
 
 func newRouteObserver(bus ze.EventBus) *routeObserver {
-	return &routeObserver{
-		bus:      bus,
+	o := &routeObserver{
 		prefixes: make(map[netip.Prefix]map[connectedAddr]struct{}),
 	}
+	if bus != nil {
+		o.publish = func(batch *redistevents.RouteChangeBatch) (int, error) {
+			return connectedevents.RouteChange.Emit(bus, batch)
+		}
+	}
+	return o
 }
 
 func (o *routeObserver) handleAddrAdded(payload any) {
@@ -91,6 +104,11 @@ func (o *routeObserver) handleAddrAdded(payload any) {
 	}
 	key, prefix, ok := o.toNetworkPrefix(p)
 	if !ok {
+		return
+	}
+	o.emitMu.Lock()
+	defer o.emitMu.Unlock()
+	if o.retired {
 		return
 	}
 	o.mu.Lock()
@@ -121,6 +139,11 @@ func (o *routeObserver) handleAddrRemoved(payload any) {
 	}
 	key, prefix, ok := o.toNetworkPrefix(p)
 	if !ok {
+		return
+	}
+	o.emitMu.Lock()
+	defer o.emitMu.Unlock()
+	if o.retired {
 		return
 	}
 	o.mu.Lock()
@@ -180,23 +203,23 @@ func (o *routeObserver) toNetworkPrefix(p addrPayload) (connectedAddr, netip.Pre
 }
 
 func (o *routeObserver) emit(action redistevents.RouteAction, prefix netip.Prefix) {
-	o.emitMu.RLock()
-	defer o.emitMu.RUnlock()
-	o.emitID(action, prefix, 0)
+	if err := o.emitID(action, prefix, 0); err != nil {
+		logger().Warn("connected: route-change emit failed", "error", err)
+	}
 }
 
 // emitID emits a single-prefix batch tagged with replayID (0 for the normal
 // incremental path; nonzero echoes a redistribute ReplayRequest so the
 // orchestrator can replay to a newly-established peer or to a destination
 // consumer that registered after this producer emitted).
-func (o *routeObserver) emitID(action redistevents.RouteAction, prefix netip.Prefix, replayID uint64) {
-	if o.bus == nil {
-		return
+func (o *routeObserver) emitID(action redistevents.RouteAction, prefix netip.Prefix, replayID uint64) error {
+	if o.publish == nil {
+		return nil
 	}
 	// The prefix is in the Loc-RIB whatever its address, because the kernel
 	// holds its route; it only never reaches the redistribution feed.
 	if !redistributable(prefix) {
-		return
+		return nil
 	}
 	var fam family.Family
 	if prefix.Addr().Is4() {
@@ -214,9 +237,8 @@ func (o *routeObserver) emitID(action redistevents.RouteAction, prefix netip.Pre
 		Action: action,
 		Prefix: prefix,
 	})
-	if _, err := connectedevents.RouteChange.Emit(o.bus, b); err != nil {
-		logger().Warn("connected: route-change emit failed", "error", err)
-	}
+	_, err := o.publish(b)
+	return err
 }
 
 // redistributable reports whether a connected prefix may be offered to the
@@ -259,12 +281,18 @@ func redistributable(prefix netip.Prefix) bool {
 // establishes after the original emit. Reflects the CURRENT live set (a prefix
 // removed before the peer joined is simply absent). A zero replayID is a no-op
 // (the orchestrator only allocates nonzero tokens).
-func (o *routeObserver) reemitAll(replayID uint64) {
-	if o.bus == nil || replayID == 0 {
-		return
+func (o *routeObserver) reemitAll(replayID uint64) error {
+	if o.publish == nil {
+		return nil
+	}
+	if replayID == 0 {
+		return nil
 	}
 	o.emitMu.Lock()
 	defer o.emitMu.Unlock()
+	if o.retired {
+		return nil
+	}
 	o.mu.Lock()
 	prefixes := make([]netip.Prefix, 0, len(o.prefixes))
 	for p, covering := range o.prefixes {
@@ -273,9 +301,20 @@ func (o *routeObserver) reemitAll(replayID uint64) {
 		}
 	}
 	o.mu.Unlock()
+	var replayFailure error
 	for _, p := range prefixes {
-		o.emitID(redistevents.ActionAdd, p, replayID)
+		if err := o.emitID(redistevents.ActionAdd, p, replayID); err != nil {
+			logger().Warn("connected: route-change replay failed", "error", err,
+				"prefix", p, "code", diagnostic.CodeDoctorPluginPanic, "fix", connectedReplayFix)
+			if replayFailure == nil {
+				replayFailure = fmt.Errorf("prefix %s: %w", p, err)
+			}
+		}
 	}
+	if o.reportReplay != nil {
+		return o.reportReplay(replayFailure)
+	}
+	return replayFailure
 }
 
 func runConnectedPlugin(conn net.Conn) int {
@@ -284,8 +323,7 @@ func runConnectedPlugin(conn net.Conn) int {
 
 	registerConnectedSources()
 
-	bus := getEventBus()
-	obs := newRouteObserver(bus)
+	obs := newRouteObserver(nil)
 	// Connected prefixes are published into the shared Loc-RIB. In-process that
 	// is locrib.Default(); forked, it answers nil and the operations travel to
 	// the engine over the route-install RPC, which rebuilds the Path in the
@@ -296,27 +334,16 @@ func runConnectedPlugin(conn net.Conn) int {
 		remote = routeinstall.New(context.Background(), p)
 	}
 	obs.setLocRIB(loc, remote)
+	defer obs.withdrawLocalPaths()
 
-	if bus != nil {
-		unsub1 := bus.Subscribe("interface", "addr-added", obs.handleAddrAdded)
-		unsub2 := bus.Subscribe("interface", "addr-removed", obs.handleAddrRemoved)
-		// Redistribute late-join replay: on a ReplayRequest re-emit the current
-		// connected-route set tagged with the echoed ReplayID so a peer that
-		// established after injection receives them (spec-redistribute-late-join-replay).
-		unsub3 := redistevents.ReplayRequestEvent.Subscribe(bus, func(r *redistevents.ReplayRequest) {
-			obs.reemitAll(r.ReplayID)
-		})
-		defer unsub1()
-		defer unsub2()
-		defer unsub3()
-	}
+	ctx := context.Background()
+	followInterfaceAddresses(ctx, p, obs)
 
 	// The connected container is empty: the plugin keeps WantsConfig so the
 	// root autoloads it and counts it as a consumer, and a reload has nothing
 	// for it to apply.
 	p.DeclareAppliesNothing("its config container holds no leaf")
 
-	ctx := context.Background()
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{pluginName},
 	}); err != nil {

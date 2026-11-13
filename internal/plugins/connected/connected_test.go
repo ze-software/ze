@@ -225,7 +225,7 @@ func TestConnectedReemitsReplayID(t *testing.T) {
 	bus.emits = nil
 	bus.mu.Unlock()
 
-	obs.reemitAll(77)
+	require.NoError(t, obs.reemitAll(77))
 
 	evts := bus.events()
 	require.Len(t, evts, 2, "both current prefixes re-emitted")
@@ -245,7 +245,7 @@ func TestConnectedReemitsReplayID(t *testing.T) {
 	bus.mu.Lock()
 	bus.emits = nil
 	bus.mu.Unlock()
-	obs.reemitAll(0)
+	require.NoError(t, obs.reemitAll(0))
 	require.Empty(t, bus.events(), "reemitAll(0) must be a no-op")
 }
 
@@ -280,7 +280,7 @@ func TestConnectedNeverRedistributesUnroutablePrefixes(t *testing.T) {
 			require.Len(t, sink.inserted, 1, "the kernel holds the connected route, so the Loc-RIB still carries it")
 			require.Empty(t, bus.events(), "an unroutable prefix must never reach the redistribution feed")
 
-			obs.reemitAll(9)
+			require.NoError(t, obs.reemitAll(9))
 			require.Empty(t, bus.events(), "a late-join replay must not export it either")
 
 			obs.handleAddrRemoved(makePayload(tc.addr, tc.prefixLen))
@@ -292,7 +292,7 @@ func TestConnectedNeverRedistributesUnroutablePrefixes(t *testing.T) {
 	bus := &recordingBus{}
 	obs := newRouteObserver(bus)
 	obs.handleAddrAdded(makePayload("10.0.0.1", 24))
-	obs.reemitAll(9)
+	require.NoError(t, obs.reemitAll(9))
 	require.Len(t, bus.events(), 2, "a routable prefix is emitted and replayed")
 }
 
@@ -333,7 +333,7 @@ func TestConnectedReplayEmitsUnderEmitLock(t *testing.T) {
 	obs.handleAddrAdded(makePayload("10.0.0.1", 24))
 	obs.handleAddrAdded(makePayload("192.168.1.1", 16))
 
-	obs.reemitAll(5)
+	require.NoError(t, obs.reemitAll(5))
 
 	require.Equal(t, 2, replayed)
 	require.Zero(t, unordered, "an incremental emit could interleave with the replay")

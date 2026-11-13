@@ -85,6 +85,19 @@ func (o *routeObserver) removePath(prefix netip.Prefix) {
 	}
 }
 
+// withdrawLocalPaths releases only this observer's connected paths when the
+// internal plugin stops. The caller MUST wait for SDK Run to return first:
+// it fences and joins direct event delivery before this map is read.
+// Forked paths remain owned by the engine's route-install disconnect cleanup.
+func (o *routeObserver) withdrawLocalPaths() {
+	if o.loc == nil {
+		return
+	}
+	for prefix := range o.prefixes {
+		o.removePath(prefix)
+	}
+}
+
 // familyOf returns the Loc-RIB family a prefix belongs to.
 func familyOf(p netip.Prefix) family.Family {
 	if p.Addr().Is4() {

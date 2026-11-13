@@ -9,12 +9,15 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	connectedyang "github.com/ze-software/ze/internal/plugins/connected/yang"
-	"github.com/ze-software/ze/pkg/ze"
 )
 
 func init() {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorPluginPanic}); err != nil {
+		panic("BUG: connected replay diagnostic registration refused: " + err.Error())
+	}
 	// The filter attachment points this plugin's config holds, with the route
 	// fields their routes carry and a filter there may set (the route field
 	// vocabulary, internal/component/policy/fields.go).
@@ -46,9 +49,6 @@ func init() {
 		RunEngine:    runConnectedPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
-		},
-		ConfigureEventBus: func(eb ze.EventBus) {
-			setEventBus(eb)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

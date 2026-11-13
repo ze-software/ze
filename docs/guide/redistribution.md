@@ -464,12 +464,45 @@ token first.
 | Source | Registered by | What it contributes |
 |--------|---------------|---------------------|
 | `bgp`, `ibgp`, `ebgp` | the BGP engine | the Loc-RIB's best paths, all sessions or internal or external only. Each best path carries the class of the peer it was learned from, so `ebgp` moves only eBGP-learned paths and `ibgp` only iBGP-learned ones; a locally originated path has no peer class and moves through `bgp` alone |
-| `connected` | the connected plugin | prefixes of configured interface addresses, except the unroutable ones below |
+| `connected` | the connected plugin | prefixes of addresses reported by the active interface provider, except the unroutable ones below |
 | `static` | the static plugin | forward routes in the default table |
 | `kernel` | the kernel plugin | routes another program installed in the OS FIB |
 | `isis`, `ospf` | the IGP plugins | that protocol's SPF-selected routes |
 | `as112`, `l2tp` | those plugins | the covering prefixes and the per-session routes they own |
 | `ipsec` | the IKE engine | every remote traffic selector of each established Child SA, one route per selector: a Child SA that negotiated an IPv4 pair and an IPv6 pair contributes both prefixes, and withdraws both when it goes. A Child SA rekey that changes the set withdraws only the prefixes it dropped and announces only the ones it added; a prefix kept across the rekey is not withdrawn and re-announced <!-- source: internal/component/ike/engine/redistribute.go -- emitRouteAdd, emitRouteRemove, rekeyTunnelRoutes --> |
+
+`connected` needs an active interface provider to learn interface addresses.
+An empty `interface { }` root starts the configured backend's monitor, including
+addresses already present on the host. When connected starts or restarts, it
+subscribes before requesting that inventory, so addresses need no new change
+to reach the Loc-RIB and redistribution. The same path serves internal and
+external connected plugins. The request does not start an absent provider:
+without one, connected has no initial address inventory and continues without
+waiting for a reply.
+<!-- source: internal/component/iface/register.go -- runEngine, OnConfigure -->
+<!-- source: internal/plugins/connected/eventbus.go -- followInterfaceAddresses, handleEvent -->
+
+When the internal connected plugin stops, it removes its paths from the
+Loc-RIB and preserves paths that other protocols hold for the same prefixes.
+<!-- source: internal/plugins/connected/locrib.go -- withdrawLocalPaths, removePath -->
+
+A live removal first drains accepted address changes and redistribution replays,
+then withdraws the connected prefixes from redistribution before acknowledging
+the removal. Later address events and replays cannot announce that stopped
+observer's routes again. If publication fails, the observer tries to restore its
+current announcements and refuses removal. It reports any restoration failure
+too, retains its address inventory and continues accepting events, so a subsequent
+removal can retry.
+<!-- source: internal/plugins/connected/lifecycle.go -- retire -->
+
+If a connected-route replay fails, connected logs the failed prefix and raises
+an active "Event handler failed" warning through the daemon, in both plugin
+modes. The warning names the publication error and the log command to inspect
+it. A complete successful replay clears the warning, including when all
+addresses have since been removed. A refused warning update is returned as an
+event application error.
+<!-- source: internal/plugins/connected/connected.go -- reemitAll -->
+<!-- source: internal/plugins/connected/eventbus.go -- followInterfaceAddresses, handleEvent -->
 
 `connected` never offers a prefix whose network address is loopback
 (127.0.0.0/8, ::1/128), link-local (169.254.0.0/16, fe80::/10), multicast
