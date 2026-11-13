@@ -307,6 +307,7 @@ The loopback-address half stays here.
 | gate-verdict-depends-on-the-machine.md | 2026-10-14 | stdpatch `CacheDir` spelled through the `cache` link, read as a main-module package |
 | gate-verdict-depends-on-the-machine.md | 2026-10-14 | `./le test ui` builds only `ze`; `ze-stripped` fixtures fail |
 | gate-verdict-depends-on-the-machine.md | 2026-10-25 | `TestCleanTargetsOneRowPerCache` compares a resolved /private/var path with an unresolved /var one |
+| concurrent-session-corruption.md | 2026-11-13 | guest `le` and daemons under `tmp/qemu/linux-<arch>/` rebuilt in place by any session's guest run |
 
 ## Rows found already fixed
 
