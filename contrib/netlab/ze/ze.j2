@@ -80,6 +80,18 @@ plugin {
 	internal bgp-rib {
 		use bgp-rib;
 	}
+{#  bgp-rib stores routes and elects the best one, and re-advertises nothing.
+    bgp-rs is what sends a route learned from one peer to the others, so a node
+    between two sessions needs it for the far side to learn anything. #}
+	internal bgp-rs {
+		use bgp-rs;
+	}
+{#  bgp-rs replays to a peer that comes up later what the others announced
+    earlier, and it reads that from bgp-adj-rib-in. netlab starts the nodes
+    together, so one session is always later than another. #}
+	internal bgp-adj-rib-in {
+		use bgp-adj-rib-in;
+	}
 {% endif %}
 }
 
@@ -222,6 +234,15 @@ bgp {
             iBGP-learned route is ever re-advertised to another iBGP peer. #}
 			next-hop self;
 {% endif %}
+{% if n.type == 'ebgp' %}
+{#          RFC 4271 Section 5.1.3: toward an external peer a speaker announces
+            its own address unless the next hop shares that peer's subnet. Ze's
+            default leaves a forwarded route's next hop as received, which an
+            external peer refuses when it is another node's loopback (owned by
+            plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md).
+            Stating the default keeps the render right before and after that. #}
+			next-hop self;
+{% endif %}
 			family {
 {% if n.activate.ipv4 is defined and n.activate.ipv4 %}
 				ipv4/unicast {
@@ -253,13 +274,23 @@ bgp {
 		}
 {% endif %}
 {#      A peer that attaches no process is fed nothing and may announce nothing.
-        bgp-rib takes this peer's UPDATEs and answers with the routes the node
-        offers; redistribute-orchestrator carries the connected, OSPF and IS-IS
-        prefixes the block below imports. Without both blocks the session comes
-        up, the ping validation fails, and nothing says why. #}
+        bgp-rib stores this peer's UPDATEs and elects the best route.
+        bgp-rs forwards what one peer sent to the other peers: without it a
+        node passes on only its own prefixes, and a lab with a node between
+        two sessions cannot ping across it. redistribute-orchestrator carries
+        the connected, OSPF and IS-IS prefixes the block below imports. Without
+        these blocks the session comes up, the ping validation fails, and
+        nothing says why. #}
 		attach process bgp-rib {
 			receive [ update state refresh ]
 			send [ update ]
+		}
+		attach process bgp-rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
 		}
 		attach process redistribute-orchestrator {
 			receive [ state ]

@@ -7,7 +7,8 @@ Ze uses a plugin architecture for all features beyond core BGP session managemen
 
 | Use case | Plugins | Why |
 |----------|---------|-----|
-| Announce routes to upstream | `bgp-rib` | Stores routes and sends them to peers |
+| Announce your own routes to upstream | `bgp-rib` | Stores routes, elects the best one and replays what this router announced. It does not pass a route learned from one peer on to another |
+| Pass routes between peers (transit) | `bgp-rib` + `bgp-rs` + `bgp-adj-rib-in`, each attached to every peer | `bgp-rs` forwards what one peer announced to the others, and `bgp-adj-rib-in` lets it replay to a peer that comes up later. Set `session { next-hop self; }` toward an external peer: a forwarded route otherwise keeps the next hop it arrived with. [Why](route-reflection.md#without-route-reflection) |
 | Route server (IXP) | `bgp-rib` + `bgp-rs` + `bgp-adj-rib-in` | Forward routes between clients, replay on reconnect |
 | With RPKI validation | Add `bgp-rpki` + `bgp-adj-rib-in` | Validate origin AS against ROA cache |
 | With merged RPKI events | Add `bgp-rpki-decorator` (+ above) | Receive UPDATE events pre-merged with RPKI state |

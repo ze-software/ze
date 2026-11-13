@@ -174,6 +174,21 @@ peer that establishes later to request the current connected prefixes.
 <!-- source: internal/component/iface/config_sysctl.go -- applyIPv6ForwardingSwitch -->
 <!-- source: internal/plugins/redistribute/register.go -- runPlugin -->
 
+Each BGP peer attaches four processes. `bgp-rib` stores the peer's routes and
+elects the best one, and re-advertises nothing. `bgp-rs` sends what one peer
+announced to the node's other peers: without it a node passes on only its own
+connected, OSPF and IS-IS prefixes, and a lab with a node between two BGP
+sessions cannot reach across it. `bgp-adj-rib-in` is what `bgp-rs` reads to
+replay those routes to a peer whose session comes up later, which in a lab is
+always one of them. `redistribute-orchestrator` carries the local prefixes
+into BGP.
+
+Toward an external peer the render sets `next-hop self`. That is the default
+RFC 4271 Section 5.1.3 describes, written out because Ze's own default leaves
+a forwarded route's next hop as it arrived, and an external peer refuses a
+next hop that is another node's loopback.
+<!-- source: contrib/netlab/ze/ze.j2 -- attach process bgp-rib, bgp-rs, bgp-adj-rib-in, redistribute-orchestrator; next-hop self -->
+
 The explicit `clab.node_config.initial` shell method runs Linux interface setup
 through `docker exec`. The Ze initial template marks successful completion for
 the startup wrapper. The explicit method overrides the Linux parent's
