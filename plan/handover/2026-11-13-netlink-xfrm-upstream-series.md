@@ -10,17 +10,19 @@ Mac that works on this checkout over ssh.
 | Thing | State on 2026-11-13 11:45 | Who holds it |
 |-------|---------------------------|--------------|
 | Forward-apply guard | Committed as `ce3a0e0fd7`: `TestPatchedVendorModulesMatchUpstream` now applies every patch forward | Done |
-| `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` | HEAD holds a sound two-file patch. The working tree holds the six-file patch, repaired at 11:50 so it applies forward (below). Still uncommitted | Uncommitted work of `spec-rfc4301-architecture-gaps` |
-| Vendored netlink files | Three modified (`xfrm_policy_linux.go`, `xfrm_state_linux.go`, `nl/xfrm_linux.go`) and three untracked (`xfrm_state_scope_linux.go`, its test, `xfrm_selector_family_linux_test.go`) | Same |
-| `internal/component/ike/dataplane/xfrm_linux.go` | Modified, and it calls library functions that exist only in the uncommitted vendored files | Shared by the RFC 4301 and dual-form work |
-| Dual-form work | Uncommitted. Its commit was refused on one malformed row in `plan/journal/error-names-no-fix-command.md`. Handover: `plan/handover/2026-11-12-dual-form-spd-bypass.md` | A session was still writing its state file at 11:40 |
+| `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` | Committed in `352f231413`, six files, applies forward | Done |
+| Vendored netlink files | Committed in `352f231413`. Clean in git. `route_probe_ipv4_linux.go` and its patch `netlink-route-probe-ipv4.patch` are untracked work of another piece and touch no XFRM file | Done |
+| `internal/component/ike/dataplane/xfrm_linux.go` | Modified and uncommitted: the callers of the new library fields | The RFC 4301 work |
+| Dual-form work | Landed as `abeb7d6535` on 2026-11-12; later rounds of that spec are uncommitted. Handover: `plan/handover/2026-11-12-dual-form-spd-bypass.md` | The dual-form spec |
 
 The RFC 4301 commits `8b3c7a34cd` and `2db581e7d6` are in HEAD and touch no
 netlink file. The last commit that touched the vendored library is `e1f42c2ca4`
-(2026-11-10). The library part of RFC 4301 (the mapped IPv6 selector fix and the
-state scope) is NOT committed, whatever a report says.
+(2026-11-10) before this work. The library part of RFC 4301 (the mapped IPv6
+selector fix and the state scope) was committed on its own as `352f231413` on
+2026-11-13, by the session that wrote this file, because its own session had
+stopped. The Ze callers of it are not in that commit.
 
-## The malformed patch (repaired in the working tree)
+## The malformed patch (repaired and committed)
 
 The generator `tmp/session/2026-11-10-225434/scratch/scope-wire-generate.py`
 builds the diff with Python's `difflib` and writes each `diff --git` line itself.
@@ -33,7 +35,7 @@ line, so git reads the three added files as a change to a file named `dev/null`.
 | `git apply --reverse --check` in the checkout | Passes |
 | Forward apply to pristine v1.3.1 | Refused, "error: dev/null: No such file or directory", three times |
 
-Done at 11:50, uncommitted:
+Done on 2026-11-13 and committed in `352f231413`:
 
 - The three `new file mode 100644` lines were inserted into the patch, and nothing
   else in it changed. `git apply --summary` now lists three creations, and
@@ -43,19 +45,18 @@ Done at 11:50, uncommitted:
 - The patch and the generator as they were before are kept in
   `tmp/session/2026-11-13-112345/scratch/` as
   `netlink-xfrm-before-new-file-mode.patch` and
-  `scope-wire-generate.before-new-file-mode.py`. Remove them once the library
-  work is committed.
+  `scope-wire-generate.before-new-file-mode.py`. They can be removed now.
 
-The repaired patch belongs to the RFC 4301 library work and lands with it.
+In the working tree the ike dataplane package has one red,
+`TestVPPInstallPolicyPartialPortMaskRefused`, in the uncommitted VPP policy work
+of the RFC 4301 spec. It is not caused by the library.
 
 ## Order of work
 
-1. Dual-form lands. It does not need the library work.
-2. The RFC 4301 library work lands, with the patch regenerated so it applies
-   forward. `xfrm_linux.go` carries hunks of both specs, so each commit goes by
-   hunks where the other spec's hunks would not build at HEAD.
-3. Only then does the split of this spec begin: its Depends row and risk R-7
-   forbid starting on vendored files that carry another session's hunks.
+Nothing blocks the split any more: the vendored netlink XFRM files and their
+patch are clean in git. What remains before the first edit is Thomas moving the
+spec from `design` to `ready`, and the check of `git status` that risk R-7 asks
+for, since the RFC 4301 work may touch the library again.
 
 ## Design choices
 
@@ -70,7 +71,7 @@ recommendation to approve all three. The spec has not been moved to `ready`.
 
 ## Findings, now in the spec
 
-Written into the spec at 11:55 as A-1, A-5, A-6, R-9, R-10 and two Design
+Written into the spec on 2026-11-13 as A-1, A-5, A-6, R-9, R-10 and two Design
 Insights lines. The table stays here as the evidence trail.
 
 | Spec item | Finding | Evidence |
@@ -88,7 +89,7 @@ Insights lines. The table stays here as the evidence trail.
 |------|-----------------|
 | A-3: a generic extra-attributes hook is small enough to be the whole Ze-only patch | Write the hook and measure the remaining Ze-only diff |
 | A-4: every upstream-candidate test runs unprivileged | Run each new test without privileges |
-| A-7: the RFC 4301 library work lands first | `git status` shows the patch and the vendored netlink files clean |
+| A-7: the RFC 4301 library work lands first | Confirmed: `352f231413` |
 | Which hunks survive unchanged on upstream `main` | Apply each patch of the drafted series to a clone of `main` |
 
 ## Working on this server over ssh
