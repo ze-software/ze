@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"sync/atomic"
@@ -225,9 +226,41 @@ func replaceResponder(cfg *Config, dispatcher routeDispatcher, prev *responder, 
 const exitWithdrawBudget = 400 * time.Millisecond
 
 // closedTransportMessage is the line stopResponder logs when its withdrawal
-// meets a closed connection to the engine. It holds whether or not the daemon
-// is stopping, because the plugin cannot tell which.
+// meets a closed connection to the engine and the live rule is recorded. It
+// holds whether or not the daemon is stopping, because the plugin cannot tell
+// which.
 const closedTransportMessage = "ddos-flowspec: the FlowSpec rule was not withdrawn on the way out, because the plugin's connection to the engine is closed; the rule stays recorded. If the daemon is stopping, the BGP sessions end with it. Otherwise the next start of the plugin withdraws the rule, and the command under fix starts it"
+
+// unrecordedExitMessage is the line stopResponder logs when it cannot withdraw
+// a live rule whose record write failed when it was announced (announce). No
+// start reads a record that is not there, and no doctor check reports it, so
+// the withdrawal by hand is the only fix, on every end. It opens with the
+// phrase test/reload/ddos-flowspec-parent-removed-withdraws.ci rejects.
+const unrecordedExitMessage = "ddos-flowspec: the FlowSpec rule could not be withdrawn on the way out, and it is not recorded, because its record write failed when it was announced; no start of the plugin withdraws it and ze doctor does not report it, so it may stay at the BGP peers. If the daemon is stopping, the BGP sessions end with it. Otherwise withdraw the rule by hand with the command in fix"
+
+// removedExitMessage is the line stopResponder logs when the `bye` of a removal
+// cannot withdraw a recorded rule. The section is gone, so no plugin starts to
+// withdraw it, and the post-config check (orphanRecordCheck) reports the
+// record. It opens with the phrase the removal .ci rejects, as above.
+const removedExitMessage = "ddos-flowspec: the FlowSpec rule could not be withdrawn on the way out, when the plugin was removed, so it may still be at the BGP peers; it stays recorded, and no running plugin withdraws it while ddos flowspec is not configured. ze doctor reports the recorded rule, and the command in fix withdraws it by hand"
+
+// exitKind is how the plugin's run ended, which decides what stopResponder
+// tells the operator about a rule it could not withdraw. The zero value is no
+// end: stopResponder refuses it as a defect.
+type exitKind uint8
+
+const (
+	exitUnspecified exitKind = iota
+	// exitRemoved is the engine's `bye`: the plugin is removed from a running
+	// daemon, and no start follows while its section stays removed.
+	exitRemoved
+	// exitStopped is a Run that returned nil: the engine ended the plugin (a
+	// daemon stop, a restart) or its signal context ended.
+	exitStopped
+	// exitFailed is a Run that returned an error, or a panic that unwound
+	// runEngine before Run returned: the plugin stopped on its own.
+	exitFailed
+)
 
 // stopResponder takes r out of service on the plugin's way out and withdraws
 // the FlowSpec rule it still announces. A nil r is the engine that never
@@ -255,9 +288,9 @@ const closedTransportMessage = "ddos-flowspec: the FlowSpec rule was not withdra
 //     on its way out (its deferred bridge.CloseCallbacks runs
 //     bridge.StopDispatch), so by the time this deferred call runs,
 //     DirectBridge.DispatchRPC refuses every call with rpc.ErrBridgeClosed
-//     (bridge.go beginDispatch). The rule then stays recorded, and the next
-//     start of the plugin withdraws it from OnStarted
-//     (withdrawRecordedAnnouncement).
+//     (bridge.go beginDispatch). The rule then stays recorded, when its record
+//     write succeeded, and the next start of the plugin withdraws it from
+//     OnStarted (withdrawRecordedAnnouncement).
 //
 // The withdrawal runs under a context of its own, bounded by
 // exitWithdrawBudget and NOT derived from the signal context: on the way out
@@ -273,19 +306,34 @@ const closedTransportMessage = "ddos-flowspec: the FlowSpec rule was not withdra
 // example): its Run returns while the engine still answers, and the
 // withdrawal leaves (TestRunEndingWithoutByeWithdrawsTheLiveAnnouncement).
 //
-// The closed transport is one log line, and the line cannot know whether the
-// daemon is stopping, so it says what holds in both cases. runFailed sets its
-// level. When Run ended because the engine stopped the plugin (a daemon stop, a
-// plugin restart) the line is INFO: at a daemon stop the BGP sessions end with
-// the daemon, the peers drop the rule with the session (or hold it as stale
-// under graceful restart), and a restart withdraws the rule when it starts.
-// When Run failed, or never returned because a panic unwound runEngine, the
-// plugin stopped on its own while the daemon may keep running with the rule at
-// the peers, and nothing withdraws it until the plugin starts again: the
-// plugin declares no failure policy, so the engine does not restart it
-// (failure_policy.go applyFailurePolicy, FailureUnspecified), and the line is
-// a WARN that the operator sees.
-func stopResponder(r *responder, runFailed bool) {
+// A withdrawal that did not leave is one log line, chosen in this order:
+//
+//   - The live rule is not recorded (its record write failed in announce): no
+//     start withdraws it and no doctor check reports it, on any end, so the line
+//     is a WARN whose fix is the withdrawal by hand (unrecordedExitMessage).
+//   - The end is the `bye` of a removal: the section is gone, so no start
+//     follows, and the fix is the withdrawal by hand (removedExitMessage).
+//   - The connection is closed. The line cannot know whether the daemon is
+//     stopping, so it says what holds in both cases, and the end sets its
+//     level. After exitStopped it is INFO: at a daemon stop the BGP sessions end
+//     with the daemon, the peers drop the rule with the session (or hold it as
+//     stale under graceful restart), and a restart withdraws the rule when it
+//     starts. After exitFailed the plugin stopped on its own while the daemon
+//     may keep running with the rule at the peers, and nothing withdraws it
+//     until the plugin starts again: the plugin declares no failure policy, so
+//     the engine does not restart it (failure_policy.go applyFailurePolicy,
+//     FailureUnspecified), and the line is a WARN that the operator sees.
+//   - Any other error is a WARN that names it.
+//
+// exitFailed does not always mean the daemon keeps running. A forked plugin's
+// Run also fails when the engine closes the connection while the plugin is
+// writing a callback answer: the SDK's event loop returns that send error
+// (pkg/plugin/sdk/sdk_dispatch.go eventLoop), so a daemon stop that lands
+// mid-answer logs the WARN. Run's error is not read as a clean end through
+// transportClosed, because the error a write to a closed connection gives is
+// not one sentinel: io.ErrClosedPipe on a pipe, EPIPE or ECONNRESET on a
+// socket, a TLS error over TLS. The WARN's text holds in both cases.
+func stopResponder(r *responder, end exitKind) {
 	if r == nil {
 		return
 	}
@@ -296,6 +344,9 @@ func stopResponder(r *responder, runFailed bool) {
 	if !r.active {
 		return
 	}
+	// withdrawThrough ends the announcement, which clears recorded, so it is
+	// read first.
+	recorded := r.recorded
 	ctx, cancel := context.WithTimeout(context.Background(), exitWithdrawBudget)
 	defer cancel()
 
@@ -303,16 +354,41 @@ func stopResponder(r *responder, runFailed bool) {
 	if err == nil {
 		return
 	}
-	if transportClosed(err) {
-		if runFailed {
+	if !recorded {
+		logger().Warn(unrecordedExitMessage,
+			"target", r.target.DstPrefix, "error", err, "fix", withdrawalCommand(r.match),
+			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return
+	}
+	switch end {
+	case exitRemoved:
+		logger().Warn(removedExitMessage,
+			"target", r.target.DstPrefix, "error", err, "fix", withdrawalCommand(r.match),
+			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return
+	case exitFailed:
+		if transportClosed(err) {
 			logger().Warn(closedTransportMessage,
 				"target", r.target.DstPrefix, "fix", process.RestartCommand(Name),
 				"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
 			return
 		}
-		logger().Info(closedTransportMessage,
-			"target", r.target.DstPrefix, "fix", process.RestartCommand(Name))
-		return
+	case exitStopped:
+		if transportClosed(err) {
+			// Logged below WARN on purpose, which ai/rules/go-standards.md does
+			// not allow as written ("An error that is caught and not returned
+			// MUST be logged at WARN or above"). That rule's reason is that the
+			// log line is the only record of the failure, and here it is not: the
+			// rule stays recorded in the store, the next start reads that record
+			// and withdraws the rule, and at a daemon stop the BGP sessions end
+			// with the daemon. Nothing is owed to the operator, and a line that
+			// reports nothing wrong is INFO (ai/rules/user-facing-errors.md).
+			logger().Info(closedTransportMessage,
+				"target", r.target.DstPrefix, "fix", process.RestartCommand(Name))
+			return
+		}
+	case exitUnspecified:
+		panic("BUG: ddos-flowspec: stopResponder called with no exit kind")
 	}
 	// The plugin is on its way out, so its own runtime check no longer answers.
 	// While ddos flowspec stays configured, doctor reports the stopped plugin
@@ -325,13 +401,24 @@ func stopResponder(r *responder, runFailed bool) {
 }
 
 // transportClosed reports whether err says the connection to the engine is
-// gone, on either transport: the RPC connection (rpc.ErrMuxConnClosed, or the
-// socket's own close error) or the in-process bridge (rpc.ErrBridgeClosed).
+// gone, on either transport: the RPC connection or the in-process bridge
+// (rpc.ErrBridgeClosed). On the RPC connection a call answers
+// rpc.ErrMuxConnClosed when this side closed it, and the reader's terminal
+// error when the engine closed its end first (rpc.MuxConn closedErr wraps it
+// as "mux conn read error: %w"): io.EOF for an orderly close, which is what a
+// forked plugin meets at a daemon stop, io.ErrClosedPipe or net.ErrClosed when
+// the stream itself was closed.
 func transportClosed(err error) bool {
 	if errors.Is(err, rpc.ErrMuxConnClosed) {
 		return true
 	}
 	if errors.Is(err, rpc.ErrBridgeClosed) {
+		return true
+	}
+	if errors.Is(err, io.EOF) {
+		return true
+	}
+	if errors.Is(err, io.ErrClosedPipe) {
 		return true
 	}
 	return errors.Is(err, net.ErrClosed)
@@ -438,10 +525,10 @@ func runEngine(conn net.Conn) int {
 	dispatcher := sdkDispatcher{p: p, ctx: ctx}
 
 	var resp *responder
-	// runFailed stays true until Run returns nil, so a Run that failed and a
+	// end stays exitFailed until Run returns nil, so a Run that failed and a
 	// panic that unwinds runEngine before Run returned both read as the plugin
 	// stopping on its own (stopResponder, the level of its closed-transport line).
-	runFailed := true
+	end := exitFailed
 
 	// Registered BEFORE the cap worker's own defer, so LIFO runs it AFTER the
 	// worker has been canceled and waited for, and before p.Close: the
@@ -451,7 +538,7 @@ func runEngine(conn net.Conn) int {
 	// call never reaches the engine.
 	defer func() {
 		activeResponder.Store(nil)
-		stopResponder(resp, runFailed)
+		stopResponder(resp, end)
 	}()
 
 	// parseSections validates only a section the config holds. An absent one (a
@@ -581,13 +668,17 @@ func runEngine(conn net.Conn) int {
 		return nil
 	})
 
-	// The engine sends `bye` when it removes this plugin from a running daemon,
-	// and waits for the answer with the connection open. The answer is always
-	// success: a withdrawal that did not reach the engine leaves the record,
-	// which the next start withdraws and `ze doctor` reports, while an error
-	// answer would only keep a plugin the engine is removing alive.
+	// The engine sends `bye` when it removes this plugin from a running daemon
+	// (notifyPluginRemoval, reason "removed", once the plugin's section is gone),
+	// and waits for the answer with the connection open. The only other sender,
+	// SubsystemHandler.Stop, stops a subsystem process, which this plugin is
+	// not, so the reason is not read: a `bye` here is a removal, and no start
+	// follows it. The answer is always success: a withdrawal that did not reach
+	// the engine leaves the record, which `ze doctor` reports with the
+	// withdrawal by hand while the section stays removed, while an error answer
+	// would only keep a plugin the engine is removing alive.
 	p.OnBye(func(_ string) error {
-		stopResponder(resp, false)
+		stopResponder(resp, exitRemoved)
 		return nil
 	})
 
@@ -659,7 +750,7 @@ func runEngine(conn net.Conn) int {
 		unsubscribe()
 		return 1
 	}
-	runFailed = false
+	end = exitStopped
 
 	unsubscribe()
 	log.Info("ddos-flowspec plugin stopped")

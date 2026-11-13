@@ -81,7 +81,12 @@ type engineStub struct {
 	store  *stubStore // what the state calls read and change
 	// routeRefusal, when set, is the error every update-route is answered with,
 	// as the daemon answers a send it refuses (reactor errSendNotPermitted).
+	// Guarded by mu, so refuseRoutes can set it while serve runs.
 	routeRefusal string
+	// hangUpOn, when set, names the request method the stub answers by closing
+	// its end of the connection instead, once: the engine ending the plugin's
+	// connection while the plugin waits on that call. Guarded by mu.
+	hangUpOn string
 
 	// seen carries every request method, in arrival order, so the handshake
 	// can wait for the stage the plugin reached instead of sleeping.
@@ -242,6 +247,10 @@ func (e *engineStub) serve(ctx context.Context) {
 
 // answer records req and sends the answer the daemon would send.
 func (e *engineStub) answer(ctx context.Context, req *rpc.Request) {
+	if e.takeHangUp(req.Method) {
+		_ = e.mux.Close()
+		return
+	}
 	var err error
 	switch req.Method {
 	case rpc.MethodDeclareRegistration:
@@ -253,9 +262,10 @@ func (e *engineStub) answer(ctx context.Context, req *rpc.Request) {
 		}
 		e.mu.Lock()
 		e.routes = append(e.routes, in.Command)
+		refusal := e.routeRefusal
 		e.mu.Unlock()
-		if e.routeRefusal != "" {
-			err = e.mux.SendError(ctx, req.ID, e.routeRefusal)
+		if refusal != "" {
+			err = e.mux.SendError(ctx, req.ID, refusal)
 			break
 		}
 		err = e.mux.SendResult(ctx, req.ID, &rpc.UpdateRouteOutput{})
@@ -273,6 +283,36 @@ func (e *engineStub) answer(ctx context.Context, req *rpc.Request) {
 	case e.seen <- req.Method:
 	default:
 	}
+}
+
+// takeHangUp reports whether method is the one the stub was told to hang up
+// on, and disarms the hang-up when it is.
+func (e *engineStub) takeHangUp(method string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.hangUpOn == "" {
+		return false
+	}
+	if e.hangUpOn != method {
+		return false
+	}
+	e.hangUpOn = ""
+	return true
+}
+
+// hangUpOnNext makes the stub close the connection when the plugin next sends
+// a request named method, instead of answering it.
+func (e *engineStub) hangUpOnNext(method string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.hangUpOn = method
+}
+
+// refuseRoutes makes the stub answer every later update-route with refusal.
+func (e *engineStub) refuseRoutes(refusal string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.routeRefusal = refusal
 }
 
 // recordState records one state RPC and computes the store's answer.
@@ -518,7 +558,7 @@ func TestStopResponderWithdrawsUnderItsOwnContext(t *testing.T) {
 	announceOnce(t, r, exitTestVictim)
 
 	cancelSignal()
-	stopResponder(r, false)
+	stopResponder(r, exitStopped)
 
 	if got := countCommands(cmds, "/flow del "); got != 1 {
 		t.Fatalf("withdrawals after the signal context ended = %d, want 1 (commands: %v)", got, cmds)
@@ -548,7 +588,7 @@ func TestStopResponderOnAClosedTransportLogsOnce(t *testing.T) {
 	disp.err = fmt.Errorf("update-route: %w", rpc.ErrMuxConnClosed)
 	logs.Reset()
 
-	stopResponder(r, false)
+	stopResponder(r, exitStopped)
 
 	var closedLines int
 	for line := range strings.SplitSeq(strings.TrimSpace(logs.String()), "\n") {
@@ -581,12 +621,13 @@ const closedTransportFact = "because the plugin's connection to the engine is cl
 // the rule stays at the peers, and the plugin declares no failure policy, so
 // nothing withdraws it until the plugin starts again.
 // METHOD: a responder announces through fakeDispatcher, the dispatcher then
-// answers the bridge-closed error, and stopResponder runs with runFailed set,
-// as runEngine's deferred exit does after a failed Run.
+// answers the bridge-closed error, and stopResponder runs with exitFailed, as
+// runEngine's deferred exit does after a failed Run. How runEngine derives that
+// end is proven over the SDK pair (TestRunEngineFailedRunWarnsOnceWithTheRestart).
 // PREVENTS: an INFO line, which Ze's default WARN level hides, as the only
 // record that a rule was left at the peers by a plugin that died alone.
 //
-// MUTATION: with the runFailed branch in stopResponder removed, the line is
+// MUTATION: with the exitFailed arm in stopResponder logging at INFO, the line is
 // INFO and the WARN count is 0.
 func TestStopResponderAfterAFailedRunWarnsWithTheRestart(t *testing.T) {
 	var logs bytes.Buffer
@@ -600,7 +641,7 @@ func TestStopResponderAfterAFailedRunWarnsWithTheRestart(t *testing.T) {
 	disp.err = fmt.Errorf("update-route: %w", rpc.ErrBridgeClosed)
 	logs.Reset()
 
-	stopResponder(r, true)
+	stopResponder(r, exitFailed)
 
 	var warnLines int
 	for line := range strings.SplitSeq(strings.TrimSpace(logs.String()), "\n") {

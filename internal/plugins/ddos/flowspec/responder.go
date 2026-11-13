@@ -312,6 +312,11 @@ type responder struct {
 	target ddosevent.VectorTuple
 	match  flowspecMatch
 	probe  *probe
+	// recorded says the stored announcement record names the live rule, so a
+	// start withdraws it and ze doctor reports it when this responder cannot.
+	// Meaningful only while active. announce sets it, endAnnouncement clears
+	// it, and adoptAnnouncement carries it with the rule. Guarded by mu.
+	recorded bool
 	// retired says this responder is out of service: a config apply replaced it,
 	// so it is no longer in activeResponder and no longer subscribed. It must
 	// announce nothing from here, because the responder that replaced it owns
@@ -512,6 +517,10 @@ func (r *responder) adoptAnnouncement(prev *responder) {
 	r.announcedAt = prev.announcedAt
 	r.now = prev.now
 	r.match = prev.match
+	// Whether the store records the rule is a fact about the rule, not about
+	// the responder, so it crosses with it: the exit lines read it
+	// (register.go stopResponder).
+	r.recorded = prev.recorded
 	r.setAnnouncement(true, prev.target, prev.probe)
 	r.mu.Unlock()
 
@@ -519,6 +528,7 @@ func (r *responder) adoptAnnouncement(prev *responder) {
 	// removal paths returns on !active, which is what keeps a late cap tick or a
 	// late probe tick from withdrawing a rule r has just published as live. The
 	// target is kept so a post-handover log line still names what was announced.
+	prev.recorded = false
 	prev.setAnnouncement(false, prev.target, nil)
 }
 
@@ -690,7 +700,8 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 	// that just failed, and the next attack event tries both again, as after a
 	// failed Dispatch. It runs before the limiter, so a refusal costs no slot.
 	next := buildMatch(target)
-	if err := r.withdrawEarlierRecord(next); err != nil {
+	recordsNext, err := r.withdrawEarlierRecord(next)
+	if err != nil {
 		logger().Warn("ddos-flowspec: not announcing, because an earlier FlowSpec rule is still recorded and its withdrawal failed, so it may still be at the BGP peers and one record holds one rule; the next attack event tries again",
 			"target", target.DstPrefix, "reason", reason, "error", err,
 			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
@@ -721,10 +732,29 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 	// daemon stop or a kill leaves no connection to withdraw it through, and the
 	// record is what the next start withdraws. A failed write does not undo the
 	// announcement, because refusing to mitigate over a record would be worse.
+	// recorded keeps what the store holds, for the exit lines: a record that
+	// already named this rule (recordsNext) still names it after a failed write.
 	if err := r.dispatcher.Record(r.match); err != nil {
+		r.recorded = recordsNext
+		if recordsNext {
+			logger().Warn("ddos-flowspec: the announced FlowSpec rule could not be recorded again; the record an earlier failed withdrawal left still names this same rule, so the next start withdraws it",
+				"target", target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			return
+		}
 		logger().Warn("ddos-flowspec: the announced FlowSpec rule could not be recorded, so a crash or daemon stop before its withdrawal would leave it at the peers unknown to the next start",
 			"target", target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return
 	}
+	r.recorded = true
+}
+
+// withdrawalCommand is the command that withdraws m by hand at the BGP peers:
+// the withdrawal the plugin sends, typed at the CLI. It does not remove the
+// record. doctor.go unconfiguredOrphanDiagnostic writes the same command.
+func withdrawalCommand(m flowspecMatch) string {
+	var tb textbuf.Buffer
+	return tb.Str(`ze cli -c "send bgp `).Str(flowspecSelector).Byte(' ').
+		Str(renderFlowspecCommand(m, "", 0, "del")).Byte('"').String()
 }
 
 // withdrawEarlierRecord withdraws the rule the record names, when it is not
@@ -746,28 +776,32 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 // can withdraw that rule from its record any more, so its line says so, with
 // the stored bytes of a corrupt record, which can still show the victim, and
 // the command that withdraws a rule by hand.
-func (r *responder) withdrawEarlierRecord(next flowspecMatch) error {
+//
+// recordsNext is true when the stored record already names next, so the store
+// records next whatever the write after the announcement answers (announce
+// keeps that in recorded).
+func (r *responder) withdrawEarlierRecord(next flowspecMatch) (recordsNext bool, err error) {
 	switch reading := readRecordedAnnouncement(r.dispatcher).(type) {
 	case recordAbsent:
-		return nil
+		return false, nil
 	case recordUnreadable:
 		logger().Warn("ddos-flowspec: could not read the record of an earlier FlowSpec rule, announcing anyway; if the record names a rule still at the BGP peers, this announcement is recorded over it and that rule can no longer be withdrawn from its record, so withdraw it by hand with the command in fix; ze doctor reported the unreadable record until now",
 			"target", next.DstPrefix, "error", reading.err, "fix", manualWithdrawalCommand(),
 			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
-		return nil
+		return false, nil
 	case recordCorrupt:
 		logger().Warn("ddos-flowspec: the record of an earlier FlowSpec rule is corrupt, announcing anyway; this announcement is recorded over it, so the earlier rule, if it is still at the BGP peers, can no longer be withdrawn from its record: the stored bytes are in record, and the command in fix withdraws that rule by hand; ze doctor reported the corrupt record until now",
 			"target", next.DstPrefix, "error", reading.err, "record", string(reading.stored),
 			"fix", manualWithdrawalCommand(), "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
-		return nil
+		return false, nil
 	case recordedRule:
 		if reading.rule == next {
-			return nil
+			return true, nil
 		}
 		logger().Warn("ddos-flowspec: an earlier FlowSpec rule is still recorded, withdrawing it before announcing",
 			"recorded", reading.rule.DstPrefix, "target", next.DstPrefix,
 			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
-		return withdrawRecordedRule(r.dispatcher, reading.rule)
+		return false, withdrawRecordedRule(r.dispatcher, reading.rule)
 	}
 	panic("BUG: ddos-flowspec: withdrawEarlierRecord met a record reading of no known kind")
 }
@@ -859,11 +893,24 @@ func (r *responder) enforceMaxDuration() {
 
 // withdraw withdraws the live announcement through the responder's own
 // dispatcher. Caller holds r.mu.
+//
+// withdrawThrough ends the announcement, which clears recorded, so it is read
+// first: a rule whose record write failed is not reported by ze doctor, and its
+// line carries the withdrawal by hand instead.
 func (r *responder) withdraw() {
-	if err := r.withdrawThrough(r.dispatcher); err != nil {
-		logger().Error("ddos-flowspec: withdraw failed; the rule stays recorded and ze doctor reports it",
-			"target", r.target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+	recorded := r.recorded
+	err := r.withdrawThrough(r.dispatcher)
+	if err == nil {
+		return
 	}
+	if !recorded {
+		logger().Error("ddos-flowspec: withdraw failed, and the rule is not recorded, because its record write failed when it was announced; it may stay at the BGP peers, no start of the plugin withdraws it and ze doctor does not report it, so withdraw it by hand with the command in fix",
+			"target", r.target.DstPrefix, "error", err, "fix", withdrawalCommand(r.match),
+			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		return
+	}
+	logger().Error("ddos-flowspec: withdraw failed; the rule stays recorded and ze doctor reports it",
+		"target", r.target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
 }
 
 // withdrawThrough sends the withdrawal through d, ends the announcement either
@@ -909,8 +956,11 @@ func (r *responder) withdrawThrough(d routeDispatcher) error {
 // endAnnouncement clears the live flag after a withdrawal. The probe is
 // dropped, not merely stopped: announce always builds a fresh one, and
 // probeTick reads it only while active. Keeping the target lets the log line
-// and a post-withdraw read still name what was announced. Caller holds r.mu.
+// and a post-withdraw read still name what was announced. recorded is cleared
+// with the live flag, because it describes the live rule only. Caller holds
+// r.mu.
 func (r *responder) endAnnouncement() {
+	r.recorded = false
 	r.setAnnouncement(false, r.target, nil)
 }
 
