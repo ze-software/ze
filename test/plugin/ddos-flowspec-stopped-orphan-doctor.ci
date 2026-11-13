@@ -1,0 +1,147 @@
+# Test: a FlowSpec rule recorded while ddos-flowspec is configured and its
+# plugin is not running is reported by `ze doctor` through the daemon, with the
+# victim, why nothing withdraws it, and the plugin restart as its fix.
+#
+# QUESTION: with `ddos flowspec` configured, a record in the store, and the
+#           plugin recorded stopped by the daemon, does `show doctor | json`
+#           report the record under doctor-ddos-flowspec-orphan-announcement
+#           with the victim 203.0.113.9/32 and `ze request plugin restart
+#           ddos-flowspec` as the fix? A unit test cannot decide it: the
+#           post-config check learns "not running" from the daemon's plugin
+#           snapshot (plugin/server PluginDoctorSnapshot), which only a running
+#           daemon publishes, and the stop is recorded by the daemon itself
+#           (process.ProcessManager.RecordStopped).
+#
+# VALIDATES: spec-single-owner-lifecycle-5-session-end-locals AC-16, "With the
+#            plugin's process ended, ze doctor still reports the record", for a
+#            plugin that is not running while its section stays configured.
+# PREVENTS:  `ze doctor` naming only a stopped plugin while a FlowSpec rule it
+#            announced may still be at the BGP peers.
+#
+# HOW THE DAEMON REACHES THE STATE, with no packet flood:
+#   1. A first daemon run creates the live store, and is stopped. `ze init` is
+#      not used: it stores an initial configuration of its own.
+#   2. `ze data write` stores the record, in the format encodeAnnouncementRecord
+#      writes (responder.go: a JSON object whose "victim" is the prefix). The
+#      store refuses a second writer while a daemon owns it, so this runs
+#      between the two daemon runs. A format drift makes the check read the
+#      record as corrupt, and the victim assertion below goes red.
+#   3. `ze config import` stores running.conf as the store's active
+#      configuration. Doctor in the daemon judges the store's active
+#      configuration, never the file `ze start` was given, and runs no
+#      post-config check when the store holds none.
+#   4. The daemon starts with ddos flowspec configured and the plugin run as
+#      its own process. ddos-flowspec cannot run that way: it refuses its
+#      configuration stage with "event bus not configured", so its startup
+#      handshake fails. The plugin declares no failure policy, so the daemon
+#      records it stopped and does not start it again, which raises
+#      doctor-plugin-stopped: the await is the barrier on that. No plugin
+#      reached its start, so nothing withdrew the recorded rule and nothing
+#      removed the record. A command that only exits is not used: the daemon
+#      then waits out the plugin's connect-back before it answers anything.
+#      If ddos-flowspec ever runs as its own process, this step no longer
+#      produces a stopped plugin and the await below fails: stop it another way.
+#   5. show doctor reports the record from the post-config check. The runtime
+#      check cannot answer (the daemon asks only running plugins), and its
+#      sentence is rejected.
+#
+# NOT PROVEN HERE: that running the printed fix clears the report. A restart
+#   starts the plugin, and its start withdraws the recorded rule and removes the
+#   record: test/plugin/ddos-flowspec-orphan-doctor.ci proves that half, with a
+#   plugin that runs. Here the plugin cannot run as its own process, so a
+#   restart would fail again.
+#
+# RED: with configuredOrphanReport answering "running" for a plugin that is not
+#   running (the behavior before the fix: a configured section silenced the
+#   check), show doctor names only doctor-plugin-stopped and the first
+#   expect=stdout of the last step fails.
+#
+# STATUS: no packet flood, no capability, runs on any host.
+#   Run: ./le test bgp plugin --draft --pattern ddos-flowspec-stopped-orphan-doctor
+# The record has to be in the store before the daemon starts.
+option=storage:value=disk
+option=timeout:value=90s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT2
+
+tmpfs=record.json:terminator=EOF_RECORD
+{"victim":"203.0.113.9/32"}
+EOF_RECORD
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+plugin {
+	external ddos-flowspec {
+		run "le mock plugin-external ddos-flowspec"
+		encoder json
+	}
+}
+ddos {
+	flowspec {
+		response-level enforce
+		action discard
+		hold-down 3600
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				port $PORT
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=first:ready=Ze running.
+cmd=stop:seq=2:name=first:signal=term
+cmd=foreground:seq=3:exec=ze data write meta/ddos-flowspec/announcement record.json:exit=0
+cmd=foreground:seq=4:exec=ze config import --yes --name ze.conf running.conf:exit=0
+cmd=background:seq=5:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# Barrier: the daemon recorded the plugin stopped.
+cmd=foreground:seq=6:exec=le test fixture daemon/await-answer doctor-plugin-stopped "show warnings | json":exit=0
+
+cmd=foreground:seq=7:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-ddos-flowspec-orphan-announcement"
+expect=stdout:contains=ddos-flowspec holds the record of a FlowSpec rule it announced for 203.0.113.9/32, and no running plugin holds that rule: configured plugin ddos-flowspec is not running
+expect=stdout:contains="fix": "ze request plugin restart ddos-flowspec"
+expect=stdout:contains="code": "doctor-plugin-stopped"
+reject=stdout:contains=no running responder holds that rule
+reject=stdout:contains=the ddos flowspec section is not configured
+
+cmd=stop:seq=8:name=daemon:signal=term
