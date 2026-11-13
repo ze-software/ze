@@ -7,9 +7,8 @@
 // a link-state interior gateway protocol that runs directly over Layer 2. This
 // file is the component wiring backbone (spec-isis-4): it registers the
 // component in the plugin registry, embeds ze-isis-conf.yang, and runs the SDK
-// lifecycle (verify/configure/apply/start/command). Runtime behavior
-// (adjacency, LSDB, flooding, SPF, route install) is delivered by sibling specs;
-// here the per-circuit goroutines are stubs and the show commands return stubs.
+// lifecycle (verify/configure/apply/rollback/start/command). The sibling files
+// implement adjacency, LSDB, flooding, SPF, route installation and show views.
 package isis
 
 import (
@@ -29,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	isisredistribute "github.com/ze-software/ze/internal/plugins/isis/redistribute"
 	"github.com/ze-software/ze/internal/plugins/isis/transport"
@@ -272,11 +272,7 @@ func toConfigSections(sections []sdk.ConfigSection) []configSection {
 // the verify/configure/apply/start/command callbacks and runs the plugin until
 // shutdown, then tears the engine down cleanly.
 func runISISEngine(conn net.Conn) int {
-	log := logger()
-	log.Debug("isis engine starting")
-
 	p := sdk.NewWithConn(componentName, conn)
-	defer func() { _ = p.Close() }()
 
 	// Ship SPF routes to the engine over RPC when IS-IS runs FORKED (locrib.Default()
 	// is nil in a subprocess). No-op in-process. Set before newEngine builds the SPF
@@ -284,6 +280,17 @@ func runISISEngine(conn net.Conn) int {
 	setRouteInstallClient(p)
 
 	eng := newEngine(transport.New(transport.NewBackend()))
+	return runISISPlugin(p, eng)
+}
+
+// runISISPlugin binds the SDK lifecycle to the engine whose transport its owner
+// selected. The production entry creates the native transport; lifecycle tests
+// supply a fake raw backend while exercising the same callbacks and SDK gate.
+func runISISPlugin(p *sdk.Plugin, eng *engine) int {
+	log := logger()
+	log.Debug("isis engine starting")
+	defer func() { _ = p.Close() }()
+
 	// Forward the metrics registry to the transport, which OWNS and registers the
 	// ze_isis_frames_* / ze_isis_sockets_open series (umbrella Metrics table,
 	// owner isis-3). isis-4 only wires the registry through; the other ze_isis_*
@@ -301,15 +308,9 @@ func runISISEngine(conn net.Conn) int {
 	}
 
 	var (
-		cfgMu      sync.Mutex
-		activeCfg  Config
-		pendingCfg Config
-		// pendingExport is the export chain of pendingCfg's commit.
-		pendingExport exportChainConfig
-		// exports is the export chain installed and the one it replaced, for
-		// OnConfigRollback.
-		exports     exportChainSlot
-		havePending bool
+		cfgMu     sync.Mutex
+		activeCfg runtimeConfig
+		started   bool
 		// redistConsumer is the redistribution consumer OnStarted registered,
 		// nil before it. A config apply that installs a new export chain
 		// re-judges the routes it already holds.
@@ -329,96 +330,47 @@ func runISISEngine(conn net.Conn) int {
 		}
 	}()
 
-	// OnConfigVerify checks identity and interface levels before state mutation.
-	// A partial config without a NET stays inactive but must have compatible
-	// interface levels. OnConfigApply reconciles the verified staged config.
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseISISConfig(toConfigSections(sections))
-		if err != nil {
-			return err
-		}
-		if cfg.Present() {
-			if verr := validateConfig(cfg); verr != nil {
-				return verr
+	// One ConfigTx owns both protocol state and the compiled export chain. Its
+	// installer MUST undo a failed runtime install before refusing it; if that
+	// repair fails too, ErrRunningConfigLost keeps SDK compensation reachable.
+	tx := sdk.NewConfigTx(runtimeConfig{}, parseRuntimeConfig, func(next runtimeConfig) error {
+		cfgMu.Lock()
+		previous := activeCfg
+		live := started
+		consumer := redistConsumer
+		cfgMu.Unlock()
+		next.export.install()
+		if live {
+			result := eng.reconcile(next.cfg)
+			if result.err != nil {
+				previous.export.install()
+				undo := eng.reconcile(previous.cfg)
+				if consumer != nil {
+					consumer.Rejudge(context.Background())
+				}
+				if undo.err != nil {
+					return runningConfigLost(result.err, undo.err)
+				}
+				return result.err
 			}
-		} else if err := validateInterfaceLevels(cfg); err != nil {
-			return err
-		}
-		export, err := parseExportChain(toConfigSections(sections))
-		if err != nil {
-			return err
+		} else {
+			// Configure stages the accepted value without opening a raw socket.
+			eng.setConfig(next.cfg)
 		}
 		cfgMu.Lock()
-		pendingCfg = cfg
-		pendingExport = export
-		havePending = true
+		activeCfg = next
 		cfgMu.Unlock()
-		return nil
-	})
-
-	// OnConfigure: startup-only delivery; resolve the typed config and stage it
-	// (AC-2). It does not open circuits (that is OnStarted).
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseISISConfig(toConfigSections(sections))
-		if err != nil {
-			return err
-		}
-		if err := validateInterfaceLevels(cfg); err != nil {
-			return err
-		}
-		export, err := parseExportChain(toConfigSections(sections))
-		if err != nil {
-			return err
-		}
-		cfgMu.Lock()
-		activeCfg = cfg
-		exports.active = export
-		cfgMu.Unlock()
-		export.install()
-		eng.setConfig(cfg)
-		return nil
-	})
-
-	// OnConfigApply: the reload-commit step (OnConfigure does not fire on reload).
-	// Adopt the verified pending config and reconcile circuits incrementally so a
-	// changed interface metric does not flap unrelated circuits (AC-8).
-	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
-		cfgMu.Lock()
-		installed := havePending
-		exports.disarm()
-		if havePending {
-			activeCfg = pendingCfg
-			exports.adopt(pendingExport)
-			havePending = false
-		}
-		cfg := activeCfg
-		consumer := redistConsumer
-		cfgMu.Unlock()
-		// A reload delivers no route again, so the routes already offered to
-		// IS-IS are judged against the chain just installed.
-		if installed && consumer != nil {
-			consumer.Rejudge(context.Background())
-		}
-		eng.reconcile(cfg)
-		return nil
-	})
-
-	// OnConfigRollback: a transaction that fails after this plugin applied it
-	// takes its export chain back, so the chain of the config still running
-	// judges the routes IS-IS holds again.
-	p.OnConfigRollback(func(_ string) error {
-		cfgMu.Lock()
-		restored := exports.restore()
-		consumer := redistConsumer
-		cfgMu.Unlock()
-		if restored && consumer != nil {
-			consumer.Rejudge(context.Background())
+		if live {
+			if consumer != nil {
+				consumer.Rejudge(context.Background())
+			}
 		}
 		return nil
 	})
+	tx.Register(p)
 
 	// OnStarted: open a circuit per enabled interface via the spec-isis-3
-	// transport and launch the per-circuit goroutine stubs (AC-1). A config with
+	// transport and launch the per-circuit workers (AC-1). A config with
 	// no NET leaves the engine idle (like LDP with no lsr-id).
 	p.OnStarted(func(_ context.Context) error {
 		eng.startBGPLS()
@@ -456,7 +408,8 @@ func runISISEngine(conn net.Conn) int {
 
 		cfgMu.Lock()
 		redistConsumer = consumer
-		cfg := activeCfg
+		started = true
+		cfg := activeCfg.cfg
 		cfgMu.Unlock()
 		if !cfg.Present() {
 			log.Warn("isis: no net configured, engine idle")
@@ -506,7 +459,8 @@ func runISISEngine(conn net.Conn) int {
 			eng.clearCounters()
 			return statusDone, clearResult{Action: cmdClearCounters, Cleared: 0}, nil
 		default:
-			return "error", "", fmt.Errorf("unknown command: %s", command)
+			return "error", "", opererr.New("unknown command: "+command,
+				"The IS-IS plugin does not provide this command.", "ze help command isis")
 		}
 	})
 

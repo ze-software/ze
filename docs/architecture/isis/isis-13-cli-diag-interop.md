@@ -27,6 +27,13 @@ command string into a snapshot. No protocol logic lives in the proxy.
 
 <!-- source: internal/plugins/isis/cmd_show.go -- the show and clear RPC registrations and forwardToISIS -->
 <!-- source: internal/plugins/isis/show.go -- the hostname, interface and SPF-log snapshots, clearAdjacencies, clearCounters -->
+<!-- source: internal/plugins/isis/register.go -- runISISPlugin -->
+
+An unknown request keeps the requested command in its problem line and explains
+that the IS-IS plugin does not provide it. The refusal ends with
+`ze help command isis`, which lists the available IS-IS commands.
+<!-- source: internal/plugins/isis/register.go -- runISISPlugin -->
+<!-- source: internal/plugins/help/help_command.go -- helpCommandAnswer, extractCommandFilter, filterCommands -->
 
 **Never re-dispatch.** The builtin RPC and the engine command share the command
 string, so `Dispatch` re-matches the builtin and recurses to a stack overflow.

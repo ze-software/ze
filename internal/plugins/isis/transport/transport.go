@@ -97,17 +97,54 @@ type circuit struct {
 	stop   chan struct{}
 }
 
-// Transport is the IS-IS raw L2 transport orchestrator.
+// CircuitID is the immutable, comparable identity of one raw circuit, even
+// when a replacement reuses its name and ifindex. Its zero value is unbound.
+type CircuitID struct {
+	raw *circuit
+}
+
+// IsOpen reports whether this raw circuit has not been retired. The engine
+// MUST check it under its publication mutex; a down callback MUST take that
+// same mutex before retiring the binding. The zero identity is never open.
+func (id CircuitID) IsOpen() bool {
+	if id.raw == nil {
+		return false
+	}
+	select {
+	case <-id.raw.stop:
+		return false
+	default:
+		return true
+	}
+}
+
+// enabledInterface is one immutable enablement owner. A new enablement gets a
+// different pointer even at the same level, so an older open cannot adopt it.
+type enabledInterface struct {
+	level Level
+}
+
+// ifaceMonitor owns one resolver-monitoring lifetime. Its cleanup stops only
+// that lifetime, even after another monitor has replaced it.
+type ifaceMonitor struct {
+	stop    chan struct{}
+	cleanup func()
+}
+
+// Transport is the IS-IS raw L2 transport orchestrator. Safe for concurrent use.
+// Its owner MUST call Close to revoke admission and join its workers and I/O.
 type Transport struct {
 	backend Backend
 
-	mu       sync.Mutex
-	enabled  map[string]Level    // configured circuits and their level(s)
+	mu sync.Mutex
+	// enabled is nil after Close. Every worker and I/O admission MUST hold mu
+	// while checking its owner and adding to wg, before Close can start waiting.
+	enabled  map[string]*enabledInterface
 	circuits map[string]*circuit // open circuits keyed by interface name
 
 	deliver chan RawFrame
 
-	onDown     func(ifindex int, name string)
+	onDown     func(ifindex int, name string, id CircuitID)
 	onMismatch func(name string, localMTU, neighborMTU int)
 
 	// subscribe returns a per-interface link-event channel from the iface
@@ -117,14 +154,7 @@ type Transport struct {
 	// ifaceSubs holds the resolver-subscription cancel funcs keyed by interface
 	// name so DisableInterface and Close release them (no goroutine leak).
 	ifaceSubs map[string]func()
-	// eventsWired is true once SubscribeIfaceEvents has run, gating per-interface
-	// subscriptions created by EnableInterface.
-	eventsWired bool
-
-	// teardown holds cleanup funcs (resolver-unsubscribe + rescan stop)
-	// registered by SubscribeIfaceEvents. Close runs them before waiting on wg so
-	// the per-interface reader goroutines exit and wg.Wait does not deadlock.
-	teardown []func()
+	monitor   *ifaceMonitor
 
 	metrics *transportMetrics
 	wg      sync.WaitGroup
@@ -136,7 +166,7 @@ type Transport struct {
 func New(backend Backend) *Transport {
 	return &Transport{
 		backend:   backend,
-		enabled:   make(map[string]Level),
+		enabled:   make(map[string]*enabledInterface),
 		circuits:  make(map[string]*circuit),
 		ifaceSubs: make(map[string]func()),
 		subscribe: iface.Subscribe,
@@ -161,12 +191,22 @@ func (t *Transport) SetMetrics(reg metrics.Registry) {
 // EnableInterface marks an interface as IS-IS-enabled at the given level(s). A
 // circuit is only opened on `interface/up` for an enabled interface. Pass
 // Level1 / Level2 for a single level; the engine selects per-level sends, and
-// SendPDUBothLevels covers an L1L2 circuit.
+// SendPDUBothLevels covers an L1L2 circuit. The owner MUST call DisableInterface
+// when it removes the configuration. A closed transport cannot be re-enabled.
 func (t *Transport) EnableInterface(name string, level Level) {
 	t.mu.Lock()
-	t.enabled[name] = level
-	wired := t.eventsWired
+	if t.enabled == nil {
+		t.mu.Unlock()
+		return
+	}
+	t.enabled[name] = &enabledInterface{level: level}
+	cancel := t.ifaceSubs[name]
+	delete(t.ifaceSubs, name)
+	wired := t.monitor != nil
 	t.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
 	// If the event path is already wired, subscribe this interface now so a
 	// later link event reaches it. If not, SubscribeIfaceEvents will subscribe
 	// every enabled interface when it runs.
@@ -176,24 +216,30 @@ func (t *Transport) EnableInterface(name string, level Level) {
 }
 
 // DisableInterface removes an interface from the enabled set, cancels its
-// resolver subscription, and closes any open circuit on it.
+// resolver subscription, and closes its old circuit. It MUST accompany removal
+// of the configuration admitted by EnableInterface. An in-flight open retains
+// the retired owner and therefore cannot publish after disable.
 func (t *Transport) DisableInterface(name string) {
 	t.mu.Lock()
 	delete(t.enabled, name)
 	cancel := t.ifaceSubs[name]
 	delete(t.ifaceSubs, name)
+	old := t.circuits[name]
 	t.mu.Unlock()
 	if cancel != nil {
 		cancel()
 	}
-	if err := t.HandleLinkDown(name); err != nil {
-		logger().Warn("isis/transport: close on disable", "interface", name, "err", err)
+	if old != nil {
+		if err := t.linkDown(name, old); err != nil {
+			logger().Warn("isis/transport: close on disable", "interface", name, "err", err)
+		}
 	}
 }
 
 // OnCircuitDown registers the callback invoked when a circuit closes (link down
-// or disable) so the engine can tear down adjacencies on that circuit.
-func (t *Transport) OnCircuitDown(fn func(ifindex int, name string)) {
+// or disable). The callback MUST retire only the binding with this CircuitID,
+// under the same mutex its publisher uses when checking CircuitID.IsOpen.
+func (t *Transport) OnCircuitDown(fn func(ifindex int, name string, id CircuitID)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.onDown = fn
@@ -222,23 +268,62 @@ func (t *Transport) Receive() <-chan RawFrame { return t.deliver }
 // non-blocking and drops on a full channel; the rescan backstop recovers a
 // dropped up). Idempotent: a duplicate subscription is canceled immediately.
 func (t *Transport) subscribeIface(name string) {
+	t.mu.Lock()
+	owner := t.enabled[name]
+	monitor := t.monitor
+	if owner == nil {
+		t.mu.Unlock()
+		return
+	}
+	if monitor == nil {
+		t.mu.Unlock()
+		return
+	}
+	if _, dup := t.ifaceSubs[name]; dup {
+		t.mu.Unlock()
+		return
+	}
+	t.wg.Add(1)
+	t.mu.Unlock()
+	defer t.wg.Done()
+
 	ch, cancel := t.subscribe(name)
 	t.mu.Lock()
-	if _, dup := t.ifaceSubs[name]; dup || !t.eventsWired {
+	if t.enabled[name] != owner {
+		t.mu.Unlock()
+		cancel()
+		return
+	}
+	if t.monitor != monitor {
+		t.mu.Unlock()
+		cancel()
+		return
+	}
+	if _, dup := t.ifaceSubs[name]; dup {
 		t.mu.Unlock()
 		cancel()
 		return
 	}
 	t.ifaceSubs[name] = cancel
-	t.mu.Unlock()
 
+	// Close cannot pass its admission lock before this worker joins wg.
 	t.wg.Go(func() {
 		for ev := range ch {
 			var err error
 			if ev.Kind == iface.LinkDown {
-				err = t.HandleLinkDown(ev.Name)
+				t.mu.Lock()
+				var old *circuit
+				if t.monitor == monitor {
+					if t.enabled[ev.Name] == owner {
+						old = t.circuits[ev.Name]
+					}
+				}
+				t.mu.Unlock()
+				if old != nil {
+					err = t.linkDown(ev.Name, old)
+				}
 			} else {
-				err = t.HandleLinkUp(ev.Name)
+				err = t.openEnabledInterface(ev.Name, owner, monitor)
 			}
 			if err != nil {
 				logger().Warn("isis/transport: iface event handling",
@@ -246,6 +331,7 @@ func (t *Transport) subscribeIface(name string) {
 			}
 		}
 	})
+	t.mu.Unlock()
 }
 
 // SubscribeIfaceEvents wires the iface resolver so an interface appearing or
@@ -256,7 +342,9 @@ func (t *Transport) subscribeIface(name string) {
 // Returns an unsubscribe function. Called by the IS-IS component (isis-4) at
 // startup. eb is the availability gate: a nil bus means no monitor is running,
 // so there are no link events to wire (the resolver's own event source is the
-// iface component, wired separately).
+// iface component, wired separately). The owner MUST call its returned cleanup
+// or Close. A replacement retires its predecessor, so old cleanup cannot stop
+// a new monitor or retain an unbounded history of cleanup functions.
 func (t *Transport) SubscribeIfaceEvents(eb ze.EventBus) func() {
 	return t.subscribeIfaceEventsWithRescan(eb, rescanInterval)
 }
@@ -269,47 +357,15 @@ func (t *Transport) subscribeIfaceEventsWithRescan(eb ze.EventBus, interval time
 	if eb == nil {
 		return func() {}
 	}
-	t.mu.Lock()
-	t.eventsWired = true
-	names := make([]string, 0, len(t.enabled))
-	for n := range t.enabled {
-		names = append(names, n)
-	}
-	t.mu.Unlock()
-
-	// Subscribe every already-enabled interface; EnableInterface handles any
-	// enabled after this point.
-	for _, n := range names {
-		t.subscribeIface(n)
-	}
-
-	// Periodic rescan backstop: re-open any enabled-but-closed circuit so a
-	// dropped up event self-heals. stopRescan is closed by cleanup.
-	stopRescan := make(chan struct{})
-	if interval > 0 {
-		t.wg.Go(func() {
-			ticker := time.NewTicker(interval)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-stopRescan:
-					return
-				case <-ticker.C:
-					t.RescanInterfaces()
-				}
-			}
-		})
-	}
-
+	monitor := &ifaceMonitor{stop: make(chan struct{})}
 	var once sync.Once
-	cleanup := func() {
+	monitor.cleanup = func() {
 		once.Do(func() {
 			t.mu.Lock()
-			t.eventsWired = false
-			cancels := make([]func(), 0, len(t.ifaceSubs))
-			for n, c := range t.ifaceSubs {
-				cancels = append(cancels, c)
-				delete(t.ifaceSubs, n)
+			var cancels []func()
+			if t.monitor == monitor {
+				t.monitor = nil
+				cancels = t.detachIfaceSubscriptions()
 			}
 			t.mu.Unlock()
 			// Cancel each subscription: closing its channel ends the reader
@@ -317,13 +373,61 @@ func (t *Transport) subscribeIfaceEventsWithRescan(eb ze.EventBus, interval time
 			for _, c := range cancels {
 				c()
 			}
-			close(stopRescan)
+			close(monitor.stop)
 		})
 	}
 	t.mu.Lock()
-	t.teardown = append(t.teardown, cleanup)
+	if t.enabled == nil {
+		t.mu.Unlock()
+		return func() {}
+	}
+	previous := t.monitor
+	cancels := t.detachIfaceSubscriptions()
+	t.monitor = monitor
+	names := make([]string, 0, len(t.enabled))
+	for name := range t.enabled {
+		names = append(names, name)
+	}
+	// Register this setup and publish its cleanup before starting any worker.
+	// Close MUST revoke admission under mu before waiting for this work.
+	t.wg.Add(1)
+	if interval > 0 {
+		t.wg.Go(func() {
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-monitor.stop:
+					return
+				case <-ticker.C:
+					t.RescanInterfaces()
+				}
+			}
+		})
+	}
 	t.mu.Unlock()
-	return cleanup
+	defer t.wg.Done()
+	for _, cancel := range cancels {
+		cancel()
+	}
+	if previous != nil {
+		previous.cleanup()
+	}
+	for _, name := range names {
+		t.subscribeIface(name)
+	}
+	return monitor.cleanup
+}
+
+// detachIfaceSubscriptions transfers the current subscriptions to their cleanup
+// owner. Its caller MUST hold mu and MUST invoke each returned cancellation.
+func (t *Transport) detachIfaceSubscriptions() []func() {
+	cancels := make([]func(), 0, len(t.ifaceSubs))
+	for name, cancel := range t.ifaceSubs {
+		cancels = append(cancels, cancel)
+		delete(t.ifaceSubs, name)
+	}
+	return cancels
 }
 
 // RescanInterfaces re-attempts opening a circuit for every IS-IS-enabled
@@ -354,21 +458,55 @@ func (t *Transport) RescanInterfaces() {
 // EventBus `interface/up` event.
 func (t *Transport) HandleLinkUp(name string) error {
 	t.mu.Lock()
-	level, enabled := t.enabled[name]
-	_, open := t.circuits[name]
+	owner := t.enabled[name]
 	t.mu.Unlock()
-	if !enabled || open {
+	return t.openEnabledInterface(name, owner, nil)
+}
+
+// openEnabledInterface admits a raw open only for its current enablement and,
+// for a resolver event, current monitor. Direct opens do not require a monitor.
+// Close MUST revoke owners under mu before waiting on the admitted operation.
+func (t *Transport) openEnabledInterface(name string, owner *enabledInterface, monitor *ifaceMonitor) error {
+	if owner == nil {
 		return nil
 	}
+	t.mu.Lock()
+	if t.enabled[name] != owner {
+		t.mu.Unlock()
+		return nil
+	}
+	if monitor != nil {
+		if t.monitor != monitor {
+			t.mu.Unlock()
+			return nil
+		}
+	}
+	if _, open := t.circuits[name]; open {
+		t.mu.Unlock()
+		return nil
+	}
+	t.wg.Add(1)
+	t.mu.Unlock()
+	defer t.wg.Done()
 
 	handle, err := t.backend.OpenCircuit(name)
 	if err != nil {
 		return err
 	}
 
-	c := &circuit{name: name, level: level, handle: handle, stop: make(chan struct{})}
+	c := &circuit{name: name, level: owner.level, handle: handle, stop: make(chan struct{})}
 	t.mu.Lock()
-	// Re-check under lock in case a concurrent up raced us.
+	if t.enabled[name] != owner {
+		t.mu.Unlock()
+		return handle.Close()
+	}
+	if monitor != nil {
+		if t.monitor != monitor {
+			t.mu.Unlock()
+			return handle.Close()
+		}
+	}
+	// Another open of this same owner may have won while the backend ran.
 	if _, dup := t.circuits[name]; dup {
 		t.mu.Unlock()
 		if cerr := handle.Close(); cerr != nil {
@@ -378,9 +516,9 @@ func (t *Transport) HandleLinkUp(name string) error {
 	}
 	t.circuits[name] = c
 	t.metrics.socketsOpen.Set(float64(len(t.circuits)))
-	t.mu.Unlock()
 
 	t.wg.Go(func() { t.rxLoop(c) })
+	t.mu.Unlock()
 	return nil
 }
 
@@ -405,15 +543,17 @@ func (t *Transport) linkDown(name string, only *circuit) error {
 		return nil
 	}
 	delete(t.circuits, name)
+	// Retire the metadata identity before another raw circuit can publish and
+	// before the backend Close can delay the engine's down callback.
+	close(c.stop)
 	t.metrics.socketsOpen.Set(float64(len(t.circuits)))
 	onDown := t.onDown
 	t.mu.Unlock()
 
-	close(c.stop)
 	ifindex := c.handle.IfIndex()
 	err := c.handle.Close()
 	if onDown != nil {
-		onDown(ifindex, name)
+		onDown(ifindex, name, CircuitID{raw: c})
 	}
 	return err
 }
@@ -541,19 +681,18 @@ func (t *Transport) InterfaceMTU(name string) (int, bool) {
 	return c.handle.MTU(), true
 }
 
-// CircuitInfo returns the resolved ifindex, source MAC (SNPA), and MTU of an open
-// circuit so the engine (isis-5) can build a per-interface adjacency circuit with
-// its own identity. The boolean is false when no circuit is open on the named
-// interface. The MAC is the frame source address the circuit advertises and the
-// LAN three-way echo target.
-func (t *Transport) CircuitInfo(name string) (ifindex int, hwaddr [MACLen]byte, mtu int, ok bool) {
+// CircuitInfo returns one raw circuit's hardware metadata and identity. The
+// engine MUST check CircuitID.IsOpen under its publication mutex before binding
+// the snapshot. The boolean is false when no circuit is open on the interface.
+// The MAC is the frame source address and the LAN three-way echo target.
+func (t *Transport) CircuitInfo(name string) (ifindex int, hwaddr [MACLen]byte, mtu int, id CircuitID, ok bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	c, open := t.circuits[name]
 	if !open {
-		return 0, [MACLen]byte{}, 0, false
+		return 0, [MACLen]byte{}, 0, CircuitID{}, false
 	}
-	return c.handle.IfIndex(), c.handle.HWAddr(), c.handle.MTU(), true
+	return c.handle.IfIndex(), c.handle.HWAddr(), c.handle.MTU(), CircuitID{raw: c}, true
 }
 
 // observeNeighborFrame records the size of a received (padded-Hello) frame and,
@@ -596,22 +735,22 @@ func inferNeighborMTU(frameSize int) int {
 	return frameSize - overhead
 }
 
-// Close tears down EventBus subscriptions, stops all circuits, and waits for the
-// RX and worker goroutines to exit. Used on component shutdown. Teardown runs
-// before wg.Wait so the subscription worker goroutine (which ranges over the
-// work channel) exits and the wait does not deadlock.
+// Close revokes every enablement, stops the current monitor and circuits, and
+// waits for admitted I/O, RX and worker goroutines. It MUST follow transport use
+// and its admission revocation MUST hold mu before wg.Wait: no positive Add can
+// then race a zero-count Wait. A closed transport cannot be enabled again.
 func (t *Transport) Close() {
 	t.mu.Lock()
-	teardown := t.teardown
-	t.teardown = nil
+	t.enabled = nil
+	monitor := t.monitor
 	names := make([]string, 0, len(t.circuits))
 	for name := range t.circuits {
 		names = append(names, name)
 	}
 	t.mu.Unlock()
 
-	for _, fn := range teardown {
-		fn()
+	if monitor != nil {
+		monitor.cleanup()
 	}
 	for _, name := range names {
 		if err := t.HandleLinkDown(name); err != nil {

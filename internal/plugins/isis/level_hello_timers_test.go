@@ -213,7 +213,7 @@ func TestISISPerLevelHelloTimersReachTheWire(t *testing.T) {
 	}
 	defer eng.shutdown()
 
-	c := eng.buildCircuit(ic)
+	c, _ := eng.buildCircuit(ic)
 	if c == nil {
 		t.Fatal("buildCircuit returned nil for the configured eth0 circuit")
 	}

@@ -57,6 +57,24 @@ socket. A periodic rescan re-opens any enabled-but-closed circuit, so an
 interface-up event dropped by a full queue during a flap burst self-heals with no
 operator action.
 
+Each enablement has an immutable owner. A raw open retains that owner across
+backend I/O and checks it again before publishing its circuit. Disable revokes
+the owner and closes only its captured old circuit, so an in-flight open or
+delayed cleanup cannot install or close a replacement's circuit. Resolver
+subscriptions retain both the enablement and monitoring owners across their
+own admission. Retired subscriptions are canceled before they can start a
+worker.
+<!-- source: internal/plugins/isis/transport/transport.go -- EnableInterface, DisableInterface, openEnabledInterface, subscribeIface -->
+
+The transport retains one current monitor. Replacing it detaches its prior
+subscriptions and stops its prior rescan; an old cleanup cannot cancel the new
+monitor. There is no accumulated cleanup history. Shutdown revokes all
+enablements under the same mutex used to admit work, then cancels subscriptions,
+closes circuits and joins admitted I/O and workers. New work cannot enter after
+that revocation, and an open still completing closes its unused handle before
+leaving the join.
+<!-- source: internal/plugins/isis/transport/transport.go -- ifaceMonitor, subscribeIfaceEventsWithRescan, detachIfaceSubscriptions, Close -->
+
 ## Decision: a panic in a circuit's receive path ends that circuit, never the process
 
 Each circuit has two receive tasks: the backend's socket reader
@@ -77,6 +95,18 @@ logs the panic.
 <!-- source: internal/plugins/isis/transport/panic_guard.go -- receivePanics, receiveEnded -->
 <!-- source: internal/plugins/isis/transport/backend_linux.go -- readLoop -->
 <!-- source: internal/plugins/isis/transport/transport.go -- rxLoop, linkDown -->
+
+## Decision: a down callback identifies one raw circuit
+
+`CircuitInfo` returns an opaque `CircuitID` with the socket's hardware metadata.
+The down callback carries that same identity, so delayed completion of an old
+socket's `Close` cannot tear down a replacement using the same interface name
+and physical ifindex. The identity retains the raw circuit's stop channel;
+removal closes that channel under the transport mutex, before backend I/O.
+`CircuitID.IsOpen` therefore also lets the engine reject a metadata snapshot
+whose raw circuit retired before the engine could publish its binding.
+
+<!-- source: internal/plugins/isis/transport/transport.go -- CircuitID, CircuitInfo, linkDown -->
 
 ## Decision: the doctor check is split by platform and self-contained
 

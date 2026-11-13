@@ -137,7 +137,7 @@ func TestISISFanInPanicContained(t *testing.T) {
 	backend := &panicRecvBackend{bad: &panicRecvCircuit{}, good: newFakeCircuit("eth1", 10, 1500)}
 	tr := New(backend)
 	downs := make(chan string, 2)
-	tr.OnCircuitDown(func(_ int, name string) { downs <- name })
+	tr.OnCircuitDown(func(_ int, name string, _ CircuitID) { downs <- name })
 	tr.EnableInterface("eth1", Level2)
 	if err := tr.HandleLinkUp("eth1"); err != nil {
 		t.Fatalf("HandleLinkUp(eth1): %v", err)

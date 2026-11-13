@@ -83,7 +83,7 @@ func TestISISHelloInvalidThreeWayStateDiscarded(t *testing.T) {
 	c := eng.circuitByName["eth0"]
 	ifindex := -1
 	for idx, byIndex := range eng.circuits {
-		if byIndex == c {
+		if byIndex.circuit == c {
 			ifindex = idx
 		}
 	}

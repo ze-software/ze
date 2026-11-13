@@ -22,8 +22,16 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
 	"github.com/ze-software/ze/internal/plugins/isis/circuit"
+	"github.com/ze-software/ze/internal/plugins/isis/transport"
 	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
+
+// circuitBinding pairs an adjacency circuit with the exact raw circuit it
+// describes. Its zero value has no circuit and no transport owner.
+type circuitBinding struct {
+	circuit *circuit.Circuit
+	raw     transport.CircuitID
+}
 
 // launchCircuitGoroutine builds the adjacency circuit for an opened interface and
 // runs its Hello-send and hold-timer-sweep loop. The circuit owns the adjacency
@@ -36,12 +44,19 @@ import (
 // circuit was torn down, and a reopen of the same interface stacked a second
 // goroutine on it.
 func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
-	c := e.buildCircuit(ic)
+	c, raw := e.buildCircuit(ic)
 	if c == nil {
 		// The transport reported no open circuit (e.g. a fake without a real
 		// socket on a path that did not open). Nothing to run.
 		return
 	}
+
+	// Publication MUST hold circuitLifecycleMu through worker admission, paired
+	// with onCircuitDown holding it through the old worker and state cleanup.
+	// Build outside it: retirement may need to finish while construction waits
+	// for the config lock; raw.IsOpen below rechecks that metadata snapshot.
+	e.circuitLifecycleMu.Lock()
+	defer e.circuitLifecycleMu.Unlock()
 
 	name := ic.Name
 	// Stop any goroutine still bound to this interface name before launching the
@@ -58,11 +73,15 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 	// current schedules when it does wake.
 	reload := make(chan struct{}, 1)
 	e.circuitsMu.Lock()
+	if !raw.IsOpen() {
+		e.circuitsMu.Unlock()
+		return
+	}
 	if prev, ok := e.circuitStop[name]; ok {
 		close(prev)
 	}
 	prevDone := e.circuitDone[name]
-	e.circuits[c.IfIndex()] = c
+	e.circuits[c.IfIndex()] = circuitBinding{circuit: c, raw: raw}
 	e.circuitByName[name] = c
 	e.circuitStop[name] = stop
 	e.circuitDone[name] = done
@@ -205,11 +224,12 @@ func (e *engine) refreshCircuitProtocols() {
 // buildCircuit constructs an adjacency circuit for an opened interface, pulling
 // the resolved ifindex / source MAC / MTU from the transport and the System ID /
 // area addresses from the active config. Returns nil when the transport has no
-// open circuit on the interface (so the engine does not track a phantom circuit).
-func (e *engine) buildCircuit(ic InterfaceConfig) *circuit.Circuit {
-	ifindex, hwaddr, _, ok := e.transport.CircuitInfo(ic.Name)
+// open circuit. The publisher MUST check the returned raw identity under
+// circuitsMu before binding it: retirement can follow this metadata snapshot.
+func (e *engine) buildCircuit(ic InterfaceConfig) (*circuit.Circuit, transport.CircuitID) {
+	ifindex, hwaddr, _, raw, ok := e.transport.CircuitInfo(ic.Name)
 	if !ok {
-		return nil
+		return nil, transport.CircuitID{}
 	}
 
 	e.mu.Lock()
@@ -276,7 +296,7 @@ func (e *engine) buildCircuit(ic InterfaceConfig) *circuit.Circuit {
 			e.originate()
 		},
 	)
-	return c
+	return c, raw
 }
 
 // onCircuitDown is the transport OnCircuitDown callback: a link went down or the
@@ -285,10 +305,29 @@ func (e *engine) buildCircuit(ic InterfaceConfig) *circuit.Circuit {
 // circuit (emitting session-down), and removes the circuit from the maps. Closing
 // the stop channel here is what bounds the goroutine's lifetime to the circuit's:
 // without it the worker leaked, kept sending Hellos on a gone circuit, and a
-// reopen would stack a second goroutine on the same interface.
-func (e *engine) onCircuitDown(ifindex int, name string) {
+// reopen would stack a second goroutine on the same interface. The callback
+// MUST compare the raw identity under circuitsMu, the publication mutex used by
+// launchCircuitGoroutine, before retiring a binding or its worker.
+// Retirement MUST hold circuitLifecycleMu through the worker join and all
+// name-scoped cleanup, paired with publication retaining it through admission.
+// closeCircuit MUST join that mutex after transport disable so a binding
+// already removed here cannot let replacement raw transport open before exit.
+// circuitsMu is released before waiting or calling reentrant transition hooks.
+func (e *engine) onCircuitDown(ifindex int, name string, raw transport.CircuitID) {
+	e.circuitLifecycleMu.Lock()
+	defer e.circuitLifecycleMu.Unlock()
+
 	e.circuitsMu.Lock()
-	c := e.circuits[ifindex]
+	binding, found := e.circuits[ifindex]
+	if !found {
+		e.circuitsMu.Unlock()
+		return
+	}
+	if binding.raw != raw {
+		e.circuitsMu.Unlock()
+		return
+	}
+	c := binding.circuit
 	if stop, ok := e.circuitStop[name]; ok {
 		close(stop)
 		delete(e.circuitStop, name)

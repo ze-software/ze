@@ -138,7 +138,7 @@ func (e *engine) installFloodHandlers() {
 // circuit is reported absent (dropped by the caller).
 func (e *engine) circuitContext(ifindex int) (cid lsdb.CircuitID, p2p, ok bool) {
 	e.circuitsMu.RLock()
-	c := e.circuits[ifindex]
+	c := e.circuits[ifindex].circuit
 	e.circuitsMu.RUnlock()
 	if c == nil {
 		return 0, false, false

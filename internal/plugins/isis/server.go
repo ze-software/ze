@@ -19,6 +19,7 @@ package isis
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"maps"
 	"net/netip"
@@ -181,11 +182,19 @@ type engine struct {
 	cfg     Config
 	running map[string]InterfaceConfig // circuits the engine has opened, by name
 
+	// circuitLifecycleMu serializes engine publication with complete retirement,
+	// including the worker join and name-scoped flooding/DIS cleanup. Publishers
+	// and onCircuitDown MUST acquire it before circuitsMu and retain it through
+	// their lifecycle operation. Construction and closeCircuit's call to
+	// DisableInterface MUST run outside it to avoid lock inversion. closeCircuit
+	// MUST join it afterwards before a replacement raw circuit can open.
+	circuitLifecycleMu sync.Mutex
+
 	// circuitsMu guards the adjacency-circuit maps. Circuits are added on open
 	// and removed on close; the receive fan and the CLI snapshot read them under
 	// this lock. Keyed by ifindex (RX dispatch) and by name (close/snapshot).
 	circuitsMu    sync.RWMutex
-	circuits      map[int]*circuit.Circuit
+	circuits      map[int]circuitBinding
 	circuitByName map[string]*circuit.Circuit
 	// circuitStop holds the per-circuit goroutine stop channel keyed by interface
 	// name. launchCircuitGoroutine creates one when it starts the hello+sweep loop;
@@ -358,7 +367,7 @@ func newEngine(t *transport.Transport) *engine {
 		dispatch:      newDispatcher(),
 		log:           logger(),
 		running:       make(map[string]InterfaceConfig),
-		circuits:      make(map[int]*circuit.Circuit),
+		circuits:      make(map[int]circuitBinding),
 		circuitByName: make(map[string]*circuit.Circuit),
 		circuitStop:   make(map[string]chan struct{}),
 		circuitDone:   make(map[string]chan struct{}),
@@ -490,7 +499,7 @@ func (e *engine) installStubHandlers() {
 // transition's RejectReason.
 func (e *engine) handleIIH(rf transport.RawFrame) {
 	e.circuitsMu.RLock()
-	c := e.circuits[rf.IfIndex]
+	c := e.circuits[rf.IfIndex].circuit
 	e.circuitsMu.RUnlock()
 	if c == nil {
 		return
@@ -622,6 +631,10 @@ func (e *engine) openCircuits() error {
 func (e *engine) openCircuit(ic InterfaceConfig) error {
 	e.transport.EnableInterface(ic.Name, ic.Level.TransportLevel())
 	if err := e.transport.HandleLinkUp(ic.Name); err != nil {
+		// A refused addition is absent from running, so reconcile cannot find
+		// its transport reservation when restoring the prior config. Remove it
+		// now; a later link event MUST NOT open a rejected candidate circuit.
+		e.transport.DisableInterface(ic.Name)
 		return err
 	}
 	e.mu.Lock()
@@ -672,6 +685,9 @@ type reconcileResult struct {
 	// rebuilt lists the circuits whose change could only be applied by closing and
 	// reopening them (circuitNeedsRebuild). Each name is also marked changed.
 	rebuilt []string
+	// err retains every circuit-open failure. A runtime installer MUST restore
+	// its prior config before returning a refusal to the transaction owner.
+	err error
 }
 
 // reconcile diffs newCfg against the running circuits and applies the minimal
@@ -728,7 +744,7 @@ func (e *engine) reconcile(newCfg Config) reconcileResult {
 		switch {
 		case !exists:
 			if err := e.openCircuit(want); err != nil {
-				e.log.Warn("isis: reconcile open failed", "interface", name, "err", err)
+				res.err = errors.Join(res.err, circuitOpenError(name, err))
 				continue
 			}
 			res.opened = append(res.opened, name)
@@ -738,7 +754,7 @@ func (e *engine) reconcile(newCfg Config) reconcileResult {
 			// which is why circuitNeedsRebuild keeps the set as small as it is.
 			e.closeCircuit(name)
 			if err := e.openCircuit(want); err != nil {
-				e.log.Warn("isis: reconcile rebuild failed", "interface", name, "err", err)
+				res.err = errors.Join(res.err, circuitOpenError(name, err))
 				continue
 			}
 			res.changed[name] = true
@@ -771,22 +787,26 @@ func (e *engine) reconcile(newCfg Config) reconcileResult {
 // closeCircuit disables the interface and closes its circuit. DisableInterface
 // routes through HandleLinkDown -> onCircuitDown, which closes the per-circuit
 // stop channel so the hello+sweep goroutine exits and clears the maps. The
-// fallback close below covers the case where the transport circuit was already
-// down (no onDown fires) yet a stop channel lingers: it must never leak.
+// fallback retirement covers a raw down still waiting in backend Close. It MUST
+// retire that captured binding before a replacement can reuse its name, even
+// when the replacement has a different ifindex.
 func (e *engine) closeCircuit(name string) {
+	e.circuitsMu.RLock()
+	var binding circuitBinding
+	if c := e.circuitByName[name]; c != nil {
+		binding = e.circuits[c.IfIndex()]
+	}
+	e.circuitsMu.RUnlock()
 	e.transport.DisableInterface(name)
-	e.circuitsMu.Lock()
-	if stop, ok := e.circuitStop[name]; ok {
-		close(stop)
-		delete(e.circuitStop, name)
+	if binding.circuit != nil {
+		e.onCircuitDown(binding.circuit.IfIndex(), name, binding.raw)
 	}
-	done := e.circuitDone[name]
-	delete(e.circuitDone, name)
-	delete(e.circuitReload, name)
-	e.circuitsMu.Unlock()
-	if done != nil {
-		<-done
-	}
+	// A concurrent down may have removed the binding before waiting for its
+	// Hello worker. MUST join its complete retirement before the caller opens
+	// replacement transport; DisableInterface above cannot hold this mutex
+	// because its synchronous onCircuitDown callback acquires it itself.
+	e.circuitLifecycleMu.Lock()
+	e.circuitLifecycleMu.Unlock()
 	e.mu.Lock()
 	delete(e.running, name)
 	e.mu.Unlock()

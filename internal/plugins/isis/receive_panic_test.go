@@ -81,7 +81,7 @@ func addReceivePanicCircuit(t *testing.T, e *engine, name string, ifindex int, n
 		}
 	}
 	e.circuitsMu.Lock()
-	e.circuits[ifindex] = c
+	e.circuits[ifindex] = circuitBinding{circuit: c}
 	e.circuitByName[name] = c
 	e.circuitsMu.Unlock()
 	return c

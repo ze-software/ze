@@ -295,7 +295,7 @@ func (e *engine) registerTestCircuit(t *testing.T, name string, ifindex int) { /
 		Levels:  []adjacency.Level{adjacency.Level1, adjacency.Level2},
 	}, nil, nil)
 	e.circuitsMu.Lock()
-	e.circuits[ifindex] = c
+	e.circuits[ifindex] = circuitBinding{circuit: c}
 	e.circuitByName[name] = c
 	e.circuitsMu.Unlock()
 }

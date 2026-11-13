@@ -212,6 +212,19 @@ Removing an interface from the config, or setting `enabled false` or
 <!-- source: internal/plugins/isis/server.go -- reconcile, circuitNeedsRebuild -->
 <!-- source: internal/plugins/isis/circuits.go -- applyCircuitParams -->
 
+If another participant rejects a transaction after IS-IS applied its candidate,
+rollback restores the previous IS-IS config, circuits and export chain. This
+also restores circuits closed by removing the last NET. A raw-circuit failure
+refuses the change and attempts to restore the running config before answering.
+An added interface whose raw open failed stays disabled for later link events.
+If that repair fails too, the error reports lost running state and the engine
+attempts rollback, restarting the plugin when rollback fails. Run `ze doctor`
+to diagnose the raw-socket or interface problem named in the error.
+
+<!-- source: internal/plugins/isis/register.go -- runISISPlugin -->
+<!-- source: internal/plugins/isis/server.go -- reconcile, openCircuit -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply, ConfigTx.Rollback -->
+
 ## Broadcast LANs: DIS election and pseudo-nodes
 
 On a broadcast (Ethernet, multi-access) circuit, IS-IS does not form a full mesh

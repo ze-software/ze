@@ -108,5 +108,5 @@ func (e *engine) endReceivePanic(rf transport.RawFrame) {
 func (e *engine) receiveCircuit(ifindex int) *circuit.Circuit {
 	e.circuitsMu.RLock()
 	defer e.circuitsMu.RUnlock()
-	return e.circuits[ifindex]
+	return e.circuits[ifindex].circuit
 }

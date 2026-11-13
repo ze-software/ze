@@ -299,7 +299,7 @@ func TestISISTransportCloseOnLinkDown(t *testing.T) {
 	c := be.circuit("eth0")
 
 	var teardownIfIndex int
-	tr.OnCircuitDown(func(ifindex int, name string) { teardownIfIndex = ifindex })
+	tr.OnCircuitDown(func(ifindex int, name string, _ CircuitID) { teardownIfIndex = ifindex })
 
 	if err := tr.HandleLinkDown("eth0"); err != nil {
 		t.Fatalf("HandleLinkDown: %v", err)

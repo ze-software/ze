@@ -435,7 +435,7 @@ was advertised. A commit that fails after IS-IS or OSPF applied it takes the
 new chain back, and the routes are judged again by the chain of the config
 still running.
 <!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict -->
-<!-- source: internal/plugins/isis/export_chain.go -- exportChainSlot -->
+<!-- source: internal/plugins/isis/config_tx.go -- runtimeConfig -->
 <!-- source: internal/plugins/ospf/config_transaction.go -- ospfTransactionConfig -->
 <!-- source: internal/plugins/isis/redistribute/consumer.go -- Rejudge -->
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Rejudge -->

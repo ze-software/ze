@@ -9,6 +9,7 @@ and system ID, runs the SDK lifecycle, and installs the PDU receive dispatcher.
 |---------|------|
 | Registration and SDK lifecycle | `register.go` |
 | Typed config, parsing, defaults, validation | `config.go` |
+| Parsed runtime config and transaction validation | `config_tx.go` |
 | Event namespace and typed handles | `events.go` |
 | PDU dispatcher and engine circuit management | `server.go` |
 | Config schema | `yang/ze-isis-conf.yang` |
@@ -43,13 +44,32 @@ messages").
 
 <!-- source: internal/component/config/validators.go -- ISISNETValidator, ISISSystemIDValidator -->
 
-## Decision: three callbacks, and only one fires on reload
+## Decision: one transaction owns runtime config and the export chain
 
-`OnConfigVerify` parse-checks and stashes a pending config. `OnConfigure` is
-startup-only and stages the active config. `OnConfigApply` is the reload commit
-step and the **only** callback that fires on a reload; it adopts the pending
-config and calls the engine's reconcile, which journal-diffs interfaces so a
-metric-only change flaps no circuit.
+`sdk.ConfigTx` retains the parsed IS-IS config and its compiled export chain as
+one value. Startup installs that value without opening circuits; `OnStarted`
+opens them after the SDK completes startup. Verify parses a candidate without
+changing the running engine. Apply reconciles that candidate and keeps the value
+it replaced. Rollback reinstalls the prior config, circuits and export chain.
+The SDK gate makes a duplicate rollback, or one after commit, a no-op.
+
+<!-- source: internal/plugins/isis/config_tx.go -- runtimeConfig, parseRuntimeConfig -->
+<!-- source: internal/plugins/isis/register.go -- runISISPlugin -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx -->
+<!-- source: pkg/plugin/sdk/config_tx_gate.go -- configTxGate -->
+
+A raw-circuit failure refuses the apply. The installer first restores the
+previous config and chain itself. A failed open removes its transport
+enablement, so a later link event cannot open the rejected interface.
+If that repair also fails, its error wraps
+`sdk.ErrRunningConfigLost`, so the SDK admits a compensating rollback. A failed
+rollback returns an error instead of claiming that the old circuits run. The
+transaction retains the failed undo target and marks lost runtime state, so an
+equal candidate cannot bypass a necessary repair.
+
+<!-- source: internal/plugins/isis/register.go -- runISISPlugin -->
+<!-- source: internal/plugins/isis/server.go -- reconcile, reconcileResult, openCircuit -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply, ConfigTx.Rollback -->
 
 ## Decision: a commit is written into the running circuit where it can be
 
@@ -74,6 +94,27 @@ The circuit is built from the node's system ID, NET and area addresses.
 Reconcile rebuilds existing circuits when the node's system ID, NET list or
 level changes, so the new identity reaches the running circuits.
 
+Each ifindex entry pairs its adjacency circuit with the raw transport's opaque
+identity. Publication checks that the raw circuit is still open while holding
+the engine's circuit mutex. A down callback takes the same mutex and removes
+only the binding with its own raw identity. A delayed old socket close therefore
+leaves a replacement and its Hello worker alive, even at the same ifindex.
+The open check also prevents publication after an earlier down callback already
+retired the metadata snapshot.
+
+Engine publication and complete retirement share a lifecycle mutex. Retirement
+keeps it through the old Hello worker's exit, adjacency teardown, flooding flags
+and DIS cleanup, so a replacement cannot publish state that the old callback
+will clear. Construction stays outside that mutex; publication rechecks the raw
+identity's open state afterwards. `closeCircuit` does not hold it while disabling
+the transport, whose synchronous down callback acquires it itself. It joins the
+same mutex afterwards, including when that callback already removed the binding
+but still waits for its worker. Replacement raw transport therefore opens after
+the old Hello worker exits, so that worker cannot send its old level on the new
+handle selected by interface name.
+<!-- source: internal/plugins/isis/circuits.go -- launchCircuitGoroutine, onCircuitDown -->
+<!-- source: internal/plugins/isis/server.go -- engine, closeCircuit -->
+
 <!-- source: internal/plugins/isis/server.go -- reconcile, identityChanged -->
 <!-- source: internal/plugins/isis/circuits.go -- buildCircuit -->
 
@@ -87,7 +128,8 @@ NET closes them without replacement. Required-field validation stays in
 `validateConfig`, so the parser can stage a partial config.
 
 <!-- source: internal/plugins/isis/config.go -- Present, validateConfig, validateInterfaceLevels -->
-<!-- source: internal/plugins/isis/register.go -- runISISEngine OnConfigure, OnConfigVerify, OnStarted -->
+<!-- source: internal/plugins/isis/register.go -- runISISPlugin -->
+<!-- source: internal/plugins/isis/config_tx.go -- parseRuntimeConfig -->
 <!-- source: internal/plugins/isis/server.go -- reconcile -->
 
 ## Decision: the dispatcher reads the PDU type from the raw frame

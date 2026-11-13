@@ -8,14 +8,25 @@
 IS-IS is a native link-state IGP (ISO/IEC 10589, RFC 1195/5301/5305/5308) implemented as one Ze plugin, `internal/plugins/isis/`, with no protocol logic in the engine core. A single `engine` (`server.go`) owns everything: the L2 transport, a PDU-type `dispatcher`, one `*circuit.Circuit` per enabled interface (adjacency FSM + Hello timers), the two-level LSDB (`lsdb` package: store, origination, flooding, CSNP/PSNP sync), the DIS election glue, and the SPF computer that installs routes into the shared Loc-RIB. Concurrency is goroutine-per-circuit (Hello send + hold-timer sweep) plus a handful of engine-wide loops (receive fan, LSP aging, flood/PSNP/CSNP timers, DIS loop); the adjacency FSM (`adjacency` package) and the DIS election (`circuit/dis.go`) are pure state machines with no I/O, mutated only by their single-writer circuit goroutine. A received PDU flows: transport → dispatcher → circuit (IIH) or LSDB/Flooder (LSP/CSNP/PSNP) → origination/SPF re-trigger → Loc-RIB → sysrib/fibkernel.
 
 ## Flow
-1. **Registration + lifecycle.** `registerISIS` (`register.go`) registers the plugin
-   (`registry.Registration{RunEngine: runISISEngine}`, `register.go`) and the config-sanity
-   diagnostics/doctor check; `init()` calls it at `register.go`. `runISISEngine`
-   (`register.go`) builds the SDK plugin, constructs `newEngine` (`server.go`) over a
-   `transport.New(transport.NewBackend())`, and wires
-   `OnConfigVerify`/`OnConfigure`/`OnConfigApply`/`OnStarted` (`register.go`).
-   `OnStarted` wires redistribution (`register.go`), then `eng.setConfig` +
-   `eng.openCircuits()` (`register.go`).
+1. **Registration + lifecycle.** `registerISIS` (`register.go`) registers the plugin,
+   config-sanity diagnostics and doctor check. Its native entry `runISISEngine`
+   creates the SDK client, installs the route-install client before constructing
+   `newEngine` (`server.go`) over the native transport, then calls `runISISPlugin`
+   (`register.go`). `parseRuntimeConfig` (`config_tx.go`) validates a candidate and
+   compiles its export chain without installing it; a missing owned root means
+   unchanged, while an explicitly empty section removes the config. One
+   `sdk.ConfigTx` owns that composite `runtimeConfig` and retains the previous
+   value for rollback (`pkg/plugin/sdk/config_tx.go`). Its startup installer stages
+   the config and chain without raw sockets. `OnStarted` wires redistribution and
+   opens circuits only after SDK startup; a config without a NET stays idle.
+   The runtime installer in `runISISPlugin` installs the chain, calls `reconcile`
+   (`server.go`) and re-judges retained routes. `reconcileResult.err` carries a raw
+   open failure back to that installer, which restores the previous config and
+   chain before refusing. If self-repair fails too, `runningConfigLost`
+   (`config_tx.go`) wraps `sdk.ErrRunningConfigLost`, admitting SDK compensation.
+   The shared transaction retains a failed undo target and retries an equal
+   config when running state was lost. The SDK gate prevents duplicate or
+   post-commit rollback (`pkg/plugin/sdk/config_tx_gate.go`).
 2. **Engine construction.** `newEngine` (`server.go`) builds the dispatcher, then
    `e.initLSDB()` (`lsdb_wiring.go`), `e.initFlooding()` (`flooding_wiring.go`),
    `e.initSPF()` (`spf_wiring.go`), `e.installStubHandlers()` (`server.go`, IIH →

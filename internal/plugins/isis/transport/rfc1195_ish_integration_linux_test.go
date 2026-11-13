@@ -41,7 +41,7 @@ func TestRFC1195ISHVethTransport(t *testing.T) {
 		}}
 		var buf [254]byte
 		pdu := buf[:h.WriteTo(buf[:], 0)]
-		peerIndex, _, _, ok := tr.CircuitInfo(vethB)
+		peerIndex, _, _, _, ok := tr.CircuitInfo(vethB)
 		if !ok {
 			t.Fatal("peer circuit not open")
 		}

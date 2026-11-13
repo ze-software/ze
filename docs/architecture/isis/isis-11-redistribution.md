@@ -115,6 +115,14 @@ refused at load.
 <!-- source: internal/plugins/isis/register.go -- init, MustRegisterAttachment exportAttachment -->
 <!-- source: internal/plugins/isis/export_chain.go -- parseExportChain -->
 
+The compiled export chain and the typed IS-IS config share one `sdk.ConfigTx`
+value. Rollback restores the exact previous chain before reconciling the old
+config and re-judging retained routes. A failed runtime install attempts that
+same restoration before it returns an error.
+
+<!-- source: internal/plugins/isis/config_tx.go -- runtimeConfig -->
+<!-- source: internal/plugins/isis/register.go -- runISISPlugin -->
+
 ## Trap: the generic withdraw carries no source
 
 The orchestrator does not thread the source through the withdraw path. The

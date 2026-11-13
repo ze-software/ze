@@ -249,7 +249,7 @@ func (e *engine) verifyFrame(rf transport.RawFrame) bool {
 // the ifindex has no live circuit.
 func (e *engine) ifaceNameFor(ifindex int) string {
 	e.circuitsMu.RLock()
-	c := e.circuits[ifindex]
+	c := e.circuits[ifindex].circuit
 	e.circuitsMu.RUnlock()
 	if c == nil {
 		return ""
