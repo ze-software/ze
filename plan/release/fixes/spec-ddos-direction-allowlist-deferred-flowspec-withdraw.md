@@ -320,6 +320,12 @@ Stage 4 is the defect: the branch knows mitigation is exempt and is the only pla
 - The flowspec responder can announce but cannot let go. `announce()` is reachable from two paths while `withdraw()` is reachable from none, and nothing in the type system or the tests notices, because `responder_test.go` calls `probeTick` directly and so exercises a withdraw path that production never takes. A unit test that reaches past the wiring can make a dead feature look live.
 - A validated config leaf that nothing reads (`max-mitigation-duration`) is indistinguishable from a working one from the operator's side: it parses, it range-checks, it rejects bad input. Validation is not enforcement, and the gap is invisible until someone greps for the read.
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `value-computed-once-never-refreshed.md` | 2026-11-13 | ddos-detect grades severity once at trigger, so a growing attack never reaches `blackhole-fallback` |
+
 ## Known Limitations
 - Scoping this spec to the `SuppressMitigation` branch alone would leave the responder with exactly one working withdraw path and no others (A-4, A-5). That may still be the right first step, but it should be a decision rather than an accident.
 
