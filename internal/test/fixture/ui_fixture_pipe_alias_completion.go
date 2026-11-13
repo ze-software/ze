@@ -16,6 +16,7 @@ import (
 	"github.com/creack/pty"
 
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 const (
@@ -102,21 +103,12 @@ type login struct {
 // pipeAliasSetting answers one variable startFixtureDaemon wrote into the
 // client environment.
 //
-// The LAST assignment wins, which is the rule os/exec applies to the same
-// slice. startFixtureDaemon appends to the inherited environment, so a variable
-// this process already carried is still in front of the one that names this
-// daemon.
-func pipeAliasSetting(env []string, name string) (string, error) {
-	value := ""
-	found := false
-	for _, entry := range env {
-		if setting, matched := strings.CutPrefix(entry, name+"="); matched {
-			value = setting
-			found = true
-		}
-	}
-	if !found {
-		return "", fmt.Errorf("the fixture environment carries no %s", name)
+// It uses the child's key spelling and precedence rules. Each setting these
+// callers need must be nonempty in the client environment the fixture returns.
+func pipeAliasSetting(environment []string, name string) (string, error) {
+	value := env.LookupIn(environment, name)
+	if value == "" {
+		return "", fmt.Errorf("the fixture environment carries no usable %s", name)
 	}
 	return value, nil
 }
