@@ -4,10 +4,15 @@
 
 package hostload
 
-// readLoadAvg1 has no portable source on platforms other than Linux and macOS.
-// Returning 0 makes Contended() report false there (best-effort, consistent with
-// the "returns 0 if sampling fails" contract), so the package still builds and
-// runs everywhere the dev/verify tooling might.
-func readLoadAvg1() float64 {
-	return 0
+import (
+	"errors"
+	"runtime"
+)
+
+// readLoadAverages has no source on platforms other than Linux and macOS, and
+// says so. Snapshot turns that into the zero load its contract documents, so
+// Contended() reports false there and the package still builds and runs
+// everywhere the development tooling does.
+func readLoadAverages() (Averages, error) {
+	return Averages{}, errors.New("the load averages have no reader on " + runtime.GOOS)
 }

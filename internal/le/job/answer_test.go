@@ -7,25 +7,38 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
-// TestJobRunHelpShowsItsKeywordsFromTheTable proves `le job run --help` reads
-// the declared grammar: label, quiet and command as typed keywords, and no
-// usage line standing in for an action.
+// TestJobAreaDeclaresRunAndReport proves the job area declares exactly two
+// actions, and that `le job run --help` reads the declared grammar: label,
+// quiet and command as typed keywords, and no usage line standing in for an
+// action. The report action takes no parameter and has a page of its own.
 //
-// VALIDATES: AC-7, `job run` shows `label`, `quiet`, `command` as keywords.
+// VALIDATES: AC-7, `job run` shows `label`, `quiet`, `command` as keywords;
+// spec-main-thread-schedules-heavy-work AC-15, the area also declares the
+// read-only `report` action, and nothing else.
 // PREVENTS: the hand-written `usage: le job run ...` line rendered as an
-// action named after the whole line.
-func TestJobRunHelpShowsItsKeywordsFromTheTable(t *testing.T) {
+// action named after the whole line, and a third action that arrives in the
+// area with no test naming it.
+func TestJobAreaDeclaresRunAndReport(t *testing.T) {
 	list := Actions()
-	if len(list.Actions) != 1 || list.Actions[0].Verb != runVerb {
-		t.Fatalf("job declares %+v, want the one run action", list.Actions)
+	if len(list.Actions) != 2 {
+		t.Fatalf("job declares %+v, want the run and report actions and no other", list.Actions)
 	}
+	run := slices.IndexFunc(list.Actions, func(row leaction.Row) bool { return row.Verb == runVerb })
+	if run == -1 {
+		t.Fatalf("job declares %+v, want a run action", list.Actions)
+	}
+	report := slices.IndexFunc(list.Actions, func(row leaction.Row) bool { return row.Verb == reportVerb })
+	if report == -1 {
+		t.Fatalf("job declares %+v, want a report action", list.Actions)
+	}
+
 	want := map[string]leaction.Kind{
 		labelKeyword:   leaction.KindLabel,
 		quietKeyword:   leaction.KindSwitch,
 		commandKeyword: leaction.KindArgv,
 	}
 	var keywords []string
-	for _, parameter := range list.Actions[0].Parameters {
+	for _, parameter := range list.Actions[run].Parameters {
 		keywords = append(keywords, parameter.Keyword)
 		if want[parameter.Keyword] != parameter.Kind {
 			t.Errorf("%s is %v, want %v", parameter.Keyword, parameter.Kind, want[parameter.Keyword])
@@ -40,6 +53,16 @@ func TestJobRunHelpShowsItsKeywordsFromTheTable(t *testing.T) {
 	}
 	if len(page.Sections) != 1 || len(page.Sections[0].Entries) != 3 {
 		t.Errorf("the run page is %+v, want one keyword section of 3", page.Sections)
+	}
+
+	if parameters := list.Actions[report].Parameters; len(parameters) != 0 {
+		t.Errorf("report declares %+v, want no parameter", parameters)
+	}
+	if summary := list.Actions[report].Summary; summary == "" || len(summary) > 60 {
+		t.Errorf("the report summary is %q (%d characters), want 1 to 60", summary, len(summary))
+	}
+	if _, declared := list.ActionPage("le", reportVerb); !declared {
+		t.Error("the report action has no page")
 	}
 }
 

@@ -24,9 +24,13 @@ type Holder struct {
 }
 
 // Holders answers every readable entry in the registry of the checkout at
-// root, in name order. It does not judge liveness: a dead job's entry remains
-// untouched by admission waiters, so the caller matches each PID against a
-// process table it scanned. An absent registry holds no
+// root, in name order. It lists entries only: a waiter record (waiter.go)
+// holds no slot and is never answered here. It does not judge liveness: a
+// dead job's entry remains untouched by admission waiters, so the caller
+// matches each PID against a process table it scanned. `le job report` is the
+// reader that does judge it, with one scan for every entry and the session
+// and agent each one names (Admission.Overview, overview.go). An absent
+// registry holds no
 // entry. A registry that exists and cannot be listed answers an error, never
 // an empty list: the full cache empty refuses on that error, and an empty list
 // would read as "no job is running" (refuseFullEmpty, internal/le/scratch).

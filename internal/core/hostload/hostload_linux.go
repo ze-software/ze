@@ -2,26 +2,14 @@
 
 package hostload
 
-import (
-	"os"
-	"strconv"
-	"strings"
-)
+import "os"
 
-// readLoadAvg1 reads the 1-minute load average on Linux from /proc/loadavg.
-func readLoadAvg1() float64 {
+// readLoadAverages reads the load averages on Linux from /proc/loadavg, whose
+// line reads "3.43 4.65 14.57 1/234 5678". The read error names the file.
+func readLoadAverages() (Averages, error) {
 	data, err := os.ReadFile("/proc/loadavg")
 	if err != nil {
-		return 0
+		return Averages{}, err
 	}
-	// Format: "3.43 4.65 14.57 1/234 5678"
-	fields := strings.Fields(string(data))
-	if len(fields) == 0 {
-		return 0
-	}
-	v, err := strconv.ParseFloat(fields[0], 64)
-	if err != nil {
-		return 0
-	}
-	return v
+	return parseLoadAverages(string(data))
 }

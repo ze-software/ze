@@ -5,10 +5,16 @@
 // shared by the functional-test runner (internal/test/runner) and the native
 // verification-status action so the two surfaces cannot drift on what
 // "contended" means.
+//
+// It also holds the machine readings a report shows a person (readings.go):
+// the three load averages, total and available memory, and the two process
+// counts. Those report a failed reading as an error, where Snapshot answers
+// zero.
 package hostload
 
 import (
 	"context"
+	"errors"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -51,10 +57,22 @@ func Snapshot() Load {
 	l := Load{
 		CPUs: runtime.NumCPU(),
 	}
-	l.LoadAvg1 = readLoadAvg1()
+	l.LoadAvg1 = loadAvg1()
 	l.ZeProcs = harnessProcessCount()
 	l.GoTestProcs = processCount("\\.test")
 	return l
+}
+
+// loadAvg1 answers the one-minute load average for Snapshot. A failed sample
+// answers 0, as Snapshot documents; LoadAverages is the reading that reports
+// the failure instead.
+func loadAvg1() float64 {
+	averages, err := readLoadAverages()
+	// refuse-by-default: guards Contended -- a zero load is the uncontended verdict Snapshot documents for a failed sample
+	if err != nil {
+		return 0
+	}
+	return averages.One
 }
 
 // harnessProcessCount counts the running test-harness processes: every
@@ -63,30 +81,33 @@ func Snapshot() Load {
 // The harness has no binary of its own (`le test <name>` is an ordinary le
 // command), so the process name reads `le` for every le command and only the
 // argument list tells the harness apart. `ps -eo args=` prints it on macOS and
-// Linux alike. A failed sample answers 0, as Snapshot documents.
+// Linux alike. A failed sample answers 0, as Snapshot documents;
+// HarnessProcesses is the reading that reports the failure instead.
 func harnessProcessCount() int {
-	lines, err := processArguments()
+	count, err := HarnessProcesses()
+	// refuse-by-default: guards Contended -- no counted harness is the uncontended verdict Snapshot documents for a failed sample
 	if err != nil {
 		return 0
-	}
-	count := 0
-	for _, line := range lines {
-		if isHarnessCommand(line) {
-			count++
-		}
 	}
 	return count
 }
 
 // processArguments answers the argument list of every process, one per entry.
 func processArguments() ([]string, error) {
+	return processColumn("args=")
+}
+
+// processColumn answers one `ps` column for every process, one per entry. The
+// trailing "=" of the column drops the header line.
+func processColumn(column string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), procTimeout)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "ps", "-eo", "args=").Output()
+	out, err := exec.CommandContext(ctx, "ps", "-eo", column).Output() //nolint:gosec // the column is a constant of this package
 	if err != nil {
-		return nil, err
+		var tb textbuf.Buffer
+		return nil, errors.New(tb.Str("ps -eo ").Str(column).Str(": ").Err(err).String())
 	}
-	return strings.Split(strings.TrimSpace(string(out)), "\n"), nil
+	return processLines(string(out))
 }
 
 // isHarnessCommand answers whether one `ps` argument list is an `le test`

@@ -1,6 +1,8 @@
 // Design: docs/architecture/core-design.md -- the registry that IS the claim
 // Detail: treehash.go -- the tree an entry records
 // Detail: jobkey.go -- the work an entry records
+// Related: waiter.go -- the record a job writes while it waits for a slot
+// Related: overview.go -- the report that reads entries and waiter records
 //
 // tmp/.ze-jobs/<label>.<pid>.<claim>.job records one slot claim. Only its
 // holder removes its files. A waiter counts live or unassessable work as
@@ -8,7 +10,9 @@
 //
 // Readers use the fields, not the filename, for holder identity. The unique
 // claim suffix keeps retained evidence safe across PID reuse and repeat runs.
-// The tree hash lets a second asker share the result of equivalent work.
+// The tree hash lets a second asker share the result of equivalent work. The
+// session and agent fields name who asked, so a report can say whose job
+// holds a slot.
 
 package job
 
@@ -27,6 +31,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // aliveTimeout limits the process query for another job. One second for `ps`
@@ -34,13 +39,112 @@ import (
 // the registry lock.
 const aliveTimeout = 5 * time.Second
 
-// One job owns three suffixes in the registry: its entry, progress log and
-// completed verdict. Waiters never remove any of them.
+// The registry holds four suffixes. A job that holds a slot owns three: its
+// entry, progress log and completed verdict. A job that waits for a slot owns
+// the fourth, its waiter record (waiterSuffix, waiter.go), which no entry scan
+// matches. Waiters never remove a file another process wrote.
 const (
 	entrySuffix  = ".job"
 	logSuffix    = ".log"
 	resultSuffix = ".rc"
 )
+
+// The fields that name who asked for a job. An entry and a waiter record both
+// carry them, after the fields a registry entry always held.
+const (
+	sessionField = "SESSION"
+	agentField   = "AGENT"
+	// commandField is the command line, written last and read as data only.
+	commandField = "CMD"
+)
+
+// owner is who asked for a job: the harness session and, for a subagent, the
+// agent inside it. An empty field is the recorded form of "not known": a
+// caller outside any session, a main thread (which has no agent), an entry an
+// older le wrote, or a value that is not a file-name-safe id.
+type owner struct {
+	session string
+	agent   string
+}
+
+// caller answers the owner of this process as le resolves it: the session
+// from the harness context without minting one (lepath.KnownSessionID), and
+// the agent from the identity line (lepath.Agent).
+//
+// An identity that cannot be read leaves its field empty and is reported
+// once. It never refuses the job: admission protects the machine, and the
+// owner fields only describe who asked.
+func (a *Admission) caller(label string) owner {
+	var who owner
+
+	session, sessionErr := lepath.KnownSessionID(a.Root)
+	if sessionErr == nil {
+		who.session = session
+	}
+	agent, agentErr := lepath.Agent()
+	if agentErr == nil {
+		who.agent = agent
+	}
+
+	if sessionErr != nil {
+		var tb textbuf.Buffer
+		a.note(tb.Byte('[').Str(label).Str("] the job's session is recorded as unknown: ").Err(sessionErr).String())
+	}
+	if agentErr != nil {
+		var tb textbuf.Buffer
+		a.note(tb.Byte('[').Str(label).Str("] the job's agent is recorded as unknown: ").Err(agentErr).String())
+	}
+	return who
+}
+
+// ownerOf reads the owner fields of one registry file. The file is written by
+// another session's process, so each value is data: one that could not name a
+// file is read as unknown and never printed.
+func ownerOf(body []byte) owner {
+	who := owner{session: field(body, sessionField), agent: field(body, agentField)}
+	if !lepath.ValidSessionID(who.session) {
+		who.session = ""
+	}
+	if !lepath.ValidAgentID(who.agent) {
+		who.agent = ""
+	}
+	return who
+}
+
+// writeOwner appends the owner fields to a registry file being built.
+func writeOwner(tb *textbuf.Buffer, who owner) {
+	writeField(tb, sessionField, who.session)
+	writeField(tb, agentField, who.agent)
+}
+
+// lineBreaks makes a line break inert in a field value: a line feed or a
+// carriage return becomes one space.
+var lineBreaks = strings.NewReplacer("\n", " ", "\r", " ")
+
+// writeField appends one NAME=VALUE line to a registry file being built, an
+// entry or a waiter record.
+//
+// A registry file MUST NOT carry a caller-controlled value containing a line
+// break, and every text value MUST be written through here, which is what
+// keeps that true. A file is one field per line and its reader takes the
+// first line that opens with a name (field), so a job whose argv held
+// "\nSESSION=x" would otherwise write a line of its own before the real
+// SESSION line, and every session's report would name the wrong owner.
+//
+// The break becomes a space rather than an escape because no reader parses a
+// value back: CMD is shown by the report (overview.go) and nothing else reads
+// it, and the key that decides sharing is a hash of the argv itself (jobKey),
+// not of this line.
+func writeField(tb *textbuf.Buffer, name, value string) {
+	tb.Str(name).Byte('=').Str(lineBreaks.Replace(value)).Byte('\n')
+}
+
+// commandLine is the argv as the CMD field shows it: the words joined by
+// spaces. It is display text. An argv word holding a space or a line break
+// cannot be told from two words here, and no reader splits it back.
+func commandLine(argv []string) string {
+	return strings.Join(argv, " ")
+}
 
 // state is what the registry answered a job asking to run.
 type state uint8
@@ -73,6 +177,9 @@ type pending struct {
 	// Therefore, the fingerprint is calculated again at admission, but only for
 	// a job that waited.
 	treeStale bool
+	// who is the caller that asked, resolved once before the queue (admit) and
+	// written into the entry and the waiter record.
+	who owner
 }
 
 // outcome is what one scan decided.
@@ -107,6 +214,15 @@ type entry struct {
 	log     string
 	state   string
 	started time.Time
+	// startedKnown says the entry carried a STARTED the reader could parse.
+	// started is this instant when it did not, which a banner prints as zero
+	// elapsed; a report that shows an age reads this first.
+	startedKnown bool
+	// who is the session and agent the entry names, each empty when the entry
+	// names none (ownerOf).
+	who owner
+	// command is the entry's CMD line, read as data and never executed.
+	command string
 }
 
 // claim asks the registry once, under the registry lock, and answers what it
@@ -299,17 +415,23 @@ func (a *Admission) take(job *pending, now time.Time) (result outcome) {
 		return outcome{err: errors.New("the new job's result path already exists; retry admission without changing that file")}
 	}
 
+	// Every text value goes through writeField, so none can open a second
+	// field line: the command is the caller's own words, and it is written
+	// before the owner fields a reader would otherwise take from it.
 	var tb textbuf.Buffer
-	tb.Str("LABEL=").Str(job.label).Byte('\n')
+	writeField(&tb, "LABEL", job.label)
 	tb.Str("PID=").Int(int64(pid)).Byte('\n')
 	tb.Str("PGID=").Int(int64(processGroup())).Byte('\n')
-	tb.Str("TREE=").Str(job.tree).Byte('\n')
+	writeField(&tb, "TREE", job.tree)
 	// KEY determines whether a later asker can share this run.
-	tb.Str("KEY=").Str(job.key).Byte('\n')
+	writeField(&tb, "KEY", job.key)
 	tb.Str("STARTED=").Int(now.Unix()).Byte('\n')
-	tb.Str("LOG=").Str(logRel).Byte('\n')
+	writeField(&tb, "LOG", logRel)
 	tb.Str("STATE=running\n")
-	tb.Str("CMD=").Join(job.argv, " ").Byte('\n')
+	writeField(&tb, commandField, commandLine(job.argv))
+	// The owner fields come after the nine an entry always held, so a reader
+	// that knows only those reads this entry as it read the older ones.
+	writeOwner(&tb, job.who)
 	written := []byte(tb.String())
 
 	if err := os.WriteFile(file.Name(), written, 0o644); err != nil { //nolint:gosec // this invocation exclusively created the entry above
@@ -550,6 +672,10 @@ func truncate(line string, limit int) string {
 // readEntry parses one registry file and reports whether the file was readable.
 // A false result activates FAIL CLOSED. The caller counts the entry as occupied
 // and does not assume that no job is running.
+//
+// The session and agent fields are optional: an entry an older le wrote, and
+// the fixed parent entry a QEMU guest holds, carry neither, and both read as
+// an owner that is not known.
 func (a *Admission) readEntry(path string) (entry, bool) {
 	body, err := os.ReadFile(path) //nolint:gosec // a path this scan took from the registry directory itself
 	if err != nil {
@@ -569,14 +695,20 @@ func (a *Admission) readEntry(path string) (entry, bool) {
 		key:   field(body, "KEY"),
 		log:   registryLog(field(body, "LOG")),
 		state: field(body, "STATE"),
+		who:   ownerOf(body),
+		// The writer put the command on one line (writeField), so this line
+		// is the whole of it, shown as text and never run.
+		command: field(body, commandField),
 	}
 	// A STARTED nobody wrote leaves the job as old as this instant, which
 	// makes its elapsed time zero rather than fifty years. Elapsed time is
 	// reported and never acted on, so a missing one costs a banner's accuracy
-	// and nothing else.
+	// and nothing else. The report shows an age only when startedKnown says
+	// the entry carried one.
 	held.started = time.Now()
 	if started, err := strconv.ParseInt(field(body, "STARTED"), 10, 64); err == nil {
 		held.started = time.Unix(started, 0)
+		held.startedKnown = true
 	}
 	return held, true
 }
@@ -608,7 +740,12 @@ func registryLog(named string) string {
 
 // field answers the value of one FIELD=VALUE line, and the empty string when
 // the field is absent. The first line that starts with the name wins, which is
-// what the shell half's reader does.
+// what the shell half's reader does, so a duplicate line later in the file
+// never overrides the one a writer put first.
+//
+// First-wins alone does not protect a field written after a caller-controlled
+// one: readEntry and readWaiter rely on the writer (writeField) never letting
+// a value open a line of its own.
 func field(body []byte, name string) string {
 	var tb textbuf.Buffer
 	prefix := tb.Str(name).Byte('=').String()

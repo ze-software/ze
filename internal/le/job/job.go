@@ -77,7 +77,8 @@ import (
 // because the shell half writes them relative and a follower has to open what
 // a holder wrote, whichever half wrote it.
 const (
-	// JobsDir holds one entry, one log and one result per job.
+	// JobsDir holds one entry, one log and one result per job that held a
+	// slot, and one waiter record per job that is waiting for one.
 	JobsDir = "tmp/.ze-jobs"
 	// lockName serializes the scan-and-claim. It is the ONE lock here, and it
 	// is held for the length of a directory scan rather than for the length of
@@ -541,6 +542,9 @@ func (a *Admission) admit(ctx context.Context, label string, argv []string) (*Ti
 		tree:      tree,
 		key:       jobKey(argv),
 		mayAttach: a.MayAttach,
+		// Resolved here, once and outside the registry lock: reading the
+		// session can walk this process's ancestors.
+		who: a.caller(label),
 	}
 	return a.queue(ctx, &job)
 }
@@ -551,9 +555,18 @@ func (a *Admission) admit(ctx context.Context, label string, argv []string) (*Ti
 // The loop intentionally has no iteration limit. It waits while capacity is
 // occupied, including by a silent or unassessable holder. Only availability or
 // the caller's cancellation ends that wait; a waiter never breaks a holder.
+//
+// The first busy answer writes this job's waiter record (waiter.go), which is
+// what lets `le job report` list the queue. The record is withdrawn on every
+// way out: a claim, an attach, the caller's cancellation, a refused scan. A
+// job that attached and observed nothing writes a new one when it is told
+// busy again.
 func (a *Admission) queue(ctx context.Context, job *pending) (*Ticket, error) {
 	started := time.Now()
 	var lastBanner time.Time
+
+	var notice waitNotice
+	defer a.withdrawWait(&notice)
 
 	for {
 		if err := ctx.Err(); err != nil {
@@ -573,6 +586,9 @@ func (a *Admission) queue(ctx context.Context, job *pending) (*Ticket, error) {
 			}, nil
 
 		case stateAttach:
+			// A job following another's run waits for a verdict, not for a
+			// slot, so it stops being listed as a waiter here.
+			a.withdrawWait(&notice)
 			if code, observed := a.attach(ctx, job.label, result); observed {
 				return &Ticket{
 					Label: job.label, Kind: KindAttached, Code: code, Tree: job.tree,
@@ -589,6 +605,7 @@ func (a *Admission) queue(ctx context.Context, job *pending) (*Ticket, error) {
 
 		case stateBusy:
 			job.treeStale = true
+			a.announceWait(job, started, &notice)
 			if time.Since(lastBanner) >= a.Banner {
 				a.reportBusy(job.label, result)
 				lastBanner = time.Now()

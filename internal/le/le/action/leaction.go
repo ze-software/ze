@@ -88,6 +88,19 @@ type Action struct {
 	// (human.RequireTerminal). Declaring it here, where the verb registers, is
 	// what gates a new whole-tree verb; no list of gated verbs exists.
 	WholeTree bool
+	// Heavy says this action starts work that loads the machine every session
+	// shares: a build, a test run, a lint, a formatter over more than one
+	// file, Docker, QEMU, a fuzzer, a benchmark, or another action that
+	// declares the same. The main thread schedules such work one job at a
+	// time, so the pretool hook refuses the line when a subagent types it and
+	// tells the agent to hand the command back (leroot.HeavyLine reads the
+	// declaration; internal/le/hookruntime, bashSubagentHeavy, refuses). An
+	// action that reads files, queries git or writes a ledger declares
+	// nothing. Declaring it here, where the verb registers, is what makes a
+	// new heavy verb known to the hook; no list of heavy verbs exists. An area
+	// with no action rows declares the same for its whole line with
+	// leroot.RegisterHeavy.
+	Heavy bool
 	// Parameters declares the closed keyword grammar for an argument-aware
 	// action. Existing actions leave it empty and use Answer.
 	Parameters []Parameter
@@ -259,6 +272,10 @@ type Row struct {
 	// WholeTree publishes that this verb refuses unless a person at a terminal
 	// started it (Action.WholeTree).
 	WholeTree bool `json:"whole-tree,omitempty"`
+	// Heavy publishes that this verb starts heavy work the main thread
+	// schedules, so a subagent hands the line back rather than run it
+	// (Action.Heavy).
+	Heavy bool `json:"heavy,omitempty"`
 	// Parameters is the action's whole keyword grammar, so a reader learns what
 	// an action takes without invoking it. A zero-argument action declares
 	// none, and the key is then absent rather than empty.
@@ -376,7 +393,7 @@ func (a Area) Actions() List {
 	for _, act := range a.actions {
 		list.Actions = append(list.Actions, Row{
 			Verb: act.Verb, Default: act.Default, Writes: act.Writes, Summary: act.Summary, Why: act.Why, Does: act.Does, Frozen: act.Frozen,
-			Alone: act.Alone, WholeTree: act.WholeTree,
+			Alone: act.Alone, WholeTree: act.WholeTree, Heavy: act.Heavy,
 			// Cloned: the listing is a payload a caller may hold and a renderer
 			// may sort, and the declaration behind it belongs to the area.
 			// Retired keywords are left out: nothing renders or offers one.

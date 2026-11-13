@@ -164,3 +164,222 @@ func TestHarnessSampleSeesALiveLeTest(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 }
+
+// linuxMeminfo is the head of a /proc/meminfo recorded on a 16 GiB Linux
+// machine.
+const linuxMeminfo = `MemTotal:       16303428 kB
+MemFree:          812340 kB
+MemAvailable:    9876544 kB
+Buffers:          412008 kB
+Cached:          8123456 kB
+SwapCached:            0 kB
+Active:          5234112 kB
+Inactive:        8901234 kB
+SwapTotal:       2097148 kB
+SwapFree:        2097148 kB
+`
+
+// darwinVMStat is `vm_stat` recorded on an Apple Silicon Mac, whose pages are
+// 16384 bytes.
+const darwinVMStat = `Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                               48213.
+Pages active:                           1204512.
+Pages inactive:                         1187340.
+Pages speculative:                        12877.
+Pages throttled:                              0.
+Pages wired down:                        402118.
+Pages purgeable:                          31022.
+"Translation faults":                3120459871.
+Pages copy-on-write:                   98123411.
+Pages zero filled:                   1650982133.
+Pages reactivated:                     45120988.
+Pages purged:                           9120345.
+File-backed pages:                       811245.
+Anonymous pages:                        1593484.
+Pages stored in compressor:             2981123.
+Pages occupied by compressor:            901234.
+Decompressions:                        61234987.
+Compressions:                          88123456.
+Pageins:                               31230987.
+Pageouts:                                412398.
+Swapins:                                1203987.
+Swapouts:                               1509812.
+`
+
+// VALIDATES: spec-main-thread-schedules-heavy-work AC-16 at the reader: a
+// parser handed text it cannot read answers an error.
+// PREVENTS: a failed reading that reaches a report as the number 0, which
+// reads as an idle machine or an empty one.
+//
+// Every case also requires the answered value to be the zero value, so no
+// caller that ignored the error could be handed a plausible number.
+func TestReadingReportsFailure(t *testing.T) {
+	loads := map[string]string{
+		"an empty file":              "",
+		"blank":                      " \n",
+		"garbage":                    "not a load average",
+		"two figures":                "0.52 0.58",
+		"a figure that is text":      "0.52 high 0.59 1/467 12345",
+		"a figure that ends in text": "0.52x 0.58 0.59 1/467 12345",
+		"an empty brace":             "{ }",
+		"a negative load":            "-1.00 0.58 0.59",
+		"not a number":               "NaN 0.58 0.59",
+		"not finite":                 "0.52 +Inf 0.59",
+	}
+	for name, text := range loads {
+		if got, err := parseLoadAverages(text); err == nil || got != (Averages{}) {
+			t.Errorf("parseLoadAverages(%s) = %+v, %v; want the zero value and an error", name, got, err)
+		}
+	}
+
+	meminfo := map[string]string{
+		"an empty file":             "",
+		"garbage":                   "not a meminfo file\n",
+		"a missing field":           "MemTotal:       16303428 kB\nMemFree:          812340 kB\n",
+		"a count with text":         "MemAvailable:    lots kB\n",
+		"a count that ends in text": "MemAvailable:    12x kB\n",
+		"a negative count":          "MemAvailable:    -5 kB\n",
+		"no unit":                   "MemAvailable:    9876544\n",
+		"another unit":              "MemAvailable:    9876544 MB\n",
+		"a count too large":         "MemAvailable:    18446744073709551615 kB\n",
+		"a longer name":             "MemAvailableHuge:    9876544 kB\n",
+	}
+	for name, text := range meminfo {
+		if got, err := parseMeminfo(text, "MemAvailable"); err == nil || got != 0 {
+			t.Errorf("parseMeminfo(%s) = %d, %v; want 0 and an error", name, got, err)
+		}
+	}
+	// MemTotal is the field the lint memory ceiling reads: a digit prefix is
+	// not a count there either.
+	if got, err := parseMeminfo("MemTotal:       12x kB\n", "MemTotal"); err == nil || got != 0 {
+		t.Errorf("parseMeminfo(a MemTotal count that ends in text) = %d, %v; want 0 and an error", got, err)
+	}
+
+	vmStat := map[string]string{
+		"an empty file":       "",
+		"garbage":             "not vm_stat output\n",
+		"no page size":        "Mach Virtual Memory Statistics:\nPages free: 1.\nPages inactive: 1.\nPages speculative: 1.\n",
+		"a page size of zero": "Mach Virtual Memory Statistics: (page size of 0 bytes)\nPages free: 1.\nPages inactive: 1.\nPages speculative: 1.\n",
+		"a page size of text": "Mach Virtual Memory Statistics: (page size of big bytes)\nPages free: 1.\nPages inactive: 1.\nPages speculative: 1.\n",
+		"no inactive count":   "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free: 1.\nPages speculative: 1.\n",
+		"a count that is text": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\n" +
+			"Pages free: many.\nPages inactive: 1.\nPages speculative: 1.\n",
+		"a count that ends in text": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\n" +
+			"Pages free: 12x.\nPages inactive: 1.\nPages speculative: 1.\n",
+		"a page size that ends in text": "Mach Virtual Memory Statistics: (page size of 16384x bytes)\n" +
+			"Pages free: 1.\nPages inactive: 1.\nPages speculative: 1.\n",
+		"counts too large": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\n" +
+			"Pages free: 18446744073709551615.\nPages inactive: 1.\nPages speculative: 1.\n",
+	}
+	for name, text := range vmStat {
+		if got, err := parseVMStatAvailable(text); err == nil || got != 0 {
+			t.Errorf("parseVMStatAvailable(%s) = %d, %v; want 0 and an error", name, got, err)
+		}
+	}
+
+	if lines, err := processLines(" \n"); err == nil || lines != nil {
+		t.Errorf("processLines(blank) = %q, %v; want no line and an error", lines, err)
+	}
+}
+
+// VALIDATES: available and total memory are read out of what each platform
+// prints, in bytes.
+// PREVENTS: a unit mistake (kB read as bytes, pages read as bytes), and a
+// macOS estimate that counts other pages than the three its comment states.
+func TestAvailableMemoryIsParsed(t *testing.T) {
+	available, err := parseMeminfo(linuxMeminfo, "MemAvailable")
+	if err != nil || available != 9876544*1024 {
+		t.Errorf("MemAvailable = %d, %v; want %d bytes", available, err, uint64(9876544*1024))
+	}
+	total, err := parseMeminfo(linuxMeminfo, "MemTotal")
+	if err != nil || total != 16303428*1024 {
+		t.Errorf("MemTotal = %d, %v; want %d bytes", total, err, uint64(16303428*1024))
+	}
+
+	// Free, speculative and inactive pages, and no other line.
+	const pages = 48213 + 12877 + 1187340
+	estimate, err := parseVMStatAvailable(darwinVMStat)
+	if err != nil || estimate != pages*16384 {
+		t.Errorf("the vm_stat estimate = %d, %v; want %d bytes", estimate, err, uint64(pages*16384))
+	}
+
+	// A measured zero is a value, not a failure.
+	empty := "Mach Virtual Memory Statistics: (page size of 4096 bytes)\n" +
+		"Pages free: 0.\nPages inactive: 0.\nPages speculative: 0.\n"
+	if zero, err := parseVMStatAvailable(empty); err != nil || zero != 0 {
+		t.Errorf("a machine with no reclaimable page = %d, %v; want a measured 0", zero, err)
+	}
+}
+
+// VALIDATES: the three load averages are read out of each platform's format.
+// PREVENTS: the five and fifteen minute figures being swapped, and Linux's
+// trailing task and pid fields being read as a load.
+func TestLoadAveragesAreParsed(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want Averages
+	}{
+		{"linux /proc/loadavg", "0.52 0.58 0.59 1/467 12345\n", Averages{One: 0.52, Five: 0.58, Fifteen: 0.59}},
+		{"darwin sysctl vm.loadavg", "{ 2.11 1.98 1.85 }\n", Averages{One: 2.11, Five: 1.98, Fifteen: 1.85}},
+		{"an idle machine", "0.00 0.00 0.00 1/100 4321\n", Averages{}},
+	}
+	for _, tc := range tests {
+		got, err := parseLoadAverages(tc.text)
+		if err != nil || got != tc.want {
+			t.Errorf("parseLoadAverages(%s) = %+v, %v; want %+v", tc.name, got, err, tc.want)
+		}
+	}
+}
+
+// VALIDATES: a compiled Go test binary is counted by its name, and the count
+// of a list that holds none is a measured zero.
+func TestGoTestProcessesAreCountedByName(t *testing.T) {
+	names := []string{"/usr/bin/ps", "/tmp/go-build1/b001/job.test", "reactor.test", "le", "testing"}
+	if got := countGoTests(names); got != 2 {
+		t.Errorf("countGoTests = %d, want the 2 names that hold .test", got)
+	}
+	if got := countGoTests([]string{"ps", "le"}); got != 0 {
+		t.Errorf("countGoTests = %d, want 0 for a list with no test binary", got)
+	}
+}
+
+// VALIDATES: on this machine every reading answers a value or an error, and a
+// value that was read is plausible.
+// PREVENTS: a platform reader wired to the wrong parser or the wrong unit.
+// Method: the real readers. A reading the platform cannot provide is logged,
+// never failed: the parsers above are what prove the failure path.
+func TestReadingsOnThisMachine(t *testing.T) {
+	if averages, err := LoadAverages(); err != nil {
+		t.Logf("load averages unavailable: %v", err)
+	} else if averages.One < 0 || averages.Five < 0 || averages.Fifteen < 0 {
+		t.Errorf("LoadAverages = %+v, want no negative load", averages)
+	}
+
+	total, totalErr := MemoryTotal()
+	if totalErr != nil {
+		t.Logf("total memory unavailable: %v", totalErr)
+	} else if total < 1<<28 {
+		t.Errorf("MemoryTotal = %d bytes, want at least the 256 MiB a development machine has", total)
+	}
+	available, availableErr := MemoryAvailable()
+	if availableErr != nil {
+		t.Logf("available memory unavailable: %v", availableErr)
+	}
+	if totalErr == nil && availableErr == nil && available > total {
+		t.Errorf("MemoryAvailable = %d bytes, more than the %d the machine has", available, total)
+	}
+
+	// `ps` is on every machine these tests run on, and this test binary is
+	// itself a Go test process.
+	tests, err := GoTestProcesses()
+	if err != nil {
+		t.Fatalf("GoTestProcesses: %v", err)
+	}
+	if tests < 1 {
+		t.Errorf("GoTestProcesses = %d, want at least this test binary", tests)
+	}
+	if _, err := HarnessProcesses(); err != nil {
+		t.Errorf("HarnessProcesses: %v", err)
+	}
+}
