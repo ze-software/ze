@@ -559,7 +559,7 @@ func tunnelRadiusValue(line, name string) (string, bool) {
 func (peer *tunnelAccountingPeer) waitRadius(ctx context.Context, description string, timeout time.Duration, predicate func(string) bool) (string, error) {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		contents, _ := os.ReadFile("radius-rx.log")
+		contents, _ := os.ReadFile(tunnelRadiusRXLog)
 		for line := range strings.SplitSeq(string(contents), "\n") {
 			if predicate(line) {
 				return line, nil

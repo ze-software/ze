@@ -1,0 +1,133 @@
+# Test: an operator clear of a live PPP session leaves nothing behind.
+# QUESTION:  when the operator clears one L2TP session that has its address and
+#            is up, does the daemon end it in every place that held it: the
+#            session list, the subscriber registry, and the RADIUS accounting
+#            record, closed once?
+# VALIDATES: spec-single-owner-lifecycle-5-session-end-locals AC-8 (end state
+#            after an operator teardown: no subscriber entry, no accounting
+#            session left open, a Stop for every Start) and AC-9 for the two
+#            readers this test can observe (RADIUS accounting sends exactly one
+#            Stop, the subscriber bridge removes its entry), through the real
+#            entry points: a LAC over UDP, kernel PPP, `clear l2tp session id`
+#            over SSH, a RADIUS server on the wire. User story 3.
+# PREVENTS:  a clear that leaves the subscriber listed, an accounting session a
+#            late event started after the teardown (a second Acct-Session-Id),
+#            a Stop that never reaches the server, or a Stop sent twice.
+#
+# Why not a unit test: the unit tests in internal/component/l2tp
+# (session_event_order_test.go) and authradius (acct_order_test.go) prove each
+# half in isolation over a test bus. Only the daemon joins the reactor, the
+# bridge, the accounting plugin and the CLI, so only a .ci proves an operator
+# reaches the end state.
+#
+# What this test does NOT prove: the race the order ticket fixes, a teardown
+# overtaking the SessionIPAssigned or SessionUp of the same session. No daemon
+# run can force that interleaving (the spec says so of its unit tests' seam).
+# Here the session is up, and seen up, before the clear: this is the ordinary
+# clear's end state, not the ordering. The ordering is the unit tests' job.
+#
+# Every assertion is on state, never on time. The peer waits, before the
+# clear, until the Accounting-Start is at the RADIUS server, `show l2tp
+# sessions` lists the session with its address, and `show subscriber` lists it
+# active: those are the positive controls, so an empty list after the clear is
+# not a broken command. After the clear it reads each view ONCE, with no wait:
+# teardownSessionByID delivers the session-down to every reader before it
+# sends the CDN and before the command answers, so the state the answer leaves
+# is the end state.
+#
+# The accounting assertion is the COUNT of records and their shared
+# Acct-Session-Id, never their order on the wire. The Start is sent from the
+# accounting task's goroutine and the Stop at once on teardown, so a teardown
+# right after the address can put the Stop on the wire first
+# (plan/journal/late-write-lands-on-the-successor.md, 2026-11-12, owned by
+# plan/release/fixes/spec-radius-acct-start-after-stop.md). This test takes
+# that race out of what it asserts by seeing the Start at the server before it
+# issues the clear.
+#
+# A session that reaches an assigned IPv4 needs kernel PPPoL2TP, which needs
+# CAP_NET_ADMIN, so this test is needs-linux and runs in QEMU as root. It SKIPS
+# on an unprivileged dev host. ze.l2tp.skip-kernel-probe is deliberately NOT
+# set, as in test/l2tp/radius-acct-wire.ci, whose LAC half and RADIUS mock this
+# test reuses (internal/test/fixture/tunnel_fixture_l2tp_ppp.go,
+# tunnel_fixture_l2tp_radius.go).
+#
+# Ports: $PORT is the L2TP listener, $PORT2 the RADIUS mock (auth and
+# accounting), $PORT3 the daemon's SSH server, which the peer's `ze cli`
+# reaches through the three ze.ssh.* variables below.
+
+stdin=config:terminator=EOF_CONF
+system {
+    authentication {
+        # bcrypt cost-4 hash of "testpass".
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    auth {
+        radius {
+            nas-identifier lns1
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                accounting-port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.8.1
+            start 10.99.8.10
+            end 10.99.8.10
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT3
+        }
+    }
+}
+EOF_CONF
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.log.l2tp.auth.radius:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT3
+
+cmd=background:seq=1:exec=le test fixture l2tp/session-clear-leaves-no-subscriber/radius $PORT2 testing123
+cmd=background:seq=2:exec=ze -:stdin=config
+# 120s bounds the peer's own five waits, each a share of this budget, so a
+# stall ends with the peer naming the state that never came. The happy path
+# takes seconds.
+cmd=foreground:seq=3:exec=le test fixture l2tp/session-clear-leaves-no-subscriber $PORT:timeout=120s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: CHAP Success received
+expect=stdout:contains=OK: IPCP opened, ze assigned 10.99.8.10
+expect=stdout:pattern=OK: Accounting-Start with Acct-Session-Id \S+ reached the RADIUS server before the clear
+expect=stdout:pattern=OK: show l2tp sessions lists session [0-9]+ with address 10\.99\.8\.10
+expect=stdout:contains=OK: show subscriber lists an active l2tp subscriber with address 10.99.8.10
+expect=stdout:pattern=OK: clear l2tp session id [0-9]+ answered status sent
+expect=stdout:pattern=OK: the RADIUS server holds one Accounting-Start and one Accounting-Stop for Acct-Session-Id \S+, the Stop with Acct-Terminate-Cause 6
+expect=stdout:contains=OK: show l2tp sessions lists no session after the clear
+expect=stdout:contains=OK: show subscriber lists no subscriber after the clear, total 0
+expect=stdout:pattern=OK: ze sent a CDN for session [0-9]+

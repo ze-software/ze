@@ -172,6 +172,12 @@ func tunnelRadiusCoA(ctx context.Context, args []string) error {
 	return nil
 }
 
+// tunnelRadiusRXLog is the file, in the test's working directory, where
+// tunnelRadiusAccounting appends one RADIUS-RX line per packet it received.
+// The peers that assert on what the server decoded read it back under this
+// name.
+const tunnelRadiusRXLog = "radius-rx.log"
+
 func tunnelRadiusAccounting(ctx context.Context, args []string) error {
 	port, err := tunnelArgPort(args, 0)
 	if err != nil {
@@ -202,7 +208,7 @@ func tunnelRadiusAccounting(ctx context.Context, args []string) error {
 		}
 		line := tunnelRadiusDescribe(buffer[:n])
 		fmt.Println(line)
-		file, openErr := os.OpenFile("radius-rx.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+		file, openErr := os.OpenFile(tunnelRadiusRXLog, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 		if openErr != nil {
 			return openErr
 		}
