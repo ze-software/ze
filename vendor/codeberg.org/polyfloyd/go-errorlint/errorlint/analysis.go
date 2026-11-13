@@ -9,46 +9,42 @@ import (
 )
 
 func NewAnalyzer(opts ...Option) *analysis.Analyzer {
-	for _, o := range opts {
-		o()
-	}
-
-	setDefaultAllowedErrors()
+	cfg := &config{allowed: newAllowList()}
 
 	a := &analysis.Analyzer{
 		Name: "errorlint",
 		Doc:  "Linter for error wrapping issues.",
-		Run:  run,
+		Run:  cfg.run,
 	}
 
-	a.Flags.BoolVar(&checkComparison, "comparison", true, "Check for plain error comparisons")
-	a.Flags.BoolVar(&checkAsserts, "asserts", true, "Check for plain type assertions and type switches")
-	a.Flags.BoolVar(&checkErrorf, "errorf", false, "Check whether fmt.Errorf uses the %w verb for formatting errors. See the readme for caveats")
-	a.Flags.BoolVar(&checkErrorfMulti, "errorf-multi", true, "Permit more than 1 %w verb, valid per Go 1.20 (Requires -errorf=true)")
+	// Registering a flag assigns its default value to the variable, so this must happen before the
+	// options are applied, or the options would be overwritten.
+	a.Flags.BoolVar(&cfg.checkComparison, "comparison", true, "Check for plain error comparisons")
+	a.Flags.BoolVar(&cfg.checkAsserts, "asserts", true, "Check for plain type assertions and type switches")
+	a.Flags.BoolVar(&cfg.checkErrorf, "errorf", false, "Check whether fmt.Errorf uses the %w verb for formatting errors. See the readme for caveats")
+	a.Flags.BoolVar(&cfg.checkErrorfMulti, "errorf-multi", true, "Permit more than 1 %w verb, valid per Go 1.20 (Requires -errorf=true)")
+
+	for _, o := range opts {
+		o(cfg)
+	}
 
 	return a
 }
 
-var (
-	checkComparison  bool
-	checkAsserts     bool
-	checkErrorf      bool
-	checkErrorfMulti bool
-)
-
-func run(pass *analysis.Pass) (interface{}, error) {
+func (cfg *config) run(pass *analysis.Pass) (interface{}, error) {
 	var lints []analysis.Diagnostic
 	extInfo := newTypesInfoExt(pass)
-	if checkComparison {
+	extInfo.allowed = cfg.allowed
+	if cfg.checkComparison {
 		l := LintErrorComparisons(extInfo)
 		lints = append(lints, l...)
 	}
-	if checkAsserts {
+	if cfg.checkAsserts {
 		l := LintErrorTypeAssertions(pass.Fset, extInfo)
 		lints = append(lints, l...)
 	}
-	if checkErrorf {
-		l := LintFmtErrorfCalls(pass.Fset, *pass.TypesInfo, checkErrorfMulti)
+	if cfg.checkErrorf {
+		l := LintFmtErrorfCalls(pass.Fset, *pass.TypesInfo, cfg.checkErrorfMulti)
 		lints = append(lints, l...)
 	}
 	sort.Sort(ByPosition(lints))
@@ -67,6 +63,16 @@ type TypesInfoExt struct {
 
 	// Maps an object back to all identifiers to refer to it.
 	IdentifiersForObject map[types.Object][]*ast.Ident
+
+	// The errors that may be compared directly. The defaults are used when nil.
+	allowed *allowList
+}
+
+func (info *TypesInfoExt) allowList() *allowList {
+	if info.allowed == nil {
+		return defaultAllowList()
+	}
+	return info.allowed
 }
 
 func newTypesInfoExt(pass *analysis.Pass) *TypesInfoExt {
