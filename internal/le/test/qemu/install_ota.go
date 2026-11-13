@@ -240,9 +240,22 @@ func configureOTATarget(path string, port int) error {
 }
 
 func (installer *Installer) launchOTAGuest(ctx context.Context, work, disk string, certificate []byte, token string) (*otaGuest, error) {
-	sshPort, err := installer.ops.Port()
-	if err != nil {
-		return nil, err
+	return installer.launchOTAGuestMode(ctx, work, disk, certificate, token, false, 0)
+}
+
+// launchOTAGuestMode keeps OTA's guest port 22 and allocates its host port.
+// A nonzero proof port binds that same owned port on both sides of QEMU.
+// A successful launch MUST be paired with otaGuest.stop on every return path.
+func (installer *Installer) launchOTAGuestMode(ctx context.Context, work, disk string, certificate []byte, token string, stopOnReboot bool, sshPort int) (*otaGuest, error) {
+	guestPort := 22
+	if sshPort == 0 {
+		allocated, err := installer.ops.Port()
+		if err != nil {
+			return nil, err
+		}
+		sshPort = allocated
+	} else {
+		guestPort = sshPort
 	}
 	updatePort, err := installer.ops.Port()
 	if err != nil {
@@ -262,8 +275,11 @@ func (installer *Installer) launchOTAGuest(ctx context.Context, work, disk strin
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	var b textbuf.Buffer
-	forward := b.Str("user,id=net0,hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(sshPort)).Str("-:22,hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(updatePort)).Str("-:443,hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(webPort)).Str("-:8080").String()
+	forward := b.Str("user,id=net0,hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(sshPort)).Str("-:").Int(int64(guestPort)).Str(",hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(updatePort)).Str("-:443,hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(webPort)).Str("-:8080").String()
 	argv := installer.qemuBase(true)
+	if stopOnReboot {
+		argv = append(argv, "-no-reboot")
+	}
 	b.Reset()
 	argv = append(argv, "-drive", b.Str("file=").Str(disk).Str(",format=raw,if=virtio").String(), "-netdev", forward, "-device", "virtio-net-pci,netdev=net0")
 	serial, err := os.Create(filepath.Join(work, "ota-serial.log")) //nolint:gosec // Proof-owned serial log.

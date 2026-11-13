@@ -61,6 +61,17 @@ tears down after the start warning `warnIfExternal` logs, before Config.
 **Behavior to change:**
 - A forked plugin holds no bus.
 
+Deployment source inspection on 2026-11-13 confirms the redistribute instance
+of AC-2. `internal/plugins/redistribute/redistribute.go` `run` warns and returns
+when `getEventBus` is nil, before `subscribe` installs producer route-change
+subscriptions. `register.go` supplies that bus through `ConfigureEventBus`,
+but its SDK startup subscriptions cover only BGP state. The in-process spawn
+in `internal/component/plugin/inprocess.go` invokes `ConfigureEventBus`; the
+external process cannot receive that package pointer. No external-orchestrator
+runtime proof was run for this capture. The existing 2026-11-10 journal row
+already covers this consumer. Deployment's connected SDK repair is a subset
+of this owner's work and does not establish that all consumers are repaired.
+
 ## Data Flow
 
 ### Entry Point

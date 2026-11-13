@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -49,17 +48,11 @@ func TestConfigPushUploadsConfig(t *testing.T) {
 		t.Fatalf("config-push returned %d, want 0", code)
 	}
 
-	if len(commands) < 3 {
-		t.Fatalf("expected at least 3 SSH commands, got %d", len(commands))
+	if len(commands) != 1 {
+		t.Fatalf("expected one atomic SSH upload, got %d", len(commands))
 	}
-	if commands[0] != "config stage" {
-		t.Errorf("first command should stage config, got: %q", commands[0])
-	}
-	if commands[1] != "config validate staged" {
-		t.Errorf("second command should validate staged, got: %q", commands[1])
-	}
-	if commands[2] != "config apply staged" {
-		t.Errorf("third command should apply staged, got: %q", commands[2])
+	if commands[0] != "ze-config-upload" {
+		t.Errorf("upload must request the registered SSH subsystem, got: %q", commands[0])
 	}
 	if !strings.Contains(stdinData[0], "router bgp 65000") {
 		t.Errorf("stdin should contain config content, got: %q", stdinData[0])
@@ -104,18 +97,24 @@ func TestConfigPushInvalidConfigReverts(t *testing.T) {
 	dir := setupConfigPushAppliance(t, "lab", "10.0.0.100")
 	baseDir = dir
 
+	var calls int
 	old := sshExecFunc
 	sshExecFunc = func(addr, user, command, stdin string) sshResult {
-		if command == "config validate staged" {
+		calls++
+		if command == "ze-config-upload" {
 			return sshResult{Output: "syntax error at line 3", Err: fmt.Errorf("exit 1")}
 		}
-		return sshResult{}
+		t.Errorf("unregistered configuration operation requested: %q", command)
+		return sshResult{Err: fmt.Errorf("unregistered operation")}
 	}
 	defer func() { sshExecFunc = old }()
 
 	code := runConfigPush([]string{"lab"})
 	if code != exitError {
 		t.Errorf("config-push should fail on validation error, got %d", code)
+	}
+	if calls != 1 {
+		t.Errorf("rejected atomic upload must not start a later apply; calls=%d", calls)
 	}
 }
 
@@ -222,8 +221,11 @@ func TestConfigPushApplyStep(t *testing.T) {
 		t.Fatalf("config-push returned %d, want 0", code)
 	}
 
-	if !slices.Contains(commands, "config apply staged") {
-		t.Error("config-push should issue 'config apply staged' command")
+	if len(commands) != 1 {
+		t.Fatalf("apply must complete in one daemon-owned upload transaction; commands=%q", commands)
+	}
+	if commands[0] != "ze-config-upload" {
+		t.Errorf("config-push must apply through the registered SSH upload subsystem, got %q", commands[0])
 	}
 }
 

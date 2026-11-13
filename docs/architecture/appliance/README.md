@@ -18,7 +18,7 @@ How a Ze appliance image is built, installed, and updated. Code lives in
 | `self-update.md` | a device pulling its own binary |
 | `remote-operations.md` | fleet push, config preview, parallel operations |
 | `disaster-recovery.md` | encrypted export and import of a bastion |
-| `device-config.md` | config priority, last-known-good, auto-revert |
+| `device-config.md` | Canonical configuration source and legacy boot inbox |
 
 Start with `builder.md` for the build host and `installer-initrd.md` for the
 install path.

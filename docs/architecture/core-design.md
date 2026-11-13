@@ -3636,27 +3636,36 @@ The `gokrazy-ab` backend does not perform Ze binary replacement. It returns `man
 
 ---
 
-## 21. Appliance Config Loading Priority
+## 21. Appliance Configuration Sources
 
-On gokrazy appliances, `cmdStart` resolves the effective config with a priority chain before calling `hub.Run`:
-
-| Step | Source | Condition |
-|------|--------|-----------|
-| 1 | Bootstrap from ZeFS seed template + interface discovery | First boot (no active config in the store) |
-| 2 | `/perm/ze/config-pushed.conf` | Exists and passes `config.LoadConfig` validation |
-| 3 | `file/active/{name}.conf` in the `database/` store | Default (seed-derived from step 1) |
-
-Invalid pushed configs are deleted and logged. After loading, the SHA-256 of the effective config is written to `/perm/ze/config-active-hash` for fleet drift detection.
-
-Build-time: `ze appliance build` writes the seed config's SHA-256 to `meta/config/last-known-good` in ZeFS (immutable baseline).
-
-Runtime: after `config-push` applies a new config, a 30-second health window monitors BGP sessions via `PeerLifecycleObserver`. If any session flaps, the device reverts to the previous config (or seed config as fallback).
-
+`cmdStart` binds either an explicit configuration file or a stored configuration
+name before calling `hub.Run`. Stored configuration reads follow the canonical
+active-version pointer. The legacy `file/active/{basename}` entry is a fallback
+only when no active pointer exists. An unresolved pointer is an error.
 <!-- source: cmd/ze/ze_core_start.go -- cmdStart -->
-<!-- source: cmd/ze/pushed_config.go -- checkPushedConfig, writeConfigActiveHash -->
-<!-- source: cmd/ze/pushed_config.go -- pushed config loading and validation -->
-<!-- source: cmd/ze/health_revert.go -- auto-revert health monitor -->
-<!-- source: internal/appliance/cmd_assemble.go -- runAssemble, assembleZeFS, resolveSeedConfig -->
+<!-- source: internal/component/config/storage/source.go -- BindConfigSource, ReadConfigSource -->
+<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig -->
+
+For unmanaged stored startup, a missing legacy active entry first uses the seed
+template plus interface discovery, then discovery alone if no template is usable.
+Image assembly records the seed's SHA-256 in `meta/config/last-known-good`.
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart, bootstrapConfigFromTemplate, bootstrapFromDiscovery -->
+<!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS -->
+
+Live `config-push` uses authenticated SSH and the daemon's source-aware commit
+transaction. Success applies the replacement and promotes its persistent source.
+An open confirmed-commit window excludes this operation. Live upload starts no
+automatic BGP health-window rollback.
+<!-- source: cmd/ze/hub/config_upload.go -- configMutationOwner.Upload, configMutationRuntime.commit -->
+<!-- source: cmd/ze/hub/config_source.go -- commitRuntimeConfig, writeRuntimeConfig -->
+
+The separate boot inbox `/perm/ze/config-pushed.conf` validates input and writes
+the legacy active entry. Its 30-second BGP peer-close monitor writes a previous
+configuration or seed fallback to that entry. These writes neither promote the
+canonical active pointer nor reload the daemon. They do not provide live-upload
+rollback. See [Device-side configuration](appliance/device-config.md) for this path's limits.
+<!-- source: cmd/ze/pushed_config.go -- checkPushedConfig -->
+<!-- source: cmd/ze/health_revert.go -- HealthRevert.Start, HealthRevert.revert -->
 
 ---
 

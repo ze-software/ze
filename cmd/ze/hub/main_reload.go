@@ -217,12 +217,10 @@ func awaitConfigTransaction(ctx context.Context, s *pluginserver.Server, reloadC
 	return ctx.Err() == nil
 }
 
-// reloadGate counts the reloads a commit path starts on a request goroutine
-// (SSH or web commit, API full reload, managed commit). Shutdown closes the
-// gate and waits for them before the store is closed, because every one of
-// them ends in promoteReloadCandidate, which reads and writes the store. A
-// reload that arrives after the gate closed is refused rather than started
-// against a store about to close.
+// reloadGate counts admitted configuration operations on request goroutines
+// (SSH upload, web source commit, commit reload, API full reload and managed
+// commit). The shared mutation owner enters before source reads or writes.
+// Shutdown closes admission and joins the operations before store release.
 type reloadGate struct {
 	mu     sync.Mutex
 	closed bool
@@ -232,8 +230,8 @@ type reloadGate struct {
 // errDaemonStopping is the refusal a commit reload gets once shutdown began.
 var errDaemonStopping = errors.New("daemon is shutting down; config reload refused")
 
-// enter admits one reload and returns true; the caller MUST call leave when
-// that reload returns. It returns false once close has run.
+// enter admits one operation; its caller MUST call leave when it returns.
+// It returns false once close has run.
 func (g *reloadGate) enter() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -244,10 +242,10 @@ func (g *reloadGate) enter() bool {
 	return true
 }
 
-// leave releases one admitted reload.
+// leave releases one admitted operation.
 func (g *reloadGate) leave() { g.wg.Done() }
 
-// close refuses every later reload and waits for the admitted ones to return.
+// close refuses later operations and waits for admitted ones. It is idempotent.
 func (g *reloadGate) close() {
 	g.mu.Lock()
 	g.closed = true

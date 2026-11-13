@@ -229,7 +229,7 @@ func recoverFileCommit(store storage.Storage, path string) error {
 }
 
 // commitRuntimeConfig commits content as the daemon's config through reload,
-// the commit behind `update bgp config` and the web raw-source editor. While
+// the commit behind `update bgp config`, SSH upload and the web source editor. While
 // window, the daemon's confirmed-commit window, is open it is refused with
 // the window's refusal: the window's revert would wipe it (confirm.WriteOutside).
 func commitRuntimeConfig(store storage.Storage, sourcePath, path string, expected, content []byte, reload func() error, window *confirm.Window) error {

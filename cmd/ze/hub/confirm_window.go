@@ -15,10 +15,10 @@ import (
 )
 
 // daemonConfirmWindow is the running daemon's confirmed-commit window, or nil
-// before runYANGConfig starts it and after it stops. It is package state for
-// the reason sessionReloadHolder is late-bound: the SSH session factory is
-// registered before the reload the window reverts through exists. One process
-// runs one daemon, so there is one window.
+// before runYANGConfig starts it and after it stops. The SSH session factory
+// registers before the window exists, so new editors resolve this public
+// pointer. The mutation runtime keeps its own bound window through shutdown.
+// One process runs one daemon, so there is one window.
 var daemonConfirmWindow atomic.Pointer[confirm.Window]
 
 // startConfirmWindow starts the window for the daemon's config and publishes

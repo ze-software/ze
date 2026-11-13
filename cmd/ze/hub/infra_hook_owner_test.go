@@ -137,7 +137,7 @@ func TestInfraHookJoinsRefusedSSHOwner(t *testing.T) {
 			<-constructorRelease
 			return resource
 		}
-		setupInfraHook(owner, nil, nil, func() ([]aaa.UserCredential, error) {
+		setupInfraHook(owner, nil, &configMutationOwner{}, func() ([]aaa.UserCredential, error) {
 			return []aaa.UserCredential{operator}, nil
 		}, nil)
 		params := infra.HookParams{
@@ -216,7 +216,7 @@ func TestInfraHookRefusesFirstConstructionAfterStop(t *testing.T) {
 		return nil
 	}
 	liveCalls := 0
-	setupInfraHook(owner, nil, nil, func() ([]aaa.UserCredential, error) {
+	setupInfraHook(owner, nil, &configMutationOwner{}, func() ([]aaa.UserCredential, error) {
 		liveCalls++
 		return []aaa.UserCredential{{Name: "operator"}}, nil
 	}, nil)

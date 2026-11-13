@@ -56,6 +56,29 @@ Read at the producers named in each owned row. Spot-checked on 2026-10-23:
 only "broken pipe", "connection reset" and "use of closed network connection",
 so row 2026-10-22 (`normal-state-logged-at-error`) is present.
 
+Deployment's 2026-11-13 default reactor race/count-20 attempt exposed a recovery
+packing recurrence owned by AC-5. The existing
+`TestRecoveryPackLiveDepartureOneUpdatePerFit`
+(`internal/component/bgp/reactor/forward_bucket_recovery_test.go`) failed six
+times: all 300 elected prefixes arrived, but in 18, 21, 16, 10, 13 and 11 UPDATEs
+where the unchanged assertion expects one. This is a packing failure, with no
+observed route loss. The prior 2026-10-25 chunk-sizing fix remains historical
+evidence, not proof that this run passed.
+
+The command was `go test -v -race -count=20 -timeout=40m -tags "$tags" ./internal/component/bgp/reactor/...`
+with CGO enabled and the patched native toolchain. The canonical feature-tag
+recipe supplies `ze_core` and the declared `ze_` tags from `feature-gates.txt`.
+The full attempt failed; the global timeout interrupted its seventh iteration.
+
+Current source: `recovery_owed.go` `round` sizes chunks through
+`recoveryChunkKeys` from the 500-key cap and `bufMuxStd.lendable`; `decide`
+creates an admission per chunk. `relay_recovery.go` `queueRecovery` builds one
+replacement at a time, and `admitRecovery` can shorten an admission when its
+buffer pool runs dry. `forward_bucket.go` `recoveryBucketMerge` merges only
+within that admission. These boundaries require investigation; the log has no
+per-admission trace and does not prove why any particular count occurred.
+Reproduce and attribute the failure without weakening the packing assertion.
+
 - [ ] `internal/component/bgp/reactor/session_negotiate.go` - `buildOpen`
 - [ ] `internal/component/bgp/reactor/session_prefix.go` - `checkPrefixLimits`, `forEachPrefixEntry`
 - [ ] `internal/component/bgp/reactor/reactor_api_batch.go` - `AnnounceNLRIBatch`
@@ -79,6 +102,12 @@ so row 2026-10-22 (`normal-state-logged-at-error`) is present.
 - [ ] `internal/component/bgp/config/routeattr.go` - `parseRawAttribute`
 - [ ] `internal/component/bgp/cli/decode_human.go` - `formatAttributesHuman`
 - [ ] `internal/plugins/mrt/component.go` - `onPeerEstablished`, `onPeerClosed`
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|-------------------------------------------|--------------------|---------------------------------------------------------------------|
+| Recovery admission and packing | `internal/component/bgp/reactor/recovery_owed.go` `recoveryWorker.decide`; `forward_bucket.go` `recoveryBucketMerge` | Creates one admission per lookup chunk and packs compatible updates within that admission | Extends: AC-5 investigates the packing recurrence through this path while preserving route delivery and the existing assertion |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -349,6 +378,7 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | `zero-value-as-valid-answer` | 2026-10-10 | `peerSettingsFromOperationConfig` sets no `Name` |
 | `zero-value-as-valid-answer` | 2026-09-01 | mvpn `parseBody` reads a Leaf A-D Route Key as an RD (zero-RD face fixed by `rdPresent`) |
 | `expected-message-never-sent` | 2026-10-31 | `test/plugin/rpki-aspa-*` time out waiting for Ze's EOR |
+| `bound-too-small-for-its-own-burst` | 2026-11-13 | AC-5: recovery departure packing, all routes received but UPDATE count exceeds fit |
 
 ## Rows found already fixed
 

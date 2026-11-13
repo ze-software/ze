@@ -64,6 +64,9 @@ func sshBuildImpl(in *sshBuildInputs) sshServer {
 		log.Warn("SSH server config error", "error", sshErr)
 		return nil
 	}
+	if err := registerSSHConfigUpload(srv, in.ConfigOwner, in.Recorder); err != nil {
+		panic("BUG: SSH configuration upload registration failed: " + err.Error())
+	}
 	if reg := registry.GetMetricsRegistry(); reg != nil {
 		zessh.SetPanicMetrics(reg)
 	}
@@ -72,7 +75,9 @@ func sshBuildImpl(in *sshBuildInputs) sshServer {
 		return nil
 	}
 	log.Info("SSH server listening", "address", srv.Address())
-	srv.SetSessionModelFactory(buildSessionModelFactory(srv, params, in.Recorder, in.ReloadFn))
+	srv.SetSessionModelFactory(buildSessionModelFactory(srv, params, in.Recorder, func() error {
+		return in.ConfigOwner.Reload(context.Background())
+	}))
 	if in.EphemeralFile != "" {
 		if writeErr := os.WriteFile(in.EphemeralFile, []byte(srv.Address()), 0o600); writeErr != nil {
 			log.Warn("failed to write ephemeral SSH address", "error", writeErr)
@@ -273,6 +278,9 @@ func sshBuildStandaloneImpl(in *sshStandaloneInputs) func() {
 		log.Warn("SSH server config error", "error", sshErr)
 		return nil
 	}
+	if err := registerSSHConfigUpload(srv, in.ConfigOwner, in.Recorder); err != nil {
+		panic("BUG: SSH configuration upload registration failed: " + err.Error())
+	}
 	if reg := registry.GetMetricsRegistry(); reg != nil {
 		zessh.SetPanicMetrics(reg)
 	}
@@ -282,7 +290,9 @@ func sshBuildStandaloneImpl(in *sshStandaloneInputs) func() {
 	srv.SetSessionModelFactory(buildSessionModelFactory(srv, infra.HookParams{
 		ConfigPath: in.ConfigPath,
 		Store:      in.Storage,
-	}, in.Recorder, in.ReloadFn))
+	}, in.Recorder, func() error {
+		return in.ConfigOwner.Reload(context.Background())
+	}))
 	dispatch := in.Dispatch
 	srv.SetExecutorFactory(func(username, remoteAddr string, authorizer plugin.Authorizer) zessh.CommandExecutor {
 		return func(input string) (*plugin.RenderedResponse, error) {

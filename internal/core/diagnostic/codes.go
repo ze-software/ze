@@ -61,6 +61,7 @@ const (
 	CodeDoctorClockSkew                            = "doctor-clock-skew"
 	CodeDoctorRADIUSCoAApply                       = "doctor-radius-coa-apply"
 	CodeDoctorMachineIDMissing                     = "doctor-machine-id-missing"
+	CodeDoctorLocalAdminCredentials                = "doctor-local-admin-credentials"
 	CodeDoctorConfigClaimsUnavailable              = "doctor-config-claims-unavailable"
 	CodeDoctorConfigRootUnclaimed                  = "doctor-config-root-unclaimed"
 	CodeDoctorDiskSpace                            = "doctor-disk-space"
@@ -321,6 +322,14 @@ var builtinCodes = append([]CodeMeta{
 	},
 
 	// Doctor diagnostic codes -- storage and config.
+	{
+		Code:  CodeDoctorLocalAdminCredentials,
+		Title: "Local recovery credentials cannot be loaded",
+		Description: "The stored local recovery account could not be read or validated, so it cannot log in. Configured operator accounts remain available. " +
+			"From the console or another working login, stop Ze, restore the affected meta/auth/local credential frame from a known backup, and restart Ze.",
+		Examples:     []string{exampleDoctorJSON, exampleShowDoctor, "ze data --path <database> write <credential-key> <credential-backup-file>"},
+		RelatedCodes: []string{CodeDoctorStoreIntegrity},
+	},
 	{
 		Code:        CodeDoctorStoreIntegrity,
 		Title:       "Store integrity failure",

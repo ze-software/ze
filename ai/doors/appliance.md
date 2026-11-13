@@ -40,7 +40,7 @@ gokrazy appliance:
 |---------------|----------|------|
 | An operator on a Linux or macOS build host | `ze appliance init`, `build`, `iso`, `push`. Secrets are never in process arguments | `docs/architecture/appliance/builder.md`, `docs/guide/appliance.md` |
 | A running device | The gokrazy update protocol through `github.com/gokrazy/updater`: features probe, stream, A/B switch, testboot, reboot | `docs/architecture/appliance/ota-push.md` |
-| A fleet tool | `/perm/ze/config-pushed.conf` in, `/perm/ze/config-active-hash` out, auto-revert after a push | core-design section 21, `docs/architecture/appliance/device-config.md`, `docs/architecture/fleet-config.md` |
+| A fleet tool | Authenticated SSH configuration upload, source-aware publication and explicit acceptance receipt, plus a separate legacy boot inbox | core-design section 21, `docs/architecture/appliance/remote-operations.md`, `docs/architecture/appliance/device-config.md` |
 | Anyone at the serial console | The login gate before `ze-recovery-shell` | `docs/architecture/appliance-serial-login.md` |
 | A standalone Linux box | The update manifest and `selfUpdater` | `docs/architecture/appliance/self-update.md` |
 | gokrazy upstream | `gok`, the updater module, and the module pins under `gokrazy/ze/builddir` | `docs/architecture/appliance/gokrazy-build-pins.md` |

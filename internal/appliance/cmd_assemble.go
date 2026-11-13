@@ -6,10 +6,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/authorizedkeys"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -95,7 +98,24 @@ func assembleZeFS(baseDir, name string, cfg *applianceConfig, passphrase []byte,
 
 	seedConfig, err := resolveSeedConfig(baseDir, name, cfg)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		var fix, message textbuf.Buffer
+		failure := opererr.Wrap(err, "appliance seed configuration cannot be read", "Make this named appliance's config-base file readable before assembling its configuration", fix.Str("./ze-host appliance assemble ").Str(name).String())
+		message.Str("error: ").Err(failure).Byte('\n').StdErr() //nolint:errcheck // The command is returning failure.
+		return exitError
+	}
+	authKeysPath := secretFilePath(baseDir, name, "authorized_keys")
+	authData, err := os.ReadFile(authKeysPath) //nolint:gosec // Named appliance public credentials.
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			var fix, message textbuf.Buffer
+			failure := opererr.Wrap(err, "appliance SSH public keys cannot be read", "Repair the authorized_keys file in this named appliance's secrets directory before building its login credentials", fix.Str("./ze-host appliance assemble ").Str(name).String())
+			message.Str("error: ").Err(failure).Byte('\n').StdErr() //nolint:errcheck // The command is returning failure.
+			return exitError
+		}
+	}
+	if _, err := authorizedkeys.Parse(authData); err != nil {
+		var message textbuf.Buffer
+		message.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // The command is returning failure.
 		return exitError
 	}
 
@@ -144,10 +164,9 @@ func assembleZeFS(baseDir, name string, cfg *applianceConfig, passphrase []byte,
 		})
 	}
 
-	authKeysPath := secretFilePath(baseDir, name, "authorized_keys")
-	if authData, readErr := os.ReadFile(authKeysPath); readErr == nil { //nolint:gosec // appliance file
+	if len(authData) > 0 {
 		entries = append(entries, struct{ key, value string }{
-			zefs.KeySSHAuthorizedKeys.Pattern, string(authData),
+			zefs.KeyLocalAdminAuthorizedKeys.Pattern, string(authData),
 		})
 	}
 

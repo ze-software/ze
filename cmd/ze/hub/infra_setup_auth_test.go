@@ -141,7 +141,7 @@ func TestInfraSetupUsesLiveUsersWithoutSSHSnapshot(t *testing.T) {
 	server := infraSetup(infra.HookParams{
 		Reactor:   &authWiringReactor{},
 		SSHConfig: infra.SSHExtractedConfig{HasConfig: true},
-	}, nil, nil, liveUsers)
+	}, nil, &configMutationOwner{}, liveUsers)
 
 	require.NotNil(t, server, "the seam stub proves infraSetup reached optional SSH construction")
 	assert.Equal(t, 1, liveCalls, "infraSetup must resolve the shared live source exactly once for its boot snapshot")
@@ -177,7 +177,7 @@ func TestInfraSetupLiveUsersFailureFailsClosed(t *testing.T) {
 		_ = infraSetup(infra.HookParams{
 			Reactor:   &authWiringReactor{},
 			SSHConfig: infra.SSHExtractedConfig{HasConfig: true},
-		}, nil, nil, liveUsers)
+		}, nil, &configMutationOwner{}, liveUsers)
 	})
 
 	assert.Contains(t, stderr, `msg="live local user source unavailable"`,
@@ -217,11 +217,11 @@ func TestInfraSetupInitialBootBuildsAAABundleOnce(t *testing.T) {
 	aaa.Default = registry
 
 	params := infra.HookParams{Reactor: &authWiringReactor{}}
-	_ = infraSetup(params, nil, nil, nil)
+	_ = infraSetup(params, nil, &configMutationOwner{}, nil)
 	first := aaaBundle.Load()
 	require.NotNil(t, first)
 
-	_ = infraSetup(params, nil, nil, nil)
+	_ = infraSetup(params, nil, &configMutationOwner{}, nil)
 	assert.Same(t, first, aaaBundle.Load())
 	assert.Equal(t, 1, builds)
 	assert.False(t, closed, "hook reentry must not close the boot-owned bundle")
@@ -287,7 +287,7 @@ func TestInfraSetupReentryReusesNoBGPBootBundle(t *testing.T) {
 		Reactor:   r,
 		SSHConfig: infra.SSHExtractedConfig{HasConfig: true},
 		APIServer: func() *pluginserver.Server { return nil },
-	}, nil, nil, nil)
+	}, nil, &configMutationOwner{}, nil)
 	require.NotNil(t, server)
 	require.NotNil(t, r.postStart)
 	r.postStart()
@@ -459,7 +459,7 @@ func TestInfraSetupReentryDoesNotRetryFailedNoBGPAAABoot(t *testing.T) {
 	_ = infraSetup(infra.HookParams{
 		Reactor:   &authWiringReactor{},
 		SSHConfig: infra.SSHExtractedConfig{HasConfig: true},
-	}, nil, nil, nil)
+	}, nil, &configMutationOwner{}, nil)
 
 	assert.Equal(t, 1, initialBuilds)
 	assert.Zero(t, candidateBuilds, "runtime hook reentry must not retry a failed boot build")
@@ -494,7 +494,7 @@ func postStartDispatcherForTest(t *testing.T, boot *aaa.Bundle) *pluginserver.Di
 		Reactor:   r,
 		SSHConfig: infra.SSHExtractedConfig{HasConfig: true},
 		APIServer: func() *pluginserver.Server { return nil },
-	}, nil, nil, nil)
+	}, nil, &configMutationOwner{}, nil)
 	require.NotNil(t, r.postStart)
 	r.postStart()
 	return dispatcher
@@ -667,7 +667,7 @@ func TestPostStartDispatcherDeniesWhenTheAAABootBuildFailed(t *testing.T) {
 		Reactor:   r,
 		SSHConfig: infra.SSHExtractedConfig{HasConfig: true},
 		APIServer: func() *pluginserver.Server { return nil },
-	}, nil, nil, nil)
+	}, nil, &configMutationOwner{}, nil)
 	require.Nil(t, aaaBundle.Load(), "the boot build must have failed")
 	require.NotNil(t, r.postStart, "post-start wiring must be registered whatever boot produced")
 	r.postStart()

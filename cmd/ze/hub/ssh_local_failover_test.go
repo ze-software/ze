@@ -42,7 +42,7 @@ func sshBuiltBy(t *testing.T, params infra.HookParams) (bool, *sshBuildInputs) {
 		got = in
 		return authWiringSSHServer{}
 	}
-	_ = infraSetup(params, nil, nil, nil)
+	_ = infraSetup(params, nil, &configMutationOwner{}, nil)
 	return got != nil, got
 }
 

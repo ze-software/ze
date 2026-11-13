@@ -31,6 +31,12 @@ type installISOImage struct {
 }
 
 func (installer *Installer) prepareISOImage(ctx context.Context, work string) (installISOImage, error) {
+	return installer.prepareISOImageInputs(ctx, work, "", "")
+}
+
+// prepareISOImageInputs accepts only run-owned init JSON and a complete seed.
+// The empty inputs preserve the ordinary installer and OTA preparation.
+func (installer *Installer) prepareISOImageInputs(ctx context.Context, work, initJSON, seed string) (installISOImage, error) {
 	ze, err := installer.buildHostZe(ctx, work)
 	if err != nil {
 		return installISOImage{}, err
@@ -40,7 +46,12 @@ func (installer *Installer) prepareISOImage(ctx context.Context, work string) (i
 	if err != nil {
 		return installISOImage{}, err
 	}
-	result, err := installer.run(ctx, commandSpec{Name: ze, Args: []string{zeApplianceArea, "init", InstallApplianceName}, Dir: installer.Tree, Env: environ, Stdin: strings.NewReader("")})
+	initArgs := []string{zeApplianceArea, "init"}
+	if initJSON != "" {
+		initArgs = append(initArgs, "--config", initJSON)
+	}
+	initArgs = append(initArgs, InstallApplianceName)
+	result, err := installer.run(ctx, commandSpec{Name: ze, Args: initArgs, Dir: installer.Tree, Env: environ, Stdin: strings.NewReader("")})
 	if err != nil {
 		return installISOImage{}, err
 	}
@@ -70,6 +81,11 @@ func (installer *Installer) prepareISOImage(ctx context.Context, work string) (i
 	}
 	if err := installer.setApplianceArch(filepath.Join(appDir, "appliance.json")); err != nil {
 		return installISOImage{}, err
+	}
+	if seed != "" {
+		if err := installer.ops.FS.WriteFile(filepath.Join(appDir, "ze.conf"), []byte(seed), 0o600); err != nil {
+			return installISOImage{}, err
+		}
 	}
 	result, err = installer.run(ctx, commandSpec{Name: ze, Args: []string{zeApplianceArea, zeApplianceVerbBuild, InstallApplianceName}, Dir: installer.Tree, Env: environ})
 	if err != nil {

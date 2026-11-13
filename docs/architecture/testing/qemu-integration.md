@@ -1268,6 +1268,45 @@ evidence.
 <!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA, launchOTAGuest -->
 <!-- source: internal/le/test/qemu/actions.go -- runApplianceOTAHere -->
 
+## Appliance SSH configuration publication
+
+The runner is an implementation checkpoint, not a completed native proof.
+Its subsystem session lifecycle and authenticated-observer control still need
+the repairs recorded in the deployment migration handover. No successful VM
+run of this action has been recorded.
+
+`./le test qemu appliance-config-push` builds one current native appliance image
+and drives its matching host driver's `appliance config-push` command. The
+proof supplies the named SSH key to `appliance init --config` before secrets
+are created. A private agent, child-only HOME and SSH_AUTH_SOCK, and a host pin
+read from the stopped owned disk isolate its login from the operator's files.
+One allocated SSH port is used by both the image listener and its loopback
+QEMU forward, so the complete preview changes only the requested hostname.
+<!-- source: internal/le/test/qemu/install_config_push.go -- executeApplianceConfigPush, configPushSeed, configPushPublish -->
+<!-- source: internal/le/test/qemu/install_config_push_agent.go -- configPushIdentity, configPushAgent.stop -->
+
+Three fresh QEMU processes boot the same disk with `-no-reboot`. Authenticated
+gokrazy reboot must exit and join each process before read-only persistent
+partition inspection. The first inspection supplies the host pin; later ones
+require the active configuration pointer and resolve its selected version,
+rather than accepting a stale active-file mirror. Fresh pinned password and
+key logins check live configuration and retention after publication and reboot.
+Malformed receiver input, an authenticated observer denied configuration edits,
+and an incorrect host pin must all refuse without a success receipt and leave
+the complete live and selected persistent configuration unchanged.
+<!-- source: internal/le/test/qemu/install_config_push.go -- configPushBootstrap, configPushReboot, configPushRefusals -->
+<!-- source: internal/le/test/qemu/install_config_push_storage.go -- configPushDisk -->
+<!-- source: internal/le/test/qemu/install_config_push_ssh.go -- configPushLive, configPushMalformed, configPushSession -->
+
+The action requires native KVM or HVF, refuses `ZE_INSTALL_IMAGE`, and uses the
+named image's own runtime kernel. `ZE_INSTALL_KEEP=1` retains the disk and each
+boot's serial log, but the private agent identity is always stopped and removed.
+This is a live configuration publication proof on a copied raw image. The
+separate installer actions prove ISO installation; the orchestration unit
+fixture does not establish a VM run, automatic live rollback or routing traffic.
+<!-- source: internal/le/test/qemu/actions.go -- runApplianceConfigPushHere -->
+<!-- test: internal/le/test/qemu/install_config_push_protocol_test.go -- TestApplianceConfigPushNativeSequence, TestApplianceConfigPushFailureJoinsOwnedResources -->
+
 ## Appliance kernel crash capture
 
 Two host-side actions prove kernel crash capture

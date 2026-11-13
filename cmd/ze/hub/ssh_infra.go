@@ -46,7 +46,7 @@ type sshBuildInputs struct {
 	Recorder      audit.Recorder
 	EphemeralFile string
 	Params        infra.HookParams
-	ReloadFn      func() error
+	ConfigOwner   *configMutationOwner
 	Log           *slog.Logger
 }
 
@@ -85,7 +85,7 @@ type sshStandaloneInputs struct {
 	ConfigPath    string
 	EphemeralFile string
 	Dispatch      plugin.CommandDispatcher
-	ReloadFn      func() error
+	ConfigOwner   *configMutationOwner
 	Log           *slog.Logger
 	// Migrator receives the started server, so a reload that changes the SSH
 	// listener list moves it. Nil leaves the server out of the migration.

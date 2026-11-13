@@ -77,6 +77,8 @@ refuses it. After the daemon reports the failed reload complete, it checks the
 original live protocol settings. The test runs in Ze's kernel guest and waits
 for the runner's PID/readiness handoff before signalling the reload.
 
+<!-- source: internal/test/fixture/register_igp_runtime_rollback.go -- runIGPRuntimeRollback -->
+
 ## Decision: a commit is written into the running circuit where it can be
 
 The reconcile splits a changed interface in two. `applyCircuitParams` writes the

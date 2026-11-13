@@ -255,6 +255,14 @@ All known key patterns are registered in `pkg/zefs/keys.go` via `MustRegister()`
 <!-- source: pkg/zefs/registry.go -- MustRegister, KeyEntry -->
 <!-- source: pkg/zefs/keys.go -- registered key definitions -->
 
+Local bootstrap credentials use `meta/auth/local/username`, `password` and
+`authorized-keys`. The public-key frame holds complete OpenSSH public-key
+lines; the daemon validates it before publishing the local recovery identity.
+Outbound `meta/ssh/{host}/{port}/*` records select remote client credentials
+and cannot authorize inbound administrative login.
+<!-- source: pkg/zefs/keys.go -- KeyLocalAdminUsername, KeyLocalAdminPassword, KeyLocalAdminAuthorizedKeys -->
+<!-- source: cmd/ze/hub/main_servers.go -- usersFromStore -->
+
 Template keys use `{param}` placeholders for variable segments. The `Key()` method substitutes params and validates them (rejects empty and `..`). `Prefix()` and `Dir()` extract the fixed prefix for directory listing.
 
 | Method | Purpose | Example |

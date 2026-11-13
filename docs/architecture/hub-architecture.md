@@ -276,10 +276,14 @@ it is one the next owner open sweeps (`docs/architecture/storage-backends.md`).
 Startup then reverts a confirmed-commit window the last daemon left open, after
 the file-commit recovery and before the configuration is read, so the daemon
 boots the configuration from before the unconfirmed commit. The running hub
-starts the window once the session editors' reload is published, and stops it
-before the commit reloads close at shutdown; a window still open at shutdown
-stays recorded in the store for the next start.
+constructs the empty window before it binds the shared mutation runtime. That
+runtime retains the window after shutdown withdraws the public pointer, so a
+stopped window still refuses uploads and source commits. The hub stops the
+window before it closes commit reloads, because a revert needs that reload.
+A window still open at shutdown stays recorded in the store for the next start.
 <!-- source: cmd/ze/hub/confirm_window.go -- recoverConfirmWindow, startConfirmWindow, stopConfirmWindow -->
+<!-- source: cmd/ze/hub/config_upload.go -- configMutationOwner.bind, configMutationRuntime.commit -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 
 Runtime state, editor drafts, command history and SSH credentials use the same
 owned handle. Read-only clients may inspect the tree while it runs; another

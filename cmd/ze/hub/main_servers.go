@@ -6,6 +6,7 @@ package hub
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -18,6 +19,8 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/authorizedkeys"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -240,6 +243,23 @@ func usersFromStore(db storage.Storage) ([]authz.UserConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	keyData, err := db.ReadFile(zefs.KeyLocalAdminAuthorizedKeys.Pattern)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil, opererr.Wrap(err, "local recovery SSH keys could not be read", "The bootstrap credential was refused; check the stored credential frames", "ze data check")
+		}
+	}
+	keys, err := authorizedkeys.Parse(keyData)
+	if err != nil {
+		return nil, err
+	}
+	var publicKeys []aaa.SSHPublicKey
+	for _, key := range keys {
+		publicKeys = append(publicKeys, aaa.SSHPublicKey{
+			Name: key.Type(), Type: key.Type(),
+			Key: base64.StdEncoding.EncodeToString(key.Marshal()),
+		})
+	}
 	// Carry the reserved break-glass recovery profile. Authentication binds it
 	// to AuthResult.Authorizer, never to a config assignment, so it cannot change
 	// the operator's RBAC posture. The grant remains valid only for the accepted
@@ -249,9 +269,10 @@ func usersFromStore(db storage.Storage) ([]authz.UserConfig, error) {
 	// meta/instance/admin-disabled (checked above) still lets an operator suppress
 	// this account entirely.
 	return []authz.UserConfig{{
-		Name:     name,
-		Hash:     string(hash),
-		Profiles: []string{aaa.ReservedRecoveryProfile},
+		Name:       name,
+		Hash:       string(hash),
+		Profiles:   []string{aaa.ReservedRecoveryProfile},
+		PublicKeys: publicKeys,
 	}}, nil
 }
 

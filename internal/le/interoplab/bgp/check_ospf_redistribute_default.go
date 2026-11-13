@@ -1,7 +1,9 @@
 // Design: docs/architecture/testing/interop.md -- OSPF redistribution to eBGP.
 // Related: register_ospf_redistribute_default.go -- checker registration.
 // FRR: https://github.com/FRRouting/frr/tree/frr-10.7.1 --
-// ospfd/ospf_lsa.c:lsa_link_ptop_set originates the loopback's configured subnet;
+// ospfd/ospf_lsa.c:lsa_link_ptop_set originates the ordinary interface's subnet;
+// ospfd/ospf_vty.c:ip_ospf_network refuses network-type changes on loopback,
+// so the native prestart creates an ordinary dummy producer instead.
 // bgpd/bgp_route.c:bgp_update rejects a host prefix matching a local address,
 // so this scenario uses the non-host subnet instead of FRR's own /32.
 // bgpd/bgp_route.c:bgp_update_martian_nexthop and bgp_update reject a next hop
@@ -21,7 +23,7 @@ import (
 const (
 	ospfRedistributeDefaultScenario = "bgp-ospf-redistribute-default-frr"
 	ospfRedistributeDefaultPrefix   = "10.82.0.0/24"
-	ospfRedistributeDefaultLoopback = "10.82.0.3/24"
+	ospfRedistributeDefaultAddress  = "10.82.0.3/24"
 )
 
 // checkOSPFRedistributeDefault follows a real OSPF route through the
@@ -37,8 +39,8 @@ func checkOSPFRedistributeDefault(ctx context.Context, check *interoplab.CheckCo
 		return checkerFailure(ctx, check.Lab, ospfRedistributeDefaultScenario, assertion, cause)
 	}
 	prerequisites := []operation{
-		{kind: opWaitContains, peer: peerFRR, command: []string{"ip", "-o", "-4", "address", "show", "dev", "lo"}, contains: []string{ospfRedistributeDefaultLoopback}, timeout: 30 * time.Second},
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf interface lo"}, contains: []string{"Internet Address " + ospfRedistributeDefaultLoopback, "Network Type POINTOPOINT"}, timeout: 30 * time.Second},
+		{kind: opWaitContains, peer: peerFRR, command: []string{"ip", "-o", "-4", "address", "show", "dev", "ze-redist0"}, contains: []string{ospfRedistributeDefaultAddress}, timeout: 30 * time.Second},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf interface ze-redist0"}, contains: []string{"Internet Address " + ospfRedistributeDefaultAddress, "Network Type POINTOPOINT"}, timeout: 30 * time.Second},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 		// proto 250 and the exact prefix exclude Docker's connected/default
 		// routes. FRR has no BGP network or redistribute statement that could

@@ -8,11 +8,145 @@
 | Release reason | Essential installation, appliance boot, and onboarding paths must work before users can evaluate a release. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | Reproducing review findings in IGP rollback and native purge ownership before FRR, netlab and closure |
-| Handoff | `tmp/session/2026-11-10-225434/scratch/deployment-runtime-handoff.md` |
+| Phase | Migration checkpoint; native SSH publication proof and final acceptance remain open |
+| Handoff | `plan/handover/deployment-user-journeys-2026-11-13/README.md` |
 | Updated | 2026-11-13 |
 
-## Current continuation, 2026-11-12
+## Current continuation, 2026-11-13
+
+The owner requested a committed handover to move development to another
+machine. The tracked handover above supersedes private scratch continuation
+notes. This checkpoint preserves incomplete implementation and does not close
+the spec. In particular, the newly added native configuration-push proof has
+two independently identified correctness/proof findings still to repair; it
+has not passed its complete orchestration tests or run in a real VM.
+
+The IS-IS callback, daemon rollback, public quickstart, sparse preview and ISO
+builder repairs described in the historical entries below have landed. Their
+unchanged completed checks are not being repeated. The dedicated QEMU/Xen
+kernel proposal is a committed skeleton; implementation of that proposal is
+not part of this continuation.
+
+Interface inventory replay and connected startup/graceful retirement have
+scoped race and semantic failure controls. The Default next-hop parser,
+redistribution consumer and type packages also passed their complete race runs
+through `le job run ... command go test -v -count=1 -race -timeout=10m`, using
+`ze_core` plus the declared feature tags and these three package paths:
+`./internal/component/bgp/plugins/cmd/update/`,
+`./internal/component/bgp/redistribute/`, and
+`./internal/component/bgp/types/`. This does not establish live redistribution.
+
+The earlier FRR receiver failures did not establish a next-hop defect. FRR
+rejects its own local host prefix, and its OSPF command explicitly refuses a
+network-type change on a loopback. The independently judged replacement uses
+an ordinary dummy interface and retains the actual address, OSPF type,
+adjacency, exact gateway route and accepted BGP path assertions. Its native
+preparation and checker tests passed. A successful normal run, a fresh
+old-explicit counterfactual and exact source restoration remain required for
+this corrected topology. Neither earlier invalid topology counts as that
+proof. The unchanged full netlab topology and its six sourced pings remain
+required. No consumer counterfactual is currently applied.
+
+The approved `needs-linux` draft of `plugin/netlab-lab-profile` passed alone
+on Ze's kernel through `le test qemu ci test
+test/draft/plugin/netlab-lab-profile.ci`. Its selected stress run used
+`le test qemu all test test/draft/plugin/netlab-lab-profile.ci stress 80
+stress-parallel 4` inside Ze's own-system harness and reported all eighty
+invocations completed and executed, with no skipped phase. The exact tested
+bytes were promoted; `le test qemu ci test test/plugin/netlab-lab-profile.ci`
+then passed the live path too. These checks exercise the unchanged
+`fixture10NetlabLabProfile` golden rewrite, daemon, SSH and JSON contract;
+they do not replace the full topology's route and six-ping assertions.
+The wider reactor
+count-20 attempt failed on separately owned refresh/packing cases and its
+global deadline; the source-derived affected population still owes repetition.
+Signed commits now include interface replay, connected lifecycle and its
+doctor reporting, destination-specific Default next hops, the native RFC
+carrier move, netlab startup and the interoperability fixture. Every Go commit
+passed the five committed build flavors. The set parser repair also landed:
+both canonical parsers accept complete lines, and the unchanged real SSH
+upload test accepts exactly four MiB while refusing a larger body.
+
+Final documentation inspection exposed invented SSH commands in appliance
+configuration push. The replacement uses one authenticated, host-key-verified
+SSH subsystem and the canonical configuration transaction. Real SSH tests
+passed useful application, refusal, framing, host-key and listener-migration
+cases. Independent review then identified a confirmed-window shutdown bypass;
+a controlled test reproduced both upload and source-commit publication after
+window withdrawal. Its stable-window repair passed the focused rerun.
+Preparing the native appliance command proof exposed supplied bootstrap keys being
+written to the outbound SSH namespace. A real daemon login reproduced their
+failure. The repaired local credential namespace and accepted identity passed
+real SSH login, disabled-admin and configured-user precedence tests. Certificate
+keys are rejected rather than silently discarding their restrictions. Canonical
+credential diagnostics passed their focused tests; the shipped doctor fixture
+passed its baseline and all eighty stress invocations before exact promotion.
+
+The complete affected hub, appliance, SSH, frame-reader and configuration
+package race runs passed before these last review repairs. The wider CLI run
+reported a stale carriage-return spelling expectation and a separate LDP
+formatter round-trip failure. The former has an independently approved
+correction; the latter remains with its existing lifecycle fixture owner.
+The RFC check also identified two changed next-hop audit judgments; both have
+been rejudged and stamped without broadening their proof claims. The shared
+tree's other RFC failures are not reported as resolved.
+
+The remaining scoped repetitions, actual appliance configuration-push proof,
+source-bound artifacts, documentation generators, canonical website checks,
+immutable review and closure commits remain open. Signing works. No push or
+publication is authorized. This spec remains in progress.
+
+## Historical continuation, 2026-11-12
+
+### Historical verification recorded on 2026-11-13
+
+The raw-circuit identity repair passed its focused regressions and the full
+IS-IS/transport race packages in
+`job-isis-circuit-identity-full-packages-db9f2653.log`. Independent review then
+found a second lifecycle window in `engine.onCircuitDown`: after deleting the
+binding it waits for the old worker, then clears flooding and DIS state by a
+name that a replacement can already reuse. A controlled regression and repair
+remain required. No final routing review pass is claimed.
+
+Explicit `ze uninstall local --purge` also bypassed shared package-state
+authority. Its isolated regression reproduced deletion in three package cases;
+the common `packageStateOwnership` guard now covers this entry point. All local
+plugin race tests, including the original eleven and nine explicit cases,
+passed in `job-native-local-full-green-preview-boundary-red-16975fce.log`.
+Independent bounded source review is clear.
+
+The public quickstart regression failed for both canonical examples in
+`job-quickstart-public-config-red-3e889c01.log`: their actual extracted resolver
+output was `/tmp/resolv.conf`, outside the lab. Authentication, SSH and BGP
+configuration controls passed. The bounded repair explicitly disables resolver
+file output in the examples and removes the functional fixture's masking
+override. An independent judge approved the proposed fixture change before
+editing; current runtime proof remains required.
+
+Archive sparse/oversize and ISO custom-builder checks each have observed
+semantic failures and source repairs. Their current package runs are pending.
+
+### Historical daemon build limit
+
+The first daemon rollback baseline did not reach its test. The fresh named
+launcher failed on in-flight `internal/component/sysrib/route_view_output.go`:
+an unused `mplsfib` import and undefined `routeViewPublicationBytes` and
+`routeViewValidateOutputTarget`. Exact output is retained in
+`tmp/session/2026-11-10-225434/scratch/igp-daemon-baseline-build-blocker.txt`.
+Those edits belong to another session and were left intact. No daemon test
+pass is claimed. Subsequent source inspection found both missing definitions
+and a use of the import in the other session's coherent changes. A fresh named
+run is now justified and remains required to clear this historical build limit.
+
+The full IS-IS and transport race packages passed in
+`job-isis-configtx-transport-full-packages-db9f2653.log`. Independent follow-up
+then identified a plausible delayed raw-down callback deleting a replacement
+engine circuit at the same ifindex. Its controlled regression is being written
+before any repair. The raw-open and subscription ownership regressions already
+have observed failures and restored passes. These interleavings use Go channel
+barriers because a `.ci` cannot reliably pause a kernel open or close at the
+required internal transition; the separate daemon test exercises real reload
+delivery and rollback.
 
 Independent source review at `755fdd91dead5656ba54cc2144a037f5792e0e82`
 found three blockers. Root subsequently reproduced each through its real
@@ -338,6 +472,38 @@ research only. No implementation or measured improvement is claimed. Existing
 review records remain history; no final clean Review Gate or overall completion
 is recorded here.
 
+## Latest live topology finding, 2026-11-13
+
+Both corrected FRR scenarios passed against fresh, identified images in Ze's
+kernel guest. The full reference topology then reached established BGP peers,
+the expected IGP state and the first sourced ping, but r1's sourced ping to
+r3 failed. Diagnostics show neither router installed the opposite loopback
+through BGP. Cleanup removed the lab and stopped the guest. This is an open
+AC-6 defect, not a successful topology proof.
+
+The generated peer binding grants the redistribution orchestrator update
+delivery without its declared state events. The orchestrator's peer-up replay
+depends on that event. The renderer must grant it explicitly; broadening core
+permissions would hide the wrong input. Connected routes also need a reliable
+initial interface snapshot after subscribing. Activating the existing interface
+monitor must preserve netlab's externally provisioned addresses; an initial
+dump that can race the subscription is insufficient.
+
+The BGP consumer separately formats an IGP gateway as an explicit next hop for
+every destination. The external router correctly rejects the off-link gateway.
+The repair must choose the protocol default at the destination peer, preserve
+internal-peer gateway and peer-address handling, honor configured overrides,
+and retain explicit API and ExaBGP semantics. It must carry that policy through
+both direct and queued announcements, without per-route discovery RPCs or
+redistribution-specific exceptions in the engine.
+
+The producing boundaries are `contrib/netlab/ze/ze.j2`, the connected/interface
+startup lifecycle, `internal/component/bgp/redistribute/consumer.go`, the update
+parser and the peer's next-hop resolver/queue. Focused regressions must first
+observe the failures, then the full existing protocol, route and six directed
+sourced-ping checks must pass unchanged. Final artifacts, site regeneration and
+formal closure remain pending those repairs.
+
 ## Task
 
 Owner continuation, 2026-11-12:
@@ -528,7 +694,10 @@ Users choose a deployment from the website, then run existing Ze install/start c
 4. Existing reload/update backends apply changes; reboot and recovery preserve the chosen configuration.
 5. Website renderers publish the same source-backed steps and artifact availability.
 
-### Boundaries Crossed
+### Boundaries Crossed (historical deployment baseline)
+
+These rows retain the earlier deployment evidence. They are not current routing
+verification; the live topology finding above and the pending proofs below govern.
 
 | Boundary | How | Verified |
 |----------|-----|----------|
@@ -540,7 +709,72 @@ Users choose a deployment from the website, then run existing Ze install/start c
 
 ### Changed-Wire Census
 
-No protocol, plugin wire format or YANG config format is changed. Source searches of site templates, Dockerfiles/Compose, netlab YAML/templates and deployment guides identify the affected command carriers; known controls are the start entrypoint in both Dockerfiles and `Table`'s interop action. Preserve daemon start/config grammar and update protocol. Any implementation that needs a new command argument records its writer, parser and all guide/shell consumers before changing it.
+**Search evidence:** Repository searches covered `cmd`, `internal`, `pkg`,
+`test`, `docs` and `ai`, including Go, CI, Python, shell and Markdown carriers,
+for `ze-config-upload`, `configupload.Read`, `configupload.Write`,
+`KeyLocalAdminAuthorizedKeys`, `KeySSHAuthorizedKeys`,
+`meta/auth/local/authorized-keys` and `meta/ssh/authorized-keys`. Positive
+controls were the actual appliance `sshExecReal` writer and hub
+`registerSSHConfigUpload` reader. The earlier next-hop/interface census below
+records its separate producer, consumer and non-Go controls.
+
+| Wire | Role (writer / reader) | Carrier (file + symbol, or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|------------------------------------------|-----------------|----------------------------------------|
+| SSH upload frame | writer | `internal/appliance/cmd_config_push.go` `sshExecReal` | `configupload.Write`, raw session-channel subsystem request | New length-prefixed bounded payload replaces invented shell staging; EOF and receipt required. |
+| SSH upload frame | reader | `cmd/ze/hub/config_upload_ssh.go` `registerSSHConfigUpload` | `configupload.Read`, caller authorization, canonical mutation owner | Same release's daemon and host driver required; no shell fallback. |
+| SSH upload frame | writer | `internal/le/test/qemu/install_config_push_ssh.go` `configPushMalformed`; `install_config_push_protocol_test.go` `productPush` | Shared `configupload.Write` and subsystem name | Checkpoint has unsupported Session lifecycle; repairs and native proof remain open. |
+| SSH upload frame | reader | `internal/appliance/cmd_config_push_transport_test.go`; `cmd/ze/hub/config_upload_ssh_test.go`; native protocol fixture | Real SSH framed transport and receipt/exit controls | Tests preserve actual transport; no external third-party client has been introduced by this change. |
+| Local recovery keys | writer | `internal/appliance/cmd_assemble.go` `assembleZeFS` | Validated authorized_keys bytes written under `KeyLocalAdminAuthorizedKeys` | Correct local namespace; do not reinterpret outbound SSH records as local credentials. |
+| Local recovery keys | reader | `cmd/ze/hub/main_servers.go` `usersFromStore`; `bootstrap_credentials.go` | Local key read and canonical credential probe | Invalid keys/options/certificates refuse; configured-user and disabled-admin precedence retained. |
+| Local recovery keys | writer / reader | `internal/test/fixture/register_bootstrap_credential_doctor.go` and bootstrap tests | Actual stored frames, login and doctor command | Dedicated fixture assertions; old outbound namespace remains a negative control. |
+
+The routing continuation changes the flat update grammar, selected BGP next-hop
+bytes and interface event vocabulary. This census describes the intended source,
+excluding the private old-keyword mutation used by the pending FRR proof.
+
+| Wire | Role (writer / reader) | Carrier (file + symbol, or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|------------------------------------------|-----------------|----------------------------------------|
+| Flat next-hop policy | writer | `internal/component/bgp/redistribute/consumer.go` `formatAnnounce` | Writes `nhop default <gateway>` | New optional late destination selection; private old-keyword counterfactual excluded. |
+| Flat next-hop policy | reader | `plugins/cmd/update/update_text.go` `parseNhopFlat`, snapshots and `cursor.go` | Retains typed policy and candidate | `nhop` aliases `next-hop`; explicit/self forms and `update_wire.go` / `route/route.go` inputs remain. |
+| Queue metadata | writer | `reactor_api_batch.go`, 17 `QueueAnnounce` call sites and three direct announcement test literals | `RouteNextHop` reuses `Addr`; `peerOp` carries `NextHopPolicy` instead of the old self boolean | Internal metadata, not a serialized field or RPC. |
+| Queue metadata | reader | `peer_initial_sync.go` both drains | Resolves queued policy against sending session | Reconnection uses that session's destination context. |
+| BGP UPDATE selection | writer | `reactor/peer.go` `defaultOriginationNextHop`, `resolveNextHop`, direct and queued writers | External session self; eligible internal gateway; self for peer-owned address or link-local candidate | Config overrides retain precedence. IPv4 selection decides NEXT_HOP versus MP_REACH under existing family/capability guards; candidate AFI does not preselect MP. |
+| BGP UPDATE selection | reader | External BGP peers, including the FRR interop scenario | Existing classic NEXT_HOP / MP_REACH decoding | Corrected dummy-topology runtime proof remains owed. |
+| Interface replay signal | writer | Connected startup through `internal/core/iface/events/register.go` `AddressReplayRequest` | Emits after subscriptions | New nil-payload signal over existing transport. |
+| Interface replay signal | reader | `internal/component/iface/register.go`, active netlink and VPP monitors | Registers `interface/address-replay-request`; serializes retained replay with live publication | A request does not activate an absent provider. |
+| Existing address events | writer | Netlink/VPP `addrEventPayload` | Existing name, unit, index, address, prefix-length, family, optional origin; existing `addr-added` | Duplicate adds already occur in initial kernel dump. |
+| Existing address events | reader | OSPFv2 transport, iface unnumbered reconciliation, IKE dynamic WAN, transaction address settlement and connected | Existing event listeners | Census does not prove every listener idempotent; BGP address watch and OSPFv3/IS-IS link subscriptions are separate. |
+| Connected process boundary | writer | `internal/plugins/connected/eventbus.go` `followInterfaceAddresses`, `connected.go` `emitID` | SDK subscriptions/envelopes, JSON route batches, pooled release after publication | JSON owns payload before release; this boundary serializes and is not allocation-free. |
+| Connected process boundary | reader | Existing SDK `EmitEvent` receiver and redistribution route-change subscribers | Existing SDK event framing | No new RPC framing. |
+
+Searches covered Go producers/readers and non-Go carriers: `.ci` update inputs,
+netlab templates/goldens, guides and ExaBGP compatibility Python scripts.
+`test/encode/update-text-alias.ci` and
+`test/exabgp-compat/etc/run/exabgp_api.py` are known explicit-input controls;
+`bridge/bridge_attribute.go` maps their next-hop token without selecting Default.
+`docs/architecture/api/commands.md` and `update-syntax.md` describe the new form.
+Netlab's empty interface root and `receive [ state ]` activate existing config
+and permissions; they add no YANG schema. Start, installer and updater framing
+remain on their existing contracts.
+
+### Scoped verification evidence
+
+Native `go test` evidence uses the canonical `ze_core` plus declared feature
+tags as `$tags`, `-v -count=1 -race -timeout=5m -covermode=atomic`, and a
+separate `-coverprofile` for each run:
+
+| Scope | Remaining arguments | Observed result |
+|-------|---------------------|-----------------|
+| Flat parser, direct/queued Default and BGP consumer | `-tags "$tags" -run 'Test.*DefaultNextHop\|TestRedistributedGatewayUsesDestinationNextHopPolicy\|TestExplicitOriginationNextHopKeepsItsAddress\|TestBGPConsumer' ./internal/component/bgp/plugins/cmd/update/ ./internal/component/bgp/reactor/ ./internal/component/bgp/redistribute/` | Focused run `8af19db1` passed; this is not the full reactor package run. |
+| Connected bootstrap and graceful retirement | `-tags "$tags" ./internal/plugins/connected/`, without a run filter | Race package run `522bd10c` passed. Later retirement-fence guards have separate focused evidence, not another full-package claim. |
+
+Canonical discrimination records
+`rfc/discrimination/rfc4271/RFC4271-5.1.3-1.json` and
+`rfc/discrimination/rfc8950/RFC8950-4-1.json` contain the bounded next-hop
+controls. These establish their recorded unit claims, not full runtime proof.
+The reactor race/count-20 attempt failed as recorded above. The restored FRR
+scenarios and unchanged full netlab route/traffic proof remain pending; this
+census supplies no live PASS.
 
 ### Integration Points
 
@@ -550,12 +784,12 @@ Use existing native install/systemd registrations, Docker image entrypoints, net
 
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers | Design yes | Existing CLI and installer entrypoints remain the user path. |
+| No bypassed layers | Source reviewed; live routing pending | Redistribution uses the registered update parser and existing peer writers; connected uses SDK events on both transports. Existing CLI and installer entrypoints remain the user path. |
 | No unintended coupling | Design yes | Product does not import le. |
 | No duplicated functionality | Design yes | Existing mechanisms table assigns each responsibility. |
-| Zero-copy preserved | N-A | No route encoding changes. |
-| Registration outbound | Design yes | Any added command uses its owning registry. |
-| Registration inbound | Design yes | No core feature-name switches or secondary command catalog. |
+| Buffer ownership preserved | Source reviewed; unit evidence above | Default reuses the existing candidate address and pooled BGP writers, while changing the selected next-hop bytes and possibly their wire form. Connected serializes JSON before releasing its pooled batch; this boundary is not allocation-free. |
+| Registration outbound | Source reviewed | The new interface replay signal uses the typed event registration and existing SDK emit operation; the update grammar extends its owning parser. |
+| Registration inbound | Source reviewed | The iface namespace declares replay requests; active netlink/VPP providers subscribe through the signal handle. Connected declares SDK startup subscriptions. |
 
 ## Risks & Assumptions
 
@@ -611,6 +845,7 @@ Use existing native install/systemd registrations, Docker image entrypoints, net
 | AC-9 | Website chooser and five deployment interests | Every path leads to a complete tutorial with prerequisites, acquisition, success check, persistence, update/recovery and removal guidance; Docker is published on-site | Gokrazy is explained as the appliance implementation, not a separate incompatible Ze product. |
 | AC-10 | No public release currently exists | Local preview artifacts and immutable image identities/manifests are prepared and checked; CI publication path is reviewable; pages accurately describe what users can obtain now | Actual push/publication waits for explicit owner instruction; no unavailable download is presented as live. |
 | AC-11 | Production evaluator | Guides distinguish pre-release support from demonstrated capabilities and explain backup, graceful maintenance, update verification, rollback and support | Honest experimental gaps remain visible; the task does not declare the product production-ready. |
+| AC-12 | Named appliance with supplied operator SSH keys | The actual host-driver configuration-push command authenticates with those keys and a verified host pin, applies and retains the replacement across reboot, and refuses malformed, unauthorized and wrongly pinned attempts without changing accepted state | Losing the acceptance receipt after delivery starts remains an uncertain outcome requiring observation; boot recovery and image OTA retain their separate contracts. |
 
 ## End-to-End User Stories
 

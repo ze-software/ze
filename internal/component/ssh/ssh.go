@@ -176,10 +176,11 @@ type Server struct {
 	mu                       sync.Mutex // Protects wish/models, factories and lifecycle callbacks.
 	wish                     *ssh.Server
 	models                   *modelSessions
-	modelDrainLimit          time.Duration  // how long Stop joins model cleanup
-	listener                 net.Listener   // bound listener (for address resolution)
-	extraListeners           []net.Listener // additional listeners for multi-address binding
-	addresses                []string       // configured address of listener, then of each extra listener, in order
+	subsystems               map[string]SubsystemHandler // registered before Start; immutable while serving
+	modelDrainLimit          time.Duration               // how long Stop joins model cleanup
+	listener                 net.Listener                // bound listener (for address resolution)
+	extraListeners           []net.Listener              // additional listeners for multi-address binding
+	addresses                []string                    // configured address of listener, then of each extra listener, in order
 	logger                   *slog.Logger
 	activeSessions           atomic.Int32
 	executorFactory          CommandExecutorFactory   // set after reactor starts; creates per-session executors
@@ -553,6 +554,7 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 		}),
 	}
 
+	opts = append(opts, s.subsystemOptions()...)
 	srv, err := wish.NewServer(opts...)
 	if err != nil {
 		return fmt.Errorf("create SSH server: %w", err)
@@ -885,6 +887,7 @@ func (s *Server) maxSessionsMiddleware() wish.Middleware {
 
 			if int(current) > s.config.MaxSessions {
 				fmt.Fprintf(sess, "maximum sessions reached (%d), try again later\n", s.config.MaxSessions) //nolint:errcheck // best-effort message
+				sess.Exit(1)                                                                                //nolint:errcheck // A refusing session may already be closed.
 				return
 			}
 			next(sess)

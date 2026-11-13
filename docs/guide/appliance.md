@@ -61,18 +61,21 @@ sudo apt-get install -y e2fsprogs qemu-system-x86   # Debian, Ubuntu
 sudo dnf install -y e2fsprogs qemu-system-x86       # Fedora
 ```
 
-The build needs `mkfs.ext4`, `debugfs`, and `e2fsck` from e2fsprogs. The native
+The build needs `mkfs.ext4` and `debugfs` from e2fsprogs. If `e2fsck` is
+available, the builder also checks ext4 structure; otherwise it warns and skips
+that check. The native
 builder resolves each tool independently from the Homebrew keg, standard sbin
 directories, and `PATH`.
 <!-- source: internal/appliance/cmd_build.go -- ResolveE2FSTool -->
+<!-- source: internal/appliance/diskverify.go -- verifyE2fsck -->
 
 For appliance ISO creation, install `grub-mkstandalone` (or `grub2-mkstandalone`)
 plus `xorriso`.
-`ze appliance iso` checks those tools before it stages an ISO.
+`./ze-host appliance iso` checks those tools before it stages an ISO.
 <!-- source: internal/appliance/cmd_iso.go -- resolveISOBuilder -->
 
 The vendored gokrazy command (`github.com/gokrazy/tools/gok`) runs in process.
-`ze appliance build` calls it directly. A developer runs it with
+`./ze-host appliance build` calls it directly. A developer runs it with
 `./le build gokrazy <gok args>`, which uses the checked-in module cache, forbids
 network module lookups, and builds `overwrite` from a prepared copy of the
 instance under `tmp/`. No separate gokrazy installation or
@@ -80,12 +83,12 @@ first-party script is required.
 
 The image's ze compiles only against Ze's patched standard library, so the build
 runs under the patched GOROOT. `./le build gokrazy` inherits it from le.
-`ze appliance build` refuses unless its environment already selects it: `GOROOT`
+`./ze-host appliance build` refuses unless its environment already selects it: `GOROOT`
 set to the tree, `GOTOOLCHAIN=local`, and `$GOROOT/bin/go` first on `PATH`. The
 refusal ends with the command line that sets all three:
 
 ```
-GOROOT="$(./le go stdpatch goroot)" && export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH" && ze appliance build <name>
+GOROOT="$(./le go stdpatch goroot)" && export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH" && ./ze-host appliance build <name>
 ```
 <!-- source: internal/appliance/cmd_build.go -- runGokInProcess -->
 <!-- source: internal/le/build/gokrazy/gokrazy.go -- Run -->
@@ -95,7 +98,7 @@ GOROOT="$(./le go stdpatch goroot)" && export GOROOT GOTOOLCHAIN=local PATH="$GO
 Initialize the named appliance before its first build:
 
 ```bash
-ze appliance init edge-01
+./ze-host appliance init edge-01
 ```
 
 The build resolves pinned system packages through the Go module graph.
@@ -107,9 +110,11 @@ The runtime kernel is pinned by two manifests, `gokrazy/kernel/kernel.require`
 and `gokrazy/kernel/runtime.require`. Each is
 checked against the resolved config after the build, and `enforce_required_symbols`
 accepts `=y` alone. A Kconfig answer of `m` therefore fails the BUILD rather than
-shipping an appliance where a feature Ze accepts in config cannot work. A module
-is unreachable in the QEMU test VM in any case: that VM boots this kernel beside
-Alpine's own modules, built for another version.
+shipping an appliance where a feature Ze accepts in config cannot work. Runtime
+images also package the matching module tree; a module from a stock distribution
+is not a substitute for that kernel's modules.
+<!-- source: internal/appliance/kernelbuilder/worker.go -- copyRuntimeOutputs -->
+<!-- source: internal/appliance/instance/kernelpkg.go -- assembleKernelPackage -->
 
 Each symbol has a producer in Ze rather than a test that wanted it.
 
@@ -173,7 +178,7 @@ image carries these options. To fill the cache before a build, on an amd64
 host:
 
 ```bash
-ze appliance kernel --target runtime --arch amd64
+./ze-host appliance kernel --target runtime --arch amd64
 ```
 
 A kernel is built only on a host of its own architecture, so the arm64 kernel
@@ -181,7 +186,7 @@ is built on an arm64 host (a Mac, for example). Select the QEMU builder there
 when Docker is absent:
 
 ```bash
-ze appliance kernel --target runtime --arch arm64 --builder qemu
+./ze-host appliance kernel --target runtime --arch arm64 --builder qemu
 ```
 
 On a host of the other architecture both commands are refused before anything
@@ -191,11 +196,11 @@ the refusal names that file and ends with the build command to run.
 `./le build gokrazy` with `GOARCH` naming another architecture is refused the
 same way, and ends with the same command run with `GOARCH` set to the host's.
 This is the kernel every appliance image boots, and no other kernel can reach
-an image. `ze appliance build` and `./le build gokrazy` resolve it for the
+an image. `./ze-host appliance build` and `./le build gokrazy` resolve it for the
 image's architecture themselves: from the cache when an entry is there, else by
 building it, so these commands only fill the cache ahead of a build. A cold
-cache makes the first image build about 30 minutes longer, and it needs network
-access to kernel.org and Docker or QEMU on a host of the image's architecture.
+cache also builds the kernel before the image. It needs network access to
+kernel.org and Docker or QEMU on a host of the image's architecture.
 <!-- source: internal/le/build/gokrazy/gokrazy.go -- prepareArgs -->
 <!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 
@@ -208,7 +213,7 @@ driver selection.
 <!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
-`ze appliance kernel --target runtime` calls the Go driver in
+`./ze-host appliance kernel --target runtime` calls the Go driver in
 `internal/appliance/kernelbuilder`. The driver reads
 `internal/appliance/kernel.version`, selects Docker or QEMU, resolves the
 tracked config fragments and `.require` manifests, and writes the runtime
@@ -240,11 +245,11 @@ first boot instead of serving.
 
 ## Build an image
 
-Create a named appliance once, then build it:
+Build the appliance initialized above. If starting here, first run
+`./ze-host appliance init edge-01` once:
 
 ```bash
-ze appliance init edge-01
-ze appliance build edge-01
+./ze-host appliance build edge-01
 ```
 
 The named appliance keeps its config and secrets between builds. The build
@@ -254,8 +259,8 @@ manifest. Seed assembly uses the explicit blob-artifact storage API, so image
 building continues to produce the same blob format.
 
 ```bash
-ze appliance show edge-01
-ze appliance config edge-01 --merged
+./ze-host appliance show edge-01
+./ze-host appliance config edge-01 --merged
 ```
 
 <!-- source: internal/appliance/main.go -- applianceCommands -->
@@ -264,7 +269,7 @@ ze appliance config edge-01 --merged
 ## Test in QEMU
 
 ```bash
-ze appliance run edge-01
+./ze-host appliance run edge-01
 ```
 
 The command boots the named image in QEMU. Quit QEMU with **Ctrl-A X**.
@@ -279,18 +284,28 @@ locations.
 
 Write the image to a USB drive or internal disk on your N100 machine:
 
+Use the exact `.img` path printed by the named build's `image ready:` line.
+Named builds write into the selected appliance directory, normally
+`~/.config/ze/appliances/edge-01/`; `tmp/gokrazy/ze.img` belongs to other build
+and proof workflows. Set `ZE_IMAGE` to the named image you just built, verify
+its accompanying `.sha256` file, and identify the target device before writing.
+<!-- source: internal/appliance/cmd_build.go -- buildOne -->
+<!-- source: internal/appliance/resolve.go -- ResolveDir, AppliancePath -->
+
 ```bash
+ZE_IMAGE='/absolute/path/from-image-ready/ze-YYYYMMDD-HHMMSS.img'
+
 # Linux
-sudo dd if=tmp/gokrazy/ze.img of=/dev/sdX bs=4M status=progress
+sudo dd if="$ZE_IMAGE" of=/dev/sdX bs=4M status=progress
 
 # macOS
-sudo dd if=tmp/gokrazy/ze.img of=/dev/rdiskN bs=4m
+sudo dd if="$ZE_IMAGE" of=/dev/rdiskN bs=4m
 ```
 
 Or import into Proxmox:
 
 ```bash
-qm importdisk <vmid> tmp/gokrazy/ze.img <storage>
+qm importdisk <vmid> "$ZE_IMAGE" <storage>
 ```
 
 The machine boots to a serial console (115200 baud). On first boot Ze explicitly
@@ -309,7 +324,7 @@ the built-in admin (fail-closed) and prints "local admin login disabled".
 ### Seed config
 
 The initial Ze config is stored as the seed template in
-`gokrazy/ze/ze.conf`. `ze appliance assemble` uses it when no base or
+`gokrazy/ze/ze.conf`. `./ze-host appliance assemble` uses it when no base or
 per-appliance overlay exists. The seed database holds no active config that can
 shadow the template, so the appliance builds its effective config on first
 boot.
@@ -543,7 +558,7 @@ copy, and the copy is deleted afterwards.
 
 <!-- source: internal/appliance/instance/prepare.go -- Prepare, copyBuildDir, absolutizeReplaces -->
 
-`ze appliance build` prepares an isolated copy through
+`./ze-host appliance build` prepares an isolated copy through
 `resolveBuildParentDir`. A build leaves the working tree unchanged, and two
 builds in one checkout use separate prepared instances.
 
@@ -568,13 +583,14 @@ so `gok` never fetches a kernel. No setting selects another kernel package.
 
 ## Build-host command
 
-Appliance build commands (`ze appliance`) and PXE provisioning
-(`ze install remote`) are registered in the Ze binary. Build it from the
-repository root when it is not already installed:
+Appliance build commands (`./ze-host appliance`) and PXE provisioning
+(`./ze-host install remote`) use the native driver prepared at the beginning
+of this guide. Rebuild it after changing the source:
 
 ```bash
-go build -tags ze_setup -o bin/ze ./cmd/ze
+./le build host-driver
 ```
+<!-- source: internal/le/build/compile/build.go -- Host, HostTags, HostBinary -->
 
 ## Building and installing an appliance (end to end)
 
@@ -602,13 +618,22 @@ Write an appliance config file (arch, kernel profile, credentials, networking):
 }
 ```
 
+For SSH key login, add `credentials.ssh-authorized-keys`, an array of complete
+plain OpenSSH public-key lines, before initializing the named appliance. These keys
+log in as `credentials.username`; password recovery remains available. Supply
+unrestricted recovery public keys: assembly refuses SSH certificates and
+`authorized_keys` options such as `from=` or `command=` because Ze cannot enforce them.
+<!-- source: internal/appliance/cmd_init.go -- runInit -->
+<!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS -->
+<!-- source: internal/core/authorizedkeys/authorizedkeys.go -- Parse -->
+
 #### Reserving hugepages for VPP
 
 When the appliance runs VPP, reserve hugepages at boot by adding `image.hugepages`
-to the config. `ze appliance build` bakes `default_hugepagesz`/`hugepagesz`/`hugepages`
+to the config. `./ze-host appliance build` bakes `default_hugepagesz`/`hugepagesz`/`hugepages`
 into the boot cmdline (via a derived gokrazy instance config; the checked-in
 `gokrazy/ze/config.json` is never modified). Declare `image.memory` so the build
-rejects a reservation over 50% of target RAM and `ze appliance run` sizes QEMU's
+rejects a reservation over 50% of target RAM and `./ze-host appliance run` sizes QEMU's
 `-m` to match. Sizes are byte-size strings (`10b`, `512mb`, `1gb`, `1tb`;
 case-insensitive, 1024-based):
 
@@ -625,17 +650,17 @@ case-insensitive, 1024-based):
 page count is `size / page-size` (so `size` must be a whole multiple of
 `page-size`). The reservation is bounded to 512 GiB and, when `memory` is set, to
 50% of it. 1gb pages need CPU `pdpe1gb` support and `CONFIG_HUGETLBFS` in the
-kernel profile (both surfaced by `ze doctor`).
+kernel profile (both surfaced by `./ze-host doctor`).
 <!-- source: internal/appliance/config.go -- ImageConfig.Hugepages, validateImageMemory -->
 
 Build the full ISO through the structured appliance actions:
 
 ```bash
-ze appliance init --config prod.json prod
-ze appliance kernel prod
-ze appliance initrd
-ze appliance build prod
-ze appliance iso prod
+./ze-host appliance init --config prod.json prod
+./ze-host appliance kernel prod
+./ze-host appliance initrd
+./ze-host appliance build prod
+./ze-host appliance iso prod
 ```
 
 The named appliance retains its config and secrets for subsequent builds.
@@ -647,22 +672,23 @@ artifact:
 
 ```bash
 # Create the appliance with config and secrets.
-ze appliance init --config prod.json prod
+./ze-host appliance init --config prod.json prod
 
 # Check and prepare ISO prerequisites.
-ze appliance iso --check
-ze appliance kernel prod
-ze appliance initrd
+./ze-host appliance iso --check prod
+./ze-host appliance kernel prod
+./ze-host appliance initrd
 
 # Build the disk image and installer ISO.
-ze appliance build prod
-ze appliance iso prod
+./ze-host appliance build prod
+./ze-host appliance iso prod
 
 # Provision the resulting image over the network when needed.
-ze install remote \
+ZE_IMAGE='/absolute/path/from-image-ready/ze-YYYYMMDD-HHMMSS.img'
+sudo ./ze-host install remote \
   --interface eth0 \
   --network 10.0.0.0/24 \
-  --image ~/.config/ze/appliances/prod/ze-*.img \
+  --image "$ZE_IMAGE" \
   --ssh-username admin \
   --ssh-password 'choose-a-strong-one'
 ```
@@ -671,12 +697,12 @@ The `kernel` and `initrd` commands first check the XDG cache. If
 `ze.appliance.kernel.url` or `ze.appliance.initrd.url` is set, the matching
 command then tries that configured prebuilt-artifact URL; otherwise it builds
 locally. Kernel local builds use the shared Docker-or-QEMU builder selection, and
-initrd local builds compile and pack `cmd/ze-installer`. Once cached, subsequent
-runs are instant. See "ISO prerequisites" below for details.
+initrd local builds compile and pack `cmd/ze-installer`. Cached artifacts avoid
+rebuilding their matching inputs. See "ISO prerequisites" below for details.
 
 ## ze appliance (structured workflow)
 
-The `ze appliance` command provides structured appliance management. Each
+The `./ze-host appliance` command provides structured appliance management. Each
 appliance has its own directory with a JSON config, secrets that are optionally
 encrypted at rest, and a TLS certificate.
 <!-- source: internal/appliance/resolve.go -- ResolveDir, ConfigPath, SecretsDir -->
@@ -686,13 +712,13 @@ encrypted at rest, and a TLS certificate.
 ### Quick start
 
 ```bash
-ze appliance init lab                  # interactive wizard
-ze appliance build lab                 # full image
-ze appliance kernel lab                # installer kernel
-ze appliance initrd                    # installer initrd
-ze appliance iso lab                   # bootable installer ISO
-ze appliance list                      # show all appliances
-ze appliance show lab                  # config summary and cert expiry
+./ze-host appliance init lab                  # interactive wizard
+./ze-host appliance build lab                 # full image
+./ze-host appliance kernel lab                # installer kernel
+./ze-host appliance initrd                    # installer initrd
+./ze-host appliance iso lab                   # bootable installer ISO
+./ze-host appliance list                      # show all appliances
+./ze-host appliance show lab                  # config summary and cert expiry
 ```
 
 ### Appliance directory
@@ -720,30 +746,30 @@ By default, appliances live in `~/.config/ze/appliances/`. Override with `--dir`
 
 ### Encryption
 
-Secrets are encrypted at rest with Argon2id + XChaCha20-Poly1305 when an encryption passphrase is set during `ze appliance init`. The passphrase is never stored on disk. For fleet operations, `ze appliance unlock` starts a passphrase agent (like ssh-agent) that holds the derived key in memory.
+Secrets are encrypted at rest with Argon2id + XChaCha20-Poly1305 when an encryption passphrase is set during `./ze-host appliance init`. The passphrase is never stored on disk. For fleet operations, `./ze-host appliance unlock` starts a passphrase agent (like ssh-agent) that holds the derived key in memory.
 <!-- source: internal/appliance/crypto.go -- Encrypt, WriteSecret, ResolvePassphrase -->
 <!-- source: internal/appliance/agent.go -- passphrase agent -->
 
 ```bash
-ze appliance unlock                    # start agent
-ze appliance unlock --duration 15m     # auto-expire after 15 minutes
-ze appliance unlock --stop             # stop agent
+./ze-host appliance unlock                    # start agent
+./ze-host appliance unlock --duration 15m     # auto-expire after 15 minutes
+./ze-host appliance unlock --stop             # stop agent
 ```
 
 ### Day-2 operations
 
 ```bash
-ze appliance passwd lab
-ze appliance replace-cert lab
-ze appliance replace-cert lab --cert ca.pem --key ca.key
-ze appliance rekey lab
-ze appliance clone lab lab2
+./ze-host appliance passwd lab
+./ze-host appliance replace-cert lab
+./ze-host appliance replace-cert lab --cert ca.pem --key ca.key
+./ze-host appliance rekey lab
+./ze-host appliance clone lab lab2
 ```
 
 Without `--cert` and `--key`, `replace-cert` issues a new device certificate
-from the appliance's own certificate authority, which `ze appliance init`
+from the appliance's own certificate authority, which `./ze-host appliance init`
 generated. The root does not change, so a device you already pushed to stays
-reachable: `ze appliance push` trusts the issuer rather than one certificate.
+reachable: `./ze-host appliance push` trusts the issuer rather than one certificate.
 
 `replace-cert` validates the material before it writes anything. It refuses a
 certificate and a key that are not a pair. It refuses a file that holds no PEM
@@ -756,7 +782,7 @@ A refusal leaves `cert.pem` and `key.pem` byte-identical to what the appliance
 already held. Both files are written through a temp file and a rename, so an
 interrupted run leaves neither file truncated. When the key write fails after
 the certificate write, the command puts the previous certificate back and
-reports the restore. `ze appliance init` validates and writes the same way.
+reports the restore. `./ze-host appliance init` validates and writes the same way.
 <!-- source: internal/appliance/cmd_cert.go -- validateTLSPair, writeTLSPair -->
 <!-- source: internal/appliance/cmd_init.go -- writeTLSSecrets -->
 
@@ -792,7 +818,7 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 | `assemble [--keep] <name>` | Build ZeFS database only (auto-deletes; use `--keep` to retain) |
 | `build <name>` | Full image: assemble + gok + ext4 inject + checksum + manifest |
 | `build --all` | Build all appliances |
-| `kernel [--target] [--arch] [--profile] [--builder] [--version] [<name>]` | Download or build an installer or runtime kernel; with `<name>`, reads arch/profile from appliance config |
+| `kernel [--target] [--arch] [--profile] [--builder] [--version] [<name>]` | Download or build an installer or runtime kernel; with `<name>`, reads arch from appliance config and its profile for the installer target |
 | `initrd` | Download or build the installer initrd |
 | `iso [--image] [--output] [--kernel] [--initrd] [--target] [--builder] [<name>]` | Bootable installer ISO from an existing image |
 | `iso --check` | Check ISO prerequisites without building |
@@ -807,8 +833,8 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 | `push [--image] [--testboot] [--no-reboot] <name>` | Push image to device via gokrazy OTA update |
 | `push --all [--parallel N]` | Push to all appliances with device.address |
 | `config <name> --merged` | Show effective config (base + overlay) |
-| `config-push <name>` | Push config to running device via SSH |
-| `config-push --all [--parallel N]` | Push config to all addressed devices |
+| `config-push --dry-run <name>` | Print the merged configuration without contacting the device |
+| `config-push <name>` / `--all [--parallel N]` | Validate and apply the merged configuration through authenticated SSH |
 | `init --batch <manifest>` | Batch init from JSON manifest |
 | `export <name>` | Export appliance to encrypted archive (.ze.enc) |
 | `export --all` | Export all appliances to single encrypted archive |
@@ -939,12 +965,12 @@ is not supported.
 
 Push a built image to a running gokrazy device via its HTTPS update endpoint:
 
-    ze appliance push lab
-    ze appliance push --image ze-20260427-143022.img lab
-    ze appliance push --all
-    ze appliance push --all --parallel 4
+    ./ze-host appliance push lab
+    ./ze-host appliance push --image ze-20260427-143022.img lab
+    ./ze-host appliance push --all
+    ./ze-host appliance push --all --parallel 4
 
-Push uses the update token (from `secrets/update.token`) for HTTP basic auth, and verifies the device TLS certificate against the stored `cert.pem`. That file holds the device certificate and the appliance CA root that issued it, so the anchor is the ISSUER: a certificate reissued with `ze appliance replace-cert` still verifies, and the device does not have to be pushed again first. No system CA pool is consulted.
+Push uses the update token (from `secrets/update.token`) for HTTP basic auth, and verifies the device TLS certificate against the stored `cert.pem`. That file holds the device certificate and the appliance CA root that issued it, so the anchor is the ISSUER: a certificate reissued with `./ze-host appliance replace-cert` still verifies, and the device does not have to be pushed again first. No system CA pool is consulted.
 <!-- source: internal/appliance/cmd_push.go -- loadDeviceTLS, authTransport -->
 
 When `--image` is set, the file name must resolve to a regular file inside the
@@ -955,57 +981,89 @@ network request starts.
 
 Preview the effective configuration (base + overlay merged) without building:
 
-    ze appliance config lab --merged
+    ./ze-host appliance config lab --merged
 
-Push a config change to a running device without rebuilding the image:
+Inspect the merged configuration without contacting the device:
 
-    ze appliance config-push lab
-    ze appliance config-push --dry-run lab
-    ze appliance config-push --all
-    ze appliance config-push --all --parallel 4
+    ./ze-host appliance config-push --dry-run lab
 
-Config-push uses SSH (operator's key via ssh-agent) to upload the merged config to the device, which validates and applies it. No secrets are transmitted over SSH.
+Apply the merged replacement to one device or all addressed devices:
+
+    ./ze-host appliance config-push lab
+    ./ze-host appliance config-push --all --parallel 4
+
+The device address, SSH port, and username come from the named appliance configuration.
+The command authenticates through the operator's `ssh-agent` and verifies the device
+against `~/.ssh/known_hosts`. Verify the device fingerprint through a trusted
+channel before adding its key. A missing or changed key refuses the connection.
 <!-- source: internal/appliance/cmd_config_push.go -- configPushOne -->
+<!-- source: internal/appliance/cmd_config_push.go -- sshExecReal, applianceHostKeyCallback -->
+
+The authenticated account needs configuration commit permission. The daemon
+receives the complete replacement, validates it, and applies it through its normal
+configuration transaction. A successful push updates both the running configuration
+and its selected persistent source. The replacement must retain the device's
+credentials and required management listeners. Configuration text can contain
+secrets, so protect merged output and any retained copy.
+<!-- source: cmd/ze/hub/config_upload_ssh.go -- registerSSHConfigUpload -->
+<!-- source: cmd/ze/hub/config_upload.go -- configMutationOwner.Upload, configMutationRuntime.commit -->
+
+A push succeeds only after the daemon returns its acceptance receipt and a zero
+SSH exit status. If the connection ends without that receipt, the outcome is
+uncertain. Inspect the live configuration through a fresh authenticated connection
+before retrying. The error prints the SSH command for that check.
+<!-- source: internal/appliance/cmd_config_push.go -- sshExecReal, uncertainConfigUpload, configUploadVerifyCommand -->
+
+Developers can run `./le test qemu appliance-config-push` to check this command
+against a newly built native appliance. It uses an owned SSH agent and a host
+key verified from the stopped disk, checks live publication and retained
+password/key login after reboot, and checks malformed-input, permission and
+host-pin refusals. It requires native KVM or HVF and builds its own image;
+unset `ZE_INSTALL_IMAGE`. Use `ZE_INSTALL_KEEP=1` to retain its disk and serial
+logs. This action proves configuration publication on a raw image; use the
+installer actions for ISO installation evidence.
+<!-- source: internal/le/test/qemu/install_config_push.go -- executeApplianceConfigPush -->
 
 ### Device-side config behavior
 
-At boot, unmanaged devices resolve the active config in the live tree. If no active
-config exists, Ze bootstraps one from the seed template or interface discovery.
-If `/perm/ze/config-pushed.conf` exists and parses as Ze config, Ze writes it
-over the active config. If the pushed config fails validation, Ze deletes that
-pushed file and continues with the existing active config.
+At boot, unmanaged devices resolve the stored configuration through its active
+version pointer. The legacy active entry is a fallback only when that pointer
+is absent. An unresolved pointer fails rather than selecting the legacy entry.
+If the legacy entry is missing, startup creates one from the seed template and
+interface discovery, or from discovery alone. The stored instance name selects the
+configuration name, with `ze.conf` as the default.
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart, bootstrapConfigFromTemplate, bootstrapFromDiscovery -->
+<!-- source: internal/component/config/storage/source.go -- ReadConfigSource -->
+<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig -->
+<!-- source: internal/core/resolve/resolve.go -- DefaultConfig -->
 
-| Stage | Source | Location |
-|-------|--------|----------|
-| 1 | Existing or bootstrapped active config | `file/active/ze.conf` in the live tree |
-| 2 | Seed template, only when active config is missing | `file/template/ze.conf` in the live tree |
-| 3 | Valid pushed config, applied over active config | `/perm/ze/config-pushed.conf` |
-
-After loading the effective config, the device writes its SHA-256 hash to
-`/perm/ze/config-active-hash` for fleet drift detection.
-<!-- source: cmd/ze/ze_core_start.go -- cmdStart config bootstrap order -->
+The separate boot inbox `/perm/ze/config-pushed.conf` validates its contents and
+writes the legacy active entry. Invalid contents cause deletion of that inbox
+file. The startup hash records this legacy entry in `meta/config/active-hash`
+inside the live store. It does not establish the current canonical version.
+Use authenticated `show config` to inspect the running configuration.
 <!-- source: cmd/ze/pushed_config.go -- checkPushedConfig, writeConfigActiveHash -->
+<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig -->
 
-**Last-known-good hash:** at build time, `ze appliance build` writes the SHA-256
+**Last-known-good hash:** at build time, `./ze-host appliance build` writes the SHA-256
 of the assembled seed config to `meta/config/last-known-good` in the seed blob.
 First boot imports this build-time integrity baseline into the live tree.
 <!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS last-known-good -->
 
-**Config push and health monitor:** `config-push` connects over SSH, stages the
-merged config, validates it, and applies it on the device. The source-backed
-health monitor is armed when a pushed config file is consumed at boot; it watches
-BGP peer close events for 30 seconds. If a peer closes during that window, the
-device reverts to the previous config, or to the seed config if no previous
-config was saved. If the window completes, the active config hash is written to
-`/perm/ze/last-known-good-pushed`.
-<!-- source: internal/appliance/cmd_config_push.go -- configPushOne -->
-<!-- source: cmd/ze/health_revert.go -- HealthRevert -->
+**Boot-time pushed-file monitor:** When a pushed config file is consumed at
+boot, the monitor watches BGP peer close events for 30 seconds. A close event
+writes the previous config back into the legacy active entry, falling back to
+the seed if necessary. This store write neither promotes the active pointer nor
+reloads the running daemon. Completing the window records that entry's hash in
+`meta/config/last-known-good-pushed`. Live `config-push` has no automatic
+health-window rollback.
+<!-- source: cmd/ze/health_revert.go -- HealthRevert.Start, HealthRevert.revert, HealthRevert.onHealthy -->
 
 ### Batch init
 
 Initialize multiple appliances from a JSON manifest:
 
-    ze appliance init --batch manifest.json
+    ./ze-host appliance init --batch manifest.json
 
 Manifest format (array of entries):
 
@@ -1025,21 +1083,21 @@ Export creates an encrypted archive of an appliance directory for offsite backup
 
 Export a single appliance:
 
-    ze appliance export lab
+    ./ze-host appliance export lab
     # creates lab.ze.enc in the current directory
 
 Export all appliances:
 
-    ze appliance export --all
+    ./ze-host appliance export --all
     # creates appliances-YYYYMMDD-HHMMSS.ze.enc
 
 Import restores from an archive:
 
-    ze appliance import lab.ze.enc
+    ./ze-host appliance import lab.ze.enc
 
 Import to a different bastion (migration):
 
-    ze appliance import lab.ze.enc --dir /path/to/new/bastion
+    ./ze-host appliance import lab.ze.enc --dir /path/to/new/bastion
 
 Archives are always encrypted using the same Argon2id + XChaCha20-Poly1305 scheme as secrets at rest. The archive passphrase can differ when provided separately from the secrets passphrase. `import --force` overwrites files present in the archive, but it does not delete extra files already present in existing appliance directories.
 <!-- source: internal/appliance/crypto.go -- Encrypt, Decrypt -->

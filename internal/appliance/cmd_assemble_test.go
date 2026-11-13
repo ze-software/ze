@@ -343,7 +343,10 @@ func TestAssembleIncludesAuthorizedKeys(t *testing.T) {
 	dir := assembleTestAppliance(t, "authkeys", nil)
 
 	authPath := filepath.Join(dir, "authkeys", "secrets", "authorized_keys")
-	os.WriteFile(authPath, []byte("ssh-ed25519 AAAA... test@host\n"), 0o600) //nolint:errcheck,gosec // test
+	expected := applianceBootstrapAuthorizedKey(t)
+	if err := os.WriteFile(authPath, expected, 0o600); err != nil {
+		t.Fatal(err)
+	}
 
 	code := runAssemble([]string{"--keep", "authkeys"})
 	if code != exitOK {
@@ -357,12 +360,15 @@ func TestAssembleIncludesAuthorizedKeys(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test
 
-	data, err := store.ReadFile(zefs.KeySSHAuthorizedKeys.Pattern)
+	data, err := store.ReadFile(zefs.KeyLocalAdminAuthorizedKeys.Pattern)
 	if err != nil {
 		t.Fatalf("read authorized keys: %v", err)
 	}
 	if !contains(string(data), "ssh-ed25519") {
 		t.Error("authorized keys should be in ZeFS")
+	}
+	if !bytes.Equal(data, expected) {
+		t.Error("assembled authorized keys differ from the complete supplied payload")
 	}
 }
 

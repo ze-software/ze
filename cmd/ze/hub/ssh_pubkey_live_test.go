@@ -103,7 +103,7 @@ func TestInfraSetupSSHPublicKeyFollowsRunningConfig(t *testing.T) {
 		},
 	}
 
-	sshSrv := infraSetup(params, nil, nil, liveUsers)
+	sshSrv := infraSetup(params, nil, &configMutationOwner{}, liveUsers)
 	require.NotNil(t, sshSrv, "infraSetup should return a running SSH server")
 	addr := sshSrv.Address()
 	stopper, ok := sshSrv.(interface{ Stop(context.Context) error })
@@ -171,6 +171,7 @@ func TestSSHStandaloneBuildPublicKeyFollowsRunningConfig(t *testing.T) {
 			return running, nil
 		},
 		ConfigDir:     t.TempDir(),
+		ConfigOwner:   &configMutationOwner{},
 		EphemeralFile: addrFile,
 		Log:           slogutil.Logger("hub.ssh.test"),
 	})

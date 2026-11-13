@@ -156,6 +156,27 @@ name is `crashlog.ReserveRegionName`, which the daemon reads back off
 
 ## Secrets at rest
 
+### Bootstrap SSH keys
+
+The named appliance's `credentials.ssh-authorized-keys` becomes
+`secrets/authorized_keys` at initialization. Assembly validates every complete
+public-key line before publishing the seed, then stores the supplied bytes in
+`meta/auth/local/authorized-keys`. Unreadable files, malformed lines, SSH
+certificates and unsupported `authorized_keys` restrictions refuse assembly. An absent file
+means password-only recovery.
+<!-- source: internal/appliance/cmd_init.go -- runInit -->
+<!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS -->
+<!-- source: internal/core/authorizedkeys/authorizedkeys.go -- Parse -->
+
+The daemon's `usersFromStore` attaches those keys to the local bootstrap user
+before accepted-identity publication. The existing admin-disable guard and
+configured-user precedence apply to both password and key login. Outbound
+`meta/ssh/*` client records never select a local administrative credential.
+<!-- source: cmd/ze/hub/main_servers.go -- usersFromStore, mergeAuthUsers -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- publishAcceptedLocalIdentity -->
+
+### Encryption
+
 Secrets are encrypted with a key derived by Argon2id and sealed with
 XChaCha20-Poly1305. Files are written atomically and keys are zeroed after use.
 

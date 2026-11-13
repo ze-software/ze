@@ -4,4 +4,5 @@ package bgp
 
 func init() {
 	specialCheckers[ospfRedistributeDefaultScenario] = checkOSPFRedistributeDefault
+	registerPeerPreparation(ospfRedistributeDefaultScenario, prepareOSPFRedistributeDefaultPeers)
 }

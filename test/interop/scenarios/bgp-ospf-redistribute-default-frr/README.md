@@ -1,13 +1,14 @@
 # OSPF redistribution with the external BGP default
 
-FRR configures 10.82.0.3/24 on its real loopback and originates the subnet
-10.82.0.0/24 through OSPF's point-to-point network type. Ze and FRR also form
+FRR configures 10.82.0.3/24 on its ordinary dummy interface ze-redist0 and
+originates the subnet 10.82.0.0/24 through OSPF's point-to-point network type.
+Ze and FRR also form
 an eBGP session, with AS 65001 on Ze and AS 65002 on FRR. Ze's only
 redistribution rule imports OSPF into BGP, and neither router originates this
 prefix through a BGP network statement, static route or API injection.
 
-The checker first requires FRR's loopback address and OSPF point-to-point
-network type on lo, a Full OSPF adjacency,
+The checker first requires FRR's producer address and OSPF point-to-point
+network type on ze-redist0, a Full OSPF adjacency,
 Ze's exact kernel route through FRR under protocol 250, and an established
 BGP session. FRR's per-prefix BGP JSON must then report one valid best path
 from external peer Ze with AS_PATH 65001 and exactly one next hop: Ze's
@@ -35,9 +36,19 @@ serve as an accepted BGP control. The non-host /24 preserves the same real
 IGP gateway and destination-specific next-hop behavior without that unrelated
 receiver refusal.
 
+The compiled scenario preparer creates and raises ze-redist0 through the
+existing registered PeerConfig.Prestart mechanism before FRR starts. Its
+zebra configuration assigns the address. Ze's runtime kernel enables
+CONFIG_DUMMY=y, and the normal lab core runs the prestart under sh -e before
+execing FRR's original image start. No additional runner or peer is added.
+FRR's ip_ospf_network explicitly refuses a network-type change when the old
+type is LOOPBACK; the failed lo prerequisite is retained on the ordinary
+producer interface rather than removed.
+
 The deciding peer source was read at `frr-10.7.1`:
 
-- `ospfd/ospf_vty.c`, `ip_ospf_network`, sets lo's OSPF type to point-to-point;
+- `ospfd/ospf_vty.c`, `ip_ospf_network`, refuses changes on LOOPBACK and sets
+  the ordinary producer interface's OSPF type to point-to-point;
   `ospf_if_up` in `ospfd/ospf_interface.c` uses that type for interface-up.
 - `ospfd/ospf_lsa.c`, `router_lsa_link_set` and `lsa_link_ptop_set`, originate
   a stub subnet using the configured address mask, regardless of neighbors.
@@ -85,6 +96,8 @@ whether Ze withheld a route or FRR received and rejected it. Restore the
 pristine bytes and rerun the same exact selector. The mutation must never be
 committed. No execution result is claimed by this README.
 
-The corrected /24 topology requires its own fresh old-explicit failure and
-restored pass. The earlier /32 failure also met FRR's own-host-prefix refusal,
-so it cannot discriminate the corrected topology's next-hop default.
+The dummy /24 topology first requires a normal successful baseline. It then
+needs its own fresh old-explicit failure followed by exact restoration.
+The unchanged successful baseline need not be repeated merely for freshness.
+Neither the earlier /32 receiver absence nor the later lo network-type
+failure discriminates this corrected topology's next-hop default.

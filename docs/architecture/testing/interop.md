@@ -413,10 +413,10 @@ The pure boundary regressions supplement, not replace, live scenario proof;
 source identity alone does not establish the identity of a running image.
 <!-- source: internal/le/interoplab/bgp/check_rfc_predicate.go -- requireRouteInstalledVia -->
 
-`bgp-ospf-redistribute-default-frr` follows FRR's real OSPF loopback subnet
+`bgp-ospf-redistribute-default-frr` follows FRR's real OSPF dummy subnet
 10.82.0.0/24 through Ze's redistribution consumer and back to FRR over eBGP.
-It requires the loopback address 10.82.0.3/24, OSPF point-to-point network
-type on lo, Full adjacency, Ze's exact protocol-250 kernel route
+It requires the producer address 10.82.0.3/24, OSPF point-to-point network
+type on ze-redist0, Full adjacency, Ze's exact protocol-250 kernel route
 via FRR, and established BGP before judging the received path. FRR's native
 BGP JSON must report the exact prefix, one valid best path from external
 peer Ze, AS_PATH `65001`, and exactly Ze's session-local address as next hop.
@@ -431,9 +431,13 @@ the route stopped. FRR 10.7.1's `bgp_update` independently refuses a host-route
 NLRI matching one of its local addresses, so an accepted path for its own
 /32 is an invalid expectation. Its point-to-point OSPF producer advertises
 the configured /24 subnet, which preserves the same next-hop discrimination.
+The existing registered peer-preparation hook creates and raises ze-redist0
+before FRR starts; zebra configures its address. FRR explicitly refuses
+network-type changes on lo, so the producer is an ordinary dummy interface.
 <!-- source: internal/le/interoplab/bgp/check_ospf_redistribute_default.go -- checkOSPFRedistributeDefault -->
 <!-- source: internal/le/interoplab/bgp/check_ospf_redistribute_default_predicate.go -- requireRedistributedExternalPath -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- Session.writeUpdateGated -->
+<!-- source: internal/le/interoplab/bgp/prepare_ospf_redistribute_default.go -- prepareOSPFRedistributeDefaultPeers -->
 
 This scenario enables debug only for the consumer's `bgp.redistribute` and
 the upstream `redistribute.orchestrator` logger at startup, so its actual

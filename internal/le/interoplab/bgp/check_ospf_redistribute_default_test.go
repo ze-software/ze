@@ -60,12 +60,12 @@ func TestRedistributedExternalPathRequiresAcceptedRoute(t *testing.T) {
 // the real daemon-to-FRR run remains the redistribution proof.
 func TestOSPFRedistributeDefaultCheckerRequiresProducer(t *testing.T) {
 	const sessionQuery = "frr vtysh -c show bgp neighbor 172.30.44.2"
-	for _, missing := range []string{"", "loopback", "loopback OSPF type", "adjacency", "IGP route", "BGP session", "accepted BGP path", "final BGP session"} {
+	for _, missing := range []string{"", "producer address", "producer OSPF type", "adjacency", "IGP route", "BGP session", "accepted BGP path", "final BGP session"} {
 		t.Run(missing, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				lab := &ospfRedistributeDefaultLab{answers: map[string]string{
-					"frr ip -o -4 address show dev lo":                    "inet 10.82.0.3/24 scope global lo",
-					"frr vtysh -c show ip ospf interface lo":              "Internet Address 10.82.0.3/24, Area 0.0.0.0\nRouter ID 10.82.0.3, Network Type POINTOPOINT, Cost: 10",
+					"frr ip -o -4 address show dev ze-redist0":            "inet 10.82.0.3/24 scope global ze-redist0",
+					"frr vtysh -c show ip ospf interface ze-redist0":      "Internet Address 10.82.0.3/24, Area 0.0.0.0\nRouter ID 10.82.0.3, Network Type POINTOPOINT, Cost: 10",
 					"frr vtysh -c " + frrShowOSPFNeighbor:                 "172.30.44.2 1 Full/- 10s 30s 172.30.44.2 eth0",
 					"ze ip -N -4 route show exact 10.82.0.0/24 proto 250": "10.82.0.0/24 via 172.30.44.3 dev eth0 metric 20 onlink",
 					sessionQuery: "BGP state = Established",
@@ -73,10 +73,10 @@ func TestOSPFRedistributeDefaultCheckerRequiresProducer(t *testing.T) {
 				}, failFinalSession: missing == "final BGP session"}
 				switch missing {
 				case "", "final BGP session":
-				case "loopback":
-					lab.answers["frr ip -o -4 address show dev lo"] = "inet 127.0.0.1/8 scope host lo"
-				case "loopback OSPF type":
-					lab.answers["frr vtysh -c show ip ospf interface lo"] = "Internet Address 10.82.0.3/24, Area 0.0.0.0\nRouter ID 10.82.0.3, Network Type LOOPBACK, Cost: 10"
+				case "producer address":
+					lab.answers["frr ip -o -4 address show dev ze-redist0"] = "no IPv4 address"
+				case "producer OSPF type":
+					lab.answers["frr vtysh -c show ip ospf interface ze-redist0"] = "Internet Address 10.82.0.3/24, Area 0.0.0.0\nRouter ID 10.82.0.3, Network Type LOOPBACK, Cost: 10"
 				case "adjacency":
 					lab.answers["frr vtysh -c "+frrShowOSPFNeighbor] = "No neighbors"
 				case "IGP route":

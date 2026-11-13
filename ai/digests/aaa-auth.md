@@ -29,7 +29,8 @@ registry; the flow below shows where boot, request-time reads, and reload meet.
    each user with `public-keys`. Config loading populates the provider used to
    assemble a candidate identity generation.
 3. **Hub publishes the boot generation.** `runYANGConfig` loads the zefs users
-   (`bootPowerUsers`/`usersFromZefsDB`, `cmd/ze/hub/main_servers.go`) and builds
+   (`bootPowerUsers`, `cmd/ze/hub/main.go`; `usersFromStore`,
+   `cmd/ze/hub/main_servers.go`) and builds
    `liveLocalUsers`, whose config-over-zefs merge lets a configured user replace
    a same-named zefs user. After resolving that candidate, it calls
    `publishAcceptedLocalIdentity` with the users and `infra.ExtractAuthzStore`.
@@ -158,7 +159,7 @@ registry; the flow below shows where boot, request-time reads, and reload meet.
 | `ssh/session.go` | `createSessionModel`: delegates to the hub's `SessionModelFactory` |
 | `cmd/ze/hub/infra_setup.go` | `buildAAABundle`, `infraSetup`: bundle and optional SSH wiring |
 | `cmd/ze/hub/aaa_lifecycle.go` | `acceptedLocalIdentityState`, atomic generation publication, accepted users, and live local authorizer |
-| `cmd/ze/hub/main_servers.go` | `bootPowerUsers`/`usersFromZefsDB`/`liveLocalUsers`: zefs and configured candidate-user assembly |
+| `cmd/ze/hub/main_servers.go` | `usersFromStore`/`liveLocalUsers`: zefs and configured candidate-user assembly |
 | `internal/component/plugin/server/command.go` | `Dispatcher.isAuthorized`/`isAuthorizedCommandArgs`, `BeginAccounting`, `SetAuthorizer`/`SetAccountingHook` |
 | `internal/plugins/init/main.go` | `ze init`: writes the bootstrap super-admin credentials into the `database/` store |
 | `pkg/zefs/keys.go` | `meta/auth/local/{username,password}` and `meta/instance/admin-disabled` key registration |
@@ -187,16 +188,18 @@ registry; the flow below shows where boot, request-time reads, and reload meet.
   Tests must construct their own `NewBackendRegistryForTest`, never call
   `aaa.Default.Build` and expect to register more backends afterward.
 - **Two disjoint local-admin key namespaces.** `meta/auth/local/*` (bootstrap
-  super-admin, consumed only by `usersFromZefsDB`) is intentionally separate
+  super-admin, consumed by `usersFromStore`) is intentionally separate
   from `meta/ssh/*` (outbound remote-client selection used by the `ze` CLI to
-  reach a remote daemon). Reusing `meta/ssh/*` for local bootstrap auth was
-  rejected during the appliance auth hardening; do not conflate
-  the two when touching zefs auth keys.
-- **`usersFromZefsDB` fails closed.** Missing username or empty password hash
-  is an error, not an empty-but-valid user (`cmd/ze/hub/main_servers.go`);
-  `meta/instance/admin-disabled=true` is a distinct explicit-disable error
-  (`cmd/ze/hub/main_servers.go`), and both leave `zefsUsers` empty at
-  the call site rather than silently allowing anything.
+  reach a remote daemon). Appliance inbound keys belong to
+  `meta/auth/local/authorized-keys`; `authorizedkeys.Parse` rejects malformed
+  lines and unsupported restrictions before those keys enter the accepted local
+  identity. Never read outbound records as local bootstrap authority.
+- **`usersFromStore` distinguishes an uninitialized store from broken credentials.**
+  An absent local username key returns no user and no error. An empty username
+  value, missing or empty password hash, unreadable key frame, or malformed or
+  restricted key file refuses the whole local identity. The explicit
+  `meta/instance/admin-disabled=true` result remains a separate, deliberate
+  disable (`cmd/ze/hub/main_servers.go`).
 - **Authorizer nil-safety is layered, not accidental.** Dispatcher `nil`
   authorizer allows all (`internal/component/plugin/server/command.go`);
   `StoreAuthorizer{Store:nil}` allows all (`authz/register.go`); the

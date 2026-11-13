@@ -1,4 +1,6 @@
 // Design: docs/architecture/appliance/remote-operations.md -- config push to device via SSH
+// Upstream: golang.org/x/crypto v0.58.0, ssh/channel.go and ssh/client.go;
+// https://github.com/golang/crypto/tree/v0.58.0/ssh.
 
 package appliance
 
@@ -7,16 +9,19 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
 
+	"github.com/ze-software/ze/internal/core/configupload"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -25,11 +30,12 @@ var errSshAuthSockNotSetStart = errors.New("SSH_AUTH_SOCK not set (start ssh-age
 var errNoKnownHostsPath = errors.New("cannot locate known_hosts: $HOME is unset, so the appliance host key cannot be verified")
 
 const (
-	sshDialTimeout  = 10 * time.Second
-	defaultSSHPort  = "22"
-	knownHostsDir   = ".ssh"
-	knownHostsFile  = "known_hosts"
-	keyscanHintHead = "ssh-keyscan -H "
+	sshDialTimeout   = 10 * time.Second
+	sshUploadTimeout = 60 * time.Second
+	defaultSSHPort   = "22"
+	knownHostsDir    = ".ssh"
+	knownHostsFile   = "known_hosts"
+	keyscanHintHead  = "ssh-keyscan -H "
 )
 
 // userKnownHostsPath returns the operator's OpenSSH known_hosts file. Appliance
@@ -186,22 +192,10 @@ func configPushOne(name string, dryRun bool) int {
 		user = defaultUsername
 	}
 
-	result := sshExecFunc(addr, user, "config stage", merged)
+	result := sshExecFunc(addr, user, configupload.Subsystem, merged)
 	if result.Err != nil {
-		fmt.Fprintf(os.Stderr, "error: device %s unreachable at %s: %v\n", name, addr, result.Err)
-		return exitError
-	}
-
-	result = sshExecFunc(addr, user, "config validate staged", "")
-	if result.Err != nil {
-		sshExecFunc(addr, user, "config discard staged", "")
-		fmt.Fprintf(os.Stderr, "error: device rejected config (validation failed: %s)\n", strings.TrimSpace(result.Output))
-		return exitError
-	}
-
-	result = sshExecFunc(addr, user, "config apply staged", "")
-	if result.Err != nil {
-		fmt.Fprintf(os.Stderr, "error: device %s failed to apply config: %v\n", name, result.Err)
+		var message textbuf.Buffer
+		message.Str("error: configuration upload to ").Str(name).Str(" at ").Str(addr).Str(": ").Err(result.Err).Byte('\n').StdErr() //nolint:errcheck // The command is returning failure.
 		return exitError
 	}
 
@@ -222,6 +216,15 @@ func configPushAll(dryRun bool, parallel int) int {
 }
 
 func sshExecReal(addr, user, command, stdin string) sshResult {
+	if command != configupload.Subsystem {
+		return sshResult{Err: opererr.New("configuration upload operation is unknown", "The host and device must use the configuration upload subsystem", "./ze-host appliance config-push --help")}
+	}
+	if len(stdin) == 0 {
+		return sshResult{Err: opererr.New("configuration upload is empty", "The device requires a complete replacement configuration", "./ze-host appliance config-push --dry-run <name>")}
+	}
+	if len(stdin) > configupload.MaxBytes {
+		return sshResult{Err: opererr.New("configuration upload exceeds four MiB", "The device refuses an oversized replacement before applying it", "./ze-host appliance config-push --dry-run <name>")}
+	}
 	sock := os.Getenv("SSH_AUTH_SOCK")
 	if sock == "" {
 		return sshResult{Err: errSshAuthSockNotSetStart}
@@ -236,6 +239,9 @@ func sshExecReal(addr, user, command, stdin string) sshResult {
 		return sshResult{Err: fmt.Errorf("connect to ssh-agent: %w", err)}
 	}
 	defer agentConn.Close() //nolint:errcheck // best-effort cleanup
+	if err := agentConn.SetDeadline(time.Now().Add(sshDialTimeout)); err != nil {
+		return sshResult{Err: fmt.Errorf("bound ssh-agent authentication: %w", err)}
+	}
 
 	agentClient := agent.NewClient(agentConn)
 
@@ -253,29 +259,123 @@ func sshExecReal(addr, user, command, stdin string) sshResult {
 		Timeout:         sshDialTimeout,
 	}
 
-	client, err := ssh.Dial("tcp", addr, config)
+	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return sshResult{Err: fmt.Errorf("connect to %s: %w", addr, err)}
 	}
-	defer client.Close() //nolint:errcheck // best-effort cleanup
+	defer conn.Close() //nolint:errcheck // Every failure closes the transport.
+	if err := conn.SetDeadline(time.Now().Add(sshUploadTimeout)); err != nil {
+		return sshResult{Err: fmt.Errorf("bound SSH configuration upload: %w", err)}
+	}
+	transport, channels, requests, err := ssh.NewClientConn(conn, addr, config)
+	if err != nil {
+		return sshResult{Err: fmt.Errorf("authenticate device %s: %w", addr, err)}
+	}
+	client := ssh.NewClient(transport, channels, requests)
+	defer func() {
+		client.Close() //nolint:errcheck // Closing interrupts every pending SSH read/write.
+		client.Wait()  //nolint:errcheck // Join the transport even after a protocol refusal.
+	}()
 
-	session, err := client.NewSession()
+	channel, channelRequests, err := client.OpenChannel("session", nil)
 	if err != nil {
 		return sshResult{Err: fmt.Errorf("create session: %w", err)}
 	}
-	defer session.Close() //nolint:errcheck // best-effort cleanup
-
-	if stdin != "" {
-		session.Stdin = strings.NewReader(stdin)
-	}
-
-	output, err := session.CombinedOutput(command)
+	defer channel.Close() //nolint:errcheck // The receiver may already have closed.
+	receipt := sshUploadReceipt{}
+	receipt.workers.Add(2)
+	go receipt.readRequests(channelRequests)
+	go receipt.readDiagnostic(channel.Stderr())
+	defer func() {
+		conn.Close() //nolint:errcheck // Unblock receipt workers on every error path.
+		receipt.workers.Wait()
+	}()
+	accepted, err := channel.SendRequest("subsystem", true, ssh.Marshal(struct{ Name string }{configupload.Subsystem}))
 	if err != nil {
-		return sshResult{
-			Output: string(output),
-			Err:    err,
+		return sshResult{Err: fmt.Errorf("request device configuration upload: %w", err)}
+	}
+	if !accepted {
+		return sshResult{Err: opererr.New("device refused the configuration upload subsystem", "The connected daemon does not provide this operation", "./ze-host appliance push <name>")}
+	}
+	if err := configupload.Write(channel, stdin); err != nil {
+		return sshResult{Err: uncertainConfigUpload(addr, user, err)}
+	}
+	if err := channel.CloseWrite(); err != nil {
+		return sshResult{Err: uncertainConfigUpload(addr, user, err)}
+	}
+	output, err := io.ReadAll(io.LimitReader(channel, sshReceiptLimit+1))
+	if err != nil {
+		return sshResult{Err: uncertainConfigUpload(addr, user, err)}
+	}
+	if len(output) > sshReceiptLimit {
+		return sshResult{Err: uncertainConfigUpload(addr, user, errors.New("device receipt is oversized"))}
+	}
+	receipt.workers.Wait()
+	if receipt.err != nil {
+		return sshResult{Err: uncertainConfigUpload(addr, user, receipt.err)}
+	}
+	if !receipt.hasStatus {
+		return sshResult{Err: uncertainConfigUpload(addr, user, errors.New("device closed without an exit status"))}
+	}
+	if receipt.status != 0 {
+		return sshResult{Err: opererr.New("device refused the configuration upload", "No acceptance receipt was received; inspect the device configuration and its diagnostics before retrying", configUploadVerifyCommand(addr, user))}
+	}
+	if string(output) != configupload.Receipt {
+		return sshResult{Err: uncertainConfigUpload(addr, user, errors.New("device did not return the configuration acceptance receipt"))}
+	}
+	return sshResult{Output: configupload.Receipt}
+}
+
+const sshReceiptLimit = 8192
+
+// sshUploadReceipt owns the two independent incoming SSH streams. They are
+// always joined after transport closure on failure, and after remote closure on
+// success; no Session.Wait assumption is made for a raw subsystem channel.
+type sshUploadReceipt struct {
+	workers   sync.WaitGroup
+	hasStatus bool
+	status    uint32
+	err       error
+}
+
+func (r *sshUploadReceipt) readRequests(requests <-chan *ssh.Request) {
+	defer r.workers.Done()
+	for request := range requests {
+		if request.Type == "exit-status" {
+			var payload struct{ Status uint32 }
+			if err := ssh.Unmarshal(request.Payload, &payload); err != nil {
+				r.err = errors.New("device returned a malformed upload exit status")
+				continue
+			}
+			if r.hasStatus {
+				r.err = errors.New("device returned duplicate upload exit statuses")
+				continue
+			}
+			r.hasStatus = true
+			r.status = payload.Status
+		}
+		if request.WantReply {
+			request.Reply(false, nil) //nolint:errcheck // The transport deadline bounds this reply.
 		}
 	}
+}
 
-	return sshResult{Output: strings.TrimSpace(string(output))}
+func (r *sshUploadReceipt) readDiagnostic(reader io.Reader) {
+	defer r.workers.Done()
+	// Diagnostics are deliberately not printed: a foreign or defective receiver
+	// may echo the private configuration. The transport deadline bounds excess.
+	io.Copy(io.Discard, io.LimitReader(reader, sshReceiptLimit+1)) //nolint:errcheck // Exit status and the exact receipt decide acceptance.
+}
+
+func configUploadVerifyCommand(addr, user string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "show config"
+	}
+	var command textbuf.Buffer
+	return command.Str("ssh -p ").Str(port).Byte(' ').Str(user).Byte('@').Str(host).Str(" 'show config'").String()
+}
+
+func uncertainConfigUpload(addr, user string, cause error) error {
+	return opererr.Wrap(cause, "configuration upload outcome is uncertain", "Delivery started but the device's acceptance was not confirmed; inspect the live configuration before another mutation", configUploadVerifyCommand(addr, user))
 }

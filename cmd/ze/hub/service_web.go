@@ -72,7 +72,7 @@ func buildWebService(deps *serviceDeps) (Service, error) {
 		deps.Resolvers,
 		deps.Authorizer,
 		deps.Recorder,
-		deps.CommitHook,
+		deps.ConfigOwner,
 		deps.PowerUsers,
 		deps.LocalUsersLive,
 		deps.WebCommands,
@@ -270,7 +270,7 @@ func wireEventRingToBroker(ring *pluginserver.EventRing, broker *zeweb.EventBrok
 //
 // powerUsers is the caller's zefs snapshot, used to NAME those accounts for the
 // UI. It never decides who may log in; localUsersLive already carries them.
-func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, certName string, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, commitHook func() error, powerUsers []authz.UserConfig, localUsersLive func() ([]authz.UserConfig, error), commandEntries func() []command.CommandEntry) (*zeweb.WebServer, *zeweb.EventBroker) {
+func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, certName string, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, configOwner *configMutationOwner, powerUsers []authz.UserConfig, localUsersLive func() ([]authz.UserConfig, error), commandEntries func() []command.CommandEntry) (*zeweb.WebServer, *zeweb.EventBroker) {
 	dispatch = withBGPDecode(dispatch)
 	if insecureWeb {
 		authorizer = nil
@@ -398,6 +398,10 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	// Create editor manager for config editing via web.
 	editorMgr := zeweb.NewEditorManager(store, configPath, schema, newEditorFactory(zeconfigcmd.ValidateContent), newEditSessionFactory())
+	var commitHook func() error
+	if configOwner != nil {
+		commitHook = func() error { return configOwner.Reload(context.Background()) }
+	}
 	if commitHook != nil {
 		// Install before serving so early commits cannot bypass daemon reload.
 		editorMgr.SetCommitHook(commitHook)
@@ -407,7 +411,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		editorMgr.SetConfigSource(func() ([]byte, error) {
 			return storage.ReadConfigSource(store, configPath)
 		}, func(expected, content []byte) error {
-			return commitRuntimeConfig(store, configPath, configPath, expected, content, commitHook, daemonConfirmWindow.Load())
+			return configOwner.Commit(context.Background(), expected, content)
 		})
 	}
 

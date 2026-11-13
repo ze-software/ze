@@ -88,7 +88,7 @@ type serviceDeps struct {
 	WebCertificate string
 	Authorizer     aaa.Authorizer
 	Recorder       audit.Recorder
-	CommitHook     func() error
+	ConfigOwner    *configMutationOwner
 	// PowerUsers is the zefs break-glass account, read once by the hub. Those
 	// credentials live in the blob store, so no reload changes them and a
 	// snapshot is correct. It reaches the factory rather than being re-read

@@ -78,14 +78,13 @@ func registerAAAAccountingProvider(bundle *aaa.Bundle) {
 }
 
 // setupInfraHook registers infrastructure with the daemon's actual stop owner.
-// reloadFn is the daemon-reaching config reload threaded into every SSH
-// session editor (commit = apply + propagate); the hub passes a late-bound
-// wrapper because the hook is registered before reloadAfterCommit exists.
+// mutations is the daemon-owned config commit/reload lifetime threaded into
+// SSH editors and uploads. Its starting state refuses until main binds runtime.
 // liveUsers reads the accepted local identity generation used by the AAA chain
 // and optional SSH. It never reads the candidate ConfigProvider.
 // owner MUST be the fresh hub server, before engine/plugin startup. Its seal
 // callback joins a constructor racing Stop; resource hooks need no ordering.
-func setupInfraHook(owner *pluginserver.Server, recorder audit.Recorder, reloadFn func() error, liveUsers func() ([]aaa.UserCredential, error), lm *listenerMigrator) {
+func setupInfraHook(owner *pluginserver.Server, recorder audit.Recorder, mutations *configMutationOwner, liveUsers func() ([]aaa.UserCredential, error), lm *listenerMigrator) {
 	var builders sync.Mutex
 	var stopped bool
 	if _, err := owner.OnStop(func() {
@@ -101,7 +100,7 @@ func setupInfraHook(owner *pluginserver.Server, recorder audit.Recorder, reloadF
 		if stopped {
 			return
 		}
-		sshSrv := infraSetup(params, recorder, reloadFn, liveUsers)
+		sshSrv := infraSetup(params, recorder, mutations, liveUsers)
 		if sshSrv == nil {
 			return
 		}
@@ -131,7 +130,7 @@ func setupInfraHook(owner *pluginserver.Server, recorder audit.Recorder, reloadF
 // candidate backends before reload acceptance.
 // It returns the optional SSH server handle after wiring that same bundle
 // through the compile-out seam.
-func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func() error, liveUsers func() ([]aaa.UserCredential, error)) sshServer {
+func infraSetup(params infra.HookParams, recorder audit.Recorder, mutations *configMutationOwner, liveUsers func() ([]aaa.UserCredential, error)) sshServer {
 	log := slogutil.Logger("hub.infra")
 	r := params.Reactor
 
@@ -236,7 +235,7 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 			Recorder:      recorder,
 			EphemeralFile: ephemeralFile,
 			Params:        params,
-			ReloadFn:      reloadFn,
+			ConfigOwner:   mutations,
 			Log:           log,
 		})
 	}

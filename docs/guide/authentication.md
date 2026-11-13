@@ -9,7 +9,7 @@ connecting with the `ze` CLI.
 
 | Source | Where stored | Created by | Used for |
 |--------|-------------|-----------|----------|
-| Bootstrap super-admin | `database/` store (`meta/auth/local/{username,password}`) | `ze init` | Bootstrap and recovery -- the operator who set the box up |
+| Bootstrap super-admin | `database/` store (`meta/auth/local/{username,password,authorized-keys}`) | `ze init` or named appliance initialization | Bootstrap and recovery -- the operator who set the box up |
 | YANG users | `system.authentication.user <name>` | Config edit | Day-to-day operators, auditors, scripts |
 
 At boot, the daemon resolves both sources and publishes the merged users with
@@ -21,6 +21,46 @@ When a YANG user has the same name as the zefs super-admin, the YANG entry
 takes precedence and the zefs entry is dropped. This lets operators override
 the bootstrap password via configuration without a stale zefs hash remaining
 as a backdoor.
+
+Named appliances accept SSH public keys in `credentials.ssh-authorized-keys`.
+Each value is a complete plain OpenSSH public-key line for the bootstrap username.
+Assembly stores them with the local recovery credential, and the daemon reads
+them into the same accepted identity as its password. A missing or comment-only
+key file leaves password recovery available.
+<!-- source: internal/appliance/cmd_init.go -- runInit -->
+<!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS -->
+<!-- source: cmd/ze/hub/main_servers.go -- usersFromStore -->
+
+Bootstrap keys must have no `authorized_keys` options. Ze refuses malformed
+lines, SSH certificates and restrictions such as `from=`, `command=` or `restrict`.
+Bootstrap login does not validate certificate expiry, permitted users or critical
+options. Generate a dedicated plain public key with
+`ssh-keygen -y -f <recovery-private-key>` and supply its complete output.
+<!-- source: internal/core/authorizedkeys/authorizedkeys.go -- Parse -->
+
+### Diagnosing bootstrap credentials
+
+`ze doctor` reports `doctor-local-admin-credentials` when the same credential
+reader used at boot refuses the local recovery account. An explicitly disabled
+account is not a fault. Boot also logs the code and repair command and keeps one
+active warning until a successful read or explicit disable clears it.
+<!-- source: cmd/ze/hub/bootstrap_credentials.go -- checkLocalAdminCredentials, reportLocalAdminCredentialRead -->
+<!-- source: cmd/ze/hub/register_bootstrap_credentials.go -- init -->
+
+Keep console access or another working login while repairing credentials.
+Stop the daemon before restoring the affected `meta/auth/local/` frame from
+a known backup, then restart it. Select the device's database explicitly:
+
+```sh
+ze data --path <database> write <credential-key> <credential-backup-file>
+```
+
+The password frame contains a bcrypt hash, not a plaintext password. Restoring
+an unrelated frame does not repair the reported credential. A store that could
+not be opened is reported as unchecked rather than as a usable recovery account.
+<!-- source: cmd/ze/hub/bootstrap_credentials.go -- localAdminCredentialFailure, checkLocalAdminCredentials -->
+<!-- source: internal/component/config/storage/cli/main.go -- cmdWrite -->
+<!-- source: cmd/ze/hub/main_servers.go -- usersFromStore, validateLocalAdminCreds -->
 
 ### Disabling the super-admin
 

@@ -350,14 +350,7 @@ func bootPowerUsers(store storage.Storage, log *slog.Logger) []authz.UserConfig 
 		return nil
 	}
 	users, err := usersFromStore(store)
-	if err == nil {
-		return users
-	}
-	// admin-disabled is a declaration, not a fault: nothing is broken and there
-	// is nothing to repair. Anything else is a read this daemon expected to work.
-	if log != nil && !errors.Is(err, errAdminDisabledInZefs) {
-		log.Warn("zefs power user unavailable: the break-glass account cannot log in until this is repaired", "error", err)
-	}
+	reportLocalAdminCredentialRead(log, err)
 	return users
 }
 
@@ -787,18 +780,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	system.RegisterConntrackManagedKeys()
 	// Register infrastructure hook before engine starts.
 	// The BGP plugin calls this when creating the reactor.
-	// The session reload function is late-bound: the hook registers here,
-	// but reloadAfterCommit can only be built after the API server and
-	// engine exist. The holder is populated alongside reloadAfterCommit;
-	// SSH commits happen long after startup, so sessions always see it.
-	var sessionReloadHolder atomic.Pointer[func() error]
-	sessionReload := func() error {
-		fn := sessionReloadHolder.Load()
-		if fn == nil {
-			return errors.New("config reload not ready: daemon still starting")
-		}
-		return (*fn)()
-	}
+	// The one mutation owner starts refusing: its real reload runtime can only
+	// bind after the API server and engine exist. Early SSH requests cannot
+	// write a candidate while startup is still assembling that runtime.
+	sessionMutations := &configMutationOwner{}
+	defer sessionMutations.close()
 	// Assemble the boot identity after ConfigProvider population. API listener
 	// resolution runs here as part of that assembly so local users, policy,
 	// per-user mode, shared token mode, and no-auth mode publish once.
@@ -937,7 +923,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// The listener migrator exists before the infrastructure hook, which hands
 	// it the SSH server it builds (setupInfraHook).
 	lm := newListenerMigrator()
-	setupInfraHook(apiServer, auditLog, sessionReload, liveAcceptedLocalUsers, lm)
+	setupInfraHook(apiServer, auditLog, sessionMutations, liveAcceptedLocalUsers, lm)
 	apiServer.SetProcessSpawner(pm)
 	apiServer.Dispatcher().SetAuditRecorder(auditLog)
 	registry.SetPluginServer(apiServer)
@@ -1117,15 +1103,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// commitReloads holds the store open until every commit-driven reload has
 	// returned (reloadGate, main_reload.go). Shutdown closes it below, after
 	// the SIGHUP worker, and before Run returns to the store's Close.
-	commitReloads := &reloadGate{}
+	commitReloads := &sessionMutations.gate
 	// signalReloads serializes the signal reloads of this daemon: SIGHUP waits
 	// on it, request reload refuses while it is held (main_reload.go).
 	signalReloads := &sync.Mutex{}
-	reloadAfterCommitContext := func(ctx context.Context) error {
-		if !commitReloads.enter() {
-			return errDaemonStopping
-		}
-		defer commitReloads.leave()
+	reloadCommittedContext := func(ctx context.Context) error {
 		startupCtx, startupCancel := context.WithTimeout(ctx, 30*time.Second)
 		defer startupCancel()
 		if err := apiServer.WaitForStartupComplete(startupCtx); err != nil {
@@ -1139,16 +1121,18 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 		return nil
 	}
+	reloadAfterCommitContext := sessionMutations.Reload
 	reloadAfterCommit := func() error {
 		return reloadAfterCommitContext(context.Background())
 	}
-	// Publish the reload for SSH session editors created by the infra hook
-	// (registered before this closure could exist).
-	sessionReloadHolder.Store(&reloadAfterCommit)
-	// The confirmed-commit window reverts through the same reload, so it
-	// starts here; the deferred stop covers an early return.
+	// The empty window starts before runtime binding. It cannot revert until a
+	// commit opens it. The runtime MUST retain this window after shutdown
+	// withdraws it from new editors. The deferred stop covers an early return.
 	confirmWindow := startConfirmWindow(store, configPath, reloadAfterCommit)
 	defer stopConfirmWindow(confirmWindow)
+	if err := sessionMutations.bind(store, configPath, confirmWindow, reloadCommittedContext); err != nil {
+		panic("BUG: configuration runtime binding failed: " + err.Error())
+	}
 	// The request data RPCs act on this store through the same reload. The
 	// deferred clear runs before the store closes, so no RPC reaches a closed one.
 	// The managed clients this hub serves are published once the managed
@@ -1220,7 +1204,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			ConfigPath:    configPath,
 			EphemeralFile: ephemeralFile,
 			Dispatch:      sshDispatch,
-			ReloadFn:      reloadAfterCommit,
+			ConfigOwner:   sessionMutations,
 			Log:           slogutil.Logger("hub.ssh"),
 			Migrator:      lm,
 		}
@@ -1334,7 +1318,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	// Hand the guard's classification to the listener migrator, BEFORE any
 	// server handle is installed on it. The reload guard reads authAtBoot, and
-	// every commit path below (the SSH ReloadFn, the web CommitHook,
+	// every commit path below (the SSH config owner, the web config owner,
 	// apiServer.SetFullReloadFunc, wireManagedCommit) is wired into a live
 	// surface as its server is built. Classifying after those would leave a
 	// window in which the migrator holds a handle with no record for it, and an
@@ -1503,7 +1487,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		WebCertificate: webCertificate,
 		Authorizer:     liveAAABundleAuthorizer{},
 		Recorder:       auditLog,
-		CommitHook:     reloadAfterCommit,
+		ConfigOwner:    sessionMutations,
 		// The zefs break-glass account is read once above. The accepted merged
 		// generation is the authentication source; a reload candidate in
 		// ConfigProvider cannot invalidate a session or admit a login before the
