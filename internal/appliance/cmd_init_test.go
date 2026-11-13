@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -36,6 +37,22 @@ func initTestAppliance(t *testing.T, name string, passphrase []byte) string {
 		t.Fatalf("init returned %d, want 0", code)
 	}
 	return dir
+}
+
+// pinTestApplianceHostArch sets an initialised appliance's image arch to the
+// host's. DefaultConfig names amd64, and buildOne resolves a foreign arch's
+// runtime kernel against the fixture root before anything else, so a build
+// test that needs to reach a later step pins the arch the host builds.
+func pinTestApplianceHostArch(t *testing.T, dir, name string) {
+	t.Helper()
+	cfg, err := LoadConfig(ConfigPath(dir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Image.Arch = runtime.GOARCH
+	if err := saveConfig(ConfigPath(dir, name), cfg); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestInitCreatesApplianceDir(t *testing.T) {

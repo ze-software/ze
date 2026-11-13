@@ -51,6 +51,9 @@ func TestGokHelperCompletionStopsImagePostwork(t *testing.T) {
 			if code := runInit([]string{"--config", input, "helper-b"}); code != exitOK {
 				t.Fatalf("second appliance initialization=%d", code)
 			}
+			for _, name := range []string{"helper-a", "helper-b"} {
+				pinTestApplianceHostArch(t, dir, name)
+			}
 			oldMkfs, oldDebugfs := e2fsMkfs, e2fsDebugfs
 			e2fsMkfs, e2fsDebugfs = "fixture-mkfs", "fixture-debugfs"
 			t.Cleanup(func() { e2fsMkfs, e2fsDebugfs = oldMkfs, oldDebugfs })

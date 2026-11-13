@@ -56,7 +56,8 @@ func runGokPackingFailureChild(t *testing.T) {
 		}
 	}
 	underPatchedTree(t, patchedTreeFixture(t, true))
-	initTestAppliance(t, "failure-device", nil)
+	dir := initTestAppliance(t, "failure-device", nil)
+	pinTestApplianceHostArch(t, dir, "failure-device")
 	oldMkfs, oldDebugfs := e2fsMkfs, e2fsDebugfs
 	e2fsMkfs, e2fsDebugfs = "fixture-mkfs", "fixture-debugfs"
 	t.Cleanup(func() { e2fsMkfs, e2fsDebugfs = oldMkfs, oldDebugfs })

@@ -24,6 +24,7 @@ func TestNamedBuildEmbedsStoredUpdateIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := initTestAppliance(t, "update-device", nil)
+	pinTestApplianceHostArch(t, dir, "update-device")
 	oldMkfs, oldDebugfs := e2fsMkfs, e2fsDebugfs
 	e2fsMkfs, e2fsDebugfs = "fixture-mkfs", "fixture-debugfs"
 	t.Cleanup(func() { e2fsMkfs, e2fsDebugfs = oldMkfs, oldDebugfs })
