@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -28,6 +30,10 @@ type uiLeInventoryAnswersCommandResult struct {
 
 var generatedLine = regexp.MustCompile(`(?m)^Generated: .*$`)
 
+// leInventoryPluginCount preserves the page-size and nontrivial population
+// controls with explicitly authored committed registrations.
+const leInventoryPluginCount = 25
+
 func runLEInventoryAnswers(ctx context.Context) error {
 	here, _, err := temporaryLEFixtureWorkspace("le-inventory-answers-")
 	if err != nil {
@@ -40,13 +46,13 @@ func runLEInventoryAnswers(ctx context.Context) error {
 		return fmt.Errorf("FAIL: %w", err)
 	}
 
-	// Own the counted inputs; the plugin and command registries still come
-	// from the actual full-feature native binary.
+	// Inventory reads one committed composition root. The command-list checks
+	// below still exercise the actual full-feature native command registry.
 	root := filepath.Join(here, "tree")
-	if err := leInventoryTree(root); err != nil {
+	childEnv, err := leInventoryTree(ctx, root)
+	if err != nil {
 		return err
 	}
-	childEnv := childEnvironment(os.Environ(), map[string]string{envRepoRoot: root})
 	rootPage, fixturePage, err := inventoryOverAStillTree(ctx, root, here, binary, childEnv)
 	if err != nil {
 		return err
@@ -116,7 +122,7 @@ func runLEInventoryAnswers(ctx context.Context) error {
 		],
 		"test-counts":{"widget":1},
 		"package-stats":[
-			{"area":"internal/","packages":1,"files":1,"lines":3},
+			{"area":"internal/","packages":2,"files":2,"lines":33},
 			{"area":"pkg/","packages":0,"files":0,"lines":0},
 			{"area":"cmd/","packages":1,"files":1,"lines":3}
 		]
@@ -128,7 +134,7 @@ func runLEInventoryAnswers(ctx context.Context) error {
 			return fmt.Errorf("FAIL: owned inventory %s = %#v, want %#v", key, inventory[key], want)
 		}
 	}
-	for _, row := range []string{"| RPCs | 2 |", "| RPCs with .ci coverage | 1/2 |", "| .ci test files | 1 |", "| Go packages | 2 |", "| Go files | 2 |", "| Go lines | 6 |"} {
+	for _, row := range []string{"| RPCs | 2 |", "| RPCs with .ci coverage | 1/2 |", "| .ci test files | 1 |", "| Go packages | 3 |", "| Go files | 3 |", "| Go lines | 36 |"} {
 		if !strings.Contains(rootPage, row) {
 			return fmt.Errorf("FAIL: inventory page omitted authored count %q", row)
 		}
@@ -138,7 +144,28 @@ func runLEInventoryAnswers(ctx context.Context) error {
 		return fmt.Errorf("FAIL: inventory plugins have type %T, want an array", inventory["plugins"])
 	}
 	if len(plugins) <= 10 {
-		return fmt.Errorf("FAIL: inventory answered %d plugins, which is too few to be the product", len(plugins))
+		return fmt.Errorf("FAIL: inventory answered %d plugins, which is too few for the committed fixture", len(plugins))
+	}
+	if len(plugins) != leInventoryPluginCount {
+		return fmt.Errorf("FAIL: inventory answered %d plugins, want %d authored registrations", len(plugins), leInventoryPluginCount)
+	}
+	names := make(map[string]bool, len(plugins))
+	for _, plugin := range plugins {
+		row, ok := plugin.(map[string]any)
+		if !ok {
+			return fmt.Errorf("FAIL: inventory plugin has type %T, want an object", plugin)
+		}
+		name, ok := row["name"].(string)
+		if !ok || names[name] {
+			return fmt.Errorf("FAIL: inventory plugin has an absent, non-string or repeated name: %#v", row)
+		}
+		names[name] = true
+	}
+	for index := range leInventoryPluginCount {
+		name := "widget" + strconv.Itoa(index)
+		if !names[name] {
+			return fmt.Errorf("FAIL: inventory omitted authored plugin %s", name)
+		}
 	}
 
 	listing, err := executeClean(ctx, here, childEnv, binary, "cli list", "|", "json")
@@ -265,24 +292,70 @@ func inventoryOverAStillTree(ctx context.Context, root, here, binary string, chi
 		generatedLine.ReplaceAllString(outside.stdout, "Generated: <when>"), nil
 }
 
-func leInventoryTree(root string) error {
+// leInventoryTree writes and commits only authored inputs. The fixture sources
+// are parsed by inventory, never built or used as a development checkout.
+func leInventoryTree(ctx context.Context, root string) ([]string, error) {
+	const schema = "module fixture {\n namespace \"urn:fixture\";\n prefix f;\n rpc show-widget {\n }\n rpc clear-widget {\n }\n}\n"
+	var source textbuf.Buffer
+	source.Str("package widget\nimport r \"github.com/ze-software/ze/internal/component/plugin/registry\"\nfunc engine() {}\nfunc init() {\n")
+	for index := range leInventoryPluginCount {
+		source.Str("_ = r.Register(r.Registration{Name: \"widget").Int(int64(index)).Str("\", RunEngine: engine")
+		if index == 0 {
+			source.Str(", YANG: ").Str(strconv.Quote(schema))
+		}
+		source.Str("})\n")
+	}
+	source.Str("}\n")
 	files := map[string]string{
-		fileGoMod:                           "module fixture.invalid/inventory\n\ngo 1.26\n",
-		"internal/widget/widget.go":         "package widget\n\nconst Name = \"widget\"\n",
-		"internal/widget/yang/fixture.yang": "module fixture {\n namespace \"urn:fixture\";\n prefix f;\n rpc show-widget {\n }\n rpc clear-widget {\n }\n}\n",
-		"cmd/widget/main.go":                contentEmptyMain,
-		"test/widget/show.ci":               "cmd=foreground:exec=ze show widget\nexpect=exit:code=0\n",
+		fileGoMod:                                        "module github.com/ze-software/ze\n\ngo 1.26\n",
+		fileFeatureGates:                                 "ze_widget internal/widget\n",
+		"internal/widget/widget.go":                      source.String(),
+		"internal/widget/yang/fixture.yang":              schema,
+		"internal/component/plugin/registry/registry.go": "package registry\ntype Registration struct { Name, YANG string; RunEngine func() }\nfunc Register(Registration) error { return nil }\n",
+		"cmd/ze/main.go":                                 "package main\nimport _ \"github.com/ze-software/ze/internal/widget\"\nfunc main() {}\n",
+		"test/widget/show.ci":                            "cmd=foreground:exec=ze show widget\nexpect=exit:code=0\n",
 	}
 	for relative, body := range files {
 		path := filepath.Join(root, filepath.FromSlash(relative))
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-			return fmt.Errorf("FAIL: create inventory input directory: %w", err)
+			return nil, fmt.Errorf("FAIL: create inventory input directory: %w", err)
 		}
 		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-			return fmt.Errorf("FAIL: write inventory input %s: %w", relative, err)
+			return nil, fmt.Errorf("FAIL: write inventory input %s: %w", relative, err)
 		}
 	}
-	return nil
+	// Git must see only this fixture's object store, identity and hooks.
+	base := make([]string, 0, len(os.Environ()))
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(entry, "GIT_") {
+			base = append(base, entry)
+		}
+	}
+	childEnv := childEnvironment(base, map[string]string{
+		envRepoRoot:          root,
+		envGitConfigGlobal:   os.DevNull,
+		envGitConfigSystem:   "1",
+		envGitAuthorName:     gitFixtureName,
+		envGitAuthorEmail:    gitFixtureEmail,
+		envGitCommitName:     gitFixtureName,
+		envGitCommitEmail:    gitFixtureEmail,
+		"GIT_AUTHOR_DATE":    "2000-01-02T12:00:00Z",
+		"GIT_COMMITTER_DATE": "2000-01-02T12:00:00Z",
+	})
+	for _, args := range [][]string{
+		{argInit, argQuiet, gitInitNoTemplate, gitInitFixtureBranch},
+		{argAdd, "--", "."},
+		{"-c", "core.hooksPath=" + os.DevNull, "-c", gitCommitNoSign, argCommit, argQuiet, "-m", "Inventory fixture"},
+	} {
+		answer, err := executeClean(ctx, root, childEnv, "git", args...)
+		if err != nil {
+			return nil, err
+		}
+		if answer.code != 0 {
+			return nil, fmt.Errorf("FAIL: fixture git %v exited %d: %s", args, answer.code, answer.stdout)
+		}
+	}
+	return childEnv, nil
 }
 
 // pastTheEnd stands for a line one of two readings does not have, so a page that

@@ -24,6 +24,7 @@ bfd {
 }
 vpn {
     ipsec {
+        unmatched discard
         ike-group IKE-1 {
             proposal 1 {
                 encryption aes256gcm

@@ -1,11 +1,11 @@
-# Test: the suite's native le binary reports the full live plugin and command
+# Test: native le reports committed plugin metadata and its compiled command
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
-# registries alongside owned filesystem inputs, independently of working directory.
+# registry alongside owned filesystem inputs, independently of working directory.
 # The authored RPC, coverage, test-file, package, file, and line counts prove root
 # selection. Page, JSON, row count, ordering, stream, and refusal checks remain.
 #
-# VALIDATES: spec-le-is-a-ze-binary AC-11 with the real compiled registry,
-#            and AC-7 for both inventory tools through the native artifact.
+# VALIDATES: spec-le-is-a-ze-binary AC-11 with committed plugin metadata and the
+#            compiled command registry; AC-7 through the native artifact.
 # PREVENTS: shared checkout edits making working-directory comparisons invalid,
 #           and repeated whole-checkout scans replacing an answer-contract test.
 # The two immutable-tree readings need no settling retries or extra product build.
