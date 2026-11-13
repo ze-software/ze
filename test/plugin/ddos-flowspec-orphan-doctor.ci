@@ -1,0 +1,383 @@
+# Test: a FlowSpec rule recorded by a run that ended without withdrawing it, and
+# not withdrawn by the next start, is reported by `ze doctor` with the victim and
+# the plugin restart as its fix; once the cause of the failed withdrawal is
+# corrected, the fix doctor printed withdraws the rule, removes the record, and
+# clears the report.
+#
+# QUESTION: when the daemon holds a FlowSpec record that its running responder
+#           does not own, does `ze doctor` through the daemon name it under
+#           doctor-ddos-flowspec-orphan-announcement, with the victim prefix and
+#           `ze request plugin restart ddos-flowspec` as the fix, and does
+#           running that fix put the withdrawal on a peer's wire and leave
+#           doctor reporting nothing? A unit test cannot decide it: the record
+#           crosses a daemon death in the disk store, the report travels from
+#           the plugin's runtime check through the daemon's doctor, and the
+#           restart is the daemon's own (handlePluginRestart -> restartPlugin).
+#
+# VALIDATES: spec-single-owner-lifecycle-5-session-end-locals AC-16 (the runtime
+#            half: "a start-time withdrawal that failed", and "the report clears
+#            when the record is removed"), user story 5, and the check's Fix
+#            (ai/rules/user-facing-errors.md, "the exact command that fixes
+#            it"): the command is taken from doctor's own output and run, never
+#            retyped.
+# PREVENTS:  a recorded rule invisible to `ze doctor`, and a fix that leaves the
+#            report standing after the operator ran it.
+#
+# HOW THE DAEMON REACHES THE STATE, with nothing written by hand:
+#   1. The first daemon announces the blackhole-fallback rule for the remote
+#      victim, and the plugin records it (responder.go announce -> Record). The
+#      flood driver waits for the record itself, read back through the daemon
+#      (`show data cat`): the live flag is published before the record is
+#      written, so it is no barrier.
+#   2. The first daemon is KILLED. A killed process withdraws nothing, and the
+#      record stays in the disk store (docs/guide/ddos-mitigation.md, "What
+#      each end of the plugin does"). A SIGTERM would not do: an internal
+#      plugin's stop races the engine's teardown, and a withdrawal that still
+#      reaches the engine removes the record.
+#   3. The second daemon starts on a config that keeps `ddos flowspec` but
+#      whose peer no longer attaches ddos-flowspec. The start-time withdrawal
+#      (withdrawRecordedAnnouncement) is refused by the send permission
+#      (reactor/send_permission.go filterPermittedPeers), so the record stays
+#      and the running responder announces nothing: the runtime check
+#      (doctor.go answerOrphanRuntimeCheck) reports it.
+#   4. The cause is corrected: the operator restores the attach block
+#      (fix-cause.sh copies running.conf over running2.conf and asks for a
+#      reload). A changed attach block travels through RemovePeer and AddPeer
+#      (reactor/delivery_graph.go), so the session to the peer restarts as
+#      connection 3, and the script waits until it is established: a
+#      withdrawal sent before that reaches no peer and fails the same way.
+#   5. The fix doctor printed is run as printed (run-fix.sh). The restarted
+#      plugin's start sends the withdrawal of the recorded rule through the
+#      restored attach, the engine accepts it, and the plugin removes the record
+#      (withdrawRecordedAnnouncement); doctor then reports nothing
+#      (plugin/ddos-flowspec-orphan-cleared). The engine writes nothing to
+#      connection 3, because that session never carried the rule
+#      (reactor_api_batch.go splitOnAdvertised, logWithdrawWithheld). RFC 4271
+#      Section 4.3 scopes a withdrawn route to one connection:
+#        "Each such route is identified by its destination
+#        (expressed as an IP prefix), which unambiguously identifies the route
+#        in the context of the BGP speaker - BGP speaker connection to which
+#        it has been previously advertised."
+#
+# WHAT THE PEER ASSERTS. Connection 1 (first daemon) receives the announcement
+# of 203.0.113.9/32 with traffic-rate 0. Connection 2 (second daemon, no attach)
+# receives no FlowSpec UPDATE for the victim (two scoped rejects): the refused
+# start-time withdrawal sends nothing. It ends with the Cease, subcode 6 (Other
+# Configuration Change), that the reload restoring the attach block causes.
+# Connection 3 (the session the reload restarted) receives Ze's End-of-RIB and
+# no UPDATE for the victim, announced or withdrawn (two scoped rejects): it
+# never carried the rule, so the withdrawal is withheld from it (item 5).
+#
+# WHAT THIS PROVES ABOUT THE FIX: the withdrawal reaches the engine (the
+# daemon logs `withdrawal withheld: this session has advertised no route to
+# the peer`), nothing is sent on a session that never carried the rule, the
+# record is removed, and doctor clears. It cannot prove a withdrawal on the
+# wire: that needs the session that carried the rule, which the kill ended.
+# The wire halves are TestRestartWithdrawsTheOrphanAndClearsTheReport
+# (internal/plugins/ddos/flowspec/doctor_test.go) and the section-removed .ci.
+#
+# RED PROOF: change the "del" in withdrawRecordedRule (responder.go) to "add".
+# The restarted plugin then announces 203.0.113.9/32 on connection 3, which is
+# established and attached, and reject=bgp:conn=3:scope=announced fires.
+#
+# WHY THE DETECTION IS CRITICAL. With characterize-enable false the blackhole
+# fallback is the only announce path, and onDetected takes it at critical only.
+# The grade is set once, when the attack activates (detector.go onAttackStart:
+# GradeSeverity of peakRxPps against the threshold), and is never revised.
+# peakRxPps is the highest one-second sample above the threshold since the last
+# clear, and the threshold is the absolute-floor of 100 pps on the quiet
+# baseline. confirm-duration 2 makes the second graded sample a whole second
+# inside the steady flood (fixture ddosFlowspecSteadyFlood, 4000-packet bursts
+# every 250 ms), and critical needs only 500 pps in it. Both daemons' configs
+# keep these leaves identical to the parent-removed draft's.
+#
+# STATUS: a Linux/QEMU integration test; NOT executable on the darwin dev host.
+#   net-admin builds the transit veth pair; bpf lets traffic-usage name the
+#   victim (internal/plugins/trafficusage/attach_linux.go).
+option=needs-linux:caps=net-admin,bpf
+option=exclusive:group=ddos-flood
+# The record has to survive the first daemon: the memory store dies with it.
+option=storage:value=disk
+option=timeout:value=180s
+option=env:var=ze.log.ddos.flowspec:value=info
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT2
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=3
+option=linger:value=true
+# First daemon: the announcement of 203.0.113.9/32, traffic-rate 0 (discard).
+expect=bgp:conn=1:seq=1:announced=060120CB007109:attribute=16,8006000000000000
+# Second daemon, no attach: the reload that restores the attach block restarts
+# the peer (restartPeer), which ends this session with RFC 4486 Section 4 Cease
+# subcode 6, Other Configuration Change.
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030606
+# The refused start-time withdrawal reaches no peer, and nothing announces the
+# rule on this session either.
+reject=bgp:conn=2:scope=announced:pattern=060120CB007109
+reject=bgp:conn=2:scope=withdrawn:pattern=060120CB007109
+# Second daemon, after the reload restored the attach. Ze sends an End-of-RIB
+# for every negotiated family at establishment (peer_initial_sync.go
+# sendEORFamilies; no manual-eor here), and both OPENs carry ipv4/unicast, so
+# the ipv4/unicast End-of-RIB is certain. It is what carries the peer onto
+# this connection; the ipv4/flow one is tolerated as an End-of-RIB.
+expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# This session never carried the rule, so the fix's withdrawal is withheld
+# from it, and nothing announces the rule here either.
+reject=bgp:conn=3:scope=announced:pattern=060120CB007109
+reject=bgp:conn=3:scope=withdrawn:pattern=060120CB007109
+EOF_PEER
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+ddos {
+	detect {
+		enabled true
+		absolute-floor 100
+		confirm-duration 2
+		clear-consecutive-checks 100
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable false
+	}
+	observe {
+		incident-ring-size 100
+	}
+	flowspec {
+		response-level enforce
+		action discard
+		blackhole-fallback true
+		max-mitigation-duration 3600
+		hold-down 3600
+	}
+}
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface zdd0p {
+				enabled true
+			}
+			interface zdd0 {
+				enabled true
+			}
+		}
+	}
+}
+bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		attach process ddos-flowspec {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# The second daemon's config: running.conf with the peer's attach block
+# removed, and nothing else changed.
+tmpfs=running2.conf:terminator=EOF_CONF2
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+ddos {
+	detect {
+		enabled true
+		absolute-floor 100
+		confirm-duration 2
+		clear-consecutive-checks 100
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable false
+	}
+	observe {
+		incident-ring-size 100
+	}
+	flowspec {
+		response-level enforce
+		action discard
+		blackhole-fallback true
+		max-mitigation-duration 3600
+		hold-down 3600
+	}
+}
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface zdd0p {
+				enabled true
+			}
+			interface zdd0 {
+				enabled true
+			}
+		}
+	}
+}
+bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+	}
+}
+EOF_CONF2
+
+# Runs the fix exactly as `ze doctor` printed it. The text report's `fix:` line
+# is the raw command, quotes included (doctor-local-asks-daemon.ci asserts the
+# form), so eval runs what an operator would paste. The script's `ze` is this
+# run's binary (the runner's shim directory is first on every child's PATH).
+tmpfs=run-fix.sh:terminator=EOF_SCRIPT
+#!/bin/sh
+set -eu
+fix=$(ze doctor | sed -n 's/^[[:space:]]*fix: //p' | grep -F 'plugin restart ddos-flowspec' | head -n 1)
+if [ -z "$fix" ]; then
+	echo "FIX-MISSING: ze doctor printed no FlowSpec plugin restart fix" >&2
+	exit 1
+fi
+echo "FIX-RUN: $fix" >&2
+eval "$fix"
+EOF_SCRIPT
+
+# Corrects the cause of the failed withdrawal: the peer attaches ddos-flowspec
+# again. The daemon reads running2.conf, so the first daemon's file, which holds
+# the attach block, is copied over it and the daemon is asked to reload. The
+# attach change restarts the session, so the script returns only once the peer
+# is established again (show bgp, peers-established).
+tmpfs=fix-cause.sh:terminator=EOF_CAUSE
+#!/bin/sh
+set -eu
+cp running.conf running2.conf
+ze request reload
+le test fixture daemon/await-answer '"peers-established": 1' 'show bgp | json'
+EOF_CAUSE
+
+cmd=foreground:seq=1:exec=le test fixture plugin/ddos-transit-forward-drop-setup
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=3:exec=ze start running.conf:name=first:ready=Ze running.
+cmd=foreground:seq=4:exec=le test fixture plugin/ddos-flowspec-orphan-flood:exit=0
+expect=stderr:contains=FLOWSPEC-RECORDED 203.0.113.9/32
+cmd=stop:seq=5:name=first:signal=kill
+
+cmd=background:seq=6:exec=ze start running2.conf:name=second:ready=Ze running.
+expect=stderr:contains=ddos-flowspec: a previous run left a FlowSpec rule announced, withdrawing it
+expect=stderr:contains=ddos-flowspec: the withdrawal of a FlowSpec rule a previous run announced failed, so the rule may still be at the BGP peers and stays recorded
+# After doctor's fix: the engine received the withdrawal and withheld it from
+# a session that never carried the rule (reactor_api_batch.go logWithdrawWithheld).
+expect=stderr:contains=withdrawal withheld: this session has advertised no route to the peer
+
+cmd=foreground:seq=7:exec=le test fixture daemon/await-answer doctor-ddos-flowspec-orphan-announcement "show doctor | json":exit=0
+
+cmd=foreground:seq=8:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-ddos-flowspec-orphan-announcement"
+expect=stdout:contains=ddos-flowspec holds the record of a FlowSpec rule it announced for 203.0.113.9/32, and no running responder holds that rule as its live announcement
+expect=stdout:contains="fix": "ze request plugin restart ddos-flowspec"
+
+cmd=foreground:seq=9:exec=sh fix-cause.sh:exit=0
+
+cmd=foreground:seq=10:exec=sh run-fix.sh:exit=0
+expect=stderr:contains=FIX-RUN: ze request plugin restart ddos-flowspec
+reject=stderr:contains=FIX-MISSING
+
+cmd=foreground:seq=11:exec=le test fixture plugin/ddos-flowspec-orphan-cleared:exit=0
+expect=stderr:contains=FLOWSPEC-REPORT-CLEARED 203.0.113.9/32
+
+# The second daemon is stopped so the test ends: the peer holds connection 3
+# open until the remote closes it (option=linger), and nothing else closes it.
+# SIGTERM is a clean stop; the plugin holds no live rule by now, so its exit
+# path has nothing to withdraw, and the two rejects on connection 3 cover the
+# teardown as well.
+cmd=stop:seq=12:name=second:signal=term

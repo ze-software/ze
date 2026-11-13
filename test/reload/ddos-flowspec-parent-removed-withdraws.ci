@@ -1,0 +1,186 @@
+# Test: deleting the PARENT `ddos` config block withdraws the live FlowSpec
+# rule from the BGP peer during the reload, and the withdrawal is the one the
+# config apply sends.
+#
+# QUESTION: does a reload that deletes the whole `ddos` block, with a FlowSpec
+#           rule announced, put the withdrawal of exactly that rule on the
+#           peer's wire before the plugin is stopped? A unit test cannot decide
+#           it: the empty-body apply comes from the reload's ancestor match
+#           (plugin/server/reload.go rootHasChanges), the plugin then sends its
+#           update-route over the transport the daemon gives an internal plugin,
+#           and the bytes are the BGP engine's. The unit pair test
+#           (flowspec/exit_test.go) runs none of the three.
+#
+# VALIDATES: spec-single-owner-lifecycle-5-session-end-locals AC-12 and A-7 --
+#            the reload delivers ddos-flowspec an apply with its section absent
+#            (replaceResponder, configured false -> withdrawForConfig), the log
+#            carries "the ddos flowspec section was removed, withdrawing the
+#            announcement" (responder.go withdrawSectionRemoved), and the peer
+#            receives the MP_UNREACH_NLRI for the NLRI it was announced.
+# PREVENTS:  the parent-block removal leaving the rule at the peer with no plugin
+#            left to withdraw it, and a regression where only the exit path
+#            (the `bye` handler, register.go stopResponder) withdraws: that path
+#            would not log the section-removed line, which is expected below.
+#
+# WHICH PATH WITHDRAWS. The apply runs before the stop (reload.go reloadConfig:
+# verify and apply, then the deferred stopCollectedProcesses), so the apply's
+# withdrawForConfig sends the withdrawal and the `bye` handler then finds
+# nothing live (stopResponder returns on !active, AC-11's survivor). The two
+# rejects below refuse the exit path's failure lines. That the `bye` handler
+# sends NOTHING when the apply withdrew is not judged here: the peer accepts a
+# second identical withdrawal in seq 2 as well as one, so that survivor is
+# TestByeWithNothingAnnouncedSendsNothing's to prove.
+#
+# THE WIRE. The blackhole fallback announces the detector's host prefix with no
+# other component (responder.go renderFlowspecCommand over buildMatch of the
+# AttackDetected target, characterize.go characterizeTarget): FlowSpec NLRI
+# 06 01 20 CB007109, length 6, type 1 destination prefix, /32, 203.0.113.9. The
+# announcement carries the traffic-rate extended community at rate 0, which is
+# discard (RFC 8955 Section 7.1, type 0x80 subtype 0x06, 2-octet AS 0, IEEE
+# float 0). The withdrawal carries the same NLRI in MP_UNREACH_NLRI.
+#
+# WHY THE VICTIM IS REMOTE, WHY blackhole-fallback: test/plugin/ddos-announce-rate-limit.ci.
+#
+# WHY THE DETECTION IS CRITICAL. With characterize-enable false the blackhole
+# fallback is the only announce path, and onDetected takes it at critical only.
+# The grade is set once, when the attack activates (detector.go onAttackStart:
+# GradeSeverity of peakRxPps against the threshold), and is never revised.
+# peakRxPps is the highest one-second sample above the threshold since the last
+# clear (applyTick), and the threshold is max(p99 x multiplier, absolute-floor),
+# 100 pps here on the quiet baseline. confirm-duration 2 makes activation wait
+# for two consecutive samples above it, so the second one is a whole second
+# inside the flood, which the driver sends on its own worker as 4000-packet
+# bursts every 250 ms (fixture ddosFlowspecSteadyFlood). Critical needs
+# a peak of 500 pps: one-eighth of one burst in that second. With
+# confirm-duration 1 and a floor of 1000, the first sample alone was graded,
+# and a sample that held one 4000-packet burst, or part of one, was rated high.
+#
+# hold-down and max-mitigation-duration are past the run, so neither the leak
+# probe nor the cap can account for the withdrawal, and clear-consecutive-checks
+# 100 keeps the detector from clearing: the driver stops the flood once the
+# announcement is seen, before the reload, and the reload is the only remover
+# left.
+#
+# STATUS: a Linux/QEMU integration test; NOT executable on the darwin dev host.
+#   net-admin builds the transit veth pair; bpf is what lets traffic-usage name
+#   the victim (internal/plugins/trafficusage/attach_linux.go).
+option=needs-linux:caps=net-admin,bpf
+# Serialize against every other ddos test: they all flood the same interface
+# set (rationale: test/plugin/ddos-direction.ci).
+option=exclusive:group=ddos-flood
+option=env:var=ze.log.ddos.detect:value=info
+option=env:var=ze.log.ddos.flowspec:value=info
+option=timeout:value=150s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+# The peer never closes: a closed session would drop the rule by itself and
+# make the withdrawal unobservable.
+option=linger:value=true
+# seq 1: the announcement of 203.0.113.9/32 with traffic-rate 0 (discard).
+expect=bgp:conn=1:seq=1:announced=060120CB007109:attribute=16,8006000000000000
+# seq 2: the withdrawal of the same NLRI, in MP_UNREACH_NLRI.
+expect=bgp:conn=1:seq=2:withdrawn=060120CB007109
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos {
+	detect {
+		enabled true
+		absolute-floor 100
+		confirm-duration 2
+		clear-consecutive-checks 100
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable false
+	}
+	observe {
+		incident-ring-size 100
+	}
+	flowspec {
+		response-level enforce
+		action discard
+		blackhole-fallback true
+		max-mitigation-duration 3600
+		hold-down 3600
+	}
+}
+
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface zdd0p {
+				enabled true
+			}
+			interface zdd0 {
+				enabled true
+			}
+		}
+	}
+}
+
+bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+
+		# The responder's update-route is refused for a process no peer
+		# attaches with send [ update ] (reactor/send_permission.go). The
+		# reload keeps this block byte-identical, so the peer is not re-added.
+		attach process ddos-flowspec {
+			send [ update ]
+		}
+	}
+}
+
+plugin {
+	external ddos-flowspec-parent-removed-probe {
+		run "le test fixture plugin/ddos-flowspec-parent-removed-driver"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/ddos-transit-forward-drop-setup
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-nlri-flowspec -:stdin=ze-bgp:timeout=145s
+expect=exit:code=0
+expect=stderr:contains=FLOWSPEC-ANNOUNCED 203.0.113.9
+expect=stderr:contains=FLOWSPEC-WITHDRAWAL-SENT 203.0.113.9
+expect=stderr:contains=ddos-flowspec: announced
+expect=stderr:contains=ddos-flowspec: the ddos flowspec section was removed, withdrawing the announcement
+expect=stderr:contains=ddos-flowspec: withdrawn
+reject=stderr:contains=ddos-flowspec: withdraw failed
+reject=stderr:contains=ddos-flowspec: the FlowSpec rule could not be withdrawn on the way out
