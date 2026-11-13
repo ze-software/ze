@@ -39,13 +39,15 @@ Thomas retired **One BGP UPDATE, many peers** on the same date. Remove links to 
 
 ## How an intro is built
 
-An article opens by setting the scene, then throws the hook, then discloses the use of AI. In that order.
+Everything before the AI authorship disclaimer is a brief teaser. Give the reader enough context to want to continue, and leave the developed argument and explanations for the body after the disclaimer. Personal background and technical detail belong there when they need more than a passing mention. The deck follows the same restraint.
 
-1. **Set the scene.** Whatever context the reader needs to understand why the subject matters. This can be several paragraphs.
-2. **The hook, as the last point of the intro.** One or two sentences that make the reader want to keep going: the promise of the article, the question it will answer, or the place the argument starts from. It is the last thing before the disclaimer, so it carries the reader into the first section.
+An article opens by setting the scene, then gives the hook, then discloses the use of AI. In that order.
+
+1. **Set the scene.** Give only the context needed to understand why the subject matters. Keep it brief; move substantial background into the body.
+2. **The hook, as the last point of the intro.** One or two sentences that make the reader want to keep going, without explaining the solution or summarising the article. It is the last thing before the disclaimer, so it carries the reader into the first section.
 3. **The AI disclaimer.** When Claude helped write the article, say so honestly, in italics, immediately after the hook. Existing wording to reuse: *This article was co-authored with Claude. The argument and the conclusions are mine. Claude helped organise the material and draft the text.*
 
-The hook must not be a list of what the article covers ("What follows is X, why Y, and what Z"). That three-part preview reads as AI and gives the reader the summary instead of a reason to continue.
+The hook must not be a list of what the article covers ("What follows is X, why Y, and what Z"). That three-part preview reads as AI and gives the reader the summary instead of a reason to continue. When shortening an existing introduction, move its useful substance after the disclaimer and check the new body order rather than discarding the information.
 
 ## Structure of the body
 

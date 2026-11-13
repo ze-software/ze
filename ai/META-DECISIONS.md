@@ -387,6 +387,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 
 ## Website design
 
+- In blog articles, everything before the AI authorship disclaimer is a brief
+  teaser. The developed argument, substantial background and technical
+  explanations follow the disclaimer. The deck also leaves the explanation
+  for the body.
 - Website design follows the approved principles in
   [the website style guide](../website/style-guide/index.html#sg-design-principles),
   including its information-preservation map and owner approval for removals.
