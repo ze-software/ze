@@ -7,7 +7,7 @@
     "claim-sha": "38d0585707f08b4c",
     "route": "revert",
     "producer": "internal/component/l2tp/reactor_kernel.go::collectKernelEventsLocked",
-    "producer-sha": "a776104d49900c87",
+    "producer-sha": "d12ae27a45367ad4",
     "break": "body of collectKernelEventsLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "43885e3f66f9b55e",
     "route": "revert",
     "producer": "internal/component/l2tp/reactor_kernel.go::collectKernelEventsLocked",
-    "producer-sha": "a776104d49900c87",
+    "producer-sha": "d12ae27a45367ad4",
     "break": "body of collectKernelEventsLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
