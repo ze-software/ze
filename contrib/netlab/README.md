@@ -81,7 +81,9 @@ has been built or loaded into that host's Docker daemon. Stop it with
 
 For the automated live proof, run `./le test netlab run` against the Ze Docker
 host. It builds the local lab image and a tool container carrying those pinned
-upstream versions. Host Python and containerlab installations are unnecessary.
+upstream versions and Ansible Core 2.22.0, which requires Python 3.13 or later.
+The tool build prints its Python and tool versions and checks Python dependency compatibility.
+Host Python and containerlab installations are unnecessary.
 The tools run in the Docker host's PID and network namespaces, so a forwarded
 socket works through Ze's QEMU Docker host transport. A tool process running on
 another host with only a remote Docker socket does not have those namespaces.

@@ -14,7 +14,9 @@ is the source of truth for the artifacts.** This page explains how to run them.
 |-----------|-----|
 | netlab 26.10 | Renders the topology and calls containerlab |
 | containerlab 0.83.0 and Docker | Start the nodes |
+| Ansible Core 2.22.0 with Python 3.13 or later | Configures the nodes from the tool container |
 | `netlab/ze:latest` | The lab image, built from `docker/Dockerfile.lab` |
+<!-- source: contrib/netlab/Dockerfile.tools -- pinned packages, Python/tool version receipts and dependency check -->
 
 The lab image is not the deployment image. See [Docker](docker.md) for the two images
 and what separates them.
@@ -111,6 +113,9 @@ and network access to its pinned sources. See the
 <!-- source: internal/le/setup/docker/host/static.go -- errDockerCLIMissing, runBuilderContainer -->
 
 The command builds the local lab image and a tool image with the versions above.
+The tool build prints its Python and tool versions and checks Python dependency compatibility.
+<!-- source: contrib/netlab/Dockerfile.tools -- pinned packages, Python/tool version receipts and dependency check -->
+
 The host needs Docker access; Python, netlab and containerlab run in the tool
 container. That container shares the Docker host's network and PID namespaces,
 which also supports Ze's QEMU Docker host transport. Running host containerlab
