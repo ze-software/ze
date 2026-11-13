@@ -65,6 +65,17 @@ type leRFCTreeRow struct {
 	Walked bool   `json:"walked"`
 	Proven int    `json:"mandatory-proven"`
 	Total  int    `json:"mandatory-total"`
+	// Sections is the row's published section counts, nil for a row with no
+	// summary or an unwalked one, which publish none.
+	Sections *leRFCTreeSections `json:"sections"`
+}
+
+// leRFCTreeSections is the part of a tree row's `sections` this fixture reads:
+// the OS verified MUST rows, which the published proven count includes.
+type leRFCTreeSections struct {
+	Must struct {
+		OSVerified int `json:"os-verified"`
+	} `json:"must"`
 }
 
 // leRFCWideHeader and leRFCBriefHeader are the two table shapes of the derived
@@ -72,9 +83,11 @@ type leRFCTreeRow struct {
 var (
 	leRFCWideHeader  = []string{"RFC", "Area", "Proof", "Evidence", "Unmet"}
 	leRFCBriefHeader = []string{"Standard", "Area", "Proof", "Unmet"}
-	// leRFCEvidenceKinds is the evidence vocabulary, strongest first
-	// (carriers.go::CarrierFor).
-	leRFCEvidenceKinds = []string{"interop", "functional", "editor", "unit"}
+	// leRFCEvidenceKinds is the evidence vocabulary in the order the Evidence
+	// cell prints it (render_ledger.go::evidenceCell). The first four rank
+	// Ze's tests by strength, strongest first (carriers.go::CarrierFor), and
+	// `os` counts the OS verified rows.
+	leRFCEvidenceKinds = []string{"interop", "functional", "editor", "unit", "os"}
 	// leRFCGatedGapRow matches a gated requirement row carrying a {gap}.
 	leRFCGatedGapRow  = regexp.MustCompile(`^- \[[ x]\] \[([^\]]+)\] \[(MUST|MUST NOT|SHALL|SHALL NOT|REQUIRED)\] .*\{gap[:}]`)
 	leRFCNumberedStem = regexp.MustCompile(`^rfc(\d+)$`)
@@ -161,19 +174,29 @@ func leRFCRequireDraftGaps(t leRFCPartialTree, row *leRFCTreeRow, cells []string
 }
 
 // leRFCRequireFullRow checks the row of a walked RFC whose every gated MUST a
-// verified record proves: its figure, evidence kinds summing to it, nothing unmet.
+// verified record proves: its figure, evidence kinds in vocabulary order
+// summing to it, an `os` count equal to the OS verified rows its sections
+// publish (no `os` kind means none), and nothing unmet.
 func leRFCRequireFullRow(row *leRFCTreeRow, cells []string) {
 	leRFCAnswersRequire(cells[2] == leRFCProofCell(row.Proven, row.Total), "%s Proof reads %q, the tree says %d of %d", row.Stem, cells[2], row.Proven, row.Total)
-	sum := 0
+	leRFCAnswersRequire(row.Sections != nil, "%s is walked but its tree row publishes no sections", row.Stem)
+	sum, osCount, previous := 0, 0, -1
 	for part := range strings.SplitSeq(cells[3], ", ") {
 		kind, count, found := strings.Cut(part, " ")
 		leRFCAnswersRequire(found, "%s Evidence %q is not `<kind> <count>` pairs", row.Stem, cells[3])
-		leRFCAnswersRequire(slices.Contains(leRFCEvidenceKinds, kind), "%s Evidence names kind %q outside %q", row.Stem, kind, leRFCEvidenceKinds)
+		position := slices.Index(leRFCEvidenceKinds, kind)
+		leRFCAnswersRequire(position >= 0, "%s Evidence names kind %q outside %q", row.Stem, kind, leRFCEvidenceKinds)
+		leRFCAnswersRequire(position > previous, "%s Evidence %q is not in the order %q", row.Stem, cells[3], leRFCEvidenceKinds)
+		previous = position
 		number, err := strconv.Atoi(count)
 		leRFCAnswersRequireNoError(err, row.Stem+" Evidence count")
 		sum += number
+		if kind == "os" {
+			osCount = number
+		}
 	}
 	leRFCAnswersRequire(sum == row.Proven, "%s Evidence %q sums to %d, the tree proves %d", row.Stem, cells[3], sum, row.Proven)
+	leRFCAnswersRequire(osCount == row.Sections.Must.OSVerified, "%s Evidence %q counts os %d, its sections publish %d OS verified", row.Stem, cells[3], osCount, row.Sections.Must.OSVerified)
 	leRFCAnswersRequire(cells[4] == "-", "%s is fully proven but its Unmet reads %q", row.Stem, cells[4])
 }
 

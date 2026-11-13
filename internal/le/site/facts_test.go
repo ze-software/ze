@@ -1131,15 +1131,57 @@ func TestTheLabISOSizeFallsBackUntilAReleaseCarriesOne(t *testing.T) {
 	}
 }
 
+// TestTheHomeCardCountsOSVerifiedRows checks AC-4 and AC-5 on the home page
+// RFC card: its count and percentage are the published proven rows, Ze proven
+// plus OS verified, over the MUST rows Ze and the OS owe, and an OS testing
+// gap is in the denominator only.
+//
+// The method states one walked RFC whose seven MUST rows are two Ze proven,
+// one Ze gap, three a layer under Ze performs (one OS verified, two OS testing
+// gaps: the figure pass leaves a row on the no-break or kernel-producer
+// escape, and one with a tag and no record, there, as
+// rfc.TestProvenPercentCountsOSVerifiedRows proves from the rows), and one not
+// applicable. The card must read 3 of 6 (50.0%). Ze proven alone reads 2 of
+// 6 (33.3%), and an OS testing gap counted as proven reads more than 3.
+func TestTheHomeCardCountsOSVerifiedRows(t *testing.T) {
+	stubRFCLedger(t, fixtureRFCLedger())
+	liveStemFigures = func(string, rfc.Collected) (map[string]rfc.StemFigures, error) {
+		return map[string]rfc.StemFigures{
+			"rfc4271": {Stem: "rfc4271", Walked: true, OSVerified: 1, OSGap: 2, Mandatory: rfc.Figure{Total: 7,
+				Attainable: 3, Proven: 2, Excluded: map[string]int{rfc.AnnotationLowerLayer: 3,
+					rfc.AnnotationNotApplicable: 1}},
+				MandatoryByKind: map[string]int{"unit": 2, "os": 1}},
+			"rfc7606": {Stem: "rfc7606", Walked: true},
+			"rfc9999": {Stem: "rfc9999"},
+			"rfc8654": {Stem: "rfc8654"},
+		}, nil
+	}
+	facts := siteFacts{Sources: map[string]string{}}
+	if err := factsFromRFCLedger(t.TempDir(), &facts); err != nil {
+		t.Fatalf("factsFromRFCLedger: %v", err)
+	}
+	card := facts.RFC
+	if card.Proven != 3 || card.MustKept != 6 || card.ProvenPercent != "50.0" || card.ProvenDisplay != "3" {
+		t.Errorf("home card = %d (%q) of %d (%s%%), want 3 of 6 (50.0%%): Ze proven 2 and OS verified 1 over "+
+			"the MUST rows Ze and the OS owe", card.Proven, card.ProvenDisplay, card.MustKept, card.ProvenPercent)
+	}
+	if source := facts.Sources["rfc.proven"]; !strings.Contains(source, "OS verified") {
+		t.Errorf("rfc.proven source %q does not say the count holds the OS verified rows", source)
+	}
+}
+
 // TestTheHomeCardStatesZeProvenOverTheRowsOwed checks the home page RFC card:
-// Ze proven over the MUST rows Ze and the OS owe (Ze proven, OS verified, OS
-// testing gap, Ze correctness gap) in the walked RFCs Ze implements.
+// Ze proven and OS verified over the MUST rows Ze and the OS owe (Ze proven,
+// OS verified, OS testing gap, Ze correctness gap) in the walked RFCs Ze
+// implements.
 //
 // The method states one walked RFC whose five MUST rows land in four sections:
 // two Ze proven, one Ze gap, one performed by the OS with a verified test, one
-// not applicable. The card must read 2 of 4 (50.0%): the not-applicable row is
-// on neither side, and the OS row is owed and not Ze proven. Over every row it
-// would read 2 of 5 (40.0%), and with the OS row counted proven 3 of 4.
+// not applicable. The card must read 3 of 4 (75.0%): the not-applicable row is
+// on neither side, and the OS verified row is owed and counted proven (owner,
+// 2026-11-13). Over every row it would read 3 of 5 (60.0%), and with the OS
+// row left out of the numerator 2 of 4 (50.0%), the reading that ruling
+// replaced.
 func TestTheHomeCardStatesZeProvenOverTheRowsOwed(t *testing.T) {
 	stubRFCLedger(t, fixtureRFCLedger())
 	liveStemFigures = func(string, rfc.Collected) (map[string]rfc.StemFigures, error) {
@@ -1157,9 +1199,9 @@ func TestTheHomeCardStatesZeProvenOverTheRowsOwed(t *testing.T) {
 		t.Fatalf("factsFromRFCLedger: %v", err)
 	}
 	card := facts.RFC
-	if card.Proven != 2 || card.MustKept != 4 || card.ProvenPercent != "50.0" {
-		t.Errorf("home card = %d of %d (%s%%), want 2 of 4 (50.0%%): Ze proven over the MUST rows Ze and the OS owe",
-			card.Proven, card.MustKept, card.ProvenPercent)
+	if card.Proven != 3 || card.MustKept != 4 || card.ProvenPercent != "75.0" {
+		t.Errorf("home card = %d of %d (%s%%), want 3 of 4 (75.0%%): Ze proven and OS verified over the MUST rows "+
+			"Ze and the OS owe", card.Proven, card.MustKept, card.ProvenPercent)
 	}
 	if card.MustKeptDisplay != "4" || card.Implemented != 2 || card.NotWalked != 0 {
 		t.Errorf("display %q, implemented %d, not walked %d, want \"4\", 2 and 0",
@@ -1167,5 +1209,8 @@ func TestTheHomeCardStatesZeProvenOverTheRowsOwed(t *testing.T) {
 	}
 	if source := facts.Sources["rfc.proven"]; !strings.Contains(source, "rfc.ImplementedSectionsOf") {
 		t.Errorf("rfc.proven source %q does not name its producer", source)
+	}
+	if source := facts.Sources["rfc.proven"]; !strings.Contains(source, "OS verified") {
+		t.Errorf("rfc.proven source %q does not say the count holds the OS verified rows", source)
 	}
 }

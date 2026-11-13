@@ -48,7 +48,9 @@ type rfcStemData struct {
 	Must        *rfc.MustSections   `json:"must"`
 	Should      *rfc.ShouldSections `json:"should"`
 	// ProvenByKind is rfc.StemFigures.MandatoryByKind: the Ze-proven MUST
-	// rows by the strongest kind of test covering each one.
+	// rows by the strongest kind of test covering each one, and the OS
+	// verified MUST rows under `os`, so it sums to the published proven count
+	// (must.ze-proven plus must.os-verified).
 	ProvenByKind map[string]int `json:"proven-by-kind"`
 	Unmet        []string       `json:"unmet"`
 }

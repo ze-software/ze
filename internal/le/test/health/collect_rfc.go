@@ -217,7 +217,10 @@ func rfcMetrics(t *tree, collected rfc.Collected, floors qualityFloors) (Metric,
 	}
 
 	unproven := unprovenRows(rows)
-	density := ratio(sections.Sections.Must.ZeProven, sections.Sections.Must.Kept)
+	// The numerator is the published proven count (rfc.MustSections.Proven,
+	// Ze proven plus OS verified), the one the home card's percentage reads,
+	// so this file divides nothing of its own.
+	density := ratio(sections.Sections.Must.Proven(), sections.Sections.Must.Kept)
 
 	return densityMetric(rows, unproven, kinds, density, floors, &sections,
 			rfcTotals{both: both, gated: gated, annotated: annotated, noTest: noTest}),
@@ -429,14 +432,18 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 	var tb textbuf.Buffer
 	detail := tb.Str(sections.ProvenPercent()).
 		Str("% of the ").Int(int64(must.Kept)).
-		Str(" MUST rows ze and the OS owe in the walked RFCs ze implements are proven by ze with a recorded break: a " +
-			"discrimination record that still verifies against this tree. Of the rest, ").
-		Int(int64(must.OSVerified)).Str(" are performed by the OS with a verified test, ").
-		Int(int64(must.OSGap)).Str(" by the OS with no verified test yet, and ").
+		Str(" MUST rows ze and the OS owe in the walked RFCs ze implements are proven with a recorded break: a " +
+			"discrimination record that still verifies against this tree. ").
+		Int(int64(must.ZeProven)).Str(" of them are proven by ze, and ").
+		Int(int64(must.OSVerified)).Str(" are performed by the OS with a verified test (OS verified), whose record " +
+		"broke the state ze installs for that layer. Of the rest, ").
+		Int(int64(must.OSGap)).Str(" are performed by the OS with no verified test yet (a tag alone, a stale record, " +
+		"or a no-break or kernel-producer escape), and ").
 		Int(int64(must.ZeGap)).Str(" are owed by ze and not proven. ").
 		Int(int64(must.NotOwed)).Str(" further MUST rows are not owed (not applicable, declined, OS blocked) " +
 		"and are in neither count. Until 2026-10-31 this figure was taken over every MUST row of those RFCs but rollups, " +
-		"annotated rows included, so a row that does not bind ze counted against it. ").
+		"annotated rows included, so a row that does not bind ze counted against it; until 2026-11-13 its numerator " +
+		"held the rows ze proves alone, and an OS verified row was counted only in the denominator. ").
 		Int(int64(sections.NotWalked)).Str(" of the ").Int(int64(sections.RFCs)).
 		Str(" RFCs ze implements are not walked yet: their requirement lists are unbounded, so " +
 			"they are left out of every count rather than measured. The gate holds a wider set -- ").Int(int64(sections.MustInspected)).
@@ -455,8 +462,9 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 			"pair, and the RFC gate fails if that test is missing -- ").
 		Int(int64(kinds.get(rfc.AnnotationLowerLayer))).
 		Str(" met by a layer under ze on state ze installs, which the annotation names with " +
-			"the producer that installs it: those are MET and are not proven by ze, so they " +
-			"count in the MUST rows owed above and never in ze proven, ").
+			"the producer that installs it: those are owed by the stack, so they count in the MUST " +
+			"rows owed above, and in the proven rows only once a record that broke that producer " +
+			"verifies (OS verified), never in the rows proven by ze, ").
 		Int(int64(kinds.get(rfc.AnnotationFeatureDeclined))).
 		Str(" conditional on an optional feature ze does not offer, each quoting the RFC " +
 			"sentence that makes it optional: the condition is false, so the row is counted not owed only once its " +
@@ -474,7 +482,7 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 			"and none is in any count above.").String()
 
 	tb.Reset()
-	value := tb.Int(int64(must.ZeProven)).Str(" / ").Int(int64(must.Kept)).String()
+	value := tb.Int(int64(must.Proven())).Str(" / ").Int(int64(must.Kept)).String()
 
 	worst := make([]any, 0, 10)
 	for index, row := range unproven {
@@ -503,7 +511,7 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 	return Metric{
 		Key:      keyProofDensity,
 		Question: "Q2",
-		Label:    "RFC MUST requirements proven by test, over the RFCs ze implements",
+		Label:    "RFC MUST requirements proven by test, by ze or as OS verified, over the RFCs ze implements",
 		Status:   floors.status(keyProofDensity, percentOf(density)),
 		Value:    value,
 		Detail:   detail,

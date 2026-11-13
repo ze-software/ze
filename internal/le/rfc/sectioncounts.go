@@ -31,6 +31,12 @@ type MustSections struct {
 	NotOwedByKind map[string]int `json:"not-owed-by-kind"`
 }
 
+// Proven answers the MUST rows these sections publish as proven, Ze proven
+// plus OS verified (mustProven): the numerator of every published proven
+// percentage. ZeProven and OSVerified stay apart as fields because the MUST
+// bar draws them as separate segments.
+func (m *MustSections) Proven() int { return mustProven(m.ZeProven, m.OSVerified) }
+
 // ShouldSections splits every SHOULD / MAY row: proven, performed by a layer
 // under Ze (OS verified or OS gap, as a MUST row is), left out by an annotation
 // that says it does not bind Ze (NotOwed, by kind), or open and declared not

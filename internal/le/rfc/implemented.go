@@ -15,7 +15,8 @@ import (
 // the wider population they are drawn from beside them.
 //
 // Every count carries its denominator (owner directive, 2026-09-01): a reader
-// gets Ze proven of the MUST rows Ze and the OS owe, and Inspected RFCs with
+// gets the proven rows (Ze proven and OS verified) of the MUST rows Ze and the
+// OS owe, and Inspected RFCs with
 // MustInspected MUST rows for everything the ledger has judged.
 type ImplementedSections struct {
 	// Sections sums SectionsOf over the walked RFCs Ze implements. An
@@ -36,19 +37,23 @@ type ImplementedSections struct {
 	MustInspected int
 }
 
-// ProvenPercent renders the Ze-proven MUST rows over the MUST rows Ze and the
-// OS owe (Sections.Must.Kept), to one decimal place, without its sign.
+// ProvenPercent renders the proven MUST rows (Sections.Must.Proven: Ze proven
+// plus OS verified) over the MUST rows Ze and the OS owe (Sections.Must.Kept),
+// to one decimal place, without its sign.
 //
 // A row not owed (not applicable, declined, OS blocked) is in neither side:
 // it does not bind Ze, so it is no part of what Ze could prove. A row the OS
-// performs stays in the denominator and never in the numerator, verified or
-// not: it is owed by the stack, and Ze's own tests do not prove it.
+// performs is owed by the stack, so it is always in the denominator, and it is
+// in the numerator once its record proves it (OS verified): a requirement the
+// OS meets counts as done once its test proves it (owner, 2026-11-13). An OS
+// testing gap, which covers a row on the no-break or kernel-producer escape,
+// stays out of the numerator.
 //
 // It carries no guard for an empty population because ImplementedSectionsOf
 // refuses to answer with one, so a caller cannot hold one whose Kept is zero.
 func (s *ImplementedSections) ProvenPercent() string {
 	var tb textbuf.Buffer
-	return tb.Float(100*float64(s.Sections.Must.ZeProven)/float64(s.Sections.Must.Kept), 1).String()
+	return tb.Float(100*float64(s.Sections.Must.Proven())/float64(s.Sections.Must.Kept), 1).String()
 }
 
 // ImplementedSectionsOf sums the section counts over the RFCs Ze implements,

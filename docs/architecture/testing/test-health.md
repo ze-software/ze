@@ -382,10 +382,18 @@ renders the corpus once and sums `rfc.StemFiguresOf` through
 `rfc.ImplementedSectionsOf`, the same two functions the site's home page reads;
 the RFC compliance page draws the same per-RFC sections. It is taken over the
 RFCs that are enrolled, render a public row and declare an Implementation of
-`ze` or `mixed`. The density is Ze proven over the MUST rows Ze and the OS owe
-(Ze proven, OS verified, OS testing gap and Ze correctness gap), and it counts a
-row as Ze proven only where a discrimination record still verifies on a walked
-summary. A tag pair no record proves adds nothing. A row not owed (not
+`ze` or `mixed`. The density is the proven MUST rows (`rfc.MustSections.Proven`:
+Ze proven plus OS verified, the numerator the home card divides) over the MUST
+rows Ze and the OS owe (Ze proven, OS verified, OS testing gap and Ze
+correctness gap). It counts a row as Ze proven only where a discrimination
+record still verifies on a walked summary, and a row a layer under Ze performs
+as OS verified only where such a record broke the producer its annotation
+names; the detail states the two apart. A tag pair no record proves adds
+nothing, and a lower-layer row with a tag and no record, or on the `no-break`
+or `kernel-producer` escape, is an OS testing gap, in the denominator only.
+Until 2026-11-13 the numerator was Ze proven alone (owner ruling of that day:
+a requirement the OS meets counts as done in every published figure once its
+test proves it). A row not owed (not
 applicable, declined, OS blocked) is on neither side, and the detail states how
 many there are. A row counts not owed only when its evidence passes the
 exclusion evidence check; one lacking it stays owed
@@ -393,6 +401,17 @@ exclusion evidence check; one lacking it stays owed
 many of those RFCs are not walked and left out.
 <!-- source: internal/le/test/health/collect_rfc.go -- annotationCounts.total, implementedSections, densityMetric -->
 <!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, Implements -->
+
+The density's status compares its percentage with the `rfc-proof-density`
+floor in `test/health/quality-baseline.json`: the best percentage ever
+measured, which `tightenQuality` raises and never lowers, and which
+`qualityFloors.status` holds the figure to within 0.1. The floor carries no
+record of the definition it was measured under. A redefinition that lowers
+the figure, as the move from tagged polarity coverage to verified records over
+the rows owed did on 2026-10-31, leaves the metric at `warn` against a number
+taken over a different quantity until the floor is restated; adding the OS
+verified rows to the numerator can only raise the figure.
+<!-- source: internal/le/test/health/baseline.go -- qualityFloors.status, tightenQuality -->
 <!-- source: internal/le/rfc/rfc.go -- AnnotationTraitsOf -->
 
 A Linux-limit annotation earns no proof credit. Once its register entry

@@ -77,10 +77,11 @@ type StemFigures struct {
 	Optional  Figure
 	// MandatoryByKind counts the proven mandatory rows by the strongest
 	// evidence kind among the tags covering each one (evidenceStrengthOrder,
-	// carriers.go). Every proven mandatory row lands in exactly one kind, so
-	// the counts sum to Mandatory.Proven; a proven row whose tags reach no
-	// carrier lands under kindUnknown, the label evidenceLabel gives such a
-	// path, rather than leaving the sum short in silence.
+	// carriers.go), and the OS verified mandatory rows under kindOS. Every
+	// row MustProven counts lands in exactly one kind, so the counts sum to
+	// MustProven; a Ze-proven row whose tags reach no carrier lands under
+	// kindUnknown, the label evidenceLabel gives such a path, rather than
+	// leaving the sum short in silence.
 	MandatoryByKind map[string]int
 	// Unmet is the sorted ids of the owed rows the summary or the audit says
 	// are unmet, at every level: an annotation whose declared traits say Unmet
@@ -90,9 +91,11 @@ type StemFigures struct {
 	Unmet []string
 	// OSVerified and OSGap split the gated rows a layer under Ze performs
 	// (traits OSMet, `{lower-layer}`): OS verified when osVerified holds, an
-	// OS testing gap otherwise. They sum to Mandatory.Excluded[lower-layer]
-	// and change no other count, since Ze proves neither. One shipped kernel
-	// is the only OS a record speaks for, so neither has a per-version split.
+	// OS testing gap otherwise. They sum to Mandatory.Excluded[lower-layer].
+	// Ze's tests prove neither, so Mandatory.Proven holds neither; an OS
+	// verified row is done all the same, so the published proven count
+	// (MustProven) counts it (owner, 2026-11-13). One shipped kernel is the
+	// only OS a record speaks for, so neither has a per-version split.
 	OSVerified int
 	OSGap      int
 	// OptionalOSVerified and OptionalOSGap split the optional rows a layer
@@ -114,6 +117,27 @@ type StemFigures struct {
 
 // notWalked is the cell an unwalked RFC renders in place of a figure.
 const notWalked = "not walked"
+
+// kindOS is the evidence kind MandatoryByKind counts an OS verified MUST row
+// under. It is not a carrier kind (carriers.go): a carrier names the layer a
+// Ze test exercises, while this names who performs the row.
+const kindOS = "os"
+
+// MustProven answers the MUST rows this RFC publishes as proven: the rows a
+// verified record proves Ze meets, and the rows a layer under Ze performs
+// whose record proves it (OS verified). The status page Proof cell, the tree
+// row's published `mandatory-proven` and every reader of that count take it
+// from here, so they answer one number.
+func (s *StemFigures) MustProven() int { return mustProven(s.Mandatory.Proven, s.OSVerified) }
+
+// mustProven is the ONE definition of a published MUST proven count: Ze proven
+// plus OS verified. A requirement the operating system meets counts as done
+// in every published figure once its test proves it (owner, 2026-11-13), while
+// the MUST bar keeps the two as separate segments, because who performs a row
+// is what the bar shows. A row on the no-break or kernel-producer escape, or a
+// lower-layer row with no proving record, is in neither operand: the escape is
+// published as escaped, never as proven.
+func mustProven(zeProven, osVerified int) int { return zeProven + osVerified }
 
 // StemFiguresOf answers both figures, the evidence kinds and the unmet ids of
 // every summary in one rendered corpus. It is the ONE derivation of per-RFC
@@ -276,7 +300,8 @@ func (e figureEvidence) excluded(requirement *Requirement) bool {
 //     carry. Each leaves the attainable rows only through excluded, so a
 //     not-owed row whose evidence fails its check stays owed.
 //     A `{lower-layer}` row's proving record makes it OS verified instead, at
-//     either level (countOS), a count apart from Ze's proven rows.
+//     either level (countOS), a count apart from Ze's proven rows that the
+//     published proven count adds back (MustProven), under kindOS.
 //   - `{gap}` and `{partial}` stay in the denominator and are NEVER proven,
 //     whatever records their tags carry: the summary itself says the
 //     obligation is unmet. A test demonstrating a gap, or the half of a
@@ -309,8 +334,13 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 		excluded := evidence.excluded(requirement)
 		if requirement.Gated() {
 			figures.Mandatory.count(requirement, met, excluded)
+			// The kinds sum to MustProven: a Ze-proven row under its
+			// strongest test kind, an OS verified row under kindOS. No row is
+			// both, because a lower-layer row's traits never prove.
 			if met {
 				figures.countKind(evidence.strongestKind(requirement.RID))
+			} else if osVerified(requirement, evidence.osProofs) {
+				figures.countKind(kindOS)
 			}
 		} else {
 			figures.countIntent(requirement, met, excluded)
@@ -416,7 +446,7 @@ func osProofsOf(verdicts []DiscriminationVerdict) map[string][]string {
 	return out
 }
 
-// countKind adds one proven mandatory row under its evidence kind.
+// countKind adds one mandatory row MustProven counts under its evidence kind.
 func (s *StemFigures) countKind(kind string) {
 	if s.MandatoryByKind == nil {
 		s.MandatoryByKind = make(map[string]int)

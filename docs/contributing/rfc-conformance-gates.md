@@ -420,8 +420,9 @@ entry that is not a verified kernel limit stays owed as a Ze correctness gap,
 and the per-RFC data files, `./le rfc tree`, the RFC pages, the home card and
 `/quality/health/` all read the sections that follow from it. A
 `{lower-layer}` row is not judged there: it moves to the OS sections, which
-stay in the MUST bar, so it cannot raise the Ze-proven percentage, and its
-layer path stays the ratchet's to judge. `TestNoPublishedNotOwedRowLacksItsEvidence`
+stay in the MUST bar, so the annotation alone cannot raise the published
+percentage: the row counts as proven only once a record proves it OS verified
+(see "OS verified"), and its layer path stays the ratchet's to judge. `TestNoPublishedNotOwedRowLacksItsEvidence`
 holds the published not-owed count of each kind to the rows whose evidence
 passes, on this checkout's corpus.
 
@@ -455,7 +456,9 @@ not a copy stayed.
 A row's one authored cell is `Support area`. Its Proof, Evidence and Unmet
 cells are derived from the summary's requirement rows and the verified
 discrimination records (`StemFigures`), so no summary authors a status, a
-coverage sentence or a remainder. `ParseMeta` refuses a leftover
+coverage sentence or a remainder. Proof's numerator counts the Ze-proven and
+the OS verified MUST rows, and Evidence lists the first by test kind and the
+second as `os`, so its counts sum to that numerator. `ParseMeta` refuses a leftover
 `Support status`, `Support coverage` or `Support remaining` row by name and
 says where the fact went. `checkStatusAgreement` keeps one refusal: an unmet
 requirement (`{gap}`, `{partial}`, `{linux-limit}`) on an enrolled RFC that
@@ -596,12 +599,15 @@ publishes no sections; its proven and total counts are retained under the
 existing `walked: false` convention.
 
 Beside the two figures, each RFC carries two derived facts (`StemFigures`).
-`MandatoryByKind` counts its proven mandatory rows by the strongest evidence
+`MandatoryByKind` counts its Ze-proven mandatory rows by the strongest evidence
 kind among the tags covering each row: interop, then functional, then editor,
-then unit (`evidenceStrengthOrder`, `carriers.go`). Every proven mandatory row
-lands in one kind, so the counts sum to the mandatory proven count, and a row
-whose tags no carrier claims lands under `unknown` rather than leaving the sum
-short. A gap demonstration tag is no evidence of proof and is skipped. `Unmet`
+then unit (`evidenceStrengthOrder`, `carriers.go`), and its OS verified
+mandatory rows under `os`. Every row the published proven count holds
+(`StemFigures.MustProven`, Ze proven plus OS verified) lands in one kind, so
+the counts sum to that count, and a Ze-proven row whose tags no carrier claims
+lands under `unknown` rather than leaving the sum short. `os` is no carrier
+kind: it names who performs the row, not the layer a Ze test exercises. A gap
+demonstration tag is no evidence of proof and is skipped. `Unmet`
 lists the ids of the owed rows, at every level, that the summary or the audit
 says are unmet: an annotation whose declared traits say unmet (`{gap}`,
 `{partial}`, `{linux-limit}`), or a recorded audit verdict of `wrong`,
@@ -618,10 +624,24 @@ whose feature is still to come counts at its real figure (owner, 2026-10-30).
 Only walked RFCs add to a section, and the count states how many RFCs it
 leaves out (`NotWalked`): an unwalked list is unbounded, so a section holding
 its rows would measure the list, not the software. The published percentage
-(`ProvenPercent`) is Ze proven over the MUST rows Ze and the OS owe (`Kept`:
-Ze proven, OS verified, OS testing gap and Ze correctness gap). A row not owed
-(not applicable, declined, OS blocked) is on neither side; a row the OS
-performs stays in the denominator and never in Ze proven, verified or not.
+(`ProvenPercent`) is the proven MUST rows (`MustSections.Proven`: Ze proven
+plus OS verified) over the MUST rows Ze and the OS owe (`Kept`: Ze proven, OS
+verified, OS testing gap and Ze correctness gap). A row not owed (not
+applicable, declined, OS blocked) is on neither side. A row the OS performs is
+always in the denominator, and in the numerator once it is OS verified: a
+requirement the operating system meets counts as done in every published
+figure once its test proves it (owner, 2026-11-13). An OS testing gap, which
+holds a row on the `no-break` or `kernel-producer` escape and a row with a tag
+and no record, stays out of every numerator. Ze proven and OS verified stay
+separate sections, and the MUST bar draws them as separate segments, because
+who performs a row is what the bar shows. Every published proven count reads
+the same sum: the home card (`rfc.proven`, `rfc.proven_percent`), the health
+proof density, the tree row's `mandatory-proven` (`StemFigures.MustProven`),
+and so the status page Proof cell, the site's per-RFC Proof cell and the update
+report's figure, which read that count. A tree row read back from JSON takes
+its OS verified rows back from its sections, so its Proof cell is the live
+row's (`TreeRow.UnmarshalJSON`). Until 2026-11-13 every one of them counted Ze
+proven alone, and an OS verified row only in the denominator.
 Every surface that prints the percentage prints the not-walked count beside it:
 the `/quality/health/` proof-density detail and the home page card
 (`rfc.not_walked_display` in the site facts). The satisfaction buckets on the
@@ -629,8 +649,10 @@ RFC compliance page still partition every gated MUST of the RFCs Ze implements,
 walked or not, so their total is their own sum, and it exceeds the card's
 denominator.
 <!-- source: internal/le/rfc/profilecoverage.go -- figuresByStem, rowCounts, rollupOf, Rollup.mandatoryComplete, StemFiguresOf, figureEvidence -->
-<!-- source: internal/le/rfc/sectioncounts.go -- SectionsOf, sectionsOf, Sections.String -->
+<!-- source: internal/le/rfc/sectioncounts.go -- SectionsOf, sectionsOf, Sections.String, MustSections.Proven -->
 <!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, ImplementedSections.ProvenPercent, Implements -->
+<!-- source: internal/le/rfc/profilecoverage.go -- StemFigures.MustProven, mustProven, kindOS -->
+<!-- source: internal/le/rfc/tree.go -- TreeRow.MarshalJSON, TreeRow.UnmarshalJSON -->
 
 ### One declaration for annotation meaning
 
@@ -864,9 +886,12 @@ do not bind Ze (not applicable, declined, OS blocked).
 `StemFigures` carries four counts per RFC. `OSVerified` and `OSGap` cover the
 gated rows and sum to the `lower-layer` count in `Mandatory.Excluded`;
 `OptionalOSVerified` and `OptionalOSGap` cover the other levels and sum to the
-`lower-layer` count in `Optional.Excluded`. They change no other count: an
-OS-verified row is still not proven by Ze, and an optional one is in none of
-the intent counts. One shipped kernel (`internal/appliance/kernel.version`) is
+`lower-layer` count in `Optional.Excluded`. An OS-verified row is not proven by
+Ze, so `Mandatory.Proven` and the Ze proven section never hold it, and an
+optional one is in none of the intent counts. A gated OS-verified row is done
+all the same, so every published proven count holds it beside the Ze-proven
+rows, and the Evidence cell lists it under `os` (see "Coverage figures"). One
+shipped kernel (`internal/appliance/kernel.version`) is
 the only OS a record speaks for, so no count has a per-version split.
 <!-- source: internal/le/rfc/profilecoverage.go -- countOS -->
 

@@ -289,8 +289,10 @@ func renderStatusPage(metas map[string]Meta, aggregates map[string]Aggregate, le
 	return tb.String(), nil
 }
 
-// proofCell states one RFC's mandatory proof: the gated MUST-level rows a
-// verified discrimination record proves, over all of them.
+// proofCell states one RFC's mandatory proof: the gated MUST-level rows
+// published as proven (StemFigures.MustProven: a verified discrimination
+// record proves Ze meets them, or proves the state Ze installs for the layer
+// under Ze that performs them), over all of them.
 //
 // An unwalked RFC publishes no number: its list is a claim nobody bounded
 // against the RFC's text (StemFigures.cell). A walked RFC gating no MUST-level
@@ -303,20 +305,24 @@ func proofCell(figure StemFigures) string {
 		return "no MUST rows"
 	}
 	var tb textbuf.Buffer
-	return tb.Int(int64(figure.Mandatory.Proven)).Str(" of ").Int(int64(figure.Mandatory.Total)).
+	return tb.Int(int64(figure.MustProven())).Str(" of ").Int(int64(figure.Mandatory.Total)).
 		Str(" MUST proven").String()
 }
 
 // evidenceCell states the proven mandatory rows by the strongest evidence kind
-// behind each, strongest first, so the counts sum to the Proof cell's
-// numerator. An unwalked RFC publishes no count, and a walked RFC with nothing
-// proven prints `-`.
+// behind each, strongest first, then the OS verified rows under `os`, so the
+// counts sum to the Proof cell's numerator. `os` follows Ze's own test kinds
+// because those rank Ze's tests by strength, and an OS verified row is
+// performed by another layer rather than proven by a stronger or weaker Ze
+// test; `unknown`, a proven row whose tags reach no carrier, stays last. An
+// unwalked RFC publishes no count, and a walked RFC with nothing proven
+// prints `-`.
 func evidenceCell(figure StemFigures) string {
 	if !figure.Walked {
 		return "-"
 	}
 	var tb textbuf.Buffer
-	for _, kind := range append(slices.Clone(evidenceStrengthOrder), kindUnknown) {
+	for _, kind := range append(slices.Clone(evidenceStrengthOrder), kindOS, kindUnknown) {
 		count := figure.MandatoryByKind[kind]
 		if count == 0 {
 			continue
@@ -457,13 +463,16 @@ func statusPageIntro(unrowed, summaries int) string {
 	tb.Str("**Area** is the one cell an author writes, a classification. Every other cell is ")
 	tb.Str("derived, and no author can change it:\n\n")
 	tb.Str("- **Proof** is `N of M MUST proven`: of the M MUST-level requirements the summary gates, ")
-	tb.Str("the N whose tests a recorded break still verifies (`rfc/discrimination/<stem>.json`). ")
-	tb.Str("A tag with no verifying record proves nothing here. An RFC whose requirement list has ")
+	tb.Str("the N whose tests a recorded break still verifies (`rfc/discrimination/<stem>.json`), ")
+	tb.Str("counting a requirement a layer under Ze performs once its recorded break proves the state ")
+	tb.Str("Ze installs for that layer (OS verified). A tag with no verifying record, and a record that ")
+	tb.Str("escapes the break (`no-break`, `kernel-producer`), prove nothing here. An RFC whose requirement list has ")
 	tb.Str("not been walked against the RFC's own text (no valid `rfc/extraction/<stem>.json`) ")
 	tb.Str("reads `not walked` and publishes no number, because its list bounds nothing. A walked ")
 	tb.Str("RFC gating no MUST-level requirement reads `no MUST rows`.\n")
-	tb.Str("- **Evidence** counts the proven rows by the strongest kind of test behind each ")
-	tb.Str("(`interop`, then `functional`, `editor`, `unit`), so the counts sum to N.\n")
+	tb.Str("- **Evidence** counts the rows Ze's tests prove by the strongest kind of test behind each ")
+	tb.Str("(`interop`, then `functional`, `editor`, `unit`), and the OS verified rows as `os`, ")
+	tb.Str("so the counts sum to N.\n")
 	tb.Str("- **Unmet** lists the requirement ids the summary annotates `{gap}`, `{partial}` or ")
 	tb.Str("`{linux-limit}`, and those an audit judged not met, at every level.\n\n")
 	tb.Str("A brief table (Internet-Drafts and other standards) carries Area, Proof and Unmet ")

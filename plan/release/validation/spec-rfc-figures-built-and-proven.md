@@ -2,19 +2,23 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Accurate support claims: the published RFC figures draw one "Ze correctness gap" segment over rows that are not built and rows that are tested but carry no recorded proof, so a reader cannot tell an absent feature from a pending proof |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/5 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
 | Updated | 2026-11-13 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+WIP cap: Thomas gave a one-off exception on 2026-11-13 for this spec to be
+claimed above the cap (19 in flight against a cap of 12). It covers this spec's
+implementation only and raises no cap.
 
 ## Task
 

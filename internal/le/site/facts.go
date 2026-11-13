@@ -202,9 +202,10 @@ type factsRepo struct {
 // Proven, MustKept, Implemented, NotWalked, Inspected and ProvenPercent are the
 // published section counts, and every one of them is a field of, or the
 // percentage rendered by, the ImplementedSections
-// `internal/le/rfc.ImplementedSectionsOf` returns: Ze proven over the MUST rows
-// Ze and the OS owe (Ze proven, OS verified, OS testing gap and Ze correctness
-// gap) in the walked RFCs Ze implements. Nothing here computes a numerator or a
+// `internal/le/rfc.ImplementedSectionsOf` returns: the proven MUST rows
+// (`MustSections.Proven`, Ze proven plus OS verified) over the MUST rows Ze and
+// the OS owe (Ze proven, OS verified, OS testing gap and Ze correctness gap) in
+// the walked RFCs Ze implements. Nothing here computes a numerator or a
 // denominator of its own: the home page and /quality/health/ answer one
 // question with one number because both read that producer, and
 // /quality/rfc-compliance/ draws the same per-RFC sections (owner directive,
@@ -587,7 +588,7 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	facts.RFC.Implemented = sections.RFCs
 	facts.RFC.NotWalked = sections.NotWalked
 	facts.RFC.MustKept = sections.Sections.Must.Kept
-	facts.RFC.Proven = sections.Sections.Must.ZeProven
+	facts.RFC.Proven = sections.Sections.Must.Proven()
 	facts.RFC.ProvenPercent = sections.ProvenPercent()
 
 	facts.RFC.EnrolledDisplay = groupThousands(facts.RFC.Enrolled)
@@ -608,7 +609,9 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	// (independent review; ai/rules/principles.md).
 	facts.Sources["rfc"] = "internal/le/rfc.Collect, over rfc/short/*.md"
 	facts.Sources["rfc.proven"] = "internal/le/rfc.ImplementedSectionsOf, the one producer of " +
-		"requirements proven by Ze's tests, divided by mandatory requirements Ze or the OS must meet, " +
+		"mandatory requirements proven, by Ze's tests or as OS verified (a layer under Ze performs the " +
+		"requirement and a recorded break proves the state Ze installs for it), divided by mandatory " +
+		"requirements Ze or the OS must meet, " +
 		"for implemented RFCs whose requirement lists have been reviewed"
 	return nil
 }

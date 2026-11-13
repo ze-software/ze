@@ -244,8 +244,11 @@ RFC completion figures are not in `data/site-facts.json`, with one exception:
 the home page card's `rfc.proven`, `rfc.must_kept`, `rfc.proven_percent`,
 `rfc.implemented` and `rfc.not_walked` (each with its `_display` form), which
 `factsFromRFCLedger` reads from `rfc.ImplementedSectionsOf`
-(`internal/le/rfc/implemented.go`): Ze proven over the MUST rows Ze and the OS
-owe, summed over the walked RFCs Ze implements. The build publishes the
+(`internal/le/rfc/implemented.go`): the proven MUST rows, Ze proven plus OS
+verified (`MustSections.Proven`), over the MUST rows Ze and the OS owe, summed
+over the walked RFCs Ze implements. An OS verified row is one a layer under Ze
+performs whose recorded break proves the state Ze installs for it; a row on
+the `no-break` or `kernel-producer` escape is not one. The build publishes the
 per-RFC figures under `data/rfc/`, one file per RFC, so a change to one RFC republishes
 that file and no page. Every count is read from `rfc.StemFiguresOf`
 (`internal/le/rfc/profilecoverage.go`); `rfcStemDataOf` only splits its fields
@@ -257,7 +260,7 @@ whole on every build, so no file outlives the index that names it.
 | File | Holds |
 |------|-------|
 | `data/rfc/index.json` | `bars`: both bars' segments left to right, each with its class name (`segment`), its words (`label`) and the dotted `fields` whose sum is its count, and the fields each bar's segments must add up to (`must-total`, `overview-total`). Then `rfcs` (stem, file, title, walked, enrolment, and `gated`, which is `rfc.Meta.Enrolled`: the enrolment row says enrolled and the Implementation kind counts against Ze's Go) and `profiles` (name, file, kind, title) |
-| `data/rfc/<stem>.json` | `stem`, `title`, `walked`; `requirements`, every requirement row the summary declares at every level, walked or not (`rfcRequirementCounts`); `implementer`, the summary's Implementation kind (`ze`, `mixed`, `third-party`, `foundation`); `implemented`, `rfc.Implements` over the summary (enrolled and rendering a public row); `must` (`total`, `kept`, `ze-proven`, `os-verified`, `os-gap`, `ze-gap`, `not-owed`, `not-owed-by-kind`); `should` (`total`, `proven`, `os-verified`, `os-gap`, `not-owed`, `not-ever`, `not-yet`, `not-decided`, `not-owed-by-kind`); `proven-by-kind`; `unmet`. `must`, `should` and `proven-by-kind` are `null` for an RFC no walk bounded |
+| `data/rfc/<stem>.json` | `stem`, `title`, `walked`; `requirements`, every requirement row the summary declares at every level, walked or not (`rfcRequirementCounts`); `implementer`, the summary's Implementation kind (`ze`, `mixed`, `third-party`, `foundation`); `implemented`, `rfc.Implements` over the summary (enrolled and rendering a public row); `must` (`total`, `kept`, `ze-proven`, `os-verified`, `os-gap`, `ze-gap`, `not-owed`, `not-owed-by-kind`); `should` (`total`, `proven`, `os-verified`, `os-gap`, `not-owed`, `not-ever`, `not-yet`, `not-decided`, `not-owed-by-kind`); `proven-by-kind`, the Ze-proven MUST rows by the strongest kind of test covering each and the OS verified MUST rows under `os`, summing to `must.ze-proven` plus `must.os-verified`; `unmet`. `must`, `should` and `proven-by-kind` are `null` for an RFC no walk bounded |
 | `data/rfc/profiles/<name>.json` | `name`, `kind` (`use-case` or `technology`), `title`, `release`, and the two tiers `required` and `optional`, never merged. An aggregate's optional tier is the summaries whose `Aggregate tier` Meta row says `optional`. Both tiers come from `rfc.ProfileTiersOf` (`internal/le/rfc/priority.go`), the same membership `./le rfc tree` reads |
 
 `must.kept` is the MUST bar: `ze-proven + os-verified + os-gap + ze-gap`.

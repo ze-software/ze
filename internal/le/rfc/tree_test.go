@@ -380,6 +380,66 @@ func TestStatusPageOrdersByLevel(t *testing.T) {
 	}
 }
 
+// TestAProofCellReadBackFromJSONCountsOSVerifiedRows checks AC-4 through the
+// published row the site reads: the site's per-RFC Proof cell is rendered from
+// a TreeRow that UnmarshalJSON rebuilt, so the published `mandatory-proven`
+// must carry the OS verified rows, and the row read back must render the same
+// Proof and Evidence cells as the live row.
+//
+// Method: osVerifiedCorpus (implemented_test.go), one Ze proven and one OS
+// verified of six MUST rows, the rest escaped, unrecorded or unproven, through
+// treeRow, JSON and back. A published count of Ze proven alone reads 1 of 6 on
+// the site while the status page reads 2 of 6.
+func TestAProofCellReadBackFromJSONCountsOSVerifiedRows(t *testing.T) {
+	figures := osVerifiedCorpus()
+	corpus := newPriorityCorpus(graph.Build(map[string]graph.Text{"rfc1": {}}), Profiles{},
+		map[string]Meta{"rfc1": {Title: "Title of rfc1"}}, nil, map[string]StemFigures{"rfc1": figures}, nil,
+		figureEvidence{})
+	row := corpus.treeRow("rfc1", nil)
+	encoded, err := json.Marshal(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), `"mandatory-proven":2,`) {
+		t.Errorf("the published row does not count the OS verified row as proven: %s", encoded)
+	}
+	var decoded TreeRow
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if live, read := row.ProofCell(), decoded.ProofCell(); live != "2 of 6 MUST proven" || read != live {
+		t.Errorf("Proof cell live %q, read back %q, want both \"2 of 6 MUST proven\"", live, read)
+	}
+	if live, read := row.EvidenceCell(), decoded.EvidenceCell(); live != "unit 1, os 1" || read != live {
+		t.Errorf("Evidence cell live %q, read back %q, want both \"unit 1, os 1\"", live, read)
+	}
+	if decoded.Mandatory.Proven != 1 || decoded.OSVerified != 1 {
+		t.Errorf("read back Ze proven %d and OS verified %d, want 1 and 1: the sections give the split back",
+			decoded.Mandatory.Proven, decoded.OSVerified)
+	}
+}
+
+// TestAPublishedRowWhoseProvenCountLacksItsOSRowsIsRefused checks that a row
+// read back whose sections hold more OS verified rows than its published
+// proven count is refused, not decoded into a negative Ze-proven count.
+//
+// Method: a hand-written row with `mandatory-proven` 1 and sections naming
+// two OS verified rows. No MarshalJSON writes it, because the published count
+// holds the OS verified rows, so the decode must answer an error naming the
+// stem.
+func TestAPublishedRowWhoseProvenCountLacksItsOSRowsIsRefused(t *testing.T) {
+	body := `{"stem":"rfc1","summary":true,"walked":true,"mandatory-proven":1,"mandatory-total":4,` +
+		`"sections":{"must":{"total":4,"kept":4,"ze-proven":1,"os-verified":2,"os-gap":0,"ze-gap":1}}}`
+	var decoded TreeRow
+	err := json.Unmarshal([]byte(body), &decoded)
+	if err == nil {
+		t.Fatalf("a row whose proven count is smaller than its OS verified rows decoded to %+v", decoded.StemFigures)
+	}
+	if !strings.Contains(err.Error(), "rfc1") || !strings.Contains(err.Error(), "OS verified") {
+		t.Errorf("refusal %q does not name the stem and the OS verified rows", err)
+	}
+}
+
 // TestTreeRowHoldsStemFiguresWhole guards the row against dropping a count.
 // Goal: every StemFigures field figuresByStem answers reaches the TreeRow
 // `./le rfc tree` builds, and the published keys survive a JSON round trip.
@@ -391,7 +451,7 @@ func TestTreeRowHoldsStemFiguresWhole(t *testing.T) {
 	want := StemFigures{Stem: "rfc1", Walked: true,
 		Mandatory:       Figure{Proven: 1, Total: 4, Attainable: 3, Excluded: map[string]int{AnnotationLinuxLimit: 1}},
 		Optional:        Figure{Proven: 2, Total: 5, Attainable: 4, Excluded: map[string]int{AnnotationLowerLayer: 1}},
-		MandatoryByKind: map[string]int{"functional": 1}, Unmet: []string{"RFC1-1-2"},
+		MandatoryByKind: map[string]int{"functional": 1, kindOS: 1}, Unmet: []string{"RFC1-1-2"},
 		OSVerified: 1, OSGap: 2, NotYet: 3, NotEver: 4, NotDecided: 5, OptionalOSVerified: 6, OptionalOSGap: 7}
 	fields := reflect.ValueOf(want)
 	for index := range fields.NumField() {
@@ -414,11 +474,14 @@ func TestTreeRowHoldsStemFiguresWhole(t *testing.T) {
 	if err := json.Unmarshal(encoded, &decoded); err != nil {
 		t.Fatal(err)
 	}
-	// The OS and intent splits and the figures' Attainable and Excluded are
-	// published only inside the sections, so the decoded figures hold them
-	// zero and the decoded sections hold them whole.
+	// The published `mandatory-proven` includes the OS verified rows, so the
+	// decoded figures take the OS verified count back from the sections and
+	// restore Ze proven. The OS gap, the intent splits, the optional OS splits
+	// and the figures' Attainable and Excluded are still published only inside
+	// the sections, so the decoded figures hold those zero and the decoded
+	// sections hold them whole.
 	published := want
-	published.OSVerified, published.OSGap, published.NotYet, published.NotEver, published.NotDecided = 0, 0, 0, 0, 0
+	published.OSGap, published.NotYet, published.NotEver, published.NotDecided = 0, 0, 0, 0
 	published.OptionalOSVerified, published.OptionalOSGap = 0, 0
 	published.Mandatory = Figure{Proven: want.Mandatory.Proven, Total: want.Mandatory.Total}
 	published.Optional = Figure{Proven: want.Optional.Proven, Total: want.Optional.Total}

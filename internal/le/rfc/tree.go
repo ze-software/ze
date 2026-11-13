@@ -5,6 +5,7 @@ package rfc
 
 import (
 	"encoding/json"
+	"errors"
 	"slices"
 	"strings"
 
@@ -66,8 +67,12 @@ type treeRowFields TreeRow
 // treeRowJSON is the published form of a TreeRow: its own keys, then the
 // figure keys the site and `./le rfc tree | json` read. The section counts are
 // published whole under `sections`; the figures' Attainable and Excluded, and
-// the OS and intent splits they come from, are not published apart, so a row
-// decoded from JSON holds them zero and no TreeRow method reads them.
+// the intent and optional OS splits they come from, are not published apart,
+// so a row decoded from JSON holds them zero and no TreeRow method reads them.
+// `mandatory-proven` is the published proven count, StemFigures.MustProven:
+// Ze proven plus OS verified. A row decoded with its sections takes the OS
+// verified count back from them, so its Ze proven and its MustProven both
+// equal the live row's.
 type treeRowJSON struct {
 	*treeRowFields
 	Walked          bool      `json:"walked"`
@@ -77,7 +82,8 @@ type treeRowJSON struct {
 	OptionalTotal   int       `json:"optional-total"`
 	Sections        *Sections `json:"sections"`
 	// MandatoryByKind is the proven mandatory rows by the strongest evidence
-	// kind behind each, summing to MandatoryProven. Unmet is the ids the
+	// kind behind each, and the OS verified ones under `os`, summing to
+	// MandatoryProven. Unmet is the ids the
 	// summary or an audit says are unmet, published walked or not.
 	MandatoryByKind map[string]int `json:"mandatory-by-kind"`
 	Unmet           []string       `json:"unmet"`
@@ -90,20 +96,38 @@ func (r *TreeRow) MarshalJSON() ([]byte, error) {
 		unmet = []string{}
 	}
 	return json.Marshal(treeRowJSON{treeRowFields: (*treeRowFields)(r), Walked: r.Walked,
-		MandatoryProven: r.Mandatory.Proven, MandatoryTotal: r.Mandatory.Total,
+		MandatoryProven: r.MustProven(), MandatoryTotal: r.Mandatory.Total,
 		OptionalProven: r.Optional.Proven, OptionalTotal: r.Optional.Total,
 		Sections: r.Sections, MandatoryByKind: r.MandatoryByKind, Unmet: unmet})
 }
 
 // UnmarshalJSON reads a published row back, so its cells render as
 // `./le rfc tree` printed them.
+//
+// The published `mandatory-proven` is MustProven, so the OS verified rows the
+// sections carry are taken back out of it to restore Ze proven: the decoded
+// row's MustProven then equals the published count, and its Proof cell the
+// live row's. A row published with no sections (unwalked, or no summary)
+// splits nothing, so it holds the whole count as Ze proven; no figure is
+// published for such a row, and its Proof cell names its state, not a count.
 func (r *TreeRow) UnmarshalJSON(data []byte) error {
 	wire := treeRowJSON{treeRowFields: (*treeRowFields)(r)}
 	if err := json.Unmarshal(data, &wire); err != nil {
 		return err
 	}
-	r.StemFigures = StemFigures{Stem: r.Stem, Walked: wire.Walked,
-		Mandatory:       Figure{Proven: wire.MandatoryProven, Total: wire.MandatoryTotal},
+	osVerified := 0
+	if wire.Sections != nil {
+		osVerified = wire.Sections.Must.OSVerified
+	}
+	if osVerified > wire.MandatoryProven {
+		var tb textbuf.Buffer
+		return errors.New(tb.Str(r.Stem).Str(": the published row counts ").Int(int64(wire.MandatoryProven)).
+			Str(" MUST rows proven but ").Int(int64(osVerified)).
+			Str(" OS verified in its sections, and the proven count includes the OS verified rows, ").
+			Str("so the file was not written by TreeRow.MarshalJSON. Regenerate it with `./le rfc tree` or `./le site build`").String())
+	}
+	r.StemFigures = StemFigures{Stem: r.Stem, Walked: wire.Walked, OSVerified: osVerified,
+		Mandatory:       Figure{Proven: wire.MandatoryProven - osVerified, Total: wire.MandatoryTotal},
 		Optional:        Figure{Proven: wire.OptionalProven, Total: wire.OptionalTotal},
 		MandatoryByKind: wire.MandatoryByKind, Unmet: wire.Unmet}
 	r.Sections = wire.Sections

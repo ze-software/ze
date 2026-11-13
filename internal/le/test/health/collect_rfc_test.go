@@ -189,6 +189,85 @@ func TestPartialHealthExplainsScopedEvidence(t *testing.T) {
 	}
 }
 
+// TestProofDensityCountsOSVerifiedRows checks AC-4 and AC-5 on the health
+// proof density: its numerator is the published proven count, Ze proven plus
+// OS verified, the same the home card divides, and a lower-layer row with a
+// tag and no record is in its denominator only.
+//
+// Method: one walked fixture RFC through collectRFC, whose three MUST rows
+// are one Ze row with a recorded break, one {lower-layer} row whose record
+// broke the producer its annotation names (OS verified), and one {lower-layer}
+// row with a tagged test and no record (an OS testing gap). The density must
+// read 2 / 3: Ze proven alone reads 1 / 3, and the unrecorded row counted
+// reads 3 / 3. A row on the no-break or kernel-producer escape takes the same
+// route as the unrecorded one, through the same figure pass, which
+// rfc.TestProvenPercentCountsOSVerifiedRows drives with both escapes.
+func TestProofDensityCountsOSVerifiedRows(t *testing.T) {
+	root := t.TempDir()
+	const summaryPath = "rfc/short/rfc9999.md"
+	const producer = "internal/sample/widget.go::SendWidget"
+	lowerLayer := "{lower-layer: Linux kernel; " + producer + " installs the widget, and Linux kernel performs the behavior}"
+	summary := "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|---|---|\n| Use cases | - |\n| Optional use cases | - |\n" +
+		"| Title | Widgets |\n| Enrolment | enrolled |\n| Enrolment reason | isolated fixture |\n" +
+		"| Implementation | ze |\n| Implementation reason | fixture production boundary |\n" +
+		"| Support | bgp-core |\n| Support area | Widgets |\n\n" +
+		"## Compliance Checklist\n\n" +
+		"- [ ] [RFC9999-2-1] [MUST] A widget MUST be zero when sent. (§2)\n" +
+		"- [ ] [RFC9999-2-2] [MUST] A gadget MUST be one when sent. (§2) " + lowerLayer + "\n" +
+		"- [ ] [RFC9999-2-3] [MUST] A gizmo MUST be two when sent. (§2) " + lowerLayer + "\n"
+	for rel, body := range map[string]string{
+		".github/workflows/fixture.yml": "name: fixture\non: push\njobs: {}\n",
+		summaryPath:                     summary,
+		rfc.FixtureAggregateRel:         rfc.FixtureAggregateProfile,
+		"rfc/full/rfc9999.txt": "Test RFC 9999\n\n2.  Widgets\n\nA widget MUST be zero when sent. " +
+			"A gadget MUST be one when sent. A gizmo MUST be two when sent.\n",
+		"test/plugin/widget.ci": "# RFC requirement: RFC9999-2-1 positive -- a widget is sent as zero\n" +
+			"# RFC requirement: RFC9999-2-2 positive -- the installed gadget is one\n" +
+			"# RFC requirement: RFC9999-2-3 positive -- the installed gizmo is two\n" +
+			"expect=stdout:contains=OK\n",
+		"internal/sample/widget.go": "package sample\n\nfunc SendWidget(n int) int { return n }\n",
+	} {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var records []rfc.DiscriminationRecord
+	for _, rid := range []string{"RFC9999-2-1", "RFC9999-2-2"} {
+		records = append(records, rfc.DiscriminationRecord{RID: rid, Polarity: rfc.PolarityPositive,
+			Unit: "test/plugin/widget.ci", Route: rfc.RouteRevert, Producer: producer,
+			Break: "return n -> return 0", Citation: "expect=stdout:contains=OK"})
+	}
+	mapped := map[string]string{"2:1": "RFC9999-2-1", "2:2": "RFC9999-2-2", "2:3": "RFC9999-2-3"}
+	if err := rfc.FixtureProof(root, "rfc9999", mapped, records...); err != nil {
+		t.Fatal(err)
+	}
+	tree := newTree(root)
+	tree.tracked = map[string]bool{summaryPath: true}
+	metric, _, err := collectRFC(tree, qualityFloors{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	density, ok := metric.Data.get("proof_density").(object)
+	if !ok {
+		t.Fatalf("proof_density is not an object: %T", metric.Data.get("proof_density"))
+	}
+	if density.get("numerator") != 2 || density.get("denominator") != 3 || metric.Value != "2 / 3" {
+		t.Fatalf("proof density = %v / %v (value %q), want 2 / 3: Ze proven 1 and OS verified 1 of the 3 MUST "+
+			"rows owed, the unrecorded lower-layer row in the denominator only\n%s",
+			density.get("numerator"), density.get("denominator"), metric.Value, metric.Detail)
+	}
+	for _, want := range []string{"1 of them are proven by ze, and 1 are performed by the OS with a verified test",
+		"1 are performed by the OS with no verified test yet"} {
+		if !strings.Contains(metric.Detail, want) {
+			t.Errorf("the detail lacks %q:\n%s", want, metric.Detail)
+		}
+	}
+}
+
 // TestDensityDetailCountsAnExclusionNotOwedOnlyWithItsEvidence: the health
 // page's proof-density explanation says what the published sections do with
 // an annotated row, and what the figure before them counted.

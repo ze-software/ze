@@ -423,6 +423,48 @@ func TestEveryWideRowPublishesItsOwnProofPartition(t *testing.T) {
 	}
 }
 
+// TestProofCellCountsOSVerifiedRows checks AC-4 and AC-5 on the status page
+// Proof cell: N counts the OS verified MUST row beside the Ze-proven one, and
+// no escaped or unrecorded lower-layer row.
+//
+// Method: osVerifiedCorpus (implemented_test.go), whose six MUST rows hold one
+// Ze proven and one OS verified. The cell must read 2 of 6; Ze proven alone
+// reads 1 of 6, and an escape counted as proven reads more than 2.
+func TestProofCellCountsOSVerifiedRows(t *testing.T) {
+	figures := osVerifiedCorpus()
+	if cell := proofCell(figures); cell != "2 of 6 MUST proven" {
+		t.Errorf("Proof cell = %q, want \"2 of 6 MUST proven\": Ze proven 1 and OS verified 1 of 6 (figures %+v)",
+			cell, figures)
+	}
+	if figures.Mandatory.Proven != 1 {
+		t.Errorf("Mandatory.Proven = %d, want 1: the figure Ze's own tests prove stays Ze only", figures.Mandatory.Proven)
+	}
+}
+
+// TestEvidenceKindsSumToTheProofNumerator checks AC-4 on the Evidence cell:
+// the OS verified MUST row is listed under its own `os` kind, so the cell's
+// counts still sum to the Proof cell's numerator.
+//
+// Method: osVerifiedCorpus, whose Ze-proven row carries a unit tag and whose
+// OS verified row carries one too. The cell must read `unit 1, os 1`: an OS
+// verified row counted under its test's kind would read `unit 2`, and one left
+// out would read `unit 1` beside a Proof numerator of 2. The escaped and
+// unrecorded rows, one of them tagged, appear under no kind.
+func TestEvidenceKindsSumToTheProofNumerator(t *testing.T) {
+	figures := osVerifiedCorpus()
+	if cell := evidenceCell(figures); cell != "unit 1, os 1" {
+		t.Errorf("Evidence cell = %q, want \"unit 1, os 1\" (kinds %v)", cell, figures.MandatoryByKind)
+	}
+	sum := 0
+	for _, count := range figures.MandatoryByKind {
+		sum += count
+	}
+	if sum != figures.MustProven() || sum != 2 {
+		t.Errorf("the evidence kinds %v sum to %d, want the Proof numerator MustProven() = %d, which is 2",
+			figures.MandatoryByKind, sum, figures.MustProven())
+	}
+}
+
 // VALIDATES: AC-6 -- the Support migration keeps the public row set: the same
 // stems carry a row, each with the same cells, and the rendered page groups
 // the rows only under headings a declared aggregate owns, each once.

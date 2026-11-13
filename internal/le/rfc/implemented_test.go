@@ -180,6 +180,72 @@ func TestImplementedSectionsCountVerifiedRecordsOnly(t *testing.T) {
 	}
 }
 
+// osVerifiedCorpus is one walked RFC, rfc1, whose six MUST rows land as: one
+// Ze proven (a unit test, a verified record), one OS verified (a lower-layer
+// row whose verified record broke the producer its annotation names), three
+// lower-layer rows that are OS testing gaps (a verified no-break escape, a
+// verified kernel-producer escape, a tag with no record) and one unannotated
+// row on a verified no-break escape, a Ze gap. Two rows are proven by the
+// owner rule of 2026-11-13; none of the escaped or unrecorded rows is.
+func osVerifiedCorpus() StemFigures {
+	requirements := []Requirement{
+		{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust},
+		lowerLayerRow("RFC1-1-2"),
+		lowerLayerRow("RFC1-1-3"),
+		lowerLayerRow("RFC1-1-4"),
+		lowerLayerRow("RFC1-1-5"),
+		{RFC: "rfc1", RID: "RFC1-1-6", Level: levelMust},
+	}
+	verdicts := []DiscriminationVerdict{
+		{Record: DiscriminationRecord{RID: "RFC1-1-1", Route: RouteRevert, Producer: "internal/sample/a.go::A"}, State: ProofVerified},
+		{Record: DiscriminationRecord{RID: "RFC1-1-2", Route: RouteRevert, Producer: lowerLayerProducer}, State: ProofVerified},
+		{Record: DiscriminationRecord{RID: "RFC1-1-3", Route: RouteNoBreak, Producer: lowerLayerProducer}, State: ProofVerified},
+		{Record: DiscriminationRecord{RID: "RFC1-1-4", Route: RouteNoBreak, Reason: escapeKernel, Producer: lowerLayerProducer,
+			KernelFunctions: []string{"net/xfrm/xfrm_input.c::xfrm_input"}, LaterRoute: laterPatchedKernel}, State: ProofVerified},
+		{Record: DiscriminationRecord{RID: "RFC1-1-6", Route: RouteNoBreak, Producer: "internal/sample/a.go::A"}, State: ProofVerified},
+	}
+	tags := []Tag{
+		{RID: "RFC1-1-1", File: "internal/component/a/a_test.go"},
+		{RID: "RFC1-1-2", File: "internal/component/a/a_test.go"},
+		{RID: "RFC1-1-5", File: "internal/component/a/a_test.go"},
+	}
+	carriers := []Carrier{{Name: "unit", Kind: kindUnit, Tier: tierVerify, Prefix: "internal/component/", Suffix: "_test.go"}}
+	stems := map[string]bool{"rfc1": true}
+	evidence := figureEvidence{tags: tagsByRID(tags), carriers: carriers, osProofs: osProofsOf(verdicts),
+		exclusions: acceptEveryExclusion{}}
+	return figuresByStem(requirements, stems, stems, provenRequirements(verdicts), evidence)["rfc1"]
+}
+
+// TestProvenPercentCountsOSVerifiedRows checks AC-4 and AC-5 on the published
+// percentage: an OS verified MUST row is in its numerator beside the Ze-proven
+// one, and a lower-layer row on the no-break or kernel-producer escape, or
+// with a tag and no record, is in the denominator only.
+//
+// Method: osVerifiedCorpus through ImplementedSectionsOf. The percentage must
+// read 2 of 6 (33.3); Ze proven alone reads 1 of 6 (16.7), and counting any
+// escaped or unrecorded row reads more than 2. Ze proven and OS verified stay
+// apart in the sections, because the MUST bar draws them as two segments.
+func TestProvenPercentCountsOSVerifiedRows(t *testing.T) {
+	figures := osVerifiedCorpus()
+	metas := map[string]Meta{"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe,
+		Aggregate: "bgp-core", Row: true}}
+	got, err := ImplementedSectionsOf(metas, map[string]StemFigures{"rfc1": figures})
+	if err != nil {
+		t.Fatalf("ImplementedSectionsOf: %v", err)
+	}
+	must := got.Sections.Must
+	if must.ZeProven != 1 || must.OSVerified != 1 || must.OSGap != 3 || must.ZeGap != 1 || must.Kept != 6 {
+		t.Fatalf("MUST sections = %+v, want Ze proven 1, OS verified 1, OS gap 3, Ze gap 1 of 6 kept", must)
+	}
+	if proven := must.Proven(); proven != 2 {
+		t.Errorf("MustSections.Proven() = %d, want 2: the Ze-proven row and the OS verified row", proven)
+	}
+	if percent := got.ProvenPercent(); percent != "33.3" {
+		t.Errorf("ProvenPercent() = %q, want \"33.3\": 2 proven (Ze proven 1, OS verified 1) of the 6 MUST rows "+
+			"Ze and the OS owe; no escaped or unrecorded row is proven", percent)
+	}
+}
+
 // TestImplementedSectionsOfRefusesAnEmptyPopulation checks that a corpus in
 // which no enrolled RFC renders a public row is an error rather than a zero.
 //
