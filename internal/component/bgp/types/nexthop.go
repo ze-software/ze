@@ -2,7 +2,11 @@
 
 package types
 
-import "net/netip"
+import (
+	"net/netip"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
 
 // NextHopPolicy specifies how next-hop is determined for a route.
 type NextHopPolicy uint8
@@ -11,6 +15,7 @@ const (
 	NextHopUnset    NextHopPolicy = iota // Zero value = invalid
 	NextHopExplicit                      // Use configured IP address
 	NextHopSelf                          // Use session's local address
+	NextHopDefault                       // Choose the peer default using Addr as the internal gateway
 )
 
 // RouteNextHop encapsulates next-hop policy for route origination.
@@ -20,7 +25,7 @@ const (
 // RFC 5549/8950 - Extended Next Hop Encoding (cross-family resolution).
 type RouteNextHop struct {
 	Policy NextHopPolicy
-	Addr   netip.Addr // Valid only when Policy == NextHopExplicit
+	Addr   netip.Addr // Candidate for Default; chosen address for Explicit; unused for Self.
 }
 
 // NewNextHopExplicit creates a RouteNextHop with an explicit address.
@@ -40,6 +45,12 @@ func NewNextHopSelf() RouteNextHop {
 	}
 }
 
+// NewNextHopDefault carries an internal gateway until the destination session
+// chooses its next hop. An invalid candidate is uninitialized and is not valid.
+func NewNextHopDefault(candidate netip.Addr) RouteNextHop {
+	return RouteNextHop{Policy: NextHopDefault, Addr: candidate}
+}
+
 // IsSelf returns true if this next-hop uses the session's local address.
 func (n RouteNextHop) IsSelf() bool {
 	return n.Policy == NextHopSelf
@@ -52,13 +63,13 @@ func (n RouteNextHop) IsExplicit() bool {
 
 // IsValid returns true if this RouteNextHop is usable.
 // - Self is always valid (resolution happens at send time)
-// - Explicit is valid only if Addr is valid
+// - Explicit and Default are valid only if Addr is valid
 // - Unset is never valid.
 func (n RouteNextHop) IsValid() bool {
 	switch n.Policy {
 	case NextHopSelf:
 		return true
-	case NextHopExplicit:
+	case NextHopExplicit, NextHopDefault:
 		return n.Addr.IsValid()
 	case NextHopUnset:
 		return false
@@ -68,7 +79,7 @@ func (n RouteNextHop) IsValid() bool {
 	}
 }
 
-// String returns "self", the IP address, or "" for invalid.
+// String returns the text policy, or "" for an invalid value.
 func (n RouteNextHop) String() string {
 	switch n.Policy {
 	case NextHopSelf:
@@ -78,6 +89,12 @@ func (n RouteNextHop) String() string {
 			return n.Addr.String()
 		}
 		return ""
+	case NextHopDefault:
+		if !n.Addr.IsValid() {
+			return ""
+		}
+		var b textbuf.Buffer
+		return b.Str("default ").Addr(n.Addr).String()
 	case NextHopUnset:
 		return ""
 	default:

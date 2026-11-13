@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
@@ -32,7 +33,7 @@ func (c *closingDrainTeardownConn) Write(b []byte) (int, error) {
 	c.writes++
 	switch c.writes {
 	case 1:
-		if err := c.peer.QueueAnnounce(c.route, false, false); err != nil {
+		if err := c.peer.QueueAnnounce(c.route, bgptypes.NextHopExplicit, false); err != nil {
 			return 0, err
 		}
 	case 2:

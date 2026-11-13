@@ -594,7 +594,7 @@ keyword and answers with the flat form to use.
 |---------|-----------|-----------|-----------|
 | `origin` | `igp \| egp \| incomplete` | ORIGIN (1) | RFC 4271 Section 5.1.1 |
 | `as-path` | `[ <asn>... ]` | AS_PATH (2) | RFC 4271 Section 5.1.2 |
-| `next-hop` | `<address> \| self` | NEXT_HOP (3) | RFC 4271 Section 5.1.3 |
+| `next-hop` | `<address> \| self \| default <gateway>` | NEXT_HOP (3) | RFC 4271 Section 5.1.3 |
 | `med` | `<uint32>` | MULTI_EXIT_DISC (4) | RFC 4271 Section 5.1.4 |
 | `local-preference` | `<uint32>` | LOCAL_PREF (5) | RFC 4271 Section 5.1.5 |
 | `atomic-aggregate` | none | ATOMIC_AGGREGATE (6) | RFC 4271 Section 5.1.6 |
@@ -608,6 +608,21 @@ keyword and answers with the flat form to use.
 | `bgp-prefix-sid` | `[ <index> ]` or `[ <index>, [ ( <base>,<range> ) ... ] ]` | BGP Prefix-SID (40) | RFC 8669 Sections 3.1 and 3.2 |
 | `bgp-prefix-sid-srv6` | `( <service> <sid> [<behavior>] [<structure>] )` | BGP Prefix-SID (40) | RFC 8669, RFC 9252 Section 3 |
 | `attribute` | `[ 0x<code> 0x<flags> 0x<value> ]` | any type code, given as its wire octets | RFC 4271 Section 4.3 |
+
+`next-hop default <gateway>` leaves the next-hop choice to each destination.
+An internal peer normally receives the gateway; an external peer receives the
+connected session's local address. An IPv6 link-local gateway uses the session's
+local address for either peer type, because the gateway's interface scope does not
+identify a next hop on the BGP session. A gateway equal to the internal peer also
+uses the local address. The peer's configured `self`, `unchanged` or explicit
+next-hop setting overrides this default. The selected address must still meet
+the wire-format and negotiated-capability checks. `next-hop <address>` remains
+an explicit announcement, and `next-hop self` always names the sending session.
+For IPv4 unicast, use `nlri` with the late-bound `default` and `self` policies:
+the reactor chooses the wire section from the address each peer resolves.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- parseNhopFlat -->
+<!-- source: internal/component/bgp/reactor/peer.go -- defaultOriginationNextHop, resolveNextHop -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- inlineIPv4Unicast -->
 
 `bgp-prefix-sid` and `bgp-prefix-sid-srv6` write the one BGP Prefix-SID
 attribute, so a command that gives either of them twice, or both, is refused

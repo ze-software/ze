@@ -492,6 +492,19 @@ over its own connection to the engine. A build without a protocol has neither,
 so a build without BGP has no `bgp` destination, and a config naming one is
 refused at load with the list of destinations the build does declare.
 
+When BGP receives a redistributed route with a gateway, it chooses the next hop
+for each destination peer. Internal peers normally keep that gateway. External
+peers use this router's address on their BGP session, so a gateway on another
+internal link does not make the announcement unusable. If the gateway is the
+internal peer itself, the announcement also uses this router's session address.
+An IGP IPv6 link-local gateway uses the session address for internal and external
+peers, because the IGP gateway's interface scope does not carry across sessions.
+The peer's configured next-hop policy can override that default. A route with
+no gateway, such as a connected prefix, uses the session address. Each selected
+address must still meet the wire-format and negotiated-capability checks.
+<!-- source: internal/component/bgp/redistribute/consumer.go -- formatAnnounce -->
+<!-- source: internal/component/bgp/reactor/peer.go -- defaultOriginationNextHop, resolveNextHop -->
+
 **A protocol is never redistributed into itself.** `destination isis { import
 isis }` parses and moves nothing, at every guard: the config evaluator, the
 dispatch fan-out and the replay all ask one predicate.

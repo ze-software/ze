@@ -113,7 +113,7 @@ type LargeCommunity = attribute.LargeCommunity
 // mutation would corrupt internal state.
 type RouteSpec struct {
 	Prefix  netip.Prefix
-	NextHop RouteNextHop              // Encapsulates next-hop policy (explicit or self)
+	NextHop RouteNextHop              // Explicit, self or per-peer default next-hop policy.
 	Wire    *attribute.AttributesWire // Path attributes in wire format
 }
 
@@ -236,7 +236,7 @@ type NLRIGroup struct {
 	Announce     []nlri.NLRI               // NLRIs to announce
 	Withdraw     []nlri.NLRI               // NLRIs to withdraw
 	Wire         *attribute.AttributesWire // Path attributes in wire format
-	NextHop      RouteNextHop              // Encapsulates next-hop policy (explicit or self)
+	NextHop      RouteNextHop              // Explicit, self or per-peer default next-hop policy.
 	WatchdogName string                    // Watchdog pool name for routes (empty = none)
 	// OriginAS, when nonzero, originates the route as a virtual router with this
 	// AS: the reactor synthesizes AS_PATH [OriginAS] for iBGP peers and prepends

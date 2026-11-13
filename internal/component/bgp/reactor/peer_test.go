@@ -405,8 +405,8 @@ func TestPeerOpQueueOrdering(t *testing.T) {
 	route1 := testRoute("10.0.0.0/8")
 	route2 := testRoute("20.0.0.0/8")
 
-	require.NoError(t, peer.QueueAnnounce(route1, false, false))
-	require.NoError(t, peer.QueueAnnounce(route2, false, false))
+	require.NoError(t, peer.QueueAnnounce(route1, bgptypes.NextHopExplicit, false))
+	require.NoError(t, peer.QueueAnnounce(route2, bgptypes.NextHopExplicit, false))
 
 	// Verify queue order
 	peer.mu.RLock()
@@ -446,7 +446,7 @@ func TestPeerShouldQueue(t *testing.T) {
 
 	// The gate is open, so the queue refuses: nothing would drain the route.
 	route := testRoute("10.0.0.0/8")
-	require.ErrorIs(t, peer.QueueAnnounce(route, false, false), errQueueGateOpen)
+	require.ErrorIs(t, peer.QueueAnnounce(route, bgptypes.NextHopExplicit, false), errQueueGateOpen)
 	require.ErrorIs(t, peer.QueueWithdraw(route.NLRI(), &queuedWithdrawal{}), errQueueGateOpen)
 	require.False(t, peer.shouldQueue(), "a refused operation must not close the gate")
 
@@ -455,7 +455,7 @@ func TestPeerShouldQueue(t *testing.T) {
 	peer.opQueue = append(peer.opQueue, peerOp{Type: PeerOpAnnounce, Route: route})
 	peer.mu.Unlock()
 	require.True(t, peer.shouldQueue(), "should queue when opQueue non-empty")
-	require.NoError(t, peer.QueueAnnounce(route, false, false), "a closed gate queues")
+	require.NoError(t, peer.QueueAnnounce(route, bgptypes.NextHopExplicit, false), "a closed gate queues")
 
 	// Clear queue, still established → should not queue
 	peer.mu.Lock()
@@ -512,9 +512,9 @@ func TestPeerOpQueueMixedOperations(t *testing.T) {
 	route1 := testRoute("10.0.0.0/8")
 	route2 := testRoute("20.0.0.0/8")
 
-	require.NoError(t, peer.QueueAnnounce(route1, false, false))
+	require.NoError(t, peer.QueueAnnounce(route1, bgptypes.NextHopExplicit, false))
 	require.NoError(t, peer.Teardown(4, ""))
-	require.NoError(t, peer.QueueAnnounce(route2, false, false))
+	require.NoError(t, peer.QueueAnnounce(route2, bgptypes.NextHopExplicit, false))
 
 	peer.mu.RLock()
 	require.Len(t, peer.opQueue, 3, "queue should have 3 items")
@@ -570,7 +570,7 @@ func TestPeerOpQueueOverflow(t *testing.T) {
 	// Fill queue to capacity with valid routes
 	route := testRoute("10.0.0.0/8")
 	for range DefaultOpQueueSize {
-		require.NoError(t, peer.QueueAnnounce(route, false, false))
+		require.NoError(t, peer.QueueAnnounce(route, bgptypes.NextHopExplicit, false))
 	}
 
 	peer.mu.RLock()
@@ -578,7 +578,7 @@ func TestPeerOpQueueOverflow(t *testing.T) {
 	peer.mu.RUnlock()
 
 	// Past the cap the route is DROPPED, not delayed, and the caller is told.
-	require.ErrorIs(t, peer.QueueAnnounce(route, false, false), ErrOpQueueFull)
+	require.ErrorIs(t, peer.QueueAnnounce(route, bgptypes.NextHopExplicit, false), ErrOpQueueFull)
 	require.ErrorIs(t, peer.Teardown(4, ""), ErrOpQueueFull)
 
 	peer.mu.RLock()

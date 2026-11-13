@@ -98,7 +98,7 @@ type initialSyncQueueConn struct {
 
 func (c *initialSyncQueueConn) Write(b []byte) (int, error) {
 	if c.route != nil {
-		if err := c.peer.QueueAnnounce(c.route, false, false); err != nil {
+		if err := c.peer.QueueAnnounce(c.route, bgptypes.NextHopExplicit, false); err != nil {
 			return 0, err
 		}
 		c.route = nil
@@ -137,7 +137,7 @@ func TestInitialSyncPanicReleasesPeerLocks(t *testing.T) {
 			codec := &initialSyncPanicNLRI{NLRI: wire}
 			route := rib.NewRouteWithASPath(codec, netip.Addr{}, nil, nil)
 			if phase == "queued-initial" {
-				if err := peer.QueueAnnounce(route, false, false); err != nil {
+				if err := peer.QueueAnnounce(route, bgptypes.NextHopExplicit, false); err != nil {
 					t.Fatal(err)
 				}
 			} else {
@@ -222,7 +222,7 @@ func TestInitialSyncQueuedWritePanicRunsUnlocked(t *testing.T) {
 				failAt: 1,
 			}
 			if phase == "queued-initial" {
-				if err := peer.QueueAnnounce(route, false, false); err != nil {
+				if err := peer.QueueAnnounce(route, bgptypes.NextHopExplicit, false); err != nil {
 					t.Fatal(err)
 				}
 			} else {

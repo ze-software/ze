@@ -6,7 +6,7 @@
 // Detail: update_text_vpls.go — VPLS NLRI parsing
 // RFC: rfc/short/rfc1997.md -- COMMUNITIES attribute and well-known values (parseCommunityText)
 // RFC: rfc/short/rfc3765.md -- NOPEER well-known community (parseCommunityText)
-// RFC: rfc/short/rfc2545.md -- the next-hop value must be a global IPv6 address (parseNhopFlat)
+// RFC: rfc/short/rfc2545.md -- an explicit IPv6 next hop must be global (parseNhopFlat)
 // RFC: rfc/short/rfc4271.md -- ATOMIC_AGGREGATE and AGGREGATOR (parseAggregatorText)
 // RFC: rfc/short/rfc4456.md -- ORIGINATOR_ID and CLUSTER_LIST (parseClusterIDText)
 // RFC: rfc/short/rfc6793.md -- the AGGREGATOR ASN is written four-octet (parseAggregatorText)
@@ -71,6 +71,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -187,8 +188,8 @@ func isBoundaryKeyword(token string) bool {
 // Includes next-hop which is NOT part of path attributes.
 // Path-id moved to per-NLRI-section modifier (in nlriAccum).
 type parsedAttrs struct {
-	NextHop     netip.Addr
-	NextHopSelf bool
+	NextHop       netip.Addr
+	NextHopPolicy bgptypes.NextHopPolicy
 
 	// Path attributes (wire-first: build directly to wire format).
 	Origin              *uint8
@@ -366,13 +367,8 @@ func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, bgptypes.RouteNextH
 		wire = attribute.NewAttributesWire(wireBytes, context.APIContextID)
 	}
 
-	// Convert to bgptypes.RouteNextHop: Self takes precedence if set
-	var nh bgptypes.RouteNextHop
-	if a.NextHopSelf {
-		nh = bgptypes.NewNextHopSelf()
-	} else if a.NextHop.IsValid() {
-		nh = bgptypes.NewNextHopExplicit(a.NextHop)
-	}
+	// The address and typed policy stay together until the destination resolves it.
+	nh := bgptypes.RouteNextHop{Policy: a.NextHopPolicy, Addr: a.NextHop}
 
 	// Deep copy labels slice
 	var labels []uint32
@@ -1057,7 +1053,7 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 	return &bgptypes.UpdateTextResult{Groups: groups, WatchdogName: watchdog, EORFamilies: eorFamilies}, nil
 }
 
-// parseNhopFlat parses next-hop <address|self> (flat, no set/del).
+// parseNhopFlat parses next-hop <address|self|default address> (flat, no set/del).
 func parseNhopFlat(args []string, accum *parsedAttrs) (int, error) {
 	// args[0] = "next-hop" (alias-resolved)
 	if len(args) < 2 {
@@ -1069,24 +1065,48 @@ func parseNhopFlat(args []string, accum *parsedAttrs) (int, error) {
 	}
 	value := args[1]
 	if value == kwSelf {
-		accum.NextHopSelf = true
+		accum.NextHopPolicy = bgptypes.NextHopSelf
 		accum.NextHop = netip.Addr{}
 		return 2, nil
 	}
+	policy := bgptypes.NextHopExplicit
+	consumed := 2
+	if value == "default" {
+		if len(args) < 3 {
+			return 0, opererr.New("next-hop default requires a gateway address",
+				"The destination peer needs a gateway candidate before it can choose the route's next hop.",
+				"update text next-hop default 192.0.2.1 nlri add 203.0.113.0/24")
+		}
+		value = args[2]
+		policy = bgptypes.NextHopDefault
+		consumed = 3
+	}
 	addr, err := netip.ParseAddr(value)
 	if err != nil {
+		if policy == bgptypes.NextHopDefault {
+			return 0, invalidDefaultNextHop(err)
+		}
 		return 0, fmt.Errorf("invalid next-hop: %w", err)
 	}
-	// RFC 2545 Section 3: the Network Address of Next Hop field carries the
-	// GLOBAL IPv6 address of the next hop. Ze appends the link-local half itself,
-	// from the session's link-local leaf, when the section's condition holds, so
-	// a link-local offered here has no global address to follow.
-	if err := attribute.ValidateGlobalNextHop(addr); err != nil {
-		return 0, err
+	// A default candidate is an IGP gateway; its link-local scope can make the
+	// destination choose self instead. Validate the advertised address only
+	// after that choice. Explicit input names that address now.
+	// RFC 2545 Section 3: the explicit IPv6 field needs a global address before
+	// the optional link-local half Ze appends from the session's link-local leaf.
+	if policy == bgptypes.NextHopExplicit {
+		if err := attribute.ValidateGlobalNextHop(addr); err != nil {
+			return 0, err
+		}
 	}
 	accum.NextHop = addr
-	accum.NextHopSelf = false
-	return 2, nil
+	accum.NextHopPolicy = policy
+	return consumed, nil
+}
+
+func invalidDefaultNextHop(cause error) error {
+	return opererr.Wrap(cause, "next-hop default gateway is invalid",
+		"The gateway candidate must be a valid IP address before each destination selects its next hop.",
+		"update text next-hop default 192.0.2.1 nlri add 203.0.113.0/24")
 }
 
 // parseRDFlat parses rd <value> (flat, no set/del).

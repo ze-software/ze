@@ -47,6 +47,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/test/sim"
@@ -551,11 +552,11 @@ func TestUpdateDelayQueueOverrunIsReportedNotSwallowed(t *testing.T) {
 	require.True(t, p.shouldQueue(), "a held peer must queue, or this test proves nothing about the hold")
 
 	for i := range p.opQueueMax {
-		require.NoError(t, p.QueueAnnounce(testRoute("10.0.0.0/24"), false, false),
+		require.NoError(t, p.QueueAnnounce(testRoute("10.0.0.0/24"), bgptypes.NextHopExplicit, false),
 			"announce %d must fit under the cap", i)
 	}
 
-	require.ErrorIs(t, p.QueueAnnounce(testRoute("10.0.1.0/24"), false, false), ErrOpQueueFull,
+	require.ErrorIs(t, p.QueueAnnounce(testRoute("10.0.1.0/24"), bgptypes.NextHopExplicit, false), ErrOpQueueFull,
 		"an announce past the cap must be REFUSED, not dropped in silence")
 	require.ErrorIs(t, p.QueueWithdraw(testRoute("10.0.2.0/24").NLRI(), &queuedWithdrawal{}), ErrOpQueueFull,
 		"a withdrawal past the cap must be refused too: the peer keeps forwarding to a prefix this speaker took back")

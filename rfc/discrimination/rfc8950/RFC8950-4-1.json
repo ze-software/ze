@@ -2,6 +2,28 @@
   {
     "rid": "RFC8950-4-1",
     "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair",
+    "unit-sha": "5c5a22c48dac4131",
+    "claim-sha": "857a23a194752ceb",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "f5de8d610f57837f",
+    "break": "line 436: \"neg.buildSubComponents()\" -\u003e \"delete(neg.extendedNextHop, Family{AFI: AFIIPv4, SAFI: SAFIUnicast}); neg.buildSubComponents()\""
+  },
+  {
+    "rid": "RFC8950-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair",
+    "unit-sha": "5c5a22c48dac4131",
+    "claim-sha": "a66dedb312bfa883",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "f5de8d610f57837f",
+    "break": "line 436: \"neg.buildSubComponents()\" -\u003e \"neg.extendedNextHop[Family{AFI: AFIIPv4, SAFI: SAFIUnicast}] = AFIIPv6; neg.buildSubComponents()\""
+  },
+  {
+    "rid": "RFC8950-4-1",
+    "polarity": "positive",
     "unit": "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission",
     "unit-sha": "824702e9cfc37c11",
     "claim-sha": "7a6d08afdd4aef21",
@@ -64,6 +86,17 @@
     "producer": "internal/component/bgp/reactor/peer.go::canUseNextHopFor",
     "producer-sha": "2ee85657a4c76fe5",
     "break": "body of canUseNextHopFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8950-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8950_default_link_local_test.go::TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy",
+    "unit-sha": "cd70dd22e30e9c78",
+    "claim-sha": "fc36c98485ec3d56",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/peer.go::resolveNextHop",
+    "producer-sha": "a48dfc4d7335e606",
+    "break": "line 1780: \"addr = nh.Addr\" -\u003e \"addr = nh.Addr; if addr.Is6() \u0026\u0026 addr.IsLinkLocalUnicast() { phantomCaps := []capability.Capability{\u0026capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}, \u0026capability.ExtendedNextHop{Families: []capability.ExtendedNextHopFamily{{NLRIAFI: capability.AFIIPv4, NLRISAFI: capability.SAFIUnicast, NextHopAFI: capability.AFIIPv6}}}, \u0026capability.LinkLocalNextHop{}}; forged := capability.Negotiate(phantomCaps, phantomCaps, capability.PeerIdentity{LocalASN: p.settings.LocalAS, PeerASN: p.settings.PeerAS, Internal: p.settings.IsIBGP()}); p.negotiated.Store(NewNegotiatedCapabilities(forged)); p.sendCtx.Store(bgpctx.FromNegotiatedSend(forged)); session.negotiated = forged }\""
   },
   {
     "rid": "RFC8950-4-1",

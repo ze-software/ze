@@ -233,7 +233,7 @@ func clearAttr(attrs *parsedAttrs, keyword string) {
 		attrs.Raw = nil
 	case textparse.KWNextHop:
 		attrs.NextHop = netip.Addr{}
-		attrs.NextHopSelf = false
+		attrs.NextHopPolicy = bgptypes.NextHopUnset
 	}
 }
 

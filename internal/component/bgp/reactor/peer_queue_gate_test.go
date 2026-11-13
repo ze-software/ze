@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 )
 
 // TestQueueRefusedAfterGateOpens replays the interleaving that parked a plugin
@@ -26,7 +27,7 @@ func TestQueueRefusedAfterGateOpens(t *testing.T) {
 	require.False(t, peer.drainAndCloseQueueGate("192.0.2.1", 4096), "an empty drain tears nothing down")
 
 	route := testRoute("203.0.113.0/24")
-	require.ErrorIs(t, peer.QueueAnnounce(route, false, false), errQueueGateOpen)
+	require.ErrorIs(t, peer.QueueAnnounce(route, bgptypes.NextHopExplicit, false), errQueueGateOpen)
 	require.ErrorIs(t, peer.QueueWithdraw(route.NLRI(), &queuedWithdrawal{}), errQueueGateOpen)
 	peer.mu.RLock()
 	parked := len(peer.opQueue)

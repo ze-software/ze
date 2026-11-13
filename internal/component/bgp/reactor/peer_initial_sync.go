@@ -189,7 +189,7 @@ func (p *Peer) sendInitialRoutes() {
 			nextHop := op.Route.NextHop()
 			if fam.NeedsNextHop() {
 				var err error
-				nextHop, err = p.resolveNextHop(session, queuedNextHopPolicy(op), fam)
+				nextHop, err = p.resolveQueuedNextHop(session, op, fam)
 				if err != nil {
 					routesLogger().Warn("queued next-hop resolution failed", "peer", addr, "error", err)
 					processed++
@@ -494,7 +494,7 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown b
 			nextHop := op.Route.NextHop()
 			if fam.NeedsNextHop() {
 				var err error
-				nextHop, err = p.resolveNextHop(session, queuedNextHopPolicy(op), fam)
+				nextHop, err = p.resolveQueuedNextHop(session, op, fam)
 				if err != nil {
 					routesLogger().Warn("queued next-hop resolution failed", "peer", addr, "error", err)
 					finalProcessed++
@@ -1236,8 +1236,23 @@ func sendEORFamilies(send bool, negotiated []family.Family) []family.Family {
 // capabilities that session negotiated, which did not exist when the route was
 // queued (Peer.resolveNextHop, RFC 8950 Section 4).
 func queuedNextHopPolicy(op peerOp) bgptypes.RouteNextHop {
-	if op.NextHopSelf {
-		return bgptypes.NewNextHopSelf()
+	return bgptypes.RouteNextHop{Policy: op.NextHopPolicy, Addr: op.Route.NextHop()}
+}
+
+// resolveQueuedNextHop is called with p.mu held by either queue drain. Select
+// default policy from that protected configuration before entering the common
+// explicit/self resolver, so it never acquires p.mu again under the drain lock.
+func (p *Peer) resolveQueuedNextHop(session *Session, op peerOp, fam family.Family) (netip.Addr, error) {
+	policy := queuedNextHopPolicy(op)
+	if policy.Policy == bgptypes.NextHopDefault {
+		// RFC 4271 Section 5.1.3: select the default origination next hop.
+		chosen, err := defaultOriginationNextHop(p.settings, policy.Addr)
+		if err != nil {
+			return netip.Addr{}, err
+		}
+		policy = chosen
 	}
-	return bgptypes.NewNextHopExplicit(op.Route.NextHop())
+	// RFC 4271 Section 5.1.3 and RFC 8950 Section 4: resolve the selected
+	// address using this session's next-hop capabilities.
+	return p.resolveNextHop(session, policy, fam)
 }

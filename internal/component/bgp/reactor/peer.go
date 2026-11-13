@@ -152,11 +152,11 @@ const (
 // peerOp represents a queued operation (announce, withdraw, teardown, or an
 // Enhanced Route Refresh marker).
 type peerOp struct {
-	Type        PeerOpType
-	Route       *rib.Route // For PeerOpAnnounce
-	NextHopSelf bool       // Resolve against the session that drains this announcement.
-	Replay      bool       // Preserve the sent entry's origin when a refresh is queued.
-	NLRI        nlri.NLRI  // For PeerOpWithdraw
+	Type          PeerOpType
+	Route         *rib.Route             // For PeerOpAnnounce
+	NextHopPolicy bgptypes.NextHopPolicy // Resolve against the session that drains this announcement.
+	Replay        bool                   // Preserve the sent entry's origin when a refresh is queued.
+	NLRI          nlri.NLRI              // For PeerOpWithdraw
 	// Withdrawal is the command a PeerOpWithdraw came from, so the drain frames
 	// the same UPDATE the direct write would have (queuedWithdrawal).
 	Withdrawal *queuedWithdrawal // For PeerOpWithdraw
@@ -1765,6 +1765,14 @@ func (p *Peer) linkLocalOnlyNextHopPermitted(fam family.Family) bool {
 func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam family.Family) (netip.Addr, error) {
 	var addr netip.Addr
 	switch nh.Policy {
+	case bgptypes.NextHopDefault:
+		p.mu.RLock()
+		chosen, err := defaultOriginationNextHop(p.settings, nh.Addr)
+		p.mu.RUnlock()
+		if err != nil {
+			return netip.Addr{}, err
+		}
+		return p.resolveNextHop(session, chosen, fam)
 	case bgptypes.NextHopExplicit:
 		// An invalid explicit address is left to the wire builder, which refuses
 		// it (errAnnounceNextHopUnencodable). No builder knows the negotiated
@@ -1797,6 +1805,46 @@ func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam fa
 		return netip.Addr{}, ErrNextHopLinkLocalOnly
 	}
 	return addr, nil
+}
+
+// defaultOriginationNextHop chooses the policy for a locally originated route.
+// The candidate is its internal gateway, not an explicit BGP API override.
+//
+// RFC 4271 Section 5.1.3: "By default (if none of the above conditions apply),
+// the BGP speaker SHOULD use the IP address of the interface that the speaker
+// uses to establish the BGP connection to peer X in the NEXT_HOP attribute."
+// An internal peer keeps the gateway unless it is IPv6 link-local or names that peer.
+// External third-party next hops are optional; the default here is self.
+func defaultOriginationNextHop(s *PeerSettings, candidate netip.Addr) (bgptypes.RouteNextHop, error) {
+	if !candidate.IsValid() {
+		return bgptypes.RouteNextHop{}, ErrNextHopUnset
+	}
+	switch s.NextHopMode {
+	case NextHopSelf:
+		return bgptypes.NewNextHopSelf(), nil
+	case NextHopExplicit:
+		return bgptypes.NewNextHopExplicit(s.NextHopAddress), nil
+	case NextHopUnchanged:
+		return bgptypes.NewNextHopExplicit(candidate), nil
+	case NextHopAuto:
+		if !s.IsIBGP() {
+			return bgptypes.NewNextHopSelf(), nil
+		}
+		// The IPv6 gateway's interface scope does not identify a next hop on
+		// this BGP session. Use self before checking its advertised wire form.
+		if candidate.Is6() {
+			if candidate.IsLinkLocalUnicast() {
+				return bgptypes.NewNextHopSelf(), nil
+			}
+		}
+		if candidate == s.Address {
+			return bgptypes.NewNextHopSelf(), nil
+		}
+		return bgptypes.NewNextHopExplicit(candidate), nil
+	default:
+		// A caller-supplied setting is open until config validates it.
+		return bgptypes.RouteNextHop{}, ErrNextHopUnset
+	}
 }
 
 // linkLocalOnlyNextHopRefused reports whether addr, written alone in the Next
@@ -2624,7 +2672,7 @@ func handshakeInFlight(session *Session) bool {
 
 // QueueAnnounce queues a route announcement for when session establishes.
 // Used when session is not established to maintain operation order.
-// nextHopSelf retains the policy until the receiving session drains the queue.
+// nextHopPolicy retains the policy until the receiving session drains the queue.
 // If queue is full, the operation is dropped with a warning.
 // Returns errQueueGateOpen when the gate opened after the caller's shouldQueue
 // read, and the caller sends the route directly (see queueGateClosedLocked).
@@ -2633,7 +2681,7 @@ func handshakeInFlight(session *Session) bool {
 // NEVER, because the queue is the only path while the gate is closed, and a
 // caller that cannot tell a queued route from a dropped one reports success for
 // a RIB the peer will never receive (ai/rules/principles.md).
-func (p *Peer) QueueAnnounce(route *rib.Route, nextHopSelf, replay bool) error {
+func (p *Peer) QueueAnnounce(route *rib.Route, nextHopPolicy bgptypes.NextHopPolicy, replay bool) error {
 	p.mu.Lock()
 	if !p.queueGateClosedLocked() {
 		p.mu.Unlock()
@@ -2646,7 +2694,7 @@ func (p *Peer) QueueAnnounce(route *rib.Route, nextHopSelf, replay bool) error {
 		p.raiseOpQueueFull(size)
 		return ErrOpQueueFull
 	}
-	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpAnnounce, Route: route, NextHopSelf: nextHopSelf, Replay: replay})
+	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpAnnounce, Route: route, NextHopPolicy: nextHopPolicy, Replay: replay})
 	p.mu.Unlock()
 	return nil
 }

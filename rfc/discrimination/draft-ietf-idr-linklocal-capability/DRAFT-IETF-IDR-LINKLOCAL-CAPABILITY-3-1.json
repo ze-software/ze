@@ -18,7 +18,7 @@
     "claim-sha": "4c914426e65328d4",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer.go::resolveNextHop",
-    "producer-sha": "1ba5ccc72018f0d0",
-    "break": "body of resolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a48dfc4d7335e606",
+    "break": "body of resolveNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

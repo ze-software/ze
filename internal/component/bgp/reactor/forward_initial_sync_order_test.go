@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -356,7 +357,7 @@ func TestQueuedLocalAnnounceSurvivesRemoteWithdrawal(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			r, src, dst, conn, ctxID := newSyncOrderRail(t)
-			require.NoError(t, dst.QueueAnnounce(testRoute(syncOrderPrefix), false, false))
+			require.NoError(t, dst.QueueAnnounce(testRoute(syncOrderPrefix), bgptypes.NextHopExplicit, false))
 			adapter := &reactorAPIAdapter{r: r}
 			send := func(id uint64, body []byte) {
 				update := syncOrderPublish(t, r, ctxID, id, body)

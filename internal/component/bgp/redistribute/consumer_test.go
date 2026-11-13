@@ -74,10 +74,10 @@ func TestBGPConsumerInjectRoute(t *testing.T) {
 	assert.Equal(t, "update text origin incomplete nhop self nlri add 10.0.0.1/32", calls[0].command)
 }
 
-// TestBGPConsumerInjectRouteExplicitNextHop verifies explicit next-hop is preserved.
+// TestBGPConsumerInjectRouteExplicitNextHop verifies the candidate gateway is preserved.
 //
-// VALIDATES: AC-10 -- explicit nhop in RouteEntry appears in command text.
-// PREVENTS: NextHop being silently replaced with "self".
+// VALIDATES: AC-10 -- the gateway in RouteEntry reaches the per-peer default policy.
+// PREVENTS: losing the gateway internal peers need when external peers select self.
 func TestBGPConsumerInjectRouteExplicitNextHop(t *testing.T) {
 	disp := &fakeDispatcher{}
 	c := NewBGPConsumer(disp)
@@ -89,7 +89,7 @@ func TestBGPConsumerInjectRouteExplicitNextHop(t *testing.T) {
 
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
-	assert.Equal(t, "update text origin incomplete nhop 192.0.2.1 nlri add 10.0.0.0/24", calls[0].command)
+	assert.Equal(t, "update text origin incomplete nhop default 192.0.2.1 nlri add 10.0.0.0/24", calls[0].command)
 }
 
 // TestBGPConsumerInjectRouteIPv6 verifies IPv6 announce command.

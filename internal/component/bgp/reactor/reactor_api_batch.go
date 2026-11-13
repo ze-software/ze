@@ -939,7 +939,7 @@ func (a *reactorAPIAdapter) queueAnnounceForPeer(ctx context.Context, peer *Peer
 			return i, err
 		}
 		ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
-		if err := peer.QueueAnnounce(ribRoute, batch.NextHop.IsSelf(), batch.Replay); err != nil {
+		if err := peer.QueueAnnounce(ribRoute, batch.NextHop.Policy, batch.Replay); err != nil {
 			return i, err
 		}
 	}

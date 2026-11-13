@@ -79,8 +79,7 @@ func (c *BGPConsumer) WithdrawRoute(ctx context.Context, fam family.Family, pref
 // router route (`origin igp origin-as <originASN>`): the reactor applies the
 // normal export rule, so the AS_PATH is [originASN] to iBGP peers and
 // [localAS, originASN] to eBGP peers (unlike a verbatim `as-path`). Otherwise it
-// keeps the legacy `origin incomplete` with no AS_PATH so existing producers are
-// byte-for-byte unchanged. A non-empty community list adds `community [ ... ]`,
+// keeps `origin incomplete` with no AS_PATH. A non-empty community list adds `community [ ... ]`,
 // and a metric the redistribute chain set adds `med <metric>`.
 func formatAnnounce(fam string, entry *redistribute.RouteEntry) string {
 	nextHop, prefix, originASN, community := entry.NextHop, entry.Prefix, entry.OriginASN, entry.Community
@@ -125,11 +124,16 @@ func formatAnnounce(fam string, entry *redistribute.RouteEntry) string {
 	if nextHop == "" {
 		b.Str("self")
 	} else {
-		b.Str(nextHop)
+		// RFC 4271 Section 5.1.3: an IGP gateway is a candidate for an
+		// internal neighbor; an external neighbor normally needs this speaker.
+		// Preserve that choice until the destination session is known.
+		b.Str("default ").Str(nextHop)
 	}
 	// RFC 4271 Section 4.3, RFC 4760 Section 2: the section keyword names the
 	// UPDATE section the route travels in.
-	if textparse.LegacyNLRISection(fam, textparse.IPv6NextHopText(nextHop)) {
+	// Default and self are late-bound, so the candidate's AFI does not decide
+	// the wire section. The reactor chooses it from the resolved address.
+	if textparse.LegacyNLRISection(fam, false) {
 		b.Str(" nlri")
 	} else {
 		b.Str(" mp ").Str(fam)

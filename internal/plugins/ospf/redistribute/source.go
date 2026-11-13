@@ -205,9 +205,9 @@ func emitDelta(delta spf.RouteDelta, protocol redistevents.ProtocolID, sink func
 
 // addEntry maps an SPF RouteEntry to an ActionAdd redistevents entry. The next-hop
 // is the first resolved equal-cost next-hop (the redistevents entry carries a
-// single NextHop; the BGP consumer maps it to `nhop <addr>`); a zero NextHop means
-// "nhop self" on the consumer side. The metric is the SPF path cost narrowed to the
-// 32-bit redistevents field.
+// single NextHop; the BGP consumer carries it as `next-hop default <addr>` for
+// per-peer selection). A zero NextHop means "next-hop self" on the consumer side.
+// The metric is the SPF path cost narrowed to the 32-bit redistevents field.
 func addEntry(r *spf.RouteEntry) redistevents.RouteChangeEntry {
 	var nh netip.Addr
 	if len(r.NextHops) > 0 {
