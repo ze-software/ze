@@ -122,11 +122,16 @@ Doctor's unnamed host-architecture check remains unnamed.
 <!-- source: internal/appliance/iso_grub_repair.go -- isoGRUBSelectionError -->
 <!-- source: internal/appliance/cmd_iso.go -- runIso, isoNameError, resolveISOInput, checkISOPrerequisites -->
 
-The ISO QEMU proof discovers Debian's split OVMF 4M firmware. Split CODE/VARS
+The ISO QEMU proof discovers QEMU's bundled edk2 firmware (Homebrew's
+`share/qemu`) and Debian's split OVMF 4M and AAVMF firmware. Split CODE/VARS
 images use two pflash drives: code is read-only and variables use a private
-snapshot, so a proof cannot change the host's firmware files. A custom complete
-firmware image retains the `-bios` route.
-<!-- source: internal/le/test/qemu/install_iso.go -- findUEFIFirmware, isoFirmwareArgs -->
+snapshot, so a proof cannot change the host's firmware files. The variable
+image is the one QEMU's own descriptor in the `firmware/` directory beside the
+code image names (`edk2-aarch64-code.fd` pairs with `edk2-arm-vars.fd`,
+`edk2-x86_64-code.fd` with `edk2-i386-vars.fd`), then the OVMF/AAVMF rename
+(`_CODE` to `_VARS`, `-code` to `-vars`). A split image with no variable image
+present is refused. A custom complete firmware image retains the `-bios` route.
+<!-- source: internal/le/test/qemu/install_iso.go -- findUEFIFirmware, isoFirmwareArgs, isoFirmwareVarsCandidates -->
 
 **The two ISO tools share a 10-minute limit (`isoBuildTimeout`).** A tool that
 fails or runs out of it is named with its exact command line, the tool path

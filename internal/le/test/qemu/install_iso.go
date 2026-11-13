@@ -8,9 +8,11 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -307,29 +309,113 @@ func (installer *Installer) ISOArgv(iso, disk, extraDisk, firmware string) ([]st
 
 // isoFirmwareArgs keeps split firmware variable stores private to this QEMU
 // process. QEMU MUST discard its snapshot when the process exits; the installed
-// firmware files MUST remain unchanged for other sessions.
+// firmware files MUST remain unchanged for other sessions. A split code image
+// whose variable image is missing is refused rather than booted with -bios.
 func (installer *Installer) isoFirmwareArgs(firmware string) ([]string, error) {
-	name := filepath.Base(firmware)
-	varsName := strings.Replace(name, "_CODE", "_VARS", 1)
-	if varsName == name {
-		varsName = strings.Replace(name, "-code", "-vars", 1)
+	candidates, err := installer.isoFirmwareVarsCandidates(firmware)
+	if err != nil {
+		return nil, err
 	}
-	if varsName == name {
+	if len(candidates) == 0 {
 		return []string{"-bios", firmware}, nil
 	}
-	vars := filepath.Join(filepath.Dir(firmware), varsName)
-	if !installer.regularFile(vars) {
+	vars := ""
+	for _, candidate := range candidates {
+		if installer.regularFile(candidate) {
+			vars = candidate
+			break
+		}
+	}
+	if vars == "" {
 		override := "ZE_INSTALL_X86_UEFI_BIOS"
 		if installer.Options.Arch == ArchARM64 {
 			override = "ZE_INSTALL_AARCH64_BIOS"
 		}
-		return nil, fmt.Errorf("split UEFI firmware %s requires its matching variable image %s; install the complete OVMF/AAVMF firmware package or set %s to a complete firmware image", firmware, vars, override)
+		return nil, fmt.Errorf("split UEFI firmware %s requires its matching variable image %s; install the complete OVMF/AAVMF firmware package or set %s to a complete firmware image", firmware, strings.Join(candidates, " or "), override)
 	}
 	var b textbuf.Buffer
 	codeDrive := b.Str("if=pflash,unit=0,format=raw,readonly=on,file=").Str(firmware).String()
 	b.Reset()
 	varsDrive := b.Str("if=pflash,unit=1,format=raw,snapshot=on,file=").Str(vars).String()
 	return []string{"-drive", codeDrive, "-drive", varsDrive}, nil
+}
+
+// qemuFirmwareDescriptor is the part of a QEMU firmware descriptor (QEMU's
+// docs/interop/firmware.json schema) that pairs a split flash executable with
+// its variable-store template.
+type qemuFirmwareDescriptor struct {
+	Mapping struct {
+		Device     string `json:"device"`
+		Executable struct {
+			Filename string `json:"filename"`
+		} `json:"executable"`
+		NVRAMTemplate struct {
+			Filename string `json:"filename"`
+		} `json:"nvram-template"`
+	} `json:"mapping"`
+}
+
+// isoFirmwareVarsCandidates names the variable images that may pair with a
+// split UEFI code image, in the order they are tried. No candidate means the
+// image is complete and boots with -bios.
+//
+// QEMU's own descriptors come first, because QEMU's bundled edk2 pairs names
+// no rename derives: edk2-aarch64-code.fd with edk2-arm-vars.fd, and
+// edk2-x86_64-code.fd with edk2-i386-vars.fd. They sit in the firmware
+// directory beside the images (Homebrew's share/qemu/firmware, a source
+// build's /usr/share/qemu/firmware), sorted so the lowest priority prefix
+// wins as it does for QEMU. A template is looked up beside the code image,
+// so both halves come from one installation. The OVMF/AAVMF rename
+// (_CODE to _VARS, -code to -vars) follows for packages that ship no
+// descriptor there.
+func (installer *Installer) isoFirmwareVarsCandidates(firmware string) ([]string, error) {
+	dir, name := filepath.Dir(firmware), filepath.Base(firmware)
+	var candidates []string
+	descriptors := filepath.Join(dir, "firmware")
+	entries, err := installer.ops.FS.ReadDir(descriptors)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("read QEMU firmware descriptors %s to pair %s with its variable image: %w", descriptors, firmware, err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		path := filepath.Join(descriptors, entry.Name())
+		data, err := installer.ops.FS.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read QEMU firmware descriptor %s to pair %s with its variable image: %w", path, firmware, err)
+		}
+		var descriptor qemuFirmwareDescriptor
+		if err := json.Unmarshal(data, &descriptor); err != nil {
+			return nil, fmt.Errorf("QEMU firmware descriptor %s is not valid JSON (%w); repair it or set ZE_INSTALL_X86_UEFI_BIOS or ZE_INSTALL_AARCH64_BIOS to a complete firmware image", path, err)
+		}
+		mapping := descriptor.Mapping
+		if mapping.Device != "flash" {
+			continue
+		}
+		if filepath.Base(mapping.Executable.Filename) != name {
+			continue
+		}
+		if mapping.NVRAMTemplate.Filename == "" {
+			continue
+		}
+		vars := filepath.Join(dir, filepath.Base(mapping.NVRAMTemplate.Filename))
+		if !slices.Contains(candidates, vars) {
+			candidates = append(candidates, vars)
+		}
+	}
+	for _, marker := range [][2]string{{"_CODE", "_VARS"}, {"-code", "-vars"}} {
+		varsName := strings.Replace(name, marker[0], marker[1], 1)
+		if varsName == name {
+			continue
+		}
+		vars := filepath.Join(dir, varsName)
+		if !slices.Contains(candidates, vars) {
+			candidates = append(candidates, vars)
+		}
+		break
+	}
+	return candidates, nil
 }
 
 func (installer *Installer) bootISO(ctx context.Context, iso, disk, extraDisk, firmware string) (string, error) {

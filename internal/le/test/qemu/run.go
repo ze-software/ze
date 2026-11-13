@@ -272,6 +272,7 @@ type runFileSystem interface {
 	Stat(string) (os.FileInfo, error)
 	MkdirAll(string, os.FileMode) error
 	ReadFile(string) ([]byte, error)
+	ReadDir(string) ([]os.DirEntry, error)
 	WriteFile(string, []byte, os.FileMode) error
 	Open(string) (*os.File, error)
 	CreateTemp(string, string) (*os.File, error)
@@ -290,6 +291,7 @@ func (osRunFS) ReadFile(name string) ([]byte, error) {
 	// #nosec G304 -- callers provide paths assembled by this package under the run tree or its fixture-owned cache.
 	return os.ReadFile(name)
 }
+func (osRunFS) ReadDir(name string) ([]os.DirEntry, error) { return os.ReadDir(name) }
 func (osRunFS) WriteFile(name string, data []byte, mode os.FileMode) error {
 	return os.WriteFile(name, data, mode)
 }

@@ -931,7 +931,7 @@ the right kernel is site-specific.
 
 | Profile | File | Added driver requests | Use case |
 |---------|------|---------|----------|
-| `qemu` (default) | `qemu.config` | virtio NIC + block | QEMU installer tests |
+| `qemu` (default) | `qemu.config` | virtio NIC + block + SCSI | QEMU installer tests |
 | `hardware` | `hardware.config` | virtio + EFI + framebuffer + Intel/Realtek/Broadcom/Mellanox NICs + AHCI + NVMe | Bare metal PXE/ISO install |
 
 Both profiles merge onto a shared base (`kernel.config`) that provides IP
@@ -1019,7 +1019,7 @@ default installer kernel.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `ZE_INSTALL_KERNEL` | none; self-skips | Path to the installer kernel `Image`/`vmlinuz` |
-| `ZE_INSTALL_ARCH` | host arch (`amd64` for ISO evidence) | Target architecture for QEMU installer evidence and generated appliance config (`arm64`/`amd64`) |
+| `ZE_INSTALL_ARCH` | host arch, for every installer kind | Target architecture for QEMU installer evidence and generated appliance config (`arm64`/`amd64`) |
 | `ZE_INSTALL_BOOT_TIMEOUT` | `300` | Seconds to wait for the installer to write the disk |
 | `ZE_INSTALL_IMAGE_SIZE` | appliance default (2 GiB) | Override image `size-bytes` (must stay large enough for the gokrazy A/B layout) |
 | `ZE_INSTALL_SSH_USER` / `ZE_INSTALL_SSH_PASS` | `admin` / `secret` | Power-user credentials provisioned into the image and used for the AC login |

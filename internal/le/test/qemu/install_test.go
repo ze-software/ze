@@ -43,25 +43,30 @@ func installTestEnv(t *testing.T, values map[string]string) {
 	t.Cleanup(zeenv.ResetCache)
 }
 
-// VALIDATES: the ISO and Ventoy import chain keeps amd64 as its validated default while HTTP and scenarios follow the host.
-// PREVENTS: an arm64 host silently moving the ISO gate onto the unproven architecture.
-func TestInstallDefaultsKeepTheProducerArchitectureRules(t *testing.T) {
+// VALIDATES: with ZE_INSTALL_ARCH unset, every installer kind (ISO and Ventoy
+// included) targets the host architecture, and an explicit setting wins.
+// PREVENTS: an arm64 host defaulting the ISO proof to an amd64 appliance image
+// it cannot build.
+func TestInstallDefaultsFollowTheHostArchitecture(t *testing.T) {
 	installTestEnv(t, map[string]string{"ZE_INSTALL_ARCH": ""})
-	for _, kind := range []InstallKind{InstallKindISO, InstallKindVentoy} {
+	for _, kind := range []InstallKind{InstallKindHTTP, InstallKindISO, InstallKindVentoy} {
 		options, err := DefaultInstallOptions(kind)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if options.Arch != ArchAMD64 {
-			t.Fatalf("%s arch=%q want amd64", kind, options.Arch)
+		if options.Arch != installHostArch(runtimeArch()) {
+			t.Fatalf("%s arch=%q want host %q", kind, options.Arch, installHostArch(runtimeArch()))
 		}
 	}
-	options, err := DefaultInstallOptions(InstallKindHTTP)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if options.Arch != installHostArch(runtimeArch()) {
-		t.Fatalf("HTTP arch=%q", options.Arch)
+	for _, arch := range []string{ArchAMD64, ArchARM64} {
+		installTestEnv(t, map[string]string{"ZE_INSTALL_ARCH": arch})
+		options, err := DefaultInstallOptions(InstallKindISO)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if options.Arch != arch {
+			t.Fatalf("ISO arch=%q want explicit %q", options.Arch, arch)
+		}
 	}
 }
 

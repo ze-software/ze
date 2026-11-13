@@ -278,11 +278,7 @@ func DefaultInstallOptions(kind InstallKind) (InstallOptions, error) {
 		X86UEFIBIOS: env.Get(installX86UEFIBIOSKey), Accelerator: env.Get(installAccelKey),
 	}
 	if options.Arch == "" {
-		if kind == InstallKindISO || kind == InstallKindVentoy {
-			options.Arch = ArchAMD64
-		} else {
-			options.Arch = installHostArch(runtime.GOARCH)
-		}
+		options.Arch = installHostArch(runtime.GOARCH)
 	}
 	if options.Arch != ArchAMD64 && options.Arch != ArchARM64 {
 		return options, fmt.Errorf("%s must be amd64 or arm64, got %q", installArchKey, options.Arch)
