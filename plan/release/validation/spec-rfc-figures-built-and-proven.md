@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Accurate support claims: the published RFC figures draw one "Ze correctness gap" segment over rows that are not built and rows that are tested but carry no recorded proof, so a reader cannot tell an absent feature from a pending proof |
@@ -67,9 +67,12 @@ Design decisions Thomas made at the design gate, 2026-11-13:
 An independent review on the development tier read this spec against the
 source after Thomas approved it, and found two blockers and eleven issues. The
 main thread confirmed each at the producer. The spec went back to `design`,
-and the sections below carry the corrections. One decision is open and is
-Thomas's: the name and place of the third MUST section ("Which row lands
-where", row 6).
+and the sections below carry the corrections. The one decision it left open,
+where a not-owed claim with unchecked evidence is drawn, Thomas settled the
+same day ("Which row lands where", row 6), and the spec returned to `ready`.
+Where an acceptance criterion or a test below names "the two sections", the
+third section of row 6 is counted with them: the sections sum to Kept, and the
+register needs all of them empty.
 
 | Finding | Correction in this spec |
 |---------|-------------------------|
@@ -95,15 +98,17 @@ row at a time.
 | 3 | `{linux-limit}` whose register entry fails its check | Not built | Its trait says unmet, and without a verified limit entry the claim that Linux blocks it is unproven. None exists on 2026-11-13 |
 | 4 | Optional row marked `{intent: not-ever}` | Not built | Thomas declined it, so its proof is not pending. The page says only that it is not built |
 | 5 | Unannotated or `{single-polarity}`, not proven: a tag with no record, a stale record, a `no-break` escape | Proof pending | A test exists and no recorded break proves it yet |
-| 6 | `{not-applicable}` or `{feature-declined}` whose evidence fails its check | Open decision, see below | The kind bars tests, so no proof can ever be recorded for it while it keeps the annotation. `rfc/exclusion-evidence-backlog.txt` counts 30 `not-applicable` rows in this state across the corpus |
+| 6 | `{not-applicable}` or `{feature-declined}` whose evidence fails its check | Exclusion unchecked | Thomas's decision, 2026-11-13. The kind bars tests, so no proof can ever be recorded for it while it keeps the annotation. `rfc/exclusion-evidence-backlog.txt` counts 30 `not-applicable` rows in this state across the corpus |
 | 7 | Unannotated with no tagged test at all | Proof pending at the optional level; refused at the MUST level | A MUST row of an enrolled RFC with no test and no annotation is a red of `./le rfc check` (`evaluate`, `internal/le/rfc/check_core.go`). A red does not hold a commit, so the corpus test of A-1 states how many exist rather than asserting none |
 
-Open decision for Thomas, row 6. A row whose "not owed" claim has no checked
-evidence is neither not built nor awaiting a proof. The recommendation is a
-third section, "Exclusion unchecked", drawn on the MUST bar and the overview
-bar and defined in the glossary as a row claimed not to bind Ze whose evidence
-is still to be checked. The alternative is to count it as not built, which is
-simpler and overstates what is missing by up to 30 rows.
+Row 6 is a third section, "Exclusion unchecked", by Thomas's decision of
+2026-11-13. A row whose "not owed" claim has no checked evidence is neither
+not built nor awaiting a proof. The section is counted at both levels, drawn
+on the MUST bar and the overview bar, and defined in the glossary as a row
+claimed not to bind Ze whose evidence is still to be checked. It stays inside
+Kept, as such a row does today, and the register reads complete only when it
+is empty. The alternative, counting it as not built, was set aside because it
+overstates what is missing by up to 30 rows.
 
 ## The numerator
 
@@ -127,11 +132,11 @@ producer before touching the density (R-3).
 
 | Bar | Segments, left to right |
 |-----|-------------------------|
-| MUST | Ze proven, OS verified, Proof pending, OS testing gap, Not built (and the section of row 6 if Thomas chooses one) |
-| Overview | Ze MUST proven, OS verified (MUST and optional), SHOULD proven, Not owed, Proof pending (MUST and optional), OS testing gap (MUST and optional), Not built (MUST and optional) |
+| MUST | Ze proven, OS verified, Proof pending, OS testing gap, Exclusion unchecked, Not built |
+| Overview | Ze MUST proven, OS verified (MUST and optional), SHOULD proven, Not owed, Proof pending (MUST and optional), OS testing gap (MUST and optional), Exclusion unchecked (MUST and optional), Not built (MUST and optional) |
 
-The overview bar sums the two levels in one segment for proof pending and for
-not built, as it already does for the OS segments. The three intent segments
+The overview bar sums the two levels in one segment for proof pending, for
+exclusion unchecked and for not built, as it already does for the OS segments. The three intent segments
 and their style rules are deleted.
 
 ## The intent in private text
@@ -347,7 +352,7 @@ false zero.
 | AC-3 | Any surface that draws or prints the MUST sections: the tree and its help, the per-RFC and profile data files, the requirement ledger, the bars, the list columns, the glossary, the health detail | Each names the two sections in the same words and order, taken from the one split and the one bar declaration | The OS segments keep their names and order relative to Ze proven |
 | AC-4 | A corpus with at least one OS verified MUST row | The home card count and percentage, the health proof density, the tree's published proven count, the status page Proof cell, the site's per-RFC Proof cell and the update report's figure each count that row as proven, and the Evidence cell lists it under an `os` kind so its counts still sum to the Proof numerator | The MUST bar still draws OS verified as its own segment, because who performs a row stays visible |
 | AC-5 | A row carrying a `no-break` or `kernel-producer` escape, or a lower-layer row with a tag and no record | It is counted in no proven figure, and stays an OS testing gap or proof pending | No escaped row is permitted in a numerator: the owner rule publishes it as escaped, never as proven |
-| AC-6 | A set of RFCs for the `register` value | It reads complete only when no member is unwalked and not built, proof pending and OS testing gap are all 0 | A set with no member still reads "no rows" |
+| AC-6 | A set of RFCs for the `register` value | It reads complete only when no member is unwalked and not built, proof pending, exclusion unchecked and OS testing gap are all 0 | A set with no member still reads "no rows" |
 | AC-7 | Every file `./le site build` publishes, and every page it renders | Open optional rows appear as a not-built count and a proof-pending count, and each published file and page holds those two where the three intent counts were | The summaries keep their markers, and `./le rfc tree` text and `./le rfc next` keep reading them, because the marker is a private planning fact |
 | AC-8 | A summary with `{intent: not-ever}` and `{intent: not-yet}` rows | `./le rfc tree` prints the three intent counts in each row's text and in each rollup line, `./le rfc next` still skips a not-ever row, and the not-ever row is counted as not built | The tree's JSON carries the two optional sections and no intent count, because the site publishes that type; a row read back from that JSON prints no intent clause |
 | AC-9 | A walked RFC with open optional rows, some declared unmet by the summary or the audit | Its optional sections hold a not-built count equal to those declared rows and a proof-pending count equal to the rest, and with proven, OS verified, OS testing gap and not owed they sum to the optional Total | The optional Total and every other optional section are unchanged, because the split only renames how the open rows are divided |
@@ -365,7 +370,7 @@ false zero.
 | `TestProofCellCountsOSVerifiedRows` | `internal/le/rfc/render_ledger_test.go` | AC-4 | |
 | `TestEvidenceKindsSumToTheProofNumerator` | `internal/le/rfc/render_ledger_test.go` | AC-4, with an OS verified row | |
 | `TestAProofCellReadBackFromJSONCountsOSVerifiedRows` | `internal/le/rfc/tree_test.go` | AC-4 through the published row the site reads | |
-| `TestANotOwedClaimWithoutEvidenceIsNeverProofPending` | `internal/le/rfc/profilecoverage_test.go` | "Which row lands where", row 6 | |
+| `TestANotOwedClaimWithoutEvidenceIsExclusionUnchecked` | `internal/le/rfc/profilecoverage_test.go` | "Which row lands where", row 6: the row is in the third section at its level, in neither of the other two, and inside Kept | |
 | `TestANotEverRowIsNotBuilt` | `internal/le/rfc/intent_test.go` | "Which row lands where", row 4 | |
 | `TestRollupLinesKeepTheIntentCounts` | `internal/le/rfc/tree_test.go` | AC-8 | |
 | `TestTheFallbackRegisterNeedsEveryOpenMustSectionEmpty` | `internal/le/site/rfcdata_test.go` | AC-6 in the fallback fill | |
