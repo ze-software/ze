@@ -475,6 +475,7 @@ Phase 6 (the firewall vpp backend) moved with AC-9 to `plan/release/fixes/spec-f
 | `plan/journal/stop-leaves-the-work-running.md` | 2026-09-17 | plugins restarted between the stop signal and the drain |
 | `plan/journal/exit-cleanup-runs-after-its-transport-closed.md` | 2026-11-13 | in-process plugin's exit withdrawal refused after `Run` stops dispatch |
 | `plan/journal/guard-added-to-one-half-of-a-pair.md` | 2026-11-13 | batch drained after `Stop` cancels is written, then reported failed (`writeBatchWithDeadline` skips the `ctx.Err()` check) |
+| `plan/journal/wait-outlives-the-process-it-waits-on.md` | 2026-11-13 | `startExternal` waits out the 30 s connect-back of a child that already exited (`waiter.Wait` does not watch `reaped`) |
 
 ## Rows considered and not owned
 | Class file | Date | Surface (short) | Why not this root cause | Home |
