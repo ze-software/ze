@@ -218,7 +218,7 @@ func TestConfigFmtWriteKeepsValueMeaning(t *testing.T) {
 		{"close-bracket", `"x]y(z"`, `"x]y(z"`},
 		{"open-bracket", `"a[b"`, `"a[b"`},
 		{"newline", `"l1\nl2"`, `"l1\nl2"`},
-		{"carriage-return", "\"a\rb\"", "\"a\rb\""},
+		{"carriage-return", "\"a\rb\"", `"a\rb"`},
 		{"leading-paren", `"(open"`, `"(open"`},
 		{"leading-close-paren", `")close"`, `")close"`},
 	}
