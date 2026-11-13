@@ -2440,6 +2440,12 @@ keep their original paths.
 ```
 
 `from`/`to` moves one file and `plan` moves every `<old> <new>` line of a file.
+An untracked source can move when it is a tagged unit carrier, absent from
+HEAD and the index, not ignored, and a regular file. This lets a new test take
+its required RFC filename before its first commit. An untagged untracked file
+stays refused.
+<!-- source: internal/le/rfc/rename.go -- pairRefusals, sourceDiffersFromHead -->
+
 The move is byte-pure, so the HEAD^ and origin/main baselines follow it (see
 the obligation row above), the weakened-test audit and the RFC-change commit
 gate read it as no change, and it needs no `RFC-approved:` trailer. After the
@@ -2468,22 +2474,25 @@ whose source is still in place.
 
 It refuses the whole batch, and writes nothing, for a target that exists,
 leaves its source's directory, changes the GOOS/GOARCH file-name suffix or is
-not a `_test.go` file; a source that is untracked or differs from HEAD; two
+not a `_test.go` file; a tracked source that differs from HEAD; an untracked
+source that fails the conditions above; two
 pairs sharing a source or a target; a target the unit carrier holds that the
 naming rule below refuses for the source's tags; an evidence file that is not
 one JSON value, or whose path field spells the old path with an escape such as
-`\/`; and an evidence or cited file another session changed while the rename
-ran. The suffix is judged by
+`\/`; and a source, evidence or cited file that changed after the plan read it.
+The comparison runs before writing and detects changes since planning. It does
+not lock out concurrent filesystem writes. The suffix is judged by
 `go/build` itself: the rename is refused when the source and the target names
 build on different sets of the platforms `go tool dist list` names, so a suffix
 `go/build` knows and no port carries, such as `_sparc` or `_zos`, counts too.
+<!-- source: internal/le/rfc/rename.go -- pairRefusals, sourceDiffersFromHead, planRename, applyRename, buildSuffixMoves -->
 
 `propose` plans a prefix addition only when a file's tags cite one RFC but its
 name cites none. An untagged RFC-named file offers a choice of tag, marker or
 rename, so it produces no automatic pair. Each proposed pair is
 judged by `pairRefusals`, the predicate the rename applies to a pair, so a
-source that is untracked or differs from HEAD, and a target that already
-exists, moves the build suffix or fails the naming rule, is left out and named
+source that differs from HEAD or fails the new-carrier conditions above, and a
+target that already exists, moves the build suffix or fails the naming rule, is left out and named
 with its reason, as is a target two findings share, and so is a file named for
 another RFC, which has to be read before it moves. No pair in a proposed plan
 draws a refusal from its paths, its source's state or its target. A refusal
@@ -2491,7 +2500,7 @@ judged on an evidence record, an escaped path spelling or evidence that is not
 one JSON value, is judged by the batch's rewrite alone, so `propose` does not
 see it, and the rename then refuses the whole batch rather than writing it. The output
 file is created, never overwritten. Run `./le rfc update` after a rename.
-<!-- source: internal/le/rfc/rename.go -- renameFiles, planRename, refusePair, pairRefusals, planCitations, proposeRenames, judgeRenameTarget -->
+<!-- source: internal/le/rfc/rename.go -- renameFiles, planRename, refusePair, pairRefusals, sourceDiffersFromHead, planCitations, proposeRenames, judgeRenameTarget, applyRename -->
 <!-- source: internal/le/doc/citation/policed.go -- Policed, Excluded -->
 <!-- source: internal/le/rfc/check_baseline.go -- exactRenamesSince, coversAt -->
 

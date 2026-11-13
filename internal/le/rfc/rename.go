@@ -85,8 +85,8 @@ func (r RenameReport) Text() string {
 	return tb.Str("next: ").Str(renameNextStep).Byte('\n').String()
 }
 
-// renameFile is one tracked file the rename rewrites, held with the bytes it
-// was read with so a concurrent edit is refused rather than clobbered.
+// renameFile holds a file with the bytes the plan read, so a later edit is
+// refused rather than moved or clobbered.
 type renameFile struct {
 	Rel      string
 	Original []byte
@@ -97,6 +97,7 @@ type renameFile struct {
 // renamePlan is every write one rename makes, decided before any is made.
 type renamePlan struct {
 	Pairs     []renamePair
+	Sources   []renameFile
 	Evidence  []renameFile
 	Cited     []renameFile
 	Citations []string
@@ -146,6 +147,13 @@ func planRename(tree string, pairs []renamePair) (renamePlan, error) {
 		return renamePlan{}, errors.New(strings.Join(refusals, "\n"))
 	}
 	plan := renamePlan{Pairs: pairs}
+	for _, pair := range pairs {
+		original, err := os.ReadFile(treePath(tree, pair.Source)) // #nosec G304 -- a source the pair checks accepted
+		if err != nil {
+			return renamePlan{}, errors.New(pair.Source + ": cannot read the source; nothing was written, run the rename again: " + err.Error())
+		}
+		plan.Sources = append(plan.Sources, renameFile{Rel: pair.Source, Original: original})
+	}
 	if plan.Evidence, err = planEvidence(tree, pairs); err != nil {
 		return renamePlan{}, err
 	}
@@ -198,7 +206,8 @@ type pairRefusal struct {
 	// OtherDirectory is set when the target leaves its source's directory.
 	OtherDirectory bool
 	// SourceState is why the source may not move as the working tree holds it
-	// (sourceDiffersFromHead), and empty when it is tracked and equals HEAD.
+	// (sourceDiffersFromHead), and empty for a clean tracked file or a new
+	// tagged unit carrier absent from HEAD and the index.
 	SourceState string
 	// Unreadable is set when the source cannot be read. The target is then not
 	// judged, because the move carries the marker the read would give.
@@ -227,7 +236,9 @@ func pairRefusals(tree string, pair renamePair, tagStems map[string]bool, judged
 		}
 	}
 	refusal.OtherDirectory = path.Dir(pair.Source) != path.Dir(pair.Target)
-	refusal.SourceState = sourceDiffersFromHead(tree, pair.Source)
+	carrier, held := CarrierFor(pair.Source, judged.Carriers)
+	newCarrier := held && carrier.Kind == kindUnit && len(tagStems) > 0
+	refusal.SourceState = sourceDiffersFromHead(tree, pair.Source, newCarrier)
 	src, readErr := os.ReadFile(treePath(tree, pair.Source)) // #nosec G304 -- a cleaned repo-relative path
 	if readErr != nil {
 		refusal.Unreadable = true
@@ -353,14 +364,39 @@ func cleanRepoPath(rel string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, "../")
 }
 
-// sourceDiffersFromHead answers why a source may not move, or empty when it is
-// tracked and its bytes equal HEAD's: a move of an edited file is not byte-pure,
-// and the edit belongs to whoever made it.
-func sourceDiffersFromHead(tree, rel string) string {
+// sourceDiffersFromHead accepts a tracked source only when its bytes equal
+// HEAD's, because an edit belongs to whoever made it. A new tagged unit carrier
+// can also move when Git confirms it is an untracked, nonignored regular file
+// absent from HEAD. A failed HEAD lookup alone never proves that absence.
+func sourceDiffersFromHead(tree, rel string, newCarrier bool) string {
 	var spec textbuf.Buffer
 	head, ok := gitOutput(tree, "rev-parse", "--verify", "--quiet", spec.Str(headRevision).Byte(':').Str(rel).String())
 	if !ok {
-		return "is not tracked at HEAD"
+		if !newCarrier {
+			return "is not tracked at HEAD"
+		}
+		paths, ok := gitOutput(tree, "ls-tree", "-z", headRevision, "--", rel)
+		if !ok {
+			return "cannot inspect HEAD; nothing was written, restore access to the repository and run the move again"
+		}
+		if len(paths) > 0 {
+			return "cannot read its HEAD version; nothing was written, restore access to the repository and run the move again"
+		}
+		untracked, ok := gitOutput(tree, "ls-files", "--others", "--exclude-standard", "-z", "--", rel)
+		if !ok {
+			return "cannot inspect untracked files; nothing was written, restore access to the repository and run the move again"
+		}
+		if string(untracked) != rel+"\x00" {
+			return "is not tracked at HEAD and is not a new untracked carrier; leave the source in place and check its index and ignore state"
+		}
+		info, err := os.Lstat(treePath(tree, rel)) // #nosec G304 -- a cleaned repo-relative source
+		if err != nil {
+			return "cannot read the new carrier; leave the source in place and check its path and permissions"
+		}
+		if !info.Mode().IsRegular() {
+			return "is not a regular file; leave the source in place and move the tagged source file itself"
+		}
+		return ""
 	}
 	work, ok := gitOutput(tree, "hash-object", "--", rel)
 	if !ok {
@@ -751,15 +787,15 @@ func trackedFilesMentioning(tree string, pairs []renamePair) ([]string, error) {
 	return files, nil
 }
 
-// applyRename re-reads every file the plan rewrites and refuses the whole
-// batch, writing nothing, when another session changed one since it was read.
+// applyRename re-reads every source and file the plan rewrites. It refuses the
+// whole batch, writing nothing, when one changed since the plan read it.
 // It then links every target, removes every source, and replaces each
 // rewritten file atomically.
 //
 // A target is created by link, never by rename, so an existing file is never
 // overwritten: a link onto an existing path fails.
 func applyRename(tree string, plan renamePlan) (RenameReport, error) {
-	for _, file := range slices.Concat(plan.Evidence, plan.Cited) {
+	for _, file := range slices.Concat(plan.Sources, plan.Evidence, plan.Cited) {
 		current, err := os.ReadFile(treePath(tree, file.Rel)) // #nosec G304 -- a file this plan read
 		if err != nil {
 			var tb textbuf.Buffer
