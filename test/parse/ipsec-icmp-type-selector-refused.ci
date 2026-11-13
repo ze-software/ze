@@ -396,7 +396,7 @@ expect=stdout:contains=a port selector needs a protocol that carries ports, and 
 
 cmd=foreground:seq=4:exec=ze config validate -:stdin=above:exit=1
 expect=stdout:contains=icmp-type
-expect=stdout:contains=invalid value "256"
+expect=stdout:contains=icmp-type: "256" is not an accepted value
 
 cmd=foreground:seq=5:exec=ze config validate -:stdin=codeonly:exit=1
 expect=stdout:contains=icmp-code needs an icmp-type
