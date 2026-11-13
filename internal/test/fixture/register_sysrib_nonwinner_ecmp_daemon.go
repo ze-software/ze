@@ -5,4 +5,5 @@ package fixture
 func init() {
 	Register("plugin/sysrib-nonwinner-explicit-ecmp", sysribNonwinnerECMPDriver, StopsDaemon)
 	Register("plugin/sysrib-nonwinner-explicit-ecmp-kernel-empty", sysribNonwinnerECMPKernelEmpty)
+	Register("plugin/sysrib-nonwinner-explicit-ecmp-links-cleanup", sysribNonwinnerECMPLinksCleanup)
 }

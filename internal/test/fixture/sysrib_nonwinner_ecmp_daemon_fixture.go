@@ -36,7 +36,7 @@ func sysribNonwinnerECMPDriver(ctx context.Context, args []string) error {
 	}
 	capture := newSysribFIBCapture(sysribNonwinnerTarget, sysribNonwinnerStatic, sysribNonwinnerOSPF,
 		"198.18.232.0/24", "198.18.233.0/24", "198.18.234.0/24")
-	return observeConfigured(ctx, "sysrib-nonwinner-ecmp-test", &sdk.Registration{}, capture.setup, func(ctx context.Context, p *sdk.Plugin) (result error) {
+	return observeConfigured(ctx, "sysrib-nonwinner-ecmp-test", &sdk.Registration{}, capture.setup, func(ctx context.Context, p *sdk.Plugin) error {
 		if err := sysribExecutionPlacement(ctx, p, args[0]); err != nil {
 			return err
 		}
@@ -48,8 +48,10 @@ func sysribNonwinnerECMPDriver(ctx context.Context, args []string) error {
 			if err := importCreateLink(ctx, link.name, link.address); err != nil {
 				return err
 			}
-			defer func() { result = errors.Join(result, importDeleteLink(ctx, link.name)) }()
 		}
+		// The paired carrier joins daemon shutdown before its dedicated
+		// cleanup driver removes these devices. Failed runs retain their
+		// namespace owner's cleanup rather than deleting live FIB targets.
 		if err := sysribNonwinnerCovers(ctx, p); err != nil {
 			return err
 		}
@@ -282,4 +284,37 @@ func sysribNonwinnerECMPKernelEmpty(ctx context.Context, args []string) error {
 		}
 	}
 	return importSay("nonwinner ECMP fixture prefixes are absent from every kernel table")
+}
+
+// This runs only after daemon/await-exit. Ze must have flushed its own
+// prefixes while the actual devices and OS-owned routes still exist; deleting
+// a device first could erase a stale FIB entry and make that absence vacuous.
+func sysribNonwinnerECMPLinksCleanup(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return errors.New("nonwinner ECMP post-stop link cleanup takes no arguments")
+	}
+	for _, prefix := range []string{sysribNonwinnerTarget, sysribNonwinnerStatic, sysribNonwinnerOSPF} {
+		if err := importKernel(ctx, prefix, 0); err != nil {
+			return err
+		}
+	}
+	links := []struct{ prefix, name string }{
+		{"198.18.232.0/24", sysribNonwinnerLinkA},
+		{"198.18.233.0/24", sysribNonwinnerLinkB},
+		{"198.18.234.0/24", sysribNonwinnerLinkC},
+	}
+	for _, link := range links {
+		if err := importKernel(ctx, link.prefix, 1, "dev "+link.name+" ", "proto 2 "); err != nil {
+			return err
+		}
+		if _, err := importCommandOutput(ctx, "ip", "link", "show", "dev", link.name); err != nil {
+			return fmt.Errorf("joined daemon stop removed fixture device %s: %w", link.name, err)
+		}
+	}
+	for _, link := range links {
+		if err := importDeleteLink(ctx, link.name); err != nil {
+			return err
+		}
+	}
+	return importSay("joined daemon flushed Ze routes while all three fixture devices and OS routes survived before owned link cleanup")
 }
