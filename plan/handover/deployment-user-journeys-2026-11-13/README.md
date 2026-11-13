@@ -77,16 +77,19 @@ alone, which stores and elects and forwards nothing. `ef1a3cf33d` attaches
 All six pings then pass at the first attempt, the render check passes against
 goldens regenerated with netlab 26.10, and the golden-booting `.ci` passes.
 
-Two things from that work are the owner's to rule on, and neither is recorded
-as a decision yet:
+Two things from that work were put to the owner, who ruled on both on
+2026-11-13. Each needs a design pass with him in a session of its own:
 
 - Ze's default leaves a forwarded route's next hop unchanged toward an
-  external peer, against the YANG text and RFC 4271 Section 5.1.3. An existing
-  skeleton, `spec-bgp-next-hop-auto-rewrites-for-ebgp`, owns it.
+  external peer, against the YANG text and RFC 4271 Section 5.1.3. He said
+  yes to running `spec-bgp-next-hop-auto-rewrites-for-ebgp`, which records it.
 - Plain transit works only through `bgp-rs`, which forwards every received
-  UPDATE. No component advertises the elected best path, and a prefix that
-  both `bgp-rs` and redistribution send to one peer has no arbiter. Traced by
-  a read of the code, not reproduced as a failure.
+  UPDATE, and no component advertises the elected best path. He ruled that Ze
+  passes its best route between peers by default. The ruling is in
+  `docs/architecture/rib-transition.md` and the work in the new skeleton
+  `spec-bgp-best-route-advertised-to-peers`. Whether a redistributed route
+  and a forwarded one for the same prefix reach the existing owner election
+  is untraced, and is one of that spec's open questions.
 
 Not done, and why:
 

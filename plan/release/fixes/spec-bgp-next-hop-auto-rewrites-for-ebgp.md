@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-03 |
+| Updated | 2026-11-13 |
 
 Bucket: `plan/immediate/`, because an operator relaying to eBGP with `next-hop auto` meets wrong next hops.
 
@@ -33,6 +33,26 @@ multihop alike, as the RFC 4271 Section 5.1.3 default. The YANG text stays as
 written and becomes true. The work lives in this spec, separate from the
 link-local spec `spec-bgp-update-propagation-rfc-defects` (closed 2026-10-21)
 (defect D6), which owns the `unchanged` towards multihop case.
+
+Owner decision (Thomas, 2026-11-13): run this spec. Asked by the
+deployment-user-journeys session "Run `spec-bgp-next-hop-auto-rewrites-for-ebgp`
+(skeleton, P1)? Forwarded routes keep their next hop toward an external peer
+under the default, against the YANG text and RFC 4271 Section 5.1.3. The
+netlab render works around it explicitly.", he answered "yes". The evidence was
+a live netlab lab: r3 refused r2's loopback as the next hop of a forwarded
+route ("route ignored: semantically incorrect NEXT_HOP"), commit `ef1a3cf33d`
+and `plan/handover/deployment-user-journeys-2026-11-13/README.md`, "Progress
+after the migration".
+
+That commit set `next-hop self` explicitly toward every external peer in the
+netlab render (`contrib/netlab/ze/ze.j2`, the `n.type == 'ebgp'` block). It is
+a workaround this spec's implementation should make unnecessary, and the
+implementation must not break it: under the behaviour table below, `self`
+toward eBGP and `auto` toward eBGP send the same address, so the render stays
+correct with or without the explicit leaf. The same day Thomas also ruled that
+Ze passes elected best routes between peers by default,
+`plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md`, which depends
+on this spec for its eBGP next hop.
 
 ### Owner-approved behaviour table
 

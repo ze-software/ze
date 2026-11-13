@@ -40,6 +40,23 @@ Engine receives UPDATE → Cache wire bytes (msg-id) → Send event to plugins �
 | Policy | Plugins | Done |
 | Watchdog | Plugin (bgp-watchdog) | Done |
 
+### Owner ruling: best routes reach the other peers by default
+
+Thomas has ruled that Ze passes the best route it elected between its BGP
+peers by default, as an ordinary BGP speaker does (RFC 4271 Section 9.1.3 and
+Section 9.2). The operator does not have to load or attach a route-server
+plugin to get it.
+
+This is not implemented yet, and the design that delivers it is not made. Today
+the behaviour is as this page describes: the engine caches the wire bytes, a
+plugin decides forwarding, and `bgp-rib` stores routes and elects the best one
+but sends nothing to another peer. A route reaches another peer only through a
+forwarding plugin such as `bgp-rs` or `bgp-rr`, attached to the peers. The work
+is owned by
+[spec-bgp-best-route-advertised-to-peers](../../plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md).
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- publishBestChanges -->
+<!-- source: internal/component/bgp/plugins/rs/server_forward.go -- batchForwardUpdateSkipped -->
+
 ### Target: API Program Owns RIB
 
 ```
