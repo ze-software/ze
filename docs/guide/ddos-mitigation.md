@@ -131,8 +131,9 @@ ring, detection forces the refresh: `ddos-detect` emits `AttackDetected`,
 classifier then polls the ring for up to `characterize-timeout` until it reflects
 the attack. So a just-started flood is characterized promptly regardless of
 `active-timeout`; if the ring still never yields discriminating flows within the
-budget, characterization falls back to the coarse destination drop (still
-protective, just not narrowed). Lowering `active-timeout` is no longer required
+budget, ddos local keeps the coarse destination drop it installed on the fast
+signal (still protective, just not narrowed). ddos-flowspec has no such
+fallback: see "When characterization does not happen" below. Lowering `active-timeout` is no longer required
 for responsive characterization (it still governs NetFlow/IPFIX export cadence).
 <!-- source: internal/plugins/flowexport/register.go -- AttackDetected subscription forces conntrackWorker.Refresh -->
 <!-- source: internal/plugins/ddos/detect/characterize.go -- awaitClassifiableFlows polls the ring within characterize-timeout -->
@@ -191,6 +192,23 @@ attack (peak >= 5x threshold) engages an immediate upstream `discard` on the fas
 signal without waiting for characterization -- the escape hatch when local
 filtering cannot hold the flood.
 <!-- source: internal/plugins/ddos/flowspec/responder.go -- onCharacterized announces; onDetected blackholes only on critical + policy -->
+
+**When characterization does not happen.** ddos-flowspec announces on the fast
+signal only when `blackhole-fallback` is `true` and the attack is `critical`.
+Every other detection waits for the characterized event. With
+`characterize-enable false`, or when characterization finds no classifiable
+flows within `characterize-timeout`, the detector emits no characterized event,
+so a `medium` or `high` attack is never announced upstream. The only trace is
+the INFO line `ddos-flowspec: awaiting characterization before announcing`; a
+run with no flows also counts in
+`ze_ddos_detect_characterize_fallback_total`. If you rely on FlowSpec for
+attacks below `critical`, keep `characterize-enable true` with a flow source
+configured. ddos local does not wait: it installs its coarse drop on the fast
+signal, so it still protects a victim it covers when characterization does not
+happen.
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- onDetected, onCharacterized -->
+<!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeFromFlows returns on !CharacterizeEnable and on no flows (incFallback) -->
+<!-- source: internal/plugins/ddos/local/responder.go -- onDetected applies the coarse drop -->
 
 **Clearing under FlowSpec mitigation:** once the upstream drops the attack
 traffic, Ze's local sensors go blind (the traffic never arrives). The responder
@@ -654,8 +672,10 @@ while mitigation is being applied.
 Characterization needs an on-box flow source: `traffic usage` (`track-ip`) for the
 fast IPv4 target and/or `flow-export` (`conntrack`) for the classifier (proto,
 ports, TCP flags, IPv6, top sources). If characterization is enabled with neither
-configured, `ze doctor` reports `doctor-ddos-detect-no-flow-source` and mitigation
-degrades to a coarse generic-flood drop.
+configured, `ze doctor` reports `doctor-ddos-detect-no-flow-source`. ddos local
+then degrades to a coarse generic-flood drop, and ddos-flowspec announces only a
+`critical` attack under `blackhole-fallback` (see "When characterization does
+not happen").
 <!-- source: internal/plugins/ddos/detect/doctor.go -- checkFlowSource -->
 
 Detection itself does not read the flow sources. Its input is the per-interface
