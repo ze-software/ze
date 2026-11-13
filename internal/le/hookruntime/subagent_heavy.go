@@ -2,7 +2,7 @@
 // Related: session.go -- fromSubagent, the caller predicate this check opens with
 // Related: rawheavy.go -- the launcher reading and the lint subcommands this judgment reuses
 // Related: parsedcommands.go -- everyCommand, the parsed commands the tree judgment reads
-// Related: ../le/root/heavy.go -- HeavyLine, which reads an le line from what its area declared
+// Related: ../le/root/heavy.go -- HeavyCommand, which reads an le line from what its area declared and names its command
 package hookruntime
 
 import (
@@ -210,8 +210,8 @@ func handBackOf(command string, parse commandParse, identity string) (refusal ha
 // the Go toolchain's executing verbs, the linters and the formatters, which
 // are external programs and cannot register; and le, typed as `le` or as the
 // `ze le` personality (leWords), whose line is heavy when the area or the
-// action it names declared so (leroot.HeavyLine), so this function names no
-// le area.
+// action it names declared so (leroot.HeavyCommand, which also answers the
+// command the line resolved to), so this function names no le area.
 func heavyTool(tokens []string) string {
 	program := programTokens(tokens)
 	if len(program) == 0 {
@@ -238,12 +238,14 @@ func heavyTool(tokens []string) string {
 	if !typed {
 		return ""
 	}
-	if !leroot.HeavyLine(beforeRedirection(words)) {
+	command, heavy := leroot.HeavyCommand(beforeRedirection(words))
+	if !heavy {
 		return ""
 	}
-	// The name is the program and the command words dispatch could read.
-	named := len(program) - len(words) + min(len(words), leroot.CommandWordsMax)
-	return "the `./le` action `" + strings.Join(program[:named], " ") + "`"
+	// The name is the program as typed and the command le resolved the line
+	// to, which holds no keyword or value typed after it.
+	launcher := strings.Join(program[:len(program)-len(words)], " ")
+	return "the `./le` action `" + launcher + " " + command + "`"
 }
 
 // leWords answers the words typed after le when program, a command's words

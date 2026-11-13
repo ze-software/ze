@@ -153,7 +153,7 @@ func TestSubagentHeavyRefusalEndsWithTheCommandToHandBack(t *testing.T) {
 	for _, row := range []struct{ command, named string }{
 		{`go test ./x`, "a subagent does not run `go test`"},
 		{`gofmt -w x.go`, "a subagent does not run `gofmt`"},
-		{`./le test bgp plugin 42`, "a subagent does not run the `./le` action `./le test bgp plugin`"},
+		{`./le test bgp plugin 42`, "a subagent does not run the `./le` action `./le test bgp`"},
 		{`./le heavy-probe run`, "a subagent does not run the `./le` action `./le heavy-probe run`"},
 	} {
 		code, _, message := runSubagentBash(t, identityLineOfAgent+row.command)
@@ -180,6 +180,44 @@ func TestSubagentHeavyRefusalEndsWithTheCommandToHandBack(t *testing.T) {
 			if strings.Contains(message, banned) {
 				t.Errorf("%q: the refusal names %q: %s", row.command, banned, message)
 			}
+		}
+	}
+}
+
+// TestSubagentHeavyRefusalNamesTheResolvedAction reads the heading of the
+// refusal for le lines that carry words after their command. Its method: the
+// probe areas, and the real `job`, `exec` and `test integration` areas this
+// test binary links.
+//
+// VALIDATES: AC-9, the name: the heading names the command le resolved the
+// line to (leroot.HeavyCommand), the area and the action's verb, or the area
+// alone where it has no row for the next word, and the last line is still
+// the command as typed.
+// PREVENTS: a heading that counts three words after `./le` whatever they are
+// and names a keyword as the action (`./le job run label`).
+func TestSubagentHeavyRefusalNamesTheResolvedAction(t *testing.T) {
+	heavyProbe.Do(registerHeavyProbe)
+	for _, row := range []struct{ command, named string }{
+		// An action row typed with a keyword and its value after the verb.
+		{`./le heavy-probe haul command echo hi`, "./le heavy-probe haul"},
+		{`./le job run label x command echo hi`, "./le job run"},
+		{`./le test unit pkg path ./internal/core/hostload/`, "./le test unit pkg"},
+		// An area registered heavy as a whole, typed with trailing words.
+		{`./le heavy-probe-area statistics x`, "./le heavy-probe-area"},
+		{`./le exec go version`, "./le exec"},
+		{`./le test integration all`, "./le test integration"},
+	} {
+		code, _, message := runSubagentBash(t, identityLineOfAgent+row.command)
+		if code != 2 {
+			t.Errorf("%q: code=%d, want 2: %s", row.command, code, message)
+			continue
+		}
+		heading := red + bold + handBackHeader + "the `./le` action `" + row.named + "`" + reset
+		if !strings.Contains(message, heading+"\n") {
+			t.Errorf("%q: the heading does not name `%s`: %s", row.command, row.named, message)
+		}
+		if !handedBack(message, row.command) {
+			t.Errorf("%q: the refusal does not end with the command as typed: %s", row.command, message)
 		}
 	}
 }

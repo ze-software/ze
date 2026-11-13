@@ -83,9 +83,25 @@ var heavyAreas struct {
 // It reads the shared registry, so it MUST be called after every area's init
 // has run.
 func HeavyLine(words []string) bool {
+	_, heavy := HeavyCommand(words)
+	return heavy
+}
+
+// HeavyCommand is HeavyLine's verdict with the name of the command the line
+// resolved to, in le's words and without the program: what a refusal of the
+// line names (internal/le/hookruntime, heavyTool). The name is read from the
+// same resolution as the verdict, so it never holds a keyword or a value the
+// line typed after its command. It is the area and the verb of the action
+// that makes the line heavy (`job run`, and for a sweep the heavy verb, for a
+// bare line the default action's); the area alone where the area has no row
+// for the next word, as a pass-through area or a verbless one has none; and
+// the area, the verb and the selection where that selection registered heavy
+// (RegisterHeavy). The name is empty exactly when the verdict is false.
+// words and the registry are bound as HeavyLine binds them.
+func HeavyCommand(words []string) (string, bool) {
 	line, runs := resolveLine(words)
 	if !runs {
-		return false
+		return "", false
 	}
 	if line.declared {
 		return heavyInTable(line.area, line.list, line.rest)
@@ -93,7 +109,10 @@ func HeavyLine(words []string) bool {
 	// An area with no table publishes no grammar, and dispatch refuses to
 	// start while one exists (requireEveryAreaHasATable), so only what the
 	// area registered for its whole name is read.
-	return heavyByName(line.area)
+	if !heavyByName(line.area) {
+		return "", false
+	}
+	return line.area, true
 }
 
 // typedLine is a typed le line as dispatch resolves it: the area, the words
@@ -234,41 +253,64 @@ func heavyByName(name string) bool {
 // heavyInTable judges rest, the words after the area's name, against the
 // table the area registered. The line begins at the action's verb as every
 // reader of a line reads it (leaction.List.AtVerb), so a default action's
-// bare line is that action's.
-func heavyInTable(name string, list leaction.List, rest []string) bool {
+// bare line is that action's. It answers the name of the command beside the
+// verdict, as HeavyCommand documents it.
+func heavyInTable(name string, list leaction.List, rest []string) (string, bool) {
 	if list.PassesWords {
 		// Every word is the program's, a trailing help word included: the
 		// program prints its own help and starts no work.
 		if len(rest) != 0 && isHelpArg(rest[len(rest)-1]) {
-			return false
+			return "", false
 		}
-		return heavyByName(name)
+		if !heavyByName(name) {
+			return "", false
+		}
+		return name, true
 	}
 	line := list.AtVerb(rest)
 	if len(line) == 0 {
 		// The bare name of an area with rows and no default action prints
 		// its listing, whatever the area registered.
-		return false
+		return "", false
 	}
 	if heavyByName(name) {
-		return true
+		if rowIndex(list, line[0]) < 0 {
+			// The area has no row for the word, so the word is no part of
+			// the command's name: the area is all the line resolved to.
+			return name, true
+		}
+		return actionName(name, line[0]), true
 	}
 	if line[0] != "" {
-		var tb textbuf.Buffer
-		action := tb.Str(name).Byte(' ').Str(line[0]).String()
+		action := actionName(name, line[0])
 		if Expensive(action) {
-			return true
+			return action, true
 		}
 		if len(line) > 1 {
 			// A selection of the action that registered heavy, where the
 			// action without it is light.
-			var selection textbuf.Buffer
-			if Heavy(selection.Str(action).Byte(' ').Str(line[1]).String()) {
-				return true
+			selection := actionName(action, line[1])
+			if Heavy(selection) {
+				return selection, true
 			}
 		}
 	}
-	return heavyRows(list, line)
+	verb, heavy := heavyRows(list, line)
+	if !heavy {
+		return "", false
+	}
+	return actionName(name, verb), true
+}
+
+// actionName answers the name of the action verb of the command name: the two
+// joined by a space, and name alone for the empty verb of a verbless table,
+// which no line types.
+func actionName(name, verb string) string {
+	if verb == "" {
+		return name
+	}
+	var tb textbuf.Buffer
+	return tb.Str(name).Byte(' ').Str(verb).String()
 }
 
 // heavyRows reports whether line, which begins at a verb, names a row that
@@ -277,32 +319,33 @@ func heavyInTable(name string, list leaction.List, rest []string) bool {
 // words after it can only be further verbs of a sweep (leaction.Area.Sweep),
 // so a line made of the table's verbs is heavy when any of them is. A word
 // the table does not hold ends the reading: the area refuses that line. The
-// loops are bounded by the typed line and the table.
-func heavyRows(list leaction.List, line []string) bool {
+// loops are bounded by the typed line and the table. It answers the heavy
+// verb beside the verdict: the first one of the line.
+func heavyRows(list leaction.List, line []string) (string, bool) {
 	at := rowIndex(list, line[0])
 	if at < 0 {
 		// The line opens with no action of the table, and the area refuses it.
-		return false
+		return "", false
 	}
 	first := list.Actions[at]
 	if first.Heavy {
-		return true
+		return first.Verb, true
 	}
 	if ownsItsWords(first) {
-		return false
+		return "", false
 	}
 	for _, word := range line[1:] {
 		at = rowIndex(list, word)
 		if at < 0 {
 			// The word is no verb, so the line is no sweep, and the light
 			// action it opens with is all it could run.
-			return false
+			return "", false
 		}
 		if list.Actions[at].Heavy {
-			return true
+			return word, true
 		}
 	}
-	return false
+	return "", false
 }
 
 // ownsItsWords reports whether the words after a row's verb are that

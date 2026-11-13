@@ -208,6 +208,59 @@ func TestHeavyLineReadsActionAreaAndHelp(t *testing.T) {
 	}
 }
 
+// TestHeavyCommandNamesWhatTheLineResolvedTo asks whether the name beside the
+// heavy verdict is the command the line resolved to, and nothing typed after
+// it. Its method: the probe areas, with the guarded sets restored afterwards,
+// and one row per way a line is heavy.
+//
+// VALIDATES: spec-main-thread-schedules-heavy-work AC-9 at the reader: the
+// name is the area and the verb of the heavy action, the heavy verb of a
+// sweep, the default action of a bare line, the area alone where it has no
+// row for the next word, and the three words of a heavy selection; a light
+// line has no name.
+// PREVENTS: a refusal naming a keyword or a value as part of the action
+// (`./le job run label` for `./le job run label probe ...`).
+func TestHeavyCommandNamesWhatTheLineResolvedTo(t *testing.T) {
+	heavyProbes.Do(registerHeavyProbes)
+	holdHeavyRegistrations(t)
+	RegisterHeavy("probe-heavy-area")
+	RegisterAdmitted("probe-heavy-admitted")
+	RegisterExpensive("probe-heavy-rows audit")
+	RegisterHeavy("probe-heavy-rows pass deep")
+
+	for _, row := range []struct{ line, name string }{
+		// An action row: the keyword and the words after the verb are no
+		// part of the name.
+		{"probe-heavy-rows run", "probe-heavy-rows run"},
+		{"--name probe probe-heavy-rows run | json", "probe-heavy-rows run"},
+		{"probe-heavy-rows haul command go version", "probe-heavy-rows haul"},
+		// A sweep is named by the verb that makes it heavy.
+		{"probe-heavy-rows check burn", "probe-heavy-rows burn"},
+		// An action registered as expensive, and a heavy selection.
+		{"probe-heavy-rows audit", "probe-heavy-rows audit"},
+		{"probe-heavy-rows pass deep x y", "probe-heavy-rows pass deep"},
+		// A bare line is the default action's.
+		{"probe-heavy-default", "probe-heavy-default publish"},
+		// A pass-through area has no rows: its words are its program's.
+		{"probe-heavy-area", "probe-heavy-area"},
+		{"probe-heavy-area statistics x", "probe-heavy-area"},
+		// An area heavy as a whole: its row's verb, and the area alone for a
+		// word it has no row for.
+		{"probe-heavy-admitted start", "probe-heavy-admitted start"},
+		{"probe-heavy-admitted bogus x", "probe-heavy-admitted"},
+		// A light line and a listing have no name.
+		{"probe-heavy-rows list", ""},
+		{"probe-heavy-rows carry command go test ./x", ""},
+		{"probe-heavy-rows", ""},
+		{"probe-heavy-area help", ""},
+	} {
+		name, heavy := HeavyCommand(strings.Fields(row.line))
+		if name != row.name || heavy != (row.name != "") {
+			t.Errorf("HeavyCommand(%q) = %q, %v, want %q, %v", row.line, name, heavy, row.name, row.name != "")
+		}
+	}
+}
+
 // TestCarrierLineReadsTheRowAndTheRegistration asks whether one predicate
 // reads a typed le line as a carrier of a command from the two declarations
 // that say so, and from nothing else. Its method: the probe areas, judged
