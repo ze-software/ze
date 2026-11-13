@@ -26,6 +26,14 @@ func init() {
 	// Every word after the program path is the program's own command line, so
 	// a trailing help word reaches the program and it prints its own help.
 	leroot.RegisterForwarding(name, "the program its first word names")
+	// The program is the caller's choice, most often the Go toolchain, so every
+	// line of this area is heavy work the main thread schedules
+	// (leroot.HeavyLine).
+	leroot.RegisterHeavy(name)
+	// The area runs the program its first word names and prints that
+	// program's output, so it carries a command and holds no verdict of its
+	// own (leroot.CarrierLine).
+	leroot.RegisterCarrier(name)
 }
 
 // answer is `le exec <path> [args...]`. On success it never returns: le

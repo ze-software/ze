@@ -25,8 +25,9 @@ const (
 // race detector and admits the run.
 const shortPackageForm = pkgActionCommand + " " + pkgPathKeyword + " <package>"
 
-// verifyArea is the le area that runs the verification gate, apart from its
-// two read-only actions (heavyArea).
+// verifyArea is the le area whose runs no agent starts. The piped-command
+// refusal reads it only to choose its advice (verifyCommand): which of the
+// area's lines are expensive is the area's own declaration (expensiveWords).
 const verifyArea = "verify"
 
 // lossyPipeRefusal is the piped-command refusal for the expensive segment.
@@ -45,8 +46,7 @@ const verifyArea = "verify"
 // word the shell expands is advised as typed. MUST be called with written
 // as long as words.
 func lossyPipeRefusal(identity, filter string, words, written []string) *verdict {
-	head := "❌ Blocked: piping an expensive command's output through a lossy filter (" + filter + ")\n" +
-		"  -- The filter drops the lines that say why a run failed, and what it keeps is what you would judge the run by.\n"
+	head := lossyPipeHead(filter)
 	if len(words) == 0 {
 		return &verdict{2, head +
 			"  -- Run the command with no filter, redirect or tee, in the quiet admitted form (ai/rules/commands.md):\n" +
@@ -66,6 +66,35 @@ func lossyPipeRefusal(identity, filter string, words, written []string) *verdict
 		advice += "  -- For one package with its feature tags, the short form: " + shortPackageForm + "\n"
 	}
 	return &verdict{2, advice + "  -- Then read the log it names with the Read tool, offset and limit."}
+}
+
+// lossyPipeHead opens the piped-command refusal for every caller: what was
+// refused, with the filter's command word, and why.
+func lossyPipeHead(filter string) string {
+	return "❌ Blocked: piping an expensive command's output through a lossy filter (" + filter + ")\n" +
+		"  -- The filter drops the lines that say why a run failed, and what it keeps is what you would judge the run by.\n"
+}
+
+// lossyPipeSubagentAdvice is the piped-command refusal a subagent reads on a
+// line the heavy-work check did not hand back (withoutHandedBackAdvice). The
+// piped command starts no heavy work for this caller, or the line would have
+// been handed back: it is a command this guard classes as expensive and that
+// check does not, today the linter's subcommands that run no analysis. The
+// admitted `./le job run` form lossyPipeRefusal advises is refused to a
+// subagent, so this text never names it: the route is the command itself with
+// no filter, written from the same words (written, with the caller's identity
+// line in front so that typing it back is not refused), or the main thread's
+// run when its output is too long to read. With no words, a line the hook
+// failed to read, it names the route and no command.
+func lossyPipeSubagentAdvice(identity, filter string, written []string) string {
+	head := lossyPipeHead(filter)
+	owed := "  -- If its output is too long to read, do not run it: put the command under `Owed commands` in your report, and the main thread runs it."
+	if len(written) == 0 {
+		return head + "  -- Run the command with no filter, redirect or tee, and read its whole output.\n" + owed
+	}
+	return head +
+		"  -- Run it with no filter, redirect or tee, and read its whole output:\n" +
+		"     " + identity + strings.Join(written, " ") + "\n" + owed
 }
 
 // treeLossyPipe is the piped-command guard's tree judgment (AC-10): on a line
@@ -166,9 +195,10 @@ func goVet(words []string) bool {
 }
 
 // verifyCommand reports whether program words run an le verification area,
-// `le verify ...` or `ze le verify ...`. commandExpensive already judged the
-// words heavy, so the areas that run nothing (`verify status`, `verify
-// summary`) never reach it. MUST be called with at least one word.
+// `le verify ...` or `ze le verify ...`. expensiveWords already judged the
+// words heavy, so the lines that run nothing (`verify status`, `verify
+// summary`, `verify reds`, `verify list`) never reach it. MUST be called with
+// at least one word.
 func verifyCommand(words []string) bool {
 	base := filepath.Base(words[0])
 	if base == "le" {

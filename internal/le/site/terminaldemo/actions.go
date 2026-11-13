@@ -92,7 +92,7 @@ func actionTable() leaction.Area {
 				},
 			}},
 			AnswerArgs: func(args leaction.Arguments) (any, int) { return targetAnswer(checkTargets, args) }},
-		leaction.Action{Verb: "build", Summary: "build the demo renderer image or its binaries", Why: "the container every demo is recorded in, tagged as the manifest names it (image), " +
+		leaction.Action{Verb: "build", Heavy: true, Summary: "build the demo renderer image or its binaries", Why: "the container every demo is recorded in, tagged as the manifest names it (image), " +
 			"or the ze a demo drives, and the le that records it, cross-built for the renderer container (binaries)",
 			Writes: true,
 			Parameters: []leaction.Parameter{{
@@ -105,7 +105,7 @@ func actionTable() leaction.Area {
 				},
 			}},
 			AnswerArgs: func(args leaction.Arguments) (any, int) { return targetAnswer(buildTargets, args) }},
-		leaction.Action{Verb: "render", Summary: "re-record one website demo, or every one", Why: "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo, " +
+		leaction.Action{Verb: "render", Heavy: true, Summary: "re-record one website demo, or every one", Why: "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo, " +
 			"or every website demo (all)",
 			Writes: true,
 			Parameters: []leaction.Parameter{
@@ -113,7 +113,7 @@ func actionTable() leaction.Area {
 				{Keyword: renderAll, Kind: leaction.KindSwitch, Help: "re-record every website demo"},
 			},
 			AnswerArgs: runRender},
-		leaction.Action{Verb: ptyVerb, Does: "run", Summary: "record one tape or drive a program through a PTY", Why: "record one tape, or drive a program through a PTY; the renderer container runs it",
+		leaction.Action{Verb: ptyVerb, Heavy: true, Does: "run", Summary: "record one tape or drive a program through a PTY", Why: "record one tape, or drive a program through a PTY; the renderer container runs it",
 			AnswerWords: runPTYAction},
 	)
 }

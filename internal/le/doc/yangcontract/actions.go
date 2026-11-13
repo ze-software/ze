@@ -38,6 +38,7 @@ var actions = []leaction.Action{
 	},
 	{
 		Verb:    "doc-drift",
+		Heavy:   true,
 		Does:    doesCheck,
 		Summary: "check documentation claims agree with the registry",
 		Why:     "the documentation claims agree with the registry, the tree and the operator catalog",

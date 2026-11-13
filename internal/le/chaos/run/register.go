@@ -31,4 +31,8 @@ func init() {
 	// Every word after the name is the program's own command line, so a
 	// trailing help word reaches the program and it prints its own help.
 	leroot.RegisterForwarding(name, "the chaos orchestrator")
+	// The orchestrator starts daemons and drives them for the whole run, so the
+	// area declares itself heavy and the main thread schedules it
+	// (leroot.HeavyLine).
+	leroot.RegisterHeavy(name)
 }

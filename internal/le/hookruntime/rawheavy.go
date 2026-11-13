@@ -134,7 +134,7 @@ func rawHeavyWords(tokens, written, moves []string, root string) rawRefusal {
 	var prefix []string
 	for len(tokens) != 0 {
 		head := tokens[0]
-		if strings.HasPrefix(head, "ZE_ADMIT_RAW=") && strings.Trim(strings.TrimPrefix(head, "ZE_ADMIT_RAW="), "'\"") != "" {
+		if strings.HasPrefix(head, admitRawAssignment) && strings.Trim(strings.TrimPrefix(head, admitRawAssignment), "'\"") != "" {
 			return rawRefusal{}
 		}
 		if assignmentWord(head) {
@@ -169,19 +169,36 @@ func rawHeavyWords(tokens, written, moves []string, root string) rawRefusal {
 		return refusal
 	}
 	if filepath.Base(tokens[0]) == lintCommand {
-		sub := ""
-		for _, token := range tokens[1:] {
-			if !strings.HasPrefix(token, "-") {
-				sub = token
-				break
-			}
-		}
-		if oneOf(sub, "config", "version", "help", "linters", "cache", "completion") {
+		if lintRunsNoAnalysis(tokens) {
 			return rawRefusal{}
 		}
 		return rawRefusal{what: "`golangci-lint`", use: admittedCommand("lint", kept), uncarried: uncarried}
 	}
 	return rawRefusal{}
+}
+
+// admitRawAssignment opens the assignment that states the reason a one-off
+// runs raw, outside job admission. It lifts the raw-job refusal for the
+// caller who schedules (rawHeavyWords), and lifts nothing for a subagent,
+// whose heavy command is handed back whatever stands in front of it: the
+// heavy-work check reads through it like any assignment (heavyTool,
+// subagent_heavy.go).
+const admitRawAssignment = "ZE_ADMIT_RAW="
+
+// lintRunsNoAnalysis reports whether tokens, a golangci-lint command from its
+// program on, name one of the linter's subcommands that run no analysis: the
+// first word that is not an option is the subcommand. It is the one list of
+// them, read by the raw-job guard (rawHeavyWords) and by the subagent
+// heavy-work check (heavyTool). MUST be called with at least one token.
+func lintRunsNoAnalysis(tokens []string) bool {
+	sub := ""
+	for _, token := range tokens[1:] {
+		if !strings.HasPrefix(token, "-") {
+			sub = token
+			break
+		}
+	}
+	return oneOf(sub, "config", "version", "help", "linters", "cache", "completion")
 }
 
 // assignmentWord reports a word the shell reads as an assignment in front of

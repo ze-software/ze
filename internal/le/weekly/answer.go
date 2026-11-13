@@ -104,6 +104,7 @@ var actions = leaction.New("weekly", leaction.Action{
 	AnswerArgs: answerUpdate,
 }, leaction.Action{
 	Verb:    reportVerb,
+	Heavy:   true,
 	Summary: "answer the tooling events of a release range",
 	Why: "answer the tooling events between two revisions, one section per registered source:" +
 		" the input of the update's RFC section and of its defects-found row",

@@ -385,3 +385,91 @@ func TestPostLintVerdictJudgesOnlyTheEditedFile(t *testing.T) {
 		t.Errorf("a package that does not build was not blocked: %+v", build)
 	}
 }
+
+// lintProbeFixture builds a throwaway module holding one unformatted Go file,
+// and a PATH that holds the real gofmt beside a stand-in golangci-lint. The
+// stand-in leaves a marker file when it is started, reports one issue in the
+// edited file and exits as a run that found issues, so a test reads whether
+// postFormatGo started a linter process without running the real one. It
+// answers the module root, the edited file and the marker's path.
+func lintProbeFixture(t *testing.T) (root, edited, marker string) {
+	t.Helper()
+	gofmt, err := exec.LookPath("gofmt")
+	if err != nil {
+		t.Fatalf("gofmt is not on PATH, so the format step cannot be judged: %v", err)
+	}
+	root = t.TempDir()
+	writeHookFixture(t, root, "go.mod", "module example.test/sample\n\ngo 1.24\n")
+	writeHookFixture(t, root, "pkg/x.go", unformattedGo)
+	tools := t.TempDir()
+	marker = filepath.Join(tools, "lint-started")
+	script := "#!/bin/sh\n: > '" + marker + "'\necho 'pkg/x.go:1:1: stand-in issue (standin)'\nexit " + strconv.Itoa(lintIssuesFound) + "\n"
+	if err := os.WriteFile(filepath.Join(tools, "golangci-lint"), []byte(script), 0o700); err != nil { //nolint:gosec // an executable stand-in the test itself wrote
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", tools+string(os.PathListSeparator)+filepath.Dir(gofmt))
+	return root, filepath.Join(root, "pkg", "x.go"), marker
+}
+
+// VALIDATES: AC-12. A subagent's Go edit comes out formatted, starts no
+// linter process and gets no verdict, whether the payload names the agent or
+// the harness marked the hook process as a fork's.
+// PREVENTS: a subagent starting a 60s lint outside job admission on every Go
+// edit, and the opposite repair that skips the format step with the lint.
+func TestSubagentEditFormatsAndSkipsLint(t *testing.T) {
+	for name, fork := range map[string]bool{"agent id in the payload": false, "fork variable": true} {
+		t.Run(name, func(t *testing.T) {
+			root, edited, marker := lintProbeFixture(t)
+			payload := Payload{ToolName: "Edit", ToolInput: map[string]any{"file_path": edited}, AgentID: "agent-1"}
+			t.Setenv(forkVariable, "")
+			if fork {
+				payload.AgentID = ""
+				t.Setenv(forkVariable, "1")
+			}
+
+			code, message, found := Probe("postFormatGo", payload, root)
+			if !found {
+				t.Fatal("postFormatGo is not registered in nativeHookActions")
+			}
+			if code != 0 || message != "" {
+				t.Errorf("a subagent's edit got a lint verdict (code %d): %q", code, message)
+			}
+			if _, err := os.Stat(marker); !os.IsNotExist(err) {
+				t.Errorf("a subagent's edit started the linter (marker stat: %v)", err)
+			}
+			body, err := os.ReadFile(edited) //nolint:gosec // the fixture file this test wrote
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := "package sample\n\nvar misaligned = 1\n"; string(body) != want {
+				t.Errorf("the edited file was not formatted:\n got %q\nwant %q", body, want)
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-12 survivor. The main thread's Go edit is still formatted,
+// and the linter still runs on its package and blocks on an issue in the file.
+// PREVENTS: the subagent branch swallowing the main thread's lint.
+func TestMainThreadEditStillLints(t *testing.T) {
+	root, edited, marker := lintProbeFixture(t)
+	t.Setenv(forkVariable, "")
+
+	code, message, found := Probe("postFormatGo", Payload{ToolName: "Edit", ToolInput: map[string]any{"file_path": edited}}, root)
+	if !found {
+		t.Fatal("postFormatGo is not registered in nativeHookActions")
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Errorf("the main thread's edit did not start the linter: %v", err)
+	}
+	if code != 2 || !strings.Contains(message, "1 issue(s) in pkg/x.go") {
+		t.Errorf("the linter's issue in the edited file did not block (code %d): %q", code, message)
+	}
+	body, err := os.ReadFile(edited) //nolint:gosec // the fixture file this test wrote
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "package sample\n\nvar misaligned = 1\n"; string(body) != want {
+		t.Errorf("the edited file was not formatted:\n got %q\nwant %q", body, want)
+	}
+}

@@ -17,11 +17,12 @@ type actionRunner func() (any, int)
 
 func actionTable(runCheck, runUpdate actionRunner, additional ...leaction.Action) leaction.Area {
 	base := []leaction.Action{
-		leaction.Action{Verb: "check", Summary: "render netlab topologies and compare goldens", Why: "render contrib/netlab with the installed netlab, compare every node with its golden file," +
+		leaction.Action{Verb: "check", Heavy: true, Summary: "render netlab topologies and compare goldens", Why: "render contrib/netlab with the installed netlab, compare every node with its golden file," +
 			" and prove each golden is accepted by ze config validate",
 			Answer: runCheck},
 		leaction.Action{
 			Verb:    "update",
+			Heavy:   true,
 			Summary: "rewrite the netlab goldens from a real render",
 			Why:     "rewrite contrib/netlab/golden from a real netlab render, then validate every rewritten file",
 			Writes:  true,
@@ -39,7 +40,7 @@ var actions = actionTable(runCheckHere, runUpdateHere,
 		AnswerArgs: packageHere,
 	},
 	leaction.Action{
-		Verb: "run", Summary: "prove live protocols, routes and traffic, then stop", Writes: true,
+		Verb: "run", Heavy: true, Summary: "prove live protocols, routes and traffic, then stop", Writes: true,
 		Why: "build a local Ze lab image and pinned upstream tools, run the reference topology on the Ze Docker host, assert every declared adjacency and route plus loopback traffic, and tear down the lab",
 		Parameters: []leaction.Parameter{
 			{Keyword: "runtime", Kind: leaction.KindEnum, Value: "runtime", Requirement: leaction.Optional, Help: "run tools in a container or this Docker host namespace", Values: []string{"container", "host"}, ValueHelp: map[string]string{"container": "build and run the tool container on the Ze Docker host", "host": "run the packaged lab inside the prepared tool container"}},

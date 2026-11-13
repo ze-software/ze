@@ -91,9 +91,15 @@ func postBashGofmt(ctx context) *verdict {
 		for _, file := range named {
 			lines = append(lines, "  "+file)
 		}
+		// The Bash hook refuses a formatter from a subagent (bashSubagentHeavy),
+		// so its line names the two routes it can take.
+		repair := "  If this command changed the file: gofmt -w <path>"
+		if fromSubagent(ctx) {
+			repair = "  If this command changed the file: make any Edit to it (the post-edit hook formats the file), or list `gofmt -w <path>` under `Owed commands` in your report."
+		}
 		lines = append(lines,
 			"  The check cannot tell whose write it was, only that the file changed in the last "+postBashWindow.String()+".",
-			"  If this command changed the file: gofmt -w <path>",
+			repair,
 			"  If another session is editing it: leave the file as it is, and say in your report whose it is.")
 	}
 	if err != nil {

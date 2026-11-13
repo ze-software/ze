@@ -32,6 +32,7 @@ func actionTable(run actionRunner) leaction.Area {
 			Does:    doesCheck,
 			Summary: "vet the Linux evidence-script packages",
 			Why:     "vet the Linux evidence-script package population without feature tags",
+			Heavy:   true,
 			Answer:  actionAnswer(VerbEvidenceVet, run),
 		},
 		leaction.Action{
@@ -39,6 +40,7 @@ func actionTable(run actionRunner) leaction.Area {
 			Does:    doesCheck,
 			Summary: "scan the dependency graph with govulncheck",
 			Why:     "scan the Linux/amd64 dependency graph with an installed govulncheck",
+			Heavy:   true,
 			Answer:  actionAnswer(VerbVulnerability, run),
 		},
 		leaction.Action{
@@ -46,6 +48,7 @@ func actionTable(run actionRunner) leaction.Area {
 			Does:    doesRun,
 			Summary: "run the cacheable non-race package pass",
 			Why:     "run the full cacheable non-race package pass and bare-core compile-out checks",
+			Heavy:   true,
 			Answer:  actionAnswer(VerbUnitCached, run),
 		},
 		leaction.Action{
@@ -53,6 +56,7 @@ func actionTable(run actionRunner) leaction.Area {
 			Does:    doesRun,
 			Summary: "test and vet the packages the change reaches",
 			Why:     "test and vet the packages the change set reaches and run the bare-core compile-out check",
+			Heavy:   true,
 			Answer:  actionAnswer(VerbUnitChanged, run),
 		},
 		leaction.Action{
@@ -62,6 +66,7 @@ func actionTable(run actionRunner) leaction.Area {
 			Why: "derive changed Go groups and run them plus bare-core checks with race and cgo; " +
 				"part <index> of <count> runs one piece of the packages, and the pieces together run every package; " +
 				"it takes keywords, so it runs on its own and is never swept beside another verb",
+			Heavy: true,
 			Parameters: []leaction.Parameter{
 				{Keyword: "part", Kind: leaction.KindUint, Help: "which piece of the groups this run judges, read with of", Value: "index", Requirement: leaction.Optional},
 				{Keyword: "of", Kind: leaction.KindUint, Help: "how many pieces the groups are split into, read with part", Value: "count", Requirement: leaction.Optional},
@@ -80,6 +85,7 @@ func actionTable(run actionRunner) leaction.Area {
 			Does:    doesCheck,
 			Summary: "enforce hot-path allocation ceilings",
 			Why:     "measure registered hot-path benchmarks and enforce their allocs/op ceilings",
+			Heavy:   true,
 			Answer:  actionAnswer(VerbAlloc, run),
 		},
 	)

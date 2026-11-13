@@ -31,7 +31,7 @@ const keywordRefresh = "refresh"
 const doesRender = "render"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "build", Summary: "stage the website and refresh the Pages artifact", Why: "stage website sources and refresh the Pages artifact with native renderers", Writes: true,
+	leaction.Action{Verb: "build", Heavy: true, Summary: "stage the website and refresh the Pages artifact", Why: "stage website sources and refresh the Pages artifact with native renderers", Writes: true,
 		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the directory the Pages artifact is written to", Value: valueDirectory, Requirement: leaction.Optional}, {Keyword: "partial", Kind: leaction.KindSwitch, Help: "restage sources over the existing full artifact"}, {Keyword: keywordRefresh, Kind: leaction.KindSwitch, Help: "refresh stale feature evidence before the build"}}, AnswerArgs: runBuild},
 	leaction.Action{Verb: "check", Summary: "check the Pages artifact holds no source inputs", Why: "verify that the Pages artifact contains no source-only website inputs",
 		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the Pages artifact directory to check", Value: valueDirectory, Requirement: leaction.Optional}}, AnswerArgs: runCheck},
@@ -44,9 +44,9 @@ var actions = leaction.New(area,
 			{Keyword: "ref", Kind: leaction.KindRevision, Help: "the revision the activity is read at", Value: "revision", Requirement: leaction.Optional},
 			{Keyword: "today", Kind: leaction.KindString, Help: "the date the page is drawn for, as YYYY-MM-DD", Value: "date", Requirement: leaction.Optional},
 		}, AnswerArgs: runActivity},
-	leaction.Action{Verb: "talk", Does: "update", Summary: "refresh one talk's statistics and deck", Why: "refresh one talk's live statistics, activity page, and standalone deck", Writes: true,
+	leaction.Action{Verb: "talk", Heavy: true, Does: "update", Summary: "refresh one talk's statistics and deck", Why: "refresh one talk's live statistics, activity page, and standalone deck", Writes: true,
 		Parameters: []leaction.Parameter{{Keyword: "talk", Kind: leaction.KindLabel, Help: "the talk to refresh, by its slug", Value: "slug", Requirement: leaction.Required}, {Keyword: "bundle-only", Kind: leaction.KindSwitch, Help: "rebuild only the standalone deck"}}, AnswerArgs: runUpdateTalk},
-	leaction.Action{Verb: "config-tree", Does: doesRender, Summary: "extract the live YANG config tree for the site", Why: "extract the live YANG configuration tree for the public configuration reference", Writes: true,
+	leaction.Action{Verb: "config-tree", Heavy: true, Does: doesRender, Summary: "extract the live YANG config tree for the site", Why: "extract the live YANG configuration tree for the public configuration reference", Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the directory the tree is written to", Value: valueDirectory, Requirement: leaction.Optional},
 			{Keyword: "binary", Kind: leaction.KindPath, Help: "the ze binary the tree is extracted from", Value: "ze-binary", Requirement: leaction.Optional},

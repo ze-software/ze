@@ -32,6 +32,9 @@ func init() {
 	// Every word after the name is the program's own command line, so a
 	// trailing help word reaches the program and it prints its own help.
 	leroot.RegisterForwarding(name, "gokrazy's gok")
+	// gok compiles the appliance and writes its image, so the area declares
+	// itself heavy and the main thread schedules it (leroot.HeavyLine).
+	leroot.RegisterHeavy(name)
 }
 
 // Answer runs gok with args and answers its exit code. The payload is nil

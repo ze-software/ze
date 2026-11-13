@@ -259,6 +259,24 @@ func textChangesEnvironment(rest string) bool {
 	return false
 }
 
+// forkVariable is the environment variable the harness sets in the hook
+// process of a fork subagent, which carries no agent id in its payload.
+const forkVariable = "CLAUDE_CODE_FORK_SUBAGENT"
+
+// fromSubagent reports whether the hook call comes from a subagent: its
+// payload names an agent, or the harness marked the hook process as a fork's
+// (forkVariable). It is the one answer to that question: the identity check
+// (bashAgentIdentity), the advice prefix (commandIdentityPrefix) and the
+// heavy-work check (bashSubagentHeavy) all read it, so no two of them can
+// judge one caller two ways. It reads the payload and the environment the
+// harness set, never text the agent typed.
+func fromSubagent(ctx context) bool {
+	if ctx.payload.AgentID != "" {
+		return true
+	}
+	return os.Getenv(forkVariable) != ""
+}
+
 // ze point: planning/directives/brief-every-subagent-with-its-spec-phase-and-rules
 // bashAgentIdentity keeps a subagent's command under the identity the harness
 // gave the agent: the parent's session id, which keeps the session's directory
@@ -286,10 +304,10 @@ func textChangesEnvironment(rest string) bool {
 // identity of its own to lose: with no usable session id it runs unjudged.
 // The main thread is the identity le resolves by default and is never judged.
 func bashAgentIdentity(ctx context) *verdict {
-	agent := ctx.payload.AgentID
-	if agent == "" && os.Getenv("CLAUDE_CODE_FORK_SUBAGENT") == "" {
+	if !fromSubagent(ctx) {
 		return nil
 	}
+	agent := ctx.payload.AgentID
 	session, _ := payloadSessionID(ctx.payload)
 	if session == "" {
 		if agent == "" {
@@ -342,10 +360,10 @@ func bashAgentIdentity(ctx context) *verdict {
 // cannot be typed answers "" too, because bashAgentIdentity refuses that
 // caller's every command with stop-and-report before any advice applies.
 func commandIdentityPrefix(ctx context) string {
-	agent := ctx.payload.AgentID
-	if agent == "" && os.Getenv("CLAUDE_CODE_FORK_SUBAGENT") == "" {
+	if !fromSubagent(ctx) {
 		return ""
 	}
+	agent := ctx.payload.AgentID
 	session, _ := payloadSessionID(ctx.payload)
 	if session == "" {
 		return ""

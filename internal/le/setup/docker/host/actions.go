@@ -43,6 +43,7 @@ const (
 var dockerHostActions = leaction.New(dockerHostArea,
 	leaction.Action{
 		Verb:    "build",
+		Heavy:   true,
 		Writes:  true,
 		Summary: "build Ze's docker-host image",
 		Why: "build Ze's docker-host image (Ze's runtime kernel, dockerd, containerd, sshd, sudo, iptables) from the" +
@@ -62,6 +63,7 @@ var dockerHostActions = leaction.New(dockerHostArea,
 	},
 	leaction.Action{
 		Verb:    "start",
+		Heavy:   true,
 		Writes:  true,
 		Summary: "start the ze Colima profile on macOS",
 		Why: "macOS: build the image if needed, then run it as the `ze` Colima profile, whose Docker socket" +
@@ -72,6 +74,7 @@ var dockerHostActions = leaction.New(dockerHostArea,
 	},
 	leaction.Action{
 		Verb:    "stop",
+		Heavy:   true,
 		Writes:  true,
 		Summary: "stop the ze Colima profile on macOS",
 		Why:     "macOS: stop the `ze` Colima profile when it runs",

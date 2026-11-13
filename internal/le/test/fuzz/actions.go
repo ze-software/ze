@@ -86,6 +86,7 @@ var timeoutEntry = env.MustRegister(env.EnvEntry{
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:    "run",
+		Heavy:   true,
 		Summary: "fuzz every target for 10s, stop at a crash",
 		Why:     "fuzz every `func Fuzz` under internal/, 10s each, stopping at the first crash",
 		Answer:  runSweep,

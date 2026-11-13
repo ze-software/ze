@@ -14,6 +14,7 @@ import (
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:    "move",
+		Heavy:   true,
 		Summary: "move an internal package tree and its imports",
 		Why:     "preview or atomically relocate an internal package tree, rewrite imports, refresh plugin discovery, and prove generated registrations are preserved",
 		Writes:  true,
@@ -30,6 +31,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    "rename",
+		Heavy:   true,
 		Summary: "rename the Go module everywhere it is spelled",
 		Why:     "preview or atomically rename the repository Go module and every tracked textual and on-disk spelling without corrupting generated protobuf descriptors",
 		Writes:  true,

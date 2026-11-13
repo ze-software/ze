@@ -156,10 +156,11 @@ func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
 // TestSubagentStartCarriesTheCallRules drives the subagent-context hook with
 // a payload that carries a session and one that carries none (AC-6).
 //
-// VALIDATES: the start text states the five rules a subagent's calls are
-// judged by: the whole Read of a door, Edit or Write under plan/ and
-// ai/rules/, batching, tests and builds in the main thread, and the budget
-// with refused calls uncounted.
+// VALIDATES: the start text states the rules a subagent's calls are judged
+// by: the whole Read of a door, Edit or Write under plan/ and ai/rules/,
+// batching, tests and builds in the main thread, and the budget with refused
+// calls uncounted. TestSubagentStartTextNamesOwedCommands holds the owed
+// commands, the owed lint and the commit rule.
 // PREVENTS: an agent learning each rule from a refusal, a turn apiece.
 func TestSubagentStartCarriesTheCallRules(t *testing.T) {
 	for _, payload := range []map[string]any{
@@ -185,6 +186,47 @@ func TestSubagentStartCarriesTheCallRules(t *testing.T) {
 			"Hand tests, builds, lint and formatters to the main thread",
 			"A ze-work agent's budget is 100 hooked calls",
 			"A call a hook refuses is not counted.",
+		} {
+			if !strings.Contains(response.Output.Context, want) {
+				t.Errorf("%v: start text missing %q: %s", payload, want, response.Output.Context)
+			}
+		}
+	}
+}
+
+// TestSubagentStartTextNamesOwedCommands drives the subagent-context hook the
+// way TestSubagentStartCarriesTheCallRules does (AC-18).
+//
+// VALIDATES: the start text says what the Bash hook refuses from a subagent,
+// names the `Owed commands` list and what each entry carries, names the
+// changed-code lint as owed after a Go edit with its command, and says a
+// subagent commits only a change that owes no execution.
+// PREVENTS: a subagent learning the heavy-work refusal from a refused call,
+// reading a silent post-edit hook as a clean lint, or committing code no one
+// ran.
+func TestSubagentStartTextNamesOwedCommands(t *testing.T) {
+	for _, payload := range []map[string]any{
+		{"session_id": "context-parent", "agent_id": "agent-1"},
+		{"session_id": ""},
+	} {
+		code, output, diagnostics := runHook(t, t.TempDir(), "subagent-context", payload)
+		if code != 0 {
+			t.Fatalf("%v: code = %d, want advisory context; stderr: %s", payload, code, diagnostics)
+		}
+		var response struct {
+			Output struct {
+				Context string `json:"additionalContext"`
+			} `json:"hookSpecificOutput"`
+		}
+		if err := json.Unmarshal([]byte(output), &response); err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{
+			"the Bash hook refuses a test, build, vet, lint, formatter, `./le job run` and any heavy `./le` action from you",
+			"End your report with an `Owed commands` list (each exact command, what it proves, the result you expect)",
+			"the hook formats the file and does not lint it, so the changed-code lint is owed: `./le go lint run scope \"<pkg>\"`",
+			"Commit only a change that owes no execution",
+			"The main thread commits code.",
 		} {
 			if !strings.Contains(response.Output.Context, want) {
 				t.Errorf("%v: start text missing %q: %s", payload, want, response.Output.Context)

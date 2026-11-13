@@ -147,11 +147,16 @@ func advisedCommands(message string) []string {
 //
 // VALIDATES: every command the raw-job and piped-command refusals advise for
 // the corpus, sent back through the whole pretool-bash hook, passes with exit
-// 0, for the main thread and for a subagent; a subagent's advice starts with
-// its own identity line, and the main thread's carries none.
+// 0 for the main thread, whose advice carries no identity line. A subagent is
+// advised no command for any corpus line, because each starts heavy work
+// (spec-main-thread-schedules-heavy-work D-1, AC-9): it is refused once, with
+// the hand-back, whose last line is the command it typed, and the refusal
+// holds neither a Use line nor the admitted form. The corpus's le line,
+// `./le test functional gating`, is judged from its area's own declaration,
+// which this package's test binary links.
 // PREVENTS: advice whose literal command the same hook refuses: a `bash -c`
-// string holding `&&`, which the quote-blind split cuts, and a subagent's
-// advice without the identity line bashAgentIdentity requires.
+// string holding `&&`, which the quote-blind split cuts, and a subagent
+// advised the admitted form of a job it is refused.
 func TestRefusalAdviceIsAcceptedByTheHook(t *testing.T) {
 	for _, command := range adviceCorpus {
 		t.Run("main/"+command, func(t *testing.T) {
@@ -173,23 +178,40 @@ func TestRefusalAdviceIsAcceptedByTheHook(t *testing.T) {
 			}
 		})
 		t.Run("subagent/"+command, func(t *testing.T) {
-			code, _, message := runSubagentBash(t, subagentLine+command)
-			if code != 2 {
-				t.Fatalf("%q: code %d, want a refusal: %s", command, code, message)
-			}
-			advised := advisedCommands(message)
-			if len(advised) == 0 {
-				t.Fatalf("%q: the refusal advises no command: %s", command, message)
-			}
-			for _, advice := range advised {
-				if !strings.HasPrefix(advice, subagentLine) {
-					t.Errorf("%q: the advice %q does not start with the identity line", command, advice)
-				}
-				if code, _, message := runSubagentBash(t, advice); code != 0 {
-					t.Errorf("%q: the advice %q is refused (code %d): %s", command, advice, code, message)
-				}
-			}
+			judgeHandedBackAlone(t, command, subagentLine, runSubagentBash)
 		})
+		// A fork carries no agent id, and is a subagent all the same.
+		t.Run("fork/"+command, func(t *testing.T) {
+			judgeHandedBackAlone(t, command, identityLineOfFork, runForkBash)
+		})
+	}
+}
+
+// judgeHandedBackAlone sends one corpus line as a subagent, behind its
+// identity line, and asserts the refusal is the one hand-back: no advised
+// command, the typed command on its last line, and no route a subagent is
+// refused.
+func judgeHandedBackAlone(t *testing.T, command, identity string, run func(*testing.T, string) (int, string, string)) {
+	t.Helper()
+	code, _, message := run(t, identity+command)
+	if code != 2 {
+		t.Fatalf("%q: code %d, want a refusal: %s", command, code, message)
+	}
+	if advised := advisedCommands(message); len(advised) != 0 {
+		t.Errorf("%q: a subagent is advised %q, want the hand-back alone: %s", command, advised, message)
+	}
+	if strings.Count(message, handBackHeader) != 1 {
+		t.Errorf("%q: the refusal is not the one hand-back: %s", command, message)
+	}
+	// The hand-back's last line is the command; a refusal of another
+	// kind (the identity check's) may print after it.
+	if !strings.Contains(message, "the main thread runs it:\n  "+command+"\n") {
+		t.Errorf("%q: the hand-back does not end with the command typed: %s", command, message)
+	}
+	for _, banned := range []string{"./le job run", "Use:", "ZE_ADMIT_RAW"} {
+		if strings.Contains(message, banned) {
+			t.Errorf("%q: the hand-back names %q, a route a subagent is refused: %s", command, banned, message)
+		}
 	}
 }
 

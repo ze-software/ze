@@ -18,6 +18,10 @@ func init() {
 		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(Area, Actions)
+	// Every action of this area compiles and runs tests, so the area declares
+	// itself heavy and the main thread schedules it (leroot.HeavyLine). The bare
+	// name still prints the listing.
+	leroot.RegisterHeavy(Area)
 
 	// The raw-job refusal advises `pkg path <package>` only for a package
 	// this action runs, judged by the action's own refusal (PackageRuns).

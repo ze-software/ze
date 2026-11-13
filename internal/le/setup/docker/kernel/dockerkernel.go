@@ -79,6 +79,7 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 	},
 	leaction.Action{
 		Verb:    dockerKernelInstallVerb,
+		Heavy:   true,
 		Writes:  true,
 		Summary: "install Ze's runtime kernel on this Linux host",
 		Why: "Linux only: install Ze's cached runtime kernel for this host's architecture under /boot" +
@@ -96,6 +97,7 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 	},
 	leaction.Action{
 		Verb:    dockerKernelAppArmorVerb,
+		Heavy:   true,
 		Does:    "install",
 		Writes:  true,
 		Summary: "install and load Ze's AppArmor lab profile",

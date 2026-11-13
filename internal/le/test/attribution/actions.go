@@ -48,6 +48,7 @@ const gitDeadline = 30 * time.Second
 
 var actions = leaction.New(area, leaction.Action{
 	Verb:    "report",
+	Heavy:   true,
 	Default: true,
 	Summary: "tell which failing tests your own files cause",
 	Why: "re-run each test a package log reports failed, once as on disk and once with the named files at " +

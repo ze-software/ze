@@ -87,6 +87,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    runVerb,
+		Heavy:   true,
 		Summary: "measure BGP convergence, throughput and latency",
 		Why: "build the DUT images and measure BGP convergence, UPDATE throughput and p99" +
 			" latency against every DUT, then record the run. Needs Docker and minutes." +
@@ -98,6 +99,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    filterVerb,
+		Heavy:   true,
 		Does:    "run",
 		Summary: "measure the route filter paths' throughput",
 		Why: "the throughput harness of the route filter paths: the in-process typed" +
@@ -117,6 +119,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    sendVerb,
+		Heavy:   true,
 		Summary: "send benchmark traffic at one DUT",
 		Why: "send benchmark traffic at one DUT and write the result, with the options" +
 			" typed after the verb. The perf runner calls it inside the sender container",

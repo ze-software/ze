@@ -72,6 +72,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/hostload"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -99,9 +100,9 @@ const (
 
 // memLimitFloorGiB defines the minimum soft heap ceiling for a lint run. It
 // protects systems where total memory cannot be determined. totalMemoryGiB
-// returns 0 when neither /proc/meminfo nor sysctl returns a value. The floor
-// then sets the ceiling to 4GiB instead of 0GiB. A 0GiB ceiling would make the
-// linter thrash on every package.
+// returns 0 when the machine's memory reading fails. The floor then sets the
+// ceiling to 4GiB instead of 0GiB. A 0GiB ceiling would make the linter thrash
+// on every package.
 const memLimitFloorGiB = 4
 
 // memLimitDivisor allows a lint run to use one eighth of the RAM. Ze development
@@ -116,12 +117,6 @@ const procDivisor = 4
 // because three entries declare it and a typo in one of them would register a
 // type nothing reads.
 const typeString = "string"
-
-// sysctlTimeout limits the duration of the one request this package sends to a
-// foreign binary. One second for `sysctl -n hw.memsize` is already abnormally
-// long. The limit prevents a blocked sysctl process from delaying a build
-// indefinitely.
-const sysctlTimeout = 5 * time.Second
 
 var tagsEntry = env.MustRegister(env.EnvEntry{
 	Key:         TagsKey,
@@ -302,78 +297,28 @@ func lintMemLimit() string {
 	return tb.Int(int64(share)).Str("GiB").String()
 }
 
-// kibPerGiB and bytesPerGiB are the two divisors the two sources need:
-// /proc/meminfo reports KiB and sysctl reports bytes.
-const (
-	kibPerGiB   = 1048576
-	bytesPerGiB = 1073741824
-)
+// bytesPerGiB turns the byte count the machine reading answers into GiB.
+const bytesPerGiB = 1073741824
 
-// totalMemoryGiB answers this machine's RAM in whole GiB, or 0 when neither
-// source answers. Truncating division both times, which is what the Makefile's
-// printf and shell arithmetic did.
+// totalMemoryGiB answers this machine's RAM in whole GiB, or 0 when the
+// reading fails. The reading is hostload.MemoryTotal, the one reader of the
+// machine's memory. Truncating division, which is what the Makefile's printf
+// and shell arithmetic did.
 //
 // A 0 here is not a fail-open: lintMemLimit floors it, so an unanswerable
 // machine gets the floor rather than a ceiling of zero.
 func totalMemoryGiB() int {
-	if kib, ok := procMemTotalKiB(); ok {
-		return kib / kibPerGiB
-	}
-	return sysctlMemoryGiB()
+	return wholeGiB(hostload.MemoryTotal())
 }
 
-// procMemTotalKiB reads MemTotal out of /proc/meminfo, in KiB.
-func procMemTotalKiB() (int, bool) {
-	raw, err := os.ReadFile("/proc/meminfo")
-	if err != nil {
-		return 0, false
-	}
-	for line := range strings.SplitSeq(string(raw), "\n") {
-		if !strings.HasPrefix(line, "MemTotal") {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			return 0, false
-		}
-		return atoi(fields[1])
-	}
-	return 0, false
-}
-
-// sysctlMemoryGiB asks Darwin's sysctl for hw.memsize, in whole GiB.
-func sysctlMemoryGiB() int {
-	ctx, cancel := context.WithTimeout(context.Background(), sysctlTimeout)
-	defer cancel()
-
-	out, err := exec.CommandContext(ctx, "sysctl", "-n", "hw.memsize").Output()
+// wholeGiB turns one total-memory reading into whole GiB, truncating, and
+// answers 0 for a reading that failed.
+func wholeGiB(bytes uint64, err error) int {
+	// refuse-by-default: guards lintMemLimit -- a zero is floored there to memLimitFloorGiB, so an unanswerable machine gets the floor
 	if err != nil {
 		return 0
 	}
-	size, ok := atoi(strings.TrimSpace(string(out)))
-	if !ok {
-		return 0
-	}
-	return size / bytesPerGiB
-}
-
-// atoi parses a non-negative decimal and reports whether parsing succeeded. It
-// is implemented here because both callers must interpret an unparsable answer
-// as "this source did not reply". An error value that contains 0 does not
-// communicate this interpretation by itself.
-func atoi(s string) (int, bool) {
-	if s == "" {
-		return 0, false
-	}
-	value := 0
-	for i := range len(s) {
-		digit := s[i]
-		if digit < '0' || digit > '9' {
-			return 0, false
-		}
-		value = value*10 + int(digit-'0')
-	}
-	return value, true
+	return int(bytes / bytesPerGiB) //nolint:gosec // a GiB count: the largest uint64 is under 2^34 GiB
 }
 
 // GoCache answers the Go build cache every le-driven command writes for one

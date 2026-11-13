@@ -22,4 +22,8 @@ func init() {
 	// Every word after the name is the harness's own command line, so a
 	// trailing help word reaches it and it prints its own help.
 	leroot.RegisterForwarding(name, harnesstool.Helper)
+	// The run starts the ze binary once for every local data command, so the
+	// area declares itself heavy and the main thread schedules it
+	// (leroot.HeavyLine). No slot is taken here (leroot.RegisterAdmitted).
+	leroot.RegisterHeavy(name)
 }

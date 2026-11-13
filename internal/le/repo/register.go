@@ -24,6 +24,11 @@ func init() {
 		SubsFunc: Subs,
 	})
 	leroot.RegisterActions(area, Actions)
+	// `check generated` runs every generated-artifact check, `rfc check` among
+	// them, which is heavy work the main thread schedules (leroot.HeavyLine).
+	// The selection is a value of the check action, so the row cannot declare
+	// it: bare `check` and `check tree` read the tree and stay light.
+	leroot.RegisterHeavy(area + " " + verbCheck + " " + checkGenerated)
 
 	// The answer carries the findings beside the changed set and the two
 	// counts, so the any-shape operators render the whole document.

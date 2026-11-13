@@ -29,9 +29,9 @@ import (
 )
 
 const (
-	fixtureSitesExpected       = 401
-	fixtureChecksExpected      = 546
-	fixtureUniqueNamesExpected = 546
+	fixtureSitesExpected       = 406
+	fixtureChecksExpected      = 551
+	fixtureUniqueNamesExpected = 551
 	fixtureCategoriesExpected  = 24
 )
 
@@ -76,6 +76,11 @@ var (
 	// validate-spec-verification-status-accepted site's not-contains needle is
 	// `is not a declared status`, the reworded undeclared-Status refusal in
 	// specstatus.go, in place of `Invalid Status`. No exit code changed.
+	// Re-sealed 2026-11-13 for spec-main-thread-schedules-heavy-work: five
+	// session-id sites join for the subagent heavy-work check
+	// (bashSubagentHeavy), three exit-2 hand-backs that name the header and end
+	// with the typed command, and two exit-0 lines that start nothing heavy.
+	// 401 sites are 406. No existing site changed.
 	fixtureSiteDigest = [sha256.Size]byte{
 		0x76, 0x59, 0xc8, 0x99, 0x99, 0x76, 0xe4, 0x77,
 		0x21, 0x2f, 0x19, 0x3b, 0x18, 0x5f, 0xd0, 0x7b,
@@ -115,6 +120,9 @@ var (
 	// Re-sealed 2026-11-12 for spec-lint-backlog-3-test-tooling: the expanded
 	// validate-spec-verification-status-accepted fixture carries the same
 	// `is not a declared status` needle as its site.
+	// Re-sealed 2026-11-13 for spec-main-thread-schedules-heavy-work: the same
+	// five heavy-work sites as fixtureSiteDigest expand to five fixtures, and
+	// every fixture after them moves five sites down. 546 fixtures are 551.
 	fixtureCatalogDigest = [sha256.Size]byte{
 		0xe2, 0xee, 0xeb, 0x1c, 0x7b, 0x46, 0x6b, 0x2d,
 		0xb3, 0xac, 0x5b, 0xd6, 0xaf, 0x72, 0x39, 0xb6,
@@ -434,6 +442,20 @@ var (
 	// condition and every verdict are unchanged. Pinned by
 	// TestWorktreeCopyRefusalNamesTheRouteThatWorks in
 	// hookruntime/refusal_messages_test.go.
+	// Re-sealed 2026-11-13 for spec-main-thread-schedules-heavy-work:
+	// subagent_heavy.go joins the population with bashSubagentHeavy, which
+	// refuses a subagent's test, build, lint, formatter or heavy `./le` action
+	// and hands the command back; the build, piped-command and raw-job guards
+	// refuse such a line with no text (withoutHandedBackAdvice); session.go
+	// gains the one caller predicate (fromSubagent); bash.go and lossypipe.go
+	// read heavy work from what each area declared (leroot.HeavyLine) in place
+	// of a list of areas; postFormatGo formats a subagent's Go edit and starts
+	// no linter for it; postBashGofmt names the Edit route to a subagent; and
+	// the subagent start text carries seven call rules. The main thread's
+	// verdicts are unchanged. Pinned by subagent_heavy_test.go,
+	// heavy_declared_test.go and the subagent tests of postwrite_test.go,
+	// postbash_test.go and lifecycle_test.go in hookruntime, and by the five
+	// heavy-work fixture sites (subagent_heavy_sites_test.go).
 	hookSourcesDigest = [sha256.Size]byte{
 		0xe0, 0x79, 0x95, 0x86, 0xa0, 0xff, 0x2e, 0x6f,
 		0x15, 0x9a, 0x31, 0xea, 0x88, 0x80, 0x04, 0xab,

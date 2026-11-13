@@ -60,6 +60,7 @@ const checkVerb = "check"
 // commit it judges comes from ze.le.tracked.rev.
 var actions = leaction.New(area, leaction.Action{
 	Verb:    checkVerb,
+	Heavy:   true,
 	Default: true,
 	Summary: "check le builds from what git holds",
 	Why:     "does le still work when built from what git holds, rather than from the working tree",

@@ -153,7 +153,7 @@ func (s *session) release() {
 func areaActions(s *session) []leaction.Action {
 	return []leaction.Action{
 		{Verb: listVerb, Summary: "list every functional suite and its budget", Why: "every suite and its budget", Alone: true, Answer: s.runList},
-		{Verb: gatingVerb, Does: runDoes, Summary: "run every gating suite under its own budget", Why: "every gating suite, under its own budget", Alone: true,
+		{Verb: gatingVerb, Heavy: true, Does: runDoes, Summary: "run every gating suite under its own budget", Why: "every gating suite, under its own budget", Alone: true,
 			Answer: signalRooted(s.runGating)},
 		{Verb: previewVerb,
 			Summary: "list the suites a gating run would start",
@@ -234,6 +234,7 @@ func table(s *session) leaction.Area {
 	for _, suite := range Suites {
 		rows = append(rows, leaction.Action{
 			Verb:    suite.Name,
+			Heavy:   true,
 			Does:    runDoes,
 			Summary: suite.Summary,
 			Why:     suite.Why,
@@ -242,6 +243,7 @@ func table(s *session) leaction.Area {
 	}
 	rows = append(rows, leaction.Action{
 		Verb:    "exabgp",
+		Heavy:   true,
 		Does:    runDoes,
 		Summary: "run every ExaBGP compatibility case",
 		Why:     "build the isolated ze and le test subjects and run every ExaBGP compatibility case",

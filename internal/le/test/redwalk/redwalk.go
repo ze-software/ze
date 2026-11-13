@@ -92,6 +92,7 @@ type target struct {
 
 var actions = leaction.New(area, leaction.Action{
 	Verb:    "check",
+	Heavy:   true,
 	Default: true,
 	Summary: "check that a test goes red under a Go break",
 	Why: "apply a break, a git diff of tracked Go files, through a Go overlay in session scratch, run one " +

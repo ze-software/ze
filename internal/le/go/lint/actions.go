@@ -31,6 +31,7 @@ const jobLabel = job.LintLabel
 
 var actions = leaction.New(area, leaction.Action{
 	Verb:    actionRun,
+	Heavy:   true,
 	Summary: "lint the tree, a package scope or the change set",
 	Why:     "lint the full tree, a declared package scope, or the packages the change set reaches (changed) through the host, Linux integration, platform, capability, personality, and compile-out builds",
 	Parameters: []leaction.Parameter{

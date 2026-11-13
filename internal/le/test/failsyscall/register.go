@@ -26,4 +26,9 @@ func init() {
 	// Every word after the name is the harness's own command line, so a
 	// trailing help word reaches it and it prints its own help.
 	leroot.RegisterForwarding(name, harnesstool.Helper)
+	// The command after `--` is the caller's choice and is run as typed, so every
+	// line of this area is heavy work the main thread schedules
+	// (leroot.HeavyLine). A test that starts this helper is not judged by the
+	// hook, and no slot is taken here (leroot.RegisterAdmitted).
+	leroot.RegisterHeavy(name)
 }

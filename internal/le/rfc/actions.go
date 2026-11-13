@@ -35,6 +35,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    "discriminate",
+		Heavy:   true,
 		Summary: "report what an RFC stem has proven and still owes",
 		Why: "report what one RFC stem or one requirement id has PROVEN and what it still owes: " +
 			"the recorded breaks under which a tagged unit goes red, and the tags carrying no such " +
@@ -51,6 +52,7 @@ var actions = leaction.New(area,
 		AnswerArgs: discriminateAnswer},
 	leaction.Action{
 		Verb:    "record",
+		Heavy:   true,
 		Summary: "record one observed red of a tagged unit",
 		Why: "record ONE proof that a tagged unit was OBSERVED to fail under a named break of " +
 			"the code its claim rests on, or one escape saying no break exists. It applies the " +
@@ -104,7 +106,7 @@ var actions = leaction.New(area,
 			{Keyword: keyCommit, Kind: leaction.KindString, Help: "the exact historical change, as a canonical full commit SHA", Value: "fullSHA", Requirement: leaction.Optional},
 		},
 		PrepareArgs: approveAnswer},
-	leaction.Action{Verb: "check", Summary: "check RFC coverage, evidence and sign-off", Why: "verify RFC requirement coverage, evidence strength, public status, audit " +
+	leaction.Action{Verb: "check", Heavy: true, Summary: "check RFC coverage, evidence and sign-off", Why: "verify RFC requirement coverage, evidence strength, public status, audit " +
 		"verdicts and extraction sign-off, judged from the summaries and the tags and " +
 		"never from a generated page, without writing",
 		Answer: checkAnswer},

@@ -25,6 +25,10 @@ func init() {
 		SubsFunc: Subs,
 	})
 	leroot.RegisterActions(area, Actions)
+	// Every action of this area builds an image or boots a virtual machine, so
+	// the area declares itself heavy and the main thread schedules it
+	// (leroot.HeavyLine). The bare name still prints the listing.
+	leroot.RegisterHeavy(area)
 
 	// ShapeDoc is required because one answer is a document and the other is a
 	// row set. The listing is rows. A proof report is one verdict with a kernel

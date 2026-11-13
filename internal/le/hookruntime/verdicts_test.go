@@ -206,6 +206,7 @@ var corpusSourceTests = []func(*testing.T){
 	TestSubagentCommandCarryingItsIdentityLinePasses,
 	TestSubagentIdentityLineOfAnotherAgentIsRefused,
 	TestMainThreadCommandNeedsNoIdentityLine,
+	TestCallerPredicateAgreesWithIdentityCheck,
 	TestSubagentUnparsableCommandNeedsTheIdentityLine,
 	TestSubagentReaderOutsideItsJudgeNeedsTheIdentityLine,
 	TestSubagentSplitterFaultLinesAreJudgedFromTheParse,
@@ -245,7 +246,7 @@ var readerLineProofs = []func(*testing.T){
 // table holding fewer rows lost recorded refusals: deleting the file and
 // re-running -update records again from the tree in hand, which keeps no
 // refusal HEAD gave. Raise it when an update appends rows; never lower it.
-const verdictsTableRowsMin = 1759
+const verdictsTableRowsMin = 1761
 
 // readerSetJudgment is the one function that judges whether a command is a
 // reader (readers.go). A check whose code reaches it can pass a line because
@@ -612,9 +613,10 @@ func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
 // TestReaderLiftableChecksAreTheReaderGuards reads the set readerLiftableChecks
 // derives from the source.
 //
-// VALIDATES: the seven guards that ask the reader set are in it (the
+// VALIDATES: the eight guards that ask the reader set are in it (the
 // identity exemption, the lifts of the raw-job, lossy-pipe, /tmp and scratch
-// guards, the build guard's reader+build line, the plain-rm narrowing), and
+// guards, the build guard's reader+build line, the plain-rm narrowing, and
+// the subagent heavy-work check, which opens with the same exemption), and
 // every other pretool-bash check is not: the git guards, bashGovernedWrite
 // and bashPollLoop, which the spec says never lift, and the checks that never
 // read the reader judgment (bashDocumentRead judges its text alone). The
@@ -625,7 +627,7 @@ func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
 // refusal.
 func TestReaderLiftableChecksAreTheReaderGuards(t *testing.T) {
 	liftable := readerLiftableChecks(t)
-	readers := []string{"bashAgentIdentity", "bashRawHeavy", "bashLossyPipe", "bashSystemTmp", "bashScratch", "bashRootBuild", "bashTestDeletion"}
+	readers := []string{"bashAgentIdentity", "bashRawHeavy", "bashLossyPipe", "bashSystemTmp", "bashScratch", "bashRootBuild", "bashTestDeletion", "bashSubagentHeavy"}
 	for _, name := range readers {
 		if !liftable[name] {
 			t.Errorf("%s asks the reader set and is not in the liftable set %v", name, liftable)

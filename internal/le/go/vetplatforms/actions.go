@@ -25,6 +25,7 @@ func actionTable(run platformRun) leaction.Area {
 			Does:    "check",
 			Summary: spec.summary,
 			Why:     spec.why,
+			Heavy:   true,
 			Answer: func() (any, int) {
 				return run(platform)
 			},

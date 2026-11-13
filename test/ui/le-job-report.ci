@@ -1,0 +1,40 @@
+# Test: the BUILT le binary reports the job queue -- one job holds the only
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
+#       slot, a second waits, and `le job report` lists both.
+#
+# QUESTION: does `le job report`, typed at the launcher a developer runs, show
+#           the holder and the waiter of this checkout's registry, with the
+#           slot counted as occupied? A unit test cannot decide it: the Go
+#           tests drive internal/le/job directly, and between them and this
+#           file sit the build, the composition root, the action table, the
+#           answer shape and the `| json` renderer, with two other le
+#           processes writing the registry the report reads.
+#
+# VALIDATES: spec-main-thread-schedules-heavy-work, wiring row "`le job
+#            report` typed at the launcher", with AC-13 (the rows name each
+#            job's session and agent), AC-14 (the waiting job is listed, and
+#            is gone once admitted), AC-15 (slots, holders and waiters, through
+#            `json` and as text), AC-16 (every machine reading is a value or
+#            says why it is unavailable) and AC-17 (the report changes no
+#            registry file, and both jobs are still running after it).
+# PREVENTS: a report action that is declared and never reaches the registry,
+#           a waiter that the report cannot see, and a dead or absent queue
+#           read as a free machine.
+#
+# The registry is a scratch tree named by ZE_REPO_ROOT, never the checkout: a
+# functional test must not take a slot the sessions sharing this machine are
+# queueing for. ZE_RUN_JOB and the surrounding identity are removed from the
+# driven processes, so neither job runs inside the suite's own slot.
+#
+# Nothing here waits for a duration. The holder runs until the fixture closes
+# its stdin, and the fixture polls the report until it lists the waiter.
+#
+# The timeout is declared because a cold build cache makes the first start of
+# the le personality far slower than the steady state, and a waiting job polls
+# the registry every two seconds.
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-job-report
+expect=exit:code=0
+expect=stdout:contains=OK

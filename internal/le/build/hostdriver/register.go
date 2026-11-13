@@ -24,6 +24,7 @@ const runVerb = "run"
 // there is one host and one output path.
 var table = leaction.New(name, leaction.Action{
 	Verb:    runVerb,
+	Heavy:   true,
 	Summary: "build the host driver",
 	Why:     areaDescription,
 	Answer:  answerRun,

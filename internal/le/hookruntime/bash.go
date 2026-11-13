@@ -271,7 +271,35 @@ func bashBranchMove(ctx context) *verdict {
 // check reports it as an untracked artifact. A compile of packages that
 // produce no binary passes, and the advice names the caller's own package
 // (goBuildLine, gobuild.go).
+//
+// A subagent's line that the heavy-work check hands back (handsBackHeavy) is
+// judged the same and refused the same, without text
+// (withoutHandedBackAdvice): a subagent runs no build wherever its binary
+// lands, so advice naming an output path would describe a command it is
+// refused as well, and the hand-back carries the next step. A subagent's line
+// that check did not hand back, one whose text names `go build` in an
+// argument, is refused with a text that names no output path either. The
+// main thread's verdict and text are unchanged.
 func bashRootBuild(ctx context) *verdict {
+	refusal := rootBuildRefusal(ctx)
+	if refusal == nil {
+		return nil
+	}
+	// A subagent's line the heavy-work check did not hand back holds no
+	// build command that check reads: the text judgment met the words
+	// `go build` in an argument (goBuildText). No output path is a route for
+	// a caller that runs no build, so the text names none.
+	unhanded := red + bold + "✘ BLOCKED: a line whose text names `go build`" + reset + "\n\n" +
+		"  -- A subagent runs no build, whatever its output path.\n" +
+		"  -- If the words stand in a path or a pattern and the line builds nothing, reword it so the two do not\n" +
+		"     stand together, or use the Read and Edit tools on the file.\n" +
+		"  -- If the line does build:\n" + owedCommandAdvice(ctx)
+	return withoutHandedBackAdvice(ctx, refusal, unhanded)
+}
+
+// rootBuildRefusal is the build guard's verdict with its advice, for every
+// caller: bashRootBuild decides whether the caller reads the text.
+func rootBuildRefusal(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	outcome, advice := goBuildLine(ctx.root, command, ctx.commandParse(), commandIdentityPrefix(ctx))
 	switch outcome {
@@ -362,8 +390,25 @@ func commandExpensive(segment string) bool {
 // expensiveWords is the cost judgment of program words, the one the text
 // judgment applies to a segment and the tree judgment to a parsed command
 // (treeLossyPipe): a go test, build, vet or run, the linter, and an le
-// command, typed as `le` or as the `ze le` personality, whose area or action
-// runs something (heavyArea).
+// command, typed as `le` or as the `ze le` personality, whose line starts
+// heavy work and whose own output is the verdict of that work.
+//
+// An le line is expensive when leroot.HeavyLine answers true and
+// leroot.CarrierLine answers false. HeavyLine is read from what each area
+// declared where its verb registers: an admitted area (RegisterAdmitted), an
+// expensive action (RegisterExpensive), a heavy area or selection
+// (RegisterHeavy) and a heavy action row (leaction.Action.Heavy). The
+// heavy-work check asks that predicate alone of a subagent's line
+// (bashSubagentHeavy), because it asks another question: does the line start
+// heavy work. This guard asks whether a filter would truncate the verdict the
+// command prints, and a carrier (an action whose row declares an argv
+// parameter, as `job run` does, or an area registered with RegisterCarrier,
+// as `exec` is) prints the output of the command it was given: that command
+// is an argument here, and an argument is no command of the pipeline.
+//
+// This file therefore names no area and no action: a listing, a help page
+// and an action that only reads are not expensive, and an action joins by
+// declaring itself. The hook runs inside le, so every registration is linked.
 func expensiveWords(tokens []string) bool {
 	if len(tokens) == 0 {
 		return false
@@ -376,13 +421,17 @@ func expensiveWords(tokens []string) bool {
 	if base == lintCommand {
 		return true
 	}
-	if base == "le" {
-		return heavyArea(tokens[1:])
+	words, typed := leWords(tokens)
+	if !typed {
+		return false
 	}
-	if strings.HasPrefix(base, "ze") && len(tokens) > 2 && tokens[1] == "le" {
-		return heavyArea(tokens[2:])
+	line := beforeRedirection(words)
+	if leroot.CarrierLine(line) {
+		// The command the line carries is its argument, never a command of
+		// the pipeline, however heavy the carrier is.
+		return false
 	}
-	return false
+	return leroot.HeavyLine(line)
 }
 
 // programWords answers a segment's words from its program on, the way
@@ -418,7 +467,7 @@ func programTokens(tokens []string) []string {
 // beforeRedirection answers the words up to the first redirection. The
 // tokenizer keeps `2>&1` and `>` as words of their own. A caller counting what
 // follows an area name would therefore read `le test functional 2>&1` as a command
-// carrying a verb. It would then refuse a listing as the 24-suite run.
+// carrying a verb, and leroot.HeavyLine MUST be given command words only.
 func beforeRedirection(words []string) []string {
 	for i, word := range words {
 		if strings.ContainsAny(word, "<>") {
@@ -428,91 +477,29 @@ func beforeRedirection(words []string) []string {
 	return words
 }
 
-// heavyArea answers whether the le area the words name runs tests, a build, or
-// the verification gate. An area name is two words since the command grouping,
-// so the two-word name is read before the one-word name: `le verify status` and
-// `le verify summary` read and write the verification certificate and run
-// nothing, while every other area under `verify` runs the gate.
-//
-// The suites stopped running on their bare name, so `le test functional` and
-// `le test unit` print a listing and the run needs `gating` or `all`. `le
-// verify` still runs the gate on its bare name, which is why the exemption
-// names the two areas rather than the shape.
-//
-// A suite area is a member of `test`, so the word after `test` names the
-// area: `le test unit all` is the area `test unit`. No
-// harness binary exists (spec-le-subject-first-command-tree, D-8), so
-// no file name is read as the functional runner. A harness command under
-// `test` is heavy when its registration says its run is admitted
-// (leroot.Admits): `le test bgp` and `le test ospf` run the functional runner,
-// while `le test peer` and `le mock rpki` are helper tools a test starts
-// (AC-45). The hook runs inside le, so every registration is linked.
-//
-// `le go lint` runs the linter and is heavy. The retired top-level suite
-// names answer `unknown command` since Phase 3 of that spec, so a suite is
-// heavy only under `test`.
-func heavyArea(words []string) bool {
-	words = beforeRedirection(words)
-	if len(words) == 0 {
-		return false
-	}
-	if expensiveAction(words) {
-		return true
-	}
-	area, rest := words[0], words[1:]
-	if area == "go" {
-		return len(rest) > 0 && rest[0] == "lint"
-	}
-	if area == verifyArea {
-		if len(rest) > 0 && oneOf(rest[0], "status", "summary") {
-			return false
-		}
-		return true
-	}
-	if area != "test" || len(rest) == 0 {
-		return false
-	}
-	if leroot.Admits("test " + rest[0]) {
-		return true
-	}
-	suite, verbs := rest[0], rest[1:]
-	if len(verbs) == 0 && oneOf(suite, "functional", "unit") {
-		return false
-	}
-	return oneOf(suite, "functional", "integration", "qemu", "unit")
-}
-
-// expensiveNameWordsMax bounds the words expensiveAction joins into a
-// command name: an le name is its area's words and a verb, and no area is
-// deeper than three words.
-const expensiveNameWordsMax = 4
-
-// expensiveAction reports whether words open with the whole name of an le
-// action that registered its run as expensive (leroot.RegisterExpensive):
-// `ai hooks unit` runs every hook golden row and behavioral fixture in
-// process and takes no job slot, so no area rule reads it as heavy, while
-// the lines a filter drops from it are the ones that say which row failed.
-// The registration is the declaration, so an action joins by registering
-// and this function names none.
-func expensiveAction(words []string) bool {
-	for count := 1; count <= min(len(words), expensiveNameWordsMax); count++ {
-		if leroot.Expensive(strings.Join(words[:count], " ")) {
-			return true
-		}
-	}
-	return false
-}
-
 // ze point: commands/no-pipes-on-expensive-commands/never-pipe-an-expensive-command-read-the-log
 // ze point: commands/directives/run-commands-through-native-actions-and-never-poll
 // bashLossyPipe refuses piping an expensive command through a filter that drops
 // output. The truncated text is what the caller would judge the run by, and the
-// part a filter removes is usually the part that says why the run failed. A
+// part a filter removes is usually the part that says why the run failed. An
+// le command is expensive when its line starts heavy work and is no carrier
+// of another command (expensiveWords): `./le job run ... command go test ./x
+// | tail` passes, because the piped command is the admitted form this refusal
+// advises and its `go test` is an argument. A
 // reader line (ctxReaderLine) passes: no reader is an expensive command, so
 // `grep -n 'ok | go test ./x | head'` pipes nothing. On every other line the
 // verdict is the text judgment (textLossyPipe), unchanged, OR the tree
 // judgment (treeLossyPipe) on a line that parses, which reads each pipeline
 // at any depth: the tree only adds refusals.
+//
+// A subagent's line that the heavy-work check hands back (handsBackHeavy) is
+// judged the same and refused the same, without text
+// (withoutHandedBackAdvice): the admitted form this refusal advises is one a
+// subagent is refused too, and the hand-back carries the next step. A
+// subagent's piped command that check does not refuse starts no heavy work
+// for that caller (a linter subcommand that runs no analysis), so its text is
+// the subagent's own (lossyPipeSubagentAdvice): the command with no filter,
+// behind the caller's identity line, and never the admitted form.
 func bashLossyPipe(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	if _, outside := ctxReaderLine(ctx); outside == "" {
@@ -520,15 +507,19 @@ func bashLossyPipe(ctx context) *verdict {
 	}
 	// The tree goes first so that, where both refuse, the advice is the
 	// parsed command and not a text segment cut at a quoted bar (AC-15).
+	identity := commandIdentityPrefix(ctx)
 	if words, written, filter, found := treeLossyPipe(command, ctx.commandParse()); found {
-		return lossyPipeRefusal(commandIdentityPrefix(ctx), filter, words, written)
+		return withoutHandedBackAdvice(ctx, lossyPipeRefusal(identity, filter, words, written),
+			lossyPipeSubagentAdvice(identity, filter, written))
 	}
 	filter, segment, found := textLossyPipe(command)
 	if !found {
 		return nil
 	}
 	words := beforeRedirection(programWords(segment))
-	return lossyPipeRefusal(commandIdentityPrefix(ctx), filter, words, quotedWords(words))
+	written := quotedWords(words)
+	return withoutHandedBackAdvice(ctx, lossyPipeRefusal(identity, filter, words, written),
+		lossyPipeSubagentAdvice(identity, filter, written))
 }
 
 // textLossyPipe is the piped-command guard's text judgment, its verdict at
@@ -615,6 +606,13 @@ func quotedWord(value string) string {
 // (textRawHeavy), unchanged, OR the tree judgment (treeRawHeavy) on a line
 // that parses, which reads every command at any depth: the tree only adds
 // refusals.
+//
+// The advice is the main thread's, the caller who schedules heavy work. A
+// subagent's line that the heavy-work check hands back (handsBackHeavy) is
+// judged the same and refused the same, without text
+// (withoutHandedBackAdvice): the admitted form and the stated-reason escape
+// this guard advises are both refused to a subagent, and the hand-back
+// carries the next step. No text this guard shows a subagent names either.
 func bashRawHeavy(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	if _, outside := ctxReaderLine(ctx); outside == "" {
@@ -646,15 +644,23 @@ func bashRawHeavy(ctx context) *verdict {
 			"     run it from the directory that change reaches, or name that directory as\n" +
 			"     `env -C <dir>` in front of the program.\n"
 	}
-	// The Use line starts with the caller's identity line, so a subagent
-	// following it is not refused by bashAgentIdentity (review N7).
-	return &verdict{2, "❌ Blocked: " + refusal.what + " run raw, outside job admission (ai/rules/commands.md)\n" +
+	// The Use line is read by the main thread alone, whose identity prefix
+	// is empty: a subagent never reads this text (withoutHandedBackAdvice,
+	// below). Its line is handed back, or, were the heavy-work check to miss
+	// a tool this guard names (heavyTool reads each one, so no such line is
+	// known), it reads unhanded, which names neither the admitted form nor
+	// the stated-reason escape: a subagent has neither.
+	header := "❌ Blocked: " + refusal.what + " run raw, outside job admission (ai/rules/commands.md)\n"
+	unhanded := header +
+		"  -- A subagent starts no heavy job, admitted or raw: the main thread schedules each one.\n" +
+		owedCommandAdvice(ctx)
+	return withoutHandedBackAdvice(ctx, &verdict{2, header +
 		"  -- One machine, several sessions: registered `./le` actions admit\n" +
 		"     their own heavy work. A raw tool reaches the box unadmitted.\n" +
 		"  -- Use: " + commandIdentityPrefix(ctx) + refusal.use + "\n" + moved + short +
 		"  -- Generic form:\n     ./le job run label <label> quiet command <argv...>\n" +
 		"  -- A one-off that must not queue states its reason:\n" +
-		"     ZE_ADMIT_RAW=\"bisecting one 2s case\" <command>"}
+		"     ZE_ADMIT_RAW=\"bisecting one 2s case\" <command>"}, unhanded)
 }
 
 // ze point: commands/directives/run-commands-through-native-actions-and-never-poll

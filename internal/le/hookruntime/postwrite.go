@@ -59,11 +59,16 @@ func postLintCommand(timeout stdcontext.Context, binary, module, relative string
 }
 
 // ze point: quality/linting/fix-lint-issues-never-disable-a-linter
-// postFormatGo formats the edited Go file, then refuses it while the linter
-// still reports an issue in its package. A generated file is left as its
-// generator wrote it: formatting one here writes a shape the generator will
-// never reproduce, and the output check that compares the two then reads the
-// file as out of date with nothing in the tree to explain why.
+// postFormatGo formats the edited Go file, then refuses the main thread's edit
+// while the linter still reports an issue in its package. A generated file is
+// left as its generator wrote it: formatting one here writes a shape the
+// generator will never reproduce, and the output check that compares the two
+// then reads the file as out of date with nothing in the tree to explain why.
+//
+// A subagent's edit (fromSubagent) is formatted and never linted: the lint is
+// heavy work outside job admission, and heavy work starts in the main thread.
+// It answers no verdict for the lint, so the changed-code lint of that package
+// is owed by the agent's report, as its start text says (subagentCallRules).
 func postFormatGo(ctx context) *verdict {
 	if !existingGo(ctx, false) {
 		return nil
@@ -92,6 +97,9 @@ func postFormatGo(ctx context) *verdict {
 		command := exec.CommandContext(timeout, binary, "-local", "github.com/ze-software/ze", "-format-only", "-w", absolutePath(ctx)) //nolint:gosec // goimports from PATH, run on the file the developer just edited
 		_, _ = command.CombinedOutput()
 		cancel()
+	}
+	if fromSubagent(ctx) {
+		return nil
 	}
 	relative, _ := filepath.Rel(module, absolutePath(ctx))
 	pkg := "./" + filepath.ToSlash(filepath.Dir(relative)) + "/..."

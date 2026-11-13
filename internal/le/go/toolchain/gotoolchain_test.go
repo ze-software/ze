@@ -13,6 +13,7 @@
 package gotoolchain
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -399,14 +400,35 @@ func TestTheMemoryFloorHoldsWhenTheMachineDoesNotAnswer(t *testing.T) {
 	}
 }
 
-func TestAtoiRefusesWhatItCannotRead(t *testing.T) {
-	for _, bad := range []string{"", "12x", "-3", " 4"} {
-		if _, ok := atoi(bad); ok {
-			t.Errorf("atoi(%q) reported success", bad)
+// TestTotalMemoryIsWholeGiBAndZeroWhenUnread holds totalMemoryGiB's contract
+// over the machine reading it takes from internal/core/hostload: whole GiB,
+// truncating, and 0 for a reading that failed, never a share of the number
+// that came with the error.
+//
+// The text the machine prints is refused where it is parsed (hostload,
+// TestReadingReportsFailure); what is proven here is what this package does
+// with a reading that failed.
+func TestTotalMemoryIsWholeGiBAndZeroWhenUnread(t *testing.T) {
+	const gib = 1073741824
+	for _, tc := range []struct {
+		bytes uint64
+		want  int
+	}{
+		{0, 0},
+		{gib - 1, 0},
+		{gib, 1},
+		{16*gib + gib/2, 16},
+		{64 * gib, 64},
+	} {
+		if got := wholeGiB(tc.bytes, nil); got != tc.want {
+			t.Errorf("wholeGiB(%d bytes) = %d, want %d", tc.bytes, got, tc.want)
 		}
 	}
-	if got, ok := atoi("16384"); !ok || got != 16384 {
-		t.Errorf("atoi(16384) = %d, %v", got, ok)
+	if got := wholeGiB(64*gib, errors.New("the reading failed")); got != 0 {
+		t.Errorf("wholeGiB of a failed reading = %d, want 0 whatever number came with the error", got)
+	}
+	if got := totalMemoryGiB(); got < 0 {
+		t.Errorf("totalMemoryGiB = %d, want 0 or the machine's GiB", got)
 	}
 }
 

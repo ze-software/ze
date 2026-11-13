@@ -12,7 +12,7 @@ import (
 const area = "build preview"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "run", Summary: "prepare identified Linux previews and optional images", Why: "Build both Linux architectures and optionally export local Docker images. The checksummed bundle remains unpublished.", Writes: true,
+	leaction.Action{Verb: "run", Heavy: true, Summary: "prepare identified Linux previews and optional images", Why: "Build both Linux architectures and optionally export local Docker images. The checksummed bundle remains unpublished.", Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: "output", Kind: leaction.KindPath, Value: "directory", Help: "new directory for the preview bundle", Requirement: leaction.Required},
 			{Keyword: "images", Kind: leaction.KindSwitch, Help: "also build and export native Docker images"},

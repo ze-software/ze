@@ -20,6 +20,10 @@ func init() {
 		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(Area, Actions)
+	// Every action of this area runs the toolchain over the chaos tooling, so
+	// the area declares itself heavy and the main thread schedules it
+	// (leroot.HeavyLine). The bare name still prints the listing.
+	leroot.RegisterHeavy(Area)
 
 	// The listing and a sweep contain different row sets. The document shape
 	// keeps every pipe operator honest instead of selecting one set by accident.

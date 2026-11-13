@@ -249,8 +249,9 @@ func TestGovernedWriteCatchesEveryScriptRuntime(t *testing.T) {
 
 // TestLossyPipeReadsTheTwoWordArea drives the pretool-bash hook with one piped
 // command for each side of the area boundary. The method is the hook's own
-// entry point, so the tokenizer, heavyArea and bashLossyPipe are judged
-// together.
+// entry point, so the tokenizer, the areas' declarations (leroot.HeavyLine)
+// and bashLossyPipe are judged together. heavy_declared_test.go links the
+// areas these rows name, and stands in for `test unit`.
 //
 // It exists because `le verify-status` became `le verify status` when the
 // commands were grouped, and the guard read only the first word: a certificate
@@ -1901,8 +1902,10 @@ func TestLossyPipeIsRefusedInsideAConstruct(t *testing.T) {
 // that registered its run as expensive (leroot.RegisterExpensive) is an
 // expensive command under every name the program takes, `le`, `./le` and the
 // `ze le` personality, and its siblings are not. Its method: a probe action
-// registered here, so the row's verdict depends on the registration alone,
-// judged by the guard on a line that is no reader line. The real
+// registered here, on a probe area whose rows declare nothing
+// (heavy_declared_test.go: a registration is read only for a line that
+// resolves to a registered command), so the row's verdict depends on the
+// registration alone, judged by the guard on a line that is no reader line. The real
 // registration, `ai hooks unit`, is proven in its own package
 // (TestHookSelftestIsAnExpensiveCommand, internal/le/ai/hooks), which links
 // it.
@@ -1919,6 +1922,68 @@ func TestExpensiveActionIsReadFromItsRegistration(t *testing.T) {
 		{"pipe", bashLossyPipe, `./le expensive-probe | tail -5`, false},
 		{"pipe", bashLossyPipe, `ze le expensive | tail -5`, false},
 		{"pipe", bashLossyPipe, `./le expensive-probe run`, false},
+	})
+}
+
+// TestLossyPipeReadsTheDeclarations asks whether the piped-command guard
+// classes an le line as expensive from what the area declared where its verb
+// registers, and from nothing else. Its method: the probe areas of
+// subagent_heavy_test.go, whose verdicts can only come from their
+// declarations, then real areas this package links, one per form of
+// declaration, each beside a light line of the same area. Every row is judged
+// by the guard on a line that is no reader line.
+//
+// VALIDATES: spec-main-thread-schedules-heavy-work AC-11: the guard answers
+// from leroot.HeavyLine, the predicate the heavy-work check asks, for a heavy
+// action row, an area registered heavy and an action registered expensive;
+// a light action, a listing and a help page of the same area are not
+// expensive. A heavy line that only carries a command (leroot.CarrierLine:
+// an argv parameter on the row, or an area registered as a carrier) is not
+// expensive either, while a pass-through area that is the heavy program is.
+// PREVENTS: a second list of heavy areas in the hook, which an action that
+// newly declares itself heavy would not join, and the admitted form
+// `./le job run ... | tail` refused with advice to wrap it in a second one.
+func TestLossyPipeReadsTheDeclarations(t *testing.T) {
+	heavyProbe.Do(registerHeavyProbe)
+	judgeGuardRows(t, t.TempDir(), []guardRow{
+		// Declarations made by a test: a heavy row, an expensive action and
+		// an area registered heavy, beside a light row and the listing.
+		{"pipe", bashLossyPipe, `./le heavy-probe run | tail -5`, true},
+		{"pipe", bashLossyPipe, `ze le heavy-probe run 2>&1 | grep FAIL`, true},
+		{"pipe", bashLossyPipe, `./le heavy-probe audit | tail -5`, true},
+		{"pipe", bashLossyPipe, `./le heavy-probe-area statistics x | tail -5`, true},
+		{"pipe", bashLossyPipe, `./le heavy-probe list | tail -5`, false},
+		{"pipe", bashLossyPipe, `./le heavy-probe | tail -5`, false},
+		{"pipe", bashLossyPipe, `./le heavy-probe run --help | tail -5`, false},
+		// A heavy action row of a real area, beside its light rows.
+		{"pipe", bashLossyPipe, `./le go lint run | tail -5`, true},
+		{"pipe", bashLossyPipe, `./le rfc check | tail -5`, true},
+		{"pipe", bashLossyPipe, `./le rfc next | tail -5`, false},
+		{"pipe", bashLossyPipe, `./le verify changed | tail -5`, true},
+		{"pipe", bashLossyPipe, `./le verify list | tail -5`, false},
+		{"pipe", bashLossyPipe, `./le test functional exabgp | tail -5`, true},
+		{"pipe", bashLossyPipe, `./le test functional list | tail -5`, false},
+		// A real area registered heavy: every line but its listing and help.
+		{"pipe", bashLossyPipe, `./le test qemu netns | tail -5`, true},
+		{"pipe", bashLossyPipe, `./le test qemu | tail -5`, false},
+		{"pipe", bashLossyPipe, `./le test integration clean | tail -5`, true},
+		{"pipe", bashLossyPipe, `./le test integration | tail -5`, false},
+		{"pipe", bashLossyPipe, `./le test integration --help | tail -5`, false},
+		// A pass-through area that is the heavy program: a suite runner
+		// registers as admitted and as no carrier, so its verdict is its own.
+		{"pipe", bashLossyPipe, `./le test bgp plugin 42 | tail -5`, true},
+		// A carrier runs the command its line names, which is an argument of
+		// the pipeline: a heavy row that declares an argv parameter, the
+		// probe's and the real `job run`, and an area registered as a carrier,
+		// `exec`. None is expensive, heavy as each is.
+		{"pipe", bashLossyPipe, `./le heavy-probe haul command go test ./x | tail -5`, false},
+		{"pipe", bashLossyPipe, `./le job run label unit-pkg quiet command go test ./x | tail -3`, false},
+		{"pipe", bashLossyPipe, `./le exec go version | tail -5`, false},
+		{"pipe", bashLossyPipe, `./le exec --help | tail -5`, false},
+		// A carrier that declares nothing heavy was never expensive and is
+		// unaffected, and a light action beside it stays light.
+		{"pipe", bashLossyPipe, `./le heavy-probe carry command go test ./x | tail -5`, false},
+		{"pipe", bashLossyPipe, `./le job report | tail -5`, false},
 	})
 }
 

@@ -25,6 +25,7 @@ const area = "go staticcheck"
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:    "check",
+		Heavy:   true,
 		Summary: "type-check every feature-tag combination",
 		Why: "the tree type-checks in every feature-tag combination Ze can be built in, so a package compiled out of the default build is still judged; " +
 			"part <index> of <count> judges one piece of the rows, and the pieces together judge every row",

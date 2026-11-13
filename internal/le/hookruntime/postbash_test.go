@@ -328,3 +328,35 @@ func TestPostBashGofmtSaysWhenItCouldNotReadTheCommand(t *testing.T) {
 		t.Errorf("the line does not say how to check what the command changed:\n%s", message)
 	}
 }
+
+// VALIDATES: for an unformatted file its command names, a subagent is told to
+// make an Edit to the file or to list the formatter under Owed commands, and
+// the main thread is still told to run gofmt.
+// PREVENTS: advice a subagent cannot follow, since the Bash hook refuses a
+// formatter from it (bashSubagentHeavy), costing it a refused call.
+func TestSubagentUnformattedFileAdviceNamesNoFormatterRun(t *testing.T) {
+	root := gitFixture(t)
+	writeHookFixture(t, root, "pkg/bad.go", unformattedGo)
+	t.Setenv(forkVariable, "")
+	const runIt = "If this command changed the file: gofmt -w <path>"
+	input := map[string]any{"command": "sed -i s/a/b/ pkg/bad.go"}
+
+	code, message, _ := Probe("postBashGofmt", Payload{ToolName: "Bash", ToolInput: input, AgentID: "agent-1"}, root)
+	if code != 2 || !strings.Contains(message, "pkg/bad.go") {
+		t.Fatalf("a subagent's unformatted file did not block (code %d):\n%s", code, message)
+	}
+	if strings.Contains(message, runIt) {
+		t.Errorf("a subagent is told to run the formatter the Bash hook refuses:\n%s", message)
+	}
+	if !strings.Contains(message, "make any Edit to it") || !strings.Contains(message, "`Owed commands`") {
+		t.Errorf("a subagent's advice names neither route it can take:\n%s", message)
+	}
+
+	code, message, _ = Probe("postBashGofmt", Payload{ToolName: "Bash", ToolInput: input}, root)
+	if code != 2 || !strings.Contains(message, runIt) {
+		t.Errorf("the main thread is no longer told to run gofmt (code %d):\n%s", code, message)
+	}
+	if strings.Contains(message, "Owed commands") {
+		t.Errorf("the main thread got the subagent's advice:\n%s", message)
+	}
+}

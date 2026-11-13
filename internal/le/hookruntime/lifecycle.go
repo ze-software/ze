@@ -554,18 +554,22 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 	return 0
 }
 
-// subagentCallRules writes the five rules a subagent's calls are judged by,
+// subagentCallRules writes the seven rules a subagent's calls are judged by,
 // each one a check it would otherwise learn from a refusal that costs it a
 // turn: the whole-document read the edit gates record (readgate.go), the
 // shell-write guard on plan/ and ai/rules/ (bashGovernedWrite), the batching
-// a turn rewards, where tests and builds run, and the call budget
+// a turn rewards, the heavy work the Bash hook refuses and the owed-command
+// list that replaces it (bashSubagentHeavy), the lint its Go edit owes
+// (postFormatGo), what it may commit, and the call budget
 // (agentCallBudgetCheck), whose numbers come from its own constants.
 func subagentCallRules(text *textbuf.Buffer) {
 	text.Str("\nHow your calls are judged:\n").
 		Str("- Read a door or the Go style guide with the Read tool, whole (no offset or limit): only a whole read is recorded, and the write hooks refuse a code edit until it is. Read a spec's source files whole too.\n").
 		Str("- Edit files under plan/ and ai/rules/ with Edit or Write only: the Bash hook refuses a shell write there.\n").
 		Str("- Put independent calls in one message: every call re-reads your whole context.\n").
-		Str("- Hand tests, builds, lint and formatters to the main thread, which runs them one at a time on the shared machine.\n").
+		Str("- Hand tests, builds, lint and formatters to the main thread: the Bash hook refuses a test, build, vet, lint, formatter, `./le job run` and any heavy `./le` action from you. End your report with an `Owed commands` list (each exact command, what it proves, the result you expect), and the main thread runs it.\n").
+		Str("- After your Go edit the hook formats the file and does not lint it, so the changed-code lint is owed: `./le go lint run scope \"<pkg>\"`.\n").
+		Str("- Commit only a change that owes no execution (prose, spec bookkeeping, a blocked hand-back). The main thread commits code.\n").
 		Str("- A ").Str(budgetedAgentType).Str(" agent's budget is ").Int(agentCallBudget).
 		Str(" hooked calls (Bash, Write, Edit). A call a hook refuses is not counted.\n")
 }

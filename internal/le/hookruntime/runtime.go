@@ -91,6 +91,14 @@ type callState struct {
 	// first check that asks (ctx.commandParse, shellparse.go) and read by
 	// every later check of the same call.
 	parse shellParse
+	// handBack holds the one heavy-work judgment of a subagent's Bash call:
+	// what the line starts and the command to hand back, or a zero what for
+	// a line that starts nothing heavy. It is computed once per call, by the
+	// first check that asks (ctx.heavyHandBack, subagent_heavy.go), and read
+	// by every later check of the same call: the guards that refuse such a
+	// line without text (withoutHandedBackAdvice). The main thread's call
+	// never fills it.
+	handBack handBackState
 }
 
 // earlierRefused reports that a check Run ran earlier for this call refused
@@ -120,7 +128,7 @@ var nativeHookActions = map[string]hookAction{
 	"pretool-bash": {
 		tools: []string{toolBash},
 		checks: []hookCheck{
-			bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashRootBuild, bashLossyPipe,
+			bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashSubagentHeavy, bashRootBuild, bashLossyPipe,
 			bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch,
 			bashTestDeletion, bashGovernedWrite, preMaterializeDerived,
 			bashDocumentRead, bashAgentIdentity, bashCallBudget,
@@ -304,6 +312,11 @@ func Run(kind string, in io.Reader, out, errOut io.Writer) (code int) {
 // where every later turn re-reads it. A code-0 hint carries nothing to act on,
 // so it is printed only on a run that does not block, where the person sees it
 // and the agent does not.
+//
+// A verdict with no text counts in the exit code and prints nothing, not even
+// an empty line. A guard relies on that to refuse a line whose next step
+// another check's refusal already carries (withoutHandedBackAdvice,
+// subagent_heavy.go).
 func shownVerdicts(results []verdict) (worst int, messages []string) {
 	for _, result := range results {
 		worst = max(worst, result.code)

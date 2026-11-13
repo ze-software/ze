@@ -243,8 +243,11 @@ func Forwards(name string) bool {
 // RegisterAdmitted records an area whose run takes a slot through the job
 // registry (internal/le/job) before it works: a test runner that starts ze
 // daemons by the dozen. The answer does the admitting. This mark is what a
-// reader outside the area consults, so the pretool hook reads the area as
-// heavy from its registration rather than from a list of names.
+// reader outside the area consults: HeavyLine (heavy.go) answers heavy for
+// every line of the area that runs something, and the pretool hook asks
+// HeavyLine for both of its guards, the piped-command refusal and the
+// heavy-work check of a subagent's line (internal/le/hookruntime,
+// expensiveWords and bashSubagentHeavy). The hook holds no list of names.
 //
 // An area that runs inside a test, a helper tool, MUST NOT register: the suite
 // that started it already holds the slot, and a second wait would queue the
@@ -278,11 +281,13 @@ var admittedAreas struct {
 // whole output, as it judges a test suite, while the action takes no slot
 // through the job registry (RegisterAdmitted marks the runs that do): a
 // selftest such as `ai hooks unit`, whose last lines are a summary and whose
-// failing rows print before it. The pretool hook reads a command that runs
-// such an action as expensive, so piping it through a filter that drops
-// lines is refused (bashLossyPipe), from this registration rather than from
-// a list of names in the hook. name is the action's whole command name, its
-// area and its verb. MUST be called from init.
+// failing rows print before it. HeavyLine (heavy.go) reads the registration
+// for a line that resolves to the registered area and names the verb, and
+// the pretool hook asks HeavyLine: piping such a line through a filter that
+// drops lines is refused (bashLossyPipe), and a subagent's line is handed
+// back to the main thread (bashSubagentHeavy). name is the action's whole
+// command name, its area and its verb; a name that resolves to no registered
+// command is never read. MUST be called from init.
 func RegisterExpensive(name string) {
 	expensiveActions.Lock()
 	defer expensiveActions.Unlock()

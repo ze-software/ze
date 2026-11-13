@@ -34,6 +34,7 @@ var actions = leaction.New(area, leaction.Action{
 	AnswerArgs: prepareExtractionHere,
 }, leaction.Action{
 	Verb:    "check",
+	Heavy:   true,
 	Writes:  true,
 	Summary: "check authored inclusion and cache exclusion",
 	Why:     "a tracked package selection is not evidence of what CodeQL actually extracted",

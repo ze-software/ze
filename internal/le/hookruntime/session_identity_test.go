@@ -193,6 +193,57 @@ func TestMainThreadCommandNeedsNoIdentityLine(t *testing.T) {
 	}
 }
 
+// TestCallerPredicateAgreesWithIdentityCheck asks whether the one caller
+// predicate (fromSubagent) answers what the identity check decided before it
+// existed. Its method: the predicate over a payload of each caller, then the
+// identity check through Run for the same three callers, on a line it
+// refuses only for a subagent.
+//
+// VALIDATES: spec-main-thread-schedules-heavy-work, the caller predicate
+// behind AC-1, AC-7 and AC-8: a payload naming an agent and a fork (no agent
+// id, the fork variable set) are subagents, the main thread is not, and
+// bashAgentIdentity and commandIdentityPrefix judge each caller as the
+// predicate does.
+// PREVENTS: the identity check and the heavy-work check judging one caller
+// two ways, and a fork read as the main thread.
+func TestCallerPredicateAgreesWithIdentityCheck(t *testing.T) {
+	agent := context{payload: Payload{SessionID: "parent-17", AgentID: "agent-1"}}
+	main := context{payload: Payload{SessionID: "parent-17"}}
+
+	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "")
+	if !fromSubagent(agent) {
+		t.Errorf("a payload naming an agent is not read as a subagent")
+	}
+	if fromSubagent(main) {
+		t.Errorf("a payload with no agent id and no fork variable is read as a subagent")
+	}
+	if got := commandIdentityPrefix(agent); got != identityLineOfAgent {
+		t.Errorf("the agent's advice prefix = %q, want its identity line %q", got, identityLineOfAgent)
+	}
+	if got := commandIdentityPrefix(main); got != "" {
+		t.Errorf("the main thread's advice prefix = %q, want none", got)
+	}
+	code, _, message := runSubagentBash(t, `./le spec current`)
+	if code != 2 || !strings.Contains(message, "needs the agent's identity line") {
+		t.Errorf("agent: code=%d, want the identity refusal: %s", code, message)
+	}
+	if code, message := runMainBash(t, `./le spec current`); code != 0 || strings.Contains(message, "identity line") {
+		t.Errorf("main thread: code=%d, want exit 0 and no identity refusal: %s", code, message)
+	}
+
+	// A fork carries no agent id: the variable alone makes it a subagent.
+	code, _, message = runForkBash(t, `./le spec current`)
+	if code != 2 || !strings.Contains(message, identityLineOfFork) {
+		t.Errorf("fork: code=%d, want the identity refusal with the fork's line: %s", code, message)
+	}
+	if !fromSubagent(main) {
+		t.Errorf("a payload with no agent id is not read as a subagent while the fork variable is set")
+	}
+	if got := commandIdentityPrefix(main); got != identityLineOfFork {
+		t.Errorf("the fork's advice prefix = %q, want its identity line %q", got, identityLineOfFork)
+	}
+}
+
 // VALIDATES: R-2. A line the word splitter cannot parse (an unclosed quote, a
 // trailing backslash) is never judged a reader line, even when the words it
 // seems to hold are all readers.

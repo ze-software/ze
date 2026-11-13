@@ -29,7 +29,7 @@ var actions = leaction.New(area,
 			{Keyword: keyFeature, Kind: leaction.KindLabel, Help: "one feature id to report", Value: "id", Requirement: leaction.Optional},
 		},
 		AnswerArgs: reportAnswer},
-	leaction.Action{Verb: "run", Summary: "run one feature's real-path tests and interop", Why: "run every real-path test and every counted interop scenario of one feature " +
+	leaction.Action{Verb: "run", Heavy: true, Summary: "run one feature's real-path tests and interop", Why: "run every real-path test and every counted interop scenario of one feature " +
 		"through the repository's own runners and record a green run in features/runs/<id>.json only when " +
 		"each one was observed passing; a failure, a run that selected nothing, or a file or scenario " +
 		"directory that changed mid-run records nothing. `due <days>` does the same for every feature " +

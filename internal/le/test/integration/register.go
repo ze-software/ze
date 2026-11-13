@@ -25,6 +25,11 @@ func init() {
 		SubsFunc: Subs,
 	})
 	leroot.RegisterActions(Area, Actions)
+	// Every action of this area drives the Docker daemon every session shares,
+	// the cleanup included: a subagent removes nothing on a shared daemon. The
+	// area therefore declares itself heavy and the main thread schedules it
+	// (leroot.HeavyLine). The bare name still prints the listing.
+	leroot.RegisterHeavy(Area)
 
 	// ShapeDoc applies because these two answers do not share one row set.
 	// The listing has rows, and a sweep has separate rows for each gate report.

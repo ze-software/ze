@@ -191,6 +191,17 @@ var fixtureSites = [...]fixtureSite{
 	{category: categorySessionID, name: "pretool-bash-subagent-reader-row-loop-quoted-piped-go-test-passes", expectedExit: 0},
 	{category: categorySessionID, name: "pretool-bash-subagent-reader-row-loop-quoted-go-build-passes", expectedExit: 0},
 	{category: categorySessionID, name: "pretool-bash-subagent-reader-row-loop-quoted-system-tmp-passes", expectedExit: 0},
+	// 2026-11-13, spec-main-thread-schedules-heavy-work: a subagent hands heavy
+	// work back to the main thread (bashSubagentHeavy). Each site runs through
+	// the whole pretool-bash action as agent-1 of parent-17, and the same line
+	// typed by the main thread is its control
+	// (TestSubagentHeavySitesAreJudgedByTheHook). A refused site names the
+	// hand-back header and ends with the command the agent typed.
+	{category: categorySessionID, name: "pretool-bash-subagent-heavy-go-test-carrying-its-identity-line-refused", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: "a subagent does not run `go test`"}, {match: matchSuffix, text: "go test ./internal/core/env"}}},
+	{category: categorySessionID, name: "pretool-bash-subagent-heavy-le-action-carrying-its-identity-line-refused", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: "a subagent does not run the `./le` action `./le ai hooks"}, {match: matchSuffix, text: "./le ai hooks unit"}}},
+	{category: categorySessionID, name: "pretool-bash-subagent-heavy-go-test-with-a-stated-reason-refused", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: "a subagent does not run `go test`"}, {match: matchSuffix, text: "ZE_ADMIT_RAW=\"one case\" go test ./internal/core/env"}}},
+	{category: categorySessionID, name: "pretool-bash-subagent-heavy-reader-naming-go-test-passes", expectedExit: 0},
+	{category: categorySessionID, name: "pretool-bash-subagent-heavy-light-le-action-carrying-its-identity-line-passes", expectedExit: 0},
 	{category: categorySessionID, generator: fixtureNameGenerator{prefix: "pretool-bash-leaves-", suffix: "-id-unchanged", labels: []string{labelTrailingNewline, "encoded-nul", labelDot, labelDotDot}}, expectedExit: 0},
 	{category: categorySessionID, name: "pretool-bash-identity-line-keeps-three-scratch-calls-stable", expectedExit: 0},
 	{category: categorySessionID, name: "pretool-bash-identity-line-reaches-make", expectedExit: -1},
