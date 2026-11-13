@@ -16,13 +16,18 @@ derivation, so every caller that sets no mask is unchanged. XfrmPolicy gains
 DstPortMask and SrcPortMask, which the policy reader and the reader of a
 state's nested selector fill from the kernel.
 
+Its tests, TestXfrmSelectorPortMaskWrite and TestXfrmSelectorPortMaskRead in
+xfrm_selector_port_mask_linux_test.go, check the selector bytes the writer
+produces and the masks the policy and state readers report.
+
 No upstream pull request is opened yet for this change.
 
 Needs netlink-xfrm-04-readback-message-family.patch, and so
 netlink-xfrm-01-state-readback-esn-replay.patch: its state hunk realigns
 the nested selector literal that 04 rewrites.
 
-Not yet checked against upstream main.
+Applies unchanged to upstream main (e0e26cd, 2026-11-13) after the patches it
+needs, not on its own, and its test passes there unprivileged.
 
 Delete this patch when go.mod requires an upstream release that contains the
 change.
@@ -60,7 +65,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor
  	sel.Ifindex = int32(policy.Ifindex)
  }
  
-@@ -352,6 +368,8 @@
+@@ -357,6 +373,8 @@
  	policy.Proto = Proto(msg.Sel.Proto)
  	policy.DstPort = int(nl.Swap16(msg.Sel.Dport))
  	policy.SrcPort = int(nl.Swap16(msg.Sel.Sport))
@@ -69,10 +74,109 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor
  	policy.Ifindex = int(msg.Sel.Ifindex)
  	policy.Priority = int(msg.Priority)
  	policy.Index = int(msg.Index)
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_selector_port_mask_linux_test.go b/vendor/github.com/vishvananda/netlink/xfrm_selector_port_mask_linux_test.go
+new file mode 100644
+--- /dev/null
++++ b/vendor/github.com/vishvananda/netlink/xfrm_selector_port_mask_linux_test.go
+@@ -0,0 +1,94 @@
++package netlink
++
++import (
++	"bytes"
++	"testing"
++
++	"github.com/vishvananda/netlink/nl"
++)
++
++// struct xfrm_selector carries dport, dport_mask, sport and sport_mask as big
++// endian u16 at these offsets.
++const (
++	xfrmSelDport     = 32
++	xfrmSelDportMask = 34
++	xfrmSelSport     = 36
++	xfrmSelSportMask = 38
++)
++
++// TestXfrmSelectorPortMaskWrite checks the selector port masks the writer sends.
++func TestXfrmSelectorPortMaskWrite(t *testing.T) {
++	for _, tc := range []struct {
++		name   string
++		policy XfrmPolicy
++		dport  []byte
++		dmask  []byte
++		sport  []byte
++		smask  []byte
++	}{
++		{
++			name:   "exact port zero and a partial mask",
++			policy: XfrmPolicy{Proto: 17, SrcPort: 0, SrcPortMask: 0xffff, DstPort: 0x1200, DstPortMask: 0xff00},
++			dport:  []byte{0x12, 0x00},
++			dmask:  []byte{0xff, 0x00},
++			sport:  []byte{0x00, 0x00},
++			smask:  []byte{0xff, 0xff},
++		},
++		{
++			name:   "zero masks keep the derived ones",
++			policy: XfrmPolicy{Proto: 17, SrcPort: 0, DstPort: 500},
++			dport:  []byte{0x01, 0xf4},
++			dmask:  []byte{0xff, 0xff},
++			sport:  []byte{0x00, 0x00},
++			smask:  []byte{0x00, 0x00},
++		},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			var sel nl.XfrmSelector
++			selFromPolicy(&sel, &tc.policy)
++			b := sel.Serialize()
++			for _, field := range []struct {
++				name string
++				off  int
++				want []byte
++			}{
++				{"dport", xfrmSelDport, tc.dport},
++				{"dport_mask", xfrmSelDportMask, tc.dmask},
++				{"sport", xfrmSelSport, tc.sport},
++				{"sport_mask", xfrmSelSportMask, tc.smask},
++			} {
++				if got := b[field.off : field.off+2]; !bytes.Equal(got, field.want) {
++					t.Errorf("%s = %x, want %x", field.name, got, field.want)
++				}
++			}
++		})
++	}
++}
++
++// TestXfrmSelectorPortMaskRead checks that a policy and a state's selector
++// report the port masks the kernel holds.
++func TestXfrmSelectorPortMaskRead(t *testing.T) {
++	info := nl.XfrmUserpolicyInfo{}
++	m := append([]byte(nil), info.Serialize()...)
++	copy(m[xfrmSelDportMask:], []byte{0xff, 0x00})
++	copy(m[xfrmSelSportMask:], []byte{0xff, 0xff})
++	policy, err := parseXfrmPolicy(m, FAMILY_ALL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if policy.DstPortMask != 0xff00 || policy.SrcPortMask != 0xffff {
++		t.Errorf("policy masks = %#x, %#x, want 0xff00, 0xffff", policy.DstPortMask, policy.SrcPortMask)
++	}
++
++	msg := nl.XfrmUsersaInfo{}
++	m = append([]byte(nil), msg.Serialize()...)
++	copy(m[xfrmSelDportMask:], []byte{0xff, 0x00})
++	copy(m[xfrmSelSportMask:], []byte{0xff, 0xff})
++	state, err := parseXfrmState(m, FAMILY_ALL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if state.Selector.DstPortMask != 0xff00 || state.Selector.SrcPortMask != 0xffff {
++		t.Errorf("state selector masks = %#x, %#x, want 0xff00, 0xffff", state.Selector.DstPortMask, state.Selector.SrcPortMask)
++	}
++}
 diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
 --- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
 +++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
-@@ -520,12 +520,14 @@
+@@ -527,12 +527,14 @@
  	lftToLimits(&msg.Lft, &state.Limits)
  	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
  	state.Selector = &XfrmPolicy{

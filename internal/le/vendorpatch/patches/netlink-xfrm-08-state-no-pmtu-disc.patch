@@ -9,13 +9,18 @@ header: xfrm4_tunnel_encap_add (net/xfrm/xfrm_output.c) writes
 "This means that it MUST be possible to configure the implementation's
 treatment of the DF bit (set, clear, copy from inner header) for each SA."
 
+Its test, TestXfrmStateNoPMTUDiscFlag in
+xfrm_state_nopmtudisc_linux_test.go, checks the flag value written and read
+back.
+
 No upstream pull request is opened yet for this change.
 
 Needs netlink-xfrm-07-state-af-unspec.patch, and so
 netlink-xfrm-01-state-readback-esn-replay.patch: its field, reader and
 writer lines follow the ones 07 adds.
 
-Not yet checked against upstream main.
+Applies unchanged to upstream main (e0e26cd, 2026-11-13) after the patches it
+needs, not on its own, and its test passes there unprivileged.
 
 Delete this patch when go.mod requires an upstream release that contains the
 change.
@@ -38,7 +43,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  }
  
  func (sa XfrmState) String() string {
-@@ -522,6 +526,7 @@
+@@ -529,6 +533,7 @@
  	state.ReplayWindow = int(msg.ReplayWindow)
  	state.ESN = msg.Flags&nl.XFRM_STATE_ESN != 0
  	state.AFUnspec = msg.Flags&nl.XFRM_STATE_AF_UNSPEC != 0
@@ -46,7 +51,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  	lftToLimits(&msg.Lft, &state.Limits)
  	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
  	state.Selector = &XfrmPolicy{
-@@ -724,5 +729,8 @@
+@@ -731,5 +736,8 @@
  	if state.AFUnspec {
  		msg.Flags |= nl.XFRM_STATE_AF_UNSPEC
  	}
@@ -55,3 +60,32 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
 +	}
  	return msg
  }
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_nopmtudisc_linux_test.go b/vendor/github.com/vishvananda/netlink/xfrm_state_nopmtudisc_linux_test.go
+new file mode 100644
+--- /dev/null
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_nopmtudisc_linux_test.go
+@@ -0,0 +1,24 @@
++package netlink
++
++import (
++	"testing"
++
++	"github.com/vishvananda/netlink/nl"
++)
++
++// TestXfrmStateNoPMTUDiscFlag checks that NoPMTUDisc sets XFRM_STATE_NOPMTUDISC, which is
++// 0x04 in include/uapi/linux/xfrm.h, and is read back from it.
++func TestXfrmStateNoPMTUDiscFlag(t *testing.T) {
++	if got := xfrmUsersaInfoFromXfrmState(&XfrmState{NoPMTUDisc: true}).Flags; got != 0x04 {
++		t.Errorf("flags with NoPMTUDisc = %#x, want 0x04", got)
++	}
++	if got := xfrmUsersaInfoFromXfrmState(&XfrmState{}).Flags; got != 0 {
++		t.Errorf("flags without NoPMTUDisc = %#x, want 0", got)
++	}
++	if !xfrmStateFromXfrmUsersaInfo(&nl.XfrmUsersaInfo{Flags: 0x04}).NoPMTUDisc {
++		t.Errorf("NoPMTUDisc = false for flags 0x04, want true")
++	}
++	if xfrmStateFromXfrmUsersaInfo(&nl.XfrmUsersaInfo{}).NoPMTUDisc {
++		t.Errorf("NoPMTUDisc = true for flags 0, want false")
++	}
++}

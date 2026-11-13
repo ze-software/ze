@@ -343,8 +343,9 @@ proposed upstream, and sorts last:
   destination still determines the template family.
   Patch: `netlink-xfrm-03-template-family-no-destination.patch`.
 - The selector writer takes its family from a valid destination prefix's mask
-  width and preserves all sixteen address bytes for IPv6, including mapped
-  IPv6 prefixes. Policies and a state's legacy selector use the same writer,
+  width, or from the source prefix's when the selector has no destination, and
+  preserves all sixteen address bytes for IPv6, including mapped IPv6
+  prefixes. Policies and a state's legacy selector use the same writer,
   so a transport selector can match its canonical state-scope record exactly.
   Patch: `netlink-xfrm-10-selector-prefix-family.patch`.
 - The policy reader preserves source and destination port masks, including partial

@@ -13,12 +13,17 @@ nested selector's family for its prefixes. An all-family dump keeps
 0.0.0.0/0 and ::/0 distinct, and an IPv4 address is returned in four bytes
 rather than as an IPv4-mapped IPv6 address.
 
+Its tests, in xfrm_readback_family_linux_test.go, parse policy and state
+messages built by hand: TestXfrmPolicyReadbackSelectorFamily,
+TestXfrmPolicyReadbackTemplateFamily and TestXfrmStateReadbackAddressFamily.
+
 No upstream pull request is opened yet for this change.
 
 Needs netlink-xfrm-01-state-readback-esn-replay.patch: its state hunk
 carries a line that patch adds as context.
 
-Not yet checked against upstream main.
+Applies unchanged to upstream main (e0e26cd, 2026-11-13) after the patches it
+needs, not on its own, and its test passes there unprivileged.
 
 Delete this patch when go.mod requires an upstream release that contains the
 change.
@@ -26,7 +31,7 @@ change.
 diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
 --- a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
 +++ b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
-@@ -322,18 +322,33 @@
+@@ -327,18 +327,33 @@
  	return parseXfrmPolicy(msgs[0], FAMILY_ALL)
  }
  
@@ -62,7 +67,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor
  	policy.Proto = Proto(msg.Sel.Proto)
  	policy.DstPort = int(nl.Swap16(msg.Sel.Dport))
  	policy.SrcPort = int(nl.Swap16(msg.Sel.Sport))
-@@ -355,8 +370,8 @@
+@@ -360,8 +375,8 @@
  			for i := 0; i < max; i += nl.SizeofXfrmUserTmpl {
  				var resTmpl XfrmPolicyTmpl
  				tmpl := nl.DeserializeXfrmUserTmpl(attr.Value[i : i+nl.SizeofXfrmUserTmpl])
@@ -73,10 +78,140 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor
  				resTmpl.Proto = Proto(tmpl.XfrmId.Proto)
  				resTmpl.Mode = Mode(tmpl.Mode)
  				resTmpl.Spi = int(nl.Swap32(tmpl.XfrmId.Spi))
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_readback_family_linux_test.go b/vendor/github.com/vishvananda/netlink/xfrm_readback_family_linux_test.go
+new file mode 100644
+--- /dev/null
++++ b/vendor/github.com/vishvananda/netlink/xfrm_readback_family_linux_test.go
+@@ -0,0 +1,125 @@
++package netlink
++
++import (
++	"net"
++	"testing"
++
++	"github.com/vishvananda/netlink/nl"
++)
++
++// 2001:db8:: and 2001:db9:: end in twelve zero bytes, which a reader that takes
++// the family from the address bytes decodes as 32.1.13.184 and 32.1.13.185.
++var (
++	xfrmReadbackV6Dst = nl.XfrmAddress{0x20, 0x01, 0x0d, 0xb8}
++	xfrmReadbackV6Src = nl.XfrmAddress{0x20, 0x01, 0x0d, 0xb9}
++)
++
++// TestXfrmPolicyReadbackSelectorFamily reads a policy from an all-family dump:
++// its prefixes take the selector's family, not the family the caller asked for.
++func TestXfrmPolicyReadbackSelectorFamily(t *testing.T) {
++	info := nl.XfrmUserpolicyInfo{}
++	info.Sel.Family = nl.FAMILY_V6
++	info.Sel.Daddr = xfrmReadbackV6Dst
++	info.Sel.PrefixlenD = 32
++
++	policy, err := parseXfrmPolicy(info.Serialize(), FAMILY_ALL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if got := policy.Dst.String(); got != "2001:db8::/32" {
++		t.Errorf("Dst = %s, want 2001:db8::/32", got)
++	}
++	if got := policy.Src.String(); got != "::/0" {
++		t.Errorf("Src = %s, want ::/0", got)
++	}
++}
++
++// TestXfrmPolicyReadbackTemplateFamily reads an IPv4 policy whose template has
++// IPv6 tunnel endpoints: each address takes the family of the struct that holds it.
++func TestXfrmPolicyReadbackTemplateFamily(t *testing.T) {
++	info := nl.XfrmUserpolicyInfo{}
++	info.Sel.Family = nl.FAMILY_V4
++	info.Sel.Daddr = nl.XfrmAddress{192, 0, 2, 0}
++	info.Sel.PrefixlenD = 24
++	tmpl := nl.XfrmUserTmpl{Family: nl.FAMILY_V6}
++	tmpl.XfrmId.Daddr = xfrmReadbackV6Dst
++	tmpl.Saddr = xfrmReadbackV6Src
++	m := append(info.Serialize(), nl.NewRtAttr(nl.XFRMA_TMPL, tmpl.Serialize()).Serialize()...)
++
++	policy, err := parseXfrmPolicy(m, FAMILY_ALL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if got := policy.Dst.String(); got != "192.0.2.0/24" {
++		t.Errorf("Dst = %s, want 192.0.2.0/24", got)
++	}
++	if len(policy.Dst.IP) != net.IPv4len {
++		t.Errorf("Dst holds %d bytes, want %d", len(policy.Dst.IP), net.IPv4len)
++	}
++	if len(policy.Tmpls) != 1 {
++		t.Fatalf("got %d templates, want 1", len(policy.Tmpls))
++	}
++	if got := policy.Tmpls[0].Dst.String(); got != "2001:db8::" {
++		t.Errorf("template Dst = %s, want 2001:db8::", got)
++	}
++	if got := policy.Tmpls[0].Src.String(); got != "2001:db9::" {
++		t.Errorf("template Src = %s, want 2001:db9::", got)
++	}
++}
++
++// TestXfrmStateReadbackAddressFamily reads states whose outer family differs
++// from their selector family: the outer addresses take the message family and
++// the selector prefixes take the selector family.
++func TestXfrmStateReadbackAddressFamily(t *testing.T) {
++	t.Run("ipv4 in ipv6", func(t *testing.T) {
++		msg := nl.XfrmUsersaInfo{Family: nl.FAMILY_V6}
++		msg.Id.Daddr = xfrmReadbackV6Dst
++		msg.Saddr = xfrmReadbackV6Src
++		msg.Sel.Family = nl.FAMILY_V4
++		msg.Sel.Daddr = nl.XfrmAddress{192, 0, 2, 0}
++		msg.Sel.Saddr = nl.XfrmAddress{198, 51, 100, 0}
++		msg.Sel.PrefixlenD = 24
++		msg.Sel.PrefixlenS = 24
++
++		state, err := parseXfrmState(msg.Serialize(), FAMILY_ALL)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if got := state.Dst.String(); got != "2001:db8::" {
++			t.Errorf("Dst = %s, want 2001:db8::", got)
++		}
++		if got := state.Src.String(); got != "2001:db9::" {
++			t.Errorf("Src = %s, want 2001:db9::", got)
++		}
++		if got := state.Selector.Dst.String(); got != "192.0.2.0/24" {
++			t.Errorf("selector Dst = %s, want 192.0.2.0/24", got)
++		}
++		if got := state.Selector.Src.String(); got != "198.51.100.0/24" {
++			t.Errorf("selector Src = %s, want 198.51.100.0/24", got)
++		}
++	})
++	t.Run("ipv6 in ipv4", func(t *testing.T) {
++		msg := nl.XfrmUsersaInfo{Family: nl.FAMILY_V4}
++		msg.Id.Daddr = nl.XfrmAddress{192, 0, 2, 1}
++		msg.Saddr = nl.XfrmAddress{198, 51, 100, 1}
++		msg.Sel.Family = nl.FAMILY_V6
++		msg.Sel.Daddr = xfrmReadbackV6Dst
++		msg.Sel.Saddr = xfrmReadbackV6Src
++		msg.Sel.PrefixlenD = 32
++		msg.Sel.PrefixlenS = 32
++
++		state, err := parseXfrmState(msg.Serialize(), FAMILY_ALL)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if got := state.Dst.String(); got != "192.0.2.1" {
++			t.Errorf("Dst = %s, want 192.0.2.1", got)
++		}
++		if got := state.Selector.Dst.String(); got != "2001:db8::/32" {
++			t.Errorf("selector Dst = %s, want 2001:db8::/32", got)
++		}
++		if got := state.Selector.Src.String(); got != "2001:db9::/32" {
++			t.Errorf("selector Src = %s, want 2001:db9::/32", got)
++		}
++	})
++}
 diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
 --- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
 +++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
-@@ -509,19 +509,19 @@
+@@ -516,19 +516,19 @@
  
  func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
  	var state XfrmState

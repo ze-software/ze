@@ -10,6 +10,12 @@ template doesn't support a family change". The test is on length rather
 than nil, so a non-nil zero-length net.IP is handled too. A template with a
 destination keeps the upstream rule.
 
+The family is chosen by xfrmUserTmplFamily, split out of
+xfrmPolicyAddOrUpdate so that it can be tested without sending a request.
+Its test, TestXfrmPolicyTmplFamilyNoDst in
+xfrm_policy_tmpl_family_linux_test.go, covers a nil and an empty destination
+under each selector family, and a destination of the other family.
+
 No upstream pull request is opened yet for this change. Upstream issue 1213
 of vishvananda/netlink ("xfrm: three bugs in state read-back, replay window
 and template family", opened 2026-08-25) proposes it and has no maintainer
@@ -17,7 +23,8 @@ answer yet.
 
 Needs no earlier patch.
 
-Not yet checked against upstream main.
+Applies unchanged to upstream main (e0e26cd, 2026-11-13), on its own, and its
+test passes there unprivileged.
 
 Delete this patch when go.mod requires an upstream release that contains the
 change.
@@ -25,19 +32,69 @@ change.
 diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
 --- a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
 +++ b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
-@@ -170,7 +170,14 @@
+@@ -149,6 +149,18 @@
+ 	return h.xfrmPolicyAddOrUpdate(policy, nl.XFRM_MSG_UPDPOLICY)
+ }
+ 
++// xfrmUserTmplFamily answers the family written into a template. A template
++// with no destination takes the policy selector's family. The test is on
++// LENGTH, not on nil: GetIPFamily answers FAMILY_V4 for any address of four
++// bytes or fewer, so a non-nil zero-length net.IP would put AF_INET on an IPv6
++// policy, which is the case this fixes.
++func xfrmUserTmplFamily(tmpl XfrmPolicyTmpl, selFamily uint16) uint16 {
++	if len(tmpl.Dst) > 0 {
++		return uint16(nl.GetIPFamily(tmpl.Dst))
++	}
++	return selFamily
++}
++
+ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
+ 	req := h.newNetlinkRequest(nlProto, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
+ 
+@@ -170,7 +182,7 @@
  		userTmpl := nl.DeserializeXfrmUserTmpl(tmplData[start : start+nl.SizeofXfrmUserTmpl])
  		userTmpl.XfrmId.Daddr.FromIP(tmpl.Dst)
  		userTmpl.Saddr.FromIP(tmpl.Src)
 -		userTmpl.Family = uint16(nl.GetIPFamily(tmpl.Dst))
-+		// A template with no destination takes the policy selector's family. The
-+		// test is on LENGTH, not on nil: GetIPFamily answers FAMILY_V4 for any
-+		// address of four bytes or fewer, so a non-nil zero-length net.IP would
-+		// put AF_INET on an IPv6 policy, which is the case this fixes.
-+		userTmpl.Family = msg.Sel.Family
-+		if len(tmpl.Dst) > 0 {
-+			userTmpl.Family = uint16(nl.GetIPFamily(tmpl.Dst))
-+		}
++		userTmpl.Family = xfrmUserTmplFamily(tmpl, msg.Sel.Family)
  		userTmpl.XfrmId.Proto = uint8(tmpl.Proto)
  		userTmpl.XfrmId.Spi = nl.Swap32(uint32(tmpl.Spi))
  		userTmpl.Mode = uint8(tmpl.Mode)
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_tmpl_family_linux_test.go b/vendor/github.com/vishvananda/netlink/xfrm_policy_tmpl_family_linux_test.go
+new file mode 100644
+--- /dev/null
++++ b/vendor/github.com/vishvananda/netlink/xfrm_policy_tmpl_family_linux_test.go
+@@ -0,0 +1,33 @@
++package netlink
++
++import (
++	"net"
++	"testing"
++
++	"github.com/vishvananda/netlink/nl"
++)
++
++// TestXfrmPolicyTmplFamilyNoDst checks the family written into a policy
++// template: the selector's family when the template has no destination, as in
++// transport mode, and the destination's family otherwise.
++func TestXfrmPolicyTmplFamilyNoDst(t *testing.T) {
++	for _, tc := range []struct {
++		name string
++		dst  net.IP
++		sel  uint16
++		want uint16
++	}{
++		{name: "nil destination, ipv6 selector", dst: nil, sel: nl.FAMILY_V6, want: nl.FAMILY_V6},
++		{name: "empty destination, ipv6 selector", dst: net.IP{}, sel: nl.FAMILY_V6, want: nl.FAMILY_V6},
++		{name: "nil destination, ipv4 selector", dst: nil, sel: nl.FAMILY_V4, want: nl.FAMILY_V4},
++		{name: "ipv4 destination, ipv6 selector", dst: net.ParseIP("192.0.2.1"), sel: nl.FAMILY_V6, want: nl.FAMILY_V4},
++		{name: "ipv6 destination, ipv4 selector", dst: net.ParseIP("2001:db8::1"), sel: nl.FAMILY_V4, want: nl.FAMILY_V6},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			tmpl := XfrmPolicyTmpl{Dst: tc.dst, Proto: XFRM_PROTO_ESP, Mode: XFRM_MODE_TRANSPORT}
++			if got := xfrmUserTmplFamily(tmpl, tc.sel); got != tc.want {
++				t.Errorf("template family = %d, want %d", got, tc.want)
++			}
++		})
++	}
++}

@@ -15,6 +15,14 @@ Section 3.4.3: "A minimum window size of 32 packets MUST be supported when
 32-bit sequence numbers are employed; a window size of 64 is preferred and
 SHOULD be employed as the default."
 
+The decision is made by xfrmReplayWindowInESN, split out of
+xfrmStateAddOrUpdate so that it can be tested without sending a request. Its
+test, TestXfrmStateReplayWindowInESN in
+xfrm_state_replay_window_linux_test.go, checks windows of 0, 32, 33, 64 and
+4096 without ESN and of 32 and 64 with it. It does not observe the request:
+that xfrmStateAddOrUpdate adds the attribute and zeroes the legacy field
+under that decision is proven only by installing a state, which needs root.
+
 No upstream pull request is opened yet for this change. Upstream issue 1213
 of vishvananda/netlink ("xfrm: three bugs in state read-back, replay window
 and template family", opened 2026-08-25) proposes it and has no maintainer
@@ -24,7 +32,8 @@ Its hunks need no earlier patch, but its upstream test reads the window
 back through the reader netlink-xfrm-01-state-readback-esn-replay.patch
 adds, so it is proposed after that patch.
 
-Not yet checked against upstream main.
+Applies unchanged to upstream main (e0e26cd, 2026-11-13), on its own, and its
+test passes there unprivileged.
 
 Delete this patch when go.mod requires an upstream release that contains the
 change.
@@ -32,7 +41,7 @@ change.
 diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
 --- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
 +++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
-@@ -205,6 +205,10 @@
+@@ -205,6 +205,17 @@
  	return mark.Serialize()
  }
  
@@ -40,14 +49,21 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
 +// XFRMA_REPLAY_ESN_VAL; without XFRM_STATE_ESN, Linux selects bitmap mode.
 +const xfrmLegacyReplayWindow = 32
 +
++// xfrmReplayWindowInESN reports whether the replay window travels in
++// XFRMA_REPLAY_ESN_VAL: always for an ESN state, and for any window wider than
++// the legacy bitmap.
++func xfrmReplayWindowInESN(state *XfrmState) bool {
++	return state.ESN || state.ReplayWindow > xfrmLegacyReplayWindow
++}
++
  func writeReplayEsn(replayWindow int) []byte {
  	replayEsn := &nl.XfrmReplayStateEsn{
  		OSeq:         0,
-@@ -270,11 +274,14 @@
+@@ -270,11 +281,14 @@
  
  	msg := xfrmUsersaInfoFromXfrmState(state)
  
-+	useReplayESN := state.ESN || state.ReplayWindow > xfrmLegacyReplayWindow
++	useReplayESN := xfrmReplayWindowInESN(state)
  	if state.ESN {
  		if state.ReplayWindow == 0 {
  			return fmt.Errorf("ESN flag set without ReplayWindow")
@@ -58,7 +74,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  		msg.ReplayWindow = 0
  	}
  
-@@ -307,7 +314,7 @@
+@@ -307,7 +321,7 @@
  		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
  		req.AddData(out)
  	}
@@ -67,3 +83,35 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  		out := nl.NewRtAttr(nl.XFRMA_REPLAY_ESN_VAL, writeReplayEsn(state.ReplayWindow))
  		req.AddData(out)
  	}
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_replay_window_linux_test.go b/vendor/github.com/vishvananda/netlink/xfrm_state_replay_window_linux_test.go
+new file mode 100644
+--- /dev/null
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_replay_window_linux_test.go
+@@ -0,0 +1,27 @@
++package netlink
++
++import "testing"
++
++// TestXfrmStateReplayWindowInESN checks where the state writer puts the replay
++// window: xfrm_usersa_info holds a 32-bit bitmap, so a wider window, or any
++// window of an ESN state, must travel in XFRMA_REPLAY_ESN_VAL.
++func TestXfrmStateReplayWindowInESN(t *testing.T) {
++	for _, tc := range []struct {
++		esn    bool
++		window int
++		want   bool
++	}{
++		{esn: false, window: 0, want: false},
++		{esn: false, window: 32, want: false},
++		{esn: false, window: 33, want: true},
++		{esn: false, window: 64, want: true},
++		{esn: false, window: 4096, want: true},
++		{esn: true, window: 32, want: true},
++		{esn: true, window: 64, want: true},
++	} {
++		state := &XfrmState{ESN: tc.esn, ReplayWindow: tc.window}
++		if got := xfrmReplayWindowInESN(state); got != tc.want {
++			t.Errorf("ESN %v, ReplayWindow %d: in XFRMA_REPLAY_ESN_VAL = %v, want %v", tc.esn, tc.window, got, tc.want)
++		}
++	}
++}

@@ -224,6 +224,13 @@ func writeMark(m *XfrmMark) []byte {
 // XFRMA_REPLAY_ESN_VAL; without XFRM_STATE_ESN, Linux selects bitmap mode.
 const xfrmLegacyReplayWindow = 32
 
+// xfrmReplayWindowInESN reports whether the replay window travels in
+// XFRMA_REPLAY_ESN_VAL: always for an ESN state, and for any window wider than
+// the legacy bitmap.
+func xfrmReplayWindowInESN(state *XfrmState) bool {
+	return state.ESN || state.ReplayWindow > xfrmLegacyReplayWindow
+}
+
 func writeReplayEsn(replayWindow int) []byte {
 	replayEsn := &nl.XfrmReplayStateEsn{
 		OSeq:         0,
@@ -289,7 +296,7 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 
 	msg := xfrmUsersaInfoFromXfrmState(state)
 
-	useReplayESN := state.ESN || state.ReplayWindow > xfrmLegacyReplayWindow
+	useReplayESN := xfrmReplayWindowInESN(state)
 	if state.ESN {
 		if state.ReplayWindow == 0 {
 			return fmt.Errorf("ESN flag set without ReplayWindow")

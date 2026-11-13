@@ -11,6 +11,11 @@ Section 6.2: "Thus, an IPsec implementation MUST be configurable to check that
 this payload header information is consistent with the SA via which it
 arrives."
 
+The policy flags are built by xfrmUserpolicyFlags, split out of
+xfrmPolicyAddOrUpdate so that they can be tested without sending a request.
+Its tests, TestXfrmStateICMPFlag and TestXfrmPolicyICMPFlag in
+xfrm_icmp_flag_linux_test.go, check the flag values written and read back.
+
 No upstream pull request is opened yet for this change.
 
 Needs netlink-xfrm-06-selector-port-masks.patch, netlink-xfrm-08-state-no-pmtu-disc.patch,
@@ -18,15 +23,64 @@ and the patches those need: the XfrmPolicy field follows the port masks 06
 adds, and the XfrmState field, reader and writer lines follow the ones 08
 adds.
 
-Not yet checked against upstream main.
+Applies unchanged to upstream main (e0e26cd, 2026-11-13) after the patches it
+needs, not on its own, and its test passes there unprivileged.
 
 Delete this patch when go.mod requires an upstream release that contains the
 change.
 
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_icmp_flag_linux_test.go b/vendor/github.com/vishvananda/netlink/xfrm_icmp_flag_linux_test.go
+new file mode 100644
+--- /dev/null
++++ b/vendor/github.com/vishvananda/netlink/xfrm_icmp_flag_linux_test.go
+@@ -0,0 +1,43 @@
++package netlink
++
++import (
++	"testing"
++
++	"github.com/vishvananda/netlink/nl"
++)
++
++// TestXfrmStateICMPFlag checks that ICMP sets XFRM_STATE_ICMP, which is
++// 0x10 in include/uapi/linux/xfrm.h, and is read back from it.
++func TestXfrmStateICMPFlag(t *testing.T) {
++	if got := xfrmUsersaInfoFromXfrmState(&XfrmState{ICMP: true}).Flags; got != 0x10 {
++		t.Errorf("flags with ICMP = %#x, want 0x10", got)
++	}
++	if got := xfrmUsersaInfoFromXfrmState(&XfrmState{}).Flags; got != 0 {
++		t.Errorf("flags without ICMP = %#x, want 0", got)
++	}
++	if !xfrmStateFromXfrmUsersaInfo(&nl.XfrmUsersaInfo{Flags: 0x10}).ICMP {
++		t.Errorf("ICMP = false for flags 0x10, want true")
++	}
++	if xfrmStateFromXfrmUsersaInfo(&nl.XfrmUsersaInfo{}).ICMP {
++		t.Errorf("ICMP = true for flags 0, want false")
++	}
++}
++
++// TestXfrmPolicyICMPFlag checks that ICMP sets XFRM_POLICY_ICMP, which is 2 in
++// include/uapi/linux/xfrm.h, and is read back from it.
++func TestXfrmPolicyICMPFlag(t *testing.T) {
++	if got := xfrmUserpolicyFlags(&XfrmPolicy{ICMP: true}); got != 0x02 {
++		t.Errorf("flags with ICMP = %#x, want 0x02", got)
++	}
++	if got := xfrmUserpolicyFlags(&XfrmPolicy{}); got != 0 {
++		t.Errorf("flags without ICMP = %#x, want 0", got)
++	}
++	info := nl.XfrmUserpolicyInfo{Flags: 0x02}
++	policy, err := parseXfrmPolicy(info.Serialize(), FAMILY_ALL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !policy.ICMP {
++		t.Errorf("ICMP = false for flags 0x02, want true")
++	}
++}
 diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
 --- a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
 +++ b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
-@@ -99,8 +99,17 @@
+@@ -99,6 +99,24 @@
  	// exact for any other value).
  	DstPortMask uint16
  	SrcPortMask uint16
@@ -35,26 +89,31 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor
 +	// XFRM_LOOKUP_ICMP, the lookup icmp_route_lookup and xfrm_out_fwd_icmp
 +	// make for an ICMP error on the reversed header of the packet it reports.
 +	ICMP bool
- }
- 
++}
++
 +// xfrmPolicyFlagICMP is XFRM_POLICY_ICMP of include/uapi/linux/xfrm.h, which
 +// the nl package names only in a comment.
 +const xfrmPolicyFlagICMP = 2
 +
++// xfrmUserpolicyFlags answers the xfrm_userpolicy_info flags a policy asks for.
++func xfrmUserpolicyFlags(policy *XfrmPolicy) uint8 {
++	var flags uint8
++	if policy.ICMP {
++		flags |= xfrmPolicyFlagICMP
++	}
++	return flags
+ }
+ 
  func (p XfrmPolicy) String() string {
- 	return fmt.Sprintf("{Dst: %v, Src: %v, Proto: %s, DstPort: %d, SrcPort: %d, Dir: %s, Priority: %d, Index: %d, Action: %s, Ifindex: %d, Ifid: %d, Mark: %s, Tmpls: %s}",
- 		p.Dst, p.Src, p.Proto, p.DstPort, p.SrcPort, p.Dir, p.Priority, p.Index, p.Action, p.Ifindex, p.Ifid, p.Mark, p.Tmpls)
-@@ -174,6 +183,9 @@
+@@ -186,6 +204,7 @@
  	msg.Index = uint32(policy.Index)
  	msg.Dir = uint8(policy.Dir)
  	msg.Action = uint8(policy.Action)
-+	if policy.ICMP {
-+		msg.Flags |= xfrmPolicyFlagICMP
-+	}
++	msg.Flags = xfrmUserpolicyFlags(policy)
  	msg.Lft.SoftByteLimit = nl.XFRM_INF
  	msg.Lft.HardByteLimit = nl.XFRM_INF
  	msg.Lft.SoftPacketLimit = nl.XFRM_INF
-@@ -375,6 +387,7 @@
+@@ -380,6 +399,7 @@
  	policy.Index = int(msg.Index)
  	policy.Dir = Dir(msg.Dir)
  	policy.Action = PolicyAction(msg.Action)
@@ -80,7 +139,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  }
  
  func (sa XfrmState) String() string {
-@@ -527,6 +531,7 @@
+@@ -534,6 +538,7 @@
  	state.ESN = msg.Flags&nl.XFRM_STATE_ESN != 0
  	state.AFUnspec = msg.Flags&nl.XFRM_STATE_AF_UNSPEC != 0
  	state.NoPMTUDisc = msg.Flags&nl.XFRM_STATE_NOPMTUDISC != 0
@@ -88,7 +147,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  	lftToLimits(&msg.Lft, &state.Limits)
  	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
  	state.Selector = &XfrmPolicy{
-@@ -732,5 +737,8 @@
+@@ -739,5 +744,8 @@
  	if state.NoPMTUDisc {
  		msg.Flags |= nl.XFRM_STATE_NOPMTUDISC
  	}

@@ -4,16 +4,18 @@ parseXfrmState refuses a message shorter than struct xfrm_usersa_info
 before it reads the header. Upstream hands the buffer to
 nl.DeserializeXfrmUsersaInfo, which slices it to SizeofXfrmUsersaInfo with
 no length check, so a truncated reply either panics or is decoded from
-bytes past its end. TestZeXfrmStateParserRejectsTruncatedHeader calls the
-parser for every short length, the empty reply included. The test file
-still carries a Ze design header and a name from Ze's state scope work, so
-it is not yet in the form an upstream pull request would carry.
+bytes past its end.
+
+Its test, TestXfrmStateParseTruncatedHeader in
+xfrm_state_truncated_linux_test.go, calls the parser for every short length,
+the empty reply included, and checks that a complete header is accepted.
 
 No upstream pull request is opened yet for this change.
 
 Needs no earlier patch.
 
-Not yet checked against upstream main.
+Applies unchanged to upstream main (e0e26cd, 2026-11-13), on its own, and its
+test passes there unprivileged.
 
 Delete this patch when go.mod requires an upstream release that contains the
 change.
@@ -21,7 +23,7 @@ change.
 diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
 --- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
 +++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
-@@ -532,6 +532,9 @@
+@@ -539,6 +539,9 @@
  }
  
  func parseXfrmState(m []byte, family int) (*XfrmState, error) {
@@ -31,14 +33,11 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  	msg := nl.DeserializeXfrmUsersaInfo(m)
  	// This is mainly for the state dump
  	if family != FAMILY_ALL && family != int(msg.Family) {
-diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_scope_linux_test.go b/vendor/github.com/vishvananda/netlink/xfrm_state_scope_linux_test.go
+diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_truncated_linux_test.go b/vendor/github.com/vishvananda/netlink/xfrm_state_truncated_linux_test.go
 new file mode 100644
 --- /dev/null
-+++ b/vendor/github.com/vishvananda/netlink/xfrm_state_scope_linux_test.go
++++ b/vendor/github.com/vishvananda/netlink/xfrm_state_truncated_linux_test.go
 @@ -0,0 +1,21 @@
-+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- safe state readback.
-+// Related: xfrm_state_linux.go -- parseXfrmState.
-+
 +package netlink
 +
 +import (
@@ -47,13 +46,16 @@ new file mode 100644
 +	"github.com/vishvananda/netlink/nl"
 +)
 +
-+// TestZeXfrmStateParserRejectsTruncatedHeader calls the actual SA parser for
-+// every short header length, including empty replies that must not panic.
-+func TestZeXfrmStateParserRejectsTruncatedHeader(t *testing.T) {
++// TestXfrmStateParseTruncatedHeader hands the state parser every length short
++// of a complete xfrm_usersa_info, the empty reply included, and then a complete one.
++func TestXfrmStateParseTruncatedHeader(t *testing.T) {
 +	var header [nl.SizeofXfrmUsersaInfo]byte
 +	for size := 0; size < len(header); size++ {
 +		if _, err := parseXfrmState(header[:size], FAMILY_ALL); err == nil {
-+			t.Fatalf("accepted a %d-byte SA header", size)
++			t.Fatalf("accepted a %d-byte state header", size)
 +		}
++	}
++	if _, err := parseXfrmState(header[:], FAMILY_ALL); err != nil {
++		t.Fatalf("refused a complete state header: %v", err)
 +	}
 +}

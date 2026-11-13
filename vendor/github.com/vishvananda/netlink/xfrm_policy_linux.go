@@ -110,6 +110,15 @@ type XfrmPolicy struct {
 // the nl package names only in a comment.
 const xfrmPolicyFlagICMP = 2
 
+// xfrmUserpolicyFlags answers the xfrm_userpolicy_info flags a policy asks for.
+func xfrmUserpolicyFlags(policy *XfrmPolicy) uint8 {
+	var flags uint8
+	if policy.ICMP {
+		flags |= xfrmPolicyFlagICMP
+	}
+	return flags
+}
+
 func (p XfrmPolicy) String() string {
 	return fmt.Sprintf("{Dst: %v, Src: %v, Proto: %s, DstPort: %d, SrcPort: %d, Dir: %s, Priority: %d, Index: %d, Action: %s, Ifindex: %d, Ifid: %d, Mark: %s, Tmpls: %s}",
 		p.Dst, p.Src, p.Proto, p.DstPort, p.SrcPort, p.Dir, p.Priority, p.Index, p.Action, p.Ifindex, p.Ifid, p.Mark, p.Tmpls)
@@ -135,12 +144,21 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 		sel.PrefixlenD = uint8(prefixlenD)
 	}
 	if policy.Src != nil {
+		prefixlenS, bits := policy.Src.Mask.Size()
+		if policy.Dst == nil {
+			// With no destination, the source mask declares the family.
+			switch bits {
+			case 32:
+				sel.Family = uint16(nl.FAMILY_V4)
+			case 128:
+				sel.Family = uint16(nl.FAMILY_V6)
+			}
+		}
 		if sel.Family == uint16(nl.FAMILY_V6) {
 			copy(sel.Saddr[:], policy.Src.IP.To16())
 		} else {
 			sel.Saddr.FromIP(policy.Src.IP)
 		}
-		prefixlenS, _ := policy.Src.Mask.Size()
 		sel.PrefixlenS = uint8(prefixlenS)
 	}
 	sel.Proto = uint8(policy.Proto)
@@ -189,6 +207,18 @@ func (h *Handle) XfrmPolicyUpdate(policy *XfrmPolicy) error {
 	return h.xfrmPolicyAddOrUpdate(policy, nl.XFRM_MSG_UPDPOLICY)
 }
 
+// xfrmUserTmplFamily answers the family written into a template. A template
+// with no destination takes the policy selector's family. The test is on
+// LENGTH, not on nil: GetIPFamily answers FAMILY_V4 for any address of four
+// bytes or fewer, so a non-nil zero-length net.IP would put AF_INET on an IPv6
+// policy, which is the case this fixes.
+func xfrmUserTmplFamily(tmpl XfrmPolicyTmpl, selFamily uint16) uint16 {
+	if len(tmpl.Dst) > 0 {
+		return uint16(nl.GetIPFamily(tmpl.Dst))
+	}
+	return selFamily
+}
+
 func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
 	req := h.newNetlinkRequest(nlProto, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
 
@@ -198,9 +228,7 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
 	msg.Index = uint32(policy.Index)
 	msg.Dir = uint8(policy.Dir)
 	msg.Action = uint8(policy.Action)
-	if policy.ICMP {
-		msg.Flags |= xfrmPolicyFlagICMP
-	}
+	msg.Flags = xfrmUserpolicyFlags(policy)
 	msg.Lft.SoftByteLimit = nl.XFRM_INF
 	msg.Lft.HardByteLimit = nl.XFRM_INF
 	msg.Lft.SoftPacketLimit = nl.XFRM_INF
@@ -213,14 +241,7 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
 		userTmpl := nl.DeserializeXfrmUserTmpl(tmplData[start : start+nl.SizeofXfrmUserTmpl])
 		userTmpl.XfrmId.Daddr.FromIP(tmpl.Dst)
 		userTmpl.Saddr.FromIP(tmpl.Src)
-		// A template with no destination takes the policy selector's family. The
-		// test is on LENGTH, not on nil: GetIPFamily answers FAMILY_V4 for any
-		// address of four bytes or fewer, so a non-nil zero-length net.IP would
-		// put AF_INET on an IPv6 policy, which is the case this fixes.
-		userTmpl.Family = msg.Sel.Family
-		if len(tmpl.Dst) > 0 {
-			userTmpl.Family = uint16(nl.GetIPFamily(tmpl.Dst))
-		}
+		userTmpl.Family = xfrmUserTmplFamily(tmpl, msg.Sel.Family)
 		userTmpl.XfrmId.Proto = uint8(tmpl.Proto)
 		userTmpl.XfrmId.Spi = nl.Swap32(uint32(tmpl.Spi))
 		userTmpl.Mode = uint8(tmpl.Mode)
