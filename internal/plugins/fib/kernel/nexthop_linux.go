@@ -41,16 +41,9 @@ func (n *netlinkBackend) addRichRoute(r RichRoute) error {
 }
 
 func (n *netlinkBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
-	_, cidr, err := net.ParseCIDR(prefix.String())
+	route, err := ownedRouteKey(prefix.String(), tableID)
 	if err != nil {
-		return fmt.Errorf("parse prefix %v: %w", prefix, err)
-	}
-	route := &netlink.Route{
-		Dst:      cidr,
-		Protocol: rtprotZE,
-	}
-	if tableID != 0 {
-		route.Table = int(tableID)
+		return err
 	}
 	return delOwnedRoute(n.handle, route)
 }

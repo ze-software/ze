@@ -112,6 +112,14 @@ Route wins in a protocol, then gets programmed in the kernel:
    `sysrib.go`) and `recomputeBest` emits `RouteActionWithdraw` when no route remains
    (`:431`). `fib-kernel.delChange` (`fibkernel.go`) calls `rb.delRichRoute` or
    `backend.delRoute` → netlink `RouteDel` (`internal/plugins/fib/kernel/backend_linux.go`).
+   Both build the delete with `ownedRouteKey`: protocol 250, the table, and
+   `RT_SCOPE_NOWHERE`, because an IPv4 device-only route is installed at link scope
+   (`forwardingScope`, `nexthop_linux.go`) and `fib_table_delete` misses a scope it
+   was not asked for, answering ESRCH, which `delOwnedRoute` reads as "already gone".
+   `flushRoutes` (flush-on-stop) deletes installed routes through `delChange` with
+   their table, deletes retained startup routes too, lists the kernel afterwards,
+   and raises one `doctor-fib-flush-incomplete` error (subject `flush`, registered in
+   `register.go`, outside the `fib` health row) and its WARN line for failures or residue.
 10. **Startup reconciliation (fib-kernel side).** `runFIBKernelPlugin`'s `OnStarted`
     (`internal/plugins/fib/kernel/register.go`) calls `startupSweep`
     (`fibkernel.go`, lists existing `RTPROT_ZE` routes as "stale"), starts `f.run`

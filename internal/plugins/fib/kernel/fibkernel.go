@@ -28,6 +28,7 @@ import (
 
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/internal/core/replay"
@@ -461,16 +462,40 @@ func (f *fibKernel) checkPendingLagLocked(now time.Time) {
 	}
 }
 
-// flushRoutes removes all ze-installed routes from the kernel.
+// flushRoutes removes every route Ze owns from the kernel: the ones it
+// installed, and the ones a previous run left that startup retained and no
+// sweep has removed yet. Each installed route is removed through the same
+// backend path a withdraw takes, with the table it was installed in.
+//
+// A route that could not be removed, or that the kernel still lists afterwards,
+// is reported once for the whole flush (doctor-fib-flush-incomplete, subject flush) with
+// the count and the first prefix, never one line per route.
 func (f *fibKernel) flushRoutes() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	rb := f.asRichBackend()
+	owned := make(map[string]struct{}, len(f.installed)+len(f.retained))
+	failed := 0
+	var firstFailure string
+	var firstErr error
 	for prefix := range f.installed {
-		if err := f.backend.delRoute(prefix); err != nil {
-			logger().Warn("fib-kernel: flush del failed", "prefix", prefix, "error", err)
+		owned[prefix] = struct{}{}
+	}
+	for prefix := range f.retained {
+		owned[prefix] = struct{}{}
+	}
+	for prefix := range owned {
+		if err := f.flushOneLocked(prefix, rb); err != nil {
+			failed++
+			if firstErr == nil {
+				firstFailure, firstErr = prefix, err
+			}
 		}
 	}
+	residue, residueFirst, listErr := f.flushResidueLocked(owned)
+	f.reportFlushLocked(len(owned), failed, firstFailure, firstErr, residue, residueFirst, listErr)
+
 	f.installed = make(map[string]string)
 	clear(f.forwarding)
 	clear(f.retained)
@@ -480,6 +505,100 @@ func (f *fibKernel) flushRoutes() {
 	if m := fibMetricsPtr.Load(); m != nil {
 		m.routesInstalled.Set(0)
 	}
+}
+
+// flushOneLocked removes one owned prefix. An installed route carries the
+// description it was programmed from, so the delete names its table; a
+// retained route from a previous run is known only by its main-table listing.
+// Caller MUST hold f.mu.
+func (f *fibKernel) flushOneLocked(prefix string, rb richRouteBackend) error {
+	change, described := f.forwarding[prefix]
+	if !described {
+		return f.backend.delRoute(prefix)
+	}
+	return f.delChange(&change, prefix, rb)
+}
+
+// flushResidueLocked lists the Ze routes the kernel still holds after a flush
+// and counts those among the prefixes the flush removed. A delete the kernel
+// acknowledged, or answered ESRCH, proves nothing by itself: a key that misses
+// the installed route reads the same as a route that is gone. The listing is
+// the kernel's own answer. Caller MUST hold f.mu.
+func (f *fibKernel) flushResidueLocked(owned map[string]struct{}) (int, string, error) {
+	if len(owned) == 0 {
+		return 0, "", nil
+	}
+	routes, err := f.backend.listZeRoutes()
+	if err != nil {
+		return 0, "", err
+	}
+	residue := 0
+	first := ""
+	for _, r := range routes {
+		if _, flushed := owned[r.prefix]; !flushed {
+			continue
+		}
+		residue++
+		if first == "" {
+			first = r.prefix
+		}
+	}
+	return residue, first, nil
+}
+
+// reportFlushLocked raises one doctor-fib-flush-incomplete error for a flush
+// that left Ze's routes behind, and logs it at WARN under the same code,
+// because the daemon is stopping and the log is the record an operator reads
+// afterwards. Caller MUST hold f.mu.
+func (f *fibKernel) reportFlushLocked(owned, failed int, firstFailure string, firstErr error,
+	residue int, residueFirst string, listErr error,
+) {
+	if listErr != nil {
+		logger().Warn("fib-kernel: flush could not list the routes left in the kernel",
+			"owned", owned, "error", listErr, "fix", flushFix, "code", reportCodeFIBFlushIncomplete)
+		report.RaiseErrorFix(reportSourceFIB, reportCodeFIBFlushIncomplete, "flush",
+			report.FitMessage("FIB flush could not verify the kernel: "+listErr.Error()), flushFix,
+			map[string]any{keyOperation: "flush", "owned": owned})
+	}
+	if failed == 0 && residue == 0 {
+		return
+	}
+	message := "FIB flush left Ze routes in the kernel, which keeps forwarding after Ze stopped: " +
+		strconv.Itoa(failed) + " of " + strconv.Itoa(owned) + " deletes failed, " +
+		strconv.Itoa(residue) + " routes still listed"
+	detail := map[string]any{keyOperation: "flush", "owned": owned, "failed": failed, "residue": residue}
+	if firstErr != nil {
+		detail["first-failure"] = firstFailure
+		detail["first-error"] = firstErr.Error()
+	}
+	if residueFirst != "" {
+		detail["first-residue"] = residueFirst
+	}
+	logger().Warn("fib-kernel: flush left routes in the kernel", "owned", owned, "failed", failed,
+		"residue", residue, "first-failure", firstFailure, "first-error", firstErr, "first-residue", residueFirst,
+		"fix", flushFix, "code", reportCodeFIBFlushIncomplete)
+	report.RaiseErrorFix(reportSourceFIB, reportCodeFIBFlushIncomplete, "flush", message, flushFix, detail)
+}
+
+// flushFix removes every route Ze's protocol owns, in every table and both
+// families, which is what the flush was asked to do. 250 is rtproto.FIBKernel.
+const flushFix = "ip route flush proto 250 table all; ip -6 route flush proto 250 table all"
+
+// reportCodeFIBFlushIncomplete is the code of the flush-on-stop failure, on
+// the report bus and on its WARN log line.
+const reportCodeFIBFlushIncomplete = "doctor-fib-flush-incomplete"
+
+// fibFlushDiagnosticCode describes the code for `ze show diagnostic`. The
+// event-code registration in register.go requires it to be registered first.
+var fibFlushDiagnosticCode = diagnostic.CodeMeta{
+	Code:  reportCodeFIBFlushIncomplete,
+	Title: "The stop flush left Ze's routes in the kernel",
+	Description: "fib-kernel runs with flush-on-stop true, and when it stopped the kernel refused to delete " +
+		"one or more of Ze's routes (protocol 250), or still listed them after the delete, or could not be " +
+		"listed to check. Those routes keep forwarding traffic after Ze stopped, towards next hops nothing " +
+		"maintains any more. The detail counts the failed deletes and the routes left, and names the first. " +
+		"Remedy: " + flushFix + ".",
+	Examples: []string{"ze show errors", "ze show diagnostic " + reportCodeFIBFlushIncomplete},
 }
 
 // startupSweep implements stale-mark-then-sweep for crash recovery.

@@ -152,6 +152,18 @@ func init() {
 		panic("BUG: register fib-kernel backup event code: " + err.Error())
 	}
 
+	// The stop-flush error (fibkernel.go, reportFlushLocked) is registered the
+	// same way. It stays out of the health row: run raises it only after its
+	// context ended, as the writer stops, and nothing clears it, so in a row
+	// it would hold the box degraded after a later start whose stale sweep
+	// removed the routes it counted.
+	if err := diagnostic.Register(fibFlushDiagnosticCode); err != nil {
+		panic("BUG: register fib-kernel flush diagnostic code: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: reportCodeFIBFlushIncomplete}); err != nil {
+		panic("BUG: register fib-kernel flush event code: " + err.Error())
+	}
+
 	_ = events.RegisterNamespace(fibevents.Namespace, fibevents.EventExternalChange)
 
 	reg := registry.Registration{

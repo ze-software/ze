@@ -72,18 +72,50 @@ func (n *netlinkBackend) addRoute(prefix, nextHop string) error {
 }
 
 func (n *netlinkBackend) delRoute(prefix string) error {
-	_, cidr, err := net.ParseCIDR(prefix)
+	route, err := ownedRouteKey(prefix, 0)
 	if err != nil {
-		return fmt.Errorf("parse prefix %q: %w", prefix, err)
-	}
-	route := &netlink.Route{
-		Dst:      cidr,
-		Protocol: rtprotZE,
+		return err
 	}
 	return delOwnedRoute(n.handle, route)
 }
 
-// delOwnedRoute deletes a route Ze installed and treats ESRCH as done. ESRCH
+// ownedRouteKey names the route Ze installed for a prefix in a table, in the
+// form an RTM_DELROUTE matches whatever scope the route was installed with.
+//
+// The scope is the reason this is not a bare {Dst, Protocol}. The bindings copy
+// Route.Scope into rtm_scope, so a zero Route asks for RT_SCOPE_UNIVERSE, and
+// fib_table_delete (net/ipv4/fib_trie.c) matches an alias only when
+//
+//	(cfg->fc_scope == RT_SCOPE_NOWHERE ||
+//	 fa->fa_info->fib_scope == cfg->fc_scope)
+//
+// buildRichRoute installs an IPv4 device-only route at RT_SCOPE_LINK
+// (forwardingScope), so a universe-scope delete misses it, the kernel answers
+// ESRCH, and delOwnedRoute reads that as "already gone": the route stays. The
+// protocol keeps the delete to Ze's own route, the table to the one it was
+// installed in. IPv6 ignores rtm_scope on delete, so the same key serves both.
+func ownedRouteKey(prefix string, tableID uint32) (*netlink.Route, error) {
+	_, cidr, err := net.ParseCIDR(prefix)
+	if err != nil {
+		return nil, fmt.Errorf("parse prefix %q: %w", prefix, err)
+	}
+	if uint64(tableID) > maxNetlinkInt {
+		return nil, fmt.Errorf("table %d exceeds %d, the largest this build can program through netlink", tableID, maxNetlinkInt)
+	}
+	route := &netlink.Route{
+		Dst:      cidr,
+		Protocol: rtprotZE,
+		Scope:    netlink.SCOPE_NOWHERE,
+	}
+	if tableID != 0 {
+		route.Table = int(tableID)
+	}
+	return route, nil
+}
+
+// delOwnedRoute deletes a route Ze installed and treats ESRCH as done. The
+// route MUST come from ownedRouteKey: only a key that matches every scope makes
+// ESRCH mean absence. ESRCH
 // is the kernel's answer for a route that is not there: when a device is
 // deleted the kernel flushes every route through it, in every table, so the
 // withdraw sysrib sends next finds nothing. The route is gone, which is what

@@ -334,7 +334,10 @@ func TestFIBDefaultRouteRecovery(t *testing.T) {
 			awaitMonitorEvent(t, events, event)
 			_, cidr, err := net.ParseCIDR(prefix)
 			require.NoError(t, err)
-			route := &netlink.Route{Dst: cidr, Protocol: rtprotZE, Priority: priority}
+			// An external `ip route del` asks for any scope. Ze installs a
+			// device-only IPv4 route at link scope, which a universe-scope
+			// request does not match.
+			route := &netlink.Route{Dst: cidr, Protocol: rtprotZE, Priority: priority, Scope: netlink.SCOPE_NOWHERE}
 			require.NoError(t, h.RouteDel(route))
 			event.Action = routewatch.ActionRemove
 			awaitMonitorEvent(t, events, event)

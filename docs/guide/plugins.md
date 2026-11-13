@@ -764,6 +764,14 @@ family. IPv6 and discard routes retain universe scope.
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute, forwardingScope -->
 <!-- test: internal/plugins/fib/kernel/backend_scope_integration_linux_test.go -- TestKernelDeviceOnlyCoverResolvesGateway, TestBuildRichRouteScope -->
 
+Every removal of a Ze route (a withdraw, the stale sweep, the stop flush) asks
+the kernel for Ze's route on that prefix and table at any scope. Linux deletes
+an IPv4 route only when the request names its scope or names none, so a delete
+that named universe scope would miss a link-scope route and leave it installed.
+<!-- source: internal/plugins/fib/kernel/backend_linux.go -- ownedRouteKey, delRoute, delOwnedRoute -->
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- delRichRoute -->
+<!-- test: internal/plugins/fib/kernel/flush_scope_integration_linux_test.go -- TestKernelFlushRemovesEveryScope, TestKernelWithdrawRemovesEveryScope -->
+
 Shutdown closes IP forwarding admission before joining the route monitor. An
 already admitted backend operation can finish, but a replay admits no later
 entries. The writer joins that operation before closing the backend, including
@@ -772,6 +780,16 @@ route cleanup. Ordinary repair replays still reassert installed routes.
 <!-- source: internal/plugins/fib/kernel/fibkernel_stop.go -- beginStop -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- processEvent, run, flushRoutes -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_stop_test.go -- TestFIBKernelReplayReassertsInstalledRoutes, TestFIBKernelStopEndsReplayAdmission -->
+
+The cleanup removes every route the writer installed, from the table it was
+installed in, and every route a previous run left that startup retained and
+the sweep has not yet removed. It then lists the kernel's Ze routes. A delete
+the kernel refused, or a flushed prefix the kernel still lists, raises one
+`doctor-fib-flush-incomplete` error (subject `flush`) and one WARN log line under the same code,
+both carrying the counts, the first prefix and the command that removes what
+is left: `ip route flush proto 250 table all; ip -6 route flush proto 250 table all`.
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- flushRoutes, flushOneLocked, flushResidueLocked, reportFlushLocked -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_flush_test.go -- TestFIBKernelFlushDeletesInTheInstalledTable, TestFIBKernelFlushReportsRoutesTheKernelKept, TestFIBKernelFlushReportsFailedDeletes, TestFIBKernelFlushRemovesRetainedRoutes -->
 
 Bus topics in the FIB pipeline:
 
