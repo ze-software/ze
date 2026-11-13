@@ -230,17 +230,13 @@ func checkISOPrerequisites(opts isoOptions) int {
 		fmt.Fprintf(os.Stdout, "initrd:   ready (%s)\n", initrdPath) //nolint:errcheck // CLI output
 	}
 
-	grubPath := opts.builderPath
-	if grubPath == "" {
-		for _, candidate := range []string{grubStandalone, grubStandalone2} {
-			if p, err := isoLookPathFn(candidate); err == nil {
-				grubPath = p
-				break
-			}
+	grubPath, grubErr := resolveISOGRUBBuilder(opts.builderPath)
+	if grubErr != nil {
+		if opts.builderPath == "" {
+			fmt.Fprintf(os.Stdout, "grub:     missing (install grub-mkstandalone)\n") //nolint:errcheck // CLI output
+		} else {
+			fmt.Fprintln(os.Stdout, isoGRUBSelectionError(grubErr, opts.appliance, getBaseDir())) //nolint:errcheck // CLI output retains the producer's complete repair line.
 		}
-	}
-	if grubPath == "" {
-		fmt.Fprintf(os.Stdout, "grub:     missing (install grub-mkstandalone)\n") //nolint:errcheck // CLI output
 		allReady = false
 	} else {
 		arch := opts.arch
@@ -575,6 +571,20 @@ func verifyKernelArch(path, arch string) error {
 }
 
 func resolveISOBuilder(builder string) (grubPath, xorrisoPath string, err error) {
+	grubPath, err = resolveISOGRUBBuilder(builder)
+	if err != nil {
+		return "", "", err
+	}
+	xorrisoPath, err = resolveExecutable("xorriso")
+	if err != nil {
+		return "", "", errors.New("xorriso not found; install xorriso to build installer ISOs")
+	}
+	return grubPath, xorrisoPath, nil
+}
+
+// resolveISOGRUBBuilder gives prerequisite checks and builds the same executable
+// admission, while leaving their independent xorriso checks to their callers.
+func resolveISOGRUBBuilder(builder string) (grubPath string, err error) {
 	if builder == "" {
 		var firstErr error
 		for _, candidate := range []string{grubStandalone, grubStandalone2} {
@@ -588,21 +598,19 @@ func resolveISOBuilder(builder string) (grubPath, xorrisoPath string, err error)
 		}
 		if grubPath == "" {
 			if firstErr != nil {
-				return "", "", errors.New("grub-mkstandalone not found; install GRUB EFI tooling or pass --builder")
+				return "", errors.New("grub-mkstandalone not found; install GRUB EFI tooling or pass --builder")
 			}
-			return "", "", errors.New("grub-mkstandalone not found")
+			return "", errors.New("grub-mkstandalone not found")
 		}
-	} else {
-		grubPath, err = resolveExecutable(builder)
-		if err != nil {
-			return "", "", err
-		}
+		return grubPath, nil
 	}
-	xorrisoPath, err = resolveExecutable("xorriso")
+	grubPath, err = resolveExecutable(builder)
 	if err != nil {
-		return "", "", errors.New("xorriso not found; install xorriso to build installer ISOs")
+		return "", opererr.Wrap(err, "cannot use GRUB standalone builder "+builder,
+			"the ISO needs an executable GRUB standalone builder and matching EFI modules. Select a complete GRUB installation",
+			isoGRUBOverride)
 	}
-	return grubPath, xorrisoPath, nil
+	return grubPath, nil
 }
 
 func resolveExecutable(name string) (string, error) {

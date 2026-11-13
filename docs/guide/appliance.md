@@ -834,6 +834,12 @@ artifacts automatically:
     ./ze-host appliance initrd
     ./ze-host appliance iso lab
 
+A custom `--builder` path must exist and be executable. `--check` applies the
+same executable check as a build, even when matching EFI modules are present.
+If that check fails, use the printed repair to select a complete GRUB
+installation for the same appliance and directory.
+<!-- source: internal/appliance/cmd_iso.go -- resolveISOGRUBBuilder, checkISOPrerequisites, resolveISOBuilder -->
+
 The installer searches optical media as well as removable block media for its
 matching ISO. Optical devices remain excluded from installation targets. On
 completion it powers off; remove the installer media before booting the target

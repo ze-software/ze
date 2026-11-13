@@ -55,6 +55,13 @@ does not satisfy that check.
 **`grub-mkstandalone` is `grub2-mkstandalone` on Fedora and RHEL.** The builder
 resolution tries both names.
 
+Checks and builds share GRUB executable admission. A custom `--builder` path
+must exist and be executable, even when its matching EFI modules are installed.
+An invalid builder reports the complete-builder repair with the selected
+appliance name and directory. The check still reports xorriso after rejecting
+a builder.
+<!-- source: internal/appliance/cmd_iso.go -- resolveISOGRUBBuilder, checkISOPrerequisites, resolveISOBuilder -->
+
 The standalone executable and its selected EFI module set are separate
 prerequisites. `ze appliance iso --check <name>` checks the named appliance's
 architecture; without a name it checks the host architecture. Building checks
