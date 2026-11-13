@@ -1335,10 +1335,15 @@ the usage error.
 **Daemon readiness (`ze` only):** a `ze` daemon launched **either** foreground or
 background is told (via `ZE_READY_FILE`) to write `daemon.ready` once startup
 completes, and the runner publishes its PID to `daemon.pid` in the tmpfs directory.
+The PID file appears atomically after its complete numeric contents and any
+dropped-user ownership are installed, so a fixture that sees it can read the
+identity immediately. A publication failure fails the command and reaps its
+owned child.
 Tests poll both files directly or through a compiled driver in
 `internal/test/fixture` before signaling the daemon or asserting on it. The
 readiness handshake is armed only for Ze daemons.
 <!-- source: internal/test/runner/runner_exec.go -- process orchestration -->
+<!-- source: internal/test/runner/runner_exec_util.go -- publishDaemonPID -->
 
 ### Example (Decode Test)
 
@@ -2625,6 +2630,23 @@ Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
 `pgdn`, `pgdown`, `space`. `shift+tab` is handled separately as a modifier.
 <!-- source: internal/component/cli/testing/input.go -- keyNameToCode, toKeyMessages -->
 
+
+### API candidate fixtures
+
+`fixture=api-set:path=<full setting path>:value=<value>` writes a candidate
+through the same `Editor.SetValue` API that config sessions use. The path is
+absolute and uses the editor's quoted word syntax; the value is the complete
+text after `:value=`, including colons or an empty string. The fixture runs
+in step order on the selected editor, including a named session. Unknown
+fixtures and declarations missing a path or value are parse errors.
+
+Use it to test commit-time validation of a candidate another surface could
+leave. A typed `set` still runs the normal immediate validation and cannot
+seed a refused value. The next `commit`, `commit verify` or `show | errors`
+validates the candidate through the product code; the fixture supplies no
+validation result and writes nothing to the active configuration.
+<!-- source: internal/component/cli/testing/fixture.go -- parseFixture, applyFixture -->
+<!-- test: internal/component/cli/testing/api_set_fixture_test.go -- TestAPISetFixtureReachesCommit, TestAPISetFixtureRefusesBadDeclarations -->
 
 ### Expectations
 

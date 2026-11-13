@@ -590,6 +590,14 @@ the correction:
 | gNMI `Set` update whose list key the session refuses | none; the status is `InvalidArgument` and the message is the refusal whole | the refusal's own fix line, unchanged |
 | Operational command argument | the command path and the argument | the whole command restated ("YANG-Typed Command Arguments" in `docs/architecture/api/commands.md`) |
 
+Validation collects independent value refusals before it returns, so a session
+commit names each invalid setting in its own block. The hierarchical parser
+continues only at a scalar statement's terminator. The set parsers continue
+at the next complete line. Structural errors stop collection, and any error
+returns no usable config tree. Daemon parsing still stops at its first error.
+<!-- source: internal/component/config/parser_validation.go -- ParseDiagnostics, collectValueRefusal, ParseSetDiagnostics, collectLineRefusal -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation, ValidateContent -->
+
 `show config validation <file> | json`, the JSON form of `ze config validate`,
 carries the refusal as one diagnostic: `code` names the kind
 (`config-yang-enum`, `config-yang-range`, `config-yang-length`,
@@ -601,6 +609,32 @@ the same leaf carry the same fields.
 <!-- source: internal/component/config/cli/cmd_validate.go -- refusalDiagnostic, refusalFix, walkFormPath, yangErrorCode, ValidateContent, sessionFixRefusal -->
 <!-- source: internal/component/cli/fix_frame.go -- FrameFix, FramedSetRefusal -->
 <!-- source: internal/component/gnmi/set.go -- applyUpdate, updateRefusal -->
+
+The editor checks a new ancestor list key before a `set`, `insert`, `activate`
+or `deactivate` can change the candidate. A refused ancestor leaves its parent
+containers untouched, and its fix replaces that key in the complete command.
+Section walk refusals carry the same typed fix as parser refusals, so a commit
+inside an edit context writes `top set`. A missing `ze:required` field keeps
+its path as words, including every ancestor list key, for the same framing.
+A key with several leaves expands to its individual address words. A single
+key holding spaces stays one quoted argument in the printed set hint and
+editor fix. Command quoting protects a key equal to `|` as a literal argument
+in both forms. These paths retain the stored key's bytes, including a literal
+`#3` ending, so a hint addresses the same entry that needs the field.
+<!-- source: internal/component/cli/editor_commands.go -- walkOrCreate, InsertLeafListValue, ActivateLeafListValue, DeactivateLeafListValue -->
+<!-- source: internal/component/cli/validator.go -- sectionErrors, validateWithYANG -->
+<!-- source: internal/component/config/required.go -- RequiredViolation, walkRequired, checkListRequired -->
+
+Direct API edits can retain an invalid leaf value or leaf-list member until
+commit validates the candidate. Session write-through stores that value as
+candidate data, and restoring its change file defers the same leaf constraints.
+This lets the next edit correct a refused value, including after reopening the
+editor, without discarding other pending changes. Schema paths, list keys,
+token counts and structural syntax remain checked on restoration. File loading and ordinary
+set parsing still validate leaf values; restoring a candidate does not make it
+eligible for commit.
+<!-- source: internal/component/config/change_file.go -- ParseCandidateChangeFile -->
+<!-- source: internal/component/cli/editor_draft.go -- readChangeFile, writeThroughSet, SaveDraft -->
 
 The path is the setting path as an operator types it, words separated by
 spaces, list keys included. A declared `error-message` is the why line in
@@ -625,6 +659,16 @@ written by `suggest.ValueLines` and `suggest.Alternation`, which the command
 argument refusal shares. The schema nodes keep the facts the parsers build
 from: `LeafNode.Enums` in declared order with `EnumHelp`, `Format`, and the
 same fields on `MultiLeafNode`, `BracketLeafListNode` and `ValueOrArrayNode`.
+
+`Correction()` carries the replacement value or placeholder as data.
+`CorrectionIsPlaceholder()` distinguishes those cases at command boundaries;
+`CorrectionText()` writes concrete replacements with the shared byte-preserving
+token quoter and leaves declared placeholders raw. An enum value named
+`in progress` is therefore corrected as `"in progress"`, while
+`<1..4096 characters>` remains a placeholder. Hierarchical statements, set-file
+lines and the shared YANG default fix all use this distinction.
+<!-- source: internal/component/config/yang/refusal.go -- correctionToken, CorrectionText, CorrectionIsPlaceholder -->
+<!-- source: internal/core/configtext/token.go -- QuoteToken, QuoteCommandWord -->
 
 <!-- source: internal/component/config/yang/refusal.go -- RefusedValue, EnumRefusal, MissingEnumValue, RangeRefusal, LengthRefusal, PatternRefusal, WithFix, WithPath, Correction, attachRefusal, pathWords -->
 <!-- source: internal/component/config/yang/validator_error.go -- ValidationError, Error, Unwrap -->

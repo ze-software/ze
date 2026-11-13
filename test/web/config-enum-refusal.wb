@@ -4,6 +4,8 @@
 #           fix framed for where they stand, and does `top <command>` keep the
 #           prompt where it was? A unit test drives the handler; only this run
 #           proves the page shows the multi-line answer and the prompt it gets.
+#           The correction must also retain quoted list keys on replay, and a
+#           fresh terminal must read each corrected value from the server.
 # VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-7 (terminal
 #            `set` refused with the accepted values and the root fix), AC-27
 #            (a refused new key names the whole line), AC-33 (the key-leaf form
@@ -90,3 +92,51 @@ action=wait
 expect=element:text=router-id 192.0.2.9
 expect=element:not-text=requre
 expect=element:not-text=bogus
+
+# A spaced key stays one argument in the exact printed correction.
+action=fill:id=terminal-input:value=set bgp group "edge routers" session capability route-refresh requre
+action=press:id=terminal-input:key=Enter
+action=wait
+# Read quoted output from the DOM without accessibility serialization escapes.
+expect=html:contains=fix: set bgp group "edge routers" session capability route-refresh require
+
+action=fill:id=terminal-input:value=set bgp group "edge routers" session capability route-refresh require
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=set bgp group edge routers session capability route-refresh require
+
+# An embedded quote survives the same correction behind top, with context kept.
+action=fill:id=terminal-input:value=edit bgp peer peer1
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze[bgp peer peer1]#
+
+action=fill:id=terminal-input:value=top set bgp group "edge\"routers" session capability route-refresh requre
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=html:contains=fix: top set bgp group "edge\"routers" session capability route-refresh require
+
+action=fill:id=terminal-input:value=top set bgp group "edge\"routers" session capability route-refresh require
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=html:contains=set bgp group edge"routers session capability route-refresh require
+expect=element:text=ze[bgp peer peer1]#
+
+# Fresh pages remove the scrollback, so each require is a retained tree value.
+action=open:path=/cli
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=show bgp group "edge routers" session capability
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=route-refresh require
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=show bgp group "edge\"routers" session capability
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=route-refresh require

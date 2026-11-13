@@ -681,27 +681,35 @@ func TestAdminExecuteBindsAnAnchoredValueThroughTheDispatcher(t *testing.T) {
 	assert.Contains(t, body["output"], "withdrawn")
 }
 
-// TestAdminExecuteRefusesAQuoteInAValue: the dispatcher's grammar carries no
-// escape for a double quote, so a value holding one cannot reach it intact and
-// the handler refuses it rather than dispatching a mangled command.
-func TestAdminExecuteRefusesAQuoteInAValue(t *testing.T) {
+// TestAdminExecutePreservesAQuoteInAValue proves the form's quoted value
+// reaches the real dispatcher as one exact argument under invocation escaping.
+func TestAdminExecutePreservesAQuoteInAValue(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
+	label := commandtest.Must(command.NewStringArg("label", nil, nil, command.ArgOptions{}))
 	tree := &command.Node{Children: map[string]*command.Node{
 		"socket": {Name: "socket", Children: map[string]*command.Node{
-			"open": {Name: "open", ArgDefs: []command.ArgDef{commandtest.Must(command.NewStringArg("label", nil, nil, command.ArgOptions{}))}},
+			"open": {Name: "open", ArgDefs: []command.ArgDef{label}},
 		}},
 	}}
-	dispatched := false
-	dispatch := func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-		dispatched = true
+	d := pluginserver.NewDispatcher()
+	calls := 0
+	require.NoError(t, d.RegisterWithOptions("socket open", func(_ *pluginserver.CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
+		calls++
+		value, found := args.Value("label")
+		require.True(t, found)
+		require.Equal(t, `a"b`, value)
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
+	}, "Open a socket", pluginserver.RegisterOptions{ArgDefs: []command.ArgDef{label}, ReadOnly: true}))
+	dispatch := func(_ context.Context, _ plugin.CallerIdentity, input string) (*plugin.Response, error) {
+		require.Equal(t, `socket open label "a\"b"`, input)
+		return d.Dispatch(&pluginserver.CommandContext{}, input)
 	}
 	handler := HandleAdminExecute(renderer, dispatch, StaticCommandTree(tree))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/socket/open", strings.NewReader(`label=a%22b`))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.False(t, dispatched, "a value the grammar cannot carry must not be dispatched")
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, 1, calls, "the form value must reach the real handler exactly once")
 }

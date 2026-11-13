@@ -839,9 +839,7 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 	}
 
 	var cmd textbuf.Buffer
-	if err := command.WriteInvocation(&cmd, strings.Fields(full), defs, values); err != nil {
-		return ErrResult(err.Error())
-	}
+	command.WriteInvocation(&cmd, strings.Fields(full), defs, values)
 
 	if arguments != "" {
 		cmd.Byte(' ').Str(arguments)

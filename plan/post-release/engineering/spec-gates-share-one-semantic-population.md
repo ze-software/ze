@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-23 |
+| Updated | 2026-11-13 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -85,6 +85,13 @@ is deleted once both read the shared answer.
 **Behavior to preserve:**
 - every refusal each gate makes today on a population member it judges correctly
 - the deliberate fail-closed direction: where the shared library cannot resolve a member, the gate refuses with the reason, never passes
+
+## Existing Mechanisms
+
+| Mechanism | Location | What it does today | Use in this spec |
+|-----------|----------|--------------------|------------------|
+| Proposed spec content | `internal/le/hookruntime/specmechanisms.go`, `proposedSpec` and `writeSpecMechanisms` | Replays Write, Edit and MultiEdit payloads and judges the content the edit would leave | Reuse the proposed-content reader when defining the changed population for spec checks under P4 |
+| Spec producer discovery | `internal/le/hookruntime/designevidence.go`, `designSubjects` | Reads source paths from the current and proposed spec sections and checks missing or ambiguous producer paths in the proposed text | Extend this existing discovery when repairing the whole-file population recorded by the 2026-11-12 journal row |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -238,7 +245,7 @@ with the reason, instead of being matched or missed by a pattern.
 
 ## Owned journal rows
 
-133 rows. A row belongs here when a development gate, hook or runner judged the wrong population because it chose that population by a text proxy, a hand list, the working tree, a whole file, or one build configuration.
+134 rows. A row belongs here when a development gate, hook or runner judged the wrong population because it chose that population by a text proxy, a hand list, the working tree, a whole file, or one build configuration.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -331,6 +338,7 @@ with the reason, instead of being matched or missed by a pattern.
 | guard-enumerates-instead-of-subtracting | 2026-09-02 | `heavyArea` (`internal/le/hookruntime/bash.go`) |
 | guard-enumerates-instead-of-subtracting | 2026-08-28 | `validateSpec` (`internal/le/hookruntime/lifecycle.go`), the Current Behavior check |
 | guard-message-teaches-the-violation | 2026-08-31 | `./le commit audit` names the carrier, the commit gate wants the unit |
+| guard-blocks-its-own-authors-repair | 2026-11-12 | `designSubjects` and the spec section check (`internal/le/hookruntime/designevidence.go`, `pretool-writeedit`), whole-file defects blocking a partial repair |
 | guard-blocks-its-own-authors-repair | 2026-09-08 | `rfcTagPattern` (`internal/le/commit/rfcchange.go`), read by the write hook |
 | guard-blocks-its-own-authors-repair | 2026-09-08 | `Proposed` (`internal/le/testweakened/proposed.go`) |
 | guard-blocks-its-own-authors-repair | 2026-09-05 | `changedRFCTests` (`internal/le/commit/rfcchange.go`), read by `./le commit audit` |

@@ -311,20 +311,30 @@ func TestDispatcherTokenize(t *testing.T) {
 	}
 }
 
-// TestTokenizeRejectsBackslash verifies backslash is rejected in commands.
+// TestTokenizeRejectsBackslash verifies bare and undefined quoted escapes
+// remain refused, while the defined quoted escape preserves literal quotes.
 //
-// VALIDATES: Commands with backslash return an error.
-// PREVENTS: Escape sequences in command input.
+// VALIDATES: Bare backslashes and unknown quoted escapes return an error;
+// escaped quotes inside a quoted value reach one argument unchanged.
+// PREVENTS: Admitting unknown escapes or splitting a literal quoted value.
 func TestTokenizeRejectsBackslash(t *testing.T) {
-	inputs := []string{
-		`set path C:\Users`,
-		`myapp path "C:\Users\test"`,
-		`myapp set "value with \"quotes\""`,
+	inputs := []struct {
+		line string
+		want []string
+	}{
+		{line: `set path C:\Users`},
+		{line: `myapp path "C:\Users\test"`},
+		{line: `myapp set "value with \"quotes\""`, want: []string{"myapp", "set", `value with "quotes"`}},
 	}
 	for _, input := range inputs {
-		t.Run(input, func(t *testing.T) {
-			_, err := tokenize(input)
-			require.ErrorIs(t, err, errBackslashInCommand)
+		t.Run(input.line, func(t *testing.T) {
+			tokens, err := tokenize(input.line)
+			if input.want == nil {
+				require.ErrorIs(t, err, errBackslashInCommand)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, input.want, tokens)
 		})
 	}
 }

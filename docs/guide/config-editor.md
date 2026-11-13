@@ -165,6 +165,26 @@ a mistyped `set session capability route-refresh requre` ends with
 `fix: set session capability route-refresh require`.
 The refusal's full shape, for every kind of value and every surface, is
 [Value refusals](../architecture/config/yang-config-design.md#value-refusals).
+
+Command input in the SSH editor, web terminal and web CLI bar uses the config
+token codec. Double-quoted words decode `\"`, `\\`, `\n` and `\t`. Single-quoted
+words keep their contents raw, so `'C:\Users\test'` preserves each backslash;
+the double-quoted form is `"C:\\Users\\test"`. A quoted `"|"` is a literal key or
+value; a bare `|` starts a pipe. For example, `show | match "|"` shows only
+lines with a literal pipe, and `show | match "|" | head 1` shows the first one.
+Printed fixes preserve these boundaries, including behind `top`, so a group
+named `"edge routers"` keeps its name when
+you type the proposed correction.
+<!-- source: internal/component/cli/command_words.go -- ParseCommandWords, Tail, SplitPipe -->
+<!-- source: internal/component/cli/model_load.go -- ParsePipeFilters -->
+<!-- source: internal/component/config/list_key.go -- splitQuotedTokensMarked, readQuotedToken -->
+
+A commit refused because of an API-supplied value keeps that value and your
+other pending changes. Apply the proposed correction and commit again. A
+session's stored candidate remains readable and editable even when one of its
+leaf values or leaf-list members is invalid; you do not need to discard your
+changes to repair it.
+<!-- source: internal/component/cli/editor_draft.go -- readChangeFile, writeThroughSet -->
 <!-- source: internal/component/cli/fix_frame.go -- FrameFix, FramedSetRefusal -->
 <!-- source: internal/component/cli/model_render.go -- setError, feedbackLine -->
 <!-- source: internal/component/cli/validator.go -- ConfigValidationError.Text, refusalIssue, missingFieldIssue -->
@@ -486,10 +506,13 @@ edit must be reconciled before a competing daemon commit can succeed. Bare
 In a session editor, `commit confirmed <seconds>` runs through the daemon's
 confirmed-commit window (see [Commit Confirmed](#commit-confirmed)). A session
 editor of a configuration the daemon does not run has no such window, and
-refuses it with "commit confirmed needs a daemon that runs this configuration
+validates its candidate first, showing any blocking issues with the same
+status header and viewport corrections as `commit now`. A valid candidate is
+refused with "commit confirmed needs a daemon that runs this configuration
 from its store"; `commit now` still works there. The web editor of
 `ze start --web-only` has no daemon and answers the same way.
 <!-- source: internal/component/cli/commit_window.go -- errCommitConfirmedNeedsDaemon, WindowCommit.Run -->
+<!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest, commitValidationRefusal -->
 
 `insert` is supported in session mode: `InsertLeafListValue` routes through
 `writeThroughMemberOp`, and so do `deactivate` and `activate` when they name a

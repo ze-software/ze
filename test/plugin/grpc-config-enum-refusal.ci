@@ -1,0 +1,39 @@
+# Test: gRPC config sessions deliver the shared enum refusal over TLS
+# VALIDATES: AC-9 of spec-config-enum-refusal-proposes-valid-values.
+# Why not a unit test: only the daemon proves TLS, token authentication,
+# ZeConfigService, the session editor and its commit hook are wired together.
+
+option=storage:value=disk
+option=timeout:value=30s
+
+tmpfs=grpc-config-enum-refusal.conf:terminator=EOF_CONF
+plugin {
+    external grpc-enum-refusal {
+        run "le test fixture plugin/grpc-config-enum-refusal 127.0.0.1:$PORT2 api-refusal.pem"
+        encoder json
+    }
+}
+environment {
+    api-server {
+        token "secret";
+        grpc {
+            enabled true;
+            tls-cert "api-refusal.pem";
+            tls-key "api-refusal.key";
+            server main { ip 127.0.0.1; port $PORT2; }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture config-refusal/tls api-refusal.pem api-refusal.key
+expect=exit:code=0
+cmd=foreground:seq=2:exec=ze start grpc-config-enum-refusal.conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: gRPC enum key refused with InvalidArgument and the complete set fix
+expect=stderr:contains=OK: gRPC enum commit refused with InvalidArgument and the set fix last
+expect=stderr:contains=OK: gRPC running config stayed unchanged
+expect=key:path=meta/config/grpc-config-enum-refusal.conf/active:exists=true
+expect=key:path=meta/config/grpc-config-enum-refusal.conf/candidate:absent=true
+expect=key:glob=object/*:count=1
+expect=key:glob=object/*:not-contains=requre

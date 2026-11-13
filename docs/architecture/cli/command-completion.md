@@ -134,12 +134,15 @@ that one, and what it runs is the input the menu completed.
 
 `?` is bound to help, as Tab is. It reveals rather than dismisses, and it does
 not reach the input, except inside a double-quoted value. When the input before
-the cursor holds an open quote, under the tokenizer's rule that every `"`
-toggles and nothing escapes one, `?` is a character of the value and is
+the cursor holds an open quote under the shared operational scanner, `?` is a character of the value and is
 inserted like any other rune. Only the text before the cursor counts, because
-that is where the character lands. The quote is the only escape at the
-keyboard, because the tokenizer has no escape character. A bracketed paste
+that is where the character lands. An escaped literal quote (`\"`) inside a
+double-quoted value leaves that value open; its final unescaped quote closes
+it. Quoted backslashes and control spacing use the operational invocation
+escapes; unquoted backslashes remain refused. A bracketed paste
 never reaches the key handler, so a pasted `?` arrives whether quoted or not.
+<!-- source: internal/component/cli/model_commands.go -- quoteOpen -->
+<!-- source: internal/component/command/invocation_scan.go -- ScanInvocation -->
 
 `?` writes nothing on message line 2 while an explanation is declared.
 `warningText` already reads the selected candidate's summary there, so a hint

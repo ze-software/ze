@@ -86,6 +86,7 @@ func TestIncidentalViewUnchangedWithoutTop(t *testing.T) {
 				assert.Equal(t, ref.viewportContent, out.viewportContent, "the view at the prompt's position")
 				assert.Equal(t, ref.viewport.YOffset(), out.viewport.YOffset(), "the scroll position")
 				assert.Equal(t, ref.showingConfig, out.showingConfig)
+				assertIncidentalView(t, m, out, result, line, result.statusMessage)
 			})
 		}
 	}

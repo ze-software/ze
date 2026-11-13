@@ -12,8 +12,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// syntaxRefusal carries a corrective parse error. Its path is built only while
-// unwinding a failed parse, so successful parsing allocates no diagnostic state.
+// syntaxRefusal carries a corrective parse error. Each enclosing parser adds
+// its path segment as it returns. Normal successful parsing allocates none.
 // path is the slash-joined form the refusal prints; segments holds the same
 // names one per element, a list key holding a slash included, so a value
 // refusal can be rebuilt naming them (namedRefusal).
@@ -21,6 +21,8 @@ type syntaxRefusal struct {
 	path     string
 	segments []string
 	cause    error
+	// statementEnded marks a value checked after its terminating semicolon.
+	statementEnded bool
 }
 
 func (e *syntaxRefusal) Error() string {
@@ -73,9 +75,10 @@ func (p *Parser) valueRefusal(tok token, err error, fix func(correction string) 
 		return p.errorf(tok, format, args...)
 	}
 	return &syntaxRefusal{
-		path:     textbuf.Join(segments, "/"),
-		segments: slices.Clone(segments),
-		cause:    newLineError(tok.line, refusal.WithFix(fix(refusal.Correction()))),
+		path:           textbuf.Join(segments, "/"),
+		segments:       slices.Clone(segments),
+		cause:          newLineError(tok.line, refusal.WithFix(fix(refusal.CorrectionText()))),
+		statementEnded: tok.kind == tokenSemicolon,
 	}
 }
 

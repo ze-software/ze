@@ -94,12 +94,15 @@ const (
 // ParsePipe splits user input into the command and a chain of pipe operators.
 // Input "show bgp peer list | match established | count" returns ("show bgp peer list", [{match,"established"}, {count,""}]).
 func ParsePipe(input string) (command string, ops []pipeOp) {
-	command, rest, hasPipe := strings.Cut(input, "|")
-	command = strings.TrimSpace(command)
-	if !hasPipe {
-		return command, nil
+	_, pipeAt, _, _ := ScanInvocation(input)
+	if pipeAt == -1 {
+		// Keep malformed input whole: the dispatcher refuses its lexical fault,
+		// rather than running a prefix cut out of an invalid command.
+		return strings.TrimSpace(input), nil
 	}
-	return command, parsePipeOps(rest)
+	// The existing filter grammar owns the chain after the first operator,
+	// including backslashes in match patterns; invocation escapes do not.
+	return strings.TrimSpace(input[:pipeAt]), parsePipeOps(input[pipeAt+1:])
 }
 
 // parsePipeOps parses the operator chain that follows the first pipe character.
@@ -299,8 +302,8 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, pipeChainMeta)
 // piped to chain, and whether the whole chain folded into it.
 //
 // command is the text before the first pipe outside quotes and chain the text
-// after it, both separated by the caller's own quote-aware scan, so ParsePipe's
-// quote-blind cut never reads the command part. The chain runs through the
+// after it, both separated by the same operational scan ParsePipe reads.
+// The chain runs through the
 // parse, alias expansion, address binding and fold every operator surface runs
 // (parsePipeOps, expandAliases, bindAddressFields, foldFilters), never a second
 // reading of the operator names.

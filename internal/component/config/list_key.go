@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -153,11 +154,12 @@ func ParseListAddress(listName string, node *ListNode, tokens []string) (ListAdd
 			}
 		}
 		if leaf, ok := node.Get(leafName).(*LeafNode); ok {
-			// The refusal names the list, its first key value and the key
-			// leaf; a caller that holds the path before the list names it.
+			// The refusal names the list and the address consumed before
+			// this key leaf; its caller adds the path before the list.
 			if err := ValidateLeafValue(leaf, []string{listName, addr.First, leafName}, value); err != nil {
-				if _, isValueRefusal := operatorRefusal(err); isValueRefusal {
-					return ListAddress{}, err
+				if refusal, isValueRefusal := operatorRefusal(err); isValueRefusal {
+					path := append([]string{listName}, tokens[:addr.Tokens]...)
+					return ListAddress{}, refusal.WithPath(append(path, leafName))
 				}
 				return ListAddress{}, errors.New("invalid " + leafName + " for " + listName + ": " + err.Error())
 			}
@@ -187,7 +189,12 @@ func (a ListAddress) pairValue(leaf string) (string, bool) {
 // A positional `#N` suffix is removed first. For a list whose key names one
 // leaf the key is returned whole, because a single key may hold a space.
 func SplitListKey(node *ListNode, key string) (string, []ListKeyPair) {
-	key = StripListKeySuffix(key)
+	return splitStoredListKey(node, StripListKeySuffix(key))
+}
+
+// splitStoredListKey keeps literal key bytes; display suffix normalization
+// belongs to callers that render positional entries.
+func splitStoredListKey(node *ListNode, key string) (string, []ListKeyPair) {
 	if !node.HasMultiLeafKey() {
 		return key, nil
 	}
@@ -217,9 +224,16 @@ func ListKeyFirstValue(keyLeaves []string, key string) string {
 
 // ListKeyTokens returns the address of a stored map key as path tokens:
 // the first value, then each pair's name and value. Each token is written
-// to text on its own, through QuoteIfNeeded.
+// to text on its own, through QuoteIfNeeded. A positional #N suffix is
+// removed as in SplitListKey.
 func ListKeyTokens(node *ListNode, key string) []string {
-	first, pairs := SplitListKey(node, key)
+	return storedListKeyTokens(node, StripListKeySuffix(key))
+}
+
+// storedListKeyTokens expands a stored identity without treating a literal
+// #N ending as a positional display suffix.
+func storedListKeyTokens(node *ListNode, key string) []string {
+	first, pairs := splitStoredListKey(node, key)
 	tokens := make([]string, 0, 1+2*len(pairs))
 	tokens = append(tokens, first)
 	for _, pair := range pairs {
@@ -331,46 +345,26 @@ func canonicalParsedListKey(listName string, node *ListNode, first string, entry
 	return BuildListKey(listName, node, first, entry.Get)
 }
 
-// QuoteIfNeeded writes s as ONE token that the config tokenizer reads back as
-// s: an address reaches text through it a token at a time. s is written bare
-// only when bareWordReadsBack says the tokenizer returns it whole as one word;
-// every other value is quoted, its `"`, `\`, newline and tab escaped the way
-// readString and readQuotedToken decode them.
+// QuoteIfNeeded uses the word boundary and byte-preserving quoter shared with
+// the tokenizer and YANG refusal formatter.
 func QuoteIfNeeded(s string) string {
-	if bareWordReadsBack(s) {
-		return s
-	}
-
-	// Byte by byte, never rune by rune: a range over runes turns each byte of
-	// invalid UTF-8 into U+FFFD, a different value than the one stored.
-	var b textbuf.Buffer
-	b.Byte('"')
-	for i := range len(s) {
-		c := s[i]
-		switch c {
-		case '"':
-			b.Str(`\"`)
-		case '\\':
-			b.Str(`\\`)
-		case '\n':
-			b.Str(`\n`)
-		case '\t':
-			b.Str(`\t`)
-		default:
-			b.Byte(c)
-		}
-	}
-	b.Byte('"')
-	return b.String()
+	return configtext.QuoteToken(s)
 }
 
 // splitQuotedTokens splits a line into the tokens QuoteIfNeeded wrote: a
 // token is a run of non-space characters, or a `"`-quoted string whose
-// escapes (\", \\, \n, \t) QuoteIfNeeded wrote, or a `'`-quoted string
+// escapes (\", \\, \n, \r, \t) QuoteIfNeeded wrote, or a `'`-quoted string
 // with no escapes (a record written by hand or before keys were quoted). It
 // is the inverse of QuoteIfNeeded: splitQuotedTokens(QuoteIfNeeded(s)) is
 // [s]. An unterminated quote is refused.
 func splitQuotedTokens(line string) ([]string, error) {
+	return splitQuotedTokensMarked(line, nil)
+}
+
+// splitQuotedTokensMarked uses the same codec, optionally recording which
+// tokens were quoted. Candidate leaf-list decoding needs that distinction:
+// a quoted bracket is member data, while a bare bracket is a delimiter.
+func splitQuotedTokensMarked(line string, quoted *[]bool) ([]string, error) {
 	var tokens []string
 	for i := 0; i < len(line); {
 		c := line[i]
@@ -384,6 +378,9 @@ func splitQuotedTokens(line string) ([]string, error) {
 				end++
 			}
 			tokens = append(tokens, line[i:end])
+			if quoted != nil {
+				*quoted = append(*quoted, false)
+			}
 			i = end
 			continue
 		}
@@ -392,6 +389,9 @@ func splitQuotedTokens(line string) ([]string, error) {
 			return nil, err
 		}
 		tokens = append(tokens, token)
+		if quoted != nil {
+			*quoted = append(*quoted, true)
+		}
 		i = next
 	}
 	return tokens, nil
@@ -422,6 +422,8 @@ func readQuotedToken(line string, start int) (string, int, error) {
 			switch line[i] {
 			case 'n':
 				b.Byte('\n')
+			case 'r':
+				b.Byte('\r')
 			case 't':
 				b.Byte('\t')
 			default:
@@ -563,6 +565,9 @@ func WalkListEntryPath(schema *Schema, tokens []string) (target ListEntryTarget,
 			}
 			addr, stepErr := ListPathStep(name, n, tokens[i+1:])
 			if stepErr != nil {
+				if refusal, isValue := operatorRefusal(stepErr); isValue {
+					stepErr = refusal.WithPath(append(slices.Clone(tokens[:i]), refusal.Segments()...))
+				}
 				return target, false, stepErr
 			}
 			current = n
@@ -633,7 +638,7 @@ func ListEntryDestination(verb string, parentPath []string, listName string, nod
 		var fix textbuf.Buffer
 		fix.Str(verb).Byte(' ')
 		writeListAddress(&fix, append(slices.Clip(listPath), ListKeyTokens(node, oldKey)...))
-		fix.Str(" to ").Str(refusal.Correction())
+		fix.Str(" to ").Str(refusal.CorrectionText())
 		return "", refusal.WithFix(fix.String())
 	}
 	_, srcPairs := SplitListKey(node, oldKey)

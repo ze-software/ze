@@ -331,6 +331,10 @@ func storedShadeTree() *Tree {
 // entry unjudged (AC-14).
 func TestSetLineKeyOnStoredEntryStaysRefused(t *testing.T) {
 	for _, key := range []string{KeyDefault, "red#2"} {
+		displayKey := key
+		if key == "red#2" {
+			displayKey = `"red#2"`
+		}
 		lines := map[string]struct {
 			line, fix string
 			parse     func(p *SetParser, root *Tree, line string) error
@@ -350,7 +354,7 @@ func TestSetLineKeyOnStoredEntryStaysRefused(t *testing.T) {
 				err := tt.parse(NewSetParser(refusalSchema()), root, tt.line)
 				require.Error(t, err)
 				msg := err.Error()
-				assert.True(t, strings.HasPrefix(msg, "line 1: top shade "+key+": \""+key+"\" is not an accepted value\nid accepts only these values:\n  red\n  blue\n"), msg)
+				assert.True(t, strings.HasPrefix(msg, "line 1: top shade "+displayKey+": \""+key+"\" is not an accepted value\nid accepts only these values:\n  red\n  blue\n"), msg)
 				assert.True(t, strings.HasSuffix(msg, "\n"+tt.fix), msg)
 				label, _ := root.GetContainer("top").GetList("shade")[key].Get("label")
 				assert.Equal(t, "kept", label, "the stored entry is unchanged")

@@ -167,6 +167,7 @@ notification_banner.templ        -- notificationBanner (SSE)
 this list to its claim. It reads every Go source in the package and reports a
 string literal that builds a tag. A panel written in Go is therefore a red test
 rather than a file nobody added above.
+<!-- source: internal/test/markupcheck/markupcheck.go -- AssertNoMarkup, scan -->
 
 `fieldWrapper` takes the editor as a component, so the frame is one balanced
 element rather than the start and end pair it replaced.
@@ -345,7 +346,7 @@ sibling.
 
 | Guard | Where the rules live | What it refuses |
 |---|---|---|
-| `TestNoGoFileBuildsMarkup` | `internal/test/markupcheck`, `AssertNoMarkup` | A Go string literal that builds a tag. It reads the FORM of a tag, so `usage: set <leaf>` is not a finding, and it knows HTML's void elements, so a bare `<br>` is one. An exemption that explains nothing is a finding, and so is a table that changed size |
+| `TestNoGoFileBuildsMarkup` | `internal/test/markupcheck`, `AssertNoMarkup` | A Go string literal that builds a tag. It reads the FORM of a tag, so `usage: set <leaf>` is not a finding, and it knows HTML's void elements, so a bare `<br>` is one. Direct operator text follows the contract below. An exemption that explains nothing is a finding, and so is a table that changed size |
 | `TestTemplatesAvoidInlineScriptAndStyle` | `internal/test/markupcheck`, `AssertNoInlineScriptOrStyle` | An inline `<script>` block, an inline `style=`, an `on*` handler, an `hx-on` attribute |
 | `TestTemplAssetsResolve` | `internal/test/markupcheck`, `AssertAssetsResolve` | A `src` or `href` the served filesystem does not hold, and one naming an asset tree the package does not serve |
 | `TestWebViewDataIsTyped`, `TestLGViewDataIsTyped` | `internal/test/templcheck`, `AssertTyped` | A component parameter that is a map, a named map, a bare `any`, or a struct wrapping any of them |
@@ -356,6 +357,16 @@ sibling.
 <!-- source: internal/test/markupcheck/inline.go -- AssertNoInlineScriptOrStyle -->
 <!-- source: internal/test/markupcheck/assets.go -- AssertAssetsResolve -->
 <!-- source: internal/test/templcheck/templcheck.go -- AssertTyped -->
+
+Direct string literals and concatenations in `opererr.New` and `opererr.Wrap`
+text arguments follow their plain-text contract, so multiword command
+placeholders stay text. The guard resolves the canonical import and its alias,
+and a local binding cannot use that exception. Other literals, including nested
+builders and tags with boolean attributes, keep the ordinary markup check.
+If the Go source does not parse, every literal keeps the lexical check. All
+literals still count toward the scan floor.
+<!-- source: internal/test/markupcheck/markupcheck.go -- operatorTextLiterals, operatorTextArgs, markOperatorText, scan -->
+<!-- source: internal/core/opererr/opererr.go -- New, Wrap, Error -->
 
 ## Security
 

@@ -1339,6 +1339,17 @@ every later withdrawal is written, whether or not the peer holds the route named
 
 ### Route Commands (update cursor)
 
+An announcement can name an explicit next hop, `next-hop self`, or
+`next-hop default <gateway>`. The default form selects the address per peer;
+the [UPDATE syntax](update-syntax.md#path-attributes) defines its internal and
+external defaults and configured overrides. Cursor mode retains that policy
+alongside the candidate gateway until it is replaced or cleared. The candidate
+can be an IGP IPv6 link-local gateway; default selection then uses the session's
+local address unless a configured next-hop setting overrides it.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- parseNhopFlat -->
+<!-- source: internal/component/bgp/plugins/cmd/update/cursor.go -- clearAttr -->
+<!-- source: internal/component/bgp/reactor/peer.go -- defaultOriginationNextHop -->
+
 Stateful cursor mode for efficient replay of stored routes on reconnect. The engine
 maintains attribute state per (plugin, peer) pair. Subsequent commands send only
 changed attributes (delta encoding), reducing per-call overhead.
@@ -2064,12 +2075,18 @@ either way.
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch, scanCommand, pipeChainRefusal -->
 <!-- source: internal/component/command/pipe.go -- FoldPipeChain, foldFilters -->
 
-A pipe inside double quotes is an argument value. `tokenize` reads quoting, so
-the handler receives the pipe character, or the whole quoted value, as today.
+A pipe inside double quotes is an argument value. `ScanInvocation` is shared by
+the dispatcher and the pipeline boundary, so neither mistakes that value for
+an operator. Inside double quotes, `\"`, `\\`, `\n`, `\r` and `\t` preserve a
+literal quote, backslash, newline, carriage return and tab. A backslash outside
+quotes, or an unknown quoted escape, is refused. `WriteInvocationValue` writes
+this same grammar for client values and concrete enum corrections.
 Accounting and authorization read the same tokens as for any other line.
 `dispatch-command-args` never reaches the tokenizer, so a pipe in its `args`
 is data.
 <!-- source: internal/component/plugin/server/command.go -- tokenize -->
+<!-- source: internal/component/command/invocation_scan.go -- ScanInvocation -->
+<!-- source: internal/component/command/arguments.go -- WriteInvocationValue -->
 <!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandArgs -->
 
 MCP, REST and gRPC are operator surfaces that do not yet split the chain at
@@ -2148,6 +2165,10 @@ gzip DEADBEEF` answers `fix: send bgp 192.0.2.1 raw <hex|b64> DEADBEEF`); any
 other list keeps each fault's line and the general fix. A value fault names the
 command path before its argument (`send bgp raw encoding: "gzip" is not an
 accepted value`).
+Concrete corrections retain their literal identity separately from placeholders:
+an accepted enum named `a|b` is written as `"a|b"`, while `<hex|b64>` remains
+syntax the operator replaces. The same writer preserves every already accepted
+operand in the corrected line, including quoted pipes and spaces.
 The routes differ only in the head of that line. The dispatcher writes the
 path with the selector where it reads it, and names a missing selector by the
 guard's own refusal, with the line that supplies it (`fix: create bgp peer

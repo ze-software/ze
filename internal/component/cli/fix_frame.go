@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -21,6 +22,14 @@ type FixCommand struct {
 	Verb string
 	At   []string
 	Args []string
+	// placeholders names Args that are correction syntax, not literal data.
+	// It is set by the producer, never guessed from the token's punctuation.
+	placeholders []int
+}
+
+func (fix FixCommand) withPlaceholders(indexes ...int) FixCommand {
+	fix.placeholders = slices.Concat(fix.placeholders, indexes)
+	return fix
 }
 
 // FrameFix writes fix as the exact command the operator types at operator,
@@ -33,23 +42,41 @@ func FrameFix(fix FixCommand, operator []string) string {
 	var tb textbuf.Buffer
 	if slices.Equal(fix.At, operator) {
 		tb.Str(fix.Verb)
-		appendWords(&tb, fix.Args)
+		appendWords(&tb, fix.Args, fix.placeholders)
 		return tb.String()
 	}
 	if len(operator) > 0 {
 		tb.Str(cmdTop).Byte(' ')
 	}
 	tb.Str(fix.Verb)
-	appendWords(&tb, fix.At)
-	appendWords(&tb, fix.Args)
+	appendWords(&tb, fix.At, nil)
+	appendWords(&tb, fix.Args, fix.placeholders)
 	return tb.String()
 }
 
-// appendWords writes each word after a space.
-func appendWords(tb *textbuf.Buffer, words []string) {
-	for _, word := range words {
-		tb.Byte(' ').Str(word)
+// appendWords quotes each concrete token with the config codec, while explicit
+// placeholder arguments keep the replacement syntax the operator fills in.
+func appendWords(tb *textbuf.Buffer, words []string, placeholders []int) {
+	for i, word := range words {
+		tb.Byte(' ')
+		if slices.Contains(placeholders, i) {
+			tb.Str(word)
+		} else {
+			tb.Str(configtext.QuoteCommandWord(word))
+		}
 	}
+}
+
+// correctionFix replaces exactly one argument with the schema's correction,
+// retaining its distinction between a concrete value and a placeholder.
+func correctionFix(verb string, at, args []string, index int, refusal *configyang.ValidationError) FixCommand {
+	corrected := slices.Clone(args)
+	corrected[index] = refusal.Correction()
+	fix := FixCommand{Verb: verb, At: at, Args: corrected}
+	if refusal.CorrectionIsPlaceholder() {
+		fix = fix.withPlaceholders(index)
+	}
+	return fix
 }
 
 // valueRefusal answers the operator refusal err holds: a value refusal the
@@ -74,6 +101,6 @@ func FramedSetRefusal(err error, at, args, operator []string) error {
 	if !ok {
 		return err
 	}
-	corrected := append(slices.Clone(args[:len(args)-1]), refusal.Correction())
-	return refusal.WithFix(FrameFix(FixCommand{Verb: cmdSet, At: at, Args: corrected}, operator))
+	fix := correctionFix(cmdSet, at, args, len(args)-1, refusal)
+	return refusal.WithFix(FrameFix(fix, operator))
 }

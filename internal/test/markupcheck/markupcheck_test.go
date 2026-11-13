@@ -85,6 +85,127 @@ func TestReportReadsAnElementNobodyListed(t *testing.T) {
 	assert.Equal(t, "invented-by-nobody", sites[1].Tag)
 }
 
+// TestReportDistinguishesOperatorTextFromMarkup proves the plain-text contract
+// of opererr.New and Wrap applies only to their direct string arguments. Real
+// markup beside the call, through a different package, or under a shadowed
+// import name remains a finding.
+//
+// VALIDATES: multiword command placeholders stay text without losing boolean
+// attribute tags or the lexical scan of an incomplete Go file.
+// PREVENTS: valid refusal text failing the markup guard, or an exception hiding
+// a Go markup builder.
+func TestReportDistinguishesOperatorTextFromMarkup(t *testing.T) {
+	tests := []struct {
+		name     string
+		src      string
+		tags     []string
+		literals int
+	}{
+		{
+			name: "new text and adjacent boolean attribute",
+			src: `package p
+import "github.com/ze-software/ze/internal/core/opererr"
+func refusal() error {
+ return opererr.New("rename <an existing key>", "<a key was refused>", "rename to <a key this list does not hold>")
+}
+func panel() string { return "<invented-by-nobody hidden>" }
+`,
+			tags:     []string{"invented-by-nobody"},
+			literals: 5,
+		},
+		{
+			name: "aliased wrap concatenates text",
+			src: `package p
+import refusal "github.com/ze-software/ze/internal/core/opererr"
+func fail(err error, entry string) error {
+ return refusal.Wrap(err, "rename "+entry, "<a key was refused>", ("rename "+entry+" to <a key this list does not hold>"))
+}
+func panel() string { return "<a href='/config'>" }
+`,
+			tags:     []string{"a"},
+			literals: 6,
+		},
+		{
+			name: "different package",
+			src: `package p
+import opererr "example.com/opererr"
+func panel() { opererr.New("<widget hidden>", "why", "fix") }
+`,
+			tags:     []string{"widget"},
+			literals: 4,
+		},
+		{
+			name: "parameter shadows alias",
+			src: `package p
+import refusal "github.com/ze-software/ze/internal/core/opererr"
+func panel(refusal Builder) { refusal.New("<widget hidden>", "why", "fix") }
+`,
+			tags:     []string{"widget"},
+			literals: 4,
+		},
+		{
+			name: "local variable shadows alias",
+			src: `package p
+import "github.com/ze-software/ze/internal/core/opererr"
+func panel() { opererr := builder(); opererr.Wrap(nil, "problem", "why", "<widget hidden>") }
+`,
+			tags:     []string{"widget"},
+			literals: 4,
+		},
+		{
+			name: "other selector",
+			src: `package p
+import "github.com/ze-software/ze/internal/core/opererr"
+func panel() { opererr.HTML("<widget hidden>") }
+`,
+			tags:     []string{"widget"},
+			literals: 2,
+		},
+		{
+			name: "incomplete source retains lexical scan",
+			src: `package p
+import "github.com/ze-software/ze/internal/core/opererr"
+func refusal() error { return opererr.New("problem", "why", "rename to <a key this list does not hold>") }
+func panel() string { return "<widget hidden>"
+`,
+			tags:     []string{"a", "widget"},
+			literals: 5,
+		},
+		{
+			name: "nested builders and cause remain markup",
+			src: `package p
+import "github.com/ze-software/ze/internal/core/opererr"
+func refusal() error {
+ return opererr.Wrap(build("<cause hidden>"), build("<problem hidden>"), "why", func() string { return "<fix hidden>" }())
+}
+`,
+			tags:     []string{"cause", "problem", "fix"},
+			literals: 5,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := writePackage(t, "page.go", tt.src)
+			sites, literals, err := markupcheck.Report(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if literals != tt.literals {
+				t.Fatalf("scan read %d literals, want %d including operator text", literals, tt.literals)
+			}
+			if len(sites) != len(tt.tags) {
+				t.Fatalf("got sites %+v, want tags %v", sites, tt.tags)
+			}
+			for i, tag := range tt.tags {
+				if sites[i].Tag != tag {
+					t.Errorf("site %d tag = %q, want %q", i, sites[i].Tag, tag)
+				}
+			}
+		})
+	}
+}
+
 // TestReportReadsABareVoidElement proves a void element with no attribute is a
 // finding. Nothing closes it, so a bare `<br>` is a whole element rather than
 // a placeholder.

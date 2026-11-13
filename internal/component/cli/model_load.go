@@ -558,13 +558,15 @@ func FindPipeIndex(tokens []string) int {
 }
 
 // dispatchWithPipe handles commands with pipe filters.
-func (m *Model) dispatchWithPipe(cmdTokens, pipeTokens []string) (commandResult, error) {
+func (m *Model) dispatchWithPipe(words CommandWords) (commandResult, error) {
+	commandWords, pipeWords := words.SplitPipe()
+	cmdTokens := commandWords.Tokens()
 	if len(cmdTokens) == 0 {
 		return commandResult{}, errNoCommandBeforePipe
 	}
 
 	// Parse pipe filters
-	filters := ParsePipeFilters(pipeTokens)
+	filters := ParsePipeFilters(pipeWords)
 
 	cmd := cmdTokens[0]
 	if cmd == cmdShow {
@@ -574,13 +576,14 @@ func (m *Model) dispatchWithPipe(cmdTokens, pipeTokens []string) (commandResult,
 	return commandResult{}, fmt.Errorf("command '%s' does not support piping", cmd)
 }
 
-// ParsePipeFilters parses pipe filter tokens into PipeFilter structs.
-func ParsePipeFilters(tokens []string) []PipeFilter {
+// ParsePipeFilters parses filters using only bare pipes as separators.
+func ParsePipeFilters(words CommandWords) []PipeFilter {
+	tokens := words.tokens
 	var filters []PipeFilter
 	i := 0
 
 	for i < len(tokens) {
-		if tokens[i] == "|" {
+		if words.isPipe(i) {
 			i++
 			continue
 		}
@@ -589,11 +592,13 @@ func ParsePipeFilters(tokens []string) []PipeFilter {
 		i++
 
 		// Get argument if present
-		if i < len(tokens) && tokens[i] != "|" {
+		hasArgument := i < len(tokens) && !words.isPipe(i)
+		if hasArgument {
 			filter.Arg = tokens[i]
 			i++
 			// "compare rollback N" needs two args: combine "rollback" + "N".
-			if filter.Type == cmdCompare && filter.Arg == cmdRollback && i < len(tokens) && tokens[i] != "|" {
+			hasRollbackNumber := filter.Type == cmdCompare && filter.Arg == cmdRollback && i < len(tokens) && !words.isPipe(i)
+			if hasRollbackNumber {
 				var tb textbuf.Buffer
 				filter.Arg = tb.Str(filter.Arg).Byte(' ').Str(tokens[i]).String()
 				i++

@@ -87,7 +87,9 @@ const argumentFaultsFix = "correct each fault listed above, then type the comman
 // whole command: the value to type in place of the refused one.
 func oneValueFix(fault *ValueArgumentError) string {
 	var tb textbuf.Buffer
-	tb.Str("type the command again with ").Str(fault.Correction()).Str(" in place of ").Str(strconv.Quote(fault.Value()))
+	tb.Str("type the command again with ")
+	fault.writeCorrection(&tb)
+	tb.Str(" in place of ").Str(strconv.Quote(fault.Value()))
 	return tb.String()
 }
 
@@ -266,7 +268,7 @@ func (e *ArgumentFaults) wholeCommand(head string, args []string, placedToken, p
 		}
 		tb.Byte(' ')
 		if value := e.correctionAt(i); value != nil {
-			tb.Str(value.Correction())
+			value.writeCorrection(&tb)
 			covered = i + max(value.span, 1)
 			continue
 		}

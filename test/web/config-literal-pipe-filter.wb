@@ -1,0 +1,117 @@
+# Test: the browser terminal preserves quoted pipe filter arguments
+# QUESTION: does an operator on the daemon's actual CLI page read only the
+# pipe-bearing group lines through root, context, top, and a later head filter,
+# while the prompt stays where it was? A handler unit test cannot prove the
+# page submits the complete line and replaces its visible output correctly.
+# VALIDATES: both quote forms retain a literal match argument; the later bare
+# pipe still applies head 1; root and nested top preserve the current context.
+# PREVENTS: an empty match showing the whole configuration after quote decoding.
+# DOM checks read current output; state waits observe its replacement, with no
+# fixed delay and no dependence on quoted accessibility snapshot serialization.
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+action=open:path=/cli
+expect=element:id=terminal-input
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+expect=element:text=ze#
+
+# Real accepted sets prepare two matches and a nonmatching control.
+action=fill:id=terminal-input:value=set bgp group "pipe|one" session capability route-refresh enable
+action=press:id=terminal-input:key=Enter
+expect=html:contains=set bgp group pipe|one session capability route-refresh enable
+action=fill:id=terminal-input:value=set bgp group 'pipe|two' session capability route-refresh enable
+action=press:id=terminal-input:key=Enter
+expect=html:contains=set bgp group pipe|two session capability route-refresh enable
+action=fill:id=terminal-input:value=set bgp group plain-sentinel session capability route-refresh enable
+action=press:id=terminal-input:key=Enter
+expect=html:contains=set bgp group plain-sentinel session capability route-refresh enable
+
+# Root: the control is visible before match removes it.
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+expect=html:contains=group plain-sentinel {
+expect=html:contains=group pipe|one {
+expect=html:contains=group pipe|two {
+action=fill:id=terminal-input:value=show | match "|"
+action=press:id=terminal-input:key=Enter
+action=wait-html:not-contains=plain-sentinel
+expect=html:contains=group pipe|one {
+expect=html:contains=group pipe|two {
+expect=html:not-contains=router-id
+expect=html:not-contains=bgp {
+expect=html:not-contains=route-refresh enable
+expect=element:text=ze#
+
+action=fill:id=terminal-input:value=show | match '|' | head 1
+action=press:id=terminal-input:key=Enter
+action=wait-html:not-contains=pipe|two
+expect=html:contains=group pipe|one {
+expect=html:not-contains=plain-sentinel
+expect=html:not-contains=router-id
+expect=element:text=ze#
+
+# Relative context: alternate the quote forms while keeping the same question.
+action=fill:id=terminal-input:value=edit bgp
+action=press:id=terminal-input:key=Enter
+expect=element:text=ze[bgp]#
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+expect=html:contains=group plain-sentinel {
+action=fill:id=terminal-input:value=show | match '|'
+action=press:id=terminal-input:key=Enter
+action=wait-html:not-contains=plain-sentinel
+expect=html:contains=group pipe|one {
+expect=html:contains=group pipe|two {
+expect=html:not-contains=router-id
+expect=html:not-contains=route-refresh enable
+expect=element:text=ze[bgp]#
+
+action=fill:id=terminal-input:value=show | match "|" | head 1
+action=press:id=terminal-input:key=Enter
+action=wait-html:not-contains=pipe|two
+expect=html:contains=group pipe|one {
+expect=html:not-contains=plain-sentinel
+expect=html:not-contains=router-id
+expect=element:text=ze[bgp]#
+
+# No groups exist in the peer context; top must retain and run the whole line.
+action=fill:id=terminal-input:value=edit peer peer1
+action=press:id=terminal-input:key=Enter
+expect=element:text=ze[bgp peer peer1]#
+action=fill:id=terminal-input:value=top show | match "|"
+action=press:id=terminal-input:key=Enter
+expect=html:contains=group pipe|one {
+expect=html:contains=group pipe|two {
+expect=html:not-contains=plain-sentinel
+expect=html:not-contains=router-id
+expect=html:not-contains=bgp {
+expect=html:not-contains=route-refresh enable
+expect=element:text=ze[bgp peer peer1]#
+
+action=fill:id=terminal-input:value=top show | match '|' | head 1
+action=press:id=terminal-input:key=Enter
+action=wait-html:not-contains=pipe|two
+expect=html:contains=group pipe|one {
+expect=html:not-contains=plain-sentinel
+expect=html:not-contains=router-id
+expect=element:text=ze[bgp peer peer1]#
+
+action=fill:id=terminal-input:value=top top show | match '|'
+action=press:id=terminal-input:key=Enter
+expect=html:contains=group pipe|one {
+expect=html:contains=group pipe|two {
+expect=html:not-contains=plain-sentinel
+expect=html:not-contains=router-id
+expect=html:not-contains=bgp {
+expect=element:text=ze[bgp peer peer1]#
+
+action=fill:id=terminal-input:value=top top show | match "|" | head 1
+action=press:id=terminal-input:key=Enter
+action=wait-html:not-contains=pipe|two
+expect=html:contains=group pipe|one {
+expect=html:not-contains=plain-sentinel
+expect=html:not-contains=router-id
+expect=element:text=ze[bgp peer peer1]#

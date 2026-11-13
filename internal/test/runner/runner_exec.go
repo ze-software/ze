@@ -1138,7 +1138,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 						waitReady(testCtx, readyPath, r.withParallelHeadroom(5*time.Second))
 					}
 					pidPath := filepath.Join(rec.WorkDir, "daemon.pid")
-					_ = publishDaemonPID(pidPath, owned.cmd.Process.Pid, netnsMode && netnsHasUID, netnsUID, netnsGID)
+					if err := publishDaemonPID(pidPath, owned.cmd.Process.Pid, netnsMode && netnsHasUID, netnsUID, netnsGID); err != nil {
+						rec.Error = fmt.Errorf("publish daemon PID: %w", err)
+						return false
+					}
 				}
 			case readySW != nil:
 				// awaitBackgroundReady above already saw the process say it can
@@ -1263,7 +1266,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					waitReady(testCtx, readyPath, r.withParallelHeadroom(5*time.Second))
 				}
 				pidPath := filepath.Join(rec.WorkDir, "daemon.pid")
-				_ = publishDaemonPID(pidPath, owned.cmd.Process.Pid, netnsMode && netnsHasUID, netnsUID, netnsGID)
+				if err := publishDaemonPID(pidPath, owned.cmd.Process.Pid, netnsMode && netnsHasUID, netnsUID, netnsGID); err != nil {
+					rec.Error = fmt.Errorf("publish daemon PID: %w", err)
+					return false
+				}
 			}
 		}
 	}

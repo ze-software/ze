@@ -89,6 +89,8 @@ type cliCommand struct {
 	Verb     string
 	Args     []string
 	Operator []string
+	parseErr error
+	words    cli.CommandWords
 }
 
 // commandBehindTop answers the command `top <command>` runs once at the root:
@@ -104,7 +106,7 @@ func commandBehindTop(cmd cliCommand) (cliCommand, bool) {
 	if len(cmd.Args) == 0 {
 		return cliCommand{}, false
 	}
-	return cliCommand{Verb: cmd.Args[0], Args: cmd.Args[1:], Operator: cmd.Operator}, true
+	return cliCommand{Verb: cmd.Args[0], Args: cmd.Args[1:], Operator: cmd.Operator, words: cmd.words.Tail()}, true
 }
 
 // parseCLICommand splits raw command text into a verb and argument list.
@@ -115,45 +117,20 @@ func parseCLICommand(input string) cliCommand {
 		return cliCommand{}
 	}
 
-	tokens := tokenizeCommand(input)
+	parsed, err := cli.ParseCommandWords(input)
+	if err != nil {
+		return cliCommand{parseErr: err}
+	}
+	tokens := parsed.Tokens()
 	if len(tokens) == 0 {
 		return cliCommand{}
 	}
 
 	return cliCommand{
-		Verb: tokens[0],
-		Args: tokens[1:],
+		Verb:  tokens[0],
+		Args:  tokens[1:],
+		words: parsed,
 	}
-}
-
-// tokenizeCommand splits input on whitespace, respecting double-quoted strings.
-func tokenizeCommand(input string) []string {
-	var tokens []string
-	var current textbuf.Buffer
-	inQuote := false
-
-	for _, r := range input {
-		if r == '"' {
-			inQuote = !inQuote
-			continue
-		}
-
-		if r == ' ' && !inQuote {
-			if current.Len() > 0 {
-				tokens = append(tokens, current.String())
-			}
-
-			continue
-		}
-
-		current.WriteRune(r)
-	}
-
-	if current.Len() > 0 {
-		tokens = append(tokens, current.String())
-	}
-
-	return tokens
 }
 
 // formatCLIPrompt returns the CLI bar prompt string for the given context path.
@@ -274,6 +251,10 @@ func HandleCLICommandWithAuthorizerAndAudit(mgr *EditorManager, schema *config.S
 		}
 
 		cmd := parseCLICommand(command)
+		if cmd.parseErr != nil {
+			writeCLINotification(w, renderer, cmd.parseErr.Error(), "error")
+			return
+		}
 		if cmd.Verb == "" {
 			http.Error(w, "empty command", http.StatusBadRequest)
 			return
@@ -341,7 +322,7 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 	case verbCommit:
 		handleCLICommit(w, r, renderer, mgr, username, cmd)
 	case verbDiscard:
-		handleCLIDiscard(w, r, renderer, mgr, username, cmd.Args, recorder)
+		handleCLIDiscard(w, r, renderer, mgr, username, cmd, recorder)
 	case verbWho:
 		handleCLIWho(w, renderer, mgr)
 	case verbHelp:
@@ -377,30 +358,24 @@ func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *co
 	writeCLIResponse(w, renderer, newPath, viewData)
 }
 
-// handleCLISet processes the "set" verb: sets a value at the current context path.
-// Supports paths into containers: "set local ip 127.0.0.1" navigates into "local"
-// and sets "ip" to "127.0.0.1". The last token is the value, the second-to-last
-// is the leaf name, and any preceding tokens extend the context path.
-// The full path (context + args) must resolve to a specific list entry, not an
-// anonymous list access (which would create a "default" entry).
-// errInvalidSetPath refuses a set whose path tokens fail ValidatePathSegments.
-var errInvalidSetPath = errors.New("invalid path")
-
 // splitSetArgs reads `set` the way the SSH editor does: the last token is the
 // value, the one before it the leaf, and the rest extend the context path. Both
 // web surfaces, the integrated CLI and the terminal, call it, so one line means
 // one thing in every editor. MUST be called with at least two arguments.
 func splitSetArgs(schema *config.Schema, contextPath, args []string) (setPath []string, key, value string, err error) {
-	if err := ValidatePathSegments(args[:len(args)-1]); err != nil {
-		return nil, "", "", errInvalidSetPath
-	}
 	value = args[len(args)-1]
 	key = args[len(args)-2]
 	setPath = append(append([]string{}, contextPath...), args[:len(args)-2]...)
 
-	// The target must be a leaf, not a container or list.
+	// The key-leaf form creates an entry. LookupTokenPath would instead
+	// consume the key-leaf name as an entry's address, so resolve this form
+	// before checking an ordinary leaf assignment.
+	if _, keyForm := keyLeafList(schema, setPath, key); keyForm {
+		return setPath, key, value, nil
+	}
+	// An ordinary assignment must target a leaf, not a container or list.
 	if schema != nil {
-		if node, lookupErr := schema.Lookup(config.JoinPath(append(setPath, key)...)); lookupErr == nil {
+		if node := schema.LookupTokenPath(slices.Concat(setPath, []string{key})); node != nil {
 			if node.Kind() != config.NodeLeaf {
 				return nil, "", "", fmt.Errorf("%s is not a leaf -- did you forget a value?", key)
 			}
@@ -460,10 +435,21 @@ func applyWebSet(mgr *EditorManager, schema *config.Schema, username string, at,
 		}
 	}
 	if err := mgr.SetValue(username, setPath, key, value); err != nil {
-		framed := framedWebSetRefusal(err, at, args, leafPath, operator)
-		// A value refusal is built masked; any other refusal names what it
-		// refused, so it is masked here.
-		return "", errors.New(config.DisplayMessageAtPath(schema, leafPath, framed.Error(), value))
+		var refusal *configyang.ValidationError
+		if errors.As(err, &refusal) {
+			if refusal.HoldsOperatorError() {
+				// Mask the semantic operand before the frame quotes it. Keep
+				// the typed refusal and mark the mask as replacement syntax.
+				displayArgs := slices.Clone(args)
+				displayArgs[len(args)-1] = config.DisplayValueAtPath(schema, leafPath, value)
+				var placeholders []int
+				if displayArgs[len(args)-1] != value {
+					placeholders = append(placeholders, len(args)-1)
+				}
+				return "", framedWebSetRefusal(err, at, displayArgs, leafPath, operator, placeholders...)
+			}
+		}
+		return "", errors.New(config.DisplayMessageAtPath(schema, leafPath, err.Error(), value))
 	}
 	// The acknowledgement travels to the browser in the response body, so a
 	// credential in it reaches view-source, the disk cache and any proxy that
@@ -503,7 +489,7 @@ func keyLeafList(schema *config.Schema, setPath []string, key string) (string, b
 // the line the operator typed, corrected: the value when the refusal names the
 // leaf set (its path is leafPath), else the list key the creator refused on
 // the way. An error that holds no schema refusal is answered as it is.
-func framedWebSetRefusal(err error, at, args, leafPath, operator []string) error {
+func framedWebSetRefusal(err error, at, args, leafPath, operator []string, placeholders ...int) error {
 	var refusal *configyang.ValidationError
 	if !errors.As(err, &refusal) {
 		return err
@@ -514,11 +500,11 @@ func framedWebSetRefusal(err error, at, args, leafPath, operator []string) error
 	if slices.Equal(refusal.Segments(), leafPath) {
 		return cli.FramedSetRefusal(err, at, args, operator)
 	}
-	return cli.FramedKeyRefusal(err, verbSet, at, args, operator)
+	return cli.FramedKeyRefusal(err, verbSet, at, args, operator, placeholders...)
 }
 
 // handleCLIDelete processes the "delete" verb: removes the node named by the
-// argument under the current context path. Schema-aware (mgr.DeleteByPath), so
+// complete argument path under the current context. Schema-aware (mgr.DeleteByPath), so
 // it deletes list entries and containers as well as leaves, matching the SSH
 // CLI's `delete` (cli.Model.cmdDelete). The leaf-only DeleteValue silently
 // no-ops on a list entry.
@@ -528,16 +514,12 @@ func handleCLIDelete(w http.ResponseWriter, r *http.Request, contextPath, args [
 		return
 	}
 
-	key := args[0]
-
-	if err := ValidatePathSegments([]string{key}); err != nil {
-		writeCLINotification(w, renderer, "invalid name", "error")
-		return
-	}
-
-	if err := mgr.DeleteByPath(username, contextPath, key); err != nil {
+	// These are config tokens, not URL segments. The editor resolves their
+	// full schema path, including a final leaf-list member.
+	path := slices.Concat(contextPath, args[:len(args)-1])
+	if err := mgr.DeleteByPath(username, path, args[len(args)-1]); err != nil {
 		var tb textbuf.Buffer
-		writeCLINotification(w, renderer, tb.Str("delete error: ").Str(key).Str(": ").Err(err).String(), "error")
+		writeCLINotification(w, renderer, tb.Str("delete error: ").Join(args, " ").Str(": ").Err(err).String(), "error")
 		return
 	}
 
@@ -645,9 +627,13 @@ func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer,
 // reverts every change, `discard <path>` the changes at that path. Each
 // successful discard is audited with the diff it dropped, as the terminal,
 // the Discard button and SSH record it.
-func handleCLIDiscard(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, args []string, recorder audit.Recorder) {
+func handleCLIDiscard(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, cmd cliCommand, recorder audit.Recorder) {
+	if cmd.words.FirstPipe() >= 0 {
+		writeCLINotification(w, renderer, "discard error: "+errDiscardPipe.Error(), "error")
+		return
+	}
 	before := mgr.Diff(username)
-	if _, err := runWebDiscard(mgr, username, args); err != nil {
+	if _, err := runWebDiscard(mgr, username, cmd.Args); err != nil {
 		writeCLINotification(w, renderer, "discard error: "+err.Error(), "error")
 		return
 	}

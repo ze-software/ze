@@ -35,6 +35,10 @@ type Parser struct {
 	// KeywordHint whether a compiled-out plugin owns it there. parseNode
 	// pushes and pops it; ParseAt seeds it with the context.
 	path []string
+	// collecting is enabled only by ParseDiagnostics. Refused scalar
+	// statements are collected at their terminator; no invalid tree escapes.
+	collecting bool
+	refusals   []error
 }
 
 // NewParser creates a new parser with the given schema.
@@ -196,6 +200,7 @@ func (p *Parser) parseBody(unknown string, hint func(name string, known []string
 // member answers the leaf-list member a member-level statement named, so the
 // statement's comments belong to that line; it is empty for a whole-node one.
 func (p *Parser) parseNodeInactive(tree *Tree, name string, node Node, line int) (member string, err error) {
+	defer func() { err = p.collectValueRefusal(err, node) }()
 	// These two arms read the leaf outside parseNode, so they name it on the
 	// way back to the root themselves.
 	if vn, ok := node.(*ValueOrArrayNode); ok {
@@ -272,7 +277,8 @@ func (p *Parser) parseInactiveBracketMember(tree *Tree, name string, node *Brack
 	}
 	if !present {
 		if err := ValidateLeafValue(node.memberLeaf(), []string{name}, member); err != nil {
-			return "", p.valueRefusal(tok, err, fileFix("inactive: "+name+" ", ";"), nil, "invalid value for %s: %v", name, err)
+			end := token{kind: tokenSemicolon, line: tok.line}
+			return "", p.valueRefusal(end, err, fileFix("inactive: "+name+" ", ";"), nil, "invalid value for %s: %v", name, err)
 		}
 		tree.AddMultiValueMember(name, member)
 	}
@@ -328,10 +334,12 @@ func applyInactive(tree *Tree, name string, node Node, p *Parser, line int) {
 // parseNode dispatches parsing based on schema node type.
 // Every known node type is handled explicitly; unknown types return an error.
 func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
+	start := len(p.refusals)
 	p.path = append(p.path, name)
 	err := p.parseNodeValue(tree, name, node)
 	p.path = p.path[:len(p.path)-1]
-	return prependSyntaxPath(err, name)
+	p.prefixRefusals(start, name)
+	return p.collectValueRefusal(prependSyntaxPath(err, name), node)
 }
 
 func (p *Parser) parseNodeValue(tree *Tree, name string, node Node) error {
@@ -400,7 +408,7 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	if tok.kind != tokenWord && tok.kind != tokenString {
 		if len(node.Enums) > 0 {
 			missing := configyang.MissingEnumValue([]string{name}, name, enumValues(node.Enums, node.EnumHelp))
-			return p.valueRefusal(tok, missing, fileFix(name+" ", ";"), nil, "")
+			return p.valueRefusal(token{line: tok.line}, missing, fileFix(name+" ", ";"), nil, "")
 		}
 		return p.errorf(tok, "expected value for %s, got %s", name, tok.kind)
 	}

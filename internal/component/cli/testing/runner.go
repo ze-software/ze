@@ -450,6 +450,18 @@ func runTestCaseInContext(ctx context.Context, tc *testCase, tmpDir string) *Tes
 		}
 		stepNum := stepIdx + 1
 		switch step.Type {
+		case StepFixture:
+			fixtureErr := hm.applyFixture(tc.Fixtures[step.FixtureIndex])
+			result.Steps = append(result.Steps, trace.StepResult{
+				Step: stepNum, Kind: etFixture, Assert: "api-set",
+				Passed: fixtureErr == nil, Detail: trace.ErrString(fixtureErr),
+			})
+			if fixtureErr != nil {
+				var tb textbuf.Buffer
+				result.Error = tb.Str("step ").Int(int64(stepNum)).Str(" (fixture api-set): ").Err(fixtureErr).String()
+				return result
+			}
+
 		case StepSession:
 			sa := tc.Sessions[step.SessionIndex]
 			if sa.User == "" {

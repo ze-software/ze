@@ -111,6 +111,10 @@ type plugin01HTTPError struct {
 func (e *plugin01HTTPError) Error() string { return fmt.Sprintf("HTTP %d: %s", e.status, e.body) }
 
 func plugin01REST(ctx context.Context, method, path string, payload any) (map[string]any, error) {
+	return plugin01RESTAt(ctx, "http://127.0.0.1:18088", method, path, payload)
+}
+
+func plugin01RESTAt(ctx context.Context, endpoint, method, path string, payload any) (map[string]any, error) {
 	var body io.Reader
 	if payload != nil {
 		encoded, err := json.Marshal(payload)
@@ -119,7 +123,7 @@ func plugin01REST(ctx context.Context, method, path string, payload any) (map[st
 		}
 		body = bytes.NewReader(encoded)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, "http://127.0.0.1:18088/api/v1"+path, body)
+	req, err := http.NewRequestWithContext(ctx, method, endpoint+"/api/v1"+path, body)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +152,11 @@ func plugin01REST(ctx context.Context, method, path string, payload any) (map[st
 }
 
 func plugin01RESTReady(ctx context.Context) bool {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1:18088/api/v1/commands", http.NoBody)
+	return plugin01RESTReadyAt(ctx, "http://127.0.0.1:18088")
+}
+
+func plugin01RESTReadyAt(ctx context.Context, endpoint string) bool {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"/api/v1/commands", http.NoBody)
 	if err != nil {
 		return false
 	}
@@ -206,11 +214,11 @@ func plugin01APIConfigCommitReject(ctx context.Context, plugin *sdk.Plugin) erro
 	return nil
 }
 
-// plugin01RESTRefusal answers the error text of a REST call the daemon must
+// plugin01RESTRefusalAt answers the error text of a REST call the daemon must
 // refuse with HTTP 400, decoded from the JSON envelope, or an error naming
 // what the call answered instead.
-func plugin01RESTRefusal(ctx context.Context, method, path string, body any) (string, error) {
-	_, err := plugin01REST(ctx, method, path, body)
+func plugin01RESTRefusalAt(ctx context.Context, endpoint, method, path string, body any) (string, error) {
+	_, err := plugin01RESTAt(ctx, endpoint, method, path, body)
 	if err == nil {
 		return "", fmt.Errorf("%s %s was accepted, a refusal was expected", method, path)
 	}
@@ -251,13 +259,13 @@ func plugin01RefusalHolds(label, text string, want, banned []string) error {
 // a list key outside its enumeration, refused at set (AC-43), and a value
 // outside an enumeration, refused at commit (AC-8). Each answers HTTP 400
 // with the shared refusal text, whose fix is the root `set` form.
-func plugin01APIConfigEnumRefusal(ctx context.Context, plugin *sdk.Plugin) error {
+func plugin01APIConfigEnumRefusal(ctx context.Context, plugin *sdk.Plugin, endpoint string) error {
 	if !Poll(ctx, 20, 500*time.Millisecond, func() bool {
-		return plugin01RESTReady(ctx)
+		return plugin01RESTReadyAt(ctx, endpoint)
 	}) {
 		return errors.New("REST API did not respond")
 	}
-	created, err := plugin01REST(ctx, http.MethodPost, "/config/sessions", nil)
+	created, err := plugin01RESTAt(ctx, endpoint, http.MethodPost, "/config/sessions", nil)
 	if err != nil {
 		return err
 	}
@@ -267,23 +275,23 @@ func plugin01APIConfigEnumRefusal(ctx context.Context, plugin *sdk.Plugin) error
 	}
 	session := "/config/sessions/" + sessionID
 
-	keyText, err := plugin01RESTRefusal(ctx, http.MethodPut, session,
+	keyText, err := plugin01RESTRefusalAt(ctx, endpoint, http.MethodPut, session,
 		map[string]string{fieldPath: "ospf.redistribute.bogus.nssa-propagate", fieldValue: "true"})
 	if err != nil {
 		return err
 	}
 	if err := plugin01RefusalHolds("key", keyText,
-		[]string{`"bogus" is not an accepted value`, "fix: set ospf redistribute <connected|static|kernel|bgp|isis>"},
+		[]string{`"bogus" is not an accepted value`, configKeyRefusalFix},
 		[]string{"line "}); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: REST session set refused the list key bogus with HTTP 400 and the set fix")
 
-	if _, err := plugin01REST(ctx, http.MethodPut, session,
+	if _, err := plugin01RESTAt(ctx, endpoint, http.MethodPut, session,
 		map[string]string{fieldPath: "bgp.peer.peer1.session.capability.route-refresh", fieldValue: "requre"}); err != nil {
 		return err
 	}
-	valueText, err := plugin01RESTRefusal(ctx, http.MethodPost, session+"/commit", nil)
+	valueText, err := plugin01RESTRefusalAt(ctx, endpoint, http.MethodPost, session+"/commit", nil)
 	if err != nil {
 		return err
 	}
@@ -300,6 +308,47 @@ func plugin01APIConfigEnumRefusal(ctx context.Context, plugin *sdk.Plugin) error
 		return fmt.Errorf("commit refusal does not end with its fix: %q", valueText)
 	}
 	fmt.Fprintln(os.Stderr, "OK: REST session commit refused route-refresh requre with HTTP 400 and the set fix last")
+
+	created, err = plugin01RESTAt(ctx, endpoint, http.MethodPost, "/config/sessions", nil)
+	if err != nil {
+		return err
+	}
+	sessionID, _ = created["session-id"].(string)
+	if sessionID == "" {
+		return fmt.Errorf("second create session response=%v", created)
+	}
+	session = "/config/sessions/" + sessionID
+	for path, value := range map[string]string{
+		"bgp.peer.peer1.session.capability.route-refresh": "requre",
+		"ospf.interfaces.interface.eth0.cost":             "0",
+	} {
+		if _, err := plugin01RESTAt(ctx, endpoint, http.MethodPut, session,
+			map[string]string{fieldPath: path, fieldValue: value}); err != nil {
+			return err
+		}
+	}
+	multiple, err := plugin01RESTRefusalAt(ctx, endpoint, http.MethodPost, session+"/commit", nil)
+	if err != nil {
+		return err
+	}
+	if err := plugin01RefusalHolds("two-value commit", multiple, []string{
+		"config validation failed:\n",
+		`bgp peer peer1 session capability route-refresh: "requre" is not an accepted value`,
+		`ospf interfaces interface eth0 cost: "0" is outside the accepted range`,
+		"  fix: set bgp peer peer1 session capability route-refresh require",
+		"  fix: set ospf interfaces interface eth0 cost <1..65535>",
+	}, []string{"line "}); err != nil {
+		return err
+	}
+	if strings.Count(multiple, "\n  fix: ") != 2 {
+		return fmt.Errorf("two-value commit does not hold two fix lines: %q", multiple)
+	}
+	for _, line := range strings.Split(multiple, "\n")[1:] {
+		if !strings.HasPrefix(line, "  ") {
+			return fmt.Errorf("two-value commit line lacks block indentation: %q", line)
+		}
+	}
+	fmt.Fprintln(os.Stderr, "OK: REST session commit returned both value refusals as indented blocks")
 
 	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
 		return err

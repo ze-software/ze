@@ -127,7 +127,9 @@ func TestTopKeepsPositionUnlessInnerMoves(t *testing.T) {
 func TestTopSavesTheOperatorPositionOnTheCopy(t *testing.T) {
 	m, _ := topInPeer(t)
 	cp := m
-	_, err := cp.cmdTop([]string{"top", "show"})
+	words, err := ParseCommandWords("top show")
+	require.NoError(t, err)
+	_, err = cp.cmdTop(words)
 	require.NoError(t, err)
 	assert.Equal(t, topPeerContext, cp.operatorPosition(), "the copy keeps the outermost origin")
 	assert.Nil(t, cp.contextPath, "the copy resolves at the root")

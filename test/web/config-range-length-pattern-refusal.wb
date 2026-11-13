@@ -1,15 +1,12 @@
-# Test: the web terminal refuses a range and a pattern miss at set
-# QUESTION: does a browser operator read the range and the pattern refusal at
-#           `set`, with the accepted bounds or format and the fix, through the
-#           daemon's own page? A unit test judges the leaf; only this run proves
-#           the page shows the refusal whole.
-# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-35 (range) and
-#            AC-37 (pattern) on the web terminal
-# PREVENTS: the web storing an out-of-range or malformed value until commit
-#
-# The length case of AC-36 (`run ""`) is not typed here: the web tokenizer
-# drops an empty quoted word (tokenizeCommand), so the line never carries an
-# empty value. That is a web tokenizer gap, reported with this draft.
+# Test: the web terminal refuses range, length, and pattern misses at set
+# QUESTION: does a browser operator read each declared-value refusal whole at
+#           `set`, with the accepted bounds or format and the fix, while the
+#           daemon's page retains the accepted value? A unit test judges the
+#           leaf; only this run proves the page delivers that complete answer
+#           and reads the retained value back from the server.
+# VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-35 (range),
+#            AC-36 (length), and AC-37 (pattern) on the web terminal
+# PREVENTS: the web storing an out-of-range, empty, or malformed value until commit
 #
 # No step sleeps: each command waits for its own request (action=wait) and each
 # outcome is a positive expectation, which polls.
@@ -32,6 +29,20 @@ expect=element:text=is outside the accepted range
 expect=element:text=cost accepts a value in 1..65535
 expect=element:text=fix: set ospf interfaces interface eth0 cost <1..65535>
 
+# An accepted value makes the later readback prove that refusal kept the leaf.
+action=fill:id=terminal-input:value=set exabgp bridge process p1 run "/bin/echo length-browser-sentinel"
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=set exabgp bridge process p1 run /bin/echo length-browser-sentinel
+
+action=fill:id=terminal-input:value=set exabgp bridge process p1 run ""
+action=press:id=terminal-input:key=Enter
+action=wait
+# Read quoted output from the DOM without accessibility serialization escapes.
+expect=html:contains=exabgp bridge process p1 run: "" is outside the accepted length (0 characters)
+expect=element:text=run accepts 1..4096 characters
+expect=element:text=fix: set exabgp bridge process p1 run <1..4096 characters>
+
 action=fill:id=terminal-input:value=set l2tp shaper default-rate fast
 action=press:id=terminal-input:key=Enter
 action=wait
@@ -43,3 +54,8 @@ action=press:id=terminal-input:key=Enter
 action=wait
 expect=element:not-text=cost 0
 expect=element:not-text=default-rate fast
+expect=element:text=length-browser-sentinel
+
+# A fresh server render must read the accepted value, not the empty attempt.
+action=open:path=/show/exabgp/bridge/process/p1/
+expect=html:contains=value="/bin/echo length-browser-sentinel"

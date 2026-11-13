@@ -1,6 +1,10 @@
 # Test: the config editor blocks a commit the BGP peer pipeline refuses
-# VALIDATES: a peer-pipeline error blocks `commit` while the operator still has
-#            the candidate on screen and leaves the edit pending.
+# QUESTION: Does `commit now` show the peer-pipeline refusal in full and keep
+#           the candidate pending?
+# A unit test cannot prove the editor input path reaches the registered BGP
+# validator and presents its refusal while retaining the pending edit.
+# VALIDATES: a peer-pipeline error blocks `commit`, shows its full reason in
+#            the viewport, and leaves the edit pending.
 # PREVENTS: the refusal arriving one step later as `commit failed:` about a
 #           config already written, or an editor build omitting the BGP check.
 #
@@ -57,7 +61,7 @@ expect=error:none
 
 input=type:text=commit now
 input=enter
-expect=status:contains=commit blocked
-expect=status:contains=peer peer1: the import filter list names bgp-role:otc-ingress, which its plugin inserts itself
-expect=status:contains=cannot be named, moved or deactivated
+expect=status:contains=commit blocked: 1 error(s), 0 warning(s)
+expect=viewport:contains=peer peer1: the import filter list names bgp-role:otc-ingress, which its plugin inserts itself
+expect=viewport:contains=cannot be named, moved or deactivated
 expect=dirty:true

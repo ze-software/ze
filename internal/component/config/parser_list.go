@@ -69,6 +69,8 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 // parseListFieldBlock parses the inside of { ... } as named fields for a single list entry.
 // The opening { has already been consumed.
 func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, key string, keyLine int) error {
+	start := len(p.refusals)
+	defer p.prefixRefusals(start, key)
 	entry := NewTree()
 	comments := p.newCommentScope(entry)
 
@@ -430,7 +432,7 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, node *MultiLeafNode) er
 	}
 	joined := textbuf.Join(words, " ")
 	if err := ValidateLeafValue(node.memberLeaf(), []string{name}, joined); err != nil {
-		return p.valueRefusal(token{line: p.tok.line}, err, fileFix(name+" ", ";"), nil, "invalid value for %s: %v", name, err)
+		return p.valueRefusal(token{kind: tokenSemicolon, line: p.tok.line}, err, fileFix(name+" ", ";"), nil, "invalid value for %s: %v", name, err)
 	}
 	tree.SetSlice(name, words)
 	return nil

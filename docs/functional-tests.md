@@ -4195,6 +4195,16 @@ Editor tests run through `./le test functional editor`; select one with `./le jo
 | `expect=key:path=` | `expect=key:path=file/active/test.conf:contains=65001` | Assert a decoded persistent value |
 | `expect=key:glob=` | `expect=key:glob=object/*:count=3` | Match keys with `path.Match` under the glob's literal prefix; `count`, `contains` and `not-contains` apply to the matched set, as in `.ci` key expectations |
 | `restart=` | `restart=editor` | Simulate exit + relaunch with the same store |
+| `fixture=api-set:path=...:value=...` | `fixture=api-set:path=bgp router-id:value=192.0.2.1` | Prepare a candidate through the API's editor writer, to exercise commit-time validation |
+
+An API candidate fixture runs at its authored step on the selected editor.
+It names a full setting path from the root and keeps its value exactly as
+written after `:value=`. It lets a test reach commit-time validation of a
+value the interactive `set` command would refuse immediately. It uses the
+real `Editor.SetValue`; a subsequent typed command performs normal product
+validation. The grammar is documented in
+[API candidate fixtures](architecture/testing/ci-format.md#api-candidate-fixtures).
+<!-- source: internal/component/cli/testing/fixture.go -- parseFixture, applyFixture -->
 
 Config fixtures are seeded once, and session drafts, versions and history use
 the same lifetime store owner. File expectations still inspect loose fixtures

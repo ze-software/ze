@@ -1,0 +1,125 @@
+# Test: quoted pipe arguments filter the editor's actual show output
+# QUESTION: does an editor operator keep a quoted literal pipe as the match
+# argument through root, context, top, and a later head filter, without moving
+# the prompt? A unit test dispatches a line; this drives the editor's keystrokes
+# and checks the viewport the operator reads.
+# VALIDATES: only the two pipe-bearing group lines survive match; head keeps
+# only the first, for both quote forms and behind top.
+# PREVENTS: a quoted pipe becoming an operator and an empty match retaining all
+# configuration lines.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session { asn { local 65000; } }
+  peer peer1 {
+    connection { remote { ip 1.1.1.1; } }
+    session { asn { remote 65001; } }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Seed through accepted editor commands, with a nonmatching control.
+input=type:text=set bgp group "pipe|one" session capability route-refresh enable
+input=enter
+expect=error:none
+input=type:text=set bgp group 'pipe|two' session capability route-refresh enable
+input=enter
+expect=error:none
+input=type:text=set bgp group plain-sentinel session capability route-refresh enable
+input=enter
+expect=error:none
+
+# Root: both matching group lines, then a real later operator.
+input=type:text=show | match "|"
+input=enter
+expect=error:none
+expect=viewport:contains=group pipe|one {
+expect=viewport:contains=group pipe|two {
+expect=viewport:not-contains=plain-sentinel
+expect=viewport:not-contains=router-id
+expect=viewport:not-contains=bgp {
+expect=viewport:pattern=\A[ \t]*group pipe\|one \{\n[ \t]*group pipe\|two \{\z
+expect=context:root
+expect=prompt:contains=ze#
+
+input=type:text=show | match '|' | head 1
+input=enter
+expect=error:none
+expect=viewport:contains=group pipe|one {
+expect=viewport:not-contains=pipe|two
+expect=viewport:pattern=\A[ \t]*group pipe\|one \{\z
+expect=context:root
+expect=prompt:contains=ze#
+
+# The same argument remains literal relative to the current context.
+input=type:text=edit bgp
+input=enter
+expect=error:none
+expect=context:path=bgp
+input=type:text=show | match '|'
+input=enter
+expect=error:none
+expect=viewport:contains=group pipe|one {
+expect=viewport:contains=group pipe|two {
+expect=viewport:not-contains=plain-sentinel
+expect=viewport:not-contains=router-id
+expect=viewport:pattern=\A[ \t]*group pipe\|one \{\n[ \t]*group pipe\|two \{\z
+expect=context:path=bgp
+expect=prompt:contains=ze[bgp]#
+
+input=type:text=show | match "|" | head 1
+input=enter
+expect=error:none
+expect=viewport:contains=group pipe|one {
+expect=viewport:not-contains=pipe|two
+expect=viewport:pattern=\A[ \t]*group pipe\|one \{\z
+expect=context:path=bgp
+expect=prompt:contains=ze[bgp]#
+
+# This context has no groups: top must run the complete pipeline at the root.
+input=type:text=edit peer peer1
+input=enter
+expect=error:none
+expect=context:path=bgp/peer/peer1
+input=type:text=top show | match "|"
+input=enter
+expect=error:none
+expect=viewport:contains=group pipe|one {
+expect=viewport:contains=group pipe|two {
+expect=viewport:not-contains=plain-sentinel
+expect=viewport:not-contains=router-id
+expect=viewport:not-contains=bgp {
+expect=viewport:pattern=\A[ \t]*group pipe\|one \{\n[ \t]*group pipe\|two \{\z
+expect=context:path=bgp/peer/peer1
+expect=prompt:contains=ze[bgp peer peer1]#
+
+input=type:text=top show | match '|' | head 1
+input=enter
+expect=error:none
+expect=viewport:contains=group pipe|one {
+expect=viewport:not-contains=pipe|two
+expect=viewport:pattern=\A[ \t]*group pipe\|one \{\z
+expect=context:path=bgp/peer/peer1
+expect=prompt:contains=ze[bgp peer peer1]#
+
+input=type:text=top top show | match '|'
+input=enter
+expect=error:none
+expect=viewport:contains=group pipe|one {
+expect=viewport:contains=group pipe|two {
+expect=viewport:pattern=\A[ \t]*group pipe\|one \{\n[ \t]*group pipe\|two \{\z
+expect=context:path=bgp/peer/peer1
+expect=prompt:contains=ze[bgp peer peer1]#
+
+input=type:text=top top show | match "|" | head 1
+input=enter
+expect=error:none
+expect=viewport:contains=group pipe|one {
+expect=viewport:not-contains=pipe|two
+expect=viewport:pattern=\A[ \t]*group pipe\|one \{\z
+expect=context:path=bgp/peer/peer1
+expect=prompt:contains=ze[bgp peer peer1]#

@@ -1,0 +1,36 @@
+# Test: gNMI Set delivers the shared enum refusal over TLS
+# VALIDATES: AC-9 of spec-config-enum-refusal-proposes-valid-values.
+# Why not a unit test: only the daemon proves the authenticated gNMI listener,
+# segment addressing, session editor and commit hook answer the same refusal.
+
+option=storage:value=disk
+option=timeout:value=30s
+
+tmpfs=gnmi-set-enum-refusal.conf:terminator=EOF_CONF
+plugin {
+    external gnmi-enum-refusal {
+        run "le test fixture plugin/gnmi-set-enum-refusal 127.0.0.1:$PORT2 api-refusal.pem"
+        encoder json
+    }
+}
+environment {
+    gnmi {
+        enabled true;
+        token "secret";
+        tls { cert "api-refusal.pem"; key "api-refusal.key"; }
+        server main { ip 127.0.0.1; port $PORT2; }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture config-refusal/tls api-refusal.pem api-refusal.key
+expect=exit:code=0
+cmd=foreground:seq=2:exec=ze start gnmi-set-enum-refusal.conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: gNMI enum key refused with InvalidArgument and the complete set fix
+expect=stderr:contains=OK: gNMI enum Set refused with Aborted and the set fix last
+expect=stderr:contains=OK: gNMI running config stayed unchanged
+expect=key:path=meta/config/gnmi-set-enum-refusal.conf/active:exists=true
+expect=key:path=meta/config/gnmi-set-enum-refusal.conf/candidate:absent=true
+expect=key:glob=object/*:count=1
+expect=key:glob=object/*:not-contains=requre

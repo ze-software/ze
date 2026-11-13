@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-10-23 |
+| Updated | 2026-11-13 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -56,6 +56,13 @@ error for a bare list name, so the 2026-10-10 `show <list>` row is present.
 - [ ] `cmd/ze/ze_core_usage.go` - `zeUsage`
 - [ ] `internal/le/site/commands.go` - `markdownCell`
 - [ ] `vendor/github.com/openconfig/goyang/pkg/yang/entry.go` - `ToEntry`, `ApplyDeviate`
+
+## Existing Mechanisms
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| Shared web view routing and path extraction | `cmd/ze/hub/service_web.go` `buildWebService`; `internal/component/web/fragment.go` `extractPath` | Routes `/show/` and `/monitor/` into the active UI; emitted `/config/edit/` URLs fall through and are parsed as YANG paths | Extends the shared routing to accept emitted edit URLs while preserving canonical `/show/` and authentication |
+| Per-user candidate rendering | `internal/component/web/handler_workbench.go` `HandleWorkbench`; `internal/component/web/editor.go` `EditorManager.Tree` | Renders fields from the authenticated user's existing candidate | Reuses it for edit URL readback; no second editor or state store |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -158,6 +165,7 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `parser-refuses-a-form-its-producer-emits` | 2026-11-13 | web `/config/edit/` emitter and view routing |
 | `parser-refuses-a-form-its-producer-emits` | 2026-10-27 | TestDiscardDeletesNewlyAddedValue unknown `bgp listen` |
 | `package-red-not-reproduced` | 2026-10-27 | cli multi-key rename and batched load session records |
 | `schema-constraint-not-enforced` | 2026-10-30 | leaf-list `range` ignored by `ParseTreeWithYANG` |

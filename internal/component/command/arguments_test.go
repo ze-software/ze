@@ -37,9 +37,7 @@ func TestWriteInvocationPlacesEachValueWhereTheDispatcherBindsIt(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var tb textbuf.Buffer
-			if err := WriteInvocation(&tb, path, InvocationArgs(defs), tc.values); err != nil {
-				t.Fatal(err)
-			}
+			WriteInvocation(&tb, path, InvocationArgs(defs), tc.values)
 			if got := tb.String(); got != tc.want {
 				t.Errorf("got %q, want %q", got, tc.want)
 			}
@@ -47,16 +45,32 @@ func TestWriteInvocationPlacesEachValueWhereTheDispatcherBindsIt(t *testing.T) {
 	}
 }
 
-// TestWriteInvocationRefusesADoubleQuote: the dispatcher's grammar carries no
-// escape for a double quote, so a value holding one is refused by name rather
-// than sent as tokens nobody typed.
-func TestWriteInvocationRefusesADoubleQuote(t *testing.T) {
-	var tb textbuf.Buffer
-	err := WriteInvocation(&tb, []string{"socket", "open"}, []InvocationArg{{Name: "label"}}, map[string]string{"label": `a"b`})
-	if err == nil {
-		t.Fatal("expected a refusal")
+// TestWriteInvocationQuotesLiteralSyntax proves admitted argument bytes are
+// encoded as one operational token, including the formerly unrepresentable
+// double quote. Actual dispatcher replay is covered in the server package.
+func TestWriteInvocationQuotesLiteralSyntax(t *testing.T) {
+	cases := []struct {
+		value string
+		want  string
+	}{
+		{value: `a"b`, want: `socket open label "a\"b"`},
+		{value: `a\b`, want: `socket open label "a\\b"`},
+		{value: `a|b`, want: `socket open label "a|b"`},
+		{value: "a b", want: `socket open label "a b"`},
+		{value: "a\nb", want: `socket open label "a\nb"`},
+		{value: "a\rb", want: `socket open label "a\rb"`},
+		{value: "a\tb", want: `socket open label "a\tb"`},
+		{value: "\u00a0a\u00a0", want: "socket open label \"\u00a0a\u00a0\""},
+		{value: "it's", want: `socket open label "it's"`},
+		{value: "'tis", want: `socket open label "'tis"`},
 	}
-	if got := err.Error(); got != "argument label: a value cannot hold a double quote" {
-		t.Errorf("error = %q", got)
+	for _, tc := range cases {
+		t.Run(tc.value, func(t *testing.T) {
+			var tb textbuf.Buffer
+			WriteInvocation(&tb, []string{"socket", "open"}, []InvocationArg{{Name: "label"}}, map[string]string{"label": tc.value})
+			if got := tb.String(); got != tc.want {
+				t.Errorf("invocation = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

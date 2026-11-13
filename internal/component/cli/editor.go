@@ -1045,7 +1045,7 @@ func (e *Editor) readChangeFileContent(reader pendingChangeReader, path string) 
 	if err != nil {
 		return nil, nil, err
 	}
-	_, meta, ops, parseErr := config.ParseChangeFile(string(data), config.NewSetParser(e.schema))
+	_, meta, ops, parseErr := config.ParseCandidateChangeFile(string(data), e.schema)
 	return meta, ops, parseErr
 }
 

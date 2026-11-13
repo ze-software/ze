@@ -220,6 +220,19 @@ per-user authentication for API-driven config changes.
 
 <!-- source: internal/component/api/config_session.go -- ConfigSessionManager -->
 
+A session refuses a new list key that its YANG type does not accept before
+changing the candidate. The answer lists the accepted keys with their help
+and ends with the complete corrected `set` command, including the setting
+and value after the key. For example, setting
+`ospf.redistribute.bogus.nssa-propagate` to `true` proposes
+`fix: set ospf redistribute <connected|static|kernel|bgp|isis> nssa-propagate true`.
+REST answers HTTP 400, and gRPC answers `InvalidArgument`. gNMI `Set` uses the
+same editor and answers `InvalidArgument` with the same refusal. A commit
+that refuses a value leaves the running configuration unchanged; the refusal
+follows [Value refusals](../architecture/config/yang-config-design.md#value-refusals).
+<!-- source: internal/component/cli/editor_commands.go -- SetValue -->
+<!-- source: internal/component/api/config_session.go -- Set, SetSegments -->
+
 ### Documentation
 
 | Path | Description |

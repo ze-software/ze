@@ -97,7 +97,7 @@ func TestModelCmdTop(t *testing.T) {
 	model.contextPath = []string{"bgp", "peer", "1.1.1.1"}
 
 	// Call top
-	result, err := model.cmdTop(nil)
+	result, err := model.cmdTop(CommandWords{})
 	require.NoError(t, err)
 
 	// Should clear context

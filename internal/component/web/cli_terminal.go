@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -198,6 +199,10 @@ func executeTerminalCommand(ctx context.Context, schema *config.Schema, viewTree
 		path: append([]string{}, contextPath...),
 		mode: normalizeTerminalMode(mode),
 	}
+	if cmd.parseErr != nil {
+		result.output = "error: " + cmd.parseErr.Error()
+		return result
+	}
 
 	if result.mode == terminalModeOperational {
 		return executeTerminalOperationalMode(ctx, schema, viewTree, mgr, username, remoteAddr, result.path, cmd, raw, dispatch)
@@ -240,7 +245,11 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 	case verbDiscard:
 		// Discard runs here, not in executeTerminalNav, because its success is
 		// what the audit row needs and the navigator answers text only. Every
-		// token is a config path token; runWebDiscard refuses a pipe by name.
+		// token is a config path token; only a bare pipe is an operator.
+		if cmd.words.FirstPipe() >= 0 {
+			result.output = "error: " + errDiscardPipe.Error()
+			return result
+		}
 		answer, err := runWebDiscard(mgr, username, cmd.Args)
 		if err != nil {
 			var tb textbuf.Buffer
@@ -381,7 +390,7 @@ func terminalFeedback(cmd cliCommand, output string) string {
 		}
 	case verbDelete:
 		if len(cmd.Args) >= 1 {
-			return tb.Str("deleted ").Str(cmd.Args[0]).String()
+			return tb.Str("deleted ").Join(cmd.Args, " ").String()
 		}
 	case verbCommit:
 		if strings.HasPrefix(output, "error") || strings.HasPrefix(output, "commit conflicts") {
@@ -414,10 +423,11 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 	}
 
 	// Check for pipe in args: split into command args and pipe filters.
-	allTokens := append([]string{cmd.Verb}, cmd.Args...)
-	if pipeIdx := cli.FindPipeIndex(allTokens); pipeIdx > 0 {
-		baseCmd := cliCommand{Verb: allTokens[0], Args: allTokens[1:pipeIdx], Operator: cmd.Operator}
-		filters := cli.ParsePipeFilters(allTokens[pipeIdx+1:])
+	if cmd.words.FirstPipe() > 0 {
+		commandWords, pipeWords := cmd.words.SplitPipe()
+		tokens := commandWords.Tokens()
+		baseCmd := cliCommand{Verb: tokens[0], Args: tokens[1:], Operator: cmd.Operator, words: commandWords}
+		filters := cli.ParsePipeFilters(pipeWords)
 		opts, classErr := cli.ClassifyShowPipes(filters)
 		if classErr != nil {
 			var tb textbuf.Buffer
@@ -927,15 +937,14 @@ func executeTerminalDelete(mgr *EditorManager, username string, contextPath, arg
 	}
 
 	var tb textbuf.Buffer
-	if err := ValidatePathSegments([]string{args[0]}); err != nil {
-		return tb.Str("error: invalid name: ").Str(args[0]).String()
+	// Pass every config token to the editor's schema-aware deletion. A
+	// suffix can name one leaf-list member rather than its whole container.
+	path := slices.Concat(contextPath, args[:len(args)-1])
+	if err := mgr.DeleteByPath(username, path, args[len(args)-1]); err != nil {
+		return tb.Str("error: ").Join(args, " ").Str(": ").Err(err).String()
 	}
 
-	if err := mgr.DeleteByPath(username, contextPath, args[0]); err != nil {
-		return tb.Reset().Str("error: ").Str(args[0]).Str(": ").Err(err).String()
-	}
-
-	return tb.Reset().Str("deleted ").Str(args[0]).String()
+	return tb.Str("deleted ").Join(args, " ").String()
 }
 
 // webCommitRequest parses the arguments after `commit` with the grammar every
@@ -983,12 +992,9 @@ var errDiscardPipe = errors.New("discard takes no pipe: it prints no output to f
 // conflict's fix line prints. Its segments are config tokens, a member such
 // as 192.0.2.2/30 included, so they are not checked as URL segments: a path
 // naming no pending change is refused by EditorManager.DiscardPath, never
-// read as done. A pipe is refused first: discard prints nothing to filter, and
-// a refusal naming `|` as a path would send the operator looking for one.
+// read as done. Callers refuse structural pipes before passing the path;
+// quoted pipes remain legitimate data inside a schema-addressed key.
 func runWebDiscard(mgr *EditorManager, username string, args []string) (string, error) {
-	if cli.FindPipeIndex(args) >= 0 {
-		return "", errDiscardPipe
-	}
 	if len(args) == 0 {
 		return discardEveryChange(mgr, username)
 	}

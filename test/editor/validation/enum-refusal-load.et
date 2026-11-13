@@ -1,0 +1,47 @@
+# Test: a refused enum in a relative load names the full setting and snippet fix
+# QUESTION: does the editor show the complete refusal for a snippet loaded in
+# a context, and keep the candidate unchanged? A unit test cannot prove the
+# keystroke path paints the refusal in the viewport.
+# VALIDATES: AC-19 -- context and key in the problem, file-form fix, no change.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session { asn { local 65000; } }
+  peer peer1 {
+    connection { remote { ip 1.1.1.1; } }
+    session { asn { remote 65001; } }
+  }
+}
+EOF_CONF
+
+tmpfs=bad.conf:terminator=EOF_BAD
+session { capability { route-refresh requre; } }
+EOF_BAD
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit bgp peer peer1
+input=enter
+expect=context:path=bgp/peer/peer1
+input=type:text=load file relative merge bad.conf
+input=enter
+expect=error:contains=bgp peer peer1 session capability route-refresh: "requre" is not an accepted value
+expect=viewport:contains=route-refresh accepts only these values:
+expect=viewport:contains=fix: route-refresh require;
+expect=context:path=bgp/peer/peer1
+expect=dirty:false
+input=type:text=show
+input=enter
+expect=viewport:not-contains=requre
+
+# The same load door accepts a valid snippet.
+input=type:text=load terminal relative merge
+input=enter
+input=type:text=session { capability { route-refresh require; } }
+input=ctrl:key=d
+expect=error:none
+expect=context:path=bgp/peer/peer1
+expect=content:contains=route-refresh require
+expect=dirty:true

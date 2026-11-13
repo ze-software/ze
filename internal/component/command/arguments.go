@@ -9,7 +9,6 @@
 package command
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
@@ -37,19 +36,13 @@ import (
 //
 // An empty value is left out rather than sent: the dispatcher's own mandatory
 // check then names the missing argument, and an optional one is simply absent.
-// A value holding a space is quoted, which is the dispatcher's grouping rule
-// (tokenize). Its grammar carries no escape for a double quote, so a value
-// holding one is refused: sent, it would split into tokens nobody typed.
+// Literal values use WriteInvocationValue's operational quoting, as read by
+// ScanInvocation. A quoted quote or pipe remains data rather than changing the
+// token or pipeline boundary.
 //
 // The path and the definitions come from the model this binary carries, and
 // the values from one request, so every loop below is bounded.
-func WriteInvocation(tb *textbuf.Buffer, path []string, defs []InvocationArg, values map[string]string) error {
-	for name, value := range values {
-		if strings.ContainsRune(value, '"') {
-			return fmt.Errorf("argument %s: a value cannot hold a double quote", name)
-		}
-	}
-
+func WriteInvocation(tb *textbuf.Buffer, path []string, defs []InvocationArg, values map[string]string) {
 	placed := make(map[string]bool, len(values))
 	for i, segment := range path {
 		if i > 0 {
@@ -93,15 +86,31 @@ func WriteInvocation(tb *textbuf.Buffer, path []string, defs []InvocationArg, va
 		tb.Byte(' ').Str(name).Byte(' ')
 		WriteInvocationValue(tb, values[name])
 	}
-	return nil
 }
 
 // WriteInvocationValue writes one value as the dispatcher's tokenizer reads
-// it: bare, or double-quoted when it holds a space.
+// it: bare, or double-quoted when a byte would change its token or pipe boundary.
+// Escapes inside quotes preserve quotes, backslashes and line/control spacing.
 func WriteInvocationValue(tb *textbuf.Buffer, value string) {
-	if strings.ContainsAny(value, " \t") {
-		tb.Byte('"').Str(value).Byte('"')
+	if !strings.ContainsAny(value, " \t\r\n|\"'\\") && strings.TrimSpace(value) == value {
+		tb.Str(value)
 		return
 	}
-	tb.Str(value)
+	tb.Byte('"')
+	for i := range len(value) {
+		c := value[i]
+		switch c {
+		case '"', '\\':
+			tb.Byte('\\').Byte(c)
+		case '\n':
+			tb.Str(`\n`)
+		case '\r':
+			tb.Str(`\r`)
+		case '\t':
+			tb.Str(`\t`)
+		default:
+			tb.Byte(c)
+		}
+	}
+	tb.Byte('"')
 }

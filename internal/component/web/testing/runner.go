@@ -614,23 +614,24 @@ func (b *Browser) getHeadHTML() (string, error) {
 	return b.runAgentOutput("get", "html", "head")
 }
 
-// Close closes the browser session. When the browser is bound to a session,
-// only that session is closed. Without a session, all sessions are closed.
+// Close closes the owned browser session. A browser without an owned session
+// returns an error.
 //
 // Close goes through runAgentEnsureDaemon like every other command. A close
 // sent with --ignore-https-errors to the daemon this browser started printed
 // "--ignore-https-errors ignored: daemon already running" once per test. That
 // warning is about this browser's own daemon, and it read as a shared daemon
 // that had lost the option.
-// Close MUST be called before releasing the case's resources. Its separate
-// command context bounds cleanup even when execution expired. The caller MUST
-// report an error as incomplete cleanup, never as a passing case.
+// Close MUST be called before releasing the case's resources. Cleanup retains
+// the scheduler's command budget policy and gets a fresh command bound, separate
+// from execution cancellation and its deadline. The caller MUST report an error
+// as incomplete cleanup, never as a passing case.
 func (b *Browser) Close() error {
 	if b.session == "" {
 		return errors.New("browser cleanup incomplete: no owned session")
 	}
 	parent := b.ctx
-	b.ctx = context.Background()
+	b.ctx = context.WithoutCancel(parent)
 	defer func() { b.ctx = parent }()
 	if err := b.runAgentEnsureDaemon("close"); err != nil {
 		return fmt.Errorf("browser session %q cleanup incomplete: %w", b.session, err)

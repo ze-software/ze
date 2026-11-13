@@ -184,8 +184,10 @@ The YANG schema drives the entire UI. No hardcoded field lists.
 A union leaf's `LeafNode` also lists its member types in `Union`, in declared
 order. A value the editor submits is judged against each member in turn and is
 accepted at the first that takes it (RFC 7950 Section 9.12); a value no member
-takes is refused with each member's reason, rather than accepted unchecked.
-<!-- source: internal/component/config/schema.go -- UnionMember, validateUnionValue -->
+takes is refused. For enum members, the refusal lists their accepted values
+and help; other member types are named in words.
+<!-- source: internal/component/config/schema.go -- UnionMember -->
+<!-- source: internal/component/config/leaf_value.go -- validateUnionValue -->
 <!-- source: internal/component/web/fragment.go -- buildFieldMeta, nodeDescription -->
 <!-- source: internal/component/web/handler_config_leaf.go -- buildLeafField -->
 <!-- source: internal/component/web/handler_config_walk.go -- buildConfigViewData -->

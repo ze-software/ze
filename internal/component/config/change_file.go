@@ -389,6 +389,17 @@ func SortPendingChanges(changes []PendingChange) {
 	})
 }
 
+// ParseCandidateChangeFile restores an unvalidated per-user candidate. Leaf
+// values and leaf-list members remain available for correction after commit
+// refuses them. Paths, list keys, token counts and structural syntax still
+// have to parse. Callers MUST validate the candidate before publishing it.
+// Normal file loading MUST use ParseChangeFile or the ordinary config parsers.
+func ParseCandidateChangeFile(content string, schema *Schema) (*Tree, *MetaTree, []StructuralOp, error) {
+	parser := NewSetParser(schema)
+	parser.candidateValues = true
+	return ParseChangeFile(content, parser)
+}
+
 // ParseChangeFile parses a per-user change file into tree, meta, and structural ops.
 // Rename directives are validated strictly; malformed rename lines return an error.
 func ParseChangeFile(content string, parser *SetParser) (*Tree, *MetaTree, []StructuralOp, error) {

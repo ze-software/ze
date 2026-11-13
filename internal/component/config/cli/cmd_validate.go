@@ -66,7 +66,7 @@ func ValidateContent(input, path string) error {
 // file-form fix of the line it refused, which a session cannot type.
 func sessionFixRefusal(refusal *configyang.ValidationError) *configyang.ValidationError {
 	var fix textbuf.Buffer
-	fix.Str("set ").Str(textbuf.Join(refusal.Segments(), " ")).Byte(' ').Str(refusal.Correction())
+	fix.Str("set ").Str(config.FormatEditPath(refusal.Segments())).Byte(' ').Str(refusal.CorrectionText())
 	return refusal.WithFix(fix.String())
 }
 
@@ -367,22 +367,23 @@ func runValidation(input, path string) *validationResult {
 	// set", so `ze config validate` disagreed with what `ze start` actually loads.
 	var tree *config.Tree
 	var warnings []string
+	var parseErrors []error
 	switch format := config.DetectFormat(input); format {
 	case config.FormatSet, config.FormatSetMeta:
 		// The set parser's own refusal, like the hierarchical arm's: the
 		// loader's "parse config" segment belongs to daemon start and reload,
 		// so `line N: ` is followed by the path directly (AC-24).
-		tree, err = config.ParseSetFormat(schema, input, format)
+		tree, parseErrors = config.ParseSetDiagnostics(schema, input, format)
 	case config.FormatHierarchical:
 		p := config.NewParser(schema)
-		tree, err = p.Parse(input)
-		if err == nil {
+		tree, parseErrors = p.ParseDiagnostics(input)
+		if len(parseErrors) == 0 {
 			warnings = p.Warnings()
 		}
 	default:
 		panic("BUG: unknown detected config format")
 	}
-	if err != nil {
+	for _, err := range parseErrors {
 		// The parser names the line once (config.LineError); the diagnostic
 		// holds it in its own field and every printer writes it back, so the
 		// message is the refusal with that line left out.
@@ -392,7 +393,7 @@ func runValidation(input, path string) *validationResult {
 		// refusal of one leaf the same way (AC-11).
 		if refusal, ok := errors.AsType[*configyang.ValidationError](err); ok && refusal.HoldsOperatorError() {
 			result.addRefusal(refusalDiagnostic(schema, refusal, message, line), refusal)
-			return result
+			continue
 		}
 		// A node the schema carries only on another OS (ze:os) is a verdict
 		// about this host, not about the config, so it carries its own code.
@@ -401,6 +402,8 @@ func runValidation(input, path string) *validationResult {
 			code = diagnostic.CodeConfigNodeOtherOS
 		}
 		result.addErrorLine(code, message, line)
+	}
+	if len(parseErrors) > 0 {
 		return result
 	}
 

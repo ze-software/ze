@@ -144,6 +144,12 @@ func (m *Model) cmdCommitRequest(req contract.CommitRequest) (commandResult, err
 		return m.cmdCommit()
 	case contract.CommitConfirmed:
 		if m.editor.HasSession() {
+			// An invalid candidate gets the same refusal on every editor.
+			// The daemon requirement still protects a valid offline session.
+			result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
+			if refusal, blocked := m.commitValidationRefusal(result, req.Force, contract.ForcedCommand(req)); blocked {
+				return refusal, nil
+			}
 			return commandResult{}, errCommitConfirmedNeedsDaemon
 		}
 		if !m.confirmTimerActive {

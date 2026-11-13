@@ -150,14 +150,16 @@ editor words `edit`, `add`, `form`, `add-form`, `changes`, `rename`, `discard`
 and `compare` are this router's own and the verb registry holds none of them.
 
 <!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes, configVerbs -->
+<!-- source: cmd/ze/hub/service_web.go -- buildWebService, canonical show routing -->
+<!-- source: internal/component/web/handler_workbench.go -- HandleWorkbench, per-user editable fields -->
 <!-- source: internal/component/command/verbs.go -- VerbShow, VerbMonitor, VerbSet, VerbDelete, VerbCommit -->
 <!-- source: internal/component/web/handler_config_form.go -- HandleConfigDeleteWithAuthorizer -->
 
 | Tier | URL Pattern | Method | Description |
 |------|-------------|--------|-------------|
-| View | `/show/<yang-path>` | GET | Read-only config tree view |
+| View | `/show/<yang-path>` | GET | Config tree view |
 | View | `/monitor/<yang-path>` | GET | View with auto-polling |
-| Config | `/config/edit/<path>` | GET | Editable config tree view |
+| Config | `/show/<path>` | GET | Editable config tree view using the authenticated user's pending changes |
 | Config | `/config/set/<path>` | POST | Set a leaf value |
 | Config | `/config/add/<path>` | POST | Create a list entry (with optional field values) |
 | Config | `/config/add-form/<path>` | GET | Fetch add-entry overlay form |
@@ -275,6 +277,12 @@ framed for the position, and the Rename button's refusal ends with
 <!-- source: internal/component/web/cli.go -- applyWebSet, framedWebSetRefusal -->
 <!-- source: internal/component/web/handler_config_entry.go -- addFieldSetPath -->
 
+Fix commands quote list keys and values that contain spaces or quotes. Type
+the whole printed command, including its quotes. A refused key can precede a
+secret assignment: its correction keeps the assignment and masks the secret.
+<!-- source: internal/component/web/cli.go -- framedWebSetRefusal -->
+<!-- source: internal/component/cli/fix_frame.go -- FrameFix -->
+
 | Type | Validation |
 |------|-----------|
 | IP address | Must be a valid IPv4 or IPv6 address |
@@ -340,7 +348,7 @@ In integrated mode, CLI commands update the page content directly:
 |---------|--------|
 | `edit <path>` | Navigate to a config path |
 | `set [path] <leaf> <value>` | Set a value under the current context path. The last token is the value and the one before it the leaf, as in the SSH CLI; quote a value that holds spaces |
-| `delete <leaf>` | Delete a value at the current context path |
+| `delete <path> [member]` | Delete the schema node at the path relative to the current view, or only the named leaf-list member. The rest of the leaf-list and its containing section stay in place |
 | `show [path]` | Display config text at the current or specified path |
 | `top` | Navigate to root |
 | `top <command>` | Run one command as if at the root context, whatever the command is (`top set ospf router-id 192.0.2.9`, `top show`). The position stays where it was unless the command moves it (`top edit ospf`). The terminal reads `top` before it splits a pipe, so `top show \| format config` shows the root |
@@ -408,7 +416,7 @@ Admin command results are displayed as titled cards showing the command name, ou
 
 ## Resilience
 
-**Corrupt change files:** If a per-user change file in the live store does not parse, every edit and every commit for that user fails with an error naming the file, and the file is left as it was. Its pending changes are never dropped in silence: the operator inspects the file, then discards the changes (`discard`) to start again.
+**Corrupt change files:** If a per-user change file in the live store has an unknown path, malformed command or invalid structural syntax, every edit and every commit for that user fails with an error naming the file, and the file is left as it was. Its pending changes are never dropped in silence: the operator inspects the file, then discards the changes (`discard`) to start again. An invalid leaf value or leaf-list member in an API candidate remains editable: commit refuses the value, and the operator can apply its proposed correction without discarding other changes.
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
 
 **Asset caching:** Static assets (`/assets/`) are served with `Cache-Control: no-cache, must-revalidate` so browsers always pick up changes after binary updates without requiring a hard refresh.

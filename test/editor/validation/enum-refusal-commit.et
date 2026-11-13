@@ -1,0 +1,196 @@
+# Test: a refused commit proposes a correction usable from the current context
+# QUESTION: can an operator read the full refusal, type its printed top set
+# correction and commit without moving or activating the leaf? Only a complete
+# keystroke run proves the status, viewport, correction and stored result agree.
+# VALIDATES: AC-23 -- file and session mode, root, peer and unrelated contexts,
+# commit now, verify, confirmed and show errors, including an inactive leaf.
+# The fixture seeds the candidate through the real API writer; typed set still
+# refuses the bad value immediately.
+
+tmpfs=test.conf:terminator=EOF_CONF
+plugin { internal bgp-rib { use bgp-rib; } }
+bgp {
+  router-id 1.2.3.4;
+  session { asn { local 65000; } }
+  peer peer1 {
+    connection { local { ip auto; } remote { ip 1.1.1.1; } }
+    session { asn { remote 65001; } }
+    timer { receive-hold-time 90; }
+    attach process bgp-rib {
+      receive [ update-received state refresh ];
+      send [ update ];
+    }
+  }
+}
+ospf {
+  router-id 1.2.3.4;
+  areas { area 0.0.0.0 {} }
+  interfaces { interface eth0 { area 0.0.0.0; cost 10; } }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=30s
+
+# The control makes other semantic errors visible before the refused value
+# can stop validation early and hide them.
+input=type:text=commit verify
+input=enter
+expect=error:none
+expect=status:contains=commit verify: the candidate is valid; nothing was applied
+expect=dirty:false
+expect=context:root
+
+# File mode: at the root the correction is a root set command.
+fixture=api-set:path=bgp peer peer1 session capability route-refresh:value=requre
+input=type:text=commit now
+input=enter
+expect=status:contains=commit blocked: 1 error(s)
+expect=viewport:contains=bgp peer peer1 session capability route-refresh: "requre" is not an accepted value
+expect=viewport:contains=route-refresh accepts only these values:
+expect=viewport:contains=Advertise the capability; no enforcement
+expect=viewport:contains=fix: set bgp peer peer1 session capability route-refresh require
+expect=viewport:not-contains=route-refresh require;
+expect=dirty:true
+expect=key:path=file/active/test.conf:not-contains=requre
+
+# Every commit/report form shows the same complete correction in a context.
+input=type:text=edit bgp peer peer1
+input=enter
+input=type:text=commit verify
+input=enter
+expect=status:contains=commit verify: nothing was applied; 1 error(s)
+expect=viewport:contains=fix: top set bgp peer peer1 session capability route-refresh require
+expect=context:path=bgp/peer/peer1
+expect=dirty:true
+
+input=type:text=commit confirmed 60
+input=enter
+expect=error:contains=commit blocked: 1 error(s)
+expect=viewport:contains=fix: top set bgp peer peer1 session capability route-refresh require
+expect=viewport:not-contains=cannot commit:
+expect=timer:inactive
+expect=context:path=bgp/peer/peer1
+
+input=type:text=show | errors
+input=enter
+expect=viewport:contains=route-refresh accepts only these values:
+expect=viewport:contains=fix: top set bgp peer peer1 session capability route-refresh require
+expect=context:path=bgp/peer/peer1
+
+# Type the printed correction exactly, then commit from the same position.
+input=type:text=top set bgp peer peer1 session capability route-refresh require
+input=enter
+expect=error:none
+expect=context:path=bgp/peer/peer1
+input=type:text=commit now
+input=enter
+expect=error:none
+expect=viewport:pattern=(?s)session[[:space:]]*[{].*route-refresh[[:space:]]+require
+expect=viewport:not-contains=commit blocked:
+expect=status:contains=committed
+expect=dirty:false
+expect=context:path=bgp/peer/peer1
+expect=key:path=file/active/test.conf:contains=require
+expect=key:path=file/active/test.conf:not-contains=requre
+
+# A correction from an unrelated context preserves the inactive marker.
+fixture=api-set:path=bgp peer peer1 session capability route-refresh:value=requre
+input=type:text=deactivate session capability route-refresh
+input=enter
+expect=error:none
+input=type:text=top edit ospf
+input=enter
+input=type:text=commit now
+input=enter
+expect=status:contains=commit blocked: 1 error(s)
+expect=viewport:contains=fix: top set bgp peer peer1 session capability route-refresh require
+expect=context:path=ospf
+input=type:text=top set bgp peer peer1 session capability route-refresh require
+input=enter
+expect=error:none
+expect=context:path=ospf
+input=type:text=commit now
+input=enter
+expect=error:none
+expect=dirty:false
+expect=context:path=ospf
+input=type:text=top show | format config
+input=enter
+expect=viewport:contains=nop bgp peer peer1 session capability route-refresh require
+expect=context:path=ospf
+
+# Restore the active control before opening the independent session editor.
+input=type:text=top activate bgp peer peer1 session capability route-refresh
+input=enter
+input=type:text=commit now
+input=enter
+expect=error:none
+expect=dirty:false
+
+session=alice:user=alice,origin=ssh
+expect=context:root
+fixture=api-set:path=bgp peer peer1 session capability route-refresh:value=requre
+input=type:text=commit now
+input=enter
+expect=status:contains=commit blocked: 1 error(s)
+expect=viewport:contains=fix: set bgp peer peer1 session capability route-refresh require
+expect=dirty:true
+expect=key:path=file/active/test.conf:not-contains=requre
+
+input=type:text=edit bgp peer peer1
+input=enter
+input=type:text=commit verify
+input=enter
+expect=status:contains=commit verify: nothing was applied; 1 error(s)
+expect=viewport:contains=fix: top set bgp peer peer1 session capability route-refresh require
+expect=context:path=bgp/peer/peer1
+input=type:text=commit confirmed 60
+input=enter
+expect=error:none
+expect=status:contains=commit blocked: 1 error(s)
+expect=viewport:contains=fix: top set bgp peer peer1 session capability route-refresh require
+expect=viewport:not-contains=cannot commit:
+expect=timer:inactive
+expect=context:path=bgp/peer/peer1
+input=type:text=show | errors
+input=enter
+expect=viewport:contains=route-refresh accepts only these values:
+expect=viewport:contains=fix: top set bgp peer peer1 session capability route-refresh require
+expect=context:path=bgp/peer/peer1
+input=type:text=top set bgp peer peer1 session capability route-refresh require
+input=enter
+expect=error:none
+expect=context:path=bgp/peer/peer1
+input=type:text=commit now
+input=enter
+expect=error:none
+expect=status:contains=committed
+expect=dirty:false
+expect=context:path=bgp/peer/peer1
+expect=key:path=file/active/test.conf:not-contains=requre
+
+# Session mode also keeps an inactive leaf inactive after the printed repair.
+fixture=api-set:path=bgp peer peer1 session capability route-refresh:value=requre
+input=type:text=deactivate session capability route-refresh
+input=enter
+expect=error:none
+input=type:text=top edit ospf
+input=enter
+input=type:text=commit now
+input=enter
+expect=status:contains=commit blocked: 1 error(s)
+expect=viewport:contains=fix: top set bgp peer peer1 session capability route-refresh require
+expect=context:path=ospf
+input=type:text=top set bgp peer peer1 session capability route-refresh require
+input=enter
+expect=error:none
+expect=context:path=ospf
+input=type:text=commit now
+input=enter
+expect=error:none
+expect=status:contains=committed
+expect=dirty:false
+expect=context:path=ospf
+expect=key:path=file/active/test.conf:contains=nop bgp peer peer1 session capability route-refresh require
+expect=key:path=file/active/test.conf:not-contains=requre

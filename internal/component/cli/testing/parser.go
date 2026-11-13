@@ -34,9 +34,10 @@ const (
 	StepWait
 	StepSession
 	StepRestart
+	StepFixture
 )
 
-// Step represents a single ordered step in the test (input, expect, wait, or session).
+// Step represents a single ordered action or assertion in the test.
 type Step struct {
 	Type         StepType
 	InputIndex   int // Index into Inputs slice (if Type == StepInput)
@@ -44,6 +45,7 @@ type Step struct {
 	WaitIndex    int // Index into Waits slice (if Type == StepWait)
 	SessionIndex int // Index into Sessions slice (if Type == StepSession)
 	RestartIndex int // Index into Restarts slice (if Type == StepRestart)
+	FixtureIndex int // Index into Fixtures slice (if Type == StepFixture)
 }
 
 // testCase represents a parsed .et (Editor Test) file.
@@ -55,6 +57,7 @@ type testCase struct {
 	Waits    []WaitAction    // Wait actions
 	Sessions []SessionAction // Session create/switch actions
 	Restarts []struct{}      // Restart markers (no parameters)
+	Fixtures []apiSetFixture // Candidate setup through the real API editor writer
 	Steps    []Step          // Ordered sequence of steps (preserves interleaving)
 }
 
@@ -120,6 +123,7 @@ var shorthandKeys = map[string]bool{
 const (
 	etExpect     = "expect"
 	etFile       = "file"
+	etFixture    = "fixture"
 	etInput      = "input"
 	etMode       = "mode"
 	etRestart    = "restart"
@@ -147,6 +151,7 @@ var validActions = map[string]bool{
 	etWait:    true,
 	etSession: true,
 	etRestart: true,
+	etFixture: true,
 }
 
 // parseETFile parses an .et (Editor Test) file content.
@@ -224,6 +229,9 @@ func (tc *testCase) parseLine(line string, scanner *bufio.Scanner, lineNum *int)
 	}
 	if action == "restart" {
 		return tc.parseRestart(rest)
+	}
+	if action == etFixture {
+		return tc.parseFixture(rest)
 	}
 
 	// Should never reach here due to validActions check above

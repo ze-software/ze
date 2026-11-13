@@ -30,7 +30,8 @@ brackets an address and stays in the word through its `]`. That is how the
 IPv6 route-target redirect is written, `extended-community
 [redirect:[2001:db8::1]:100]`, the same form ze prints for a received one. A
 `[` glued to any other character, such as `0x48[64,24]`, still opens a list.
-<!-- source: internal/component/config/tokenizer.go -- tokenizer.readWord, tokenizer.wordAddressEnd -->
+<!-- source: internal/component/config/tokenizer.go -- tokenizer.readWord -->
+<!-- source: internal/core/configtext/token.go -- WordEnd, addressEnd -->
 
 The parser is YANG-driven: each config node's type (leaf, leaf-list, container, list) determines how it is parsed. No custom `ze:syntax` annotations are used in ze-native config.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- module ze-bgp-conf structure -->
@@ -110,10 +111,10 @@ address) keeps its own text.
 
 A new list key is judged where the entry is created: `EnsureListEntry`, the one
 creator, refuses a first key value its key leaf refuses before it stores
-anything, so `set ospf redistribute bogus metric 30` creates nothing and its
-fix keeps `metric 30`. Only an address the operator typed is judged. The
-anonymous entry and a key read back from a session change file are not, and an
-entry already stored is returned as it is, so every stored entry stays
+anything, so `set ospf redistribute bogus nssa-propagate true` creates nothing
+and its fix keeps `nssa-propagate true`. Only an address the operator typed is
+judged. The anonymous entry and a key read back from a session change file are
+not, and an entry already stored is returned as it is, so every stored entry stays
 reachable.
 <!-- source: internal/component/config/leaf_value.go -- ValidateLeafValue, ValidateListKey, validateUnionValue, validateDecimal64Leaf -->
 <!-- source: internal/component/config/parser_diagnostics.go -- valueRefusal, namedRefusal -->
@@ -135,8 +136,8 @@ A value is a bare word or a quoted string. A bare word ends at whitespace, a
 brace, a bracket, `;`, a quote or `#`, and a word that starts with `(` or `)`
 is read as that parenthesis instead (`endsWord`, `scan`, `tokenizer.go`). A `[`
 straight after a `:` stays in the word through its `]`, as in
-`redirect:[2001:db8::1]:100`. A double-quoted string decodes `\"`, `\\`, `\n`
-and `\t` (and `\'`); a single-quoted one decodes the same escapes. A quote
+`redirect:[2001:db8::1]:100`. A double-quoted string decodes `\"`, `\\`, `\n`,
+`\r` and `\t` (and `\'`); a single-quoted one decodes the same escapes. A quote
 with no closing quote before the end of the file is a syntax error naming the
 line it opens on: no string runs to the end of the file (`readString`,
 `refuseUnterminated` in `parser.go`).
@@ -144,10 +145,12 @@ line it opens on: no string runs to the end of the file (`readString`,
 Every printer (`ze config fmt`, `show`, the set writers the editor stores)
 writes a value bare only when the tokenizer reads that bare word back as the
 same value, and quotes it otherwise (`QuoteIfNeeded`, `list_key.go`). The
-decision asks the tokenizer itself (`bareWordReadsBack`), so the quoting rule
-cannot drift from what ends a word. `x]y(z`, `a[b`, a value holding a newline or
-a carriage return, and `(open` are therefore written quoted.
-<!-- source: internal/component/config/tokenizer.go -- bareWordReadsBack, endsWord, readString -->
+decision uses the shared quoter's bare-word check and the same `WordEnd` scanner
+the tokenizer uses, so the quoting rule cannot drift from what ends a word.
+`x]y(z`, `a[b`, a value holding a newline or a carriage return, and `(open` are
+therefore written quoted. The shared quoter preserves invalid UTF-8 bytes too.
+<!-- source: internal/core/configtext/token.go -- bareWord, WordEnd, QuoteToken -->
+<!-- source: internal/component/config/tokenizer.go -- readWord, readString -->
 <!-- source: internal/component/config/list_key.go -- QuoteIfNeeded -->
 
 ### Leaf-List (single or multiple values)

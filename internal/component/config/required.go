@@ -6,17 +6,18 @@ package config
 
 import (
 	"slices"
-	"strings"
 
+	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // RequiredViolation reports a missing ze:required field on a list entry.
 type RequiredViolation struct {
-	AnchorPath string // schema path to the list (e.g., "bgp/peer")
-	EntryKey   string // list entry key (e.g., "london")
-	FieldPath  string // missing descendant path (e.g., "connection/remote/ip")
-	SetHint    string // suggested set command
+	AnchorPath string   // schema path to the list (e.g., "bgp/peer")
+	EntryKey   string   // list entry key (e.g., "london")
+	FieldPath  string   // missing descendant path (e.g., "connection/remote/ip")
+	SetHint    string   // suggested set command
+	Path       []string // instance path words, including every ancestor list key
 }
 
 // CheckRequired walks the schema for ListNodes carrying ze:required and
@@ -27,11 +28,11 @@ func CheckRequired(schema *Schema, data map[string]any) []RequiredViolation {
 		return nil
 	}
 	var violations []RequiredViolation
-	walkRequired(schema.root, data, "", &violations)
+	walkRequired(schema.root, data, "", nil, &violations)
 	return violations
 }
 
-func walkRequired(node Node, data map[string]any, path string, violations *[]RequiredViolation) {
+func walkRequired(node Node, data map[string]any, path string, words []string, violations *[]RequiredViolation) {
 	switch n := node.(type) {
 	case *ContainerNode:
 		for _, name := range n.order {
@@ -41,11 +42,11 @@ func walkRequired(node Node, data map[string]any, path string, violations *[]Req
 			if !ok {
 				continue
 			}
-			walkRequired(child, childData, childPath, violations)
+			walkRequired(child, childData, childPath, append(slices.Clone(words), name), violations)
 		}
 
 	case *ListNode:
-		checkListRequired(n, data, path, violations)
+		checkListRequired(n, data, path, words, violations)
 		for _, entryKey := range sortedAnyMapKeys(data) {
 			entryData, ok := data[entryKey].(map[string]any)
 			if !ok {
@@ -58,13 +59,15 @@ func walkRequired(node Node, data map[string]any, path string, violations *[]Req
 				if !ok {
 					continue
 				}
-				walkRequired(child, childData, childPath, violations)
+				childWords := append(slices.Clone(words), storedListKeyTokens(n, entryKey)...)
+				childWords = append(childWords, name)
+				walkRequired(child, childData, childPath, childWords, violations)
 			}
 		}
 	}
 }
 
-func checkListRequired(listNode *ListNode, data map[string]any, anchorPath string, violations *[]RequiredViolation) {
+func checkListRequired(listNode *ListNode, data map[string]any, anchorPath string, words []string, violations *[]RequiredViolation) {
 	if len(listNode.Required) == 0 {
 		return
 	}
@@ -82,13 +85,18 @@ func checkListRequired(listNode *ListNode, data map[string]any, anchorPath strin
 			if !hasNestedMapValue(entryData, reqPath) {
 				fieldStr := textbuf.Join(reqPath, "/")
 				var tb textbuf.Buffer
-				setPath := tb.Str(anchorPath).Byte(' ').Str(entryKey).Byte(' ').Join(reqPath, " ").String()
-				setPath = strings.ReplaceAll(setPath, "/", " ")
+				setting := append(slices.Clone(words), storedListKeyTokens(listNode, entryKey)...)
+				setting = append(setting, reqPath...)
+				tb.Str("set")
+				for _, word := range setting {
+					tb.Byte(' ').Str(configtext.QuoteCommandWord(word))
+				}
 				*violations = append(*violations, RequiredViolation{
 					AnchorPath: anchorPath,
 					EntryKey:   entryKey,
 					FieldPath:  fieldStr,
-					SetHint:    tb.Reset().Str("set ").Str(setPath).Str(" <value>").String(),
+					SetHint:    tb.Str(" <value>").String(),
+					Path:       setting,
 				})
 			}
 		}

@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -19,7 +20,7 @@ import (
 // args is found from that path: the word at that place must be the refused
 // key, or the line does not hold it and err is answered as it is, as is an
 // error that holds no value refusal.
-func FramedKeyRefusal(err error, verb string, at, args, operator []string) error {
+func FramedKeyRefusal(err error, verb string, at, args, operator []string, placeholders ...int) error {
 	refusal, ok := valueRefusal(err)
 	if !ok {
 		return err
@@ -33,14 +34,14 @@ func FramedKeyRefusal(err error, verb string, at, args, operator []string) error
 	if !slices.Equal(typed[:len(segments)], segments) {
 		return err
 	}
-	return FramedWordRefusal(err, verb, at, args, index, operator)
+	return FramedWordRefusal(err, verb, at, args, index, operator, placeholders...)
 }
 
 // FramedWordRefusal answers err with its fix replaced by the command the
 // operator typed, verb and args relative to at, with args[index], the refused
 // word, replaced by its correction. An error that holds no value refusal, or
 // an index outside args, answers err as it is.
-func FramedWordRefusal(err error, verb string, at, args []string, index int, operator []string) error {
+func FramedWordRefusal(err error, verb string, at, args []string, index int, operator []string, placeholders ...int) error {
 	refusal, ok := valueRefusal(err)
 	if !ok {
 		return err
@@ -48,9 +49,8 @@ func FramedWordRefusal(err error, verb string, at, args []string, index int, ope
 	if index < 0 || index >= len(args) {
 		return err
 	}
-	corrected := slices.Clone(args)
-	corrected[index] = refusal.Correction()
-	return refusal.WithFix(FrameFix(FixCommand{Verb: verb, At: at, Args: corrected}, operator))
+	fix := correctionFix(verb, at, args, index, refusal).withPlaceholders(placeholders...)
+	return refusal.WithFix(FrameFix(fix, operator))
 }
 
 // InEntryKeyLeafRefusal answers the refusal of a `set` whose path, from the
@@ -75,7 +75,13 @@ func InEntryKeyLeafRefusal(schema *config.Schema, path, at, operator []string) e
 	}
 
 	var problem textbuf.Buffer
-	problem.Join(path, " ").Str(": ").Str(leaf).Str(" is the key of list ").Str(entry.ListName).
+	for i, word := range path {
+		if i > 0 {
+			problem.Byte(' ')
+		}
+		problem.Str(configtext.QuoteToken(word))
+	}
+	problem.Str(": ").Str(leaf).Str(" is the key of list ").Str(entry.ListName).
 		Str(" and cannot be set inside an entry")
 	var why textbuf.Buffer
 	why.Str("rename changes the key of an existing entry, and set would store ").Str(leaf).
@@ -91,7 +97,7 @@ func InEntryKeyLeafRefusal(schema *config.Schema, path, at, operator []string) e
 		// root, behind `top` (FrameFix).
 		fix.Args = slices.Concat(listPath, keyWords(entry, entryPath), []string{"to", "<new-key>"})
 	}
-	return opererr.New(problem.String(), why.String(), FrameFix(fix, operator))
+	return opererr.New(problem.String(), why.String(), FrameFix(fix.withPlaceholders(len(fix.Args)-1), operator))
 }
 
 // keyWords answers the words of entryPath that address the entry.

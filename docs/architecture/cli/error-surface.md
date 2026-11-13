@@ -285,6 +285,22 @@ form and the commit modal hold no position, so their fix is the command from
 the root. The position a fix is framed for is the one the operator stands at
 (`Model.operatorPosition`), never the root a `top` line ran at.
 
+Fixes retain each literal key and value as one token. The shared config quoter
+quotes and escapes concrete words, including an actual enum name containing
+spaces or quotes. The refusal producer separately marks correction
+placeholders such as `<1..4096 characters>`, so those remain readable syntax
+to replace. A literal `<two words>` is quoted as data. A literal `"|"` is data
+too; only a bare pipe is an operator. The parsed command keeps that lexical
+distinction through `top` dispatch and every filter in a pipeline. Its words
+and pipe positions are private, and callers receive copies of decoded words.
+File-form corrections use the same literal-versus-placeholder decision as
+command-form corrections.
+<!-- source: internal/core/configtext/token.go -- QuoteToken, QuoteCommandWord -->
+<!-- source: internal/component/config/yang/refusal.go -- correctionToken, CorrectionText, CorrectionIsPlaceholder -->
+<!-- source: internal/component/config/edit_path.go -- ParseEditWords -->
+<!-- source: internal/component/cli/command_words.go -- CommandWords, ParseCommandWords, Tail, SplitPipe -->
+<!-- source: internal/component/cli/model_load.go -- ParsePipeFilters -->
+
 <!-- source: internal/component/cli/fix_frame.go -- FixCommand, FrameFix, FramedSetRefusal -->
 <!-- source: internal/component/cli/key_refusal.go -- FramedKeyRefusal, FramedWordRefusal -->
 <!-- source: internal/component/cli/model_commands.go -- cmdTop -->

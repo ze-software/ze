@@ -53,6 +53,14 @@ func ParseEditPath(path string) ([]string, error) {
 	return splitQuotedTokens(path)
 }
 
+// ParseEditWords reads the same tokens and retains whether each was quoted.
+// Commands use this lexical fact before treating punctuation as an operator.
+func ParseEditWords(path string) ([]string, []bool, error) {
+	var quoted []bool
+	words, err := splitQuotedTokensMarked(path, &quoted)
+	return words, quoted, err
+}
+
 // CanonicalEditPath normalizes every list address, not just the final entry.
 // Explicit defaults and differently ordered key pairs name the same path.
 func CanonicalEditPath(schema *Schema, tokens []string) ([]string, error) {

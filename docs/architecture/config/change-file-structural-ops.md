@@ -145,6 +145,28 @@ write-through keeps a pending delete rather than dropping it.
 config never contain one, so the materialized draft and commit formats are
 unchanged.
 
+A per-user change file holds an unvalidated candidate. API edits may store a
+leaf value or leaf-list member that commit will refuse. The editor restores
+those values without judging their leaf constraints, so the operator can
+replace them after a refused commit or a reconnect. Reading pending changes
+uses the same decoder. Paths, list keys, token counts, secret encodings and
+structural directive syntax still have to parse; an error keeps the file and
+refuses the operation. The normal set and change-file parsers remain strict.
+Saving and committing still run the candidate's validation before publishing it.
+<!-- source: internal/component/config/change_file.go -- ParseCandidateChangeFile, ParseChangeFile -->
+<!-- source: internal/component/cli/editor_draft.go -- readChangeFile, SaveDraft -->
+<!-- source: internal/component/cli/editor.go -- readChangeFileContent -->
+
+The shared token codec records quoting for candidate reads. A bracket inside
+a quoted member remains data, including when that member fails its leaf
+constraints. A bare delimiter run that the strict parser refuses keeps that
+refusal; deferring the member constraints cannot turn broken brackets into
+editable values. The accepted older joined-member spelling keeps its existing
+interpretation.
+<!-- source: internal/component/config/list_key.go -- splitQuotedTokensMarked -->
+<!-- source: internal/component/config/setparser_candidate.go -- candidateMembers -->
+<!-- source: internal/component/config/setparser_meta.go -- parseLineWithMeta, walkAndSetWithMeta -->
+
 ## Why not decompose into leaf edits
 
 - A mass of synthetic set and delete entries hides what the operator meant.

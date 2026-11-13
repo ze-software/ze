@@ -209,11 +209,7 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher, trees Ad
 		}
 
 		path := parsed.Path
-		commandStr, err := commandArguments(path, adminNodeAt(tree, path), r.PostForm)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+		commandStr := commandArguments(path, adminNodeAt(tree, path), r.PostForm)
 
 		if dispatch == nil {
 			http.Error(w, "admin commands not available in standalone mode", http.StatusServiceUnavailable)
@@ -287,11 +283,11 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher, trees Ad
 // other one as keyword and value after the command. The form prints one input
 // for each declared argument, so only a declared name is read: a field nobody
 // declared is a crafted request and reaches nothing.
-func commandArguments(path []string, node *command.Node, form url.Values) (string, error) {
+func commandArguments(path []string, node *command.Node, form url.Values) string {
 	var tb textbuf.Buffer
 	if node == nil {
 		tb.Join(path, " ")
-		return tb.String(), nil
+		return tb.String()
 	}
 
 	values := make(map[string]string, len(node.ArgDefs))
@@ -299,10 +295,8 @@ func commandArguments(path []string, node *command.Node, form url.Values) (strin
 		name := node.ArgDefs[i].Name()
 		values[name] = strings.TrimSpace(form.Get(name))
 	}
-	if err := command.WriteInvocation(&tb, path, command.InvocationArgs(node.ArgDefs), values); err != nil {
-		return "", err
-	}
-	return tb.String(), nil
+	command.WriteInvocation(&tb, path, command.InvocationArgs(node.ArgDefs), values)
+	return tb.String()
 }
 
 // buildAdminFragmentData builds FragmentData for the admin command tree,

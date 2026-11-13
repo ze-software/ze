@@ -50,7 +50,7 @@ func (p *SetParser) framedRefusal(err error, path, before, after []string) *conf
 	for _, word := range before {
 		fix.Byte(' ').Str(QuoteIfNeeded(word))
 	}
-	fix.Byte(' ').Str(refusal.Correction())
+	fix.Byte(' ').Str(refusal.CorrectionText())
 	for _, word := range after {
 		fix.Byte(' ').Str(QuoteIfNeeded(word))
 	}

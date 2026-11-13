@@ -116,9 +116,11 @@ expectation diagnostic still explains which directives reach the peer.
 <!-- source: internal/test/runner/peer_startup.go -- awaitPeerListening -->
 
 Web servers use that same sole-reaper ownership through `StartServerProcess`.
-They start on `plugin.StartChild`'s persistent spawner thread. Server stop joins
-the owner before removing its directory, releasing ports, or returning the
-scheduler lease. Cleanup failures fail the case while retaining browser steps
+It merges the caller's requested credentials and capabilities with the canonical
+process group and parent-death attributes through `forkAttributes`, preserving
+the original request. Children start on `plugin.StartChild`'s persistent spawner
+thread. Server stop joins the owner before removing its directory, releasing
+ports, or returning the scheduler lease. Cleanup failures fail the case while retaining browser steps
 and earlier errors. The owner remains attached if the kernel cannot finish
 reaping; a timeout alone never establishes cleanup.
 `ServerProcess.Wait` and `Done` observe that same reaper; they never call a
@@ -706,15 +708,14 @@ Diagnostic queries consume the existing capture retry/case budget.
 <!-- source: internal/le/site/terminaldemo/web_config.go -- runWebConfigJourney -->
 
 Request observation is registered on the owned native daemon before the first
-application navigation. The pinned agent-browser 0.26.0 does not consume
-`AGENT_BROWSER_INIT_SCRIPTS`; the runner uses its newline-JSON `addinitscript`
+application navigation. The runner uses the native newline-JSON `addinitscript`
 action, backed by `Page.addScriptToEvaluateOnNewDocument` on the persistent
 active-page CDP session. Before registration, it evaluates that same source with
 an explicit `about:blank` guard and requires a positive installation result,
 preserving browser exception details. Registration or evaluation failure prevents
 application navigation and retains normal checked browser cleanup. It never
 injects observation after an application page has already started its requests.
-The endpoint follows the pinned native directory priority: explicit
+The endpoint follows the native directory priority: explicit
 `AGENT_BROWSER_SOCKET_DIR`, `XDG_RUNTIME_DIR/agent-browser`, the home directory's
 `.agent-browser`, then platform temp. Unix uses the owned session's `.sock`;
 Windows reads its actual `.port` sidecar. Dial/read/write share the case budget;
@@ -722,10 +723,17 @@ the cancellation callback is joined and each connection closed before return.
 Responses must be complete newline-JSON, at most 1 MiB, and match the request ID
 with an explicit success verdict. There is no version fallback or guessed idle.
 <!-- source: internal/component/web/testing/render_observer.go -- Browser.renderObserverScript, renderObserver.command, renderObserverSocketDir -->
-The pinned native contract is implemented by its
+The native contract is documented by agent-browser 0.26.0's
 [script actions](https://github.com/vercel-labs/agent-browser/blob/v0.26.0/cli/src/native/actions.rs),
 [CDP registration and evaluation](https://github.com/vercel-labs/agent-browser/blob/v0.26.0/cli/src/native/browser.rs),
 and [session transport](https://github.com/vercel-labs/agent-browser/blob/v0.26.0/cli/src/connection.rs).
+The host CI installs the current agent-browser and Chrome; the terminal
+recording container separately pins agent-browser 0.26.0. The native observer
+integration tests exercise registration before page scripts and preservation of
+JavaScript exceptions against the installed host toolchain.
+<!-- source: .github/workflows/verify.yml -- agent-browser installation -->
+<!-- source: demos/terminal/Dockerfile -- agent-browser installation -->
+<!-- source: internal/component/web/testing/render_observer_integration_test.go -- TestBrowserNativeObserverPrecedesPageScript, TestBrowserNativeObserverPropagatesException -->
 
 Two properties of `wait-until` bite if you assume otherwise.
 
@@ -833,6 +841,12 @@ identity and never sends `close --all`.
 <!-- source: internal/test/cli/cmd_web.go -- zeTestRunWebTest, per-test ReservePorts + MkdirTemp + session -->
 <!-- source: internal/test/cli/cmd_web.go -- zeTestBrowserSession -->
 <!-- source: internal/component/web/testing/runner.go -- newBrowserWithSession, agentEnv sets AGENT_BROWSER_SESSION -->
+
+Browser cleanup retains the scheduler's command budget policy while detaching
+from execution cancellation and its deadline. Its fresh command context remains
+bounded. A close failure fails the case and preserves the completed steps.
+<!-- source: internal/component/web/testing/runner.go -- Close, runAgentCore, runWBCase -->
+<!-- source: internal/component/web/testing/deadline.go -- CaseContext, Bound -->
 
 ## `.ci` and `.et` formats
 
@@ -992,6 +1006,16 @@ still uses the system temp directory.
 
 <!-- source: internal/test/sessionpath -- DefaultScratchRoot, EnsureScratchRoot -->
 <!-- source: internal/test/runner/runner.go -- run and per-test working directories -->
+
+The runner publishes `daemon.pid` by writing and closing a temporary file beside
+the destination, applying any dropped-user ownership, then renaming it into
+place. A fixture that waits for the public path therefore sees a complete,
+readable PID. A failed publication fails the command; its existing process
+owner stops and reaps the child before the test returns. A failed replacement
+keeps the previous identity and removes the staged file.
+<!-- source: internal/test/runner/runner_exec_util.go -- publishDaemonPID -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+<!-- test: internal/test/runner/daemon_pid_test.go -- TestPublishDaemonPIDReplacesIdentity, TestPublishDaemonPIDOwnershipFailure, TestPublishDaemonPIDRenameFailure -->
 
 ## Timing baseline and auto-timeout
 

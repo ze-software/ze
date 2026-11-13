@@ -12,7 +12,8 @@
 // finding, and a tag split across a Str(...) chain is one literal per part.
 //
 // It reads the FORM of a tag rather than its name. `usage: set <leaf> <value>`
-// is therefore not a finding.
+// is therefore not a finding. Direct string arguments to opererr.New and Wrap
+// are plain operator text, so their multiword placeholders are not markup.
 //
 // Markup takes one of four forms. A close tag, a self-closing tag, an open tag
 // carrying an attribute, or a void element. A bare `<name>` completes the
@@ -31,10 +32,14 @@
 package markupcheck
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -223,9 +228,13 @@ func scan(file, src string) ([]Site, int) {
 		sites    []Site
 		literals int
 	)
+	operatorText := operatorTextLiterals(src)
 
 	for _, lit := range literalsOf(src) {
 		literals++
+		if operatorText[lit.offset] {
+			continue
+		}
 
 		tag, ok := firstTag(lit.text)
 		if !ok {
@@ -238,10 +247,117 @@ func scan(file, src string) ([]Site, int) {
 	return sites, literals
 }
 
-// literal is one string constant and the line it starts on.
+// operatorTextLiterals locates direct literals and concatenations passed as the
+// problem, why, or fix of the canonical opererr.New and Wrap. Their contract is
+// plain text (internal/core/opererr/opererr.go, Error), even when a command
+// placeholder has the same form as an HTML tag with boolean attributes.
+//
+// The parse adds context only. If source is incomplete, the lexical scan still
+// checks every literal. Nested calls and function bodies are not direct text:
+// they can build markup before another function turns it into operator text.
+func operatorTextLiterals(src string) map[int]bool {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		return nil
+	}
+
+	aliases := make(map[string]bool)
+	for _, spec := range file.Imports {
+		path, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			continue
+		}
+		if path != "github.com/ze-software/ze/internal/core/opererr" {
+			continue
+		}
+		name := "opererr"
+		if spec.Name != nil {
+			name = spec.Name.Name
+		}
+		if name == "." {
+			continue
+		}
+		if name == "_" {
+			continue
+		}
+		aliases[name] = true
+	}
+
+	offsets := make(map[int]bool)
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		for _, arg := range operatorTextArgs(call, aliases) {
+			markOperatorText(arg, fset, offsets)
+		}
+		return true
+	})
+	return offsets
+}
+
+// operatorTextArgs resolves only the imported constructors. Parser object
+// resolution distinguishes an import reference from a local name that hides it.
+func operatorTextArgs(call *ast.CallExpr, aliases map[string]bool) []ast.Expr {
+	helper, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr)
+	if !ok {
+		return nil
+	}
+	alias, ok := ast.Unparen(helper.X).(*ast.Ident)
+	if !ok {
+		return nil
+	}
+	if alias.Obj != nil {
+		return nil
+	}
+	if !aliases[alias.Name] {
+		return nil
+	}
+	if call.Ellipsis.IsValid() {
+		return nil
+	}
+
+	start := 0
+	switch helper.Sel.Name {
+	case "New":
+		if len(call.Args) != 3 {
+			return nil
+		}
+	case "Wrap":
+		if len(call.Args) != 4 {
+			return nil
+		}
+		start = 1
+	default:
+		return nil
+	}
+	return call.Args[start:]
+}
+
+// markOperatorText records literal byte offsets without following nested
+// producers. The ordinary lexer owns literal contents and the literal census.
+func markOperatorText(expr ast.Expr, fset *token.FileSet, offsets map[int]bool) {
+	switch value := ast.Unparen(expr).(type) {
+	case *ast.BasicLit:
+		if value.Kind == token.STRING {
+			offsets[fset.Position(value.Pos()).Offset] = true
+		}
+	case *ast.BinaryExpr:
+		if value.Op != token.ADD {
+			return
+		}
+		markOperatorText(value.X, fset, offsets)
+		markOperatorText(value.Y, fset, offsets)
+	}
+}
+
+// literal is one string constant and the byte offset and line it starts on.
 type literal struct {
-	line int
-	text string
+	offset int
+	line   int
+	text   string
 }
 
 // literalsOf returns every string literal in src, raw and interpreted, with
@@ -272,12 +388,12 @@ func literalsOf(src string) []literal {
 			}
 
 			end += i + 1
-			out = append(out, literal{line: line, text: src[i+1 : end]})
+			out = append(out, literal{offset: i, line: line, text: src[i+1 : end]})
 			line += strings.Count(src[i:end], "\n")
 			i = end + 1
 		case src[i] == '"':
 			text, end := quotedLiteral(src, i)
-			out = append(out, literal{line: line, text: text})
+			out = append(out, literal{offset: i, line: line, text: text})
 			i = end
 		case src[i] == '\'':
 			i = runeEnd(src, i)

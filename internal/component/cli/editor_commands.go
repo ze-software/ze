@@ -69,6 +69,11 @@ func (e *Editor) walkOrCreate(path []string) (*config.Tree, error) {
 	if len(path) == 0 {
 		return e.tree, nil
 	}
+	// A refused ancestor key MUST leave even its parent containers untouched.
+	// The probe runs the same creator checks as the actual walk below.
+	if _, err := e.walkOrCreateIn(e.probeTree(), path); err != nil {
+		return nil, err
+	}
 
 	currentTree := e.tree
 	var currentSchema schemaGetter = e.schema
@@ -155,7 +160,26 @@ func (e *Editor) CreateEntry(path []string) error {
 // member lands in the multi-value store — the store every serializer reads —
 // not the scalar map, where it would be silently dropped.
 // A path or key the schema does not hold is refused before anything is written.
+// An ancestor key refusal carries the whole set command from the root, including
+// the leaf and its displayed value, for callers that have no editor position.
 func (e *Editor) SetValue(path []string, key, value string) error {
+	err := e.setValue(path, key, value)
+	refusal, ok := valueRefusal(err)
+	if !ok || len(refusal.Segments()) > len(path) {
+		return err
+	}
+	args := slices.Concat(path, []string{key})
+	displayed := config.DisplayValueAtPath(e.schema, args, value)
+	args = append(args, displayed)
+	if displayed != value {
+		return FramedKeyRefusal(err, cmdSet, nil, args, nil, len(args)-1)
+	}
+	return FramedKeyRefusal(err, cmdSet, nil, args, nil)
+}
+
+// setValue performs the write; SetValue frames any ancestor-key refusal for
+// the direct REST, gRPC and gNMI clients before they receive it.
+func (e *Editor) setValue(path []string, key, value string) error {
 	if err := e.refuseUnknownSetting(path, key); err != nil {
 		return err
 	}
@@ -920,6 +944,9 @@ func (e *Editor) listEntryDestination(verb string, parentPath []string, listName
 // leaf-list field name. position is first/last/before/after, ref is the
 // reference value for before/after.
 func (e *Editor) InsertLeafListValue(path []string, leafListName, value, position, ref string) error {
+	if _, err := e.walkOrCreateIn(e.probeTree(), path); err != nil {
+		return err
+	}
 	if e.session != nil {
 		if e.sessionSetsWholeLeaf(path, leafListName) {
 			return e.rewriteWholeLeaf(path, leafListName, func(t *config.Tree) error {
@@ -946,6 +973,9 @@ func (e *Editor) InsertLeafListValue(path []string, leafListName, value, positio
 
 // DeactivateLeafListValue marks a leaf-list member deactivated (out-of-band).
 func (e *Editor) DeactivateLeafListValue(path []string, leafListName, value string) error {
+	if _, err := e.walkOrCreateIn(e.probeTree(), path); err != nil {
+		return err
+	}
 	if e.session != nil {
 		return e.writeThroughMemberOp(path, config.StructuralOpDeactivateMember, leafListName, value, "", "")
 	}
@@ -967,6 +997,9 @@ func (e *Editor) DeactivateLeafListValue(path []string, leafListName, value stri
 
 // ActivateLeafListValue clears a leaf-list member's deactivation marker.
 func (e *Editor) ActivateLeafListValue(path []string, leafListName, value string) error {
+	if _, err := e.walkOrCreateIn(e.probeTree(), path); err != nil {
+		return err
+	}
 	if e.session != nil {
 		return e.writeThroughMemberOp(path, config.StructuralOpActivateMember, leafListName, value, "", "")
 	}

@@ -148,19 +148,36 @@ func chownTree(root string, uid, gid int) error {
 	})
 }
 
-// publishDaemonPID writes the daemon's pid to pidPath, the file a fixture reads
-// to signal the daemon (SIGHUP for a reload). The runner writes it after
-// chownTree has handed the work directory to the dropped user, so in netns mode
-// the file is created root-owned 0600 and a fixture running as that user cannot
-// open it. dropped names that mode, and the file is then owned to uid:gid.
-func publishDaemonPID(pidPath string, pid int, dropped bool, uid, gid int) error {
-	if err := os.WriteFile(pidPath, fmt.Appendf(nil, "%d", pid), 0o600); err != nil {
+// publishDaemonPID publishes a complete daemon identity, which a fixture reads
+// to signal the daemon (SIGHUP for a reload). File existence is the fixture's
+// barrier: write, close and dropped-user ownership must finish before rename
+// makes the file visible. Writing directly to pidPath exposed an empty file
+// between creation and the write, even after daemon.ready had appeared.
+func publishDaemonPID(pidPath string, pid int, dropped bool, uid, gid int) (err error) {
+	staged, err := os.CreateTemp(filepath.Dir(pidPath), ".daemon-pid-*")
+	if err != nil {
+		return err
+	}
+	stagedPath := staged.Name()
+	defer func() {
+		cleanupErr := os.Remove(stagedPath)
+		if errors.Is(cleanupErr, os.ErrNotExist) {
+			return // A successful rename consumed the staged path.
+		}
+		err = errors.Join(err, cleanupErr)
+	}()
+	if _, err := staged.Write(fmt.Appendf(nil, "%d", pid)); err != nil {
+		return errors.Join(err, staged.Close())
+	}
+	if err := staged.Close(); err != nil {
 		return err
 	}
 	if dropped {
-		return os.Chown(pidPath, uid, gid)
+		if err := os.Chown(stagedPath, uid, gid); err != nil {
+			return err
+		}
 	}
-	return nil
+	return os.Rename(stagedPath, pidPath)
 }
 
 // zeRepoRootEnv renders the ZE_REPO_ROOT=<baseDir> environment entry exported

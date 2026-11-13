@@ -49,6 +49,9 @@ func (p *SetParser) ParseWithMeta(input string) (*Tree, *MetaTree, error) {
 		}
 
 		if err := p.parseLineWithMeta(tree, meta, cmdLine, entry, lineNum); err != nil {
+			if p.collectLineRefusal(err) {
+				continue
+			}
 			return nil, nil, err
 		}
 	}
@@ -195,7 +198,12 @@ func extractMeta(line string) (MetaEntry, string) {
 
 // parseLineWithMeta parses a set/delete command and records metadata.
 func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, entry MetaEntry, lineNum int) error {
-	tokens, err := splitQuotedTokens(line)
+	var quoted *[]bool
+	if p.candidateValues {
+		p.quotedTokens = p.quotedTokens[:0]
+		quoted = &p.quotedTokens
+	}
+	tokens, err := splitQuotedTokensMarked(line, quoted)
 	if err != nil {
 		return newLineError(lineNum, err)
 	}
@@ -292,8 +300,10 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		if err != nil {
 			return lineErrorf(lineNum, "previous value: %w", err)
 		}
-		if err := ValidateLeafValue(leaf, p.lineAt(tokens), value); err != nil {
-			return p.valueLineRefusal(lineNum, name, tokens, err)
+		if !p.candidateValues {
+			if err := ValidateLeafValue(leaf, p.lineAt(tokens), value); err != nil {
+				return p.valueLineRefusal(lineNum, name, tokens, err)
+			}
 		}
 		setLeafMeta(NormalizeLeafValue(leaf.Type, value))
 		return nil
@@ -304,8 +314,10 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 			return lineErrorf(lineNum, "multi-leaf %s expects at least one value", name)
 		}
 		value := textbuf.Join(tokens, " ")
-		if err := ValidateLeafValue(multi.memberLeaf(), p.lineAt(tokens), value); err != nil {
-			return p.valueLineRefusal(lineNum, name, tokens, err)
+		if !p.candidateValues {
+			if err := ValidateLeafValue(multi.memberLeaf(), p.lineAt(tokens), value); err != nil {
+				return p.valueLineRefusal(lineNum, name, tokens, err)
+			}
 		}
 		setLeafMeta(value)
 		return nil
@@ -323,6 +335,22 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		// reads it. A contested entry's line spells its value in brackets
 		// (bracketValue), so it reads back as members too.
 		items, err := bracketMembers(bracket, p.lineAt(tokens), tokens)
+		if p.candidateValues {
+			candidateItems, complete := p.candidateMembers(tokens)
+			if complete {
+				// A lone legacy joined value keeps the old interpretation
+				// when it passes. Other complete forms retain their decoded
+				// member boundaries, including quoted literal brackets.
+				if len(tokens) != 1 {
+					items = candidateItems
+				}
+				if err != nil {
+					items = candidateItems
+				}
+				// Leaf constraints are deferred only for a complete value.
+				err = nil
+			}
+		}
 		if err != nil {
 			return p.valueLineRefusal(lineNum, name, tokens, err)
 		}
@@ -344,8 +372,20 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 			return nil // structural-only: no value to set
 		}
 		items := bracketItems(tokens)
-		if err := p.validateValueOrArrayItems(valueOrArray, name, tokens, items, lineNum); err != nil {
-			return err
+		validate := !p.candidateValues
+		if p.candidateValues {
+			candidateItems, complete := p.candidateMembers(tokens)
+			if complete {
+				items = candidateItems
+			}
+			if !complete {
+				validate = true
+			}
+		}
+		if validate {
+			if err := p.validateValueOrArrayItems(valueOrArray, name, tokens, items, lineNum); err != nil {
+				return err
+			}
 		}
 		for _, item := range items {
 			tree.AddMultiValueMember(name, item)

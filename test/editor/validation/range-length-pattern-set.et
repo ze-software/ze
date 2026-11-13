@@ -1,0 +1,44 @@
+# Test: range, length and pattern misses show schema-derived editor refusals
+# QUESTION: does the editor display the full refusal, including a usable fix,
+# for every non-enum constraint? Only a keystroke run decides the visible result.
+# VALIDATES: AC-35..37 -- bounds or format in words; unchanged candidate.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session { asn { local 65000; } }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=set ospf interfaces interface eth0 cost 0
+input=enter
+expect=error:contains=ospf interfaces interface eth0 cost: "0" is outside the accepted range
+expect=viewport:contains=cost accepts a value in 1..65535
+expect=viewport:contains=fix: set ospf interfaces interface eth0 cost <1..65535>
+expect=dirty:false
+
+input=type:text=set exabgp bridge process demo run ""
+input=enter
+expect=error:contains=is outside the accepted length (0 characters)
+expect=viewport:contains=run accepts 1..4096 characters
+expect=viewport:contains=fix: set exabgp bridge process demo run <1..4096 characters>
+expect=dirty:false
+
+input=type:text=set l2tp shaper default-rate fast
+input=enter
+expect=error:contains=l2tp shaper default-rate: "fast" is not in the accepted format
+expect=viewport:contains=Traffic rate string
+expect=viewport:contains=fix: set l2tp shaper default-rate <rate>
+expect=dirty:false
+
+input=type:text=set ospf interfaces interface eth0 cost 10
+input=enter
+expect=error:none
+expect=content:contains=cost 10
+input=type:text=set l2tp shaper default-rate 10mbit
+input=enter
+expect=error:none
+expect=content:contains=default-rate 10mbit

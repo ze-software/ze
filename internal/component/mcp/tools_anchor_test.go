@@ -143,9 +143,7 @@ func TestWriteInvocationPlacesAnchoredValues(t *testing.T) {
 	}
 	var tb textbuf.Buffer
 	values := map[string]string{"selector": "192.0.2.9", "prefix": "198.51.100.0/24"}
-	if err := command.WriteInvocation(&tb, []string{"peer", "announce", "unicast"}, args, values); err != nil {
-		t.Fatal(err)
-	}
+	command.WriteInvocation(&tb, []string{"peer", "announce", "unicast"}, args, values)
 	if got, wantCmd := tb.String(), "peer 192.0.2.9 announce unicast prefix 198.51.100.0/24"; got != wantCmd {
 		t.Fatalf("command = %q, want %q", got, wantCmd)
 	}

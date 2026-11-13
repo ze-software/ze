@@ -39,6 +39,20 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	// refused before anything changes.
 	entry, endsAtEntry, err := config.WalkListEntryPath(m.editor.schema, fullPath)
 	if err != nil {
+		if refusal, isValue := valueRefusal(err); isValue {
+			// The address walker judges a non-first key's value. Its path
+			// ends at that key's keyword, immediately before the refused word.
+			// A later credential remains part of the correction, masked by
+			// its declaration before any complete command is rendered.
+			displayArgs := slices.Clone(args)
+			value := args[len(args)-1]
+			displayArgs[len(args)-1] = m.editor.DisplayValueAtPath(fullPath[:len(fullPath)-1], value)
+			var placeholders []int
+			if displayArgs[len(args)-1] != value {
+				placeholders = append(placeholders, len(args)-1)
+			}
+			return commandResult{}, FramedWordRefusal(err, cmdSet, m.contextPath, displayArgs, len(refusal.Segments())-len(m.contextPath), m.operatorPosition(), placeholders...)
+		}
 		return commandResult{}, fmt.Errorf("set failed: %w", err)
 	}
 	if endsAtEntry && entry.End == len(fullPath) && len(entry.Address.Pairs) > 0 {
@@ -63,9 +77,12 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 		listName := containerPath[len(containerPath)-1]
 		listParent := containerPath[:len(containerPath)-1]
 		if err := m.editor.ensureListEntry(listParent, listName, []string{value}); err != nil {
-			// The key is the last word typed, so the fix is this `set`
-			// with the key corrected (AC-33).
-			if _, isValue := valueRefusal(err); isValue {
+			// The destination key is the last word typed (AC-33), but the
+			// creator can refuse an ancestor key first (AC-30).
+			if refusal, isValue := valueRefusal(err); isValue {
+				if len(refusal.Segments()) <= len(containerPath) {
+					return commandResult{}, FramedKeyRefusal(err, cmdSet, m.contextPath, args, m.operatorPosition())
+				}
 				return commandResult{}, FramedSetRefusal(err, m.contextPath, args, m.operatorPosition())
 			}
 			return commandResult{}, fmt.Errorf("set failed: %w", err)
@@ -94,7 +111,13 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 			// The creator refused a new entry's key on the way (AC-25,
 			// AC-30): the fix is this `set` with that key corrected.
 			if _, isValue := valueRefusal(err); isValue {
-				return commandResult{}, FramedKeyRefusal(err, cmdSet, m.contextPath, args, m.operatorPosition())
+				displayArgs := slices.Clone(args)
+				displayArgs[len(args)-1] = m.editor.DisplayValueAtPath(path, value)
+				var placeholders []int
+				if displayArgs[len(args)-1] != value {
+					placeholders = append(placeholders, len(args)-1)
+				}
+				return commandResult{}, FramedKeyRefusal(err, cmdSet, m.contextPath, displayArgs, m.operatorPosition(), placeholders...)
 			}
 			return commandResult{}, fmt.Errorf("set failed: %w", err)
 		}
@@ -311,8 +334,8 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 		if !isValue {
 			return commandResult{}, errors.New(m.editor.DisplayMessageAtPath(fullPath, err.Error(), value))
 		}
-		fixArgs := append(append(slices.Clone(pathTokens), refusal.Correction()), args[len(pathAndValue):]...)
-		fix := FixCommand{Verb: cmdInsert, At: m.contextPath, Args: fixArgs}
+		fixArgs := append(append(slices.Clone(pathTokens), value), args[len(pathAndValue):]...)
+		fix := correctionFix(cmdInsert, m.contextPath, fixArgs, len(pathTokens), refusal)
 		return commandResult{}, refusal.WithFix(FrameFix(fix, m.operatorPosition()))
 	}
 

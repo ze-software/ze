@@ -123,7 +123,11 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 		// assignment. Mask that operand before building the typed fix.
 		displayArgs := slices.Clone(setArgs)
 		displayArgs[len(displayArgs)-1] = ed.DisplayValueAtPath(path, value)
-		framed := cli.FramedKeyRefusal(err, "set", nil, displayArgs, nil)
+		var placeholders []int
+		if displayArgs[len(displayArgs)-1] != value {
+			placeholders = append(placeholders, len(displayArgs)-1)
+		}
+		framed := cli.FramedKeyRefusal(err, "set", nil, displayArgs, nil, placeholders...)
 		var refusal *opererr.Error
 		if errors.As(framed, &refusal) {
 			fmt.Fprintln(os.Stderr, "error:", refusal)

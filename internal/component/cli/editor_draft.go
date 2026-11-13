@@ -155,6 +155,9 @@ func (e *Editor) writeThroughCreate(path []string) error {
 
 	// Validate the path against the schema.
 	if _, walkErr := e.walkOrCreateIn(e.probeTree(), path); walkErr != nil {
+		if _, refused := valueRefusal(walkErr); refused {
+			return walkErr
+		}
 		return fmt.Errorf("write-through create path: %w", walkErr)
 	}
 
@@ -550,7 +553,9 @@ func (e *Editor) writeChangeFile(guard storage.WriteGuard, changePath string, tr
 	return nil
 }
 
-// readChangeFile reads and parses a per-user change file.
+// readChangeFile restores a per-user candidate, deferring leaf-value checks
+// until validation so an edit can correct a refused value. Syntax, paths and
+// list keys remain checked.
 // A change file that does not exist holds no pending change, so it answers
 // empty collections. Any other read failure, and a file that does not parse,
 // is an error naming the file: the file holds the user's pending changes, so
@@ -566,8 +571,7 @@ func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*c
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("read change file %s: %w", changePath, err)
 	}
-	parser := config.NewSetParser(e.schema)
-	tree, meta, ops, err := config.ParseChangeFile(string(data), parser)
+	tree, meta, ops, err := config.ParseCandidateChangeFile(string(data), e.schema)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("change file %s %w: %w", changePath, errChangeFileUnparsable, err)
 	}
@@ -661,8 +665,16 @@ func (e *Editor) SaveDraft() error {
 		return fmt.Errorf("save position creations: %w", err)
 	}
 
+	candidate := config.Serialize(baseTree, e.schema)
+	if e.preCommitValidate == nil {
+		// The candidate reader defers leaf constraints so an edit can repair
+		// them. A caller with no semantic validator still owes the ordinary
+		// parser's refusal before a save consumes the per-user change file.
+		if _, err := config.NewParser(e.schema).Parse(candidate); err != nil {
+			return fmt.Errorf("validation: %w", err)
+		}
+	}
 	if e.preCommitValidate != nil {
-		candidate := config.Serialize(baseTree, e.schema)
 		if err := e.preCommitValidate(candidate); err != nil {
 			return fmt.Errorf("validation: %w", err)
 		}

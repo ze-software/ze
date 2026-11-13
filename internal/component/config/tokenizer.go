@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -333,6 +334,8 @@ func (t *tokenizer) readString(quote byte, startLine, startCol int) token {
 			switch ch {
 			case 'n':
 				value = append(value, '\n')
+			case 'r':
+				value = append(value, '\r')
 			case 't':
 				value = append(value, '\t')
 			case '\\':
@@ -373,62 +376,10 @@ func (t *tokenizer) readString(quote byte, startLine, startCol int) token {
 // structure `0x48[64,24,16,0,0,0]` is still a word and a list.
 func (t *tokenizer) readWord(startLine, startCol int) token {
 	start := t.pos
-
-	for t.pos < len(t.input) {
-		ch := t.input[t.pos]
-		if ch == '[' && t.pos > start && t.input[t.pos-1] == ':' {
-			if end, closed := t.wordAddressEnd(); closed {
-				for t.pos < end {
-					t.advance()
-				}
-				continue
-			}
-		}
-		if endsWord(ch) {
-			break
-		}
+	end := start + configtext.WordEnd(t.input[start:])
+	for t.pos < end {
 		t.advance()
 	}
 
 	return token{kind: tokenWord, value: t.input[start:t.pos], line: startLine, col: startCol}
-}
-
-// wordAddressEnd answers the offset just past the `]` that closes the `[` at
-// t.pos, when the bracket holds at least one character and none that ends a
-// word. closed is false otherwise, and the `[` is then a list as before.
-func (t *tokenizer) wordAddressEnd() (end int, closed bool) {
-	for i := t.pos + 1; i < len(t.input); i++ {
-		ch := t.input[i]
-		if ch == ']' {
-			return i + 1, i > t.pos+1
-		}
-		if endsWord(ch) {
-			return 0, false
-		}
-	}
-	return 0, false
-}
-
-// bareWordReadsBack reports whether the tokenizer reads s, written unquoted,
-// back as one word token equal to s. It asks the tokenizer itself rather than
-// a list of characters, so the printer's quoting cannot drift from what ends
-// a word or opens another token: whitespace, braces, brackets outside a
-// `:[...]` address, `;`, quotes and `#` anywhere, and a leading `(` or `)`.
-// The empty string reads back as no token at all, so it is never bare.
-func bareWordReadsBack(s string) bool {
-	t := tokenizer{input: s, line: 1, col: 1}
-	tok := t.next()
-	if tok.kind != tokenWord {
-		return false
-	}
-	// A word token is a slice of the input, so equal text means the word
-	// started at offset 0 and ran to the end: nothing was left to re-read.
-	return tok.value == s
-}
-
-// endsWord reports whether ch ends an unquoted word.
-func endsWord(ch byte) bool {
-	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' ||
-		ch == '{' || ch == '}' || ch == '[' || ch == ']' || ch == ';' ||
-		ch == '"' || ch == '\'' || ch == '#'
 }

@@ -8,11 +8,11 @@ package yang
 import (
 	"slices"
 	"strconv"
-	"strings"
 	"unicode/utf8"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
+	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/suggest"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -154,7 +154,12 @@ func (f *refusalFacts) build() {
 	}
 	fix := f.fix
 	if fix == "" {
-		fix = "set " + strings.Join(f.subject.Path, " ") + " " + f.correction()
+		var b textbuf.Buffer
+		b.Str("set")
+		for _, word := range f.subject.Path {
+			b.Byte(' ').Str(configtext.QuoteCommandWord(word))
+		}
+		fix = b.Byte(' ').Str(f.correctionText()).String()
 	}
 	f.refusal = opererr.New(f.problem(), f.why(), fix)
 }
@@ -162,7 +167,13 @@ func (f *refusalFacts) build() {
 // problem is the refusal's first line: the path, the value and the kind.
 func (f *refusalFacts) problem() string {
 	var b textbuf.Buffer
-	b.Join(f.subject.Path, " ").Str(": ")
+	for i, word := range f.subject.Path {
+		if i > 0 {
+			b.Byte(' ')
+		}
+		b.Str(configtext.QuoteToken(word))
+	}
+	b.Str(": ")
 	if f.missing {
 		return b.Str("needs a value").String()
 	}
@@ -231,23 +242,38 @@ func (f *refusalFacts) why() string {
 // correction is what replaces the refused value in a fix line: the suggestion,
 // else the kind's placeholder.
 func (f *refusalFacts) correction() string {
+	value, _ := f.correctionToken()
+	return value
+}
+
+func (f *refusalFacts) correctionText() string {
+	value, placeholder := f.correctionToken()
+	if placeholder {
+		return value
+	}
+	return configtext.QuoteCommandWord(value)
+}
+
+// correctionToken chooses both the text and whether it describes a replacement
+// rather than naming one concrete accepted value.
+func (f *refusalFacts) correctionToken() (string, bool) {
 	switch f.kind {
 	case ErrTypeEnum:
 		if f.suggestion != "" {
-			return f.suggestion
+			return f.suggestion, false
 		}
 		// A leaf that accepts one value has one correction, the value itself:
 		// the fix line is then the exact text to type, not a choice of one.
 		if len(f.values) == 1 && len(f.others) == 0 {
-			return f.values[0].Name
+			return f.values[0].Name, false
 		}
-		return f.alternation()
+		return f.alternation(), true
 	case ErrTypeRange:
-		return "<" + f.bounds + ">"
+		return "<" + f.bounds + ">", true
 	case ErrTypeLength:
-		return "<" + f.bounds + " characters>"
+		return "<" + f.bounds + " characters>", true
 	case ErrTypePattern:
-		return f.format.Placeholder()
+		return f.format.Placeholder(), true
 	case ErrTypeUnknown, ErrTypeMissing, ErrTypeType, ErrTypeCardinality, ErrTypeReference:
 		panic("BUG: a refusal built for a kind that holds no operator error")
 	}
@@ -310,6 +336,26 @@ func (e *ValidationError) Correction() string {
 		return ""
 	}
 	return e.facts.correction()
+}
+
+// CorrectionIsPlaceholder reports whether Correction describes a replacement
+// the operator chooses. A concrete accepted enum value is false even when its
+// name contains angle brackets, whitespace or quotation marks.
+func (e *ValidationError) CorrectionIsPlaceholder() bool {
+	if e.facts == nil {
+		return false
+	}
+	_, placeholder := e.facts.correctionToken()
+	return placeholder
+}
+
+// CorrectionText prints a literal correction as one quoted token when needed;
+// a declared placeholder retains the syntax the operator fills in.
+func (e *ValidationError) CorrectionText() string {
+	if e.facts == nil {
+		return ""
+	}
+	return e.facts.correctionText()
 }
 
 // Values answers the accepted values of an enum refusal, in declared order.

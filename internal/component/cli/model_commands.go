@@ -17,6 +17,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -161,7 +162,16 @@ func (m Model) executeCommand(input string) tea.Cmd {
 // dispatchCommand parses and executes a command.
 // Returns commandResult with all state changes for the Update handler to apply.
 func (m *Model) dispatchCommand(input string) (commandResult, error) {
-	tokens := tokenizeCommand(input)
+	parsed, err := ParseCommandWords(input)
+	if err != nil {
+		return commandResult{}, err
+	}
+	return m.dispatchCommandWords(parsed)
+}
+
+// dispatchCommandWords retains lexical pipe positions through top redispatch.
+func (m *Model) dispatchCommandWords(parsed CommandWords) (commandResult, error) {
+	tokens := parsed.Tokens()
 	if len(tokens) == 0 {
 		return commandResult{}, nil
 	}
@@ -172,16 +182,17 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 	// `top <command>` is taken before the pipe split, so `top show | errors`
 	// runs `show | errors` at the root. A pipe right after `top` leaves the
 	// line to the split, which refuses `top` as unpipeable as before.
-	if cmd == cmdTop && len(args) > 0 && args[0] != "|" {
+	rootCommand := cmd == cmdTop && len(args) > 0 && parsed.FirstPipe() != 1
+	if rootCommand {
 		if m.editor == nil {
 			return commandResult{}, fmt.Errorf("command %q requires config mode (no config file loaded)", cmd)
 		}
-		return m.cmdTop(args)
+		return m.cmdTop(parsed.Tail())
 	}
 
 	// Check for pipe in command
-	if pipeIdx := FindPipeIndex(tokens); pipeIdx > 0 {
-		return m.dispatchWithPipe(tokens[:pipeIdx], tokens[pipeIdx+1:])
+	if parsed.FirstPipe() > 0 {
+		return m.dispatchWithPipe(parsed)
 	}
 
 	// Guard: edit commands require an editor.
@@ -199,7 +210,7 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		return commandResult{showHelp: true}, nil
 
 	case cmdTop:
-		return m.cmdTop(nil)
+		return m.cmdTop(CommandWords{})
 
 	case cmdUp:
 		return m.cmdUp()
@@ -293,15 +304,15 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 //
 // The operator's position is saved on the copy first (operatorPosition), and
 // only by the outermost `top`, so `top top ...` keeps the real origin.
-func (m *Model) cmdTop(args []string) (commandResult, error) {
-	if len(args) > 0 {
+func (m *Model) cmdTop(words CommandWords) (commandResult, error) {
+	if len(words.tokens) > 0 {
 		if !m.underTop {
 			m.topOrigin = m.contextPath
 			m.underTop = true
 		}
 		m.contextPath = nil
 		m.isTemplate = false
-		return m.dispatchCommand(joinTokensWithQuotes(args))
+		return m.dispatchCommandWords(words)
 	}
 	if m.editor.WorkingContent() == "" {
 		return commandResult{clearContext: true, output: emptyConfiguration}, nil
@@ -444,12 +455,12 @@ func handleQuoteChar(current *textbuf.Buffer, tokens []string, inQuote bool) ([]
 }
 
 // quoteOpen reports whether a double-quoted value is open at the end of
-// prefix, under the rule tokenizeCommand applies: every `"` toggles quoted
-// state, and no character escapes one. The key handler asks it of the input up
-// to the cursor, so a key typed there is read the way the tokenizer will read
-// it once the line runs.
+// prefix, under the operational invocation grammar. The key handler asks it of
+// the input up to the cursor, so an escaped literal quote does not turn ? into
+// help while the operator is still inside the quoted value.
 func quoteOpen(prefix string) bool {
-	return strings.Count(prefix, `"`)%2 == 1
+	_, _, open, _ := command.ScanInvocation(prefix)
+	return open
 }
 
 // lineBehindTop answers the line a leading `top ` runs, every leading `top`

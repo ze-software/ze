@@ -45,6 +45,9 @@ type ValueArgumentError struct {
 	why string
 	// correction replaces the value in a fix line.
 	correction string
+	// literalCorrection distinguishes an accepted enum value from correction
+	// syntax. Even an accepted value that looks like <a|b> is literal data.
+	literalCorrection bool
 	// at is the index in the refused line of the first token the value was
 	// typed as, and span how many tokens it took (a rest-of-line value takes
 	// several). at is -1 for a value the line does not hold, one a route bound
@@ -76,6 +79,16 @@ func (e *ValueArgumentError) Why() string {
 // "<1..4094>", "<value>").
 func (e *ValueArgumentError) Correction() string {
 	return e.correction
+}
+
+// writeCorrection quotes concrete accepted values in the operational grammar,
+// while preserving placeholders as syntax the operator must replace.
+func (e *ValueArgumentError) writeCorrection(tb *textbuf.Buffer) {
+	if e.literalCorrection {
+		WriteInvocationValue(tb, e.correction)
+		return
+	}
+	tb.Str(e.correction)
 }
 
 // Value answers the refused value as the problem quotes it.
@@ -140,7 +153,10 @@ func enumFault(arg string, def *ArgDef) *ValueArgumentError {
 	suggestion := suggest.Correction(arg, def.enumValues)
 	var why textbuf.Buffer
 	why.Str(def.name).Str(" accepts only these values:\n").Str(suggest.ValueLines(values, "  "))
-	return newValueFault(def, arg, enumMarker(suggestion), why.String(), enumCorrection(suggestion, values, nil))
+	correction, literal := enumCorrection(suggestion, values, nil)
+	fault := newValueFault(def, arg, enumMarker(suggestion), why.String(), correction)
+	fault.literalCorrection = literal
+	return fault
 }
 
 // unionFault is the refusal of a value no member of def's union accepts: the
@@ -166,7 +182,10 @@ func unionFault(arg string, def *ArgDef) *ValueArgumentError {
 		why.Str(" accepts one of these values:\n").Str(suggest.ValueLines(values, "  ")).
 			Str("\nor a value of type ").Join(others, " or ")
 	}
-	return newValueFault(def, arg, enumMarker(suggestion), why.String(), enumCorrection(suggestion, values, others))
+	correction, literal := enumCorrection(suggestion, values, others)
+	fault := newValueFault(def, arg, enumMarker(suggestion), why.String(), correction)
+	fault.literalCorrection = literal
+	return fault
 }
 
 // enumMarker is the problem's kind for a refused word, with the close accepted
@@ -182,18 +201,18 @@ func enumMarker(suggestion string) string {
 // enumCorrection is what replaces a refused word in a fix line: the close
 // value, the one accepted value when the argument takes one, else every value
 // and every other member type as the alternation.
-func enumCorrection(suggestion string, values []suggest.Value, others []string) string {
+func enumCorrection(suggestion string, values []suggest.Value, others []string) (text string, literal bool) {
 	if suggestion != "" {
-		return suggestion
+		return suggestion, true
 	}
 	if len(values) == 1 && len(others) == 0 {
-		return values[0].Name
+		return values[0].Name, true
 	}
 	choices := values
 	for _, other := range others {
 		choices = append(choices, suggest.Value{Name: other})
 	}
-	return suggest.Alternation(choices)
+	return suggest.Alternation(choices), false
 }
 
 // memberTypeName names a union member type in words: its YANG base type, or

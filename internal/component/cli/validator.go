@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -216,6 +217,16 @@ func (v *ConfigValidator) sectionErrors(tree *config.Tree) []ConfigValidationErr
 		if !editorReportsSectionFailure(f) {
 			continue
 		}
+		if refusal, isValue := valueRefusal(&f.Err); isValue {
+			canRenderValue := !f.Sensitive
+			if refusal.Secret() {
+				canRenderValue = true
+			}
+			if canRenderValue {
+				errs = append(errs, v.refusalIssue(f.Err.LineNumber, refusal))
+				continue
+			}
+		}
 		errs = append(errs, ConfigValidationError{
 			Line:     f.Err.LineNumber,
 			Message:  f.Message(),
@@ -381,13 +392,16 @@ func (v *ConfigValidator) parseError(err error) ConfigValidationError {
 // `set` replaces. The path is the one the parser named, from the root.
 func (v *ConfigValidator) refusalIssue(line int, refusal *yang.ValidationError) ConfigValidationError {
 	path := refusal.Segments()
-	fix := FixCommand{Verb: cmdSet, Args: append(slices.Clone(path), refusal.Correction())}
+	fix := correctionFix(cmdSet, nil, append(slices.Clone(path), ""), len(path), refusal)
 	if holdsMembers(v.schema.LookupTokenPath(path)) {
 		member := refusal.Got
 		if refusal.Secret() {
 			member = config.SecretDataPlaceholder
 		}
 		fix = FixCommand{Verb: cmdDelete, Args: append(slices.Clone(path), member)}
+		if refusal.Secret() {
+			fix = fix.withPlaceholders(len(path))
+		}
 	}
 	root := FrameFix(fix, nil)
 	body := refusal.WithFix(root).Error()
@@ -485,10 +499,9 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 		delete(treeData, "bgp")
 		for _, rv := range config.CheckRequired(v.schema, treeData) {
 			var tb textbuf.Buffer
-			warns = append(warns, ConfigValidationError{
-				Message:  tb.Str(rv.AnchorPath).Byte(' ').Str(rv.EntryKey).Str(": missing required field \"").Str(rv.FieldPath).Str("\" (").Str(rv.SetHint).Byte(')').String(),
-				Severity: severityWarning,
-			})
+			tb.Str(rv.AnchorPath).Byte(' ').Str(configtext.QuoteToken(rv.EntryKey)).Str(": missing required field \"").Str(rv.FieldPath).Str("\" (")
+			fix := (FixCommand{Verb: cmdSet, Args: append(slices.Clone(rv.Path), "<value>")}).withPlaceholders(len(rv.Path))
+			warns = append(warns, issueWithFix(0, severityWarning, tb.String(), fix, ")"))
 		}
 	}
 
@@ -714,7 +727,8 @@ func missingFieldIssue(line int, peerAddr, groupName string, field []string) Con
 	args := append(peerFieldPath(peerAddr, groupName, field), "<value>")
 	var tb textbuf.Buffer
 	tb.Str("peer ").Str(peerAddr).Str(": missing required field \"").Join(field, config.PathSep).Str("\" (")
-	return issueWithFix(line, severityWarning, tb.String(), FixCommand{Verb: cmdSet, Args: args}, ")")
+	fix := (FixCommand{Verb: cmdSet, Args: args}).withPlaceholders(len(args) - 1)
+	return issueWithFix(line, severityWarning, tb.String(), fix, ")")
 }
 
 // peerFieldPath answers the setting path of field under a peer, from the

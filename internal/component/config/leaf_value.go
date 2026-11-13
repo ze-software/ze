@@ -85,9 +85,9 @@ func ValidateListKey(node *ListNode, listPath []string, key string) error {
 	var fix textbuf.Buffer
 	fix.Str(cmdSet)
 	for _, word := range listPath {
-		fix.Byte(' ').Str(word)
+		fix.Byte(' ').Str(QuoteIfNeeded(word))
 	}
-	return refusal.WithFix(fix.Byte(' ').Str(refusal.Correction()).String())
+	return refusal.WithFix(fix.Byte(' ').Str(refusal.CorrectionText()).String())
 }
 
 // leafSubject names what a refusal of value refuses: where, which leaf, and

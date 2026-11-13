@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"unicode"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/command"
@@ -1789,7 +1788,7 @@ func answerTruncatedFault(produced uint64) json.RawMessage {
 	return append(fault, '}')
 }
 
-var errBackslashInCommand = errors.New("backslash is not allowed in commands")
+var errBackslashInCommand = command.ErrBackslashInInvocation
 
 // noPipe is the pipe offset scanCommand answers for a line that holds no pipe
 // character outside quotes.
@@ -1797,7 +1796,7 @@ const noPipe = -1
 
 // tokenize splits a command string into tokens.
 // Handles quoted strings: "hello world" → single token "hello world".
-// Backslash is rejected: commands have no escape sequences.
+// Unquoted backslash is rejected; double-quoted values decode their escapes.
 // Quotes are stripped from the result.
 //
 // It reads the pipe offset scanCommand also answers not at all: accounting
@@ -1809,7 +1808,7 @@ func tokenize(input string) ([]string, error) {
 	return tokens, err
 }
 
-// scanCommand is the one quote-aware pass over a command line. It answers the
+// scanCommand reads the shared operational scan of a command line. It answers the
 // tokens tokenize answers, and the byte offset in input of the first pipe
 // character outside double quotes, or noPipe when there is none.
 //
@@ -1819,44 +1818,9 @@ func tokenize(input string) ([]string, error) {
 // to a word ("a|b") is found too, because every operator surface cuts at any
 // pipe character (command.ParsePipe).
 func scanCommand(input string) (tokens []string, pipeAt int, err error) {
-	trimmed := strings.TrimLeftFunc(input, unicode.IsSpace)
-	lead := len(input) - len(trimmed)
-	trimmed = strings.TrimRightFunc(trimmed, unicode.IsSpace)
-	if trimmed == "" {
-		return nil, noPipe, nil
+	tokens, pipeAt, _, err = command.ScanInvocation(input)
+	if err != nil {
+		return nil, noPipe, err
 	}
-
-	if strings.IndexByte(trimmed, '\\') >= 0 {
-		return nil, noPipe, errBackslashInCommand
-	}
-
-	pipeAt = noPipe
-	var current textbuf.Buffer
-	inQuote := false
-
-	for i, r := range trimmed {
-		if r == '"' {
-			inQuote = !inQuote
-			continue
-		}
-
-		if r == '|' && !inQuote && pipeAt == noPipe {
-			pipeAt = lead + i
-		}
-
-		if (r == ' ' || r == '\t') && !inQuote {
-			if current.Len() > 0 {
-				tokens = append(tokens, current.String())
-			}
-			continue
-		}
-
-		current.WriteRune(r)
-	}
-
-	if current.Len() > 0 {
-		tokens = append(tokens, current.String())
-	}
-
-	return tokens, pipeAt, nil
+	return tokens, pipeAt, err
 }

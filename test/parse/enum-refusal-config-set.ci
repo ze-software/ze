@@ -1,0 +1,66 @@
+# Test: enum-refusal-config-set
+#
+# QUESTION: does the shipped offline `ze config set` command refuse a bad
+# enum value or list key with the shared refusal and a complete corrected
+# set command, while preserving the file and accepting IPv4 and IPv6 keys?
+# Unit tests call the handler; only a process test proves argv dispatch,
+# exit 2, stderr placement and the next process reading the same file.
+#
+# VALIDATES: config-enum-refusal-proposes-valid-values AC-6, AC-13, AC-28,
+# AC-32. The key's following leaf is nssa-propagate in today's OSPF schema.
+# PREVENTS: `set failed:` before the shared key refusal, a fix that drops the
+# rest of the typed line, writes on refusal, and treating a CIDR slash as a
+# path separator rather than part of the union-typed key.
+# Producer: internal/component/config/cli/cmd_set.go cmdSetImpl, using the
+# editor's FramedSetRefusal and FramedKeyRefusal.
+
+tmpfs=offline.conf:terminator=EOF_CONFIG
+bgp {
+    router-id 203.0.113.253
+    peer peer1 {
+        connection {
+            remote { ip 192.0.2.1; }
+            local { ip auto; }
+        }
+        session {
+            asn { local 65000; remote 65001; }
+            capability { route-refresh enable; }
+        }
+    }
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze config set offline.conf bgp peer peer1 session capability route-refresh requre:exit=2
+expect=stderr:contains=error: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+expect=stderr:pattern=route-refresh accepts only these values:\n  enable   Advertise the capability; no enforcement\n  disable  Do not advertise the capability; no enforcement\n  require  Advertise the capability; refuse the session when the peer does not offer it\n  refuse   Do not advertise the capability; refuse the session when the peer offers it\nfix: set bgp peer peer1 session capability route-refresh require\n$
+reject=stdout:contains=not an accepted value
+reject=stderr:pattern=invalid enum
+
+cmd=foreground:seq=2:exec=ze config set offline.conf bgp peer peer1 connection local ip autoo:exit=2
+expect=stderr:contains=error: bgp peer peer1 connection local ip: "autoo" is not an accepted value (did you mean auto?)
+expect=stderr:pattern=ip accepts one of these values:\n  auto  Let the operating system choose the source address of the connection\.\nor a value of type ip-address\nfix: set bgp peer peer1 connection local ip auto\n$
+reject=stderr:pattern=matches no member type
+
+cmd=foreground:seq=3:exec=ze config set offline.conf ospf redistribute bogus nssa-propagate true:exit=2
+expect=stderr:contains=error: ospf redistribute bogus: "bogus" is not an accepted value
+expect=stderr:pattern=source accepts only these values:\n  connected  Routes of the addresses configured on local interfaces\.\n  static     Routes the static plugin installs\.\n  kernel     Routes read from the kernel routing table\.\n  bgp        Routes learned by BGP\.\n  isis       Routes learned by IS-IS\.\nfix: set ospf redistribute <connected\|static\|kernel\|bgp\|isis> nssa-propagate true\n$
+reject=stderr:pattern=set failed:
+
+# A fresh process still reads the original accepted values, with no refused
+# word or list entry. The unit test additionally compares the bytes.
+cmd=foreground:seq=4:exec=ze config migrate format set offline.conf:exit=0
+expect=stdout:contains=set bgp peer peer1 session capability route-refresh enable
+expect=stdout:contains=set bgp peer peer1 connection local ip auto
+reject=stdout:contains=requre
+reject=stdout:contains=autoo
+reject=stdout:contains=bogus
+
+cmd=foreground:seq=5:exec=ze config set offline.conf policy prefix-list sample entry 10.0.0.0/8 action accept:exit=0
+expect=stderr:contains=set policy prefix-list sample entry 10.0.0.0/8 action accept
+
+cmd=foreground:seq=6:exec=ze config set offline.conf policy prefix-list sample entry 2001:db8::/32 action accept:exit=0
+expect=stderr:contains=set policy prefix-list sample entry 2001:db8::/32 action accept
+
+cmd=foreground:seq=7:exec=ze config migrate format set offline.conf:exit=0
+expect=stdout:contains=set policy prefix-list sample entry 10.0.0.0/8 action accept
+expect=stdout:contains=set policy prefix-list sample entry 2001:db8::/32 action accept

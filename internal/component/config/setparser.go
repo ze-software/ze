@@ -60,6 +60,17 @@ type SetParser struct {
 	// (keywordsBefore) and ask KeywordHint whether a compiled-out plugin owns
 	// that position.
 	lineTokens []string
+	// collecting is private to ParseSetDiagnostics. Every refused line
+	// remains an error, and its partial tree is never returned to a caller.
+	collecting bool
+	refusals   []error
+	// candidateValues is private to ParseCandidateChangeFile. The metadata
+	// walk restores invalid leaf payloads so an edit can correct them; every
+	// ordinary parser still judges values, as commit must before publishing.
+	candidateValues bool
+	// quotedTokens parallels the full candidate command, including its verb.
+	// Only the candidate decoder records it; ordinary parsing stays unchanged.
+	quotedTokens []bool
 }
 
 // NewSetParser creates a new set-style parser with the given schema.
@@ -103,6 +114,9 @@ func (p *SetParser) Parse(input string) (*Tree, error) {
 		}
 
 		if err := p.parseLine(tree, line, lineNum); err != nil {
+			if p.collectLineRefusal(err) {
+				continue
+			}
 			return nil, err
 		}
 	}
