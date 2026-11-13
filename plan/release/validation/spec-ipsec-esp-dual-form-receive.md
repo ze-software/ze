@@ -8,7 +8,7 @@
 | Scope | protocol |
 | Depends | - (VPP-only prerequisite belongs to spec-ipsec-vpp-dual-form-proof) |
 | Phase | 5/5 |
-| Updated | 2026-10-09 |
+| Updated | 2026-11-13 |
 
 Set aside 2026-10-09 (owner: "Set aside the 7 specs waiting on something else"): AC-5 needs a real VPP receiving both ESP forms on one inbound SA, and the VPP backend refuses every policy IKE produces until `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` lands (Required Reading, R-4). The owner's defer-heavy-testing instruction also still governs that measurement.
 
@@ -1075,3 +1075,12 @@ accounts for. The spec stays OPEN.
 Deferred by spec-ipsec-esp-dual-form-receive.
 
 Measure the throughput of the re-presented bare ESP form on a templated security association (risk R-1). The bare form is read off a raw socket and re-presented rather than taking the kernel fast path
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `token-bucket-refill-ignores-the-rate.md` | 2026-11-13 | `dataplane.espFormLimiter.allow` resets the burst at the full-second boundary; source-only finding requires a counting regression. |
+
+This row records an unrelated source finding from deployment review. It does
+not resume this blocked spec or lift the owner's testing pause.
