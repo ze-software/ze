@@ -43,25 +43,45 @@ Observed:
   missing entries in the Mac's Go build cache. Neither `RFC4271-5.1.3-1` nor
   `RFC8950-4-1` is among them, so the two stamped next-hop judgements hold.
 
+**The native proof passed** (remaining item 1, Edit 3, AC-12): two consecutive
+passes of `./le test qemu appliance-config-push` on the `claude` server,
+amd64 under KVM, recorded in `docs/architecture/testing/qemu-integration.md`
+and in the spec's AC-12 evidence row. Each real run exposed one assumption the
+unit fixture shared with the runner, fixed at both ends:
+
+- `e4bdb55d1e`: a named appliance stores its configuration under its instance
+  name, not `ze.conf`.
+- `929b1aec14`: `show config` is a command group. The proof and four operator
+  messages named it; all now name `show config running`.
+- `8793b59939`: the live configuration is compared answer against answer, and
+  the two driver refusals must fail for their own printed cause.
+
+Limit of that evidence: the server's checkout was at `f95746bc27` with other
+sessions' uncommitted files, and the runner fixes were applied there as a
+patch. The proven host driver and image are that tree's, not a clean commit's.
+A run from the release source is owed with the preview artifacts, and arm64
+has not been run.
+
 Not done, and why:
 
-- **No native VM run has passed.** Edit 3 and AC-12 are unchanged. Three
-  attempts: the first failed on the kexec defect, now fixed; the second, on the
-  `claude` server, died on host disk write errors (below); the third, on the
-  Mac, could not build its image because Docker's disk there is full and the
-  arm64 runtime kernel is not cached.
-- **The `claude` server's root disk reports kernel write errors** ("Aborted
-  Command", "potential data loss") in bursts on most days since 2026-11-10. One
-  hit the proof's disk image. Do not treat a run there as evidence until the
-  disk is sound.
+- **The `claude` server's root disk aborts writes** ("Aborted Command",
+  "potential data loss") when a QEMU guest writes into a fresh image stored on
+  it. It did so on most days since 2026-11-10 and again twelve minutes after a
+  restart on 2026-11-13. A proof whose scratch is on that disk fails at the
+  guest's first write to its persistent partition. The second disk, mounted at
+  `~/.cache`, logged no error: run with `TMPDIR` under it.
+- **Docker on the Mac has 14.9 GB in total**, whatever the Mac has free. The
+  `ze` Colima profile boots Ze's Docker-host image, which keeps Docker's data
+  on its own partition, sized when the image is built (16 GiB default).
+  Colima's 100 GiB data disk is not used by that image. A kernel build tree
+  alone takes 7.6 GB. Rebuild larger with `./le setup docker host build size
+  <GiB>`, then `./le setup docker host start`, which recreates the VM and
+  loses its images, volumes and cache.
 - Remaining items 2 (FRR and netlab topologies), 4 (preview artifacts, site
   and docs checks) and 5 (review reconciliation, Review Gate, closure) are
   untouched: the first two need Docker or a VM on a sound host.
-- The first server run left its retained work directory under that machine's
-  temporary directory (`ze-appliance-config-push-*`, about 2 GB). The session
-  that created it may not touch that location; the owner removes it.
-- `internal/le/test/qemu/zz_probe_d3cd9f56_test.go` is an untracked probe from
-  this session that a hook would not let it delete. It passes. Remove it.
+- Nothing of this session is left on either machine: the server's runner
+  files are back at their commit and every proof directory is removed.
 
 ## Status
 
