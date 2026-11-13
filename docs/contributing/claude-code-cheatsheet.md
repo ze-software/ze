@@ -127,7 +127,12 @@ The sync refuses a skill file whose frontmatter lacks a `description`, or a
 the stub of a skill that is gone. Any other file it finds in those directories
 it leaves in place and names, with the command that deletes it if it is a
 leftover. `./le ai sync check` names what is stale and writes nothing.
+The file operations behind a stub live in `internal/core/skillstub`, which
+`ze` may link as well as `le`: it writes a stub without following a link at
+the stub's directory or file, and recognizes and removes a stub only by the
+marker line its caller supplies.
 <!-- source: internal/le/ai/sync/ai.go -- stubOf, clearLeftovers, Check -->
+<!-- source: internal/core/skillstub/skillstub.go -- At, Write, OwnedBy, RemoveOwnedBy, Frontmatter -->
 <!-- source: internal/le/ai/sync/report.go -- Report.Text -->
 
 ## Notes

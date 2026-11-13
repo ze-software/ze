@@ -41,6 +41,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/skillstub"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -78,9 +79,6 @@ const markdown = ".md"
 
 // skillTrees are the harness directories that each receive one stub per skill.
 var skillTrees = []string{claudeSkills, codexSkills, agentsSkills}
-
-// fence is the line that opens and closes a frontmatter block.
-const fence = "---"
 
 // The frontmatter keys a stub needs. Every harness lists a skill by them.
 const (
@@ -190,7 +188,7 @@ func (m Mirror) generateInto(dest string, skills, agents []string) error {
 
 	for i, name := range skills {
 		for _, tree := range skillTrees {
-			if err := writeSkillUnder(dest, tree, name, stubs[i]); err != nil {
+			if err := writeStub(dest, tree, name, stubs[i]); err != nil {
 				return err
 			}
 		}
@@ -265,11 +263,11 @@ func stubOf(name string, source []byte) ([]byte, error) {
 			"its skill file would be written outside its own directory in each harness tree",
 			"rename the file to the skill's name: mv "+sourcePath(name)+" "+skillSources+"/<skill name>"+markdown)
 	}
-	block, _, found := frontmatterOf(source)
+	block, _, found := skillstub.Frontmatter(source)
 	if !found {
 		return nil, badSkill(name, "does not open with a frontmatter block",
 			"a harness lists a skill by the name and description in that block",
-			"add at its top the lines: "+fence+", "+nameKey+": "+name+", "+descriptionKey+": <when to use this skill>, "+fence)
+			"add at its top the lines: "+skillstub.Fence+", "+nameKey+": "+name+", "+descriptionKey+": <when to use this skill>, "+skillstub.Fence)
 	}
 	declared, hasName := fieldOf(block, nameKey)
 	if !hasName {
@@ -318,39 +316,6 @@ func badSkill(name, problem, why, fix string) error {
 	return fmt.Errorf("%w: %s", ErrBadSkill, tb.String())
 }
 
-// frontmatterOf answers the frontmatter block that opens source, from its
-// opening fence line through its closing fence line and that line's newline,
-// and the bytes after it. found is false when source opens with no block, or
-// its block is never closed.
-func frontmatterOf(source []byte) (block, rest []byte, found bool) {
-	first, _, hasNewline := bytes.Cut(source, []byte{'\n'})
-	if !hasNewline {
-		return nil, nil, false
-	}
-	if !isFence(first) {
-		return nil, nil, false
-	}
-	at := len(first) + 1
-	// Bounded by len(source): each pass moves at past one line.
-	for at < len(source) {
-		line, _, _ := bytes.Cut(source[at:], []byte{'\n'})
-		end := at + len(line)
-		if end < len(source) {
-			end++
-		}
-		if isFence(line) {
-			return source[:end], source[end:], true
-		}
-		at = end
-	}
-	return nil, nil, false
-}
-
-// isFence reports whether one line is a frontmatter fence.
-func isFence(line []byte) bool {
-	return string(bytes.TrimSuffix(line, []byte{'\r'})) == fence
-}
-
 // fieldOf answers the value of one top-level key of a frontmatter block, with
 // surrounding space and quotes removed. found is false when no line sets it.
 func fieldOf(block []byte, key string) (value string, found bool) {
@@ -393,57 +358,28 @@ func skillTreesAreDirectories(dest string) error {
 	return nil
 }
 
-// writeSkillUnder writes one skill stub as a regular file at
-// <tree>/<name>/SKILL.md, never through what already sits on that path.
+// writeStub writes one skill stub as a regular file at
+// <tree>/<name>/SKILL.md through skillstub, which never writes through a link
+// at the <name> directory or at the file, so a link's target keeps its bytes.
+// The tree root above it was judged by skillTreesAreDirectories.
 //
-// os.MkdirAll and os.WriteFile follow a symlink. A <name> directory linked
-// elsewhere would have the SKILL.md of the link's target overwritten, so a
-// <name> entry that is not a real directory is removed (only the link, never
-// its target) and a real directory is created in its place. The tree root
-// above it was judged by skillTreesAreDirectories.
-//
-// A SKILL.md linked to its source would have the source overwritten with the
-// stub, so an entry there that is neither a regular file nor a directory is
-// removed first and the stub written in its place. A directory at that path
-// is an error, because removing it could drop files le did not write.
-func writeSkillUnder(dest, tree, name string, body []byte) error {
-	if err := removeNonDirectory(filepath.Join(dest, tree, name)); err != nil {
+// A directory at the file path is refused, because removing it could drop
+// files le did not write. skillstub answers that as a typed error, and this
+// words it for a sync.
+func writeStub(dest, tree, name string, body []byte) error {
+	place, err := skillstub.At(filepath.Join(dest, tree), name, skillFile)
+	if err != nil {
+		return err
+	}
+	err = place.Write(body)
+	if _, isDirectory := errors.AsType[*skillstub.DirectoryAtFileError](err); !isDirectory {
 		return err
 	}
 	rel := filepath.Join(tree, name, skillFile)
-	info, err := os.Lstat(filepath.Join(dest, rel))
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	if err == nil {
-		if info.IsDir() {
-			var tb textbuf.Buffer
-			return errors.New(tb.Str(rel).Str(" is a directory, so the sync cannot write the skill file there.\n").
-				Str("Each harness reads a skill from that exact file path.\n").
-				Str("remove it, keeping anything you need from it: rm -r ").Str(rel).String())
-		}
-		if !info.Mode().IsRegular() {
-			if err := os.Remove(filepath.Join(dest, rel)); err != nil {
-				return err
-			}
-		}
-	}
-	return writeUnder(dest, rel, body)
-}
-
-// removeNonDirectory removes the entry at path when it exists and is not a
-// real directory: a symlink (to a directory or not) or a file. Lstat never
-// follows the link, and Remove removes the link, never its target. An absent
-// path or a real directory is left for the write to use.
-func removeNonDirectory(path string) error {
-	info, err := os.Lstat(path)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	if err == nil && !info.IsDir() {
-		return os.Remove(path)
-	}
-	return nil
+	var tb textbuf.Buffer
+	return errors.New(tb.Str(rel).Str(" is a directory, so the sync cannot write the skill file there.\n").
+		Str("Each harness reads a skill from that exact file path.\n").
+		Str("remove it, keeping anything you need from it: rm -r ").Str(rel).String())
 }
 
 // writeUnder writes one generated file, creating the directories it needs.
@@ -492,16 +428,13 @@ func (m Mirror) clearLeftovers(skills, agents []string) (removed, left []string,
 			return nil, nil, err
 		}
 		for _, rel := range extras {
-			isStub, err := isLeftoverStub(m.Root, tree, rel)
+			wasStub, err := removeLeftoverStub(m.Root, tree, rel)
 			if err != nil {
 				return nil, nil, err
 			}
-			if !isStub {
+			if !wasStub {
 				left = append(left, filepath.Join(tree, rel))
 				continue
-			}
-			if err := removeStub(m.Root, tree, rel); err != nil {
-				return nil, nil, err
 			}
 			removed = append(removed, filepath.Join(tree, rel))
 		}
@@ -562,53 +495,24 @@ func stubName(rel string) (name string, found bool) {
 	return name, true
 }
 
-// isLeftoverStub reports whether one extra path of a skill tree is a stub le
-// wrote: a <name>/SKILL.md that is a regular file, never a symlink, whose
-// first line after its frontmatter block is byte-equal to the marker for
-// <name>. The marker anywhere else in the file does not count, so a
-// hand-written file quoting it is never removed.
-func isLeftoverStub(root, tree, rel string) (bool, error) {
+// removeLeftoverStub removes one extra path of a skill tree when it is a stub
+// le wrote, and reports whether it was. A stub le wrote is a <name>/SKILL.md
+// that skillstub finds owned by the marker for <name>: a regular file, never
+// a symlink, whose first line after its frontmatter block is that marker. The
+// marker anywhere else in the file does not count, so a hand-written file
+// quoting it is never removed. The stub's directory goes too when that leaves
+// it empty; a directory holding another file is kept, and the walk names that
+// file as left.
+func removeLeftoverStub(root, tree, rel string) (bool, error) {
 	name, shaped := stubName(rel)
 	if !shaped {
 		return false, nil
 	}
-	full := filepath.Join(root, tree, rel)
-	info, err := os.Lstat(full)
+	place, err := skillstub.At(filepath.Join(root, tree), name, skillFile)
 	if err != nil {
 		return false, err
 	}
-	if !info.Mode().IsRegular() {
-		return false, nil
-	}
-	body, err := os.ReadFile(full) //nolint:gosec // a regular file this run found under its own generated tree
-	if err != nil {
-		return false, err
-	}
-	_, rest, found := frontmatterOf(body)
-	if !found {
-		return false, nil
-	}
-	line, _, _ := bytes.Cut(rest, []byte{'\n'})
-	return string(line) == markerFor(name), nil
-}
-
-// removeStub removes one leftover stub, then its directory when that leaves
-// the directory empty. A directory holding another file is kept, and the walk
-// names that file as left.
-func removeStub(root, tree, rel string) error {
-	full := filepath.Join(root, tree, rel)
-	if err := os.Remove(full); err != nil {
-		return err
-	}
-	dir := filepath.Dir(full)
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-	if len(entries) > 0 {
-		return nil
-	}
-	return os.Remove(dir)
+	return place.RemoveOwnedBy(markerFor(name))
 }
 
 // Preview names what a sync would write, and writes nothing.
