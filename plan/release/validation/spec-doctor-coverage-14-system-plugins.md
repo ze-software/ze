@@ -555,6 +555,7 @@ Each phase is sized for one agent of about 60 tool calls. Agents edit; every tes
 | `warning-repeated-on-every-retry.md` | 2026-11-10 | NTP initial sync Warns per server per one-second retry |
 | `warning-repeated-on-every-retry.md` | 2026-11-10 | MRT Warns once per dropped or failed record |
 | `dropped-error-logged-below-warn.md` | 2026-11-10 | daemon update server ends with no log line |
+| `subscriber-waits-on-an-event-another-feature-produces.md` | 2026-11-13 | ddos-flowspec never announces a non-critical detection when `characterize-enable` is false |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
