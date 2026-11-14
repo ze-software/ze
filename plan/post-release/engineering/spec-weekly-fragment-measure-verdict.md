@@ -168,6 +168,16 @@ It also records the count of fragment-less fixes in the two measured weeks.
 ## Known Limitations
 - Waits for two weekly updates.
 
+## Owned journal rows
+
+One defect of the same gate, found on 2026-11-14 and independent of the
+measure: whatever tightening this spec lands, the gate must first recognise
+the closing spec's own fragment.
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `gate-excludes-part-of-its-population.md` | 2026-11-14 | `newsFragmentWrittenBySpec` (`internal/le/commit/newsfragment.go`) finds the spec's work by the `Spec-work:` line, so a fragment a closing agent committed without the claim reads as stale |
+
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)

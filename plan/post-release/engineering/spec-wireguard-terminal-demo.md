@@ -22,6 +22,17 @@ This ownership split preserves the original obligations and evidence. Migration 
 - AC-1: a dedicated WireGuard demo id shows the configured tunnel and working traffic.
 - AC-2: the showcase includes a WireGuard chapter after runtime proof lands.
 - AC-3: the demo image provides its chosen peer tooling and the published recording agrees with the proven feature level.
+- AC-4: the nine recordings of `spec-terminal-demo-showcase` (`showcase`, `rpki`, `irr-filter`, `bfd-failover`, `ospf-adjacency`, `ipsec`, `vrrp-tracking`, `traffic-anomaly`, `commit-confirmed`) are re-rendered from current sources, `./le site terminal-demo check artifacts` reports them current, and the published showcase transcript reads `commit confirmed 15`.
+- AC-5: the re-rendered recordings are reviewed by watching each one, and the vendor mapping on their cards is verified, not guessed, with the reviewer and the source of each mapping recorded.
+- AC-6: a test in the privileged renderer container, with FRR installed, makes zebra start with its `zserv.api` socket withheld and asserts that no zebra process remains after `startFRR` (`internal/le/site/terminaldemo/scenarios_network.go`) returns its error.
+
+Amended 2026-11-14 at the closure of `spec-terminal-demo-showcase`, which this
+spec extends with a chapter and so re-renders. AC-4: that spec closed on its
+validators with the published recordings stale; the owner said "we will not
+re-record the terminal yet", which leaves the re-record wanted later. AC-5:
+that spec's AC-17 asked for both properties, and it closed on the owner's
+order "close terminal-demo-showcase", which stated neither, so both are owed
+with the re-record. AC-6: `stopStartedFRR` landed in `8a1f6f5193` with no test.
 
 ## Implementation Ownership
 
