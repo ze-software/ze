@@ -210,7 +210,7 @@ with a short lock of its own. A blob store takes both locks for every guard,
 because its one `WriteLock` serializes it anyway.
 <!-- source: internal/component/config/storage/tree.go -- treeEncoding.ReadFile, treeEncoding.list, treeEncoding.parent, treeEncoding.walk, treeEncoding.Remove -->
 <!-- source: internal/component/config/storage/store.go -- CheckName, ListKeys, List, guard.ReadKey, guard.ListKeys, guard.WriteKey, guard.RemoveKey, guard.Release -->
-<!-- source: internal/component/config/storage/store.go -- store, acquire, runtimeKey, guard.reach, guard.reachPrefix, guard.holdRuntime, ReadVersion, Stat, Close -->
+<!-- source: internal/component/config/storage/store.go -- store, acquire, RuntimeKey, guard.reach, guard.reachPrefix, guard.holdRuntime, ReadVersion, Stat, Close -->
 <!-- source: internal/component/config/storage/memory.go -- memoryEncoding -->
 
 ## Durable publication

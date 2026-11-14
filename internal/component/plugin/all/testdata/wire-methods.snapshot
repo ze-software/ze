@@ -112,6 +112,7 @@ ze-cmd:show-version
 ze-cmd:show-warnings
 ze-config:archive-trigger
 ze-config:data-backup
+ze-config:data-key-delete
 ze-config:data-restore
 ze-config:show-config-running
 ze-crashes:show-crashes

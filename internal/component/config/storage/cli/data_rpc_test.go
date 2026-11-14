@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
@@ -53,6 +55,112 @@ func dataCall(t *testing.T, handler pluginserver.Handler, args ...string) *zePlu
 	response, err := handler(&pluginserver.CommandContext{}, commandtest.Args(args...))
 	require.NoError(t, err)
 	return response
+}
+
+// keyArgs answers tokens judged against the leaf ze-data-cmd.yang declares for
+// `delete data key`, as the dispatcher judges them.
+func keyArgs(t *testing.T, tokens ...string) command.ValidatedArgs {
+	t.Helper()
+	defs := []command.ArgDef{commandtest.Must(command.NewStringArg(keywordKey,
+		[]command.UintRange{{Min: 1, Max: 512}}, nil, command.ArgOptions{Mandatory: true}))}
+	validated, err := command.ValidateArgs(tokens, defs, nil)
+	require.NoError(t, err)
+	return validated
+}
+
+// keyCall runs the key removal handler on tokens judged by keyArgs.
+func keyCall(t *testing.T, tokens ...string) *zePlugin.Response {
+	t.Helper()
+	response, err := handleDataKeyDelete(&pluginserver.CommandContext{}, keyArgs(t, tokens...))
+	require.NoError(t, err)
+	return response
+}
+
+// TestDeleteKeyRemovesRuntimeKey verifies the daemon removal through its
+// handler: a runtime-state key written to the live store is gone after
+// `delete data key`, typed with and without the key keyword, and the answer
+// names the key it removed.
+// VALIDATES: AC-3 (daemon half).
+// PREVENTS: a removal that answers success and leaves the key, or opens a second writer.
+func TestDeleteKeyRemovesRuntimeKey(t *testing.T) {
+	store, _ := dataRPCStore(t, func(context.Context) error { return nil })
+	for _, tokens := range [][]string{{"meta/test/state"}, {keywordKey, "meta/test/state"}} {
+		require.NoError(t, store.WriteKey("meta/test/state", []byte("stale")))
+
+		response := keyCall(t, tokens...)
+		require.Equal(t, zePlugin.StatusDone, response.Status, response.Error)
+		data, ok := response.Data.(zePlugin.Map)
+		require.True(t, ok)
+		assert.Equal(t, "meta/test/state", data[keywordKey], tokens)
+		_, err := store.ReadKey("meta/test/state")
+		assert.ErrorIs(t, err, fs.ErrNotExist, "the key is gone from the live store")
+	}
+}
+
+// TestDeleteKeyAbsentIsAnError verifies a key the store does not hold is
+// refused, as the local ze data rm reports it, and the refusal names the key
+// and the command that lists the keys.
+// VALIDATES: AC-3 (survivor: an absent key is an error), R-4.
+// PREVENTS: the daemon answering success for a key it never removed.
+func TestDeleteKeyAbsentIsAnError(t *testing.T) {
+	dataRPCStore(t, func(context.Context) error { return nil })
+
+	response := keyCall(t, "meta/test/never-written")
+	assert.Equal(t, zePlugin.StatusError, response.Status)
+	assert.Contains(t, response.Error, "holds no key meta/test/never-written")
+	assert.Contains(t, response.Error, "fix: show data list")
+}
+
+// TestKeyCommandsRefuseConfigurationKey verifies a key that is not runtime
+// state (under file/, under meta/config/, or outside both namespaces) is
+// refused before the store is touched: every key the store held is still
+// there. The refusal says the key is configuration, what the command reaches,
+// and names the command that manages a config.
+// VALIDATES: AC-4 (delete).
+// PREVENTS: a raw removal of a config file or pointer that bypasses versions and history.
+func TestKeyCommandsRefuseConfigurationKey(t *testing.T) {
+	store, _ := dataRPCStore(t, func(context.Context) error { return nil })
+	before, err := store.ListKeys("")
+	require.NoError(t, err)
+	require.NotEmpty(t, before, "the store holds the daemon's config")
+
+	for _, key := range []string{"file/active/ze.conf", "meta/config/ze.conf", "ze.conf"} {
+		response := keyCall(t, key)
+		assert.Equal(t, zePlugin.StatusError, response.Status, key)
+		assert.Contains(t, response.Error, "delete data key: "+key+" is configuration", key)
+		assert.Contains(t, response.Error, "a key under meta/ outside meta/config/", key)
+		assert.Contains(t, response.Error, "fix: update data config name <name> content <base64>", key)
+	}
+
+	after, err := store.ListKeys("")
+	require.NoError(t, err)
+	assert.Equal(t, before, after, "no key was removed")
+}
+
+// TestDataCommandsRefuseWithNoStore verifies every data RPC refuses while the
+// daemon publishes no store (starting, stopping, or running with none),
+// instead of reaching a nil or closed store.
+// VALIDATES: R-10.
+// PREVENTS: a nil dereference for a command that arrives during shutdown.
+func TestDataCommandsRefuseWithNoStore(t *testing.T) {
+	InstallDataRPC(nil)
+
+	response := keyCall(t, "meta/test/state")
+	assert.Equal(t, zePlugin.StatusError, response.Status)
+	assert.Contains(t, response.Error, "delete data key: this daemon serves no store")
+	assert.Contains(t, response.Error, "fix: ze data rm <key>")
+
+	for _, handler := range []struct {
+		name    string
+		handler pluginserver.Handler
+	}{
+		{"request data backup", handleDataBackup},
+		{"request data restore", handleDataRestore},
+	} {
+		response := dataCall(t, handler.handler, "path", "/tmp/backup.zefs", "config")
+		assert.Equal(t, zePlugin.StatusError, response.Status, handler.name)
+		assert.Contains(t, response.Error, handler.name+": this daemon serves no store", handler.name)
+	}
 }
 
 // TestBackupRPCPath verifies AC-4's refusals through the RPC entry point:

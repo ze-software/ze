@@ -11,7 +11,9 @@ import (
 )
 
 // modeOffline marks local store access. Read-only inspection is permitted
-// alongside a daemon; mutation requires exclusive store ownership.
+// alongside a daemon; a local mutation requires exclusive store ownership. A
+// running daemon mutates its store only through its own handle, by the
+// builtin commands register_data_rpc.go registers.
 const modeOffline = "offline"
 
 func init() {

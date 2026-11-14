@@ -342,7 +342,8 @@ now)..." and "Shutting down (Ctrl+C again to force)...".
 <!-- source: internal/component/plugin/server/system.go -- handleDaemonShutdown, handleDaemonQuit -->
 <!-- source: internal/component/plugin/process/manager.go -- RefuseRespawns -->
 
-The hub also answers two `request data` RPCs beside `request reload`. The
+The hub also answers three store commands beside `request reload`: the two
+`request data` RPCs and `delete data key`. The
 storage component owns their YANG and registers their handlers
 (`internal/component/config/storage/cli/register_data_rpc.go`), so the command
 contract sees them wherever the component is linked. They act on the store the
@@ -350,8 +351,11 @@ hub owns through a target the hub passes to `InstallDataRPC`, which it publishes
 clears before the store closes. `request data backup` walks that store under its write lock.
 `request data restore ... config` stages the artifact's config as the candidate
 and calls the same commit reload, so the SIGHUP acceptance chain runs and
-promotion stays last.
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- InstallDataRPC, handleDataBackup, handleDataRestore -->
+promotion stays last. `delete data key <key>` removes one runtime-state key
+(`storage.RuntimeKey`: under `meta/` outside `meta/config/`) through the same
+handle, so the owner lock is never lifted and no second writer opens the
+store; it refuses a configuration key before the store is touched.
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- InstallDataRPC, handleDataBackup, handleDataRestore, handleDataKeyDelete -->
 <!-- source: cmd/ze/hub/main.go -- storagecli.InstallDataRPC -->
 
 

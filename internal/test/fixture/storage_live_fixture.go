@@ -354,6 +354,85 @@ var storageLivePeersConfigured = regexp.MustCompile(`"peers-configured":\s*1\b`)
 // router-id the restored config carries (storageLiveRestoredRouterID).
 var storageLiveRestoredRouterIDJSON = regexp.MustCompile(`"router-id":\s*"2\.2\.2\.2"`)
 
+// storageLiveStaleKey is the runtime-state key data-rm-live.ci seeds while ze
+// is stopped and removes through the running daemon.
+const storageLiveStaleKey = "meta/test/stale-state"
+
+// storageLiveRemoveKey proves AC-3's daemon half on a running daemon: the key
+// the .ci seeded is read through a reader handle, a configuration key and an
+// absent key are refused naming why, `delete data key` then removes the seeded
+// key and answers it, and a fresh reader handle no longer finds it. The daemon
+// still answers afterwards.
+func storageLiveRemoveKey(ctx context.Context, args []string) error {
+	env, err := storageLiveClient(ctx, args)
+	if err != nil {
+		return err
+	}
+	if err := storageLiveKeyHeld(true); err != nil {
+		return err
+	}
+	refusals := []struct{ command, want string }{
+		{"delete data key " + zefs.KeyFileActive.Key("data-rm-live.conf"), "is configuration, not runtime state"},
+		{"delete data key meta/test/never-written", "the store holds no key meta/test/never-written"},
+	}
+	for _, refusal := range refusals {
+		if err := storageLiveRefused(ctx, env, refusal.command, refusal.want); err != nil {
+			return err
+		}
+	}
+	output, err := storageLiveRequest(ctx, env, "delete data key "+storageLiveStaleKey)
+	if err != nil {
+		return fmt.Errorf("delete data key %s: %w:\n%s", storageLiveStaleKey, err, output)
+	}
+	if !strings.Contains(output, storageLiveStaleKey) {
+		return fmt.Errorf("delete data key answer lacks %q:\n%s", storageLiveStaleKey, output)
+	}
+	if err := storageLiveKeyHeld(false); err != nil {
+		return err
+	}
+	if _, err := storageLiveRequest(ctx, env, "show version"); err != nil {
+		return err
+	}
+	return storageLiveOK("data-rm-live")
+}
+
+// storageLiveKeyHeld opens a fresh reader handle on the daemon's store and
+// requires storageLiveStaleKey to be present (want true) or absent (want false).
+func storageLiveKeyHeld(want bool) error {
+	held, err := storageLiveKeyPresent()
+	if err != nil {
+		return err
+	}
+	if held == want {
+		return nil
+	}
+	if want {
+		return fmt.Errorf("%s was not seeded before the daemon started", storageLiveStaleKey)
+	}
+	return fmt.Errorf("%s is still in the store after the daemon answered its removal", storageLiveStaleKey)
+}
+
+// storageLiveKeyPresent answers whether a fresh reader handle finds
+// storageLiveStaleKey. An absent key answers false; any other read error is an
+// error, never an absence.
+func storageLiveKeyPresent() (bool, error) {
+	tree, err := openDaemonStoreReadOnly(os.Environ(), ".")
+	if err != nil {
+		return false, err
+	}
+	_, err = tree.ReadKey(storageLiveStaleKey)
+	if closeErr := tree.Close(); closeErr != nil {
+		return false, errors.Join(err, closeErr)
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // storageLiveSource writes values to a blob at path, as a backup carries them.
 func storageLiveSource(path string, values map[string][]byte) error {
 	blob, err := storage.CreateBlobPopulated(path, func(seed storage.Storage) error {

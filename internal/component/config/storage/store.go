@@ -56,7 +56,7 @@ type keyEncoding interface {
 //     then object) must not straddle a removal; Stat, because its bytes and
 //     its meta must come from the same side of a guard; and writeConfigFile,
 //     which keeps Close away while it syncs a loose config.
-//   - runtime is the runtime-state lock, over every key runtimeKey names. A
+//   - runtime is the runtime-state lock, over every key RuntimeKey names. A
 //     guard acquired for a runtime-state key holds only it, and refuses any
 //     other key. A configuration guard takes it the first time it reaches a
 //     runtime-state key, a listing that could hold one included, and keeps it
@@ -206,7 +206,7 @@ func (s *store) WriteFile(name string, data []byte, _ fs.FileMode) error {
 	return s.WriteKey(resolveKey(name), data)
 }
 func (s *store) WriteKey(key string, data []byte) (err error) {
-	g, err := s.acquire(runtimeKey(key))
+	g, err := s.acquire(RuntimeKey(key))
 	if err != nil {
 		return err
 	}
@@ -220,7 +220,7 @@ func (s *store) Remove(name string) error {
 	return s.RemoveKey(resolveKey(name))
 }
 func (s *store) RemoveKey(key string) (err error) {
-	g, err := s.acquire(runtimeKey(key))
+	g, err := s.acquire(RuntimeKey(key))
 	if err != nil {
 		return err
 	}
@@ -416,13 +416,15 @@ func (s *store) AcquireLock(name string) (WriteGuard, error) {
 			return nil, err
 		}
 	}
-	return s.acquire(runtimeKey(name))
+	return s.acquire(RuntimeKey(name))
 }
 
-// runtimeKey reports whether key is runtime state: a metadata key outside the
+// RuntimeKey reports whether key is runtime state: a metadata key outside the
 // configuration pointers. Every other key (config files, history, objects,
-// pointers) is configuration, under writer.
-func runtimeKey(key string) bool {
+// pointers) is configuration, under writer. The store picks a write's lock by
+// it, and the daemon's key commands (storage/cli data_rpc.go) confine their
+// reach by it, so the two agree on what runtime state is.
+func RuntimeKey(key string) bool {
 	if !strings.HasPrefix(key, "meta/") {
 		return false
 	}
@@ -434,13 +436,13 @@ func runtimeOverlap(prefix string) bool {
 	if strings.HasPrefix("meta/", prefix) { //nolint:gocritic // argOrder: deliberate, asks whether prefix is itself a prefix of "meta/".
 		return true
 	}
-	return runtimeKey(prefix)
+	return RuntimeKey(prefix)
 }
 
 // runtimeOnly reports whether every key a listing of prefix can hold is
 // runtime state, so a runtime guard may answer it.
 func runtimeOnly(prefix string) bool {
-	if !runtimeKey(prefix) {
+	if !RuntimeKey(prefix) {
 		return false
 	}
 	return !strings.HasPrefix("meta/config/", prefix) //nolint:gocritic // argOrder: deliberate, asks whether prefix is itself a prefix of "meta/config/".
@@ -523,7 +525,7 @@ func errOutsideRuntimeGuard(key string) error {
 // reach makes the guard hold the lock that covers key, taking runtime the
 // first time a configuration guard reaches runtime state (store).
 func (g *guard) reach(key string) error {
-	if !runtimeKey(key) {
+	if !RuntimeKey(key) {
 		if g.holdsConfig {
 			return nil
 		}

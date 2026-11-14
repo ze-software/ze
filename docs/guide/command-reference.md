@@ -521,6 +521,7 @@ ze show errors source l2tp count 5     # last 5 errors from l2tp
 | error | `bgp / notification-received` | A peer sends a NOTIFICATION to this ze instance | Never |
 | error | `bgp / session-dropped` | An Established session ends without a NOTIFICATION exchange (TCP loss, hold-timer with no notification, peer FIN) and no other event reported the close | Never |
 | error | `bgp / doctor-bgp-peer-not-reading` | Ze closes a session because the peer accepted no data for a whole write budget (the budget is in `detail`, the fix on the event) | Never |
+| error | `bgp / doctor-bgp-write-path-held` | Ze closes a session while another writer still holds its write path, so what that writer had not sent is dropped, and a NOTIFICATION that was due is not sent (the fix is on the event) | Never |
 
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- report code constants and helper functions -->
 <!-- source: internal/component/bgp/reactor/peer_stats.go -- incrNotificationSent, incrNotificationReceived -->
@@ -2832,12 +2833,28 @@ the daemon; there is no live full restore. The restore records a durable
 opener, `ze start` included, refuses and prints `ze data restore <file> full`,
 and that command alone finishes the restore.
 
-The daemon answers two RPCs over SSH, for a file on its own host:
+The daemon answers three store commands on every surface (SSH, REST, gRPC,
+MCP, the web), acting on the store it owns. The two `request data` commands
+read or write a file on the daemon's own host:
 
 ```
 request data backup path <absolute-file> [spare <n>] [force]
 request data restore path <absolute-file> config [name <source-name>] [client <name>]
+delete data key <key>
 ```
+
+`delete data key <key>` removes one runtime-state key while ze runs: a key
+under `meta/` outside `meta/config/`. It answers `key`. A configuration key
+(under `file/` or `meta/config/`, or outside both) is refused before the store
+is touched, because a raw removal bypasses its versions, pointers and history;
+the refusal names `update data config name <name> content <base64>`. A key the
+store does not hold is an error, as it is for `ze data rm`. The built-in
+read-only profile is denied the command. Runtime state includes the login and
+HTTPS credentials, so removing one of them can lock you out:
+`meta/auth/local/...` holds the local administrator's name, password hash and
+SSH public keys, `meta/ssh/...` the SSH login the CLI uses, and `meta/web/cert`
+and `meta/web/key` the HTTPS certificate and private key.
+<!-- source: pkg/zefs/keys.go -- KeySSHUsername, KeySSHPassword, KeyLocalAdminUsername, KeyLocalAdminPassword, KeyLocalAdminAuthorizedKeys, KeyWebCert, KeyWebKey -->
 
 Both refuse a relative path, a `..` element and a symlink, each naming the
 rule. `backup` walks the daemon's own store under its write lock and answers
@@ -2860,7 +2877,8 @@ carries `client`.
 <!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
 <!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestore, parseRestoreArgs -->
 <!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup, handleDataRestore, restoreClientConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup, handleDataRestore, restoreClientConfig, handleDataKeyDelete, configurationKeyError, removeKeyError -->
+<!-- source: internal/component/config/storage/store.go -- RuntimeKey -->
 <!-- source: internal/component/config/storage/cli/cmd_backup.go -- cmdBackup, daemonAddress -->
 <!-- source: internal/component/config/storage/backup.go -- Backup, storeOwnedName -->
 <!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, cmdEncode -->

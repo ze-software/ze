@@ -247,7 +247,16 @@ The configuration storage layer maps config paths into this key space and also
 exposes raw-key operations for data commands. Its mapping, per-config pointers
 and recursive enumeration contract are described in
 [Storage backends](storage-backends.md). `ze data` accepts either an explicit
-blob artifact or the live tree root; mutations require offline ownership.
+blob artifact or the live tree root; its mutations require offline ownership.
+A running daemon changes its own store only through the handle it owns, by the
+store commands it serves on every surface: `request data backup`,
+`request data restore ... config`, and `delete data key <key>`, which removes
+one runtime-state key. Runtime state is a key under `meta/` outside
+`meta/config/` (`storage.RuntimeKey`), the same split that picks the lock a
+write takes; `delete data key` refuses every other key, because a raw removal
+of a configuration key bypasses its versions, pointers and history.
+<!-- source: internal/component/config/storage/store.go -- RuntimeKey -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete -->
 
 ## Key Registry
 

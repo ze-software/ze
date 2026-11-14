@@ -1,5 +1,5 @@
 // Design: docs/architecture/hub-architecture.md -- request data RPCs beside request reload.
-// Related: register_data_rpc.go -- registers the two handlers.
+// Related: register_data_rpc.go -- registers the handlers.
 // Related: cmd/ze/hub/main.go -- the daemon installs the target, with the reload a SIGHUP runs (main_reload.go).
 
 package cli
@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strconv"
 	"sync/atomic"
@@ -18,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -47,13 +49,16 @@ var dataRPC atomic.Pointer[DataRPCTarget]
 // the store.
 func InstallDataRPC(target *DataRPCTarget) { dataRPC.Store(target) }
 
-// keywordPath names the artifact path keyword of both RPCs, and the answer key
-// that echoes it. keywordClient does the same for the restore's client target, and
-// keywordName names the source config a config restore reads.
+// keywordPath names the artifact path keyword of the backup and restore RPCs,
+// and the answer key that echoes it. keywordClient does the same for the
+// restore's client target, keywordName names the source config a config restore
+// reads, and keywordKey names the store key leaf of `delete data key` and the
+// answer key that echoes it.
 const (
 	keywordPath   = "path"
 	keywordClient = "client"
 	keywordName   = "name"
+	keywordKey    = "key"
 )
 
 // dataBackupArgs is one parsed `request data backup` line.
@@ -281,7 +286,65 @@ func parseDataRestoreArgs(args []string) (dataRestoreArgs, error) {
 	return parsed, nil
 }
 
-// dataRefusal is the error answer both RPCs give, carrying the reason.
+// handleDataKeyDelete answers `delete data key <key>`. It removes one
+// runtime-state key through the store handle the daemon owns: opening the store
+// afresh here would be a second writer, which the owner lock refuses. Every
+// refusal runs before the store is touched. The answer names the key removed.
+func handleDataKeyDelete(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*zePlugin.Response, error) {
+	target := dataRPC.Load()
+	if target == nil {
+		return zePlugin.OperatorErrorResponse(opererr.New(
+			"delete data key: this daemon serves no store",
+			"the daemon publishes its store to this command only while the store is open, so it is starting, stopping, or runs with no store",
+			"ze data rm <key>")), nil
+	}
+	key, found := validated.Value(keywordKey)
+	if !found {
+		return zePlugin.OperatorErrorResponse(opererr.New(
+			"delete data key: no key was given",
+			"the command removes exactly one store key, the value typed after key",
+			"delete data key <key>")), nil
+	}
+	if !storage.RuntimeKey(key) {
+		return zePlugin.OperatorErrorResponse(configurationKeyError("delete data key", key)), nil
+	}
+	if err := target.Store.RemoveKey(key); err != nil {
+		return zePlugin.OperatorErrorResponse(removeKeyError(key, err)), nil
+	}
+	return &zePlugin.Response{
+		Status: zePlugin.StatusDone,
+		Data:   zePlugin.Map{keywordKey: key},
+	}, nil
+}
+
+// configurationKeyError refuses a key the daemon's key commands do not reach:
+// any key storage.RuntimeKey does not call runtime state. commandPath is the
+// command the operator typed, which the refusal names first.
+func configurationKeyError(commandPath, key string) *opererr.Error {
+	return opererr.New(
+		commandPath+": "+key+" is configuration, not runtime state",
+		commandPath+" reaches runtime state only, a key under meta/ outside meta/config/, because a raw change to a configuration key bypasses its versions, pointers and history",
+		"update data config name <name> content <base64>")
+}
+
+// removeKeyError explains a removal the store refused. A key the store does
+// not hold is named as such, as the local ze data rm reports it, and is never
+// answered as a success.
+func removeKeyError(key string, err error) *opererr.Error {
+	if errors.Is(err, fs.ErrNotExist) {
+		return opererr.Wrap(err,
+			"delete data key: the store holds no key "+key,
+			"nothing was removed: the key was already removed, or its name is mistyped",
+			"show data list")
+	}
+	return opererr.Wrap(err,
+		"delete data key: the store refused to remove "+key,
+		"the key is unchanged",
+		"ze doctor")
+}
+
+// dataRefusal is the error answer the backup and restore RPCs give, carrying
+// the reason.
 func dataRefusal(err error) *zePlugin.Response {
 	return &zePlugin.Response{Status: zePlugin.StatusError, Error: err.Error()}
 }

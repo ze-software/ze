@@ -79,7 +79,7 @@ the plugin registration check derive their verb set from it.
 | `monitor` | Read | The same read, repeated until the operator stops it | Nothing | Yes | 8 |
 | `resolve` | Read | An answer fetched from outside the daemon | Nothing | Yes | 11 |
 | `set` | Mutation | One config tree node takes a new value | The running config | Yes | 1 |
-| `delete` | Mutation | Something that existed stops existing: a config tree node, or a live kernel resource | The running config, or the kernel | Yes | 4 |
+| `delete` | Mutation | Something that existed stops existing: a config tree node, a live kernel resource, or a runtime-state key of the daemon's store | The running config, the kernel, or the store | Yes | 6 |
 | `clear` | Action | Data that exists takes one fixed value, zero or empty | Counters and caches | Yes | 19 |
 | `request` | Action | The system changes, and the change is none of create, delete or update | The session, the wire, or the process | No | 33 |
 | `create` | Action | Something that did not exist exists after the command, today a live kernel resource | The kernel | Yes | 5 |
@@ -123,7 +123,7 @@ Ask one question, in this order, and stop at the first Yes.
 |---|----------|------|
 | 1 | Does it change the system? No, it only reports | `show`, or `monitor` for the same read streamed |
 | 2 | Does it read an answer that lives outside Ze? | `resolve` |
-| 3 | Does it change a node of the config YANG tree? | `set`, or `delete` |
+| 3 | Does it change a node of the config YANG tree, or make a live kernel resource or a store key stop existing? | `set`, or `delete` |
 | 4 | Does it return accumulated runtime state to zero? | `clear` |
 | 5 | Does it make something exist that did not exist? | `create` |
 | 6 | Does it rewrite data held for something that exists? | `update` |
@@ -597,7 +597,7 @@ changed, and it is not a bug list.
 |---|----------|--------------|---------|
 | L-1 | `resolve ping` and `resolve traceroute` | Every reference CLI has `ping` bare or under a diagnostics verb. No CLI uses `resolve` as a root verb, and `docs/guide/command-catalogue.md` states that Ze keeps universal diagnostics bare | Undefended, and half of it is now settled. Both commands emit packets, so the axis rules them out of a read verb and T-32 records that. What stays open is the ROOT they take: a bare diagnostic root matches every reference CLI, and `request` is what the residual test gives them |
 | L-2 | The peer selector carries no kind keyword | Every other Ze noun types its selector: `show interface name <n> detail`, `show l2tp session id <id>` | Earned. The bare form is the ExaBGP order an operator already types, and it is the order FRR publishes. Its cost is T-3, and the cost falls on enumerating actions alone |
-| L-3 | `delete` carries two roles | It removes a config tree node AND a live kernel resource, so one word means two things | Earned, and stated in `verbs.go`. `create` has no config sense, so pairing it with a second deletion verb would add a word to carry no new meaning |
+| L-3 | `delete` carries three roles | It removes a config tree node, a live kernel resource, AND a runtime-state key of the daemon's store (`delete data key`), so one word means three things | Earned, and stated in `verbs.go`. `create` has no config sense, so pairing it with a second deletion verb would add a word to carry no new meaning. The store key passes the same test: it existed and stops existing, so it takes `delete` before the residual `request` |
 | L-4 | `clear` never resets a session | All five reference CLIs reset a BGP session with `clear` or `reset` | Earned AS A RULE and NOT TRUE TODAY, and the two must not be read together. The rule keeps one meaning for `clear`. The cost is that an operator's first guess fails, and the error message has to carry them to `request peer <sel> teardown`. The tree breaks it in nine places, listed at T-21. So the first guess currently SUCCEEDS everywhere except BGP. That is worse than either answer alone, because the word means one thing in one protocol and another everywhere else. Until T-21 is closed this row states a target, not behavior |
 | L-5 | Rendering has no flag | Operators arriving from any of the five reach for a flag or a per-command keyword | Earned. Rendering belongs to the pipe layer on every command, so one operator set serves 363 commands and only the operator composes (`command-namespacing.md`) |
 | L-6 | The name of the narrowing operator is OPEN | `plan/release/fixes/spec-fixit-selector-narrows-through-a-pipe.md` proposes one operator named `limit` for every display command, which would replace the field-named `\| peer <sel>` on `show bgp rib`. That reading of `limit` disagrees with the rule above, and it disagrees with the word's other uses | Undecided, and Thomas decides. `limit` already means a numeric row cap in three Ze surfaces, in FRR (`bgp listen limit`, `prefix-limit`) and in BIRD (`babel limit`, merge-paths `limit`). Ze also ships `\| first <n>` and `\| last <n>` beside it |

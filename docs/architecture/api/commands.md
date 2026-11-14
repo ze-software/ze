@@ -1080,6 +1080,7 @@ request reload           # Reload the configuration
 request plugin restart <name>   # Restart a configured plugin, stopping it first if it runs (lifts a respawn-limit disable)
 request data backup path <file> [spare <n>] [force]   # Back up the store to a file on the daemon host
 request data restore path <file> config [name <n>]    # Restore the config from a backup through the reload
+delete data key <key>    # Remove one runtime-state key (meta/ outside meta/config/) through the daemon's store
 show reload-status       # Show how many config reloads have been processed
 show config running      # Show the configuration the daemon applied
 ```

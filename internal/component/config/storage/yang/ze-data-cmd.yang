@@ -2,8 +2,38 @@ module ze-data-cmd {
     namespace "urn:ze:data:cmd";
     prefix datacmd;
     import ze-extensions { prefix ze; }
-    description "Live backup and config restore of the daemon's own store.";
+    description "Live maintenance of the daemon's own store: backup, config restore, and the
+removal of one runtime-state key, each through the store handle the daemon owns.";
     revision 2026-09-26 { description "Initial revision"; }
+    revision 2026-11-14 { description "Added delete data key, the removal of one runtime-state key through the daemon."; }
+
+    container delete {
+        config false;
+
+        container data {
+            config false;
+            description "This keyword runs nothing on its own. 'delete data key <key>' is the one
+command under it.";
+            ze:help "Remove a runtime-state key from the running daemon's store.";
+
+            container key {
+                config false;
+                ze:command "ze-config:data-key-delete";
+                description "Removes one runtime-state key (a key under meta/ outside meta/config/) through
+the store the daemon owns, so it works while ze runs. A configuration key (under
+file/ or meta/config/, or outside both) is refused before the store is touched,
+because a raw removal bypasses its versions, pointers and history. A key the
+store does not hold is an error.";
+                ze:help "Remove one runtime-state key from the daemon's store.";
+                leaf key {
+                    type string { length "1..512"; }
+                    mandatory true;
+                    description "The key to remove, as show data list prints it.";
+                    ze:help "Store key, as show data list prints it";
+                }
+            }
+        }
+    }
 
     container request {
         config false;

@@ -10,4 +10,5 @@ func init() {
 	Register("storage/data-restore-full-refused-live", storageLiveRestoreFullRefused)
 	Register("storage/data-restore-config-live", storageLiveRestoreConfig)
 	Register("storage/data-restore-client-live", storageLiveRestoreClient)
+	Register("storage/data-rm-live", storageLiveRemoveKey)
 }

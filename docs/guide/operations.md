@@ -135,9 +135,11 @@ never the tree's framing bytes.
 | `request data backup path <absolute-file> [spare <n>] [force]` | Live backup of the daemon's store, written on the daemon's host |
 | `request data restore path <absolute-file> config [name <source-name>]` | Live config restore: staged as the candidate, active only when the reload accepts it; refused while a `commit confirmed` window is open |
 | `request data restore path <absolute-file> config [name <source-name>] client <name>` | On a hub: restore the config it serves to managed client `<name>`; the hub pushes `config-changed` and does not reload |
+| `delete data key <key>` | Live removal of one runtime-state key (under `meta/` outside `meta/config/`) through the daemon's own store; a configuration key and an absent key are refused |
 | `ze data encode [--crc\|--header] [--cap N] <string\|->` | Encode a netcapstring for inspection |
 
 <!-- source: internal/component/config/storage/cli/main.go -- subcommandHandlers -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete -->
 
 ### Connection
 
