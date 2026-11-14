@@ -6,10 +6,9 @@
 //
 // The eBPF programs are assembled in pure Go (github.com/cilium/ebpf
 // asm.Instructions) and loaded from memory: there is no C source, no committed
-// object file, and no clang/LLVM build step. This deliberately diverges from
-// the l2tp XDP-policing plugin, which commits bpf2go .o files. The cost is that
-// the BPF logic is hand-written assembly with no compiler, so BPF_PROG_TEST_RUN
-// per-path tests are load-bearing. See plan/spec-traffic-usage.md.
+// object file, and no clang/LLVM build step. The cost is that the BPF logic is
+// hand-written assembly with no compiler, so BPF_PROG_TEST_RUN per-path tests
+// are load-bearing. See docs/architecture/traffic/traffic-usage.md.
 //
 // The plugin never drops or modifies traffic; it only counts bytes. IPv4 only,
 // matching the upstream lan-bandwidth-exporter it is ported from.

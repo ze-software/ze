@@ -1,24 +1,27 @@
 package diag
 
 import (
+	"bytes"
+	"encoding/base64"
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strings"
 	"testing"
+
+	"golang.org/x/crypto/curve25519"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
-// VALIDATES: runWgKeypair (diag.go) runs `wg genkey`, pipes THAT private key
-//            into `wg pubkey` on stdin, prints both keys, and refuses arguments.
-// PREVENTS:  the success path going unexecuted. It used to be guarded by a
-//            LookPath("wg") skip, and `wg` is installed on no build host here, so
-//            the only path the command exists for was never run. The `wg` fixture
-//            below exits non-zero when its stdin is not the genkey output, so the
-//            piping contract is asserted, not assumed.
+// VALIDATES: runWgKeypair (diag.go) makes a WireGuard keypair inside ze with no
+//            `wg` on PATH, answers a clamped Curve25519 private key and the
+//            public key that private key derives, answers fresh keys on every
+//            call, prints both keys in the documented two-line form, and
+//            refuses arguments.
+// PREVENTS:  the command depending on wireguard-tools, which the appliance image
+//            and the build hosts do not carry, and an answer whose public key
+//            does not belong to its private key.
 //            End-to-end dispatch through the ze binary:
 //            test/parse/cli-generate-wireguard-keypair.ci
 
@@ -30,57 +33,15 @@ func TestRunWgKeypair_RejectsArgs(t *testing.T) {
 	if answer.Code != 1 || answer.Payload != nil {
 		t.Errorf("runWgKeypair(extra) = code %d payload %v, want a refusal with code 1", answer.Code, answer.Payload)
 	}
-	if want := "request wireguard keypair: no arguments accepted\n" + wgKeypairUsage; answer.Diagnostic != want {
+	want := "request wireguard keypair: no arguments accepted\n" +
+		"Usage: ze request wireguard keypair (the keys are made from random bytes alone, so nothing typed after the command is read)\n" +
+		"fix: ze request wireguard keypair\n"
+	if answer.Diagnostic != want {
 		t.Errorf("runWgKeypair(extra) diagnostic = %q, want %q", answer.Diagnostic, want)
 	}
 	if written != "" {
 		t.Errorf("runWgKeypair(extra) wrote %q, want nothing", written)
 	}
-}
-
-// Keys the wg fixture below prints. They are not real WireGuard keys and are not
-// meant to be: the point is that the exact bytes `wg genkey` produced come back
-// out of `wg pubkey`'s stdin and reach stdout.
-const (
-	fixturePrivateKey = "ZeUnitTestPrivateKey00000000000000000000000="
-	fixturePublicKey  = "ZeUnitTestPublicKey000000000000000000000000="
-)
-
-// installWgFixture puts a deterministic `wg` on PATH for the duration of the
-// test and returns nothing: the fixture IS the assertion. `wg pubkey` exits
-// non-zero unless its stdin is exactly what `wg genkey` printed, so a
-// runWgKeypair that stopped piping the private key through cannot pass.
-//
-// This replaces a LookPath("wg") skip. `wg` is not installed on the build hosts
-// or in CI, so the skip fired every time and the success path -- the whole
-// reason the command exists -- was never executed (ai/rules/testing.md).
-func installWgFixture(t *testing.T) {
-	t.Helper()
-	dir := t.TempDir()
-	script := "#!/bin/sh\n" +
-		"case \"$1\" in\n" +
-		"genkey)\n" +
-		"  [ $# -eq 1 ] || { echo \"wg fixture: genkey argv: $*\" >&2; exit 2; }\n" +
-		"  echo '" + fixturePrivateKey + "'\n" +
-		"  ;;\n" +
-		"pubkey)\n" +
-		"  [ $# -eq 1 ] || { echo \"wg fixture: pubkey argv: $*\" >&2; exit 2; }\n" +
-		"  IFS= read -r GOT\n" +
-		"  [ \"$GOT\" = '" + fixturePrivateKey + "' ] || {\n" +
-		"    echo \"wg fixture: pubkey stdin '$GOT' is not the genkey output\" >&2; exit 1; }\n" +
-		"  echo '" + fixturePublicKey + "'\n" +
-		"  ;;\n" +
-		"*)\n" +
-		"  echo \"wg fixture: unexpected argv: $*\" >&2; exit 2\n" +
-		"  ;;\n" +
-		"esac\n"
-	path := filepath.Join(dir, "wg")
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil { //nolint:gosec // test fixture must be executable
-		t.Fatalf("write wg fixture: %v", err)
-	}
-	// The fixture dir goes FIRST, so it wins over a real `wg` on a host that has
-	// one; the rest of PATH stays so /bin/sh keeps finding what it needs.
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
 // captureOutput runs fn with os.Stdout and os.Stderr replaced by one pipe and
@@ -105,56 +66,85 @@ func captureOutput(t *testing.T, fn func() command.LocalAnswer) (command.LocalAn
 	return answer, string(buf)
 }
 
-// TestRunWgKeypair_PipesGenkeyIntoPubkey is the success path: `wg genkey` runs,
-// its output is fed to `wg pubkey` on stdin, the handler answers both keys
-// without writing, and the local route prints them in the documented two-line
-// form.
-func TestRunWgKeypair_PipesGenkeyIntoPubkey(t *testing.T) {
-	installWgFixture(t)
-
+// generateKeypair runs the command with no arguments, checks it answered a
+// keypair without writing, and answers the keypair with its decoded private
+// and public keys.
+func generateKeypair(t *testing.T) (wgKeypair, []byte, []byte) {
+	t.Helper()
 	answer, written := captureOutput(t, func() command.LocalAnswer { return runWgKeypair(commandtest.Args()) })
 	if answer.Code != 0 || answer.Diagnostic != "" {
 		t.Fatalf("runWgKeypair() = code %d diagnostic %q, want 0", answer.Code, answer.Diagnostic)
 	}
 	if written != "" {
-		t.Errorf("runWgKeypair() wrote %q, want nothing", written)
+		t.Errorf("runWgKeypair() wrote %q, want nothing: the private key leaves only in the answer", written)
 	}
 	keypair, ok := answer.Payload.(wgKeypairAnswer)
 	if !ok {
 		t.Fatalf("payload %T, want wgKeypairAnswer", answer.Payload)
 	}
-	if keypair.Keypair.PrivateKey != fixturePrivateKey || keypair.Keypair.PublicKey != fixturePublicKey {
-		t.Errorf("keypair = %+v, want the fixture keys", keypair.Keypair)
+	private, err := base64.StdEncoding.DecodeString(keypair.Keypair.PrivateKey)
+	if err != nil {
+		t.Fatalf("private key %q is not standard base64: %v", keypair.Keypair.PrivateKey, err)
+	}
+	public, err := base64.StdEncoding.DecodeString(keypair.Keypair.PublicKey)
+	if err != nil {
+		t.Fatalf("public key %q is not standard base64: %v", keypair.Keypair.PublicKey, err)
+	}
+	if len(private) != curve25519.ScalarSize || len(public) != curve25519.PointSize {
+		t.Fatalf("keys are %d and %d bytes, want %d and %d", len(private), len(public), curve25519.ScalarSize, curve25519.PointSize)
+	}
+	return keypair.Keypair, private, public
+}
+
+// TestRunWgKeypair_GeneratesInProcess is the success path, run with an empty
+// PATH so no `wg` can answer. For each of two calls it derives the public key
+// from the answered private key with x/crypto's X25519 over the base point,
+// independently of the producer's library, and requires the answered public
+// key to equal it. It requires the private key clamped as
+// https://cr.yp.to/ecdh.html specifies (what `wg genkey` prints), the two
+// calls to answer different keys, and the local route to print the documented
+// two lines.
+func TestRunWgKeypair_GeneratesInProcess(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	if _, err := exec.LookPath("wg"); err == nil {
+		t.Fatal("PATH override failed: wg is still resolvable, so this test proves nothing about running without it")
+	}
+
+	first, firstPrivate, firstPublic := generateKeypair(t)
+	second, secondPrivate, secondPublic := generateKeypair(t)
+
+	for _, generated := range []struct{ private, public []byte }{
+		{firstPrivate, firstPublic},
+		{secondPrivate, secondPublic},
+	} {
+		derived, err := curve25519.X25519(generated.private, curve25519.Basepoint)
+		if err != nil {
+			t.Fatalf("derive the public key: %v", err)
+		}
+		if !bytes.Equal(derived, generated.public) {
+			t.Errorf("public key %x is not the one private key %x derives (%x)", generated.public, generated.private, derived)
+		}
+		if generated.private[0]&7 != 0 || generated.private[31]&128 != 0 || generated.private[31]&64 == 0 {
+			t.Errorf("private key %x is not clamped (byte 0 low three bits clear, byte 31 top bit clear, bit 6 set)", generated.private)
+		}
+	}
+	if bytes.Equal(firstPrivate, secondPrivate) {
+		t.Errorf("two calls answered the same private key %x", firstPrivate)
+	}
+	if bytes.Equal(firstPublic, secondPublic) {
+		t.Errorf("two calls answered the same public key %x", firstPublic)
 	}
 
 	var code int
 	_, out := captureOutput(t, func() command.LocalAnswer {
-		code = command.RenderLocalAnswer("request wireguard keypair", answer.Payload)
+		code = command.RenderLocalAnswer("request wireguard keypair", wgKeypairAnswer{Keypair: first})
 		return command.LocalAnswer{}
 	})
-	want := "private: " + fixturePrivateKey + "\npublic:  " + fixturePublicKey + "\n"
+	want := "private: " + first.PrivateKey + "\npublic:  " + first.PublicKey + "\n"
 	if code != 0 || out != want {
 		t.Errorf("local route printed (code %d)\n%q\nwant\n%q", code, out, want)
 	}
-}
-
-// TestRunWgKeypair_ReportsMissingWg checks the documented failure: with no `wg`
-// on PATH the command refuses with exit code 1 rather than answering an empty
-// or partial keypair.
-func TestRunWgKeypair_ReportsMissingWg(t *testing.T) {
-	t.Setenv("PATH", t.TempDir())
-
-	answer, written := captureOutput(t, func() command.LocalAnswer { return runWgKeypair(commandtest.Args()) })
-	if answer.Code != 1 || answer.Payload != nil {
-		t.Errorf("runWgKeypair() with no wg = code %d payload %v, want a refusal with code 1", answer.Code, answer.Payload)
-	}
-	if !strings.HasPrefix(answer.Diagnostic, "request wireguard keypair: wg genkey failed: ") {
-		t.Errorf("diagnostic %q does not name the failed step", answer.Diagnostic)
-	}
-	if written != "" {
-		t.Errorf("runWgKeypair() with no wg wrote %q, want nothing", written)
-	}
-	if _, err := exec.LookPath("wg"); err == nil {
-		t.Fatal("PATH override failed: wg is still resolvable, so this test proved nothing")
+	if first == second {
+		t.Errorf("two calls answered the same keypair %+v", first)
 	}
 }

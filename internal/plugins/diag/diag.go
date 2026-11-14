@@ -1,10 +1,9 @@
 // Design: docs/guide/command-catalogue.md -- diagnostics (wireguard keygen)
 // Related: register.go -- registers runWgKeypair as a local-data command
 //
-// Package diag is the offline home for diagnostic commands that wrap OS
-// tools with validated argv (no shell). The daemon is not required:
-// subcommands are local shell-outs from the `ze` binary. Per
-// rules/cli-patterns.md each subcommand uses its own flag.NewFlagSet with
+// Package diag is the offline home of `request wireguard keypair`. The daemon
+// is not required: the command is answered in the `ze` process that runs it.
+// Per rules/cli-patterns.md each subcommand uses its own flag.NewFlagSet with
 // a custom Usage printer.
 //
 // The `ze ping` offline root and the daemon-side ping handlers now live in
@@ -14,14 +13,14 @@ package diag
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
-	"os/exec"
-	"strings"
+
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -29,9 +28,10 @@ import (
 // drawing is registered under.
 const keyWireguardKeypair = "wireguard-keypair"
 
-const wgKeypairUsage = "Usage: ze request wireguard keypair\n\nGenerate a WireGuard keypair by invoking `wg genkey` and `wg pubkey`.\nThe system must have the `wg` binary installed.\n"
+const wgKeypairUsage = "Usage: ze request wireguard keypair\n\nGenerate a WireGuard keypair inside ze. No other program is needed.\n"
 
-// wgKeypair is a generated WireGuard keypair, base64 as `wg` prints it.
+// wgKeypair is a generated WireGuard keypair, each key in the standard base64
+// form that `wg genkey` and `wg pubkey` print and a WireGuard config reads.
 type wgKeypair struct {
 	PrivateKey string `json:"private-key"`
 	PublicKey  string `json:"public-key"`
@@ -42,16 +42,21 @@ type wgKeypairAnswer struct {
 	Keypair wgKeypair `json:"wireguard-keypair"`
 }
 
-// runWgKeypair generates a WireGuard keypair by invoking `wg genkey`
-// and `wg pubkey`, and answers both keys. It writes nothing: the local
-// route draws the answer as two lines,
+// runWgKeypair generates a WireGuard keypair in process and answers both
+// keys. The private key is a Curve25519 scalar read from crypto/rand and
+// clamped as https://cr.yp.to/ecdh.html requires; the public key is that
+// scalar times the base point (wgtypes.GeneratePrivateKey, Key.PublicKey).
+// That is what `wg genkey` and `wg pubkey` compute, so no external program
+// runs and a host without wireguard-tools, the appliance image included,
+// answers the same. It writes nothing and logs nothing: the private key
+// leaves only in the answer, which the local route draws as two lines,
 //
 //	private: <base64>
 //	public:  <base64>
 //
 // Usage: ze request wireguard keypair
 //
-// Refuses with exit code 1 if `wg` is not installed. No arguments accepted.
+// No arguments accepted.
 func runWgKeypair(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	var diag bytes.Buffer
@@ -65,31 +70,29 @@ func runWgKeypair(validated command.ValidatedArgs) command.LocalAnswer {
 		return command.LocalRefusal(1, diag.String())
 	}
 	if fs.NArg() > 0 {
-		return command.LocalRefusal(1, "request wireguard keypair: no arguments accepted\n"+wgKeypairUsage)
+		refusal := opererr.New("request wireguard keypair: no arguments accepted",
+			"Usage: ze request wireguard keypair (the keys are made from random bytes alone, so nothing typed after the command is read)",
+			"ze request wireguard keypair")
+		return command.LocalRefusal(1, refusal.Error()+"\n")
 	}
-	ctx := context.Background()
-	priv, err := exec.CommandContext(ctx, "wg", "genkey").Output() //nolint:gosec // no user input
+	private, err := wgtypes.GeneratePrivateKey()
 	if err != nil {
-		return wgRefusal("wg genkey", err)
-	}
-	privStr := strings.TrimSpace(string(priv))
-	pubCmd := exec.CommandContext(ctx, "wg", "pubkey") //nolint:gosec // no user input
-	pubCmd.Stdin = strings.NewReader(privStr + "\n")
-	pub, err := pubCmd.Output()
-	if err != nil {
-		return wgRefusal("wg pubkey", err)
+		return wgRandomRefusal(err)
 	}
 	return command.LocalAnswer{Payload: wgKeypairAnswer{Keypair: wgKeypair{
-		PrivateKey: privStr,
-		PublicKey:  strings.TrimSpace(string(pub)),
+		PrivateKey: private.String(),
+		PublicKey:  private.PublicKey().String(),
 	}}}
 }
 
-// wgRefusal refuses the command after the named `wg` step failed.
-func wgRefusal(step string, err error) command.LocalAnswer {
-	var tb textbuf.Buffer
-	tb.Str("request wireguard keypair: ").Str(step).Str(" failed: ").Err(err).Byte('\n')
-	return command.LocalRefusal(1, tb.String())
+// wgRandomRefusal refuses the command when the system random source could not
+// supply the private key's bytes, so no partial keypair is ever answered.
+func wgRandomRefusal(err error) command.LocalAnswer {
+	refusal := opererr.Wrap(err,
+		"request wireguard keypair: no keypair was made",
+		"the system random source did not supply the bytes a private key needs",
+		"ze request wireguard keypair")
+	return command.LocalRefusal(1, refusal.Error()+"\n")
 }
 
 // drawWgKeypair draws a keypair as the two lines the command printed.

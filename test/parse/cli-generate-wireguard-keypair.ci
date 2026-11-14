@@ -5,25 +5,15 @@
 #            the real ze binary, its argument guard rejects a stray token, and the
 #            refusal names the command and prints the usage.
 # PREVENTS:  a command that resolves nowhere, and a guard that lets an argument
-#            through to `wg genkey`.
+#            through to key generation.
 #
-# The SUCCESS path -- `wg genkey`, its output piped into `wg pubkey` on stdin, two
-# printed keys -- is NOT here. It needs a fake `wg` that a helper script puts on
-# PATH, and the parse suite gives that helper no way to call `ze`. runOneCommand
-# (internal/test/runner/parsing.go) builds the child environment with childEnv,
-# which adds no PATH entry for the ze binary, so the helper gets `ze: not found`.
-# A draft that tried it was measured failing on that. The gap is homed at
-# spec-fixit-parse-suite-helper-cannot-invoke-ze.
-#
-# The second limit this comment used to name is FIXED. `parsingRunner.setupWorkDir`
-# materializes through `test.Tmpfs.WriteTo(workDir)`, so a `mode=755` fixture now
-# reaches disk executable in the parse suite. The orchestrated `.ci` path still
-# flattens the block and re-derives the mode from the file extension; that half is
-# recorded in plan/journal/helper-bypassed-by-an-open-coded-copy.md.
-#
-# The success-path coverage lives in TestRunWgKeypair_PipesGenkeyIntoPubkey
-# (internal/plugins/diag/diag_test.go), which shims `wg` and asserts `wg pubkey`
-# receives exactly what `wg genkey` printed.
+# The SUCCESS path is NOT here. Ze makes the keys in process, with no `wg`
+# involved. TestRunWgKeypair_GeneratesInProcess
+# (internal/plugins/diag/diag_test.go) runs it with an empty PATH and derives
+# the public key from the private key independently, and the local-data
+# coverage walk (test/ui/pipe-local-command.ci, runWireGuardKeypair in
+# internal/test/localdatacoverage/tool_commands.go) runs it through the real
+# ze binary and checks the same derivation on its JSON answer.
 
 stdin=config:terminator=EOF_CONF
 # Minimal valid config; the command below never reads it.
@@ -48,9 +38,9 @@ bgp {
 }
 EOF_CONF
 
-# A stray token must be refused BEFORE RunWgKeypair reaches `wg genkey`. That is
-# what the stderr text discriminates: drop the guard and the message becomes a wg
-# failure here, or on a host that has wg, a printed keypair on stdout.
+# A stray token must be refused BEFORE RunWgKeypair makes a key. That is what
+# the stderr text and the stdout rejection discriminate: drop the guard and a
+# printed keypair appears on stdout with exit code 0.
 cmd=foreground:seq=1:exec=ze request wireguard keypair extra-arg:exit=1
 expect=exit:code=1
 expect=stderr:contains=request wireguard keypair: no arguments accepted

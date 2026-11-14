@@ -51,6 +51,7 @@ shape different enough that parity is not automatic.
 | config | Parsed YANG config only |
 | process | Daemon process metadata |
 | shell | `exec.Command` wrapping OS tool (ping, traceroute, tcpdump) |
+| go | Computed in the ze process; no OS tool or kernel dependency |
 
 ### How to update
 
@@ -344,7 +345,7 @@ Runtime-level config manipulation that is not `set` / `del`.
 | Format / canonicalise | - | - | - | - | - | `ze config fmt` | shipped | config | Ze-unique |
 | Force commit archive | `force commit-archive` | - | `admin save` | - | - | | planned | config | |
 | Generate SSH host key | `generate ssh server-key` | `request security pki ...` | - | `security ssh generate` | - | | scope | - | OS admin task |
-| Generate WireGuard keypair | `request wireguard keypair` | - | - | - | - | `request wireguard keypair` | shipped | shell | Verb-first form (`request`) |
+| Generate WireGuard keypair | `request wireguard keypair` | - | - | - | - | `request wireguard keypair` | shipped | go | Verb-first form (`request`). Keys made in process, no `wg` binary needed |
 
 ## 12. PKI / Crypto / Security
 
@@ -388,7 +389,6 @@ focused spec and reference this catalogue's rows by name.
 | OSPF subsystem (future) | §7 OSPF rows |
 | IS-IS subsystem (future) | §7 IS-IS rows |
 | Process memory / CPU sampler | §8 rows 2, 3 |
-| `wg` and `ip neighbor` binding helpers | §11 WireGuard keypair |
 
 ## Not tracked here
 

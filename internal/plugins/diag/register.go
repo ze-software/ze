@@ -1,4 +1,4 @@
-// Register the diag entry points (ping, request wireguard keypair)
+// Register the diag entry point (request wireguard keypair)
 // with the cmd/ze dispatcher. Blank-imported by
 // internal/component/plugin/all for its side effects: the generated
 // composition root names every package that registers a command.
@@ -17,8 +17,8 @@ func init() {
 	// drawing gives the text route the two lines the command always printed.
 	command.MustRegisterTextRenderer(keyWireguardKeypair, drawWgKeypair)
 	command.MustRegisterLocalData("request wireguard keypair", runWgKeypair, registry.Meta{
-		ShortHelp: "Generate a WireGuard keypair with the system wg binary.",
+		ShortHelp: "Generate a WireGuard keypair.",
 		Description: "The private key is written on the first line and the public key on the second. " +
-			"The wg binary must be installed on this host.",
+			"Ze makes the keys itself, so no other program is needed.",
 	}, command.RenderLocalAnswer)
 }

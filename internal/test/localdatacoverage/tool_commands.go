@@ -4,6 +4,7 @@
 package localdatacoverage
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,19 +12,14 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"golang.org/x/crypto/curve25519"
 )
 
 // debugModuleCoverage is the subsystem the debug walk enables and removes. Any
 // name without a slash is a module the profile can hold, so the walk owns one
 // no real subsystem uses.
 const debugModuleCoverage = "coverage.local"
-
-// The keys the fake `wg` answers. They are not WireGuard keys: the point is
-// that the private key `wg genkey` printed is the one `wg pubkey` read.
-const (
-	wgFakePrivateKey = "coverage-private-key"
-	wgFakePublicKey  = "public-of-" + wgFakePrivateKey
-)
 
 // debugChange runs a debug command that changes state and checks the one
 // change it answers: the subject, the result, and the name when one is named.
@@ -161,7 +157,7 @@ func runToolCommands(output io.Writer, work string) error {
 		return err
 	}
 
-	if err := runWireGuardKeypair(output, work); err != nil {
+	if err := runWireGuardKeypair(output); err != nil {
 		return err
 	}
 	return runSupportArchive(output, work)
@@ -200,29 +196,13 @@ func runSupportArchive(output io.Writer, work string) error {
 		"request support archive wrote %d bytes to %s that are not a gzip stream", len(archive), path)
 }
 
-// runWireGuardKeypair covers `request wireguard keypair`. The command runs
-// `wg`, which no build host carries, so a fake one on PATH answers it, and the
-// check proves the private key `wg genkey` printed is the one `wg pubkey` read.
-func runWireGuardKeypair(output io.Writer, work string) error {
-	bin := filepath.Join(work, "fake-bin")
-	if err := os.MkdirAll(bin, 0o700); err != nil {
-		return fmt.Errorf("create the fake wg directory: %w", err)
-	}
-	script := "#!/bin/sh\ncase \"$1\" in\n" +
-		"genkey) echo " + wgFakePrivateKey + " ;;\n" +
-		"pubkey) read key; echo \"public-of-$key\" ;;\n" +
-		"*) exit 2 ;;\nesac\n"
-	if err := os.WriteFile(filepath.Join(bin, "wg"), []byte(script), 0o700); err != nil { //nolint:gosec // G306: the fake wg must be executable by its owner
-		return fmt.Errorf("write the fake wg: %w", err)
-	}
-	previousPath := os.Getenv("PATH")
-	if err := os.Setenv("PATH", bin+string(os.PathListSeparator)+previousPath); err != nil {
-		return fmt.Errorf("put the fake wg on PATH: %w", err)
-	}
+// runWireGuardKeypair covers `request wireguard keypair`. The command makes the
+// keys inside ze, so no `wg` is involved. The check decodes both keys and
+// proves the public key is the Curve25519 base-point product of the private
+// key, derived here with x/crypto rather than through the producer's library,
+// so an answer whose two keys do not belong together is refused.
+func runWireGuardKeypair(output io.Writer) error {
 	payload, err := localJSON("request wireguard keypair | json compact", "request wireguard keypair", output)
-	if restoreErr := os.Setenv("PATH", previousPath); restoreErr != nil {
-		return fmt.Errorf("restore PATH: %w", restoreErr)
-	}
 	if err != nil {
 		return err
 	}
@@ -234,9 +214,23 @@ func runWireGuardKeypair(output io.Writer, work string) error {
 	if err != nil {
 		return err
 	}
-	return require(keypair["private-key"] == wgFakePrivateKey && keypair["public-key"] == wgFakePublicKey,
-		"request wireguard keypair answered %#v, want private key %q and public key %q",
-		keypair, wgFakePrivateKey, wgFakePublicKey)
+	privateText, _ := keypair["private-key"].(string)
+	publicText, _ := keypair["public-key"].(string)
+	private, err := base64.StdEncoding.DecodeString(privateText)
+	if err != nil {
+		return fmt.Errorf("request wireguard keypair answered a private key that is not base64: %w", err)
+	}
+	if err := require(len(private) == curve25519.ScalarSize,
+		"request wireguard keypair answered a %d-byte private key, want %d", len(private), curve25519.ScalarSize); err != nil {
+		return err
+	}
+	public, err := curve25519.X25519(private, curve25519.Basepoint)
+	if err != nil {
+		return fmt.Errorf("derive the public key of the private key request wireguard keypair answered: %w", err)
+	}
+	want := base64.StdEncoding.EncodeToString(public)
+	return require(publicText == want,
+		"request wireguard keypair answered public key %q, want %q, the one its private key derives", publicText, want)
 }
 
 // runBGPToolCommands covers `show bgp encode` and `show bgp decode` as one
