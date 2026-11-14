@@ -3,6 +3,7 @@ package sysrib
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/netip"
 	"strings"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
@@ -238,6 +240,10 @@ func TestShowRIBCandidatesNoLocRIBRefuses(t *testing.T) {
 			t.Error(cleanupErr)
 		}
 		t.Fatal("no Loc-RIB opened a routing view")
+	}
+	requireRouteViewRefusal(t, err, "The daemon's selected routing table is unavailable", "Call route-view-open on the daemon's authenticated plugin connection")
+	if refusal, _ := errors.AsType[*opererr.Error](err); refusal.Why() != "A complete selected view is required before forwarding" {
+		t.Fatalf("refusal why = %q, want the nil Loc-RIB consequence", refusal.Why())
 	}
 	authority.mu.Lock()
 	active := authority.active
