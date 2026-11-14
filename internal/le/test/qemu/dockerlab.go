@@ -49,6 +49,15 @@ const (
 	// Go unit whose test declares it needs root is the caller
 	// (internal/le/rfc, guestRunArgv). Harness already runs as root.
 	KeywordRoot = "root"
+	// KeywordGuestLe names, with harness, a guest le the caller built itself
+	// (BuildGuestLeAt) and its command runs, so the branch builds none. A
+	// caller that boots many guests over one build of the tree is the user
+	// (`le feature run`, runInGuest).
+	KeywordGuestLe = "guest-le"
+	// KeywordImage names, with command, a docker-host image the caller
+	// resolved itself (setupdockerhost.EnsureImage), so the branch resolves
+	// none. The boot still checks that the image embeds the selected kernel.
+	KeywordImage = "image"
 	// keywordEnv carries NAME=value assignments the lab runs under, such as
 	// IPSEC_INTEROP_SCENARIO=mobike-initiator: the suites select one scenario
 	// from the environment.
@@ -291,6 +300,8 @@ func runDockerLab(ctx context.Context, root string, args leaction.Arguments, boo
 		options.Kernel = args.One(keywordKernel)
 		options.GuestHarness = args.Has(KeywordHarness)
 		options.GuestRoot = args.Has(KeywordRoot)
+		options.GuestLe = args.One(KeywordGuestLe)
+		options.Image = args.One(KeywordImage)
 		if !options.GuestHarness {
 			return runDockerLabCommand(ctx, root, goarch, options)
 		}

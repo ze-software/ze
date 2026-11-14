@@ -41,6 +41,14 @@ func GuestLeRel(goarch string) string {
 // ctx is the calling verb's signal root, or Background for a verb that holds
 // none: a done ctx ends the wait for a slot and the build (RunContext).
 func buildGuestLe(ctx context.Context, root, goarch string) error {
+	return BuildGuestLeAt(ctx, root, goarch, GuestLeRel(goarch))
+}
+
+// BuildGuestLeAt is buildGuestLe writing to rel, a checkout-relative path, for a
+// caller that boots many guests over one build of the tree: it builds once here
+// and names rel to every `docker-lab ... harness` it starts as KeywordGuestLe,
+// so no boot rebuilds the le from a working tree other sessions are editing.
+func BuildGuestLeAt(ctx context.Context, root, goarch, rel string) error {
 	toolchain, err := gotoolchain.New(root)
 	if err != nil {
 		return err
@@ -56,7 +64,7 @@ func buildGuestLe(ctx context.Context, root, goarch string) error {
 	admission.Out = os.Stderr
 	admission.OwnProcessGroup = true
 
-	output := filepath.Join(root, GuestLeRel(goarch))
+	output := filepath.Join(root, rel)
 	environment := append(toolchain.EnvironmentContext(ctx, gotoolchain.EnvOptions{GOOS: guestOS, GOARCH: goarch}),
 		linuxle.Overrides(goarch)...)
 	if _, code := admission.RunContext(ctx, "qemu-build-le", linuxle.Argv(tags, output), root, environment); code != 0 {

@@ -91,7 +91,7 @@ commands execute inside that guest; `test qemu all` runs as root.
 | `./le test qemu netns suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects the seven ASPA cases, the RFC 2545 next-hop replay case, the static-into-OSPF redistribution chain case, the blind ddos-detect case and the thirty route-policy and system-RIB placement cases |
 | `le test qemu all` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Six suites run in a per-test network namespace, requiring full `ip`, `setcap` and `getcap` tools |
 | `le test qemu all only needs-linux` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
-| `le test qemu all test test/<dir>/<name>.ci` | That one `.ci`, run from inside the guest; the host command that boots a guest for it is `./le test qemu ci test test/<dir>/<name>.ci` ([below](#running-one-ci-test-in-a-ze-guest)). It runs through the suite that walks its directory (`vmSuiteFor`); a draft, `test/draft/<dir>/<name>.ci`, runs through the same suite with `--draft`. Either takes the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` under `docker-lab harness` |
+| `le test qemu all test test/<dir>/<name>.ci` | That one `.ci`, run from inside the guest; the host command that boots a guest for it is `./le test qemu ci test test/<dir>/<name>.ci` ([below](#running-one-ci-test-in-a-ze-guest)). It runs through the suite that walks its directory (`vmSuiteFor`); a draft, `test/draft/<dir>/<name>.ci`, runs through the same suite with `--draft`. Either takes the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` under `docker-lab harness`; feature run spells it with `OneCICommandWith` over the guest le it built once, named to `docker-lab` as `guest-le` |
 
 `test qemu all` discovers the suites' tests through the native runner, so a new
 `needs-linux` test needs no registration there. `netns` uses the explicit
@@ -576,9 +576,10 @@ This uses the architecture-qualified guest binaries selected by the existing
 `ZE_QEMU_BIN` and `ZE_QEMU_STRIPPED_BIN` overrides or their defaults. The
 harness is the guest le that runs the action: `docker-lab harness` builds it
 with `internal/le/linuxle` for `QEMU_GOARCH` or the host architecture at
-`tmp/qemu/linux-<guest arch>/le` (`buildGuestLe`) before it boots the guest, and
-the launcher runs `le test <suite>` through a link to it (`guestLeLink`). No
-variable names the harness. A native prerequisite skip is not evidence for this subset.
+`tmp/qemu/linux-<guest arch>/le` (`buildGuestLe`) before it boots the guest,
+unless the caller names one it built with `guest-le`, and the launcher runs
+`le test <suite>` through a link to it (`guestLeLink`). No variable names the
+harness. A native prerequisite skip is not evidence for this subset.
 
 <!-- source: internal/le/test/qemu/netns.go -- the namespace table's producer and the capability preparation -->
 <!-- source: internal/le/test/qemu/alltests.go -- vmSuites, the Namespace of each row -->
@@ -955,6 +956,24 @@ the forwarded SIGINT goes through `sudo -n kill`: the kernel refuses that user a
 signal to a root process, and `kill` still answers success once the shell alone
 receives it.
 
+A caller that boots many guests over one build of the tree names that build
+instead, and the branch then builds and resolves nothing of its own.
+`guest-le <checkout-path>`, valid only with `harness`, names a guest le the
+caller cross-built itself (`BuildGuestLeAt`), and the caller's command runs that
+le (`OneCICommandWith`). It must be a local path inside the checkout, because
+the guest sees only the checkout, and an executable regular file; otherwise
+the call refuses before the boot and names the fix: omit `guest-le` so `harness`
+builds `tmp/qemu/linux-<arch>/le`. `image <image-path>`, valid only with
+`command`, names the docker-host image the caller resolved
+(`setupdockerhost.EnsureImage`), which the boot still checks against the
+selected kernel (`dockerLabImageBoot`); a path that is not a readable regular
+file refuses before the boot. A call naming neither builds the guest le and
+ensures the image as above, so a standalone `docker-lab ... harness` run is
+unchanged. The caller is `le feature run` (`docs/contributing/feature-maturity.md`).
+<!-- source: internal/le/test/qemu/dockerlab_command.go -- dockerLabMode, dockerLabImage, dockerLabGuestLe -->
+<!-- source: internal/le/test/qemu/guestle.go -- BuildGuestLeAt -->
+<!-- test: internal/le/test/qemu/dockerlab_harness_test.go TestDockerLabHarnessTakesTheCallersBuild, TestDockerLabHarnessActionPreparesTheGuest -->
+
 The `root` switch runs the command through the same `sudo -n env` wrapper and
 the same `sudo -n kill` interrupt, and does nothing else: no guest le is built,
 and nothing is bound at `/workspace`. `harness` already implies it. Its caller
@@ -1243,9 +1262,9 @@ recovery.
 |------|-------------|------|--------|
 | amd64 Linux | KVM | not recorded | the extended health-bearing run of the deployment work |
 | arm64 macOS | HVF | 11.1.3 | commit `6b8656ae9f` on 2026-11-13, with other sessions' uncommitted files in the tree |
+| arm64 macOS | HVF | 11.1.3 | commit `c6a1e51a1b` on 2026-11-14, with no uncommitted product source in the tree |
 
-Neither run is release-artifact evidence, and neither proves routing or VPN
-traffic. A run from the release commit belongs with the preview artifacts.
+Neither run proves routing or VPN traffic.
 
 `./le test qemu appliance-ota` is a manual deployment proof. It builds two named
 images for the host's architecture, boots the first disk, and publishes a host
@@ -1312,10 +1331,10 @@ boot, and the three refusals.
 |------|-------------|------|--------------|--------|
 | amd64 Linux | KVM | 8.2.2 | 7.3.0-ze | commit `990f785bca`, tree clean when the run started |
 | arm64 macOS | HVF | 11.1.3 | 7.3.0-ze | commit `9bf21a753a`, with other sessions' uncommitted files in the tree |
+| arm64 macOS | HVF | 11.1.3 | 7.3.0-ze | commit `c6a1e51a1b` on 2026-11-14, with no uncommitted product source in the tree |
 
-Neither run is release-artifact evidence: the amd64 tree was not verified
-clean throughout, and the arm64 tree was not clean. A run from the release
-commit belongs with the preview artifacts.
+The first two runs had trees that were not verified clean throughout; the
+third had no uncommitted product source.
 
 `./le test qemu appliance-config-push` builds one current native appliance image
 and drives its matching host driver's `appliance config-push` command. The

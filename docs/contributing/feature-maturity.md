@@ -151,12 +151,25 @@ the repository path for an `.et`), because a `-run` pattern that matched
 nothing exits 0. A skip is never a pass. A `.ci` that declares
 `option=needs-linux`, with or without `caps=`, and that this host would skip
 (`runner.NeedsGuest`, the parser's own skip decision) runs in a throwaway boot of
-Ze's own system instead: feature run cross-builds `ze` and `ze-stripped` for the
-guest under `tmp/qemu/feature-record-run/`, resolves the image's runtime kernel,
-then runs `le test qemu docker-lab kernel <vmlinuz> harness ... command
-'<guest le> test qemu all test <path>'`, which runs that one test through
-the suite `test qemu all` gives its directory, network-namespace preparation
-included. The guest runner's own PASS line is still the observation. When the
+Ze's own system instead. Before the first item runs, when any item is such a
+`.ci`, feature run builds the guest route once: it cross-builds the guest
+daemons and the guest le under `tmp/qemu/feature-record-run/linux-<arch>/`,
+reads the le's SHA-256, ensures the docker-host image and resolves its runtime
+kernel. A build that fails refuses the run before any item. Each such test then
+runs `le test qemu docker-lab kernel <vmlinuz> image <image> harness guest-le
+<guest le> ... command '<guest le> test qemu all test <path>'`, which runs that
+one test through the suite `test qemu all` gives its directory,
+network-namespace preparation included, and builds nothing: every guest test
+of one run judges the one build the run made, never a build of the working
+tree as other sessions left it at that test's moment. Before each boot feature
+run reads the le's digest again; a le that is gone or holds other bytes
+(another `le feature run` builds into the same directory) refuses the run,
+naming the path and the fix: run one `./le feature run` at a time, then run it
+again. The check is the digest, not the file's age, because `go build` leaves
+an up-to-date output untouched. The guest runner's own PASS line is still the
+observation.
+<!-- source: internal/le/feature/recordrun_guestbuild.go -- repoRunner.guestReady, buildGuestRoute, guestBuild.unchanged -->
+<!-- test: internal/le/feature/recordrun_guest_test.go TestAFeatureRunBuildsTheGuestRouteOnce, TestAFeatureRunRefusesAGuestLeReplacedSinceItsBuild --> When the
 guest route cannot run here (no QEMU, no KVM access, no image), the refusal
 says the test skips on this host and quotes the route's own error. A
 `test/pppoe/` test declares `option=netns-link` and skips outside `./le test

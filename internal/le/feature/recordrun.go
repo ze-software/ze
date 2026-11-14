@@ -359,10 +359,12 @@ type repoRunner struct {
 	// needsGuest is the runner's own answer to "does this host skip that .ci
 	// because its home is the QEMU guest" (runner.NeedsGuest).
 	needsGuest func(path string) (bool, error)
-	guestBuilt bool
-	// guestKernel answers the vmlinuz the guest boots. The zero value is
-	// testqemu.GuestRuntimeKernel over tree.
-	guestKernel func() (string, error)
+	// guest is the one build of the guest route this run made (guestReady),
+	// nil until then.
+	guest *guestBuild
+	// guestSteps builds the guest route's inputs. Nil means the host's own
+	// steps (hostGuestSteps); a test names fakes.
+	guestSteps *guestSteps
 	// hostReady is the functional host preflight (setup.FunctionalHostPreflight).
 	hostReady func() error
 }
@@ -370,8 +372,12 @@ type repoRunner struct {
 // preflight answers nil when this host can run every item of items, and
 // otherwise the refusal hostReady gives. Only a .ci that runs on this host
 // binds the loopback addresses the preflight checks, so a Go test, an editor
-// test and a .ci whose home is the QEMU guest never consult it.
+// test and a .ci whose home is the QEMU guest never consult it. When any item
+// is a .ci whose home is the guest, it then builds the guest route once
+// (guestReady), so every guest test of the run judges that one build of the
+// tree and a build that fails refuses before the first item runs.
 func (r *repoRunner) preflight(items []string) error {
+	host, guest := false, false
 	for _, item := range items {
 		file, _, named := strings.Cut(item, goTestSeparator)
 		if named {
@@ -380,14 +386,25 @@ func (r *repoRunner) preflight(items []string) error {
 		if path.Ext(file) != ciSuffix {
 			continue
 		}
-		guest, err := r.needsGuest(filepath.Join(r.tree, file))
+		inGuest, err := r.needsGuest(filepath.Join(r.tree, file))
 		if err != nil {
 			return err
 		}
-		if guest {
+		if inGuest {
+			guest = true
 			continue
 		}
-		return r.hostReady()
+		host = true
+	}
+	if host {
+		if err := r.hostReady(); err != nil {
+			return err
+		}
+	}
+	if guest {
+		if _, err := r.guestReady(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -436,29 +453,24 @@ func (r *repoRunner) prepare() error {
 // runInGuest runs the .ci at file in a throwaway boot of Ze's own system, through
 // the suite `le test qemu all` gives its directory, because this host skips
 // it (runner.NeedsGuest): a skip is never a pass, so the host run proves
-// nothing. The guest daemons are cross-built once into the checkout, which the
-// guest mounts. The observation is the guest runner's own output, so the
-// test's own PASS line is still what observedPass looks for.
+// nothing. Every boot takes the one guest build of this run (guestReady): the
+// daemons, the guest le, the image and its kernel, named to docker-lab with
+// guest-le and image so the boot builds nothing from the working tree. The
+// observation is the guest runner's own output, so the test's own PASS line is
+// still what observedPass looks for.
 func (r *repoRunner) runInGuest(file string) (observation, error) {
-	goarch := testqemu.GuestArch()
-	binaries := filepath.Join(guestBinariesRel, "linux-"+goarch, "bin")
-	if !r.guestBuilt {
-		if err := testfunctional.PrepareGuest(r.toolchain, filepath.Join(r.tree, binaries), goarch); err != nil {
-			return observation{}, errors.New("cannot cross-build the guest ze for linux/" + goarch + ": " + err.Error())
-		}
-		r.guestBuilt = true
-	}
-	resolve := r.guestKernel
-	if resolve == nil {
-		resolve = func() (string, error) { return testqemu.GuestRuntimeKernel(r.tree, goarch) }
-	}
-	kernel, err := resolve()
+	build, err := r.guestReady()
 	if err != nil {
-		return observation{}, errors.New("cannot resolve the runtime kernel Ze's guest boots: " + err.Error())
+		return observation{}, err
 	}
+	if err := build.unchanged(r.tree); err != nil {
+		return observation{}, err
+	}
+	le := filepath.ToSlash(build.le)
 	argv := []string{filepath.Join(r.set.Dir, testfunctional.LE), "test", "qemu", "docker-lab",
-		"kernel", kernel, testqemu.KeywordHarness, "timeout", guestCommandTimeout,
-		"command", testqemu.OneCICommand(binaries, file, goarch)}
+		"kernel", build.kernel, testqemu.KeywordImage, build.image, testqemu.KeywordHarness,
+		testqemu.KeywordGuestLe, le, "timeout", guestCommandTimeout,
+		"command", testqemu.OneCICommandWith(le, filepath.ToSlash(build.binaries), file)}
 	seen, err := r.exec(argv, r.set.Environment(r.toolchain), guestRunDeadline)
 	if err != nil {
 		return observation{}, errors.New("the QEMU guest route (`le test qemu docker-lab`): " + err.Error())

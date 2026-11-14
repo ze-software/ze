@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -120,6 +121,7 @@ func TestDockerLabHarnessInterruptReachesRootCommand(t *testing.T) {
 type recordedDockerLabHost struct {
 	steps []string
 	run   *Run
+	image string // the image the boot was handed
 }
 
 // stubDockerLabHost replaces the command branch's host steps with recorders over
@@ -139,9 +141,10 @@ func stubDockerLabHost(t *testing.T, tree string) *recordedDockerLabHost {
 			recorded.steps = append(recorded.steps, "guest-le")
 			return nil
 		},
-		boot: func(_ context.Context, run *Run, _ string, _ *dockerLabKernel) (DockerLabReport, error) {
+		boot: func(_ context.Context, run *Run, image string, _ *dockerLabKernel) (DockerLabReport, error) {
 			recorded.steps = append(recorded.steps, "boot")
 			recorded.run = run
+			recorded.image = image
 			return DockerLabReport{CommandExit: 5}, nil
 		},
 	}
@@ -208,6 +211,109 @@ func TestDockerLabHarnessActionPreparesTheGuest(t *testing.T) {
 	}
 	if logged, err := os.ReadFile(record); err != nil || strings.TrimSpace(string(logged)) != "sudo" { //nolint:gosec // the test's own record
 		t.Errorf("the command did not run through sudo: %q, %v", logged, err)
+	}
+}
+
+// TestDockerLabHarnessTakesTheCallersBuild drives the verb's body inside a
+// parent's slot with guest-le and image, then with each missing or misplaced.
+// VALIDATES: a harness call naming the guest le and the image its caller built
+// builds neither and boots that image; the same call without them still builds
+// the le and ensures the image (as TestDockerLabHarnessActionPreparesTheGuest
+// pins); a named le that is missing, outside the checkout or not executable, or
+// a named image that is missing, refuses before the boot with the fix; guest-le
+// without harness and image without command refuse as modes.
+// PREVENTS: `le feature run` rebuilding the guest le from the shared working
+// tree on every guest test, and a named build that is gone booting anyway.
+func TestDockerLabHarnessTakesTheCallersBuild(t *testing.T) {
+	entry := filepath.Join(t.TempDir(), "parent.job")
+	if err := os.WriteFile(entry, []byte("LABEL=outer\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	nameParent(t, entry)
+	tree := dockerLabRuntimeFixture(t)
+	root := t.TempDir()
+	const le = "tmp/run/le"
+	if err := os.MkdirAll(filepath.Join(root, "tmp", "run"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, le), []byte("#!/bin/sh\n"), 0o700); err != nil { //nolint:gosec // the guest le must be executable
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "tmp", "run", "plain"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	image := filepath.Join(t.TempDir(), "disk.img")
+	if err := os.WriteFile(image, []byte("img"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	typed := func(guestLe, named string) leaction.Arguments {
+		args := leaction.Arguments{keywordKernel: {filepath.Join(tree, "vmlinuz")}, keywordCommand: {"true"},
+			KeywordHarness: nil}
+		if guestLe != "" {
+			args[KeywordGuestLe] = []string{guestLe}
+		}
+		if named != "" {
+			args[KeywordImage] = []string{named}
+		}
+		return args
+	}
+
+	built := stubDockerLabHost(t, tree)
+	if _, code := runDockerLab(t.Context(), root, typed(le, image), ""); code != 5 {
+		t.Fatalf("a call naming its build answered %d, want the guest's 5", code)
+	}
+	if got := strings.Join(built.steps, " "); got != "boot" {
+		t.Errorf("a call naming its build ran %q, want the boot alone", got)
+	}
+	if built.image != image {
+		t.Errorf("the boot opened %q, want the named image %q", built.image, image)
+	}
+
+	standalone := stubDockerLabHost(t, tree)
+	if _, code := runDockerLab(t.Context(), root, typed("", ""), ""); code != 5 {
+		t.Fatalf("a standalone call answered %d, want the guest's 5", code)
+	}
+	if got := strings.Join(standalone.steps, " "); got != "image guest-le boot" {
+		t.Errorf("a standalone call ran %q, want it to ensure the image and build the guest le", got)
+	}
+
+	for _, refused := range []struct {
+		name string
+		args leaction.Arguments
+		want string
+	}{
+		{"missing le", typed("tmp/run/gone", image), "docker-lab guest-le tmp/run/gone cannot be read"},
+		{"le outside the checkout", typed("../le", image), "is not a path inside the checkout"},
+		{"le not executable", typed("tmp/run/plain", image), "is not executable"},
+		{"missing image", typed(le, image+".gone"), "cannot be read"},
+		{"guest-le without harness", leaction.Arguments{keywordKernel: {filepath.Join(tree, "vmlinuz")},
+			keywordCommand: {"true"}, KeywordGuestLe: {le}}, "guest-le is only valid with harness"},
+		{"image without command", leaction.Arguments{KeywordImage: {image}}, "image is only valid with command"},
+	} {
+		t.Run(refused.name, func(t *testing.T) {
+			stderr, err := os.CreateTemp(t.TempDir(), "refusal-")
+			if err != nil {
+				t.Fatal(err)
+			}
+			saved := os.Stderr
+			os.Stderr = stderr
+			recorded := stubDockerLabHost(t, tree)
+			_, code := runDockerLab(t.Context(), root, refused.args, "")
+			os.Stderr = saved
+			if err := stderr.Close(); err != nil {
+				t.Fatal(err)
+			}
+			output, err := os.ReadFile(stderr.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if code != 1 || !strings.Contains(string(output), refused.want) || !strings.Contains(string(output), "Fix:") {
+				t.Fatalf("answered %d with stderr %q, want exit 1 and %q with its fix", code, output, refused.want)
+			}
+			if slices.Contains(recorded.steps, "boot") {
+				t.Errorf("a refused call booted: %q", recorded.steps)
+			}
+		})
 	}
 }
 

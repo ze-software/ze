@@ -39,9 +39,16 @@ const oneCICommandTimeout = "3000s"
 // harness` builds at GuestLeRel. Both are relative because that branch runs the
 // command from the checkout it binds at GuestWorkspace.
 func OneCICommand(binaries, file, goarch string) string {
+	return OneCICommandWith(GuestLeRel(goarch), binaries, file)
+}
+
+// OneCICommandWith is OneCICommand run by the guest le at guestLe, a
+// checkout-relative path: the le a caller built once (BuildGuestLeAt) and names
+// to `docker-lab harness` as KeywordGuestLe, so the boot builds none.
+func OneCICommandWith(guestLe, binaries, file string) string {
 	var command textbuf.Buffer
 	command.Str(GuestBinaryEnvironment(binaries)).
-		Byte(' ').Str(filepath.ToSlash(GuestLeRel(goarch))).
+		Byte(' ').Str(filepath.ToSlash(guestLe)).
 		Str(" test qemu all ").Str(testKeyword).Byte(' ').Str(file)
 	return command.String()
 }

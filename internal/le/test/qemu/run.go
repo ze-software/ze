@@ -135,6 +135,13 @@ type RunOptions struct {
 	GuestHarness bool
 	// GuestRoot is the docker-lab command branch's KeywordRoot.
 	GuestRoot bool
+	// GuestLe is the docker-lab command branch's KeywordGuestLe: a
+	// checkout-relative guest le the caller built. Empty means the harness
+	// builds one at GuestLeRel.
+	GuestLe string
+	// Image is the docker-lab command branch's KeywordImage. Empty means
+	// EnsureImage resolves the image, building it when its key is not cached.
+	Image string
 }
 
 // guestCommandAsRoot answers whether the docker-lab command runs under sudo:

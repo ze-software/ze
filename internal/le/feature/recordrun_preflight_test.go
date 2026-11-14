@@ -61,7 +61,8 @@ func TestRepoRunnerPreflightChecksOnlyAHostCI(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			calls := 0
-			runner := &repoRunner{tree: t.TempDir(),
+			tree := t.TempDir()
+			runner := &repoRunner{tree: tree, guestSteps: fakeGuestSteps(t, tree, &guestBuilds{}),
 				needsGuest: func(string) (bool, error) { return tc.guest, nil },
 				hostReady: func() error {
 					calls++

@@ -412,6 +412,8 @@ var dockerLabParameters = []leaction.Parameter{
 	{Keyword: keywordKernel, Kind: leaction.KindPath, Help: "matching runtime vmlinuz; only with command", Value: "vmlinuz-path", Requirement: leaction.Optional},
 	{Keyword: KeywordHarness, Kind: leaction.KindSwitch, Help: "run command as root with the guest le at /workspace"},
 	{Keyword: KeywordRoot, Kind: leaction.KindSwitch, Help: "run command as root, with no guest le or /workspace"},
+	{Keyword: KeywordGuestLe, Kind: leaction.KindPath, Help: "a prebuilt guest le in the checkout; only with harness", Value: "checkout-path", Requirement: leaction.Optional},
+	{Keyword: KeywordImage, Kind: leaction.KindPath, Help: "a prebuilt docker-host image; only with command", Value: "image-path", Requirement: leaction.Optional},
 	{Keyword: keywordTimeout, Kind: leaction.KindDuration, Help: helpGuestTimeout, Value: valueDuration, Requirement: leaction.Optional},
 }
 

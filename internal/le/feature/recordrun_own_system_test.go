@@ -18,8 +18,8 @@ import (
 // refuses any guest whose PID 1 is not /gokrazy/init.
 //
 // Method: the set's le is a script that prints its own argv and a PASS line, so
-// the test reads the command feature run chose; the kernel resolver is injected
-// and the guest daemons count as built, so nothing compiles.
+// the test reads the command feature run chose; the guest build steps
+// are fakes with the kernel resolver injected, so nothing compiles.
 func TestAGuestOnlyTestRunsInZeSystem(t *testing.T) {
 	toolchain, err := gotoolchain.New(filepath.Join("..", "..", ".."))
 	if err != nil {
@@ -30,16 +30,19 @@ func TestAGuestOnlyTestRunsInZeSystem(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(set, testfunctional.LE), []byte(script), 0o700); err != nil { //nolint:gosec // the fake le must be executable
 		t.Fatal(err)
 	}
-	runner := &repoRunner{tree: t.TempDir(), toolchain: toolchain, prepared: true, guestBuilt: true,
-		set:         testfunctional.BinarySet{Dir: set},
-		needsGuest:  func(string) (bool, error) { return true, nil },
-		guestKernel: func() (string, error) { return "/cache/runtime/vmlinuz", nil }}
+	tree := t.TempDir()
+	steps := fakeGuestSteps(t, tree, &guestBuilds{})
+	steps.kernel = func(string) (string, error) { return "/cache/runtime/vmlinuz", nil }
+	runner := &repoRunner{tree: tree, toolchain: toolchain, prepared: true,
+		set:        testfunctional.BinarySet{Dir: set},
+		needsGuest: func(string) (bool, error) { return true, nil },
+		guestSteps: steps}
 	seen, err := runner.run("test/policy/gated.ci")
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	for _, want := range []string{
-		"argv: test qemu docker-lab kernel /cache/runtime/vmlinuz harness ",
+		"argv: test qemu docker-lab kernel /cache/runtime/vmlinuz image /img harness ",
 		" test qemu all test test/policy/gated.ci",
 	} {
 		if !strings.Contains(seen.output, want) {
@@ -63,9 +66,12 @@ func TestAGuestItemRefusesWithoutARuntimeKernel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("toolchain: %v", err)
 	}
-	runner := &repoRunner{tree: t.TempDir(), toolchain: toolchain, prepared: true, guestBuilt: true,
-		needsGuest:  func(string) (bool, error) { return true, nil },
-		guestKernel: func() (string, error) { return "", errors.New("no kernel here") }}
+	tree := t.TempDir()
+	steps := fakeGuestSteps(t, tree, &guestBuilds{})
+	steps.kernel = func(string) (string, error) { return "", errors.New("no kernel here") }
+	runner := &repoRunner{tree: tree, toolchain: toolchain, prepared: true,
+		needsGuest: func(string) (bool, error) { return true, nil },
+		guestSteps: steps}
 	_, err = runner.run("test/policy/gated.ci")
 	if err == nil || !strings.Contains(err.Error(), "no kernel here") {
 		t.Fatalf("run answered %v, want the resolver's refusal", err)

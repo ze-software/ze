@@ -45,7 +45,18 @@ func dockerLabMode(args leaction.Arguments) error {
 		if args.One(keywordKernel) == "" {
 			return errors.New("docker-lab command requires kernel <vmlinuz-path>. Fix: supply the image's matching runtime kernel")
 		}
+		if args.Has(KeywordGuestLe) && !args.Has(KeywordHarness) {
+			return errors.New("docker-lab guest-le is only valid with harness, the one guest that runs a guest le. " +
+				"Fix: add harness, or omit guest-le")
+		}
 		return nil
+	}
+	if args.Has(KeywordGuestLe) {
+		return errors.New("docker-lab guest-le is only valid with command and harness. Fix: supply both, or omit guest-le")
+	}
+	if args.Has(KeywordImage) {
+		return errors.New("docker-lab image is only valid with command; a Docker lab resolves its own image. " +
+			"Fix: supply command, or omit image")
 	}
 	if args.Has(keywordKernel) {
 		return errors.New("docker-lab kernel is only valid with command. Fix: supply command or omit kernel for a Docker lab")
@@ -95,7 +106,7 @@ func runDockerLabCommand(ctx context.Context, root, arch string, options RunOpti
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	image, err := dockerLabHost.ensureImage(ctx, root, arch)
+	image, err := dockerLabImage(ctx, root, arch, options.Image)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -103,7 +114,7 @@ func runDockerLabCommand(ctx context.Context, root, arch string, options RunOpti
 	if options.GuestHarness {
 		// After the caller's own builds, under the environment it restored, so
 		// the guest le never carries a discrimination overlay.
-		if err := dockerLabHost.buildGuest(ctx, root, arch); err != nil {
+		if err := dockerLabGuestLe(ctx, root, arch, options.GuestLe); err != nil {
 			leaction.ReportError(err)
 			return nil, 1
 		}
@@ -118,6 +129,53 @@ func runDockerLabCommand(ctx context.Context, root, arch string, options RunOpti
 		return &report, 1
 	}
 	return &report, report.CommandExit
+}
+
+// dockerLabImage answers the image the command branch boots: the one the caller
+// named with KeywordImage, or the one EnsureImage resolves, which builds it from
+// the working tree when its key is not cached. A named image is refused when it
+// is not a readable regular file; the boot then checks the kernel it embeds.
+func dockerLabImage(ctx context.Context, root, arch, prebuilt string) (string, error) {
+	if prebuilt == "" {
+		return dockerLabHost.ensureImage(ctx, root, arch)
+	}
+	info, err := os.Stat(prebuilt)
+	if err != nil {
+		return "", fmt.Errorf("docker-lab image %s cannot be read: %w. Fix: build it with %s and name the path it answers, "+
+			"or omit image", prebuilt, err, dockerLabImageBuild(arch))
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("docker-lab image %s is not a regular file, so it is no disk image. "+
+			"Fix: name the image file %s answers, or omit image", prebuilt, dockerLabImageBuild(arch))
+	}
+	return prebuilt, nil
+}
+
+// dockerLabGuestLe makes the guest le the harness command runs ready: it
+// cross-builds one at GuestLeRel, or, when the caller named the one it built
+// with KeywordGuestLe, checks that file instead of building. The guest sees the
+// checkout only at GuestWorkspace, so a named le MUST be a local path inside it.
+func dockerLabGuestLe(ctx context.Context, root, arch, prebuilt string) error {
+	if prebuilt == "" {
+		return dockerLabHost.buildGuest(ctx, root, arch)
+	}
+	if !filepath.IsLocal(prebuilt) {
+		return fmt.Errorf("docker-lab guest-le %s is not a path inside the checkout, and the guest sees only the checkout. "+
+			"Fix: name it relative to the checkout root, or omit guest-le so harness builds %s", prebuilt, GuestLeRel(arch))
+	}
+	info, err := os.Stat(filepath.Join(root, prebuilt))
+	if err != nil {
+		return fmt.Errorf("docker-lab guest-le %s cannot be read: %w. Fix: build it again, or omit guest-le so harness builds %s",
+			prebuilt, err, GuestLeRel(arch))
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("docker-lab guest-le %s is not a regular file. Fix: name the built le, or omit guest-le", prebuilt)
+	}
+	if info.Mode().Perm()&0o111 == 0 {
+		return fmt.Errorf("docker-lab guest-le %s is not executable, so the guest cannot run it. "+
+			"Fix: build it again, or omit guest-le so harness builds %s", prebuilt, GuestLeRel(arch))
+	}
+	return nil
 }
 
 // dockerLabImageBuild answers the command that builds the image for arch, which
