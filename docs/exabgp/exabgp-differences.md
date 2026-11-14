@@ -407,6 +407,27 @@ negotiated on every line after the OPENs are exchanged.
 
 <!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpPeerASAuto, exabgpPeerASN -->
 
+## An `announce eor` sent while the session starts
+
+ExaBGP keeps a script's `announce eor` until no route is pending for the
+neighbor and then sends it, after its own automatic marker. It never drops the
+request and never removes a repeat. Ze does the same for the part a peer can
+see: the bridge turns the line into `update text nlri eor` or `mp <family> eor`,
+and a request that arrives during Ze's initial sync is held in the peer's
+forward queue and written after the routes already queued for the peer, never
+dropped. With `manual-eor true` it is the only marker that peer receives, as in
+ExaBGP.
+
+One difference remains. Ze sends one automatic marker per family per session,
+and a request that reaches the family first takes that place: the initial sync
+then sends no marker of its own for the family. ExaBGP would send both, the
+automatic one and then the requested one. The peer reads the same thing either
+way, that the initial update for the family is complete, and a second marker
+for the same family changes nothing for it.
+
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR, announceEOR -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
+
 ## Template for Future Differences
 
 ### Feature Name

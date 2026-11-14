@@ -389,15 +389,18 @@ func TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker(t *testing.T)
 // TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed covers the one
 // thing the shut queueing gate must NOT let through.
 //
-// AnnounceEOR defers to the initial sync while the sync still owes the marker,
-// and it used to read shouldQueue for that. Splitting the two facts moved the
-// end of shouldQueue earlier, so the deferral now reads initialSyncEOROwed. A
-// caller's marker inside that window would assert that an initial update still
-// taking routes is complete, and it would take the per-family claim, so the
-// marker this sync owes would never reach the wire at all.
+// On a reactor without a forward pool, which only a test builds, AnnounceEOR
+// defers to the initial sync while the sync still owes the marker, and it used
+// to read shouldQueue for that. Splitting the two facts moved the end of
+// shouldQueue earlier, so the deferral now reads initialSyncEOROwed. With no
+// queue to hold it, a caller's marker inside that window would be written at
+// once, ahead of anything still owed. With a pool, a requested marker waits in
+// the forward queue and only a replay's defers
+// (reactor_api_forward_test.go, TestExplicitEndOfRIBDuringSyncFollowsQueuedRoutes
+// and TestReplayEndOfRIBStandsDownWhileSyncOwesItsMarker).
 //
-// VALIDATES: AnnounceEOR writes nothing, and reports the marker handled, while
-// the initial sync waits for the plugins that push its routes.
+// VALIDATES: AnnounceEOR on a reactor without a forward pool writes nothing,
+// and reports the marker handled, while the session owes its own marker.
 // PREVENTS: a route-server replay finishing mid-barrier and closing this peer's
 // initial update on another producer's behalf.
 func TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed(t *testing.T) {

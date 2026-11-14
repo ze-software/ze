@@ -397,16 +397,18 @@ type PeerSettings struct {
 	// Default: true (reduces UPDATE count from O(routes) to O(routes/capacity)).
 	GroupUpdates bool
 
-	// ManualEOR withholds the End-of-RIB this peer's initial sync would send, so
-	// that something else decides when the RIB is complete. An API client that
-	// originates every route wants the marker AFTER its last announce, not after
-	// a config-driven sync that carried none of them.
+	// ManualEOR withholds every AUTOMATIC End-of-RIB from this peer, so that
+	// something else decides when the RIB is complete: the one its initial sync
+	// would send (sendInitialRoutes) and the one a plugin's replay would send
+	// (AnnounceReplayEOR). An API client that originates every route wants the
+	// marker AFTER its last announce, not after a config-driven sync or a replay
+	// that carried none of them.
 	//
-	// RFC 4724 Section 2: "A BGP speaker MAY use the End-of-RIB marker for other
-	// purposes", and Section 4 requires it only of a speaker that advertised
-	// Graceful Restart. The leaf therefore withholds the AUTOMATIC marker and
-	// takes nothing away from a producer that sends one explicitly: AnnounceEOR
-	// still reaches the wire, which is how the operator gets it back.
+	// It takes nothing away from a marker a process or the operator asks for:
+	// AnnounceEOR always writes it, during the initial sync included, after the
+	// operations queued for the peer. RFC 4724 Section 4 still owes the peer
+	// the marker "once it completes the initial routing update", so with this
+	// set the process that originates the routes is the one that sends it.
 	ManualEOR bool
 
 	// IsDynamic marks this peer as created from a dynamic group template.

@@ -1032,16 +1032,24 @@ send bgp upstream1 update text mp ipv6/unicast eor nhop set 10.0.0.1 nlri add pr
 The marker goes to every selected peer that is established and negotiated the
 family, each time the command asks for it, as ExaBGP's `announce eor` does. A
 peer that did not negotiate the family is skipped (RFC 4760 Section 8), and a
-command that reaches no peer answers `error`, naming the family. While a peer's
-own initial sync still owes the family's marker, the command writes nothing to
-that peer, answers as handled, and the sync writes the one marker.
+command that reaches no peer answers `error`, naming the family. A request
+that arrives while the peer's initial sync still runs is never dropped: the
+marker waits in the peer's forward queue and is written after the routes
+already queued for that peer, as ExaBGP holds a requested marker until no
+route is pending. The answer counts each peer the marker was queued or written
+for. When the request claims the family before the sync's own marker does, it
+is the session's marker for the family and the sync sends none.
 
 A plugin that replays the initial routing update (the route server, the route
 reflector) closes the replay with the same command and the route metadata
-`replay-eor` set to `true` (`UpdateRouteWithMeta`). That marker is the
-session's one End-of-RIB for the family (RFC 4724 Section 2): it goes out only
-when no marker for the family has gone out on the session yet, so a replay
-that finishes after the reactor's initial sync does not repeat it.
+`replay-eor` set to `true` (`UpdateRouteWithMeta`). That marker is automatic:
+Ze sends one automatic End-of-RIB per family per session, a rule of its own
+claim protocol rather than of RFC 4724. The replay's marker goes out only when
+no marker for the family is claimed on the session yet, so a replay that
+finishes after the reactor's initial sync does not repeat it. It writes
+nothing, and still answers as handled, while the session's initial sync owes
+its own marker, and on a peer with `behavior { manual-eor true }`, which
+receives only the markers asked for without `replay-eor`.
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR, AnnounceReplayEOR, announceEOR -->
 <!-- source: internal/component/bgp/types/types.go -- ReplayEORMeta -->
 

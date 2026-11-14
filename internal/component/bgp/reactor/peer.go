@@ -470,11 +470,13 @@ type Peer struct {
 	// configuration sends them on every reconnection.
 	sendingConfigStatic atomic.Bool
 
-	// initialSyncEOR records, per family, that THIS session's initial sync has
-	// already put an End-of-RIB on the wire. RFC 4724 Section 2 allows exactly one
-	// per family per session, and there are two producers: sendInitialRoutes'
-	// own loop, and a route server announcing EoR when its replay finishes
-	// (rs/server_handlers.go sendEOR -> AnnounceEOR).
+	// initialSyncEOR records, per family, that THIS session's automatic
+	// End-of-RIB is claimed: written, or queued to be. Ze sends one automatic
+	// marker per family per session (its own rule; RFC 4724 has no such
+	// sentence), and there are two automatic producers: sendInitialRoutes' own
+	// loop, and a route server announcing EoR when its replay finishes
+	// (rs/server_handlers.go sendEOR -> AnnounceReplayEOR). A requested marker
+	// (AnnounceEOR) claims an unclaimed family too, and is written either way.
 	//
 	// It replaces a TIME-WINDOW test as the de-duplicator. AnnounceEOR gated on
 	// shouldQueue(), i.e. on sendingInitialRoutes still being non-zero; when the
@@ -2327,18 +2329,23 @@ func (p *Peer) teardownOf(target *Session, notice teardownNotice, automatic bool
 
 // claimInitialSyncEOR records that an End-of-RIB for fam is about to go on the
 // wire for THIS session, and reports whether the caller is the one that may send
-// it. It returns false when the marker has already been sent, so the second
-// producer stands down instead of duplicating it (RFC 4724 Section 2: one
-// End-of-RIB per family per session).
+// it. It returns false when the family is already claimed, so an automatic
+// producer stands down instead of duplicating it. One AUTOMATIC End-of-RIB per
+// family per session is Ze's own rule, not an RFC sentence: the automatic
+// producers are the initial sync and a plugin's replay (AnnounceReplayEOR). A
+// marker a process or the operator asks for (AnnounceEOR) claims an unclaimed
+// family too, so the automatic one that would follow stands down, and it is
+// written whether or not it took the claim.
 //
-// Claim-then-send, not send-then-mark: the two producers run on different
+// Claim-then-send, not send-then-mark: the producers run on different
 // goroutines (sendInitialRoutes, and the route server's replay goroutine via
-// AnnounceEOR), so the check and the record must be one atomic step or both can
-// pass the check before either marks.
+// AnnounceReplayEOR), so the check and the record must be one atomic step or
+// both can pass the check before either marks.
 //
-// A caller whose send then FAILS should release the claim with
-// releaseInitialSyncEOR, otherwise the family is left marked and the peer never
-// receives the marker at all.
+// A caller whose send then FAILS MUST release the claim with
+// releaseInitialSyncEOR when it took it, and MUST NOT release one it did not
+// take: otherwise the family is left marked and the peer never receives the
+// automatic marker, or a second one is let out.
 func (p *Peer) claimInitialSyncEOR(fam family.Family) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()

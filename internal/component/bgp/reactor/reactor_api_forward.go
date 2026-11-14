@@ -81,7 +81,11 @@ var errForwardNoSource = errors.New("forward: source peer is not an established 
 // AnnounceEOR sends an End-of-RIB marker for the given address family each
 // time it is asked: an operator or a script that asks for the marker gets it,
 // as ExaBGP's announce_eor sends one per request
-// (src/exabgp/reactor/api/command/announce.py).
+// (src/exabgp/reactor/api/command/announce.py). A request made while the
+// peer's initial sync still runs is never dropped: the marker waits in the
+// peer's forward queue and is written after the operations queued for that
+// peer, as ExaBGP holds a requested marker until no route is pending. On a
+// `manual-eor` peer it is the only marker the peer receives.
 //
 // sender is who asked for the marker: an attached process, or the operator.
 // It is gated on `send [ update ]`: RFC 4724 Section 2 defines the
@@ -93,15 +97,19 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 }
 
 // AnnounceReplayEOR sends the End-of-RIB that closes a plugin's replay (the
-// route server's and the route reflector's): it stands down for a session
-// that already carried the family's marker (claimInitialSyncEOR).
+// route server's and the route reflector's). It is an automatic marker, so it
+// stands down, answered as handled with nothing written, on a `manual-eor`
+// peer, while the session's initial sync still owes its own marker or the peer
+// still queues route operations, and once the family's marker is claimed for
+// the session (claimInitialSyncEOR).
 func (a *reactorAPIAdapter) AnnounceReplayEOR(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error {
 	return a.announceEOR(sel, family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}, sender, true)
 }
 
 // announceEOR is AnnounceEOR and AnnounceReplayEOR. once selects the replay
-// form, which claims the family's one initial-sync marker. Inlined peer
-// iteration (not sendToMatchingPeers) to count EOR sent per peer.
+// form, which sends the family's one automatic marker for the session or
+// nothing. Inlined peer iteration (not sendToMatchingPeers) to count, per peer,
+// a marker queued or written, or a replay's marker stood down.
 func (a *reactorAPIAdapter) announceEOR(sel *selector.Selector, fam family.Family, sender plugin.Sender, once bool) error {
 	update := message.BuildEOR(fam)
 
@@ -128,56 +136,59 @@ func (a *reactorAPIAdapter) announceEOR(sel *selector.Selector, fam family.Famil
 		if nc := peer.negotiated.Load(); nc == nil || !nc.Has(fam) {
 			continue
 		}
-		// During initial route sync, sendInitialRoutes owns EoR ordering: it
-		// drains the opQueue (announces/withdraws queued via shouldQueue) and
-		// then emits a per-family EoR for every negotiated family (RFC 4724,
-		// peer_initial_sync.go). Announce/withdraw already honor shouldQueue();
-		// AnnounceEOR was the one route-op that wrote directly, so a plugin or
-		// route-server EoR could race ahead of the still-queued route NLRI and
-		// reach the wire first. Skip here -- the reactor's own EoR covers this
-		// family. Counted as handled (so a route-server replay does not see a
-		// spurious "no peers" error) but not metered: sendInitialRoutes meters
-		// the EoR it sends.
+		// The replay form stands down, answered as handled and with nothing
+		// written, in three cases. A replay's marker is an AUTOMATIC one: Ze
+		// sends it because a plugin finished replaying, not because anyone
+		// asked. Counted as handled, so a route-server replay does not see a
+		// spurious "no peers" error; never metered, because the package's EoR
+		// counters (peer_stats.go incrEORSent) count markers that reached the
+		// socket.
 		//
-		// RFC 4724 Section 2 is why this is a DROP and not a defer: the marker
-		// means "my initial routing update is complete". Emitting a caller's EoR
-		// at its position in a still-draining queue would assert that falsely, so
-		// the marker has to come from the producer that knows the dump is done.
-		//
-		// The suppression is logged because it is otherwise invisible: the caller
-		// is told the EoR was handled, so a plugin author whose EoR never reached
-		// the wire has nothing to grep for (ai/rules/evidence.md -- a
-		// guard that neither denies nor speaks does not exist). Cold path: once
-		// per EoR command per peer, never per UPDATE. No counter is added -- the
-		// package's only EoR counters are eorSent/eorReceived, whose documented
-		// contract (peer_stats.go incrEORSent) is "markers that reached the
-		// socket". Operators and compiled functional observers read them as
-		// exactly that. A suppression must not touch them.
-		//
-		// The current session's owed marker (initialSyncMarkerOwed) is read
-		// beside shouldQueue because the two facts were split: the initial sync
-		// opens the queueing gate before it writes its End-of-RIB, and
-		// shouldQueue alone would let a caller's marker through in that window.
-		if peer.shouldQueue() || peer.initialSyncMarkerOwed() {
-			logEORSuppressed(peer, fam)
+		// 1. `behavior { manual-eor true }`: the operator withholds every
+		// automatic marker from this peer, the sync's and a replay's alike,
+		// because something else decides when its table is complete.
+		if once && peer.settings.ManualEOR {
+			logEORWithheldByManualEOR(peer, fam)
 			sentCount++
 			continue
 		}
-		// Second gate, and NOT a replacement for the first. shouldQueue keeps the
-		// ORDER right (this EoR must not overtake still-queued route NLRI); the
-		// claim keeps the COUNT right (RFC 4724 Section 2: one End-of-RIB per
-		// family per session). They fire in different windows: once initial sync
-		// clears shouldQueue, sendInitialRoutes has already sent and claimed this
-		// family, so a route-server replay finishing later used to sail through
-		// and put a second identical marker on the wire. Claiming here is also the
-		// recovery path -- if the initial-sync send failed it released the claim,
-		// so this producer legitimately takes it.
+		// 2. The peer still queues route operations, or its session still owes
+		// the initial sync's own marker. On a peer without manual-eor that
+		// marker is the family's one automatic marker, and the sync writes it
+		// after Ze's own table (sendInitialRoutes).
 		//
-		// The gate guards the replay form only. An explicit request (once
-		// false) is the asker's own marker and goes out each time, but it
-		// still claims the family when unclaimed, so a replay finishing after
-		// it stands down. claimed records whether this call took the claim, so
-		// a failed send releases only a claim it owns.
+		// An explicit request (once false) is never stood down: the caller asked
+		// for the marker, so it is written, after the peer's queued operations.
+		// It joins the forward queue below, where the worker holds it while the
+		// session's queueing gate is closed (Peer.forwardOrderHold) and writes it
+		// after everything queued ahead of it. A reactor without a forward pool
+		// (test reactors only: Reactor.New always builds one) has no queue to
+		// hold it in, so there it stands down too rather than overtake the
+		// queued operations.
+		if peer.shouldQueue() || peer.initialSyncMarkerOwed() {
+			if once {
+				logEORSuppressed(peer, fam, once)
+				sentCount++
+				continue
+			}
+			if a.r.fwdPool == nil {
+				logEORSuppressed(peer, fam, once)
+				sentCount++
+				continue
+			}
+		}
+		// 3. The family is already claimed. The claim is Ze's own rule, not an
+		// RFC sentence: one AUTOMATIC End-of-RIB per family per session, shared
+		// by the initial sync and a replay, so a replay that finishes after the
+		// sync, or after another replay, does not repeat the marker. Claiming
+		// here is also the recovery path: an initial-sync send that failed
+		// released the claim, so this producer legitimately takes it.
+		//
+		// An explicit request still claims the family when it is unclaimed, so
+		// the automatic marker that would follow stands down: the sync's own
+		// skips a claimed family, and so does a replay. claimed records whether
+		// this call took the claim, so a failed send hands back only a claim it
+		// owns.
 		claimed := peer.claimInitialSyncEOR(fam)
 		if once && !claimed {
 			sentCount++
@@ -185,12 +196,12 @@ func (a *reactorAPIAdapter) announceEOR(sel *selector.Selector, fam family.Famil
 		}
 		// RFC 4724 Section 2: the marker indicates "the completion of the
 		// initial routing update", so it joins the peer's forward queue behind
-		// the replay items still owed there (queueEndOfRIB) and is written after
+		// the items still owed there (queueEndOfRIB) and is written after
 		// them. The worker meters it once it reaches the socket. A reactor
 		// without a forward pool queues nothing, so nothing is owed ahead and
 		// the marker is written at once.
 		if a.r.fwdPool != nil {
-			if !a.queueEndOfRIB(peer, fam, update) {
+			if !a.queueEndOfRIB(peer, fam, update, claimed) {
 				if claimed {
 					peer.releaseInitialSyncEOR(fam)
 				}
@@ -229,49 +240,63 @@ func eorNoPeerError(fam family.Family) error {
 	return errors.New(tb.String())
 }
 
-// logEORSuppressed records an End-of-RIB that AnnounceEOR declined to send, and
-// says which of the four conditions caused it: the three shouldQueue folds
-// together, plus the window after the initial sync opened its queue gate and
-// before its End-of-RIB phase cleared the session's owed marker.
+// logEORSuppressed records an End-of-RIB that announceEOR did not write
+// because the peer still queues route operations or its session still owes
+// the initial sync's own marker, and says which of the three conditions held:
+// the queueing gate still closed, the sync's marker still owed after the gate
+// opened, or operations still queued with the gate open.
 //
-// One message covering them all would have to hedge, and the obvious wording --
-// "the marker will be emitted when the drain completes" -- is FALSE in two of
-// them: sendInitialRoutes iterates nc.Families() only, so a family that is not
-// negotiated never gets a marker at all; and when shouldQueue is true merely
-// because route operations are still queued after the sync finished, the marker
-// was already sent rather than pending. ai/rules/cli.md requires the
-// "what to do next" leg to be TRUE, not merely present.
-func logEORSuppressed(peer *Peer, fam family.Family) {
-	addr := peer.Settings().Address
-	nc := peer.negotiated.Load()
-
-	switch {
-	case nc == nil || !nc.Has(fam):
-		routesLogger().Warn("end-of-rib suppressed: family is not negotiated on this session",
-			"peer", addr, "family", fam,
-			"reason", "family-not-negotiated",
-			"effect", "no end-of-rib is emitted for this family; sendInitialRoutes covers negotiated families only")
-	case peer.initialSyncInProgress():
-		routesLogger().Warn("end-of-rib suppressed: peer is still draining its initial route sync",
-			"peer", addr, "family", fam,
-			"reason", "initial-sync-in-progress",
-			"effect", "marker will be emitted by sendInitialRoutes when the drain completes")
-	case peer.initialSyncMarkerOwed():
-		// Info, not Warn: nothing is wrong here. The engine's own marker for
-		// this session follows, so the suppressed one loses nothing, except on
-		// a manual-eor peer, where no automatic marker follows and the caller
-		// must send its marker again once the sync has ended (as in every
-		// suppression branch of announceEOR).
-		routesLogger().Info("end-of-rib suppressed: the initial sync has sent its routes and still owes this session's end-of-rib",
-			"peer", addr, "family", fam,
-			"reason", "initial-sync-marker-owed",
-			"effect", "marker will be emitted by sendInitialRoutes for every negotiated family, unless behavior manual-eor withholds it")
-	default:
-		routesLogger().Warn("end-of-rib suppressed: route operations are still queued for this peer",
-			"peer", addr, "family", fam,
-			"reason", "operations-queued-after-initial-sync",
-			"effect", "initial sync already completed for this peer and emitted its marker; this one is redundant")
+// Two callers reach it, and the message names which. A replay's marker (once)
+// stands down here in production, and nothing is wrong: on a peer without
+// manual-eor (announceEOR stands a replay down on a manual-eor peer before it
+// gets here) the initial sync writes the family's automatic marker after Ze's
+// own table. An explicit request reaches it only on a reactor without a forward
+// pool, which only a test builds (Reactor.New always builds one), where the
+// marker has no queue to wait in.
+//
+// The peer is Established and negotiated the family: announceEOR skips every
+// other peer before it asks. Info, not Warn: neither caller reports a fault an
+// operator can act on (ai/rules/user-facing-errors.md). Cold path: once per
+// End-of-RIB command per peer, never per UPDATE.
+func logEORSuppressed(peer *Peer, fam family.Family, replay bool) {
+	reason, syncWritesIt := eorSuppressionReason(peer)
+	form := "requested"
+	effect := "this reactor has no forward queue to hold the marker behind the queued operations; ask for it again once the initial sync has ended"
+	if replay {
+		form = "replay"
+		effect = "no end-of-rib is written while route operations are still queued for this peer"
+		if syncWritesIt {
+			effect = "the initial sync writes this family's end-of-rib after its own table"
+		}
 	}
+	routesLogger().Info("end-of-rib not written: route operations are still queued for this peer, or its initial sync still owes its own end-of-rib",
+		"peer", peer.Settings().Address, "family", fam,
+		"form", form, "reason", reason, "effect", effect)
+}
+
+// eorSuppressionReason names which of the three conditions logEORSuppressed
+// reports held, and whether the session's initial sync is still to write its
+// own marker: true while its queueing gate is closed or its marker is owed,
+// false when operations are still queued with the gate open, which only a sync
+// that ended without draining leaves.
+func eorSuppressionReason(peer *Peer) (string, bool) {
+	if peer.initialSyncInProgress() {
+		return "initial-sync-in-progress", true
+	}
+	if peer.initialSyncMarkerOwed() {
+		return "initial-sync-marker-owed", true
+	}
+	return "operations-queued-after-initial-sync", false
+}
+
+// logEORWithheldByManualEOR records a replay's End-of-RIB that announceEOR
+// answered as handled and did not write because the peer has `behavior {
+// manual-eor true }`. Info: the operator configured it, so nothing is wrong.
+func logEORWithheldByManualEOR(peer *Peer, fam family.Family) {
+	routesLogger().Info("end-of-rib of a replay not written: behavior manual-eor is set for this peer",
+		"peer", peer.Settings().Address, "family", fam,
+		"form", "replay", "reason", "manual-eor",
+		"effect", "this peer receives only the end-of-rib a process or the operator asks for")
 }
 
 // SendRefresh sends a normal ROUTE-REFRESH message to matching peers.

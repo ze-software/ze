@@ -172,16 +172,30 @@ The End-of-RIB marker a process sends when its replay ends joins the same
 queue. RFC 4724 Section 2 makes the marker signal "the completion of the
 initial routing update", and a receiver acts on it: a graceful-restart helper
 purges the stale routes it still holds. A direct write could reach the peer
-before replay items still in the worker's overflow or channel. So `AnnounceEOR`
-claims the family and queues the marker at the tail of the peer's forward queue
-(`queueEndOfRIB`), always, so it follows every item the worker holds without a
-read of either count.
+before replay items still in the worker's overflow or channel. So a marker
+that is written joins the tail of the peer's forward queue (`queueEndOfRIB`),
+so it follows every item the worker holds without a read of either count.
+
+Two forms reach that queue. A marker a process or the operator asks for
+(`AnnounceEOR`) is always queued, and it claims the family when the family is
+unclaimed. While the session's queueing gate is closed the worker holds it in
+overflow like every other item (`Peer.forwardOrderHold`), so a marker asked for
+during the initial sync is written after the operations that sync drains. The
+marker that closes a replay (`AnnounceReplayEOR`) is automatic, and it stands
+down, answered as handled with nothing queued, on a peer with `behavior {
+manual-eor true }`, while the session's initial sync still owes its own marker,
+and once the family is claimed. Otherwise it claims the family and is queued
+the same way.
+
 The item is marked as part of the initial update: it passes the fence behind
 the replay, and the live changes the fence holds follow it. The worker counts
-the marker as sent after the flush that writes it. When the write fails, the
-worker hands the claim back (`settleEndOfRIB`).
-<!-- source: internal/component/bgp/reactor/forward_eor.go -- queueEndOfRIB, settleEndOfRIB -->
-<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR -->
+the marker as sent after the flush that writes it. The item records whether it
+took the family's claim (`fwdEndOfRIB.ownsClaim`). When the write fails, the
+worker hands back a claim the item owns, and only that one (`settleEndOfRIB`):
+a requested marker queued while the sync or a replay holds the claim must not
+release it, or a second automatic marker would go out for the family.
+<!-- source: internal/component/bgp/reactor/forward_eor.go -- fwdEndOfRIB, queueEndOfRIB, settleEndOfRIB -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR, AnnounceReplayEOR, announceEOR -->
 
 The fence belongs to one peer. Other destinations read their own fence, so a
 replay on one peer never delays forwarding to another. The held items are
