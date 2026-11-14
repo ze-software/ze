@@ -31,6 +31,11 @@ func init() {
 	})
 	leroot.RegisterActions(name, Actions)
 
+	// The dispatcher admits every heavy line that declares no slot handling of
+	// its own (leroot.SlotOfLine). It cannot import this package, which
+	// imports it, so the admitter is handed to it here (central.go).
+	leroot.RegisterAdmitter(admitCentral)
+
 	// `run` answers one document, the Report of the job it ran (report.go). It
 	// holds no rows, so row operators have no data to process. They are
 	// rejected by name instead of producing a plausible answer.

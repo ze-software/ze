@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/job"
@@ -197,18 +196,21 @@ type Slot struct {
 //
 // A run holding no slot names nothing, because an inherited parent is still the
 // parent of every stage below it.
+//
+// The naming and the restore are job.NameParent, the one function every holder
+// that starts its own nested work names itself through.
 func nameJobParent(entry string) func() {
 	if entry == "" {
 		return func() {}
 	}
-	previous := env.Get(job.ParentKey)
-	if err := env.Set(job.ParentKey, entry); err != nil {
+	restore, err := job.NameParent(entry)
+	if err != nil {
 		gaterun.Note("verify: " + job.ParentKey + " could not be named (" + err.Error() +
 			"), so a stage that admits its own job will queue behind this run")
 		return func() {}
 	}
 	return func() {
-		if err := env.Set(job.ParentKey, previous); err != nil {
+		if err := restore(); err != nil {
 			gaterun.Note("verify: " + job.ParentKey + " could not be restored: " + err.Error())
 		}
 	}

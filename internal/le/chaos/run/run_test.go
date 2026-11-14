@@ -22,6 +22,10 @@ import (
 // `chaos-peer-` peers, so the file it leaves at --config-out proves the options
 // arrived, and the exit code proves its verdict reached the caller.
 func TestChaosRunReachesTheOrchestrator(t *testing.T) {
+	// `chaos run` is heavy, so the dispatcher admits it. This case is about
+	// the words reaching the orchestrator: the body runs with no job slot, so
+	// the test neither takes one of the machine's nor waits for one.
+	t.Cleanup(leroot.SetAdmitter(func(_ string, _ []string, body func() int) int { return body() }))
 	out := filepath.Join(t.TempDir(), "chaos.conf")
 	code := leroot.Dispatch("le", []string{
 		"chaos", "run", "--config-only", "--seed", "42", "--peers", "3", "--config-out", out, "--quiet",

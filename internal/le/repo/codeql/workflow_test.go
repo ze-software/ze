@@ -15,6 +15,7 @@ import (
 
 	normalizedenv "github.com/ze-software/ze/internal/core/env"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+
 	// Dependencies register other areas. Link their real parent namespaces, as
 	// the native composition and existing dispatcher fixtures do.
 	_ "github.com/ze-software/ze/internal/le/ai"
@@ -102,6 +103,10 @@ func TestFixtureCLI(t *testing.T) {
 	if os.Getenv("ZE_CODEQL_FIXTURE_CHILD") != "1" {
 		return
 	}
+	// The workflow's heavy lines are admitted by the dispatcher. This child
+	// stands in for le in a fixture checkout, so each runs with no job slot:
+	// the case is about the build population, and takes none of the machine's.
+	leroot.SetAdmitter(func(_ string, _ []string, body func() int) int { return body() })
 	for index, arg := range os.Args {
 		if arg == "--" {
 			os.Exit(leroot.Dispatch("le", os.Args[index+1:]))

@@ -4,6 +4,7 @@
 // Detail: treehash.go -- the fingerprint of the tree a job judges
 // Detail: jobkey.go -- the fingerprint of the work a job does
 // Detail: prune.go -- what removes the receipts and the files of dead jobs
+// Detail: central.go -- the unshared hold the dispatcher takes for every heavy le line
 //
 // Package job determines whether each heavy job runs now.
 //
@@ -247,6 +248,17 @@ type Admission struct {
 	// that requires an independent answer sets it to false. This setting causes
 	// a duplicate run and does not use a shared verdict.
 	MayAttach bool
+	// Unshared makes a claim that shares in neither direction, for a caller
+	// whose action never agreed that another run's verdict is its own (Hold).
+	// It attaches to nothing, whatever MayAttach says. Nothing attaches to it:
+	// its entry records the tree as Unknown, which shares matches against
+	// nothing, so its inputs are not fingerprinted at all. It writes no
+	// progress log and no receipt, because only a follower reads either, and
+	// its entry names no log, so a waiter reports no log silence about it.
+	//
+	// MayAttach alone cannot say this: a caller that sets it to false still
+	// fingerprints and logs, so that others can share its run.
+	Unshared bool
 	// OwnProcessGroup opts a noninteractive command into owned group cleanup.
 	// The caller MUST supply its cancellation root and MUST NOT require terminal
 	// stdin. Admission MUST join the group owner before releasing its ticket.
@@ -434,13 +446,17 @@ type Ticket struct {
 	Entry string
 	// Log is the file the holder MUST write its progress to, relative to the
 	// root. For KindAttached it is the holder's log, so a caller that attached
-	// can still name where the evidence behind its verdict was written.
+	// can still name where the evidence behind its verdict was written. It is
+	// empty for an unshared claim (Admission.Unshared), which has no log.
 	Log string
 	// Waited is how long admission took.
 	Waited time.Duration
 
 	adm     *Admission
 	started time.Time
+	// unshared says the claim was made under Admission.Unshared, so nothing
+	// follows it and its release writes no receipt.
+	unshared bool
 }
 
 // Release drops the slot: it records the job's verdict where a follower can
@@ -449,7 +465,9 @@ type Ticket struct {
 // inside a parent's slot held no slot, so they record nothing here.
 //
 // The receipt stays, because a follower reads it after the entry has gone.
-// Prune (prune.go) removes it once it is older than any follower's read.
+// Prune (prune.go) removes it once it is older than any follower's read. An
+// unshared claim (Admission.Unshared) has no follower, so it writes no receipt
+// and has no log to remove: its release is the duration row and the entry.
 //
 // The result is written BEFORE the entry goes, never after. An attacher
 // watching the entry disappear must find the code already written rather than
@@ -466,9 +484,14 @@ func (t *Ticket) Release(code int) {
 
 	adm := t.adm
 	adm.appendDuration(t.Label, time.Since(t.started), t.Waited)
-	adm.writeResult(t.Entry, code)
+	if !t.unshared {
+		adm.writeResult(t.Entry, code)
+	}
 	adm.remove(adm.abs(t.Entry))
-	adm.remove(adm.abs(t.Log))
+	if t.Log != "" {
+		// An empty Log names no file: abs would answer the checkout root.
+		adm.remove(adm.abs(t.Log))
+	}
 }
 
 // Admit waits until this job can run and then returns its admission result.
@@ -490,8 +513,8 @@ func (t *Ticket) Release(code int) {
 // put it there. Run gives it to the child it starts (childEnviron). A caller
 // that holds a slot and starts its nested work itself names its own entry in
 // its environment for the length of that work, so the processes it starts
-// inherit it (nameJobParent, internal/le/verify/engine/run.go, whose stages
-// are child le processes).
+// inherit it (NameParent, central.go: Hold does it for a centrally admitted
+// action, and a verify run for its stages, which are child le processes).
 //
 // So a nested Admit sees the holder as its parent only when the holder named
 // itself. A holder that names nothing leaves the nested job to claim a slot of
@@ -527,8 +550,13 @@ func (a *Admission) admit(ctx context.Context, label string, argv []string) (*Ti
 		return nil, err
 	}
 	if nested {
-		var tb textbuf.Buffer
-		a.note(tb.Byte('[').Str(label).Str("] running inside ").Str(parent).String())
+		if !a.Unshared {
+			// An unshared claim is asked for by the dispatcher on behalf of an
+			// action that prints its own answer, so it adds no line of its own
+			// to every stage of a verify and every suite of a gating run.
+			var tb textbuf.Buffer
+			a.note(tb.Byte('[').Str(label).Str("] running inside ").Str(parent).String())
+		}
 		return &Ticket{Label: label, Kind: KindInside, adm: a}, nil
 	}
 
@@ -536,16 +564,32 @@ func (a *Admission) admit(ctx context.Context, label string, argv []string) (*Ti
 		return nil, err
 	}
 
-	tree, err := InputHash(a.Root, label)
-	if err != nil {
-		return nil, err
+	// An unshared claim records the Unknown sentinel, never an empty or a stale
+	// tree: shares matches Unknown against nothing, which is what keeps every
+	// asker from attaching to it. Its inputs are therefore not measured.
+	tree := Unknown
+	if a.Unshared {
+		// The queue waits on a registry it cannot inspect (claim fails closed),
+		// which suits a caller that chose to queue. An unshared claim is made
+		// for a line somebody only typed, so a registry that cannot be listed
+		// or locked refuses that line here instead of holding it for ever.
+		if err := a.registryReachable(); err != nil {
+			return nil, err
+		}
+	} else {
+		measured, err := InputHash(a.Root, label)
+		if err != nil {
+			return nil, err
+		}
+		tree = measured
 	}
 	job := pending{
 		label:     label,
 		argv:      argv,
 		tree:      tree,
 		key:       jobKey(argv),
-		mayAttach: a.MayAttach,
+		mayAttach: a.MayAttach && !a.Unshared,
+		unshared:  a.Unshared,
 		// Resolved here, once and outside the registry lock: reading the
 		// session can walk this process's ancestors.
 		who: a.caller(label),
@@ -586,7 +630,7 @@ func (a *Admission) queue(ctx context.Context, job *pending) (*Ticket, error) {
 			return &Ticket{
 				Label: job.label, Kind: KindClaimed, Tree: job.tree, Key: job.key,
 				Entry: result.entry, Log: result.log, Waited: time.Since(started),
-				adm: a, started: result.started,
+				adm: a, started: result.started, unshared: job.unshared,
 			}, nil
 
 		case stateAttach:

@@ -253,6 +253,10 @@ var censusNoSlot = map[string]string{
 	"ai hooks unit":          "an in-process selftest of the hooks, single process, seconds",
 	"test integration clean": "removes containers and adds no load; queueing it protects nothing",
 	"setup docker host stop": "stops the Docker host and adds no load",
+	// The body never returns: le becomes the program, so a slot taken for it
+	// could not be released (spec-native-action-job-admission, C-1).
+	"exec": "it replaces its own process with the program it carries, so nothing remains to release a slot; " +
+		"it will be admitted by the program it carries",
 }
 
 // TestCensusHeavyActionsAreAdmitted asks whether every heavy line le holds
@@ -366,6 +370,17 @@ func TestCensusHeavyActionsAreAdmitted(t *testing.T) {
 	}
 	if central == 0 {
 		t.Error("the walk met no centrally admitted action: the composition root links none, or the slot reading answers central for nothing")
+	}
+	// `exec` replaces its process, so a slot the dispatcher took for it would
+	// be held by the carried program for its whole life. Whatever it carries,
+	// it is heavy for a subagent and takes no slot.
+	for _, line := range []string{"exec go version", "exec gopls", "exec golangci-lint run"} {
+		if slot := leroot.SlotOfLine(strings.Fields(line)); slot.Kind != leroot.SlotNone || slot.Command != "exec" {
+			t.Errorf("le %s has the slot reading %+v, want no slot under the command exec: its body never returns to release one", line, slot)
+		}
+		if !leroot.HeavyLine(strings.Fields(line)) {
+			t.Errorf("le %s is not heavy, and a subagent is still handed it back", line)
+		}
 	}
 	for _, name := range censusSelfAdmitting {
 		if !metSelf[name] {

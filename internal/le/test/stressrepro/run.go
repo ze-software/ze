@@ -24,7 +24,6 @@ import (
 
 	"github.com/anmitsu/go-shlex"
 
-	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/job"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
@@ -240,14 +239,14 @@ func runClaimed(ctx context.Context, root string, opts Options, deps runDependen
 	}
 	defer func() { _ = progress.Close() }()
 
-	previous := env.Get(job.ParentKey)
-	if err := env.Set(job.ParentKey, filepath.Join(root, filepath.FromSlash(ticket.Entry))); err != nil {
+	restoreParent, err := job.NameParent(filepath.Join(root, filepath.FromSlash(ticket.Entry)))
+	if err != nil {
 		ticket.Release(2)
 		return setupFailure(base, fmt.Errorf("name the job parent: %w", err))
 	}
 	deps.progress = progress
 	report, code := run(ctx, root, opts, deps)
-	if err := env.Set(job.ParentKey, previous); err != nil {
+	if err := restoreParent(); err != nil {
 		leaction.ReportError(fmt.Errorf("restore %s: %w", job.ParentKey, err))
 	}
 	ticket.Release(code)

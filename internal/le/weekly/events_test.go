@@ -31,6 +31,7 @@ import (
 )
 
 func TestWeeklyReportAnswersEverySection(t *testing.T) {
+	withoutJobSlot(t)
 	repo, commits := reportFixtureRepo(t)
 	from, to := commits[0], commits[2]
 
@@ -175,6 +176,15 @@ func withEventSources(t *testing.T, sources ...EventSource) {
 // withReportScratch points the report's scratch at a temporary directory for
 // one test, so the run does not resolve a session inside the fixture, and
 // answers it. The export itself stays the production one.
+// withoutJobSlot makes the dispatcher run `weekly report`, a heavy line it
+// admits, with no job slot for the length of the test. These cases are about
+// the report, and a unit test neither takes one of the machine's slots nor
+// waits for one.
+func withoutJobSlot(t *testing.T) {
+	t.Helper()
+	t.Cleanup(leroot.SetAdmitter(func(_ string, _ []string, body func() int) int { return body() }))
+}
+
 func withReportScratch(t *testing.T) string {
 	t.Helper()
 	scratch := t.TempDir()
@@ -241,6 +251,7 @@ func reportGit(t *testing.T, repo, input string, args ...string) string {
 // PREVENTS: an export of `from` started before `to` was resolved, and a
 // refusal that leaves the operator guessing which revision to pass.
 func TestWeeklyReportRefusesUnresolvableRevision(t *testing.T) {
+	withoutJobSlot(t)
 	repo, commits := reportFixtureRepo(t)
 	scratch := withReportScratch(t)
 	asked := false
@@ -293,6 +304,7 @@ func TestWeeklyReportRefusesUnresolvableRevision(t *testing.T) {
 // PREVENTS: a failure read as a quiet week, a panicking source taking the
 // other sections with it, and an incomplete report that exits 0.
 func TestWeeklyReportFailedSourceIsNamed(t *testing.T) {
+	withoutJobSlot(t)
 	repo, commits := reportFixtureRepo(t)
 	scratch := withReportScratch(t)
 	seen := map[string]seenRange{}

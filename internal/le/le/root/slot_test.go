@@ -326,24 +326,52 @@ func TestAdmitterRefusalSkipsTheBody(t *testing.T) {
 	}
 }
 
-// TestCentralLineRunsUnadmittedWithNoAdmitter asks whether a central line
-// runs as it always did while no admitter is registered. Its method: the seam
-// left unfilled.
+// TestCentralLineRefusesWithNoAdmitter asks whether a central line is refused,
+// and its body left unrun, in a binary that registered no admitter. Its
+// method: the seam left unfilled, over a central row and a row-less heavy
+// area, then a light row and a line the parser refuses, which still run.
 //
-// VALIDATES: the guard of the wiring phase of spec-native-action-job-admission:
-// the dispatcher call changes nothing until internal/le/job fills the seam.
-// The phase that fills it replaces this test with the refusal the spec states
-// (TestCentralLineRefusesWithNoAdmitter).
-func TestCentralLineRunsUnadmittedWithNoAdmitter(t *testing.T) {
+// VALIDATES: spec-native-action-job-admission, "The seam": with no admitter
+// the dispatcher refuses a central line with exit 2 and an operator error, and
+// only a central line.
+// PREVENTS: a heavy action that runs unadmitted because the binary was built
+// without the job package, and a light line or a usage refusal that the
+// missing admitter turns into a refusal of its own.
+func TestCentralLineRefusesWithNoAdmitter(t *testing.T) {
 	holdSlotRegistrations(t)
-	ran := false
-	handler := toolHandler(func([]string) (any, int) { ran = true; return nil, 5 })
-	var out, errOut bytes.Buffer
-	if code := Run("probe-slot", handler, []string{"build"}, &out, &errOut); code != 5 {
-		t.Errorf("with no admitter the line answered %d, want the body's 5", code)
+	for _, row := range []struct {
+		area  string
+		words []string
+	}{
+		{"probe-slot", []string{"build"}},
+		{"probe-slot-pass", []string{"any", "word"}},
+	} {
+		ran := false
+		handler := toolHandler(func([]string) (any, int) { ran = true; return nil, 0 })
+		var out, errOut bytes.Buffer
+		if code := Run(row.area, handler, row.words, &out, &errOut); code != 2 {
+			t.Errorf("le %s %v with no admitter answered %d, want the refusal's 2", row.area, row.words, code)
+		}
+		if ran {
+			t.Errorf("le %s %v ran its body with no admitter", row.area, row.words)
+		}
+		for _, want := range []string{"registered no job admitter", "fix: "} {
+			if !strings.Contains(errOut.String(), want) {
+				t.Errorf("le %s %v refused with %q, want it to hold %q", row.area, row.words, errOut.String(), want)
+			}
+		}
 	}
-	if !ran {
-		t.Error("with no admitter the body did not run")
+
+	for _, words := range [][]string{{"list"}, {"scoped", "nosuch"}} {
+		ran := false
+		handler := toolHandler(func([]string) (any, int) { ran = true; return nil, 5 })
+		var out, errOut bytes.Buffer
+		if code := Run("probe-slot", handler, words, &out, &errOut); code != 5 {
+			t.Errorf("le probe-slot %v with no admitter answered %d, want the handler's 5", words, code)
+		}
+		if !ran {
+			t.Errorf("le probe-slot %v did not reach its handler with no admitter", words)
+		}
 	}
 }
 

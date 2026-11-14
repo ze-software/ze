@@ -41,8 +41,15 @@ import (
 // slotsNotice is the fixed line that says what the slot count leaves out. A
 // reader who sees free slots on a loaded machine needs it to know where the
 // load can come from.
+//
+// A heavy le action holds a slot, a Docker lab and a QEMU guest included (the
+// dispatcher admits it, central.go), unless its declaration says it takes none
+// (leroot.RegisterNoSlot, leaction.Action.NoSlot): `le exec`, which becomes
+// the program it carries, and the few actions that add no load. Those, and the
+// work that never passed through this checkout's le, are outside the count.
 const slotsNotice = "the slots count only jobs admitted through this checkout's registry (" + JobsDir +
-	"): Docker labs, raw commands and other checkouts appear only in the machine readings"
+	"): commands run under the raw-admission escape (ZE_ADMIT_RAW), le exec and the few actions declared slot-free," +
+	" work started outside ./le and other checkouts appear only in the machine readings"
 
 // commandShown bounds how much of a recorded command line one row prints. The
 // field is written by another session's process and is unbounded.

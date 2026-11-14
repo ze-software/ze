@@ -43,7 +43,8 @@ import (
 const aliveTimeout = 5 * time.Second
 
 // The registry holds four suffixes. A job that holds a slot owns three: its
-// entry, progress log and completed verdict. A job that waits for a slot owns
+// entry, progress log and completed verdict, or its entry alone when the claim
+// is unshared (Admission.Unshared). A job that waits for a slot owns
 // the fourth, its waiter record (waiterSuffix, waiter.go), which no entry scan
 // matches. Waiters never remove a file another process wrote.
 const (
@@ -180,6 +181,9 @@ type pending struct {
 	// Therefore, the fingerprint is calculated again at admission, but only for
 	// a job that waited.
 	treeStale bool
+	// unshared says the claim shares in neither direction (Admission.Unshared):
+	// its tree stays Unknown and is never measured, and take writes it no log.
+	unshared bool
 	// who is the caller that asked, resolved once before the queue (admit) and
 	// written into the entry and the waiter record.
 	who owner
@@ -369,11 +373,18 @@ func (a *Admission) shares(job *pending, held entry) (bool, error) {
 // take creates a unique claim and its log without overwriting earlier evidence.
 // It MUST run under the registry lock, which keeps another scan from reading
 // the entry before its fields have been written.
+//
+// An unshared claim gets no log file and an empty LOG field, which every
+// reader takes as "this entry names no log" (registryLog). An empty log file
+// would be worse than none: the waiting banner reports a log that does not
+// grow as silence, and past the quiet window tells the waiter to ask the
+// owner of a healthy holder.
 func (a *Admission) take(job *pending, now time.Time) (result outcome) {
 	// A later asker uses TREE to attach, so TREE must identify the inputs that
 	// this job will judge. A job can wait behind a twenty minute holder. During
-	// that wait, the inputs the job originally requested can change.
-	if job.treeStale {
+	// that wait, the inputs the job originally requested can change. An
+	// unshared claim keeps the Unknown it was given: nothing attaches to it.
+	if job.treeStale && !job.unshared {
 		tree, err := InputHash(a.Root, job.label)
 		if err != nil {
 			return outcome{err: err}
@@ -396,19 +407,18 @@ func (a *Admission) take(job *pending, now time.Time) (result outcome) {
 		}
 	}()
 	rel := a.rel(file.Name())
-	logRel := swapSuffix(rel, logSuffix)
-	logFile, err := os.OpenFile(a.abs(logRel), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644) //nolint:gosec // the owned registry log is shared with followers
+	logRel, err := a.claimLog(job, rel)
 	if err != nil {
 		return outcome{err: err}
 	}
 	defer func() {
-		if result.state != stateClaimed {
+		if result.state == stateClaimed {
+			return
+		}
+		if logRel != "" {
 			a.remove(a.abs(logRel))
 		}
 	}()
-	if err := logFile.Close(); err != nil {
-		return outcome{err: err}
-	}
 	// A completed receipt can outlive its entry. Never select that name for
 	// new work, even if the temporary filename generator reused its suffix.
 	if _, err := os.Lstat(a.abs(swapSuffix(rel, resultSuffix))); !errors.Is(err, fs.ErrNotExist) {
@@ -445,6 +455,40 @@ func (a *Admission) take(job *pending, now time.Time) (result outcome) {
 	}
 
 	return outcome{state: stateClaimed, entry: rel, log: logRel, pid: pid, started: now}
+}
+
+// claimLog creates the progress log of the claim whose entry is entryRel and
+// answers its path, relative to the root. An unshared claim has no log, and
+// the answer is then the empty path with no file created. A log that could
+// not be created whole is removed before the error is answered.
+func (a *Admission) claimLog(job *pending, entryRel string) (string, error) {
+	if job.unshared {
+		return "", nil
+	}
+	logRel := swapSuffix(entryRel, logSuffix)
+	logFile, err := os.OpenFile(a.abs(logRel), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644) //nolint:gosec // the owned registry log is shared with followers
+	if err != nil {
+		return "", err
+	}
+	if err := logFile.Close(); err != nil {
+		a.remove(a.abs(logRel))
+		return "", err
+	}
+	return logRel, nil
+}
+
+// registryReachable reports why the registry directory cannot be listed or
+// its lock cannot be opened, and nil when both can. The lock is only opened,
+// never taken: a lock another scan holds for a moment is not a failure.
+func (a *Admission) registryReachable() error {
+	if _, err := os.ReadDir(a.jobsDir()); err != nil {
+		return err
+	}
+	lock, err := os.OpenFile(filepath.Join(a.jobsDir(), lockName), os.O_CREATE|os.O_WRONLY, 0o644) //nolint:gosec // the registry lock is shared by every session on this machine
+	if err != nil {
+		return err
+	}
+	return lock.Close()
 }
 
 // writeResult records a finished job's verdict where a follower can find it.

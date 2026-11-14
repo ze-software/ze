@@ -162,6 +162,77 @@ func TestWaitingJobIsListedByTheReport(t *testing.T) {
 	}
 }
 
+// TestReportShowsACentralHolder asks what the report shows for a heavy action
+// the dispatcher admitted. Its method: a real unshared hold, with the report
+// read from inside its body, where the slot is held.
+//
+// VALIDATES: spec-native-action-job-admission AC-2: a holder row with the
+// label derived from the command name, the session and agent that typed the
+// line, its age and the typed line, and a notice that no longer lists Docker
+// labs among the work that takes no slot.
+// PREVENTS: a centrally admitted action that the report shows without its
+// owner or its command because its entry names no log.
+func TestReportShowsACentralHolder(t *testing.T) {
+	detach(t)
+	identify(t, "central-session-1", "central-agent-1")
+	root := fixtureRepo(t)
+	adm := admission(t, root)
+	line := []string{"./le", "test", "integration", "bgp"}
+
+	var view *Overview
+	code, err := adm.Hold(t.Context(), centralLabelOf("test integration"), line, func() int {
+		seen, err := adm.overview(overviewPass{scan: tableOf(os.Getpid()), machine: unreadMachine, now: time.Now()})
+		if err != nil {
+			t.Errorf("overview from inside the hold: %v", err)
+			return 1
+		}
+		view = seen
+		return 0
+	})
+	if err != nil || code != 0 {
+		t.Fatalf("the hold answered %d, %v", code, err)
+	}
+	if view.Occupied != 1 || view.Free != 0 || len(view.Holders) != 1 {
+		t.Fatalf("the report counts %d occupied, %d free, holders %+v; want the one central holder", view.Occupied, view.Free, view.Holders)
+	}
+	holder := view.Holders[0]
+	if holder.Label != "test-integration" || holder.PID != os.Getpid() || holder.Liveness != wordRunning {
+		t.Errorf("the holder row is %+v, want test-integration, this process, running", holder)
+	}
+	if holder.Session != "central-session-1" || holder.Agent != "central-agent-1" {
+		t.Errorf("the holder row names owner %q / %q, want the session and agent that typed the line", holder.Session, holder.Agent)
+	}
+	if holder.Command != "./le test integration bgp" {
+		t.Errorf("the holder row's command is %q, want the typed line", holder.Command)
+	}
+	if holder.AgeSeconds == nil {
+		t.Error("the holder row carries no age, and the entry recorded its start")
+	}
+
+	text := view.Text()
+	for _, want := range []string{"  test-integration pid ", "    ./le test integration bgp\n", "central-session-1"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the report reads\n%s\nwant it to hold %q", text, want)
+		}
+	}
+	if strings.Contains(view.Notice, "Docker") {
+		t.Errorf("the notice is %q, and a Docker lab now holds a slot", view.Notice)
+	}
+	for _, want := range []string{"ZE_ADMIT_RAW", "le exec", "declared slot-free", "outside ./le", "other checkouts"} {
+		if !strings.Contains(view.Notice, want) {
+			t.Errorf("the notice is %q, want it to name %q as outside the count", view.Notice, want)
+		}
+	}
+
+	after, err := adm.overview(overviewPass{scan: tableOf(os.Getpid()), machine: unreadMachine, now: time.Now()})
+	if err != nil {
+		t.Fatalf("overview after the hold: %v", err)
+	}
+	if after.Occupied != 0 || len(after.Holders) != 0 {
+		t.Errorf("after the hold the report is %+v, want the slot free", after)
+	}
+}
+
 // TestReportListsLiveHoldersAndOmitsDeadEntries reads a fabricated registry
 // against an injected process table.
 //

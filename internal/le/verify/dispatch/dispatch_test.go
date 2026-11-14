@@ -156,6 +156,10 @@ func probeAnswer(args []string) (any, int) {
 func TestMain(m *testing.M) {
 	if len(os.Args) > 1 && os.Args[1] == "le" {
 		registerProbe()
+		// A stage runs inside its verify's job slot. The probe stands in for
+		// one with no verify above it, so its line is run with no slot rather
+		// than admitted against the checkout this test runs in.
+		leroot.SetAdmitter(func(_ string, _ []string, body func() int) int { return body() })
 		leroot.RunBeforeDispatch("ze le")
 		os.Exit(leroot.Dispatch("ze le", os.Args[2:]))
 	}

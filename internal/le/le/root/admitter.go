@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
@@ -90,13 +91,10 @@ func registeredAdmitter() Admitter {
 // it always did. The whole-tree gate is asked before any slot, so a release
 // check is refused at once and never after a wait.
 //
-// While no admitter is registered every line runs unadmitted, as it did
-// before admission was central: the seam is filled by internal/le/job.
+// A central line in a binary that registered no admitter is refused, last of
+// all: the body never runs unadmitted. internal/le/job fills the seam, so only
+// a binary built without it, a test binary for one, meets that refusal.
 func centralSlot(name string, typed, line []string, prepared bool, list leaction.List, declared bool, errOut io.Writer) (Admitter, string, int) {
-	admit := registeredAdmitter()
-	if admit == nil {
-		return nil, "", 0
-	}
 	if name == "" {
 		// The root names no command: it answers what le holds.
 		return nil, "", 0
@@ -109,10 +107,10 @@ func centralSlot(name string, typed, line []string, prepared bool, list leaction
 		return nil, "", 0
 	}
 	if !declared {
-		return admit, slot.Command, 0
+		return admitterOf(slot.Command, errOut)
 	}
 	if list.PassesWords {
-		return admit, slot.Command, 0
+		return admitterOf(slot.Command, errOut)
 	}
 	if !prepared {
 		line = list.AtVerb(line)
@@ -125,7 +123,26 @@ func centralSlot(name string, typed, line []string, prepared bool, list leaction
 		fmt.Fprintln(errOut, tb.Str("error: ").Err(err).String()) //nolint:errcheck // CLI output
 		return nil, "", 2
 	}
-	return admit, slot.Command, 0
+	return admitterOf(slot.Command, errOut)
+}
+
+// admitterOf answers the registered admitter for a line that takes a central
+// slot under commandName. With none registered it writes the refusal to errOut
+// and answers the code 2, and the body MUST NOT run: a heavy action that ran
+// because nothing could admit it is the oversubscription admission exists to
+// prevent.
+func admitterOf(commandName string, errOut io.Writer) (Admitter, string, int) {
+	admit := registeredAdmitter()
+	if admit != nil {
+		return admit, commandName, 0
+	}
+	refusal := opererr.New(
+		leaction.Program()+" "+commandName+": this binary registered no job admitter",
+		"a heavy action runs only inside a job slot, and a binary built without internal/le/job cannot take one, so the action was not started",
+		"build le with internal/le/job linked (internal/le/register.go imports it), or in a test install an admitter with leroot.SetAdmitter")
+	var tb textbuf.Buffer
+	fmt.Fprintln(errOut, tb.Str("error: ").Err(refusal).String()) //nolint:errcheck // CLI output
+	return nil, "", 2
 }
 
 // tableTakes reports whether the area's own parser takes line, the words from

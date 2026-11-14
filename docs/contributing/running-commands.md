@@ -2363,7 +2363,7 @@ machine:
   disk free, tmp and Go build cache (one volume): 412.3 GiB
   le test processes: 1
   go test processes: 9
-the slots count only jobs admitted through this checkout's registry (tmp/.ze-jobs): Docker labs, raw commands and other checkouts appear only in the machine readings
+the slots count only jobs admitted through this checkout's registry (tmp/.ze-jobs): commands run under the raw-admission escape (ZE_ADMIT_RAW), le exec and the few actions declared slot-free, work started outside ./le and other checkouts appear only in the machine readings
 ```
 
 | Part | What it says |
@@ -2372,7 +2372,7 @@ the slots count only jobs admitted through this checkout's registry (tmp/.ze-job
 | `holders` | One row per entry whose process is running: its label, PID, age, the session and the agent that asked for it, the entry file, and its command on the next line. An entry that could not be read is a row marked `unreadable`, and it occupies a slot, as admission counts it |
 | `waiters` | One row per job queued for a slot, with how long it has waited and who asked for it |
 | `machine` | The core count, the 1, 5 and 15 minute load averages with the 1 minute load per core, available and total memory, the free space on the volumes that hold `tmp/` and the Go build cache (one line when they are one volume), and the number of `le test` and Go test processes running on the whole machine |
-| The last line | What the slots leave out |
+| The last line | What the slots leave out: commands run under the raw-admission escape, `./le exec` and the few actions declared slot-free, work started outside `./le`, and other checkouts |
 
 An entry or a waiter record whose process has ended is in no row and no
 count, because it holds nothing. A reading that failed prints `unavailable`
@@ -2385,11 +2385,20 @@ memory and disk in bytes, and `| yaml` and `| table` render that document.
 <!-- source: internal/le/job/answer.go -- answerReport -->
 <!-- source: internal/core/hostload/readings.go -- LoadAverages, MemoryAvailable, MemoryTotal, HarnessProcesses, GoTestProcesses -->
 
-The slots count only the jobs admitted through this checkout's registry. A
-Docker interop lab, a command run under the raw-admission escape and a job in
-another checkout take no slot here, so free slots do not mean a free machine.
-Such work shows only in the machine readings: the load, the memory and the
-process counts.
+The slots count only the jobs admitted through this checkout's registry. The
+dispatcher takes one slot for every heavy `./le` action before its body runs,
+so a Docker interop lab holds one slot for its whole run, as a QEMU guest
+does. Four kinds of work take no slot here: a command run under the
+raw-admission escape (`ZE_ADMIT_RAW`), `./le exec` and the few actions
+declared slot-free, work started outside `./le`, and a job in another
+checkout. `./le exec` takes none because it replaces its own process with the
+program it carries, so nothing remains to release a slot. Free slots therefore
+do not mean a free machine. Such work shows only in the machine readings: the
+load, the memory and the process counts.
+<!-- source: internal/le/job/central.go -- admitCentral -->
+<!-- source: internal/le/job/overview.go -- slotsNotice -->
+<!-- source: internal/le/exec/register.go -- noSlotReason -->
+<!-- source: internal/le/le/root/heavy.go -- RegisterNoSlot, SlotOfLine -->
 
 The main thread reads the report before it starts a heavy job. The report
 states readings and no verdict, and admission still queues whatever is
