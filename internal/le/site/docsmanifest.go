@@ -218,7 +218,6 @@ var docsDestinationExact = map[string]string{
 	"guide/health-checks.md":                    "guides/system-readiness",
 	"guide/healthcheck.md":                      "guides/bgp-healthcheck",
 	"guide/looking-glass-howto.md":              "guides/public-looking-glass",
-	"guide/netlab.md":                           "labs/netlab",
 	"guide/terminal-demonstrations.md":          "demos/terminal",
 	"history.md":                                "project/history",
 	"performance.md":                            "performance/bgp",

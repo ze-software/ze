@@ -9,7 +9,7 @@ Use these pages to install Ze, configure a network role, operate the system, and
 - [Build and install on Ubuntu](ubuntu-build-install/): compile, install, initialize the store, and start SSH.
 - [Docker](docker/): build the image, keep state across recreation, and manage it with Compose.
 - [VM and gokrazy appliance](appliance/): build and boot a disk image or installer ISO.
-- [containerlab and netlab](../labs/netlab/): run the supplied topology with the lab image.
+- [containerlab and netlab](netlab/): run the supplied topology with the lab image.
 - [CLI tour](cli/): use interactive, one-shot, pipe, and runtime commands.
 - [Configuration](configuration-model/): understand the hierarchical configuration format.
 - [Lifecycle and rollback](lifecycle/): reload, restart, archive, update, and recover.

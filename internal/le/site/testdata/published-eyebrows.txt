@@ -92,6 +92,7 @@ guides/mcp/remote-access/index.html	Guide
 guides/monitoring/index.html	Guide
 guides/mpls/index.html	Guide
 guides/mrt-analysis/index.html	Guide
+guides/netlab/index.html	Guide
 guides/operations/index.html	Guide
 guides/operator-access-rbac/index.html	Guide
 guides/ospf/index.html	Guide
@@ -118,7 +119,6 @@ guides/vrrp/index.html	Guide
 guides/web-interface/index.html	Guide
 guides/ze-install/index.html	Guide
 labs/l2tp-interop/architecture/index.html	Lab details
-labs/netlab/index.html	Guide
 labs/pppoe-interop/architecture/index.html	Lab details
 legal/index.html	Legal
 license/index.html	License

@@ -6,12 +6,12 @@
             "columns": [
                 [
                     {"label_only": "Install"},
-                    {"href": "guides/quickstart/", "icon": "🚀", "title": "Quickstart", "desc": "Two local BGP peers and a received route", "feature": true},
-                    {"href": "guides/ze-install/", "icon": "💿", "title": "Install Ze", "desc": "Choose a Linux, Docker or appliance deployment"},
-                    {"href": "guides/ubuntu-build-install/", "icon": "\ud83d\udc27", "title": "Linux installation", "desc": "Install, reinstall or remove Ze with its own CLI"},
+                    {"href": "guides/ze-install/", "icon": "💿", "title": "Install Ze", "desc": "One command installs Ze: sudo ze install. Compare Linux, Docker, VM and lab", "feature": true},
+                    {"href": "guides/quickstart/", "icon": "🚀", "title": "Quickstart", "desc": "Two local BGP peers and a received route"},
+                    {"href": "guides/ubuntu-build-install/", "icon": "\ud83d\udc27", "title": "Build and install on Linux", "desc": "Build Ze, then install, upgrade or remove it with its own CLI"},
                     {"href": "guides/docker/", "icon": "📦", "title": "Docker", "desc": "Keep configuration and login across container recreation"},
                     {"href": "guides/appliance/", "icon": "💿", "title": "VM and gokrazy", "desc": "ISO installation, image updates and previous-slot recovery"},
-                    {"href": "labs/netlab/", "icon": "🧪", "title": "containerlab and netlab", "desc": "Three-node templates with live routing proof still pending"}
+                    {"href": "guides/netlab/", "icon": "🧪", "title": "containerlab and netlab", "desc": "Start the supplied three-node topology by hand"}
                 ],
                 [
                     {"label_only": "Learn"},
@@ -77,6 +77,7 @@
                     {"label_only": "Labs and demonstrations"},
                     {"href": "labs/", "icon": "🧪", "title": "Testing labs", "desc": "Interop labs you can run against real daemons", "feature": true},
                     {"href": "labs/bgp-interop/", "icon": "🌐", "title": "BGP interop", "desc": "FRR, BIRD, and GoBGP sessions"},
+                    {"href": "labs/netlab/", "icon": "🧪", "title": "netlab topology", "desc": "Three-node templates with a live routing and traffic check"},
                     {"href": "labs/ipsec-interop/", "icon": "🔒", "title": "IPsec and IKEv2", "desc": "Ze IKE initiator against strongSwan"},
                     {"href": "labs/vpp-dataplane/", "icon": "🚀", "title": "VPP dataplane", "desc": "FIB, traffic, and firewall in real VPP"},
                     {"href": "labs/appliance-install/", "icon": "💿", "title": "Appliance installer", "desc": "HTTP/PXE, ISO, Ventoy, and tested boot paths"},

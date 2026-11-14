@@ -160,3 +160,26 @@ func TestHeroLinksAreNeverUnderlined(t *testing.T) {
 		}
 	}
 }
+
+// TestHeroSaysZeIsSelfContained pins the owner ruling that the front page
+// says Ze is self-contained, as a key point beside the other three.
+//
+// Method: it reads the hero's key-point row out of the homepage template and
+// requires "Self-contained" as its first point, so dropping, renaming or
+// moving the point turns it red.
+func TestHeroSaysZeIsSelfContained(t *testing.T) {
+	const opening = `<p class="hero-start-points" aria-label="Key capabilities">`
+	start := strings.Index(homeTemplate, opening)
+	if start < 0 {
+		t.Fatal("the homepage template holds no hero key-point row")
+	}
+	end := strings.Index(homeTemplate[start:], "</p>")
+	if end < 0 {
+		t.Fatal("the hero key-point row is not closed")
+	}
+	points := regexp.MustCompile(`<span>([^<]*)</span>`).FindAllStringSubmatch(homeTemplate[start:start+end], -1)
+	if len(points) == 0 || points[0][1] != "Self-contained" {
+		t.Errorf("the hero's first key point is not %q (owner ruling, website/AI.md): %v",
+			"Self-contained", points)
+	}
+}

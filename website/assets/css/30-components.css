@@ -1324,11 +1324,11 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .screen-description p { margin: 0.4rem 0 0.8rem; color: #c2d8e7; font-size: 0.85rem; line-height: 1.6; }
 .site-home .screen-description a { color: #8fcff4; font-size: 0.8rem; }
 .site-home .screen-description .capture-caption { font-size: 0.7rem; color: #abc7dc; margin: 0.8rem 0 0; }
-.site-home .hero-action-row { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.9rem 0.25rem; align-items: center; border-top: 1px solid #2c4564; padding: 1.25rem 0; margin: 0; }
+.site-home .hero-action-row { display: grid; grid-template-columns: max-content minmax(0, max-content); gap: 0.9rem 0.25rem; align-items: center; border-top: 1px solid #2c4564; padding: 1.25rem 0; margin: 0; }
 .site-home .hero-project-intro { color: var(--hero-muted); font-size: 0.78rem; line-height: 1.65; margin: 0.85rem 0 0; }
 .site-home .hero-project-intro a { color: #8fcff4; text-decoration: none; }
 .site-home .hero-project-metrics { min-width: 0; }
-.site-home .hero-metrics-grid { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.9rem 0.25rem; }
+.site-home .hero-metrics-grid { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.9rem 0.25rem; }
 .site-home .hero-project-metric { display: flex; flex: 0 0 auto; flex-direction: column; width: max-content; max-width: 100%; gap: 0.35rem; padding: 0.2rem 1rem; color: var(--hero-text); text-decoration: none; border-inline-start: 1px solid #2c4564; }
 .site-home .hero-project-metric strong { font-size: clamp(1.45rem, 2.6vw, 2rem); line-height: 1.15; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.035em; color: #a7dbfa; white-space: nowrap; }
 .site-home .hero-project-metric > span { font-size: 0.76rem; line-height: 1.5; color: var(--hero-muted); }
@@ -1348,6 +1348,19 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .hero-release-callout p { min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--hero-muted); font-size: 0.9rem; font-weight: 400; line-height: 1.5; }
 .site-home .hero-release-details p span { white-space: nowrap; }
 .site-home .hero-release-callout p::before, .site-home .hero-release-callout p::after { content: none; }
+/* Desktop: the release block and the five figures share one row that fills
+   the hero. No spacing is written down: every item grows by the same share of
+   the free width, a figure sits in the middle of its share, and the two end
+   items take half a share on their inner side only. The separator on a
+   figure's leading edge is therefore the same distance from the content
+   before it as from its own, and the row stays flush at both ends. */
+@media (min-width: 1081px) {
+    .site-home .hero-action-row { display: flex; flex-wrap: nowrap; gap: 0; }
+    .site-home .hero-project-metrics, .site-home .hero-metrics-grid { display: contents; }
+    .site-home .hero-release-callout { flex: 0.5 1 auto; max-width: none; }
+    .site-home .hero-project-metric { display: grid; justify-content: center; flex: 1 1 auto; width: auto; padding-inline: 0; }
+    .site-home .hero-project-metric:last-child { flex: 0.5 1 auto; justify-content: end; }
+}
 .site-home .hero-outcome-links { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0; padding: 1rem 0 1.3rem; border: 0; border-top: 1px solid #2c4564; border-radius: 0; background: none; box-shadow: none; gap: 0.6rem 1.25rem; }
 .site-home .hero-outcome-links a { min-width: 0; justify-content: center; text-align: center; white-space: normal; padding: 0; border: 0; background: none; box-shadow: none; color: #d0e6f5; font: 400 0.78rem/1.6 Lato, sans-serif; }
 .site-home .hero-outcome-links a::before { flex-shrink: 0; background: var(--acc, var(--brand-bright)); box-shadow: none; width: 0.25rem; height: 0.25rem; }

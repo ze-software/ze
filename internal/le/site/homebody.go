@@ -38,6 +38,7 @@ const homeTemplate = `        <div class="site-home">
                                 <p class="eyebrow">Ze, an OpenNOS</p>
                                 <h1 id="hero-title" class="hero-start-title">A network OS.<br /><em>A platform for immutable services.</em></h1>
                                 <p class="hero-start-points" aria-label="Key capabilities">
+                                    <span>Self-contained</span>
                                     <span>Extend with plugins</span>
                                     <span>Appliance option</span>
                                     <span>ExaBGP compatible</span>
@@ -416,6 +417,8 @@ const homeTemplate = `        <div class="site-home">
                         The same binary and configuration support each path,
                         from a <a href="labs/netlab/">netlab topology</a>
                         or BGP interop lab to spare hardware.
+                        Not sure which fits?
+                        <a href="guides/ze-install/#choose-a-deployment-path">Compare the deployment paths</a>.
                     </p>
                 </div>
                 <div class="audience run-path-grid reveal">

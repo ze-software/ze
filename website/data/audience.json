@@ -5,8 +5,8 @@
             "label": "Lab",
             "category": "routing",
             "chips": ["netlab", "containerlab", "Docker", "FRR", "BIRD", "GoBGP"],
-            "body": "Use supplied netlab templates for a three-node topology under containerlab. Live netlab routing and traffic validation is still pending. The separate BGP interop harness runs Ze beside FRR, BIRD, and GoBGP and checks routes through each peer's own CLI.",
-            "link": {"href": "labs/netlab/", "label": "Run a topology", "sublabel": "netlab and containerlab"}
+            "body": "Use supplied netlab templates for a three-node topology under containerlab. A live run checks every adjacency, the kernel routes and traffic between all three nodes, then tears the lab down. The separate BGP interop harness runs Ze beside FRR, BIRD, and GoBGP and checks routes through each peer's own CLI.",
+            "link": {"href": "guides/netlab/", "label": "Run a topology", "sublabel": "netlab and containerlab"}
         },
         {
             "title": "Run as a daemon",

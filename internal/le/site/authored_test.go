@@ -336,7 +336,7 @@ func TestEveryAuthoredPageIsClaimedExactlyOnce(t *testing.T) {
 	}
 	for _, route := range []string{
 		"/labs/", "/labs/appliance-install/", "/labs/bgp-interop/", "/labs/ipsec-interop/",
-		"/labs/l2tp-interop/", "/labs/looking-glass-graph/", "/labs/pppoe-interop/",
+		"/labs/l2tp-interop/", "/labs/looking-glass-graph/", "/labs/netlab/", "/labs/pppoe-interop/",
 		"/labs/vlan-qos/", "/labs/vpp-dataplane/", "/performance/", "/style-guide/",
 		"/talks/linx-2026-06/", "/talks/netmcr-2026-04/", "/zeledon/",
 	} {

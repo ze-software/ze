@@ -11,7 +11,7 @@ pre-release software; start with an isolated lab.
 | Run a Linux service | [Local installation](#local-installation) and [build prerequisites](ubuntu-build-install.md) | The service is active, authenticated management connects, and repeat installation retains configuration and credentials. |
 | Run a daemon in Docker | [Docker Compose](docker.md) | A committed configuration change and the same login survive container recreation on the same named volume. |
 | Install a VM or dedicated router | [Appliance build](appliance.md#build-an-image) and [ISO installation](#appliance-iso-install) | After removing installer media, the written disk boots and authenticated SSH reports the selected image. |
-| Run a protocol topology | [netlab and containerlab](netlab.md) | The live check must pass adjacencies, kernel routes, traffic and teardown. Live verification remains pending. |
+| Run a protocol topology | [netlab and containerlab](netlab.md) | The [live check](../../website/labs/netlab/index.html) passes adjacencies, kernel routes, traffic between all three nodes and teardown. It last passed on arm64 on 2026-11-14. |
 <!-- source: examples/quickstart/r1.conf -- local lab endpoints and originated prefix -->
 <!-- source: examples/quickstart/r2.conf -- local lab endpoints and originated prefix -->
 <!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
@@ -92,7 +92,8 @@ sudo ze install --dry-run
 Without systemd, installation prints the foreground start command. Repeat
 `ze install` to replace the binary while keeping state and compatible service
 customizations. Conflicting paths or service definitions are refused before
-binary replacement. See [Operations](operations.md) for upgrades and recovery.
+binary replacement. See [Upgrading](#upgrading) for the steps and checks, and
+[Operations](operations.md) for upgrades and recovery.
 <!-- source: internal/plugins/local/native.go -- nativeRuntime.install, nativeRuntime.selectedService, nativeTarget.preflight -->
 
 ### What It Does
@@ -214,6 +215,67 @@ service after enabling it.
 The systemd unit sets `XDG_RUNTIME_DIR=/run/ze`, so the daemon socket is
 `/run/ze/ze.socket`. For local operator CLI access, configure
 `daemon { socket "/run/ze/ze.socket"; }` or export `XDG_RUNTIME_DIR=/run/ze`.
+
+## Upgrading
+
+To upgrade, run the install command of the new build over the existing
+installation. Use the same prefix. From the new build's checkout or extracted
+preview:
+
+```bash
+sudo ./ze install
+# For an installation under another prefix:
+sudo ./ze install --prefix /opt/ze
+```
+
+The installer finds the existing store and keeps it. Configuration and
+credentials stay, and the first-time setup does not run again. A running
+`ze.service` stops. The new binary is written to a temporary file beside the old
+one and renamed into place while the store's maintenance lock is held. Then the
+service starts again. An inactive service stays inactive. If a step fails, the
+installer puts the previous binary back and starts the service again if it was
+running.
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+<!-- source: internal/plugins/local/cmd_install.go -- copyInstalledBytes -->
+<!-- source: internal/plugins/local/native_replace.go -- nativeRuntime.recoverInstall -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Stop, nativeService.installSelected -->
+
+The installer checks the selected paths before it changes anything. It refuses
+and changes nothing in these cases:
+
+| Condition | The message says |
+|-----------|------------------|
+| A component of the binary or configuration path is a symbolic link | `selected path <path> is a symbolic link; select a real installation path` |
+| The binary path is not a regular file, or the configuration path is not a directory | `... is not a regular file` or `... is not a directory; select a real installation path` |
+| A `ze init --from` import did not finish | `existing import artifact <path> requires recovery; complete ze init --from before installing` |
+| The store is not a private directory | `store <path> is not private; restore its mode to 0700 before installing` |
+| A distribution package owns the binary or `/etc/ze` | `package-managed installation marker <path> exists; use its package manager to upgrade or remove Ze` |
+| The command runs without root while a service is in use | `service installation requires root; run sudo ze install or use --no-service with a writable --prefix` |
+| `ze.service` is masked, differs from the policy systemd loaded, or another service definition supplies Ze | the problem and the `systemctl cat`, `systemctl show` or `systemctl daemon-reload` command to run |
+
+Each refusal starts with `Ze install did not finish` and names the `ze doctor`
+command for the selected configuration directory.
+<!-- source: internal/plugins/local/native.go -- nativeTarget.preflight, nativePath, packageOwnership, packageMarkerOwnership, nativeRuntime.refuse -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Preflight, nativeService.compatibleUnit -->
+
+After the upgrade, confirm the new release and the same login:
+
+```bash
+/usr/local/bin/ze show version
+systemctl status ze.service --no-pager
+ssh -p 2222 YOUR_USERNAME@127.0.0.1
+```
+
+`show version` answers without the daemon and prints `ze <release> (built <date>)`.
+It must name the new release. Log in with the same username and password as
+before the upgrade.
+<!-- source: test/ui/native-install-upgrade.ci -- changed-version upgrade keeps configuration and login -->
+<!-- source: internal/test/fixture/register_native_install_upgrade.go -- nativeInstalledRelease, nativeReportsUpgrade -->
+
+Keep the previous build before you upgrade. To go back, run its install command
+the same way. For configuration rollback and the checks before and after a
+software change, see [Lifecycle](lifecycle.md#software-updates).
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
 
 ## Uninstalling
 

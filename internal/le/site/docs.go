@@ -5,6 +5,7 @@ package site
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -161,6 +162,15 @@ func newDocsRenderer(paths Paths) (*docsRenderer, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A guide may link a hand-written website page by its repository path, so
+	// the link manifest also holds every page the authored producer publishes.
+	// The keys cannot collide: a docs source ends in .md, an authored page in
+	// index.html, and each lies under its own top-level directory.
+	authored, err := authoredDocLinks(paths)
+	if err != nil {
+		return nil, err
+	}
+	maps.Copy(manifest, authored)
 	tokens, err := loadSiteFactSnapshot(paths.Output)
 	if err != nil {
 		return nil, err

@@ -1114,6 +1114,36 @@
           ]
         }
       ]
+    },
+    "labs/netlab/": {
+      "eyebrow": "Lab evidence",
+      "groups": [
+        {
+          "title": "Related lab work",
+          "links": [
+            {
+              "href": "labs/",
+              "label": "All labs",
+              "desc": "Return to the lab index."
+            },
+            {
+              "href": "guides/netlab/",
+              "label": "netlab guide",
+              "desc": "Start, check and remove the topology by hand."
+            },
+            {
+              "href": "labs/bgp-interop/",
+              "label": "BGP interop",
+              "desc": "Test BGP behavior with real daemons."
+            },
+            {
+              "href": "quality/qemu-interop-release/",
+              "label": "Release evidence",
+              "desc": "How lab runs feed release checks."
+            }
+          ]
+        }
+      ]
     }
   },
   "patterns": [

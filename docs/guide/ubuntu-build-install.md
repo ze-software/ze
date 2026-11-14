@@ -10,6 +10,9 @@ The commands assume Ubuntu 24.04 or newer, `sudo`, and an `amd64` or `arm64` hos
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
 
+For a container, a VM image or a lab instead, see
+[Choose a deployment path](ze-install.md#choose-a-deployment-path).
+
 ## 1. Install build tools
 
 Ubuntu's packaged Go may lag the version Ze needs, so install Go from `go.dev` and let `apt` provide the rest.
@@ -123,12 +126,17 @@ use [SSH and RBAC](operator-access-rbac.md).
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer configuration -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- operator profiles -->
 
+### Update Ze
+
 To update a standalone installation, retain the previous binary and a compatible
 configuration backup, build the selected revision, then repeat the install
 command during a maintenance window. Existing state and credentials remain.
 Verify login and routing after the restart. Package-managed binaries must be
-updated through their package manager.
+updated through their package manager. [Upgrading](ze-install.md#upgrading)
+gives the command, what the installer refuses, and the checks to run after it.
 <!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+
+### Remove Ze
 
 ```bash
 # Remove the service and executable, retaining configuration and credentials.
@@ -137,7 +145,9 @@ sudo /usr/local/bin/ze uninstall
 
 Removal stops the service before deleting the executable. State is retained by
 default; add `--purge` only when you intend to discard the selected installation's
-state. For reloads, backups and recovery, see [Lifecycle](lifecycle.md).
+state. [Uninstalling](ze-install.md#uninstalling) lists the flags, the prefix
+choice and the package-ownership refusals. For reloads, backups and recovery, see
+[Lifecycle](lifecycle.md).
 <!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
 
 ## Manual setup: install only the binary
@@ -334,3 +344,7 @@ sudo /usr/local/bin/ze uninstall local
 ```
 
 Use `--purge` only when you want to remove `/etc/ze` and its `database/` tree.
+
+To return to an earlier build, install it as [Upgrading](ze-install.md#upgrading)
+describes. To roll back configuration, see
+[Lifecycle](lifecycle.md#archive-and-rollback).

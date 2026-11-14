@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>netlab Topology Lab - Ze</title>
+        <meta name="description" content="Three Ze nodes under containerlab, with a live check of BGP, OSPF, IS-IS and BFD adjacencies, kernel routes and traffic." />
+        <meta property="og:title" content="netlab Topology Lab - Ze" />
+        <meta property="og:description" content="Three Ze nodes under containerlab, with a live check of BGP, OSPF, IS-IS and BFD adjacencies, kernel routes and traffic." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/labs/netlab/" />
+        <meta property="og:url" content="https://ze-software.net/labs/netlab/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar">
+            <section aria-labelledby="lab-title">
+                <div class="section-head journey-hero reveal cat-platform">
+                    <span class="journey-eyebrow">Topology lab</span>
+                    <h1 id="lab-title">netlab Topology Lab</h1>
+                    <p>
+                        netlab starts three Ze nodes under containerlab from
+                        the supplied topology. A live check proves the
+                        routing protocols, the kernel routes and the traffic
+                        between them, then tears the lab down.
+                    </p>
+                </div>
+                <div class="status-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">Daemon</span>
+                        <p>
+                            The reference topology in
+                            <code>contrib/netlab/topology.yml</code> has three
+                            nodes. r1 and r2 share an internal link in AS 65001
+                            and run iBGP, OSPF, IS-IS and BFD. r3, in AS 65002,
+                            is an eBGP peer of r1 on its own link, because
+                            netlab runs an IGP on internal links only. r1 also
+                            carries two static routes.
+                        </p>
+                        <p>
+                            To start the same topology by hand with netlab,
+                            check it, rebuild it and remove it, follow the
+                            <a href="../../guides/netlab/">netlab guide</a>.
+                        </p>
+                    </div>
+                    <div class="status-table" aria-label="Lab facts">
+                        <div class="status-row">
+                            <strong>Proves</strong>
+                            <span>Every declared BGP, OSPF, IS-IS and BFD adjacency, both static routes in the kernel FIB, and sourced loopback pings between every pair of nodes, when <code>./le test netlab run</code> exits 0 after teardown</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Environment</strong>
+                            <span>Three Ze nodes under containerlab on a Docker host; netlab and containerlab run in a tool container</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Requires</strong>
+                            <span>Docker access to a Ze Docker host, or QEMU for the disposable Ze Docker host</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Source</strong>
+                            <span
+                                ><a
+                                    href="https://github.com/ze-software/ze/tree/main/contrib/netlab" target="_blank" rel="noopener"
+                                    >contrib/netlab/</a
+                                ></span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Run commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                            <span class="terminal-title">netlab</span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># live check against a Ze Docker host</span>
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> test netlab run
+
+<span class="term-comment"># the same check in the disposable QEMU Docker host</span>
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> test qemu docker-lab lab "test netlab run"
+
+<span class="term-comment"># render the templates and compare with the golden files;</span>
+<span class="term-comment"># this one needs netlab installed on the machine that runs it</span>
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> test netlab check</pre>
+                        </div>
+                    </div>
+                    <div class="terminal-note">
+                        <span class="tag">Prerequisites</span>
+                        <p>
+                            Docker access from a Ze source checkout. For the
+                            two live runs, Python, netlab and containerlab run
+                            in the tool container. The template check is
+                            different: it runs the netlab installed on the
+                            machine that invokes it, or the one named by
+                            <code>NETLAB=/path/to/netlab</code>, and a missing
+                            netlab is an error.
+                        </p>
+                        <div class="link-list">
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/internal/le/test/netlab/live.go" target="_blank" rel="noopener"
+                                >internal/le/test/netlab/live.go
+                                <span>live check</span></a
+                            >
+                            <a
+                                href="https://github.com/ze-software/ze/tree/main/contrib/netlab" target="_blank" rel="noopener"
+                                >contrib/netlab/
+                                <span>daemon definition and templates</span></a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section aria-labelledby="netlab-proof-title">
+                <div class="section-head reveal">
+                    <h2 id="netlab-proof-title">What is proven, and what is not.</h2>
+                </div>
+                <div class="md-content reveal">
+                    <p>
+                        The render check covers template rendering and parsing.
+                        The functional profile check covers one daemon's SSH
+                        login. The live command checks adjacencies, kernel routes
+                        and traffic across the topology; it must finish
+                        successfully before those properties can be claimed for a
+                        run.
+                    </p>
+                    <!-- source: internal/le/test/netlab/actions.go -- render and golden validation -->
+                    <!-- source: test/plugin/netlab-lab-profile.ci -- one daemon and SSH command profile -->
+                    <table>
+                        <thead>
+                            <tr><th>Statement</th><th>Evidence</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>netlab accepts the daemon definition and finds a template for each module</td><td><code>netlab create</code> exits 0 on the reference topology, in <code>./le test netlab check</code></td></tr>
+                            <tr><td>The render is valid ze configuration</td><td><code>ze config validate</code> exits 0 on each file under <code>contrib/netlab/golden/</code></td></tr>
+                            <tr><td>A daemon runs one of those renders and answers the show command with JSON</td><td><code>test/plugin/netlab-lab-profile.ci</code></td></tr>
+                            <tr><td>Every declared protocol reaches its healthy state, static routes reach the kernel FIB, and sourced loopback pings pass</td><td><code>./le test netlab run</code> exits 0 after teardown</td></tr>
+                            <tr><td>Each declared feature passes netlab's own upstream integration suite</td><td>Not verified: no run here executes netlab's upstream integration suite. This is separate from the native reference-lab proof</td></tr>
+                        </tbody>
+                    </table>
+                    <!-- source: internal/le/test/netlab/actions.go -- Answer -->
+                    <!-- source: test/plugin/netlab-lab-profile.ci -- daemon start, SSH login, json compact -->
+                    <p>
+                        The live command passed on 2026-11-14 on arm64, in Ze's
+                        QEMU Docker host under HVF, with netlab 26.10 and the
+                        committed templates. It reached every BGP, OSPF, IS-IS
+                        and BFD adjacency, found both static routes in the kernel
+                        FIB, passed all six sourced loopback pings, and tore the
+                        lab down with no container left. No amd64 run from the
+                        committed templates is recorded.
+                    </p>
+                    <!-- source: internal/le/test/netlab/live.go -- RunLive, proveNode -->
+                    <p>
+                        Ze also sends and receives no LLDP frame, so a netlab
+                        validation that reads LLDP data cannot pass. containerlab
+                        does not need LLDP, because the topology names the veth
+                        links.
+                    </p>
+                </div>
+            </section>
+            <section aria-labelledby="netlab-run-title">
+                <div class="section-head reveal">
+                    <h2 id="netlab-run-title">Run the automated live check.</h2>
+                </div>
+                <div class="md-content reveal">
+                    <p>
+                        To run the automated live checks from the source
+                        checkout against an existing Ze Docker host, run:
+                    </p>
+                    <pre><code>./le test netlab run</code></pre>
+                    <p>
+                        The automated run stages the node binary once for the
+                        Docker daemon's architecture, then packages it with the
+                        <code>lab</code> target in
+                        <code>docker/Dockerfile.runtime</code>. Its node build
+                        context contains only that binary and the runtime
+                        recipe; it does not compile Go inside Docker or send the
+                        source checkout. The manual source-building command in
+                        the <a href="../../guides/netlab/#step-1-build-the-image">netlab guide</a>
+                        remains available.
+                    </p>
+                    <!-- source: internal/le/test/netlab/run.go -- StageBinaries -->
+                    <!-- source: internal/le/test/netlab/images.go -- buildLabNode -->
+                    <!-- source: internal/le/interoplab/runtime_image.go -- StageRuntimeImage -->
+                    <p>
+                        If Docker currently uses the distribution's kernel, use
+                        the disposable QEMU Docker host instead. This boots Ze's
+                        own system, forwards its Docker endpoint, and runs the
+                        same lab against it:
+                    </p>
+                    <pre><code>./le test qemu docker-lab lab "test netlab run"</code></pre>
+                    <p>
+                        The QEMU route needs QEMU and the native-architecture Ze
+                        Docker-host image; its first run builds missing image and
+                        kernel inputs. Building the Docker-host image from
+                        scratch also needs the Docker CLI and a reachable build
+                        daemon for its static administration tools. A native
+                        kernel build needs Docker or QEMU and network access to
+                        its pinned sources. See the
+                        <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/testing/qemu-integration.md" target="_blank" rel="noopener">QEMU integration guide</a>.
+                    </p>
+                    <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab -->
+                    <!-- source: internal/le/setup/docker/host/build.go -- builder.build -->
+                    <!-- source: internal/le/setup/docker/host/static.go -- errDockerCLIMissing, runBuilderContainer -->
+                    <p>
+                        The command builds the local lab image and a tool image
+                        with the versions the
+                        <a href="../../guides/netlab/#what-you-need">netlab guide</a>
+                        lists. The tool build prints its Python and tool versions
+                        and checks Python dependency compatibility.
+                    </p>
+                    <!-- source: contrib/netlab/Dockerfile.tools -- pinned packages, Python/tool version receipts and dependency check -->
+                    <p>
+                        The host needs Docker access; Python, netlab and
+                        containerlab run in the tool container, and Ansible
+                        configures the nodes from it. That container
+                        shares the Docker host's network and PID namespaces,
+                        which also supports Ze's QEMU Docker host transport.
+                        Running host containerlab against a remote Docker socket
+                        alone cannot provide those namespaces.
+                    </p>
+                    <p>
+                        The runner waits for every declared BGP, OSPF, IS-IS and
+                        BFD adjacency, verifies both static routes in the kernel
+                        FIB, and sends sourced loopback pings between every pair
+                        of nodes. It tears the topology down on success and
+                        failure, and a cleanup failure fails the command.
+                        Artifacts stay in session scratch for diagnosis. Each run
+                        binds its nodes to the image tag retained for that build
+                        and verifies that tag still resolves to the built image
+                        ID before startup. A host-runtime run holds an exclusive
+                        directory lease and refuses an existing deployment, so a
+                        second invocation cannot tear down another run's
+                        topology.
+                    </p>
+                    <!-- source: internal/le/test/netlab/live.go -- RunLive, proveNode -->
+                    <!-- source: internal/le/test/netlab/run.go -- runContainerLab -->
+                </div>
+            </section>
+            <section aria-labelledby="netlab-troubleshoot-title">
+                <div class="section-head reveal">
+                    <h2 id="netlab-troubleshoot-title">When a run fails.</h2>
+                </div>
+                <div class="md-content reveal">
+                    <details>
+                        <summary>What a failed proof saves</summary>
+                        <p>
+                            Before cleanup, a failed proof saves a private
+                            <code>diagnostics-*</code> directory inside the retained
+                            lab directory. It contains startup output, the topology
+                            snapshot, generated node files, Docker inspection, and
+                            each node's last 200 log lines. It also saves addresses,
+                            kernel routes, BGP and BFD state, OSPF and IS-IS
+                            interfaces, neighbors, databases and routes, the system
+                            RIB, and plugin state. Address, kernel route and
+                            adjacency queries run across every node before the more
+                            detailed routing queries. Capture has a two-minute total
+                            deadline and a five-second deadline for each command. A
+                            failed query leaves an <code>.error.txt</code> artifact
+                            with its command, failure and process output, so
+                            unavailable state cannot appear as an empty successful
+                            result. Cleanup still runs after capture. JSON artifacts
+                            keep stdout and use private <code>.stderr.txt</code>
+                            sidecars for stderr. The runner explicitly adds
+                            <code>netlab.snapshot.yml</code> to netlab's normal
+                            outputs before startup. netlab 26.10 writes a pickle
+                            snapshot by default; the added YAML inventory supplies
+                            node names for live checks, failure capture, and cleanup.
+                        </p>
+                        <!-- source: internal/le/test/netlab/live_diagnostics.go -- keepLiveDiagnostics, keepLiveCommand -->
+                        <!-- source: internal/le/test/netlab/live.go -- RunLive -->
+                    </details>
+                </div>
+            </section>
+            <section aria-labelledby="netlab-drift-title">
+                <div class="section-head reveal">
+                    <h2 id="netlab-drift-title">Keeping the templates from drifting.</h2>
+                </div>
+                <div class="md-content reveal">
+                    <pre><code>./le test netlab check</code></pre>
+                    <p>
+                        It renders the templates with a real netlab, compares the
+                        result with <code>contrib/netlab/golden/</code>, and runs
+                        <code>ze config validate</code> on each golden file. A
+                        missing netlab is an error exit, never a skip. Use
+                        <code>./le test netlab update</code> to rewrite the
+                        golden files.
+                        <code>test/plugin/netlab-lab-profile.ci</code> is the
+                        other half and needs no netlab: it starts a daemon from a
+                        golden file and parses the show command output.
+                    </p>
+                    <!-- source: internal/le/test/netlab/actions.go -- Actions -->
+                </div>
+            </section>
+        </main>
+
+<script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

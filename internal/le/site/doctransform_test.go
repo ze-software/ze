@@ -2,6 +2,7 @@
 package site
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -171,6 +172,79 @@ func TestACrossDocumentLinkResolvesToThePublishedPage(t *testing.T) {
 		if got := rewriteDocLinksMarkdown(link, docRel, manifest, from); got != want {
 			t.Errorf("%s became\n  %s\nwant\n  %s", link, got, want)
 		}
+	}
+}
+
+// TestADocLinkToAnAuthoredPageStaysOnTheSite covers a guide that links a
+// hand-written website page by its repository path, in the rendered page and
+// in its Markdown mirror.
+//
+// The repository path is what resolves when the Markdown is read on the code
+// host, so the guide writes that and the site turns it into the published
+// route, relative to the guide's own directory two levels down, with the
+// fragment kept. A website file the authored producer does not publish keeps
+// the result it had before: the code host in the page, the link as written in
+// the mirror. The manifest entry is the one authoredDocLinks derives for the
+// page, which TestAuthoredDocLinksAreTheAuthoredPages pins.
+func TestADocLinkToAnAuthoredPageStaysOnTheSite(t *testing.T) {
+	manifest := map[string]string{
+		"guide/netlab.md":                   "guides/netlab",
+		"../website/labs/netlab/index.html": "labs/netlab",
+	}
+	const from = "guides/netlab"
+	const docRel = "guide/netlab.md"
+
+	body := map[string]string{
+		`<a href="../../website/labs/netlab/index.html">lab</a>`:                  `<a href="../../labs/netlab/">lab</a>`,
+		`<a href="../../website/labs/netlab/index.html#netlab-run-title">run</a>`: `<a href="../../labs/netlab/#netlab-run-title">run</a>`,
+		`<a href="../../website/data/nav.json">nav</a>`:                           `<a href="` + codeHostBlob + `docs/../website/data/nav.json" target="_blank" rel="noopener">nav</a>`,
+	}
+	for link, want := range body {
+		if got := rewriteDocLinks(link, docRel, manifest, from); got != want {
+			t.Errorf("%s became\n  %s\nwant\n  %s", link, got, want)
+		}
+	}
+
+	mirror := map[string]string{
+		"[lab](../../website/labs/netlab/index.html)":                  "[lab](../../labs/netlab/)",
+		"[run](../../website/labs/netlab/index.html#netlab-run-title)": "[run](../../labs/netlab/#netlab-run-title)",
+		"[nav](../../website/data/nav.json)":                           "[nav](../../website/data/nav.json)",
+	}
+	for link, want := range mirror {
+		if got := rewriteDocLinksMarkdown(link, docRel, manifest, from); got != want {
+			t.Errorf("%s became\n  %s\nwant\n  %s", link, got, want)
+		}
+	}
+}
+
+// TestAuthoredDocLinksAreTheAuthoredPages proves the docs link targets for the
+// website come from the pages the authored producer publishes, read from the
+// real checkout: a published page is keyed by its path from docs/ and answers
+// its route, and a website file that is not a page is absent.
+func TestAuthoredDocLinksAreTheAuthoredPages(t *testing.T) {
+	root := repositoryRoot(t)
+	paths := Paths{Repository: root, Source: filepath.Join(root, "website"), Output: t.TempDir()}
+	links, err := authoredDocLinks(paths)
+	if err != nil {
+		t.Fatalf("authored doc links: %v", err)
+	}
+	sources, err := authoredSources(paths.Source)
+	if err != nil {
+		t.Fatalf("authored sources: %v", err)
+	}
+	if len(links) != len(sources) {
+		t.Errorf("%d link targets for %d authored pages", len(links), len(sources))
+	}
+	for key, want := range map[string]string{
+		"../website/labs/netlab/index.html": "labs/netlab",
+		"../website/style-guide/index.html": "style-guide",
+	} {
+		if got, published := links[key]; !published || got != want {
+			t.Errorf("%s answered %q (published %v), want %q", key, got, published, want)
+		}
+	}
+	if route, published := links["../website/data/nav.json"]; published {
+		t.Errorf("a data file is no authored page, yet it answered the route %q", route)
 	}
 }
 

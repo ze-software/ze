@@ -468,6 +468,23 @@ assets, removes staged source files and checks the final output.
 <!-- source: internal/le/site/paths.go -- isSourceOnly -->
 <!-- source: internal/le/site/build.go -- publishable, removeSourceOnly -->
 
+## Linking a website page from a guide
+
+A guide under `docs/` links a hand-written website page by its repository
+path, relative to the guide, as `docs/guide/netlab.md` links the lab page with
+`../../website/labs/netlab/index.html#netlab-run-title`. That path resolves
+when the Markdown is read on the code host, and the docs producer rewrites it,
+in the page and in its Markdown mirror, to the page's route relative to the
+guide, keeping the fragment, so a reader of the site or of a private preview
+stays on it. The link becomes a site link exactly when the authored producer
+publishes the target: `authoredDocLinks` reads the pages `authoredSources`
+discovers and adds them to the docs link manifest. Any other `website/` file
+is linked as any unpublished file is, to the code host from the page and as
+written from the mirror. Never write the published site's absolute URL for a
+page the site itself publishes: it leaves a preview for the live site.
+<!-- source: internal/le/site/authored.go -- authoredDocLinks, authoredSources -->
+<!-- source: internal/le/site/doctransform.go -- rewriteDocLinks, rewriteDocLinksMarkdown -->
+
 ## Rendering tests
 
 Editorial sources own the text and publication dates. An older Pages artifact

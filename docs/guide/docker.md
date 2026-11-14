@@ -7,7 +7,8 @@ supplied Compose file. Docker and its Compose plugin must already be installed.
 
 Ze is pre-release software. For an immutable VM or hardware image, see
 [VM Appliance](appliance.md). For a native Linux service, see
-[Linux installation](ubuntu-build-install.md).
+[Linux installation](ubuntu-build-install.md). To compare every route, see
+[Choose a deployment path](ze-install.md#choose-a-deployment-path).
 
 ## Two images
 

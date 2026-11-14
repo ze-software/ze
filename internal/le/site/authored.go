@@ -97,6 +97,32 @@ func authoredSources(source string) ([]string, error) {
 	return pages, nil
 }
 
+// authoredDocLinks answers the docs link targets of the authored pages: each
+// page's source path relative to docs/, which is how a guide's relative link to
+// it resolves, mapped to the route it is published at.
+//
+// It reads the set authoredSources discovers, the one this producer publishes,
+// so a website file is a site link from a guide exactly when this producer
+// writes a page for it. The docs renderer adds these entries to its link
+// manifest, beside the Markdown sources it publishes itself.
+func authoredDocLinks(paths Paths) (map[string]string, error) {
+	sources, err := authoredSources(paths.Source)
+	if err != nil {
+		return nil, err
+	}
+	docsDirectory := filepath.Join(paths.Repository, "docs")
+	links := make(map[string]string, len(sources))
+	for _, name := range sources {
+		page := filepath.FromSlash(name)
+		relative, err := filepath.Rel(docsDirectory, filepath.Join(paths.Source, page))
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+		links[filepath.ToSlash(relative)] = filepath.ToSlash(filepath.Dir(page))
+	}
+	return links, nil
+}
+
 // publishAuthoredPage writes one authored page into the artifact, with the
 // Markdown mirror every published route carries.
 //

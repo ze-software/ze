@@ -183,7 +183,9 @@ func readSource(t *testing.T, source string) []byte {
 // legal/, project/ai-development/ and guides/docker/ are the pages added
 // since; each line is the eyebrow the first local build that rendered it
 // carried, so it guards against drift rather than answering from a published
-// page.
+// page. guides/netlab/ took the line of labs/netlab/ when the netlab how-to
+// moved under guides/ and an authored lab page took its old route, so the
+// count is unchanged.
 //
 // It is committed rather than read from the sibling worktree so the answer key
 // is the PUBLISHED page rather than whatever a later build left there.

@@ -102,6 +102,7 @@
 /guides/monitoring/
 /guides/mpls/
 /guides/mrt-analysis/
+/guides/netlab/
 /guides/operations/
 /guides/operator-access-rbac/
 /guides/ospf/

@@ -6,6 +6,9 @@ router or development test peer. Ze is pre-release software; use an isolated lab
 <!-- source: examples/quickstart/r1.conf -- local lab endpoints and originated prefix -->
 <!-- source: examples/quickstart/r2.conf -- local lab endpoints and originated prefix -->
 
+To run Ze as a service, in a container or as an appliance instead, see
+[Choose a deployment path](ze-install.md#choose-a-deployment-path).
+
 ## Build
 
 ```bash

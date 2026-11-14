@@ -29,7 +29,7 @@ func TestDocsDestinationPrefersAnExactMappingOverAPrefix(t *testing.T) {
 		{"architecture/route-selection.md", "architecture/route-selection"},
 		{"contributing/testing.md", "contribute/testing"},
 		{"contributing/documentation-testing.md", "contribute/documentation-testing"},
-		{"guide/netlab.md", "labs/netlab"},
+		{"guide/netlab.md", "guides/netlab"},
 		{"guide/anomaly.md", "guides/anomaly"},
 		{"plugin-development.md", "developers/plugins"},
 		{"plugin-development/commands.md", "developers/plugins/commands"},
@@ -178,8 +178,10 @@ func repositoryRoot(t *testing.T) string {
 // would run a different test, and the parity target is that COMMIT rather than
 // whatever the worktree holds now. Its 712 entries are the count `./le site
 // check` reported when phase 1 armed the coverage arithmetic, plus /legal/,
-// /project/ai-development/ and /guides/docker/, the pages added to the site
-// since, which bring it to 715. A page added later is appended here by name
+// /project/ai-development/, /guides/docker/ and /guides/netlab/, the pages
+// added to the site since, which bring it to 716. /guides/netlab/ is the netlab
+// how-to that published at /labs/netlab/, which the authored lab page now
+// holds. A page added later is appended here by name
 // and counted, never by refreshing the list.
 //
 // It MUST stay at that commit. It is the OUTPUT half of a pair whose INPUT half
@@ -198,8 +200,8 @@ func publishedArtifactRoutes(t *testing.T) []string {
 	t.Helper()
 	content := readTestdata(t, "published-routes.txt")
 	routes := strings.Split(strings.TrimSpace(content), "\n")
-	if len(routes) != 715 {
-		t.Fatalf("the published route fixture holds %d routes, want the 712 at 2fa8fa2ad plus /legal/, /project/ai-development/ and /guides/docker/", len(routes))
+	if len(routes) != 716 {
+		t.Fatalf("the published route fixture holds %d routes, want the 712 at 2fa8fa2ad plus /legal/, /project/ai-development/, /guides/docker/ and /guides/netlab/", len(routes))
 	}
 	return routes
 }

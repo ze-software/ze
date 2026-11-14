@@ -511,8 +511,14 @@ Each metric keeps its number and written unit on one line. The metric cards
 take their width from their content and wrap as whole cards when space runs out.
 The release group comes first, with no leading divider. Its larger bird fills
 the height of a counter card and sits beside the title and two release lines,
-with no divider between bird and text. The desktop metric group fits its content,
-with the same gap after the release group as between metrics.
+with no divider between bird and text. On desktop the release group and the
+five metrics share one row that fills the hero, flush at both ends and never
+packed to the left. The spacing is a constraint, never a written value: every
+item grows by the same share of the free width, a metric sits in the middle of
+its share, and the two end items take half a share on their inner side, so each
+separator is as far from the content before it as from the number after it.
+Thomas asked for both on 2026-11-14: the row spread across the full width, and
+the separator spacing produced by the layout rule instead of a hardcoded gap.
 The introduction presents IPsec VPN or WireGuard as tunnel options and FIB or
 VPP as forwarding options. The management clause describes interfaces and
 services.
@@ -588,7 +594,8 @@ website edit.
 | Ruling | Scope | Rule that applies it | Test that pins it |
 |--------|-------|----------------------|-------------------|
 | Links are never underlined, in any state. A text link stands out from the text around it by color and turns white on hover. Keyboard focus keeps its outline | Homepage hero | `.site-home .hero a` and `.site-home .hero :where(p, figcaption) a` in `website/assets/css/30-components.css` | `TestHeroLinksAreNeverUnderlined` |
-<!-- source: internal/le/site/owner_rulings_test.go -- TestHeroLinksAreNeverUnderlined -->
+| The front page says Ze is self-contained: "Self-contained" is the fourth hero key point, placed first in the row beside "Extend with plugins", "Appliance option" and "ExaBGP compatible". Thomas chose the wording on 2026-11-14, after rejecting "Fully integrated" as not the right expression. It means the shipped `ze` binary needs no other routing daemon or runtime library; Linux or VPP still forwards the packets, so it claims nothing about the forwarding plane | Homepage hero | The `hero-start-points` row in `homeTemplate`, `internal/le/site/homebody.go` | `TestHeroSaysZeIsSelfContained` |
+<!-- source: internal/le/site/owner_rulings_test.go -- TestHeroLinksAreNeverUnderlined, TestHeroSaysZeIsSelfContained -->
 
 The approved design uses logo blue for Ze's identity and a distinct soft
 background behind each card's small category badge. Follow the canonical

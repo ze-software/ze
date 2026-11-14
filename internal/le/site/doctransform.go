@@ -25,9 +25,11 @@ var markdownLink = regexp.MustCompile(`\[([^\]]*)\]\(([^)\s]+)\)`)
 // page.
 //
 // A link to another page the manifest publishes becomes a site link, so a
-// reader stays on the site. Every other relative link becomes a link to the
-// source on the code host, opened in a new tab, because the target is a file
-// this site does not publish. An absolute link, a mail link and an anchor are
+// reader stays on the site. That covers a hand-written website page a guide
+// names by its repository path (../../website/<route>/index.html), which the
+// manifest holds beside the Markdown sources. Every other relative link
+// becomes a link to the source on the code host, opened in a new tab, because
+// the target is a file this site does not publish. An absolute link, a mail link and an anchor are
 // each left as the author wrote them.
 //
 // docRel is the source's path relative to docs/, which a relative link
@@ -69,8 +71,11 @@ func rewriteDocLinks(body, docRel string, manifest map[string]string, destinatio
 // index.md mirror points at another page's own mirror.
 //
 // It resolves fewer links than its twin, and deliberately: a Markdown link
-// that names neither a directory nor a .md file is left alone, because the
-// mirror is read next to the source it came from.
+// that names neither a directory, a .md file nor a page the manifest
+// publishes is left alone, because the mirror is read next to the source it
+// came from. A published .md source is linked through its own mirror. A
+// published authored page is linked at its route, because its fragments are
+// the ids of its HTML, which its converted mirror does not carry.
 func rewriteDocLinksMarkdown(source, docRel string, manifest map[string]string, destination string) string {
 	sourceDirectory := path.Dir(docRel)
 	return markdownLink.ReplaceAllStringFunc(source, func(link string) string {
@@ -87,15 +92,19 @@ func rewriteDocLinksMarkdown(source, docRel string, manifest map[string]string, 
 		if strings.HasSuffix(target, "/") {
 			return "[" + label + "](" + codeHostTree + "docs/" + resolved + ")"
 		}
-		if !strings.HasSuffix(target, ".md") {
-			return link
-		}
+		isMarkdown := strings.HasSuffix(target, ".md")
 		if directory, published := manifest[resolved]; published {
-			relative := relativeRoute(directory, destination) + "/" + pageMirrorFile
+			relative := relativeRoute(directory, destination) + "/"
+			if isMarkdown {
+				relative += pageMirrorFile
+			}
 			if hasFragment {
 				relative += "#" + fragment
 			}
 			return "[" + label + "](" + relative + ")"
+		}
+		if !isMarkdown {
+			return link
 		}
 		away := repositoryBlobURL("docs/" + resolved)
 		if hasFragment {
