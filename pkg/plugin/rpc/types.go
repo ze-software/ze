@@ -406,13 +406,18 @@ type DeclareRegistrationInput struct {
 	// SignalsSessionReady declares that this plugin puts routes into a peer's
 	// INITIAL routing update and dispatches `plugin session ready` once they
 	// are out. A peer that attaches the plugin with `send [ update ]` or
-	// `send [ raw ]` and grants it `receive [ state ]` then holds its
-	// End-of-RIB for that report.
+	// `send [ raw ]` and grants it `receive [ state ]` then credits that
+	// report to the session. The End-of-RIB never waits for it: Ze sends its
+	// marker once its own table is out. The report lowers a replay fence,
+	// which holds the peer's live forwarded changes behind a plugin's peer-up
+	// replay, and only a plugin compiled into Ze can declare that fence, so
+	// for an external plugin the report is recorded and changes nothing on
+	// the wire (docs/plugin-development/protocol.md).
 	//
 	// The declaration is VOLUNTARY (owner directive, 2026-09-02) and it is how
 	// an EXTERNAL plugin opts in: an external process is in no compile-time
 	// registry, so this field is its only route. A plugin that pushes routes on
-	// its own schedule leaves it false, owes no report, and is never waited for.
+	// its own schedule leaves it false and owes no report.
 	SignalsSessionReady bool `json:"signals-session-ready,omitempty"`
 }
 

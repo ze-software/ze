@@ -490,19 +490,19 @@ type Peer struct {
 	// reconnect legitimately sends EoR again.
 	initialSyncEOR map[family.Family]bool
 
-	// API sync for EOR: wait for API processes to finish initial routes before EOR.
-	// Reset on each session establishment, signaled by "plugin session ready" commands.
+	// The session-ready expectation set: the processes whose `plugin session
+	// ready` report this session credits. Reset on each session establishment
+	// (resetAPISync). A report does one thing: it lowers the replay fence
+	// (initialUpdateOwed, below) once every fence owner has reported. The
+	// End-of-RIB waits for no process (owner ruling, 2026-09-18,
+	// docs/architecture/behavior/peer-lifecycle.md).
 	//
-	// The barrier holds NAMES, not a count. A count is fungible: every `plugin
+	// The set holds NAMES, not a count. A count is fungible: every `plugin
 	// session ready` satisfies one unit of it, whoever sent it, so a process this
-	// peer attaches for events alone answers for a process that still owes
-	// routes, and the End-of-RIB claims an initial routing update that has not
-	// completed (RFC 4724 Section 4). A count also cannot say WHICH process went
-	// silent when the wait times out, so the operator reads a bare timeout.
-	apiSyncExpected  []string            // Process names this session's End-of-RIB waits for
+	// peer attaches for events alone would answer for a fence owner whose replay
+	// is still passing, and a live forward could overtake it.
+	apiSyncExpected  []string            // Process names this session credits a report from
 	apiSyncSignalled map[string]struct{} // Those of them that have reported, deduped by name
-	apiSyncReady     chan struct{}       // Closed when every expected process has reported
-	apiSyncReadyOnce sync.Once           // Ensures channel is closed only once
 
 	// initialUpdateOwed is the REPLAY FENCE: true from raiseReplayFence while
 	// some process in replayFence has not yet reported that its peer-up replay
@@ -550,7 +550,8 @@ type Peer struct {
 	// Peer-up barrier: plugins that must have PROCESSED this session's peer-up
 	// event before its initial-sync End-of-RIB goes out, so that "End-of-RIB
 	// sent" implies "every such plugin has registered this peer". Distinct from
-	// apiSync above, which names plugins that SEND routes: a route sender
+	// the session-ready expectation set above, which names plugins that SEND
+	// routes and holds no End-of-RIB: a route sender
 	// signaling early must not satisfy a registrar's obligation, so the two
 	// barriers never share state (ai/rules/evidence.md).
 	//
@@ -966,8 +967,6 @@ func (p *Peer) resetAPISync(expected []string) {
 	p.mu.Lock()
 	p.apiSyncExpected = expected
 	p.apiSyncSignalled = make(map[string]struct{}, len(expected))
-	p.apiSyncReady = make(chan struct{})
-	p.apiSyncReadyOnce = sync.Once{}
 	p.replayFence = nil
 	p.initialUpdateOwed.Store(false)
 	p.mu.Unlock()
@@ -1023,35 +1022,32 @@ func (p *Peer) replayOwns(updateID uint64) bool {
 }
 
 // SignalAPIReady is called when "plugin session ready" is received for this
-// peer. It credits the report to the process that SENT it, and closes
-// apiSyncReady once every process this peer waits for has reported.
+// peer. It credits the report to the process that SENT it, and the report does
+// one thing: once every fence owner has reported, it lowers the replay fence
+// (Peer.initialUpdateOwed). The End-of-RIB waits for no report: ze never
+// holds its own marker for a route-creating process (owner ruling,
+// 2026-09-18, docs/architecture/behavior/peer-lifecycle.md).
 //
-// NOTHING WAITS ON THAT CHANNEL any more: ze stopped holding its own
-// End-of-RIB for a route-creating process (owner ruling, 2026-09-18,
-// peer_initial_sync.go). The recording stays because removing it reaches the
-// plugin coordinator, the plugin server, the plugin Reactor interface and
-// several BGP plugins, which is its own change
-// (plan/pre-release/spec-eor-treats-route-processes-as-peers.md).
-//
-// A report from a process the barrier does not name is not credited, and the
-// line says only that: the barrier holds the names it holds, and the sender is
-// not one of them. Crediting it would release the End-of-RIB on behalf of a
-// process that is still writing routes, and the marker would claim a completion
-// that has not happened (RFC 4724 Section 4). A second report from the same
-// process is not credited for the same reason, which is why the record is a SET
-// and not a count.
+// A report from a process the expectation set does not name is not credited,
+// and the line says only that: the set holds the names it holds, and the
+// sender is not one of them. A second report from the same process is not
+// credited again, which is why the record is a SET and not a count: a count
+// would let one talkative process stand in for a fence owner whose replay is
+// still passing.
 //
 // The line does NOT say the sender pushes no route into this update, because
 // this function cannot know that. Two different situations reach it. The
 // ordinary one is bgp-adj-rib-in, which reports on every peer-up including for
-// the peers that attach it for events alone. The other is a barrier that MISSED
-// a process which does push: a declaration looked up under a name the registry
-// does not hold used to answer false for every process an operator attached
-// under an alias, and this line read as confirmation. It stays at Debug because
-// the ordinary case is one line per peer-up on a common config, and the name
-// beside the barrier's own names is what tells the two apart.
+// the peers that attach it for events alone. The other is an expectation set
+// that MISSED a process which does push: a declaration looked up under a name
+// the registry does not hold used to answer false for every process an
+// operator attached under an alias, and this line read as confirmation. It
+// stays at Debug because the ordinary case is one line per peer-up on a common
+// config, and the name beside the set's own names is what tells the two apart.
+// The line's wording ("barrier") is asserted by
+// test/plugin/session-ready-contract.ci.
 //
-// An unnamed sender is refused and says so: the barrier's population is a set of
+// An unnamed sender is refused and says so: the set's population is a set of
 // process names, so nothing else can be matched against it, and reading a miss
 // as one of them is what this function exists to stop (ai/rules/evidence.md).
 // The operator is refused in silence, because `send` grants authority to a
@@ -1087,7 +1083,8 @@ func (p *Peer) SignalAPIReady(sender plugin.Sender, initialReplay uint64) error 
 // creditAPIReady validates the captured Session receipt and records this
 // process's report atomically, returning whether the replay fence was lowered.
 // Caller MUST NOT hold p.mu. The same lock owns session replacement and
-// resetAPISync, so old work cannot credit a replacement's readiness channel.
+// resetAPISync, so old work cannot credit a replacement session's expectation
+// set or lower its replay fence.
 func (p *Peer) creditAPIReady(process string, initialReplay uint64) (bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -1128,11 +1125,6 @@ func (p *Peer) creditAPIReady(process string, initialReplay uint64) (bool, error
 	lowered := p.lowerReplayFence()
 	if len(p.apiSyncSignalled) < len(p.apiSyncExpected) {
 		return lowered, nil
-	}
-	if p.apiSyncReady != nil {
-		p.apiSyncReadyOnce.Do(func() {
-			close(p.apiSyncReady)
-		})
 	}
 	routesLogger().Debug("every route-pushing process has reported",
 		"peer", p.settings.Address.String(), "processes", p.apiSyncExpected)

@@ -177,10 +177,10 @@ func TestPeerUpBarrierTimeoutReleases(t *testing.T) {
 	require.False(t, *opened, "an unacknowledged barrier must report that it timed out")
 }
 
-// VALIDATES: the two readiness barriers are independent. A route-sending
-// plugin's "plugin session ready" must not satisfy a registrar's obligation,
-// and a registrar's acknowledgement must not satisfy a route sender's -- while
-// each signal still opens its OWN barrier.
+// VALIDATES: the peer-up barrier and the replay fence are independent. A
+// route-sending plugin's "plugin session ready" must not satisfy a registrar's
+// obligation, and a registrar's acknowledgement must not lower the fence a
+// route sender's report owns -- while each signal still does its OWN job.
 // PREVENTS: the fail-open a shared counter would create. With one counter,
 // a config running both bgp-rib (bound, sends routes) and bgp-rs (registers the
 // forward target) would let whichever signaled first cover the other, and the
@@ -196,30 +196,25 @@ func TestPeerUpBarrierAndAPISyncAreIndependent(t *testing.T) {
 	peer.session = NewSession(peer.settings)
 	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
 	peer.resetAPISync([]string{"pusher"})
+	raiseTestReplayFence(peer, "pusher")
 	peer.SetPeerUpBarrier(1)
 
 	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher"), peer.session.initialReplay.Load()))
 	barrierShut(t, peer)
 
-	peer.mu.RLock()
-	apiDone := peer.apiSyncReady
-	peer.mu.RUnlock()
-	require.Eventually(t, chanClosed(apiDone), 2*time.Second, time.Millisecond,
-		"SignalAPIReady must release the API sync it belongs to")
+	require.False(t, peer.initialUpdateOwed.Load(),
+		"SignalAPIReady must lower the replay fence it belongs to")
 
-	// And the reverse: a registrar acknowledgement must not release the API
-	// sync, but must open the peer-up barrier.
+	// And the reverse: a registrar acknowledgement must not lower the replay
+	// fence, but must open the peer-up barrier.
 	peer2 := newBarrierPeer(t)
 	peer2.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
 	peer2.resetAPISync([]string{"pusher"})
+	raiseTestReplayFence(peer2, "pusher")
 	peer2.SetPeerUpBarrier(1)
 
-	peer2.mu.RLock()
-	api2 := peer2.apiSyncReady
-	peer2.mu.RUnlock()
-
 	peer2.SignalPeerUpBarrier()
-	require.False(t, chanClosed(api2)(), "SignalPeerUpBarrier released the API sync: shared counters")
+	require.True(t, peer2.initialUpdateOwed.Load(), "SignalPeerUpBarrier lowered the replay fence: shared counters")
 
 	barrierDone, _ := waitBarrier(t, peer2)
 	require.Eventually(t, chanClosed(barrierDone), 2*time.Second, time.Millisecond,

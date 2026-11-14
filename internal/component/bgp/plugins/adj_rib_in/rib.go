@@ -50,11 +50,14 @@ const (
 	stateDown   = "down"
 )
 
-// sessionReadyTimeout bounds the readiness signal's own IPC round trip.
+// sessionReadyTimeout bounds the readiness report's own IPC round trip, so a
+// report that cannot get through fails and logs a WARN rather than blocking
+// its caller.
 //
-// Shorter than the barrier it releases (reactor/api_sync.go apiSyncTimeout, 2s),
-// so a signal that cannot get through fails and says so while the peer is still
-// waiting, rather than after the barrier has already given up on it.
+// No engine timer races it: the End-of-RIB waits for no session-ready report
+// (owner ruling, 2026-09-18), and this plugin declares no replay fence
+// (Registration.FencesLiveForwards), so its report is credited to the peer's
+// expectation set and lowers nothing.
 const sessionReadyTimeout = time.Second
 
 // loggerPtr is the package-level logger, disabled by default.

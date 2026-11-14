@@ -61,15 +61,15 @@ func peerWithBindings(bindings ...ProcessBinding) *Peer {
 	}}
 }
 
-// VALIDATES: a peer's initial-sync barrier names exactly the processes that
-// hold a route-push grant, declare Registration.SignalsSessionReady, AND are
-// told the session came up.
-// PREVENTS: the two opposite failures this barrier can produce. Naming a
-// process that will never report holds the peer's End-of-RIB to the api-sync
-// timeout on every establishment, which is the stall a plugin bound
-// `send [ update ]` with no `receive [ state ]` used to cause. Naming none of
-// them sends the marker while a declaring plugin is still writing the routes
-// the marker claims are complete (RFC 4724 Section 4).
+// VALIDATES: a peer's session-ready expectation set names exactly the
+// processes that hold a route-push grant, declare
+// Registration.SignalsSessionReady, AND are told the session came up.
+// PREVENTS: the two opposite failures this set can produce. Naming a process
+// that will never report keeps any replay fence it owns up for the whole
+// session, which is the stall a plugin bound `send [ update ]` with no
+// `receive [ state ]` used to cause (it once held the End-of-RIB to a timeout;
+// the marker now waits for no report). Naming none of them never raises the
+// fence, so a live forward can overtake a declaring plugin's peer-up replay.
 func TestInitialUpdateReporters(t *testing.T) {
 	declaring, silent := registerReporterTestPlugins(t)
 

@@ -326,17 +326,16 @@ func (h *warnRecorder) messages() []string {
 	return append([]string(nil), h.msgs...)
 }
 
-// armAPISyncPeer adds a peer on the given port, arms its per-session API sync for
-// one ready signal, and answers the channel SignalAPIReady closes once every
-// expected process has reported. It closes ONLY when the ready signal actually
-// reaches this peer.
+// armAPISyncPeer adds a peer on the given port, arms its per-session
+// expectation set for one ready report and raises its replay fence over that
+// reporter, and answers a probe of whether the fence has been lowered. The
+// fence lowers ONLY when the ready report actually reaches this peer.
 //
-// It observes that channel rather than a wait on it: ze no longer holds its own
-// End-of-RIB for a route-creating process (owner ruling, 2026-09-18), so there
-// is no waiter left to start. The three tests below are about WHICH peer a
-// ready signal is credited to, which the channel answers exactly as the wait
-// did, and there is now no timeout that could close it for any other reason.
-func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) (<-chan struct{}, uint64) {
+// The report's one effect is that fence (Peer.initialUpdateOwed): ze holds no
+// End-of-RIB for a route-creating process (owner ruling, 2026-09-18). The three
+// tests below are about WHICH peer a ready report is credited to, which the
+// fence answers, and nothing but a credited report lowers it.
+func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) (func() bool, uint64) {
 	t.Helper()
 
 	settings := NewPeerSettings(addr, 65000, 65001, 0x01020304)
@@ -352,13 +351,11 @@ func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) (<-c
 	peer.SetClock(sim.NewFakeClock(time.Now()))
 	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
 	peer.resetAPISync([]string{"pusher"})
+	raiseTestReplayFence(peer, "pusher")
+	require.True(t, peer.initialUpdateOwed.Load(), "the replay fence must be up before any report")
 
-	peer.mu.RLock()
-	synced := peer.apiSyncReady
-	peer.mu.RUnlock()
-	require.NotNil(t, synced, "resetAPISync must arm the readiness channel")
-
-	return synced, peer.session.initialReplay.Load()
+	lowered := func() bool { return !peer.initialUpdateOwed.Load() }
+	return lowered, peer.session.initialReplay.Load()
 }
 
 func chanClosed(ch <-chan struct{}) func() bool {
@@ -382,8 +379,8 @@ func chanClosed(ch <-chan struct{}) func() bool {
 // peer. Emitters do send a bare IP: bgp-rib dispatches "request peer <addr> plugin
 // session ready" with StructuredEvent.PeerAddress (rib.go:1079), which is
 // peer.AddrStr() (bgp/server/events.go:83) = settings.Address.String() (peer.go:303).
-// PREVENTS: a non-default-port peer never being signaled, so every consumer of
-// its readiness waits on a channel that never closes.
+// PREVENTS: a non-default-port peer never being signaled, so its replay fence
+// never lowers and the live forwards parked behind it stay parked.
 func TestSignalPeerAPIReadyNonDefaultPort(t *testing.T) {
 	r := New(&Config{})
 	addr := netip.MustParseAddr("192.0.2.10")
@@ -392,7 +389,7 @@ func TestSignalPeerAPIReadyNonDefaultPort(t *testing.T) {
 	// Bare IP: exactly what the emitters put on the wire.
 	require.NoError(t, r.SignalPeerAPIReady(addr.String(), plugin.ProcessSender("pusher"), initialReplay))
 
-	require.Eventually(t, chanClosed(synced), 2*time.Second, time.Millisecond,
+	require.Eventually(t, synced, 2*time.Second, time.Millisecond,
 		"a peer on a non-default port must receive its ready signal")
 }
 
@@ -408,7 +405,7 @@ func TestSignalPeerAPIReadyDefaultPort(t *testing.T) {
 
 	require.NoError(t, r.SignalPeerAPIReady(addr.String(), plugin.ProcessSender("pusher"), initialReplay))
 
-	require.Eventually(t, chanClosed(synced), 2*time.Second, time.Millisecond,
+	require.Eventually(t, synced, 2*time.Second, time.Millisecond,
 		"a peer on the default port must receive its ready signal")
 }
 
@@ -431,8 +428,8 @@ func TestSignalPeerAPIReadyUnknownPeerWarns(t *testing.T) {
 
 	require.ErrorIs(t, r.SignalPeerAPIReady("198.51.100.99", plugin.ProcessSender("pusher"), initialReplay), ErrPeerNotFound)
 
-	require.Never(t, chanClosed(synced), 100*time.Millisecond, time.Millisecond,
-		"a signal for an unknown peer must not release a different peer's API sync")
+	require.Never(t, synced, 100*time.Millisecond, time.Millisecond,
+		"a signal for an unknown peer must not lower a different peer's replay fence")
 	require.Contains(t, rec.warnedPeers(), "198.51.100.99",
 		"the miss must be logged at Warn naming the peer, not silently dropped")
 }

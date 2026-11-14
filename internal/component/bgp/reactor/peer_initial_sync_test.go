@@ -816,6 +816,7 @@ func TestInitialSyncMarkerWaitsForNoProcess(t *testing.T) {
 		{PluginName: "listener"}, // attached for events; pushes no route
 	}
 	peer.resetAPISync([]string{"pusher-one", "pusher-two"})
+	raiseTestReplayFence(peer, "pusher-one", "pusher-two")
 
 	done := make(chan struct{})
 	go func() {
@@ -833,27 +834,30 @@ func TestInitialSyncMarkerWaitsForNoProcess(t *testing.T) {
 	}, 2*time.Second, time.Millisecond,
 		"the marker must not wait for a process that creates routes")
 
-	assert.False(t, apiSyncReleased(peer),
-		"neither named process reported, so the barrier they would have released is still shut: "+
+	assert.True(t, peer.initialUpdateOwed.Load(),
+		"neither named process reported, so the replay fence their reports would lower is still up: "+
 			"the marker went out without it, which is the ruling")
+	assert.Zero(t, creditedReports(peer),
+		"neither named process reported, so the session credited no report")
 	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
 		"the marker follows ze's own table and waits for nobody")
 }
 
-// TestInitialSyncBarrierCreditsOnlyTheProcessesItNames pins who may close the
-// barrier. The marker no longer waits for it (owner ruling, 2026-09-18), but the
-// barrier still decides which reports ORDER a route inside the initial routing
-// update, so crediting the wrong process still puts a route on the wrong side of
-// the marker.
+// TestInitialSyncBarrierCreditsOnlyTheProcessesItNames pins whose report the
+// session credits, and when the reports lower the replay fence. The marker
+// waits for no report (owner ruling, 2026-09-18); what a report does is lower
+// the fence (Peer.initialUpdateOwed) that parks live forwards behind a fence
+// owner's peer-up replay, so crediting the wrong process would let a live
+// forward overtake that replay.
 //
-// It reads the barrier directly rather than the wire. The old test observed the
-// marker appearing, which only worked because a wait held the marker back; with
-// that wait gone, the wire says nothing about who was credited.
+// It reads the credit set and the fence directly rather than the wire: the
+// wire says nothing about who was credited.
 //
-// VALIDATES: a report from a process the barrier does not name is refused, and a
-// repeat report from one it does name is not credited twice.
+// VALIDATES: a report from a process the expectation set does not name is not
+// credited, a repeat report from one it does name is not credited twice, and
+// the fence lowers only on the last named process's report.
 // PREVENTS: a plugin attached for events alone answering for one that still owes
-// routes, and one talkative process closing a barrier that names two.
+// its replay, and one talkative process lowering a fence that names two.
 func TestInitialSyncBarrierCreditsOnlyTheProcessesItNames(t *testing.T) {
 	peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	peer.settings.ProcessBindings = []ProcessBinding{
@@ -862,37 +866,53 @@ func TestInitialSyncBarrierCreditsOnlyTheProcessesItNames(t *testing.T) {
 		{PluginName: "listener"}, // attached for events; pushes no route
 	}
 	peer.resetAPISync([]string{"pusher-one", "pusher-two"})
+	raiseTestReplayFence(peer, "pusher-one", "pusher-two")
 
 	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("listener"), peer.session.initialReplay.Load()))
-	assert.False(t, apiSyncReleased(peer),
-		"a report from a process this peer does not name must not release the barrier: it pushes "+
-			"no route into this initial routing update, so it closes none of it")
+	assert.Zero(t, creditedReports(peer),
+		"a report from a process this peer does not name must not be credited: it pushes "+
+			"no route into this initial routing update")
+	assert.True(t, peer.initialUpdateOwed.Load(),
+		"a report from a process this peer does not name must not lower the replay fence")
 
 	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher-one"), peer.session.initialReplay.Load()))
 	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher-one"), peer.session.initialReplay.Load()))
-	assert.False(t, apiSyncReleased(peer),
-		"a second report from the same process must not stand in for the process that still owes routes")
+	assert.Equal(t, 1, creditedReports(peer),
+		"a second report from the same process must not be credited twice")
+	assert.True(t, peer.initialUpdateOwed.Load(),
+		"a second report from the same process must not stand in for the fence owner that has not reported")
 
 	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher-two"), peer.session.initialReplay.Load()))
-	assert.True(t, apiSyncReleased(peer),
-		"the last named process's report releases the barrier")
+	assert.Equal(t, 2, creditedReports(peer),
+		"the last named process's report is credited")
+	assert.False(t, peer.initialUpdateOwed.Load(),
+		"the last named process's report lowers the replay fence")
 }
 
-// apiSyncReleased reports whether the initial-sync barrier has opened. The read
-// is a non-blocking select rather than an observation of the wire, so it settles
-// the moment SignalAPIReady returns: waiting for a marker to appear would make
-// the negative case a race the test wins by default.
+// creditedReports answers how many processes this session has credited a
+// `plugin session ready` report from. It reads the set SignalAPIReady writes,
+// so it settles the moment SignalAPIReady returns: waiting for an effect on
+// the wire would make the negative case a race the test wins by default.
+func creditedReports(p *Peer) int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return len(p.apiSyncSignalled)
+}
+
+// apiSyncReleased reports whether every process in this session's expectation
+// set has been credited a report: the fact the deleted apiSyncReady channel
+// published, read from the set it was derived from. In the tests that raise
+// the replay fence over the same names, it answers what the fence answers.
+// An empty set answers false, as the channel did: no report can be credited
+// to it, so it never closed. The read settles the moment SignalAPIReady
+// returns, so a negative case is not a race the test wins by default.
 func apiSyncReleased(p *Peer) bool {
 	p.mu.RLock()
-	ready := p.apiSyncReady
-	p.mu.RUnlock()
-
-	select {
-	case <-ready:
-		return true
-	default:
+	defer p.mu.RUnlock()
+	if len(p.apiSyncExpected) == 0 {
 		return false
 	}
+	return len(p.apiSyncSignalled) >= len(p.apiSyncExpected)
 }
 
 // TestQuiesceWaitsForAPeerStillInItsHandshake pins what "settled" means for a

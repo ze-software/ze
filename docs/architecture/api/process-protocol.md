@@ -794,9 +794,15 @@ and as its process name, so the edge holds whichever side runs forked.
 
 A plugin CAN set `signals-session-ready` in its `declare-registration` to state
 that its routes belong to a peer's INITIAL routing update and that it dispatches
-`request peer <addr> plugin session ready` once they are out. The engine then
-holds that peer's End-of-RIB for the report, so the marker means what RFC 4724
-Section 4 says it means.
+`request peer <addr> plugin session ready session <token>` once they are out,
+with the token from the peer-up event. The End-of-RIB waits for no report (owner
+ruling, 2026-09-18): Ze sends its marker once its own table is out. The report
+does one thing: it lowers the peer's replay fence, which holds the peer's live
+forwarded changes behind a plugin's peer-up replay
+(`docs/architecture/plugin/plugin-system.md`, "Session-ready reports"). Only a
+compiled-in plugin can own that fence (`Registration.FencesLiveForwards` has no
+Stage 1 field), so an external plugin's report is credited and changes nothing
+on the wire.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -804,12 +810,12 @@ Section 4 says it means.
 
 The declaration is VOLUNTARY (owner directive, 2026-09-02) and it is the only
 route an external plugin has to it: an external process appears in no
-compile-time registry, so a plugin that leaves the field false is never waited
-for and owes no report. Declaring is a claim about WHEN this plugin's routes
-belong, not about what it may send.
+compile-time registry, so a plugin that leaves the field false owes no report.
+Declaring is a claim about WHEN this plugin's routes belong, not about what it
+may send.
 
-Three facts have to hold before a peer waits for the process, so declaring alone
-does not arm the wait. The peer grants `send [ update ]` or `send [ raw ]`, the
+Three facts have to hold before a peer credits the process's report, so
+declaring alone does not name it. The peer grants `send [ update ]` or `send [ raw ]`, the
 plugin declares, and the peer grants `receive [ state ]`. The last one is the
 peer telling the process its session started, which is what the report answers:
 a process the peer never tells cannot push into that session's initial update.
@@ -1914,7 +1920,10 @@ The owning compiled plugin grants its registered key patterns with
 `statestore.RegisterPluginKeys`. Requests use the daemon's configured process
 name as identity. A request cannot choose another owner or grant itself access
 to credentials. Template parameters match one path segment, and a list returns
-only keys that the caller can read.
+only keys that the caller can read. The daemon's key command `delete data key`
+reads the same grants by the same process name (`statestore.PluginKeyOwners`)
+and refuses a key while a plugin granted it runs, so a plugin run under another
+name neither holds the grant nor trips that refusal.
 
 `StateInput.key` is bounded to 512 bytes. Values carry at most one MiB and use
 base64 in JSON. Lists return at most 4096 keys; excess fails rather than
@@ -1951,7 +1960,8 @@ committed; callers cannot infer that an increment is safe to retry.
 <!-- source: pkg/plugin/rpc/state.go -- StateInput, StateOutput, StateError -->
 <!-- source: pkg/plugin/sdk/sdk_state.go -- stateCall, StateIncrement -->
 <!-- source: internal/component/plugin/server/dispatch_state.go -- stateInput, opStateGet, opStatePut -->
-<!-- source: internal/core/statestore/permissions.go -- RegisterPluginKeys, PluginList -->
+<!-- source: internal/core/statestore/permissions.go -- RegisterPluginKeys, PluginList, PluginKeyOwners -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- runningOwnerError -->
 <!-- source: internal/core/statestore/statestore.go -- Increment, Read, Write, shared -->
 <!-- source: pkg/plugin/sdk/state_keys.go -- Plugin.StateKeys -->
 

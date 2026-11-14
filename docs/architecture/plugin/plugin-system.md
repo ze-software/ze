@@ -138,7 +138,8 @@ Optional metadata:
 | `DataPlane` | `string` | The data plane a `ProgramsFIB` plugin reaches, spelled the way `interface { backend }` names it: `netlink`, `vpp`. A data plane has one writer, and a duplicate aborts startup. Empty means the plugin reaches no data plane and is never resolved as a producer's writer |
 | `NeedsDataPlane` | `bool` | The plugin's routes reach forwarding only through a `ProgramsFIB` plugin, so the engine loads the writer for the configured data plane |
 | `PeerUpBarrier` | `bool` | The plugin registers the peer on the peer-up event, so End-of-RIB waits for it |
-| `SignalsSessionReady` | `bool` | The plugin's routes belong to a peer's initial routing update and it reports `plugin session ready` when they are out, so End-of-RIB waits for that report |
+| `SignalsSessionReady` | `bool` | The plugin's routes belong to a peer's initial routing update and it reports `plugin session ready` when they are out. The report lowers the replay fence when the plugin also declares `FencesLiveForwards`; the End-of-RIB waits for no report ("Session-ready reports") |
+| `FencesLiveForwards` | `bool` | The plugin replays a peer's routes on peer-up while it also forwards live changes to that peer. The engine holds the peer's live forwards until the plugin's session-ready report. Counts only with `SignalsSessionReady`. bgp-rib, bgp-rs and bgp-rr declare it |
 | `RelaysOnRSFastPath` | `bool` | The BGP route-server fast path forwards received UPDATEs on this plugin's behalf, in place of its cached forward. The fast path then relays a source only when the source's attach block feeds this plugin its UPDATEs (`receive [ update-received ]`), and reaches a destination only when the destination grants this plugin `send [ update ]`, the grants the cached forward answers to. `registry.RelaysOnRSFastPath` resolves a `use` alias. bgp-rs declares it |
 | `YANG` | `string` | YANG schema content |
 | `Commands` | `[]rpc.CommandDecl` | The commands the plugin serves, and what each answer holds. It is the SAME slice the runner sends at Stage 1, taken from the plugin's one `commandDecls()` function, so a reader that links the composition root sees a declaration with no engine started. `./le plugin declarations check` holds the two readings together, in both directions and field by field |
@@ -607,8 +608,10 @@ The count is taken over the delivery set rather than the registry. A plugin that
 declares the barrier but subscribes to no state events never takes delivery, so
 counting it would cost every peer the full timeout.
 
-The barrier is separate from the API-sync wait below. This one says a plugin has
-REGISTERED the peer; that one says a plugin's ROUTES are out. The dispatcher
+The barrier is separate from the session-ready report below. This one says a
+plugin has REGISTERED the peer and holds the End-of-RIB; that one says a
+plugin's peer-up replay is out, lowers the replay fence, and holds no
+End-of-RIB. The dispatcher
 delivers the peer-up event to one plugin at a time and waits for each
 delivery's result on the FSM callback goroutine (`deliverPeerState`), for an
 in-process plugin and an external one alike, before that goroutine starts the
@@ -637,8 +640,9 @@ A plugin whose routes belong to a peer's INITIAL routing update declares
 `SignalsSessionReady: true` and dispatches
 `request peer <addr> plugin session ready session <captured-token>` through SDK
 `DispatchCommand` when its replay attempts finish, including an empty replay.
-The token comes from the original peer-UP event. This completion report orders
-the plugin's initial contribution; it does not assert successful route delivery.
+The token comes from the original peer-UP event. The report does one thing: it
+lowers the peer's replay fence (below) once every fence owner has reported. It
+does not assert successful route delivery.
 
 **The engine does NOT hold the peer's End-of-RIB for that report (owner ruling,
 2026-09-18).** A process that creates routes is treated like a peer when the
@@ -653,13 +657,24 @@ describes for anything outside the initial update.
 | The plugin declares | `SignalsSessionReady: true` in its `registry.Registration` |
 | The engine names | `Peer.initialUpdateReporters` keeps a binding when the peer grants the route-push rail, the plugin declares, and the peer grants `receive [ state ]` |
 | The plugin reports | One `plugin session ready` per establishment, from its peer-up handler, sent even when it had nothing to replay |
-| The peer does not wait | The End-of-RIB follows `sendInitialRoutes` directly. The report orders routes DURING the sync; it never delays the marker after it |
+| The peer does not wait | The End-of-RIB follows `sendInitialRoutes` directly and waits for no report |
+| The engine fences | `Peer.raiseReplayFence` raises the replay fence (`Peer.initialUpdateOwed`) over the named processes that also declare `FencesLiveForwards`, before Established is published. While it is up, a live forwarded change for this peer waits in its forward worker's overflow, and an item marked as part of the initial update (`rpc.StoredRoute.InitialUpdate`) passes (`Peer.forwardOrderHold`) |
+| The report lowers the fence | `Peer.SignalAPIReady` credits the report and, once every fence owner has reported, lowers the fence and wakes the forward worker |
+
+The fence exists because a route server's peer-up replay and its live forwards
+reach the peer on two rails with no order between them: without it, a live
+withdraw could overtake the replayed announce of the same prefix and leave it
+installed at the peer. No timer lowers it. A fence owner that never reports
+keeps that peer's live forwards parked until the session ends, and the next
+session starts with a fresh set (`Peer.resetAPISync`).
 
 The declaration is VOLUNTARY (owner directive, 2026-09-02). Declaring says WHEN
 this plugin's routes belong, not what it may send: a plugin that pushes on its
-own schedule is not part of the initial update, declares nothing, and is never
-waited for. Every EXTERNAL plugin lands there too, because an external process is
-registered nowhere in this tree.
+own schedule is not part of the initial update, declares nothing, and owes no
+report. An EXTERNAL plugin declares `signals-session-ready` at Stage 1, and its
+report is credited the same way. It cannot declare `FencesLiveForwards`, which
+only a compiled-in `registry.Registration` carries, so its report lowers no
+fence.
 
 The in-tree declarers are `bgp-rib`, `bgp-rs`, `bgp-adj-rib-in`, `bgp-watchdog`
 and `bgp-rr`, each of which replays into an establishing peer and
@@ -677,9 +692,10 @@ fixed 2s on every establishment, which is one of the two reasons the wait was
 removed.
 
 The report is credited to the process that SENT it, and a second report from the
-same process is not credited twice. A process the barrier does not name is
-refused, so a plugin the peer attaches for events alone cannot release the
-marker on behalf of one that still owes routes.
+same process is not credited twice. A process the expectation set does not name
+is not credited, so a plugin the peer attaches for events alone cannot lower
+the fence on behalf of one whose replay is still passing. A report that names
+no process, or a token from another session, is refused with an error.
 
 The lookup crosses two namespaces, and the plugin server is what joins them. A
 peer names its processes with the `attach process <name>` key, so
@@ -693,13 +709,16 @@ a process configuration names. Every spelling of an in-tree implementation goes
 through it, so `use bgp-rs`, `use ze.bgp-rs`, `run ze.bgp-rs` and
 `run ze plugin bgp-rs` reach the same registration, and so does the role claim
 `claimsForPlugin` resolves. An unresolved alias answers "declares nothing",
-which empties the barrier for that peer.
+which leaves the process out of that peer's expectation set, so its replay
+fence is never raised.
 
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady, registry.SignalsSessionReady -->
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
 <!-- source: internal/component/plugin/resolve.go -- RegistryNames -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
-<!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.SignalAPIReady -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.raiseReplayFence, Peer.SignalAPIReady, Peer.lowerReplayFence, Peer.forwardOrderHold -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.replayFenceOwners -->
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.FencesLiveForwards, registry.FencesLiveForwards -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
 
 ## Cross-boundary value types

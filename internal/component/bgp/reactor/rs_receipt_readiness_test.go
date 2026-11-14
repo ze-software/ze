@@ -19,7 +19,6 @@ func TestRSReceiptReplayFenceRequiresActualReports(t *testing.T) {
 	peer.mu.Lock()
 	peer.replayFence = []string{"first", "second"}
 	peer.initialUpdateOwed.Store(true)
-	ready := peer.apiSyncReady
 	peer.mu.Unlock()
 
 	if _, err := peer.creditAPIReady("first", token+1); err == nil {
@@ -31,10 +30,8 @@ func TestRSReceiptReplayFenceRequiresActualReports(t *testing.T) {
 	if lowered, err := peer.creditAPIReady("first", token); err != nil || lowered {
 		t.Fatalf("first report lowered=%v error=%v, want incomplete fence", lowered, err)
 	}
-	select {
-	case <-ready:
-		t.Fatal("completion channel closed before every actual report")
-	default:
+	if !peer.initialUpdateOwed.Load() {
+		t.Fatal("replay fence lowered before every actual report")
 	}
 	if !peer.replayOwns(token + 1) {
 		t.Fatal("one reporter released another reporter's fence")
@@ -42,10 +39,8 @@ func TestRSReceiptReplayFenceRequiresActualReports(t *testing.T) {
 	if lowered, err := peer.creditAPIReady("second", token); err != nil || !lowered {
 		t.Fatalf("last report lowered=%v error=%v, want completed fence", lowered, err)
 	}
-	select {
-	case <-ready:
-	default:
-		t.Fatal("last report did not publish completion")
+	if peer.initialUpdateOwed.Load() {
+		t.Fatal("last report did not lower the replay fence")
 	}
 	if peer.replayOwns(token + 1) {
 		t.Fatal("completed replay kept the new UPDATE off the fast path")

@@ -340,8 +340,11 @@ to negotiated ordinary families, not to a FlowSpec-only destination.
 Raw is gated on `send [ raw ]`, a word of its own. It carries a whole BGP message
 the caller chose, so no other send type describes it and `send [ update ]` does
 not imply it. Until 2026-08-30 it was gated on ATTACHMENT alone, which left a
-raw-capable binding invisible to the barrier that holds a peer's End-of-RIB
-behind the routes its processes push.
+raw-capable binding invisible to the session-ready expectation set
+(`Peer.initialUpdateReporters`, which reads `MayPushRoutes`). That set no longer
+holds the End-of-RIB (owner ruling, 2026-09-18). Its reports lower the replay
+fence, which parks the peer's live forwards behind a fence owner's peer-up
+replay (`docs/architecture/plugin/plugin-system.md`, "Session-ready reports").
 
 The send grant does not bypass export policy. Both raw UPDATE forms meet the
 session's final admission before ownership or socket writes. With a rejecting

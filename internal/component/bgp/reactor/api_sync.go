@@ -217,8 +217,9 @@ func (r *Reactor) WaitForPluginStartupComplete() {
 // would have lowered (Peer.initialUpdateOwed) is not lowered by it. See
 // ai/rules/evidence.md ("or say something").
 //
-// sender names the process that reported. The peer's barrier is a SET of
-// route-pushing process names, so a report is credited to the one that sent it
+// sender names the process that reported. The peer's session-ready
+// expectation set is a SET of route-pushing process names, so a report is
+// credited to the one that sent it
 // and to nothing else (Peer.SignalAPIReady).
 func (r *Reactor) SignalPeerAPIReady(peerAddr string, sender plugin.Sender, initialReplay uint64) error {
 	peer, ok := r.lookupPeer(peerAddr)

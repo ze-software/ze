@@ -212,10 +212,13 @@ func TestReplayEmptyRibOut(t *testing.T) {
 // "Test corollary": drive the guard from the entry point that triggers it.
 //
 // VALIDATES: a fresh peer with no routes to replay signals ready promptly, so its
-// EOR is not delayed by the API-sync timeout.
+// replay fence lowers and its live forwards are not parked behind a replay that
+// never reports.
 // PREVENTS: the nil-vs-empty conflation returning, in which
 // collectGroupedRibOutRoutesFiltered's nil-on-empty made `if replayGroups != nil`
-// skip the replay call entirely and stall the EOR by 2.5s on every fresh session.
+// skip the replay call entirely. That once stalled the EOR by 2.5s on every fresh
+// session; the EOR now waits for no report, and the missing report would keep
+// the replay fence up for the session instead.
 func TestPeerUpEmptyRibOutSignalsReady(t *testing.T) {
 	const addr = "10.0.0.1"
 	const initialReplay uint64 = 18446744073709551615

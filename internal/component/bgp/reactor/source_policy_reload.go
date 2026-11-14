@@ -175,16 +175,16 @@ var importSwapGateHook func(*Peer)
 // reads the same gate. session MUST be the one p.session holds: this is the one
 // production publisher of PeerStateEstablished for it.
 func (p *Peer) enterEstablished(session *Session) {
-	// Reset per-session API sync: NAME the processes whose routes belong to
-	// this peer's INITIAL routing update. Each reports "plugin session ready"
-	// once its routes are out (RFC 4724 Section 4: the marker is sent once the
-	// initial routing update completes).
+	// Reset the per-session expectation set: NAME the processes whose routes
+	// belong to this peer's INITIAL routing update. Each reports "plugin
+	// session ready" once its routes are out, and the reports of those that
+	// declared the replay fence lower it. The End-of-RIB waits for none of
+	// them (owner ruling, 2026-09-18).
 	//
 	// The names travel, not their count. Every plugin can dispatch that
 	// signal, and several do it for a peer that grants them no send word at
-	// all, so a barrier holding a count releases on the wrong plugin's word
-	// (Peer.SignalAPIReady). The names are also what the timeout diagnostic
-	// prints when one of them never reports.
+	// all, so a set holding a count would lower the fence on the wrong
+	// plugin's word (Peer.SignalAPIReady).
 	p.resetAPISync(p.initialUpdateReporters())
 	// The replay fence: live forwards wait for the reporters that declared it
 	// (Peer.initialUpdateOwed).

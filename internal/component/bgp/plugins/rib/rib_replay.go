@@ -119,7 +119,9 @@ func (r *RIBManager) collectGroupedRibOutRoutesForFamily(peerAddr netip.Addr, fa
 // state of a fresh peer. Callers MUST NOT read nil-ness as "this peer did not
 // come up" or "do not replay" -- an empty result is a legitimate answer and
 // still requires replayRoutesWithCursor to run, because that is what emits the
-// "plugin session ready" signal the reactor waits on. Test the emptiness you
+// "plugin session ready" report that lowers the peer's replay fence: without
+// it, the live forwards parked behind the fence stay parked for the session.
+// Test the emptiness you
 // mean (len(groups) == 0), never the nil-ness of the return.
 func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, filterFam family.Family, peerUp bool) []replayGroup {
 	peerFamilies := r.ribOut[peerAddr]

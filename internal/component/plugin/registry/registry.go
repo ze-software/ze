@@ -148,20 +148,22 @@ type Registration struct {
 
 	// SignalsSessionReady declares that this plugin puts routes into a peer's
 	// INITIAL routing update and reports `plugin session ready` once they are
-	// out. The engine holds that peer's End-of-RIB for every declaring plugin
-	// the peer attaches with a route-push grant (reactor/peer_run.go, which
-	// states what the marker then means).
+	// out. The engine names every declaring plugin the peer attaches with a
+	// route-push grant in that session's expectation set and credits its
+	// report (reactor/peer_run.go, initialUpdateReporters). The report lowers
+	// the replay fence when the plugin also declares FencesLiveForwards. The
+	// End-of-RIB waits for no report (owner ruling, 2026-09-18).
 	//
 	// The declaration is VOLUNTARY (owner directive, 2026-09-02), so it says
 	// WHEN this plugin's routes belong rather than what it may send. A plugin
 	// that pushes on its own schedule is not part of the initial update and
-	// stays uncounted; it owes no report and is never waited for.
+	// stays uncounted; it owes no report.
 	//
 	// A declaring plugin reports from the peer-up event, the only moment it can
 	// know an initial routing update started, so the engine intersects this
 	// with the peer's `receive [ state ]` grant. A binding the peer never tells
 	// about the session can neither push into that update nor report, and
-	// counting it would delay every such peer's End-of-RIB to the timeout.
+	// counting it would leave a fence it owns up for the whole session.
 	SignalsSessionReady bool
 
 	// FencesLiveForwards declares that this plugin replays a peer's routes on
@@ -479,7 +481,7 @@ var (
 	//
 	// Nil until the server installs it, and nil in every binary that runs no
 	// plugin server. A nil seam answers false, which is the same answer an
-	// undeclared process gets: nothing is waited for that cannot report.
+	// undeclared process gets: nothing that cannot report is expected to.
 	runtimeSessionReady func(process string) bool
 
 	// runtimeRegistryNames resolves a running process name to the registry
@@ -1195,8 +1197,9 @@ func RequiresPeerUpBarrier(name string) bool {
 // False when no seam is installed, and false when the seam finds no
 // declaration. The owner made the declaration voluntary on 2026-09-02, so a
 // third-party plugin with no reason to report is not made to, and false is the
-// answer that keeps this safe: a plugin that will never report would otherwise
-// delay every peer that attaches it to the End-of-RIB timeout.
+// answer that keeps this safe: a plugin that will never report is then never
+// expected to. The End-of-RIB waits for no report (owner ruling, 2026-09-18);
+// what a report lowers is the replay fence (FencesLiveForwards).
 func SignalsSessionReady(name string) bool {
 	mu.RLock()
 	reg := plugins[name]

@@ -141,9 +141,12 @@ including one flushed from the coalescing buffer).
 
 RFC 4486 Section 4 defines no Cease subcode for an internal failure, so the
 Cease carries Unspecific (RFC 4271 Section 4.5). When another writer holds the
-session's write path past the deadline, `tryNotificationWithin` gives up, no
-NOTIFICATION is sent, the log says so, and the connection is closed raw so the
-stuck writer's write fails and releases the lock.
+session's write path past the deadline, `tryNotificationWithin` gives up and no
+NOTIFICATION is sent. The close routine (`closeConnWithin`) then does not wait
+for the path again: it logs at ERROR that the peer was not told, fails the
+stuck writer's socket write and closes the socket, so that writer releases the
+path. Every close of a session connection runs that routine: see
+[core design](../core-design.md#graceful-tcp-close-half-close).
 
 No lock is held across a call that can panic in the read path: a reactor-wide
 lock left held by the panicking frame would stall every other peer
@@ -151,8 +154,8 @@ lock left held by the panicking frame would stall every other peer
 
 <!-- source: internal/component/bgp/reactor/panic_guard.go — bgpPanicTasks, bgpPanics -->
 <!-- source: internal/component/bgp/reactor/session.go — Session.Run, describeRead -->
-<!-- source: internal/component/bgp/reactor/session_connection.go — ceaseAfterPanic, beginTeardown, endTeardown -->
-<!-- source: internal/component/bgp/reactor/session_write.go — tryNotificationWithin, tryWriteMessageWithin -->
+<!-- source: internal/component/bgp/reactor/session_connection.go — ceaseAfterPanic, beginTeardown, endTeardown, closeConnWithin, dropConn -->
+<!-- source: internal/component/bgp/reactor/session_write.go — tryNotificationWithin -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — safeRunOnce -->
 
 ## `runOnce`: one session lifecycle
@@ -232,8 +235,12 @@ take additional locks safely.
 1. Capture negotiated capabilities via `session.Negotiated()`.
 2. Store as `NewNegotiatedCapabilities` on the peer.
 3. Set per-peer encoding contexts via `setEncodingContexts(neg)`.
-4. `enterEstablished(session)`. It resets the API sync to the plugin
-   bindings that push routes, closes the session's initial-sync gate
+4. `enterEstablished(session)`. It resets the session-ready expectation
+   set to the plugin bindings that push routes and declare
+   `SignalsSessionReady` (`Peer.resetAPISync`), raises the replay fence
+   over those that also declare `FencesLiveForwards`
+   (`Peer.raiseReplayFence`), takes the initial-replay receipt, closes the
+   session's initial-sync gate
    (`Session.sendingInitialRoutes` to 1), marks its End-of-RIB owed
    (`Session.initialSyncEOROwed`), publishes the session as
    `p.establishedSession`, and only then calls
@@ -686,7 +693,7 @@ each receipt releases only its own claim on the captured `Session`, never a
 replacement found through a peer lookup. Real session loss wakes the gates and
 refuses subsequent receipt checks without manufacturing a DOWN/UP transition.
 Terminal completion wakes both running and standalone readers. `closeConn` wakes
-the gates after socket retirement and after releasing its session lock; the
+the gates after socket retirement, as its last step, with no session lock held; the
 writer-retirement path does the same after closing the failed transport. The
 HoldTimer path wakes them after its NOTIFICATION attempt and terminal FSM event.
 Close-reason publication is not terminal completion: even if all pause owners

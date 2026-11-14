@@ -189,6 +189,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands |
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
 | `failure-policy` | `string` | What ze does when this plugin fails: `restart`, `ignore` or `fatal`. Omitting it means `ignore` |
+| `signals-session-ready` | `bool` | Your routes belong to a peer's initial routing update, and you report `plugin session ready` once they are out ("The session-ready report") |
 
 **The failure policy is what your plugin asks ze to do when your plugin fails.**
 It is voluntary, and a plugin that omits it is carried on without. A value that
@@ -210,6 +211,44 @@ started again. An operator whose `plugin { external <name> }` block writes
 error naming your plugin and the policy it declared. Declare `restart` when
 your plugin can come back from a crash, which usually means its state lives
 outside the process.
+
+**The session-ready report says your share of a peer's initial routing update
+is out.** It is voluntary. Declare `signals-session-ready` only when your
+plugin pushes routes into a peer from that peer's peer-up event. A plugin that
+pushes on its own schedule leaves it false and owes no report.
+
+A peer counts your plugin only when three facts hold: its `attach process`
+block grants you `send [ update ]` or `send [ raw ]`, you declared
+`signals-session-ready`, and it grants you `receive [ state ]`, so you see the
+peer-up event. Once your routes for that session are sent, dispatch:
+
+```
+request peer <address> plugin session ready session <initial-replay>
+```
+
+`<initial-replay>` is the token from that peer-up event's `initial-replay`
+field (`docs/architecture/api/json-format.md`). Send one report per peer-up,
+even when you had nothing to send.
+
+What the report does:
+
+| Situation | What ze does |
+|-----------|--------------|
+| You report | ze credits the report to your process for that session, once. A second report is not credited again |
+| You report with a token from an older session, or for a session that is going down | ze refuses it with an error naming the problem |
+| You report for a peer ze does not have | ze credits it to nothing and logs a WARN naming the peer |
+| You never report | Nothing waits for you. ze never holds its End-of-RIB for a report: it sends the marker once its own table is out |
+
+The report's effect inside ze is to lower the replay fence, which holds a
+peer's live forwarded changes while a route server or RIB plugin compiled into
+ze replays that peer's table. Only a plugin compiled into ze can own that
+fence, so today a report from an external plugin is credited and changes
+nothing on the wire. Declaring it still tells ze that your routes belong to the
+initial update.
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.SignalAPIReady, Peer.creditAPIReady -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters, Peer.replayFenceOwners -->
+<!-- source: internal/component/plugin/registry/registry.go -- registry.FencesLiveForwards -->
 
 
 

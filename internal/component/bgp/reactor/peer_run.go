@@ -910,28 +910,6 @@ func (p *Peer) holdDownAfterPrefixTeardown(fam string) {
 	}
 }
 
-// initialUpdateReporters names the processes whose routes belong to this peer's
-// INITIAL routing update, so its End-of-RIB waits for each of them to report
-// (RFC 4724 Section 4).
-//
-// Three facts have to hold together, and each one alone admits a process that
-// can never report:
-//
-//   - The peer GRANTS the process a route-push rail, by `send [ update ]` for a
-//     message ze builds or `send [ raw ]` for one the process built
-//     (MayPushRoutes). Without it nothing the process does reaches this wire.
-//   - The plugin DECLARES that its routes belong to the initial update and that
-//     it reports when they are out (registry.SignalsSessionReady). The owner
-//     made this voluntary on 2026-09-02: a plugin that pushes on its own
-//     schedule, and every external plugin, declares nothing and is not waited
-//     for. Its routes were never part of the update the marker describes.
-//   - The peer TELLS the process the session came up (ReceivesPeerState). The
-//     report answers the peer-up event, so a binding with no state grant leaves
-//     the plugin unable to push into this update and unable to report it.
-//
-// The reactor learns no plugin name here: the grant is config, the declaration
-// is a registry lookup on the name the binding already carries, and nothing in
-// this package interprets either (ai/rules/plugins.md).
 // replayFenceOwners names the reporters that declared the replay fence
 // (registry.FencesLiveForwards). Caller MUST hold p.mu.
 func (p *Peer) replayFenceOwners() []string {
@@ -944,6 +922,31 @@ func (p *Peer) replayFenceOwners() []string {
 	return owners
 }
 
+// initialUpdateReporters names the processes whose routes belong to this peer's
+// INITIAL routing update: the session-ready expectation set resetAPISync arms.
+// A report from one of them is credited, and the reports of those that also
+// declared the replay fence lower it (Peer.SignalAPIReady). The End-of-RIB
+// waits for none of them (owner ruling, 2026-09-18): the marker follows ze's
+// own table (sendInitialRoutes, peer_initial_sync.go).
+//
+// Three facts have to hold together, and each one alone admits a process that
+// can never report:
+//
+//   - The peer GRANTS the process a route-push rail, by `send [ update ]` for a
+//     message ze builds or `send [ raw ]` for one the process built
+//     (MayPushRoutes). Without it nothing the process does reaches this wire.
+//   - The plugin DECLARES that its routes belong to the initial update and that
+//     it reports when they are out (registry.SignalsSessionReady). The owner
+//     made this voluntary on 2026-09-02: a plugin that pushes on its own
+//     schedule declares nothing and is not credited. An external plugin
+//     declares it at Stage 1 (`signals-session-ready`).
+//   - The peer TELLS the process the session came up (ReceivesPeerState). The
+//     report answers the peer-up event, so a binding with no state grant leaves
+//     the plugin unable to push into this update and unable to report it.
+//
+// The reactor learns no plugin name here: the grant is config, the declaration
+// is a registry lookup on the name the binding already carries, and nothing in
+// this package interprets either (ai/rules/plugins.md).
 func (p *Peer) initialUpdateReporters() []string {
 	var reporters []string
 	// Under p.mu: a reload can deliver a derived binding change onto the

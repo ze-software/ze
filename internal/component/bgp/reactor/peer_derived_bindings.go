@@ -53,8 +53,9 @@ var routeFreeReceiveTypes = map[string]bool{
 // receiveOnly reports whether b grants the process no send type and does not
 // show it the OPEN exchange. Such a binding only feeds a consumer: the process
 // can put nothing on this peer's wire through it, so it is outside the initial
-// routing update and its End-of-RIB barrier (ProcessBinding.MayPushRoutes,
-// Peer.resetAPISync), and a running session can take it on or let it go.
+// routing update and the session-ready expectation set that arms the replay
+// fence (ProcessBinding.MayPushRoutes, Peer.resetAPISync), and a running
+// session can take it on or let it go.
 //
 // The rule reads the grant, never who wrote it: an operator's attach block and
 // a binding the config builder adds (EnsureProcessBinding) are judged alike.

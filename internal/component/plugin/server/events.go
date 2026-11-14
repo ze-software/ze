@@ -100,8 +100,9 @@ func (s *Server) DecodeNLRI(family, hexData string, addPath, withdraw bool) (str
 // The two routes are both needed because the caller asks by PROCESS name, and a
 // process name is not a registry key. `plugin { internal rs { use bgp-rs } }`
 // gives the operator's alias to the process and files the registration under
-// `bgp-rs`, so a lookup by "rs" finds nothing and the peer that attaches it
-// sends its End-of-RIB while bgp-rs is still replaying (RFC 4724 Section 4).
+// `bgp-rs`, so a lookup by "rs" finds nothing, bgp-rs never joins the peer's
+// session-ready expectation set, and its replay fence is never raised: a live
+// forward could then overtake the replayed announce of the same prefix.
 // plugin.RegistryNames resolves the alias, and it is the resolution
 // claimsForPlugin already uses for the same reason (startup_claims.go).
 //
@@ -112,13 +113,11 @@ func (s *Server) DecodeNLRI(family, hexData string, addPath, withdraw bool) (str
 // registration before this method is reached.
 //
 // False for a name the process manager does not hold: nothing was ever started
-// under it, so no report can arrive, and waiting for one would hold every peer
-// that attaches it to the api-sync timeout. A process that WAS registered and
+// under it, so no report can arrive, and expecting one would leave any replay
+// fence it owns up for the whole session. A process that WAS registered and
 // has since died still answers true, because the answer is read off the config
-// and the declaration rather than off the process state. That direction is the
-// loud one: the peer waits out apiSyncTimeout and logs the silent process,
-// where the other direction would send a marker claiming an initial routing
-// update nobody produced.
+// and the declaration rather than off the process state. The End-of-RIB waits
+// for no report either way (owner ruling, 2026-09-18).
 func (s *Server) declaresSessionReady(process string) bool {
 	pm := s.procManager.Load()
 	if pm == nil {
