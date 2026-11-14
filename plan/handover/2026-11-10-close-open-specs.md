@@ -243,7 +243,7 @@ then these findings live here.
 
 The owner moved B-1, B-2 and B-3 out of the umbrella: "route-policy's three
 review findings get in a new spec". The spec is
-`plan/release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md`, at
+`spec-route-policy-1-gate-proof-and-forked-sysrib` (closed on 2026-11-14), at
 Status `design`, waiting on his approval of its design. The umbrella can now
 close without them. Its five pointer edits and its closure steps are in
 `plan/handover/2026-11-12-route-policy-findings-spec.md`, which replaces the

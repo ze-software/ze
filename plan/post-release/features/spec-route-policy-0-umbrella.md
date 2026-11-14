@@ -21,9 +21,9 @@ owner's matched Mac run is `plan/records/route-policy-0-a4-mac.bench.txt`,
 and he accepted its cost (Assumptions, A-4). The 2026-11-12 closure review
 (round 4, Review Gate below) found three ISSUEs, each needing
 implementation. The owner moved them out on 2026-11-12: "route-policy's
-three review findings get in a new spec". They are owned by
-`plan/release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md`,
-which also carries what its research found beyond B-2 (a forked system RIB
+three review findings get in a new spec". They were owned by
+`spec-route-policy-1-gate-proof-and-forked-sysrib`, closed on 2026-11-14 with
+B-1, B-2 and B-3 delivered (its record is in git history), which also carried what its research found beyond B-2 (a forked system RIB
 is wrong in five more ways) and the gap between the committed fixture
 drivers and AC-6 and AC-7 as written. The table below is kept as the record
 of what was handed over:
@@ -790,7 +790,7 @@ Review rounds 1-3 ended with 0 BLOCKER and 0 ISSUE once the round 3 fixes landed
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
 | "only install these IS-IS prefixes" | interop | `isis-import-policy-frr`: hidden at Ze, kept in the LSDB, learned by FRR-B; red with the reject disabled |
-| "never install a bogon from any protocol" | unit, with the daemon proof owed elsewhere | Here: `TestLocRIBCentralChainAllSources` and `TestRouteInstallTagReachesGate` prove the gate judges every source. The daemon proof is not claimed by this spec: `spec-route-policy-1-gate-proof-and-forked-sysrib` AC-6, AC-7 and AC-11 own it |
+| "never install a bogon from any protocol" | unit, with the daemon proof owed elsewhere | Here: `TestLocRIBCentralChainAllSources` and `TestRouteInstallTagReachesGate` prove the gate judges every source. The daemon proof is not claimed by this spec: `spec-route-policy-1-gate-proof-and-forked-sysrib` AC-6, AC-7 and AC-11 proved it before that spec closed on 2026-11-14 (`test/plugin/rib-import-central-bogons*.ci`, `test/plugin/rib-import-tag-*.ci`, `ospf-import-policy-bird(-forked)`) |
 | "advertise only loopbacks into IS-IS" | interop | `isis-export-policy-frr`, green, red, green at 697dc6a618 |
 | One policy library for every protocol and BGP | interop | Filter-wire AC-10 BGP policy scenarios; `ospf-import-policy-bird` |
 | The gate keeps the insert path cheap | benchmark | `plan/records/route-policy-0-a4-mac.bench.txt`; owner accepted +5.6% single-writer |
@@ -798,7 +798,7 @@ Review rounds 1-3 ended with 0 BLOCKER and 0 ISSUE once the round 3 fixes landed
 ## Work Not Done
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| B-1, B-2, B-3: the daemon tests for the central, static and connected import chains (AC-6, AC-7, AC-11 at the daemon, story 2); the forked system RIB's ungated input (A-2); the feature declaration and the comparison row (Documentation rows 1 and 11) | Need implementation; moved by the owner on 2026-11-12 | `plan/release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md` |
+| none: B-1, B-2 and B-3 (moved out by the owner on 2026-11-12) landed with `spec-route-policy-1-gate-proof-and-forked-sysrib`, closed on 2026-11-14 | - | - |
 
 ## Review Gate
 

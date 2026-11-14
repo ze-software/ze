@@ -2,9 +2,11 @@
 
 ## Handoff
 
-**Spec:** [spec-route-policy-1-gate-proof-and-forked-sysrib](../release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md)  
+**Spec:** `spec-route-policy-1-gate-proof-and-forked-sysrib` (closed on 2026-11-14; its record is in git history)  
 **Branch:** main  
 **Goal:** Complete correct internal and external system RIB operation, then close the spec through its independent Review Gate and two closure commits.
+
+**Consumed on 2026-11-14.** The successor session carried this work to the spec's closure; what it ran, and on which source, is in the closed spec's closure sections. The 30 cases this handover calls drafts are tracked at `test/plugin/<stem>.ci`; the `test/draft/plugin/` paths below, in `MANIFEST.json`, in `proof/execution-v4/` and in `cleanup/` are the record of what was archived and run at the time, and are left as written.
 
 The owner requested transfer to another agent. This is an unfinished implementation handover, not closure. Do not mark the spec complete or verification. No push was requested or performed by this session.
 

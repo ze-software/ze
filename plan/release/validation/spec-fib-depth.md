@@ -103,6 +103,10 @@ and backend parity under AC-15.
 | `read-fails-on-a-fact-the-caller-does-not-need.md` | 2026-11-12 | fib-vpp `processEvent` calling `restoreSRv6`: with no persistent store fib-vpp programs no IP route at all, SRv6 or not; `vpp-fib-route`, `vpp-fib-route-lookup`, `vpp-mpls-push` are red |
 | `kernel-refuses-what-the-installer-sends.md` | 2026-11-13 | fib-kernel sent fast-reroute backups as RTNH_F_LINKDOWN multipath members, refused by Linux; no backup takes over on primary failure, fib-vpp ignores `Backup` |
 | `record-written-before-the-operation-succeeds.md` | 2026-11-13 | fib-kernel never re-attempts a route the kernel refused, while sysrib holds it as installed; `fib-sync-failure` is never cleared |
+| `counter-counts-the-wrong-packets.md` | 2026-11-14 | fib-kernel's startup sweep counts a delete the kernel answered "absent" (ESRCH) as a removed orphan |
+| `rollback-forgets-partial-apply.md` | 2026-11-14 | fib-kernel `replaceOwnedRoute` adds the new route, fails to delete a superseded one, and the new route is not recorded as installed |
+| `key-omits-a-fact-the-builder-uses.md` | 2026-11-14 | fib-kernel records one table per prefix, so an update moving a prefix to another table leaves the old table's route behind |
+| `silent-fall-through.md` | 2026-11-14 | fib-kernel on a backend without the rich interface ignores the table of an add, replace or delete (unreachable on Linux) |
 
 ## Required Reading
 

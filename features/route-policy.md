@@ -10,10 +10,11 @@
 | Scope | complete |
 | Level | experimental |
 | Components | internal/component/policy, internal/core/rib/locrib, internal/component/sysrib, internal/plugins/redistribute |
+| Real-path tests | test/plugin/connected-import-filter-hides.ci, test/plugin/connected-import-filter-hides-forked.ci, test/plugin/rib-import-central-bogons.ci, test/plugin/rib-import-central-bogons-forked.ci, test/plugin/rib-import-tag-internal-internal.ci, test/plugin/rib-import-tag-internal-forked.ci, test/plugin/rib-import-tag-forked-internal.ci, test/plugin/rib-import-tag-forked-forked.ci, test/plugin/static-import-filter-distance.ci, test/plugin/static-import-filter-distance-forked.ci, test/plugin/sysrib-bgp-metric-callers.ci, test/plugin/sysrib-bgp-metric-callers-forked.ci, test/plugin/sysrib-distance-reload.ci, test/plugin/sysrib-distance-reload-forked.ci, test/plugin/sysrib-distance-reload-configured.ci, test/plugin/sysrib-distance-reload-configured-forked.ci, test/plugin/sysrib-ecmp-replay.ci, test/plugin/sysrib-ecmp-replay-forked.ci, test/plugin/sysrib-execution-health.ci, test/plugin/sysrib-execution-health-forked.ci, test/plugin/sysrib-execution-parity.ci, test/plugin/sysrib-execution-parity-forked.ci, test/plugin/sysrib-feed-restart.ci, test/plugin/sysrib-feed-restart-forked.ci, test/plugin/sysrib-forked-producer-kernel.ci, test/plugin/sysrib-nonwinner-explicit-ecmp.ci, test/plugin/sysrib-nonwinner-explicit-ecmp-forked.ci, test/plugin/sysrib-recursive-nexthop.ci, test/plugin/sysrib-recursive-nexthop-forked.ci, test/plugin/sysrib-slow-reader-reset.ci |
 | Interop | bgp/isis-import-policy-frr, bgp/isis-import-policy-frr-forked, bgp/ospf-import-policy-bird, bgp/ospf-import-policy-bird-forked, bgp/isis-export-policy-frr, bgp/ospf-export-policy-frr |
 | Docs | docs/guide/route-policy.md, docs/architecture/rib/unified-locrib.md, docs/architecture/api/process-protocol.md |
-| Doc review | 2026-11-13: source/central admission in locrib/policy.go admit, both readers in sysrib/route_view_client.go openRouteViewMonitoredClient, full candidates in route_view_candidates.go readCandidates and acknowledged output in route_view_output.go publish match the linked pages. |
-| Defect review | 2026-11-13: plan/release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md remains open for paired daemon/kernel, lifecycle, peer, discrimination and load proof. No Supported claim or recorded green feature run is made. |
+| Doc review | 2026-11-14: source/central admission in locrib/policy.go admit, both readers in sysrib/route_view_client.go openRouteViewMonitoredClient, the worker in route_view_worker.go consume, candidates through route_view_worker_operations.go Candidates and route_view_candidates.go readCandidates, reset in reopen, cleanup in route_view.go cleanupLocked, health in doctor_route_view.go findings and acknowledged output in route_view_output.go publish match docs/guide/route-policy.md ("Seeing the hidden paths", "Internal and external system RIB") and the transport paragraphs of unified-locrib.md; process-protocol.md "System routing views" matches route_view.go routeViewAuthorize and match, the 4096-record and 1000 ms bounds (rpc RouteViewRecordsMax, RouteViewWaitMillisMax), route_view_output.go withdraw and provePublicationReset. |
+| Defect review | 2026-11-14: spec-route-policy-1-gate-proof-and-forked-sysrib completed its paired daemon, kernel, lifecycle, peer, discrimination and load proof. Open rows on the forwarding path it feeds (no backup takeover on link failure, no retry of a refused kernel add) are fib-kernel defects owned by plan/release/validation/spec-fib-depth.md; none names a Components path. |
 
 ## Description
 
@@ -36,10 +37,11 @@ checks which fields its routes carry and which values its filters can set.
 The system RIB runs internally or externally with one daemon authority and the
 same forwarding worker. The external selected projection runs no policy or
 cross-protocol selection. Distance updates and forwarding output require daemon
-acknowledgment. This feature remains Experimental while paired daemon, kernel,
-lifecycle and peer validation is incomplete. Listed scenarios identify the
-proof paths, not completed runs. Functional drafts do not count as retained
-real-path evidence until promotion and a recorded run.
+acknowledgment. The real-path tests run each case once with an internal and
+once with an external system RIB, against a real kernel in a network namespace
+of their own; the four `rib-import-tag` cases also cross the static
+producer's placement. A recorded green run, not the list, is what counts toward
+a level.
 <!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
 <!-- source: internal/component/sysrib/route_view_worker.go -- consume -->
 <!-- source: internal/component/sysrib/route_view_output.go -- publish -->

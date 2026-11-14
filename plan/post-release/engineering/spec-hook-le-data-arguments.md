@@ -127,3 +127,6 @@ job typed anywhere it can run.
 | `hook-existing-patterns-false-positive` | 2026-11-13 | `goBuildText` and `textLossyPipe`: `go build` and `test qemu` inside a quoted grep pattern of an `ssh` argument read as commands |
 | `hook-existing-patterns-false-positive` | 2026-11-12 | `bashTestDeletion` line-wide words: the word `rm` in a `./le commit create` here-document message read as deleting the `_test.go` files it names |
 | `hook-existing-patterns-false-positive` | 2026-11-12 | `bashTestDeletion` line-wide words: the `test/plugin/` destination of an `mv` from `test/draft/plugin/` read as the target of a scratch `rm -f` |
+| `hook-existing-patterns-false-positive` | 2026-11-14 | `heavyWork` over `unquotedSegments`: launcher words in a here-document body written to a file read as a subagent's heavy run |
+| `hook-existing-patterns-false-positive` | 2026-11-14 | `bashTestDeletion` (`readDeletionWords` adds every here-document word): the word `rm` in a note appended to a session state file read as deleting the test paths it names |
+| `hook-existing-patterns-false-positive` | 2026-11-14 | `testPath` matches `_test.go` in any tree: deleting an untracked scratch copy under `tmp/`, and moving a test file aside, read as deleting a test |

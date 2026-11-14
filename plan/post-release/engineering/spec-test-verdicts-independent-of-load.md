@@ -216,6 +216,8 @@ Runner to admission registry; runner to child (progress signal); fixture to daem
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | startup-wait-expires-under-load.md | 2026-11-14 | TestWebConfigJourneyOwnsStartup readiness case polls 3s of wall clock for its start child |
+| test-verdict-depends-on-the-date.md | 2026-11-14 | TestReportListsUnderClaimAsCandidate: fixed fixture dates against a staleness rule that reads today's date |
+| gate-fires-outside-its-population.md | 2026-11-14 | scoped lint of internal/le/test/qemu refused "lint inputs changed during planning" on other sessions' edits to its imports (AC-12) |
 | gate-verdict-depends-on-the-machine.md | 2026-10-30 | TestRefreshPeerLinkScopesSkipsAnUnchangedTable reads the host neighbor table |
 | field-carries-two-meanings.md | 2026-10-27 | .ci cmd timeout= replaces option=timeout as the test budget |
 | gate-verdict-depends-on-the-machine.md | 2026-10-27 | verify changed load reds at e6474aa200 |

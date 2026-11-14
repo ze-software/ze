@@ -1,0 +1,259 @@
+{
+  "feature": "route-policy",
+  "runs": [
+    {
+      "test": "test/plugin/connected-import-filter-hides.ci",
+      "test-blob": "95f995700e0bdd11210a3dab092c8d8262308749",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/connected-import-filter-hides-forked.ci",
+      "test-blob": "213174857cda3c7a929108183633c341d341dd1f",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/rib-import-central-bogons.ci",
+      "test-blob": "ea7b2332267a3046da703b79c3c3b48dee464308",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/rib-import-central-bogons-forked.ci",
+      "test-blob": "13035f99bb2df93abe5d7d0f104716167d713218",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/rib-import-tag-internal-internal.ci",
+      "test-blob": "5938fe8952e73e0432598af92e73fe77967bd93a",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/rib-import-tag-internal-forked.ci",
+      "test-blob": "bd18e5ab94ebe5d6cebcc6607400cad8d7f5bf2d",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/rib-import-tag-forked-internal.ci",
+      "test-blob": "e75c9088ab1a8ae0464d74b7f90b4e77431bb578",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/rib-import-tag-forked-forked.ci",
+      "test-blob": "1c40b45260b831d63bd47ce906aec1ffac11d60a",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/static-import-filter-distance.ci",
+      "test-blob": "e079bbadb666a1f5df4d44f77604ac5101c52d62",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/static-import-filter-distance-forked.ci",
+      "test-blob": "4c1396db44d87e4ef9c9f780a9503d8956f1fff2",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-bgp-metric-callers.ci",
+      "test-blob": "d59dcb3e1f50ebf862d82dcbcc524e8b0061cea7",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-bgp-metric-callers-forked.ci",
+      "test-blob": "d467f3b80bfe54bd803b5f4320ce54dc3ab7ea5e",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-distance-reload.ci",
+      "test-blob": "b66462d7b93cce80eaea96d223c2431ae398e141",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-distance-reload-forked.ci",
+      "test-blob": "6736e438ba4c87a9d1664a05fa4e5c7a0ffd32a0",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-distance-reload-configured.ci",
+      "test-blob": "f21ebf41314cd700722988375961811af48aabf2",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-distance-reload-configured-forked.ci",
+      "test-blob": "fc1ad0b7cca3b52c973bef0623170e48f949f633",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-ecmp-replay.ci",
+      "test-blob": "5aecb7340da8f2194ffbade00439ef23e29b05e0",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-ecmp-replay-forked.ci",
+      "test-blob": "cae93e8218d5927b04b4b6d08a4331160f39602b",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-execution-health.ci",
+      "test-blob": "4472d1c8985137eb33ccff89bfa404031f5991ef",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-execution-health-forked.ci",
+      "test-blob": "835cc424b2af149a042fdd959e97f43a3fb93ae6",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-execution-parity.ci",
+      "test-blob": "1e1272b1270f6caa4bea9a6badc60db930a9686c",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-execution-parity-forked.ci",
+      "test-blob": "e8bb7652c90c357832181e35bbe8d5380757cdbe",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-feed-restart.ci",
+      "test-blob": "55203b7d6bf2186c28216407bf022445eb206379",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-feed-restart-forked.ci",
+      "test-blob": "8deadce3b7a79d2eda21393242f5ef9c846dbca7",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-forked-producer-kernel.ci",
+      "test-blob": "9a2d98d91f88fbb5e5185aa5501cc357dff4525a",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-nonwinner-explicit-ecmp.ci",
+      "test-blob": "c63946c8549e294ffe07b62031d7143500d6648f",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-nonwinner-explicit-ecmp-forked.ci",
+      "test-blob": "a72652c84897ba0fd09ce66c3affa5c6c208af99",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-recursive-nexthop.ci",
+      "test-blob": "0ba9b5c3e2555ca96007df6971bc821c3195cd94",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-recursive-nexthop-forked.ci",
+      "test-blob": "88f9a9eefac165a0a76d1788a0d3729ad331d19b",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/sysrib-slow-reader-reset.ci",
+      "test-blob": "7ea80643371a481948efa4626c7497b443b7f28e",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    }
+  ],
+  "interop": [
+    {
+      "scenario": "bgp/isis-import-policy-frr",
+      "scenario-tree": "0969d2d4b0ea75596117af5f8468d59ddb6f4ad6",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "scenario": "bgp/isis-import-policy-frr-forked",
+      "scenario-tree": "67a9f7922887473055e8d7ee058d31ae3c00bace",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "scenario": "bgp/ospf-import-policy-bird",
+      "scenario-tree": "b85a3bcaea1639e3e63b8a0cc87b5c4069e83072",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "scenario": "bgp/ospf-import-policy-bird-forked",
+      "scenario-tree": "d6474bb597cbd40575535f07fa9703e1a00417e1",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "scenario": "bgp/isis-export-policy-frr",
+      "scenario-tree": "23602b7601986b024ea41ee32363373e4289d193",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    },
+    {
+      "scenario": "bgp/ospf-export-policy-frr",
+      "scenario-tree": "20d1cdcb5fdfbdcd853c546da6e6da1ff8079130",
+      "commit": "5a39260bb31bb2b62d9bd78537474bb3cf50c78c",
+      "date": "2026-11-14",
+      "result": "pass"
+    }
+  ]
+}

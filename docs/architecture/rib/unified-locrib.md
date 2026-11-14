@@ -20,14 +20,19 @@ On 2026-11-12, Thomas rejected the proposal to make the system RIB internal-only
 
 The registered runtime obtains an authoritative local reader or a selected feed
 over the SDK. Both use the same forwarding evaluator; BGP observation events
-are not an alternate system-RIB input. Equivalent daemon and kernel behavior
-still requires the paired execution evidence recorded by the repair.
+are not an alternate system-RIB input. The daemon proof is paired: a base
+`test/plugin/` case runs the system RIB internal and its `-forked` twin runs
+it as a `ze plugin rib` subprocess, both against a real kernel in the per-test
+namespace launcher (`netnsSelections`, `internal/le/test/qemu/netns_linux.go`).
+`sysrib-slow-reader-reset.ci` and `sysrib-forked-producer-kernel.ci` exist in
+the external form only, and the four `rib-import-tag-*` cases also cross the
+static producer's placement.
 <!-- source: internal/component/sysrib/register.go -- runRouteViewPlugin -->
 <!-- source: internal/component/sysrib/route_view_worker.go -- consume -->
 
-The consumer transport is recorded in
-`spec-route-policy-1-gate-proof-and-forked-sysrib`. It keeps admission and
-cross-source selection in the daemon's Loc-RIB. Both execution modes must
+The consumer transport is the six `route-view-*` operations in
+`docs/architecture/api/process-protocol.md`, "System routing views". It keeps
+admission and cross-source selection in the daemon's Loc-RIB. Both execution modes must
 preserve distances, next-hop resolution, ECMP, candidate inspection,
 configuration changes, FIB output, and recovery. An external-run refusal or
 an internal replacement for the configured subprocess does not meet the

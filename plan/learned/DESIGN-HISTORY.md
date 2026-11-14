@@ -867,6 +867,21 @@ built and then deleted (see Abandoned approaches).
   entirely: about 2500 lines across 9 files, once the single
   `#<id> <verb> [<json>]\n` framing replaced both protocols. None of those
   types exists in the tree today. Do not read auto-detection as live.
+- **A system RIB that runs only in the daemon**
+  (spec-route-policy-1-gate-proof-and-forked-sysrib, 2026-11-12): proposed
+  because a forked system RIB had no Loc-RIB of its own and fell back to
+  BGP best-change events, bypassing the import gate. Rejected by the owner
+  ("support it both from internal and external correctly",
+  `docs/architecture/rib/unified-locrib.md`). Both placements now read the
+  daemon's selection through the owner-registered `route-view-*` operations
+  and publish through one generation-owned sink; the BGP fallback and the
+  older publication path (`publishChanges`, `replayBest`, `publishFIBImport`)
+  are deleted. A plugin that breaks when forked gets the missing process
+  interface, never an internal-only declaration. Its proof showed why a
+  daemon case is loaded before it is trusted: five single-run matrices of
+  the 30 cases passed while the interface monitor dropped an address
+  announced before its link, and only 80 loaded runs per case found it
+  (fixed in d8b4256178).
 - **A negotiated command-answer shape** (spec-record-answers-2-only-encoding,
   2026-08-22): `Process.RecordAnswers()` on the plugin connection and
   `ZE_ANSWER_PROTOCOL` on the SSH exec channel each selected between two

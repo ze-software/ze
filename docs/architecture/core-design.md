@@ -3071,8 +3071,8 @@ the stop flush tries its delete again and counts it if it is still there, and
 an install of the prefix into that table replaces it instead of being refused
 by it. The sweep deletes only what startup listed and nothing has removed
 since: an install that took a listed table, or a withdraw that deleted a route
-there, leaves the sweep nothing to do for it, so it reports no orphan for a
-route that is no longer there. A startup listing that fails marks
+there, leaves the sweep nothing to do for that route, so it reports no orphan
+for a route that is no longer there. A startup listing that fails marks
 nothing stale, so nothing is swept: startup raises the same error with the
 listing's error, and the same WARN line, rather than leaving the stale routes
 unreported.

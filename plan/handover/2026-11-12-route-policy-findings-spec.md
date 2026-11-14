@@ -1,8 +1,8 @@
 # Handover: route policy's three closure findings now have their own spec
 
-Implementation continuation: [2026-11-13 route-policy handover](2026-11-13-route-policy-continuation.md).
-It records the committed implementation, two unfinished teardown repairs,
-interrupted daemon proof and the exact draft/proof archives for transfer.
+Implementation continuation: the 2026-11-13 route-policy handover, removed
+when `spec-route-policy-1-gate-proof-and-forked-sysrib` closed on 2026-11-14
+(both are in git history). The umbrella's closure below still stands.
 
 Written 2026-11-12 by the session that continued
 `plan/handover/2026-11-10-close-open-specs.md`. It replaces that handover's
@@ -16,7 +16,7 @@ internal and external system RIB operation. The requirement is recorded in
 `docs/architecture/rib/unified-locrib.md`, "Owner requirement: internal and
 external system RIB".
 
-`plan/release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md` now
+`spec-route-policy-1-gate-proof-and-forked-sysrib` now
 requires complete two-mode routing behavior, an authoritative daemon view,
 distance publication, candidates, external FIB output, and lifecycle proof.
 The owner approved implementation on 2026-11-12. It is now `in-progress`.
@@ -46,7 +46,7 @@ made by this revision.
 
 | # | Decision | What it unblocks | Recommendation |
 |---|----------|------------------|----------------|
-| 1 | Approve or change the design of `plan/release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md` (its Key Design Decisions table) | The spec moves from `design` to `ready`, then `/ze-implement` | Approve. The central choice: the system RIB runs only in the daemon, and the commit refuses a config that forks it |
+| 1 | Approve or change the design of `spec-route-policy-1-gate-proof-and-forked-sysrib` (its Key Design Decisions table) | The spec moves from `design` to `ready`, then `/ze-implement` | Approve. The central choice: the system RIB runs only in the daemon, and the commit refuses a config that forks it |
 | 2 | The bucket and priority: `plan/release/fixes/`, P1 | Where it sits in the release inventory | Keep. A forked system RIB programs routes the import filter rejected, in code the release ships |
 
 The design departs from one sentence of `ai/doors/system.md` ("Code that
@@ -115,7 +115,7 @@ EDIT 2: lines 19-23
   (round 4, Review Gate below) found three ISSUEs, each needing
   implementation. The owner moved them out on 2026-11-12: "route-policy's
   three review findings get in a new spec". They are owned by
-  `plan/release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md`,
+  `spec-route-policy-1-gate-proof-and-forked-sysrib`,
   which also carries what its research found beyond B-2 (a forked system RIB
   is wrong in five more ways) and the gap between the committed fixture
   drivers and AC-6 and AC-7 as written. The table below is kept as the record
@@ -135,7 +135,7 @@ EDIT 4: line 784, the Goal Validation row for "never install a bogon from any pr
 - Replace the row's last two cells, `functional | Missing: `rib-import-central-bogons.ci` (B-1)`, with: `unit, with the daemon proof owed elsewhere | Here: `TestLocRIBCentralChainAllSources` and `TestRouteInstallTagReachesGate` prove the gate judges every source. The daemon proof is not claimed by this spec: `spec-route-policy-1-gate-proof-and-forked-sysrib` AC-6, AC-7 and AC-11 own it`
 
 EDIT 5: line 792, the Work Not Done row
-- Replace `| B-1, B-2, B-3 | Need implementation | This spec, handed back to `/ze-implement` |` with: `| B-1, B-2, B-3: the daemon tests for the central, static and connected import chains (AC-6, AC-7, AC-11 at the daemon, story 2); the forked system RIB's ungated input (A-2); the feature declaration and the comparison row (Documentation rows 1 and 11) | Need implementation; moved by the owner on 2026-11-12 | `plan/release/fixes/spec-route-policy-1-gate-proof-and-forked-sysrib.md` |`
+- Replace `| B-1, B-2, B-3 | Need implementation | This spec, handed back to `/ze-implement` |` with: `| B-1, B-2, B-3: the daemon tests for the central, static and connected import chains (AC-6, AC-7, AC-11 at the daemon, story 2); the forked system RIB's ungated input (A-2); the feature declaration and the comparison row (Documentation rows 1 and 11) | Need implementation; moved by the owner on 2026-11-12 | `spec-route-policy-1-gate-proof-and-forked-sysrib` |`
 
 Phase 2 after these edits, the umbrella's closure:
 
