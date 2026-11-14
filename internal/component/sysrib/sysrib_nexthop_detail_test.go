@@ -25,8 +25,7 @@ import (
 // only thing that names where the packet goes.
 func TestBestChangeCarriesTheOutgoingDevice(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
@@ -51,8 +50,7 @@ func TestBestChangeCarriesTheOutgoingDevice(t *testing.T) {
 // TestBestChangeCarriesTheDeclaredWeights is AC-12 at the arbitration hop.
 func TestBestChangeCarriesTheDeclaredWeights(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
@@ -133,8 +131,7 @@ func TestEqualCostGroupKeepsWeightOneForProducersThatStateNone(t *testing.T) {
 // in a named table is kept out of the Loc-RIB for exactly this reason.
 func TestSysRIBEmitsNoTableID(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	_, changes := s.offerCandidates(candidateBatch("static", family.IPv4Unicast, &incomingChange{

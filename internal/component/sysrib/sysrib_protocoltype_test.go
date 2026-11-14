@@ -90,7 +90,7 @@ func TestSysRIBReplayClassifiesOverriddenAdminDistance(t *testing.T) {
 		NextHop: netip.MustParseAddr("192.168.1.1"),
 	})
 	s.forwardSelected(map[prefixKey]struct{}{{family: family.IPv4Unicast, prefix: pfx}: {}})
-	replayed := s.replayBatches(&replay.Request{ReplayID: replay.Broadcast})
+	replayed := s.orderedReplay(t, replay.Broadcast)
 	require.Len(t, replayed, 1)
 	require.Len(t, replayed[0].Changes, 1)
 	assert.Equal(t, "bgp", replayed[0].Changes[0].Protocol)

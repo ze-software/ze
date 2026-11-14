@@ -16,8 +16,7 @@ import (
 
 func TestSysribLocRIBBestSwitchDropsGhost(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.70.0.0/24")
@@ -70,8 +69,7 @@ func TestSysribLocRIBBestSwitchDropsGhost(t *testing.T) {
 // candidates in authority, with just its selected value held by the consumer.
 func TestSysribEventBusKeepsPerProtocol(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.71.0.0/24")

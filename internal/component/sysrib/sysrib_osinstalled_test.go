@@ -33,8 +33,7 @@ func osInstalledProtocol(t *testing.T) string {
 // is now stale beside the one the OS holds and must go.
 func TestOSInstalledWinnerWithdrawsTheZeRoute(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.0.0.0/24")
@@ -70,8 +69,7 @@ func TestOSInstalledWinnerWithdrawsTheZeRoute(t *testing.T) {
 // no FIB plugin holds is noise the plugin has to decide what to do with.
 func TestOSInstalledWinnerEmitsNothingWhenNothingWasProgrammed(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.1.0.0/24")
@@ -91,8 +89,7 @@ func TestOSInstalledWinnerEmitsNothingWhenNothingWasProgrammed(t *testing.T) {
 // the truth and a later withdraw of that path hands the prefix to the next best.
 func TestOSInstalledWinnerStaysInTheSystemRIB(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	protocol := osInstalledProtocol(t)
@@ -134,8 +131,7 @@ func TestOSInstalledWinnerStaysInTheSystemRIB(t *testing.T) {
 // any other, so Ze's route stays.
 func TestOSInstalledLoserLeavesTheZeRouteProgrammed(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	// The operator raised the OS-installed protocol above BGP's 20.
 	const osDistance = 250

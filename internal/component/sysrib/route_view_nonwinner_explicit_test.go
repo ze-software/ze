@@ -138,7 +138,7 @@ func TestRouteViewNonwinnerExplicitGroupBothReaders(t *testing.T) {
 				t.Fatalf("static permission did not remove its whole explicit group: %+v", withheld)
 			}
 			assertGroup(state.applyFIBImport(map[string]bool{"bgp": true, "static": true})[family.IPv4Unicast], "static-replacement", 7)
-			replayed := state.replayBatches(&replay.Request{ReplayID: replay.Broadcast})
+			replayed := state.orderedReplay(t, replay.Broadcast)
 			if len(replayed) != 1 || len(replayed[0].Changes) != 1 {
 				t.Fatalf("explicit group replay: %+v", replayed)
 			}

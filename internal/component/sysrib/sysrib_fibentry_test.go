@@ -17,7 +17,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
-	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
@@ -49,7 +48,7 @@ func TestLiveChangeKeepsTheGroupTheCascadeNarrowed(t *testing.T) {
 	// The member's gateway loses its covering route. The prefix is re-evaluated
 	// through the winner's next-hop, which is the one the resolver tracks.
 	loc.Remove(family.IPv4Unicast, memberCover, connectedID, 0)
-	s.processCascade([]netip.Addr{winnerNH})
+	s.publishCascade(t, []netip.Addr{winnerNH})
 
 	narrowed := publishedChanges(t, bus)
 	if len(narrowed) != 3 || len(narrowed[2].ECMPPaths) != 0 {
@@ -96,7 +95,7 @@ func TestReplayAgreesWithTheLiveAddForAnUnresolvedGateway(t *testing.T) {
 		t.Fatalf("setup: published %+v, want one add for %s over %s", live, pfx, nextHop)
 	}
 
-	s.replayBest(&replay.Request{ReplayID: replay.Broadcast})
+	s.publishReplay(t)
 
 	replayed := publishedChanges(t, bus)[1:]
 	if len(replayed) != 1 {
@@ -144,11 +143,11 @@ func TestInstalledIsASubsetOfBest(t *testing.T) {
 	// The gateway every prefix above shares loses its covering route, which is
 	// the state that empties the resolved table for the ones Ze programmed.
 	loc.Remove(family.IPv4Unicast, covering, connectedID, 0)
-	s.processCascade([]netip.Addr{gateway})
+	s.publishCascade(t, []netip.Addr{gateway})
 
 	for key := range s.installed {
 		if s.best[key] == nil {
-			t.Errorf("%s has a resolved next-hop and no best route: recomputeBest reads a nil "+
+			t.Errorf("%s has a resolved next-hop and no best route: recomputeForwarding reads a nil "+
 				"previous winner as \"Ze programmed nothing\" and would send an Add for a prefix "+
 				"the FIB already holds", key.prefix)
 		}

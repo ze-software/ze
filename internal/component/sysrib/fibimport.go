@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- selection, and the FIB write that follows it
-// Overview: sysrib.go -- recomputeBest and cascadeRecompute, the two producers this gates
-// Related: register.go -- the configure callbacks that install the permission set
+// Overview: sysrib.go -- recomputeForwarding and cascadeRecompute, the two producers this gates
+// Related: route_view_worker_operations.go -- configure, which installs the permission set and flushes its sweep
 // Related: ../../core/redistevents/registry.go -- ProtocolNames, the vocabulary
 //
 // Which protocols reach the FIB. `rib { fib-withhold [ bgp isis ] }` names the
@@ -78,8 +78,8 @@ func fibPermits(permit map[string]bool, protocol string) bool {
 // fibPermitted reports whether this protocol's routes are written to the FIB.
 //
 // A protocol the permission set does not hold is PERMITTED, and the name is
-// spoken once. Two states reach that branch: a route arriving before the
-// configure callback has run, and a protocol that registered after it. Reading
+// spoken once. Two states reach that branch: a route arriving before the first
+// permission set is installed, and a protocol that registered after it. Reading
 // either as "do not program" would blackhole every route the protocol carries,
 // which is far worse than programming a route the operator meant to withhold
 // and never said so about. This is the direction redistevents.OSInstalled
@@ -129,7 +129,7 @@ func (s *sysRIB) recordWithheldWinner(key prefixKey, prev, winner *protocolRoute
 	// The next-hop is tracked for a route Ze programs, so the resolver can tell
 	// it when the path to that next-hop changes. Nothing is programmed here, so
 	// the previous winner's tracking is released and the withheld winner's is
-	// never taken. recomputeBest takes it again when a permitted protocol wins
+	// never taken. recomputeForwarding takes it again when a permitted protocol wins
 	// the prefix back, whether or not the next-hop changed.
 	if prev != nil {
 		s.untrackNextHops(key.prefix, prev)
@@ -149,7 +149,7 @@ func (s *sysRIB) recordWithheldWinner(key prefixKey, prev, winner *protocolRoute
 
 // trackNextHops asks the resolver to re-evaluate this prefix when the path to
 // the route's next-hop changes. It is taken for a route Ze MEANS to program,
-// and only those: processCascade drives off the tracking table, so an entry for
+// and only those: cascadeChanges drives off the tracking table, so an entry for
 // a prefix Ze declined would re-evaluate one the kernel does not hold.
 //
 // Meaning to program is wider than programming. A prefix whose next-hop or
@@ -313,8 +313,9 @@ func fibChange(key prefixKey, route *protocolRoute, path forwardingPath, group [
 // A prefix Ze does not program is absent for three reasons and this setting is
 // only one of them: the OS owns the entry, the next-hop stopped resolving, or
 // the operator withholds the protocol. Acting on absence alone would program
-// the first two here, and publishFIBImport runs on every configure and every
-// rollback, so an edit elsewhere in `rib` would put an unreachable route back.
+// the first two here, and the worker's configure runs this sweep on every
+// configuration it applies, so an edit elsewhere in `rib` would put an
+// unreachable route back.
 //
 // The group is swept as well as the winner, because a member is programmed
 // exactly as the winner is. Withholding a protocol that holds no prefix of its
@@ -341,7 +342,7 @@ func (s *sysRIB) applyFIBImport(permit map[string]bool) map[family.Family][]outg
 			// The tracking goes whether or not the prefix is programmed. It is
 			// taken for a route Ze MEANS to program, and a prefix waiting on a
 			// next-hop or an SRv6 SID that does not resolve holds it with
-			// nothing installed (sysrib.go, recomputeBest).
+			// nothing installed (sysrib.go, recomputeForwarding).
 			s.untrackNextHops(key.prefix, route)
 			delete(s.lastECMP, key)
 			if !s.programmedByZe(key) {
@@ -415,12 +416,12 @@ func (s *sysRIB) groupPermissionChanged(key prefixKey, winner *protocolRoute, pr
 // A permission change is no news about a path. It is a fresh install decision,
 // and the Loc-RIB is not the router's whole picture of reachability: an OSPF or
 // IS-IS next-hop on a link whose connected route no plugin inserted resolves to
-// nothing and is on-link all the same, which is why recomputeBest programs it
+// nothing and is on-link all the same, which is why recomputeForwarding programs it
 // (test/ospf/ospf-route-install.ci). So the sweep programs it too, and so does
 // the cascade: fibInstall is the one tail all three take, and reading the
 // resolver's answer a second way there lost the prefix twice over. A permit
 // published NOTHING and nothing later repaired it, because an identical
-// re-announcement is a no-op at recomputeBest and a cascade fires only when a
+// re-announcement is a no-op at recomputeForwarding and a cascade fires only when a
 // covering route changes. And withholding one MEMBER of an equal-cost group
 // withdrew a prefix its permitted winner still holds, which blackholes it.
 //
@@ -436,15 +437,4 @@ func (s *sysRIB) fibStateChange(key prefixKey, route *protocolRoute) *outgoingCh
 
 	entry, verdict := s.fibEntry(key, route)
 	return s.fibInstall(key, entry, verdict)
-}
-
-// publishFIBImport installs the permission set and publishes what the switch
-// owes. It is the one route from a configure callback to the FIB plugins, so
-// the apply path and the rollback path cannot answer differently.
-func publishFIBImport(s *sysRIB, permit map[string]bool) {
-	for fam, changes := range s.applyFIBImport(permit) {
-		if len(changes) > 0 {
-			publishChanges(changes, fam)
-		}
-	}
 }

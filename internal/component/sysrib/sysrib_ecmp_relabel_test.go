@@ -26,8 +26,7 @@ import (
 // new label; the buggy next-hop-only comparison suppressed it.
 func TestSysribECMPRelabelEmitsBestChange(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.60.0.0/24")

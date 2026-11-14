@@ -18,8 +18,7 @@ import (
 
 func TestBackupNotFoldedIntoECMP(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	payload := makePayload("ospf", family.IPv4Unicast, []incomingChange{{
@@ -45,8 +44,7 @@ func TestBackupNotFoldedIntoECMP(t *testing.T) {
 // the next hop names the device and carries the onlink flag (gap #55).
 func TestBackupCarriesDeviceAndOnLink(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	payload := makePayload("ospf", family.IPv4Unicast, []incomingChange{{

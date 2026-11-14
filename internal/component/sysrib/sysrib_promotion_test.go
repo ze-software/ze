@@ -49,7 +49,7 @@ func addProducerRoute(s *candidateForwardingFixture, prefix netip.Prefix, route 
 		SRv6SID:   route.srv6SID,
 	}}))
 	if len(changes) > 0 {
-		publishChanges(changes, fam)
+		publishFamily(s.t, fam, changes)
 	}
 }
 

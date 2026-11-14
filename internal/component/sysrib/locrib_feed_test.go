@@ -23,8 +23,7 @@ func heldFeedWorker(t *testing.T, ctx context.Context, prefix netip.Prefix, path
 	rib := locrib.NewRIB()
 	rib.Insert(family.IPv4Unicast, prefix, path)
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	entered, release := make(chan struct{}), make(chan struct{})
 	var first, unblock sync.Once
 	releaseWorker := func() { unblock.Do(func() { close(release) }) }

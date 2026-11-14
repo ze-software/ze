@@ -23,11 +23,9 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
-	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/rib/nexthop"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/pkg/ze"
 )
 
 // sysribMetrics holds Prometheus metrics for the system RIB plugin.
@@ -81,29 +79,6 @@ func setLogger(l *slog.Logger) {
 	if l != nil {
 		loggerPtr.Store(l)
 	}
-}
-
-// eventBusPtr stores the EventBus instance.
-var eventBusPtr atomic.Pointer[ze.EventBus]
-
-func setEventBus(eb ze.EventBus) {
-	if eb != nil {
-		eventBusPtr.Store(&eb)
-	}
-}
-
-// clearEventBus removes any stored EventBus. Used by tests that share the
-// package-level pointer between cases.
-func clearEventBus() {
-	eventBusPtr.Store(nil)
-}
-
-func getEventBus() ze.EventBus {
-	p := eventBusPtr.Load()
-	if p == nil {
-		return nil
-	}
-	return *p
 }
 
 // protocolRoute is one protocol's best route for a prefix.
@@ -366,8 +341,9 @@ func adminDistanceValue(v any) (int, error) {
 // payload shape used by fib plugins.
 type outgoingChange = sysribevents.BestChangeEntry
 
-// outgoingBatch aliases the exported payload type. The producer builds one
-// batch per family and emits via the typed BestChange handle.
+// outgoingBatch aliases the exported payload type. orderForwarding cuts one
+// publication into these batches, and the daemon's routing-view output emits
+// each via the typed BestChange handle (route_view_output.go, publish).
 type outgoingBatch = sysribevents.BestChangeBatch
 
 // recomputeForwarding evaluates the FIB effect of the authority's selected
@@ -518,8 +494,8 @@ func (s *sysRIB) recomputeForwarding(key prefixKey, winner *protocolRoute) *outg
 	// a Replace would clobber a route Ze never installed. mplsentry.go chooses
 	// Add over Replace for this path's reason.
 	//
-	// It is NOT a rule about the verb. replayBest emits an Add for every prefix
-	// it replays, so a fib-kernel restart over a kernel table Ze's own entries
+	// It is NOT a rule about the verb. A replay (replayChanges) emits an Add for
+	// every prefix it replays, so a fib-kernel restart over a kernel table Ze's own entries
 	// survived answers EEXIST once per prefix, and raises one fib-sync-failure
 	// for each.
 	if programmed {
@@ -721,7 +697,7 @@ func (s *sysRIB) fibEntry(key prefixKey, best *protocolRoute) (outgoingChange, f
 // cascadeRecompute re-resolves the NH for a prefix whose covering route
 // changed. Returns an outgoing change if the state Ze holds for the prefix
 // differs from what fibEntry now says the FIB owes, nil otherwise.
-// processCascade is the one caller.
+// cascadeChanges is the one caller.
 //
 // What the prefix then owes is fibInstall's answer, the SAME answer the
 // permission sweep takes (fibimport.go, fibStateChange). The guards below are
@@ -943,17 +919,11 @@ func resolveMember(path forwardingPath, r *nhResolver) (forwardingPath, bool) {
 	return path, true
 }
 
-// processCascade re-evaluates all prefixes that depend on the given NHs.
-// Handles multi-level cascades: if a re-evaluated prefix itself covers
-// other tracked NHs, those dependents are also re-evaluated.
-func (s *sysRIB) processCascade(nhs []netip.Addr) {
-	for fam, changes := range s.cascadeChanges(nhs) {
-		publishChanges(changes, fam)
-	}
-}
-
-// cascadeChanges computes owned changes without publishing. The routing-view
-// worker MUST await its generation-bound sink after these locks are released.
+// cascadeChanges re-evaluates every prefix that depends on the given NHs and
+// answers with the owned changes, without publishing. It handles multi-level
+// cascades: a re-evaluated prefix that itself covers other tracked NHs brings
+// their dependents in too. The routing-view worker publishes the result with
+// the selected changes that caused it, after these locks are released.
 func (s *sysRIB) cascadeChanges(nhs []netip.Addr) map[family.Family][]outgoingChange {
 	r := s.nextHopResolver()
 	if r == nil {
@@ -995,59 +965,6 @@ func (s *sysRIB) cascadeChanges(nhs []netip.Addr) map[family.Family][]outgoingCh
 	s.mu.Unlock()
 
 	return changesByFamily
-}
-
-// publishChanges emits one event on (system-rib, best-change) via the
-// typed BestChange handle. In-process FIB plugins receive the *BestChangeBatch
-// directly; external plugin processes receive JSON marshaled by the bus.
-func publishChanges(changes []outgoingChange, fam family.Family) {
-	eb := getEventBus()
-	if eb == nil {
-		return
-	}
-
-	batch := &outgoingBatch{
-		Family:  fam,
-		Changes: changes,
-	}
-	if _, err := sysribevents.BestChange.Emit(eb, batch); err != nil {
-		logger().Warn("sysrib: emit failed", "error", err)
-	}
-}
-
-// replayBest publishes the current system best table as batch events. Used for
-// full-table replay when a downstream subscriber (e.g. a FIB backend) requests
-// it. This hop is broadcast, so the request's token is ignored except to stamp
-// it onto the batches (replay.Broadcast), which makes IsReplay() report true.
-func (s *sysRIB) replayBest(req *replay.Request) {
-	eb := getEventBus()
-	if eb == nil {
-		return
-	}
-	batches := s.replayBatches(req)
-	for _, batch := range batches {
-		if _, err := sysribevents.BestChange.Emit(eb, &batch); err != nil {
-			logger().Warn("sysrib: replay emit failed", "error", err)
-		}
-	}
-	logger().Info("sysrib: replay published", "families", len(batches))
-}
-
-// replayBatches renders the same programmed state as live forwarding, one
-// batch per family in no particular order. Only the in-process event-bus
-// replay and tests read it; the routing-view worker publishes replayChanges,
-// which its publish orders.
-func (s *sysRIB) replayBatches(req *replay.Request) []outgoingBatch {
-	changesByFamily := s.replayChanges()
-	batches := make([]outgoingBatch, 0, len(changesByFamily))
-	for famName, changes := range changesByFamily {
-		batches = append(batches, outgoingBatch{
-			Family:   famName,
-			ReplayID: req.ReplayID,
-			Changes:  changes,
-		})
-	}
-	return batches
 }
 
 // replayChanges renders the same programmed state as live forwarding, keyed by

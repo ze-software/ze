@@ -58,9 +58,9 @@ const Name = "fakeredist"
 // both Origin and Source when consulting the evaluator.
 const ProtocolName = "fakeredist"
 
-// loggerPtr / eventBusPtr follow the sysrib pattern: package-level atomic
-// pointers set by the registration's ConfigureEngineLogger / ConfigureEventBus
-// callbacks before RunEngine.
+// loggerPtr / eventBusPtr are package-level atomic pointers set by the
+// registration's ConfigureEngineLogger / ConfigureEventBus callbacks before
+// RunEngine, as other internal plugins do.
 var loggerPtr atomic.Pointer[slog.Logger]
 
 func init() {

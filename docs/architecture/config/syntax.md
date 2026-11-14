@@ -2006,15 +2006,23 @@ is the same parse over an empty tree, so the schema stays the one declaration:
 rollback path needs the same seed, because a callback that never fired leaves no
 previous value to restore and an empty map would strip what the seed installed.
 
-`runSysRIBPlugin` now seeds two tables this way. `parseFIBImportConfig("{}")`
-fills the FIB permission set beside the distance table, and a `rib {
-fib-withhold }` list overrides it. Both tables take one route through the
-callbacks: `OnConfigVerify` parses them, `OnConfigure` and `OnConfigApply`
-install them, and the rollback restores the seed when the previous value is
-empty.
+The system RIB now seeds two tables this way, through one parse.
+`parseRouteViewConfiguration` reads the `rib` section, or `{}` when the
+delivery carries none, and fills the FIB permission set
+(`parseFIBImportConfig`) beside the distance table, so a `rib { fib-withhold }`
+list overrides the seed. The parse of no section is the initial declaration
+of the `sdk.ConfigTx` that `runRouteViewPlugin` registers, and both tables take
+one route through it: the boot install opens the routing-view client with them,
+and every later configure, apply and rollback hands the complete declaration to
+`ApplyConfiguration`, which queues it to the consumer worker. The worker's
+`configure` installs the permission set with `applyFIBImport` and flushes the
+sweep it owes as one ordered publication, the route every other forwarding
+change takes.
 
-<!-- source: internal/component/sysrib/register.go -- runSysRIBPlugin -->
-<!-- source: internal/component/sysrib/fibimport.go -- parseFIBImportConfig, publishFIBImport -->
+<!-- source: internal/component/sysrib/register.go -- runSysRIBPlugin, runRouteViewPlugin -->
+<!-- source: internal/component/sysrib/route_view_config.go -- parseRouteViewConfiguration -->
+<!-- source: internal/component/sysrib/fibimport.go -- parseFIBImportConfig, applyFIBImport -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- ApplyConfiguration, configure, flush -->
 
 ## Custom YANG Extensions
 

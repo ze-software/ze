@@ -24,8 +24,7 @@ func candidateBatch(proto string, fam family.Family, c *incomingChange) *incomin
 // forwarding: one primary and one member in ECMPPaths.
 func TestSysribECMPPathGroup(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.50.0.0/24")
@@ -62,8 +61,7 @@ func TestSysribECMPPathGroup(t *testing.T) {
 // Its authoritative forwarding value must keep ECMPPaths empty.
 func TestSysribSinglePathNoECMP(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	pfx := netip.MustParsePrefix("10.51.0.0/24")

@@ -96,7 +96,7 @@ Route wins in a protocol, then gets programmed in the kernel:
    `cascadeRecompute` (`sysrib.go`) re-evaluate their `nhResolver` dependents, so a
    recursive next-hop's reachability change reprograms every dependent prefix without
    waiting for its own protocol to re-announce. The selected changes and their cascade
-   are one publication. `processCascade` is reached only from tests.
+   are one publication.
 7. **Publish.** The routing-view worker's `publish`
    (`internal/component/sysrib/route_view_worker_output.go`) takes one publication
    (the selected changes plus their cascade, a configuration flush, or a replay),
@@ -106,8 +106,6 @@ Route wins in a protocol, then gets programmed in the kernel:
    answers ENETUNREACH otherwise), and sends the ordered family batches through the
    daemon's acknowledged output, which emits `sysribevents.BestChange`
    (`internal/component/sysrib/route_view_output.go`). Withdrawals never move.
-   `publishChanges` (`sysrib.go`), a direct per-family EventBus emit, is reached only
-   from tests.
 8. **fib-kernel installs.** `fibKernel.processEvent`
    (`internal/plugins/fib/kernel/fibkernel.go`) dispatches each entry by
    `c.Action.Verb()` (`internal/core/bgp/routeaction/routeaction.go`: Install/Replace/Remove)
@@ -148,7 +146,7 @@ Route wins in a protocol, then gets programmed in the kernel:
     independent of which side came up first. sysrib's `HandleEvent`
     (`route_view_worker.go`) admits only the Broadcast identity, and `replay` publishes
     `replayChanges` (`sysrib.go`), the programmed prefixes only, through the same
-    ordered `publish`. `replayBest` is reached only from tests.
+    ordered `publish`.
 11. **External-change re-assertion.** `fib-kernel`'s route monitor
     (`internal/plugins/fib/kernel/monitor_linux.go`) registers on the shared
     `routewatch.Global()` watcher; `handleExternalChange`

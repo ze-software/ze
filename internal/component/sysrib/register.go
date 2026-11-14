@@ -20,7 +20,6 @@ import (
 	"github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
-	"github.com/ze-software/ze/pkg/ze"
 )
 
 const configRootRIB = "rib"
@@ -68,9 +67,6 @@ func init() {
 		},
 		ConfigureMetrics: func(reg metrics.Registry) {
 			SetMetricsRegistry(reg)
-		},
-		ConfigureEventBus: func(eb ze.EventBus) {
-			setEventBus(eb)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

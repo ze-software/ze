@@ -7,7 +7,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/nexthop"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
@@ -50,8 +49,7 @@ func TestRecursiveCrossFamilyGroupReachesFIB(t *testing.T) {
 	SetLocRIB(loc)
 	t.Cleanup(func() { SetLocRIB(nil) })
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	gateway := netip.MustParseAddr("fe80::2")
 	for index, cover := range []string{"192.0.2.1/32", "192.0.2.2/32"} {
@@ -84,7 +82,7 @@ func TestRecursiveCrossFamilyGroupReachesFIB(t *testing.T) {
 		}
 	}
 	check(changes)
-	s.replayBest(&replay.Request{ReplayID: replay.Broadcast})
+	s.publishReplay(t)
 	check(publishedChanges(t, bus))
 }
 
@@ -96,8 +94,7 @@ func TestECMPRecursiveMemberLifecycle(t *testing.T) {
 	SetLocRIB(loc)
 	t.Cleanup(func() { SetLocRIB(nil) })
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	prefix := netip.MustParsePrefix("198.51.100.0/24")
 	cover := netip.MustParsePrefix("2001:db8::/64")
@@ -115,18 +112,18 @@ func TestECMPRecursiveMemberLifecycle(t *testing.T) {
 	}
 	terminal.Interface = "eth2"
 	loc.Insert(family.IPv6Unicast, cover, terminal)
-	s.processCascade(getNHResolver().CoveredNHs(cover))
+	s.publishCascade(t, getNHResolver().CoveredNHs(cover))
 	published := publishedChanges(t, bus)
 	if len(published) != 1 || published[0].Action != routeaction.Update || len(published[0].ECMPPaths) != 1 || published[0].ECMPPaths[0].Interface != "eth2" {
 		t.Fatalf("member device change = %+v", published)
 	}
-	s.replayBest(&replay.Request{ReplayID: replay.Broadcast})
+	s.publishReplay(t)
 	published = publishedChanges(t, bus)
 	if len(published) != 2 || len(published[1].ECMPPaths) != 1 || published[1].ECMPPaths[0].Interface != "eth2" || published[1].ECMPPaths[0].Weight != 3 {
 		t.Fatalf("member replay = %+v", published)
 	}
 	loc.Remove(family.IPv6Unicast, cover, testProto, 0)
-	s.processCascade(getNHResolver().CoveredNHs(cover))
+	s.publishCascade(t, getNHResolver().CoveredNHs(cover))
 	published = publishedChanges(t, bus)
 	if len(published) != 3 || published[2].Action != routeaction.Update || len(published[2].ECMPPaths) != 0 || published[2].Interface != "eth0" {
 		t.Fatalf("member withdrawal = %+v", published)
@@ -136,7 +133,7 @@ func TestECMPRecursiveMemberLifecycle(t *testing.T) {
 		t.Fatalf("withhold = %+v", withheld)
 	}
 	loc.Insert(family.IPv6Unicast, cover, terminal)
-	s.processCascade(getNHResolver().CoveredNHs(cover))
+	s.publishCascade(t, getNHResolver().CoveredNHs(cover))
 	if got := len(publishedChanges(t, bus)); got != len(published) {
 		t.Fatalf("withheld prefix reinstalled: %d events", got)
 	}
@@ -153,8 +150,7 @@ func TestLocRIBServiceSIDLifecycle(t *testing.T) {
 	SetLocRIB(loc)
 	t.Cleanup(func() { SetLocRIB(nil) })
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	prefix := netip.MustParsePrefix("198.51.100.0/24")
 	cover := netip.MustParsePrefix("2001:db8::/64")
@@ -163,25 +159,23 @@ func TestLocRIBServiceSIDLifecycle(t *testing.T) {
 	path.SRv6SID = netip.MustParseAddr("2001:db8::1234")
 	loc.Insert(family.IPv4Unicast, prefix, path)
 	selected := s.forwardSelected(map[prefixKey]struct{}{{family: family.IPv4Unicast, prefix: prefix}: {}})
-	for fam, changes := range selected {
-		publishChanges(changes, fam)
-	}
+	publishForwarding(t, selected, 0)
 	if got := publishedChanges(t, bus); len(got) != 0 {
 		t.Fatalf("unreachable SID installed: %+v", got)
 	}
 	loc.Insert(family.IPv6Unicast, cover, connectedPath(0))
-	s.processCascade(getNHResolver().CoveredNHs(cover))
+	s.publishCascade(t, getNHResolver().CoveredNHs(cover))
 	got := publishedChanges(t, bus)
 	if len(got) != 1 || got[0].SRv6SID != path.SRv6SID || got[0].Action != routeaction.Add {
 		t.Fatalf("reachable SID not installed: %+v", got)
 	}
-	s.replayBest(&replay.Request{ReplayID: replay.Broadcast})
+	s.publishReplay(t)
 	got = publishedChanges(t, bus)
 	if len(got) != 2 || got[1].SRv6SID != path.SRv6SID {
 		t.Fatalf("SID lost on replay: %+v", got)
 	}
 	loc.Remove(family.IPv6Unicast, cover, testProto, 0)
-	s.processCascade(getNHResolver().CoveredNHs(cover))
+	s.publishCascade(t, getNHResolver().CoveredNHs(cover))
 	got = publishedChanges(t, bus)
 	if len(got) != 3 || got[2].Action != routeaction.Withdraw {
 		t.Fatalf("unreachable SID not withdrawn: %+v", got)
@@ -195,8 +189,7 @@ func TestCascadeKeepsLostPathWithdrawn(t *testing.T) {
 	SetLocRIB(loc)
 	t.Cleanup(func() { SetLocRIB(nil) })
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 	cover := netip.MustParsePrefix("192.0.2.0/24")
 	gateway := netip.MustParseAddr("192.0.2.1")
@@ -210,14 +203,14 @@ func TestCascadeKeepsLostPathWithdrawn(t *testing.T) {
 	}
 	loc.Remove(family.IPv4Unicast, cover, testProto, 0)
 	for range 2 {
-		s.processCascade(getNHResolver().CoveredNHs(cover))
+		s.publishCascade(t, getNHResolver().CoveredNHs(cover))
 	}
 	got := publishedChanges(t, bus)
 	if len(got) != 1 || got[0].Action != routeaction.Withdraw {
 		t.Fatalf("unreachable cascade resurrected the route: %+v", got)
 	}
 	loc.Insert(family.IPv4Unicast, cover, connectedPath(0))
-	s.processCascade(getNHResolver().CoveredNHs(cover))
+	s.publishCascade(t, getNHResolver().CoveredNHs(cover))
 	got = publishedChanges(t, bus)
 	if len(got) != 2 || got[1].Action != routeaction.Add {
 		t.Fatalf("restored covering route did not reinstall: %+v", got)
@@ -240,7 +233,7 @@ func TestPromotedPrimaryMetadataChangesReachFIB(t *testing.T) {
 	if len(got) != 4 || got[3].Action != routeaction.Update || got[3].Interface != "eth2" {
 		t.Fatalf("same-address promoted device change was suppressed: %+v", got)
 	}
-	state.sysrib.replayBest(&replay.Request{ReplayID: replay.Broadcast})
+	state.sysrib.publishReplay(t)
 	got = publishedChanges(t, state.bus)
 	if len(got) != 5 || got[4].NextHop != state.member.nextHop || got[4].Interface != "eth2" || len(got[4].Labels) != 1 || got[4].Labels[0] != 200 {
 		t.Fatalf("replay differs from the installed promoted path: %+v", got)

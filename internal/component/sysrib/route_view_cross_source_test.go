@@ -98,7 +98,7 @@ func TestRouteViewCrossSourceMembersRetainPermissions(t *testing.T) {
 			if len(restored) != 1 || restored[0].Action != routeaction.Update || len(restored[0].ECMPPaths) != 1 || restored[0].ECMPPaths[0].Interface != "member" {
 				t.Fatalf("permitting the owner required producer reannouncement: %+v", restored)
 			}
-			replayed := state.replayBatches(&replay.Request{ReplayID: replay.Broadcast})
+			replayed := state.orderedReplay(t, replay.Broadcast)
 			if len(replayed) != 1 || len(replayed[0].Changes) != 1 || len(replayed[0].Changes[0].ECMPPaths) != 1 || replayed[0].Changes[0].ECMPPaths[0].Interface != "member" {
 				t.Fatalf("replay lost permitted source ownership: %+v", replayed)
 			}

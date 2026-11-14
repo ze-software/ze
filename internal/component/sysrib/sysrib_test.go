@@ -88,8 +88,7 @@ func makePayload(protocol string, fam family.Family, changes []incomingChange) *
 // PREVENTS: System RIB not selecting correct winner.
 func TestSysRIBSelectByPriority(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	// eBGP route arrives with priority 20.
@@ -111,8 +110,7 @@ func TestSysRIBSelectByPriority(t *testing.T) {
 // PREVENTS: Higher-priority (lower number) route not winning.
 func TestSysRIBStaticWinsOverBGP(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	// BGP route first.
@@ -136,8 +134,7 @@ func TestSysRIBStaticWinsOverBGP(t *testing.T) {
 // PREVENTS: Fallback to remaining protocol not working.
 func TestSysRIBFallback(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	// Install both routes.
@@ -164,8 +161,7 @@ func TestSysRIBFallback(t *testing.T) {
 // PREVENTS: Stale entries remaining in system RIB.
 func TestSysRIBWithdrawAll(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	// Install and then withdraw using IPv6 family.
@@ -205,10 +201,11 @@ func TestSysRIBWithdrawAllWithoutProtocol(t *testing.T) {
 
 // VALIDATES: AC-4 -- System RIB emits (sysrib, best-change) on system best change.
 // PREVENTS: EventBus events not being published.
+// The change goes the way the worker sends it: ordered by orderForwarding, then
+// handed to the daemon's routing-view output (routeViewAuthority.publish) on the
+// fixture's own session, which emits it on the bus the server owns.
 func TestSysRIBPublishChange(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
 	s := newCandidateForwardingFixture(t, fixtureRouteOverride)
 
 	payload := makePayload("bgp", family.IPv4Unicast, []incomingChange{
@@ -217,7 +214,12 @@ func TestSysRIBPublishChange(t *testing.T) {
 	_, changes := s.offerCandidates(payload)
 	require.Len(t, changes, 1)
 
-	publishChanges(changes, family.IPv4Unicast)
+	batches, err := orderForwarding(map[family.Family][]outgoingChange{family.IPv4Unicast: changes}, 0)
+	require.NoError(t, err)
+	require.Len(t, batches, 1)
+	_, err = s.authority.publish(t.Context(), s.owner,
+		routeViewPublication{Session: s.session, Operation: 1, Batch: batches[0]}, bus)
+	require.NoError(t, err)
 
 	evt := bus.lastEvent()
 	require.NotNil(t, evt)
@@ -238,8 +240,7 @@ func TestSysRIBPublishChange(t *testing.T) {
 // echoes the requested broadcast token.
 func TestBroadcastReplayCharacterization(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	entry := []incomingChange{{
 		Action:   routeaction.Add,
@@ -259,7 +260,7 @@ func TestBroadcastReplayCharacterization(t *testing.T) {
 	repBatch.ReplayID = replay.Broadcast
 	require.True(t, repBatch.IsReplay(), "batch must report as a replay")
 	sRep.offerCandidates(repBatch)
-	replayed := sRep.replayBatches(&replay.Request{ReplayID: repBatch.ReplayID})
+	replayed := sRep.orderedReplay(t, repBatch.ReplayID)
 	require.Len(t, replayed, 1)
 	require.Len(t, replayed[0].Changes, 1)
 	require.Equal(t, repBatch.ReplayID, replayed[0].ReplayID)
@@ -421,8 +422,7 @@ func TestSysRIBNoConfigPassthrough(t *testing.T) {
 // PREVENTS: Config reload not affecting existing routes.
 func TestSysRIBAdminDistanceReload(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 	s := newCandidateForwardingFixture(t, fixtureStampedRank)
 	s.acknowledgeDistances(map[string]int{"ebgp": 20, "static": 10})
 
@@ -590,8 +590,7 @@ func TestParseAdminDistanceConfig(t *testing.T) {
 func TestSysribApplyJournal(t *testing.T) {
 	s := newCandidateForwardingFixture(t, fixtureStampedRank)
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	s.acknowledgeDistances(map[string]int{"ebgp": 20, "ibgp": 200})
 	key := prefixKey{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}
@@ -675,8 +674,7 @@ func TestSysRIBConsumesLocRIB(t *testing.T) {
 	bgpID := redistevents.RegisterProtocol("bgp")
 
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	loc := locrib.NewRIB()
 	SetLocRIB(loc)
@@ -753,8 +751,7 @@ func TestSysRIBConsumesLocRIBECMPMembership(t *testing.T) {
 	ospfID := redistevents.RegisterProtocol("ospf")
 
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	loc := locrib.NewRIB()
 	SetLocRIB(loc)
@@ -842,8 +839,7 @@ func TestSysRIBReplaysLocRIBECMPMembership(t *testing.T) {
 	ospfID := redistevents.RegisterProtocol("ospf")
 
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	loc := locrib.NewRIB()
 	SetLocRIB(loc)
@@ -884,8 +880,7 @@ func TestSysRIBOSPFLocRIBAdminDistanceArbitration(t *testing.T) {
 	ospfID := redistevents.RegisterProtocol("ospf")
 
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	loc := locrib.NewRIB()
 	SetLocRIB(loc)
@@ -991,8 +986,7 @@ func TestNHCascadeWithdraw(t *testing.T) {
 	connID := redistevents.RegisterProtocol("connected")
 
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	loc := locrib.NewRIB()
 	SetLocRIB(loc)
@@ -1039,8 +1033,7 @@ func TestNHCascadeCostChange(t *testing.T) {
 	connID := redistevents.RegisterProtocol("connected")
 
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	loc := locrib.NewRIB()
 	SetLocRIB(loc)
@@ -1090,8 +1083,7 @@ func TestECMPMemberFail(t *testing.T) {
 	connID := redistevents.RegisterProtocol("connected")
 
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	loc := locrib.NewRIB()
 	SetLocRIB(loc)
@@ -1182,8 +1174,7 @@ func TestNHCascadeRestore(t *testing.T) {
 	connID := redistevents.RegisterProtocol("connected")
 
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	loc := locrib.NewRIB()
 	SetLocRIB(loc)

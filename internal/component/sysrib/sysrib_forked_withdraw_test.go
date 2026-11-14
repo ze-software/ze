@@ -66,8 +66,7 @@ func waitForEntry(t *testing.T, b *testEventBus, match func(sysribevents.BestCha
 // is applied to the Loc-RIB but never reaches the FIB as a Withdraw.
 func TestForkedRouteRemovePublishesWithdraw(t *testing.T) {
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	rib := locrib.NewRIB()
 	SetLocRIB(rib)

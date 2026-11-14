@@ -25,7 +25,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
-	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
@@ -46,7 +45,7 @@ func addSRv6Path(s *candidateForwardingFixture, prefix netip.Prefix, nextHop, si
 		Priority:  20,
 	}}))
 	if len(changes) > 0 {
-		publishChanges(changes, fam)
+		publishFamily(s.t, fam, changes)
 	}
 }
 
@@ -241,7 +240,7 @@ func TestUnresolvableSRv6SIDIsNotPromotedOntoAnEqualCostMember(t *testing.T) {
 	}
 }
 
-// TestReplayRereadsSRv6SIDResolvability is why replayBest asks fibEntry rather
+// TestReplayRereadsSRv6SIDResolvability is why replayChanges asks fibEntry rather
 // than reading the state it stored. A SID stops resolving when the locator
 // route leaves the Loc-RIB, and no producer sends sysrib a change for the
 // prefix that carries it. A replay that trusted the stored state would hand a
@@ -266,7 +265,7 @@ func TestReplayRereadsSRv6SIDResolvability(t *testing.T) {
 		t.Fatalf("setup: published %+v, want one add for %s", changes, pfx)
 	}
 
-	s.replayBest(&replay.Request{ReplayID: replay.Broadcast})
+	s.publishReplay(t)
 	replayed := publishedChanges(t, bus)[1:]
 	if len(replayed) != 1 || replayed[0].Prefix != pfx {
 		t.Fatalf("setup: the replay published %+v, want %s while its SID resolves", replayed, pfx)
@@ -276,7 +275,7 @@ func TestReplayRereadsSRv6SIDResolvability(t *testing.T) {
 	// is the only reader of: sysrib holds the prefix as programmed.
 	loc.Remove(family.IPv6Unicast, srv6Locator, connectedID, 0)
 
-	s.replayBest(&replay.Request{ReplayID: replay.Broadcast})
+	s.publishReplay(t)
 	after := publishedChanges(t, bus)[2:]
 	if len(after) != 0 {
 		t.Errorf("the replay published %+v, want nothing: %s no longer resolves, so a FIB plugin "+

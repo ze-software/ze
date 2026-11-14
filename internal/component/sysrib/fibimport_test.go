@@ -37,8 +37,7 @@ func withholdConfig(t *testing.T, names ...string) string {
 // withholds produce, on an event bus the test reads back.
 func configuredSysRIB(t *testing.T, bus *testEventBus, withheld ...string) *candidateForwardingFixture {
 	t.Helper()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	permit, err := parseFIBImportConfig(withholdConfig(t, withheld...))
 	if err != nil {
@@ -239,9 +238,7 @@ func TestReconfigureWithdrawsAProtocolNewlyWithheld(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse the withhold list: %v", err)
 	}
-	for fam, changes := range s.applyFIBImport(permit) {
-		publishChanges(changes, fam)
-	}
+	s.publishPermissions(t, permit)
 
 	changes := publishedChanges(t, bus)
 	if len(changes) != 2 {
@@ -272,9 +269,7 @@ func TestReconfigureReaddsAProtocolNewlyPermitted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse an empty config: %v", err)
 	}
-	for fam, changes := range s.applyFIBImport(permit) {
-		publishChanges(changes, fam)
-	}
+	s.publishPermissions(t, permit)
 
 	changes := publishedChanges(t, bus)
 	if len(changes) != 1 {
@@ -311,7 +306,7 @@ func addPath(s *candidateForwardingFixture, protocol string, prefix netip.Prefix
 		Priority:  priority,
 	}}))
 	if len(changes) > 0 {
-		publishChanges(changes, fam)
+		publishFamily(s.t, fam, changes)
 	}
 }
 
@@ -323,20 +318,20 @@ func withdrawPath(s *candidateForwardingFixture, protocol string, prefix netip.P
 		Prefix: prefix,
 	}}))
 	if len(changes) > 0 {
-		publishChanges(changes, fam)
+		publishFamily(s.t, fam, changes)
 	}
 }
 
 // reconfigure installs the permission set the named withholds produce and
-// publishes what the switch owes, which is the pair of steps a configure
-// callback takes.
+// publishes what the switch owes, which is the pair of steps the worker's
+// configure takes.
 func reconfigure(t *testing.T, s *candidateForwardingFixture, withheld ...string) {
 	t.Helper()
 	permit, err := parseFIBImportConfig(withholdConfig(t, withheld...))
 	if err != nil {
 		t.Fatalf("parse the withhold list: %v", err)
 	}
-	publishFIBImport(s.sysRIB, permit)
+	s.publishPermissions(t, permit)
 }
 
 // trackedPrefixes reports the prefixes the resolver re-evaluates when nextHop
@@ -448,7 +443,7 @@ func TestReconfigureDoesNotResurrectAnUnreachableRoute(t *testing.T) {
 	addPath(s, "bgp", pfx, nextHop, "", 20)
 
 	loc.Remove(family.IPv4Unicast, covering, connectedID, 0)
-	s.processCascade([]netip.Addr{nextHop})
+	s.publishCascade(t, []netip.Addr{nextHop})
 
 	changes := publishedChanges(t, bus)
 	if len(changes) != 2 || changes[1].Action != routeaction.Withdraw {
@@ -699,7 +694,7 @@ func TestWithholdingReleasesTheNextHopOfAnUnprogrammedPrefix(t *testing.T) {
 	addPath(s, "bgp", pfx, nextHop, "", 20)
 
 	loc.Remove(family.IPv4Unicast, covering, connectedID, 0)
-	s.processCascade([]netip.Addr{nextHop})
+	s.publishCascade(t, []netip.Addr{nextHop})
 	if !slices.Contains(trackedPrefixes(t, nextHop), pfx) {
 		t.Fatalf("setup: the cascade released %v, so this test proves nothing about the withhold", nextHop)
 	}
@@ -738,7 +733,7 @@ func TestUnrelatedApplyKeepsAnUnreachableMemberOutOfTheGroup(t *testing.T) {
 	addPath(s, "ospf", pfx, memberNH, "", 20)
 
 	loc.Remove(family.IPv4Unicast, memberCovering, connectedID, 0)
-	s.processCascade([]netip.Addr{winnerNH})
+	s.publishCascade(t, []netip.Addr{winnerNH})
 	published := publishedChanges(t, bus)
 	if len(published) != 3 || len(published[2].ECMPPaths) != 0 {
 		t.Fatalf("setup: published %+v, want the cascade to drop the unreachable member", published)
@@ -788,7 +783,7 @@ func TestWithholdingAnUnreachableMemberPublishesNothing(t *testing.T) {
 	addPath(s, "ospf", pfx, memberNH, "", 20)
 
 	loc.Remove(family.IPv4Unicast, memberCovering, connectedID, 0)
-	s.processCascade([]netip.Addr{winnerNH})
+	s.publishCascade(t, []netip.Addr{winnerNH})
 	published := publishedChanges(t, bus)
 	if len(published) != 3 || len(published[2].ECMPPaths) != 0 {
 		t.Fatalf("setup: published %+v, want the cascade to drop the unreachable member", published)
@@ -919,7 +914,7 @@ func addRoutes(s *candidateForwardingFixture, protocol string, prefixes []netip.
 	}
 	fam, changes := s.offerCandidates(makePayload(protocol, family.IPv4Unicast, incoming))
 	if len(changes) > 0 {
-		publishChanges(changes, fam)
+		publishFamily(s.t, fam, changes)
 	}
 }
 

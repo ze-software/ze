@@ -15,7 +15,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
-	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
@@ -44,7 +43,7 @@ func TestCascadeWithdrawsAGroupPromotedToADeviceOnlyMember(t *testing.T) {
 	addPath(s, "ospf", pfx, netip.Addr{}, "eth0", 20)
 
 	loc.Remove(family.IPv4Unicast, covering, connectedID, 0)
-	s.processCascade([]netip.Addr{winnerNH})
+	s.publishCascade(t, []netip.Addr{winnerNH})
 	promoted := publishedChanges(t, bus)
 	if len(promoted) != 3 || promoted[2].Interface != "eth0" {
 		t.Fatalf("setup: published %+v, want the promotion of the device-only member", promoted)
@@ -53,7 +52,7 @@ func TestCascadeWithdrawsAGroupPromotedToADeviceOnlyMember(t *testing.T) {
 	// The member goes, and the winner's own gateway is still unreachable, so
 	// the prefix has nothing left to forward over.
 	withdrawPath(s, "ospf", pfx)
-	s.processCascade([]netip.Addr{winnerNH})
+	s.publishCascade(t, []netip.Addr{winnerNH})
 
 	left := publishedChanges(t, bus)[3:]
 	if len(left) != 1 || left[0].Action != routeaction.Withdraw || left[0].Prefix != pfx {
@@ -81,12 +80,12 @@ func TestReplaySkipsAPrefixZeDoesNotProgram(t *testing.T) {
 	addPath(s, "bgp", pfx, nextHop, "", 20)
 
 	loc.Remove(family.IPv4Unicast, covering, connectedID, 0)
-	s.processCascade([]netip.Addr{nextHop})
+	s.publishCascade(t, []netip.Addr{nextHop})
 	if changes := publishedChanges(t, bus); len(changes) != 2 || changes[1].Action != routeaction.Withdraw {
 		t.Fatalf("setup: published %+v, want the add and the withdraw an unreachable next-hop owes", changes)
 	}
 
-	s.replayBest(&replay.Request{ReplayID: replay.Broadcast})
+	s.publishReplay(t)
 
 	if replayed := publishedChanges(t, bus)[2:]; len(replayed) != 0 {
 		t.Errorf("the replay published %+v: %s is in the best table and Ze has no install "+

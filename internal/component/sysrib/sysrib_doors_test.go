@@ -103,7 +103,7 @@ func cascadeDoor(t *testing.T, pfx netip.Prefix) *sysRIB {
 	s := configuredSysRIB(t, bus)
 	addPath(s, "bgp", pfx, unresolvableGateway, "eth0", 20)
 
-	s.processCascade([]netip.Addr{unresolvableGateway})
+	s.publishCascade(t, []netip.Addr{unresolvableGateway})
 
 	cascaded := publishedChanges(t, bus)[1:]
 	if len(cascaded) != 0 {
@@ -137,7 +137,7 @@ func TestCascadeWithdrawsAPathItLaterProved(t *testing.T) {
 
 	covering := netip.MustParsePrefix("192.0.2.0/24")
 	loc.Insert(family.IPv4Unicast, covering, locrib.Path{Source: connectedID})
-	s.processCascade([]netip.Addr{unresolvableGateway})
+	s.publishCascade(t, []netip.Addr{unresolvableGateway})
 
 	if proved := publishedChanges(t, bus)[1:]; len(proved) != 0 {
 		t.Fatalf("setup: the cascade published %+v when %s became resolvable, want nothing: the "+
@@ -145,7 +145,7 @@ func TestCascadeWithdrawsAPathItLaterProved(t *testing.T) {
 	}
 
 	loc.Remove(family.IPv4Unicast, covering, connectedID, 0)
-	s.processCascade([]netip.Addr{unresolvableGateway})
+	s.publishCascade(t, []netip.Addr{unresolvableGateway})
 
 	lost := publishedChanges(t, bus)[1:]
 	if len(lost) != 1 || lost[0].Action != routeaction.Withdraw || lost[0].Prefix != pfx {

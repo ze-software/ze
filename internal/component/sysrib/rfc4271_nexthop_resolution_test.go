@@ -41,8 +41,7 @@ func startRFC4271RecursiveTopology(t *testing.T) *rfc4271RecursiveTopology {
 	connID := redistevents.RegisterProtocol("connected")
 
 	bus := newTestEventBus()
-	setEventBus(bus)
-	t.Cleanup(clearEventBus)
+	useForwardingBus(t, bus)
 
 	loc := locrib.NewRIB()
 	SetLocRIB(loc)

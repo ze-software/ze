@@ -15,7 +15,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
-	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
@@ -45,13 +44,13 @@ func TestReplayCarriesThePromotedMember(t *testing.T) {
 	addPath(s, "ospf", pfx, memberNH, "eth1", 20)
 
 	loc.Remove(family.IPv4Unicast, winnerPath, connectedID, 0)
-	s.processCascade([]netip.Addr{winnerNH})
+	s.publishCascade(t, []netip.Addr{winnerNH})
 	promoted := publishedChanges(t, bus)
 	if len(promoted) != 3 || promoted[2].NextHop != memberNH {
 		t.Fatalf("setup: published %+v, want the promotion of the member over %s", promoted, memberNH)
 	}
 
-	s.replayBest(&replay.Request{ReplayID: replay.Broadcast})
+	s.publishReplay(t)
 
 	replayed := publishedChanges(t, bus)[3:]
 	if len(replayed) != 1 {
@@ -107,7 +106,7 @@ func TestReplayCarriesTheProgrammedEntry(t *testing.T) {
 		t.Fatalf("setup: published %+v, want the add and the group update for %s", live, pfx)
 	}
 
-	s.replayBest(&replay.Request{ReplayID: replay.Broadcast})
+	s.publishReplay(t)
 
 	replayed := publishedChanges(t, bus)[2:]
 	if len(replayed) != 1 {

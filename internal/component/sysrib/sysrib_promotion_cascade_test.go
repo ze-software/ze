@@ -42,7 +42,7 @@ func TestCascadePromotesAMemberWithItsOwnLabels(t *testing.T) {
 	}
 
 	loc.Remove(family.IPv4Unicast, winnerCover, connectedID, 0)
-	state.sysrib.processCascade([]netip.Addr{state.winner.nextHop})
+	state.sysrib.publishCascade(t, []netip.Addr{state.winner.nextHop})
 
 	promoted := publishedChanges(t, state.bus)[len(installed):]
 	if len(promoted) != 1 || promoted[0].Action != routeaction.Update {
