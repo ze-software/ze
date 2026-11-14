@@ -118,9 +118,11 @@ Forced reads: the Go style guide (49KB) 858 times, the system door (11KB)
 ### Where the set stands (2026-11-14)
 
 Children 1, 2 and 6 closed on 2026-11-11. The session that ran them ended and
-no session picked the set up: nothing reports a set that has started and not
-finished, which is the defect child 4 now owns. Until child 4 lands, this
-table is the only record, and it is kept by hand.
+left a committed handover naming the next child. No later session was shown
+it, and a cleanup of closed handovers removed it on 2026-11-14 (935398f8df):
+nothing reports a set that has started and not finished, which is the defect
+child 4 now owns. Until child 4 lands, this table is the only record, and it
+is kept by hand.
 
 | Order | Child | Status | To pick it up |
 |-------|-------|--------|---------------|

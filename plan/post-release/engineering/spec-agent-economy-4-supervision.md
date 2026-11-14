@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | tooling |
 | Priority | P1 |
 | Release reason | Release-independent development tooling: it changes how the main thread is told about context size and agent cost and changes no shipped binary. |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -36,8 +36,11 @@ away.
 ### A spec set nobody is working (added 2026-11-14)
 
 The umbrella this spec belongs to stalled on 2026-11-11: three children
-closed, one sat `ready` and unclaimed, two stayed skeletons, the session that
-ran them ended, and nothing reported it. Every safeguard against abandoned
+closed, one sat `ready` and unclaimed, two stayed skeletons, and the session
+that ran them ended. It did leave a committed handover naming the next child
+(`plan/handover/2026-11-11-agent-economy.md`). Nothing showed that handover
+to a later session, and on 2026-11-14 a cleanup of closed handovers removed
+it (935398f8df): three closed children made the set look finished. Every safeguard against abandoned
 work reads one spec whose Status is `in-progress` under a live claim. An
 umbrella never reaches that state, and the one detector that blocks a stop
 exempts it by name, so a set of specs has no owner once its session ends.
@@ -89,13 +92,29 @@ Spec-set findings (2026-11-14, read at the producer by the main thread):
 | The per-spec state file is the handoff and lives in untracked session scratch. A committed handover is owed only once one is written | `ai/META-DECISIONS.md`, "A handover lives in the repository" |
 | A closed child's file is deleted, so the umbrella's Children table is the only place that says which children closed, and it is written by hand | `plan/post-release/engineering/spec-agent-economy-0-umbrella.md`, "Children" |
 
-Unverified, to probe before designing on it:
+Design research (2026-11-14, by a research agent; each row re-read at the producer by the main thread):
 
-| Question | Probe |
-|----------|-------|
-| Does a non-blocking message from a PostToolUse or PreToolUse hook reach the model? | Emit additional context from a named build and read the next turn |
-| Does the Agent tool's PostToolUse payload, or a SubagentStop payload, carry the agent id? | Record one payload into scratch |
-| Is the transcript flushed before a pre-tool hook runs? | Compare the transcript tail with the call in hand |
+| Finding | Where |
+|---------|-------|
+| A claim is one flat file per session or per agent holding the spec's file name. Nothing lists the claims of all sessions: the cap check reads spec Status only | `internal/le/le/path/session.go`, `SpecClaimMarker`; `internal/le/spec/session.go`, `wip` |
+| Whether a session is alive is judged in one place, the session reaper: a pid pin checked against the process list, the session id in a process's arguments, or a recent transcript. An agent's marker has no signal of its own and outlives the agent | `internal/le/session/reap.go`, `judge` |
+| Claim markers leak. The reaper removes a marker only when its session still has a dated directory among the dead, so a marker whose directory is gone stays: 64 markers against 46 session directories on 2026-11-14 | `internal/le/session/reap.go`, `flatMarkers` |
+| Which spec a commit closes is judged for the commit in hand only. No record of removed specs is kept, and `plan/learned/` holds nothing for the three closed children, so the removal commits in git history are the only source, and reading them is a walk of the history | `internal/le/commit/review.go`, `closedSpecStem`, `specWorkPopulation` |
+| Two functions group specs into sets and they disagree. The inventory and the roadmap use a file-name pattern that takes any name with a number in it for a set and cannot read a prefix that holds digits. The closure detector uses the umbrella marker or a sibling stem | `internal/le/spec/status/specstatus.go`, `detectSet`; `internal/le/spec/status/closure.go`, `inspectClosureSpec` |
+| The session-start summary reads no git on purpose, to stay fast | `internal/le/spec/status/specstatus.go`, `StatusPhrases`; `internal/le/hookruntime/lifecycle.go`, `reportSpecs` |
+| A release answers that it released and nothing more | `internal/le/spec/actions.go`, `answerRelease` |
+| The closure refusal's acknowledgement file is written by nobody in the tooling. The refusal itself prints the one-line command that creates it, so any agent can clear its own refusal | `internal/le/spec/status/closure.go`, `CheckClosure`; `closure_report.go` |
+| The claim refusal at the cap prints the setting that raises the cap by one, although the owner's rule says the cap is never raised | `internal/le/spec/session_report.go`, `ClaimReport.Text` |
+| An earlier record decided "No new rule" for an umbrella left open after its last child, and proposed treating an umbrella with closed children as a closure signal | `plan/learned/HOOK-FRICTION.md`, F21 |
+
+Harness questions, answered from the harness documentation on 2026-11-14 except the last:
+
+| Question | Answer |
+|----------|--------|
+| Does a non-blocking message from a PostToolUse or PreToolUse hook reach the model? | Yes: "Claude Code wraps the string in a system reminder", read on the next model request. Each string is capped at 10,000 characters, which a one-line report never nears |
+| Does the Agent tool's PostToolUse payload carry the agent id? | Yes, in the tool response. Its token figures cover the final request only |
+| Is the transcript flushed before a pre-tool hook runs? | No: it "is written asynchronously and may lag". The context size read is one turn old, which a 600k threshold tolerates |
+| Does a SubagentStop payload carry the agent id? | Not found in the documentation. Record one payload into scratch at phase 1 |
 
 ## Required Reading
 
@@ -146,7 +165,10 @@ Unverified, to probe before designing on it:
 | WIP cap and list | `internal/le/spec/session.go`, `wip`, `Claim` | One cap over `in-progress` specs, checked when a `ready` spec is claimed, with the stalest listed on refusal | Replaces: two limits. The open limit counts started and unclosed specs and live sets; the active limit counts live claims. The one cap is deleted, not kept beside them |
 | Spec claims | `internal/le/spec/session.go`, the session and agent markers | Record which session or agent holds which spec | Extends: the live claims are what the active limit counts |
 | Committed handover | `plan/handover/` | Holds a handover once a session writes one | Does not apply to a set left between children: the derived state already names the next child, so a note would be a second copy of it. It stays the home for work left half done |
-| Change-set trailer | `./le commit create`, the `Spec-work: <stem>` line | Ties each commit to the spec it was made under | Extends: with the spec's removal commit it is the record of which children closed, in place of the hand-written Children table |
+| Spec removal in git history | `internal/le/commit/review.go`, `closedSpecStem` | Judges which spec the commit in hand closes | Extends: the same judgment over past commits is the record of which children closed, kept in a cache keyed by HEAD so no reader walks history twice. The `Spec-work:` trailer is not the source: a commit made without a claim carries none |
+| Set detection in the inventory | `internal/le/spec/status/specstatus.go`, `detectSet` | Names a spec's set from its file name | Replaces: one grouping function answers the inventory, the roadmap and the closure detector. `detectSet` and the sibling-stem test in `inspectClosureSpec` are deleted |
+| Session liveness | `internal/le/session/reap.go`, `judge` | Decides which sessions are dead, for the reaper | Extends: the same judgment says whether a claim is live. No second liveness test is written |
+| Claim marker reaping | `internal/le/session/reap.go`, `flatMarkers` | Removes the markers of a dead session that still has a directory | Extends: a marker whose session has no directory is reaped too, and an agent's marker goes when the agent finishes |
 
 ## Data Flow (MANDATORY)
 
@@ -166,8 +188,27 @@ Unverified, to probe before designing on it:
 |----------|-----|----------|
 | Harness ↔ hook | payload in, additional context out | No |
 
+### Changed-Wire Census
+
+Four file or environment formats change or gain a reader. None is a network
+wire.
+
+**Search evidence:** `grep -rn "ZE_SPEC_WIP_CAP\|wipCapEntry" internal/le` finds the setting's reader in `internal/le/spec/session.go` and its printed form in `session_report.go`; the research agent's grep over `ai/`, `.claude/rules/`, `docs/contributing/` and `plan/` finds the text that names it. `grep -rn "closure-ack" internal/le` finds one reader and no writer. Positive control: `SpecClaimMarker` is the one producer of a claim marker's path.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| Claim marker file | writer | `internal/le/spec/session.go`, `Claim` | read | Preserved: one line holding the spec's file name |
+| Claim marker file | reader | `specClaim` in the hooks, `currentSpec`, the reaper's `flatMarkers`; new: the claim enumerator | read | Extended: a new reader lists every marker; the format is unchanged |
+| The WIP cap setting `ZE_SPEC_WIP_CAP` | writer | an operator or an agent setting it for one claim, as `ai/skills/ze-implement.md`, `ze-close.md`, `ze-status.md`, `.claude/rules/session-start.md`, `docs/contributing/spec-workflow.md` and `ai/META-DECISIONS.md` describe | research grep | Replaced: two settings, one per limit. Every page, skill, rule and spec that names the old one is converted in this work |
+| The WIP cap setting `ZE_SPEC_WIP_CAP` | reader | `internal/le/spec/session.go`, `wipCapEntry`, `cap`; printed by `ClaimReport.Text` | read | Replaced with the two readers; the old name is deleted, not kept as an alias |
+| Removed-spec cache (new) | writer | the grouping function in `internal/le/spec/status` | none exists today | New: a file under the session scratch root keyed by HEAD |
+| Removed-spec cache (new) | reader | the grouping function, for the status view, the session-start summary, the claim, the release and the stop hook | none exists today | New |
+| Hook additional context on an Agent call | writer | the after-hook on the Agent tool in `internal/le/hookruntime` | `.claude/settings.json` | Extended: gains the context size and the agent's call count |
+| Hook additional context on an Agent call | reader | the harness, which shows it to the main thread | harness documentation | Preserved: the envelope is unchanged and each string stays far under the 10,000-character cap |
+
 ### Integration Points
 - The agent-spawn hook, the transcript usage parser, the agent call counter, the spec claim, the rationale pages.
+- The status inventory, the roadmap's set column, the closure detector, the session reaper, the session-start summary, the release answer, the stop hook and `./le commit create`'s removal check.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -191,14 +232,18 @@ Unverified, to probe before designing on it:
 | AC-6 | A phase that owes several test judgments | One judge agent takes them in one brief | A judgment that must not see another's context stays alone |
 | AC-7 | `./le ai tokens` over a window of transcripts | Reports the umbrella's baseline figures | None |
 | AC-8 | A spec set with at least one child closed or claimed and at least one child still open | The status view reports the set as live and names its closed children, its open children and the next one to run, whatever Status the umbrella declares | A set none of whose children was ever claimed or closed stays an idea and is reported as today |
-| AC-9 | A live set on which no session and no agent holds a claim | The status view and the session-start summary report it as stalled, with the next child and the command that claims it | A set whose every open child waits on a named spec outside the set reports that spec instead: there is nothing to pick up |
+| AC-9 | A live set on which no live session and no running agent holds a claim | The status view and the session-start summary report it as stalled, with the next child, the command that claims it, and the set's handover file when one is tracked. The session-start summary reads the cache of removed specs and runs no git walk | A set whose every open child waits on a named spec outside the set reports that spec instead: there is nothing to pick up |
 | AC-10 | A session releases its claim on a child of a set whose other children are still open, or closes that child | The release answers with the remaining children and the next one, which is what the next session will be shown | Releasing the last open child reports the umbrella's own criteria as what remains |
 | AC-11 | A session stops while the spec it claimed is `in-progress` and nothing committed says where the work stands: no handover under `plan/handover/` and no blocked hand-back in the spec | The stop is refused, naming the spec and the two ways out: close it, or commit where it stands and release the claim | A session that closed its child and left the set between children stops freely: the derived state is its handover. The owner ending the session himself is never a hook's business |
-| AC-12 | An umbrella all of whose children are closed | The closure detector reports it as owing its own acceptance criteria and its closure, and the stop hook treats it as an implemented spec that is not closed | A child's closure record alone still never makes the umbrella a closure candidate |
+| AC-12 | An umbrella all of whose children are closed | The closure detector reports it as owing its own acceptance criteria and its closure, and the stop hook treats it as an implemented spec that is not closed. `plan/learned/HOOK-FRICTION.md` F21 is retired with this: its "No new rule" is reversed and its proposed fix is what lands | A child's closure record alone still never makes the umbrella a closure candidate |
 | AC-13 | A claim of a `ready` spec when the open limit is reached | The claim is refused and lists what is open and unheld, stalled sets first, as the things to close | A claim made only to close a spec whose work is committed still passes, as today |
 | AC-14 | The planning rule and the session-start rule | The planning rule states that a session never leaves a claimed spec half done with nothing committed, and that a set left between children needs no note. The session-start rule points at it | One spec per session stays the rule: the next child still runs in a fresh session |
 | AC-16 | A claim when the active limit is reached and the open limit is not | The claim is refused and lists the live claims and who holds each | A claim that resumes a spec already open adds nothing to the open count: only the active limit judges it |
 | AC-17 | The WIP report | It shows the two counts apart, each against its limit: open, and being worked on now | None |
+| AC-18 | A commit that removes a tracked handover whose name carries the prefix of a live set, or the stem of an open spec | The commit is refused, naming the set and its open children | A handover of a set whose children are all closed, and one of a closed spec, are removed freely |
+| AC-19 | A claim marker whose session has no directory left, and the marker of an agent that has finished | The reaper removes the first; the Agent call's after-hook removes the second | A marker of a live session or a running agent stays |
+| AC-20 | The inventory, the roadmap and the closure detector | Each takes a spec's set from one grouping function, which reads a prefix holding digits and does not take a lone numbered name for a set | A set of one file with no umbrella and no sibling is not a set |
+| AC-21 | The claim refusal at a limit | It names what to close or who holds the live claims, and prints no setting that raises a limit | The close-only claim keeps its documented route |
 | AC-15 | The implement skill's review loop | It states the round limit the planning rule states: five rounds are the session's, the sixth is the owner's | The sentence that each round covers less than the one before stays |
 
 ## 🧪 TDD Test Plan
@@ -233,22 +278,50 @@ Unverified, to probe before designing on it:
 ## Open Questions for Design
 - The three probes above decide whether the reports are additional context or a refusal at the next spawn.
 - Whether AC-7's measure is a new action or an extension of the existing token report.
-- How a closed child is known. The child's file is gone, and the umbrella's Children table is a hand-written copy, so it cannot be the source. The candidates are the commit that removed the spec together with the `Spec-work:` trailer, or the closure record the detector already reads. The answer must come from what git holds.
-- How "something committed says where the work stands" is recognised for AC-11. A hook judges what a file is, never its wording, so the candidates are a tracked file under `plan/handover/` whose name carries the spec's stem, or the spec's own Status moved to `blocked`, either one committed after the session's last commit for the spec.
-- The value of the active limit. The design proposes one and shows it at approval: it bounds the sessions and agents working at once, on a machine that runs one heavy job per session.
+- The SubagentStop payload, to record at phase 1.
+
+For the owner, at design approval:
+
+| Question | What each answer changes |
+|----------|--------------------------|
+| The open limit's starting value. Today's cap is 12 and 10 specs are `in-progress`. Counting each started set once adds between about 2 and 16 more, so the open count on the first day is between about 12 and 26: at 12, every new claim is refused until specs close | Start at 12: nothing new opens until the backlog of started sets is closed or their specs are disposed of. Start at the count measured on the day it lands and lower it as specs close: work continues and the limit ratchets down, which is what the rule "lowered as specs close, never raised" already says |
+| The active limit's value. The proposal is 6 distinct specs under a live claim: four main sessions held claims in the last day, and up to three closures may run beside them | A lower value queues sessions behind each other; a higher one bounds nothing on a machine that runs one heavy job per session |
+
+## Key Design Decisions
+
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| One grouping function in the status package answers every reader. Per set it gives the fields below | Keep the two detectors and add a third for the set state | Two already disagree; a third would be the third copy of one fact |
+| Closed children come from the spec removals in git history, held in a cache under the session scratch root keyed by HEAD and extended from the cached commit to HEAD | The umbrella's Children table; the `Spec-work:` trailer; `plan/learned/` | The table is written by hand, a commit without a claim has no trailer, and no learned file exists for the three closed children. A walk on every call costs seconds, and the session-start summary must not run one |
+| A claim is live when the reaper's judgment says its session is, and for an agent when the agent has not finished | A new liveness test by marker age | Age cannot tell a long task from a dead session, and the reaper already holds the judgment |
+| The stop refusal of AC-11 recognises "where it stands" by a tracked handover whose name carries the spec's stem or its set's prefix, or by the spec's Status moved to `blocked` | Read the handover's text | A hook judges what a file is, never its wording. The set prefix is accepted because the agent-economy handover was named for the set |
+| No acknowledgement file for AC-11 | Copy the closure refusal's file | Nothing in the tooling writes that file and the refusal prints the command that creates it, so it is a self-bypass. Whether the closure refusal keeps its own is not changed here |
+| The one cap is deleted and every user of it is converted in this work: the claim, the report, the tests, and each rule, skill, page and spec that names `ZE_SPEC_WIP_CAP` or "the WIP cap" | Keep the cap and add a second limit beside it | The owner's two limits count different things, and a third number that counts neither would stay in the tree |
+
+The set, as the grouping function answers it:
+
+| Field | Meaning |
+|-------|---------|
+| Prefix | The set's name, from the shared file-name prefix |
+| Umbrella | The umbrella's path, or none |
+| Open children | Each with its number, Status and Depends |
+| Closed children | Stems, from the cache of removed specs |
+| Held | For each open child and the umbrella: the holder, and whether that claim is live |
+| State | idea, live, stalled or children closed |
+| Next | The lowest-numbered open child whose Depends are met, or the spec outside the set that blocks it |
 
 Owner decisions (2026-11-14), no longer open:
 
 | Decision | What it settles |
 |----------|-----------------|
-| The open limit takes over today's cap and its value | No new number is invented for it, and `ZE_SPEC_WIP_CAP` keeps its meaning |
+| The open limit takes over today's cap and its value | No new number is invented for it. The research then showed that value refuses every new claim on the first day, so the starting value is back with the owner in the table above |
 | Each started, unclosed child counts as itself in the open limit, and a live set with no such child counts once | The agent-economy set, between children, costs one |
 | No acknowledgement route past AC-11 | The refusal binds an agent ending its own turn, and its two ways out are cheap |
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-17 all demonstrated
+- [ ] AC-1..AC-21 all demonstrated
 - [ ] The targeted tests pass, run by the main thread: the packages `internal/le/hookruntime`, `internal/le/spec`, `internal/le/spec/status` and `internal/le/ai/tokens`, and `./le ai hooks unit`. No `./le test unit <group>` covers `internal/le`. No agent runs any `./le verify` command
 
 ### TDD
