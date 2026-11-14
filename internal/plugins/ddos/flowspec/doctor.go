@@ -14,14 +14,20 @@
 //     doctor read does not name ddos flowspec. It reads config and the store
 //     only, so it runs in whichever process answers doctor.
 //   - stoppedRecordCheck, at the runtime phase, while the daemon holds no
-//     running ddos-flowspec process: the plugin configured and not running, or
-//     no process of that name while the saved configuration doctor read names
-//     ddos flowspec (or doctor read none). It reads the daemon's plugin
-//     snapshot (plugin/server PluginDoctorSnapshot) and the daemon's store
-//     (statestore), live state only the daemon holds, so only the daemon route
-//     runs it; the judged tree tells it only which records orphanRecordCheck
-//     already reported. Configured is not running: a stopped startup
-//     handshake, or a run that ended under no failure policy, leaves the
+//     running ddos-flowspec process and the saved configuration doctor read
+//     names ddos flowspec, or doctor read none: the plugin configured and not
+//     running, no process of that name, or a snapshot not available yet. It
+//     reads the daemon's plugin snapshot (plugin/server PluginDoctorSnapshot)
+//     and the daemon's store (statestore), live state only the daemon holds, so
+//     only the daemon route runs it; the judged tree tells it only which
+//     records orphanRecordCheck already reported. When that saved file does not
+//     name the section, orphanRecordCheck reports the record, with the
+//     withdrawal as its fix, whatever the daemon runs: even a daemon that runs
+//     the plugin and holds the rule as a live mitigation, because doctor judges
+//     the saved file, not the running one
+//     (plan/journal/identity-default-hides-a-mapping.md, 2026-11-13).
+//     Configured is not running: a stopped startup handshake, or a run that
+//     ended under no failure policy, leaves the
 //     plugin recorded stopped and not started again (server/startup.go,
 //     server/failure_policy.go applyFailurePolicy).
 //
@@ -172,10 +178,14 @@ func unownedOrphanDiagnostic(m flowspecMatch) rpc.DoctorCheckDiagnostic {
 	}
 }
 
-// unconfiguredOrphanDiagnostic is the report while ddos flowspec is not
-// configured: no plugin runs to restart, so its fix is the exact withdrawal the
-// plugin would send. That withdrawal does not remove the record, and the
-// message says what does.
+// unconfiguredOrphanDiagnostic is the report while the configuration doctor
+// read does not name ddos flowspec: no plugin runs to restart, so its fix is
+// the exact withdrawal the plugin would send. That withdrawal does not remove
+// the record, and the message says what does. Doctor reads the saved file, not
+// the running configuration, so a daemon that runs the plugin with a live
+// mitigation while its saved file lacks the section gets this report too, and
+// the withdrawal then ends that mitigation
+// (plan/journal/identity-default-hides-a-mapping.md, 2026-11-13).
 func unconfiguredOrphanDiagnostic(m flowspecMatch) rpc.DoctorCheckDiagnostic {
 	victim := m.DstPrefix.String()
 	var msg textbuf.Buffer
@@ -333,26 +343,53 @@ func judgedTree(ctx diagnostic.DoctorCheckContext) *config.Tree {
 
 // judgeStoppedRecord is checkStoppedRecord with the judged tree, the plugin's
 // run and the record's reading passed in, so a test can answer each for every
-// case the daemon can be in. readRecord is asked only when the run leaves the
-// record to this check.
+// case the daemon can be in. readRecord is asked only when the saved file and
+// the run leave the record to this check.
+//
+// The saved file decides first, before the run is looked at: when doctor read
+// one and it does not name ddos flowspec, orphanRecordCheck reported the record
+// from that same tree, whatever the daemon runs, so this check stays silent for
+// every run kind. Otherwise one record would get two rows whose fixes disagree
+// (the withdrawal beside the restart, or beside ze show doctor).
 func judgeStoppedRecord(judged *config.Tree, run pluginRun, readRecord func() recordReading) []diagnostic.Diagnostic {
-	report, owned := stoppedRunReport(run, judged)
+	if judged != nil {
+		if judged.GetContainerPath(configRoot) == nil {
+			// refuse-by-default: guards orphanRecordCheck -- the saved configuration doctor read does not name ddos flowspec, so the post-config orphanRecordCheck judged this record from that same tree (a recorded rule with the withdrawal as its fix, or why it could not read the record); a report here, for any run, would list it twice with a fix that disagrees
+			return nil
+		}
+	}
+	report, owned := stoppedRunReport(run, judged != nil)
 	if !owned {
-		// refuse-by-default: guards orphanRecordCheck -- another check owns the record: a running plugin's own runtime check (orphanRuntimeCheckDecl) judges it, or, while the saved configuration doctor read does not name ddos flowspec, the post-config orphanRecordCheck reported it from that same tree; a report here would list it twice
+		// refuse-by-default: guards orphanRuntimeCheckDecl -- the daemon runs the plugin, so its own runtime check judges the record against its live responder; a report here would list it twice
 		return nil
 	}
 	reading := readRecord()
 	if unreadable, ok := reading.(recordUnreadable); ok {
 		if errors.Is(unreadable.err, statestore.ErrUnavailable) {
-			return []diagnostic.Diagnostic{{
-				Code:     diagnostic.CodeDoctorStorageUnavailable,
-				Severity: diagnostic.SeverityWarning,
-				Message:  "ddos-flowspec FlowSpec record: refused, this daemon publishes no store, so it cannot say whether a FlowSpec rule the plugin announced is still at the BGP peers; the command below reads the record from the store, or names why that store cannot be opened",
-				Fix:      recordReadCommand(),
-			}}
+			return unavailableStoreFindings(run)
 		}
 	}
 	return storedRecordFindings(reading, report)
+}
+
+// unavailableStoreFindings answers a daemon that publishes no store, so the
+// record cannot be read. While the daemon holds the plugin configured, or
+// cannot tell yet whether it does, a record may exist in a store this daemon
+// cannot read, and the row says doctor cannot tell. While it holds no process
+// named ddos-flowspec it is silent: the plugin writes the record only through
+// the store the daemon publishes (plugin/server dispatch_state.go), and only a
+// process of that name may, so no process of this daemon can have written one.
+func unavailableStoreFindings(run pluginRun) []diagnostic.Diagnostic {
+	if _, unrun := run.(pluginNotRun); unrun {
+		// refuse-by-default: guards diagnostic.CodeDoctorStorageUnavailable -- no ddos-flowspec process of this daemon can have written a record without a published store; a missing store is not this plugin's finding: the doctor run reports the store it could not open under that code itself (internal/component/doctor doctor.go resolveStorageWithDiag), and the daemon warned at start that runtime state persistence is unavailable (cmd/ze/hub config_source.go warnStorelessFeatures)
+		return nil
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     diagnostic.CodeDoctorStorageUnavailable,
+		Severity: diagnostic.SeverityWarning,
+		Message:  "ddos-flowspec FlowSpec record: refused, this daemon publishes no store, so it cannot say whether a FlowSpec rule the plugin announced is still at the BGP peers; the command below reads the record from the store, or names why that store cannot be opened",
+		Fix:      recordReadCommand(),
+	}}
 }
 
 // daemonRecordReading reads the record from the store the daemon publishes,
@@ -434,18 +471,19 @@ func pluginRunFromSnapshot(snapshot *pluginserver.DoctorSnapshot, err error) plu
 }
 
 // stoppedRunReport answers, for the daemon's runtime check, the report a
-// recorded rule gets, or owned false when another check owns the record: the
-// running plugin's own runtime check, or, while the saved configuration
-// doctor read does not name ddos flowspec, the post-config check. judged is
-// read only when the daemon holds no ddos-flowspec process.
-func stoppedRunReport(run pluginRun, judged *config.Tree) (report orphanReport, owned bool) {
+// recorded rule gets, or owned false while the daemon runs the plugin, whose
+// own runtime check owns the record. savedRead is true when doctor read a saved
+// configuration, which judgeStoppedRecord has already found to name ddos
+// flowspec, and false when the post-config phase did not run; it is read only
+// when the daemon holds no ddos-flowspec process.
+func stoppedRunReport(run pluginRun, savedRead bool) (report orphanReport, owned bool) {
 	switch r := run.(type) {
 	case pluginRunning:
 		return nil, false
 	case pluginNotRunning:
 		return stoppedOrphanReport(r), true
 	case pluginNotRun:
-		return unrunReport(judged)
+		return unrunReport(savedRead), true
 	case pluginRunUnknown:
 		return unknownRunOrphanReport(r.err), true
 	}
@@ -453,19 +491,16 @@ func stoppedRunReport(run pluginRun, judged *config.Tree) (report orphanReport, 
 }
 
 // unrunReport answers the report of a record while the daemon holds no plugin
-// process named ddos-flowspec, from the tree the post-config phase judged. The
-// snapshot keys on the process name only, so that state is either a daemon
-// that runs a configuration without the section or a plugin block that runs
-// ddos-flowspec under another name, and no report here can tell them apart.
-func unrunReport(judged *config.Tree) (report orphanReport, owned bool) {
-	if judged == nil {
-		return noConfigurationUnrunDiagnostic, true
+// process named ddos-flowspec. savedRead is as stoppedRunReport takes it: the
+// saved configuration names the section, or doctor read none. The snapshot
+// keys on the process name only, so that state is either a daemon that runs a
+// configuration without the section or a plugin block that runs ddos-flowspec
+// under another name, and no report here can tell them apart.
+func unrunReport(savedRead bool) orphanReport {
+	if savedRead {
+		return unrunUndecidedDiagnostic
 	}
-	if judged.GetContainerPath(configRoot) == nil {
-		// refuse-by-default: guards orphanRecordCheck -- the saved configuration doctor read does not name ddos flowspec, so the post-config orphanRecordCheck reported this record from that same tree; a report here would list it twice
-		return nil, false
-	}
-	return unrunUndecidedDiagnostic, true
+	return noConfigurationUnrunDiagnostic
 }
 
 // runningConfigCommand prints the configuration the daemon runs, from memory.

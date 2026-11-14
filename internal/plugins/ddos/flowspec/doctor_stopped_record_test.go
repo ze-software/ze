@@ -1,5 +1,5 @@
 // Design: docs/guide/ddos-mitigation.md -- a FlowSpec rule no responder owns
-// Related: doctor.go (checkOrphanRecord, judgeStoppedRecord, stoppedRunReport, pluginRunFromSnapshot)
+// Related: doctor.go (checkOrphanRecord, judgeStoppedRecord, stoppedRunReport, unrunReport, unavailableStoreFindings, pluginRunFromSnapshot)
 // Related: doctor_stopped_test.go -- configuredTestTree, recordedTestStore, snapshotOf
 
 package flowspec
@@ -189,13 +189,112 @@ func TestStoppedRecordCheckBeforePluginStartupSaysWhatItCannotTell(t *testing.T)
 // answering that the daemon holds no ddos-flowspec process, and a stored
 // record.
 // PREVENTS: the not-configured record listed twice by `show doctor`.
-// MUTATION: delete the section-absent `return nil, false` in unrunReport, and
-// this test goes red with one finding.
+// MUTATION: delete the section-absent `return nil` in judgeStoppedRecord, and
+// this test goes red with one finding, the unrun report.
 func TestStoppedRecordCheckLeavesAnUnconfiguredPluginToThePostConfigCheck(t *testing.T) {
 	diags := judgeStoppedRecord(config.NewTree(), pluginNotRun{}, storedReading(t))
 
 	if len(diags) != 0 {
 		t.Fatalf("findings for a plugin the daemon does not configure = %v, want none", diags)
+	}
+}
+
+// TestStoppedRecordCheckLeavesAStoppedPluginTheSavedFileOmitsToThePostConfigCheck
+// proves that the daemon's runtime check says nothing while the saved
+// configuration doctor read does not name ddos flowspec, even though the daemon
+// holds the plugin configured and stopped: the post-config check reported the
+// record from that same tree, with the withdrawal as its fix, and a stopped
+// report beside it would give the same record a second row whose fix, the
+// restart, disagrees with that one.
+//
+// VALIDATES: one report per record on the daemon route, decided by the saved
+// file before the run is looked at.
+// METHOD: judgeStoppedRecord with a tree that does not name the section, a run
+// answering a recorded stop, and a stored record.
+// PREVENTS: two rows for one record, with fixes that disagree.
+// MUTATION: delete the section-absent `return nil` in judgeStoppedRecord, and
+// this test goes red with one finding, the stopped report.
+func TestStoppedRecordCheckLeavesAStoppedPluginTheSavedFileOmitsToThePostConfigCheck(t *testing.T) {
+	diags := judgeStoppedRecord(config.NewTree(), stoppedTestRun(false), storedReading(t))
+
+	if len(diags) != 0 {
+		t.Fatalf("findings while the saved configuration does not name the section = %v, want none", diags)
+	}
+}
+
+// TestStoppedRecordCheckLeavesAnUnknownRunTheSavedFileOmitsToThePostConfigCheck
+// proves that the daemon's runtime check says nothing while the saved
+// configuration doctor read does not name ddos flowspec and the daemon cannot
+// tell yet whether the plugin runs: the post-config check reported the record
+// from that same tree, and a cannot-tell report beside it would list it twice.
+//
+// VALIDATES: one report per record on the daemon route, for every run kind.
+// METHOD: judgeStoppedRecord with a tree that does not name the section, the
+// run of a snapshot that answers ErrDoctorSnapshotNotStarted, and a stored
+// record.
+// PREVENTS: two rows for one record, with fixes that disagree.
+// MUTATION: delete the section-absent `return nil` in judgeStoppedRecord, and
+// this test goes red with one finding, the cannot-tell report.
+func TestStoppedRecordCheckLeavesAnUnknownRunTheSavedFileOmitsToThePostConfigCheck(t *testing.T) {
+	diags := judgeStoppedRecord(config.NewTree(), pluginRunUnknown{err: pluginserver.ErrDoctorSnapshotNotStarted}, storedReading(t))
+
+	if len(diags) != 0 {
+		t.Fatalf("findings while the saved configuration does not name the section = %v, want none", diags)
+	}
+}
+
+// TestStoppedRecordCheckUnrunNamesTheWithdrawalOnlyInTheMessage proves that
+// the report of a record while the daemon holds no process named ddos-flowspec
+// names the exact withdrawal for the victim in its message, for the case where
+// no process runs the plugin, and never as its fix. The fix is read-only, so
+// the message is the only place the operator meets the remedy.
+//
+// VALIDATES: the unrun report gives the remedy of the case where nothing
+// withdraws the rule, without offering it as the fix.
+// METHOD: judgeStoppedRecord with a tree naming the section, a run answering
+// that the daemon holds no ddos-flowspec process, and a stored record.
+// PREVENTS: an operator left with no remedy once the running configuration
+// shows no process runs the plugin.
+// MUTATION: drop the withdrawal (`.Str(withdrawalCommand(m))`) from unrunCases,
+// and the message check goes red.
+func TestStoppedRecordCheckUnrunNamesTheWithdrawalOnlyInTheMessage(t *testing.T) {
+	diags := judgeStoppedRecord(configuredTestTree(), pluginNotRun{}, storedReading(t))
+
+	if len(diags) != 1 {
+		t.Fatalf("findings = %v, want one", diags)
+	}
+	if !strings.Contains(diags[0].Message, orphanTestFix) {
+		t.Errorf("message %q does not name the exact withdrawal %q", diags[0].Message, orphanTestFix)
+	}
+	if diags[0].Fix == orphanTestFix {
+		t.Errorf("fix = %q, the withdrawal, which can end a live mitigation", diags[0].Fix)
+	}
+}
+
+// TestStoppedRecordCheckWithNoConfigurationAndNoStoreIsSilentWhileNothingRunsThePlugin
+// proves that a daemon holding no ddos-flowspec process and publishing no
+// store gets no finding from the runtime check, in a doctor run whose
+// post-config phase did not run: the plugin writes the record only through the
+// store the daemon publishes, so no process of this daemon can have written
+// one, and a storage row from ddos-flowspec would name a record that cannot
+// exist.
+//
+// VALIDATES: the storage-unavailable row is given only while the daemon holds
+// the plugin configured, or cannot tell yet.
+// METHOD: judgeStoppedRecord with no tree, a run answering that the daemon
+// holds no ddos-flowspec process, and the reading statestore gives when no
+// store is registered.
+// PREVENTS: a ddos-flowspec storage warning on every box that never configured
+// the plugin and runs with no store.
+// MUTATION: delete the pluginNotRun `return nil` in unavailableStoreFindings,
+// and this test goes red with one finding under doctor-storage-unavailable.
+func TestStoppedRecordCheckWithNoConfigurationAndNoStoreIsSilentWhileNothingRunsThePlugin(t *testing.T) {
+	diags := judgeStoppedRecord(nil, pluginNotRun{}, func() recordReading {
+		return recordUnreadable{err: statestore.ErrUnavailable}
+	})
+
+	if len(diags) != 0 {
+		t.Fatalf("findings with no ddos-flowspec process and no store = %v, want none", diags)
 	}
 }
 
@@ -216,8 +315,8 @@ func TestStoppedRecordCheckLeavesAnUnconfiguredPluginToThePostConfigCheck(t *tes
 // that the daemon holds no ddos-flowspec process, and a stored record.
 // PREVENTS: the record reported by nobody, and a withdrawal offered while a
 // plugin under another name may hold the rule live.
-// MUTATION: return `unconfiguredOrphanDiagnostic, true` for the configured
-// tree in unrunReport, and the fix and sentence checks go red.
+// MUTATION: return unconfiguredOrphanDiagnostic for a read saved configuration
+// in unrunReport, and the fix and sentence checks go red.
 func TestStoppedRecordCheckWithTheSectionUnrunOffersNoWithdrawal(t *testing.T) {
 	diags := judgeStoppedRecord(configuredTestTree(), pluginNotRun{}, storedReading(t))
 
@@ -253,8 +352,8 @@ func TestStoppedRecordCheckWithTheSectionUnrunOffersNoWithdrawal(t *testing.T) {
 // METHOD: judgeStoppedRecord with no tree, a run answering that the daemon
 // holds no ddos-flowspec process, and a stored record.
 // PREVENTS: a record nobody reports because the configuration did not load.
-// MUTATION: answer `nil, false` for the nil tree in unrunReport, and this test
-// goes red with no finding.
+// MUTATION: answer unrunUndecidedDiagnostic when no saved configuration was
+// read in unrunReport, and the no-configuration sentence check goes red.
 func TestStoppedRecordCheckWithNoConfigurationSaysWhatItCannotTell(t *testing.T) {
 	diags := judgeStoppedRecord(nil, pluginNotRun{}, storedReading(t))
 

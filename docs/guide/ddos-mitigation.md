@@ -660,15 +660,18 @@ running plugin is the normal state of a mitigation and is not reported. Who
 answers, and what it prints as the fix, depends on whether the plugin runs.
 While `ddos flowspec` is configured, only the daemon can tell, so only
 `ze show doctor` (or a `ze doctor` that a running daemon answers) judges the
-record then:
+record then. Doctor decides "configured" from the saved configuration it reads,
+never from the configuration the daemon runs. When that saved file does not name
+`ddos flowspec`, the record gets the not-configured row below and no other,
+whatever the daemon runs:
 
 | `ddos flowspec` | Who answers | Fix | What clears the report |
 |-----------------|-------------|-----|------------------------|
 | Configured, the plugin runs | The plugin, from its own runtime check | `ze request plugin restart ddos-flowspec` | The restarted plugin withdraws the recorded rule when it starts, and removes the record. When the cause of the failed withdrawal is still there (for example, no peer gives the plugin permission to send), the restart fails the same way, the WARN line names the cause, and the report stays until you fix that cause and restart again |
 | Configured, the plugin is not running (its startup failed, or it stopped on its own, and the daemon recorded it stopped) | The daemon, from its plugin state and its store | `ze request plugin restart ddos-flowspec` | The report says that no running plugin holds the rule and why the plugin is not running. Doctor also reports the stopped plugin under `doctor-plugin-stopped`, with the same fix. The restart starts the plugin, and its start withdraws the recorded rule and removes the record. If that withdrawal fails, the running plugin's own check reports the record, as in the row above. While a stopped process of the plugin has not finished its cleanup, ze refuses the restart, and the report says so: run it once the `doctor-plugin-stopped` row no longer reports the cleanup |
 | Configured, and the daemon has not started its plugins yet | The daemon, from its store | `ze show doctor` | The report says that the daemon cannot tell yet whether the plugin runs. Ask again once the plugins started |
-| Configured, and `ze doctor` runs without the daemon | No check judges the record | `ze start`, the fix of the `doctor-runtime-not-checked` row | The local run does not judge the record: its `doctor-runtime-not-checked` row says that the daemon's checks did not run, and `ze start` or `ze show doctor` gets them. While ze is stopped, the next start of the plugin withdraws the recorded rule and removes the record |
-| Not configured in the configuration doctor read | Doctor, from the store, with or without the daemon | The exact withdrawal, `ze cli -c "send bgp * update text mp ipv4/flow del ..."` | The withdrawal removes the rule from the peers, not the record, so the report stays. The plugin removes the record the next time it starts, when you configure `ddos flowspec` again. `ze data rm meta/ddos-flowspec/announcement` removes it only while ze is stopped, because the store refuses a second writer while the daemon owns it |
+| Configured, and `ze doctor` runs without the daemon | No check judges the record | The fix of the `doctor-runtime-not-checked` row | The local run does not judge the record: its `doctor-runtime-not-checked` row says that the daemon's checks did not run and why no daemon answered, and its fix is the command for that reason: `ze start` only when no daemon listens, and for every other reason the command that reason needs. Once a daemon answers, `ze show doctor` runs its checks. While ze is stopped, the next start of the plugin withdraws the recorded rule and removes the record |
+| Not configured in the configuration doctor read | Doctor, from the store, with or without the daemon. On the daemon route, the daemon's own check says nothing about this record for any plugin state (stopped, not started yet, or no process of that name), so this is the only row | The exact withdrawal, `ze cli -c "send bgp * update text mp ipv4/flow del ..."` | Doctor reads the saved file, so a daemon that runs the plugin from another configuration gets this row too, with the plugin stopped or running. If the plugin runs and holds the rule as a live mitigation, the withdrawal ends that mitigation: check `ze show config running` before you send it. The withdrawal removes the rule from the peers, not the record, so the report stays. The plugin removes the record the next time it starts, when you configure `ddos flowspec` again. `ze data rm meta/ddos-flowspec/announcement` removes it only while ze is stopped, because the store refuses a second writer while the daemon owns it |
 | Configured in the configuration doctor read, and the daemon holds no plugin process named `ddos-flowspec` | The daemon, from its plugin state, its store and the configuration doctor read | `ze show config running` | The report says that doctor cannot tell which of two cases holds, so it offers no withdrawal: the daemon runs a configuration without the `ddos flowspec` section, or a plugin block runs the plugin under another name. The running configuration tells them apart. With a `use ddos-flowspec` block under another name, that process may announce the same rule as a live mitigation, so do not withdraw the rule while it mitigates. With no `ddos flowspec` section, no process runs the plugin: send the withdrawal the report names. The record stays until the plugin next starts under its own name |
 | The daemon holds no plugin process named `ddos-flowspec`, and doctor loaded no configuration | The daemon, from its plugin state and its store | `ze show config running` | The report says that the configuration did not load (a `doctor-config-missing` or `doctor-config-parse` row says why), so doctor cannot tell whether `ddos flowspec` is configured. The running configuration decides, as in the row above |
 
@@ -678,7 +681,7 @@ is refused the record's store key, which is granted to the name
 its own check does not judge it. The configuration doctor reads on the daemon
 route is the saved file, never the running one, which is why the daemon's
 report points at `ze show config running`.
-<!-- source: internal/plugins/ddos/flowspec/doctor.go -- orphanRuntimeCheckDecl, orphanRecordCheck, checkOrphanRecord, stoppedRecordCheck, judgeStoppedRecord, stoppedRunReport, judgedTree, unrunReport, unrunUndecidedDiagnostic, noConfigurationUnrunDiagnostic, unrunCases, runningConfigCommand, pluginRunFromSnapshot, stoppedOrphanReport, unknownRunOrphanReport, ruleFindings, unownedOrphanDiagnostic, unconfiguredOrphanDiagnostic, recordRemovalToday -->
+<!-- source: internal/plugins/ddos/flowspec/doctor.go -- orphanRuntimeCheckDecl, orphanRecordCheck, checkOrphanRecord, stoppedRecordCheck, judgeStoppedRecord, stoppedRunReport, judgedTree, unrunReport, unavailableStoreFindings, unrunUndecidedDiagnostic, noConfigurationUnrunDiagnostic, unrunCases, runningConfigCommand, pluginRunFromSnapshot, stoppedOrphanReport, unknownRunOrphanReport, ruleFindings, unownedOrphanDiagnostic, unconfiguredOrphanDiagnostic, recordRemovalToday -->
 <!-- source: internal/component/doctor/local_route.go -- runtimeNotChecked -->
 <!-- source: internal/component/plugin/server/dispatch_state.go -- PluginKeyAllowed on the process name -->
 <!-- source: internal/component/plugin/server/doctor_snapshot.go -- PluginDoctorSnapshot -->
@@ -696,8 +699,16 @@ at the peers, can no longer be withdrawn from its record: it carries the stored
 bytes of a corrupt record under `record`, and the withdrawal by hand under `fix`.
 A doctor run that opened no store, or holds no parsed configuration,
 cannot judge the record: it says so, and its fix is the same `ze data cat`
-command, which prints the record if one is stored.
-<!-- source: internal/plugins/ddos/flowspec/doctor.go -- corruptRecordDiagnostic, recordReadCommand, manualWithdrawalCommand, checkOrphanRecord, storedRecordReading -->
+command, which prints the record if one is stored. On the daemon route, a
+daemon that publishes no store says so under `doctor-storage-unavailable`,
+with the same fix, while it holds the plugin configured or cannot tell yet
+whether it does. While it holds no process named `ddos-flowspec`, the daemon's
+check says nothing about the store: the plugin writes the record only through
+the store the daemon publishes, so no process of that daemon can have written
+one, and the doctor run reports a store it could not open on its own
+`doctor-storage-unavailable` row.
+<!-- source: internal/plugins/ddos/flowspec/doctor.go -- corruptRecordDiagnostic, recordReadCommand, manualWithdrawalCommand, checkOrphanRecord, storedRecordReading, unavailableStoreFindings -->
+<!-- source: internal/component/doctor/doctor.go -- resolveStorageWithDiag -->
 <!-- source: internal/plugins/ddos/flowspec/responder.go -- withdrawEarlierRecord, classifyRecord, recordReading -->
 
 ### VPP dataplane
