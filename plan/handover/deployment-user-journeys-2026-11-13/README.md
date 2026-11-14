@@ -3,7 +3,7 @@
 **Spec:** [deployment-user-journeys](../../release/delivery/spec-deployment-user-journeys.md), in progress, not closed.
 **Branch:** main. Wiki checkout: `../wiki`, local branch `wiki` tracking `wiki/master`.
 **Goal:** Reduce friction across Linux installation and removal, Docker, VM and ISO, containerlab and netlab, and gokrazy, with accurate documentation and website guidance.
-**Written:** 2026-11-13, at the end of the first session after the machine migration. Resume from this page. Nothing was pushed or published.
+**Written:** 2026-11-13, at the end of the first session after the machine migration, and updated on 2026-11-14 by the session that ran step 0 on the Mac. Resume from this page. Nothing was pushed or published.
 
 Start a new session with a new claim (`./le spec claim plan/release/delivery/spec-deployment-user-journeys.md`). Read `AGENTS.md` and its rule files first. Work in the main checkout, with native `./le` actions and session-private named outputs. No worktree, no test export, no `./le verify`.
 
@@ -18,13 +18,13 @@ Gate, never by leaving it out.
 | Criterion | Proven | Open in the spec |
 |-----------|--------|------------------|
 | AC-1 native installation and removal | Real distribution and systemd evidence | Nothing stated |
-| AC-2 upgrade, retention and refusal | Trust, unit, conflict, ownership and busy-store controls | **The combined changed-version script timed out and is not a pass** |
+| AC-2 upgrade, retention and refusal | Trust, unit, conflict, ownership and busy-store controls. A changed-version upgrade through `ze install`, by `test/ui/native-install-upgrade.ci` in the arm64 Linux guest: pass, 80 of 80 under load, red when the binary copy is skipped | **An amd64 run of that test** |
 | AC-3 source build and named executables | All five flavors compile at recorded revisions | The source-bound artifact bundle, see AC-10 |
 | AC-4 supplied two-peer quickstart | The control-plane tutorial | No production forwarding evidence. The whole-UI run was not green |
 | AC-5 deployment container persistence | Authenticated edit and recreation on a source-unbound image | **Recreation on a source-bound image** |
-| AC-6 live containerlab and netlab | All six sourced pings, this session | Passed on a patched tree identical to `ef1a3cf33d`, not on that commit |
-| AC-7 installer ISO and installed disk | amd64 under KVM | **arm64 boot was not run** |
-| AC-8 appliance image update and recovery | amd64 under KVM | **arm64 boot not established**. No routing or VPN traffic |
+| AC-6 live containerlab and netlab | All six sourced pings on a patched tree, then on the committed template at `92ca4ce6e4` on arm64 under HVF, each at the first attempt | No amd64 run from the committed template is recorded |
+| AC-7 installer ISO and installed disk | amd64 under KVM. arm64 under HVF, after three fixes | Ventoy on arm64 was not run. The arm64 ISO was assembled by a Linux GRUB in the lab Docker, see the Mac facts |
+| AC-8 appliance image update and recovery | amd64 under KVM. arm64 under HVF at `6b8656ae9f` | No routing or VPN traffic |
 | AC-9 website deployment journeys | An earlier full build and check | No push. **The generated site is older than the live command catalogue** (36 drift findings in this session's doc check), so a fresh build and check is owed |
 | AC-10 identified preview delivery | A private bundle at an older revision | **A bundle from the final pushed commit**, both architectures |
 | AC-11 production-evaluator guidance | The chooser and update guidance | "Outstanding actual deployment evidence remains required" |
@@ -38,20 +38,20 @@ the zefs registry test.
 Still to come after every row above: source-review reconciliation, the Review
 Gate and the two closure commits.
 
-The arm64 rows (AC-7, AC-8) became runnable only at the end of this session,
-when the Mac's lab Docker was rebuilt and the arm64 runtime kernel cached. They
-have not been attempted since.
+The arm64 rows (AC-7, AC-8) and AC-2's timeout were settled on 2026-11-13 and
+14. The spec's evidence rows and its arm64 verification table hold the detail.
 
 ## What to do next, in order
 
 Step 0 needs nothing from the owner. Each later step waits on him for its
 first line.
 
-0. **The arm64 rows, on the Mac.** `./le test qemu installer-iso` for AC-7
-   and `./le test qemu appliance-ota` for AC-8, each natively under HVF with
-   `ZE_INSTALL_QEMU_ACCEL=hvf`. Record the result in the spec's rows. Then
-   look at AC-2's combined changed-version script: reproduce its timeout and
-   find the cause before deciding anything about it.
+0. **Done on the Mac, 2026-11-13 and 14.** AC-8 and AC-7 passed on arm64 under
+   HVF. AC-2's timeout predates `9e3c0ab9c0`, which removed the store-lock
+   folder fsync the strace had located; the script that timed out was never
+   committed, so a committed test replaces it. What is left of this step:
+   run `./le test ui native-install-upgrade` on the amd64 server once it has
+   the commits (the test is needs-linux), and record it in the AC-2 row.
 1. **Push.** The Mac was 48 commits ahead of origin when this was written, most from other sessions. An agent never pushes on its own: the owner orders it, through `./le commit push "<owner authorisation>"`. The `claude` server only has what is pushed and pulled there by the owner.
 2. **Preview artifacts**, from the pushed commit. `./le help build preview` names the action. The earlier preparation recorded in the spec's AC-10 row passed for an older source. The final one covers static Linux amd64 and arm64 binaries and archives, the deployment and lab exports, the manifest and checksums. Build amd64 on the server and arm64 on the Mac: a kernel is never cross-compiled or emulated. Rerun `./le test qemu appliance-config-push` from that same commit on each host, so the proof is bound to the release source.
 3. **Website and docs**, once the owner is happy with the pages. `./le site build`, then `./le site check`, against the canonical `../gh-pages` checkout. `./le doc check all` was red on 2026-11-13 for reasons outside this spec: six stale source anchors in `docs/guide/configuration.md` and `docs/guide/operational-reports.md`, a `show system ntp` command with no declared answer shape, and 36 drift findings because the generated site was older than the live command catalogue. The pages this spec edited had no finding. Review the news draft in `evidence/deployment-user-journeys-news-draft.md` only after its claims are true.
@@ -78,6 +78,25 @@ The spec validator reports five structure errors after every edit of that file: 
 - That partition was 14.9 GB, too small for a kernel build beside the lab images. Fixed: `e2627d3e7b` makes the image default 64 GiB (the file is sparse) and `995c46014d` makes `start` pass Colima a root disk of that size. Docker there now has 61.6 GB and was emptied on 2026-11-13, so lab images rebuild on first use.
 - The arm64 runtime kernel for the current sources is cached under `~/.cache/ze/runtime-kernel/`.
 - An agent is not permitted to delete Docker images or volumes there. The owner ran those two removals.
+- The plain `./le` follows HEAD in the background, so right after a commit it
+  can still be the previous build: the first ISO run after `be52bcb019` printed
+  the old amd64 default. When a proof must include a commit just made, use the
+  named build.
+- An arm64 installer ISO run on the Mac needs four things. An arm64 installer
+  kernel: `./ze-host appliance kernel --target installer --arch arm64 --builder docker`
+  (about 17 minutes, cached, and copied to `build/kernel/Image`). A GRUB with
+  arm64-efi modules, which macOS does not have: the session-private prefix
+  `~/.cache/ze-deployment-journeys/grub` holds a `grub-mkstandalone` that runs
+  Debian's GRUB 2.12 in the lab Docker (image
+  `ze-deployment-journeys-grub:f96ab875`) and a copy of its modules; put its
+  `bin` first on `PATH`. Scratch on a path with no symlink in it, because Ze's
+  store refuses one and `~/.cache` is a symlink here:
+  `TMPDIR=/Users/thomas/Unix/cache/ze-deployment-journeys/work`. And
+  `ZE_INSTALL_KERNEL=$PWD/build/kernel/Image`. Remove the prefix and the Docker
+  image when no further arm64 ISO run is owed.
+- A needs-linux `.ci` runs on the Mac in Ze's guest:
+  `./le --name <name> test qemu ci test test/ui/<name>.ci`. Its load run is
+  `./le --name <name> test qemu docker-lab kernel <runtime vmlinuz> harness command '<the in-guest line the ci run prints> stress 80 stress-parallel 4'`.
 - A named build (`./le --name <name> ...`) compiles the whole working tree, so another session's half-finished edit breaks it. The plain `./le` runs a build of the committed tree and is not affected. When a named build fails on a package this work does not touch, say whose edit it is and wait, or use the committed build if the change under test is committed.
 
 ## What landed in this session
@@ -95,6 +114,17 @@ The spec validator reports five structure errors after every edit of that file: 
 | `10d888bda3` | Journal row `parked-work-returns-out-of-order`, owned by `spec-bgp-one-off-defects` |
 
 The plan commits that carry the evidence and this page are not listed.
+
+Landed by the step 0 session, 2026-11-13 and 14:
+
+| Commit | What it does |
+|--------|--------------|
+| `1d8017e6fd` | The qemu and hardware installer kernel profiles build virtio SCSI in. An arm64 VM presents the ISO as a SCSI CD-ROM, and the installer had failed with "ISO media not found" |
+| `be52bcb019` | The ISO and Ventoy proofs target the host architecture, and the proof finds the UEFI variable store from QEMU's firmware descriptors. A test judge approved replacing the test that pinned amd64 |
+| `ece5c2a80d` | Three appliance build tests pin the host architecture. They had been red on every arm64 host since `d5ac4d3249` |
+| `7de6a5d319` | `TestISOCaptureWaitsForActualPoweroff` no longer depends on host load |
+| `0e4bdbe95b` | The harness builds `ze-upgrade`, the DUT under release 99.12.31, and `test/ui/native-install-upgrade.ci` proves a changed-version upgrade and a fresh bootstrap |
+| `92ca4ce6e4` | Docs and spec: what is proven on arm64, and that a stock macOS host cannot build the ISO |
 
 ## Evidence observed in this session
 
@@ -131,7 +161,8 @@ Both were made on 2026-11-13 and each needs a design conversation with the owner
 - LDP formatter round trip: accepted nested `environment log ldp` input serializes to a flat form that reparsing refuses. The `ldp-backoff-clear-frr` work owns it.
 - The legacy boot inbox and `HealthRevert` write a legacy mirror while the canonical selected pointer takes precedence. The docs state the limit. The header of `cmd/ze/health_revert.go` is stale. No automatic live rollback is proven.
 - Historical IKE findings keep their owner. Deployment review preparation is not IKE acceptance.
-- `TestISOCaptureWaitsForActualPoweroff` gives a child process 250 ms to print and failed once at host load 48. It passes alone. Not journaled.
+- `ze-host appliance iso` cannot build an ISO on a stock macOS host: no GRUB there has arm64-efi modules, and Homebrew's x86 GRUB keeps its modules where the build does not look. The guide says so. Whether the ISO build should run GRUB in Docker, as the kernel build does, is a design question for the owner.
+- Lint of `internal/le/test/qemu`, `internal/test/runner` and `internal/test/fixture` is red in files the step 0 session did not touch (errcheck and goconst in the config-push and OTA proofs, errorlint in the runner tests).
 
 ## Review population to keep
 
