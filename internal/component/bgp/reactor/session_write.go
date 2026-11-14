@@ -1227,6 +1227,9 @@ func (s *Session) holdWrites() {
 // that failed and retired the session still has its deadline cleared before the
 // path is given back, and a holder that armed nothing leaves the socket alone.
 func (s *Session) releaseWrites() {
+	// Before the path is given back: a socket write a panic unwound through
+	// leaves its octets staged for the next taker (discardInterruptedWrite).
+	s.discardInterruptedWrite()
 	if s.writeBudgetArmed {
 		s.writeBudgetArmed = false
 		if s.conn != nil {

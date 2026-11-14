@@ -58,7 +58,15 @@ func (p *Peer) runInitialSync(session *Session) {
 // clears is session's own (Session.sendingInitialRoutes,
 // Session.initialSyncEOROwed). In production it runs on the goroutine
 // spawnInitialSync started, so at most once per session.
+//
+// A panic anywhere in the sync is recovered here and ends session
+// (endSessionAfterSyncPanic): the initial update stopped at an unknown point,
+// so the peer holds no table it can trust, and the operations still queued are
+// owed to the next session, whose sync drains them.
 func (p *Peer) sendInitialRoutes(session *Session) {
+	// Registered first so it runs last: every phase below defers the release
+	// of the lock it takes (staticMu, the session write hold, p.mu), and those
+	// deferred releases run during the unwind, before this recovery.
 	defer func() {
 		if r := recover(); r != nil {
 			buf := make([]byte, 4096)
@@ -68,12 +76,7 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 				"panic", r,
 				"stack", string(buf[:n]),
 			)
-			// Clear both facts so shouldQueue() returns false, the peer is not
-			// stuck, and pendingSync stops reporting a marker this goroutine
-			// will never send.
-			session.sendingInitialRoutes.Store(0)
-			session.initialSyncEOROwed.Store(false)
-			p.wakeForwardOverflow()
+			p.endSessionAfterSyncPanic(session)
 		}
 	}()
 	addr := p.settings.Address.String()
@@ -332,11 +335,14 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 	//
 	// TWO holds rather than one, because the plugin barrier sits between them
 	// and a plugin cannot push its routes through a lock this goroutine is
-	// holding while it waits for that plugin. AnnounceEOR is shut out across
-	// both holds AND the gap by the session's initialSyncEOROwed rather than by
-	// the lock (reactor_api_forward.go).
+	// holding while it waits for that plugin. A replay's End-of-RIB is shut out
+	// across both holds AND the gap by the session's initialSyncEOROwed rather
+	// than by the lock; a requested one waits in the peer's forward queue,
+	// which the queueing gate holds (reactor_api_forward.go, announceEOR).
 	//
-	// holdWrites is s.writeMu.Lock (session_write.go). While it is held both
+	// holdWrites takes s.writeMu (session_write.go) and arms no write budget:
+	// sendUpdateHeld arms one for each message, so a hold that outlasts the
+	// budget in total is not cut while the peer reads. While it is held both
 	// egress rails are shut out, but by opposite mechanisms, and this comment
 	// had them backwards: the RS FAST PATH is the TryLock and gives up
 	// (forward_rs.go tryDirectWriteNoFlush, falling back to the pool), while the
@@ -395,10 +401,13 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 	// Only the SENT marker moves: a peer's marker still purges stale routes on
 	// receipt (plugins/gr/gr.go, handleEOREvent), which this does not touch.
 	//
-	// The session's initialSyncEOROwed still keeps AnnounceEOR from slipping
-	// another producer's marker in front of this one, and still keeps `request
-	// quiesce` from reporting the peer settled while the marker is owed
-	// (peer.go, pendingSync).
+	// The session's initialSyncEOROwed still keeps a replay's marker from
+	// standing in for this one, and still keeps `request quiesce` from
+	// reporting the peer settled while the marker is owed (peer.go,
+	// pendingSync). A marker a process or the operator asks for is written
+	// whatever this flag says, after the operations this sync drained: when it
+	// claimed the family first, it is the family's marker and this phase skips
+	// the family (reactor_api_forward.go, announceEOR).
 
 	func() {
 		session.holdWrites()
@@ -413,8 +422,11 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 		// after a sync that carried none of them.
 		//
 		// It withholds the SEND and nothing else: this phase still releases its
-		// write hold, and the caller clears the session's owed marker below so AnnounceEOR
-		// can send the operator's marker. api-manual-eor pins those obligations.
+		// write hold, and the caller clears the session's owed marker below. A
+		// replay's marker is withheld from this peer too, and a marker a process
+		// or the operator asks for is always written, during this sync included
+		// (reactor_api_forward.go, announceEOR). api-manual-eor pins those
+		// obligations.
 		sendEOR := !p.settings.ManualEOR
 		if !sendEOR {
 			routesLogger().Debug("end-of-rib withheld: behavior manual-eor is set",
@@ -436,10 +448,12 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 		// observers wait on.
 		for _, fam := range sendEORFamilies(sendEOR, nc.Families()) {
 			// Claim BEFORE sending. A route server announcing EoR when its replay
-			// finishes reaches the same wire through AnnounceEOR, and RFC 4724
-			// Section 2 allows one End-of-RIB per family per session.
+			// finishes reaches the same wire through AnnounceReplayEOR, and Ze
+			// sends one automatic End-of-RIB per family per session (the claim
+			// protocol, Peer.claimInitialSyncEOR). A requested marker that claimed
+			// the family first is that marker, queued or already written.
 			if !p.claimInitialSyncEOR(fam) {
-				routesLogger().Debug("end-of-rib already sent for this session, skipping",
+				routesLogger().Debug("end-of-rib already claimed for this session, skipping",
 					"peer", addr, "family", fam, "phase", "initial-sync")
 				continue
 			}
@@ -696,6 +710,58 @@ func (p *Peer) runQueuedTeardown(session *Session, addr string, op peerOp) {
 	p.wakeForwardOverflow()
 }
 
+// endSessionAfterSyncPanic ends session after sendInitialRoutes recovered a
+// panic, and leaves the opQueue as it is: those operations are still owed, and
+// the next session's sync drains them (the opQueue drain in sendInitialRoutes,
+// then drainAndCloseQueueGate). An operation the interrupted drain had already
+// sent is sent again then, which is harmless for an announce or a withdraw.
+//
+// It is the direct teardown runQueuedTeardown makes, as an automatic stop, and
+// never Peer.Teardown or teardownOf: while the sync is in flight those queue
+// the teardown, into the very queue nothing is left to drain. Unlike
+// runQueuedTeardown it sends no End-of-RIB before the NOTIFICATION, because
+// the initial update did not complete, so no marker would be true. A session
+// that has already ended, or is no longer the peer's, is not torn down again
+// (syncSessionGoneLocked).
+//
+// The NOTIFICATION follows only what the socket took before the panic. A panic
+// inside a socket write left that write's octets staged, and the unwind's
+// release of the write path dropped them before any other writer could flush
+// them (releaseWrites, discardInterruptedWrite), so the interrupted UPDATE or
+// End-of-RIB never reaches the peer ahead of the Cease.
+//
+// The queueing gate and the owed marker are cleared last, once the peer has
+// left Established: a route that arrives after the gate opens then joins the
+// queue for the next session instead of going to the session being ended
+// (queueGateClosedLocked). The forwarded UPDATEs parked behind the sync are
+// woken, as when a sync completes.
+//
+// MUST be called with p.mu NOT held, from the recovery of sendInitialRoutes,
+// once the unwind released every lock the sync took.
+func (p *Peer) endSessionAfterSyncPanic(session *Session) {
+	p.mu.RLock()
+	gone := p.syncSessionGoneLocked(session)
+	p.mu.RUnlock()
+	if !gone {
+		// Connecting before the close, for the reason runQueuedTeardown gives:
+		// a reconnect that finds the peer still Established is refused as a
+		// collision.
+		p.setState(PeerStateConnecting)
+		// A recovered panic is a Ze defect, so the session ends with a Cease,
+		// as Session.ceaseAfterPanic ends it after a read-loop panic.
+		// RFC 4486 Section 3 defines no Cease subcode for an internal failure, so:
+		// RFC 4271 Section 4.5: "If no appropriate Error Subcode is defined, then a
+		// zero (Unspecific) value is used for the Error Subcode field."
+		notice := ceaseNotice(message.NotifyCeaseUnspecific, "")
+		_ = sessionTeardown(session, notice, true) //nolint:errcheck // teardownSession answers nil: a failed NOTIFICATION is logged at WARN by logNotifyErr, and the close goes on.
+	}
+	p.mu.Lock()
+	session.sendingInitialRoutes.Store(0)
+	session.initialSyncEOROwed.Store(false)
+	p.mu.Unlock()
+	p.wakeForwardOverflow()
+}
+
 // keepTeardownForNextSessionLocked puts a peer-level teardown that found its
 // sync's session gone back at the head of the opQueue, so the next session's
 // initial sync carries it out before the routes queued behind it, which that
@@ -735,9 +801,7 @@ func (p *Peer) queuedTeardownEnds(session *Session, addr string, op peerOp) bool
 		routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
 		return false
 	}
-	// A nil session is a drain that serves no session at all: gone.
-	gone := session == nil || sessionRunReturned(session) || session.initialSyncEnded() || p.session != session
-	if !gone {
+	if !p.syncSessionGoneLocked(session) {
 		return true
 	}
 	if op.TeardownSession != nil {
@@ -746,6 +810,17 @@ func (p *Peer) queuedTeardownEnds(session *Session, addr string, op peerOp) bool
 	}
 	p.keepTeardownForNextSessionLocked(addr, op)
 	return false
+}
+
+// syncSessionGoneLocked reports whether session, the one an initial sync
+// serves, has ended or is no longer the peer's: its Run has returned
+// (Session.Done is closed), the session-end defer has ended its sync
+// (Session.initialSyncEnded), or p.session no longer names it. A nil session
+// is a drain that serves no session at all: gone. Both teardowns the sync
+// itself carries out ask it before they end the session (queuedTeardownEnds,
+// endSessionAfterSyncPanic). MUST be called with p.mu held (read or write).
+func (p *Peer) syncSessionGoneLocked(session *Session) bool {
+	return session == nil || sessionRunReturned(session) || session.initialSyncEnded() || p.session != session
 }
 
 // sessionRunReturned reports whether session's Run has returned, so the session

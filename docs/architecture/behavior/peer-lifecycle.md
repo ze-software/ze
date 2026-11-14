@@ -309,7 +309,12 @@ withdrawal never overtakes the announcement it takes back.
 The sync and a plugin's replay share one marker per family per session: the
 first to claim the family sends it and the other stands down
 (`claimInitialSyncEOR`). An End-of-RIB a process asks for explicitly is that
-process's own marker and is written each time it asks, as ExaBGP does.
+process's own marker and is written each time it asks, as ExaBGP does, during
+the sync too: it waits in the peer's forward queue until the sync has drained
+the operations queued for the peer. When it claims the family first, the sync
+sends no marker of its own for that family. `behavior { manual-eor true }`
+withholds both automatic markers, the sync's and a replay's, and never a
+requested one (`announceEOR`).
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go — sendInitialRoutes -->
 <!-- source: internal/component/bgp/reactor/peer.go — forwardOrderHold, raiseReplayFence -->
 
@@ -909,10 +914,26 @@ BGP `taskguard` (count, crash record, ERROR log), named by their task:
 | `safeRunOnce` (task `connect`) | The connection cycle outside `Run`: dial, OPEN setup, teardown | Return the panic as the cycle's error to `run()` for normal backoff |
 | Delivery worker goroutine (task `delivery`) | Async message delivery to the reactor's message receiver | Fail the receive publication: Cease / Unspecific, session down; close `deliveryDone`, exit worker (remaining buffered items are dropped intentionally) |
 | `Listener.safeHandle` (task `accept`) | The handler of one accepted connection | Close that connection; the accept loop keeps running |
-| Initial-sync goroutine | Static routes, queued operations, plugin routes and automatic End-of-RIB | Log panic with stack, clear its session's queueing gate and marker-owed flag, wake forwarded overflow, and return |
+| Initial-sync goroutine | Static routes, queued operations, plugin routes and automatic End-of-RIB | Log panic with stack, then end the session (`endSessionAfterSyncPanic`): the peer moves to Connecting, Cease / Unspecific to the peer with no End-of-RIB before it, Event 8 (AutomaticStop); then clear its session's queueing gate and marker-owed flag, wake forwarded overflow, and return. The operation queue is kept for the next session |
 
 Recovery does not itself kill the peer goroutine. A session failure still follows
 the normal reconnect path unless the peer is stopped.
+
+The initial sync's recovery ends its session because the initial update
+stopped at an unknown point: the peer holds no table it can trust, and an
+Established peer whose queue nothing drains would queue every later route and
+suppress every later End-of-RIB. The recovery uses the direct teardown a queued
+teardown uses (`sessionTeardown`, as `runQueuedTeardown` does), never
+`Peer.Teardown` or `teardownOf`, which queue the teardown while the sync is in
+flight, into the queue nothing would drain. The peer moves to Connecting first,
+so the reconnect is not refused as a collision. The queued operations stay: the
+next session's sync drains them (the queue drain in `sendInitialRoutes`, then
+`drainAndCloseQueueGate`), and one the interrupted drain had already sent is
+sent again, which is harmless for an announce or a withdraw. The gate opens
+only after the peer has left Established, so a route that arrives then joins
+the queue for the next session. A session that has already ended is not torn
+down again. A panic that repeats for one peer's table repeats as a reconnect
+loop under the connect-retry backoff, each time with its stack in the log.
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — safeRunOnce, runOnce delivery goroutine recover -->
 <!-- source: internal/component/bgp/reactor/listener.go — safeHandle -->
@@ -923,14 +944,34 @@ one for automatic End-of-RIB. Each held phase MUST defer its own release before
 calling an encoder or writer, so panic unwinding releases `writeMu` before the
 outer recovery runs. The queue drain and forwarding wake between the phases MUST
 remain outside either hold; merging the holds would block writers the drain
-needs. Recovery leaves teardown able to acquire the session writer.
+needs. The recovery's own teardown can therefore acquire the session writer
+for its NOTIFICATION.
+
+That NOTIFICATION follows only what the socket took before the panic.
+`bufio.Writer.Flush` forgets the octets it offered only when the socket write
+returns, so a panic inside that write (the socket, or an observer called after
+the socket accepted them) leaves them staged, and the next flush would send
+them again ahead of its own message: the interrupted UPDATE or End-of-RIB in
+front of the Cease. `observedBGPWriter`, the session's socket boundary, marks a
+write that has not returned, and `releaseWrites`, which every write-path holder
+defers, drops what is staged when it finds the mark still set
+(`discardInterruptedWrite`), before any other writer can take the path. Whether
+the socket took those octets cannot be known after the panic, so their AIGP
+writes are recorded as not delivered. The same release serves the read loop's
+recovery (`ceaseAfterPanic`). The forward worker's recovery keeps its session,
+so there the dropped octets are lost to the peer along with the rest of the
+batch it abandons.
+<!-- source: internal/component/bgp/reactor/session_write_interrupted.go — discardInterruptedWrite -->
+<!-- source: internal/component/bgp/reactor/session_wire.go — observedBGPWriter -->
+<!-- source: internal/component/bgp/reactor/session_write.go — releaseWrites -->
 
 The static-route phase likewise defers `staticMu` release at its existing
 boundary. Both queued RIB drains track their `p.mu` ownership: a codec panic
 unwinds a held mutex, while a socket-write panic must not unlock a mutex already
 released for the send. Every send retains its unlocked interval, allowing new
 operations to enter the queue. These releases happen before initial-sync recovery
-clears its flags and wakes forwarding.
+ends the session, clears its flags and wakes forwarding: the recovery is the
+first deferred call `sendInitialRoutes` registers, so it runs last.
 
 `TestInitialSyncPanicReleasesWriteHolds` injects a one-shot connection panic at
 each phase's first write, then uses `TryLock` to assert release without allowing
@@ -940,8 +981,15 @@ ordering assertions.
 `TestInitialSyncPanicReleasesPeerLocks` covers a static write fault and an NLRI
 codec fault in each real queue drain. `TestInitialSyncQueuedWritePanicRunsUnlocked`
 checks the opposite ownership state by faulting each drain's socket write and
-asserting `p.mu` is free at that boundary.
-<!-- source: internal/component/bgp/reactor/peer_initial_sync_unwind_test.go — TestInitialSyncPanicReleasesPeerLocks, TestInitialSyncQueuedWritePanicRunsUnlocked -->
+asserting `p.mu` is free at that boundary. Each socket fault is followed by one
+more socket write, and the wire then holds what the socket took before the
+fault followed by exactly the Cease / Unspecific NOTIFICATION, nothing of the
+interrupted message. `TestInitialSyncPanicEndsTheSession`
+faults a queued route's codec and asserts the session ended: the peer left
+Established, the wire carries only the Cease / Unspecific NOTIFICATION, and the
+route is still queued.
+<!-- source: internal/component/bgp/reactor/peer_initial_sync_unwind_test.go — TestInitialSyncPanicReleasesPeerLocks, TestInitialSyncQueuedWritePanicRunsUnlocked, TestInitialSyncPanicEndsTheSession -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go — endSessionAfterSyncPanic -->
 
 ## Code map
 
@@ -953,7 +1001,7 @@ asserting `p.mu` is free at that boundary.
 | Outer run loop and backoff | `internal/component/bgp/reactor/peer_run.go` | `run`, `safeRunOnce` |
 | Per-attempt session lifecycle | `internal/component/bgp/reactor/peer_run.go` | `runOnce` |
 | FSM state-change callback | `internal/component/bgp/reactor/peer_run.go` | `SetCallback` closure inside `runOnce` |
-| Initial route synchronization and panic unwind | `internal/component/bgp/reactor/peer_initial_sync.go` | `spawnInitialSync`, `runInitialSync`, `sendInitialRoutes`, `drainAndCloseQueueGate` |
+| Initial route synchronization and panic unwind | `internal/component/bgp/reactor/peer_initial_sync.go` | `spawnInitialSync`, `runInitialSync`, `sendInitialRoutes`, `drainAndCloseQueueGate`, `endSessionAfterSyncPanic` |
 | Cleanup on peer stop | `internal/component/bgp/reactor/peer_run.go` | `cleanup` |
 | Inbound connection buffering | `internal/component/bgp/reactor/peer_connection.go` | `setInboundConnection`, `takeInboundConnection` |
 | RFC 6.8 collision resolution | `internal/component/bgp/reactor/peer_connection.go` | `setPendingConnection`, `resolvePendingCollision`, `storeInboundLocked` |

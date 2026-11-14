@@ -30,6 +30,11 @@ func (s *Session) observeReceivedWire(wire []byte) {
 // Session.writeMu. The usual whole-frame path borrows Write's bytes; a frame
 // crossing writes uses at most the BGP maximum (65535 octets) of lazy storage.
 // No staged-but-unflushed UPDATE is reported as sent.
+//
+// It is also the session's socket boundary: writeOpen is true from the start
+// of Write until it returns, so a writeOpen the write path's holder finds still
+// set when it releases the path is a socket write a panic unwound through
+// (Session.discardInterruptedWrite).
 type observedBGPWriter struct {
 	writer    io.Writer
 	session   *Session
@@ -37,13 +42,18 @@ type observedBGPWriter struct {
 	context   atomic.Uint32
 	transport *sessionTransport
 	invalid   bool
+	writeOpen bool
 }
 
+// Write offers data to the socket, then to the observers. Called only under
+// Session.writeMu, which also guards writeOpen.
 func (w *observedBGPWriter) Write(data []byte) (int, error) {
+	w.writeOpen = true
 	n, err := w.writer.Write(data)
 	if n > 0 && w.session.onWireMessage != nil && !w.invalid {
 		w.observe(data[:n])
 	}
+	w.writeOpen = false
 	return n, err
 }
 
