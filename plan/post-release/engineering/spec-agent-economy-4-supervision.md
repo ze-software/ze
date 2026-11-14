@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Priority | P1 |
 | Release reason | Release-independent development tooling: it changes how the main thread is told about context size and agent cost and changes no shipped binary. |
@@ -280,12 +280,14 @@ wire.
 - Whether AC-7's measure is a new action or an extension of the existing token report.
 - The SubagentStop payload, to record at phase 1.
 
-For the owner, at design approval:
+Settled by the owner on 2026-11-14, and no longer open:
 
-| Question | What each answer changes |
-|----------|--------------------------|
-| The open limit's starting value. Today's cap is 12 and 10 specs are `in-progress`. Counting each started set once adds between about 2 and 16 more, so the open count on the first day is between about 12 and 26: at 12, every new claim is refused until specs close | Start at 12: nothing new opens until the backlog of started sets is closed or their specs are disposed of. Start at the count measured on the day it lands and lower it as specs close: work continues and the limit ratchets down, which is what the rule "lowered as specs close, never raised" already says |
-| The active limit's value. The proposal is 6 distinct specs under a live claim: four main sessions held claims in the last day, and up to three closures may run beside them | A lower value queues sessions behind each other; a higher one bounds nothing on a machine that runs one heavy job per session |
+| Value | Decision | Why |
+|-------|----------|-----|
+| The open limit's starting value | The open count measured on the day the limit lands, lowered as specs close and never raised | Today's cap of 12 would refuse every new claim on the first day: 10 specs are `in-progress` and each started set adds one, so the open count is between about 12 and 26 |
+| The active limit | 6 distinct specs under a live claim | Four main sessions held claims in one day, and up to three closures may run beside them |
+
+The landing commit records the measured count as the limit's first value, so the number has one home and its date.
 
 ## Key Design Decisions
 
@@ -314,7 +316,8 @@ Owner decisions (2026-11-14), no longer open:
 
 | Decision | What it settles |
 |----------|-----------------|
-| The open limit takes over today's cap and its value | No new number is invented for it. The research then showed that value refuses every new claim on the first day, so the starting value is back with the owner in the table above |
+| The open limit takes over today's cap, and starts at the measured open count | The research showed today's value of 12 refuses every new claim on the first day, so the owner set the starting value to the count measured when the limit lands |
+| The design as written in this spec | Shown to the owner on 2026-11-14 with its alternatives; he settled its two open values the same day |
 | Each started, unclosed child counts as itself in the open limit, and a live set with no such child counts once | The agent-economy set, between children, costs one |
 | No acknowledgement route past AC-11 | The refusal binds an agent ending its own turn, and its two ways out are cheap |
 
