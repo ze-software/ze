@@ -107,14 +107,38 @@ func validateShowcaseDashboard() error {
 	if err := awaitShowcasePeers(environ, showcaseTransit, showcaseFRR); err != nil {
 		return err
 	}
-	answer, err := runPTYFixture(environ, flagTimeout, "30", "--delay", "0.1",
-		"--command", "exit", "--command", `@wait operational\]`,
-		"--command", "monitor bgp", "--command", "@wait established",
-		"--command", "@type s", "--command", `@wait ASN \^`,
-		"--command", "@type q", "--command", `@wait operational\]`,
-		"--command", "exit", "--", "sshpass", "-e", "ssh", "ze-demo")
+	answer, err := runPTYFixture(environ, showcaseDashboardSession()...)
 	if err != nil {
 		return err
 	}
 	return requireAll(answer, "established", "ASN ^", "operational]")
+}
+
+// dashboardReturnWait is the wait that follows the `q` that leaves
+// `monitor bgp`. It names the status line stopDashboard sets
+// (internal/component/cli/model_dashboard.go), which only the CLI's own view
+// renders, so it proves the dashboard gave the screen back. The `exit` after
+// it must then close the session, which proves the prompt took a command.
+//
+// It must not wait for `operational]` or the prompt. A command session's wait
+// reads only the rows whose text changed since the last keystroke
+// (terminalScreen.show), and the mode line and the prompt come back with the
+// text they had before the dashboard opened. They count as changed only when
+// the dashboard painted over their rows, which the peer table does not.
+// operationalModeLine is the pattern of the mode line the CLI shows once
+// `exit` has left configuration mode (idleInfoLine, internal/component/cli).
+const operationalModeLine = `operational\]`
+
+const dashboardReturnWait = tapeWaitDirective + " dashboard stopped"
+
+// showcaseDashboardSession answers the recorder arguments of the showcase's
+// dashboard check: leave configuration mode, open the dashboard on an
+// established peer, sort by ASN, quit, and close the session.
+func showcaseDashboardSession() []string {
+	return []string{flagTimeout, "30", flagDelay, liveTopicKeyDelay,
+		flagCommand, cliExitCommand, flagCommand, ptyWait(operationalModeLine),
+		flagCommand, "monitor bgp", flagCommand, ptyWait("established"),
+		flagCommand, ptyType("s"), flagCommand, ptyWait(`ASN \^`),
+		flagCommand, ptyType("q"), flagCommand, dashboardReturnWait,
+		flagCommand, cliExitCommand, "--", "sshpass", "-e", "ssh", "ze-demo"}
 }

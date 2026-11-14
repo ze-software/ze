@@ -128,13 +128,19 @@ manifest demo with no scenario, fails the package's unit test.
 <!-- source: internal/le/site/terminaldemo/registry_test.go -- TestEveryManifestDemoHasARegisteredScenario -->
 
 Live topics use `registerLiveTopic` in that same registry. Each registration
-names its configuration fragment, one live check and a read-only readiness
-callback. The standalone validator owns prepare, start and stop. The continuous
+names its configuration fragment, a declaration of what its live commit adds,
+one live check and a read-only readiness callback. The declaration refuses a
+configuration that already holds the topic's containers or bindings. The base
+guard runs the declaration of every registered topic, and a topic runs its own
+before its commit, so a new topic is guarded without an edit to the guard, and
+a topic registered with no declaration fails at start.
+The standalone validator owns prepare, start and stop. The continuous
 validator reads chapter order from `showcase/demo.tape` and calls those same
 checks against one daemon, checking its PID between chapters. Each check proves
 absence before its commit, the failure diagnostic and recovery.
 <!-- source: internal/le/site/terminaldemo/register_topics.go -- registerLiveTopic -->
-<!-- source: internal/le/site/terminaldemo/validate_topics.go -- validateLiveTopic -->
+<!-- source: internal/le/site/terminaldemo/topic_absence.go -- topicContainersAbsent, topicBFDAbsent, topicVRRPAbsent -->
+<!-- source: internal/le/site/terminaldemo/validate_topics.go -- validateLiveTopic, requireLiveTopicsAbsent, requireLiveTopicAbsent -->
 <!-- source: internal/le/site/terminaldemo/validate_showcase_topics.go -- showcaseTopicOrder, validateShowcase -->
 
 `loadShowcaseSections` loads every section into one actual SSH candidate and
@@ -169,7 +175,10 @@ represent separate speakers in the same AS, not parallel sessions to one speaker
 
 The hidden VPN endpoint is a second Ze in `showcase-vpn`, with its own config
 store and real kernel XFRM backend. Each protected host has a separate
-namespace. The shown Ze has no VPN, XFRM interface or tunnel route until the
+namespace. The hidden daemon enters its namespace with `nsenter --net`, not
+`ip netns exec`: the latter mounts a fresh `/sys` that hides cgroup2, and the
+`application-override deny` guard then cannot attach.
+The shown Ze has no VPN, XFRM interface or tunnel route until the
 topic's live commit. Both VPN configurations must explicitly select
 `unmatched bypass`, so unrelated chapters and SSH stay reachable.
 <!-- source: internal/le/site/terminaldemo/scenarios_showcase_network.go -- prepareShowcaseVPN, showcaseNetworkCommands -->
@@ -205,7 +214,13 @@ They never stop the shown Ze.
 Each fixture declares a port or command-output readiness observation.
 Startup refuses a fixture with no observations. The readiness path refuses an
 empty target or a command observation without a command; neither can stand in
-for a service that was actually observed ready.
+for a service that was actually observed ready. A command observation matches
+its target byte for byte, so the tracked uplink waits for the `LOWER_UP` flag,
+which only a link that is up prints. Each observation is tried 300 times,
+100 milliseconds apart. A lab command that does not finish within two minutes
+(ten for a recorder session) is stopped, the error names it, and the wait that
+ran it ends at once.
+<!-- source: internal/le/site/terminaldemo/runtime.go -- runCommand, waitForCommandText, awaitCheck, hungCommand, commandDeadline -->
 `startFixtures` records its processes before waiting. Selective stop waits for
 those processes to exit before restart. The shown daemon has its own `ze.pid`;
 topic checks use `showcasePID` and `requireShowcasePID`, not the first aggregate

@@ -9,6 +9,9 @@ import (
 	"io"
 	"path/filepath"
 	"regexp"
+	"slices"
+
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // liveTopic holds the authored fragment and its check against an already-running
@@ -16,6 +19,58 @@ import (
 type liveTopic struct {
 	fragment string
 	check    func() error
+	// absent refuses a configuration that already holds what this topic's
+	// live commit adds. The base guard runs every registered topic's
+	// declaration, so a new topic is guarded with no edit to the guard.
+	absent func(*config.Tree) error
+}
+
+// liveTopicIDs answers the registered live topics in a stable order, so a
+// guard that walks them names the same topic first on every run.
+func liveTopicIDs(registry scenarioRegistry) []string {
+	ids := make([]string, 0, len(registry))
+	for id, sc := range registry {
+		if sc.live != nil {
+			ids = append(ids, id)
+		}
+	}
+	slices.Sort(ids)
+	return ids
+}
+
+// requireLiveTopicsAbsent runs the absence declaration of every live topic in
+// registry over tree, and names the first topic the tree already configures.
+func requireLiveTopicsAbsent(registry scenarioRegistry, tree *config.Tree) error {
+	for _, id := range liveTopicIDs(registry) {
+		if err := registry[id].live.absent(tree); err != nil {
+			return fmt.Errorf("live topic %s: %w", id, err)
+		}
+	}
+	return nil
+}
+
+// requireLiveTopicAbsent reads the active store before a topic's live commit
+// and runs that topic's own absence declaration over it.
+func requireLiveTopicAbsent(id string) error {
+	sc, err := scenarios.lookup(id)
+	if err != nil {
+		return err
+	}
+	if sc.live == nil {
+		return fmt.Errorf("demo %s is not a live topic, so it declares nothing to be absent", id)
+	}
+	text, err := runZe([]string{commandConfig, commandCat, zeConfigFile}, scenarioEnv(showcaseLabID, demoPassword), nil)
+	if err != nil {
+		return err
+	}
+	tree, err := config.ParseTreeForValidation(text)
+	if err != nil {
+		return fmt.Errorf("parse running configuration: %w", err)
+	}
+	if err := sc.live.absent(tree); err != nil {
+		return fmt.Errorf("%s is configured before its live commit: %w", id, err)
+	}
+	return nil
 }
 
 // validateLiveTopic owns one lab lifetime. Every callback MUST leave that
@@ -50,21 +105,31 @@ func showcaseCLI(command string) (string, error) {
 // loadShowcaseSections commits all named snippets in one SSH candidate. Paths
 // are relative to demos/terminal. This uses the same editor as the recording,
 // never an offline import into the daemon's store.
+// liveTopicKeyDelay is the recorder's pause, in seconds, after a command that
+// no wait follows, in the sessions that drive the shared showcase daemon.
+const liveTopicKeyDelay = "0.1"
+
+// sessionCommitted is the text the editor prints once `commit now` landed.
+const sessionCommitted = "Session committed"
+
+// keyEnter names the Enter key of ptyKeys.
+const keyEnter = "enter"
+
 func loadShowcaseSections(paths ...string) error {
 	if len(paths) == 0 {
 		return errors.New("showcase load needs at least one configuration section")
 	}
-	args := []string{flagTimeout, "60", "--delay", "0.1"}
+	args := []string{flagTimeout, "60", flagDelay, liveTopicKeyDelay}
 	for _, path := range paths {
 		args = append(args,
-			"--command", "load file absolute merge "+filepath.Join(demoTree(), path),
-			"--command", `@wait merged from \S*`+regexp.QuoteMeta(filepath.Base(path)))
+			flagCommand, "load file absolute merge "+filepath.Join(demoTree(), path),
+			flagCommand, ptyWait(`merged from \S*`+regexp.QuoteMeta(filepath.Base(path))))
 	}
 	args = append(args,
-		"--command", "show | compare",
-		"--command", "commit now", "--command", "@wait Session committed",
-		"--command", "exit", "--command", `@wait operational\]`,
-		"--command", "exit", "--", "sshpass", "-e", "ssh", "ze-demo")
+		flagCommand, "show | compare",
+		flagCommand, "commit now", flagCommand, ptyWait(sessionCommitted),
+		flagCommand, cliExitCommand, flagCommand, ptyWait(operationalModeLine),
+		flagCommand, cliExitCommand, "--", "sshpass", "-e", "ssh", "ze-demo")
 	output, err := runPTYFixture(scenarioEnv(showcaseLabID, demoPassword), args...)
 	if err != nil {
 		return fmt.Errorf("load showcase sections over SSH: %w\n%s", err, output)

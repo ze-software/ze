@@ -41,7 +41,7 @@ func networkHasFRRRouterLSA(databases []networkOSPFDatabase) bool {
 
 func observeTopicOSPF(stage string) error {
 	if stage == stageAbsent {
-		if err := requireNetworkTopicAbsent("ospf"); err != nil {
+		if err := requireLiveTopicAbsent(demoOSPFAdjacency); err != nil {
 			return err
 		}
 		answer, err := showcaseCLI("show ospf neighbor | json | no-more")

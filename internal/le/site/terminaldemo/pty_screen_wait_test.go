@@ -3,6 +3,8 @@ package siteterminaldemo
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -27,6 +29,55 @@ func TestPTYWaitMatchesDifferentialStatus(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "got:done") {
 		t.Fatalf("the command after the second confirmation was not processed: %q", stdout.String())
+	}
+}
+
+// PREVENTS: a dashboard check that waits, after the `q` that leaves
+// `monitor bgp`, for a row that comes back with the text it had before the
+// dashboard opened. The showcase waited for `operational]` there and timed
+// out with only `► dashboard stopped` among the changed rows.
+// Method: the rows a command session counts as changed when the CLI returns
+// from a peer table that never painted the mode line or the prompt, matched
+// against the wait each dashboard session places after its `@type q`. The
+// frames are written by hand from what Model.View renders (message line, mode
+// line, prompt); the repository holds no recording of them.
+// MUTATION: `@wait operational\]` in place of dashboardReturnWait in
+// showcaseDashboardSession or cliDashboardSession turns its subtest red.
+func TestDashboardSessionsWaitForWhatTheReturnPaints(t *testing.T) {
+	const modeLine, prompt = "\x1b[39;1HZe Editor [operational]", "\x1b[40;1Hze> "
+	screen := newTerminalScreen(40, 120)
+	screen.settle(modeLine + prompt)
+	screen.settle("\x1b[2;3HPeer       ASN ^  State\x1b[3;3H127.0.0.2  65001  established")
+	window := len(screen.history)
+	screen.settle("\x1b[38;1H► dashboard stopped" + modeLine + prompt)
+	changed := strings.Join(screen.history[window:], "\n")
+	if strings.Contains(changed, "operational]") {
+		t.Fatalf("the unchanged mode line counts as changed, so this test judges nothing: %q", changed)
+	}
+	sessions := map[string][]string{
+		"showcase":      showcaseDashboardSession(),
+		"cli-dashboard": cliDashboardSession(),
+	}
+	for name, arguments := range sessions {
+		t.Run(name, func(t *testing.T) {
+			var commands []string
+			for index := 0; index+1 < len(arguments); index++ {
+				if arguments[index] == "--command" {
+					commands = append(commands, arguments[index+1])
+				}
+			}
+			quit := slices.Index(commands, "@type q")
+			if quit < 0 || quit+1 >= len(commands) {
+				t.Fatalf("the session does not quit the dashboard and then wait: %q", commands)
+			}
+			directive, argument := splitPTYDirective(commands[quit+1])
+			if directive != tapeWaitDirective {
+				t.Fatalf("the command after the quit is %q, not a wait", commands[quit+1])
+			}
+			if !regexp.MustCompile(argument).MatchString(changed) {
+				t.Fatalf("the wait %q after the quit matches no row the return changes: %q", argument, changed)
+			}
+		})
 	}
 }
 

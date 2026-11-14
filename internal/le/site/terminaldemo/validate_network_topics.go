@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/ze-software/ze/internal/component/config"
 )
 
 func networkJSON[T any](command string) (T, error) {
@@ -43,49 +41,6 @@ func awaitNetworkObservation(label string, timeout time.Duration, observe func()
 
 func controlNetworkFixture(fixture, verb string) error {
 	return runShowcaseLab("control", []string{fixture, verb}, io.Discard)
-}
-
-// requireNetworkTopicAbsent checks the active store before the live commit,
-// including peer bindings that could otherwise conceal a pre-enabled feature.
-func requireNetworkTopicAbsent(topic string) error {
-	text, err := runZe([]string{commandConfig, commandCat, zeConfigFile}, scenarioEnv(showcaseLabID, demoPassword), nil)
-	if err != nil {
-		return err
-	}
-	tree, err := config.ParseTreeForValidation(text)
-	if err != nil {
-		return fmt.Errorf("parse running configuration: %w", err)
-	}
-	if topic != "vrrp" && tree.GetContainerPath(topic) != nil {
-		return fmt.Errorf("%s is configured before its live commit", topic)
-	}
-	if topic == "bfd" {
-		if bgp := tree.GetContainer("bgp"); bgp != nil {
-			for name, peer := range bgp.GetList("peer") {
-				if connection := peer.GetContainer("connection"); connection != nil {
-					if _, present := connection.Get("bfd"); present {
-						return fmt.Errorf("peer %s already binds BFD", name)
-					}
-				}
-			}
-		}
-	}
-	if topic == "vrrp" {
-		if interfaces := tree.GetContainer("interface"); interfaces != nil {
-			for _, kind := range interfaces.ListNames() {
-				for name, iface := range interfaces.GetList(kind) {
-					for _, unit := range iface.GetList("unit") {
-						for _, family := range []string{"ipv4", "ipv6"} {
-							if addresses := unit.GetContainer(family); addresses != nil && addresses.GetContainer("vrrp") != nil {
-								return fmt.Errorf("interface %s already configures VRRP", name)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return nil
 }
 
 type networkMetricAnswer struct {

@@ -5,6 +5,7 @@ package siteterminaldemo
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -79,6 +80,10 @@ func awaitShowcasePeers(environ []string, names ...string) error {
 		if err == nil {
 			return nil
 		}
+		// A command stopped at its deadline hangs again on the next attempt.
+		if errors.Is(err, errCommandDeadline) {
+			return err
+		}
 		last = err
 		// sleep(poll-interval): each requested peer must report Established.
 		time.Sleep(100 * time.Millisecond)
@@ -128,30 +133,28 @@ func requireShowcaseBase() error {
 	if err := requireShowcaseBaseTree(tree); err != nil {
 		return err
 	}
-	if err := runShowcaseLab("control", []string{showcaseVPN, controlPing}, io.Discard); err == nil {
-		return fmt.Errorf("protected hosts can communicate before the shown VPN is configured")
+	// The probe must have run and gone unanswered. A ping that could not run
+	// fails too, and says nothing about whether the hosts can communicate.
+	if err := requireTopicIPsecPingFailure(); err != nil {
+		return fmt.Errorf("protected hosts before the shown VPN is configured: %w", err)
 	}
 	return nil
 }
 
 // requireShowcaseBaseTree permits baseline route storage, not topic bindings.
-// Transit alone needs the RIB's Route Refresh catch-up subscriptions.
+// What a topic adds is not listed here: each live topic declares it at its
+// registration, and this runs every declaration, so a new topic is guarded
+// without an edit to this function. Transit alone needs the RIB's Route
+// Refresh catch-up subscriptions.
 func requireShowcaseBaseTree(tree *config.Tree) error {
-	for _, path := range []string{"vpn", "bfd", "ospf", "traffic", "bgp/rpki", "bgp/irr"} {
-		if tree.GetContainerPath(path) != nil {
-			return fmt.Errorf("showcase base already configures topic %s", path)
-		}
+	if err := requireLiveTopicsAbsent(scenarios, tree); err != nil {
+		return err
 	}
 	bgp := tree.GetContainer("bgp")
 	if bgp == nil {
 		return fmt.Errorf("showcase base has no BGP configuration")
 	}
 	for name, peer := range bgp.GetList("peer") {
-		if connection := peer.GetContainer("connection"); connection != nil {
-			if _, present := connection.Get("bfd"); present {
-				return fmt.Errorf("showcase base peer %s already configures BFD", name)
-			}
-		}
 		if attach := peer.GetContainer("attach"); attach != nil {
 			for process, binding := range attach.GetList("process") {
 				if process != "bgp-adj-rib-in" && (process != pluginBGPRIB || name != showcaseTransit) {
@@ -174,24 +177,6 @@ func requireShowcaseBaseTree(tree *config.Tree) error {
 			if name == pluginBGPRIB {
 				if use, _ := plugin.Get("use"); use != pluginBGPRIB {
 					return fmt.Errorf("showcase base plugin bgp-rib uses %q, not bgp-rib", use)
-				}
-			}
-		}
-	}
-	if interfaces := tree.GetContainer("interface"); interfaces != nil {
-		if len(interfaces.GetList("xfrm")) != 0 {
-			return fmt.Errorf("showcase base already configures an XFRM interface")
-		}
-		for _, kind := range interfaces.ListNames() {
-			for name, iface := range interfaces.GetList(kind) {
-				for _, unit := range iface.GetList("unit") {
-					for _, family := range []string{"ipv4", "ipv6"} {
-						if addresses := unit.GetContainer(family); addresses != nil {
-							if addresses.GetContainer("vrrp") != nil {
-								return fmt.Errorf("showcase base interface %s already configures VRRP", name)
-							}
-						}
-					}
 				}
 			}
 		}

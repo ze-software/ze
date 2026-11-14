@@ -6,11 +6,18 @@ package siteterminaldemo
 import (
 	"fmt"
 	"io"
+
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // registerLiveTopic binds the standalone validator and the showcase check to
-// one scenario. await observes a named stage without changing configuration.
-func registerLiveTopic(id, fragment string, check func() error, await func(string) error) {
+// one scenario. absent declares what the topic's live commit adds, by refusing
+// a configuration that already holds it; await observes a named stage without
+// changing configuration.
+func registerLiveTopic(id, fragment string, absent func(*config.Tree) error, check func() error, await func(string) error) {
+	if absent == nil {
+		panic("BUG: live topic " + id + " does not declare what its commit adds")
+	}
 	if check == nil {
 		panic("BUG: live topic " + id + " has no check")
 	}
@@ -34,6 +41,6 @@ func registerLiveTopic(id, fragment string, check func() error, await func(strin
 			return writeLine(stdout, "Topic ready")
 		},
 		validate: func() error { return validateLiveTopic(check) },
-		live:     &liveTopic{fragment: fragment, check: check},
+		live:     &liveTopic{fragment: fragment, check: check, absent: absent},
 	})
 }

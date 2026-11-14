@@ -106,7 +106,7 @@ func awaitNetworkTrafficSettled() error {
 func awaitTopicTrafficUsage(stage string) error {
 	switch stage {
 	case stageAbsent:
-		if err := requireNetworkTopicAbsent("traffic"); err != nil {
+		if err := requireLiveTopicAbsent(demoTrafficAnomaly); err != nil {
 			return err
 		}
 		answer, err := networkJSON[struct {

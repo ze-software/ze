@@ -52,7 +52,7 @@ func runContainerEntrypoint(args []string, stdout, stderr io.Writer) (err error)
 	name := args[0]
 	arguments := args[1:]
 	if strings.HasSuffix(name, ".tape") {
-		name, arguments = recorderCommand(append([]string{"--tape", name}, arguments...)...)
+		name, arguments = recorderCommand(append([]string{flagTape, name}, arguments...)...)
 	}
 	// The demo tree is the directory a tape's own paths are written against: the
 	// shared `Source common.tape` and each `Output artifacts/<id>.<ext>`, which is

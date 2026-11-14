@@ -342,7 +342,12 @@ func startFixtures(state, pidPath string, environ []string, fixtures []labFixtur
 	return nil
 }
 
-// awaitReadiness polls one observation for up to 30 seconds.
+// awaitReadiness polls one observation 300 times, 100 milliseconds apart. The
+// bound is a number of attempts, so how long it lasts depends on the
+// observation: about one minute for a port, where a refused dial may use its
+// own 100 milliseconds, and 300 runs of the command for an answer, about five
+// and a half minutes for a `ping -W 1` that gets no reply. A command stopped
+// at its deadline ends the wait at once (waitForCommandText).
 func awaitReadiness(name string, ready labReadiness) error {
 	if ready.target == "" {
 		return fmt.Errorf("showcase lab fixture %s has an empty readiness target; restore its observation and run ./le site terminal-demo build binaries", name)
@@ -359,7 +364,8 @@ func awaitReadiness(name string, ready labReadiness) error {
 			return string(text), err
 		})
 		if err != nil {
-			return fmt.Errorf("showcase lab fixture %s: %w", name, err)
+			return fmt.Errorf("showcase lab fixture %s is not ready, so the lab cannot start: `%s` never answered %q (%w).\nThe fixture's own log says why it did not come up. Read the logs under %s, then run the check again:\n./le site terminal-demo check validation",
+				name, strings.Join(ready.argv, " "), ready.target, err, demoState(showcaseLabID))
 		}
 		return nil
 	case readinessUnspecified:

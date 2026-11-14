@@ -112,6 +112,25 @@ func TestShowcaseBaseTreeRejectsPreconfiguredTopics(t *testing.T) {
 	}
 }
 
+// PREVENTS: a base whose hostname the confirmed-commit topic already changed
+// being accepted. That topic adds no container, so its declaration reads the
+// hostname the recording starts from.
+// Method: the actual baseline with the trial hostname, then with no hostname.
+func TestShowcaseBaseTreeRejectsChangedHostname(t *testing.T) {
+	tree := readShowcaseBaseTree(t)
+	tree.GetContainer("system").Set("host", commitConfirmedTrialHost)
+	err := requireShowcaseBaseTree(tree)
+	if err == nil || !strings.Contains(err.Error(), "the confirmed-commit topic already changed it") {
+		t.Fatalf("base guard error = %v, want the changed hostname refused", err)
+	}
+	tree = readShowcaseBaseTree(t)
+	tree.RemoveContainer("system")
+	err = requireShowcaseBaseTree(tree)
+	if err == nil || !strings.Contains(err.Error(), "no system section") {
+		t.Fatalf("base guard error = %v, want the missing system section refused", err)
+	}
+}
+
 func readShowcaseBaseTree(t *testing.T) *config.Tree {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(repoDemoRoot, showcaseLabID, "ze.conf"))

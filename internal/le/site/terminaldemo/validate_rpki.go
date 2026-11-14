@@ -1,5 +1,5 @@
 // Design: docs/guide/rpki.md -- an Invalid route stays in Adj-RIB-In, ineligible for selection
-// Related: scenarios_routing.go -- requireRPKITransit checks the shared lab's transit rows.
+// Related: scenarios_routing.go -- requireRPKITransit reads the live answer this file judges.
 
 package siteterminaldemo
 
@@ -37,26 +37,36 @@ var rpkiDemoRoutesExpected = []rpkiDemoRoute{
 	{Key: "ipv4/unicast:11.43.0.0/24", ValidationState: rpkiDemoStateNotFound, Ineligible: false},
 }
 
-// checkRPKIDemoAdjRIBIn answers nil only when the JSON answer of
-// `show bgp adj-rib-in` holds exactly the expected rows, each with its expected
-// state and eligibility. It names the first row that differs otherwise.
-func checkRPKIDemoAdjRIBIn(document string) error {
+// checkRPKIDemoAdjRIBIn judges the JSON answer of `show bgp adj-rib-in` for
+// the transit peer (loopbackPeerAddress) of the shared lab, whose other peers
+// hold routes of their own. It reads that peer's rows alone and
+// answers nil only when that peer holds exactly the expected routes. Once
+// RPKI is committed (validated), each route also carries its expected state
+// and eligibility; before the commit no route may be ineligible yet. It names
+// the first route that differs otherwise.
+func checkRPKIDemoAdjRIBIn(document string, validated bool) error {
+	const peer = loopbackPeerAddress
 	var answer struct {
 		AdjRIBIn map[string][]rpkiDemoRoute `json:"adj-rib-in"`
 	}
 	if err := json.Unmarshal([]byte(document), &answer); err != nil {
 		return fmt.Errorf("validation failed: adj-rib-in answer is not JSON: %w\n%s", err, document)
 	}
-	held := make(map[string]rpkiDemoRoute)
-	for _, routes := range answer.AdjRIBIn {
-		for _, route := range routes {
-			held[route.Key] = route
-		}
+	routes := answer.AdjRIBIn[peer]
+	held := make(map[string]rpkiDemoRoute, len(routes))
+	for _, route := range routes {
+		held[route.Key] = route
 	}
 	for _, expected := range rpkiDemoRoutesExpected {
 		route, found := held[expected.Key]
 		if !found {
-			return fmt.Errorf("validation failed: Adj-RIB-In holds no %s\n%s", expected.Key, document)
+			return fmt.Errorf("validation failed: Adj-RIB-In of %s holds no %s\n%s", peer, expected.Key, document)
+		}
+		if !validated {
+			if route.Ineligible {
+				return fmt.Errorf("validation failed: %s is ineligible before RPKI is committed\n%s", expected.Key, document)
+			}
+			continue
 		}
 		if route != expected {
 			return fmt.Errorf("validation failed: %s has validation-state %d and ineligible %t, expected %d and %t\n%s",
@@ -64,9 +74,10 @@ func checkRPKIDemoAdjRIBIn(document string) error {
 				expected.ValidationState, expected.Ineligible, document)
 		}
 	}
-	if len(held) != len(rpkiDemoRoutesExpected) {
-		return fmt.Errorf("validation failed: Adj-RIB-In holds %d routes, expected %d\n%s",
-			len(held), len(rpkiDemoRoutesExpected), document)
+	// The row count, not the key count: a key announced twice is one route too many.
+	if len(routes) != len(rpkiDemoRoutesExpected) {
+		return fmt.Errorf("validation failed: Adj-RIB-In of %s holds %d routes, expected %d\n%s",
+			peer, len(routes), len(rpkiDemoRoutesExpected), document)
 	}
 	return nil
 }

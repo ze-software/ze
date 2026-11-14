@@ -107,7 +107,7 @@ func requireNetworkBGPDeparture(history networkBGPHistory) error {
 
 func observeTopicBFD(stage string) error {
 	if stage == stageAbsent {
-		if err := requireNetworkTopicAbsent("bfd"); err != nil {
+		if err := requireLiveTopicAbsent(demoBFDFailover); err != nil {
 			return err
 		}
 		answer, err := showcaseCLI("show bfd sessions | json | no-more")

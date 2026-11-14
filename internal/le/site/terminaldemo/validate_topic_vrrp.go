@@ -84,7 +84,7 @@ func requireNetworkVIPOwnership(ze, peer []networkVIPOwner, masterIsZe bool, exp
 
 func observeTopicVRRPTracking(stage string) error {
 	if stage == stageAbsent {
-		if err := requireNetworkTopicAbsent("vrrp"); err != nil {
+		if err := requireLiveTopicAbsent(demoVRRPTracking); err != nil {
 			return err
 		}
 		owners, err := networkVIPOwners("")

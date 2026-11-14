@@ -61,8 +61,33 @@ func requireNone(value string, unexpected ...string) error {
 // does not.
 func runPTYFixture(environ []string, args ...string) (string, error) {
 	name, arguments := recorderCommand(args...)
-	output, err := runCommand(name, arguments, commandOptions{env: environ})
+	output, err := runCommand(name, arguments, commandOptions{env: environ, deadline: ptyFixtureDeadline})
 	return string(output), err
+}
+
+// ptyFixtureDeadline bounds one whole recorder session. The recorder's
+// --timeout bounds each wait inside the session, and a session holds several
+// waits and authored sleeps, so the whole gets ten minutes where runCommand's
+// default would cut a session that is still making progress.
+const ptyFixtureDeadline = 10 * time.Minute
+
+// runPTYFixtureObserved runs the recorder as runPTYFixture does and calls
+// observe while the session is open. A check uses it to read lab state that
+// exists only during the session, such as the store inside a confirmed
+// commit's window, which the transcript alone cannot prove. It answers the
+// transcript; the session's own failure is reported before observe's.
+func runPTYFixtureObserved(environ []string, observe func() error, args ...string) (string, error) {
+	name, arguments := recorderCommand(args...)
+	session, err := beginCommand(name, arguments, commandOptions{env: environ, deadline: ptyFixtureDeadline})
+	if err != nil {
+		return "", err
+	}
+	observed := observe()
+	output, err := session.wait()
+	if err != nil {
+		return string(output), errors.Join(err, observed)
+	}
+	return string(output), observed
 }
 
 func validateCLIDashboard() error {
@@ -74,7 +99,11 @@ func validateCLIDashboard() error {
 	env := scenarioEnv(id, demoPassword)
 	var peers string
 	for range 100 {
-		peers, _ = cli(env, showPeerListRaw)
+		var readErr error
+		peers, readErr = cli(env, showPeerListRaw)
+		if hung := hungCommand(readErr); hung != nil {
+			return hung
+		}
 		if strings.Count(peers, `"state": "established"`) == 3 {
 			break
 		}
@@ -92,11 +121,24 @@ func validateCLIDashboard() error {
 	// highlight used to stay at a row NUMBER across a re-sort, so `down` reached
 	// .2 or .3 depending on whether a poll landed in between and re-resolved the
 	// index (comparePeers and followSelection, internal/component/cli).
-	output, err := runPTYFixture(env, flagTimeout, "20", "--command", "exit", "--command", `@wait operational\]`, "--command", "monitor bgp", "--command", `@wait 127\.0\.0\.4`, "--command", "@type s", "--command", `@wait ASN \^`, "--command", "@key down", "--command", "@key enter", "--command", `@wait Peer Detail: 127\.0\.0\.3`, "--command", "@escape", "--command", "@type q", "--command", `@wait operational\]`, "--command", "exit", "--", "sshpass", "-e", "ssh", "ze-demo")
+	output, err := runPTYFixture(env, cliDashboardSession()...)
 	if err != nil {
 		return err
 	}
 	return requireAll(output, "ASN ^", "Peer Detail: 127.0.0.3")
+}
+
+// cliDashboardSession answers the recorder arguments of the dashboard demo's
+// check, which validateCLIDashboard explains key by key.
+func cliDashboardSession() []string {
+	return []string{flagTimeout, "20",
+		flagCommand, cliExitCommand, flagCommand, ptyWait(operationalModeLine),
+		flagCommand, "monitor bgp", flagCommand, ptyWait(`127\.0\.0\.4`),
+		flagCommand, ptyType("s"), flagCommand, ptyWait(`ASN \^`),
+		flagCommand, ptyKey(ptyKeyDown), flagCommand, ptyKey(keyEnter),
+		flagCommand, ptyWait(`Peer Detail: 127\.0\.0\.3`),
+		flagCommand, tapeEscapeDirective, flagCommand, ptyType("q"), flagCommand, dashboardReturnWait,
+		flagCommand, cliExitCommand, "--", "sshpass", "-e", "ssh", "ze-demo"}
 }
 
 func validateZeFSConfig() error {
@@ -130,7 +172,7 @@ func validateZeFSConfig() error {
 	if err := requireNone(before, "┌"); err != nil {
 		return err
 	}
-	output, err := runPTYFixture(env, "--command", "set environment cli format default table", "--command", "show | compare", "--command", "commit", "--command", "@wait Session committed", "--command", "exit", "--command", `@wait operational\]`, "--command", "exit", "--", "sshpass", "-e", "ssh", "ze-demo")
+	output, err := runPTYFixture(env, flagCommand, "set environment cli format default table", flagCommand, "show | compare", flagCommand, "commit now", flagCommand, ptyWait(sessionCommitted), flagCommand, cliExitCommand, flagCommand, ptyWait(operationalModeLine), flagCommand, cliExitCommand, "--", "sshpass", "-e", "ssh", "ze-demo")
 	if err != nil {
 		return err
 	}
@@ -216,7 +258,7 @@ func validateTraceroute() error {
 }
 
 func validateLauncher() error {
-	output, err := runPTYFixture(demoEnvironment(), "--ready", "Operations", "--command", "@type show", "--command", "@wait filter: show", "--command", "@key enter", "--command", "@wait > show", "--command", "@escape", "--command", "@wait Operations", "--command", "@type doctor", "--command", "@wait filter: doctor", "--command", "@escape", "--command", "@escape", "--", "ze")
+	output, err := runPTYFixture(demoEnvironment(), flagReady, "Operations", flagCommand, ptyType("show"), flagCommand, ptyWait("filter: show"), flagCommand, ptyKey(keyEnter), flagCommand, ptyWait("> show"), flagCommand, tapeEscapeDirective, flagCommand, ptyWait("Operations"), flagCommand, ptyType("doctor"), flagCommand, ptyWait("filter: doctor"), flagCommand, tapeEscapeDirective, flagCommand, tapeEscapeDirective, "--", "ze")
 	if err != nil {
 		return err
 	}
@@ -250,9 +292,13 @@ func validateRIBFIB() error {
 	}
 	var best, rib, kernel string
 	for range 100 {
-		best, _ = cli(env, "show bgp rib best | no-more")
-		rib, _ = cli(env, "show rib | no-more")
-		out, _ := runCommand("ip", []string{"-details", ipRoute, commandShow, ipExact, prefix}, commandOptions{})
+		var bestErr, ribErr error
+		best, bestErr = cli(env, "show bgp rib best | no-more")
+		rib, ribErr = cli(env, "show rib | no-more")
+		out, kernelErr := runCommand("ip", []string{"-details", ipRoute, commandShow, ipExact, prefix}, commandOptions{})
+		if hung := hungCommand(bestErr, ribErr, kernelErr); hung != nil {
+			return hung
+		}
 		kernel = string(out)
 		if strings.Contains(best, prefix) && strings.Contains(rib, prefix) && strings.Contains(kernel, prefix) {
 			break
@@ -276,7 +322,10 @@ func validateRIBFIB() error {
 		return err
 	}
 	for range 100 {
-		out, _ := runCommand("ip", []string{ipRoute, commandShow, ipExact, prefix}, commandOptions{})
+		out, readErr := runCommand("ip", []string{ipRoute, commandShow, ipExact, prefix}, commandOptions{})
+		if hung := hungCommand(readErr); hung != nil {
+			return hung
+		}
 		kernel = strings.TrimSpace(string(out))
 		if kernel == "" {
 			return nil
@@ -301,8 +350,12 @@ func validateHealthReports() error {
 	env := scenarioEnv(id, demoPassword)
 	var warnings, peers string
 	for range 100 {
-		warnings, _ = cli(env, "show warnings source bgp | no-more | yaml")
-		peers, _ = cli(env, "show bgp peer list | no-more | yaml")
+		var warningsErr, peersErr error
+		warnings, warningsErr = cli(env, "show warnings source bgp | no-more | yaml")
+		peers, peersErr = cli(env, "show bgp peer list | no-more | yaml")
+		if hung := hungCommand(warningsErr, peersErr); hung != nil {
+			return hung
+		}
 		if strings.Contains(warnings, "prefix-stale") && strings.Contains(strings.ToLower(peers), "established") {
 			break
 		}

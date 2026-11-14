@@ -28,7 +28,7 @@ var cards map[string]string
 
 func init() {
 	if err := json.Unmarshal(cardData, &cards); err != nil {
-		panic(fmt.Sprintf("invalid embedded demo cards: %v", err))
+		panic("BUG: invalid embedded demo cards: " + err.Error())
 	}
 }
 
@@ -172,10 +172,29 @@ type commandOptions struct {
 	stderr io.Writer
 	env    []string
 	dir    string
+	// deadline bounds a runCommand call. Zero selects commandDeadline; a
+	// caller whose command legitimately runs longer names its own bound.
+	deadline time.Duration
 }
 
+// commandDeadline bounds one runCommand call whose caller names no deadline.
+// Every lab command a validator runs to completion answers in seconds, so two
+// minutes only ever ends a command that hangs.
+const commandDeadline = 2 * time.Minute
+
+// errCommandDeadline marks a command that runCommand stopped at its deadline.
+// A poll that retries a failing command reads it to tell a hang, which the
+// next attempt repeats, from a lab that is not ready yet.
+var errCommandDeadline = errors.New("command stopped at its deadline")
+
+// newProcess builds a process with no deadline: a daemon the lab starts, or a
+// foreground run whose caller owns its lifetime.
 func newProcess(name string, args []string, options commandOptions) *exec.Cmd {
-	process := exec.CommandContext(context.Background(), name, args...) //nolint:gosec // names and arguments come from the closed demo action table
+	return newProcessContext(context.Background(), name, args, options)
+}
+
+func newProcessContext(ctx context.Context, name string, args []string, options commandOptions) *exec.Cmd {
+	process := exec.CommandContext(ctx, name, args...) //nolint:gosec // names and arguments come from the closed demo action table
 	process.Stdin = options.stdin
 	process.Stdout = options.stdout
 	process.Stderr = options.stderr
@@ -184,7 +203,34 @@ func newProcess(name string, args []string, options commandOptions) *exec.Cmd {
 	return process
 }
 
+// runCommand runs one command to completion and answers its output. It stops
+// a command that passes its deadline, and names that command in the error, so
+// a hung `ze cli` inside a poll cannot stall the lab until the container's own
+// one-hour limit removes it with no message.
 func runCommand(name string, args []string, options commandOptions) ([]byte, error) {
+	running, err := beginCommand(name, args, options)
+	if err != nil {
+		return nil, err
+	}
+	return running.wait()
+}
+
+// runningCommand is a command beginCommand started and its deadline. The
+// caller MUST call wait exactly once: wait reaps the process and releases the
+// deadline. It is not safe for concurrent use.
+type runningCommand struct {
+	process  *exec.Cmd
+	output   *bytes.Buffer
+	expired  func() bool
+	release  context.CancelFunc
+	command  string
+	deadline time.Duration
+}
+
+// beginCommand starts one command under its deadline and answers before the
+// command ends, so a caller can observe the lab while the command runs. The
+// caller MUST call wait on the answer.
+func beginCommand(name string, args []string, options commandOptions) (*runningCommand, error) {
 	var output bytes.Buffer
 	if options.stdout == nil {
 		options.stdout = &output
@@ -192,11 +238,38 @@ func runCommand(name string, args []string, options commandOptions) ([]byte, err
 	if options.stderr == nil {
 		options.stderr = &output
 	}
-	process := newProcess(name, args, options)
-	if err := process.Run(); err != nil {
-		return output.Bytes(), fmt.Errorf("%s: %w\n%s", strings.Join(append([]string{name}, args...), " "), err, output.String())
+	deadline := options.deadline
+	if deadline == 0 {
+		deadline = commandDeadline
 	}
-	return output.Bytes(), nil
+	command := strings.Join(append([]string{name}, args...), " ")
+
+	ctx, cancel := context.WithTimeout(context.Background(), deadline)
+	process := newProcessContext(ctx, name, args, options)
+	// A child that outlives the stopped command keeps the output pipe open,
+	// so wait would block on it without this bound.
+	process.WaitDelay = time.Second
+	if err := process.Start(); err != nil {
+		cancel()
+		return nil, fmt.Errorf("%s: %w", command, err)
+	}
+	expired := func() bool { return errors.Is(ctx.Err(), context.DeadlineExceeded) }
+	return &runningCommand{process: process, output: &output, expired: expired, release: cancel, command: command, deadline: deadline}, nil
+}
+
+// wait MUST be called once after beginCommand. It answers the output the
+// command wrote where the caller named no writer of its own.
+func (running *runningCommand) wait() ([]byte, error) {
+	defer running.release()
+	err := running.process.Wait()
+	if err == nil {
+		return running.output.Bytes(), nil
+	}
+	if running.expired() {
+		return running.output.Bytes(), fmt.Errorf("%w: %q did not finish within %s and was stopped, so the demo check that ran it has no answer.\nOutput so far:\n%s\nRead the lab logs under %s to see what it waited for, then run the check again:\n./le site terminal-demo check validation",
+			errCommandDeadline, running.command, running.deadline, running.output.String(), demoStateRoot())
+	}
+	return running.output.Bytes(), fmt.Errorf("%s: %w\n%s", running.command, err, running.output.String())
 }
 
 func startCommand(name string, args, environ []string, logPath string) (int, error) {
@@ -248,17 +321,67 @@ func waitForFileText(path, expected string, attempts int) error {
 	return fmt.Errorf("timeout waiting for %q in %s\n%s", expected, path, data)
 }
 
+// waitForCommandText runs fn until it succeeds with an answer that contains
+// expected, compared byte for byte. The comparison is case-sensitive on
+// purpose: folded, the link flag `UP` was also found in `group default`, which
+// every link prints whatever its state. A command stopped at its deadline ends
+// the wait at once, because the next attempt would hang the same way.
 func waitForCommandText(attempts int, expected string, fn func() (string, error)) (string, error) {
 	var output string
 	var err error
 	for range attempts {
 		output, err = fn()
-		if err == nil && strings.Contains(strings.ToLower(output), strings.ToLower(expected)) {
-			return output, nil
+		if err == nil {
+			if strings.Contains(output, expected) {
+				return output, nil
+			}
 		}
+		if errors.Is(err, errCommandDeadline) {
+			return output, err
+		}
+		// sleep(poll-interval): the next attempt reads the command's answer again.
 		time.Sleep(100 * time.Millisecond)
 	}
-	return output, fmt.Errorf("timeout waiting for %q: %w\n%s", expected, err, output)
+	if err != nil {
+		return output, fmt.Errorf("timeout waiting for %q: %w\n%s", expected, err, output)
+	}
+	if strings.TrimSpace(output) == "" {
+		return output, fmt.Errorf("timeout waiting for %q: the command ran and printed nothing on its last attempt", expected)
+	}
+	return output, fmt.Errorf("timeout waiting for %q: the command ran, and its last answer does not hold it:\n%s", expected, output)
+}
+
+// awaitCheck runs check until it answers nil, at most attempts times, 100
+// milliseconds apart, and answers the last error otherwise. A command stopped
+// at its deadline ends the wait at once, because the next attempt would hang
+// the same way: that error comes back as it is, for the caller to pass on
+// unwrapped. attempts MUST be at least one.
+func awaitCheck(attempts int, check func() error) error {
+	var last error
+	for range attempts {
+		last = check()
+		if last == nil {
+			return nil
+		}
+		if errors.Is(last, errCommandDeadline) {
+			return last
+		}
+		// sleep(poll-interval): the next attempt reads the live state again.
+		time.Sleep(100 * time.Millisecond)
+	}
+	return last
+}
+
+// hungCommand answers the first of errs that marks a command stopped at its
+// deadline, and nil when none does. A poll that otherwise ignores a failed
+// read passes its errors here, so a hung command ends the poll at once.
+func hungCommand(errs ...error) error {
+	for _, err := range errs {
+		if errors.Is(err, errCommandDeadline) {
+			return err
+		}
+	}
+	return nil
 }
 
 func waitPort(address, name string, attempts int) error {

@@ -16,6 +16,13 @@ const (
 	showcaseHostLeft      = "showcase-host-left"
 	showcaseHostRight     = "showcase-host-right"
 	showcaseVRRPNamespace = "showcase-vrrp"
+	// linkFlagLowerUp is the iproute2 flag of a link that is administratively
+	// up with carrier.
+	linkFlagLowerUp = "LOWER_UP"
+	// netnsRunDir is where `ip netns add` binds each named namespace, and
+	// programNsenter the util-linux program that enters one by that path.
+	netnsRunDir    = "/run/netns"
+	programNsenter = "nsenter"
 )
 
 // showcaseNetworkCommands creates only plumbing. The shown Ze creates its
@@ -96,11 +103,26 @@ func prepareShowcaseVPN(state string) error {
 	return err
 }
 
+// showcaseVPNDaemonCommand answers the command that starts the hidden router
+// in its network namespace. It enters the namespace with `nsenter --net`,
+// never `ip netns exec`: that one also enters a new mount namespace with a
+// fresh /sys, which hides the container's cgroup2 mount, and the hidden
+// router's `vpn ipsec application-override deny` guard then has no cgroup2
+// root to attach to and refuses the configuration. nsenter replaces itself
+// with ze, so the pid startCommand answers is the daemon's. The shown router
+// attaches its own guard to the same cgroup root: each is a separate cgroup
+// link (link.AttachCgroup), and each program governs only its own namespace.
+func showcaseVPNDaemonCommand() (string, []string) {
+	namespace := "--net=" + filepath.Join(netnsRunDir, showcaseVPNNamespace)
+	return programNsenter, append([]string{namespace, "ze"}, daemonArgs()...)
+}
+
 func showcaseVPNFixture() labFixture {
 	return labFixture{
 		name: showcaseVPN,
 		start: func(state string, _ []string) ([]int, error) {
-			pid, err := startCommand("ip", append([]string{ipNetns, commandExec, showcaseVPNNamespace, "ze"}, daemonArgs()...), showcaseVPNEnv(state), filepath.Join(state, "far-end.log"))
+			name, args := showcaseVPNDaemonCommand()
+			pid, err := startCommand(name, args, showcaseVPNEnv(state), filepath.Join(state, "far-end.log"))
 			if err != nil {
 				return nil, err
 			}
@@ -143,7 +165,11 @@ func showcaseTrackedFixture() labFixture {
 			// This fixture owns a link, not a process; the network lifecycle creates it.
 			return []int{}, nil
 		},
-		ready:    []labReadiness{{kind: readinessAnswer, target: "UP", argv: []string{"ip", "-o", ipLink, commandShow, showcaseTrackedLink}}},
+		// LOWER_UP is in the flags of a link that is up and has carrier, and in
+		// no part of a down link's line. `UP` alone also sits in a link with
+		// no carrier, and `state UP` never prints for a dummy link, whose
+		// operational state is UNKNOWN while it is up.
+		ready:    []labReadiness{{kind: readinessAnswer, target: linkFlagLowerUp, argv: []string{"ip", "-o", ipLink, commandShow, showcaseTrackedLink}}},
 		controls: showcaseLinkControls(showcaseTrackedLink),
 	}
 }

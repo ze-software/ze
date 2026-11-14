@@ -6,12 +6,14 @@ package siteterminaldemo
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 )
 
 func validateTopicIPsec() error {
@@ -132,14 +134,14 @@ func awaitTopicIPsec(stage string) error {
 			return fmt.Errorf("unknown IPsec readiness stage %q", stage)
 		}
 	}
-	var last error
-	for range 600 {
-		last = requireTopicIPsecState(stage)
-		if last == nil {
-			return nil
-		}
-		// sleep(poll-interval): wait for IKE negotiation and kernel SAD reconciliation.
-		time.Sleep(100 * time.Millisecond)
+	// IKE negotiation and kernel SAD reconciliation get 600 attempts.
+	last := awaitCheck(600, func() error { return requireTopicIPsecState(stage) })
+	if last == nil {
+		return nil
+	}
+	// A command stopped at its deadline already names itself.
+	if errors.Is(last, errCommandDeadline) {
+		return last
 	}
 	return fmt.Errorf("IPsec %s: %w", stage, last)
 }
@@ -159,8 +161,8 @@ func requireTopicIPsecState(stage string) error {
 		if peer.Child.Outbound == 0 {
 			return fmt.Errorf("IPsec Child SA has no outbound SPI")
 		}
-		if peer.Child.IfID != 42 {
-			return fmt.Errorf("IPsec Child SA binds if-id %d, want 42", peer.Child.IfID)
+		if peer.Child.IfID != topicIPsecIfID {
+			return fmt.Errorf("IPsec Child SA binds if-id %d, want %d", peer.Child.IfID, topicIPsecIfID)
 		}
 		if peer.Child.Packets == nil {
 			return fmt.Errorf("IPsec kernel packets-in is unknown")
@@ -232,7 +234,7 @@ func requireTopicIPsecKernel(child *topicIPsecChild) error {
 	}
 	inbound, outbound := false, false
 	for _, sa := range kernel {
-		if sa.IfID != 42 {
+		if sa.IfID != topicIPsecIfID {
 			continue
 		}
 		if child == nil {
@@ -266,64 +268,138 @@ func requireTopicIPsecPolicies(child *topicIPsecChild) error {
 	if err != nil {
 		return err
 	}
-	type policy struct {
-		IfID       uint32 `json:"if-id"`
-		Direction  string `json:"direction"`
-		Source     string `json:"src"`
-		Target     string `json:"dst"`
-		TunnelSrc  string `json:"tunnel-src"`
-		TunnelDst  string `json:"tunnel-dst"`
-		Action     string `json:"action"`
-		Mode       string `json:"mode"`
-		Owner      string `json:"owner"`
-		OwnerKnown bool   `json:"owner-known"`
-	}
-	var policies []policy
+	var policies []topicIPsecPolicy
 	if err := json.Unmarshal([]byte(answer), &policies); err != nil {
 		return err
 	}
-	var inbound, forward, outbound bool
-	for _, got := range policies {
-		if got.IfID != 42 {
+	return checkTopicIPsecPolicies(policies, child != nil)
+}
+
+// topicIPsecPolicy is one row of `show vpn ipsec dataplane policy`, with the
+// columns the check reads (policyInfoRow, internal/component/ike/cmd).
+type topicIPsecPolicy struct {
+	IfID       uint32 `json:"if-id"`
+	Direction  string `json:"direction"`
+	Role       string `json:"role"`
+	Source     string `json:"src"`
+	Target     string `json:"dst"`
+	TunnelSrc  string `json:"tunnel-src"`
+	TunnelDst  string `json:"tunnel-dst"`
+	Action     string `json:"action"`
+	Mode       string `json:"mode"`
+	Owner      string `json:"owner"`
+	OwnerKnown bool   `json:"owner-known"`
+}
+
+const (
+	// topicIPsecIfID is the if_id of vpn-xfrm, which names its SPD.
+	topicIPsecIfID = 42
+	// The direction names policyDirName renders and the action name
+	// policyActionName renders (internal/component/ike/cmd/show_dataplane.go).
+	// They are literals because that package keeps both functions unexported
+	// and is compiled out without the ze_ike tag.
+	ipsecDirectionIn      = "in"
+	ipsecDirectionForward = "fwd"
+	ipsecDirectionOut     = "out"
+	ipsecActionDiscard    = "discard"
+)
+
+// ipsecProtectDirections are the lookups a Child SA's protect entry must
+// cover: local delivery, transit and output.
+var ipsecProtectDirections = []string{ipsecDirectionIn, ipsecDirectionForward, ipsecDirectionOut}
+
+// ipsecFinalDirections are the lookups whose final discard is an entry of the
+// interface's SPD. Forward is absent: the Linux XFRM backend, which the lab
+// runs, closes forward with the namespace default and installs no forward
+// entry (interfaceForwardDefault, internal/component/ike/engine). A forward
+// entry that is listed is still judged, and never required.
+var ipsecFinalDirections = []string{ipsecDirectionIn, ipsecDirectionOut}
+
+// checkTopicIPsecPolicies judges the SPD of the VPN's XFRM interface. That SPD
+// holds two kinds of entry, told apart by the role Ze recorded
+// (dataplane.PolicyRole) and never by their position in the answer:
+//
+//   - the final discard entries, which the engine installs for a bound
+//     interface whether or not a Child SA exists (interfaceSPDCatchAll,
+//     internal/component/ike/engine). In and out must be present for both
+//     families, so unmatched traffic on the interface is refused.
+//   - the Child SA's protect entries. With protected set, in, fwd and out must
+//     each be present and equal the protected pair in tunnel mode. Without it
+//     (the refused ESP proposal) none may be installed.
+//
+// Any other entry at this if_id is refused as a protect entry that differs.
+func checkTopicIPsecPolicies(policies []topicIPsecPolicy, protected bool) error {
+	protect := make(map[string]bool, len(ipsecProtectDirections))
+	catchAll := make(map[string]bool, len(ipsecProtectDirections)*len(ipsecWildcardSelectors))
+	for index := range policies {
+		got := &policies[index]
+		if got.IfID != topicIPsecIfID {
 			continue
 		}
-		if child == nil {
-			return fmt.Errorf("refused ESP left kernel %s policy installed", got.Direction)
-		}
-		want := policy{IfID: 42, Direction: got.Direction, Action: "protect",
-			Mode: "tunnel", Owner: ipsecResponderPeer, OwnerKnown: true}
-		switch got.Direction {
-		case "in", "fwd":
-			want.Source, want.Target = "10.78.2.0/24", "10.78.1.0/24"
-			want.TunnelSrc, want.TunnelDst = showcaseVPNPeerEndpoint, showcaseVPNZeEndpoint
-			if got.Direction == "in" {
-				inbound = true
-			} else {
-				forward = true
-			}
-		case "out":
-			want.Source, want.Target = "10.78.1.0/24", "10.78.2.0/24"
-			want.TunnelSrc, want.TunnelDst = showcaseVPNZeEndpoint, showcaseVPNPeerEndpoint
-			outbound = true
-		default:
+		if !slices.Contains(ipsecProtectDirections, got.Direction) {
 			return fmt.Errorf("IPsec kernel policy has unknown direction %q", got.Direction)
 		}
-		if got != want {
+		if got.Role == dataplane.PolicyRoleInterfaceCatchAll.String() {
+			if err := checkTopicIPsecCatchAll(got); err != nil {
+				return err
+			}
+			catchAll[got.Direction+" "+got.Source] = true
+			continue
+		}
+		if !protected {
+			return fmt.Errorf("refused ESP left kernel %s policy installed: %+v", got.Direction, *got)
+		}
+		want := topicIPsecPolicy{IfID: topicIPsecIfID, Direction: got.Direction,
+			Role: dataplane.PolicyRoleChildSA.String(), Action: "protect",
+			Mode: "tunnel", Owner: ipsecResponderPeer, OwnerKnown: true}
+		if got.Direction == ipsecDirectionOut {
+			want.Source, want.Target = "10.78.1.0/24", "10.78.2.0/24"
+			want.TunnelSrc, want.TunnelDst = showcaseVPNZeEndpoint, showcaseVPNPeerEndpoint
+		} else {
+			want.Source, want.Target = "10.78.2.0/24", "10.78.1.0/24"
+			want.TunnelSrc, want.TunnelDst = showcaseVPNPeerEndpoint, showcaseVPNZeEndpoint
+		}
+		if *got != want {
 			return fmt.Errorf("IPsec kernel %s policy differs from the protected peer: got %+v, want %+v",
-				got.Direction, got, want)
+				got.Direction, *got, want)
+		}
+		protect[got.Direction] = true
+	}
+	for _, direction := range ipsecFinalDirections {
+		for _, everything := range ipsecWildcardSelectors {
+			if !catchAll[direction+" "+everything] {
+				return fmt.Errorf("the XFRM interface SPD lacks its final discard entry for %s %s, so unmatched traffic there is not refused", direction, everything)
+			}
 		}
 	}
-	if child == nil {
+	if !protected {
 		return nil
 	}
-	if !inbound {
-		return fmt.Errorf("kernel lacks the protected inbound policy")
+	for _, direction := range ipsecProtectDirections {
+		if !protect[direction] {
+			return fmt.Errorf("kernel lacks the protected %s policy", direction)
+		}
 	}
-	if !forward {
-		return fmt.Errorf("kernel lacks the protected forward policy")
+	return nil
+}
+
+// ipsecWildcardSelectors are the selectors of the final entry, one per family,
+// as the row renders the prefixes anyNetFor builds
+// (internal/component/ike/engine/bypass.go).
+var ipsecWildcardSelectors = []string{"0.0.0.0/0", "::/0"}
+
+// checkTopicIPsecCatchAll accepts only an entry that discards everything of
+// one family. An entry that carries the role and lets traffic through would
+// otherwise count as the final discard.
+func checkTopicIPsecCatchAll(got *topicIPsecPolicy) error {
+	if got.Action != ipsecActionDiscard {
+		return fmt.Errorf("the XFRM interface SPD's final %s entry has action %s, not discard: %+v", got.Direction, got.Action, *got)
 	}
-	if !outbound {
-		return fmt.Errorf("kernel lacks the protected outbound policy")
+	if got.Source != got.Target {
+		return fmt.Errorf("the XFRM interface SPD's final %s entry does not match everything: %+v", got.Direction, *got)
+	}
+	if !slices.Contains(ipsecWildcardSelectors, got.Source) {
+		return fmt.Errorf("the XFRM interface SPD's final %s entry does not match everything: %+v", got.Direction, *got)
 	}
 	return nil
 }
@@ -369,8 +445,16 @@ func proveTopicIPsecTraffic() error {
 func requireTopicIPsecPingFailure() error {
 	answer, err := runCommand("ip", []string{ipNetns, commandExec, showcaseHostLeft,
 		programPing, "-c", "1", "-W", "2", "10.78.2.2"}, commandOptions{stdout: nil, stderr: io.Discard})
+	return requireNoPingReply(string(answer), err)
+}
+
+// requireNoPingReply accepts only a probe that ran and got no reply: ping
+// failed, and its summary counts zero replies. A ping that could not run (no
+// namespace, no program) fails as well but prints no summary, and proves
+// nothing about whether the hosts can communicate.
+func requireNoPingReply(answer string, err error) error {
 	if err == nil {
 		return fmt.Errorf("protected host ping succeeded without an IPsec Child SA")
 	}
-	return contains(string(answer), "0 received")
+	return contains(answer, "0 received")
 }

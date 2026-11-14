@@ -4,6 +4,6 @@
 package siteterminaldemo
 
 func init() {
-	registerLiveTopic(demoRPKI, "topics/rpki/configure.tape", checkTopicRPKI, awaitTopicRPKI)
-	registerLiveTopic("irr-filter", "topics/irr/configure.tape", checkTopicIRR, awaitTopicIRR)
+	registerLiveTopic(demoRPKI, "topics/rpki/configure.tape", topicContainersAbsent("bgp/rpki"), checkTopicRPKI, awaitTopicRPKI)
+	registerLiveTopic("irr-filter", "topics/irr/configure.tape", topicContainersAbsent("bgp/irr"), checkTopicIRR, awaitTopicIRR)
 }

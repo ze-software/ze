@@ -44,7 +44,7 @@ var (
 const ptyKeyDown = "down"
 
 var ptyKeys = map[string][]byte{
-	"enter":    {'\r'},
+	keyEnter:   {'\r'},
 	"up":       {0x1b, '[', 'A'},
 	ptyKeyDown: {0x1b, '[', 'B'},
 	"left":     {0x1b, '[', 'D'},
@@ -169,18 +169,18 @@ func parsePTYOptions(args []string) (ptyOptions, error) {
 			return ptyOptions{}, errPTYHelp
 		}
 		switch argument {
-		case "--tape":
+		case flagTape:
 			options.tape, _ = value(argument)
 			if options.tape == "" {
 				return ptyOptions{}, fmt.Errorf("--tape needs a value")
 			}
-		case "--command":
+		case flagCommand:
 			command, err := value(argument)
 			if err != nil {
 				return ptyOptions{}, err
 			}
 			options.commands = append(options.commands, command)
-		case flagTimeout, "--delay":
+		case flagTimeout, flagDelay:
 			raw, err := value(argument)
 			if err != nil {
 				return ptyOptions{}, err
@@ -194,7 +194,7 @@ func parsePTYOptions(args []string) (ptyOptions, error) {
 			} else {
 				options.delay = time.Duration(seconds * float64(time.Second))
 			}
-		case "--ready":
+		case flagReady:
 			raw, err := value(argument)
 			if err != nil {
 				return ptyOptions{}, err
@@ -231,6 +231,22 @@ func parsePTYOptions(args []string) (ptyOptions, error) {
 	return options, nil
 }
 
+// The four builders below write a directive the way splitPTYDirective reads
+// it, from the same constants, so a renamed directive cannot leave a
+// validator building a command the recorder types as plain text.
+
+// ptyWait answers the directive that waits for a row matching pattern.
+func ptyWait(pattern string) string { return tapeWaitDirective + " " + pattern }
+
+// ptyType answers the directive that types text with no Enter.
+func ptyType(text string) string { return tapeTypeDirective + " " + text }
+
+// ptyKey answers the directive that presses one named key of ptyKeys.
+func ptyKey(name string) string { return tapeKeyDirective + " " + name }
+
+// ptySleep answers the directive that reads output for seconds.
+func ptySleep(seconds string) string { return tapeSleepDirective + " " + seconds }
+
 func splitPTYDirective(command string) (string, string) {
 	word, argument, found := strings.Cut(command, " ")
 	if !strings.HasPrefix(word, "@") {
@@ -248,7 +264,7 @@ func validatePTYCommand(command string) error {
 		return nil
 	}
 	switch word {
-	case "@escape":
+	case tapeEscapeDirective:
 		if argument != "" {
 			return errors.New("directive '@escape' takes no argument")
 		}
@@ -264,11 +280,11 @@ func validatePTYCommand(command string) error {
 		if _, err := regexp.Compile(argument); err != nil {
 			return fmt.Errorf("directive '@wait' needs a regex, got %q: %w", argument, err)
 		}
-	case "@type":
+	case tapeTypeDirective:
 		if strings.TrimSpace(argument) == "" {
 			return errors.New("directive '@type' needs an argument")
 		}
-	case "@key":
+	case tapeKeyDirective:
 		key := strings.TrimSpace(argument)
 		if _, ok := ptyKeys[key]; !ok {
 			return fmt.Errorf("directive '@key' needs one of down, enter, left, right, space, tab, up; got %q", argument)
@@ -916,7 +932,7 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 			session.cardHold = action.duration
 			err = session.typeText(action.text)
 		case "Enter":
-			err = session.send(ptyKeys["enter"])
+			err = session.send(ptyKeys[keyEnter])
 		case "Escape":
 			err = session.send([]byte{0x1b})
 		case "Left":
@@ -959,11 +975,11 @@ func driveCommands(options ptyOptions, stdout io.Writer) error {
 		}
 		window = len(session.screen.history)
 		switch directive {
-		case "@escape":
+		case tapeEscapeDirective:
 			_, err = master.Write([]byte{0x1b})
-		case "@type":
+		case tapeTypeDirective:
 			_, err = master.WriteString(argument)
-		case "@key":
+		case tapeKeyDirective:
 			_, err = master.Write(ptyKeys[strings.TrimSpace(argument)])
 		case tapeSleepDirective:
 			seconds, _ := strconv.ParseFloat(strings.TrimSpace(argument), 64)

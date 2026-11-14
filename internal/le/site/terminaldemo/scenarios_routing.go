@@ -5,10 +5,10 @@ package siteterminaldemo
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
-	"time"
 )
 
 func checkTopicRPKI() error {
@@ -141,36 +141,7 @@ func requireRPKITransit(validated bool) error {
 	if err != nil {
 		return err
 	}
-	var answer struct {
-		Routes map[string][]rpkiDemoRoute `json:"adj-rib-in"`
-	}
-	if err := json.Unmarshal([]byte(document), &answer); err != nil {
-		return err
-	}
-	routes := answer.Routes[loopbackPeerAddress]
-	if len(routes) != len(rpkiDemoRoutesExpected) {
-		return fmt.Errorf("transit must retain all three routes: %s", document)
-	}
-	for _, expected := range rpkiDemoRoutesExpected {
-		found := false
-		for _, route := range routes {
-			if route.Key != expected.Key {
-				continue
-			}
-			found = true
-			if validated {
-				if route != expected {
-					return fmt.Errorf("wrong RPKI state or eligibility for %s: %s", expected.Key, document)
-				}
-			} else if route.Ineligible {
-				return fmt.Errorf("transit route already ineligible before RPKI: %s", document)
-			}
-		}
-		if !found {
-			return fmt.Errorf("transit lacks %s: %s", expected.Key, document)
-		}
-	}
-	return nil
+	return checkRPKIDemoAdjRIBIn(document, validated)
 }
 
 func policyTransitConnections() (uint32, error) {
@@ -329,14 +300,13 @@ func requireIRRState(asSet string, accepted bool) error {
 
 // awaitPolicyTopic bounds asynchronous convergence without placing retries on screen.
 func awaitPolicyTopic(check func() error) error {
-	var last error
-	for range 100 {
-		last = check()
-		if last == nil {
-			return nil
-		}
-		// sleep(poll-interval): wait for the requested live policy observation.
-		time.Sleep(100 * time.Millisecond)
+	last := awaitCheck(100, check)
+	if last == nil {
+		return nil
+	}
+	// A command stopped at its deadline already names itself.
+	if errors.Is(last, errCommandDeadline) {
+		return last
 	}
 	return fmt.Errorf("policy topic did not converge: %w", last)
 }

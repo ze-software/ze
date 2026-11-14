@@ -4,10 +4,10 @@
 package siteterminaldemo
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 )
 
@@ -38,23 +38,31 @@ func startFRR(namespace string, daemons []string, state string, environ []string
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	if _, err := os.Stat("/run/frr/zserv.api"); err != nil {
-		return nil, fmt.Errorf("FRR zebra did not create zserv.api: %w", err)
-	}
 	pids := make([]int, 0, 1+len(daemons))
 	pids = append(pids, zebraPID)
+	if _, err := os.Stat("/run/frr/zserv.api"); err != nil {
+		return nil, errors.Join(fmt.Errorf("FRR zebra did not create zserv.api: %w", err), stopStartedFRR(pids))
+	}
 	for _, daemon := range daemons {
 		pid, err := startCommand("ip", []string{ipNetns, commandExec, namespace, "/usr/lib/frr/" + daemon, "-f", frrConfigFile, "-i", "/run/frr/" + daemon + ".pid"}, environ, filepath.Join(state, daemon+".log"))
 		if err != nil {
-			// A daemon already gone needs no stop, so ESRCH is not a failure here.
-			for _, started := range pids {
-				_ = syscall.Kill(started, syscall.SIGTERM)
-			}
-			return nil, err
+			return nil, errors.Join(err, stopStartedFRR(pids))
 		}
 		pids = append(pids, pid)
 	}
 	return pids, nil
+}
+
+// stopStartedFRR stops the daemons startFRR started before it failed. startFRR
+// answers no pids on failure, so startFixtures records none and no later stop
+// can reach these processes: they MUST end here. A daemon already gone is not
+// a failure (terminateShowcasePID).
+func stopStartedFRR(pids []int) error {
+	var failed error
+	for _, pid := range pids {
+		failed = errors.Join(failed, terminateShowcasePID(pid))
+	}
+	return failed
 }
 
 // The iproute2 keywords, namespace and link names, and tape directives the
