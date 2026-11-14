@@ -276,6 +276,8 @@ reach green (`ai/rules/completion.md`).
 | `session-never-establishes-with-the-peer.md` | 2026-10-30 | `bgp-exabgp-bridge-vpnv4-frr` assertion 2, peer never ready |
 | `scenario-checker-waits-on-an-absent-peer.md` | 2026-11-14 | `ospf-ti-lfa-frr`, `ospf-lfa-frr` need a second link no `linkDeclarations` entry builds |
 | `interop-check-expects-what-the-peer-cannot-do.md` | 2026-11-14 | `ospfv3-sr-frr`: FRR 10.7.1 ospf6d SR unverified, two fixture gaps of `ospf-sr-frr` likely |
+| `green-that-could-not-have-been-red.md` | 2026-11-14 | `ospf-te-frr` FRR-side assertion met by FRR's own TE Link LSA naming Ze as Link ID |
+| `green-that-could-not-have-been-red.md` | 2026-11-14 | `ospf-debug-inject-frr` wait for "1" met by FRR's own router id |
 
 ## Work Inherited From a Deferral Row
 

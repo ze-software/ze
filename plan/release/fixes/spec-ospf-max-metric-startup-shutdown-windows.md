@@ -82,8 +82,8 @@ always names `ospf drain-on-shutdown`.
      survive compaction; track reading progress in the session state file. -->
 
 Research at HEAD `4dcc0e5bc4` on 2026-10-13. Collision check: no session state
-file and no recent commit names this spec. `plan/release/validation/spec-rfc-verdict-fix-ospf.md`
-(in progress, another session) names neither max-metric, RFC 6987, `ri.go`,
+file and no recent commit names this spec. `spec-rfc-verdict-fix-ospf`
+(in progress then, another session; closed since, `plan/learned/049-rfc-verdict-fix-ospf.md`) names neither max-metric, RFC 6987, `ri.go`,
 `show_summary.go` nor the origination path, so the two do not overlap.
 
 ### Architecture Docs
@@ -141,6 +141,31 @@ file and no recent commit names this spec. `plan/release/validation/spec-rfc-ver
 - `on-startup N` (N above 0) makes each OSPF engine originate its Router-LSA with MaxLinkMetric from its start until N seconds later, then re-originate with configured costs.
 - `show ospf` `active` is true while the startup window is open, and a new `on-startup-remaining-seconds` reports the time left.
 - The shutdown window: route decided by the owner (Q-1), leaf renamed `ospf drain-on-shutdown` (drain spec Q-6). Until the drain lands, a commit with `drain-on-shutdown` above 0 is refused with an error naming the leaf, and its `ze:help` and `description` say so.
+
+## Existing Mechanisms (MANDATORY)
+
+Each row below was read at its producer on 2026-11-14; the last column quotes what this spec already says it does with that mechanism.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| OSPFv2 Router-LSA origination with a max-metric flag | `internal/plugins/ospf/lsdb/origination.go`, `(*LSDB).OriginateFromTopology(router, maxMetric)` | Regenerates the Router-LSA of every active area, and Network-LSAs where Ze is DR, from the topology snapshot; `maxMetric` is a parameter | Required Reading, RFC 6987: "the encoders that apply it (`OriginateFromTopology`, `v6OriginateSelf`) are not touched." |
+| OSPFv3 self-LSA origination with a max-metric flag | `internal/plugins/ospf/origination_v6.go`, `(*engine).v6OriginateSelf(router, maxMetric)` | Regenerates the OSPFv3 Link, Router, Network and Intra-Area-Prefix LSAs of every active area; `maxMetric` is a parameter | Same quote as the row above |
+| Self-LSA chokepoint for both families | `internal/plugins/ospf/instance.go`, `(*engine).originateSelfLSAs` | Skips while `gr.suppressOrigination()` holds, copies `cfg` under `mu`, then passes `cfg.MaxMetric.RouterLSAAlways` to `v6OriginateSelf` or `OriginateFromTopology` | Integration Points: "`originateSelfLSAs` - its two `cfg.MaxMetric.RouterLSAAlways` arguments become the window-aware flag." |
+| Deferred, coalesced origination on the maintenance worker | `internal/plugins/ospf/instance.go`, `(*engine).originateSelfLSAsDeferred` | Returns on a cancelled context, else posts to `originationNotify` without blocking; safe while holding `mu` | Data Flow step 5: "The timer fires, bumps nothing but the window state, and calls `originateSelfLSAsDeferred`" |
+| Engine teardown | `internal/plugins/ospf/instance.go`, `(*engine).shutdown` | Stops LDP-sync, virtual interfaces, GR timers, BFD, SR replay, SPF and IPsec, then cancels the context under `spawnMu` and joins the workers | Integration Points: "`shutdown` - stops the startup timer with the other engine timers." |
+| Per-engine start | `internal/plugins/ospf/instance.go`, `(*engine).openInterfaces` | Initialises state, opens each enrolled interface with Hellos held, starts the receive and retransmit loops | Data Flow step 3: "`openInterfaces` records the engine's start instant once per engine lifetime and, when `OnStartupSec` is above 0, arms the startup timer (new)." |
+| Engine start and reload paths | `internal/plugins/ospf/multi_instance.go`, `(*instanceManager).start`, `(*instanceManager).reconcile` | `start` configures and calls `openInterfaces` on every instance engine; `reconcile` does the same for engines `ensureSet` created at reload once started | Key Design Decisions: "`openInterfaces` is the single per-engine start chokepoint across base, reload-created and IPv6 engines" |
+| Instance removal at reload | `internal/plugins/ospf/multi_instance.go`, `(*instanceManager).ensureSet` | Builds engines for new instance IDs and calls `shutdown` on each removed one outside the lock | Key Design Decisions, alternative set aside: "(3) gives a leaf that means "drain on instance delete" but not on daemon stop" |
+| Plugin run and stop | `internal/plugins/ospf/register.go`, the run function around `p.Run` | When `p.Run` returns, calls `instances.shutdownAll()` and `v6set.shutdownAll()` at once; registers no `OnBye` | Required Reading, `pluginStopGrace`: "A shutdown window longer than 3 seconds cannot be honoured by the OSPF plugin alone." |
+| Max-metric config parse | `internal/plugins/ospf/config.go`, `parseMaxMetric`, `maxMetricConfig` | Stores `always`, `on-startup` and `on-shutdown` as `RouterLSAAlways`, `OnStartupSec`, `OnShutdownSec` | Data Flow step 1: "`parseOSPFConfig` → `parseMaxMetric` stores the seconds in `maxMetricConfig` (unchanged)." |
+| OSPF semantic config check | `internal/plugins/ospf/config.go`, `validateConfigAF` | Refuses a config without a router ID, a grace period outside 1..1800 s, and the other per-family checks | Data Flow step 2: "`validateConfigAF` refuses `drain-on-shutdown` above 0 until the drain spec lands (new)." |
+| Commit-time refusal of an unbuilt leaf | `internal/component/config/validators.go`, `unimplementedVRFValidator` | Refuses every value of the per-unit `vrf` leaf with an error saying it is not implemented | Integration Checklist, YANG custom validators: "Refusal lives in the plugin's `validateConfigAF`, reached through `OnConfigVerify`, like every other OSPF semantic check" |
+| Max-metric YANG leaves | `internal/plugins/ospf/yang/ze-ospf-conf.yang`, `container max-metric`, `container router-lsa`, leaves `always`, `on-startup`, `on-shutdown` | `always` is boolean, default false; the two timed leaves are uint32 0..86400 seconds whose `description` says Ze starts no timed window and whose `ze:help` promises one | Files to Modify: "`description` and `ze:help` of `router-lsa`, `on-startup` and `ospf drain-on-shutdown` state the window, its anchor (engine start) and the shutdown refusal." |
+| RI stub-router capability bit | `internal/plugins/ospf/ri.go`, `(*engine).deriveRICapabilities` | Sets `caps.StubRouter` when `RouterLSAAlways` is true or either duration is above 0 | Key Design Decisions: "Keep RI bit 2 derivation unchanged" |
+| `show ospf` stub-router view | `internal/plugins/ospf/show_summary.go`, `(*engine).processSummary`, `stubRouterView` | Reports `always`, `on-startup-seconds`, `on-shutdown-seconds`, and `active` set from `RouterLSAAlways` alone | Data Flow step 6: "`processSummary` reports `active` and the remaining seconds from the same function (changed)." |
+| Injectable engine timer seam | `internal/plugins/ospf/ldp_sync.go`, `ldpSyncManager.afterFunc`, `now` | Hold-down and stuck timers created through an injectable `afterFunc` (default `time.AfterFunc`) and clock | Required Reading: "the startup window copies the LDP-sync timer shape: the injectable `afterFunc` seam returning a stoppable `ldpSyncTimer`, plus an epoch" |
+| Declarative interop op table | `internal/le/interoplab/bgp/checkers.go`, the scenario op entries (`opWaitContains`) | A scenario's assertions as a list of op entries, each waiting for strings in a named peer's command output | Files to Modify: "`internal/le/interoplab/bgp/checkers.go` - the `ospf-max-metric-startup-frr` op entry." |
+| IS-IS max-metric interop checker | `internal/le/interoplab/bgp/check_isis.go`, `checkISISMaxLinkMetric` | A special checker: waits for the FRR adjacency, reads Ze's maximum link metric out of FRR's IS-IS database, then asserts Ze's routing | Key Design Decisions: "Interop as a declarative op entry in `checkers.go`" rather than "A special checker in `check_special.go`" |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 

@@ -52,8 +52,8 @@ The verdict inventory is DERIVED. No id list is committed here, because the audi
 
 | Question | Derived by |
 |----------|-----------|
-| Every weak or wrong verdict in this child's scope (stem, id, verdict) | `jq -r --arg pk '^internal/plugins/ospf/' --arg own '^(rfc1071)$' --arg fo '^(rfc4301\|rfc4303\|rfc905\|rfc5882)$' 'input_filename as $f \| ($f\|ltrimstr("rfc/audit/")\|rtrimstr(".json")) as $s \| .requirements \| to_entries[] \| select(.value.verdict=="weak" or .value.verdict=="wrong") \| select(.key\|IN("RFC1071-1-4","RFC4303-2.1-1","RFC5882-4.4-1","RFC905-x-3","RFC905-x-4")\|not) \| select((($s\|test($own)) or ([(.value.tests // {})\|keys[]\|test($pk)]\|any)) and ($s\|test($fo)\|not)) \| "\($s)\t\(.key)\t\(.value.verdict)"' rfc/audit/*.json` |
-| What the arguments mean | `pk` matches a tagged test path in this child's packages; `own` adds this child's owned stems tagged from another child's packages; `fo` drops stems another child owns (`^$` matches none); the five ids are the parent's cross-group verdicts |
+| Every weak or wrong verdict in this child's scope (stem, id, verdict) | The audit layout changed after this filter was first written: `rfc/audit/` no longer holds one file per RFC with a `.requirements` object, but one file per requirement, `rfc/audit/<stem>/<id>.json`. The filter of 2026-09-28 read the old layout. Its adapted form: take every JSON file two levels below `rfc/audit/`; the stem is the file's directory name and the id its file name without `.json`; `.verdict` and `.tests` are top-level keys of the file. Keep a file whose `.verdict` is `weak` or `wrong`, whose id is not one of the five cross-group ids, whose stem matches `own` or one of whose `.tests` keys matches `pk`, and whose stem does not match `fo`; print its stem, id and verdict |
+| What the arguments mean | `pk` is `^internal/plugins/ospf/` and matches a tagged test path in this child's packages; `own` is `^(rfc1071)$` and adds this child's owned stems tagged from another child's packages; `fo` is `^(rfc4301\|rfc4303\|rfc905\|rfc5882)$` and drops stems another child owns (`^$` matches none); the five ids, RFC1071-1-4, RFC4303-2.1-1, RFC5882-4.4-1, RFC905-x-3 and RFC905-x-4, are the parent's cross-group verdicts |
 
 **Wiring, 2026-09-28, at `cb4801b4cc`:** the filter returns 106 weak and 9 wrong, 115 in all, over 21 stems. This equals the Task figure, so `fefe38b68c` (it re-judged only the five cross-group verdicts, which the filter drops) and `cb4801b4cc` changed no count here. `./le rfc audit-stamp` accepts `mode rejudge` (A-1). The "Blocked by" verdict is now `spec-ospf-nssa-translator-reachability` AC-3.
 
@@ -280,8 +280,8 @@ The parent's Method table governs every phase and is not copied here. The rules 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | the parent's `mode rejudge` has landed before the first re-judge here | parent Implementation Steps 1 and 2 | a re-judge has no route but hand deletion, which P-2 bans | `./le rfc audit-stamp` help names `mode` | unvalidated |
-| A-2 | the blocked-by list is complete for this scope | the parent's code-defect and overlap tables, each id checked in `rfc/audit/` or the R-7 table on 2026-09-28 | the child cannot reach AC-C1 | each package's author agent names any verdict it cannot move without a producer fix another spec owns | unvalidated |
+| A-1 | the parent's `mode rejudge` has landed before the first re-judge here | parent Implementation Steps 1 and 2 | a re-judge has no route but hand deletion, which P-2 bans | `./le rfc audit-stamp` help names `mode` | confirmed: `stampModeRejudge` and `stampRefusal` (`internal/le/rfc/audit_stamp.go`, read 2026-11-14: re-judge mode refuses an id with no verdict), and every re-judge of this child went through `mode rejudge` (`90dce367a3`, `50044040c5`, `19de202493`) |
+| A-2 | the blocked-by list is complete for this scope | the parent's code-defect and overlap tables, each id checked in `rfc/audit/` or the R-7 table on 2026-09-28 | the child cannot reach AC-C1 | each package's author agent names any verdict it cannot move without a producer fix another spec owns | confirmed: the derived listing at `19de202493` (2026-10-21) returns only RFC3101-3.2-2, the one "Blocked by" id, so no other verdict needed another spec's producer fix; the closure re-run of the filter at HEAD is an owed command |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -354,7 +354,7 @@ Inherited from the parent (AC-C1 to AC-C7), restated for the OSPF group.
 - the `_test.go` and `.ci` files of the packages above that carry the listed tags
 - `rfc/short/<stem>.md`, `rfc/audit/<stem>.json`, `rfc/discrimination/<stem>.json`, `rfc/corrections/<stem>.md`, `rfc/extraction/<stem>.json` for the owned stems only
 - a producer under the packages above when a test exposes a verified defect (D-8), named in the phase that finds it
-- `docs/features/rfc-status.md`, the row of each owned stem whose support claim changes
+- not `docs/features/rfc-status.md`: it is derived by `./le rfc update` from `rfc/short/` and the verified records, git-ignored (`.gitignore`), never hand-edited and never committed; a changed support claim is made in `rfc/short/<stem>.md`
 - the acceptance criteria of each blocking spec, which receive its blocked verdicts (P-3)
 
 ## Files to Create
@@ -387,7 +387,7 @@ Inherited from the parent (AC-C1 to AC-C7), restated for the OSPF group.
 | 6 | Has a user guide page? | No | this child changes tests, rows and verdicts, not this surface |
 | 7 | Wire format changed? | No | tests and rows only; a D-8 fix that changes the wire names `docs/architecture/wire/*.md` in its phase |
 | 8 | Plugin SDK/protocol changed? | No | this child changes tests, rows and verdicts, not this surface |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/<stem>.md` for each owned stem a phase changes, and its `docs/features/rfc-status.md` row, with source anchors; a new `wrong` verdict discloses non-support there first |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/<stem>.md` for each owned stem a phase changes, with source anchors; a new `wrong` verdict discloses non-support there first. `docs/features/rfc-status.md` is derived from those files by `./le rfc update` and git-ignored, so it is regenerated, never edited or committed |
 | 10 | Test infrastructure changed? | No | this child changes tests, rows and verdicts, not this surface |
 | 11 | Affects daemon comparison? | No | this child changes tests, rows and verdicts, not this surface |
 | 12 | Internal architecture changed? | No | this child changes tests, rows and verdicts, not this surface |
@@ -500,7 +500,7 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 
 ## Progress, 2026-10-11
 
-Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) and git history, each claim re-checked against HEAD on 2026-10-11. **Not ready for review: AC-C2 is open** (below). Status stays `in-progress`.
+Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) and git history, each claim re-checked against HEAD on 2026-10-11. On that date AC-C2 was open; it closed on 2026-10-21 (Implementation Audit), and review round 5 (2026-11-14) ended clean.
 
 ## Implementation Summary
 
@@ -527,6 +527,12 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | `19de202493` | RFC 2328 Sections 13.4 and 14.1: an unwanted received self-originated LSA is flushed at MaxAge with the received sequence, and a withdrawn one is not re-originated (`lsdb/origination.go`) |
 | `19de202493` | RFC 2328 Section D.5.3: the AuType 2 replay sequence is kept per neighbour, not per packet type (`auth_keystore.go::replaySlotFor`) |
 
+### Documentation Updates
+- `docs/architecture/testing/interop.md`: the `ospf-ext-prefix-link-frr` checker with its FRR-side JSON assertion, the anycast pop hold (three times the 5 s SPF hold ceiling), the self-flush probe of `show ip route ospf json`, and `ospf-sr-frr` as a user of `ze-sysctls`, each with its `<!-- source: -->` anchor (`1a40d577c2`, review finding R4-3).
+- `docs/guide/ospf.md` and the `graceRestarterV4` doc comment: the GR helper ignores an unmatched shared-media flush, as FRR does (`19de202493`, R1-5).
+- `rfc/short/<stem>.md` rows and `rfc/corrections/` for the owned stems (AC-C3, AC-C6); `docs/features/rfc-status.md` is derived from them by `./le rfc update` and git-ignored.
+- `./le doc check all` at closure, 2026-11-14: it fails on findings elsewhere, and none of its lines names a file this closure touches (Pre-Commit Verification).
+
 ### Deviations from Plan
 - None recorded.
 
@@ -535,8 +541,18 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 |------|---------------|----------------------|----------------|--------|
 | omission | the AC-C2 record sweep was never run for this child, unlike bfd (`66249a3391`) and ike-eap (`6b968f093b`) | 64 moved verdicts carry tagged units with no record | script over audit and record files, 2026-10-11 | closed: sweep 2026-10-15, judged 2026-10-21 |
 | wrong assumption | the 2026-10-15 sweep chose each record's producer by what the unit reached, so a red under a whole-body revert was read as proof of the clause | the judges flagged records in 33 of the 64 requirement ids (rfc2328 8, group B 8, group C 17) that named setup writers, fixtures, decoders, wrappers or a show-path helper; two units hid product defects (GR helper identity, NSSA-external scope) | three non-author judges, 2026-10-21 | records re-targeted and verdicts re-judged in `50044040c5` |
+| approach | the interop checkers were trusted to discriminate because they went green on the real build | all six scenario failures met on 2026-11-14 were fixture or checker defects, none in Ze; three checkers passed without the peer's evidence (`ospf-ext-prefix-link-frr` matched Ze's own LSAs, its FRR side matched FRR's own Extended Link LSA, the anycast first read raced the SPF debounce) | a red under the fix's revert, built through a Go build overlay, that stayed green | checkers rewritten (`7a880afcde`, `730fd02747`, `9703c868de`); two more such checkers found by round 5 are journal rows owned by `spec-interop-suite-red` |
 
 ## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Goal (AC-C1): the derived listing holds only the "Blocked by" verdicts, each in its blocking spec's AC | Done | the "Derived listing" filter; `plan/release/fixes/spec-ospf-nssa-translator-reachability.md` AC-3 | re-run at closure, 2026-11-14, in the per-requirement audit layout: exactly `rfc3101 RFC3101-3.2-2 weak` |
+| P-1: an approval before each tagged-unit edit, `RFC-approved:` trailers | Done | the per-package commits `4742079904`..`7384785d1d`, `50044040c5`, `19de202493` | |
+| P-2: verdicts replaced only through `audit-stamp mode rejudge` | Done | A-1 | |
+| P-3: each blocked verdict moved into its blocking spec | Done | RFC3101-3.2-2 in the NSSA spec's AC-3 | |
+| D-8 defects fixed failing-test-first, with interop where a peer exists | Done | Bugs Found/Fixed; Goal Validation | three interop reds observed under the fixes' reverts |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -548,6 +564,32 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | AC-C5 | Done 2026-10-21 | `50044040c5` left one stale record (RFC7474-3-1 positive, round 1), re-taken in `19de202493`; `./le rfc check` after `19de202493` shows no violation in any owned stem | 2026-10-11: no violation in an OSPF stem (the three left were BGP's) |
 | AC-C6 | Done 2026-10-21 | RFC3630-1-1 trailing note removed and RFC7684-5-1 hyphen joined, each with a dated correction (`rfc/corrections/rfc3630.md`, `rfc7684.md`), both re-judged `enforced` (`19de202493`) | |
 | AC-C7 | Done 2026-10-21 | RFC8362-2-1 re-judged `enforced` by a non-author, recorded with the date under the R-7 table | rfc8362 is out of audit scope |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| tagged units of `internal/plugins/ospf` and its subpackages, and `internal/core/probe` | Done | the ten package rows of the TDD plan; records under `rfc/discrimination/<stem>/` | 130 verdicts in scope `enforced`; product-fix records are whole-body breaks (round-2 #4) |
+| boundary tests where a quoted sentence bounds a field | Done | judged per verdict by the non-author judges | |
+| functional `.ci` tests in scope | Done | none needed a change; no verdict demanded one | |
+| interop scenarios for the D-8 fixes | Done | `test/interop/scenarios/ospf-*` (Goal Validation) | three reds under revert, each then green |
+| checker unit tests | Done | `internal/le/interoplab/bgp`: `TestFRROSPFExtFromZeVerdict` (with the R5-N1 case), `TestOSPFSelfFlushRouteAbsenceVerdict`, the anycast verdict tests | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `_test.go` files of the packages in scope | Done | per-package commits |
+| `rfc/short/`, `rfc/audit/`, `rfc/discrimination/`, `rfc/corrections/`, `rfc/extraction/` of the owned stems | Done | one writer per ledger file held |
+| D-8 producers under the packages in scope | Done | Bugs Found/Fixed |
+| `docs/features/rfc-status.md` | Changed | derived and git-ignored, never edited (R5-N4) |
+| the blocking spec's acceptance criteria | Done | NSSA spec AC-3 |
+| `internal/plugins/ospf/config.go`, the SPF timer defaults (R4-N4) | Done | `3c984d6cc4`: `DefaultSPFDelayMS`, `DefaultSPFHoldMS` and `DefaultSPFMaxHoldMS` now derive from `spf.DefaultSPFDelay`, `DefaultSPFHold` and `DefaultSPFMaxHold`; the same commit carries the R5-N1 case in `check_ospf_ext_prefix_link_test.go`, the two literals replaced by existing constants in `check_ospf_self_flush.go` and `check_ospf_sr_anycast.go`, the 2026-11-14 row of `plan/journal/declared-default-applied-by-each-consumer.md` and its owner line in `plan/release/fixes/spec-ospf-isis-bfd-vrrp-one-off-defects.md` |
+
+### Audit Summary
+- **Total items:** 23 (5 requirements, 7 ACs, 5 test rows, 6 file rows)
+- **Done:** 22
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (`docs/features/rfc-status.md`, derived rather than edited)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task) | Evidence Type | Concrete Evidence |
@@ -561,40 +603,62 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 | RFC3101-3.2-2 | producer defect | `plan/release/fixes/spec-ospf-nssa-translator-reachability.md` AC-3 |
-| interop for the D-8 fixes | Updated 2026-11-14: every green this row owes except `ospf-p2p-frr` and `ospf-broadcast-frr` (PASS 2026-10-22, 257s and 279s, from a `git archive` export of `b2ff0fbbfc`, per the handover) is now observed, listed in Goal Validation; the Mac blocker below no longer holds, because the QEMU docker-lab route ran on 2026-11-14. The `ospf-self-lsa-flush-frr` green and all three interop reds this spec owed (`ospf-accept-lifetime-last-key-frr`, `ospf-self-lsa-flush-frr`, `ospf-sr-anycast-nexthop-frr`) were observed 2026-11-14, each followed at once by a green on the real build (Goal Validation). The anycast scenario did not discriminate with the first-read checker, which judged a pop installed before the second advertiser's Prefix-SID reached Ze's SR table; the checker of `730fd02747` holds the pop past the SPF hold, and with it the `forwarding` revert FAILED at assertion 3 (16100 swapped, not popped) and the real build passed. The fix's unit records (RFC8665-5-16, RFC8666-6-18) are whole-body breaks that prove reach, not a red under the fix's own revert. History, 2026-10-21: the c19 runs cover only the fixes up to `7488f60bc2` and have no log; three scenarios fail at baseline on the Mac host. Owed, each with `INTEROP_SCENARIO=<name> ./le test integration interop` and its log kept: `ospf-p2p-frr`, `ospf-broadcast-frr` (8.2 source network, 13.3 flood age, per-LSA discard); `ospf-opaque-frr`, `ospf-ext-prefix-link-frr` (opaque alignment `c797d66a9b`, Type-11 `99046264fd`/`79ce425e26`), on a Linux host since they fail at baseline here; `ospf-te-frr`, `ospf-ri-frr` (RI scope `790472c47f`, `7708c6b240`); `ospf-sr-frr` (`55581e8304`, `30b572216a`); `ospf-auth-frr`, `ospf-accept-lifetime-frr` (RFC 5709 `bec87a7d44`); `ospf-gr-frr` (RFC 3623); `ospf-stub-nssa-frr`, `ospfv3-nssa-redist-frr` (NSSA `50094a5e6d`, `033720151f`). The 2026-10-21 fixes add: `ospf-gr-frr` and `ospf-broadcast-frr` (GR helper identity, `50044040c5`), `ospf-sr-frr` (next-hop flags off the best path, `19de202493`), `ospf-auth-frr` (AuType 2 per-neighbour replay), `ospf-broadcast-frr` (§13.4 self-LSA flush). BLOCKED on the Mac 2026-10-21: the plain Docker route refuses on Colima's Ubuntu kernel (no MPLS, L2TP, XFRM_MIGRATE) and names `./le test qemu docker-lab lab 'test integration interop' env INTEROP_SCENARIO=<name>`; that route failed three of three runs in the guest at `cross-compile le into test/interop/le-linux: context deadline exceeded: the compiler printed nothing` (`ospf-p2p-frr`, `ospf-gr-frr`; `ospf-broadcast-frr` lost the guest SSH port to another VM). That is the open row of 2026-10-09 in `plan/journal/bound-too-small-for-its-own-burst.md` (`labBuildTimeout`, 5 min, no override). Run them on a Linux host, or after that bound is fixed | this spec, before closure |
-| interop runs, 2026-10-22 | Updated 2026-11-14: every green this row lists is observed (Goal Validation). All three reds it lists were observed, each followed at once by a green on the real build: `ospf-accept-lifetime-last-key-frr` (FAIL at assertion 1), `ospf-self-lsa-flush-frr` (FAIL at assertion 21), and `ospf-sr-anycast-nexthop-frr` (FAIL at assertion 3, after 1m38s, with the checker of `730fd02747`). With the first-read checker the anycast scenario had PASSED under the `forwarding` revert (1m37s) as on the real build (1m28s), because assertion 3 judged an install made before the condition assertion 2 observed. The fix's unit records (RFC8665-5-16, RFC8666-6-18) are whole-body breaks that prove reach, not a red under the fix's own revert. Nothing in this row is still owed. History: BLOCKED: the queued run of the twelve owed scenarios from export `tmp/zoh` (`df2e303665`) waited from 00:42 behind other sessions' `le verify worktree` and `le verify current fast`, and at 01:46 the disk had 3 GB free, below the 15 GB floor. Still owed, in order: greens for `ospf-opaque-frr`, `ospf-accept-lifetime-last-key-frr`, `ospf-gr-frr`, `ospf-gr-helper-broadcast-frr`, `ospf-auth-frr`, `ospf-accept-lifetime-frr`, `ospf-sr-frr`, `ospf-ext-prefix-link-frr`, `ospf-te-frr`, `ospf-ri-frr`, `ospf-stub-nssa-frr`, `ospfv3-nssa-redist-frr`, `ospf-sr-anycast-nexthop-frr`, `ospf-self-lsa-flush-frr`; then reds under the reverts for the last-key, SR anycast and self-flush scenarios (patches named in the handover) | this spec, before closure |
+| interop for the D-8 fixes | Updated 2026-11-14: every green this row owes except `ospf-p2p-frr` and `ospf-broadcast-frr` (PASS 2026-10-22, 257s and 279s, from a `git archive` export of `b2ff0fbbfc`, per the handover) is now observed, listed in Goal Validation; the Mac blocker below no longer holds, because the QEMU docker-lab route ran on 2026-11-14. The `ospf-self-lsa-flush-frr` green and all three interop reds this spec owed (`ospf-accept-lifetime-last-key-frr`, `ospf-self-lsa-flush-frr`, `ospf-sr-anycast-nexthop-frr`) were observed 2026-11-14, each followed at once by a green on the real build (Goal Validation). The anycast scenario did not discriminate with the first-read checker, which judged a pop installed before the second advertiser's Prefix-SID reached Ze's SR table; the checker of `730fd02747` holds the pop past the SPF hold, and with it the `forwarding` revert FAILED at assertion 3 (16100 swapped, not popped) and the real build passed. The fix's unit records (RFC8665-5-16, RFC8666-6-18) are whole-body breaks that prove reach, not a red under the fix's own revert. History, 2026-10-21: the c19 runs cover only the fixes up to `7488f60bc2` and have no log; three scenarios fail at baseline on the Mac host. Owed, each with `INTEROP_SCENARIO=<name> ./le test integration interop` and its log kept: `ospf-p2p-frr`, `ospf-broadcast-frr` (8.2 source network, 13.3 flood age, per-LSA discard); `ospf-opaque-frr`, `ospf-ext-prefix-link-frr` (opaque alignment `c797d66a9b`, Type-11 `99046264fd`/`79ce425e26`), on a Linux host since they fail at baseline here; `ospf-te-frr`, `ospf-ri-frr` (RI scope `790472c47f`, `7708c6b240`); `ospf-sr-frr` (`55581e8304`, `30b572216a`); `ospf-auth-frr`, `ospf-accept-lifetime-frr` (RFC 5709 `bec87a7d44`); `ospf-gr-frr` (RFC 3623); `ospf-stub-nssa-frr`, `ospfv3-nssa-redist-frr` (NSSA `50094a5e6d`, `033720151f`). The 2026-10-21 fixes add: `ospf-gr-frr` and `ospf-broadcast-frr` (GR helper identity, `50044040c5`), `ospf-sr-frr` (next-hop flags off the best path, `19de202493`), `ospf-auth-frr` (AuType 2 per-neighbour replay), `ospf-broadcast-frr` (§13.4 self-LSA flush). On 2026-10-21 (no longer current) the Mac was blocked: the plain Docker route refuses on Colima's Ubuntu kernel (no MPLS, L2TP, XFRM_MIGRATE) and names `./le test qemu docker-lab lab 'test integration interop' env INTEROP_SCENARIO=<name>`; that route failed three of three runs in the guest at `cross-compile le into test/interop/le-linux: context deadline exceeded: the compiler printed nothing` (`ospf-p2p-frr`, `ospf-gr-frr`; `ospf-broadcast-frr` lost the guest SSH port to another VM). That is the open row of 2026-10-09 in `plan/journal/bound-too-small-for-its-own-burst.md` (`labBuildTimeout`, 5 min, no override). The QEMU docker-lab route ran them on 2026-11-14, so nothing in this row is still owed | none: done in this spec (Goal Validation) |
+| interop runs, 2026-10-22 | Updated 2026-11-14: every green this row lists is observed (Goal Validation). All three reds it lists were observed, each followed at once by a green on the real build: `ospf-accept-lifetime-last-key-frr` (FAIL at assertion 1), `ospf-self-lsa-flush-frr` (FAIL at assertion 21), and `ospf-sr-anycast-nexthop-frr` (FAIL at assertion 3, after 1m38s, with the checker of `730fd02747`). With the first-read checker the anycast scenario had PASSED under the `forwarding` revert (1m37s) as on the real build (1m28s), because assertion 3 judged an install made before the condition assertion 2 observed. The fix's unit records (RFC8665-5-16, RFC8666-6-18) are whole-body breaks that prove reach, not a red under the fix's own revert. Nothing in this row is still owed. History, 2026-10-22 (no longer current): the queued run of the twelve owed scenarios from export `tmp/zoh` (`df2e303665`) waited from 00:42 behind other sessions' `le verify worktree` and `le verify current fast`, and at 01:46 the disk had 3 GB free, below the 15 GB floor. Still owed, in order: greens for `ospf-opaque-frr`, `ospf-accept-lifetime-last-key-frr`, `ospf-gr-frr`, `ospf-gr-helper-broadcast-frr`, `ospf-auth-frr`, `ospf-accept-lifetime-frr`, `ospf-sr-frr`, `ospf-ext-prefix-link-frr`, `ospf-te-frr`, `ospf-ri-frr`, `ospf-stub-nssa-frr`, `ospfv3-nssa-redist-frr`, `ospf-sr-anycast-nexthop-frr`, `ospf-self-lsa-flush-frr`; then reds under the reverts for the last-key, SR anycast and self-flush scenarios (patches named in the handover) | none: done in this spec (Goal Validation) |
 | `./le verify worktree` | obsolete, kept as history. The owner's standing rule (`ai/META-DECISIONS.md`, "Ze is pre-release") replaces it: closing a spec never waits on a whole-tree check, no agent runs any `./le verify` command, and GitHub CI verifies a pushed commit. This spec's evidence is the scoped runs of what it reaches. Earlier text: the machine ran other sessions' verify runs all afternoon; not run for this spec | none: GitHub CI verifies the pushed commit |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/rfc-verdict-fix-ospf-0b4a8e87-9c06-4f85-90a2-0445cb843906.md` (verdict findings, 135 files, round 2) |
-| `./le spec review check` | BLOCKED 2026-10-21 (round 2): verdict is 'findings', not clean. Round 3 (2026-11-14) also ended with findings; its three ISSUEs were fixed after the round, and a verifying round over `7a880afcde` and `4581355915` has not been run. Round 4 (2026-11-14) verified round 3's ISSUEs resolved and ended with findings of its own (0 BLOCKER, 4 ISSUE, 6 NOTE). The gate is NOT clean: no round has verified the fixes of round 4's findings |
-| Rounds | 4 |
-| Closure still needs | the four page edits of R4-3 in `docs/architecture/testing/interop.md`, then a verifying round over `9703c868de`, `f95f78932f` and those page edits |
-| Reviewer lenses used | round 1: wiring, removed-behavior and test-rewrite audit, logic and lock order, RFC text, ledger (`./le rfc check`, `./le test weakened check base 90dce367a3^`, tag-set diff). Round 2 (scope: the fixes in `19de202493`): round-1 re-check, row and correction walk against `rfc/full/`, product-fix logic (SR next-hop flags, self-LSA flush, AuType 2 replay slot, GR flush), test-rewrite audit, ledger (`./le rfc check`, `./le test weakened check base 19de202493^`, derived listing), scoped `go test` over six ospf packages. Round 3 (independent reviewer, 2026-11-14; scope `7308ffbcfb`, `40e5a5ea23`, `f1a6fe241b`, `33eb78f7be`, `7dfd6b9d79`): 0 BLOCKER, 3 ISSUE, 4 NOTE. Round 4 (independent verifying reviewer, 2026-11-14; scope `7dfd6b9d79`, `7a880afcde`, `4581355915`, `730fd02747`, `dd45a24b61`): 0 BLOCKER, 4 ISSUE, 6 NOTE |
+| Artifact | `tmp/review/rfc-verdict-fix-ospf-2a02b71a-113d-4d89-9266-f0eefe6804df.md` (verdict clean, 12 files, round 5); earlier `tmp/review/rfc-verdict-fix-ospf-0b4a8e87-9c06-4f85-90a2-0445cb843906.md` (verdict findings, 135 files, round 2) |
+| `./le spec review check` | CLEAN at round 5 (2026-11-14). History: round 2 (2026-10-21) ended with findings; round 3 (2026-11-14) ended with three ISSUEs, fixed after it and verified by round 4; round 4 ended with 4 ISSUEs and 6 NOTEs, whose fixes round 5 verified at source. The round-2 artifact above is superseded by the round-5 record named in the Artifact row above. A sixth independent read followed round 5 (below) and is not counted as a round |
+| Rounds | 5 |
+| Reviewer lenses used | round 1: wiring, removed-behavior and test-rewrite audit, logic and lock order, RFC text, ledger (`./le rfc check`, `./le test weakened check base 90dce367a3^`, tag-set diff). Round 2 (scope: the fixes in `19de202493`): round-1 re-check, row and correction walk against `rfc/full/`, product-fix logic (SR next-hop flags, self-LSA flush, AuType 2 replay slot, GR flush), test-rewrite audit, ledger (`./le rfc check`, `./le test weakened check base 19de202493^`, derived listing), scoped `go test` over six ospf packages. Round 3 (independent reviewer, 2026-11-14; scope `7308ffbcfb`, `40e5a5ea23`, `f1a6fe241b`, `33eb78f7be`, `7dfd6b9d79`): 0 BLOCKER, 3 ISSUE, 4 NOTE. Round 4 (independent verifying reviewer, 2026-11-14; scope `7dfd6b9d79`, `7a880afcde`, `4581355915`, `730fd02747`, `dd45a24b61`): 0 BLOCKER, 4 ISSUE, 6 NOTE. Round 5 (independent verifying reviewer, 2026-11-14; scope `9703c868de`, `f95f78932f`, `50abd45f17`, `1a40d577c2` and the sibling checkers the R4-1 fix touches): 0 BLOCKER, 0 ISSUE, 4 NOTE. R4-1 to R4-4 and R4-N1 to N3 verified resolved at source; R4-3 fixed by `1a40d577c2`. NOTEs: R5-N1 no unit case of a Ze opaque LSA of another type; R5-N2 `ospf-te-frr` and `ospf-debug-inject-frr` FRR-side assertions pass without Ze's LSAs (journal row owed); R5-N3 the opaque half of the R4-2 row omits `40e5a5ea23`; R5-N4 Files to Modify names the derived `docs/features/rfc-status.md`. `./le test weakened check base 9703c868de^`: clean, 19 test files. |
 
-### Findings (round 4, 2026-11-14, reviewer authored none of the change)
+### Independent read after round 5 (2026-11-14, reviewer authored none of the change)
 
-R3-1, R3-2 (its Ze side) and R3-3 were verified resolved at source. The gate is not clean: round 4 ended with findings, and no round has verified their fixes.
+After round 5, a sixth independent read covered the changes made after that round: the R5-N1 test case, two literals replaced by existing constants (`linkUp`, `ipActionShow`), the SPF default derivation in `internal/plugins/ospf/config.go`, the journal rows and the closure text. It found 0 BLOCKER, 0 ISSUE, 5 NOTE. It is not recorded as a round, because `./le spec review record` refuses a sixth round without the owner's authorisation at his terminal. The code it covered therefore landed as an ordinary commit before closure, `3c984d6cc4`, so the closure commit carries no code.
+
+| # | Severity | Finding | Resolution |
+|---|----------|---------|------------|
+| R6-N1 | NOTE | the Review Gate pointed at a review record in Pre-Commit Verification, which names none | fixed: it points at the Artifact row |
+| R6-N2 | NOTE | this spec did not mention the `config.go` change | fixed: R4-N4 and Files from Plan name it and `3c984d6cc4` |
+| R6-N3 | NOTE | four Pre-Commit Verification rows said "owed command" | fixed: each now gives what was observed on 2026-11-14 |
+| R6-N4 | NOTE | the news fragment said RFC 5709 Section 3.2 "requires" where the RFC's "should" is lowercase | fixed: "directs" |
+| R6-N5 | NOTE | `linkUp` is now shared by two checkers but declared in `check_dhcpv6_confirm.go` | open, optional |
+
+### Findings (round 5, 2026-11-14, reviewer authored none of the change)
+
+0 BLOCKER, 0 ISSUE. Each NOTE is resolved: R5-N1 in `3c984d6cc4`, the others in the closure commit.
 
 | # | Severity | Finding | Location | Resolution |
 |---|----------|---------|----------|------------|
-| R4-1 | ISSUE | `ospf-ext-prefix-link-frr` assertion 3 (FRR side) is satisfied by FRR's own Extended Link LSA, whose Link ID is Ze's router-id, so "FRR accepts and floods Ze's Extended LSAs" is unproven | `internal/le/interoplab/bgp/check_ospf_ext_prefix_link.go` | fixed by `9703c868de`: assertion 3 reads FRR's `show ip ospf database opaque-area json` and requires an opaque type 7 and a type 8 LSA whose `advertisingRouter` is Ze (keys from FRR's source at frr-10.7.1; the type from the first octet of the Link State ID, RFC 5250 Section 3). Observed 2026-11-14: unit package green, and the scenario passes in 1m13s on the docker-lab route, so FRR holds Ze's Extended Prefix and Extended Link LSAs. The new assertion's own red (Ze's LSAs absent from FRR) is covered by the unit test `TestFRROSPFExtFromZeVerdict` only; no lab red of it was taken. Not yet verified by a review round |
-| R4-2 | ISSUE | the `ospf-ext-prefix-link-frr` journal row was closed as "mistaken cause" but was a real read race, and the te half of the sibling row carried no evidence | `plan/journal/assertion-reads-state-the-scheduler-owns.md`, both 2026-10-02 interop rows | both rows rewritten 2026-11-14: the ext-prefix-link row names `40e5a5ea23` for the read race and `7a880afcde`, `4581355915` for the SR config; the te half claims only the pass on the docker-lab route; landed in `f95f78932f`; not yet verified by a review round |
-| R4-3 | ISSUE | `docs/architecture/testing/interop.md` owes paragraphs for the ext-prefix-link checker, the anycast hold and the self-flush JSON probe | `docs/architecture/testing/interop.md` | OPEN: the page held another session's uncommitted hunks all session and the edit was refused. Four page edits are owed before closure: the ext-prefix-link paragraph, now including the FRR-side JSON assertion; the anycast hold; the self-flush JSON probe; `ospf-sr-frr` as a user of `ze-sysctls` |
-| R4-4 | ISSUE | the R3-5 and R3-6 defects (`ospf-ti-lfa-frr` and `ospf-lfa-frr` can never pass for want of a `linkDeclarations` entry; `ospfv3-sr-frr` likely shares two fixture gaps) have no journal row or owning spec | `plan/journal/`, `internal/le/interoplab/bgp`, `test/interop/scenarios/ospfv3-sr-frr/` | journal rows written 2026-11-14: the `linkDeclarations` defect in `plan/journal/scenario-checker-waits-on-an-absent-peer.md`, the `ospfv3-sr-frr` defect in `plan/journal/interop-check-expects-what-the-peer-cannot-do.md`, both owned by `plan/release/validation/spec-interop-suite-red.md` (its Owned journal rows table); landed in `f95f78932f`; not yet verified by a review round |
+| R5-N1 | NOTE | `TestFRROSPFExtFromZeVerdict` has no refused case with a Ze opaque LSA of another type | `internal/le/interoplab/bgp/check_ospf_ext_prefix_link_test.go` | added: Ze's Router Information LSA (opaque type 4) with FRR's LSAs and Ze's Extended Link is refused, naming opaque type 7 |
+| R5-N2 | NOTE | `ospf-te-frr` and `ospf-debug-inject-frr` FRR-side assertions pass without Ze's LSAs | `interoplab/bgp/check_ospf_bgpls.go` `checkOSPFTEBGPLS`, `check_extras.go` `scenarioExtras` | verified at source: the first matches `zeLabAddress` anywhere in FRR's text, which FRR's own TE Link LSA carries as its Link ID; the second waits for "1", which FRR's router id 172.30.0.3 already holds. Two open rows in `plan/journal/green-that-could-not-have-been-red.md` (2026-11-14), owned by `plan/release/validation/spec-interop-suite-red.md` |
+| R5-N3 | NOTE | the opaque half of the 2026-10-02 opaque/te row omits `40e5a5ea23` | `plan/journal/assertion-reads-state-the-scheduler-owns.md` | the row now names it: its diff turns the `ospf-opaque-frr` opaque-area read from `opRequireContains` into a 60 s `opWaitContains` |
+| R5-N4 | NOTE | Files to Modify and the documentation checklist name the derived `docs/features/rfc-status.md` | this spec | both now say it is derived by `./le rfc update`, git-ignored and never committed |
+
+### Findings (round 4, 2026-11-14, reviewer authored none of the change)
+
+R3-1, R3-2 (its Ze side) and R3-3 were verified resolved at source. Round 5 verified the fixes of round 4's ISSUEs and NOTEs N1 to N3.
+
+| # | Severity | Finding | Location | Resolution |
+|---|----------|---------|----------|------------|
+| R4-1 | ISSUE | `ospf-ext-prefix-link-frr` assertion 3 (FRR side) is satisfied by FRR's own Extended Link LSA, whose Link ID is Ze's router-id, so "FRR accepts and floods Ze's Extended LSAs" is unproven | `internal/le/interoplab/bgp/check_ospf_ext_prefix_link.go` | fixed by `9703c868de`: assertion 3 reads FRR's `show ip ospf database opaque-area json` and requires an opaque type 7 and a type 8 LSA whose `advertisingRouter` is Ze (keys from FRR's source at frr-10.7.1; the type from the first octet of the Link State ID, RFC 5250 Section 3). Observed 2026-11-14: unit package green, and the scenario passes in 1m13s on the docker-lab route, so FRR holds Ze's Extended Prefix and Extended Link LSAs. The new assertion's own red (Ze's LSAs absent from FRR) is covered by the unit test `TestFRROSPFExtFromZeVerdict` only; no lab red of it was taken. Verified by round 5 |
+| R4-2 | ISSUE | the `ospf-ext-prefix-link-frr` journal row was closed as "mistaken cause" but was a real read race, and the te half of the sibling row carried no evidence | `plan/journal/assertion-reads-state-the-scheduler-owns.md`, both 2026-10-02 interop rows | both rows rewritten 2026-11-14: the ext-prefix-link row names `40e5a5ea23` for the read race and `7a880afcde`, `4581355915` for the SR config; the te half claims only the pass on the docker-lab route; landed in `f95f78932f`; verified by round 5 |
+| R4-3 | ISSUE | `docs/architecture/testing/interop.md` owes paragraphs for the ext-prefix-link checker, the anycast hold and the self-flush JSON probe | `docs/architecture/testing/interop.md` | fixed by `1a40d577c2`, verified by round 5: the page carries the ext-prefix-link paragraph with the FRR-side JSON assertion, the anycast hold (three times the 5 s SPF hold ceiling), the self-flush probe of `show ip route ospf json`, and `ospf-sr-frr` as a user of `ze-sysctls` |
+| R4-4 | ISSUE | the R3-5 and R3-6 defects (`ospf-ti-lfa-frr` and `ospf-lfa-frr` can never pass for want of a `linkDeclarations` entry; `ospfv3-sr-frr` likely shares two fixture gaps) have no journal row or owning spec | `plan/journal/`, `internal/le/interoplab/bgp`, `test/interop/scenarios/ospfv3-sr-frr/` | journal rows written 2026-11-14: the `linkDeclarations` defect in `plan/journal/scenario-checker-waits-on-an-absent-peer.md`, the `ospfv3-sr-frr` defect in `plan/journal/interop-check-expects-what-the-peer-cannot-do.md`, both owned by `plan/release/validation/spec-interop-suite-red.md` (its Owned journal rows table); landed in `f95f78932f`; verified by round 5 |
 | R4-N1 | NOTE | no unit test of the self-flush verdict over FRR's `{}` answer | `internal/le/interoplab/bgp/check_ospf_self_flush.go` | fixed by `9703c868de`: `TestOSPFSelfFlushRouteAbsenceVerdict` |
 | R4-N2 | NOTE | the anycast "pop then swap" unit case can flake under load | `internal/le/interoplab/bgp/check_ospf_sr_anycast_test.go` | fixed by `9703c868de`: the "pop then swap" case is deterministic |
 | R4-N3 | NOTE | a lab query error during the anycast hold reads as a Ze red | `internal/le/interoplab/bgp/check_ospf_sr_anycast.go` | fixed by `9703c868de`: a failed lab query reads as a lab error |
-| R4-N4 | NOTE | the hold window derives from `spf.DefaultSPFMaxHold` while the engine runs `ospf.DefaultSPFMaxHoldMS`: two declarations of one 5 s fact | `internal/le/interoplab/bgp/check_ospf_sr_anycast.go`, `internal/plugins/ospf` | open |
+| R4-N4 | NOTE | the hold window derives from `spf.DefaultSPFMaxHold` while the engine runs `ospf.DefaultSPFMaxHoldMS`: two declarations of one 5 s fact | `internal/le/interoplab/bgp/check_ospf_sr_anycast.go`, `internal/plugins/ospf` | fixed by `3c984d6cc4`: `ospf.DefaultSPFDelayMS`, `DefaultSPFHoldMS` and `DefaultSPFMaxHoldMS` (`internal/plugins/ospf/config.go`) now derive from `spf.DefaultSPFDelay`, `DefaultSPFHold` and `DefaultSPFMaxHold`. Only the YANG `spf-*-ms` defaults remain an unchecked copy, recorded as an open row, 2026-11-14 in `plan/journal/declared-default-applied-by-each-consumer.md`, owned by `plan/release/fixes/spec-ospf-isis-bfd-vrrp-one-off-defects.md` |
 | R4-N5 | NOTE | the RFC7684-2.1-3 audit note paraphrases Section 2 as speaking of origination when it speaks of flooding scope; the verdict stands | `rfc/audit/rfc7684/RFC7684-2.1-3.json` | open |
 | R4-N6 | NOTE | the spec said the anycast checker fix "is written" without its SHA | this spec | fixed 2026-11-14: Goal Validation and Work Not Done name `730fd02747` |
 
 ### Findings (round 3, 2026-11-14, reviewer authored none of the change)
 
-The three ISSUEs were fixed after the round. A verifying round over `7a880afcde` and `4581355915` has not been run.
+The three ISSUEs were fixed after the round, and round 4 verified them over `7a880afcde` and `4581355915`.
 
 | # | Severity | Finding | Location | Resolution |
 |---|----------|---------|----------|------------|
@@ -606,16 +670,19 @@ The three ISSUEs were fixed after the round. A verifying round over `7a880afcde`
 | R3-6 | NOTE | `ospfv3-sr-frr`: FRR ospf6d SR support at 10.7.1 is unverified, and the fixture very likely shares the two gaps fixed in `ospf-sr-frr` | `test/interop/scenarios/ospfv3-sr-frr/` | outside this spec: journal row 2026-11-14 in `plan/journal/interop-check-expects-what-the-peer-cannot-do.md`, owned by `plan/release/validation/spec-interop-suite-red.md` |
 | R3-7 | NOTE | Goal Validation, Work Not Done and the journal row were stale | this spec, `plan/journal/assertion-reads-state-the-scheduler-owns.md` | updated 2026-11-14 |
 
-### Open findings (round 2, 2026-10-21, reviewer authored none of the change)
+### Findings (round 2, 2026-10-21, reviewer authored none of the change)
+
+All NOTEs. #2 and #5 are resolved (checked 2026-11-14); #3, #4 and #6 stand as recorded observations, none a defect.
+
 | # | Severity | Finding | Location |
 |---|----------|---------|----------|
-| 2 | NOTE | record: the Implementation Audit is stale against `19de202493`. AC-C3 lists six rows, AC-C6 says "reviewer to confirm", AC-C5 names the RFC7474-3-1 stale record HEAD no longer reports, AC-C1 cites 2026-10-11 (the listing at HEAD returns only RFC3101-3.2-2). Supersedes round-1 #8 | this spec, Implementation Audit |
+| 2 | NOTE | RESOLVED: the Implementation Audit now cites `19de202493` for AC-C1, AC-C3, AC-C5 and AC-C6. Finding: the Implementation Audit is stale against `19de202493`. AC-C3 lists six rows, AC-C6 says "reviewer to confirm", AC-C5 names the RFC7474-3-1 stale record HEAD no longer reports, AC-C1 cites 2026-10-11 (the listing at HEAD returns only RFC3101-3.2-2). Supersedes round-1 #8 | this spec, Implementation Audit |
 | 3 | NOTE | RFC7684-5-1 still carries implementation prose after its cite ("-- bound-checked decode ..."); the table owed only the hyphen for this row, and 98 rows in `rfc/short/` carry a ") -- " note, so this is a corpus convention | `rfc/short/rfc7684.md` |
 | 4 | NOTE | round-1 #7 stands and extends: every record of the `19de202493` product fixes (RFC8665-5-16, RFC8666-6-18, RFC2328-13.4-2, 13.4-3, D.5.3-1, RFC3623-A-4 flush) is a whole-body panic break. Each unit, read from source, asserts the outcome the old code fails, but the record stores reach | `rfc/discrimination/rfc8665.json`, `rfc8666.json`, `rfc2328.json`, `rfc3623.json` |
-| 5 | NOTE | untracked probe `TestZZProbeACC3` (t.Logf only, no assertion) runs with every ospf package test and must not ride into a commit | `internal/plugins/ospf/zz_probe_acc3_test.go` |
+| 5 | NOTE | RESOLVED: the file no longer exists and no commit ever carried it (`git log --all` on its path is empty). Finding: untracked probe `TestZZProbeACC3` (t.Logf only, no assertion) runs with every ospf package test and must not ride into a commit | `internal/plugins/ospf/zz_probe_acc3_test.go` |
 | 6 | NOTE | sibling `srTILFAResolver.PrefixSIDLabel` still matches only `rs.Originator` and ignores the new `Also` list; behaviour is unchanged from before the fix and a node SID is per router, so no defect is shown | `internal/plugins/ospf/sr_tilfa.go` |
 
-Pending, not findings: the interop runs under Work Not Done, and `./le repo check` (not run by this reviewer). `./le verify worktree` was pending here on 2026-10-21; it is no longer owed (Work Not Done).
+On 2026-10-21 the interop runs and `./le repo check` were pending. The interop runs are observed (Goal Validation); `./le repo check` is run at closure (Pre-Commit Verification). `./le verify worktree` is not owed (Work Not Done).
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
@@ -627,3 +694,48 @@ Pending, not findings: the interop runs under Work Not Done, and `./le repo chec
 | R1-5 | NOTE | the `graceRestarterV4` doc comment and the `docs/guide/ospf.md` helper paragraph say an unmatched shared-media flush is ignored, as FRR does | `gr_helper.go`, `docs/guide/ospf.md` | `19de202493`, verified round 2 |
 | R1-6 | NOTE | identity and flush tests drive broadcast, NBMA and point-to-multipoint | `rfc3623_grace_helper_identity_test.go` | `19de202493`, verified round 2 |
 | R2-1 | BLOCKER | AC-C3: narrowing row RFC8666-6-13 (call: dropped) was unresolved: the row omitted the condition "If both the NP-Flag and E-Flag are set, then:" (`rfc/full/rfc8666.txt`:415), which its twin RFC8665-5-12 carries. The row now carries it, matching RFC 8666 Section 6 | `rfc/short/rfc8666.md` RFC8666-6-13 | `7308ffbcfb`, verified round 3 |
+| R4-1 | ISSUE | `ospf-ext-prefix-link-frr` FRR-side assertion met by FRR's own Extended Link LSA | `check_ospf_ext_prefix_link.go` | `9703c868de`, verified round 5 |
+| R4-2 | ISSUE | journal rows misstated the ext-prefix-link cause and the te evidence | `plan/journal/assertion-reads-state-the-scheduler-owns.md` | `f95f78932f`, verified round 5 |
+| R4-3 | ISSUE | interop page lacked the checker, hold, probe and sysctls paragraphs | `docs/architecture/testing/interop.md` | `1a40d577c2`, verified round 5 |
+| R4-4 | ISSUE | R3-5 and R3-6 defects had no journal row | `plan/journal/` | `f95f78932f`, verified round 5 |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `plan/learned/049-rfc-verdict-fix-ospf.md` | yes | written at closure, 2026-11-14 |
+| `internal/le/interoplab/bgp/check_ospf_ext_prefix_link.go` and its `_test.go` | yes | read at closure: `frrOSPFExtFromZeVerdict`, `TestFRROSPFExtFromZeVerdict` |
+| `internal/plugins/ospf/zz_probe_acc3_test.go` | no, as required | `ls` answers "No such file or directory"; `git log --all` on the path is empty |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-C1 | the listing holds only RFC3101-3.2-2 | 2026-11-14: the "Derived listing" filter, adapted to the per-requirement audit layout (one file per requirement under `rfc/audit/<stem>/`), returned exactly `rfc3101 RFC3101-3.2-2 weak`; RFC3101-3.2-2 named in `spec-ospf-nssa-translator-reachability.md` AC-3 (read at closure) |
+| AC-C2, AC-C7 | records and non-author judges | round 5, an independent reviewer, verified the R4 fixes at source; `./le test weakened check base 9703c868de^` clean over 19 test files |
+| AC-C5 | no violation and no stale verdict in the owned stems | `./le rfc check`, 2026-11-14, reported ten violations naming the OSPF plugin, none added by this child's commits. Two were shifted audit verdicts (RFC5340-4.1.2-2, RFC5838-2.8-1: the test file around byte-identical units moved), resealed in `6e4ee69a8a`. Five were discrimination records staled by `755fdd91de` (2026-11-12, another spec's change to `routerLinks` and `OriginateFromTopology`): RFC2328-12.4.1-1 both polarities, RFC2328-9.1-1 negative, RFC5443-2-2 both polarities, each re-taken in `6e4ee69a8a` with its red observed. Three remain stale and are not this child's: RFC4302-3.4.3-1 (the Linux integration unit, both polarities) and RFC4552-11-3 (a mutant-route record), staled by the IPsec dataplane work of 2026-11-08; the first needs a Linux kernel. So no violation this child's commits added and no stale verdict in its stems; the three stale records another spec's work left are recorded in `plan/handover/39-residuals-of-closed-handovers.md` |
+| scoped unit tests | the packages this closure changed stay green | 2026-11-14: `./le test unit pkg path ./internal/le/interoplab/bgp/` green after the R5-N1 case; `./le test unit pkg path ./internal/plugins/ospf/` green after the SPF default derivation |
+| `./le repo check` | no finding in this spec's files | 2026-11-14: two findings, both in other sessions' files (`internal/le/site/buildproducer.go`, `internal/le/test/deployment/vppevidencempls.go`), none in this spec's files |
+| scoped lint | the changed Go passes lint | the scoped lint ran once on 2026-11-14 over `internal/le/interoplab/bgp`, `bgp/server`, `plugin/server` and `role`; its only finding in this work's files was a literal duplicating `ipActionShow`, since fixed. Later attempts produced no verdict, because another session was editing a dependency during planning. No clean lint verdict was observed after the fix |
+| AC-C3, AC-C4, AC-C6 | rows, corrections and the blocked verdict | Implementation Audit rows at `19de202493`, verified by rounds 2 to 4 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc check` → `checkAuditFindings` | none: a Go unit, `TestCheckAuditRatchetSeesTipCommit` (`internal/le/rfc/check_audit_baseline_test.go`) | `checkAuditFindings` (`internal/le/rfc/check_audit.go`) read at closure: it refuses a deleted weak, wrong or partial verdict and an unchanged-units upgrade with no `upgrade_reason`; `./le test unit pkg path ./internal/le/rfc/ run TestCheckAuditRatchetSeesTipCommit` green, 2026-11-14 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `stampRefusal` (`internal/le/rfc/audit_stamp.go`) refuses `mode rejudge` on an id with no verdict; every re-judge here used it |
+| A-2 | confirmed | the listing at `19de202493` held only the one "Blocked by" id |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/testing/interop.md` paragraphs (R4-3) | `1a40d577c2` adds them with anchors to `check_ospf_self_flush.go`, `check_ospf_sr_anycast.go` and `ospf-sr-frr/frr.conf`; the page names `ze-sysctls` | yes. 2026-11-14: `./le doc check all` fails on findings elsewhere, and none of its lines names a file this closure touches; `./le doc check links` reports no broken reference from the interop page, the handover folder or the checker package |
+| `docs/features/rfc-status.md` is not edited | `.gitignore` holds `/docs/features/rfc-status.md` | yes |
+
+## Core Insight
+
+Every one of the six interop failures met on 2026-11-14 was a fixture or checker defect, none in Ze, and three checkers could pass without the peer's evidence: substring matches met by the local side's own LSAs, and a first-sample read that raced the SPF debounce. The red under the fix's revert, taken through a Go build overlay, is what exposed each. Routed to `plan/learned/049-rfc-verdict-fix-ospf.md`.
