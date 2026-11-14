@@ -17,7 +17,9 @@ import (
 	"text/tabwriter"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/storage/daemonroute"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -157,16 +159,16 @@ const (
 // cmdWrite is `ze data write <key> <file>`. With the store free it writes the
 // key itself. While a daemon owns the store, the open answers storage.ErrBusy
 // and the bytes go to that daemon as `update data key <key> content <base64>`
-// (daemon_route.go). Both routes print `wrote <key> (<n> bytes) into <store>`
+// (daemonroute). Both routes print `wrote <key> (<n> bytes) into <store>`
 // and exit 0; a file that cannot be read, a store that cannot be reached and a
 // refused write exit 2, a usage error 1.
 func cmdWrite(storePath string, args []string) int {
-	return writeKey(storePath, args, askDaemonOverSSH, os.Stdout, os.Stderr)
+	return writeKey(storePath, args, daemonroute.OverSSH, os.Stdout, os.Stderr)
 }
 
 // writeKey is cmdWrite over one daemon ask and two writers, so a test stubs the
 // daemon and reads the lines.
-func writeKey(storePath string, args []string, ask daemonAsk, stdout, stderr io.Writer) int {
+func writeKey(storePath string, args []string, ask daemonroute.Ask, stdout, stderr io.Writer) int {
 	if len(args) != 2 {
 		writeText(stderr, "usage: ze data write <key> <file>\n")
 		return 1
@@ -207,7 +209,7 @@ func writeKey(storePath string, args []string, ask daemonAsk, stdout, stderr io.
 // daemon's own refusal: the bound and the route for a larger value. busy is
 // the store's refusal of the local open, which a refusal for no answer names
 // first. The decoded answer must name the key and the byte count written.
-func writeKeyThroughDaemon(storePath, key string, data []byte, busy error, ask daemonAsk, stdout, stderr io.Writer) int {
+func writeKeyThroughDaemon(storePath, key string, data []byte, busy error, ask daemonroute.Ask, stdout, stderr io.Writer) int {
 	encoded := base64.StdEncoding.EncodeToString(data)
 	tokens := []string{keywordKey, key, keywordContent, encoded}
 	if _, err := command.ValidateModelArgs(pathUpdateDataKey, tokens, nil); err != nil {
@@ -220,9 +222,9 @@ func writeKeyThroughDaemon(storePath, key string, data []byte, busy error, ask d
 	line.Str(pathUpdateDataKey).Byte(' ').Str(configtext.QuoteCommandWord(key)).
 		Byte(' ').Str(keywordContent).Byte(' ').Str(encoded)
 	var answer writeAnswer
-	err := sendToDaemon(ask, storePath, line.String(), &answer)
-	if unanswered, ok := errors.AsType[*daemonUnanswered](err); ok {
-		writeErrorLine(stderr, unansweredRefusal(commandDataWrite, busy, unanswered))
+	err := daemonroute.Send(ask, storePath, line.String(), &answer)
+	if unanswered, ok := errors.AsType[*daemonroute.Unanswered](err); ok {
+		writeErrorLine(stderr, daemonroute.UnansweredRefusal(commandDataWrite, busy, unanswered))
 		return 2
 	}
 	if err != nil {
@@ -272,50 +274,177 @@ func writeErrorLine(stderr io.Writer, err error) {
 	writeText(stderr, line.Str(errorLinePrefix).Err(err).Byte('\n').String())
 }
 
+// commandDataImport is the local command the refusals of the import route name.
+const commandDataImport = "ze data import"
+
+// cmdImport is `ze data import <file>...`. Each file lands in the config named
+// by its base name, under the key filePathToKey gives it. With the store free,
+// a config the store already holds is committed as a new active version, the
+// previous one kept as rollback (storage.RestoreConfig), as `ze config import`
+// replaces one: a raw write of its file/active key is shadowed by its active
+// pointer (storage.ReadActiveConfig), so the daemon would go on reading the old
+// config. A config the store does not hold yet is written as its key. While a
+// daemon owns the store, the open answers storage.ErrBusy and each file goes to
+// that daemon as `update data config name <name> content <base64>`, one
+// command per file (daemonroute). Both routes print `imported <key> (<n>
+// bytes)` per file and `<n> files imported into <store>`, and exit 0 when at
+// least one file was imported, 2 when none was, when the store could not be
+// reached or when stdin is named twice, 1 on usage.
 func cmdImport(storePath string, args []string) int {
-	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "usage: ze data import <file>...\n")
+	return importConfigs(storePath, args, daemonroute.OverSSH, os.Stdout, os.Stderr)
+}
+
+// importConfigs is cmdImport over one daemon ask and two writers, so a test
+// stubs the daemon and reads the lines.
+func importConfigs(storePath string, paths []string, ask daemonroute.Ask, stdout, stderr io.Writer) int {
+	if len(paths) == 0 {
+		writeText(stderr, "usage: ze data import <file>...\n")
 		return 1
 	}
 
 	s, err := openOrCreateStore(storePath)
+	if errors.Is(err, storage.ErrBusy) {
+		return importConfigsThroughDaemon(storePath, paths, err, ask, stdout, stderr)
+	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		writeErrorLine(stderr, err)
 		return 2
 	}
 	defer s.Close() //nolint:errcheck // best-effort close
 
 	imported := 0
-	stdinConflict := false
-	for _, path := range args {
+	for _, path := range paths {
 		data, readErr := cliio.ReadFile(path)
 		if readErr != nil {
-			fmt.Fprintf(os.Stderr, "error: read %s: %v\n", path, readErr)
+			writeReadError(stderr, path, readErr)
 			// Stdin can be read once; a second "-" fails closed after any
 			// preceding successful imports, as with config import.
 			if errors.Is(readErr, cliio.ErrStdinClaimed) {
-				stdinConflict = true
-				break
+				return 2
 			}
 			continue
 		}
-
 		key := filePathToKey(path)
+		if writeErr := importConfig(s, path, data); writeErr != nil {
+			var line textbuf.Buffer
+			writeText(stderr, line.Str("error: write ").Str(key).Str(": ").Err(writeErr).Byte('\n').String())
+			continue
+		}
+		writeImported(stdout, key, len(data))
+		imported++
+	}
+	return importedSummary(stdout, storePath, imported)
+}
 
-		if writeErr := s.WriteKey(key, data); writeErr != nil {
-			fmt.Fprintf(os.Stderr, "error: write %s: %v\n", key, writeErr)
+// importConfig lands data in the config named by the base name of path, on
+// the store the caller owns: a new active version of a config the store holds,
+// the previous one kept as rollback, or the key of a config it does not hold.
+//
+// What decides is the active pointer, because the daemon reads a config
+// through it: a raw write under a pointer is shadowed, whether or not the file
+// key exists. A config with a file key and no pointer yet is versioned too, as
+// `ze config import` replaces it.
+//
+// s is the store's owner, so no daemon runs and none can open a confirmed
+// commit window during the write; a window record found here was left by a
+// daemon that stopped during that window. Its next start reverts the window,
+// which would undo the import, so the import is refused with the window's own
+// refusal (confirm.WriteOutsideRecorded), as `ze config rollback` is.
+func importConfig(s storage.Storage, path string, data []byte) error {
+	name := filepath.Base(path)
+	return confirm.WriteOutsideRecorded(s, name, func() error {
+		return importConfigOwned(s, name, path, data)
+	})
+}
+
+// importConfigOwned is the write of importConfig, once no window stands in
+// its way.
+func importConfigOwned(s storage.Storage, name, path string, data []byte) error {
+	pointed, err := storage.HasActivePointer(s, name)
+	if err != nil {
+		return err
+	}
+	if pointed {
+		_, err := storage.RestoreConfig(s, name, data)
+		return err
+	}
+	if s.Exists(name) {
+		_, err := storage.RestoreConfig(s, name, data)
+		return err
+	}
+	return s.WriteKey(filePathToKey(path), data)
+}
+
+// importConfigsThroughDaemon sends each file to the daemon that owns the
+// store, as `update data config name <name> content <base64>`, with the local
+// route's rules: a file that cannot be read or that the daemon refuses is an
+// error line and the walk goes on, so a refusal of the third file leaves the
+// first two imported; a daemon that does not answer ends the walk, because no
+// later file can reach it. daemonroute.ConfigLine judges each line by the
+// model first, as the daemon's validator judges it, so a file over the bound
+// one SSH packet carries is refused here, before anything connects, with the
+// daemon's own refusal. busy is the store's refusal of the local open, which a
+// refusal for no answer names first. The decoded answer must name the config
+// and the byte count imported.
+func importConfigsThroughDaemon(storePath string, paths []string, busy error, ask daemonroute.Ask, stdout, stderr io.Writer) int {
+	imported := 0
+	for _, path := range paths {
+		data, readErr := cliio.ReadFile(path)
+		if readErr != nil {
+			writeReadError(stderr, path, readErr)
+			if errors.Is(readErr, cliio.ErrStdinClaimed) {
+				return 2
+			}
+			continue
+		}
+		name := filepath.Base(path)
+		line, err := daemonroute.ConfigLine(name, data)
+		if err != nil {
+			var refusal textbuf.Buffer
+			writeText(stderr, refusal.Str(errorLinePrefix).Str(commandDataImport).Str(": ").Err(err).Byte('\n').String())
 			continue
 		}
 
-		fmt.Printf("imported %s (%d bytes)\n", key, len(data))
+		var answer daemonroute.ConfigAnswer
+		err = daemonroute.Send(ask, storePath, line, &answer)
+		if unanswered, ok := errors.AsType[*daemonroute.Unanswered](err); ok {
+			writeErrorLine(stderr, daemonroute.UnansweredRefusal(commandDataImport, busy, unanswered))
+			if imported == 0 {
+				return 2
+			}
+			break
+		}
+		if err != nil {
+			writeErrorLine(stderr, err)
+			continue
+		}
+		if mismatch := answer.Mismatch(commandDataImport, name, len(data)); mismatch != nil {
+			writeErrorLine(stderr, mismatch)
+			continue
+		}
+		writeImported(stdout, filePathToKey(path), len(data))
 		imported++
 	}
+	return importedSummary(stdout, storePath, imported)
+}
 
-	if stdinConflict {
-		return 2
-	}
+// writeReadError prints the line a file that cannot be read gets.
+func writeReadError(stderr io.Writer, path string, err error) {
+	var line textbuf.Buffer
+	writeText(stderr, line.Str("error: read ").Str(path).Str(": ").Err(err).Byte('\n').String())
+}
 
-	fmt.Printf("%d files imported into %s\n", imported, storePath)
+// writeImported prints the line each imported file gets, on both routes.
+func writeImported(stdout io.Writer, key string, octets int) {
+	var line textbuf.Buffer
+	writeText(stdout, line.Str("imported ").Str(key).Str(" (").Int(int64(octets)).Str(" bytes)\n").String())
+}
+
+// importedSummary prints the count line both routes end with and answers the
+// exit code: 0 when at least one file was imported, 2 when none was.
+func importedSummary(stdout io.Writer, storePath string, imported int) int {
+	var line textbuf.Buffer
+	writeText(stdout, line.Int(int64(imported)).Str(" files imported into ").Str(storePath).Byte('\n').String())
 	if imported == 0 {
 		return 2
 	}
@@ -325,16 +454,16 @@ func cmdImport(storePath string, args []string) int {
 // cmdRm is `ze data rm <key>...`. With the store free it removes each key
 // itself. While a daemon owns the store, the open answers storage.ErrBusy and
 // each key goes to that daemon as `delete data key <key>`, one command per
-// key (daemon_route.go). Both routes print `removed <key>` per key and
+// key (daemonroute). Both routes print `removed <key>` per key and
 // `<n> entries removed from <store>`, and exit 0 when at least one key was
 // removed, 2 when none was or the store could not be reached, 1 on usage.
 func cmdRm(storePath string, args []string) int {
-	return removeKeys(storePath, args, askDaemonOverSSH, os.Stdout, os.Stderr)
+	return removeKeys(storePath, args, daemonroute.OverSSH, os.Stdout, os.Stderr)
 }
 
 // removeKeys is cmdRm over one daemon ask and two writers, so a test stubs the
 // daemon and reads the lines.
-func removeKeys(storePath string, keys []string, ask daemonAsk, stdout, stderr io.Writer) int {
+func removeKeys(storePath string, keys []string, ask daemonroute.Ask, stdout, stderr io.Writer) int {
 	if len(keys) == 0 {
 		writeText(stderr, "usage: ze data rm <key>...\n")
 		return 1
@@ -369,16 +498,16 @@ func removeKeys(storePath string, keys []string, ask daemonAsk, stdout, stderr i
 // refuses is an error line and the walk goes on; a daemon that does not answer
 // ends the walk, because no later key can reach it. busy is the store's
 // refusal of the local open, which the refusal names first.
-func removeKeysThroughDaemon(storePath string, keys []string, busy error, ask daemonAsk, stdout, stderr io.Writer) int {
+func removeKeysThroughDaemon(storePath string, keys []string, busy error, ask daemonroute.Ask, stdout, stderr io.Writer) int {
 	removed := 0
 	for _, key := range keys {
 		var line textbuf.Buffer
 		line.Str("delete data key ").Str(configtext.QuoteCommandWord(key))
 		var answer keyAnswer
-		err := sendToDaemon(ask, storePath, line.String(), &answer)
-		if unanswered, ok := errors.AsType[*daemonUnanswered](err); ok {
+		err := daemonroute.Send(ask, storePath, line.String(), &answer)
+		if unanswered, ok := errors.AsType[*daemonroute.Unanswered](err); ok {
 			var refusal textbuf.Buffer
-			writeText(stderr, refusal.Str(errorLinePrefix).Err(unansweredRefusal("ze data rm", busy, unanswered)).Byte('\n').String())
+			writeText(stderr, refusal.Str(errorLinePrefix).Err(daemonroute.UnansweredRefusal("ze data rm", busy, unanswered)).Byte('\n').String())
 			if removed == 0 {
 				return 2
 			}
@@ -513,7 +642,7 @@ func usage() {
 				{Name: "restore <file> config [name <source-name>]", Desc: "Commit the artifact's config as a new active version of this device's config; offline only"},
 				{Name: "restore <file> full", Desc: "Replace the whole tree with the artifact's keys, keeping the previous tree as database.replaced-<stamp>; offline only"},
 				{Name: "write <key> <file>", Desc: "Write a file to an explicit key; while ze runs, through the daemon, which writes runtime-state keys only, up to 195,840 bytes"},
-				{Name: "import <file>...", Desc: "Import files into the store"},
+				{Name: "import <file>...", Desc: "Import each file as the config named by its file name, as a new active version when that config exists; while ze runs, through the daemon, which reloads for its own config, up to 195,840 bytes per file"},
 				{Name: "rm <key>...", Desc: "Remove entries from the store; while ze runs, through the daemon, which removes runtime-state keys only"},
 				{Name: "list [prefix]", Desc: "List all matching keys recursively"},
 				{Name: "cat <key>", Desc: "Print entry content to stdout"},
@@ -531,8 +660,8 @@ func usage() {
 			"ze data list",
 			"ze data list file/active/",
 			"ze data list meta/",
-			"ze data cat file/active/etc/ze/router.conf",
-			"ze data rm file/active/etc/ze/old-router.conf",
+			"ze data cat file/active/router.conf",
+			"ze data rm meta/ddos-flowspec/announcement",
 			"ze data registered",
 			"ze data backup /var/backups/router-1.zefs",
 			"ze data restore /var/backups/router-1.zefs config",

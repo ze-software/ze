@@ -83,7 +83,7 @@ the plugin registration check derive their verb set from it.
 | `clear` | Action | Data that exists takes one fixed value, zero or empty | Counters and caches | Yes | 19 |
 | `request` | Action | The system changes, and the change is none of create, delete or update | The session, the wire, or the process | No | 33 |
 | `create` | Action | Something that did not exist exists after the command, today a live kernel resource | The kernel | Yes | 5 |
-| `update` | Action | Data held for something that exists is rewritten | The config draft, a cached set, or a store key | Yes | 20 |
+| `update` | Action | Data held for something that exists is rewritten | The config draft, a cached set, a store key, or a stored config | Yes | 21 |
 | `debug` | Action | Live protocol state is perturbed on purpose | The wire | No | 4 |
 | `send` | Action | Bytes the operator supplies leave the router for a destination the operator names | The wire, and the peer that reads it | No | 9 |
 | `cache` | Action | Declared, and no command uses it at root | - | - | 0 |
@@ -217,6 +217,13 @@ serves, does the same. A pair of `create data key` and `update data key`, each
 refusing the other's case, would make an operator learn which case holds
 before writing a value they hold either way.
 <!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data key -->
+
+`update data config name <name> content <base64>` takes `update` for the same
+reason: the config it names is rewritten as a new version, whether or not a
+version existed, and `ze data import`, which it serves, does the same. It is
+not a `set`, because it names no tree node: it replaces a whole config, and the
+version it commits keeps the previous one as rollback.
+<!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data config -->
 
 ### Where `clear` sits
 

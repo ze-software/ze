@@ -1,0 +1,58 @@
+# Test: data-import-existing
+# VALIDATES: AC-9 -- with ze stopped, `ze data import <file>` naming a config that already has an active version (left by the first start) prints `imported file/active/<name> (<n> bytes)` and `1 files imported into <store>`, commits the file as a new active version and keeps the previous one as rollback; the daemon started next from the store serves the imported peer and router-id 2.2.2.2.
+# PREVENTS: an offline import that writes only the file/active mirror, which the active pointer shadows, so the next start runs the old config while the import reported success.
+# QUESTION: does a daemon started from the store after an offline import run the imported config? TestDataImportReplacesThroughAVersion reads the store; only a real start shows which config the daemon resolves and applies.
+#
+# The second start is a bare `ze start`: it binds the store as the config
+# source (cmd/ze/ze_core_start.go, cmdStart, ConfigSourceStored) and boots the
+# name resolve.DefaultConfig answers for a store with no instance name,
+# ze.conf, from its active version. A start naming the file binds the FILE as
+# the authority (ConfigSourceFile), and cmd/ze/hub/config_source.go
+# initializeConfigSource rebuilds the store from it at boot, overwriting the
+# import: that is the file mode working as designed, not the path AC-9 asks
+# about. The file ze.conf stays in place with the boot router-id 1.2.3.4, so a
+# daemon serving 2.2.2.2 can only have read the store.
+
+option=storage:value=disk
+option=timeout:value=90s
+
+tmpfs=ze.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+# The first start, from the file, creates the store and its first active version of ze.conf.
+cmd=background:seq=1:exec=ze start ze.conf:name=first:ready=Ze running.
+cmd=stop:seq=2:name=first:signal=term
+# With ze stopped, the offline import replaces that config.
+cmd=foreground:seq=3:exec=le test fixture storage/data-import-existing-seed:exit=0
+expect=stdout:contains=OK: data-import-existing-seed
+# The next start takes its config from the store and must run what the import committed.
+cmd=background:seq=4:exec=ze start:name=daemon:ready=Ze running.
+cmd=foreground:seq=5:exec=le test fixture storage/data-import-existing $PORT2:exit=0
+expect=stdout:contains=OK: data-import-existing
+cmd=stop:seq=6:name=daemon:signal=term

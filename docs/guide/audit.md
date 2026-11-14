@@ -12,6 +12,7 @@ Ze keeps a local structured audit log for operator actions that change state or 
 | `config-upload` | web `POST /config/upload`, once the uploaded config is applied |
 | `daemon-reload` | SIGHUP, and `request reload` through the daemon on any surface |
 | `data-key-change` | `delete data key` and `update data key` through the daemon on any surface, which `ze data rm` and `ze data write` also send while ze runs |
+| `data-config-import` | `update data config` through the daemon on any surface, which `ze data import` also sends while ze runs. The detail holds the name and the placeholder in place of the content |
 | `auth-fail` | SSH, web, REST, gRPC, MCP |
 
 Each entry has `timestamp`, `actor`, `remote-addr`, `surface`, `action`, `detail`, and `outcome` fields. `detail` carries the config diff for commit and discard records when Ze has one.

@@ -1,0 +1,46 @@
+# Test: data-import-live
+# VALIDATES: AC-10 -- the local `ze data import` of the running config on the daemon's host, while the daemon owns the store, sends the file to the daemon as `update data config name <name> content <base64>`: it prints the local route's lines and exits 0, the daemon reloads and serves the imported peer and router-id 2.2.2.2, and `show config history` lists one revision more; a config the reload refuses exits 2 with the reload's reason and leaves the active config, the history and the running router-id as they were; `update data config` over SSH exec for another name commits it with no reload, and `name ..` is refused naming the rule.
+# PREVENTS: a `ze data import` that needs ze stopped, an import through the daemon that bypasses the reload, or a refused config that changes the active one.
+# QUESTION: does an import beside a running daemon reach the reload over the real SSH route and leave everything as it was when the reload refuses? The unit tests stub the reload (TestUpdateConfigStagesAndReloads) and the daemon (TestDataImportForwardsToDaemonWhenBusy); neither sees the owner lock, the login, the dispatcher or a real reload.
+
+option=storage:value=disk
+option=timeout:value=90s
+
+tmpfs=data-import-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+# The first start creates the store; the daemon then runs while the imports
+# go through it.
+cmd=background:seq=1:exec=ze start data-import-live.conf:name=first:ready=Ze running.
+cmd=stop:seq=2:name=first:signal=term
+cmd=background:seq=3:exec=ze start data-import-live.conf:name=daemon:ready=Ze running.
+expect=stderr:pattern=SSH exec command.*update data config name data-import-live.conf content <redacted>
+cmd=foreground:seq=4:exec=le test fixture storage/data-import-live $PORT2:exit=0
+expect=stdout:contains=OK: data-import-live
+cmd=stop:seq=5:name=daemon:signal=term

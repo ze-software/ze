@@ -1,0 +1,46 @@
+# Test: config-import-live
+# VALIDATES: AC-16 -- the local `ze config import --yes` of the running config on the daemon's host, while the daemon owns the store, sends the file to the daemon as `update data config name <name> content <base64>`: it prints the offline route's lines (`replaced <name> (<n> bytes)`, `1 file(s) imported`) and exits 0, the daemon reloads and serves the imported peer and router-id 2.2.2.2, `show config history` lists one revision more, and the store reads the imported bytes as the active config.
+# PREVENTS: a `ze config import` that needs ze stopped (the bare ErrBusy refusal), or an import beside the daemon that bypasses the reload.
+# QUESTION: does `ze config import` beside a running daemon reach the reload over the real SSH route? The unit tests stub the daemon (TestImportThroughDaemonWhenBusy) and see neither the owner lock, the login, the dispatcher nor a real reload.
+
+option=storage:value=disk
+option=timeout:value=90s
+
+tmpfs=config-import-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+# The first start creates the store; the daemon then runs while the import
+# goes through it.
+cmd=background:seq=1:exec=ze start config-import-live.conf:name=first:ready=Ze running.
+cmd=stop:seq=2:name=first:signal=term
+cmd=background:seq=3:exec=ze start config-import-live.conf:name=daemon:ready=Ze running.
+expect=stderr:pattern=SSH exec command.*update data config name config-import-live.conf content <redacted>
+cmd=foreground:seq=4:exec=le test fixture storage/config-import-live $PORT2:exit=0
+expect=stdout:contains=OK: config-import-live
+cmd=stop:seq=5:name=daemon:signal=term

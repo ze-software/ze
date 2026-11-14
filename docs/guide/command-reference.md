@@ -227,6 +227,16 @@ ze config list --backup <artifact>  # List the configs inside a backup
 ze config cat <key>              # Print database entry
 ```
 
+While ze runs and owns the store, `ze config import` sends each input to the
+daemon as `update data config name <name> content <base64>` after the same
+name checks and confirmation, and prints the same lines; an input over 195,840
+bytes stops it before anything is sent. With ze stopped, an import into a
+config whose confirmed commit a stopped daemon left open is refused, naming
+`ze start <config>`. [Configuration Editor](config-editor.md) gives the whole
+contract.
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, cmdImportThroughDaemon -->
+<!-- source: internal/component/config/storage/daemonroute/daemonroute.go -- ConfigLine, Send -->
+
 **Inspection:**
 
 ```
@@ -2755,7 +2765,7 @@ recursively lists matching keys.
 ze data --path /etc/ze/database list meta/
 ze data --path /etc/ze/database cat meta/instance/name
 ze data write <key> <file>         # A file of "-" reads stdin
-ze data import <file>...           # Import under file/active/<basename>
+ze data import <file>...           # Import as the config <basename>, a new version when it exists
 ze data rm <key>...                # Through the daemon while ze runs
 ze data registered [pattern]
 ze data check
@@ -2870,7 +2880,7 @@ answers, `rm` keeps the store's refusal, says why the daemon did not answer (no
 listener at its address, no credentials to log in, or no answer) and names the
 command that fixes that, and exits `2`. With ze stopped, `rm` removes any key.
 <!-- source: internal/component/config/storage/cli/main.go -- cmdRm, removeKeys, removeKeysThroughDaemon -->
-<!-- source: internal/component/config/storage/cli/daemon_route.go -- sendToDaemon, askDaemonOverSSH, unansweredRefusal -->
+<!-- source: internal/component/config/storage/daemonroute/daemonroute.go -- Send, OverSSH, UnansweredRefusal -->
 
 `write` writes the bytes of a file, or of stdin for `-`, into one key, creating
 it or replacing it, and prints `wrote <key> (<n> bytes) into <store>`. While a
@@ -2884,6 +2894,26 @@ a larger value with ze stopped. With ze stopped, `write` writes any key, of any
 size.
 <!-- source: internal/component/config/storage/cli/main.go -- cmdWrite, writeKey, writeKeyThroughDaemon -->
 
+`import` lands each file in the config named by its file name, under the key
+`file/active/<basename>`, and prints `imported <key> (<n> bytes)` per file and
+`<n> files imported into <store>`. A config the store already holds is
+committed as a new active version and the previous one is kept as rollback, as
+`ze config import` replaces one, so a daemon started after the import runs the
+imported config. A config the store does not hold yet is written as its key.
+While a daemon owns the store, `import` sends each file to that daemon as
+`update data config name <name> content <base64>`, one command per file, by
+the route `rm` takes, and prints the same lines. A file the daemon refuses is
+an error line and the next file is still sent, so a refusal of the third file
+leaves the first two imported. A file over 195,840 bytes is refused before
+anything connects; restore a larger config from a backup file on the daemon's
+host with `request data restore path <file> config`. The command exits `0`
+when at least one file was imported and `2` when none was. With ze stopped, a
+file whose config has a confirmed commit a stopped daemon left open is refused
+with that window's refusal, naming `ze start <config>`, because that daemon's
+next start reverts the commit and would undo the import.
+<!-- source: internal/component/config/storage/cli/main.go -- cmdImport, importConfigs, importConfig, importConfigsThroughDaemon -->
+<!-- source: internal/component/config/confirm/store.go -- WriteOutsideRecorded -->
+
 The daemon answers these store commands on every surface (SSH, REST, gRPC,
 MCP, the web), acting on the store it owns. The `request data` commands read
 or write a file on the daemon's own host:
@@ -2894,6 +2924,7 @@ request data restore path <absolute-file> config [name <source-name>] [client <n
 request data repair path <absolute-output>
 delete data key <key>
 update data key <key> content <base64>
+update data config name <name> content <base64>
 show data check
 ```
 
@@ -2961,6 +2992,27 @@ copy, without stopping ze.
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyUpdate, configurationKeyError, runningOwnerError -->
 <!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data key, the content leaf -->
 <!-- source: internal/component/command/argvalidate.go -- outsideEveryLength -->
+
+`update data config name <name> content <base64>` imports one config while ze
+runs and answers `name`, `version` and `bytes`. `name` is a file name with no
+directory; a path, `.` and `..` are refused. For the daemon's own config, the
+content is staged as the candidate and the same reload a SIGHUP runs promotes
+it, as `request data restore ... config` does: the config becomes active only
+when the reload accepts it, and a config the reload refuses leaves the active
+config, its pointers and the daemon unchanged, with the reload's reason in the
+refusal. The import is refused while a `commit confirmed` window is open, with
+the window's own refusal, and while another change is staged, naming commit or
+discard. Any other name is committed as a new active version, the previous one
+kept as rollback, and nothing reloads; on a hub, a name of the form
+`client-<name>.conf` is the config the hub serves to that managed client, and
+the hub pushes `config-changed` to it. `content` has the bound and the
+encoding of `update data key`; a larger config is restored from a backup file
+on the daemon's host with `request data restore path <file> config`. The
+records hold `<redacted>` in place of the content, and the audit log records
+the import under `data-config-import`. The built-in read-only profile is
+denied the command.
+<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- handleDataConfigUpdate, importDaemonConfig, daemonConfigImportRefusal, importOtherConfig -->
+<!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data config, the content leaf -->
 
 Both refuse a relative path, a `..` element and a symlink, each naming the
 rule. `backup` walks the daemon's own store under its write lock and answers

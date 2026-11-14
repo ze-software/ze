@@ -248,22 +248,34 @@ exposes raw-key operations for data commands. Its mapping, per-config pointers
 and recursive enumeration contract are described in
 [Storage backends](storage-backends.md). `ze data` accepts either an explicit
 blob artifact or the live tree root; its mutations require offline ownership,
-except `ze data rm` and `ze data write`: when the store refuses either a writer
-(`storage.ErrBusy`), `rm` sends each key to the daemon that owns the store as
-`delete data key <key>` and `write` sends the file as
-`update data key <key> content <base64>`, over SSH with that store's address
+except `ze data rm`, `ze data write` and `ze data import`: when the store
+refuses any of them a writer (`storage.ErrBusy`), `rm` sends each key to the
+daemon that owns the store as `delete data key <key>`, `write` sends the file
+as `update data key <key> content <base64>` and `import` sends each file as
+`update data config name <name> content <base64>`, over SSH with that store's address
 and login and no prompt, as `ze doctor` reaches `show doctor`, and each prints
-the lines of its local route. The lock is never lifted: the daemon removes or
-writes the key through its own handle. `write` judges its command against the
-model before it connects, so a file over the 195,840 bytes one SSH packet
-carries is refused there with the daemon's own refusal.
+the lines of its local route. `ze config import` takes the same route for a
+busy destination store, after its name checks and confirmation. The route is
+one package, `storage/daemonroute`, which both command packages call. The lock is never lifted: the daemon removes or
+writes the key through its own handle. `write` and `import` judge each command
+against the model before they connect, so a file over the 195,840 bytes one
+SSH packet carries is refused there with the daemon's own refusal. Offline,
+`import` commits a config the store already holds as a new active version
+(`storage.RestoreConfig`), because a raw write of its `file/active/<name>` key
+is shadowed by its active pointer (`storage.ReadActiveConfig` reads the
+pointer's version first and the mirror only when no pointer exists).
+<!-- source: internal/component/config/storage/cli/main.go -- importConfigs, importConfig, importConfigsThroughDaemon -->
+<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig -->
 A running daemon changes its own store only through the handle it owns, by the
 store commands it serves on every surface: `request data backup`,
 `request data restore ... config`, `request data repair path <file>`, which
 writes a salvage copy and changes nothing in the store, and
 `delete data key <key>`, which removes one runtime-state key, and
 `update data key <key> content <base64>`, which writes one from base64 content
-of at most 195,840 bytes. Runtime state is a key under `meta/` outside
+of at most 195,840 bytes, and `update data config name <name> content
+<base64>`, which imports one config as a new version, through the reload for
+its own config and as `storage.RestoreConfig` commits it for any other name.
+Runtime state is a key under `meta/` outside
 `meta/config/` (`storage.RuntimeKey`), the same split that picks the lock a
 write takes; both key commands refuse every other key, because a raw change
 of a configuration key bypasses its versions, pointers and history. Both also
@@ -274,7 +286,7 @@ cannot tell then whether the owner runs.
 <!-- source: internal/component/config/storage/store.go -- RuntimeKey -->
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete, handleDataKeyUpdate, runningOwnerError -->
 <!-- source: internal/component/config/storage/cli/main.go -- writeKeyThroughDaemon -->
-<!-- source: internal/component/config/storage/cli/daemon_route.go -- sendToDaemon, askDaemonOverSSH -->
+<!-- source: internal/component/config/storage/daemonroute/daemonroute.go -- Send, OverSSH -->
 <!-- source: internal/core/statestore/permissions.go -- PluginKeyOwners -->
 
 ## Key Registry

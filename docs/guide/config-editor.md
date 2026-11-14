@@ -412,7 +412,8 @@ inputs. An offline `set` writes the supplied file and records its previous
 content only when that folder already holds a store. Without one it prints
 `no version recorded`; it does not create a store. `history`, numbered `diff`,
 and `rollback` require the folder's history and name `ze init` when it is absent.
-An offline writer refuses while the daemon owns that store.
+An offline writer refuses while the daemon owns that store, except
+`ze config import`, which then sends its inputs to that daemon (below).
 <!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig, noticeUnrecordedVersion -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff -->
 
@@ -435,8 +436,35 @@ and `y` or `yes` replaces them while any other answer writes nothing and exits
 non-zero. Without a terminal, including when the input is stdin, it asks nothing
 and refuses, naming `--yes`; `--yes` confirms in advance. A replaced config is
 committed as a new active version and the previous one becomes its rollback, so
-`ze config rollback` restores it.
-<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, cmdImportConfirm -->
+`ze config rollback` restores it. A config the store holds through its active
+version alone, with no file key, counts as held. A name is a plain config name:
+not `.`, `..`, a path or `-`.
+
+While a running daemon owns the destination store, the import goes through that
+daemon. The name checks and the confirmation run first, exactly as above, over
+a reader of the store. Every input is then read and encoded before anything is
+sent, so an unreadable input, or one over 195,840 bytes (the most one command
+carries), stops the import with nothing sent; a larger config is restored from
+a backup on the daemon's host with `request data restore path <file> config`.
+Each input then goes to the daemon as
+`update data config name <name> content <base64>`, which stages the daemon's
+own config and reloads, or commits another name as a new version, and the
+command prints the same `imported` or `replaced` lines and file count. The
+first refusal ends the import with the daemon's reason and fix, leaving the
+inputs before it imported. When no daemon answers, the command keeps the
+store's refusal, says why the daemon did not answer and names the fix. It
+reaches the daemon as `ze data import` does: the address and login of that
+store, with no password prompt. `--dir` naming a store no daemon owns stays
+offline.
+
+Offline, an import into a config whose confirmed commit was left open by a
+daemon that then stopped is refused, as `ze config rollback` is: that daemon's
+next start reverts the commit, which would undo the import. The refusal names
+`ze start <config>`.
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, cmdImportThroughDaemon, cmdImportNames, cmdImportExists, cmdImportConfirm -->
+<!-- source: internal/component/config/storage/daemonroute/daemonroute.go -- ConfigLine, Send, OverSSH, UnansweredRefusal -->
+<!-- source: internal/component/config/confirm/store.go -- WriteOutsideRecorded -->
+<!-- source: internal/component/config/storage/config_name.go -- PlainConfigName -->
 <!-- source: internal/component/config/storage/restore.go -- RestoreConfig -->
 
 ## Editing Modes

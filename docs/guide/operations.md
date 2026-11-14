@@ -116,10 +116,12 @@ Initialization uses a private random staging directory and a no-replace rename.
 
 `ze data --path <folder>/database` addresses a tree, while an explicit `.zefs`
 file addresses a blob artifact. Run mutating commands only after stopping the
-owning daemon and as the store owner, except `ze data rm` and `ze data write`:
-while the daemon runs, `rm` sends each removal to that daemon as
-`delete data key <key>`, `write` sends the file as
-`update data key <key> content <base64>`, and each prints the same lines. These
+owning daemon and as the store owner, except `ze data rm`, `ze data write` and
+`ze data import`: while the daemon runs, `rm` sends each removal to that daemon
+as `delete data key <key>`, `write` sends the file as
+`update data key <key> content <base64>`, `import` sends each file as
+`update data config name <name> content <base64>`, and each prints the same
+lines. These
 commands expose decoded values, never the tree's framing bytes.
 
 | Command | Effect |
@@ -127,7 +129,7 @@ commands expose decoded values, never the tree's framing bytes.
 | `ze data list` | List keys recursively |
 | `ze data cat <key>` | Read a key |
 | `ze data write <key> <file>` | Write a file's bytes into a raw key (`-` reads stdin); while ze runs, through the daemon, which writes runtime-state keys only, up to 195,840 bytes (see `update data key`) |
-| `ze data import <file>...` | Import files as active configs |
+| `ze data import <file>...` | Import each file as the config named by its file name; a config that exists gets a new active version, the previous one kept as rollback; while ze runs, through the daemon, up to 195,840 bytes per file (see `update data config`) |
 | `ze data rm <key>...` | Remove keys; while ze runs, through the daemon, which removes runtime-state keys only (see `delete data key`) |
 | `ze data registered` | Show registered key patterns |
 | `ze data check` | Check integrity; exits 0 clean, 1 corrupt, 2 unreadable; runs while ze runs |
@@ -140,6 +142,7 @@ commands expose decoded values, never the tree's framing bytes.
 | `request data restore path <absolute-file> config [name <source-name>] client <name>` | On a hub: restore the config it serves to managed client `<name>`; the hub pushes `config-changed` and does not reload |
 | `delete data key <key>` | Live removal of one runtime-state key (under `meta/` outside `meta/config/`) through the daemon's own store; a configuration key, a key whose granted plugin runs, and an absent key are refused |
 | `update data key <key> content <base64>` | Live write of one runtime-state key, created or replaced with the decoded bytes; `content` is at most 261,120 base64 characters (195,840 bytes, one SSH packet with the command); refused as `delete data key` refuses, and recorded with `<redacted>` for the content |
+| `update data config name <name> content <base64>` | Live import of one config as a new version: for the daemon's own config, staged and active only when the reload accepts it, refused while a `commit confirmed` window is open or a change is staged; for another name, committed with no reload; `content` has the bound of `update data key`, and a larger config is restored with `request data restore path <file> config` |
 | `request data repair path <absolute-output>` | Live salvage: the daemon writes a new store holding every entry that reads, on its own host, with its writes held for the walk; answers the recovered and skipped counts |
 | `show data check` | The store's integrity verdict through the daemon: the entry counts and one row per corrupt entry and per history finding |
 | `ze data encode [--crc\|--header] [--cap N] <string\|->` | Encode a netcapstring for inspection |

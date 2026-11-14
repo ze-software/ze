@@ -3,10 +3,10 @@ module ze-data-cmd {
     prefix datacmd;
     import ze-extensions { prefix ze; }
     description "Live maintenance of the daemon's own store: backup, config restore, a salvage
-copy, and the removal or the write of one runtime-state key, each through the
-store handle the daemon owns.";
+copy, the removal or the write of one runtime-state key, and the import of one
+config as a new version, each through the store handle the daemon owns.";
     revision 2026-09-26 { description "Initial revision"; }
-    revision 2026-11-14 { description "Added delete data key, the removal of one runtime-state key through the daemon, refused while a plugin granted the key runs, request data repair, a salvage copy of the live store, and update data key, the write of one runtime-state key from base64 content."; }
+    revision 2026-11-14 { description "Added delete data key, the removal of one runtime-state key through the daemon, refused while a plugin granted the key runs, request data repair, a salvage copy of the live store, update data key, the write of one runtime-state key from base64 content, and update data config, the import of one config as a new version from base64 content, through the reload when it is the daemon's own config."; }
 
     container delete {
         config false;
@@ -46,8 +46,9 @@ error.";
         container data {
             config false;
             description "This keyword runs nothing on its own. 'update data key <key> content <base64>'
-is the one command under it.";
-            ze:help "Write a runtime-state key into the running daemon's store.";
+and 'update data config name <name> content <base64>' are the commands under
+it.";
+            ze:help "Write a runtime-state key or import a config into the running daemon's store.";
 
             container key {
                 config false;
@@ -89,6 +90,50 @@ placeholder in its place.";
                     description "The bytes to write, base64-encoded (RFC 4648 Section 4, with padding): 1 to
 195,840 bytes, at most 261,120 characters. The value is never recorded.";
                     ze:help "Key bytes in base64, at most 195,840 bytes";
+                }
+            }
+
+            container config {
+                config false;
+                ze:command "ze-config:data-config-update";
+                description "Imports one config through the store the daemon owns, so it works while ze
+runs. For the daemon's own config, the content is staged as the candidate and
+the same reload a SIGHUP runs promotes it: the config becomes active only when
+the reload accepts it, and a refused config leaves the active config, its
+pointers and the daemon unchanged, with the reload's reason in the refusal.
+The import is refused while a confirmed-commit window is open, with the
+window's own refusal, and while another change is staged. For any other name,
+the content is committed as a new active version, the previous one kept as
+rollback, and nothing reloads. The answer carries the name, the version stamp
+and the byte count. The content is never recorded: the audit log, the
+accounting record, the SSH exec log and the session transcript hold a
+placeholder in its place.";
+                ze:help "Import one config into the daemon's store as a new version.";
+                leaf name {
+                    type string { length "1..255"; }
+                    mandatory true;
+                    description "The config's file name with no directory, as show config list prints it. A
+path, . and .. are refused.";
+                    ze:help "Config file name, with no directory";
+                }
+                leaf content {
+                    // RFC 7950 Section 7.5.4.1: "If the constraint evaluates to "false", the
+                    // string is passed as <error-message> in the <rpc-error> in NETCONF."
+                    // The bound is update data key's: one SSH packet carries the
+                    // command. The messages differ because a larger config has a
+                    // route of its own, so the two leaves cannot share one typedef.
+                    type string {
+                        length "4..261120" {
+                            error-message "content is the config's bytes in base64: 4 to 261,120 characters, which is 1 to 195,840 bytes of config, the most one SSH packet carries with the command around it. Restore a larger config from a backup file on the daemon's host with request data restore path <file> config.";
+                        }
+                        pattern "([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?" {
+                            error-message "content is base64 (RFC 4648 Section 4: the letters, the digits, + and /, with = padding), the encoding ze data import sends a file in. Encode the bytes as base64 and give the result.";
+                        }
+                    }
+                    mandatory true;
+                    description "The config's bytes, base64-encoded (RFC 4648 Section 4, with padding): 1 to
+195,840 bytes, at most 261,120 characters. The value is never recorded.";
+                    ze:help "Config bytes in base64, at most 195,840 bytes";
                 }
             }
         }

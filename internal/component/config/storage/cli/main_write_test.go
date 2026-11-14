@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/storage/daemonroute"
 	"github.com/ze-software/ze/internal/core/redact"
 )
 
@@ -28,24 +29,24 @@ func writeTestFile(t *testing.T, data []byte) string {
 // daemonWriteStub answers update data key lines as the daemon's handler does,
 // writing the decoded content through the owner's handle, and records every
 // line it was sent.
-func daemonWriteStub(t *testing.T, owner storage.Storage, sent *[]string) daemonAsk {
+func daemonWriteStub(t *testing.T, owner storage.Storage, sent *[]string) daemonroute.Ask {
 	t.Helper()
 	return func(_, line string) ([]byte, error) {
 		*sent = append(*sent, line)
 		rest, found := strings.CutPrefix(line, pathUpdateDataKey+" ")
 		if !found {
-			return nil, &daemonRefusal{message: "unexpected command"}
+			return nil, &daemonroute.Refusal{Message: "unexpected command"}
 		}
 		key, encoded, found := strings.Cut(rest, " "+keywordContent+" ")
 		if !found {
-			return nil, &daemonRefusal{message: "no content"}
+			return nil, &daemonroute.Refusal{Message: "no content"}
 		}
 		data, err := base64.StdEncoding.DecodeString(encoded)
 		if err != nil {
-			return nil, &daemonRefusal{message: "update data key: content is not base64"}
+			return nil, &daemonroute.Refusal{Message: "update data key: content is not base64"}
 		}
 		if err := owner.WriteKey(key, data); err != nil {
-			return nil, &daemonRefusal{message: err.Error()}
+			return nil, &daemonroute.Refusal{Message: err.Error()}
 		}
 		return json.Marshal(map[string]any{keywordKey: key, keywordBytes: len(data)})
 	}

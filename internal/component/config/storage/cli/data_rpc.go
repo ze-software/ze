@@ -221,18 +221,25 @@ func handleDataRestore(ctx *pluginserver.CommandContext, validated command.Valid
 			keywordPath:   parsed.path,
 			"source-name": selected.Name,
 			"config-name": deviceName,
-			"version":     stamp,
+			answerVersion: stamp,
 		},
 	}, nil
 }
 
+// errConfigChangeStaged is restoreDaemonConfig's refusal of a stage over a
+// candidate somebody else staged, so a caller can tell it from a reload that
+// refused the config.
+var errConfigChangeStaged = errors.New("a config change is already staged; commit or discard it first")
+
 // restoreDaemonConfig stages data as the daemon's candidate and promotes it by
-// the reload, returning the version stamp. It refuses when another change is
-// already staged.
+// the reload, returning the version stamp. It refuses with
+// errConfigChangeStaged when another change is already staged.
+// `request data restore ... config` and `update data config` for the daemon's
+// own config both take this path.
 func restoreDaemonConfig(ctx context.Context, target *DataRPCTarget, data []byte) (string, error) {
 	stamp, err := storage.WriteCandidateVersion(target.Store, target.ConfigPath, data, time.Now())
 	if errors.Is(err, storage.ErrCandidateExists) {
-		return "", errors.New("a config change is already staged; commit or discard it first")
+		return "", errConfigChangeStaged
 	}
 	if err != nil {
 		return "", fmt.Errorf("stage candidate: %w", err)
@@ -276,7 +283,7 @@ func restoreClientConfig(target *DataRPCTarget, parsed dataRestoreArgs) *zePlugi
 			"source-name": selected.Name,
 			"config-name": clientName,
 			keywordClient: parsed.client,
-			"version":     stamp,
+			answerVersion: stamp,
 		},
 	}
 }
@@ -423,7 +430,7 @@ func configurationKeyError(commandPath, key string) *opererr.Error {
 	return opererr.New(
 		commandPath+": "+key+" is configuration, not runtime state",
 		commandPath+" reaches runtime state only, a key under meta/ outside meta/config/, because a raw change to a configuration key bypasses its versions, pointers and history",
-		"update data config name <name> content <base64>")
+		usageUpdateDataConfig)
 }
 
 // keyOwners answers the plugin process names granted a store key, and

@@ -2,6 +2,9 @@
 // Related: storage_live_fixture.go -- backup and restore against a running daemon
 // Related: storage_live_rm_fixture.go -- the local ze data rm beside a running daemon
 // Related: storage_live_write_fixture.go -- the local ze data write beside a running daemon
+// Related: storage_live_import_fixture.go -- ze data import offline over an existing config and beside a running daemon
+// Related: storage_live_config_import_fixture.go -- ze config import beside a running daemon
+// Related: storage_live_authz_fixture.go -- the read-only profile and the store maintenance commands
 
 package fixture
 
@@ -15,6 +18,11 @@ func init() {
 	Register("storage/data-rm-live", storageLiveRemoveKey)
 	Register("storage/data-rm-refused-live", storageLiveRemoveLocally)
 	Register("storage/data-write-live", storageLiveWriteLocally)
+	Register("storage/data-import-existing-seed", storageLiveImportSeed)
+	Register("storage/data-import-existing", storageLiveImportExisting)
+	Register("storage/data-import-live", storageLiveImportLocally)
 	Register("storage/data-repair-live", storageLiveRepair)
 	Register("storage/data-check-live", storageLiveCheck)
+	Register("storage/config-import-live", storageLiveConfigImportLocally)
+	Register("storage/data-authz-read-only", storageLiveAuthzReadOnly)
 }

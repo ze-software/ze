@@ -444,6 +444,18 @@ func releaseGuard(guard WriteGuard, err error) error {
 	return err
 }
 
+// HasActivePointer reports whether configPath has an active pointer. A config
+// that has one is read through it (ReadActiveConfig), so a raw write of its
+// file key is shadowed: a writer that replaces such a config MUST go through
+// RestoreConfig. A pointer that cannot be read is an error, never "no pointer".
+func HasActivePointer(store Storage, configPath string) (bool, error) {
+	_, pointed, err := readPointer(store, configPath, pointerActive)
+	if err != nil {
+		return false, fmt.Errorf("active pointer of %s: %w", configPath, err)
+	}
+	return pointed, nil
+}
+
 // ReadActiveConfig reads the config referenced by the active pointer, falling back to legacy active storage.
 //
 // While the boot record is pending (boot_record.go) the bound name answers the

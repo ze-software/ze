@@ -67,3 +67,48 @@ func TestRestoreConfigRefusedDuringConfirmWindow(t *testing.T) {
 	require.Equal(t, zePlugin.StatusDone, response.Status, response.Error)
 	assert.True(t, reloaded)
 }
+
+// TestUpdateConfigRefusedDuringConfirmWindow imports the daemon's own config
+// while alice's window is open and expects the window's own refusal naming
+// alice, with nothing staged, nothing reloaded and the active config
+// unchanged. Closing the window lets the same import through, so the refusal
+// is the window and nothing else.
+// VALIDATES: AC-10 (an open confirmed-commit window), R-9.
+// PREVENTS: an imported config going active inside a window and being wiped,
+// silently, by the window's revert at the deadline.
+func TestUpdateConfigRefusedDuringConfirmWindow(t *testing.T) {
+	var store storage.Storage
+	var configPath string
+	reloaded := false
+	store, configPath = dataRPCStore(t, func(context.Context) error {
+		reloaded = true
+		return storage.PromoteCandidate(store, configPath)
+	})
+	window := confirm.NewWindow(func([]byte) error { return nil }, confirmNopRecorder{})
+	t.Cleanup(window.Stop)
+	target := *dataRPC.Load()
+	target.Window = func() *confirm.Window { return window }
+	InstallDataRPC(&target)
+	opened := confirm.Commit{
+		Snapshot: func() ([]byte, error) { return []byte(importActiveText), nil },
+		Apply:    func() error { return nil },
+	}
+	require.NoError(t, window.Confirmed("alice", time.Minute, false, opened))
+
+	response := configCall(t, configArgs(t, importOwnName, importedText))
+	assert.Equal(t, zePlugin.StatusError, response.Status)
+	assert.Contains(t, response.Error, "update data config: ze.conf was not imported")
+	assert.Contains(t, response.Error, "alice")
+	assert.Contains(t, response.Error, "seconds left")
+	assert.False(t, reloaded, "the refused import reloaded the daemon")
+	_, _, staged, err := storage.ReadCandidateConfig(store, configPath)
+	require.NoError(t, err)
+	assert.False(t, staged, "the refused import staged a candidate")
+	requireActive(t, store, configPath, importActiveText)
+
+	require.NoError(t, window.Accept("alice"))
+	response = configCall(t, configArgs(t, importOwnName, importedText))
+	require.Equal(t, zePlugin.StatusDone, response.Status, response.Error)
+	assert.True(t, reloaded)
+	requireActive(t, store, configPath, importedText)
+}
