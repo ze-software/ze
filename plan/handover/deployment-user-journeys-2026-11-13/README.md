@@ -18,7 +18,7 @@ Gate, never by leaving it out.
 | Criterion | Proven | Open in the spec |
 |-----------|--------|------------------|
 | AC-1 native installation and removal | Real distribution and systemd evidence | Nothing stated |
-| AC-2 upgrade, retention and refusal | Trust, unit, conflict, ownership and busy-store controls. A changed-version upgrade through `ze install`, by `test/ui/native-install-upgrade.ci` in the arm64 Linux guest: pass, 80 of 80 under load, red when the binary copy is skipped | **An amd64 run of that test** |
+| AC-2 upgrade, retention and refusal | Trust, unit, conflict, ownership and busy-store controls. A changed-version upgrade through `ze install`, by `test/ui/native-install-upgrade.ci` in the arm64 Linux guest: pass, 80 of 80 under load, red when the binary copy is skipped | Nothing: the owner ruled the arm64 run sufficient |
 | AC-3 source build and named executables | All five flavors compile at recorded revisions | The source-bound artifact bundle, see AC-10 |
 | AC-4 supplied two-peer quickstart | The control-plane tutorial | No production forwarding evidence. The whole-UI run was not green |
 | AC-5 deployment container persistence | Authenticated edit and recreation on a source-unbound image | **Recreation on a source-bound image** |
@@ -49,10 +49,11 @@ first line.
 0. **Done on the Mac, 2026-11-13 and 14.** AC-8 and AC-7 passed on arm64 under
    HVF. AC-2's timeout predates `9e3c0ab9c0`, which removed the store-lock
    folder fsync the strace had located; the script that timed out was never
-   committed, so a committed test replaces it. What is left of this step:
-   run `./le test ui native-install-upgrade` on the amd64 server once it has
-   the commits (the test is needs-linux), and record it in the AC-2 row.
-1. **Pull on the server.** The push happened on 2026-11-14: commits up to `6ad32587d3` are on origin, and `01d7ee17ef` and `4423922ca1` landed after it and are not. The `claude` server checkout was still at `990f785bca` at 02:45 that day, with 87 uncommitted files from other sessions. It only has what the owner pulls there. Once it has the commits: run `./le test ui native-install-upgrade` there for AC-2's amd64 row, then step 2. An agent never pushes on its own: the owner orders it, through `./le commit push "<owner authorisation>"`.
+   committed, so a committed test replaces it. Nothing is left of this step:
+   the owner ruled on 2026-11-14 that the arm64 run of that test is
+   sufficient, because nothing in it depends on the architecture (file copy,
+   rename, lock and a configuration read through the standard library).
+1. **Pull on the server.** The push happened on 2026-11-14: commits up to `6ad32587d3` are on origin, and `01d7ee17ef` and `4423922ca1` landed after it and are not. The `claude` server checkout was still at `990f785bca` at 02:45 that day, with 87 uncommitted files from other sessions. It only has what the owner pulls there. Once it has the commits, go to step 2. An agent never pushes on its own: the owner orders it, through `./le commit push "<owner authorisation>"`.
 2. **Preview artifacts**, from the pushed commit. `./le help build preview` names the action. The earlier preparation recorded in the spec's AC-10 row passed for an older source. The final one covers static Linux amd64 and arm64 binaries and archives, the deployment and lab exports, the manifest and checksums. Build amd64 on the server and arm64 on the Mac: a kernel is never cross-compiled or emulated. Rerun `./le test qemu appliance-config-push` from that same commit on each host, so the proof is bound to the release source.
 3. **Website and docs.** The owner reviewed the deployment pages in `../gh-pages` on 2026-11-14 and the work is committed as `01d7ee17ef`; `../gh-pages` was regenerated from it and is neither committed nor pushed. What is left: a clean `./le site check` (it exits 1 on `/guides/ai-agent/`, a page left by a working-tree build that included another session's uncommitted manifest row, and on `tests.fuzz_display` plain figures on four pages), then publication on the owner's order. The site is always generated into `../gh-pages`, which the owner serves locally; never into a scratch directory. `./le doc check all` was red on 2026-11-13 for reasons outside this spec: six stale source anchors in `docs/guide/configuration.md` and `docs/guide/operational-reports.md`, a `show system ntp` command with no declared answer shape, and 36 drift findings because the generated site was older than the live command catalogue. The pages this spec edited had no finding. Review the news draft in `evidence/deployment-user-journeys-news-draft.md` only after its claims are true.
 4. **Source review, Review Gate, closure.** Reconcile the review with the retained population (below) and every later commit that intersects it, run the formal Review Gate, then the two closure commits. Do this last: each later commit makes a review stale.
