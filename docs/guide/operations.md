@@ -129,8 +129,8 @@ framing bytes.
 | `ze data import <file>...` | Import files as active configs |
 | `ze data rm <key>...` | Remove keys; while ze runs, through the daemon, which removes runtime-state keys only (see `delete data key`) |
 | `ze data registered` | Show registered key patterns |
-| `ze data check` | Check integrity; exits 0 clean, 1 corrupt, 2 unreadable |
-| `ze data repair --output <path>` | Copy recoverable keys into a new destination |
+| `ze data check` | Check integrity; exits 0 clean, 1 corrupt, 2 unreadable; runs while ze runs |
+| `ze data repair --output <path>` | Copy recoverable keys into a new destination; runs while ze runs, and installing the copy needs ze stopped |
 | `ze data backup <file> [spare <n>]` | Copy every key to one exact-fit 0600 blob artifact under the store lock; offline only |
 | `ze data restore <file> config [name <source-name>]` | Commit the artifact's config as a new active version; offline only |
 | `ze data restore <file> full` | Replace the whole tree with the artifact's keys; the previous tree is kept as `database.replaced-<stamp>` and the artifact is unchanged; offline only |
@@ -138,10 +138,14 @@ framing bytes.
 | `request data restore path <absolute-file> config [name <source-name>]` | Live config restore: staged as the candidate, active only when the reload accepts it; refused while a `commit confirmed` window is open |
 | `request data restore path <absolute-file> config [name <source-name>] client <name>` | On a hub: restore the config it serves to managed client `<name>`; the hub pushes `config-changed` and does not reload |
 | `delete data key <key>` | Live removal of one runtime-state key (under `meta/` outside `meta/config/`) through the daemon's own store; a configuration key, a key whose granted plugin runs, and an absent key are refused |
+| `request data repair path <absolute-output>` | Live salvage: the daemon writes a new store holding every entry that reads, on its own host, with its writes held for the walk; answers the recovered and skipped counts |
+| `show data check` | The store's integrity verdict through the daemon: the entry counts and one row per corrupt entry and per history finding |
 | `ze data encode [--crc\|--header] [--cap N] <string\|->` | Encode a netcapstring for inspection |
 
 <!-- source: internal/component/config/storage/cli/main.go -- subcommandHandlers, removeKeysThroughDaemon -->
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete -->
+<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- handleDataRepair -->
+<!-- source: internal/component/config/storage/cli/storage_data.go -- dataCheck -->
 
 ### Connection
 

@@ -255,8 +255,9 @@ reaches `show doctor`, and prints the lines of its local route. The lock is
 never lifted: the daemon removes the key through its own handle.
 A running daemon changes its own store only through the handle it owns, by the
 store commands it serves on every surface: `request data backup`,
-`request data restore ... config`, and `delete data key <key>`, which removes
-one runtime-state key. Runtime state is a key under `meta/` outside
+`request data restore ... config`, `request data repair path <file>`, which
+writes a salvage copy and changes nothing in the store, and
+`delete data key <key>`, which removes one runtime-state key. Runtime state is a key under `meta/` outside
 `meta/config/` (`storage.RuntimeKey`), the same split that picks the lock a
 write takes; `delete data key` refuses every other key, because a raw removal
 of a configuration key bypasses its versions, pointers and history. It also
@@ -378,8 +379,16 @@ is refused rather than moved aside and replaced with empty credentials.
 
 CLI: `ze data check`, `ze data repair --output <path>`, `ze data encode`.
 Checks retain exit codes 0 for clean, 1 for corruption, and 2 for unreadable or
-unsafe paths.
+unsafe paths. The check and the repair open no writer on the source, so both
+run beside a running daemon. Their daemon forms are `show data check`, a
+local-data command answering the same rows, and `request data repair path
+<file>`. On the daemon both walk the live tree under one guard that holds the
+configuration and runtime-state locks (`storage.HoldWrites`): the walk lists a
+directory entry, then opens it, so a key removed between the two failed the
+walk, and under the guard that removal waits. Installing a repaired tree needs
+the daemon stopped.
 <!-- source: pkg/zefs/check.go -- Check, Repair, CheckPath, RepairPath, MoveAside -->
+<!-- source: internal/component/config/storage/salvage.go -- HoldWrites, Salvage -->
 `zefs.OpenDirectory` refuses a component it cannot open with a
 `ComponentError` that carries the refused component, its parent and the whole
 folder asked for, each as the absolute path the walk built, so a caller can

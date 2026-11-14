@@ -2791,7 +2791,13 @@ every wrong-hash object from the output, one `dropped:` row each, keeps orphan
 objects, and reports every pointer left naming a dropped entry without moving
 it. Integrity exits are `0` for success, `1` for corruption, skipped or dropped
 keys, or a history error, and `2` for an I/O failure or unsafe path.
-<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, printHistoryFindings -->
+
+Both run while ze runs: neither opens the live store as its writer. A remote
+operator runs the same through the daemon, below: `show data check` answers
+the rows `check` prints, and `request data repair path <file>` writes the
+salvage on the daemon's host. Installing a repaired store in place of the live
+one needs ze stopped.
+<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, integrityVerdict, cmdRepair, salvageHistory, printHistoryFindings -->
 <!-- source: internal/component/config/storage/history_check.go -- CheckHistory, RepairHistory -->
 
 `backup` copies every key of the store, at any depth and in any namespace, to
@@ -2851,15 +2857,41 @@ command that fixes that, and exits `2`. With ze stopped, `rm` removes any key.
 <!-- source: internal/component/config/storage/cli/main.go -- cmdRm, removeKeys, removeKeysThroughDaemon -->
 <!-- source: internal/component/config/storage/cli/daemon_route.go -- sendToDaemon, askDaemonOverSSH, unansweredRefusal -->
 
-The daemon answers three store commands on every surface (SSH, REST, gRPC,
-MCP, the web), acting on the store it owns. The two `request data` commands
-read or write a file on the daemon's own host:
+The daemon answers these store commands on every surface (SSH, REST, gRPC,
+MCP, the web), acting on the store it owns. The `request data` commands read
+or write a file on the daemon's own host:
 
 ```
 request data backup path <absolute-file> [spare <n>] [force]
 request data restore path <absolute-file> config [name <source-name>] [client <name>]
+request data repair path <absolute-output>
 delete data key <key>
+show data check
 ```
+
+`request data repair path <absolute-output>` writes the salvage `ze data
+repair --output` writes, from the store the daemon owns, while it runs. The
+daemon holds its own writes for the walk, so a key it would write or remove
+meanwhile waits, and the copy is one moment of the store. The history of the
+copy is then repaired as `ze data repair` repairs it. It answers `path`,
+`recovered`, `skipped`, a row per skipped entry and per history finding, and a
+warning when an entry did not read or a history key was dropped. A relative
+path, a `..` element, a symlink, an existing path, a name the store owns in
+its folder and a path inside the live tree are refused, each naming the rule.
+The live store is not changed; check the copy with
+`ze data --path <output> check`. The built-in read-only profile is denied it.
+<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- handleDataRepair, repairAnswer -->
+<!-- source: internal/component/config/storage/salvage.go -- HoldWrites, Salvage -->
+
+`show data check` answers the store's integrity verdict: `entries`,
+`corrupt-entries`, `history-checked` and one `findings` row (`severity`,
+`check`, `kind`, `key`, `detail`) per corrupt entry and per history finding,
+the rows `ze data check` prints. Any error row makes the answer an error.
+`| json` and `| table` render the same rows. In `ze cli -c` it runs in your own
+process over the store `--path` or the configured directory names; every
+other surface asks the daemon, which checks its own store with its writes held
+for the walk.
+<!-- source: internal/component/config/storage/cli/storage_data.go -- dataCheck, answer -->
 
 `delete data key <key>` removes one runtime-state key while ze runs: a key
 under `meta/` outside `meta/config/`. It answers `key`. A configuration key
