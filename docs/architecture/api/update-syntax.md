@@ -1114,7 +1114,7 @@ operation cannot retire a replacement connection.
 | Section with no prefix | `nlri section has no prefixes` |
 | Prefix before `add` or `del` | `expected 'add' or 'del' before prefix: got "<token>"` |
 | No section and no EOR | Warning, not an error: `no routes or EOR markers to send` |
-| Announce without next-hop | No parse error; see "Next-Hop Validation" |
+| Announce without next-hop | `the announce of ipv4/unicast routes names no next hop`, then why and the fix (see "Next-Hop Validation") |
 | Extended NH required | `next hop 127.0.0.1 cannot be sent for route family ipv6/unicast to peer peer1`, then why and the fix (see "Next-Hop Validation") |
 | Family mismatch | `NLRI does not match declared family: IPv6 prefix for ipv4/unicast` |
 | Operation word on an attribute | `add keyword removed for attributes; use: origin <value>` |
@@ -1136,7 +1136,7 @@ operation cannot retire a replacement connection.
 
 | Check | Result |
 |-------|--------|
-| Announce without next-hop | The parser accepts it. Each destination peer is skipped (`next-hop policy not set`, logged at debug); when no peer took the route the command answers `no peers have family negotiated`, and when some peer did it answers the last skip error, here `next-hop policy not set` |
+| Announce without next-hop | The parser accepts it; the reactor refuses it before trying any peer, established or still coming up, with the operator error `the announce of <family> routes names no next hop`, why, and the fix: `next-hop <address>` or `next-hop self` before the first `nlri` or `mp` section (`nhop set` in `update hex` or `b64`). A family whose routes carry no next hop (FlowSpec) is not refused |
 | IPv4 next hop for IPv6 NLRI | Requires Extended NH capability (RFC 8950) |
 | Extended NH not negotiated | Operator error: the next hop, the route family and the peer; why; and the fix |
 

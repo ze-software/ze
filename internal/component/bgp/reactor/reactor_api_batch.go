@@ -436,6 +436,17 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 	if len(peers) == 0 {
 		return route.ErrNoPeersMatch
 	}
+	// An announce that names no next hop can reach no peer: resolveNextHop
+	// answers ErrNextHopUnset for every session, and a peer still coming up
+	// would queue the route only to fail it at the drain. Refused here, before
+	// any peer is tried, so the operator reads the cause instead of the
+	// acceptedCount == 0 collapse into "no peers have family negotiated", and a
+	// queued peer does not answer done for a route that can never be sent. A
+	// maintenance receipt (SentOwnerMessage) names an advertisement already
+	// made and keeps its own rail.
+	if batch.SentOwnerMessage == 0 && batch.Family.NeedsNextHop() && !namesNextHop(batch.NextHop) {
+		return announceNextHopMissing(batch.Family)
+	}
 
 	// Build attributes for RIB route (used for queueing non-established peers)
 	// Prefer Wire (forwarding) over Attrs (builder) when available
@@ -663,7 +674,12 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		// false one that the caller then downgrades to a warning.
 		// errStaleReadvertiseWithheld is the shared wrapper over the LLGR rail's
 		// two, so one test covers both and a third would ride in free.
+		// ErrNextHopUnset reaches here only on the SentOwnerMessage rail, which
+		// the refusal before the peer loop leaves alone, and it answers the
+		// same operator error.
 		switch {
+		case errors.Is(lastErr, ErrNextHopUnset):
+			return announceNextHopMissing(batch.Family)
 		case errors.Is(lastErr, errAnnounceTooLarge),
 			errors.Is(lastErr, errAnnounceNextHopUnencodable),
 			errors.Is(lastErr, message.ErrUnicastNextHopUnusable),

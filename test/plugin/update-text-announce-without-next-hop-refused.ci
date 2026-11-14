@@ -1,0 +1,77 @@
+# Test: an announce that names no next hop is refused with its true cause, and
+#       the fix names the next-hop form to write.
+#
+# QUESTION: does an operator who types `send bgp * update text origin igp nlri
+# add 10.0.0.0/24` read that the command named no next hop and how to give
+# one, rather than a done answer or "no peers have family negotiated"? The unit
+# test (TestAnnounceNLRIBatch_NoNextHopNamesTheCause) builds the batch by hand;
+# only the real dispatcher proves that ParseUpdateText leaves the next hop
+# unset, that AnnounceNLRIBatch refuses it, and that DispatchNLRIGroups hands
+# the refusal to the operator as an error rather than downgrading it.
+# VALIDATES: announceNextHopMissing
+#            (internal/component/bgp/reactor/peer_nexthop_refusal.go) reaches
+#            the operator through `send bgp * update text`.
+# PREVENTS:  the peer, which is still coming up, queuing a route that can
+#            never be sent and the command answering done. Remove the refusal
+#            before the peer loop in AnnounceNLRIBatch and the command
+#            succeeds, which fails expect=command-error.
+#
+# The peer never connects (accept false), so it is not established and an
+# announce with a next hop is queued and accepted.
+
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "le mock engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		attach process engine-steps {
+			send [ update ]
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=30s
+
+# The same announce with a next hop is accepted: an announcement refused here
+# fails the run, because no expect=command-error consumes it.
+command=send bgp * update text origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24
+
+# Without a next hop it is refused, with the cause and the fix.
+command=send bgp * update text origin igp nlri add 10.0.0.0/24
+expect=command-error:contains=the announce of ipv4/unicast routes names no next hop
+command=send bgp * update text origin igp nlri add 10.0.0.0/24
+expect=command-error:contains=fix: update text next-hop <address> or update text next-hop self, before the first nlri or mp section
+
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=no peers have family negotiated

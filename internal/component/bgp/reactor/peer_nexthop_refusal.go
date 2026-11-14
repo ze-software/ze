@@ -6,6 +6,7 @@ package reactor
 import (
 	"net/netip"
 
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -88,6 +89,43 @@ func (r *nextHopRefusal) operatorError() *opererr.Error {
 		Str(" nhafi ").Str(nhafiName(r.addr))
 
 	return opererr.Wrap(ErrNextHopIncompatible, problem.String(), why.String(), fix.String())
+}
+
+// namesNextHop reports whether an announce's next hop names one that
+// resolveNextHop can resolve for some session. Unset, and any policy value
+// outside the known set (API callers supply it, an open set), name none:
+// resolveNextHop answers ErrNextHopUnset for both.
+func namesNextHop(nh bgptypes.RouteNextHop) bool {
+	switch nh.Policy {
+	case bgptypes.NextHopExplicit, bgptypes.NextHopSelf, bgptypes.NextHopDefault:
+		return true
+	case bgptypes.NextHopUnset:
+		return false
+	default:
+		// Open set, as in resolveNextHop: an unknown policy is an unset one.
+		return false
+	}
+}
+
+// announceNextHopMissing is the operator error of an announce that names no
+// next hop. Its cause is ErrNextHopUnset, so errors.Is still matches. The
+// route came from update text or from update hex or b64 (a config route takes
+// the static rail and never reaches AnnounceNLRIBatch), and the refusal does
+// not know which, so the fix names the next-hop form of both grammars, as
+// nextHopRefusal does.
+func announceNextHopMissing(fam family.Family) error {
+	familyName := fam.String()
+
+	var problem textbuf.Buffer
+	problem.Str("the announce of ").Str(familyName).Str(" routes names no next hop")
+
+	var why textbuf.Buffer
+	why.Str("a peer is sent a route only with the address to forward its traffic to, so Ze sent this route to no peer")
+
+	fix := "update text next-hop <address> or update text next-hop self, before the first nlri or mp section " +
+		"(update hex or b64: nhop set with the address encoded, or nhop set self, before the nlri section)"
+
+	return opererr.Wrap(ErrNextHopUnset, problem.String(), why.String(), fix)
 }
 
 // sessionAFIName names the address family the session runs over: its

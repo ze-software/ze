@@ -915,7 +915,7 @@ type PathAttributes struct {
 | `NextHopUnset` | Returns `ErrNextHopUnset` |
 
 **Errors:**
-- `ErrNextHopUnset` - zero value `RouteNextHop`
+- `ErrNextHopUnset` - zero value `RouteNextHop`. `AnnounceNLRIBatch` refuses a batch that names no next hop before any peer is tried, established or still coming up, with an operator error caused by it (`announceNextHopMissing`)
 - `ErrNextHopSelfNoLocal` - Self policy but `LocalAddress` not configured
 - `ErrNextHopIncompatible` - the self or explicit next hop is incompatible with the NLRI family (no Extended NH). The returned error is an operator error with `ErrNextHopIncompatible` as its cause (`errors.Is` matches): it names the next hop, the route family, the session's address family and the peer, and the fix line offers a next hop of the route's family (IPv4-mapped, `::ffff:<IPv4>`, for an IPv6 route on an IPv4 session), or next hop self on a session of the route's family, each in its `update text` form (`next-hop <address>`, `next-hop self`) and its `update hex`/`b64` form (`nhop set` with the address encoded, `nhop set self`), because the refusal does not know which command carried the route and `update text` refuses `nhop set`; or `set bgp peer <name> session capability nexthop <family> nhafi <afi>`
 <!-- source: internal/component/bgp/reactor/peer_nexthop_refusal.go -- operatorError -->

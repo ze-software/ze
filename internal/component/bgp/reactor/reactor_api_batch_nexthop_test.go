@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"errors"
 	"net/netip"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/selector"
 )
 
@@ -134,4 +136,73 @@ func TestAnnounceNLRIBatch_NextHopUnencodableIsNotFamilyMismatch(t *testing.T) {
 	require.ErrorIs(t, err, errAnnounceNextHopUnencodable)
 	assert.NotErrorIs(t, err, route.ErrNoPeersAcceptedFamily,
 		"the family IS negotiated; a failure of this speaker must not be reported as a peer declining it")
+}
+
+// TestAnnounceNLRIBatch_NoNextHopNamesTheCause drives an announce that names no
+// next hop (`update text origin igp nlri add 10.0.0.0/24`) through the entry
+// point a plugin enters, to a peer that negotiated the family and to a peer
+// still coming up.
+//
+// Every peer used to skip the route on resolveNextHop's ErrNextHopUnset, and
+// the acceptedCount == 0 switch then answered ErrNoPeersAcceptedFamily, "no
+// peers have family negotiated": untrue, since the family was negotiated, and
+// DispatchNLRIGroups downgrades it to a warning. A peer still coming up
+// queued the route and answered nil, for a route its drain could never send.
+//
+// VALIDATES: the answer is an operator error whose cause is ErrNextHopUnset,
+// not ErrNoPeersAcceptedFamily, naming the family, and whose fix gives the
+// update text form (next-hop before the first section) and the update hex or
+// b64 form (nhop set); TestAnnounceNLRIBatch_FamilyNotNegotiated still pins
+// ErrNoPeersAcceptedFamily for a peer that lacks the family.
+// PREVENTS: the operator being told no peer carries the family when the
+// command carried no next hop.
+func TestAnnounceNLRIBatch_NoNextHopNamesTheCause(t *testing.T) {
+	fam := family.IPv4Unicast
+	tests := []struct {
+		name        string
+		established bool
+	}{
+		{name: "established peer with the family negotiated", established: true},
+		{name: "peer still coming up, which queues", established: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings := &PeerSettings{
+				Connection: ConnectionBoth,
+				Address:    netip.MustParseAddr("10.0.0.2"),
+				LocalAS:    65000,
+				PeerAS:     65001,
+				RouterID:   0x01020301,
+			}
+			peer := NewPeer(settings)
+			if tt.established {
+				peer.state.Store(int32(PeerStateEstablished))
+			}
+			peer.negotiated.Store(&NegotiatedCapabilities{families: map[family.Family]bool{fam: true}})
+
+			r := &Reactor{
+				attrModHandlers: attrModHandlersWithDefaults(),
+				config:          &Config{LocalAS: 65000},
+				peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+			}
+			a := &reactorAPIAdapter{r: r}
+
+			// The zero RouteNextHop is what ParseUpdateText leaves when the
+			// command wrote no next-hop keyword.
+			batch := bgptypes.NLRIBatch{
+				Family: fam,
+				NLRIs:  []nlri.NLRI{nlri.NewINET(fam, netip.MustParsePrefix("10.0.0.0/24"), 0, false)},
+			}
+
+			err := a.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender())
+			require.ErrorIs(t, err, ErrNextHopUnset)
+			assert.NotErrorIs(t, err, route.ErrNoPeersAcceptedFamily,
+				"the family IS negotiated; the command named no next hop")
+			var operr *opererr.Error
+			require.True(t, errors.As(err, &operr), "the refusal is an operator error")
+			assert.Equal(t, "the announce of ipv4/unicast routes names no next hop", operr.Problem())
+			assert.Equal(t, "update text next-hop <address> or update text next-hop self, before the first nlri or mp section "+
+				"(update hex or b64: nhop set with the address encoded, or nhop set self, before the nlri section)", operr.Fix())
+		})
+	}
 }
