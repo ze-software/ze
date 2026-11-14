@@ -168,6 +168,7 @@ func waitOSPFSRAnycastPop(ctx context.Context, lab interoplab.CheckerLab, nextHo
 	command := ospfSRAnycastLabelTable()
 	var last string
 	var verdict error
+	answered := false
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: ospfSRAnycastWait, Interval: interval, Description: "Ze's label route for the anycast SID",
 	}, func(ctx context.Context) (string, error) {
@@ -175,19 +176,25 @@ func waitOSPFSRAnycastPop(ctx context.Context, lab interoplab.CheckerLab, nextHo
 		last = output
 		return output, err
 	}, func(output string) bool {
+		answered = true
 		verdict = ospfSRAnycastPopVerdict(output, nextHop)
 		return verdict == nil
 	})
-	if err != nil {
-		return fmt.Errorf("the next hop's own NP-Flag (RFC 8665 Section 5) was not applied by Ze: %w (last verdict: %s); last `ip -f mpls route show`: %s", err, ospfSRAnycastVerdictText(verdict), last)
+	if err == nil {
+		return nil
 	}
-	return nil
+	// A table that never answered holds no verdict on Ze, so it is a lab error.
+	if !answered {
+		return fmt.Errorf("lab error: `ip -f mpls route show` on Ze never answered, so no label route was judged: %w", err)
+	}
+	return fmt.Errorf("the next hop's own NP-Flag (RFC 8665 Section 5) was not applied by Ze: %w (last verdict: %s); last `ip -f mpls route show`: %s", err, ospfSRAnycastVerdictText(verdict), last)
 }
 
 // holdOSPFSRAnycastPop samples Ze's label table every interval until settle has passed
 // since its start, and refuses the first sample that is not the pop toward nextHop. A
-// sample that cannot be read is refused too: an unread table is not a pop. The last
-// sample is taken at or after settle, so the hold covers the whole window.
+// sample that cannot be read is refused too, as a lab error rather than a verdict on
+// Ze: an unread table is not a pop, and not a swap either. The last sample is taken
+// at or after settle, so the hold covers the whole window.
 func holdOSPFSRAnycastPop(ctx context.Context, lab interoplab.CheckerLab, nextHop netip.Addr, settle, interval time.Duration) error {
 	command := ospfSRAnycastLabelTable()
 
@@ -203,7 +210,7 @@ func holdOSPFSRAnycastPop(ctx context.Context, lab interoplab.CheckerLab, nextHo
 		}
 		output, err := lab.Query(ctx, "ze", command, nil)
 		if err != nil {
-			return fmt.Errorf("sample %d of the hold could not read Ze's label table: %w", sample, err)
+			return fmt.Errorf("lab error: sample %d of the hold could not run `ip -f mpls route show` on Ze, after the pop held for %s, so the hold judged no label route: %w", sample, time.Since(started).Round(time.Millisecond), err)
 		}
 		if verdict := ospfSRAnycastPopVerdict(output, nextHop); verdict != nil {
 			return fmt.Errorf("the next hop's own NP-Flag (RFC 8665 Section 5) was not applied by Ze: the pop held for %s, then sample %d found %w; `ip -f mpls route show`: %s", time.Since(started).Round(time.Millisecond), sample, verdict, output)

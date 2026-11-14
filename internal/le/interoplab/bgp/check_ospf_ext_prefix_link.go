@@ -29,10 +29,43 @@ type ospfExtAdvertiser struct {
 	Router netip.Addr `json:"advertising-router"`
 }
 
+// RFC 7684 Sections 2 and 3: the Opaque Types of the Extended Prefix and the
+// Extended Link Opaque LSA.
+const (
+	ospfOpaqueTypeExtendedPrefix = 7
+	ospfOpaqueTypeExtendedLink   = 8
+)
+
+// frrShowOSPFDatabaseOpaqueAreaJSON is FRR's opaque-area database in JSON, the form
+// whose every LSA carries its own advertising router (frrOpaqueAreaDatabase).
+const frrShowOSPFDatabaseOpaqueAreaJSON = frrShowOSPFDatabaseOpaqueArea + " json"
+
+// frrOpaqueAreaDatabase is the part of FRR 10.7.1's `show ip ospf database
+// opaque-area json` the checker reads. ospfd/ospf_vty.c builds it:
+// show_ip_ospf_database_common writes into the top object itself when no vrf is
+// named; show_lsa_detail adds show_database_desc_json[OSPF_OPAQUE_AREA_LSA],
+// "areaLocalOpaqueLsa", as an object whose "areas" object keys one array per area
+// ID; show_lsa_detail_proc appends one object per LSA, which
+// show_ip_ospf_database_header fills with "linkStateId" and "advertisingRouter",
+// both "%pI4". show_opaque_info_detail (ospfd/ospf_opaque.c) adds "opaqueType" as
+// ospf_opaque_type_name's text, so the type is read from the Link State ID instead.
+type frrOpaqueAreaDatabase struct {
+	AreaLocalOpaque *struct {
+		Areas map[string][]frrOpaqueLSA `json:"areas"`
+	} `json:"areaLocalOpaqueLsa"`
+}
+
+// frrOpaqueLSA is one LSA of frrOpaqueAreaDatabase.
+type frrOpaqueLSA struct {
+	LinkStateID       netip.Addr `json:"linkStateId"`
+	AdvertisingRouter netip.Addr `json:"advertisingRouter"`
+}
+
 // checkOSPFExtPrefixLink proves both directions of the RFC 7684 exchange with FRR.
 // Assertion 1 is the adjacency. Assertion 2 is the receive side: Ze's LSDB holds an
 // Extended Prefix LSA and an Extended Link LSA that FRR advertised, decoded, beside
-// Ze's own. Assertion 3 is the send side: FRR's opaque-area database names Ze.
+// Ze's own. Assertion 3 is the send side: FRR's opaque-area database holds an
+// Extended Prefix LSA and an Extended Link LSA whose advertising router is Ze.
 // Assertion 4 is that the adjacency survived the exchange.
 func checkOSPFExtPrefixLink(ctx context.Context, check *interoplab.CheckContext) error {
 	if !check.Network.IPv4.IsValid() {
@@ -53,9 +86,8 @@ func checkOSPFExtPrefixLink(ctx context.Context, check *interoplab.CheckContext)
 	if err := waitOSPFExtFromFRR(ctx, check.Lab, frrRouter, zeRouter); err != nil {
 		return fmt.Errorf("assertion 2: %w", err)
 	}
-	opaque := []string{cmdVtysh, "-c", frrShowOSPFDatabaseOpaqueArea}
-	if err := waitContains(ctx, check.Lab, peerFRR, opaque, ospfExtPrefixLinkWait, zeRouter.String()); err != nil {
-		return fmt.Errorf("assertion 3: FRR's opaque-area database never named Ze %s: %w", zeRouter, err)
+	if err := waitOSPFExtAtFRR(ctx, check.Lab, zeRouter); err != nil {
+		return fmt.Errorf("assertion 3: %w", err)
 	}
 	if err := delayRequireContains(ctx, check.Lab, peerFRR, neighbor, 5*time.Second, ospfStateFull); err != nil {
 		return fmt.Errorf("assertion 4: the adjacency did not stay Full: %w", err)
@@ -123,6 +155,73 @@ func ospfExtPrefixLinkVerdict(output string, frrRouter, zeRouter netip.Addr) err
 		if !slices.Contains(want.from, want.router) {
 			return fmt.Errorf("no decoded %s LSA advertised by %s; Ze holds that type from %v", want.kind, want.router, want.from)
 		}
+	}
+	return nil
+}
+
+// waitOSPFExtAtFRR waits for Ze's Extended LSAs in FRR's opaque-area database. Ze
+// originates its own once the adjacency is Full and floods them after, so the first
+// read after Full may predate them.
+func waitOSPFExtAtFRR(ctx context.Context, lab interoplab.CheckerLab, zeRouter netip.Addr) error {
+	command := []string{cmdVtysh, "-c", frrShowOSPFDatabaseOpaqueAreaJSON}
+	var last string
+	var verdict error
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: ospfExtPrefixLinkWait, Interval: 2 * time.Second, Description: "Ze's Extended Prefix and Extended Link LSAs in FRR's LSDB",
+	}, func(ctx context.Context) (string, error) {
+		output, err := lab.Query(ctx, peerFRR, command, queryEnvironment(peerFRR, command))
+		last = output
+		return output, err
+	}, func(output string) bool {
+		verdict = frrOSPFExtFromZeVerdict(output, zeRouter)
+		return verdict == nil
+	})
+	if err != nil {
+		return fmt.Errorf("FRR's LSDB never held both Extended LSA types from Ze %s: %w (last verdict: %s); last reply: %s", zeRouter, err, ospfSRAnycastVerdictText(verdict), last)
+	}
+	return nil
+}
+
+// frrOSPFExtFromZeVerdict judges FRR's `show ip ospf database opaque-area json`. It
+// binds each LSA's type to its own advertising router, so neither FRR's own Extended
+// Link LSA, whose Link ID names Ze on the point-to-point link (ospfd/ospf_ext.c
+// show_vty_link_info), nor an LSA of another opaque type from Ze can stand for the
+// Extended LSAs Ze originated.
+func frrOSPFExtFromZeVerdict(output string, zeRouter netip.Addr) error {
+	var database frrOpaqueAreaDatabase
+	if err := json.Unmarshal([]byte(output), &database); err != nil {
+		return fmt.Errorf("decode FRR's opaque-area database: %w", err)
+	}
+	if database.AreaLocalOpaque == nil {
+		return errors.New("FRR's opaque-area database has no areaLocalOpaqueLsa object")
+	}
+	var prefix, link bool
+	var fromZe []netip.Addr
+	for _, lsas := range database.AreaLocalOpaque.Areas {
+		for _, lsa := range lsas {
+			if lsa.AdvertisingRouter != zeRouter {
+				continue
+			}
+			fromZe = append(fromZe, lsa.LinkStateID)
+			if !lsa.LinkStateID.Is4() {
+				continue
+			}
+			// RFC 5250 Section 3: "The link-state ID of the Opaque LSA is divided into an Opaque type
+			// field (the first 8 bits) and a type-specific ID (the remaining 24
+			// bits)."
+			switch lsa.LinkStateID.As4()[0] {
+			case ospfOpaqueTypeExtendedPrefix:
+				prefix = true
+			case ospfOpaqueTypeExtendedLink:
+				link = true
+			}
+		}
+	}
+	if !prefix {
+		return fmt.Errorf("no Extended Prefix LSA (opaque type 7) advertised by %s; FRR holds from it the Link State IDs %v", zeRouter, fromZe)
+	}
+	if !link {
+		return fmt.Errorf("no Extended Link LSA (opaque type 8) advertised by %s; FRR holds from it the Link State IDs %v", zeRouter, fromZe)
 	}
 	return nil
 }

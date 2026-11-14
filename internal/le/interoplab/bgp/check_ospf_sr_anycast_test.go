@@ -2,6 +2,7 @@ package bgp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"os"
@@ -129,7 +130,9 @@ func ospfSRAnycastCheckerBranches(t *testing.T) {
 		// The first read is the pop Ze installed before the second advertiser's LSA
 		// reached its SR table; the swap is what a Ze reading the Originator alone
 		// installs once it did. A checker that judges the first passing read accepts it.
-		lab := &ospfSRAnycastHoldLab{labels: []string{pop, pop, swap}, databases: []string{originatorFirst}}
+		// The swap is the hold's first sample, so the hold meets it whatever the timing:
+		// a later swap would let a stalled run reach settle before reading it.
+		lab := &ospfSRAnycastHoldLab{labels: []string{pop, swap}, databases: []string{originatorFirst}}
 		err := hold(t, lab)
 		if err == nil {
 			t.Fatal("a pop that became a swap within the window was accepted")
@@ -142,6 +145,40 @@ func ospfSRAnycastCheckerBranches(t *testing.T) {
 		lab := &ospfSRAnycastHoldLab{labels: []string{pop, ""}, databases: []string{originatorFirst}}
 		if err := hold(t, lab); err == nil {
 			t.Fatal("a pop whose route disappeared within the window was accepted")
+		}
+	})
+	t.Run("a failed read during the hold is a lab error", func(t *testing.T) {
+		// The second label read is the hold's first sample: it fails, so the hold has no
+		// reading, and the refusal names the query rather than a Ze defect.
+		lab := &ospfSRAnycastHoldLab{labels: []string{pop}, labelFailures: map[int]error{2: errLabFault}, databases: []string{originatorFirst}}
+		err := hold(t, lab)
+		if err == nil {
+			t.Fatal("a hold whose sample could not be read was accepted")
+		}
+		for _, want := range []string{"lab error", "ip -f mpls route show", errLabFault.Error()} {
+			if !strings.Contains(err.Error(), want) {
+				t.Fatalf("the refusal does not name %q: %v", want, err)
+			}
+		}
+		if strings.Contains(err.Error(), "NP-Flag") {
+			t.Fatalf("a failed query was reported as Ze not applying the NP-Flag: %v", err)
+		}
+	})
+	t.Run("a table that never answers is a lab error", func(t *testing.T) {
+		lab := &ospfSRAnycastHoldLab{labels: []string{pop}, labelFailAfter: 1, databases: []string{originatorFirst}}
+		ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+		defer cancel()
+		err := assertOSPFSRAnycastPop(ctx, lab, nextHop, settle, interval)
+		if err == nil {
+			t.Fatal("a label table that never answered was accepted")
+		}
+		for _, want := range []string{"lab error", "ip -f mpls route show", errLabFault.Error()} {
+			if !strings.Contains(err.Error(), want) {
+				t.Fatalf("the refusal does not name %q: %v", want, err)
+			}
+		}
+		if strings.Contains(err.Error(), "NP-Flag") {
+			t.Fatalf("a table that never answered was reported as Ze not applying the NP-Flag: %v", err)
 		}
 	})
 	t.Run("condition lost during the hold", func(t *testing.T) {
@@ -170,14 +207,21 @@ func ospfSRAnycastCheckerBranches(t *testing.T) {
 
 // ospfSRAnycastHoldLab answers Ze's label table from labels and Ze's LSDB from
 // databases, one answer per read in order, repeating the last answer once they run out.
+// A label read whose number (from 1) labelFailures holds fails with that error, and a
+// label read from labelFailAfter on (when it is above zero) fails with errLabFault.
 // Not safe for concurrent use: the checker reads serially.
 type ospfSRAnycastHoldLab struct {
 	noEvidenceLab
-	labels        []string
-	databases     []string
-	labelReads    int
-	databaseReads int
+	labels         []string
+	labelFailures  map[int]error
+	labelFailAfter int
+	databases      []string
+	labelReads     int
+	databaseReads  int
 }
+
+// errLabFault is the fake lab's failed query.
+var errLabFault = errors.New("docker exec ze-iop-ze ip -f mpls route show failed (exit 1)")
 
 func (lab *ospfSRAnycastHoldLab) Query(_ context.Context, peer string, command []string, _ []interoplab.EnvironmentVariable) (string, error) {
 	if peer != "ze" {
@@ -185,6 +229,12 @@ func (lab *ospfSRAnycastHoldLab) Query(_ context.Context, peer string, command [
 	}
 	if slices.Equal(command, ospfSRAnycastLabelTable()) {
 		lab.labelReads++
+		if err, failed := lab.labelFailures[lab.labelReads]; failed {
+			return "", err
+		}
+		if lab.labelFailAfter > 0 && lab.labelReads >= lab.labelFailAfter {
+			return "", errLabFault
+		}
 		return ospfSRAnycastAnswer(lab.labels, lab.labelReads), nil
 	}
 	if slices.Equal(command, zeCommand(ospfSRAnycastDatabase)) {
