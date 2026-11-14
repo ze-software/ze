@@ -540,6 +540,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   shared-checkout friction inside that model.
 - Close in-progress specs before opening new ones. The WIP cap is lowered as
   specs close, never raised.
+- Two limits apply to spec work, and they count different things. The open
+  limit counts every spec that is started and not closed, a started spec set
+  included, whether or not anyone is working on it: it is the reason to close
+  before opening. The active limit counts the specs being worked on right now,
+  each held under a live claim: it bounds how much runs at once. The WIP cap
+  the other rules here name is the open limit.
 - A spec whose work is committed may be claimed above the WIP cap only to
   close it: the closure agent sets `ZE_SPEC_WIP_CAP` one above the current
   in-progress count for that claim, closes the spec in the same run and
