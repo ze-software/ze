@@ -1,6 +1,6 @@
 // Design: docs/architecture/static-routes.md -- main-table routes reach the FIB through the Loc-RIB
 // Related: inject.go -- routeManager, which calls applyProgrammed and withdrawProgrammed
-// Related: internal/component/sysrib/sysrib.go -- the arbitration a static Path enters
+// Related: internal/core/rib/locrib/entry.go -- selectBest, the arbitration a static Path enters
 
 package static
 

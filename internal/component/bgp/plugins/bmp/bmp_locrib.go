@@ -517,7 +517,7 @@ func (bp *BMPPlugin) startLocRIB() {
 	bp.mu.Unlock()
 
 	// Broadcast replay-request: the RIB re-emits its whole best-path table as
-	// replay batches (mirrors sysrib.go). The hop is broadcast, so every
+	// replay batches (as flowspec-firewall's request does). The hop is broadcast, so every
 	// best-change subscriber re-processes; those paths dedup unchanged entries,
 	// so a redundant replay is safe.
 	if err := bp.emitReplayRequest(bus, nil); err != nil {
@@ -573,8 +573,9 @@ func (bp *BMPPlugin) emitReplayRequest(bus ze.EventBus, ss *senderSession) error
 //
 // Disjointness on this hop is what makes the token decisive: 0 means incremental
 // (replay.IsReplay), replay.Broadcast is the reserved everyone-token, and the
-// ONLY other emitter of (bgp-rib, replay-request) is sysrib, which emits
-// Broadcast (internal/component/sysrib/sysrib.go:898). So a batch stamped with
+// ONLY other emitter of (bgp-rib, replay-request) is flowspec-firewall, which
+// emits Broadcast (internal/plugins/flowspec-firewall/engine.go, from its
+// OnConfigure callback). So a batch stamped with
 // our token can only be the batch our request produced. A uint64 counter cannot
 // realistically reach Broadcast (MaxUint64), and 0 is skipped by starting at 1.
 var dumpTokens atomic.Uint64
@@ -722,8 +723,9 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 	//
 	// The claim is made on the TOKEN, which answers "is this batch mine", not on
 	// "is a dump of mine in flight", which answered a weaker question and got it
-	// wrong whenever the two overlapped. sysrib emits its own replay-request from
-	// its own goroutine (internal/component/sysrib/sysrib.go:898) and a dump of a
+	// wrong whenever the two overlapped. flowspec-firewall emits its own
+	// replay-request from its own goroutine
+	// (internal/plugins/flowspec-firewall/engine.go) and a dump of a
 	// million routes takes seconds, so overlap is ordinary. A foreign replay
 	// landing in that window used to be treated as ours: senders narrowed to
 	// scope.session, so every OTHER collector silently lost the batch, and the

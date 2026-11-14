@@ -1,5 +1,5 @@
 // Design: docs/architecture/rib/unified-locrib.md -- authoritative candidates.
-// Related: candidates.go -- the existing candidate display value producer.
+// Related: candidates.go -- candidateEntryOf, the value each scanned prefix renders to.
 
 package sysrib
 

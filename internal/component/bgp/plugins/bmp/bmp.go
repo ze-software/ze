@@ -322,8 +322,8 @@ type BMPPlugin struct {
 	// dumpScope describes the full-table Loc-RIB replay THIS plugin currently
 	// has in flight, published only for the duration of its replay-request Emit.
 	// nil means the plugin did not ask for the replay being delivered -- another
-	// subscriber did (internal/component/sysrib/sysrib.go emits on the same
-	// broadcast handle), and such a batch must not be mistaken for this
+	// subscriber did (internal/plugins/flowspec-firewall/engine.go emits on the
+	// same broadcast handle), and such a batch must not be mistaken for this
 	// plugin's own dump.
 	//
 	// One pointer rather than a target plus a flag: the two questions ("is this

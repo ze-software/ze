@@ -1,18 +1,17 @@
 // Design: docs/guide/route-policy.md -- show rib candidates, the hidden paths and the chain that hid each
 // Related: register.go -- dispatches the command and declares it
+// Related: route_view_worker_operations.go -- routeViewClient.Candidates, which reads the selector with candidatesPrefix
+// Related: route_view_candidates.go -- readCandidates, the daemon scan that renders each prefix with candidateEntryOf
 // Related: sysrib.go -- showRIB, the selected routes this command complements
 
 package sysrib
 
 import (
-	"cmp"
 	"errors"
 	"net/netip"
-	"slices"
 
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
@@ -23,11 +22,6 @@ import (
 // `show rib candidates prefix <prefix>` (ai/rules/cli.md: a typed selector
 // keyword before any free-form value).
 const candidatesSelectorPrefix = "prefix"
-
-// errNoLocRIB refuses a candidate query with no authority reader. Both plugin
-// placements obtain candidates from the daemon; placement does not grant or
-// remove the capability to list them.
-var errNoLocRIB = opererr.New("The routing view for show rib candidates is unavailable", "The daemon authority must be connected before candidate paths can be listed", "ze request reload")
 
 // candidatePath is one path a protocol offered for a prefix: selected,
 // standing by, or hidden by an import chain.
@@ -59,44 +53,10 @@ type candidateEntry struct {
 	Paths  []candidatePath `json:"paths"`
 }
 
-// showRIBCandidates answers `show rib candidates [prefix <prefix>]`: every
-// Loc-RIB path for each prefix, hidden ones included, with the chain that hid
-// each hidden path. A hidden path is stored in the Loc-RIB but never selected,
-// so `show rib` cannot show it. The chain is read from the path (HiddenBy,
-// written by the gate when it hid the path), so the answer is the verdict the
-// RIB acted on, not a fresh evaluation that a reload in flight could change.
-func showRIBCandidates(loc *locrib.RIB, args []string) (any, error) {
-	if loc == nil {
-		return nil, errNoLocRIB
-	}
-	want, filtered, err := candidatesPrefix(args)
-	if err != nil {
-		return nil, err
-	}
-	entries := make([]candidateEntry, 0)
-	for _, fam := range loc.Families() {
-		if filtered {
-			loc.Inspect(fam, want, func(g locrib.PathGroup) {
-				entries = append(entries, candidateEntryOf(fam, want, &g))
-			})
-			continue
-		}
-		loc.Iterate(fam, func(prefix netip.Prefix, g locrib.PathGroup) bool {
-			entries = append(entries, candidateEntryOf(fam, prefix, &g))
-			return true
-		})
-	}
-	slices.SortFunc(entries, func(a, b candidateEntry) int {
-		if c := cmp.Compare(a.Family.String(), b.Family.String()); c != 0 {
-			return c
-		}
-		return a.Prefix.Compare(b.Prefix)
-	})
-	return entries, nil
-}
-
-// candidatesPrefix reads the optional `prefix <prefix>` selector. No argument
-// lists every prefix; anything else is refused by name.
+// candidatesPrefix reads the optional `prefix <prefix>` selector of
+// `show rib candidates [prefix <prefix>]`, before routeViewClient.Candidates
+// sends anything to the daemon. No argument lists every prefix; anything else
+// is refused by name.
 func candidatesPrefix(args []string) (netip.Prefix, bool, error) {
 	if len(args) == 0 {
 		return netip.Prefix{}, false, nil
@@ -120,7 +80,12 @@ func candidatesPrefix(args []string) (netip.Prefix, bool, error) {
 	return p.Masked(), true, nil
 }
 
-// candidateEntryOf renders one PathGroup.
+// candidateEntryOf renders one PathGroup: every Loc-RIB path for the prefix,
+// hidden ones included. A hidden path is stored in the Loc-RIB but never
+// selected, so `show rib` cannot show it. The chain is read from the path
+// (HiddenBy, written by the gate when it hid the path), so the answer is the
+// verdict the RIB acted on, not a fresh evaluation that a reload in flight
+// could change. readCandidates calls it for each prefix it scans.
 func candidateEntryOf(fam family.Family, prefix netip.Prefix, g *locrib.PathGroup) candidateEntry {
 	e := candidateEntry{Prefix: prefix, Family: fam, Paths: make([]candidatePath, 0, len(g.Paths))}
 	for i := range g.Paths {

@@ -136,8 +136,9 @@ func TestThirdPartyReplayEmitsNoEndOfRIB(t *testing.T) {
 	// PREVENTS: asserting RFC 4724 Section 2's "my initial routing update is
 	// complete" mid-stream to collectors that never asked for anything.
 	// ribevents.ReplayRequest is a broadcast handle with other emitters --
-	// internal/component/sysrib/sysrib.go emits on it whenever sysrib needs the
-	// BGP table replayed -- and those batches arrive here too.
+	// internal/plugins/flowspec-firewall/engine.go emits on it whenever
+	// flowspec-firewall needs the BGP table replayed -- and those batches arrive
+	// here too.
 	conn := newRecordingConn()
 	ss := newTestSession(t, "third-party", conn)
 	bp := &BMPPlugin{

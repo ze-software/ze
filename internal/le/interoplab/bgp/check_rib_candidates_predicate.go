@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- the IGP import-policy scenarios.
 // Related: check_import_policy.go -- the checker bodies that query the lab and call these.
-// Related: internal/component/sysrib/candidates.go -- showRIBCandidates, the JSON these decode.
+// Related: internal/component/sysrib/route_view_candidates.go -- readCandidates, which produces the JSON these decode.
 package bgp
 
 import (

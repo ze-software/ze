@@ -831,8 +831,9 @@ func TestMixedFamilyDumpClosesTheSilentFamily(t *testing.T) {
 // plugin's own dump is in flight, is treated as ordinary routes: it fans out to
 // every connected collector and is NOT closed with an End-of-RIB marker.
 // PREVENTS: the mis-claim. Claiming on "a dump of ours is in flight" rather than
-// on the token meant a sysrib-initiated replay (sysrib.go:898, emitted from its
-// own goroutine, overlapping ours because a large dump takes seconds) was taken
+// on the token meant a replay another plugin initiated (flowspec-firewall's
+// Broadcast request, internal/plugins/flowspec-firewall/engine.go, emitted from
+// its own goroutine, overlapping ours because a large dump takes seconds) was taken
 // as ours: senders narrowed to the one collector the dump was addressed to, so
 // every OTHER collector silently lost the batch, and the family was closed with
 // an End-of-RIB -- which RFC 7854 Section 5 defines as "the initial dump is

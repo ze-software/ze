@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md -- system-RIB event types
-// Related: ../sysrib.go -- publishes BestChange; format must stay in sync
+// Related: ../route_view_output.go -- routeViewAuthority.publish and routeViewOutput.withdraw emit BestChange on the daemon's bus; format must stay in sync
 
 // Package events defines event constants and typed event handles for the
 // system RIB plugin.

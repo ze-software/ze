@@ -320,7 +320,9 @@ evaluation, so a reload in flight cannot make the answer disagree with what
 was installed. The answer is structured, so `| json`, `| table` and `| match`
 apply. Anything after `candidates` other than `prefix <prefix>` is refused with
 the correct form.
-<!-- source: internal/component/sysrib/candidates.go -- showRIBCandidates, candidatesPrefix -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- Candidates -->
+<!-- source: internal/component/sysrib/route_view_candidates.go -- readCandidates, scanCandidates -->
+<!-- source: internal/component/sysrib/candidates.go -- candidatesPrefix, candidateEntryOf, candidatePathOf -->
 <!-- source: internal/core/rib/locrib/policy.go -- admit, rejectingChain -->
 
 ## Internal and external system RIB

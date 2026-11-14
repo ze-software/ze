@@ -1,6 +1,6 @@
 // Design: docs/guide/route-policy.md -- import chains hide paths from the Loc-RIB, and show rib candidates lists them
 // Related: register_rib_import_policy.go -- registers the two drivers below
-// Related: ../../component/sysrib/candidates.go -- showRIBCandidates, the answer this reads
+// Related: ../../component/sysrib/route_view_candidates.go -- readCandidates, the answer this reads
 // Related: ../../core/rib/locrib/policy.go -- admit, which hides a rejected path and names the chain
 
 package fixture
