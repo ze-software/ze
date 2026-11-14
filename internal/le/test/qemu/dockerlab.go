@@ -799,7 +799,7 @@ func (s dockerLabSession) leftBehind() string {
 // GuestZeRel answers where the host writes the linux ze the Docker kernel check
 // probes with, relative to the checkout. The nightly's informational check on
 // the runner's own Docker probes with the same file, and so does `le setup
-// docker-kernel check` on a Linux host when it is given no ze.
+// docker kernel check` on a Linux host when it is given no ze.
 func GuestZeRel(goarch string) string {
 	return filepath.Join("tmp", "qemu", "linux-"+goarch, "ze")
 }
@@ -808,7 +808,7 @@ func GuestZeRel(goarch string) string {
 // through job admission, with the daemon's feature tags, and answers its
 // absolute path. It is the one producer of the ze the Docker kernel check
 // probes with: docker-lab builds it for the guest's daemon, and `le setup
-// docker-kernel check` builds it for the daemon in hand. The check runs
+// docker kernel check` builds it for the daemon in hand. The check runs
 // `ze doctor kernel-capabilities` in a container, and a ze_le build cannot
 // stand in: started under the name ze, it answers "unknown command: doctor"
 // (first HVF boot, 2026-10-10).

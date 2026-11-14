@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -104,7 +105,9 @@ type hostDependency struct {
 
 // readHostFacts reads the host under root ("/" outside tests). A source that
 // cannot be read is an error, never read as "the host relies on nothing";
-// only netplan's directory and UFW's config may be absent.
+// only netplan's directory and UFW's config may be absent. The error is the
+// bare read error: the caller (cachedKernelServesHost) says what it refused
+// and what to run next, through hostUnreadable.
 func readHostFacts(root string) (hostFacts, error) {
 	var facts hostFacts
 	links, err := os.ReadDir(filepath.Join(root, "sys", "class", "net"))
@@ -144,6 +147,19 @@ func readHostFacts(root string) (hostFacts, error) {
 	return facts, nil
 }
 
+// hostUnreadable is the refusal for a host source readHostFacts could not
+// read, as an operator error: what was refused, why the read matters, and
+// rerun, the install command to run once the source can be read, alone on the
+// last line. The read error follows the explanation as evidence and names the
+// path.
+func hostUnreadable(err error, rerun string) error {
+	return opererr.Wrap(err,
+		"the install was refused and no step ran: le could not read what this host relies on its kernel for",
+		"a Ze kernel that lacks one of those things boots the host with no network or no firewall, so the install does not guess;"+
+			" run it on the Docker host itself, as a user that can read the path named here",
+		rerun)
+}
+
 // hostDependencies answers what the host relies on its kernel for, one entry
 // per interface named by its PCI slot, one for the netfilter modules loaded
 // now, and one for UFW when it is installed. It refuses a loaded netfilter
@@ -172,8 +188,11 @@ func hostDependencies(facts hostFacts) ([]hostDependency, error) {
 			continue
 		}
 		if _, known := netfilterModuleOptions[module]; !known {
-			return nil, errors.New("the netfilter module " + module + " is loaded, and this check does not know which kernel" +
-				" option provides it; add it to netfilterModuleOptions in internal/le/setup/docker/kernel/hostdeps.go")
+			return nil, opererr.New(
+				"the install was refused and no step ran: the netfilter module "+module+
+					" is loaded, and the install's host check does not know which kernel option provides it",
+				"the check cannot tell whether the Ze kernel loads this host's firewall rules, and a kernel that does not boots the host with no firewall",
+				"add "+module+" and its kernel option to netfilterModuleOptions in internal/le/setup/docker/kernel/hostdeps.go")
 		}
 		loaded = append(loaded, module)
 	}

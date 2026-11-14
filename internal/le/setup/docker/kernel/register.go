@@ -24,6 +24,6 @@ func init() {
 	leroot.RegisterActions(dockerKernelArea, DockerKernelActions)
 	leroot.RegisterShape(dockerKernelArea, command.ShapeDoc)
 
-	// No parity.Claim: docker-kernel has no migration-census gate, so it
+	// No parity.Claim: `setup docker kernel` has no migration-census gate, so it
 	// declares none of those rows.
 }

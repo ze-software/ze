@@ -44,6 +44,12 @@ const (
 	kernelProbeMount = "/ze"
 )
 
+// dockerKernelInstallCommand is the command the Linux route names: the install
+// action of `le setup docker kernel`. A test that proves another route omits
+// the Linux-only install bans this constant, so a rename of the action cannot
+// leave it banning a string no route produces.
+const dockerKernelInstallCommand = "./le setup docker kernel install"
+
 // DockerKernelRoute answers the next step a refusal names for a reader on goos
 // (owner D-6), its command on a line of its own (user-facing-errors.md). On
 // Linux the labs run on the host's Docker, so the step is a kernel with the
@@ -69,7 +75,7 @@ func DockerKernelRoute(goos string, lab, environment []string) string {
 	if goos == "linux" {
 		return "Run Docker on a kernel with every feature, or install Ze's kernel and reboot." +
 			" The install prints its steps and runs none until you confirm the release:\n" +
-			"  ./le setup docker kernel install"
+			"  " + dockerKernelInstallCommand
 	}
 	if goos == hostGOOSDarwin {
 		return "On macOS the labs run on the `ze` Colima profile, which boots Ze's docker-host image on Ze's runtime kernel." +

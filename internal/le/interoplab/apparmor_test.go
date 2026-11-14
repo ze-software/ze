@@ -256,7 +256,7 @@ func TestAppArmorRefusalOnDarwinNamesTheColimaLoad(t *testing.T) {
 }
 
 // VALIDATES: on a client that is neither Linux nor macOS, where `./le setup
-// docker-kernel apparmor` refuses (appArmorLoadPlatform), the probe refusal,
+// docker kernel apparmor` refuses (appArmorLoadPlatform), the probe refusal,
 // the lab refusal and a denied row's fix never name the load command, never
 // claim the Colima load, and point at the QEMU docker-lab route.
 // METHOD: each refusal builder runs for freebsd.

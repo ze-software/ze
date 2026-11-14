@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	buildhostdriver "github.com/ze-software/ze/internal/le/build/hostdriver"
 	"github.com/ze-software/ze/internal/le/interoplab"
@@ -337,13 +338,23 @@ func cancelInstallOnSignal(ctx context.Context, signals chan os.Signal, cancel c
 	}
 }
 
-// dockerKernelInstall is the install under the verb's root ctx.
+// dockerKernelInstall is the install under the verb's root ctx, on this host.
 func dockerKernelInstall(ctx context.Context, args leaction.Arguments) (any, int) {
-	if err := dockerKernelInstallPlatform(runtime.GOOS); err != nil {
+	return dockerKernelInstallOn(ctx, args, runtime.GOOS, "/")
+}
+
+// dockerKernelInstallOn is the install for a host of goos whose own files sit
+// under hostRoot ("/" outside tests). hostRoot is where the refusals before
+// the first step read the host: GRUB's defaults, and what the host relies on
+// its kernel for (cachedKernelServesHost). The root steps and the GRUB menu
+// read name the real host's paths whatever hostRoot is, so a test that reaches
+// them MUST stand its own `sudo` at the head of PATH.
+func dockerKernelInstallOn(ctx context.Context, args leaction.Arguments, goos, hostRoot string) (any, int) {
+	if err := dockerKernelInstallPlatform(goos); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	defaults, err := os.ReadFile(grubDefaultsPath)
+	defaults, err := os.ReadFile(filepath.Join(hostRoot, grubDefaultsPath)) //nolint:gosec // GRUB's defaults under the host root
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -373,7 +384,7 @@ func dockerKernelInstall(ctx context.Context, args leaction.Arguments) (any, int
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	if err := cachedKernelServesHost(cache, release, "/", builder); err != nil {
+	if err := cachedKernelServesHost(cache, release, hostRoot, builder); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
@@ -616,24 +627,46 @@ func grubDefaultSaved(defaults string) error {
 		" and run `sudo update-grub`, then rerun: the install selects Ze's kernel by its menu title")
 }
 
+// installRerun answers the install command a refusal before the release is
+// known tells the operator to run again, keeping the `builder` the operator
+// named so it resolves the same cache entry.
+func installRerun(builder string) string {
+	command := "./le " + dockerKernelArea + " " + dockerKernelInstallVerb
+	if builder == "" {
+		return command
+	}
+	return command + " " + dockerKernelBuilderKeyword + " " + builder
+}
+
 // cachedKernelServesHost refuses the cache entry's kernel when it lacks what
 // the host under root relies on its running kernel for (hostdeps.go), naming
-// the rebuild with builder, the backend whose entry the install resolved.
+// the rebuild with builder, the backend whose entry the install resolved. A
+// cache entry or a host it cannot read is refused too, never read as a host
+// that relies on nothing. Every refusal it answers is an operator error
+// (opererr): what was refused with no step run, why, and the command to run
+// next as the fix, so the install's ReportError hands the operator all three.
+// The rebuild is two commands, and the fix carries both, one per line.
 func cachedKernelServesHost(cache, release, root, builder string) error {
 	config, err := os.ReadFile(filepath.Join(cache, "config")) //nolint:gosec // a file inside the cache entry this command resolved
 	if err != nil {
-		return err
+		return opererr.Wrap(err,
+			"the install was refused and no step ran: the cached Ze kernel "+release+" has no config this user can read",
+			"the install reads that config to check that the kernel carries what this host relies on,"+
+				" so that the host does not boot with no network or no firewall; rebuild the cache entry",
+			strings.TrimSpace(runtimeKernelRebuild(builder)))
 	}
-	facts, err := readHostFacts(root)
-	if err != nil {
-		return err
+	facts, factsErr := readHostFacts(root)
+	if factsErr != nil {
+		return hostUnreadable(factsErr, installRerun(builder))
 	}
-	deps, err := hostDependencies(facts)
-	if err != nil {
-		return err
+	deps, depsErr := hostDependencies(facts)
+	if depsErr != nil {
+		return depsErr
 	}
-	if err := zeKernelServesHost(release, string(config), deps); err != nil {
-		return errors.New(err.Error() + " Then rebuild:\n" + runtimeKernelRebuild(builder))
+	if lacks := zeKernelServesHost(release, string(config), deps); lacks != nil {
+		return opererr.New(lacks.Error(),
+			"a host that boots this kernel comes up with no network or no firewall; once the options are set, rebuild the cache entry",
+			strings.TrimSpace(runtimeKernelRebuild(builder)))
 	}
 	return nil
 }

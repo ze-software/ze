@@ -310,7 +310,7 @@ submenu 'Advanced options for Ubuntu' $menuentry_id_option 'gnulinux-advanced' {
 	}
 }
 
-// VALIDATES: the docker-kernel area is reachable with its two actions, check
+// VALIDATES: the `setup docker kernel` area is reachable with its two actions, check
 // taking the ze to probe with and install the release to confirm.
 func TestDockerKernelActionsAreRegistered(t *testing.T) {
 	verbs := map[string][]string{}

@@ -340,7 +340,7 @@ func TestDockerKernelRouteNamesEachPlatformsNextStep(t *testing.T) {
 			t.Errorf("%s route %q holds a template, not a command", tc.goos, route)
 		}
 	}
-	if strings.Contains(DockerKernelRoute("darwin", lab, nil), "docker-kernel install") {
+	if strings.Contains(DockerKernelRoute("darwin", lab, nil), dockerKernelInstallCommand) {
 		t.Errorf("the darwin route names the Linux-only install: %s", DockerKernelRoute("darwin", lab, nil))
 	}
 }
@@ -399,7 +399,7 @@ func TestDockerKernelRouteForZesKernelNamesTheRuntimeConfig(t *testing.T) {
 	if err == nil {
 		t.Fatal("a Ze kernel lacking a feature was accepted")
 	}
-	if strings.Contains(err.Error(), "docker-kernel install") {
+	if strings.Contains(err.Error(), dockerKernelInstallCommand) {
 		t.Errorf("the refusal prescribes installing Ze's kernel on a daemon that runs it: %v", err)
 	}
 	for _, want := range []string{release, "gokrazy/kernel/runtime.config", "gokrazy/kernel/runtime.require"} {
@@ -788,7 +788,7 @@ func TestKernelCheckRouteNamesDockerHostSetup(t *testing.T) {
 			t.Errorf("darwin route lacks %q:\n%s", want, darwin)
 		}
 	}
-	for _, banned := range []string{"default", "docker-lab", "docker-kernel install"} {
+	for _, banned := range []string{"default", "docker-lab", dockerKernelInstallCommand} {
 		if strings.Contains(darwin, banned) {
 			t.Errorf("darwin route names %q:\n%s", banned, darwin)
 		}
