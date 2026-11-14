@@ -133,7 +133,10 @@ Route wins in a protocol, then gets programmed in the kernel:
    (`forwardingScope`, `nexthop_linux.go`) and `fib_table_delete` misses a scope it
    was not asked for, answering ESRCH, which `delOwnedRoute` reads as "already gone".
    `flushRoutes` (flush-on-stop) deletes installed routes through `delChange` with
-   their table, deletes retained startup routes too, lists the kernel afterwards,
+   their table, deletes retained startup routes from each table startup listed them
+   in (`staleTables`), lists the kernel afterwards across every table (`listZeRoutes`
+   filters on protocol 250 with table `RT_TABLE_UNSPEC`, skipping the MPLS
+   push-context tables; a failed listing reports no residue count),
    and raises one `doctor-fib-flush-incomplete` error (subject `flush`, registered in
    `register.go`, outside the `fib` health row) and its WARN line for failures or residue.
 10. **Startup reconciliation (fib-kernel side).** `runFIBKernelPlugin`'s `OnStarted`
@@ -141,7 +144,8 @@ Route wins in a protocol, then gets programmed in the kernel:
     (`fibkernel.go`, lists existing `RTPROT_ZE` routes as "stale"), starts `f.run`
     (`internal/plugins/fib/kernel/register.go`), then after `sweep-delay` (default 30s, `internal/plugins/fib/kernel/backend.go`) calls
     `sweepStale` (`fibkernel.go`) to delete any route sysrib never refreshed
-    (crash recovery). `f.run` (`fibkernel.go`) also emits `sysribevents.ReplayRequest`
+    (crash recovery), raising one `doctor-fib-sweep-incomplete` error when the
+    kernel refuses a delete. `f.run` (`fibkernel.go`) also emits `sysribevents.ReplayRequest`
     on start so sysrib always replays even if fib-kernel started after it,
     independent of which side came up first. sysrib's `HandleEvent`
     (`route_view_worker.go`) admits only the Broadcast identity, and `replay` publishes

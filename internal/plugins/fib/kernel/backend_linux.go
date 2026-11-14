@@ -14,6 +14,7 @@ package fibkernel
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/netip"
 
@@ -188,8 +189,35 @@ func (n *netlinkBackend) replaceOwnedRoute(route *netlink.Route) error {
 	return nil
 }
 
+// mainTableID is Linux's RT_TABLE_MAIN. A change names the main table as 0,
+// and the kernel lists it as 254, so the two compare through forwardingTable.
+const mainTableID = 254
+
+// forwardingTable answers a kernel table ID in a change's form: the main
+// table becomes 0, the table a change carries when it names none.
+func forwardingTable(kernelTable uint32) uint32 {
+	if kernelTable == mainTableID {
+		return 0
+	}
+	return kernelTable
+}
+
+// listZeRoutes lists Ze's routes in every routing table.
+//
+// A bare RouteList answers the main table only: the bindings drop every
+// other table unless the filter mask holds RT_FILTER_TABLE, and with that bit
+// a filter table of RT_TABLE_UNSPEC (0) matches every table
+// (vendor/github.com/vishvananda/netlink/route_linux.go,
+// RouteListFilteredIter). A route in a named table would otherwise be
+// invisible to the startup sweep and to the flush's residue check.
+//
+// The private MPLS push-context tables are left out: their routes are not
+// forwarding state the sysrib path installs, and the context lifecycle in
+// mplscontext_linux.go removes them at close, after the flush.
 func (n *netlinkBackend) listZeRoutes() ([]installedRoute, error) {
-	routes, err := n.handle.RouteList(nil, netlink.FAMILY_ALL)
+	routes, err := n.handle.RouteListFiltered(netlink.FAMILY_ALL,
+		&netlink.Route{Table: unix.RT_TABLE_UNSPEC, Protocol: rtprotZE},
+		netlink.RT_FILTER_TABLE|netlink.RT_FILTER_PROTOCOL)
 	if err != nil {
 		return nil, fmt.Errorf("route list: %w", err)
 	}
@@ -202,7 +230,14 @@ func (n *netlinkBackend) listZeRoutes() ([]installedRoute, error) {
 		if routes[i].Dst == nil {
 			continue
 		}
-		ir := installedRoute{prefix: routes[i].Dst.String()}
+		if routes[i].Table < 0 || uint64(routes[i].Table) > math.MaxUint32 {
+			return nil, fmt.Errorf("route list: %s carries table %d, outside the kernel's table range", routes[i].Dst, routes[i].Table)
+		}
+		table := uint32(routes[i].Table)
+		if table&mplsContextMask == mplsContextMark {
+			continue
+		}
+		ir := installedRoute{prefix: routes[i].Dst.String(), table: forwardingTable(table)}
 		if routes[i].Gw != nil {
 			ir.nextHop = routes[i].Gw.String()
 		}

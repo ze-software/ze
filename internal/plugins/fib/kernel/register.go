@@ -164,6 +164,16 @@ func init() {
 		panic("BUG: register fib-kernel flush event code: " + err.Error())
 	}
 
+	// The startup-sweep error (fibkernel.go, sweepStale) is registered the same
+	// way. It stays out of the health row for the same reason: the sweep runs
+	// once per start and nothing clears what it raised.
+	if err := diagnostic.Register(fibSweepDiagnosticCode); err != nil {
+		panic("BUG: register fib-kernel sweep diagnostic code: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: reportCodeFIBSweepIncomplete}); err != nil {
+		panic("BUG: register fib-kernel sweep event code: " + err.Error())
+	}
+
 	_ = events.RegisterNamespace(fibevents.Namespace, fibevents.EventExternalChange)
 
 	reg := registry.Registration{

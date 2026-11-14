@@ -783,13 +783,18 @@ route cleanup. Ordinary repair replays still reassert installed routes.
 
 The cleanup removes every route the writer installed, from the table it was
 installed in, and every route a previous run left that startup retained and
-the sweep has not yet removed. It then lists the kernel's Ze routes. A delete
-the kernel refused, or a flushed prefix the kernel still lists, raises one
+the sweep has not yet removed, from each table startup listed it in. It then
+lists the kernel's Ze routes in every table. A delete the kernel refused, or a
+flushed prefix the kernel still lists in any table, raises one
 `doctor-fib-flush-incomplete` error (subject `flush`) and one WARN log line under the same code,
-both carrying the counts, the first prefix and the command that removes what
+both carrying the counts, the first prefix and its table, and the command that removes what
 is left: `ip route flush proto 250 table all; ip -6 route flush proto 250 table all`.
+When the listing itself fails, the error says the kernel could not be read and
+carries the listing's error. It reports no count of routes left, because none
+was taken.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- flushRoutes, flushOneLocked, flushResidueLocked, reportFlushLocked -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_test.go -- TestFIBKernelFlushDeletesInTheInstalledTable, TestFIBKernelFlushReportsRoutesTheKernelKept, TestFIBKernelFlushReportsFailedDeletes, TestFIBKernelFlushRemovesRetainedRoutes -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_flush_list_test.go -- TestFIBKernelFlushReportsUnverifiedKernel, TestFIBKernelFlushCountsNothingItCouldNotList, TestFIBKernelSweepDeletesInTheListedTable -->
 
 Bus topics in the FIB pipeline:
 

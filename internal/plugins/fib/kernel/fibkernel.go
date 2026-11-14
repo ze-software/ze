@@ -17,7 +17,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
+	"net/netip"
 	"slices"
 	"strconv"
 	"sync"
@@ -150,10 +152,13 @@ type routeBackend interface {
 	close() error
 }
 
-// installedRoute represents a route installed in the OS kernel.
+// installedRoute represents a route installed in the OS kernel. table is the
+// routing table in the form a change's TableID carries it: 0 for the main
+// table (forwardingTable), any other ID as itself.
 type installedRoute struct {
 	prefix  string
 	nextHop string
+	table   uint32
 }
 
 // incomingBatch aliases the (system-rib, best-change) payload type.
@@ -180,6 +185,10 @@ type fibKernel struct {
 	// retained records startup ownership without marking a stale route refreshed.
 	// Replay can replace these entries; untouched ones still reach sweepStale.
 	retained map[string]bool
+	// staleTables records, for each prefix startup listed, every table the
+	// listing found a Ze route for it in (0 for main). sweepStale and
+	// flushRoutes delete each listed route from its own table, then forget it.
+	staleTables map[string][]uint32
 	// mplsInstalled tracks which installed prefixes carry MPLS labels (push).
 	mplsInstalled map[string]bool
 	// mplsSwaps records the source that owns each AF_MPLS incoming label.
@@ -211,6 +220,7 @@ func newFIBKernel(backend routeBackend) *fibKernel {
 		installed:     make(map[string]string),
 		forwarding:    make(map[string]incomingChange),
 		retained:      make(map[string]bool),
+		staleTables:   make(map[string][]uint32),
 		mplsInstalled: make(map[string]bool),
 		mplsSwaps:     make(map[uint32]uint16),
 		backups:       make(map[string]struct{}),
@@ -499,6 +509,7 @@ func (f *fibKernel) flushRoutes() {
 	f.installed = make(map[string]string)
 	clear(f.forwarding)
 	clear(f.retained)
+	clear(f.staleTables)
 	clear(f.backups)
 	f.reportBackupsLocked()
 
@@ -508,15 +519,44 @@ func (f *fibKernel) flushRoutes() {
 }
 
 // flushOneLocked removes one owned prefix. An installed route carries the
-// description it was programmed from, so the delete names its table; a
-// retained route from a previous run is known only by its main-table listing.
-// Caller MUST hold f.mu.
+// description it was programmed from, so the delete names its table. A route
+// a previous run left is removed from every table startup listed it in, apart
+// from the one the installed route now holds. Caller MUST hold f.mu.
 func (f *fibKernel) flushOneLocked(prefix string, rb richRouteBackend) error {
 	change, described := f.forwarding[prefix]
-	if !described {
+	var errs error
+	if described {
+		errs = f.delChange(&change, prefix, rb)
+	}
+	tables, listed := f.staleTables[prefix]
+	if !described && !listed {
 		return f.backend.delRoute(prefix)
 	}
-	return f.delChange(&change, prefix, rb)
+	for _, table := range tables {
+		if described && table == change.TableID {
+			continue
+		}
+		errs = errors.Join(errs, f.delListedLocked(prefix, table, rb))
+	}
+	return errs
+}
+
+// delListedLocked removes Ze's route for prefix from the table a kernel
+// listing found it in (0 for main). A backend without the rich interface can
+// name no table, so it removes main-table routes only and refuses the rest
+// rather than reporting a delete it did not make. Caller MUST hold f.mu.
+func (f *fibKernel) delListedLocked(prefix string, table uint32, rb richRouteBackend) error {
+	if rb != nil {
+		parsed, err := netip.ParsePrefix(prefix)
+		if err != nil {
+			return fmt.Errorf("listed route %q: %w", prefix, err)
+		}
+		return rb.delRichRoute(parsed, table)
+	}
+	if table != 0 {
+		return fmt.Errorf("route %s in table %d: this backend removes main-table routes only", prefix, table)
+	}
+	return f.backend.delRoute(prefix)
 }
 
 // flushResidueLocked lists the Ze routes the kernel still holds after a flush
@@ -524,23 +564,26 @@ func (f *fibKernel) flushOneLocked(prefix string, rb richRouteBackend) error {
 // acknowledged, or answered ESRCH, proves nothing by itself: a key that misses
 // the installed route reads the same as a route that is gone. The listing is
 // the kernel's own answer. Caller MUST hold f.mu.
-func (f *fibKernel) flushResidueLocked(owned map[string]struct{}) (int, string, error) {
+//
+// The listing covers every table (listZeRoutes), so a route left in a named
+// table counts, and the first residue carries the table it was listed in.
+func (f *fibKernel) flushResidueLocked(owned map[string]struct{}) (int, installedRoute, error) {
 	if len(owned) == 0 {
-		return 0, "", nil
+		return 0, installedRoute{}, nil
 	}
 	routes, err := f.backend.listZeRoutes()
 	if err != nil {
-		return 0, "", err
+		return 0, installedRoute{}, err
 	}
 	residue := 0
-	first := ""
+	var first installedRoute
 	for _, r := range routes {
 		if _, flushed := owned[r.prefix]; !flushed {
 			continue
 		}
 		residue++
-		if first == "" {
-			first = r.prefix
+		if first.prefix == "" {
+			first = r
 		}
 	}
 	return residue, first, nil
@@ -550,15 +593,33 @@ func (f *fibKernel) flushResidueLocked(owned map[string]struct{}) (int, string, 
 // that left Ze's routes behind, and logs it at WARN under the same code,
 // because the daemon is stopping and the log is the record an operator reads
 // afterwards. Caller MUST hold f.mu.
+//
+// One flush raises one error. When the listing failed, the residue was never
+// counted, so neither the message nor the detail carries a residue figure: the
+// message says the kernel could not be read and carries the listing's error.
 func (f *fibKernel) reportFlushLocked(owned, failed int, firstFailure string, firstErr error,
-	residue int, residueFirst string, listErr error,
+	residue int, residueFirst installedRoute, listErr error,
 ) {
+	detail := map[string]any{keyOperation: "flush", "owned": owned}
+	if firstErr != nil {
+		detail["failed"] = failed
+		detail["first-failure"] = firstFailure
+		detail["first-error"] = firstErr.Error()
+	}
 	if listErr != nil {
+		detail["list-error"] = listErr.Error()
+		message := "FIB flush could not verify the kernel: " + listErr.Error()
+		if failed > 0 {
+			message = "FIB flush left Ze routes in the kernel, which keeps forwarding after Ze stopped: " +
+				strconv.Itoa(failed) + " of " + strconv.Itoa(owned) +
+				" deletes failed, and the kernel could not be read to count what is left: " + listErr.Error()
+		}
 		logger().Warn("fib-kernel: flush could not list the routes left in the kernel",
-			"owned", owned, "error", listErr, "fix", flushFix, "code", reportCodeFIBFlushIncomplete)
+			"owned", owned, "failed", failed, "first-failure", firstFailure, "first-error", firstErr,
+			"error", listErr, "fix", flushFix, "code", reportCodeFIBFlushIncomplete)
 		report.RaiseErrorFix(reportSourceFIB, reportCodeFIBFlushIncomplete, "flush",
-			report.FitMessage("FIB flush could not verify the kernel: "+listErr.Error()), flushFix,
-			map[string]any{keyOperation: "flush", "owned": owned})
+			report.FitMessage(message), flushFix, detail)
+		return
 	}
 	if failed == 0 && residue == 0 {
 		return
@@ -566,18 +627,17 @@ func (f *fibKernel) reportFlushLocked(owned, failed int, firstFailure string, fi
 	message := "FIB flush left Ze routes in the kernel, which keeps forwarding after Ze stopped: " +
 		strconv.Itoa(failed) + " of " + strconv.Itoa(owned) + " deletes failed, " +
 		strconv.Itoa(residue) + " routes still listed"
-	detail := map[string]any{keyOperation: "flush", "owned": owned, "failed": failed, "residue": residue}
-	if firstErr != nil {
-		detail["first-failure"] = firstFailure
-		detail["first-error"] = firstErr.Error()
-	}
-	if residueFirst != "" {
-		detail["first-residue"] = residueFirst
+	detail["failed"] = failed
+	detail["residue"] = residue
+	if residueFirst.prefix != "" {
+		detail["first-residue"] = residueFirst.prefix
+		detail["first-residue-table"] = residueFirst.table
 	}
 	logger().Warn("fib-kernel: flush left routes in the kernel", "owned", owned, "failed", failed,
-		"residue", residue, "first-failure", firstFailure, "first-error", firstErr, "first-residue", residueFirst,
+		"residue", residue, "first-failure", firstFailure, "first-error", firstErr,
+		"first-residue", residueFirst.prefix, "first-residue-table", residueFirst.table,
 		"fix", flushFix, "code", reportCodeFIBFlushIncomplete)
-	report.RaiseErrorFix(reportSourceFIB, reportCodeFIBFlushIncomplete, "flush", message, flushFix, detail)
+	report.RaiseErrorFix(reportSourceFIB, reportCodeFIBFlushIncomplete, "flush", report.FitMessage(message), flushFix, detail)
 }
 
 // flushFix removes every route Ze's protocol owns, in every table and both
@@ -617,35 +677,111 @@ func (f *fibKernel) startupSweep() map[string]string {
 	for _, r := range routes {
 		stale[r.prefix] = r.nextHop
 		f.retained[r.prefix] = true
+		// The listing covers every table, and one prefix can hold a Ze route
+		// in several; the sweep and the flush remove each from its own table.
+		f.staleTables[r.prefix] = append(f.staleTables[r.prefix], r.table)
 	}
 
 	logger().Info("fib-kernel: startup sweep", "stale-routes", len(stale))
 	return stale
 }
 
+// sweepPrefixLocked removes the stale routes startup listed for prefix, each
+// from the table it was listed in, and answers how many it removed.
+// sysrib refreshed a route only in the table its current change names, so a
+// route Ze installed this run keeps that table and a previous run's route in
+// any other table is still stale. A prefix startup never listed is removed
+// from main, the table sweepStale's caller knew it from. Caller MUST hold f.mu.
+func (f *fibKernel) sweepPrefixLocked(prefix string, rb richRouteBackend) (int, error) {
+	tables, listed := f.staleTables[prefix]
+	delete(f.staleTables, prefix)
+	if !listed {
+		tables = []uint32{0}
+	}
+	_, installed := f.installed[prefix]
+	current := f.forwarding[prefix]
+	swept := 0
+	var errs error
+	for _, table := range tables {
+		if installed && table == current.TableID {
+			continue
+		}
+		if err := f.delListedLocked(prefix, table, rb); err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		swept++
+	}
+	return swept, errs
+}
+
+// sweepFix lists what Ze's protocol still holds in every table, so the
+// operator can delete the stale route the sweep could not. A flush of the
+// whole protocol is not offered: Ze is running, and it would remove the
+// routes that forward. 250 is rtproto.FIBKernel.
+const sweepFix = "ip route show proto 250 table all; ip -6 route show proto 250 table all; " +
+	"ip route del <prefix> proto 250 table <table>"
+
+// reportCodeFIBSweepIncomplete is the code of a startup sweep that could not
+// delete a stale route, on the report bus and on its WARN log line.
+const reportCodeFIBSweepIncomplete = "doctor-fib-sweep-incomplete"
+
+// fibSweepDiagnosticCode describes the code for `ze show diagnostic`. The
+// event-code registration in register.go requires it to be registered first.
+var fibSweepDiagnosticCode = diagnostic.CodeMeta{
+	Code:  reportCodeFIBSweepIncomplete,
+	Title: "The startup sweep left a stale Ze route in the kernel",
+	Description: "fib-kernel found routes a previous run of Ze left in the kernel (protocol 250) that no " +
+		"routing protocol announced again, and the kernel refused to delete one or more of them. Each one " +
+		"keeps forwarding traffic towards a next hop nothing maintains. The detail counts the prefixes whose " +
+		"delete failed and names the first with the kernel's error. Remedy: " + sweepFix + ".",
+	Examples: []string{"ze show errors", "ze show diagnostic " + reportCodeFIBSweepIncomplete},
+}
+
 // sweepStale removes routes that are still stale (not refreshed by sysrib).
 // Uses write lock to keep f.installed consistent with kernel state.
-// Raises a fib-orphan warning if any orphan routes are swept (AC-13).
+// Raises a fib-orphan warning if any orphan routes are swept (AC-13), and one
+// doctor-fib-sweep-incomplete error when a delete failed: that route is still
+// in the kernel, forwarding with no RIB entry behind it.
 func (f *fibKernel) sweepStale(stale map[string]string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	rb := f.asRichBackend()
 	orphanCount := 0
+	failed := 0
+	firstFailure := ""
+	var firstErr error
 	for prefix := range stale {
+		swept, err := f.sweepPrefixLocked(prefix, rb)
+		orphanCount += swept
+		if err != nil {
+			failed++
+			if firstErr == nil || prefix < firstFailure {
+				firstFailure, firstErr = prefix, err
+			}
+			logger().Warn("fib-kernel: sweep del failed", "prefix", prefix, "error", err,
+				"fix", sweepFix, "code", reportCodeFIBSweepIncomplete)
+		}
 		if _, refreshed := f.installed[prefix]; refreshed {
 			continue // Route was refreshed by sysrib.
-		}
-		if err := f.backend.delRoute(prefix); err != nil {
-			logger().Warn("fib-kernel: sweep del failed", "prefix", prefix, "error", err)
 		}
 		// Ensure installed map stays consistent -- stale route is gone from kernel.
 		delete(f.installed, prefix)
 		delete(f.forwarding, prefix)
 		delete(f.retained, prefix)
 		delete(f.backups, prefix)
-		orphanCount++
 	}
 	f.reportBackupsLocked()
+
+	if failed > 0 {
+		report.RaiseErrorFix(reportSourceFIB, reportCodeFIBSweepIncomplete, "sweep",
+			report.FitMessage("FIB startup sweep left stale Ze routes in the kernel, which keep forwarding with no route behind them: "+
+				strconv.Itoa(failed)+" of "+strconv.Itoa(len(stale))+" stale prefixes could not be deleted, first "+
+				firstFailure+": "+firstErr.Error()),
+			sweepFix, map[string]any{keyOperation: "sweep", "stale": len(stale), "failed": failed,
+				"first-failure": firstFailure, "first-error": firstErr.Error()})
+	}
 
 	if orphanCount > 0 {
 		report.RaiseWarning(reportSourceFIB, reportCodeFIBOrphan, "sweep",

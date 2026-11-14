@@ -2961,9 +2961,25 @@ therefore leaves withdrawn routes and superseded priorities retired.
 A withdraw the kernel answers with ESRCH is complete, not a `fib-sync-failure`:
 the route is already gone, typically flushed by the kernel with the device it
 went through, as when a pppoe-client session drops. Static's named-table
-removal treats ESRCH the same way.
-<!-- source: internal/plugins/fib/kernel/backend_linux.go -- delOwnedRoute -->
+removal treats ESRCH the same way. ESRCH means absent only because every
+delete key names Ze's protocol and the route's table and matches any scope
+(`ownedRouteKey`).
+<!-- source: internal/plugins/fib/kernel/backend_linux.go -- delOwnedRoute, ownedRouteKey -->
 <!-- source: internal/plugins/static/backend_linux.go -- removeRoute -->
+
+The startup sweep and the stop flush's residue check list Ze's routes in every
+routing table, not only main, leaving out the private MPLS push-context tables
+that the context lifecycle removes itself. Each listed route keeps its table:
+the sweep removes a stale route from the table it was listed in, and keeps
+only the route sysrib refreshed in the table its change names, so a previous
+run's route for the same prefix in another table is still removed. A stale
+route the kernel refuses to delete is not counted as removed: the sweep raises
+one `doctor-fib-sweep-incomplete` error that counts the prefixes left and names
+the first with the kernel's error.
+<!-- source: internal/plugins/fib/kernel/backend_linux.go -- listZeRoutes -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- startupSweep, sweepStale, sweepPrefixLocked, delListedLocked -->
+<!-- test: internal/plugins/fib/kernel/named_table_integration_linux_test.go -- TestKernelStartupSweepRemovesNamedTableRoute, TestKernelFlushReportsNamedTableResidue -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_flush_list_test.go -- TestFIBKernelSweepReportsRefusedDelete -->
 
 When `BestChangeEntry` carries rich fields (route type, metric, table ID, ECMP paths,
 MPLS labels, or SRv6 SID), the backend dispatches to `richRouteBackend` which builds

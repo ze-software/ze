@@ -176,6 +176,7 @@ show warnings source bgp
 | `fib-programming-lag` | fib | warning | Routes pending >30s |
 | `doctor-fib-backup-not-programmed` | fib | warning | Installed routes hold a fast-reroute backup the kernel does not carry; the detail counts them. Cleared when none is left |
 | `doctor-fib-flush-incomplete` | fib | error | `flush-on-stop` left Ze's routes in the kernel when fib-kernel stopped: a delete failed, the kernel still listed a flushed route, or the listing failed. The detail counts them and names the first; the fix is `ip route flush proto 250 table all; ip -6 route flush proto 250 table all`. Not in the `fib` health row |
+| `doctor-fib-sweep-incomplete` | fib | error | The startup sweep found routes a previous run of Ze left in the kernel that no protocol announced again, and the kernel refused to delete one or more. Each keeps forwarding towards a next hop nothing maintains. The detail counts the prefixes whose delete failed and names the first with the kernel's error; the fix is `ip route show proto 250 table all; ip -6 route show proto 250 table all; ip route del <prefix> proto 250 table <table>`. Not in the `fib` health row |
 | `firewall-stale-table` | firewall | warning | ze_* table in kernel not in config |
 | `firewall-drift` | firewall | warning | Chain count mismatch vs config, or a ze_* table the kernel no longer has |
 | `doctor-plugin-crashed` | plugin | error | Plugin process exited unexpectedly; carries the exit status and the failure policy ze applies, and clears every warning the plugin raised itself |
