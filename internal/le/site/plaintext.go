@@ -34,11 +34,13 @@ type plainFigure struct {
 //
 // A figure with no Unit is one of the snapshot's display strings, carrying a
 // thousands separator or a "+", which reads as nothing but that figure wherever
-// it stands. A figure with a Unit is a whole number of 100 or more, which is a
-// published value only beside its unit word: smaller numbers and bare numbers
-// are too common in prose (years, section numbers, counts of other things) to
-// match without refusing pages that are right. A key whose last word holds no
-// letter (an index) has no unit word, so its whole number is not guarded here.
+// it stands. A figure with a Unit is a whole number of 100 or more, or a round
+// display string (one significant digit, as "100+"), which is a published value
+// only beside its unit word: smaller numbers, bare numbers and round figures
+// are too common in prose (years, section numbers, "100+ days", counts of other
+// things) to match without refusing pages that are right. A key whose last
+// word holds no letter (an index) has no unit word, so neither its whole
+// number nor its round display string is guarded here.
 type publishedFigure struct {
 	Key  string
 	Text string
@@ -60,7 +62,8 @@ var displayFigurePattern = regexp.MustCompile(`^(?:\d{1,3}(?:,\d{3})+\+?|\d+\+)$
 // adds is guarded with no edit here. A key's unit word is the last word of its
 // own name, with the _display suffix dropped: cli_commands is "commands",
 // tests.unit_display is "unit". A last word with no letter is an index, not a
-// unit, and its key is skipped unless its value is a display string.
+// unit, and its key is skipped unless its value is a display string that is
+// not round.
 func publishedFigures(snapshot siteFactSnapshot) []publishedFigure {
 	var figures []publishedFigure
 	for _, key := range snapshot.keys() {
@@ -69,7 +72,19 @@ func publishedFigures(snapshot siteFactSnapshot) []publishedFigure {
 		}
 		value, _ := snapshot.value(key)
 		if displayFigurePattern.MatchString(value) {
-			figures = append(figures, publishedFigure{Key: key, Text: value})
+			if !roundDisplayFigure(value) {
+				figures = append(figures, publishedFigure{Key: key, Text: value})
+				continue
+			}
+			// A round display string ("100+", "2,000+") is "a hundred or
+			// more" in any sentence: matched bare, tests.fuzz_display at
+			// "100+" refused a talk's "100+ days". Beside its unit word it is
+			// still the published value, so it is matched there.
+			unit := factUnit(key)
+			if !strings.ContainsFunc(unit, unicode.IsLetter) {
+				continue
+			}
+			figures = append(figures, publishedFigure{Key: key, Text: value, Unit: unit})
 			continue
 		}
 		number, err := strconv.Atoi(value)
@@ -95,6 +110,13 @@ func publishedFigures(snapshot siteFactSnapshot) []publishedFigure {
 		}
 	}
 	return figures
+}
+
+// roundDisplayFigure answers whether a display string has one significant
+// digit: every digit after the first is a zero ("100+", "2,000+").
+func roundDisplayFigure(value string) bool {
+	digits := strings.TrimSuffix(strings.ReplaceAll(value, ",", ""), "+")
+	return strings.Trim(digits[1:], "0") == ""
 }
 
 // factUnit answers the unit word of one snapshot key.

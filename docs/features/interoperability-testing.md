@@ -10,14 +10,14 @@ daemon instances in containers and exchange real BGP messages.
 | Feature | Description |
 |---------|-------------|
 | Target daemons | FRR, BIRD, GoBGP (tested), rustbgpd, RustyBGP, freeRtr (Dockerfiles ready); dnsmasq as a DHCPv4 server for Ze's DHCP client (`dhcpv4-renew-nak-dnsmasq`, `dhcpv4-rebind-two-servers-dnsmasq`); Kea (`kea-dhcp6`) as a DHCPv6 server for Ze's DHCPv6 client (`dhcpv6-client-renew-kea`) |
-| Scenario count | 100+ scenarios covering core BGP protocol and extensions plus adjacent protocols (RPKI, BMP, IS-IS, OSPF/OSPFv3) |
+| Scenario count | {{ze:interop.scenarios_display}} scenarios covering core BGP protocol and extensions plus adjacent protocols (RPKI, BMP, IS-IS, OSPF/OSPFv3) |
 | Runner | `./le test integration interop` (all) or `INTEROP_SCENARIO=<name> ./le test integration interop` (single) |
 | Container images | Customizable via env vars (e.g., `FRR_IMAGE=quay.io/frrouting/frr:10.3`) |
 
 ## Scenarios
 
 The table below is a representative subset covering the core BGP protocol and
-extensions. The full suite has over 100 scenarios; the remainder exercise RPKI, BMP,
+extensions. The full suite has {{ze:interop.scenarios_display}} scenarios; the remainder exercise RPKI, BMP,
 IS-IS, and OSPF/OSPFv3 interoperability against FRR.
 
 | # | Scenario | Target |

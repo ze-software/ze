@@ -17,4 +17,4 @@
 
 ## Description
 
-100+ Docker-based interop scenarios against FRR, BIRD, and GoBGP; OpenBGPD, FreeRtr, and Rust implementations are exercised as performance-benchmark DUTs, not interop scenarios <!-- source: internal/le/rfc/actions.go -- Answer --> <!-- source: internal/le/test/health/actions.go -- Answer -->
+{{ze:interop.scenarios_display}} Docker-based interop scenarios against FRR, BIRD, and GoBGP; OpenBGPD, FreeRtr, and Rust implementations are exercised as performance-benchmark DUTs, not interop scenarios <!-- source: internal/le/rfc/actions.go -- Answer --> <!-- source: internal/le/test/health/actions.go -- Answer -->

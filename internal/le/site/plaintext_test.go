@@ -283,6 +283,45 @@ func TestHistoryMarkedFigureIsNotPlain(t *testing.T) {
 	}
 }
 
+// A display string whose only significant digit is its first, such as "100+",
+// reads as "a hundred or more" in any prose, so the guard matches it only
+// beside its key's unit word, the way it matches a whole number. A display
+// string with a second significant digit, such as "230+", still reads as
+// nothing but that figure and is matched wherever it stands. The site check
+// refused a talk slide's "100+ days" and two pages' "100+ scenarios" as copies
+// of tests.fuzz_display once the fuzz count rounded to "100+".
+//
+// The method publishes a round display string and a non-round one, lays down a
+// page showing the round one beside an unrelated word, beside its unit word,
+// and inside its marker, and the non-round one in bare prose: only the copy
+// beside the unit word and the bare non-round figure are refused, so the round
+// rule passes the coincidence and still refuses a real plain copy.
+func TestARoundDisplayFigureIsMatchedOnlyBesideItsUnitWord(t *testing.T) {
+	const page = "talks/netmcr-2026-04/index.html"
+	output := t.TempDir()
+	writeArtifactFile(t, output, factsFile, `{
+  "interop": {"scenarios_display": "230+"},
+  "tests": {"fuzz_display": "100+"}
+}`)
+	writeArtifactFile(t, output, page, `<!doctype html><html><body><main>
+<h2>The Story ... so far (100+ days)</h2>
+<p>The suite holds 100+ scenarios and 100+ fuzz targets.</p>
+<p><span data-ze-stat="tests.fuzz_display">100+</span> fuzz targets back it.</p>
+<p>The lab runs 230+ of them.</p>
+</main></body></html>`)
+	check, err := checkPlainFigures(ratchetSource(t, noRatchetedPages), output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []plainFigure{
+		{Page: page, Figure: "100+", Key: "tests.fuzz_display"},
+		{Page: page, Figure: "230+", Key: "interop.scenarios_display"},
+	}
+	if !slices.Equal(check.Figures, want) {
+		t.Errorf("the check found\n%v\nwant\n%v", check.Figures, want)
+	}
+}
+
 // A key that ends in an index names no unit word, so the guard never matches
 // its value beside the index. The health section keys every figure of a
 // composed sentence by its position (health.<metric>.detail.<n>), and the
