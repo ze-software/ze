@@ -686,11 +686,19 @@ them. One commit block holds, in order:
 8. For a block with `remove` paths, the working-tree deletion
    (`renderWorkingTreeRemoval`). Each removed path's copy is staged into a
    throwaway index, and the copy is deleted only when its entry line is one of
-   the lines step 5 captured. A copy whose content or mode differs, a copy Git
+   the lines step 5 captured. The captured lines reach `grep -q` as a
+   here-string, never through a pipe: under `set -o pipefail`, grep's exit at
+   its first match killed the `printf` still writing the capture with SIGPIPE,
+   and the pipeline read as a miss, so commit da39ab438f kept ten of its
+   hundred removed files although each one was the removed blob byte for byte.
+   A copy whose content or mode differs, a copy Git
    cannot read or stage, a path HEAD never held, and a directory (a removed
    file replaced by one, or a submodule)
    each leave the path in place and print `NOTE: kept <path>: ...` on stderr,
-   because that content is in no commit and somebody has to decide about it. A path already absent is
+   because that content is in no commit and somebody has to decide about it.
+   The note says to delete the copy or commit it with `./le commit create`, and
+   ends with the command that shows what it holds: `git show <commit>~1:<path> |
+   diff - <path>` for a file, `ls -la <path>` for a directory. A path already absent is
    skipped in silence. The step runs after the publish under `set -e`, so a
    failed commit deletes nothing, and a deleted copy is always one `git show`
    away. A spec closure therefore leaves no file behind: commit A carries the

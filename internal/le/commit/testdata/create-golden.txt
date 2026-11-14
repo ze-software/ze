@@ -145,15 +145,19 @@ rm -f "$_ze_index.gone"
 for _ze_path in "${_ze_gone[@]}"; do
   if [ ! -e "$_ze_path" ] && [ ! -L "$_ze_path" ]; then continue; fi
   if [ -d "$_ze_path" ] && [ ! -L "$_ze_path" ]; then
-    echo "NOTE: kept $_ze_path: a directory is not the content this commit removed." >&2
+    echo "NOTE: kept $_ze_path: it is a directory, and commit $_ze_commit removed a file there." >&2
+    echo "What it holds is in no commit, so it stays. Delete it, or commit it with ./le commit create. To see what it holds, run:" >&2
+    printf '  ls -la %q\n' "$_ze_path" >&2
     continue
   fi
   GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs add -f -- "$_ze_path" 2>/dev/null || true
   _ze_now=$(GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs ls-files -s -z -- "$_ze_path" | tr '\0' '\n')
-  if [ -n "$_ze_now" ] && printf '%s\n' "$_ze_removed" | grep -q -x -F -- "$_ze_now"; then
+  if [ -n "$_ze_now" ] && grep -q -x -F -- "$_ze_now" <<< "$_ze_removed"; then
     rm -f -- "$_ze_path"
   else
-    echo "NOTE: kept $_ze_path: its working-tree copy is not the content this commit removed." >&2
+    echo "NOTE: kept $_ze_path: its working-tree copy is not the content commit $_ze_commit removed, or git could not read it." >&2
+    echo "What it holds is in no commit, so it stays. Delete it, or commit it with ./le commit create. To compare it with what the commit removed, run:" >&2
+    printf '  git show %s:%q | diff - %q\n' "$_ze_commit~1" "$_ze_path" "$_ze_path" >&2
   fi
 done
 rm -f "$_ze_index.gone"

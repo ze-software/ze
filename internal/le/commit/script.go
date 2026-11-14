@@ -612,6 +612,16 @@ func renderSharedIndexRepair(block commitBlock, scriptPath string) string {
 // no commit carries and somebody has to decide about it. The comparison stages
 // into a throwaway index, as renderDriftNote does, so neither the shared index
 // nor the private one is written.
+//
+// The captured lines reach `grep -q` as a here-string, never through a pipe.
+// The script runs under `set -o pipefail`, and `grep -q` exits at its first
+// match: a `printf` still writing the rest of the lines into the pipe then dies
+// of SIGPIPE, and pipefail reads the pipeline as failed although grep matched.
+// The copy was then kept as "not the content this commit removed" while it was
+// byte for byte the removed blob. Commit da39ab438f kept ten of its hundred
+// removed files that way, mostly the ones whose line came early in the
+// capture, since an early match leaves the most of it unwritten. A here-string
+// is written by the shell before grep starts, so no writer is left to die.
 func renderWorkingTreeRemoval(removed []string) string {
 	lines := []string{
 		"# Delete each removed path's working-tree copy that git now holds byte for byte.",
@@ -620,15 +630,19 @@ func renderWorkingTreeRemoval(removed []string) string {
 		`for _ze_path in "${_ze_gone[@]}"; do`,
 		`  if [ ! -e "$_ze_path" ] && [ ! -L "$_ze_path" ]; then continue; fi`,
 		`  if [ -d "$_ze_path" ] && [ ! -L "$_ze_path" ]; then`,
-		`    echo "NOTE: kept $_ze_path: a directory is not the content this commit removed." >&2`,
+		`    echo "NOTE: kept $_ze_path: it is a directory, and commit $_ze_commit removed a file there." >&2`,
+		`    echo "What it holds is in no commit, so it stays. Delete it, or commit it with ./le commit create. To see what it holds, run:" >&2`,
+		`    printf '  ls -la %q\n' "$_ze_path" >&2`,
 		"    continue",
 		"  fi",
 		`  GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs add -f -- "$_ze_path" 2>/dev/null || true`,
 		`  _ze_now=$(GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs ls-files -s -z -- "$_ze_path" | tr '\0' '\n')`,
-		`  if [ -n "$_ze_now" ] && printf '%s\n' "$_ze_removed" | grep -q -x -F -- "$_ze_now"; then`,
+		`  if [ -n "$_ze_now" ] && grep -q -x -F -- "$_ze_now" <<< "$_ze_removed"; then`,
 		`    rm -f -- "$_ze_path"`,
 		"  else",
-		`    echo "NOTE: kept $_ze_path: its working-tree copy is not the content this commit removed." >&2`,
+		`    echo "NOTE: kept $_ze_path: its working-tree copy is not the content commit $_ze_commit removed, or git could not read it." >&2`,
+		`    echo "What it holds is in no commit, so it stays. Delete it, or commit it with ./le commit create. To compare it with what the commit removed, run:" >&2`,
+		`    printf '  git show %s:%q | diff - %q\n' "$_ze_commit~1" "$_ze_path" "$_ze_path" >&2`,
 		"  fi",
 		"done",
 		`rm -f "$_ze_index.gone"`,

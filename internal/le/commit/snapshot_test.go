@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -418,6 +419,107 @@ func TestAModeOnlyDifferenceLeavesTheFile(t *testing.T) {
 	}
 	if !strings.Contains(output, "kept tracked.txt") {
 		t.Fatalf("the run did not name the copy it kept:\n%s", output)
+	}
+}
+
+// TestAnIdenticalCopyEarlyInALargeRemovalIsDeleted removes enough long paths
+// that the captured entry lines (`_ze_removed`) outgrow a pipe's buffer, keeps
+// on disk only the first path in index order, unchanged, and the second,
+// edited, and runs the script.
+//
+// VALIDATES: a copy byte for byte equal to the removed blob is deleted however
+// early its entry line sits in the capture, and a differing copy beside it is
+// still kept and named.
+// PREVENTS: commit da39ab438f, which kept ten identical files of its hundred.
+// The comparison piped the capture from `printf` into `grep -q` under
+// `set -o pipefail`; grep exits at its first match, the printf still writing
+// died of SIGPIPE, and pipefail read the match as a miss. The capture here is
+// far past the 64 KiB a pipe holds and the match is its first line, so the
+// writer always has bytes left when grep exits, and the old pipeline goes red
+// every run rather than by chance.
+// MUTATION: render the comparison as `printf '%s\n' "$_ze_removed" | grep -q
+// -x -F -- "$_ze_now"` again and this goes red on the first path.
+func TestAnIdenticalCopyEarlyInALargeRemovalIsDeleted(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "removal-large-capture-fixture")
+	configureCommitAuthor(t, root)
+	// About 580 bytes per entry line: 256 lines make a capture near 148 KiB.
+	directory := "removed/" + strings.Repeat("d", 180) + "/" + strings.Repeat("e", 180)
+	paths := make([]string, 0, 256)
+	for index := range 256 {
+		number := strconv.Itoa(1000 + index)[1:]
+		path := directory + "/" + number + "-" + strings.Repeat("f", 150) + ".txt"
+		writeCommitFixture(t, root, path, "removed copy "+number+"\n")
+		paths = append(paths, path)
+	}
+	runCommitGit(t, root, "add", "--", "removed")
+	runCommitGit(t, root, "commit", "-q", "-m", "the files to remove")
+	prepared, err := Create(root, &Options{Subject: "remove the long paths", Remove: paths})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identical, edited := paths[0], paths[1]
+	for _, path := range paths[2:] {
+		if err := os.Remove(filepath.Join(root, filepath.FromSlash(path))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeCommitFixture(t, root, edited, "edited after preparation\n")
+	output := runCommitScript(t, root, prepared.Script)
+	if code, _ := gitExit(root, "cat-file", "-e", "HEAD:"+identical); code == 0 {
+		t.Fatalf("the removal did not reach the commit\n%s", output)
+	}
+	if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(identical))); err == nil {
+		t.Fatalf("a copy identical to the removed blob is still on disk\n%s", output)
+	}
+	if strings.Contains(output, "kept "+identical) {
+		t.Fatalf("the run reported an identical copy as kept:\n%s", output)
+	}
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(edited)))
+	if err != nil {
+		t.Fatalf("the differing copy was deleted: %v\n%s", err, output)
+	}
+	if string(content) != "edited after preparation\n" {
+		t.Fatalf("the differing copy changed: %q", content)
+	}
+	if !strings.Contains(output, "kept "+edited) {
+		t.Fatalf("the run did not name the differing copy it kept:\n%s", output)
+	}
+}
+
+// TestAKeptCopyNamesTheCommandThatComparesIt removes tracked.txt after its
+// copy was edited, then runs the command the note prints.
+//
+// VALIDATES: the note for a kept copy ends with an exact command, naming the
+// landed commit, that shows the difference between the copy and the blob the
+// commit removed (ai/rules/user-facing-errors.md: what, why, the command).
+// PREVENTS: a note that says a file was kept and leaves the reader to work out
+// how to judge it.
+func TestAKeptCopyNamesTheCommandThatComparesIt(t *testing.T) {
+	root, prepared := removalFixture(t, "removal-compare-fixture")
+	writeCommitFixture(t, root, "tracked.txt", "edited after preparation\n")
+	output := runCommitScript(t, root, prepared.Script)
+	head := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
+	command := "git show " + head + "~1:tracked.txt | diff - tracked.txt"
+	if !strings.Contains(output, "\n  "+command+"\n") {
+		t.Fatalf("the note does not end with the compare command %q:\n%s", command, output)
+	}
+	compare := exec.CommandContext(t.Context(), "bash", "-c", command)
+	compare.Dir = root
+	// diff exits 1 when the two differ, which is the case here: any other
+	// answer means the command did not run as printed.
+	said, err := compare.CombinedOutput()
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) {
+		t.Fatalf("the compare command did not report a difference: %v:\n%s", err, said)
+	}
+	if exit.ExitCode() != 1 {
+		t.Fatalf("the compare command failed with exit %d:\n%s", exit.ExitCode(), said)
+	}
+	for _, want := range []string{"< tracked", "> edited after preparation"} {
+		if !strings.Contains(string(said), want) {
+			t.Fatalf("the compare command did not show %q:\n%s", want, said)
+		}
 	}
 }
 
