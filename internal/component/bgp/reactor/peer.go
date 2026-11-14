@@ -2106,8 +2106,11 @@ func (p *Peer) shutdownNotify() {
 		return
 	}
 	// Session.teardown returns nil on every path (session_connection.go): a
-	// NOTIFICATION that cannot be written is reported where the write error
-	// exists, by logNotifyErr (session.go, "notification send failed"). There
+	// NOTIFICATION that cannot be written is reported where the cause is
+	// known. A write that failed is logged by logNotifyErr (session.go,
+	// "notification send failed"). A write path another writer held for the
+	// whole wait is reported by the close that follows, under
+	// doctor-bgp-write-path-held (Session.reportWritePathHeld). There
 	// is nothing to branch on here, and a branch that cannot run reads as
 	// coverage of a path nothing takes -- which is the defect this whole spec
 	// was written about.

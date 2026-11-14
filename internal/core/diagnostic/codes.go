@@ -1470,7 +1470,7 @@ var builtinCodes = append([]CodeMeta{
 			"When a NOTIFICATION was due and the write path was held for its whole wait, the peer is not told why the session ended. " +
 			"The usual cause is a peer that stopped reading with its connection open, so a route write to it was blocked. " +
 			"The other cause is a plugin that does not take the events ze delivers to it, which keeps a writer waiting: the peer then connects again only when that plugin drains or stops. " +
-			"Remedy: on the peer, find why its BGP process stopped reading (CPU load, a stalled process). When the peer reads normally, look for a plugin that stopped taking events with `ze show plugin list`.",
+			"Remedy: on the peer, find why its BGP process stopped reading (CPU load, a stalled process). When the peer reads normally, run `ze show doctor`: its plugin rows name a plugin that stopped, crashed, or whose event batches failed or took over 500 ms. A plugin that still holds one batch has no such row until that batch ends.",
 		Examples:     []string{exampleShowDoctor, exampleShowErrors, "ze show bgp peer", "ze show diagnostic doctor-bgp-write-path-held"},
 		RelatedCodes: []string{CodeDoctorBGPPeerNotReading},
 	},

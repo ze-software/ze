@@ -34,7 +34,8 @@ const wedgeHold = 9 * time.Second
 // session reached Established: five seconds, because a loaded machine can
 // take longer than one second to get there, and the expiry then runs with the
 // path free and the test fails on its own precondition. The test waits it out once, and its bound on
-// a wedge is this plus the NOTIFICATION bound and wedgeSlack. PeerSettings
+// a wedge runs from the expiry: what is left of this when the test holds the
+// write path, plus the NOTIFICATION bound and wedgeSlack. PeerSettings
 // carries it directly, so the 480-second floor parsePeerFromTree puts on an
 // operator's value does not apply.
 const wedgeSendHold = 5 * time.Second
@@ -243,12 +244,18 @@ func TestSendHoldExpiryClosesBehindStuckWriter(t *testing.T) {
 	// sendHoldDeadline is zero once the timer expired or was stopped
 	// (stopSendHoldTimerLocked), so non-zero here means the expiry is still to
 	// come and will meet the held write path.
-	require.NotZero(t, p.session.sendHoldDeadline.Load(),
+	expiry := p.session.sendHoldDeadline.Load()
+	require.NotZero(t, expiry,
 		"precondition: the Send Hold Timer expired before the test held the write path, "+
 			"so the expiry ran with the path free and proved nothing about the wedge")
 
-	requirePeerSawClose(t, p, wedgeSendHold+holdExpiryNotifyDeadline+wedgeSlack,
-		"the write path was held, a SendHoldTime before the expiry")
+	// The bound runs from the expiry, as the claim says, and not from here:
+	// the wait is what is left until the timer expires, then the NOTIFICATION
+	// bound and the slack. The deadline read above is final: only a send
+	// moves it (resetSendHoldTimer), under the write path this test holds.
+	untilExpiry := max(time.Until(time.Unix(0, expiry)), 0)
+	requirePeerSawClose(t, p, untilExpiry+holdExpiryNotifyDeadline+wedgeSlack,
+		"the write path was held, "+untilExpiry.String()+" before the Send Hold Timer expiry")
 
 	release()
 	requireRunReturned(t, p, ErrSendHoldTimerExpired)

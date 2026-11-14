@@ -258,9 +258,18 @@ type Session struct {
 	// openMu is held behind that writer for one bounded wait, plus the second
 	// the close gives it to fail and let go (closeClearWait). A writer that
 	// takes the path after the NOTIFICATION went out is a second writer: the
-	// close then waits for it too, once, for no longer than closeWait. A close
-	// of a connection another close has claimed waits no longer than
-	// closeClaimWait, for that close to finish.
+	// close then waits for it too, once, for no longer than closeWait.
+	//
+	// The other terms of the bound are the close's own. A close that gets the
+	// path flushes and drains under it (closeFlushBudget plus closeDrainWait)
+	// and then clears the fields, waiting closeClearWait at most for a writer
+	// that took the path meanwhile. A close of a connection another close has
+	// claimed can first wait closeWait for the path, when the claim was taken
+	// while it waited, and then waits no longer than closeClaimWait for that
+	// close to finish. So a holder that sends a NOTIFICATION and closes holds
+	// openMu no longer than the NOTIFICATION's deadline, plus closeWait, plus
+	// the larger of closeClaimWait and the flush, the drain and
+	// closeClearWait; closeClaimWait is the larger by one closeDrainWait.
 	openMu sync.Mutex
 
 	// transportFailed is guarded by openMu. A failed delayed OPEN write and
@@ -1444,7 +1453,10 @@ func (s *Session) logNotifyErrWithin(conn net.Conn, code message.NotifyErrorCode
 // A busy write path is not logged here, as ceaseAfterPanic does not log it:
 // the sender left its mark (notifyMetBusyPath), and the close that follows
 // logs at ERROR, under its own code, that no NOTIFICATION was sent
-// (reportWritePathHeld). That line is the record, so one fact is logged once.
+// (reportWritePathHeld). That close writes the line whether it closes the
+// socket itself or finds that another close of the connection did
+// (reportUnsentNotification). That line is the record, so one fact is logged
+// once.
 // Every caller closes the connection after the send.
 func (s *Session) logNotifyOutcome(code message.NotifyErrorCode, subcode uint8, err error) {
 	if errors.Is(err, errWritePathBusy) {

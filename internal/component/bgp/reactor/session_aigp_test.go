@@ -127,8 +127,11 @@ func TestAIGPOriginWriteDoesNotDeadlockTeardown(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("originated writer did not enter its export filter")
 	}
-	// closeConn takes session.mu before waiting for writeMu. Hold that exact
-	// first lock while the already-running writer reaches AIGP authorization.
+	// The session's lock order is session.mu and then writeMu. The close no
+	// longer holds session.mu while it waits for the write path
+	// (closeConnWithin), and the order still binds every other holder. Hold
+	// that first lock while the already-running writer reaches AIGP
+	// authorization.
 	session.mu.Lock()
 	locked = true
 	require.NoError(t, remote.Close())

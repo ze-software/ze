@@ -533,8 +533,9 @@ func TestCloseDoesNotWaitTwiceAfterBusyNotification(t *testing.T) {
 
 // TestSecondConnectionOnAReusedSessionCloses proves the close is idempotent per
 // connection and not per session. The first connection is closed behind a held
-// write path, which leaves the connection fields set and the socket marked
-// closed; a second close of it returns at once. A second connection installed
+// write path, which leaves the connection fields set and the claim on its
+// socket in place (socketClosed), the socket closed; a second close of it
+// returns at once, because the claimant has finished. A second connection installed
 // on the same Session, as a passive peer's Accept does, must then be closed by
 // its own close.
 //
@@ -627,7 +628,11 @@ func TestTwoClosesBehindHeldPathReportOnce(t *testing.T) {
 	require.Len(t, coded, 1, "one connection closed behind a held write path logs one line; log:\n%s", sink.String())
 	require.Equal(t, "ERROR", coded[0]["level"])
 	require.LessOrEqual(t, len(writePathHeldFix), report.FixMax, "the bus refuses a longer fix")
-	require.Contains(t, coded[0]["fix"], "ze show doctor", "the fix must name the step for a plugin that takes no events")
+	require.Contains(t, coded[0]["fix"], "ze show doctor", "the fix must name the command whose plugin rows the operator reads")
+	require.Contains(t, coded[0]["fix"], "a plugin that stopped, crashed or is slow to take events",
+		"the fix must name the plugin states the doctor has a row for")
+	require.NotContains(t, coded[0]["fix"], "is not taking its events",
+		"the fix must not state a plugin cause the doctor has no row for")
 }
 
 // TestCloseBehindAGracefulCloseReportsNothing proves a close that meets
@@ -954,4 +959,146 @@ func TestBusyNotificationIsLoggedOnceByTheClose(t *testing.T) {
 	require.Len(t, coded, 1, "log:\n%s", sink.String())
 	require.Equal(t, "ERROR", coded[0]["level"])
 	require.Contains(t, coded[0]["msg"], "no NOTIFICATION was sent to the peer")
+}
+
+// closeGatedSession answers a Session on a closeGatedConn with one KEEPALIVE in
+// its write buffer, so the final flush of a close stays in its Write until the
+// test calls release. No handshake runs and no goroutine reads either end.
+// The release is safe to call more than once and runs at cleanup.
+func closeGatedSession(t *testing.T) (session *Session, gated *closeGatedConn, release func()) {
+	t.Helper()
+
+	server, client := net.Pipe()
+	gated = &closeGatedConn{Conn: server, entered: make(chan struct{}), release: make(chan struct{})}
+	var releaseOnce sync.Once
+	release = func() { releaseOnce.Do(func() { close(gated.release) }) }
+	t.Cleanup(func() {
+		release()
+		_ = client.Close()
+		_ = server.Close()
+	})
+
+	session = NewSession(NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301))
+	session.mu.Lock()
+	session.conn = gated
+	session.bufReader = bufio.NewReaderSize(gated, 65536)
+	session.bufWriter = bufio.NewWriterSize(gated, 16384)
+	session.mu.Unlock()
+	session.writeMu.Lock()
+	_, err := session.bufWriter.Write(message.PackTo(message.NewKeepalive(), nil))
+	session.writeMu.Unlock()
+	require.NoError(t, err)
+	return session, gated, release
+}
+
+// TestBusyNotificationBehindAnotherCloseIsLoggedOnce proves a NOTIFICATION
+// that found the write path held is still logged when the close that follows
+// it closes nothing, because another close of the same connection has the
+// socket. A first close claims the socket and is held in its final flush by a
+// connection whose Write the test gates. The logging sender then finds the
+// path held, and the sender's own close comes after it. That close takes the
+// sender's mark and meets the first close in one of two places: still at work
+// (the claim is held), or finished (no connection is installed).
+//
+// The path is held here by the flushing close itself. The same two exits are
+// reached when a stuck writer held it for the sender and a close that was
+// already waiting took it next; nothing lets a test see a close parked in its
+// wait for the path, so that order cannot be forced.
+//
+// VALIDATES: one ERROR line and one event under doctor-bgp-write-path-held say
+// that no NOTIFICATION was sent, written by the close that took the mark, and
+// both closes return with the socket closed and no connection installed.
+// PREVENTS: a NOTIFICATION that was not sent with no line at all: the sender
+// leaves a busy path to the close, the close that has the socket did not take
+// the mark, and the close that took it returned silent.
+func TestBusyNotificationBehindAnotherCloseIsLoggedOnce(t *testing.T) {
+	tests := []struct {
+		name string
+		// claimantEnded makes the sender's close start after the first close
+		// has finished with the connection.
+		claimantEnded bool
+	}{
+		{name: "the other close still holds the claim", claimantEnded: false},
+		{name: "the other close finished with the connection", claimantEnded: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			report.ResetForTest()
+			t.Cleanup(report.ResetForTest)
+			sink := closeLogSink(t)
+
+			session, gated, release := closeGatedSession(t)
+			conn := session.Conn()
+
+			first := make(chan struct{})
+			go func() {
+				defer close(first)
+				session.closeConn()
+			}()
+			joinOnCleanup(t, first, "the flushing close")
+			select {
+			case <-gated.entered:
+			case <-time.After(runExitDeadline):
+				t.Fatal("precondition: the first close never reached its flush")
+			}
+
+			// The first close took no mark: none was set when it started.
+			session.logNotifyErrWithin(conn, message.NotifyCease,
+				message.NotifyCeaseAdminShutdown, nil, 50*time.Millisecond)
+			require.True(t, session.notifyMetBusyPath.Load(),
+				"precondition: the NOTIFICATION must find the write path held and leave its mark")
+
+			if tt.claimantEnded {
+				release()
+				select {
+				case <-first:
+				case <-time.After(wedgeSlack):
+					t.Fatal("the first close had not returned " + wedgeSlack.String() + " after its flush ended")
+				}
+				require.Nil(t, session.Conn(), "precondition: the first close must have cleared the connection")
+			}
+
+			second := make(chan struct{})
+			go func() {
+				defer close(second)
+				session.closeConn()
+			}()
+			joinOnCleanup(t, second, "the sender's close")
+
+			if !tt.claimantEnded {
+				require.Never(t, func() bool {
+					select {
+					case <-second:
+						return true
+					default:
+						return false
+					}
+				}, closeClaimWait/8, 10*time.Millisecond,
+					"precondition: the sender's close must wait on the first close's claim")
+				release()
+			}
+			select {
+			case <-second:
+			case <-time.After(wedgeSlack):
+				t.Fatal("the sender's close had not returned after " + wedgeSlack.String())
+			}
+			select {
+			case <-first:
+			case <-time.After(wedgeSlack):
+				t.Fatal("the first close had not returned " + wedgeSlack.String() + " after its flush ended")
+			}
+			require.True(t, gated.closed.Load(), "a close returned with the socket still open")
+			require.Nil(t, session.Conn(), "a close returned with the connection still installed")
+			require.False(t, session.notifyMetBusyPath.Load(), "the sender's close must take the mark")
+
+			records := closeLogRecords(t, sink)
+			require.Empty(t, closeRecordsWith(records, "msg", "notification send failed"),
+				"the sender must leave a busy write path to the close's line; log:\n%s", sink.String())
+			coded := closeRecordsWith(records, "code", diagnostic.CodeDoctorBGPWritePathHeld)
+			require.Len(t, coded, 1, "one NOTIFICATION that was not sent is one line; log:\n%s", sink.String())
+			require.Equal(t, "ERROR", coded[0]["level"])
+			require.Contains(t, coded[0]["msg"], "no NOTIFICATION was sent to the peer")
+			require.Len(t, closeHeldPathEvents(), 1, "one NOTIFICATION that was not sent raises one event")
+		})
+	}
 }

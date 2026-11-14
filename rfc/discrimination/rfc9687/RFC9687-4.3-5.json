@@ -3,7 +3,7 @@
     "rid": "RFC9687-4.3-5",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/session_wedge_test.go::TestSendHoldExpiryClosesBehindStuckWriter",
-    "unit-sha": "1a0696e9887a08bd",
+    "unit-sha": "f06cea718c44ff6d",
     "claim-sha": "79d69f8017139157",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_connection.go::dropConn",
