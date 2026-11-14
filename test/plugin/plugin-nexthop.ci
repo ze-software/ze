@@ -4,26 +4,25 @@
 stdin=peer:terminator=EOF_PEER
 # Step 5: commands migrated to bgp peer prefix
 #
-# This file used to quote a ruling of 2026-07-27 saying the marker is ordered
-# only against this speaker's own initial dump, never against routes learned
-# afterwards, and applied it to a PLUGIN-INJECTED route. That application is
-# VOID: the owner ruled on 2026-08-30 that a plugin-injected route DOES belong
-# to this speaker's initial routing update, so the End-of-RIB waits for it
-# (RFC 4724 Section 4, ProcessBinding.MayPushRoutes, peer_initial_sync.go).
-# The sentence stays true where role-otc-unicast-scope.ci and the forward tests
-# use it, because there the route is FORWARDED from another peer and was never
-# part of this speaker's dump.
+# No End-of-RIB position is asserted here, because ze promises none against
+# these routes. A process that creates routes stands where a peer stands (owner
+# ruling, 2026-09-18): ze holds its marker for nobody, so the marker follows
+# ze's own table and has no defined order against a process's announce
+# (docs/architecture/behavior/peer-lifecycle.md, "What the End-of-RIB marker
+# orders, and what it does not", restated by the owner on 2026-11-14). The
+# 2026-09-18 ruling superseded the 2026-08-30 one this file used to quote, that
+# a plugin-injected route belongs to this speaker's initial routing update and
+# the End-of-RIB waits for it: the marker waits for no process.
 #
-# The EOR-position rule stays absent here even so, and this file is not where
-# the new order is proven. The driver (`nexthopRoutes`,
-# internal/test/fixture/plugin_fixture_11.go) sends the seq=1 announce and only
-# then waits for `eor-sent`, so under ruling 1 the marker is owed between seq=1
-# and seq=2. Which frame wins is decided by how fast the plugin announces inside
-# the barrier window rather than by an order Ze publishes, and this file's rule
-# failed 13 of 40 on exactly that (internal/le/test/stressrepro/actions.go). The
-# order ruling 1 makes assertable is asserted where the barrier, not a race,
-# decides it: test/plugin/initial-sync-barrier-raw.ci, whose plugin dispatches
-# `plugin session ready` so the marker is released by the barrier itself.
+# The driver (`nexthopRoutes`, internal/test/fixture/plugin_fixture_11.go)
+# sends the seq=1 announce and only then waits for `eor-sent`, so the marker
+# lands before or after seq=1 as timing decides, and the marker expectation
+# this file once carried failed 13 of 40 on exactly that
+# (internal/le/test/stressrepro/actions.go). The marker beside a route nothing
+# orders is asserted as an unordered pair elsewhere:
+# test/plugin/initial-sync-barrier-raw.ci for a raw route, and
+# test/plugin/initial-sync-marker-beside-process-route.ci for a process's
+# route.
 #
 # The rule's cmd=api documentation line went with it: cmd=api sets Cmd on the
 # message at that conn/seq (internal/test/runner/record_parse.go), so leaving it

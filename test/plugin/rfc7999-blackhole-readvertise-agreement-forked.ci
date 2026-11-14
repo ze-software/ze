@@ -21,6 +21,14 @@
 # announcement nor its withdrawal: C was never advertised it, so the egress
 # reject owes it no withdrawal (RFC 4271 Section 3.1).
 #
+# Each destination's End-of-RIB shares ONE seq group with the routes A sends:
+# all are required, and none is required before another. ze promises no order
+# between its End-of-RIB and a route it forwards from another peer
+# (docs/architecture/behavior/peer-lifecycle.md, "What the End-of-RIB marker
+# orders, and what it does not"), and A sends at session up, so only timing
+# ever put the marker first. C's reject= lines rest on the fence, not on the
+# marker: the fence follows the tagged route on A's one stream.
+#
 # UPDATE 1 (tagged): ORIGIN IGP, AS_PATH [65001], NEXT_HOP 1.1.1.1,
 #   COMMUNITY C00804FFFF029A (65535:666, BLACKHOLE, RFC 7999 Section 2), NLRI 180A0000
 # UPDATE 2 (fence):  same without COMMUNITY, NLRI 180A0001 (10.0.1.0/24)
@@ -42,8 +50,8 @@ option=timeout:value=20s
 option=linger:value=true
 option=asn:value=65002
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FFFF029A
-expect=bgp:conn=1:seq=2:announced=180A0001
+expect=bgp:conn=1:seq=1:announced=180A0000:attribute=8,FFFF029A
+expect=bgp:conn=1:seq=1:announced=180A0001
 EOF_DESTB
 
 # C: bilateral eBGP with no agreement. The tagged route is withheld, and never
@@ -54,7 +62,7 @@ option=timeout:value=20s
 option=linger:value=true
 option=asn:value=65003
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=1:seq=2:announced=180A0001
+expect=bgp:conn=1:seq=1:announced=180A0001
 reject=bgp:conn=1:scope=announced:pattern=180A0000
 reject=bgp:conn=1:scope=withdrawn:pattern=180A0000
 EOF_DESTC
@@ -66,8 +74,8 @@ option=timeout:value=20s
 option=linger:value=true
 option=asn:value=65000
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FFFF029A
-expect=bgp:conn=1:seq=2:announced=180A0001
+expect=bgp:conn=1:seq=1:announced=180A0000:attribute=8,FFFF029A
+expect=bgp:conn=1:seq=1:announced=180A0001
 EOF_DESTD
 
 # E: route-server client: the multilateral case Section 3.1 hands to operator policy; receives it.
@@ -77,8 +85,8 @@ option=timeout:value=20s
 option=linger:value=true
 option=asn:value=65005
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FFFF029A
-expect=bgp:conn=1:seq=2:announced=180A0001
+expect=bgp:conn=1:seq=1:announced=180A0000:attribute=8,FFFF029A
+expect=bgp:conn=1:seq=1:announced=180A0001
 EOF_DESTE
 
 # F: RFC 7705 migration session (PeerSettings.IsIBGP true through MigrationAS), no container; receives it.
@@ -88,8 +96,8 @@ option=timeout:value=20s
 option=linger:value=true
 option=asn:value=65100
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FFFF029A
-expect=bgp:conn=1:seq=2:announced=180A0001
+expect=bgp:conn=1:seq=1:announced=180A0000:attribute=8,FFFF029A
+expect=bgp:conn=1:seq=1:announced=180A0001
 EOF_DESTF
 
 stdin=ze-bgp:terminator=EOF_CONF

@@ -1,0 +1,93 @@
+# Test: a process that pushes one route does not hold ze's End-of-RIB, and the
+#       peer receives both the route and the marker, in either order.
+#
+# The one question: with a route-pushing process attached, does the peer still
+# receive ze's own End-of-RIB for the family, and the process's route, with
+# neither withheld for the other? A unit test over the reactor
+# (TestInitialSyncMarkerWaitsForNoProcess) proves the sync does not wait; only
+# a real session shows both frames reaching the wire from the real entry point,
+# a process announcing through `update text` while the session establishes.
+#
+# ze promises one order only: its own table, then the marker. A process that
+# creates routes stands where a peer stands (owner rulings 2026-09-18 and
+# 2026-11-14, docs/architecture/behavior/peer-lifecycle.md, "What the
+# End-of-RIB marker orders, and what it does not"), so the marker waits for no
+# process and has no order against the process's route. A route pushed while
+# the initial sync is running drains ahead of the marker, one pushed after goes
+# out behind it. The route and the marker therefore share ONE seq group: both
+# are required, and neither is required first
+# (docs/architecture/testing/ci-format.md, "Observer completion barriers").
+#
+# The process (`markerBesideProcessRoute`,
+# internal/test/fixture/register_initial_sync_marker_beside_process_route.go)
+# pushes this one route and nothing else, so no other frame can stand in for
+# either expectation. ze's own table for the peer is empty, so the marker is
+# the sync's marker for an empty table.
+#
+# VALIDATES: spec-eor-treats-route-processes-as-peers AC-1 (functional proof).
+# PREVENTS: a marker held for a route-pushing process (it would arrive late or
+#           never), and a process route lost at establishment.
+# NON-VACUITY: dropping the marker fails the End-of-RIB expectation; dropping
+# the route fails the UPDATE expectation; a marker that waited for the process
+# would still pass this file, which asserts no order, so the no-wait property
+# itself is the unit test's to prove.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# seq=1 is an unordered pair: ze's End-of-RIB for ipv4/unicast and the route.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# UPDATE: ORIGIN IGP, AS_PATH empty, NEXT_HOP 10.0.1.254, LOCAL_PREF 200,
+# NLRI 10.0.1.0/24.
+cmd=api:conn=1:seq=1:text=send bgp * update text origin igp local-preference 200 nhop 10.0.1.254 nlri add 10.0.1.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE400504000000C8180A0001
+EOF_PEER
+
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external announce-routes {
+		run "le test fixture plugin/initial-sync-marker-beside-process-route"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process announce-routes {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

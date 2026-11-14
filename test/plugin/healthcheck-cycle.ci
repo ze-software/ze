@@ -14,8 +14,18 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-# EOR (no routes initially -- watchdog has withdraw=true)
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# ze's End-of-RIB is NOT asserted here. The probe's announce and withdraw are
+# routes of a process, not of ze's own table, and ze promises no order between
+# its End-of-RIB and such a route (docs/architecture/behavior/peer-lifecycle.md,
+# "What the End-of-RIB marker orders, and what it does not"). The probe waits
+# only for the plugins to be ready, so the marker can land before the announce,
+# between the announce and the withdraw, or after both, while the withdraw must
+# follow the announce: no seq grouping says "required, anywhere across two
+# groups". The checker tolerates a marker nobody expects
+# (Checker.expectedOrKeepalive, internal/test/peer/checker.go), so the marker
+# stays allowed anywhere. What this file is named for stays required, in order:
+# the announce, then the withdraw. bgp-healthcheck-probe-reload.ci asserts the
+# marker beside a probe's announce, where its stages script orders the rest.
 # After first probe succeeds: INIT -> UP, announce with med 100.
 # UPDATE: origin igp, as-path [], nhop 1.2.3.4, med 100, local-pref 100, nlri 10.0.0.0/24
 cmd=api:conn=1:seq=1:text=healthcheck probe UP triggers announce

@@ -27,6 +27,13 @@ stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=20s
 option=bind:value=127.0.0.2
+# The End-of-RIB and the forwarded route share ONE seq group: both are
+# required, and neither is required first. ze promises no order between its
+# End-of-RIB and a route it forwards from another peer
+# (docs/architecture/behavior/peer-lifecycle.md, "What the End-of-RIB marker
+# orders, and what it does not"), and the source sends at session up, so only
+# timing ever put the marker first. The two needles below still pop from one
+# message, in order.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # The raw export filter removes this exact attribute from its override. The
 # forwarding guard restores it because the destination is internal.
@@ -41,8 +48,8 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # the export filter's second callback missed the observer's serve loop, ze
 # rejected the duplicate, the second needle met the NOTIFICATION instead, and the
 # fixture went red over a route it had already asserted correct.
-expect=bgp:conn=1:seq=2:ordered=80040400000064
-expect=bgp:conn=1:seq=2:ordered=180A3E00
+expect=bgp:conn=1:seq=1:ordered=80040400000064
+expect=bgp:conn=1:seq=1:ordered=180A3E00
 EOF_DEST
 
 

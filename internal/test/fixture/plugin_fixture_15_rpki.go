@@ -190,8 +190,8 @@ func plugin15RPKIRevalidateRelay(ctx context.Context, p *sdk.Plugin) error {
 	}) {
 		return fmt.Errorf("the destination's first session never came up")
 	}
-	if !plugin15DestinationSettled(ctx, p) {
-		return fmt.Errorf("the UPDATEs sent on the destination's first session never stopped")
+	if err := plugin15DestinationSettled(ctx, p); err != nil {
+		return fmt.Errorf("the destination's first session: %w", err)
 	}
 	if r := plugin15Dispatch(ctx, p, "request peer 127.0.0.2 disable revalidation relay test"); !plugin15Done(r) {
 		return fmt.Errorf("hold the destination down: status=%s data=%s", r.status, r.text())
@@ -221,8 +221,8 @@ func plugin15RPKIRevalidateRelay(ctx context.Context, p *sdk.Plugin) error {
 	}) {
 		return fmt.Errorf("the destination's second session never came up")
 	}
-	if !plugin15DestinationSettled(ctx, p) {
-		return fmt.Errorf("the UPDATEs sent on the destination's second session never stopped")
+	if err := plugin15DestinationSettled(ctx, p); err != nil {
+		return fmt.Errorf("the destination's second session: %w", err)
 	}
 	baseline := plugin15PeerSent(ctx, p)
 	if err := os.WriteFile("rpki-sync.release", nil, 0o600); err != nil {
@@ -267,8 +267,8 @@ func plugin15RPKIPendingWithdrawRelay(ctx context.Context, p *sdk.Plugin) error 
 	}) {
 		return fmt.Errorf("the destination's session never came up")
 	}
-	if !plugin15DestinationSettled(ctx, p) {
-		return fmt.Errorf("the UPDATEs sent on the destination's session never stopped")
+	if err := plugin15DestinationSettled(ctx, p); err != nil {
+		return fmt.Errorf("the destination's session: %w", err)
 	}
 	baseline := plugin15PeerSent(ctx, p)
 	if err := os.WriteFile("source.go", nil, 0o600); err != nil {
@@ -288,8 +288,8 @@ func plugin15RPKIPendingWithdrawRelay(ctx context.Context, p *sdk.Plugin) error 
 	if count := plugin15RPKICount(ctx, p); count != 0 {
 		return fmt.Errorf("the VRP count before release is %v, not 0, so this run does not hold the routes for RPKI", count)
 	}
-	if !plugin15DestinationSettled(ctx, p) {
-		return fmt.Errorf("the UPDATEs sent to the destination after the source UPDATEs never stopped")
+	if err := plugin15DestinationSettled(ctx, p); err != nil {
+		return fmt.Errorf("after the source UPDATEs: %w", err)
 	}
 	if sent := plugin15PeerSent(ctx, p); sent != baseline {
 		return fmt.Errorf("the destination was sent %v UPDATEs for paths RPKI still held, want none", sent-baseline)
@@ -306,8 +306,8 @@ func plugin15RPKIPendingWithdrawRelay(ctx context.Context, p *sdk.Plugin) error 
 	if !Poll(ctx, 30, 500*time.Millisecond, func() bool { return plugin15PeerSent(ctx, p) > baseline }) {
 		return fmt.Errorf("the destination never received the revalidated fence path %s", fence)
 	}
-	if !plugin15DestinationSettled(ctx, p) {
-		return fmt.Errorf("the UPDATEs sent to the destination after the cache release never stopped")
+	if err := plugin15DestinationSettled(ctx, p); err != nil {
+		return fmt.Errorf("after the cache release: %w", err)
 	}
 	if sent := plugin15PeerSent(ctx, p); sent != baseline+1 {
 		return fmt.Errorf("the destination was sent %v UPDATEs after the cache release, want 1, the fence %s alone", sent-baseline, fence)
@@ -335,9 +335,26 @@ func plugin15AssertRouteAbsent(ctx context.Context, p *sdk.Plugin, prefix, label
 	return fmt.Errorf("%s is still in adj-rib-in %s: %v", prefix, label, last)
 }
 
-// plugin15DestinationSettled reports whether the destination's UPDATE and
-// End-of-RIB counters held still for one second, within 20 seconds.
-func plugin15DestinationSettled(ctx context.Context, p *sdk.Plugin) bool {
+// plugin15DestinationSettled waits until ze has counted its End-of-RIB sent on
+// the destination's current session, within 30 seconds, and then until the
+// destination's UPDATE and End-of-RIB counters hold still for one second,
+// within 20 seconds. The error names the wait that did not hold.
+//
+// The marker wait comes first because quiet alone proves nothing about it: the
+// counters can hold still before ze writes the marker, and a caller that then
+// disables the session would tear down a connection whose ze-peer still expects
+// that marker. Ze promises no order between its marker and a route that is not
+// of its own table, so the marker is not a fence for any route here; it is only
+// the frame each destination ze-peer requires before the scenario moves on.
+// The counter is per session (Peer.ClearStats zeroes it), so after the
+// caller's connections-established wait, one marker is this session's marker.
+// Every caller's destination carries one family, so one marker is all of them.
+func plugin15DestinationSettled(ctx context.Context, p *sdk.Plugin) error {
+	if !Poll(ctx, 60, 500*time.Millisecond, func() bool {
+		return plugin15PeerCount(ctx, p, "destination", "127.0.0.2", "eor-sent") >= 1
+	}) {
+		return fmt.Errorf("ze never counted its End-of-RIB sent to the destination")
+	}
 	read := func() [2]float64 {
 		return [2]float64{
 			plugin15PeerCount(ctx, p, "destination", "127.0.0.2", "updates-sent"),
@@ -345,12 +362,15 @@ func plugin15DestinationSettled(ctx context.Context, p *sdk.Plugin) bool {
 		}
 	}
 	last := read()
-	return Poll(ctx, 20, time.Second, func() bool {
+	if !Poll(ctx, 20, time.Second, func() bool {
 		now := read()
 		settled := now == last
 		last = now
 		return settled
-	})
+	}) {
+		return fmt.Errorf("the UPDATEs sent to the destination never stopped")
+	}
+	return nil
 }
 
 // plugin15PeerSent counts the UPDATEs ze sent the destination, End-of-RIB excluded.

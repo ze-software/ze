@@ -2,10 +2,16 @@
 # Tests the MCP server integration: ze start --mcp, le test mcp sends commands,
 # ze-peer validates the resulting BGP wire messages.
 
-# ze-peer expectations: EOR then one UPDATE with 10.0.0.0/24
+# ze-peer expectations: ze's End-of-RIB and one UPDATE with 10.0.0.0/24, in ONE
+# seq group: both are required, and neither is required first. The route comes
+# from an MCP command, not from ze's own table, and ze promises no order between
+# its End-of-RIB and such a route (docs/architecture/behavior/peer-lifecycle.md,
+# "What the End-of-RIB marker orders, and what it does not"). wait-established
+# waits for the session only, so a command that lands during the initial sync
+# is queued and drains ahead of the marker, and only timing ever put it after.
 stdin=peer:terminator=EOF_PEER
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003046501650140050400000064180a0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003046501650140050400000064180a0000
 EOF_PEER
 
 # MCP commands: wait for session, then announce a route via ze_execute dispatch

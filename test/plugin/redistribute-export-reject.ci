@@ -34,6 +34,14 @@ EOF_PEER
 # (internal/test/peer/reject.go) prints the success token BEFORE it enters the
 # linger loop, and failedCheckPeers (internal/test/runner/peer_contract.go) reads
 # that token, so a rejection the linger loop finds overrides the earlier success.
+#
+# peer2's End-of-RIB and the fence share ONE seq group: both are required, and
+# neither is required first. ze promises no order between its End-of-RIB and a
+# route it forwards from another peer (docs/architecture/behavior/peer-lifecycle.md,
+# "What the End-of-RIB marker orders, and what it does not"), and peer1 sends at
+# session up, so only timing ever put the marker first. The marker is no fence
+# for the rejection: the fence route is, and it still follows the subject route
+# on peer1's one stream.
 stdin=peer2:terminator=EOF_PEER2
 option=tcp_connections:value=1
 option=timeout:value=15s
@@ -41,7 +49,7 @@ option=linger:value=true
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # peer2 was never advertised 10.0.0.0/24, so it is owed no withdrawal either
 # (RFC 4271 Section 3.1: only a previously advertised route is withdrawn).
-expect=bgp:conn=1:seq=2:announced=180A0900
+expect=bgp:conn=1:seq=1:announced=180A0900
 reject=bgp:conn=1:scope=announced:pattern=180A0000
 reject=bgp:conn=1:scope=withdrawn:pattern=180A0000
 EOF_PEER2

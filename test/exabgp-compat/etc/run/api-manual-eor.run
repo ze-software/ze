@@ -2,7 +2,21 @@
 
 import time
 
-from exabgp_api import send, wait_for_ack, wait_for_shutdown
+from exabgp_api import counters, send, wait_for_ack, wait_for_shutdown
+
+# What this proves: on a manual-eor peer, an End-of-RIB the script asks for
+# through the ExaBGP bridge reaches the peer, whenever the request lands. It
+# waits for the session to be up rather than sleeping, but it does NOT place the
+# request inside Ze's initial sync: the bridge acknowledges the peer-up event
+# once it has written the line to this script's stdin (Bridge.handleDeliverEvent,
+# internal/exabgp/bridge/bridge.go), so the sync can finish before the request
+# arrives, and usually does. The marker's bytes are the same whoever asked for
+# it, so this test cannot tell the requested marker from an automatic one
+# either. The request made during the sync, with the gate closed, is proven by
+# test/plugin/api-eor-during-initial-sync.ci and
+# TestExplicitEndOfRIBDuringSyncFollowsQueuedRoutes; that a manual-eor peer gets
+# only the requested marker is TestManualEORPeerReceivesOnlyTheRequestedMarker.
+UP_TIMEOUT = 20.0
 
 
 def main() -> None:
@@ -12,7 +26,8 @@ def main() -> None:
         'announce eor ipv4 unicast',
     ]
 
-    time.sleep(1)
+    if not wait_for_ack(expected_count=0, timeout=UP_TIMEOUT, state=(('up', 1),)):
+        raise SystemExit(f'the session never came up, saw {counters()}')
 
     for message in messages:
         send(message)

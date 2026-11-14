@@ -7,9 +7,11 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -96,6 +98,7 @@ func init() {
 		}, StopsDaemon)
 	}
 	Register("plugin/plugin-check", fixture10PluginCheck, StopsDaemon)
+	Register("plugin/api-eor-during-initial-sync", fixture10EORDuringInitialSync, StopsDaemon)
 }
 
 func fixture10Observe(ctx context.Context, driver *fixture10Driver) error {
@@ -886,6 +889,116 @@ func fixture10PluginAnnounce(ctx context.Context, plugin *sdk.Plugin, initialRep
 		return err
 	}
 	return fixture10Quiesce(ctx, plugin)
+}
+
+// fixture10PeerUpRequestBound bounds the two requests the peer-UP handler of
+// fixture10EORDuringInitialSync makes. It stays under the engine's 5 s event
+// delivery timeout (defaultDeliveryTimeout, plugin/process/delivery.go): past
+// that the engine stops waiting for the handler, starts the initial sync, and
+// a request still in flight could land after the sync, so the handler gives up
+// first and the test fails instead of passing on the wrong timing.
+const fixture10PeerUpRequestBound = 4 * time.Second
+
+// fixture10EORDuringInitialSync announces one route and asks for the IPv4
+// unicast End-of-RIB from INSIDE its handler for the peer-UP event, and
+// returns from the handler only once both requests are answered.
+//
+// That places both requests inside the peer's initial sync with the queueing
+// gate closed, every run. Peer.enterEstablished closes the gate
+// (Session.sendingInitialRoutes) before it publishes Established. The peer-UP
+// event is then delivered on the FSM callback goroutine (announceEstablished,
+// deliverPeerState in bgp/server/events.go), which waits for each process to
+// acknowledge, and the SDK acknowledges a delivery only after the handler
+// returns (sdk.Plugin.OnEvent). Only after that does the same goroutine start
+// the initial sync (startInitialRoutes in Peer's FSM callback), and the gate
+// opens at the end of that sync (drainAndCloseQueueGate). So the announce is
+// queued for the sync to drain, and the End-of-RIB request meets a peer whose
+// sync has not even started.
+//
+// It then waits for the peer's eor-sent counter, which only a marker that
+// reached the socket raises: on a `manual-eor` peer the requested marker is
+// the only one Ze may send, so a request dropped during the sync leaves the
+// counter at zero and the fixture fails.
+func fixture10EORDuringInitialSync(ctx context.Context, _ []string) error {
+	requested := make(chan error, 1)
+	var once sync.Once
+	setup := func(plugin *sdk.Plugin) error {
+		plugin.SetStartupSubscriptions([]string{eventState}, nil, "")
+		plugin.OnEvent(func(event string) error {
+			up, err := fixture10IsPeerUp(event, netip.MustParseAddr("127.0.0.1"))
+			if err != nil {
+				return err
+			}
+			if !up {
+				return nil
+			}
+			once.Do(func() {
+				requestCtx, cancel := context.WithTimeout(ctx, fixture10PeerUpRequestBound)
+				defer cancel()
+				requested <- fixture10RouteThenEOR(requestCtx, plugin)
+			})
+			return nil
+		})
+		return nil
+	}
+	return observeConfigured(ctx, pluginNameAddRemove, &sdk.Registration{}, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
+		timer := time.NewTimer(10 * time.Second)
+		defer timer.Stop()
+		select {
+		case err := <-requested:
+			if err != nil {
+				return fmt.Errorf("requests made inside the peer-UP handler: %w", err)
+			}
+		case <-timer.C:
+			return errors.New("peer 127.0.0.1 UP event not received, so no request was made inside the initial sync")
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
+			return err
+		}
+		return fixture10Quiesce(ctx, plugin)
+	})
+}
+
+// fixture10RouteThenEOR announces the route the peer expects first, then asks
+// for the IPv4 unicast End-of-RIB, each answered before the next is sent.
+func fixture10RouteThenEOR(ctx context.Context, plugin *sdk.Plugin) error {
+	for _, command := range []string{cmdAnnounceFirstPrefix, "update text nlri eor"} {
+		if err := fixture10Update(ctx, plugin, "*", command); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// fixture10IsPeerUp reports whether event is the state event saying the peer
+// at remote reached Established. An event that does not decode is an error:
+// it says nothing about whether the peer came up.
+func fixture10IsPeerUp(event string, remote netip.Addr) (bool, error) {
+	var envelope struct {
+		BGP struct {
+			Message struct {
+				Type string `json:"type"`
+			} `json:"message"`
+			Peer struct {
+				Remote struct {
+					Address netip.Addr `json:"address"`
+				} `json:"remote"`
+			} `json:"peer"`
+			State string `json:"state"`
+		} `json:"bgp"`
+	}
+	if err := json.Unmarshal([]byte(event), &envelope); err != nil {
+		return false, fmt.Errorf("decode state event: %w", err)
+	}
+	if envelope.BGP.Message.Type != eventState {
+		return false, nil
+	}
+	if envelope.BGP.State != "up" {
+		return false, nil
+	}
+	return envelope.BGP.Peer.Remote.Address == remote, nil
 }
 
 // fixture10SessionReady MUST receive the original peer-UP receipt captured before

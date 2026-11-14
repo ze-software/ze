@@ -23,30 +23,26 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=15s
-# Group seq=1 -- the establishment phase: the EOR plus the four announced
-# covering prefixes, as ONE unordered group. No route is present at startup
-# (both AS112 update blocks carry watchdog withdraw=true), so the four routes
-# appear only once the first probe check succeeds (sentinel present, INIT -> UP).
+# Group seq=1 -- the four announced covering prefixes, as ONE unordered group.
+# No route is present at startup (both AS112 update blocks carry watchdog
+# withdraw=true), so the four routes appear only once the first probe check
+# succeeds (sentinel present, INIT -> UP).
 #
-# EOR and announce are deliberately NOT ordered against each other. RFC 4724
-# Section 2 defines the EOR marker as signalling "the completion of the initial
-# routing update", so routes legitimately precede it; nothing requires the EOR
-# first. Which side of the EOR the announces land on depends on when the
-# 1-second probe completes relative to session establishment:
-# reactor/peer_run.go Peer.runOnce sets sendingInitialRoutes BEFORE notifying
-# plugins, so a watchdog announce raised from the state=up callback is queued
-# (reactor/peer.go Peer.ShouldQueue) and drained by the operation-queue loop in
-# reactor/peer_initial_sync.go Peer.sendInitialRoutes -- which runs BEFORE that
-# function's EOR loop -- while a probe that fires later is drained by the same
-# function's post-EOR loop instead. Both are correct; asserting either would be
-# asserting on scheduling. test/plugin/healthcheck-cycle.ci, the model this test
-# follows, groups them the same way.
+# ze's End-of-RIB markers are NOT asserted. The probe's announces and withdraws
+# are routes of a process, not of ze's own table, and ze promises no order
+# between its End-of-RIB and such a route (docs/architecture/behavior/
+# peer-lifecycle.md, "What the End-of-RIB marker orders, and what it does
+# not"). The probe waits only for the plugins to be ready, so a marker can land
+# before the announces, between them and the withdraws, or after both, while
+# the withdraws must follow the announces: no seq grouping says "required,
+# anywhere across two groups". The checker tolerates a marker nobody expects
+# (Checker.expectedOrKeepalive, internal/test/peer/checker.go), so the markers
+# stay allowed anywhere. test/plugin/healthcheck-cycle.ci, the model this test
+# follows, drops its marker expectation the same way.
 #
-# 5 messages: 1 EOR + 4 entries (2 ipv4 covering /24s + 2 ipv6 covering /48s).
-# The 4 announces are unordered among themselves too (pool iteration order is
-# not deterministic).
-cmd=api:conn=1:seq=1:text=EOR + healthcheck probe UP triggers watchdog announce as112 med 100
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# 4 messages: 2 ipv4 covering /24s + 2 ipv6 covering /48s, unordered among
+# themselves (pool iteration order is not deterministic).
+cmd=api:conn=1:seq=1:text=healthcheck probe UP triggers watchdog announce as112 med 100
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C0AF30
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C01FC4
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0052020000003B800E1C000201102001000000000000000000000000000100302620004F8000400101004002008004040000006440050400000064C00804FFFFFF01

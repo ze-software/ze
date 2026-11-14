@@ -15,12 +15,21 @@
 # 4. a second route to A fences U3 (10.0.2.0/24) behind B's receipt of U2;
 #    B receives it with 65000:2. U3 closes the window: B reads in order, so
 #    every UPDATE sent to B between the reload and U3 is one B asserts on.
-# What B asserts, on the whole frame (hex), never on one NLRI in it:
-# - seq=3 is U2 alone carrying 65000:2: the next UPDATE sent after the reload
+# B's End-of-RIB and U1 share seq=1: both are required, and neither is required
+# first. A sends U1 at session up and ze forwards it, and ze promises no order
+# between its End-of-RIB and a route it forwards from another peer
+# (docs/architecture/behavior/peer-lifecycle.md, "What the End-of-RIB marker
+# orders, and what it does not"), so only timing ever put the marker first.
+# b-first is written once both have arrived, so the reload still follows U1.
+# A's own End-of-RIB is required before the stages script sends A its first
+# route: a route pushed while A's initial sync is still running drains ahead of
+# that marker, and A's seq=1 and seq=2 would then arrive the other way round.
+# What B asserts after seq=1, on the whole frame (hex), never on one NLRI in it:
+# - seq=2 is U2 alone carrying 65000:2: the next UPDATE sent after the reload
 #   carries the edited tag (AC-1, export side).
-# - seq=4 is U3 alone. A re-send of U1 that reaches B before U3, as its own
+# - seq=3 is U3 alone. A re-send of U1 that reaches B before U3, as its own
 #   UPDATE or packed with U2 or U3 (ze packs NLRIs that share their attributes
-#   into one UPDATE, which is legal), changes the seq=3 or the seq=4 frame. An
+#   into one UPDATE, which is legal), changes the seq=2 or the seq=3 frame. An
 #   `announced=` check would pass the packed form, so the frames are exact.
 #   When a re-advertising reload would queue its re-send is not known: no such
 #   reload exists, so "before U3" is an assumption about it, not an observation.
@@ -29,7 +38,7 @@
 #   is matched against the frame bytes (optionally scoped to the announced or
 #   withdrawn NLRI) with no attribute= qualifier (internal/test/peer/reject.go),
 #   so no rule can refuse "10.0.0.0/24 carrying 65000:2" without also refusing
-#   the legitimate U1 at seq=2. spec-bgp-export-policy-reload-readvertise
+#   the legitimate U1 at seq=1. spec-bgp-export-policy-reload-readvertise
 #   records the tooling need.
 # Frame of U2 at B: ORIGIN IGP, AS_PATH [65000 65001], NEXT_HOP 1.1.1.1,
 # COMMUNITY 65000:2 (extended-length flag set), NLRI 10.0.1.0/24; U3 the same
@@ -44,12 +53,13 @@
 #
 # DISCRIMINATION: the tag half: with newCommunityConfigTx().Register(p)
 # replaced by p.OnConfigure(newCommunityConfigTx().Configure), U2 reaches B with
-# 65000:1 and seq=3 fails. The no-re-send half: in two draft copies where A
-# sends U1 again after the reload, ze forwards it to B tagged 65000:2 (the frame
-# a re-send would be). Sent before U2 in one draft and between U2 and U3 in the
-# other, both failed at seq=3, because ze packed the second U1 with U2 into one
-# UPDATE (observed). No draft was observed failing at seq=4, so the seq=4 frame
-# check has no recorded red.
+# 65000:1 and U2's frame check fails. The no-re-send half: in two draft copies
+# where A sends U1 again after the reload, ze forwards it to B tagged 65000:2
+# (the frame a re-send would be). Sent before U2 in one draft and between U2 and
+# U3 in the other, both failed at U2's frame check, because ze packed the
+# second U1 with U2 into one UPDATE (observed). No draft was observed failing
+# at U3's frame check, so it has no recorded red. Those runs predate the shared
+# seq=1 group, when U2 sat at seq=3 and U3 at seq=4; the frames are unchanged.
 #
 # U1: ORIGIN IGP, AS_PATH [65001], NEXT_HOP 1.1.1.1, NLRI 10.0.0.0/24
 # U2: U1 with NLRI 10.0.1.0/24
@@ -75,12 +85,12 @@ option=timeout:value=50s
 option=linger:value=true
 option=asn:value=65002
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FDE80001
-action=rewrite:conn=1:seq=2:source=marker.txt:dest=b-first
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040020A02020000FDE80000FDE940030401010101D0080004FDE80002180A0001
-action=rewrite:conn=1:seq=3:source=marker.txt:dest=b-second
-expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040020A02020000FDE80000FDE940030401010101D0080004FDE80002180A0002
-action=rewrite:conn=1:seq=4:source=marker.txt:dest=b-third
+expect=bgp:conn=1:seq=1:announced=180A0000:attribute=8,FDE80001
+action=rewrite:conn=1:seq=1:source=marker.txt:dest=b-first
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040020A02020000FDE80000FDE940030401010101D0080004FDE80002180A0001
+action=rewrite:conn=1:seq=2:source=marker.txt:dest=b-second
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040020A02020000FDE80000FDE940030401010101D0080004FDE80002180A0002
+action=rewrite:conn=1:seq=3:source=marker.txt:dest=b-third
 EOF_DESTB
 
 tmpfs=marker.txt:terminator=EOF_MARKER
@@ -90,6 +100,7 @@ EOF_MARKER
 tmpfs=stages.script:terminator=EOF_SCRIPT
 await-file b-first
 reload config2.conf
+has show bgp peer 127.0.0.1 detail => "eor-sent":1,
 route 127.0.0.1 update text nhop 10.0.0.1 nlri add 192.168.1.0/24
 await-file b-second
 route 127.0.0.1 update text nhop 10.0.0.1 nlri add 192.168.2.0/24

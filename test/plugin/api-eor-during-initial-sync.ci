@@ -1,0 +1,95 @@
+# An End-of-RIB a process asks for during the initial sync reaches a
+# manual-eor peer, after the route the process announced.
+#
+# QUESTION:  does a peer with `behavior { manual-eor true }` receive the
+#            End-of-RIB a process asks for as soon as the session comes up,
+#            behind the route the same process announced just before it?
+#            A unit test drives announceEOR against a hand-built session; only
+#            the real daemon proves the path from a process's `update text nlri
+#            eor` through the plugin protocol and the forward queue to the wire.
+# VALIDATES: AC-5 and AC-6 of spec eor-treats-route-processes-as-peers. The
+#            fixture (plugin/api-eor-during-initial-sync) sends the announce
+#            and the marker request from INSIDE its peer-UP handler and returns
+#            only once both are answered. Ze closes the peer's queueing gate
+#            before it publishes Established, delivers the peer-UP event on the
+#            FSM goroutine and waits for the handler to return, and only then
+#            starts the initial sync; so both requests land with the gate
+#            closed, every run (the producers are named in the fixture's doc
+#            comment). The peer requires the route, then the marker. The
+#            fixture then waits for the peer's eor-sent counter, which only a
+#            marker that reached the socket raises, and fails when it stays at
+#            zero. The reject below fails the run when the engine gave up on
+#            the handler (a delivery error or its 5 s timeout), because the
+#            sync may then have started before the requests landed.
+# PREVENTS:  the requested marker dropped while the sync runs and answered as
+#            sent: on a manual-eor peer the sync withholds its own marker, so
+#            the peer then never receives one, seq=2 is never met and the
+#            fixture's eor-sent wait fails
+#            (plan/journal/guard-addition-drops-what-it-refuses.md, 2026-11-14).
+#            That EXACTLY one marker is written is proven by
+#            TestManualEORPeerReceivesOnlyTheRequestedMarker, not here: this
+#            peer tolerates a marker nobody expects.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+# Keep the session alive until the fixture has seen eor-sent and quiesced.
+option=linger:value=true
+cmd=api:conn=1:seq=1:text=update text nhop 101.1.101.1 nlri add 1.1.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
+cmd=api:conn=1:seq=2:text=update text nlri eor
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external add-remove {
+		run "le test fixture plugin/api-eor-during-initial-sync"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart
+			}
+		}
+		behavior {
+			group-updates disable
+			manual-eor true
+		}
+
+		attach process add-remove {
+			send [ update ]
+			# The peer-UP event starts the fixture's requests.
+			receive [ state ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
+# The engine stopped waiting for the fixture's peer-UP handler: the requests
+# may then have landed after the initial sync started, so this run proves
+# nothing about the closed gate.
+reject=stderr:pattern=OnPeerStateChange write failed
