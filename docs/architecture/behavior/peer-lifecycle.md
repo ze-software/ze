@@ -304,8 +304,12 @@ What IS ordered around the sync is route correctness, not the marker. While
 the session's queueing gate is closed, a forwarded UPDATE is parked behind the
 peer's own queued operations (`forwardOrderHold`), and while a replay is owed,
 a live change is parked behind the replayed routes (the replay fence), so a
-withdrawal never overtakes the announcement it takes back. One End-of-RIB per
-family per session still holds across the sync and the API (`claimInitialSyncEOR`).
+withdrawal never overtakes the announcement it takes back.
+
+The sync and a plugin's replay share one marker per family per session: the
+first to claim the family sends it and the other stands down
+(`claimInitialSyncEOR`). An End-of-RIB a process asks for explicitly is that
+process's own marker and is written each time it asks, as ExaBGP does.
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go — sendInitialRoutes -->
 <!-- source: internal/component/bgp/reactor/peer.go — forwardOrderHold, raiseReplayFence -->
 
