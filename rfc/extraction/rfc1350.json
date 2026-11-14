@@ -50,7 +50,7 @@
       "id": "5",
       "sites": 5,
       "disposition": "walked",
-      "reason": "TFTP Packets. The wire-format section and the largest site cluster: five of the document's ten modal sentences sit here. Two are mapped (5:1 netascii translation, 5:2 octet round-trip identity) and three are excluded (5:3 mail mode, 5:4 the DEC-20 special-mode example, 5:5 the caution on defining new modes). Two further gated rows are read from indicative sentences of this section and declared unsourced below. RFC1350-5-3, the zero-length final DATA block, is read from 'The data field is from zero to 512 bytes long. If it is 512 bytes long, the block is not the last block of data; if it is from zero to 511 bytes long, it signals the end of the transfer.' RFC1350-2-3, the Sorcerer's Apprentice fix, is read from 'All packets other than duplicate ACK's and those used for termination are acknowledged unless a timeout occurs [4].' That sentence is the only place RFC 1350 states the duplicate-ACK exception the 1992 revision was written to add, and it carries no modal; the id names section 2 because rfc/short/rfc1350.md cites the overview and RFC 1123 Section 4.2, so the row is homed here on the section the sentence is in rather than on the section its id spells. The opcode table, the four packet figures, the case-insensitive mode string, the block-number and data-length rules of the DATA figure, and the ERROR packet's human-readable message (advisory, RFC1350-5-4) complete the section.",
+      "reason": "TFTP Packets. The wire-format section and the largest site cluster: five of the document's ten modal sentences sit here. Two are mapped (5:1 netascii translation, 5:2 octet round-trip identity) and three are excluded (5:3 mail mode, 5:4 the DEC-20 special-mode example, 5:5 the caution on defining new modes). Two further gated rows are read from indicative sentences of this section and declared unsourced below. RFC1350-5-3, the zero-length final DATA block, is read from 'The data field is from zero to 512 bytes long. If it is 512 bytes long, the block is not the last block of data; if it is from zero to 511 bytes long, it signals the end of the transfer.' RFC1350-2-3, the Sorcerer's Apprentice fix, is read from 'All packets other than duplicate ACK's and those used for termination are acknowledged unless a timeout occurs [4].' That sentence is the only place RFC 1350 states the duplicate-ACK exception the 1992 revision was written to add, and it carries no modal; the id names section 2 because the row once cited the overview and RFC 1123 Section 4.2; since f4a4cea195 rfc/short/rfc1350.md quotes this sentence and cites section 5, and the id keeps its old spelling (rfc/corrections/rfc1350.md, 2026-11-14), so the row is homed here on the section the sentence is in rather than on the section its id spells. The opcode table, the four packet figures, the case-insensitive mode string, the block-number and data-length rules of the DATA figure, and the ERROR packet's human-readable message (advisory, RFC1350-5-4) complete the section.",
       "unsourced-ids": [
         "RFC1350-2-3",
         "RFC1350-5-3"
@@ -81,7 +81,7 @@
       "quote": "Each data packet contains one block of data, and must be acknowledged by an acknowledgment packet before the next packet can be sent.",
       "disposition": "mapped",
       "mapped-to": "RFC1350-2-2",
-      "reason": "The lockstep obligation, captured verbatim as RFC1350-2-2 at [MUST]. Ze meets it in sendAndWaitACK (internal/plugins/tftpserver/handler.go), which returns to serveFile only on an ACK whose opcode is opACK and whose block number equals the block just sent, so the next DATA is never written before the previous one is acknowledged. The row carries positive and negative tags."
+      "reason": "The lockstep obligation, captured verbatim as RFC1350-2-2 at [MUST]. Ze meets it in serveFile and windowSender.awaitACK (internal/plugins/tftpserver/window_send.go). serveFile sends the next window only after awaitACK returns an ACK (opcode tftp.OpACK, placed by windowPosition) of a block in the window just sent; a duplicate or stale ACK draws nothing. A transfer that negotiates no RFC 7440 windowsize option has a window of one block (grantWindowsize, handler.go), so the next DATA is never written before the previous one is acknowledged. The row carries positive and negative tags."
     },
     {
       "id": "3:1",
@@ -130,14 +130,14 @@
       "quote": "The host sending the last DATA must retransmit it until the packet is acknowledged or the sending host times out.",
       "disposition": "mapped",
       "mapped-to": "RFC1350-6-1",
-      "reason": "The last-DATA retransmission obligation, captured verbatim as RFC1350-6-1 at [MUST]. Ze meets it in sendAndWaitACK (internal/plugins/tftpserver/handler.go), whose loop rewrites the same DATA on every ackTimeout expiry up to maxRetransmit before giving up, and the final DATA reaches that loop through the same serveFile call as every other block. The row is annotated {single-polarity: positive}."
+      "reason": "The last-DATA retransmission obligation, captured verbatim as RFC1350-6-1 at [MUST]. Ze meets it in serveFile (internal/plugins/tftpserver/window_send.go): each time windowSender.awaitACK reaches the transfer timeout (ackTimeout, or the RFC 2349 timeout the client negotiated) with no ACK of the window, serveFile sends the window again from the block after the last one acknowledged, up to maxRetransmit times, then gives up. The final DATA is sent through the same loop as every other block. The row carries positive and negative tags."
     },
     {
       "id": "7:1",
       "quote": "Timeouts must also be used to detect errors.",
       "disposition": "mapped",
       "mapped-to": "RFC1350-7-1",
-      "reason": "The timeout obligation, captured verbatim as RFC1350-7-1 at [MUST]. Ze meets it in sendAndWaitACK (internal/plugins/tftpserver/handler.go), which arms a read deadline of ackTimeout before every ACK read and abandons the transfer after maxRetransmit expiries, so a lost ERROR packet or a vanished client is detected by timeout rather than by an acknowledgment that never comes. The row is annotated {single-polarity: positive}."
+      "reason": "The timeout obligation, captured verbatim as RFC1350-7-1 at [MUST]. Ze meets it in windowSender.awaitACK and serveFile (internal/plugins/tftpserver/window_send.go): awaitACK arms a read deadline of the transfer timeout before it reads the ACKs of a window and answers errNoACK when it expires, and serveFile abandons the transfer once maxRetransmit retransmissions draw no ACK, so a vanished client is detected by timeout rather than by an acknowledgment that never comes. sendAndWaitACK (handler.go) does the same for the OACK and its ACK 0. The row carries positive and negative tags."
     },
     {
       "id": "I:1",
