@@ -35,7 +35,7 @@ const oneCICommandTimeout = "3000s"
 // repository path, through the suite `test qemu all` gives its directory.
 //
 // binaries is the checkout-relative directory holding the cross-built `ze`,
-// `ze-stripped` and `ze-stripped-flow` for goarch; the test harness is the guest le that `docker-lab
+// `ze-stripped`, `ze-stripped-flow` and `ze-upgrade` for goarch; the test harness is the guest le that `docker-lab
 // harness` builds at GuestLeRel. Both are relative because that branch runs the
 // command from the checkout it binds at GuestWorkspace.
 func OneCICommand(binaries, file, goarch string) string {

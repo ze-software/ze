@@ -103,14 +103,17 @@ var actions = leaction.New(area,
 		Why: "boot an Alpine Linux guest, share this checkout, install the requested" +
 			" packages, and run one command over SSH. The host process owns the ISO" +
 			" cache, QEMU lifecycle, bounded waits, and cleanup",
-		Parameters: runParameters,
-		AnswerArgs: runQEMUHere,
+		// admitQEMURun holds the qemu-run slot and hands the guest a stand-in
+		// parent. The row is heavy by its area (leroot.RegisterHeavy).
+		AdmitsItself: true,
+		Parameters:   runParameters,
+		AnswerArgs:   runQEMUHere,
 	},
 	leaction.Action{
 		Verb:    guestBinariesVerb,
 		Does:    "build",
 		Summary: "build the daemons a QEMU guest tests against",
-		Why: "cross-build ze, ze-stripped, ze-stripped-flow and ze-fakefilter for the guest" +
+		Why: "cross-build ze, ze-stripped, ze-stripped-flow, ze-upgrade and ze-fakefilter for the guest" +
 			" architecture into tmp/qemu/linux-<arch>/bin, through the one list a guest run" +
 			" needs (PrepareGuest), and answer the ZE_BIN, ZE_STRIPPED_BIN and" +
 			" ZE_STRIPPED_FLOW_BIN assignments a `test qemu all` command passes",

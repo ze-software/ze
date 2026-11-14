@@ -383,6 +383,17 @@ func (r *Runner) Build(ctx context.Context) error {
 		return fmt.Errorf("build ze: %w", err)
 	}
 
+	// The upgrade target goes beside ze too: the same tags under a release
+	// stamp of its own, so a native-install fixture can upgrade ze to a binary
+	// that differs in bytes and reported version (UpgradeBinary).
+	upgrade := exec.CommandContext(ctx, "go", "build", "-tags", zeTags, "-ldflags", UpgradeLDFlags, "-o", filepath.Join(filepath.Dir(r.zePath), UpgradeBinary), "./cmd/ze") //nolint:gosec // paths from internal runner
+	upgrade.Dir = r.baseDir
+	upgrade.Env = childEnv("CGO_ENABLED=0")
+	if output, err := upgrade.CombinedOutput(); err != nil {
+		r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
+		return fmt.Errorf("build %s: %w", UpgradeBinary, err)
+	}
+
 	// The third-party plugin binary goes beside ze, on every child's PATH
 	// (childPathEnv), so a .ci forks it as `run "ze-fakefilter"`. It links
 	// the SDK alone and takes no tag.

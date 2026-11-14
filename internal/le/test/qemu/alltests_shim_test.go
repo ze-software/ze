@@ -48,6 +48,20 @@ func TestTheShimCopiesTheFakeFilterPluginWhenItExists(t *testing.T) {
 		filepath.Join(run.Workspace, "bin", runner.FakeFilterBinary))
 }
 
+// VALIDATES: ze-upgrade, the stamped second DUT build PrepareGuest writes
+// beside ZE_BIN, is copied into the shim under its canonical name.
+// PREVENTS: test/ui/native-install-upgrade.ci failing in the guest with
+// "ze-upgrade is not on the child PATH" although the host built it.
+func TestTheShimCopiesTheUpgradeBuildWhenItExists(t *testing.T) {
+	run := vmFixture(t)
+	writeExecutable(t, run.Workspace, filepath.Join("bin", runner.UpgradeBinary))
+	if err := run.shim(); err != nil {
+		t.Fatalf("shim: %v", err)
+	}
+	requireShimCopy(t, filepath.Join(run.BinDir, runner.UpgradeBinary),
+		filepath.Join(run.Workspace, "bin", runner.UpgradeBinary))
+}
+
 // VALIDATES: a later shim in the same guest holds the source's CURRENT bytes,
 // even when the rebuilt source kept the old one's size and modification time.
 // PREVENTS: a guest running a stale daemon after the host replaced it through

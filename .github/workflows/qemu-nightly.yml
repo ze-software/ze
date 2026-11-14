@@ -62,8 +62,8 @@ jobs:
           echo "GOTOOLCHAIN=local" >> "$GITHUB_ENV"
           echo "$tree/bin" >> "$GITHUB_PATH"
       # The guest set comes from the producer `test qemu all` checks against
-      # (testfunctional.PrepareGuest): ze, ze-stripped, ze-stripped-flow and
-      # ze-fakefilter, under tmp/qemu/linux-amd64/bin. A hand-written build
+      # (testfunctional.PrepareGuest): ze, ze-stripped, ze-stripped-flow,
+      # ze-upgrade and ze-fakefilter, under tmp/qemu/linux-amd64/bin. A hand-written build
       # list here once left ze-stripped-flow out, and every run refused before
       # its first test.
       - name: Cross-build the guest daemons

@@ -2,11 +2,11 @@
 // Detail: suites.go -- what each of those binaries is asked to run
 //
 // Each invocation builds an isolated throwaway binary set by default.
-// The set contains ze, ze-test, ze-stripped and ze-stripped-flow under <scratch>/testbin-<suffix>/bin/.
+// The set contains ze, ze-test, ze-stripped, ze-stripped-flow and ze-upgrade under <scratch>/testbin-<suffix>/bin/.
 // A suite runs against this frozen set while the developer continues other builds and edits.
 //
-// The binaries use canonical names because .ci tests execute `ze`, `ze-stripped` and
-// `ze-stripped-flow` by name.
+// The binaries use canonical names because .ci tests execute `ze`, `ze-stripped`,
+// `ze-stripped-flow` and `ze-upgrade` by name.
 // The binaries live in a bin/ subdirectory because ze derives its directories from its location.
 // Ze recognizes only a parent named bin or sbin (internal/core/paths/paths.go, isBinDir).
 // Without that parent, `ze config archive` answers "cannot determine database location".
@@ -234,30 +234,38 @@ func fakeFilterBuildCommand(binaries string) []string {
 // compiled out there, so their roots fail at parse.
 var strippedFlowTags = []string{"ze_core", "ze_ssh", "ze_ddos", "ze_anomaly", "ze_flowexport"}
 
-// daemonBuildCommands answers the builds of the three daemons a test runs
-// against, ze, ze-stripped and ze-stripped-flow, into binaries.
+// upgradeBuildFlags stamp ze-upgrade (runner.UpgradeBinary): the DUT's exact
+// tags under a fixed release of its own, so test/ui/native-install-upgrade.ci
+// can upgrade an installed ze to a binary whose bytes and reported version
+// both differ. The DUT ze itself stays unstamped and prints "ze dev".
+var upgradeBuildFlags = []string{"-ldflags", runner.UpgradeLDFlags}
+
+// daemonBuildCommands answers the builds of the four daemons a test runs
+// against, ze, ze-stripped, ze-stripped-flow and ze-upgrade, into binaries.
 func daemonBuildCommands(tc gotoolchain.Toolchain, binaries string, extra []string) [][]string {
-	build := func(tags, name string) []string {
+	build := func(stamp []string, tags, name string) []string {
 		argv := []string{"go", goBuild}
 		argv = append(argv, extra...)
+		argv = append(argv, stamp...)
 		return append(argv, "-tags", tags, "-o", filepath.Join(binaries, name), "./cmd/ze")
 	}
 	dutTags := append([]string{"ze_core", "ze_distro", "ze_setup", "zetest"}, tc.Features...)
 	return [][]string{
-		build(tagString(tc, dutTags...), "ze"),
-		build(tagString(tc, "ze_core", "ze_ssh"), "ze-stripped"),
-		build(tagString(tc, strippedFlowTags...), "ze-stripped-flow"),
+		build(nil, tagString(tc, dutTags...), "ze"),
+		build(nil, tagString(tc, "ze_core", "ze_ssh"), "ze-stripped"),
+		build(nil, tagString(tc, strippedFlowTags...), "ze-stripped-flow"),
+		build(upgradeBuildFlags, tagString(tc, dutTags...), runner.UpgradeBinary),
 	}
 }
 
 // guestBuildCommands answers the builds of the set a QEMU guest runs a test
-// against: the three daemons and the ze-fakefilter test plugin, which a guest
+// against: the four daemons and the ze-fakefilter test plugin, which a guest
 // run finds beside ze (the runner puts ze's directory on every child's PATH).
 func guestBuildCommands(tc gotoolchain.Toolchain, binaries string) [][]string {
 	return append(daemonBuildCommands(tc, binaries, nil), fakeFilterBuildCommand(binaries))
 }
 
-// PrepareGuest builds ze, ze-stripped, ze-stripped-flow and ze-fakefilter for
+// PrepareGuest builds ze, ze-stripped, ze-stripped-flow, ze-upgrade and ze-fakefilter for
 // linux/goarch into binaries, the set a QEMU guest runs a test against; `le
 // test qemu run` builds the guest le itself. The toolchain's environment turns
 // CGO off, so the binaries carry no dynamic loader the musl guest lacks.

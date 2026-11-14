@@ -37,7 +37,8 @@ func GuestBinariesRel(goarch string) string {
 // GuestBinaryEnvironment answers the assignments that point `test qemu all`
 // at the three daemons PrepareGuest writes into binaries, a checkout-relative
 // directory: ZE_BIN, ZE_STRIPPED_BIN and ZE_STRIPPED_FLOW_BIN, space separated.
-// ze-fakefilter needs no variable: the shim links it from beside ZE_BIN.
+// ze-fakefilter and ze-upgrade need no variable: the shim takes each from
+// beside ZE_BIN.
 func GuestBinaryEnvironment(binaries string) string {
 	var env textbuf.Buffer
 	env.Str(zeBinKey).Byte('=').Str(filepath.ToSlash(filepath.Join(binaries, zeName))).

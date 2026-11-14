@@ -1,0 +1,18 @@
+# Test: Does `ze install` of a different build over a foreground installation
+# put that build's bytes and release in place while keeping the configuration
+# and login, and does that build then bootstrap a fresh prefix of its own?
+# Only the shipped install command, the store and the installed daemon's SSH
+# listener together decide it, so no unit seam can answer it.
+# accept-only: the compiled fixture checks the installed digest, the reported release, the byte-equal configuration and authenticated login after upgrade and after a fresh install
+# VALIDATES: deployment-user-journeys AC-2 (changed-version upgrade, foreground Linux path).
+# PREVENTS: an upgrade that leaves the old executable in place, re-bootstraps
+# over the existing store, or loses the configuration or credentials, and a
+# new build that cannot bootstrap a fresh installation.
+# Version A is the suite's ze; version B is ze-upgrade, the DUT's tags under
+# the fixed release runner.UpgradeRelease (internal/test/runner/upgrade_binary.go).
+# Readiness uses authenticated state within the authored 90-second lifecycle
+# budget, with the runner's published contention factor for parallel cases.
+
+option=needs-linux
+cmd=foreground:seq=1:exec=le test fixture ui/native-install-upgrade $PORT:timeout=120s
+expect=exit:code=0

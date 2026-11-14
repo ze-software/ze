@@ -443,8 +443,8 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 		t.Fatalf("load the toolchain: %v", err)
 	}
 	commands := buildCommands(tc, filepath.Join("out", "bin"))
-	if len(commands) != 5 {
-		t.Fatalf("a set builds ze, ze-stripped, ze-stripped-flow, le and ze-fakefilter, got %d commands", len(commands))
+	if len(commands) != 6 {
+		t.Fatalf("a set builds ze, ze-stripped, ze-stripped-flow, ze-upgrade, le and ze-fakefilter, got %d commands", len(commands))
 	}
 
 	dut := strings.Join(commands[0], " ")
@@ -472,12 +472,12 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 	if !strings.HasSuffix(flow, "ze-stripped-flow ./cmd/ze") {
 		t.Errorf("the stripped flow build is not named ze-stripped-flow: %s", flow)
 	}
-	if harness := strings.Join(commands[3], " "); strings.Contains(harness, "-cover") {
+	if harness := strings.Join(commands[4], " "); strings.Contains(harness, "-cover") {
 		t.Error("le was instrumented; it is the harness, not the subject")
 	}
 	// The third-party plugin binary is built from its own main package, with
 	// no ze tag: it links the SDK alone, as an outside author's build does.
-	fake := strings.Join(commands[4], " ")
+	fake := strings.Join(commands[5], " ")
 	if !strings.HasSuffix(fake, filepath.Join("out", "bin", runner.FakeFilterBinary)+" "+runner.FakeFilterPackage) {
 		t.Errorf("the fakefilter build is not %s from %s: %s", runner.FakeFilterBinary, runner.FakeFilterPackage, fake)
 	}
@@ -512,6 +512,69 @@ func TestTheGuestSetCarriesTheFakeFilterPlugin(t *testing.T) {
 	if !found {
 		t.Errorf("the guest set does not build %s: %v", runner.FakeFilterBinary, guestBuildCommands(tc, binaries))
 	}
+}
+
+// TestTheUpgradeBuildIsTheDUTUnderItsOwnRelease holds ze-upgrade to what
+// test/ui/native-install-upgrade.ci needs from it: the DUT's exact tags, so
+// the upgrade is the same product, and the release stamp no other build
+// carries, so the installed bytes and reported version can each be told from
+// ze's. Both the isolated and the guest set must build it, because a guest run
+// is LE_TEST_NO_BUILD and builds nothing PrepareGuest leaves out.
+func TestTheUpgradeBuildIsTheDUTUnderItsOwnRelease(t *testing.T) {
+	env.ResetCache()
+	tc, err := gotoolchain.New(repoRootForTest(t))
+	if err != nil {
+		t.Fatalf("load the toolchain: %v", err)
+	}
+	for set, commands := range map[string][][]string{
+		"isolated": buildCommands(tc, filepath.Join("out", "bin")),
+		"guest":    guestBuildCommands(tc, filepath.Join("out", "guest")),
+	} {
+		var dut, upgrade []string
+		for _, argv := range commands {
+			last := argv[len(argv)-1]
+			output := argv[len(argv)-2]
+			if last != "./cmd/ze" {
+				continue
+			}
+			switch filepath.Base(output) {
+			case "ze":
+				dut = argv
+			case runner.UpgradeBinary:
+				upgrade = argv
+			}
+		}
+		if dut == nil {
+			t.Fatalf("the %s set builds no ze: %v", set, commands)
+		}
+		if upgrade == nil {
+			t.Fatalf("the %s set builds no %s: %v", set, runner.UpgradeBinary, commands)
+		}
+		dutTags, upgradeTags := argAfter(dut, "-tags"), argAfter(upgrade, "-tags")
+		if upgradeTags == "" {
+			t.Errorf("the %s set builds %s with no tags: %v", set, runner.UpgradeBinary, upgrade)
+		}
+		if upgradeTags != dutTags {
+			t.Errorf("the %s set builds %s with tags %q, not the DUT's %q", set, runner.UpgradeBinary, upgradeTags, dutTags)
+		}
+		if got := argAfter(upgrade, "-ldflags"); got != runner.UpgradeLDFlags {
+			t.Errorf("the %s set stamps %s with %q, want %q", set, runner.UpgradeBinary, got, runner.UpgradeLDFlags)
+		}
+		if argAfter(dut, "-ldflags") != "" {
+			t.Errorf("the %s set stamps the DUT ze, so `ze show version` stops printing `ze dev`: %v", set, dut)
+		}
+	}
+}
+
+// argAfter answers the argument that follows flag in argv, or the empty
+// string when argv carries no such flag.
+func argAfter(argv []string, flag string) string {
+	for i := 0; i+1 < len(argv); i++ {
+		if argv[i] == flag {
+			return argv[i+1]
+		}
+	}
+	return ""
 }
 
 // TestTheUISetCarriesTheLEPersonality holds the fix for the defect that made

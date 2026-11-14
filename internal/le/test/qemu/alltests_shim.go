@@ -66,6 +66,14 @@ func (a *allTestsRun) shim() error {
 	if err := shimOptional(fakeFilter, filepath.Join(a.BinDir, runner.FakeFilterBinary)); err != nil {
 		return err
 	}
+	// ze-upgrade, the stamped second DUT build, comes from beside ZE_BIN the
+	// same way and for the same reason: PrepareGuest builds it there, and only
+	// test/ui/native-install-upgrade.ci execs it, so a set built without it
+	// fails that one test naming the path rather than refusing the whole run.
+	upgrade := a.workspacePath(filepath.Join(filepath.Dir(a.ZeBin), runner.UpgradeBinary))
+	if err := shimOptional(upgrade, filepath.Join(a.BinDir, runner.UpgradeBinary)); err != nil {
+		return err
+	}
 	// The harness is this run's own le. A suite runs as `le test <suite>`
 	// through this link, and the runner under it links `le` into its children's
 	// PATH the same way.
