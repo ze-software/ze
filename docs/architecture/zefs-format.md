@@ -383,11 +383,25 @@ unsafe paths. The check and the repair open no writer on the source, so both
 run beside a running daemon. Their daemon forms are `show data check`, a
 local-data command answering the same rows, and `request data repair path
 <file>`. On the daemon both walk the live tree under one guard that holds the
-configuration and runtime-state locks (`storage.HoldWrites`): the walk lists a
-directory entry, then opens it, so a key removed between the two failed the
-walk, and under the guard that removal waits. Installing a repaired tree needs
-the daemon stopped.
-<!-- source: pkg/zefs/check.go -- Check, Repair, CheckPath, RepairPath, MoveAside -->
+configuration and runtime-state locks (`storage.HoldWrites`), so no writer
+changes the tree during the walk.
+
+The local forms hold no lock of the daemon's, and a second process cannot take
+one, so the daemon's writer runs beside their walk. That writer publishes a
+key by renaming a complete staged frame over it, so an open finds the old or
+the new frame, each whole. It removes a key by unlinking the frame, then
+removing each ancestor directory the removal emptied. The walk lists a
+directory entry, then opens it. An entry gone at its open, and on Linux a
+directory removed while the walk reads it, is a key the daemon removed: the
+walk carries on and names it in the report's `Vanished` list, a directory key
+ending in `/`. A vanished entry was not read, so it is reported as neither
+clean nor corrupt, and a check that lists one claims only the entries it read.
+A repair leaves it out of the output. Any other open or read error still fails
+the walk, and a frame that opens and fails its decode is still corrupt.
+Installing a repaired tree needs the daemon stopped.
+<!-- source: pkg/zefs/check.go -- Check, Repair, CheckPath, RepairPath, MoveAside, CheckReport, RepairReport, frameWalk, checkFrameTree -->
+<!-- source: pkg/zefs/check_tree_unix.go -- walkFrameDirectory, prunedDirectory, vanishedKey -->
+<!-- source: internal/component/config/storage/tree.go -- installBytes, treeEncoding.Remove -->
 <!-- source: internal/component/config/storage/salvage.go -- HoldWrites, Salvage -->
 `zefs.OpenDirectory` refuses a component it cannot open with a
 `ComponentError` that carries the refused component, its parent and the whole

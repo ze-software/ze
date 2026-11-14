@@ -77,14 +77,14 @@ func TestUnsupportedRenameNoReplace(t *testing.T) {
 // repair, without invoking the visitor or creating a destination.
 func TestUnsupportedFrameTreeOperations(t *testing.T) {
 	base := t.TempDir()
-	if err := walkFrameTree(base, func(string, []byte) error {
+	if err := walkFrameTree(base, frameWalk{visit: func(string, []byte) error {
 		t.Error("unsupported walk invoked visitor")
 		return nil
-	}); !errors.Is(err, errFrameTreeUnsupported) {
+	}}); !errors.Is(err, errFrameTreeUnsupported) {
 		t.Fatalf("walk = %v", err)
 	}
 	destination := filepath.Join(base, "repair")
-	report, err := repairFrameTree(base, destination)
+	report, err := repairFrameTree(base, destination, nil)
 	if report != nil || !errors.Is(err, errFrameTreeUnsupported) {
 		t.Fatalf("repair = %v, %v", report, err)
 	}

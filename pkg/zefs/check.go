@@ -34,24 +34,52 @@ type EntryStatus struct {
 }
 
 // CheckReport is the result of a store integrity check.
+//
+// Vanished lists, for a framed tree only, every entry the walk listed and
+// found gone when it opened it: a key, or a directory key ending in "/",
+// that a writer beside the walk (a running daemon) removed. A vanished entry
+// was not read, so it is neither clean nor corrupt, and a report with any
+// cannot claim the tree clean: it claims the entries it read. A blob is read
+// whole, so its report never lists one.
 type CheckReport struct {
 	Path           string
 	MagicOK        bool
 	ContainerOK    bool
 	ContainerError string
 	Entries        []EntryStatus
+	Vanished       []string
 	TotalEntries   int
 	CorruptEntries int
 }
 
 // RepairReport is the result of a store repair operation.
+//
+// Vanished lists, for a framed tree only, every entry the walk listed and
+// found gone when it opened it (see CheckReport). The output holds none of
+// them: each was removed from the source while the salvage ran, so it is
+// neither recovered nor skipped.
 type RepairReport struct {
 	SourcePath     string
 	OutputPath     string
 	Recovered      []string
 	Skipped        []EntryStatus
+	Vanished       []string
 	RecoveredCount int
 	SkippedCount   int
+}
+
+// frameWalk is one walk of a framed tree (walkFrameTree). visit receives each
+// frame read. vanished receives each entry listed and then gone at its open,
+// or a directory pruned while the walk read it: a writer in another process
+// removed the key, and the walk cannot hold that writer off. A nil vanished
+// fails the walk on such an entry instead, so no caller skips one in silence.
+// beforeOpen, nil outside tests, runs between an entry's listing and its open,
+// the window a concurrent removal falls in; it is instance-local so a test
+// reaches that window without a package-level hook or a timing race.
+type frameWalk struct {
+	visit      func(key string, frame []byte) error
+	vanished   func(key string)
+	beforeOpen func(directory *os.File, name string)
 }
 
 // MoveAside renames a store file or directory to <path>.replaced-<date> (local
@@ -380,35 +408,15 @@ func integrityStatus(err error) string {
 // CheckPath checks either a blob artifact or a live tree root (database/).
 // A corrupt frame is reported in Entries; filesystem and security refusals
 // return an error so CLI callers can distinguish corrupt from unreadable.
+// A tree entry a running writer removed during the walk is reported in
+// Vanished, never as clean and never as a failed check.
 func CheckPath(path string) (*CheckReport, error) {
 	info, err := os.Lstat(filepath.Clean(path))
 	if err != nil {
 		return nil, fmt.Errorf("zefs: check %s: %w", path, err)
 	}
 	if info.IsDir() {
-		report := &CheckReport{Path: path, MagicOK: true, ContainerOK: true}
-		err := walkFrameTree(path, func(key string, frame []byte) error {
-			data, capacity, next, decodeErr := DecodeNetcapstringRef(frame, 0)
-			if decodeErr == nil {
-				if next != len(frame) {
-					decodeErr = fmt.Errorf("trailing bytes at offset %d", next)
-				}
-			}
-			entry := EntryStatus{Key: key, Size: len(data), KeyCapacity: len(key), Capacity: capacity, Status: "ok"}
-			if decodeErr != nil {
-				entry.Status = integrityStatus(decodeErr)
-				entry.Error = fmt.Sprintf("%s: %v", filepath.Join(path, key), decodeErr)
-				report.CorruptEntries++
-			} else {
-				report.TotalEntries++
-			}
-			report.Entries = append(report.Entries, entry)
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		return report, nil
+		return checkFrameTree(path, nil)
 	}
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("zefs: check %s: refusing non-regular node %s", path, info.Mode())
@@ -416,8 +424,40 @@ func CheckPath(path string) (*CheckReport, error) {
 	return Check(path)
 }
 
+// checkFrameTree checks a framed tree for CheckPath. beforeOpen is the walk's
+// test seam (frameWalk) and is nil outside tests.
+func checkFrameTree(path string, beforeOpen func(*os.File, string)) (*CheckReport, error) {
+	report := &CheckReport{Path: path, MagicOK: true, ContainerOK: true}
+	walk := frameWalk{beforeOpen: beforeOpen}
+	walk.vanished = func(key string) { report.Vanished = append(report.Vanished, key) }
+	walk.visit = func(key string, frame []byte) error {
+		data, capacity, next, decodeErr := DecodeNetcapstringRef(frame, 0)
+		if decodeErr == nil {
+			if next != len(frame) {
+				decodeErr = fmt.Errorf("trailing bytes at offset %d", next)
+			}
+		}
+		entry := EntryStatus{Key: key, Size: len(data), KeyCapacity: len(key), Capacity: capacity, Status: "ok"}
+		if decodeErr != nil {
+			entry.Status = integrityStatus(decodeErr)
+			entry.Error = filepath.Join(path, key) + ": " + decodeErr.Error()
+			report.CorruptEntries++
+		} else {
+			report.TotalEntries++
+		}
+		report.Entries = append(report.Entries, entry)
+		return nil
+	}
+	if err := walkFrameTree(path, walk); err != nil {
+		return nil, err
+	}
+	return report, nil
+}
+
 // RepairPath salvages a blob or framed tree into a new destination of the same
-// shape. The source is never changed, and the destination MUST NOT exist.
+// shape. The source is never changed, and the destination MUST NOT exist. A
+// tree entry a running writer removed during the walk is reported in Vanished
+// and is absent from the output.
 // opts govern a blob destination. A framed tree is written exact-fit, because
 // every frame write replaces the whole frame file.
 func RepairPath(srcPath, dstPath string, opts ...Option) (*RepairReport, error) {
@@ -432,7 +472,7 @@ func RepairPath(srcPath, dstPath string, opts ...Option) (*RepairReport, error) 
 		return nil, fmt.Errorf("zefs: repair output %s already exists", dstPath)
 	}
 	if info.IsDir() {
-		return repairFrameTree(srcPath, dstPath)
+		return repairFrameTree(srcPath, dstPath, nil)
 	}
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("zefs: repair %s: refusing non-regular node %s", srcPath, info.Mode())

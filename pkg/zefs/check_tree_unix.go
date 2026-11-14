@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -97,20 +98,30 @@ func openDirectoryComponent(parent *os.File, part, name string, create bool) (*o
 	return next, nil
 }
 
-func walkFrameTree(path string, visit func(string, []byte) error) (retErr error) {
+func walkFrameTree(path string, walk frameWalk) (retErr error) {
 	root, err := OpenDirectory(path, false)
 	if err != nil {
 		return err
 	}
 	defer func() { retErr = errors.Join(retErr, root.Close()) }()
-	return walkFrameDirectory(root, visit)
+	return walkFrameDirectory(root, walk)
 }
 
 // walkFrameDirectory borrows root; its caller MUST retain and close root.
 // An explicit stack avoids recursion for filesystem-controlled depth. Native
 // path, descriptor and memory limits apply; there is no smaller tree namespace
 // limit. Nonblocking opens reject substituted FIFOs without waiting for writers.
-func walkFrameDirectory(root *os.File, visit func(string, []byte) error) (retErr error) {
+//
+// The walk runs beside a live store's writer when no guard holds it (`ze data
+// check` beside a running daemon). That writer publishes a value by renaming a
+// complete staged frame over the key, so an open meets the old or the new
+// inode, each whole, and removes one by unlinking the frame and then pruning
+// each emptied ancestor directory. A removal between an entry's listing and its
+// open answers ENOENT there, and a directory pruned while the walk reads it
+// answers ENOENT to the read on Linux: each is handed to walk.vanished as a
+// removed key, not as a failure and not as a read. Every other error still
+// fails the walk, and a frame that opens is judged as it reads.
+func walkFrameDirectory(root *os.File, walk frameWalk) (retErr error) {
 	if err := checkFrameNode(root, true); err != nil {
 		return err
 	}
@@ -127,7 +138,12 @@ func walkFrameDirectory(root *os.File, visit func(string, []byte) error) (retErr
 	for len(stack) > 0 {
 		dir := &stack[len(stack)-1]
 		entries, err := dir.file.ReadDir(1)
-		if errors.Is(err, io.EOF) {
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				if err := prunedDirectory(walk, dir.key, err); err != nil {
+					return fmt.Errorf("zefs: read directory %s: %w", dir.file.Name(), err)
+				}
+			}
 			if len(stack) == 1 {
 				break
 			}
@@ -138,15 +154,21 @@ func walkFrameDirectory(root *os.File, visit func(string, []byte) error) (retErr
 			}
 			continue
 		}
-		if err != nil {
-			return fmt.Errorf("zefs: read directory %s: %w", dir.file.Name(), err)
-		}
 		name := entries[0].Name()
 		key := name
 		if dir.key != "" {
 			key = dir.key + "/" + name
 		}
+		if walk.beforeOpen != nil {
+			walk.beforeOpen(dir.file, name)
+		}
 		fd, err := unix.Openat(int(dir.file.Fd()), name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
+		if errors.Is(err, unix.ENOENT) {
+			if walk.vanished != nil {
+				walk.vanished(vanishedKey(key, entries[0].IsDir()))
+				continue
+			}
+		}
 		if err != nil {
 			return fmt.Errorf("zefs: open %s: %w", filepath.Join(root.Name(), key), err)
 		}
@@ -170,11 +192,39 @@ func walkFrameDirectory(root *os.File, visit func(string, []byte) error) (retErr
 		if closeErr != nil {
 			return closeErr
 		}
-		if err := visit(key, frame); err != nil {
+		if err := walk.visit(key, frame); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// prunedDirectory takes a directory read error that is the pruning of a
+// non-root directory key a writer emptied and removed while the walk read it:
+// it hands that key to walk.vanished and answers nil. Any other error, the
+// root's own and every error with no vanished receiver included, comes back
+// for the walk to fail on. The key passed is the directory's, with a "/".
+func prunedDirectory(walk frameWalk, key string, err error) error {
+	if key == "" {
+		return err
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	if walk.vanished == nil {
+		return err
+	}
+	walk.vanished(vanishedKey(key, true))
+	return nil
+}
+
+// vanishedKey names a vanished entry: its key, ending in "/" for a directory,
+// so a reader tells a removed key from a pruned directory of keys.
+func vanishedKey(key string, directory bool) string {
+	if directory {
+		return key + "/"
+	}
+	return key
 }
 
 func checkFrameNode(file *os.File, directory bool) error {
@@ -227,7 +277,9 @@ func readFrameFile(file *os.File, size int64) ([]byte, error) {
 	return frame, nil
 }
 
-func repairFrameTree(srcPath, dstPath string) (report *RepairReport, retErr error) {
+// repairFrameTree salvages a framed tree for RepairPath. beforeOpen is the
+// walk's test seam (frameWalk) and is nil outside tests.
+func repairFrameTree(srcPath, dstPath string, beforeOpen func(*os.File, string)) (report *RepairReport, retErr error) {
 	source, err := OpenDirectory(srcPath, false)
 	if err != nil {
 		return nil, err
@@ -273,7 +325,9 @@ func repairFrameTree(srcPath, dstPath string) (report *RepairReport, retErr erro
 		return nil, err
 	}
 	report = &RepairReport{SourcePath: srcPath, OutputPath: dstPath}
-	err = walkFrameDirectory(source, func(key string, frame []byte) error {
+	walk := frameWalk{beforeOpen: beforeOpen}
+	walk.vanished = func(key string) { report.Vanished = append(report.Vanished, key) }
+	walk.visit = func(key string, frame []byte) error {
 		_, _, next, decodeErr := DecodeNetcapstringRef(frame, 0)
 		if decodeErr == nil {
 			if next != len(frame) {
@@ -291,8 +345,8 @@ func repairFrameTree(srcPath, dstPath string) (report *RepairReport, retErr erro
 		report.Recovered = append(report.Recovered, key)
 		report.RecoveredCount++
 		return nil
-	})
-	if err != nil {
+	}
+	if err := walkFrameDirectory(source, walk); err != nil {
 		return report, err
 	}
 	if err := stage.Sync(); err != nil {

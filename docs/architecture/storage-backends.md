@@ -425,12 +425,15 @@ through `BindConfigSource`), under the lock every commit takes.
 
 `request data repair` and the daemon's `show data check` walk the frame files
 of the live tree (`zefs.RepairPath`, `zefs.CheckPath`) rather than its keys.
-That walk reads one directory entry, then opens it, so a key the daemon
-removed between the two failed the walk with an open error. `HoldWrites` runs
-the walk under one guard that takes the configuration lock and then the
-runtime-state lock and holds both until the walk returns, so every writer, a
-plugin's runtime-state write included, waits for it and the walk reads one
-moment of the store, as a backup does. Readers are not held. `Salvage` judges
+That walk reads one directory entry, then opens it, so a key a writer removes
+between the two is gone at the open: the walk then names it in the report's
+`Vanished` list rather than reading it (`zefs-format.md`, "Integrity checking"). On the
+daemon, `HoldWrites` runs the walk under one guard that takes the
+configuration lock and then the runtime-state lock and holds both until the
+walk returns, so every writer, a plugin's runtime-state write included, waits
+for it, the walk reads one moment of the store, as a backup does, and no entry
+vanishes. The local `ze data check` and `ze data repair` hold no lock of the
+daemon's, so their reports can list vanished entries. Readers are not held. `Salvage` judges
 the output by the backup's store-owned names (`refuseStoreName`) and writes
 the new tree with `zefs.RepairPath`, which refuses an output that exists or
 lies inside the source. A long salvage holds every writer for its length, the

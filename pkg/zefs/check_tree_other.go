@@ -14,11 +14,11 @@ import (
 // each call so the caller's nil check stays a real branch on this platform.
 var errFrameTreeUnsupported = errors.New("zefs: framed tree integrity and repair require Linux, Darwin or FreeBSD")
 
-func walkFrameTree(_ string, _ func(string, []byte) error) error {
+func walkFrameTree(_ string, _ frameWalk) error {
 	return errFrameTreeUnsupported
 }
 
-func repairFrameTree(_, _ string) (*RepairReport, error) {
+func repairFrameTree(_, _ string, _ func(*os.File, string)) (*RepairReport, error) {
 	return nil, errFrameTreeUnsupported
 }
 
