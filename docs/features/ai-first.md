@@ -171,9 +171,50 @@ emptied directory, and takes `agent <name>` or `agent all`: a bare delete is
 refused, so an early Enter cannot remove the setup from every harness. With
 one harness named, the shared stub stays while another harness found on the
 machine still reads it, and the answer names that harness. Each command
-answers one row per harness and item; the hook rows answer `refused` for
-Claude Code and Codex, because this build installs no session-start hook, and
-`unsupported` for OpenCode and Pi.
+answers one row per harness and item; the hook rows of OpenCode and Pi answer
+`unsupported`, because Ze knows no session-start hook format for them.
+
+For Claude Code and Codex, `ze create agent skill` also installs a
+session-start hook: in Claude Code's `settings.json` (under
+`CLAUDE_CONFIG_DIR` when that is set) and in Codex's `hooks.json` (under
+`CODEX_HOME`). Ze appends one group, with no matcher, at the end of
+`hooks.SessionStart`. The group holds one entry: type `command`, command
+`/bin/sh -c 'ze show agent context 2>/dev/null || true'` and a timeout of 5
+seconds. Both harnesses add the hook's output to the agent's context when a
+session starts, and the shell makes the hook print nothing and succeed when
+`ze` is not on the harness's path. Ze inserts a missing `hooks` or
+`SessionStart` key with the group, and creates a missing file, owner-only,
+holding the hook list alone. A group is Ze's when it holds one entry whose
+command runs `ze show agent context`. A second create leaves Ze's current group
+as it is (`unchanged`) and rewrites one an older ze wrote, in place
+(`updated`). Every other group, Rex's included, is never touched.
+
+Ze splices its group into the file's own text, in the file's own indentation,
+so every byte outside that group stays as it was. It refuses a file it does
+not fully understand and leaves it as it is (`refused`). That covers text that
+is not valid JSON, a byte-order mark, a second `hooks` or `SessionStart` key,
+a `hooks` value that is not an object, a `SessionStart` value that is not a
+list, and a group that is not an object. The row then names what was found,
+at which line and column, and says to correct the file or add the hook by
+hand. A linked settings file (a dotfiles setup) is written through to the file
+it finally points at, and the link stays. A dangling link, a link to something
+other than a regular file, and a file or directory Ze cannot write are
+refused. The file keeps its permission bits. Ze writes the new content beside
+the file and replaces the file only if it has not changed since Ze read it.
+Claude Code rewrites its own settings file, and when that happens in between,
+the row is refused and says to run the command again.
+
+Codex skips a new or changed hook until its user trusts it, and keeps that
+trust in its own `config.toml`, keyed by the hook's position in the file. Ze
+never writes that store. The Codex row of `create` says to open Codex, run
+`/hooks`, and trust the hook. `show agent skill` reports the hook as
+installed (`current`, `outdated`, `missing` or `refused`), never whether it
+ran. For Codex it says that Ze cannot see the trust, and how to check it.
+`delete agent skill` removes Ze's group and its separating comma, and leaves
+an emptied `SessionStart` list or file as it stands. In Codex's file, a group
+of Ze's that is not the last is emptied in place (`{"hooks": []}`) instead,
+because removing it would move every group after it and Codex would no longer
+trust them.
 
 Through the daemon (`ze cli`, SSH, REST, gRPC, MCP, web) the three commands
 read and write nothing on the daemon's host. They answer the files an agent
@@ -183,14 +224,14 @@ for create and show, the stub to write. That stub tells the agent to ask the
 Ze system it is connected to for `show skill ze` over the connection it
 already uses, and names no local `ze` command.
 <!-- source: internal/plugins/skills/agent_skill.go -- harnesses, agentPlan, stubText, localRun, remoteAnswer, createStub, removeStub -->
-<!-- source: internal/plugins/skills/agent_hook.go -- createHook, inspectHook, deleteHook -->
+<!-- source: internal/plugins/skills/agent_hook.go -- hookCommand, createHook, inspectHook, deleteHook, hookEditor, readSettings, readLayout, withGroup, withoutGroup, replace, stillAsRead -->
 
 ### Session context
 
 `ze show agent context` prints the Ze version, whether the daemon answered a
 dial bounded to one second, the config directory, and a pointer to
-`ze show skill ze`, and it always exits 0. It is the command a session-start
-hook runs once the hook is installed. Through the daemon it answers the version and
+`ze show skill ze`, and it always exits 0. It is the command the session-start
+hook `ze create agent skill` installs runs. Through the daemon it answers the version and
 that the caller reached the daemon, with no directory.
 <!-- source: internal/plugins/skills/agent_context.go -- showAgentContextLocal, handleShowAgentContext -->
 

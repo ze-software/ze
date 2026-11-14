@@ -46,13 +46,17 @@ type harness struct {
 	// hookFile is the file in the configuration directory that holds the
 	// session-start hooks, or "" when Ze knows no hook format for the harness.
 	hookFile string
+	// hookTrustByPosition says the harness runs a new or changed hook only
+	// once its user trusts it, and keys that trust by the hook's position in
+	// the file. Ze never writes that trust, and a delete never moves a group.
+	hookTrustByPosition bool
 }
 
 // harnesses is the harness table. Codex, OpenCode and Pi read one shared stub
 // directory; Claude Code reads its own.
 var harnesses = []harness{
 	{name: "claude", title: "Claude Code", configDefault: ".claude", configVariable: "CLAUDE_CONFIG_DIR", ownSkills: true, hookFile: "settings.json"},
-	{name: "codex", title: "Codex", configDefault: ".codex", configVariable: "CODEX_HOME", hookFile: "hooks.json"},
+	{name: "codex", title: "Codex", configDefault: ".codex", configVariable: "CODEX_HOME", hookFile: "hooks.json", hookTrustByPosition: true},
 	{name: "opencode", title: "OpenCode", configDefault: ".config/opencode"},
 	{name: "pi", title: "Pi", configDefault: ".pi"},
 }
@@ -666,11 +670,11 @@ func (r *localRun) hook(item planItem, place harnessPlace) outcome {
 	}
 	switch r.verb {
 	case verbCreate:
-		return createHook(place.hook)
+		return createHook(item.harness, place.hook, r.rerun)
 	case verbShow:
-		return inspectHook(place.hook)
+		return inspectHook(item.harness, place.hook, r.rerun)
 	case verbDelete:
-		return deleteHook(place.hook)
+		return deleteHook(item.harness, place.hook, r.rerun)
 	case verbUnspecified:
 		panic("BUG: a local run with no verb")
 	}

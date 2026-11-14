@@ -2626,12 +2626,30 @@ Code's stub is `skills/ze/SKILL.md` under its configuration directory. With
 `agent <name>` it sets up that harness even where its directory does not
 exist. `agent all` is refused here: the bare form is the every-harness form.
 
-Each row answers `created`, `updated` (a stub an older ze wrote), `unchanged`,
-`foreign` (a `SKILL.md` without Ze's marker, left as it is, with the command
-that replaces it), `refused` (with the reason and the fix) or `unsupported`.
-The hook rows answer `refused` for Claude Code and Codex, because this build
-installs no session-start hook, and `unsupported` for OpenCode and Pi. The
-command exits 1 when a row is refused.
+For Claude Code (`settings.json`) and Codex (`hooks.json`), it also installs
+a session-start hook: one group appended at the end of `hooks.SessionStart`,
+with no matcher and one entry, type `command`, command
+`/bin/sh -c 'ze show agent context 2>/dev/null || true'`, timeout 5 seconds.
+The hook runs `show agent context` at every session start; the shell makes it
+print nothing and succeed when `ze` is not on the harness's path. Ze splices
+the group into the file's text, so every other byte stays as it was, inserts
+a missing `hooks` or `SessionStart` key, and creates a missing file
+owner-only. A linked file is written through to its final target and the
+link stays.
+
+Each stub row answers `created`, `updated` (a stub an older ze wrote),
+`unchanged`, `foreign` (a `SKILL.md` without Ze's marker, left as it is, with
+the command that replaces it) or `refused` (with the reason and the fix). Each
+hook row answers `created`, `updated` (Ze's group as an older ze wrote it,
+rewritten in place), `unchanged` or `refused`. A hook row is refused, and the
+file left as it is, for a file Ze does not fully understand (not valid JSON, a
+byte-order mark, a second `hooks` or `SessionStart` key, a `hooks` value that
+is not an object, a `SessionStart` value that is not a list, a group that is
+not an object), with the line and column. It is also refused for a dangling
+link, a target that is not a regular file, a file or directory Ze cannot write,
+and a file that changed while Ze edited it. The Codex hook row says Codex
+skips the hook until you trust it with `/hooks` in Codex. OpenCode and Pi's
+hook rows answer `unsupported`. The command exits 1 when a row is refused.
 
 ### show agent skill
 
@@ -2641,7 +2659,10 @@ ze show agent skill [agent <claude|codex|opencode|pi>]
 
 Reports, for every harness the plugin knows (or the one named), whether it was
 found and the state of its stub: `current`, `outdated`, `missing`, `foreign`,
-`refused` or `unsupported`. It changes no file.
+`refused` or `unsupported`. Its hook rows answer `current`, `outdated`,
+`missing`, `refused` or, for OpenCode and Pi, `unsupported`: whether the hook
+is installed, never whether it ran. The Codex row says Ze cannot see whether
+Codex trusts the hook, and to check with `/hooks`. It changes no file.
 
 ### delete agent skill
 
@@ -2655,7 +2676,11 @@ leaves a `SKILL.md` without Ze's marker (`foreign`). `agent` is required:
 refused with the values it takes. With one harness named, the shared stub
 stays while another harness found on the machine still reads it (`kept`,
 naming that harness). Rows answer `removed`, `absent`, `kept`, `foreign`,
-`refused` or `unsupported`.
+`refused` or `unsupported`. A hook row answers `removed`, `absent` or
+`refused`: Ze removes its group and its separating comma and leaves every
+other byte, and a `SessionStart` list or file left empty stays. In Codex's
+file a group of Ze's that is not the last is emptied in place
+(`{"hooks": []}`) instead, because Codex trusts each hook by its position.
 
 Through the daemon (`ze cli`, SSH, REST, gRPC, MCP, web) the three commands
 read and write nothing on the daemon's host. They answer, per harness, the
@@ -2664,6 +2689,7 @@ stub's default path relative to the home directory with the state
 the agent to ask the Ze system it is connected to for `show skill ze`. The
 answer carries no hook.
 <!-- source: internal/plugins/skills/agent_skill.go -- harnesses, localRun, remoteAnswer, createStub, inspectStub, removeStub, exitCode -->
+<!-- source: internal/plugins/skills/agent_hook.go -- hookCommand, createHook, inspectHook, deleteHook, readLayout, withoutGroup -->
 <!-- source: internal/plugins/skills/yang/ze-skills-cmd.yang -- leaf agent -->
 
 ### show agent context
@@ -2679,7 +2705,8 @@ one `ze cli` connects to) once, for at most one second, and closes the
 connection without sending anything. It prints `answering at <host:port>`
 or `not answering at <host:port>` with the reason. An address it cannot
 read is reported as not answering, with the reason. The command exits 0 in
-every case, so a session-start hook that runs it never fails a session.
+every case. It is what the session-start hook `ze create agent skill`
+installs runs, and it never fails a session.
 
 Through the daemon (`ze cli`, SSH, REST, gRPC, MCP, web) the answer is the
 version, a line saying the caller reached the daemon, and the guide. It

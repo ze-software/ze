@@ -8,7 +8,7 @@
 | Release reason | A new operator convenience in the shipped binary. No release profile needs it, and no shipped behaviour is wrong without it. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 3/7 |
+| Phase | 4/7 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -209,8 +209,8 @@ These rows are filled with evidence by the implementation and judged at closure,
 | A-1 | `registry.Artifact` can declare this feature's route difference | The first draft's reading of `internal/plugins/support/register.go` | The design needed another fit | The design review read `Artifact` and the comparison test: it cannot. The pairing and a sibling declaration replace it | broken 2026-11-13, before any code; design changed with the owner |
 | A-2 | A system plugin can register a builtin RPC for its own YANG node, as `doctor` and `ping` do from their command packages | `loadLocalData` reads `AllBuiltinRPCs`; the commands page lists owner-registered RPCs | The daemon command is registered another way the plugin model offers; if none exists for a system plugin, STOP and bring it to the main thread | The design review's second round read it: `pluginserver.RegisterRPCs`, called from the `register.go` of the `ntp` and `geodns` plugins and of `doctor`'s command package | confirmed 2026-11-13 by reading; the implementer re-reads one of them before use |
 | A-9 | Inside `ze cli`, a local-data command whose path a builtin also holds is answered in the client's own process, so the command installs there | The commands door says `ze cli` answers a local-data command in its own process before it asks the daemon, and `doctor` is such a paired command | Inside `ze cli` the command answers the content instead of installing. The owner asked for both behaviours, so this goes back to him with the evidence before any handler is written | The wiring agent traced it before writing anything: `ze cli -c` answers in the client's process, and an interactive session is a shell on the daemon, where only the builtin answers. `doctor` is no counter-example: its pair sits on two paths | broken 2026-11-13, before any code. Brought to the owner, who directed the design be decided from how the commands are used; see the Model fit row |
-| A-3 | A session-start hook's output reaches the agent in Claude Code and in Codex | Rex's hook does this in Claude Code on the owner's machine; Codex unverified, and its hook format is known only from Rex's output | The Codex hook is dropped and its row says unsupported | A live session in each harness, before the hook phase starts | unvalidated |
-| A-4 | Codex runs a newly added hook once the user approves it | Rex's documentation says so; the research found Rex's own entry without a trust record | Codex users get no hook; the note Ze prints is still true | The live Codex session of A-3 | unvalidated |
+| A-3 | A session-start hook's output reaches the agent in Claude Code and in Codex | Rex's hook does this in Claude Code on the owner's machine; Codex unverified, and its hook format is known only from Rex's output | The Codex hook is dropped and its row says unsupported | A live session in each harness, before the hook phase starts | unvalidated: documented for both harnesses ("plain-text stdout is added to the context", the Claude Code hooks reference and the Codex hooks documentation, research of 2026-11-14); the live proof is AC-31 |
+| A-4 | Codex runs a newly added hook once the user approves it | Rex's documentation says so. Corrected 2026-11-14: Rex's Codex entry on the owner's machine does have a trust record. Codex identifies a trusted hook by its position and a hash in its own `config.toml`, and skips a new or changed hook, with a notice, until the user trusts it through `/hooks` (Codex source at tag `rust-v0.169.0`) | Codex users get no hook; the note Ze prints is still true | The live Codex session of A-3 | unvalidated: documented as above; the live proof is AC-31 |
 | A-5 | OpenCode and Pi load a stub from the shared directory and offer no session-start hook | OpenCode's discovery proof of 2026-11-13; Pi by its source; hook formats not found | A hook there is future work | Recorded as a limitation | unvalidated |
 | A-6 | The functional runner can give a test its own home directory | A `.ci` sets an environment variable with the `env` option (`test/ui/cli-argument-pattern-refused.ci`); none sets `HOME` today | The end-to-end proof moves to a compiled fixture | Write the wiring `.ci` first | confirmed: `option=env` with a relative value, read against the test's own work directory (`docs/architecture/testing/ci-format.md`, "expect=file"); the UI run showed both new tests reach the handlers (per-spec state file) |
 | A-7 | The stub file operations can move to core with the marker and wording supplied by the caller, leaving `./le ai sync` byte for byte unchanged | The operations are file calls; their `le` wording is in three known places | A sync regression in every session | `./le test unit pkg path ./internal/le/ai/sync/` passes with its tests' assertions unchanged | unvalidated |
@@ -272,8 +272,8 @@ These rows are filled with evidence by the implementation and judged at closure,
 | AC-16 | `create agent skill agent claude` in a home with no Claude Code directory | Claude Code's stub and hook are written, creating the directory; no other harness is touched | Other harnesses are untouched, because the operator named one |
 | AC-17 | `create agent skill` in a home with no harness directory and no `agent` | The shared stub is written, and the answer says no harness was found and that the shared directory is the one Codex, OpenCode and Pi read | No settings file is created, because no harness with hooks was found |
 | AC-18 | `show agent skill` | One row per harness the plugin knows and per item, with a state of `current`, `outdated`, `missing`, `foreign`, `refused` or `unsupported`, whether the harness was found, and the path inspected. No file is created or changed | Everything survives, because the command only reads |
-| AC-19 | `delete agent skill agent all` after an install; a bare `delete agent skill` is refused by the validator, which names the values | The stub and its emptied directory are gone, the Ze group is gone from each settings file with every other byte identical, and each row answers `removed`. A second run answers `absent` | Other skills, other hook groups and other keys survive. A `SessionStart` list or a settings file left empty is kept as it stands, because removing a harness's own structure is not Ze's call |
-| AC-20 | `delete agent skill agent pi` while the Codex or OpenCode directory is found | The shared stub stays, and the answer names the harnesses that still read it | The stub survives because another installed harness reads it |
+| AC-19 | `delete agent skill agent all` after an install; a bare `delete agent skill` is refused by the validator, which names the values | The stub and its emptied directory are gone, the Ze group is gone from each settings file, its separating comma included, with every other byte identical, and each row answers `removed`. In Codex's file, a Ze group that is not the last is not removed: its `hooks` list is emptied in place (`{"hooks": []}`) and the row's note says so. A second run answers `absent`. Delete's states are `removed`, `absent`, `kept`, `foreign`, `refused` and `unsupported` | Other skills, other hook groups and other keys survive. A `SessionStart` list or a settings file left empty is kept as it stands, because removing a harness's own structure is not Ze's call. In Codex's file every group after Ze's keeps its index, because Codex keys a hook's trust by its position |
+| AC-20 | `delete agent skill agent pi` while the Codex or OpenCode directory is found | The shared stub stays, its row answers `kept` (a correct outcome, exit status 0), and the answer names the harnesses that still read it | The stub survives because another installed harness reads it |
 | AC-21 | `create`, `show` or `delete agent skill` through the daemon (SSH, REST, gRPC, MCP, web, `ze cli`) | No file is read or written on the daemon's host. The answer says the files are the caller's to place and holds, per harness, the stub's default home-relative path and state `not-inspected`; `create` and `show` carry the stub to place, `delete` carries the file to remove. The stub's body orders the agent to ask the Ze system it is connected to for `show skill ze`, names no local `ze` command, and the answer holds no hook | Nothing on the daemon's host changes, because the agent's home is the caller's. The paths are the defaults, because the daemon's own environment says nothing about the caller's. No hook survives into the remote answer, because a hook runs a local `ze` the caller may not have |
 | AC-22 | `show agent context` at a shell on a machine whose daemon answers | The version line, that the daemon answered and at which address, the config directory, and one line naming the `ze` skill and `ze show skill ze`. Exit status 0 | None |
 | AC-23 | `show agent context` at a shell with no daemon listening | The same lines with the daemon reported as not answering, returned within one second of the dial starting. Exit status 0 | None: a hook must never fail a session |
@@ -301,14 +301,14 @@ These rows are filled with evidence by the implementation and judged at closure,
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestCreateAgentSkillWritesTheStubForEachHarnessFound` | `internal/plugins/skills/agent_test.go` | AC-1 | |
-| `TestTheStubCarriesTheZeGuidesNameAndDescriptionAndTheMarker` | `internal/plugins/skills/agent_test.go` | AC-1: frontmatter from the inventory row, marker first, the order to run `ze show skill ze` | |
-| `TestASecondCreateLeavesABackdatedStubUntouched` | `internal/plugins/skills/agent_test.go` | AC-2 | |
-| `TestShowAgentSkillNamesAnOutdatedStub` | `internal/plugins/skills/agent_test.go` | AC-3, show half | |
-| `TestCreateRefreshesAnOutdatedStub` | `internal/plugins/skills/agent_test.go` | AC-3, create half | |
-| `TestAForeignZeSkillIsLeftByCreateShowAndDelete` | `internal/plugins/skills/agent_test.go` | AC-4, one row per command | |
-| `TestCreateReplacesALinkedSkillDirectoryOrFileAndLeavesItsTarget` | `internal/plugins/skills/agent_test.go` | AC-5, one row per link position | |
-| `TestCreateWritesInsideALinkedSkillsDirectory` | `internal/plugins/skills/agent_test.go` | AC-6 | |
+| `TestCreateAgentSkillWritesTheStubForEachHarnessFound` | `internal/plugins/skills/agent_local_test.go` | AC-1 | |
+| `TestTheStubCarriesTheZeGuidesNameAndDescriptionAndTheMarker` | `internal/plugins/skills/agent_local_test.go` | AC-1: frontmatter from the inventory row, marker first, the order to run `ze show skill ze` | |
+| `TestASecondCreateLeavesABackdatedStubUntouched` | `internal/plugins/skills/agent_local_test.go` | AC-2 | |
+| `TestShowAgentSkillNamesAnOutdatedStub` | `internal/plugins/skills/agent_local_test.go` | AC-3, show half | |
+| `TestCreateRefreshesAnOutdatedStub` | `internal/plugins/skills/agent_local_test.go` | AC-3, create half | |
+| `TestAForeignZeSkillIsLeftByCreateShowAndDelete` | `internal/plugins/skills/agent_local_test.go` | AC-4, one row per command | |
+| `TestCreateReplacesALinkedSkillDirectoryOrFileAndLeavesItsTarget` | `internal/plugins/skills/agent_local_test.go` | AC-5, one row per link position | |
+| `TestCreateWritesInsideALinkedSkillsDirectory` | `internal/plugins/skills/agent_local_test.go` | AC-6 | |
 | `TestCreateSplicesOneHookGroupAndLeavesEveryOtherByte` | `internal/plugins/skills/agent_hook_test.go` | AC-7, against a settings file with another installer's group, other events, unrelated keys, tabs and no final newline | |
 | `TestCreateInsertsAMissingHooksOrSessionStartKey` | `internal/plugins/skills/agent_hook_test.go` | AC-8, one row per missing key | |
 | `TestCreateMakesAMissingSettingsFile` | `internal/plugins/skills/agent_hook_test.go` | AC-9 | |
@@ -316,14 +316,14 @@ These rows are filled with evidence by the implementation and judged at closure,
 | `TestALinkedSettingsFileIsWrittenThroughToItsTarget` | `internal/plugins/skills/agent_hook_test.go` | AC-11, a direct link and a chain | |
 | `TestASettingsFileThatCannotBeWrittenIsRefused` | `internal/plugins/skills/agent_hook_test.go` | AC-12, one row per case | |
 | `TestASettingsFileChangedSinceTheReadIsNotReplaced` | `internal/plugins/skills/agent_hook_test.go` | AC-13, through a seam between the read and the replace | |
-| `TestTheCodexHookRowSaysItNeedsApproval` | `internal/plugins/skills/agent_test.go` | AC-14 | |
-| `TestHarnessesWithoutHooksAnswerUnsupportedAndShareOneStub` | `internal/plugins/skills/agent_test.go` | AC-15 | |
-| `TestANamedAgentIsWrittenEvenWhenNotFoundAndNoOtherIs` | `internal/plugins/skills/agent_test.go` | AC-16 | |
-| `TestWithNoHarnessFoundTheSharedStubIsWritten` | `internal/plugins/skills/agent_test.go` | AC-17 | |
-| `TestShowAgentSkillCreatesAndChangesNoFile` | `internal/plugins/skills/agent_test.go` | AC-18 | |
-| `TestDeleteRemovesWhatZeWroteAndASecondDeleteAnswersAbsent` | `internal/plugins/skills/agent_test.go` | AC-19 | |
+| `TestTheCodexHookRowSaysItNeedsApproval` | `internal/plugins/skills/agent_hook_test.go` | AC-14 | |
+| `TestHarnessesWithoutHooksAnswerUnsupportedAndShareOneStub` | `internal/plugins/skills/agent_local_test.go` | AC-15 | |
+| `TestANamedAgentIsWrittenEvenWhenNotFoundAndNoOtherIs` | `internal/plugins/skills/agent_local_test.go` | AC-16 | |
+| `TestWithNoHarnessFoundTheSharedStubIsWritten` | `internal/plugins/skills/agent_local_test.go` | AC-17 | |
+| `TestShowAgentSkillCreatesAndChangesNoFile` | `internal/plugins/skills/agent_local_test.go` | AC-18 | |
+| `TestDeleteRemovesWhatZeWroteAndASecondDeleteAnswersAbsent` | `internal/plugins/skills/agent_local_test.go` | AC-19 | |
 | `TestDeleteSplicesOutOnlyZesHookGroup` | `internal/plugins/skills/agent_hook_test.go` | AC-19, settings half | |
-| `TestDeleteKeepsASharedStubAnotherFoundHarnessReads` | `internal/plugins/skills/agent_test.go` | AC-20 | |
+| `TestDeleteKeepsASharedStubAnotherFoundHarnessReads` | `internal/plugins/skills/agent_local_test.go` | AC-20 | |
 | `TestCreateAgentSkillThroughTheDaemonAnswersThePlanAndTouchesNoFile` | `internal/plugins/skills/agent_test.go` | AC-21 (wiring): a home with content, the daemon command, and the home's bytes compared before and after | |
 | `TestTheDaemonPlanUsesDefaultPathsWhateverTheDaemonsEnvironment` | `internal/plugins/skills/agent_test.go` | AC-21, R-9: with the two foreign variables set in the daemon's process | |
 | `TestDeleteThroughTheDaemonAnswersWhatToRemove` | `internal/plugins/skills/agent_test.go` | AC-21, delete | |
@@ -333,7 +333,7 @@ These rows are filled with evidence by the implementation and judged at closure,
 | `TestTheInstalledHookCommandSucceedsSilentlyWithoutZe` | `internal/plugins/skills/agent_hook_test.go` | AC-25: the command string run with a path holding no `ze` | |
 | `TestTheModelsAgentValuesAreTheHarnessTable` | `internal/plugins/skills/skills_model_test.go` | AC-26, R-11 | |
 | `TestTheFourCommandsArePlainLocalWithADaemonCommand` | `internal/plugins/skills/agent_test.go` | AC-27, AC-28 (wiring): each path has a local handler, no local-data handler (so `command.ServeLocal`, which `ze cli -c` asks, does not serve it), and a builtin RPC for its node | |
-| `TestTheRemoteStubSendsTheAgentToTheRouterAndTheRemotePlanHasNoHook` | `internal/plugins/skills/agent_test.go` | AC-21, R-7: no `ze show skill` order and no hook item in the remote form; both present in the local form | |
+| `TestTheRemoteStubSendsTheAgentToTheRouterAndTheRemotePlanHasNoHook` | `internal/plugins/skills/agent_local_test.go` | AC-21, R-7: no `ze show skill` order and no hook item in the remote form; both present in the local form | |
 | `TestTheZeGuideNamesTheSetupCommand` | `internal/plugins/skills/skills_test.go` | AC-30 | |
 | The core stub operations' tests | the core leaf's test file | The symlink and marker guarantees, with a caller-supplied marker and typed errors | |
 
@@ -522,6 +522,7 @@ Not applicable: no wire protocol. The harness proof is AC-31.
 | Follow a linked skills directory and a linked settings file; never a linked `ze` directory or stub | Refuse all links, as `le` does in a checkout; follow all links | A linked skills directory or settings file is the operator's dotfiles setup and is theirs to place. The `ze` directory and its file are Ze's own, so a link there is replaced. A checkout's generated trees are `le`'s own, so `le` keeps refusing |
 | The hook names `ze`, not an absolute path | The absolute path of the binary that ran the install | An upgrade or a moved binary would break an absolute path silently; the stub names `ze` too. The cost is a harness whose environment has no `ze` on its path |
 | Never write Codex's trust store | Write the trust record so the hook runs at once | The trust store is Codex asking its user for consent; answering for the user defeats it |
+| In Codex's file, delete empties a Ze group that is not the last in place (`{"hooks": []}`) and removes only a last one; in Claude Code's file it always removes the group | Remove the group in both files | Codex's trust key is positional (`<file>:session_start:<group index>:<entry index>`): removing a group shifts every group after it and drops their trust, so the operator would have to trust another installer's hook again |
 | No forced overwrite of a foreign `ze` skill | An option that replaces it | No offline flag reaches the daemon grammar, and the case is rare: the answer says to remove the file and run the command again |
 | The daemon's context answer carries no path | The same answer on both routes | A read-only caller would learn the daemon's config directory, and the daemon dialling its own port says nothing |
 

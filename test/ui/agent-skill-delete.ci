@@ -1,0 +1,40 @@
+# Test: ze delete agent skill agent all, after a create, at a shell
+# QUESTION: after `ze create agent skill agent claude`, does
+# `ze delete agent skill agent all` remove the ze stub skill it wrote and leave
+# another skill beside it, and does `ze show agent skill` then report the stub
+# as missing?
+# VALIDATES: spec-ze-agent-skill-setup AC-19 (the stub half), AC-18.
+# PREVENTS: a delete that answers removed and leaves the stub, or that removes
+# a skill Ze did not write.
+#
+# Method: every child runs in the test's own work directory, so HOME and the
+# two harness variables point inside it and nothing reaches the home of whoever
+# runs the suite. No daemon runs: the plain local handler answers at a shell.
+# The other skill is written by the test itself before the create.
+
+option=env:var=HOME:value=.
+option=env:var=CLAUDE_CONFIG_DIR:value=.claude
+option=env:var=CODEX_HOME:value=.codex
+option=env:var=XDG_CONFIG_HOME:value=.config
+
+tmpfs=.claude/skills/other/SKILL.md:terminator=EOF_OTHER
+---
+name: other
+description: a skill Ze did not write
+---
+The operator's own skill.
+EOF_OTHER
+
+cmd=foreground:seq=1:exec=ze create agent skill agent claude:exit=0
+expect=exit:code=0
+
+cmd=foreground:seq=2:exec=ze delete agent skill agent all:exit=0
+expect=exit:code=0
+expect=stdout:contains=removed
+
+cmd=foreground:seq=3:exec=ze show agent skill agent claude:exit=0
+expect=exit:code=0
+expect=stdout:contains=missing
+
+expect=file:path=.claude/skills/ze/SKILL.md:absent=true
+expect=file:path=.claude/skills/other/SKILL.md:contains=The operator's own skill.
