@@ -592,9 +592,9 @@ Written from git history and the `rfc/` ledger, each claim read at HEAD on 2026-
 
 ### Documentation Updates
 - `docs/architecture/provisioning/tftp-server.md` (`519d9f4f2a`), `docs/architecture/dns/geodns.md` and `docs/architecture/dns/secure-transports.md` (`9e8443e287`), `docs/features/interfaces.md` (`dbdde9fb4f`, and `04580da85d` for the refusal at config verify), `docs/architecture/testing/interop.md` (`62f22dc4a5`).
-- Not updated: `docs/architecture/flowexport/flow-export-1-counter-export.md`, section "Daemon agent-address warning tests", still says the classifier unit tests are the only coverage of this warning below the daemon, which `12945e76f0` makes false (Work Not Done).
+- `docs/architecture/flowexport/flow-export-1-counter-export.md`, section "Daemon agent-address warning tests" (`fc7f223cee`): it names the two engine tests `12945e76f0` added, and keeps that only the absent-address case runs through the daemon (closure review R1-2).
 - `rfc/short/<stem>.md` rows and `rfc/corrections/` for the owned stems; `docs/features/rfc-status.md` is derived from them by `./le rfc update` and git-ignored.
-- At closure, 2026-11-14: `plan/learned/050-rfc-verdict-fix-services.md` and the news fragment `website/changes/fragments/rfc-verdict-fix-services.md` (the TFTP duplicate-ACK fix and the unspecified tunnel remote refusal, the two changes an operator sees); the citers of this spec's path repointed to the learned entry where their spec-edit hook allowed it (Pre-Commit Verification).
+- At closure, 2026-11-14: `plan/learned/050-rfc-verdict-fix-services.md` and the news fragment `website/changes/fragments/rfc-verdict-fix-services.md` (the unspecified tunnel remote refusal; the TFTP duplicate-ACK fix is left out, because the 2026-09-28 update already published it, closure review R2-1); the citers of this spec's path repointed to the learned entry where their spec-edit hook allowed it; two remain (closure review R2-N5).
 
 ### Deviations from Plan
 - A-2 was broken: three verdicts the 2026-09-28 "Blocked by" list lacked (RFC7950-7.9.4-1, RFC2131-4.1-7, RFC2131-4.1-15) were found by the 2026-11-14 re-run and routed to their owners.
@@ -646,13 +646,13 @@ Written from git history and the `rfc/` ledger, each claim read at HEAD on 2026-
 | D-8 producers | Done | `internal/plugins/tftpserver/handler.go`, geodns `checkName`, `internal/plugins/iface/netlink/tunnel_linux.go`; in `04580da85d` also `internal/component/iface/tunnel.go`, `internal/component/iface/config.go` and `internal/plugins/iface/vpp/tunnel.go` |
 | `docs/features/rfc-status.md` | Changed | derived and git-ignored, never edited |
 | the blocking specs' acceptance criteria | Done | "Blocked by" |
-| `docs/architecture/flowexport/flow-export-1-counter-export.md` | Skipped | owed by the documentation rule, refused by the permission system for an agent (Work Not Done) |
+| `docs/architecture/flowexport/flow-export-1-counter-export.md` | Done | `fc7f223cee` (closure review R1-2) |
 
 ### Audit Summary
 - **Total items:** 22 (5 requirements, 7 ACs, 4 test rows, 6 file rows)
-- **Done:** 20
+- **Done:** 21
 - **Partial:** 0
-- **Skipped:** 1 (the flow-export page, owed before closure: closure review R1-2, open)
+- **Skipped:** 0
 - **Changed:** 1 (`docs/features/rfc-status.md`, derived rather than edited)
 
 ## Goal Validation (BLOCKING)
@@ -668,35 +668,34 @@ Written from git history and the `rfc/` ledger, each claim read at HEAD on 2026-
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 | the nine "Blocked by" verdicts and the four R-7 rows | producer fix or owed test owned elsewhere | each spec named in "Blocked by" |
-| the DHCPv4 client's option overload, RFC2131-4.1-7 and RFC2131-4.1-15 (closure review R1-1) | the client code is missing, not only a test: the vendored `dhcpv4.FromBytes` reads `sname` and `file` as NUL-terminated strings and never consults option 52; the server half is tagged and recorded. Owned since 2026-11-14 by AC-31 of the spec on the right (that edit is uncommitted at the time of writing and lands with this closure's record); `plan/release/validation/spec-rfc-clause-scoped-proof.md` owns neither fix. No journal row of 2026-11-14 for RFC2131-4.1-7 exists in `plan/journal/field-carries-two-meanings.md`, which holds only the 2026-10-30 row for 4.1-15 | `plan/release/fixes/spec-network-services-one-off-defects.md` AC-31 |
-| RFC1350-5-5, the restored TFTP upload gap (closure review R1-4) | `335e80c658` restored the obligation as RFC1350-5-5 in `rfc/short/rfc1350.md`. The owner spec now lists it in its RFC gaps, owns it in AC-32 (a stored upload read back is byte-identical) and corrects its site 5:2 constraint (uncommitted at the time of writing; lands with this closure's record). Its first edit was refused because a file the spec will create was named under Files to Modify, not because of a hook defect, so no hook journal row is owed | `plan/post-release/features/spec-tftp-server-uploads.md` AC-32 |
-| the flow-export architecture page (closure review R1-2, OPEN) | `docs/architecture/flowexport/flow-export-1-counter-export.md`, section "Daemon agent-address warning tests", says the absent-address case and the classifier unit tests are the only coverage of this warning, which `12945e76f0` made false. `ai/rules/documentation.md` owes that correction in this same work, before closure; it is not done because the permission system refused the agent's edit of the page, and the owner has been asked. The uncommitted 2026-11-14 row in `plan/journal/comment-describes-superseded-behaviour.md` is listed in no spec's Owned journal rows table yet, so a commit carrying it is refused until it is owned or the page edit lands | this spec, before closure |
+| the DHCPv4 client's option overload, RFC2131-4.1-7 and RFC2131-4.1-15 (closure review R1-1) | the client code is missing, not only a test: the vendored `dhcpv4.FromBytes` reads `sname` and `file` as NUL-terminated strings and never consults option 52; the server half is tagged and recorded. Owned since 2026-11-14 by AC-31 of the spec on the right (committed in `ec552a0a6f`); `plan/release/validation/spec-rfc-clause-scoped-proof.md` owns neither fix. No journal row of 2026-11-14 for RFC2131-4.1-7 exists in `plan/journal/field-carries-two-meanings.md`, which holds only the 2026-10-30 row for 4.1-15 | `plan/release/fixes/spec-network-services-one-off-defects.md` AC-31 |
+| RFC1350-5-5, the restored TFTP upload gap (closure review R1-4) | `335e80c658` restored the obligation as RFC1350-5-5 in `rfc/short/rfc1350.md`. The owner spec now lists it in its RFC gaps, owns it in AC-32 (a stored upload read back is byte-identical) and corrects its site 5:2 constraint (committed in `ec552a0a6f`). Its first edit was refused because a file the spec will create was named under Files to Modify, not because of a hook defect, so no hook journal row is owed | `plan/post-release/features/spec-tftp-server-uploads.md` AC-32 |
 | the two daemon-level `.ci` callers of the Linux fixture (closure review R1-N1) | `internal/test/fixture/register_sflow_agent_address_linux.go` (`69aaf63f58`) registers two fixtures that no committed `.ci` calls, and its comment says the two callers must hold an exclusive group. It is not unowned: the same occurrence is the 2026-10-30 row of `plan/journal/claim-outlives-the-evidence-it-cites.md`, listed in the owner spec's Owned journal rows table, whose entry says its sFlow export work writes them (both read 2026-11-14) | `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` |
-| a `./le` action that runs one docker-tagged package test on the docker-lab guest (closure review R1-N6) | `TestTFTPCurlDuplicateACKInterop` was run by hand: cross-built, then run in a container on the guest's network. `docs/architecture/testing/interop.md` says no action does it (`62f22dc4a5`). Open, with no owner named yet: it still needs a journal row and an owning spec | none named yet |
+| a `./le` action that runs one docker-tagged package test on the docker-lab guest (closure review R1-N6) | `TestTFTPCurlDuplicateACKInterop` was run by hand: cross-built, then run in a container on the guest's network. `docs/architecture/testing/interop.md` says no action does it (`62f22dc4a5`). Recorded as the 2026-11-14 row of `plan/journal/gate-verdict-depends-on-the-machine.md` | `plan/post-release/engineering/spec-test-sandbox.md` |
 | RFC7950-9.1-1, named by two specs | both name the verdict, and they split it by form: `spec-config-yang-reference-types` says "For already accepted forms, the release child owns correctness and remaining review; a broad RFC7950-9.1-1 claim must not substitute for its specific evidence." The verdict reaches `enforced` when both halves land | `plan/release/fixes/spec-config-yang-when-unique-choice.md` (accepted forms, AC-2); `plan/post-release/features/spec-config-yang-reference-types.md` (unsupported forms, AC-9) |
 | `./le verify worktree` | obsolete: the owner's standing rule (`ai/META-DECISIONS.md`, "Ze is pre-release") replaces it; closing a spec never waits on a whole-tree check, no agent runs any `./le verify` command, and GitHub CI verifies a pushed commit | none: GitHub CI verifies the pushed commit |
 
 ## Review Gate
 
-**The gate is not clean.** Round 1 ended with findings, R1-2 is still open, and no round has yet verified the fixes made after it.
+**The gate is clean: 0 BLOCKER and 0 open ISSUE.** Round 1 found 6 ISSUEs, and round 2 reviewed their fixes and found 1 more. Each of the 7 ISSUEs has a resolution below.
 
 | Field | Value |
 |-------|-------|
-| Artifact | none recorded yet: `./le spec review record` has not run for this spec |
-| `./le spec review check` | not clean: round 1 ended with 6 ISSUEs, one of them open (R1-2) |
-| Rounds | 1 |
-| Reviewer lenses used | round 1 (independent reviewer, 2026-11-14, authored none of the change; scope: the five earlier commits `519d9f4f2a`, `9e8443e287`, `dbdde9fb4f`, `04c6bd7371`, `a640d04015`, and `12945e76f0`, `62f22dc4a5`, `335e80c658`, `8b6e37aaaa`, `2587658ad3`): 0 BLOCKER, 6 ISSUE, 6 NOTE |
+| Artifact | recorded 2026-11-14 by `./le spec review record`: verdict clean, 2 rounds, 12 code files; `./le spec review check` answers OK |
+| `./le spec review check` | OK, 2026-11-14 |
+| Rounds | 2 |
+| Reviewer lenses used | round 1 (independent reviewer, 2026-11-14, authored none of the change; scope: the five earlier commits `519d9f4f2a`, `9e8443e287`, `dbdde9fb4f`, `04c6bd7371`, `a640d04015`, and `12945e76f0`, `62f22dc4a5`, `335e80c658`, `8b6e37aaaa`, `2587658ad3`): 0 BLOCKER, 6 ISSUE, 6 NOTE. Round 2 (independent reviewer, 2026-11-14, authored none of the change; scope: the round 1 fixes `2cbf113ecc`, `39205d383c`, `cba4bb0810`, `04580da85d`, `8f64f14196`, `ec552a0a6f` and the page edit `fc7f223cee`): 0 BLOCKER, 1 ISSUE, 7 NOTE |
 
 ### Findings (round 1, 2026-11-14, reviewer authored none of the change)
 
-The fixes below were made after the round. No round has verified them at source yet.
+The fixes below were made after the round. Round 2 reviewed them.
 
 | # | Severity | Finding | Resolution |
 |---|----------|---------|------------|
-| R1-1 | ISSUE | AC-C1 was marked done, but RFC2131-4.1-7 and RFC2131-4.1-15 sat in no acceptance criterion of any spec. The DHCPv4 client never honours option overload: the vendored library's `FromBytes` truncates `sname` and `file` at the first NUL, so the code is missing, not only a test | owned since 2026-11-14 by `plan/release/fixes/spec-network-services-one-off-defects.md` AC-31 (uncommitted at the time of writing; lands with this closure's record). `plan/release/validation/spec-rfc-clause-scoped-proof.md` owns neither fix |
-| R1-2 | ISSUE | `docs/architecture/flowexport/flow-export-1-counter-export.md`, section "Daemon agent-address warning tests", says the classifier unit tests are the only coverage below the daemon; false since `12945e76f0` | OPEN. An agent's edit to that page was refused by the permission system and the owner has been asked. The correction is owed before closure: a page made wrong by a change is corrected in the same work |
+| R1-1 | ISSUE | AC-C1 was marked done, but RFC2131-4.1-7 and RFC2131-4.1-15 sat in no acceptance criterion of any spec. The DHCPv4 client never honours option overload: the vendored library's `FromBytes` truncates `sname` and `file` at the first NUL, so the code is missing, not only a test | owned since 2026-11-14 by `plan/release/fixes/spec-network-services-one-off-defects.md` AC-31 (committed in `ec552a0a6f`). `plan/release/validation/spec-rfc-clause-scoped-proof.md` owns neither fix |
+| R1-2 | ISSUE | `docs/architecture/flowexport/flow-export-1-counter-export.md`, section "Daemon agent-address warning tests", says the classifier unit tests are the only coverage below the daemon; false since `12945e76f0` | `fc7f223cee`: the page names both engine tests and keeps that only the absent-address case runs through the daemon |
 | R1-3 | ISSUE | the unspecified tunnel remote was refused only when the netlink backend applied it; `ze config validate`, a commit and the VPP backend accepted it, and the message named no fix | fixed by `04580da85d`: `TunnelSpec.CheckRemote`, called by `parseTunnelEntry`, refuses it at config verify for every tunnel kind and either backend with an operator message naming the fix; both backends repeat the same check. Evidence: unit packages `internal/component/iface` and `internal/plugins/iface/vpp` green; the netlink package's `TestBuildTunnelLinkRefusesAnUnspecifiedRemote` and both RFC 4213 sit tests green on Ze's kernel 7.3.0-ze in the QEMU guest; `test/parse/iface-tunnel-unspecified-remote-refused.ci` green through `ze config validate`, stable over 80 runs under load before promotion; the negative record of RFC4213-3.6-1 re-taken in the guest, red observed; scoped lint reports nothing in the files changed |
-| R1-4 | ISSUE | `plan/post-release/features/spec-tftp-server-uploads.md` did not list RFC1350-5-5 and still said extraction site 5:2 was excluded | that spec now lists RFC1350-5-5 in its RFC gaps, owns it in AC-32 (a stored upload read back is byte-identical), and its site 5:2 constraint is corrected (uncommitted at the time of writing; lands with this closure's record). Its edit had been refused because a file to be created was named under Files to Modify, not because of a hook defect |
+| R1-4 | ISSUE | `plan/post-release/features/spec-tftp-server-uploads.md` did not list RFC1350-5-5 and still said extraction site 5:2 was excluded | that spec now lists RFC1350-5-5 in its RFC gaps, owns it in AC-32 (a stored upload read back is byte-identical), and its site 5:2 constraint is corrected (committed in `ec552a0a6f`). Its edit had been refused because a file to be created was named under Files to Modify, not because of a hook defect |
 | R1-5 | ISSUE | `./le rfc check` had not run after `2cbf113ecc` | run: the lint annotation of `2cbf113ecc` had shifted the SFLOW-V5-4.3-2 verdict's file fingerprint (units byte-identical), resealed in `39205d383c`; the check run after `8f64f14196` reports 176 violations across the corpus and none naming this child's stems, packages or ids |
 | R1-6 | ISSUE | the RFC 1350 ledger named `sendAndWaitACK` for the duplicate-ACK fix | fixed by `cba4bb0810`: the enrolment reason and the extraction reasons for RFC1350-2-2, 6-1 and 7-1 name `serveFile` and `windowSender.awaitACK`; two reasons no longer claim a single-polarity annotation the rows do not carry |
 | R1-N1 | NOTE | the Linux fixture `internal/test/fixture/register_sflow_agent_address_linux.go` looked unowned | not unowned: the 2026-10-30 row of `plan/journal/claim-outlives-the-evidence-it-cites.md`, owned by `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md`, both read 2026-11-14; the Work Not Done row says so |
@@ -704,9 +703,22 @@ The fixes below were made after the round. No round has verified them at source 
 | R1-N3 | NOTE | the SFLOW-V5-x-11 correction left a question open | reworded in `cba4bb0810` to state decision D-3 |
 | R1-N4 | NOTE | RFC1350-5-5 has no audit verdict, as rfc1350's other gaps have none | recorded |
 | R1-N5 | NOTE | the re-taken RFC9728-7.1-2 records are whole-body breaks that prove reach | recorded; the verdict is unchanged |
-| R1-N6 | NOTE | no `./le` action runs one docker-tagged package test on the docker-lab guest; `docs/architecture/testing/interop.md` says so (`62f22dc4a5`) | recorded under Work Not Done as open, with no owner named yet: it still needs a journal row and an owner |
+| R1-N6 | NOTE | no `./le` action runs one docker-tagged package test on the docker-lab guest; `docs/architecture/testing/interop.md` says so (`62f22dc4a5`) | the 2026-11-14 row of `plan/journal/gate-verdict-depends-on-the-machine.md`, owned by `plan/post-release/engineering/spec-test-sandbox.md` (Work Not Done) |
 
 The round also recorded as sound: the `windowSender.awaitACK` logic; RFC1350-5-5 as a verbatim span at the right level, with site 5:2 mapped to it; the RFC 2181 and RFC1350-2-3 corrections; the SFLOW-V5-x-15 retirement; and the SFLOW-V5-x-16 tag claims.
+
+### Findings (round 2, 2026-11-14, reviewer authored none of the change)
+
+| # | Severity | Finding | Resolution |
+|---|----------|---------|------------|
+| R2-1 | ISSUE | the news fragment `website/changes/fragments/rfc-verdict-fix-services.md` republishes the TFTP duplicate-ACK fix, which the 2026-09-28 update already published, and its tunnel Before and Exposure describe the state before `dbdde9fb4f` | fixed in the closing commit: the TFTP text and its two source anchors are dropped; Before and Exposure describe what came just before `04580da85d` (the netlink backend refused an unspecified remote only when it applied the config, with no fix named, and the VPP backend programmed it) |
+| R2-N1 | NOTE | `CheckRemote` accepts a zoned unspecified address (`::%zone`); YANG cannot carry one and both backends refuse it | recorded |
+| R2-N2 | NOTE | the RFC4213-3.6-1 negative record breaks the whole body of `parseTunnelRemote`, so its red proves reach, not the 0.0.0.0 refusal itself | recorded |
+| R2-N3 | NOTE | `8f64f14196` went to no test judge; the reviewer read the new assertion as proving more than the old one | recorded |
+| R2-N4 | NOTE | the record called R1-2 open and R1-1 and R1-4 uncommitted | record updated: R1-2 resolved by `fc7f223cee`, R1-1 and R1-4 committed in `ec552a0a6f` |
+| R2-N5 | NOTE | two citers of the spec path were not repointed | still not repointed: `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` AC-3 and `plan/proposals/spec-fixit-dns-rfc1035-conformance.md` AC-28. The spec-edit gate refused both edits again on 2026-11-14. The DNS proposal cites a Files to Create path, `internal/core/dnsserver/transfer.go`, under a level-4 heading of its historical record, and the gate reads it as a missing producer. The sFlow spec has no `## Existing Mechanisms` section, and its Current Behavior no longer matches HEAD: `4ef90497c6` already carries a close cause and an FSM event to BMP |
+| R2-N6 | NOTE | "closed 2026-11-14" citations were written before closure | true once the spec is removed, which this closure does |
+| R2-N7 | NOTE | the rfc1350 extraction reason for site 6:1 leaves out the timeout set by config (`limits.timeout`) | recorded |
 
 ## Pre-Commit Verification
 
@@ -745,7 +757,7 @@ Observed results only, 2026-11-14.
 |---------------------------------|-----------------|----------|
 | `docs/architecture/testing/interop.md`, the TFTP curl runs | `62f22dc4a5` | yes |
 | `docs/features/interfaces.md`, the unspecified-remote refusal | `TunnelSpec.CheckRemote` (`internal/component/iface/tunnel.go`) read 2026-11-14: called by `parseTunnelEntry` (`internal/component/iface/config.go`) at config verify, it refuses an unparsable or unspecified remote for every tunnel kind with a message naming the fix (`set interface tunnel <name> encapsulation <kind> remote ip <address>`); `parseTunnelRemote` and the VPP backend's tunnel path call it again; the page was updated in `04580da85d` | yes |
-| `docs/architecture/flowexport/flow-export-1-counter-export.md` | the page's coverage sentence is false since `12945e76f0` | no: owed, refused for an agent (Work Not Done) |
+| `docs/architecture/flowexport/flow-export-1-counter-export.md`, the agent-address warning coverage | `git show fc7f223cee`, read 2026-11-14: the page names `TestSFlowV5AgentAddressMultiHomedEngineWarns` and `TestSFlowV5AgentAddressOnLoopbackEngineSilent` in a source anchor, and says the absent-address case is the only daemon coverage | yes |
 | `docs/features/rfc-status.md` is not edited | derived by `./le rfc update`, git-ignored | yes |
 
 ## Core Insight
