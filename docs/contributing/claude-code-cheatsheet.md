@@ -113,8 +113,8 @@ What each tool was seen to do with a stub, on 2026-11-13:
 |------|----------------------|--------------------------------|
 | Claude Code | `.claude/skills/` | Yes: the next action after the stub was a full read of `ai/skills/<name>.md`, in the main session and in two fresh agents |
 | Codex CLI 0.169.0 | `.agents/skills/` | Yes: it read the stub, then the whole source, and bound the argument it was given |
-| OpenCode 1.19.4 | `.agents/skills/` and `.claude/skills/`, each skill listed once | Not run: it discovered all 34 stubs, and no model was available to it that day |
-| Pi 0.73.1 | `.agents/skills/` (by its source) | Not run: no model was available to it that day |
+| OpenCode 1.19.4 | `.agents/skills/` and `.claude/skills/`, each skill listed once | Not run with these stubs: it discovered all 34, and no model was available to it that day. On 2026-11-14 OpenCode 2.2.5 loaded the operator's `ze` stub from `~/.agents/skills/`, then ran the command the stub names |
+| Pi 0.73.1 | `.agents/skills/` (by its source) | Not run with these stubs: no model was available to it that day. On 2026-11-14 omp 18.16.0, the Pi-based agent on the proof host, read the operator's `ze` stub from `~/.agents/skills/`, then ran the command the stub names |
 
 | You did | Run |
 |---------|-----|
