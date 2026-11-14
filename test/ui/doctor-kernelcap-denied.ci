@@ -1,5 +1,5 @@
 # Test: ze doctor reports a probe the host's security policy denied as its own answer
-# Spec: plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md AC-15, AC-16
+# Spec: spec-docker-hosts-run-the-ze-kernel, AC-15, AC-16
 # VALIDATES: a denied l2tp-ppp probe reaches the operator from both entry points.
 # With a config, `ze doctor --json` carries doctor-kernel-capability-denied, a
 # WARNING (exit 0), and not the subsystem's unknown or unavailable code. The
@@ -11,6 +11,12 @@
 # The answer is FORCED (ze.test.kernelcap.force) so the denied branch is reached
 # on any host; the real policy path (EACCES under docker-default) is
 # TestMPLSIPMTUPolicyDenialIsDenied, and was observed live on colima 2026-10-10.
+#
+# environment/ntp is enabled so the exit code answers for the denied probe alone.
+# On Ze's own system (gokrazy) a disabled NTP client is doctor-clock-no-sync at
+# ERROR severity (clockNoSyncSeverity, internal/plugins/ntp/doctor.go), which
+# sets exit 1 for a reason this test does not ask about. An enabled client with
+# no server reports nothing.
 option=needs-linux
 
 option=env:var=ze.test.kernelcap.force:value=l2tp-ppp=denied,l2tp=present
@@ -18,6 +24,11 @@ option=env:var=ze.test.kernelcap.force:value=l2tp-ppp=denied,l2tp=present
 tmpfs=l2tp.conf:terminator=EOF_CONF
 l2tp {
     enabled true
+}
+environment {
+    ntp {
+        enabled true
+    }
 }
 EOF_CONF
 
