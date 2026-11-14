@@ -8,7 +8,7 @@
 | Blocked by | - |
 | Scope | tooling \| docs |
 | Depends | `spec-session-editor-file-mode-parity` (closed 2026-10-10); Linux kernel/VPN runtime proof before recording. Full `spec-appliance-kernel-vpn-modules` closure is no longer a sequencing prerequisite; its Mac acceptance remains owed |
-| Phase | 7/7, closure: every phase is committed, the owner ordered the close on 2026-11-14, and the closure evidence runs are owed |
+| Phase | 7/7, closure: every phase is committed, the owner ordered the close on 2026-11-14, the unit runs and the lint are green, and the validator run in the renderer container, `ddos-parent-config-removed` and `./le doc check all` are still owed (Run results) |
 | Handoff | - |
 | Updated | 2026-11-14 |
 
@@ -144,6 +144,7 @@ at the named symbol on that date.
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 | Original AC-1 and AC-2 supported-product behavior; release evidence reconciliation for diagnosis findings, not recording production | The owner split the product proof from the presentation work (Implementation Ownership above) | `plan/release/validation/spec-showcase-live-config-proof.md` |
+| AC-5, its last clause: the check mode names every stale recording. Today `./le site terminal-demo check artifacts` names the first stale demo and stops | `Engine.verifyAssets` returns inside its loop; found at closure, and three tests pin the one-id text | `plan/post-release/engineering/spec-wireguard-terminal-demo.md` (its owned journal row in `error-names-no-fix-command.md`, 2026-11-14) |
 
 ## Historical planning record
 
@@ -482,9 +483,9 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 |-------------|---|--------------|------|
 | `./le site terminal-demo` validate mode, any manifest id | → | scenario registry lookup replacing `runScenario` and `demoValidators` | `TestEveryManifestDemoHasARegisteredScenario` |
 | `ze-demo run showcase-lab start` from a topic tape | → | shared lab runner (FRR multi-daemon, RTR, IRR, keepalived, far-end Ze) | `validateShowcaseLab` (runtime, Linux, `ze-demo validate showcase-lab` under the renderer container). Without root, `TestShowcaseRefusesUnobservableFixture`, `TestShowcaseRefusesEmptyReadinessTarget` and `TestShowcaseRefusesMissingReadinessCommand` (`readiness_test.go`) prove `startFixtures` and `awaitReadiness` refuse a fixture that reports ready on anything but observed output, and `TestShowcaseBaseTreeAcceptsActualBaseline` with `TestShowcaseBaseTreeRejectsPreconfiguredTopics` (`validate_showcase_base_test.go`) judge the real base config. Corrected at closure (2026-11-14): this row named `TestShowcaseLabFixturesReportReadyOnOutput` and `TestShowcaseLabFilesMatchItsFixtures`, which were never written. No unit test compares the lab's files with its fixtures: a missing lab file fails `validateShowcaseLab` at run time |
-| A topic fragment sourced by its topic tape and by the showcase tape | → | `parseTape` / `tapeLines` + `sourceDigest` / `definitionDigest` | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` (`topic_fragment_test.go`, written at closure on 2026-11-14, its first run owed), `TestSourceDigestFollowsSourcedTapes`. At run time `showcaseTopicOrder` (`validate_showcase_topics.go`) refuses a showcase tape that misses or repeats a live topic's fragment |
+| A topic fragment sourced by its topic tape and by the showcase tape | → | `parseTape` / `tapeLines` + `sourceDigest` / `definitionDigest` | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` (`topic_fragment_test.go`, written at closure on 2026-11-14, PASS in run 1 of Run results), `TestSourceDigestFollowsSourcedTapes`. At run time `showcaseTopicOrder` (`validate_showcase_topics.go`) refuses a showcase tape that misses or repeats a live topic's fragment |
 | SSH editor `commit` adding IRR config to a running daemon | → | `bgp-filter-irr` verify/apply handlers | `test/reload/bgp-filter-irr-added-live.ci` |
-| SSH editor `commit` adding each topic's config to a daemon started without it | → | each topic's plugin apply path | each topic validator: `validateTopicRPKI`, `validateTopicIRR`, `validateTopicBFD`, `validateTopicOSPF`, `validateTopicIPsec`, `validateTopicVRRPTracking`, `validateTopicTrafficUsage`, `validateTopicCommitConfirmed` |
+| SSH editor `commit` adding each topic's config to a daemon started without it | → | each topic's plugin apply path | each topic's check, bound to the topic validator and the showcase by `registerLiveTopic` (`register_topics.go`): `checkTopicRPKI`, `checkTopicIRR`, `checkTopicBFD`, `checkTopicOSPF`, `validateTopicIPsec`, `checkTopicVRRPTracking`, `checkTopicTrafficUsage`, `checkTopicCommitConfirmed` |
 | Site build home page | → | `heroMount` with `homeHeroDemo` = `showcase`, caption and anchor from the manifest | `TestHomeHeroDerivesFromTheManifest` |
 | README screenshot and link | → | actual showcase image and manifest-derived player destination | Observe the published image and linked player; record size and source |
 
@@ -525,7 +526,7 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 | `TestEveryManifestDemoHasARegisteredScenario` | `internal/le/site/terminaldemo/scenarios_test.go` | AC-6: every manifest id resolves to one registration; an unregistered id is refused by name | |
 | `TestScenarioRegistrationRefusesADuplicateId` | `internal/le/site/terminaldemo/scenarios_test.go` | AC-6: two registrations under one id panic at init | |
 | `TestSourceDigestFollowsSourcedTapes` | `internal/le/site/terminaldemo/terminaldemo_test.go` | AC-5: editing a fragment outside the demo dir changes source and definition digests | |
-| `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` | `internal/le/site/terminaldemo/topic_fragment_test.go` | AC-7: each topic fragment is named by exactly one Source line of one topic tape and one of the showcase tape, and each sourcing demo resolves to a live topic whose one check both validators call | written at closure 2026-11-14, first run owed |
+| `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` | `internal/le/site/terminaldemo/topic_fragment_test.go` | AC-7: each topic fragment is named by exactly one Source line of one topic tape and one of the showcase tape, and each sourcing demo resolves to a registered live topic that holds a check and registers a fragment its own tape sources. `registerLiveTopic` is the one constructor of a live topic and binds that check to both validators | written at closure 2026-11-14, PASS in run 1 of Run results |
 | `TestTapeWaitsAreNotSatisfiedByTheTypedCommand` (existing) | `internal/le/site/terminaldemo/tape_wait_test.go` | extended over the expanded Source closure so fragment waits are checked | |
 | `TestCardCoversTheScreenThenRepaintsIt` | `internal/le/site/terminaldemo/tapecard_test.go` | D-9: the card's bytes reach the cast on a cleared screen, output written under the card is held back, and the repaint replays the screen since its last erase | pass 2026-10-11; red with the replay dropped from the repaint |
 | `TestRecorderShowsACardOverARunningProgram` | `internal/le/site/terminaldemo/tapecard_test.go` | D-9: through a real PTY, the card follows the program's output, the next event repaints that output, and the program answers after it | pass 2026-10-11; red with the replay dropped |
@@ -1027,10 +1028,10 @@ needs a context that did not write it.
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
 | AC-3, AC-4, AC-11, AC-15, AC-16 | Recorded, re-run owed | topic and showcase validators in the renderer container | The recorded validation predates tape and lab edits of 2026-10-28 to 2026-11-04 |
-| AC-5 | Done | `TestSourceDigestFollowsSourcedTapes` (`terminaldemo_test.go`) | PASS in run 1 of Run results |
+| AC-5 | Partial: digests proven, check names one demo | `TestSourceDigestFollowsSourcedTapes` (`terminaldemo_test.go`) | PASS in run 1 of Run results. It proves that both recordings' source and definition digests change, then requires exactly `term: source changed since the last render`: `Engine.verifyAssets` returns at the first stale demo, so the check mode reports one recording stale, not both. The remainder is a Work Not Done row |
 | AC-6 | Done | `registry.go`, `scenarios.go` `runScenario`, `TestEveryManifestDemoHasARegisteredScenario`, `TestScenarioRegistrationRefusesADuplicateId` | No `demoValidators` symbol remains |
 | AC-7 | Done | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` (`topic_fragment_test.go`); `registerLiveTopic` | PASS in run 1 of Run results; the test file is uncommitted until commit A |
-| AC-8 | Done, run owed | `home.go` `homeHeroSlots`; `TestHomeHeroDerivesFromTheManifest` | |
+| AC-8 | Done | `home.go` `homeHeroSlots`; `TestHomeHeroDerivesFromTheManifest` | Green in run 6 of Run results, after `d2e94d3212` corrected three stale homepage expectations |
 | AC-9 | Done | `README.md` hero block: `docs/demos/showcase.webp` linked to `#continuous-live-configuration-showcase` | The image sits two lines below the line the criterion names; 10,788 bytes as recorded |
 | AC-10 | Done | markers in `terminal-demonstrations.md` and each feature page, `ipsec.md` included | |
 | AC-12 | Done | the manifest holds no replaced id (`vrrp-failover` is gone) | Removal of the published assets is as the spec records it, not re-read |
@@ -1041,9 +1042,9 @@ needs a context that did not write it.
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
 | Unit tests of the Unit Tests table | Present | files named there | `TestFilterIRR*` live in `config_tx_test.go`, not `filter_irr_test.go` |
-| `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` | Written at closure | `topic_fragment_test.go` | First run owed |
+| `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` | Written at closure | `topic_fragment_test.go` | PASS in run 1 of Run results |
 | `ddos-parent-config-removed` (changed) | Never run | `test/plugin/ddos-parent-config-removed.ci` | Its changed expectations need a Linux run with net-admin and bpf; owed |
-| `./le test unit pkg path ./internal/le/site/` | Last result was a ten-minute timeout | Current presentation decision | Not a pass; owed |
+| `./le test unit pkg path ./internal/le/site/` | The homepage tests ran green on 2026-11-14 | Run 6 of Run results | The whole package's earlier run was a ten-minute timeout, not a pass; the selected run covers AC-8 |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -1073,20 +1074,33 @@ needs a context that did not write it.
 
 ## Review Gate
 
-Not run. The closing agent wrote `topic_fragment_test.go`, so a context that
-did not write it runs `/ze-review` over the change set and records the
-artifact with `./le spec review record`.
+The closing agent wrote `topic_fragment_test.go`, so a context that did not
+write it reviews it. The artifact is recorded with `./le spec review record`
+once the last round is clean. A whole-diff review of this spec's
+implementation commits is run separately by the main thread.
 
 | Field | Value |
 |-------|-------|
 | Artifact | not recorded |
 | `./le spec review check` | not run |
-| Rounds | 0 |
-| Reviewer lenses used | none yet |
+| Rounds | 1 |
+| Reviewer lenses used | independent closure review of the new test and the evidence rows |
+
+### Run 1 (2026-11-14)
+
+Scope: `topic_fragment_test.go` and the spec's evidence rows. Verdict:
+0 BLOCKER, 1 ISSUE, 5 NOTE. Each was checked at source before its fix, and
+the fixes are prose plus one test comment, so no run is owed by them.
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
+| 1 | ISSUE | AC-5 was marked Done, but the check mode reports one stale recording, not both | Implementation Audit, AC-5 | AC-5 marked partial with what the test proves; Work Not Done row naming `plan/post-release/engineering/spec-wireguard-terminal-demo.md` |
+| 2 | NOTE | The published showcase is stale by its own tape, which the spec did not say | Published recordings against the sources | Stated, with the commits and the transcript line that show it |
+| 3 | NOTE | The re-record question was still "put to the owner" after he answered | same section | His decision recorded in his words, with its consequence |
+| 4 | NOTE | "run owed" cells contradicted the runs already made | Phase, Wiring Test, TDD plan, audit rows | Cells updated; runs 5 to 9 added to Run results |
+| 5 | NOTE | The Wiring Test named seven `validateTopic*` functions that do not exist | Wiring Test | Names taken from the `registerLiveTopic` calls |
+| 6 | NOTE | The test comment claimed both validators call the check, which the body does not assert | `topic_fragment_test.go`, the test's doc comment | Comment reworded to what the body asserts and why that suffices |
 
 ## Pre-Commit Verification
 
@@ -1149,6 +1163,11 @@ the row above waits on.
 | 2 | `./le test unit pkg path ./internal/le/site/terminaldemo/` | red on one test: `TestWebConfigJourneyOwnsStartup/run-web-config-record/readiness`, `child never rendezvoused at stalled` (`webJourneyChildPID`, `web_config_ownership_test.go`) | Not this spec's test, and it passed in run 1. Machine load was near 6 a core in this run and near 4 in run 1: an observation, not a shown cause. Journal row: `plan/journal/startup-wait-expires-under-load.md`, 2026-11-14, owned by `spec-test-verdicts-independent-of-load` |
 | 3 | `./le go lint run scope "./internal/le/site/terminaldemo/"` | no verdict: refused with "lint inputs changed during planning after linux-integration: internal/component/config/storage/yang/ze-data-cmd.yang changed" | Another session was editing that file. Still owed. The refusal for an edit outside the scope is AC-12 of `spec-test-verdicts-independent-of-load` |
 | 4 | `./le site terminal-demo check artifacts` | exit 1, whole output `error: cli-dashboard: source changed since the last render` | The check stops at the first stale demo (`Engine.verifyAssets`, `manifest.go`), so this answer is silent about the other nineteen. Read below |
+| 5 | `./le go lint run scope "./internal/le/site/terminaldemo/"` (rerun) | exit 0 | The new test file is lint clean |
+| 6 | `./le test unit pkg path ./internal/le/site/ run 'TestHome\|TestTheHomepage\|TestHero\|TestAFactTheSnapshotLostStopsTheHomepage'` | ok | AC-8. `TestHomeHeroDerivesFromTheManifest` was red before on the removed hero-start-action link; `d2e94d3212` corrected three stale homepage expectations under the owner's ruling "The homepage is fine as it is - so if any test relies on content not here anymore, it need updating" |
+| 7 | `./le site terminal-demo check validation` | not run yet | The renderer image is being rebuilt; its first build failed on a transient Debian mirror refusal. AC-3, AC-4, AC-11, AC-15 and AC-16 wait on it |
+| 8 | `test/plugin/ddos-parent-config-removed.ci` | not run yet | Its changed expectations still have no run |
+| 9 | `./le doc check all` | red | On another session's uncommitted data-command drift, not on this spec's pages |
 
 ### Published recordings against the sources (read 2026-11-14)
 
@@ -1183,8 +1202,23 @@ gallery upkeep that this spec does not own. A re-render of this spec's nine
 would produce recordings the owner has not watched, which AC-17 ("Reviewed by
 watching the recording") speaks to, and the Task says of the accepted
 showcase "do not shorten, retime or replace its explanations". Whether the
-nine are re-recorded before the close is therefore not decided by a criterion
-and is put to the owner by the main thread.
+nine are re-recorded before the close is therefore not decided by a
+criterion, and the main thread put it to the owner.
+
+The published showcase is also stale by its own tape. In `../gh-pages`,
+`assets/demos/showcase.cast` and `showcase.txt` last changed in `dfa6a74afc`
+(2026-10-28T13:33Z). `4ce45ebc2b` (2026-10-28T17:14Z) then changed
+`demos/terminal/topics/commit-confirmed/configure.tape`, which the showcase
+sources, and `a3e417a32d` re-rendered the eight topic casts and not the
+showcase. The published `showcase.txt` still reads `commit confirmed 8` at
+the step where `demos/terminal/showcase/transcript.txt` reads
+`commit confirmed 15`.
+
+Owner decision, 2026-11-14, in his words: "we will not re-record the terminal
+yet". So the published recordings stay stale, the eight topic recordings by
+the recorder's sources and the showcase by its own tape as well, and
+`./le site terminal-demo check artifacts` stays red until a render is
+ordered. The spec closes on its validators.
 
 What the criteria do owe is the validator re-run of AC-3, AC-4, AC-11, AC-15
 and AC-16, because lab and tape inputs changed after the recorded validation.
