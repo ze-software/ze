@@ -180,6 +180,13 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   host the agent is on: on Linux, QEMU guests, netns runs, `caps=` and
   `needs-linux` tests included. Only a test that runs only on another OS
   waits for a host of that OS.
+- A test runs once, on one machine. Go is multi-architecture, so a test of
+  Ze's Go code that passes on one architecture is not repeated on the other:
+  no second run is owed, asked for or started, and a spec never lists one as
+  remaining work. Running the same test on both Intel and ARM spends CPU to
+  learn nothing. When more than one development machine is available, the
+  agent picks one for the run, normally the one with the least CPU in use at
+  that moment.
 - Kernel work uses the architecture of the machine the agent is on. Never
   cross-compile or emulate the other architecture's kernel locally; its proof
   comes from a host that runs it natively.
@@ -620,8 +627,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   side a red is on.
 - When development uses more than one machine, to spread load or to reach
   another architecture, the checkouts are kept in step with git commands and
-  nothing else. A change is made in one checkout, committed, pushed on
-  Thomas's order, and pulled on every other machine. An agent never edits,
+  nothing else. A change is made in one checkout and committed, and its
+  commits travel to the other machines by git itself: directly from one
+  development machine to another (a fetch or pull over SSH, or a git bundle),
+  or through origin. Moving commits between development machines publishes
+  nothing and needs no order from Thomas; a push to origin or to any public
+  remote still does. An agent never edits,
   copies or patches a file in another machine's checkout over SSH, tracked or
   untracked: that machine runs tests, labs and builds of what git delivered,
   and anything a run writes goes to scratch outside the tracked tree. An agent
