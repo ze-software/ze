@@ -1,0 +1,49 @@
+# Test: the BUILT le binary takes one job slot for a heavy action before its
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
+#       body runs, queues a second one behind it, counts a tree once, and
+#       leaves light lines unqueued.
+#
+# QUESTION: when a developer types a heavy action at the launcher, does the
+#           dispatcher admit it through the job registry: listed as a holder
+#           under its label while it runs, a second one listed as a waiter
+#           that starts only once the slot frees, a heavy le line started
+#           inside a job running in its parent's slot, and `le help` and
+#           `le job report` answering while the only slot is held? A unit
+#           test cannot decide it: internal/le/job and internal/le/le/root
+#           test the admitter and the seam in process, and between them and
+#           this file sit the build, the composition root that registers the
+#           admitter, the forwarding area's resolution to SlotCentral, and the
+#           parent variable crossing a process boundary through the launcher.
+#
+# VALIDATES: step 1, a running `le chaos run` is the one holder, labelled
+#            chaos-run, with 1 of 1 slot occupied; step 4, `le help` and
+#            `le job report` answer while it holds the slot; step 2, a second
+#            `le chaos run` is listed as a waiter, has not started its body
+#            while the slot is held, starts once it frees, and afterwards the
+#            report lists no holder and no waiter; step 3, `le job run` whose
+#            command is `le chaos run` holds one slot and its nested line runs
+#            inside it with no waiter row, with ZE_RUN_SLOTS=1.
+# PREVENTS: a heavy action that runs unadmitted, a central line that
+#           oversubscribes the slots, a nested heavy line that waits for the
+#           slot its own parent holds, and a light line queued behind work.
+#
+# The registry is a scratch tree named by ZE_REPO_ROOT, never the checkout: a
+# functional test must not take a slot the sessions sharing this machine are
+# queueing for. ZE_RUN_JOB and the surrounding identity are removed from the
+# driven processes, so no line runs inside the suite's own slot.
+#
+# Nothing here waits for a duration. Each heavy action writes its config to a
+# FIFO with --config-out, and its body blocks opening it until the fixture
+# opens the other end, so the fixture holds the body inside its slot for as
+# long as it needs, and its own open returning proves the body started. The
+# fixture polls the report for each state it judges.
+#
+# The timeout is declared because a cold build cache makes the first start of
+# the le personality far slower than the steady state, and a waiting job polls
+# the registry every two seconds.
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-job-admits-heavy-action
+expect=exit:code=0
+expect=stdout:contains=OK
