@@ -7,7 +7,7 @@
 | Release reason | Existing event delivery must not silently drop requests or stall routing on consumer latency. |
 | Depends | spec-unify-buffer-lifetime (HARD ordering: async fan-out must not land first) (closed, learned 1077 -- ordering constraint satisfied) |
 | Phase | - |
-| Updated | 2026-07-06 |
+| Updated | 2026-11-14 |
 
 ## Post-Compaction Recovery
 
@@ -143,6 +143,25 @@ that existing metrics table and its watchdog prose, not open a parallel section.
 - `Emit` no longer blocks for the duration of a slow consumer's N sequential RPCs.
 - Engine-vs-external delivery ordering becomes an explicit, documented contract.
 - core-design.md no longer shows a standalone Bus; a naming glossary is added.
+
+## Existing Mechanisms (MANDATORY)
+
+Added by the 2026-11-14 disposition. The design below this section predates the
+table and is not yet reconciled with it: the redesign through `/ze-spec` starts
+from these rows.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Per-process delivery queue with one long-lived worker | `internal/component/plugin/process/delivery.go`, `Process.Deliver`, `deliveryLoop`, `drainBatch` | Queues each event for a plugin on a 64-slot channel and drains it in batches; a full queue blocks the emitter until the plugin's context ends | Extends: this is the engine-to-plugin policy. The spec documents blocking as the policy and bounds it; it adds no second queue |
+| Per-batch delivery timeout | `internal/component/plugin/process/delivery.go`, `deliveryTimeoutFromEnv` (`ze.plugin.delivery.timeout`, 5s) | Bounds how long one batch may take to reach a plugin | Extends: the existing bound on a slow plugin, named in the unified policy |
+| Delivery failure and slow-batch counters, with a doctor record | `internal/component/plugin/process/manager.go` (`ze_plugin_delivery_failures_total`, `ze_plugin_delivery_slow_batches_total`), `Process.noteBatch`, `process/doctor_records.go` | Counts batches a plugin failed to take or took over 500ms to take, and reports them through `ze doctor` | Extends: the inbound-drop counter joins this family and its doctor record. They count the drain side, so the blocked enqueue is still unmeasured |
+| Write watchdog and write deadline, with a hook and a counter | `pkg/plugin/rpc/conn.go`, `fireWatchdog`, `SetWriteWatchdogHook`; `ze_plugin_write_watchdog_total` in `internal/component/plugin/server/server.go` | Closes both ends of a connection whose write stalls for 30s and counts the close | Extends: documented as the stall backstop of the unified policy. Its hook is the pattern the inbound drop copies, because `pkg/plugin/rpc` holds no metrics registry |
+| Inbound timed drop | `pkg/plugin/rpc/mux.go`, `MuxConn.sendRequest` (16-slot `requestCh`, 1s wait) | Drops a plugin-initiated request the engine did not take within one second, with a log line and no counter | Extends: gains the hook and counter. Replacing it with a blocking send would stall the read loop that also carries RPC answers |
+| Synchronous engine fan-out | `internal/component/plugin/server/engine_event.go`, `engineEventSubscribers.dispatch`; `SubscribeEngineEvent` contract "MUST NOT block on external I/O" | Runs every engine subscriber inline on the emitting goroutine, after external delivery is queued | Open, the design question: producers hold their ordering lock across a synchronous emit and the replay coordinator relies on synchronous re-entry, so the redesign either keeps the bus synchronous and moves the one blocking subscriber's I/O off it, or changes this contract with those dependants |
+| Redistribution batch pool, borrow-only | `internal/core/redistevents/pool.go`, `AcquireBatch`, `ReleaseBatch`; `docs/architecture/memory/lifetime-contracts.md`, contract D | Recycles batch entries when `Emit` returns; a subscriber MUST NOT retain a batch past dispatch, and a debug build poisons released entries | Extends: any hand-off that outlives `Emit` copies the entries first, and contract D's page changes in the same work |
+| Drop-oldest per-subscriber fan-out with a counter | `internal/component/iface/resolve.go`, `ze_iface_resolver_events_dropped_total` | Keeps only the newest event for a slow subscriber and counts what it dropped | Does not apply: a route event is not latest-wins, so dropping the oldest loses a route change |
+| Implicit backpressure on the forward path | `plan/learned/DESIGN-HISTORY.md`, BGP engine, "Backpressure on the forward path is deliberately IMPLICIT" | A blocked forward blocks the route-server worker, which fills its channel, which pauses the source peer | Keep: it constrains the engine-to-plugin policy. An UPDATE event to a forwarding plugin cannot be dropped, and cache acks stay cumulative and in FIFO order |
+| Telemetry registry | `reg.CounterVec` in `internal/component/plugin/process/manager.go` | Registers the plugin delivery counters | Extends: new counters register here |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -464,3 +483,72 @@ protocol. Existing BGP/redistribution interop scenarios are the regression gate.
 - [ ] Write learned summary to `plan/learned/NNN-bus-async-fanout.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary + counter bump
 - [ ] **Commit B:** `git rm plan/release/fixes/spec-review-bus-async-fanout.md`
+
+## Disposition
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-11-14 |
+| Checked at | 746b18426d |
+| Verdict | REWORK |
+| Defect 1 still occurs, partly measured | `Process.Deliver` blocks on its 64-slot channel with only a context escape; `MuxConn.sendRequest` drops after one second with a log line and no counter; the write watchdog is unchanged. Commit ecfbbdfed3 added delivery failure and slow-batch counters with a doctor record, which count the drain side only |
+| Defect 2 still occurs, moved | Engine subscribers still run inline. The per-entry blocking `UpdateRoute` call under a 10s timeout is now driven from `handleBatch` and `dispatchEntryToConsumer` in `internal/plugins/redistribute/redistribute.go`, which loops every consumer per entry and owns held-route and replay state. No queue or worker exists there |
+| Defect 3 still occurs | The ordering is still one `defer` in `Server.deliverEvent` (`internal/component/plugin/server/dispatch.go`); the spec names that function `Server.dispatch` |
+| Defect 4 still occurs | `docs/architecture/core-design.md` still draws a standalone `Bus (notification pub/sub)` node, and no page holds a bus and hub glossary |
+| Dependency landed another shape | `spec-unify-buffer-lifetime` closed with debug-build poison only (4cff612711). It did not land snapshot-on-retain: contract D in `docs/architecture/memory/lifetime-contracts.md` is borrow-only |
+| A design choice contradicts a recorded decision | Assumption A-3 offers drop-oldest in both directions; `plan/learned/DESIGN-HISTORY.md` records the blocking chain on the forward path as the deliberate signal path |
+| Existing Mechanisms table was absent | Added above by this disposition |
+
+The goal holds: every one of the four defects was read at its producer at this
+commit and still occurs, and this spec sits under `plan/release/fixes/`, so it
+is neither superseded nor obsolete. The design does not fit `main` in four
+ways.
+
+First, the slow consumer is no longer where the spec puts it. The blocking
+per-entry call is made by the redistribution orchestrator plugin, which also
+keeps the held-route and replay state, so "drain the batch off the emit path"
+is now a question about that plugin's state, not about the BGP consumer.
+
+Second, the spec's hard ordering constraint assumed its dependency would give
+subscribers a way to retain a batch. It did not: the batch is borrow-only, and
+a debug build poisons it on release. Any hand-off that outlives the emit copies
+the entries itself, and the lifetime page changes with it.
+
+Third, making the bus itself asynchronous would change a contract other code
+leans on. Producers hold their ordering lock across a synchronous emit, and the
+replay coordinator emits outside its own lock because engine subscribers
+re-enter synchronously. The subscriber contract already says a handler must not
+block on external I/O, which makes the redistribution orchestrator the
+violator, not the bus.
+
+Fourth, a symmetric drop policy cannot apply to engine-to-plugin UPDATE events:
+the blocking chain is the recorded backpressure signal, and cache acks are
+cumulative and ordered.
+
+The smallest redesign that would fit, as a starting point for `/ze-spec` and
+not a fixed requirement: keep the bus synchronous and move only the
+orchestrator's consumer I/O onto one long-lived ordered worker fed with a copy
+of the batch entries; keep the blocking engine-to-plugin send as the documented
+policy, with `spec-bgp-session-write-wedge-plugin-parked-writer` bounding what
+the reactor holds across it; give the inbound drop a hook and a counter beside
+the watchdog's; state engine-after-external as the contract and pin it with a
+test; fix the diagram and add the glossary. Whether the held-route and replay
+state moves onto that worker is the open design question.
+
+Not verified, and what would settle each: whether a plugin whose inbound
+request is dropped ever receives an error answer (read the SDK caller's timeout
+path); whether the rib, sysrib and flowexport engine subscribers also block on
+I/O (read each handler); that replay does not depend on the `defer` order was
+read in the coordinator and in `deliverEvent`, not traced through every
+producer.
+
+Stale references the redesign replaces: the spec's line numbers throughout;
+`./le verify current mode full` and `./le verify worktree`, which no agent runs
+(the evidence is scoped runs of the plugin, `pkg/plugin` and redistribute
+packages and the named `.ci` tests); the `spec-unify-route-events` and
+`spec-unify-replay` paths, both closed before this spec's last edit with none
+of the four defects fixed; `spec-finish-report-bus`, now at
+`plan/release/validation/`; "learned 1077" and the learned-summary closure
+steps, which predate the journal; and Files to Modify, which omits
+`internal/plugins/redistribute/redistribute.go` and
+`docs/architecture/memory/lifetime-contracts.md`.
