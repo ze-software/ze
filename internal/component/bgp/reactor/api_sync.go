@@ -213,8 +213,9 @@ func (r *Reactor) WaitForPluginStartupComplete() {
 //
 // The miss must be loud. Nothing downstream can see it: the caller
 // (cmd/peer/session.go handlePeerSessionReady) still answers "peer ready
-// acknowledged", and the peer simply waits out waitForAPISync and sends its EOR
-// apiSyncTimeout late. See ai/rules/evidence.md ("or say something").
+// acknowledged", and the report is credited to nothing, so the replay fence it
+// would have lowered (Peer.initialUpdateOwed) is not lowered by it. See
+// ai/rules/evidence.md ("or say something").
 //
 // sender names the process that reported. The peer's barrier is a SET of
 // route-pushing process names, so a report is credited to the one that sent it

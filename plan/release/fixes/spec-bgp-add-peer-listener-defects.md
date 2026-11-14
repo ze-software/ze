@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Shipped-daemon defects on the path that adds a BGP peer or a dynamic group and opens its listener: a passive dynamic group can be left with no listener, a refused add leaves state behind for a peer that does not exist, and the operator's listen error names no fix. |
 | RFC gaps | - |
-| Depends | `plan/release/fixes/spec-single-owner-lifecycle-2-bgp-session.md` (it adds `Reactor.listenersStarted` and changes the listener step of `addPeerLocked`, the code this spec reads; the order of the two is settled in design) |
+| Depends | `spec-single-owner-lifecycle-2-bgp-session`, closed (`0de757b33c` added `Reactor.listenersStarted` and changed the listener step of `addPeerLocked`, the code this spec reads, so this spec builds on that code) |
 | Phase | - |
 | Handoff | - |
 | Design tier | development tier |
@@ -109,7 +109,7 @@ standalone start window.
 |----------|--------|
 | What breaks if this is wrong? | [answered in design] |
 | How is it reverted? | [answered in design] |
-| Who else touches this path? | `plan/release/fixes/spec-single-owner-lifecycle-2-bgp-session.md` edits `addPeerLocked` and the start's listener pass |
+| Who else touches this path? | `spec-single-owner-lifecycle-2-bgp-session` (closed) edited `addPeerLocked` and the start's listener pass |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

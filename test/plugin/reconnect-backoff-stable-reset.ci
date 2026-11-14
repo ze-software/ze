@@ -10,7 +10,7 @@
 # NewPeer sets (DefaultReconnectMax, peer.go), the real peer clock and the error
 # a peer's TCP close produces reach that rule.
 #
-# Spec: plan/release/fixes/spec-single-owner-lifecycle-2-bgp-session.md,
+# Spec: spec-single-owner-lifecycle-2-bgp-session (closed; plan/learned/048-session-owns-its-sync.md),
 # AC-8 (stable session restarts at reconnectMin), AC-9 (short session doubles),
 # user stories 2 and 3. R-8: the stable time is not shortened and has no knob,
 # so this test holds a session for over a minute and takes about 85 to 115 s.

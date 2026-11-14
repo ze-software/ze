@@ -718,11 +718,13 @@ func (b *ProcessBinding) MaySend(sendType string) bool {
 // the process's own route operation (`send [ update ]`), or a whole message the
 // process built itself (`send [ raw ]`).
 //
-// It is the population of the initial-sync barrier, so it answers the question
-// RFC 4724 Section 4 asks -- whose routes belong to this speaker's initial
-// routing update -- rather than naming one rail. The owner ruled on 2026-08-30
-// that a plugin-injected route belongs to that update, so the End-of-RIB waits
-// for every binding this reports true for (peer_run.go, Peer.waitForAPISync).
+// It is the first filter of the processes a session names as reporters of its
+// initial update (Peer.initialUpdateReporters, peer_run.go), so it answers the
+// question RFC 4724 Section 4 asks -- whose routes belong to this speaker's
+// initial routing update -- rather than naming one rail. Their reports lower
+// the replay fence (Peer.SignalAPIReady). The End-of-RIB waits for none of them:
+// the owner ruled on 2026-09-18 that the marker follows ze's own table
+// (sendInitialRoutes, peer_initial_sync.go).
 func (b *ProcessBinding) MayPushRoutes() bool {
 	return b.MaySend(bgpevents.SendUpdate) || b.MaySend(bgpevents.SendRaw)
 }

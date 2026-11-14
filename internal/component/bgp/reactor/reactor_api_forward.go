@@ -231,7 +231,8 @@ func eorNoPeerError(fam family.Family) error {
 
 // logEORSuppressed records an End-of-RIB that AnnounceEOR declined to send, and
 // says which of the four conditions caused it: the three shouldQueue folds
-// together, plus the barrier the initial sync holds the marker behind.
+// together, plus the window after the initial sync opened its queue gate and
+// before its End-of-RIB phase cleared the session's owed marker.
 //
 // One message covering them all would have to hedge, and the obvious wording --
 // "the marker will be emitted when the drain completes" -- is FALSE in two of
@@ -256,10 +257,15 @@ func logEORSuppressed(peer *Peer, fam family.Family) {
 			"reason", "initial-sync-in-progress",
 			"effect", "marker will be emitted by sendInitialRoutes when the drain completes")
 	case peer.initialSyncMarkerOwed():
-		routesLogger().Warn("end-of-rib suppressed: peer is waiting for the plugins that push its initial routes",
+		// Info, not Warn: nothing is wrong here. The engine's own marker for
+		// this session follows, so the suppressed one loses nothing, except on
+		// a manual-eor peer, where no automatic marker follows and the caller
+		// must send its marker again once the sync has ended (as in every
+		// suppression branch of announceEOR).
+		routesLogger().Info("end-of-rib suppressed: the initial sync has sent its routes and still owes this session's end-of-rib",
 			"peer", addr, "family", fam,
-			"reason", "initial-sync-barrier-open",
-			"effect", "marker will be emitted by sendInitialRoutes when every route-pushing process reports ready, or at the sync timeout")
+			"reason", "initial-sync-marker-owed",
+			"effect", "marker will be emitted by sendInitialRoutes for every negotiated family, unless behavior manual-eor withholds it")
 	default:
 		routesLogger().Warn("end-of-rib suppressed: route operations are still queued for this peer",
 			"peer", addr, "family", fam,

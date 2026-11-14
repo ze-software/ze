@@ -13,7 +13,7 @@
 # route-server binding, the real plugin delivery of the peer-up event and the
 # real reconnect loop (Peer.run, peer_run.go) keep that order on the wire.
 #
-# Spec: plan/release/fixes/spec-single-owner-lifecycle-2-bgp-session.md, AC-1,
+# Spec: spec-single-owner-lifecycle-2-bgp-session (closed; plan/learned/048-session-owns-its-sync.md), AC-1,
 # user story 1, Functional Tests row `reconnect-rapid-initial-sync`.
 #
 # R-9: this file is claimed for the POSITIVE outcome only. It cannot reach the

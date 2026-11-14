@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-12 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -86,6 +86,7 @@ only line breaks were removed.
 
 **Key insights:**
 - The peer-up barrier wait (`peerUpBarrierTimeout`, 2 seconds) is the wait a predecessor goroutine survives its session in. The older API-sync wait no longer exists.
+  → Correction at closure: in ordinary operation the barrier is settled before the sync starts (`deliverPeerState`, `bgp/server/events.go`, collects each acknowledgement on the FSM callback goroutine before `startInitialRoutes`), so the wait nearly always returns at once. The predecessor lived in the static phase, the queue drain and the plugin-route phase; the join closes those, and the `Done()` case closes the barrier wait for the rare shut barrier (Deviations).
 - `Session.Done()` is closed when `Session.Run` returns. A sync goroutine exists only after Established, which is reached only inside `Run`, so `Done()` is a session-end signal the barrier wait can select on.
 - The forward-overflow hold predicate must stay lock-free: `forward_pool.go` forbids taking `Peer.mu` under the worker's overflow lock. Reading "the current session's flag" there needs a lock-free route to the session.
 - The startup convergence hold (`update_delay.go`) starts the sync later, from a release, for a `*Peer`. It is a second start site and it must carry the session.
@@ -235,12 +236,12 @@ successor's routes and then one marker per family, on every reconnect.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | Every write of the sync goes through its own `Session` (`sendUpdateWithSplit`, `sendUpdateHeld`, `SendUpdate`); the start goes through `startInitialRoutes` and `spawnInitialSync` only (`peer_initial_sync.go`, `update_delay.go`) |
+| No unintended coupling (components stay isolated) | Yes | All edits are inside `internal/component/bgp/reactor/`; no import was added |
+| No duplicated functionality (extends existing, does not recreate) | Yes | The flags moved onto `Session` and the Peer fields were deleted (`git show 08fe903803 -- internal/component/bgp/reactor/peer.go`); the join sits beside `joinRecovery` in the existing `runOnce` defer; no second generation counter |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | No encoder or builder changed (Changed-Wire Census); `forwardOrderHold` reads two atomics, `TestForwardOrderHoldAllocatesNothing` |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | No command, family, handler or plugin is added; the new fields are session lifecycle state of the reactor itself |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | The names introduced (`establishedSession`, `listenersStarted`, `cycleStayedEstablished`, `spawnInitialSync`, `peerUpBarrierOutcome`) appear in no switch, help string or completion table: `rg` over `internal/` finds them in `bgp/reactor` and, outside it, only as substrings of unrelated IKE, EAP and RIB test names |
 
 ## What changes in each named function
 
@@ -276,15 +277,15 @@ successor's routes and then one marker per family, on every reconnect.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every wait the sync goroutine can be in after its session ended is bounded: sends fail on the closed connection or the FSM state, the barrier wait observes `Done()`, and the locks it takes (`staticMu`, the peer lock, the session write lock) are held only by bounded writers | `sendUpdateHeld` returns `ErrInvalidState` outside Established (read). The other write paths and lock holders were not read end to end | The join in `runOnce` blocks and the peer stops reconnecting | `TestInitialSyncJoinReturnsWhenBarrierNeverOpens` and `TestInitialSyncJoinReturnsDuringQueueDrain` | unvalidated |
-| A-2 | A teardown the goroutine runs from the queue (`runQueuedTeardown`) on an ended session returns without waiting on anything `runOnce` releases after the join | The `runOnce` comment says a teardown returns while the goroutine is still in its waits; `teardownWith` was not read | A deadlock between the goroutine and the join | `TestInitialSyncJoinWithQueuedTeardown` under `-race` | unvalidated |
-| A-3 | No production path publishes `PeerStateEstablished` except through `enterEstablished` | One call site found (`source_policy_reload.go`); tests call `setState` directly | A session reaches Established with its gate open | grep for `setState(PeerStateEstablished)` at implementation, plus `TestEstablishedPublishedWithGateClosed` | unvalidated |
-| A-4 | A listener opened before the barrier lifts accepts nothing early: an inbound connection for a peer that is not started waits in the peer's inbound slot | Commit 784c25a39c and `setInboundConnection` (signature read); `startMultiListeners` already opens every configured listener before the barrier. The accept path for an unstarted peer was not read end to end | A peer added in the window could open a session before the plugins its policy names are connected | `TestPassivePeerAddedBeforeBarrierHoldsInboundUntilBarrier` | unvalidated |
-| A-5 | The stable time is `Peer.reconnectMax`, 60 seconds for every peer, because no configuration sets it | `NewPeer` and `setReconnectDelay` (read): no production caller, no YANG leaf; `peer-lifecycle.md` says "no setting yet" | A configured maximum exists and the rule reads the wrong value | grep at implementation | unvalidated |
+| A-1 | Every wait the sync goroutine can be in after its session ended is bounded: sends fail on the closed connection or the FSM state, the barrier wait observes `Done()`, and the locks it takes (`staticMu`, the peer lock, the session write lock) are held only by bounded writers | `sendUpdateHeld` returns `ErrInvalidState` outside Established (read). The other write paths and lock holders were not read end to end | The join in `runOnce` blocks and the peer stops reconnecting | `TestInitialSyncJoinReturnsWhenBarrierNeverOpens` and `TestInitialSyncJoinReturnsDuringQueueDrain` | confirmed after `Session.Run` returns (`closeConn` nils the connection under `writeMu`, so later writes fail fast); broken before it for a write with no deadline, which holds `writeMu` so `Run` never returns (pre-existing, owned by `plan/release/fixes/spec-bgp-session-write-wedge.md`) |
+| A-2 | A teardown the goroutine runs from the queue (`runQueuedTeardown`) on an ended session returns without waiting on anything `runOnce` releases after the join | The `runOnce` comment says a teardown returns while the goroutine is still in its waits; `teardownWith` was not read | A deadlock between the goroutine and the join | `TestInitialSyncJoinWithQueuedTeardown` under `-race` | confirmed: `runQueuedTeardown` waits on nothing `runOnce` releases (read); the test passes 20 times under `-race` |
+| A-3 | No production path publishes `PeerStateEstablished` except through `enterEstablished` | One call site found (`source_policy_reload.go`); tests call `setState` directly | A session reaches Established with its gate open | grep for `setState(PeerStateEstablished)` at implementation, plus `TestEstablishedPublishedWithGateClosed` | confirmed: the one non-test `setState(PeerStateEstablished)` is in `enterEstablished` (`source_policy_reload.go`) |
+| A-4 | A listener opened before the barrier lifts accepts nothing early: an inbound connection for a peer that is not started waits in the peer's inbound slot | Commit 784c25a39c and `setInboundConnection` (signature read); `startMultiListeners` already opens every configured listener before the barrier. The accept path for an unstarted peer was not read end to end | A peer added in the window could open a session before the plugins its policy names are connected | `TestPassivePeerAddedBeforeBarrierHoldsInboundUntilBarrier` | confirmed: the test passes in phase 4 (`0de757b33c`) |
+| A-5 | The stable time is `Peer.reconnectMax`, 60 seconds for every peer, because no configuration sets it | `NewPeer` and `setReconnectDelay` (read): no production caller, no YANG leaf; `peer-lifecycle.md` says "no setting yet" | A configured maximum exists and the rule reads the wrong value | grep at implementation | confirmed: `setReconnectDelay` (`peer.go`) has no non-test caller and no YANG leaf names a reconnect maximum |
 | A-6 | The owner's decision ("D2 - BIRD is better") is kept by its intent, a stable session clears the penalty and a flapping one stays damped, measured as time in Established rather than error to error | Thomas confirmed it on 2026-11-11: "the refined D2 rule stands". See Key Design Decisions | The owner wants BIRD's literal measure, with the restart it produces at the cap | Thomas confirmed on 2026-11-11: "the refined D2 rule stands" | confirmed |
-| A-9 | `EstablishedAt()` still holds the ended session's entry time when `run` reads it | `ClearStats` is its only clear and `Peer.cleanup` its only caller (grep) | The stable time reads zero or a later session's stamp | `TestRunBackoffRestartsAfterStableSession` | unvalidated |
-| A-7 | A session held by the convergence hold that ends and is replaced before the release is replaced in the held set by the new session of the same peer | `holdInitialUpdate` keys by `*Peer` (read); `updateDelayPeerDown` was not read | A release starts a sync for neither session | `TestHeldInitialUpdateStartsTheCurrentSession` | unvalidated |
-| A-8 | FRR at the lab's version reports End-of-RIB received and the received prefix count in the neighbor JSON the scenario reads | Not read in FRR's source | The interop check asserts a field FRR never prints | The implementer reads FRR's source and names the function in the scenario before writing the check | unvalidated |
+| A-9 | `EstablishedAt()` still holds the ended session's entry time when `run` reads it | `ClearStats` is its only clear and `Peer.cleanup` its only caller (grep) | The stable time reads zero or a later session's stamp | `TestRunBackoffRestartsAfterStableSession` | confirmed: `ClearStats` has one caller (`peer_run.go` `Peer.cleanup`); the test passes in phase 3 |
+| A-7 | A session held by the convergence hold that ends and is replaced before the release is replaced in the held set by the new session of the same peer | `holdInitialUpdate` keys by `*Peer` (read); `updateDelayPeerDown` was not read | A release starts a sync for neither session | `TestHeldInitialUpdateStartsTheCurrentSession` | confirmed: `updateDelayHold.peerDown` deletes the held and tracked entries, and `holdInitialUpdate` overwrites by key |
+| A-8 | FRR at the lab's version reports End-of-RIB received and the received prefix count in the neighbor JSON the scenario reads | Not read in FRR's source | The interop check asserts a field FRR never prints | The implementer reads FRR's source and names the function in the scenario before writing the check | confirmed at FRR `frr-10.7.1`: `bgp_vty.c` `bgp_show_peer_gr_extra_info` prints `endOfRibRecv` (only when Ze advertises Graceful Restart) and `bgp_show_peer_afi` prints `acceptedPrefixCounter` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -362,7 +363,7 @@ with `-race -count=20` through `./le job run label unit-pkg quiet command go tes
 | `TestInitialSyncJoinReturnsWhenBarrierNeverOpens` (race) | same | The barrier wait ends at session end, before the fake clock reaches 2 seconds | |
 | `TestInitialSyncJoinReturnsDuringQueueDrain` (race) | same | A sync inside the queue drain ends when its sends fail | |
 | `TestInitialSyncJoinWithQueuedTeardown` (race) | same | A queued teardown executed by the sync does not deadlock the join | |
-| `TestPredecessorSyncWritesNothingOnSuccessor` (race) | same | With the barrier held past a reconnect, the successor's connection carries routes then one marker per family | |
+| `TestPredecessorSyncWritesNothingOnSuccessor` (race) | `internal/component/bgp/reactor/rfc4724_rapid_reconnect_test.go` (moved from the join file: a file whose tags all cite one RFC is named `rfcNNNN_`) | With the barrier held past a reconnect, the successor's connection carries routes then one marker per family | |
 | `TestSuccessorPendingSyncUntilOwnMarker` | same | `pendingSync` of the second session is true until its marker | |
 | `TestInitialSyncStartsOncePerSession` | same | A second start for one session spawns nothing | |
 | `TestHeldInitialUpdateRefusesEndedSession` | `internal/component/bgp/reactor/update_delay_test.go` | A release for an ended session starts nothing | |
@@ -370,6 +371,8 @@ with `-race -count=20` through `./le job run label unit-pkg quiet command go tes
 | `TestBarrierTimeoutStillWarnsOnLiveSession` | `internal/component/bgp/reactor/peer_initial_sync_join_test.go` | The 2 second release and its warning are kept | |
 | `TestForwardOrderHoldReadsCurrentSessionGate` | `internal/component/bgp/reactor/forward_initial_sync_order_test.go` | Held while the current session's gate is closed, released when it opens | |
 | `TestForwardOrderHoldAllocatesNothing` | same | `testing.AllocsPerRun` reports 0 for the predicate | |
+| `TestForwardOrderHoldTakesNoPeerLock` (added) | same | The predicate answers while another goroutine holds `Peer.mu` | |
+| `TestPeerLevelTeardownAfterRunReturnedWaitsForNextSession` (added) | `internal/component/bgp/reactor/peer_queued_teardown_test.go` | A peer-level teardown dequeued after `Session.Run` returned stays at the head of the queue for the next session | |
 | `TestEstablishedPublishedWithGateClosed` | `internal/component/bgp/reactor/peer_established_gate_test.go` | An observer of Established sees the session's gate closed and the lock-free session equal to `Peer.session` | |
 | `TestAnnounceEORDefersToCurrentSessionMarker` | `internal/component/bgp/reactor/reactor_api_forward_test.go` | Suppressed while owed, sent after | |
 | `TestRunBackoffRestartsAfterStableSession` | `internal/component/bgp/reactor/peer_run_backoff_test.go` | After `reconnectMax` in Established, the next wait base is `reconnectMin` | |
@@ -378,6 +381,7 @@ with `-race -count=20` through `./le job run label unit-pkg quiet command go tes
 | `TestRunBackoffKeepsCapOnPeerThatNeverComesUp` | same | Ten failed dials at the cap keep the base at `reconnectMax` | |
 | `TestRunPrefixTeardownCountRestartsAfterStableSession` | same | The prefix wait returns to its base after a stable session | |
 | `TestRunPrefixTeardownCountGrowsOnShortSessions` | same | Teardowns of short sessions still double the prefix wait | |
+| `TestRunPrefixTeardownCountKeptAfterLongCycleThatNeverEstablished` (added) | same | A cycle longer than `reconnectMax` that never reached Established keeps the prefix count (AC-9b) | |
 | `TestRunTeardownStillResetsDelay` | same | `ErrTeardown` after a short session resets the delay, waits nothing and keeps the prefix count | |
 | `TestRunTeardownAfterStableSessionClearsPrefixCount` | same | `ErrTeardown` after a stable session also zeroes the prefix count | |
 | `TestPassivePeerAddedBeforeBarrierGetsListener` | `internal/component/bgp/reactor/reactor_listener_start_window_test.go` | A connection to the added peer's pair is accepted before the barrier opens | |
@@ -458,9 +462,9 @@ claimed to discriminate the fix unless a revert run goes red (R-9).
 | 6 | Has a user guide page? | Yes | `docs/guide/bgp-peering.md`: one paragraph on when the reconnect delay restarts, beside the prefix `reconnect` table, phase 3 |
 | 7 | Wire format changed? | No | - |
 | 8 | Plugin SDK/protocol changed? | No | - |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4724.md`: the row for the End-of-RIB after the initial update gains the rapid-reconnect test as evidence, with its discrimination record, phase 2 |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4724.md` rows carry the RFC quote and no test links, so the row is unchanged: the evidence is the `RFC requirement: RFC4724-4-1` tag on `TestPredecessorSyncWritesNothingOnSuccessor` (`rfc4724_rapid_reconnect_test.go`) and its record `rfc/discrimination/rfc4724/RFC4724-4-1.json` (`83f01625e2`) |
 | 10 | Test infrastructure changed? | No | - |
-| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` if it states reconnect damping; otherwise named as unaffected at phase 3 |
+| 11 | Affects daemon comparison? | No | `docs/comparison.md` states no reconnect damping: `grep -n -i "reconnect\|backoff\|damp" docs/comparison.md` finds only a RADIUS Idle-Timeout row |
 | 12 | Internal architecture changed? | Yes | `ai/digests/bgp-reactor.md` (goroutine model gains the initial sync, its join, and what the digest is silent on that this spec touches: `forwardGeneration` against the session's gate), `docs/architecture/behavior/fsm.md` (the damping section gains the stable-session restart; the `sessionDown` section gains the join), `docs/architecture/behavior/peer-lifecycle.md` (backoff table, backoff defaults, initial sync steps, listener start) |
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | No | - |
@@ -645,3 +649,177 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1 (`08fe903803`): `Session` owns `sendingInitialRoutes`, `initialSyncEOROwed`, the start latch `initialSyncStart` and `initialSyncDone` (`session.go`); the Peer flags are deleted and `Peer.establishedSession` is the lock-free copy for `forwardOrderHold`. `enterEstablished(session)` closes the gate, marks the marker owed and publishes the session before `setState`. `spawnInitialSync` is the only start site; `startInitialRoutes(session)` and the convergence hold (`held map[*Peer]*Session`) carry the session. The `runOnce` session-end defer calls `session.endInitialSync()` after `joinRecovery`, then clears `establishedSession`, wakes the forward worker, resets the End-of-RIB claims and clears `p.session`.
+- Phase 2 (`83f01625e2`): `waitPeerUpBarrier(session)` returns `peerUpBarrierOpened`, `TimedOut` or `SessionEnded`, warning only on the timeout; `sendInitialRoutes` abandons on `SessionEnded`. `queuedTeardownEnds` counts a session whose `Run` returned as gone (`sessionRunReturned`). `test/plugin/reconnect-rapid-initial-sync.ci`; `RFC4724-4-1` tag and record on `TestPredecessorSyncWritesNothingOnSuccessor`.
+- Phase 3 (`170200cc60`, `650bccc707`): `Peer.cycleStayedEstablished` restarts `delay` and `prefixTeardownCount` before the `ErrTeardown` branch; `test/plugin/reconnect-backoff-stable-reset.ci`.
+- Phase 4 (`0de757b33c`, `2219d0d7b5`): `Reactor.listenersStarted`, written by `startMultiListeners` and `stopAllListeners`, gates the listener block of `addPeerLocked`.
+- Interop (`4c32e2d0a2`, `dcd69b3259`): `bgp-rapid-reconnect-initial-sync-frr` and its checker. RFC proof retakes (`543c65d1b8`).
+- Closure: the `logEORSuppressed` line for an owed marker no longer describes the removed wait for route-pushing processes (`reactor_api_forward.go`); two comments naming the removed `waitForAPISync` rewritten (`peer_settings.go` `MayPushRoutes`, `api_sync.go` `SignalPeerAPIReady`).
+
+### Bugs Found/Fixed
+- The three journal rows of this spec, each with its tests (Implementation Audit).
+- `TestPrefixBackoffReset` asserted a reset it performed itself: deleted under a `ze-test-judge` approval in `08fe903803`, its claim carried by `TestRunPrefixTeardownCountRestartsAfterStableSession` and `TestRunTeardownAfterStableSessionClearsPrefixCount`.
+- A peer-level teardown dequeued after `Session.Run` returned was spent on the dead session: `TestPeerLevelTeardownAfterRunReturnedWaitsForNextSession`.
+- Met, not this spec's: a writer with no deadline holds `writeMu` and every close path waits behind it (`89c4d6badf`, `plan/release/fixes/spec-bgp-session-write-wedge.md`).
+
+### Documentation Updates
+- `ai/digests/bgp-reactor.md`, `docs/architecture/behavior/fsm.md`, `docs/architecture/behavior/peer-lifecycle.md` (phases 1 to 4), `docs/architecture/forward-congestion-pool.md`, `docs/architecture/api/architecture.md` (phase 1), `docs/architecture/plugin/plugin-system.md`, `docs/guide/plugins.md` (phase 2: the barrier wait does not normally block), `docs/guide/bgp-peering.md` (phase 3, anchor `peer_run.go -- run, cycleStayedEstablished`).
+- `./le doc check all` on 2026-11-14 fails on items outside this work only: the wiki command catalog drift, and six source anchors in `docs/functional-tests.md` (`importCommandOutput`) and `docs/guide/operational-reports.md` (the `report.go` length limits); no line names a page or source this spec changed.
+
+### Deviations from Plan
+- `sendInitialRoutes` and `runQueuedTeardown` still read `p.negotiated`, not the session's capabilities: `Session` holds only the raw `capability.Negotiated`, and the `NegotiatedCapabilities` is built in `runOnce`'s Established arm. Safe by the join: the next session cannot store its own before the defer joined the sync, and the defer clears it to nil first, which the read refuses.
+- Six helpers the function table omitted take the session (`drainAndCloseQueueGate`, `runQueuedTeardown`, `sendQueuedWithdrawal`, `sendDefaultOriginateRoutes`; `queuedTeardownSession` became `queuedTeardownEnds`); `Peer.sendUpdateDirect` is deleted; the test-only `Peer.sendUpdateWithSplit` wrapper moved to `initial_sync_helpers_test.go`.
+- Phases 1 and 2 landed as separate commits (phase 1 alone waits up to 2 s only when a session ends in an unacknowledged barrier).
+- `TestPredecessorSyncWritesNothingOnSuccessor` lives in `rfc4724_rapid_reconnect_test.go`, not the join file (a file whose tags all cite one RFC is named `rfcNNNN_`).
+- Added tests: `TestRunPrefixTeardownCountKeptAfterLongCycleThatNeverEstablished`, `TestForwardOrderHoldTakesNoPeerLock`, `TestPeerLevelTeardownAfterRunReturnedWaitsForNextSession`.
+- The defect story's window was wrong: the barrier is settled before the sync starts in ordinary operation (`deliverPeerState`, `bgp/server/events.go`); the predecessor lived in the static, queue-drain and plugin-route phases. The join closes them (Key insights correction).
+- Documentation row 9: `rfc/short/rfc4724.md` rows carry no test links, so the evidence is the tag and its record, not a row edit.
+- A-1 holds only after `Session.Run` returns (Mistake Log).
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 said every wait of the sync after its session ended is bounded | A sync writer blocked in a socket write with no deadline (`sendUpdateWithSplit(context.Background())`) holds `writeMu`, and `Run`'s `closeConn` waits for it, so the session never ends and the join is never reached | Phase 2 agent reading `session_write.go` | Journaled and owned by `plan/release/fixes/spec-bgp-session-write-wedge.md` (`89c4d6badf`); pre-existing, not made worse by the join |
+| approach | The spec placed the predecessor's window in the 2 s barrier wait | `deliverPeerState` settles the barrier before the sync starts; the live window was the later phases | Main-thread check of the draft agent's claim at `bgp/server/events.go` | Key insights corrected; pages already say it (`plugin-system.md`, `docs/guide/plugins.md`) |
+| approach | Closure log line and two comments still described the route-pushing wait the 2026-09-18 ruling removed | The marker waits for nobody | Closure review | Fixed in commit A (Review Gate) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The initial sync ends with its session and is joined | Done | `peer_run.go` `runOnce` defer (`session.endInitialSync()`); `session.go` `endInitialSync`; `peer.go` `waitPeerUpBarrier` | |
+| The backoff restarts after a stable session | Done | `peer_run.go` `run`, `cycleStayedEstablished` | |
+| A passive peer added once the listeners started has one | Done | `reactor_peers.go` `addPeerLocked`; `reactor.go` `startMultiListeners`, `stopAllListeners` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRunOnceJoinsInitialSyncBeforeReturn`, `TestPredecessorSyncWritesNothingOnSuccessor`, `reconnect-rapid-initial-sync.ci`, FRR scenario | `.ci` and scenario positive only (R-9) |
+| AC-2 | Done | `TestSuccessorPendingSyncUntilOwnMarker` | |
+| AC-3 | Done | `TestInitialSyncStartsOncePerSession` | |
+| AC-4 | Done | `TestHeldInitialUpdateRefusesEndedSession`, `TestHeldInitialUpdateStartsTheCurrentSession` | |
+| AC-5 | Done | `TestInitialSyncJoinReturnsWhenBarrierNeverOpens`, `TestBarrierTimeoutStillWarnsOnLiveSession` | |
+| AC-6 | Done | `TestForwardOrderHoldReadsCurrentSessionGate`, `TestForwardOrderHoldTakesNoPeerLock`, `TestForwardOrderHoldAllocatesNothing` | |
+| AC-7 | Done | `TestAnnounceEORDefersToCurrentSessionMarker` | |
+| AC-8 | Done | `TestRunBackoffRestartsAfterStableSession`, `TestRunPrefixTeardownCountRestartsAfterStableSession`, `reconnect-backoff-stable-reset.ci` | |
+| AC-9 | Done | `TestRunBackoffDoublesAfterShortEstablishedSession`, `reconnect-backoff-stable-reset.ci` | |
+| AC-9b | Done | `TestRunBackoffKeepsDelayAfterLongCycleThatNeverEstablished`, `TestRunPrefixTeardownCountKeptAfterLongCycleThatNeverEstablished`, `TestRunBackoffKeepsCapOnPeerThatNeverComesUp` | |
+| AC-10 | Done | `TestRunPrefixTeardownCountRestartsAfterStableSession`, `TestRunPrefixTeardownCountGrowsOnShortSessions` | |
+| AC-11 | Done | `TestPassivePeerAddedBeforeBarrierGetsListener`, `TestPassivePeerAddedBeforeBarrierHoldsInboundUntilBarrier` | |
+| AC-12 | Done | `TestListenerRebuiltForMD5PeerAddedBeforeBarrier` | |
+| AC-13 | Done | `TestAddPeerBeforeBarrierListenerFailureRollsBack` | |
+| AC-13b | Done | `TestAddPeerBeforeStartOpensNoListener`, `TestAddPeerAfterStopOpensNoListener` | |
+| AC-14 | Done | `ai/digests/bgp-reactor.md` (owner defer step 3, goroutine list, reconnect delay, listener timing), `fsm.md` (`Session.endInitialSync`, stable restart), `peer-lifecycle.md` (backoff table row 3, Established steps, listener start) | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The 7 join tests and `TestBarrierTimeoutStillWarnsOnLiveSession` | Done | `peer_initial_sync_join_test.go` | 20 runs under `-race` green |
+| `TestPredecessorSyncWritesNothingOnSuccessor` | Changed | `rfc4724_rapid_reconnect_test.go` | Deviations |
+| `TestHeldInitialUpdate*` (2) | Done | `update_delay_test.go` | |
+| `TestForwardOrderHold*` (3) | Done | `forward_initial_sync_order_test.go` | one added |
+| `TestEstablishedPublishedWithGateClosed` | Done | `peer_established_gate_test.go` | |
+| `TestAnnounceEORDefersToCurrentSessionMarker` | Done | `reactor_api_forward_test.go` | |
+| The 9 `TestRun...` tests | Done | `peer_run_backoff_test.go` | one added |
+| The 6 listener tests | Done | `reactor_listener_start_window_test.go` | |
+| `TestPeerLevelTeardownAfterRunReturnedWaitsForNextSession` | Done | `peer_queued_teardown_test.go` | added |
+| `reconnect-rapid-initial-sync`, `reconnect-backoff-stable-reset` | Done | `test/plugin/` | |
+| `prefix-teardown-reconnect-backoff` and the five re-run `.ci` | Done | `test/plugin/` | re-run passing (handover 38, `650bccc707` body) |
+| `bgp-rapid-reconnect-initial-sync-frr` | Done | `test/interop/scenarios/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `session.go`, `peer.go`, `peer_initial_sync.go`, `peer_run.go`, `source_policy_reload.go`, `update_delay.go`, `peer_send.go`, `reactor_api_forward.go`, `session_ownership.go`, `reactor.go`, `reactor_peers.go` | Done | plus `policy_reload.go`, `reactor_api.go`, `reactor_api_batch.go` (callers) |
+| The three created test files, two `.ci`, the scenario directory | Done | |
+| The three pages and three journal rows | Done | plus the 2026-11-13 row |
+
+### Audit Summary
+- **Total items:** 3 requirements, 16 AC, 33 tests, 20 files
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 test file location (Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A session's initial sync ends with its session and is joined | unit with observed red, functional, interop | `TestRunOnceJoinsInitialSyncBeforeReturn` and `TestSuccessorPendingSyncUntilOwnMarker` red on the pre-phase-1 code (`scratch/job-le-test-45203904.log`); `TestPredecessorSyncWritesNothingOnSuccessor` red under the paired mutation (`rfc/discrimination/rfc4724/RFC4724-4-1.json`); `reconnect-rapid-initial-sync.ci` 80/80 under load; FRR scenario passes (image `sha256:5f80bd3c10b4`); both stay green with the join removed (R-9, recorded) |
+| The backoff restarts after a stable session | functional with observed red | `reconnect-backoff-stable-reset.ci`: bases 5, 10, then 5 s; red through an overlay, 80 stress runs (`650bccc707`) |
+| A passive peer added once the listeners started has one | unit through `AddPeer` and a TCP connect | `TestPassivePeerAddedBeforeBarrierGetsListener`, `TestPassivePeerAddedBeforeBarrierHoldsInboundUntilBarrier` (`0de757b33c`) |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A sync writer with no write deadline can hold `writeMu` so `Session.Run` never returns (A-1, before `Run` returns) | A separate, pre-existing defect of the session writer, larger than this fix | `plan/release/fixes/spec-bgp-session-write-wedge.md` |
+
+## Review Gate
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/single-owner-lifecycle-2-bgp-session-d3b159a5-06be-434a-914f-393eb2ad1973.md` |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and reachability, removed-behavior audit, concurrency and lock order of the join, logic of each phase, security, docs drift, stale comments and user-facing log text |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The warning for an End-of-RIB suppressed while the marker is owed said the sync waits for route-pushing processes and a sync timeout; no such wait exists since the 2026-09-18 ruling, so the operator was told something false | `reactor_api_forward.go` `logEORSuppressed` | Message, `reason` value and doc comment rewritten to the owed-marker window |
+| 2 | ISSUE | Two comments named the removed `waitForAPISync` and an End-of-RIB that waits for reporters | `peer_settings.go` `MayPushRoutes`, `api_sync.go` `SignalPeerAPIReady` | Rewritten to `initialUpdateReporters` and the replay fence |
+
+NOTEs (no block): the main drain pops a queued operation whose send failed on a connection error (`sendInitialRoutes`), unchanged by this work; `waitPeerUpBarrier` leaves the `clock.After` timer running when another case wins, unchanged; a remote peer can still reset the delay by connecting inbound, which is intended (AC-8 survivor). Round 2 read the three closure edits and found nothing.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `peer_initial_sync_join_test.go`, `peer_run_backoff_test.go`, `reactor_listener_start_window_test.go`, `rfc4724_rapid_reconnect_test.go` | Yes | `grep -ln "^func <Test>("` found every TDD test in these files on 2026-11-14 |
+| `test/plugin/reconnect-rapid-initial-sync.ci`, `test/plugin/reconnect-backoff-stable-reset.ci` | Yes | `ls`: 8.7K and 7.4K |
+| `test/interop/scenarios/bgp-rapid-reconnect-initial-sync-frr/` | Yes | `ls`: `frr.conf`, `ze.conf` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-7 | phase 1 and 2 tests pass | reactor package green except the known `TestOrdinaryRefreshDoesNotDoublePrepend` (`scratch/job-le-test-7688496b.log`), 20 runs under `-race` (`scratch/job-unit-pkg-3c18dfc0.log`), whole package under `-race` with 0 data races (`scratch/job-unit-pkg-7f7abe01.log`) |
+| AC-8 to AC-10 | backoff tests pass | phase 3 commit `170200cc60` and `.ci` `650bccc707` |
+| AC-11 to AC-13b | listener tests pass | phase 4 commit `0de757b33c` |
+| AC-14 | pages state the new behavior | `grep -n "endInitialSync\|cycleStayedEstablished\|listenersStarted"` over the three pages finds each |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A peer that drops and reconnects, through the daemon | `test/plugin/reconnect-rapid-initial-sync.ci` | Yes: read; asserts the per-attempt marker count on the daemon log (R-9: positive only) |
+| A session error returned to `Peer.run` | `test/plugin/reconnect-backoff-stable-reset.ci` | Yes: read; asserts the "timing: backoff starting" bases |
+| FSM callback, hold release, forward dispatch, `AddPeer` in the start window | unit (Wiring Test table) | Yes: each named test exists and passes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed after `Run` returns; broken before it | `closeConn` nils the connection under `writeMu`; the no-deadline writer (Mistake Log) |
+| A-2 | confirmed | `runQueuedTeardown` waits on nothing `runOnce` releases; `TestInitialSyncJoinWithQueuedTeardown` 20 runs under `-race` |
+| A-3 | confirmed | one non-test `setState(PeerStateEstablished)`, in `source_policy_reload.go` `enterEstablished` |
+| A-4 | confirmed | `TestPassivePeerAddedBeforeBarrierHoldsInboundUntilBarrier` |
+| A-5 | confirmed | `setReconnectDelay` has no non-test caller |
+| A-6 | confirmed | Thomas, 2026-11-11 |
+| A-7 | confirmed | `updateDelayHold.peerDown` deletes the entry; `holdInitialUpdate` overwrites by key |
+| A-8 | confirmed | FRR `frr-10.7.1` `bgp_vty.c` `bgp_show_peer_gr_extra_info`, `bgp_show_peer_afi` |
+| A-9 | confirmed | `ClearStats` has one caller, `Peer.cleanup` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/bgp-peering.md` reconnect paragraph (5 s, doubling to 60 s, `timer` to one hour, restart after 60 s established) | `peer.go` `DefaultReconnectMin` 5 s, `DefaultReconnectMax` 60 s; `peer_run.go` hour cap and `cycleStayedEstablished` | Yes |
+| `docs/comparison.md` | no reconnect or damping row (grep) | Yes, unaffected |
+| `rfc/short/rfc4724.md` | rows carry quotes only; tag and record are the evidence | Yes |
+| Pages anchoring the changed reactor files (`./le spec citation anchors`) | `rg` over `docs`, `ai`, `website/guides` for the deleted names (`sendUpdateDirect`, `queuedTeardownSession`, Peer-level flag spellings, `waitForAPISync`, the no-argument call forms) finds none | Yes |
+
+## Core Insight
+State that belongs to one session goes on the session object, and the goroutine that serves the session is joined with it; a comparison guard on a shared field protects only the stores someone remembered to guard.
