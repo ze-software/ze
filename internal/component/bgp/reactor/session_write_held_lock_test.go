@@ -10,13 +10,16 @@ import (
 )
 
 // TestSendUpdateHeldTakesNoSessionMutex pins the lock order sendUpdateHeld owes.
-// Its caller holds writeMu, and closeConn takes s.mu and THEN writeMu. So a
-// sendUpdateHeld that waits on s.mu deadlocks against a closeConn that is
-// waiting for this caller's writeMu. That was the shape of a prefix-limit
-// teardown landing during the initial sync: the peer never ran again
-// (test/plugin/prefix-teardown-reconnect-backoff.ci timed out under load).
+// Its caller holds writeMu, and the session's lock order is s.mu and THEN
+// writeMu. So a sendUpdateHeld that waits on s.mu deadlocks against a holder of
+// s.mu that is waiting for this caller's writeMu. connectionEstablished is such
+// a holder today. closeConn was one when this test was written, and that was
+// the shape of a prefix-limit teardown landing during the initial sync: the
+// peer never ran again (test/plugin/prefix-teardown-reconnect-backoff.ci timed
+// out under load). The close no longer holds s.mu while it waits for the write
+// path (closeConnWithin), and the order still binds every other holder.
 //
-// The test takes the two locks in closeConn's position (s.mu held) and in the
+// The test takes the two locks in that holder's position (s.mu held) and in the
 // initial sync's position (writeMu held), and asks sendUpdateHeld to finish.
 func TestSendUpdateHeldTakesNoSessionMutex(t *testing.T) {
 	settings := NewPeerSettings(
@@ -28,7 +31,7 @@ func TestSendUpdateHeldTakesNoSessionMutex(t *testing.T) {
 	session.holdWrites()
 	defer session.releaseWrites()
 
-	// closeConn's position: s.mu held, next wanting writeMu.
+	// The position of a holder of s.mu that next wants writeMu.
 	session.mu.Lock()
 	defer session.mu.Unlock()
 

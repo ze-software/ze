@@ -31,9 +31,13 @@ const wedgeHold = 9 * time.Second
 
 // wedgeSendHold is the SendHoldTime of the Send Hold Timer test. It runs on the
 // real clock, so it is the time the test has to take the write path after the
-// session reached Established. PeerSettings carries it directly, so the
-// 480-second floor parsePeerFromTree puts on an operator's value does not apply.
-const wedgeSendHold = time.Second
+// session reached Established: five seconds, because a loaded machine can
+// take longer than one second to get there, and the expiry then runs with the
+// path free and the test fails on its own precondition. The test waits it out once, and its bound on
+// a wedge is this plus the NOTIFICATION bound and wedgeSlack. PeerSettings
+// carries it directly, so the 480-second floor parsePeerFromTree puts on an
+// operator's value does not apply.
+const wedgeSendHold = 5 * time.Second
 
 // wedgeSlack is the real time a loaded machine may add to a bound before a test
 // calls it missed. It bounds every wait that has no protocol bound of its own.
@@ -214,8 +218,8 @@ func TestHoldExpiryClosesBehindStuckWriter(t *testing.T) {
 // TestSendHoldExpiryClosesBehindStuckWriter proves an RFC 9687 Send Hold Timer
 // expiry drops the connection while another writer holds the session's write
 // path, which is the state the timer exists to end: a writer that cannot
-// complete. The Send Hold Timer runs on the real clock with a one-second
-// SendHoldTime, and the test takes writeMu before it expires.
+// complete. The Send Hold Timer runs on the real clock with a SendHoldTime of
+// wedgeSendHold, and the test takes writeMu before it expires.
 //
 // VALIDATES: AC-1 -- the peer end sees the close within the one-second
 // NOTIFICATION bound of the expiry, then Run returns ErrSendHoldTimerExpired

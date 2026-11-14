@@ -234,6 +234,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			LastNotifSubcode:       stats.LastNotifSubcode,
 			LastNotifDirection:     stats.LastNotifDirection,
 			LastNotifTime:          stats.LastNotifTime,
+			LastCloseCause:         stats.LastCloseCause,
+			LastCloseCauseTime:     stats.LastCloseCauseTime,
 			LastReadTime:           stats.LastReadTime,
 			LastWriteTime:          stats.LastWriteTime,
 			LastStateChange:        p.LastStateChange(),

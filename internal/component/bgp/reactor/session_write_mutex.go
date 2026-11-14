@@ -116,24 +116,29 @@ func (m *sessionWriteMutex) Unlock() {
 // nil.
 func (s *Session) acquireWrite(budget time.Duration) error {
 	s.writeMu.Lock()
-	return s.armWriteOrRetire(s.clock.Now(), budget)
+	return s.armWriteOrRetire(s.clock.Now(), budget, false)
 }
 
 // acquireWriteContext is acquireWrite for a request-scoped write: the wait for
-// the path ends with ctx, and the budget is the shorter of budget and the time
-// left to ctx's deadline, so a context with no deadline is still bounded. The
-// caller MUST call releaseWrites when it answers nil.
+// the path ends with ctx, and the bound of the write is the earlier of the
+// session budget and ctx's own deadline, so a context with no deadline is
+// still bounded. When ctx's deadline is the earlier one the bound is recorded
+// as the request's own (writeBoundRequested): a write that meets it met no
+// write budget, and is not reported as a peer that stopped reading
+// (writeBudgetPassed). The caller MUST call releaseWrites when it answers nil.
 func (s *Session) acquireWriteContext(ctx context.Context, budget time.Duration) error {
 	if err := s.writeMu.LockContext(ctx); err != nil {
 		return err
 	}
 	now := s.clock.Now()
-	if requested, ok := ctx.Deadline(); ok {
-		if left := requested.Sub(now); left < budget {
+	requested := false
+	if deadline, ok := ctx.Deadline(); ok {
+		if left := deadline.Sub(now); left < budget {
 			budget = left
+			requested = true
 		}
 	}
-	return s.armWriteOrRetire(now, budget)
+	return s.armWriteOrRetire(now, budget, requested)
 }
 
 // acquireWriteWithin is acquireWrite for a writer that MUST NOT queue behind
@@ -154,14 +159,14 @@ func (s *Session) tryAcquireWrite(budget time.Duration) error {
 	if !s.writeMu.TryLock() {
 		return errWritePathBusy
 	}
-	return s.armWriteOrRetire(s.clock.Now(), budget)
+	return s.armWriteOrRetire(s.clock.Now(), budget, false)
 }
 
 // armWriteBudget arms the socket's write deadline to now plus budget. The
 // caller MUST hold writeMu. A held run of messages calls it before each one
 // (sendUpdateHeld).
 func (s *Session) armWriteBudget(budget time.Duration) error {
-	return s.armWriteDeadline(s.clock.Now(), budget)
+	return s.armWriteDeadline(s.clock.Now(), budget, false)
 }
 
 // fastPathBudgetShare is the share of a standing budget the route-server fast
@@ -190,13 +195,16 @@ func (s *Session) armFastPathBudget(budget time.Duration) error {
 			return nil
 		}
 	}
-	return s.armWriteDeadline(now, budget)
+	return s.armWriteDeadline(now, budget, false)
 }
 
 // releaseFastPathWrites gives back a write path the route-server fast path
-// took with writeMu.TryLock. Unlike releaseWrites it leaves the socket's write
-// deadline and writeBudgetArmed as they are, so the budget armFastPathBudget
-// armed covers the batch's later writes to this destination at no cost.
+// took with writeMu.TryLock. It MUST follow every TryLock that path won, on
+// every way out of the write, a refused arm and a failed write included: no
+// other release gives the fast path's hold back. Unlike releaseWrites it
+// leaves the socket's write deadline and writeBudgetArmed as they are, so the
+// budget armFastPathBudget armed covers the batch's later writes to this
+// destination at no cost.
 //
 // A standing budget binds nobody else. Every other writer arms its own before
 // it writes, and whichever comes next clears this one when it releases: the
@@ -212,11 +220,15 @@ func (s *Session) releaseFastPathWrites() {
 }
 
 // armWriteDeadline arms the socket's write deadline to now plus budget, and
-// records both for the report of an expiry (writeBudgetExpiry). The caller MUST
-// hold writeMu, the lock s.conn and s.writeFailed are written under. A session
-// with no connection, or one already retired, has nothing to arm: its writer
-// answers ErrNotConnected or the retiring error itself.
-func (s *Session) armWriteDeadline(now time.Time, budget time.Duration) error {
+// records what the report of an expiry reads (recordWriteFailure,
+// writeBudgetPassed): the budget, the deadline it gave the socket, and whose
+// bound it is. requested says the bound is a request's own deadline, earlier
+// than the session budget (acquireWriteContext); every other writer arms the
+// session budget. The caller MUST hold writeMu, the lock s.conn and
+// s.writeFailed are written under. A session with no connection, or one
+// already retired, has nothing to arm: its writer answers ErrNotConnected or
+// the retiring error itself.
+func (s *Session) armWriteDeadline(now time.Time, budget time.Duration, requested bool) error {
 	if s.conn != nil {
 		if s.writeFailed == nil {
 			end := now.Add(budget)
@@ -226,6 +238,7 @@ func (s *Session) armWriteDeadline(now time.Time, budget time.Duration) error {
 			s.writeBudgetArmed = true
 			s.writeBudget = budget
 			s.writeBudgetEnd = end
+			s.writeBoundRequested = requested
 		}
 	}
 	return nil
@@ -236,7 +249,7 @@ func (s *Session) armWriteDeadline(now time.Time, budget time.Duration) error {
 // always means not held. The session is not retired: a control message that
 // could not be sent answers its error, and the read loop ends a dead socket.
 func (s *Session) armWriteOrRelease(now time.Time, budget time.Duration) error {
-	if err := s.armWriteDeadline(now, budget); err != nil {
+	if err := s.armWriteDeadline(now, budget, false); err != nil {
 		s.writeMu.Unlock()
 		return err
 	}
@@ -246,9 +259,10 @@ func (s *Session) armWriteOrRelease(now time.Time, budget time.Duration) error {
 // armWriteOrRetire completes an UPDATE writer's acquisition, whose path is
 // already held. A socket that refuses its deadline is closed, and a write to a
 // closed socket retires the session: so does this, with the same error the
-// write would have met, before it gives the path back.
-func (s *Session) armWriteOrRetire(now time.Time, budget time.Duration) error {
-	if err := s.armWriteDeadline(now, budget); err != nil {
+// write would have met, before it gives the path back. requested is
+// armWriteDeadline's.
+func (s *Session) armWriteOrRetire(now time.Time, budget time.Duration, requested bool) error {
+	if err := s.armWriteDeadline(now, budget, requested); err != nil {
 		s.retireWrite(err)
 		s.writeMu.Unlock()
 		return err

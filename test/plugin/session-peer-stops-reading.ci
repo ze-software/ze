@@ -31,12 +31,15 @@
 # holding connection 1 until the test times out, and the peer fails with "the
 # daemon never closed the connection the peer stopped reading".
 #
-# HOW THE SOCKET FILLS, WHATEVER THE HOST. 10.0.0.0/8 split into /24 is 65536
-# routes. group-updates is off, so each route is its own UPDATE, and the 50
+# HOW THE SOCKET FILLS. 10.0.0.0/8 split into /24 is 65536 routes.
+# group-updates is off, so each route is its own UPDATE, and the 50
 # communities make each UPDATE about 250 octets: about 16 MiB in all. A blocked
 # write needs the daemon's send buffer and the peer's receive buffer both full.
 # The peer's is a few kilobytes by the option. The daemon's is autotuned by the
 # kernel, to 4 MiB at most with Linux and macOS defaults, so 16 MiB cannot fit.
+# A host whose send buffer ceiling is raised above that volume never blocks the
+# write: the daemon then keeps the session, connection 2 never comes, and the
+# test FAILS on its timeout. It cannot pass there for the wrong reason.
 #
 # STATE, NOT TIME. Nothing here waits a duration. The peer's script is the
 # barrier: connection 2 is accepted only after the daemon closed connection 1,

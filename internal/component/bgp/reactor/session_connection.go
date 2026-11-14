@@ -717,16 +717,30 @@ const closeFlushBudget = time.Second
 // the FIN, so that Close sends a FIN and no RST.
 const closeDrainWait = 100 * time.Millisecond
 
+// closeClaimWait is how long a close waits for another close of the same
+// connection that holds the claim on its socket (awaitClaimedClose). It
+// outlasts the longest a claimant legitimately takes: its flush and its drain
+// when it had the write path, or closeClearWait when it dropped the socket and
+// waits for the writer to let go, which is the shorter of the two. One more
+// closeDrainWait covers the scheduling between the claimant's steps.
+const closeClaimWait = closeFlushBudget + 2*closeDrainWait
+
 // writePathHeldFix is what an operator does about a close behind a held write
-// path. The usual cause is on the peer, so no ze command clears it. It fits
-// report.FixMax.
+// path. The usual cause is on the peer, so no ze command clears it. The other
+// cause is a writer that waits on a plugin: no command lists how far behind a
+// running plugin is, so the step names the doctor, whose plugin rows carry
+// their own fix. It fits report.FixMax.
 const writePathHeldFix = "on the peer, find why its BGP process stopped reading (CPU load, a stalled process); " +
-	"ze connects to it again by itself"
+	"ze connects to it again by itself. When the peer reads normally, a plugin is not taking its events: " +
+	"run `ze show doctor`"
 
 // closeConn closes the session's connection through the one close routine
 // (closeConnWithin), waiting for the write path no longer than closeWait.
-// Safe for concurrent use, and a second close of one connection returns at
-// once. The caller MUST NOT hold s.mu or the write path.
+// Safe for concurrent use. A second close of one connection closes and
+// reports nothing, and returns once the first has finished, so a close that
+// returned means the connection is no longer installed. The one exception is
+// a writer that keeps the path while it waits on a plugin: the fields stay set
+// on a closed socket, and a later close of that connection returns at once. The caller MUST NOT hold s.mu or the write path.
 func (s *Session) closeConn() {
 	s.closeConnWithin(s.closeWait())
 }
@@ -752,19 +766,26 @@ func (s *Session) closeWait() time.Duration {
 // waits on a writer that the close itself would unblock:
 //
 //  1. It stops the Send Hold Timer.
-//  2. It reads the connection under s.mu and lets s.mu go. No connection, or
-//     one this routine already closed, is nothing to do: the close is
+//  2. It reads the connection under s.mu and lets s.mu go. No connection is
+//     nothing to do. One another close already claimed (claimSocket) is
+//     nothing to close or report: this close only waits, no longer than
+//     closeClaimWait, for the claimant to finish, and clears the fields if
+//     the claimant could not (awaitClaimedClose). The close is
 //     idempotent per connection, and it never seals the session, because an
 //     unsealed Session takes a second connection (a passive peer's Run and
 //     Accept).
 //  3. It waits for the write path no longer than wait, with no session lock
 //     held. It does not wait at all when the NOTIFICATION sent just before
 //     already found the path held (notifyMetBusyPath): a holder of openMu
-//     then waits behind a stuck writer once, never twice.
-//  4. The path came free: closeFlushed flushes what bufWriter holds, sends
-//     the FIN, drains and closes, so the peer reads a NOTIFICATION that was
-//     written. The path stayed held: dropConn fails the writer's socket write
-//     and closes the socket, and the log says what the peer was not sent.
+//     then waits once behind a writer that was already stuck when the
+//     NOTIFICATION asked for the path.
+//  4. The path came free: closeFlushed claims the socket, flushes what
+//     bufWriter holds, sends the FIN, drains and closes, so the peer reads a
+//     NOTIFICATION that was written. The path stayed held: the close claims
+//     the socket, the log says what the peer was not sent, and dropConn fails
+//     the writer's socket write and closes the socket. A close that finds the
+//     claim taken, because another close of this connection got there while
+//     it waited, reports nothing and closes nothing, and leaves as in step 2.
 //  5. It clears the connection fields in the recorded order, s.mu then the
 //     write path, taking the path under s.mu only when it is free. When the
 //     path is still held it waits for it closeClearWait with no lock held and
@@ -796,9 +817,11 @@ func (s *Session) closeConnWithin(wait time.Duration) {
 		return
 	}
 	if s.socketClosedIs(conn) {
-		// An earlier close closed this socket and found the write path held.
-		// Clear the fields if the path is free now, and never wait again.
-		s.clearClosedConn(conn)
+		// Another close claimed this socket: it closed it behind a held write
+		// path, or it is closing it under the path now. This close reports
+		// nothing and closes nothing, and it still does not return with the
+		// connection installed: it waits for the claimant to finish.
+		s.awaitClaimedClose(conn)
 		return
 	}
 
@@ -806,32 +829,78 @@ func (s *Session) closeConnWithin(wait time.Duration) {
 	if notifyMissed {
 		pathWait = 0
 	}
-	if s.writeMu.LockWithin(s.clock, pathWait) {
-		if notifyMissed {
-			s.reportWritePathHeld(wait, notifyMissed)
+	pathFree := s.writeMu.LockWithin(s.clock, pathWait)
+	var claim *socketClaim
+	if pathFree {
+		// The close that closes the socket is the one that says a NOTIFICATION
+		// was due and not sent. When another close claimed the socket first,
+		// the peer's last-error record already holds it (notificationWritten).
+		claim = s.closeFlushed(conn)
+		if claim != nil {
+			if notifyMissed {
+				s.reportWritePathHeld(wait, notifyMissed)
+			}
 		}
-		s.closeFlushed(conn)
 	} else {
+		// Claimed before anything is reported or closed. Another close can
+		// have taken this connection while this one waited: it dropped the
+		// socket, or it holds the path for its own flush and drain, which a
+		// wait as short as holdExpiryNotifyDeadline does not outlast. Either
+		// way the socket is that close's, the path was not held by a stuck
+		// writer for this close to report, and one close gives one line and
+		// one event. The read loop, which wakes on the closed socket and
+		// closes too, finds the claim the same way.
+		claim = s.claimSocketForDrop(conn)
+	}
+	if claim == nil {
+		// Another close finished with this connection or holds its socket.
+		s.awaitClaimedClose(conn)
+		return
+	}
+	// Every other close of this connection waits for this one to finish, its
+	// attempt to clear the fields included. Deferred, so a panic below still
+	// lets them go.
+	defer close(claim.done)
+
+	if !pathFree {
+		// RFC 4271 Section 8.2.2, Event 10: "sends a NOTIFICATION message
+		// with the Error Code Hold Timer Expired,"
+		// Behind a held write path that action is not performed, here and for
+		// every other close that owes a NOTIFICATION. The sender waited for the
+		// path (one second for a hold timer, the control budget otherwise) and
+		// the writer that holds it is blocked on a peer that accepts no data,
+		// or on a plugin, so no octet of the NOTIFICATION can be put on this
+		// connection behind what that writer has half written. The actions
+		// that follow do not wait for it: "drops the TCP connection," is
+		// dropConn below.
+		//
 		// Reported before the socket closes: the line is the only record of
 		// what the peer was not sent.
 		s.reportWritePathHeld(wait, notifyMissed)
-		// Marked before the socket closes: the read loop wakes on the closed
-		// socket and closes too, and it must find the mark, not wait for the
-		// path this close has just given up on.
-		s.markSocketClosed(conn)
 		dropConn(conn)
 	}
 
+	// A writer blocked on the socket this close just closed fails and lets go
+	// within closeClearWait.
+	s.clearClosedConnWithin(conn, closeClearWait)
+}
+
+// clearClosedConnWithin is the last step of the close that claimed conn's
+// socket: it clears the connection fields that name conn, waiting for the
+// write path no longer than wait when it is held. No session lock is held
+// across the wait. Only the claimant calls it, so nothing else probes the path
+// between its wait and its clear; every other close waits for the claimant
+// (awaitClaimedClose). The claimant therefore returns with the connection no
+// longer installed, with one exception: a holder of the path that outlasts
+// wait. That is a writer waiting on something else than the socket (a plugin
+// that does not take its events). The fields then stay set: the socket is
+// closed, so every later write and read on it fails. The caller MUST NOT hold
+// s.mu or the write path.
+func (s *Session) clearClosedConnWithin(conn net.Conn, wait time.Duration) {
 	if s.clearClosedConn(conn) {
 		return
 	}
-	// The write path is held. A writer blocked on the socket this close just
-	// closed fails and lets go within closeClearWait. No session lock is held
-	// across the wait.
-	if !s.writeMu.LockWithin(s.clock, closeClearWait) {
-		// The writer waits on something else than the socket (a plugin that
-		// does not take its events). The fields stay set: the socket is
-		// closed, so every later write and read on it fails.
+	if !s.writeMu.LockWithin(s.clock, wait) {
 		return
 	}
 	s.writeMu.Unlock()
@@ -842,17 +911,33 @@ func (s *Session) closeConnWithin(wait time.Duration) {
 // to it: flush, FIN, drain, close. The caller MUST hold the write path and
 // MUST NOT hold s.mu; closeFlushed releases the path, by defer, so a panic in
 // the flush cannot leave it held for every later writer of this session.
-func (s *Session) closeFlushed(conn net.Conn) {
+//
+// It answers the claim under which this call closed the socket, whose done
+// channel the caller MUST close once it has cleared the fields. It answers
+// nil, with nothing done, when another close finished with this connection or
+// claimed it while this one waited for the write path (claimSocket). The claim is
+// taken before the flush, so a close that gives up on the path while this one
+// holds it for the flush and the drain finds the claim, reports no held path
+// and does not cut the flush short (closeConnWithin).
+func (s *Session) closeFlushed(conn net.Conn) *socketClaim {
 	defer s.writeMu.Unlock()
-	// Another close can have finished with this connection while this one
-	// waited for the write path. s.conn is read here under writeMu, one of the
-	// two locks it is written under.
+	// s.conn is read here under writeMu, one of the two locks it is written
+	// under.
 	if s.conn != conn {
-		return
+		// No claim: another close finished with conn. closeConnWithin reads a
+		// nil claim as "not this close's socket" and reports nothing.
+		return nil
 	}
-	if s.socketClosedIs(conn) {
-		return
+	claim := s.claimSocket(conn)
+	if claim == nil {
+		return nil
 	}
+	// The claim keeps every later close away from this socket, so this call
+	// closes it on every way out, a panic in the flush included. Deferred
+	// after the unlock above, it runs before it: the socket is closed under
+	// the write path.
+	// RFC 4271 Section 8.2.2: "drops the TCP connection"
+	defer closeConnQuietly(conn)
 
 	if s.bufWriter != nil {
 		if s.bufWriter.Buffered() > 0 {
@@ -881,18 +966,16 @@ func (s *Session) closeFlushed(conn net.Conn) {
 		}
 		// If CloseWrite failed, the socket is already broken: skip the drain.
 	}
-	// A socket that a failed write already closed answers an error here, and
-	// the connection is closed either way.
-	// RFC 4271 Section 8.2.2: "drops the TCP connection"
-	_ = conn.Close()
-	// The budget the flush armed ended with the socket: there is no deadline
-	// left for releaseWrites to clear, and none for the next taker to meet.
+	// The deferred close ends the socket, and with it the budget the flush
+	// armed: there is no deadline left for releaseWrites to clear, and none
+	// for the next taker to meet. A socket that a failed write already closed
+	// answers an error to that close, and is closed either way.
 	s.writeBudgetArmed = false
-	s.markSocketClosed(conn)
 	// bufReader is NOT nilled: Run may have captured conn before this close
 	// and will read next. The stale bufReader wrapping the closed conn returns
 	// a read error, which readAndProcessMessage handles as ErrConnectionClosed.
 	// connectionEstablished replaces bufReader and bufWriter on reconnection.
+	return claim
 }
 
 // writeDeadlinePassed is a write deadline in the past whatever clock a session
@@ -918,20 +1001,109 @@ func dropConn(conn net.Conn) {
 	closeConnQuietly(conn)
 }
 
-// markSocketClosed records that this routine closed conn's socket, so a later
-// close of the same connection does not wait for the write path again.
-func (s *Session) markSocketClosed(conn net.Conn) {
-	s.socketClosed.Store(&conn)
+// claimSocket makes the caller the one close that closes conn's socket, and
+// reports whether it did. It answers false when another close of this
+// connection holds the claim: that close dropped the socket, or is flushing
+// and closing it under the write path right now. One connection therefore
+// gets one close step, one ERROR line and one event, however many closes race
+// for it.
+//
+// The caller MUST hold s.mu or the write path and have read s.conn == conn
+// under it, so the claim cannot land on a connection whose fields a finished
+// close has cleared (clearClosedConn clears s.conn and the claim together,
+// under both locks). The loop ends: a swap fails only when another close
+// stored its claim in between, and the next pass reads that claim.
+//
+// It answers the claim it took, nil when another close holds it. The claimant
+// MUST close the claim's done channel once it has finished with the
+// connection, its attempt to clear the fields included: that is what every
+// other close of the connection waits for (awaitClaimedClose).
+func (s *Session) claimSocket(conn net.Conn) *socketClaim {
+	claim := &socketClaim{conn: conn, done: make(chan struct{})}
+	for {
+		claimed := s.socketClosed.Load()
+		if claimed != nil {
+			if claimed.conn == conn {
+				return nil
+			}
+		}
+		if s.socketClosed.CompareAndSwap(claimed, claim) {
+			return claim
+		}
+	}
 }
 
-// socketClosedIs reports whether this routine already closed conn's socket.
-// Safe for concurrent use.
+// socketClaim is one close's claim on a connection's socket (claimSocket).
+type socketClaim struct {
+	conn net.Conn
+	// done is closed by the claimant when it has finished with conn: the
+	// socket is closed and the fields were cleared, or could not be because a
+	// writer kept the write path past closeClearWait.
+	done chan struct{}
+}
+
+// claimSocketForDrop is claimSocket for a close that does not hold the write
+// path: it reads s.conn under s.mu. The caller MUST NOT hold s.mu.
+func (s *Session) claimSocketForDrop(conn net.Conn) *socketClaim {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.conn != conn {
+		// No claim: another close finished with conn. closeConnWithin reads a
+		// nil claim as "not this close's socket" and reports nothing.
+		return nil
+	}
+	return s.claimSocket(conn)
+}
+
+// awaitClaimedClose is what a close does with a connection whose socket
+// another close has claimed. It closes and reports nothing. It waits for the
+// claimant to finish, no longer than closeClaimWait and with no lock held, so
+// that it does not return over a connection that is still installed: Accept,
+// Connect and the Peer's next attempt read that (ErrAlreadyConnected,
+// Conn() == nil). It waits on the claim and never on the write path: two
+// closes that both probed the path could each find it taken by the other's
+// probe and each leave the fields set.
+//
+// When the claimant has finished and the fields still name conn, a writer kept
+// the path past the claimant's own wait (a writer that waits on a plugin). One
+// more attempt to clear is made, and the fields stay set if it still holds
+// the path: the socket is closed, so every later write and read on it fails.
+// A claim whose close already finished costs no wait. The caller MUST NOT hold
+// s.mu or the write path.
+func (s *Session) awaitClaimedClose(conn net.Conn) {
+	if claim := s.socketClosed.Load(); claim != nil {
+		if claim.conn == conn {
+			s.awaitClaim(claim)
+		}
+	}
+	s.clearClosedConn(conn)
+}
+
+// awaitClaim waits for claim's close to finish, no longer than closeClaimWait.
+// A finished claim costs no timer.
+func (s *Session) awaitClaim(claim *socketClaim) {
+	select {
+	case <-claim.done:
+		return
+	default: // Still at work: wait for it below.
+	}
+	timer := s.clock.NewTimer(closeClaimWait)
+	defer timer.Stop()
+	select {
+	case <-claim.done:
+	case <-timer.C():
+	}
+}
+
+// socketClosedIs reports whether a close already claimed conn's socket
+// (claimSocket): the socket is closed, or is being closed under the write
+// path. Safe for concurrent use.
 func (s *Session) socketClosedIs(conn net.Conn) bool {
 	closed := s.socketClosed.Load()
 	if closed == nil {
 		return false
 	}
-	return *closed == conn
+	return closed.conn == conn
 }
 
 // clearClosedConn clears the connection fields that name conn, whose socket is

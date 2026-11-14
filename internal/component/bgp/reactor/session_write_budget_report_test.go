@@ -6,6 +6,7 @@
 package reactor
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
@@ -204,6 +206,186 @@ func TestCanceledWriteIsNotABudgetExpiry(t *testing.T) {
 	session.writeBudgetArmed = false
 	require.False(t, session.writeBudgetPassed(os.ErrDeadlineExceeded),
 		"a holder that armed no budget met none")
+}
+
+// TestRequestDeadlineIsNotABudgetExpiry proves a write that met its request's
+// own deadline is not reported as a write budget expiry. The session budget is
+// a minute, the request gives its write 200 ms, and the peer end reads nothing:
+// the write is still blocked when the request's time is up.
+//
+// VALIDATES: the request answers context.DeadlineExceeded and the session
+// closes, as before the write budget existed, with no close reason of a budget
+// expiry and no doctor-bgp-peer-not-reading line or event.
+// PREVENTS: "accepted no data for 200ms, the write budget" with a fix that
+// names ze.fwd.write.deadline, a setting that did not set that bound.
+func TestRequestDeadlineIsNotABudgetExpiry(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+	sink := closeLogSink(t)
+
+	setWriteBudget(t, time.Minute)
+	p := budgetEstablished(t)
+	p.reader.stop(t)
+
+	const requestTime = budgetShort
+	ctx, cancel := context.WithTimeout(t.Context(), requestTime)
+	defer cancel()
+
+	written := make(chan error, 1)
+	go func() {
+		written <- p.session.sendUpdateCounted(ctx, budgetAnnounce(100), nil, false, nil, (*Session).writeUpdate)
+	}()
+	select {
+	case err := <-written:
+		require.ErrorIs(t, err, context.DeadlineExceeded,
+			"a request that met its own deadline answers that deadline")
+	case <-time.After(requestTime + wedgeSlack):
+		t.Fatal("precondition: the writer was still blocked after its request's deadline")
+	}
+	select {
+	case <-p.runResult:
+	case <-time.After(runExitDeadline):
+		t.Fatal("Run did not return after the request gave up a connection with a partial frame on it")
+	}
+
+	require.NotErrorIs(t, closeCause(p.session), ErrWriteBudgetExpired,
+		"the request's deadline is not the write budget")
+	for _, event := range report.Errors(0) {
+		require.NotEqual(t, diagnostic.CodeDoctorBGPPeerNotReading, event.Code,
+			"no budget passed, so the peer is not reported as one that stopped reading")
+	}
+	require.Empty(t, closeRecordsWith(closeLogRecords(t, sink), "code", diagnostic.CodeDoctorBGPPeerNotReading),
+		"log:\n%s", sink.String())
+}
+
+// TestWriteBoundRecordsWhoseItIs proves the acquisition records, where it arms
+// the socket's deadline, whether the bound is the session budget or the
+// request's own deadline, and that the classification reads the record.
+//
+// VALIDATES: acquireWriteContext marks the bound as the request's only when
+// the request's deadline is the earlier one, and writeBudgetPassed answers
+// false for a deadline error under such a bound, after it passed included.
+// PREVENTS: a classification that reads the armed duration alone, which
+// cannot tell a 200 ms request from a 200 ms budget.
+func TestWriteBoundRecordsWhoseItIs(t *testing.T) {
+	session := NewSession(NewPeerSettings(mustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301))
+	client, _, _ := pipeSession(t, session)
+	defer func() { _ = client.Close() }()
+
+	short, cancelShort := context.WithTimeout(t.Context(), time.Second)
+	defer cancelShort()
+	require.NoError(t, session.acquireWriteContext(short, time.Hour))
+	require.True(t, session.writeBoundRequested, "the request's deadline is the earlier bound")
+	require.LessOrEqual(t, session.writeBudget, time.Second, "the armed bound is the time left to the request")
+	session.writeBudgetEnd = session.clock.Now().Add(-time.Second)
+	require.False(t, session.writeBudgetPassed(os.ErrDeadlineExceeded),
+		"a deadline error under the request's own bound is no budget expiry, even after that bound passed")
+	session.releaseWrites()
+
+	long, cancelLong := context.WithTimeout(t.Context(), time.Hour)
+	defer cancelLong()
+	require.NoError(t, session.acquireWriteContext(long, time.Second))
+	require.False(t, session.writeBoundRequested, "the session budget is the earlier bound")
+	require.Equal(t, time.Second, session.writeBudget)
+	session.writeBudgetEnd = session.clock.Now().Add(-time.Second)
+	require.True(t, session.writeBudgetPassed(os.ErrDeadlineExceeded),
+		"control: the same error after the session budget passed is an expiry")
+	session.releaseWrites()
+
+	require.NoError(t, session.acquireWriteContext(t.Context(), time.Second))
+	require.False(t, session.writeBoundRequested, "a request with no deadline is bounded by the session budget")
+	session.releaseWrites()
+}
+
+// TestWriteBudgetExpiryReachesPeerInfo proves the cause of a write budget
+// expiry reaches the snapshot every command surface reads. The session waits
+// out its budget, the peer records it through the hook it attaches, and the
+// reactor's PeerInfo builder (reactorAPIAdapter.Peers) is asked for the peer.
+//
+// VALIDATES: AC-10 -- PeerInfo carries the close cause, when it happened and
+// no NOTIFICATION record, which are the three fields `show bgp peer` reads for
+// last-error (lastErrorString in plugins/cmd/peer/summary.go, whose own test
+// TestLastErrorNamesCloseWithoutNotification starts from this PeerInfo), and
+// the cause renders as the words that test pins.
+// PREVENTS: a record the peer keeps and the builder does not copy, so that
+// last-error answers "" for a peer ze closed because it stopped reading.
+func TestWriteBudgetExpiryReachesPeerInfo(t *testing.T) {
+	// New resolves ze.fwd.write.deadline into the package's write budget
+	// (initFwdWriteDeadline), so the reactor is built BEFORE the test sets its
+	// own budget: built after, it would put the 30-second default back.
+	r := New(&Config{})
+	setWriteBudget(t, budgetShort)
+	p := budgetEstablished(t)
+
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
+	peer := NewPeer(settings)
+	r.peers[settings.PeerKey()] = peer
+	p.session.onWriteBudgetExpired = peer.recordWriteBudgetClose
+
+	adapter := &reactorAPIAdapter{r: r}
+	before := adapter.Peers()
+	require.Len(t, before, 1)
+	require.Equal(t, plugin.CloseCauseNone, before[0].LastCloseCause, "precondition: no record yet")
+
+	budgetExpire(t, p)
+
+	infos := adapter.Peers()
+	require.Len(t, infos, 1)
+	info := infos[0]
+	require.Equal(t, plugin.CloseCauseWriteBudget, info.LastCloseCause,
+		"the builder must copy the peer's close cause into PeerInfo")
+	require.False(t, info.LastCloseCauseTime.IsZero(), "the builder must copy when the close happened")
+	require.Equal(t, plugin.NotifNone, info.LastNotifDirection,
+		"no NOTIFICATION was built, so the close cause is the last error")
+	require.Equal(t, "peer accepted no data for the write budget (no NOTIFICATION sent)",
+		info.LastCloseCause.String(), "the words last-error renders")
+}
+
+// TestBudgetExpiryInForwardFlushLogsOnce proves a write budget expiry met by
+// the deferred flush of the route-server fast path is logged once. The
+// destination holds octets in its write buffer, as the fast path leaves them,
+// its peer end reads nothing, and a source session flushes it.
+//
+// VALIDATES: the flush logs the coded line of the expiry and no second line
+// for the same failed flush.
+// PREVENTS: "forward flush failed; destination session retired" beside the
+// doctor-bgp-peer-not-reading line: one close, two lines, one of them with no
+// code and no fix.
+func TestBudgetExpiryInForwardFlushLogsOnce(t *testing.T) {
+	sink := closeLogSink(t)
+
+	setWriteBudget(t, budgetShort)
+	p := budgetEstablished(t)
+	p.reader.stop(t)
+
+	p.session.writeMu.Lock()
+	_, err := p.session.bufWriter.Write(message.PackTo(message.NewKeepalive(), nil))
+	p.session.writeMu.Unlock()
+	require.NoError(t, err)
+
+	source := NewSession(NewPeerSettings(mustParseAddr("192.0.2.2"), 65001, 65003, 0x01020302))
+	source.fwdDirty = []fwdDirtyTarget{{session: p.session}}
+	flushed := make(chan struct{})
+	go func() {
+		defer close(flushed)
+		source.flushFwdDirty()
+	}()
+	select {
+	case <-flushed:
+	case <-time.After(budgetShort + wedgeSlack):
+		t.Fatal("precondition: the flush was still blocked after its write budget")
+	}
+	select {
+	case <-p.runResult:
+	case <-time.After(runExitDeadline):
+		t.Fatal("precondition: Run did not return after the flush passed its budget")
+	}
+
+	records := closeLogRecords(t, sink)
+	require.Len(t, closeRecordsWith(records, "code", diagnostic.CodeDoctorBGPPeerNotReading), 1,
+		"the expiry has its coded line; log:\n%s", sink.String())
+	require.Empty(t, closeRecordsWith(records, "msg", "forward flush failed; destination session retired"),
+		"the coded line is the record of this close; log:\n%s", sink.String())
 }
 
 // TestWriteBudgetExpiryRecordsPeerLastError proves the expiry reaches the

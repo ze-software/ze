@@ -1072,7 +1072,13 @@ func (s *Session) appendFwdDirty(peer *Peer, dst *Session) {
 // worker can take it (no pool, or the pool stopped) is the session retained.
 //
 // A session no longer Established, or with no conn, is dropped: its connection
-// is closing, and closeConn flushes the bufWriter under writeMu itself.
+// is closing. The close flushes what bufWriter holds when it takes the write
+// path within its wait (closeFlushed, under the path with s.mu released), and
+// drops it unflushed when the path stays held (dropConn).
+//
+// A flush that waited out its write budget is logged once, by the coded line
+// of the expiry (reportWriteBudgetExpiry); this function adds no second line
+// for it.
 func (s *Session) flushFwdDirty() {
 	if len(s.fwdDirty) == 0 {
 		return
@@ -1108,8 +1114,14 @@ func (s *Session) flushFwdDirty() {
 		// One line for both ways the flush fails, as before the acquisition
 		// existed: the socket refused its write budget, so it is closed and
 		// the acquisition retired the session (armWriteOrRetire), or the flush
-		// itself failed and retired it above.
+		// itself failed and retired it above. A failure that is a write budget
+		// expiry has its line already: retireWrite recorded it as the close
+		// reason and reported it under its code (recordWriteFailure), and that
+		// line names the peer, the budget and the fix.
 		if err != nil {
+			if errors.Is(closeCause(dst), ErrWriteBudgetExpired) {
+				continue
+			}
 			sessionLogger().Warn("forward flush failed; destination session retired",
 				"peer", dst.settings.Address, "error", err)
 		}
@@ -1249,7 +1261,10 @@ func (s *Session) holdWrites() {
 }
 
 // releaseWrites releases the write path taken by holdWrites or by any form of
-// the write path acquisition (session_write_mutex.go). It clears the socket's
+// the write path acquisition (session_write_mutex.go). It MUST follow every
+// holdWrites and every acquisition that answered nil, on every way out of the
+// writer, a failed write and a panic included (callers defer it), and MUST NOT
+// follow an acquisition that answered an error. It clears the socket's
 // write deadline first, so the next taker never meets a budget another writer
 // armed. It clears whatever is armed (writeBudgetArmed), its holder's budget or
 // one the route-server fast path left standing (releaseFastPathWrites): a write
@@ -1285,6 +1300,14 @@ func (s *Session) releaseWrites() {
 // that landed during the initial sync deadlocked the peer for good. The state
 // read needs no s.mu anyway: s.fsm is set once in NewSession and FSM.State
 // takes the FSM's own lock.
+//
+// A held run does not outlast a teardown by more than the message in flight.
+// The FSM stays Established until the teardown has closed the connection, so
+// the state read below does not end the run; the seal does (beginTeardown):
+// writeUpdate refuses a sealed session with errAdjOutSession and writes
+// nothing, so every later message of the run returns at once, the hold is
+// released, and the teardown's NOTIFICATION, which waits for the path no
+// longer than the control budget, is written to a peer that still reads.
 func (s *Session) sendUpdateHeld(update *message.Update) error {
 	state := s.fsm.State()
 

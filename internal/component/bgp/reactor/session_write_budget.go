@@ -51,10 +51,16 @@ func (s *Session) recordWriteFailure(err error) {
 // writeBudgetPassed reports whether err is a write that waited out the budget
 // its writer armed. A deadline error alone does not say so: a canceled request
 // expires the socket's deadline early to end its own write
-// (requestWriteDeadline), and that write met no budget. The caller MUST hold
-// writeMu.
+// (requestWriteDeadline), and that write met no budget. Nor did a write whose
+// armed bound was its request's own deadline, earlier than the session budget
+// (writeBoundRequested): the request set that bound, ze.fwd.write.deadline did
+// not, and the request answers for it (sendUpdateCounted). The caller MUST
+// hold writeMu.
 func (s *Session) writeBudgetPassed(err error) bool {
 	if s.writeBudgetArmed {
+		if s.writeBoundRequested {
+			return false
+		}
 		if errors.Is(err, os.ErrDeadlineExceeded) {
 			return !s.clock.Now().Before(s.writeBudgetEnd)
 		}

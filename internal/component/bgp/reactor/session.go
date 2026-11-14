@@ -249,13 +249,18 @@ type Session struct {
 	// About twenty close sites hold it across a NOTIFICATION and the close that
 	// follows (handleOpen and its validators, processOpen, handleNotification,
 	// handleConnectionCloseLocked, connectionEstablished, closeCollision,
-	// handleBFDEvent, the hold timer callback). A holder waits for the write
-	// path ONCE, and never twice: the NOTIFICATION waits no longer than its
-	// deadline (the control budget, one second for the hold timer), and a
-	// NOTIFICATION that found the path held tells the close (notifyMetBusyPath),
-	// which then interrupts the writer without a second wait (closeConnWithin).
-	// So openMu is held behind a stuck writer for one bounded wait, plus the
-	// second the close gives that writer to fail and let go.
+	// handleBFDEvent, the hold timer callback). Behind a writer that was
+	// already stuck when the NOTIFICATION asked for the path, a holder waits
+	// for it once: the NOTIFICATION waits no longer than its deadline (the
+	// control budget, one second for the hold timer), and a NOTIFICATION that
+	// found the path held tells the close (notifyMetBusyPath), which then
+	// interrupts the writer without a wait of its own (closeConnWithin). So
+	// openMu is held behind that writer for one bounded wait, plus the second
+	// the close gives it to fail and let go (closeClearWait). A writer that
+	// takes the path after the NOTIFICATION went out is a second writer: the
+	// close then waits for it too, once, for no longer than closeWait. A close
+	// of a connection another close has claimed waits no longer than
+	// closeClaimWait, for that close to finish.
 	openMu sync.Mutex
 
 	// transportFailed is guarded by openMu. A failed delayed OPEN write and
@@ -453,10 +458,16 @@ type Session struct {
 	// writeBudget is the budget last armed, and writeBudgetEnd the
 	// deadline it gave the socket. Owned by writeMu and read only while
 	// writeBudgetArmed is set: a write that fails on a deadline is a budget
-	// expiry only when writeBudgetEnd has passed (writeBudgetExpiry), because
+	// expiry only when writeBudgetEnd has passed (writeBudgetPassed), because
 	// a canceled request expires the socket's deadline early to end its write.
 	writeBudget    time.Duration
 	writeBudgetEnd time.Time
+	// writeBoundRequested says the armed deadline is a request's own, earlier
+	// than the session write budget (acquireWriteContext). Owned by writeMu
+	// and read only while writeBudgetArmed is set, like the two fields above.
+	// A write that meets such a deadline met no write budget: its request
+	// reports it (sendUpdateCounted), and writeBudgetPassed answers false.
+	writeBoundRequested bool
 	// A successful nonempty bufWriter.Write MUST set writePending under writeMu.
 	// flushWrites consumes it only after flush succeeds, including direct writes
 	// that bufio has already sent without retaining buffered bytes.
@@ -524,13 +535,15 @@ type Session struct {
 	// a second time (closeConnWithin).
 	notifyMetBusyPath atomic.Bool
 
-	// socketClosed names the connection whose socket the close routine closed
-	// behind a held write path, while s.conn still names it because the fields
-	// can be cleared only under writeMu. A later close of the same connection
-	// reads it and returns without waiting again. It is keyed on the connection,
+	// socketClosed names the connection one close has claimed (claimSocket):
+	// its socket is closed, or is being flushed and closed under the write
+	// path, while s.conn still names it because the fields can be cleared only
+	// under writeMu. Every other close of the same connection reads it,
+	// closes and reports nothing, and waits no longer than closeClaimWait for
+	// the claimant to finish (socketClaim.done). It is keyed on the connection,
 	// never on the session: an unsealed Session is used again for a second
 	// connection (a passive peer's Run and Accept). Cleared with the fields.
-	socketClosed atomic.Pointer[net.Conn]
+	socketClosed atomic.Pointer[socketClaim]
 
 	// writePathHeldReported records that a close of this session met a held
 	// write path and reported it (reportWritePathHeld). The session end reads
@@ -1427,7 +1440,16 @@ func (s *Session) logNotifyErrWithin(conn net.Conn, code message.NotifyErrorCode
 
 // logNotifyOutcome logs a NOTIFICATION that could not be sent; err is the
 // answer of its send, nil when it went out.
+//
+// A busy write path is not logged here, as ceaseAfterPanic does not log it:
+// the sender left its mark (notifyMetBusyPath), and the close that follows
+// logs at ERROR, under its own code, that no NOTIFICATION was sent
+// (reportWritePathHeld). That line is the record, so one fact is logged once.
+// Every caller closes the connection after the send.
 func (s *Session) logNotifyOutcome(code message.NotifyErrorCode, subcode uint8, err error) {
+	if errors.Is(err, errWritePathBusy) {
+		return
+	}
 	if err != nil {
 		// Same LEVEL and same rendering as the success WARN in session_write.go. A
 		// send that failed is the worse news of the two -- the session is ending and
