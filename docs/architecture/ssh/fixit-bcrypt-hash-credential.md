@@ -96,9 +96,32 @@ leaf package any tier may import. The fourth reads the YANG SCHEMA to decide
 whether the leaf at that path is marked, so it cannot live below the config
 component.
 
-`redact.Command` has two callers: the SSH exec log and the CLI session
-transcript. The transcript is the one that writes to a FILE, so a credential
-typed at the prompt outlived the session until `Record` was routed through it.
+`redact.Command` has one caller, `config.DisplayCommand`, which judges a
+`set` line by the schema first and hands every other line, and a `set` line
+whose leaf holds no secret, to `redact.Command`. Every record of a command line
+reaches it through `DisplayCommand`: the accounting record
+(`Dispatcher.BeginAccounting`, and `beginAccountingArgs` for a typed
+inter-plugin call), the audit log entry (`recordCommandAudit`, which records
+only the actions `auditActionForCommand` names, today `request reload`), the
+SSH exec log (`loggedCommand`), the CLI session transcript
+(`TranscriptWriter.Record`), the unauthorized refusal, the dispatch failure log
+lines and the TACACS+ authorization log lines. The transcript is the one that
+writes to a FILE, so a credential typed at the prompt outlived the session until
+`Record` was routed through it.
+
+<!-- source: internal/component/config/mask.go -- DisplayCommand -->
+<!-- source: internal/component/plugin/server/command.go -- BeginAccounting, beginAccountingArgs, recordCommandAudit, auditActionForCommand -->
+<!-- source: internal/component/ssh/passwordauth.go -- loggedCommand -->
+
+**A daemon command that carries caller bytes names them `content`, and
+`content` is a command-line credential keyword.** `update data key <key>
+content <base64>` and `update data config name <name> content <base64>` carry a
+file from the caller's side, and that file can be a credential: a host key, a
+login record, a config holding secrets. No record can tell which, so the value
+after `content` is redacted on every command line, by the keyword's name, as
+the value after `password` is. The keyword is in the command-line set only
+(`isCredentialKey`), never in the config-name set `redact.JSON` reads, so a
+captured payload keyed `content` keeps its value.
 
 **A URL's secret is its userinfo, and the WHOLE userinfo goes.** `redact.URL`
 replaces `user:password@` with the placeholder, and it replaces `token@` too.
@@ -142,9 +165,23 @@ tests instead.
 - Redaction is scoped to the names `isSecretConfigKey` answers for: the words
   `password`, `secret`, `passphrase`, `psk`, `md5` and `token`, the suffixes
   `-password`, `-secret`, `-passphrase` and `-key`, and on a command line the
-  `plaintext-` prefix as well. The bare word `key` is deliberately absent,
-  because it names a key-chain entry id and a YANG list key far more often than
-  it names a secret, and every real secret leaf spells the suffix.
+  `plaintext-` prefix and the word `content` as well. The bare word `key` is
+  deliberately absent, because it names a key-chain entry id and a YANG list key
+  far more often than it names a secret, and every real secret leaf spells the
+  suffix.
+- `content` is judged by its name alone, so it also matches two config path
+  elements that hold no secret: the BGP update `nlri` entry's `content` leaf and
+  a process binding's `content` container. In the record of a line that names
+  either and reaches `redact.Command` (`... nlri <family> content <value>`,
+  `... process <name> content <leaf> <value>`), the one token after `content`
+  reads as the placeholder: the first word of the nlri value, or the name of the
+  child leaf. Execution keeps the whole line; only the record loses that token.
+- A store key named like a credential keyword (`meta/ssh/host-key` ends in
+  `-key`) is itself a keyword, so in the record of `update data key
+  meta/ssh/host-key content <base64>` the word `content` reads as the
+  placeholder too. The content is still redacted, because the next keyword is
+  judged from the original token: the record loses the word, never the
+  protection.
 - `cmd/ze/hub/main_system.go` logs the configured update-check URL at daemon
   start without `redact.URL`, so a mirror credential still reaches that one
   line.

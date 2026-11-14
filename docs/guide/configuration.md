@@ -3839,9 +3839,10 @@ username, and remote host. Transcript writes are best-effort and never block
 CLI operation. Default is `disabled`.
 
 A credential typed at the prompt is not written. The command line goes through
-the same redaction the SSH command log uses, so a bcrypt-shaped token and the
-value after a password-family keyword are each replaced with `<redacted>`
-before the line reaches the file. The answer needs no pass of its own: a
+the same redaction the SSH command log uses, so a bcrypt-shaped token, the
+value after a password-family keyword and the value after `content` (the
+base64 bytes a daemon data command carries) are each replaced with
+`<redacted>` before the line reaches the file. The answer needs no pass of its own: a
 command that echoes a config value masks it where it is written.
 
 The `mtu { reference-address }` leaf names the address `show mtu` measures

@@ -139,3 +139,80 @@ func TestCommandRedactsMultiple(t *testing.T) {
 	assert.NotContains(t, out, hash)
 	assert.Equal(t, 2, strings.Count(out, Placeholder))
 }
+
+// VALIDATES: AC-8 of spec-data-store-maintenance-through-the-daemon. The safe
+// copy of both daemon commands that carry caller bytes holds the path, the key
+// or the name, and the placeholder in place of the content; a content as long
+// as the argument bound allows is replaced whole; a line with no credential
+// keyword is returned byte for byte.
+// PREVENTS: a credential written with `update data key` reaching the
+// accounting record, the SSH exec log or the session transcript in clear.
+// Method: Command over each line, then a check that the content survives
+// nowhere in the copy and the tokens around it survive.
+func TestCommandRedactsContentValue(t *testing.T) {
+	const content = "c2VjcmV0LWNyZWRlbnRpYWw="
+	cases := []struct {
+		name string
+		line string
+		want string
+	}{
+		{
+			name: "update data key",
+			line: "update data key meta/ddos-flowspec/announcement content " + content,
+			want: "update data key meta/ddos-flowspec/announcement content " + Placeholder,
+		},
+		{
+			name: "update data config",
+			line: "update data config name router.conf content " + content,
+			want: "update data config name router.conf content " + Placeholder,
+		},
+		{
+			name: "keyword in another case",
+			line: "update data key meta/x CONTENT " + content,
+			want: "update data key meta/x CONTENT " + Placeholder,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out := Command(c.line)
+			assert.Equal(t, c.want, out)
+			assert.NotContains(t, out, content)
+		})
+	}
+
+	t.Run("content at the argument bound", func(t *testing.T) {
+		long := strings.Repeat("QUFB", 1048576/4)
+		out := Command("update data key meta/x content " + long)
+		assert.Equal(t, "update data key meta/x content "+Placeholder, out)
+	})
+
+	t.Run("no credential keyword", func(t *testing.T) {
+		line := "show data cat  meta/ddos-flowspec/announcement"
+		assert.Equal(t, line, Command(line), "the line must be returned unchanged, spacing included")
+	})
+}
+
+// VALIDATES: AC-8 for a store key whose own name is a credential keyword. A
+// key ending in "-key" (`meta/ssh/host-key`) satisfies isSecretConfigKey, so
+// Command masks the token after the key, the word "content", and then the
+// content itself, because the next keyword is classified from the original
+// token. The record loses the word "content", never the protection: the
+// content is absent, the command path and the key survive.
+// PREVENTS: a change to the keyword walk that lets the content through when a
+// credential-named key precedes it.
+func TestCommandRedactsContentAfterCredentialNamedKey(t *testing.T) {
+	const content = "c2VjcmV0LWNyZWRlbnRpYWw="
+	out := Command("update data key meta/ssh/host-key content " + content)
+	assert.Equal(t, "update data key meta/ssh/host-key "+Placeholder+" "+Placeholder, out)
+	assert.NotContains(t, out, content)
+}
+
+// VALIDATES: "content" is a credential keyword on a command line only. A JSON
+// payload keyed "content" keeps its value.
+// PREVENTS: the command-line keyword leaking into the shared config-name
+// predicate and blanking every captured payload that carries a content field.
+func TestJSONKeepsContentValue(t *testing.T) {
+	out, err := JSON([]byte(`{"content":"announce 192.0.2.0/24"}`))
+	assert.NoError(t, err)
+	assert.JSONEq(t, `{"content":"announce 192.0.2.0/24"}`, string(out))
+}

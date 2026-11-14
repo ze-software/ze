@@ -55,11 +55,27 @@ func isSecretConfigKey(name string) bool {
 		strings.HasSuffix(lower, "-key")
 }
 
-// isCredentialKey reports whether a command token names a secret-bearing leaf
-// whose following token is the secret value. It is isSecretConfigKey plus the
-// command-line-only "plaintext-*" prefix (which covers "plaintext-password").
+// isCredentialKey reports whether a command token is a keyword whose following
+// token is a secret value. It is isSecretConfigKey plus two command-line-only
+// names: the "plaintext-*" prefix (which covers "plaintext-password"), and the
+// word "content", the argument that carries caller-side bytes in base64 to a
+// daemon command (`update data key <key> content <base64>`). Those bytes can be
+// a credential and no record can tell which, so every one is redacted.
+//
+// "content" stays out of isSecretConfigKey on purpose: JSON reads that
+// predicate, and a captured payload keyed "content" holds no caller bytes. On a
+// command line the name is judged alone, never by schema, so the token after a
+// config path element named "content" (the BGP update nlri leaf, the process
+// container) is redacted too.
 func isCredentialKey(token string) bool {
-	return isSecretConfigKey(token) || strings.HasPrefix(strings.ToLower(token), "plaintext-")
+	if isSecretConfigKey(token) {
+		return true
+	}
+	lower := strings.ToLower(token)
+	if lower == "content" {
+		return true
+	}
+	return strings.HasPrefix(lower, "plaintext-")
 }
 
 // JSON returns payload with every secret-bearing value replaced by Placeholder:
@@ -127,8 +143,9 @@ func redactValue(v any, secret bool) any {
 
 // Command returns a copy of a command line safe to log: every bcrypt-shaped
 // token is replaced with Placeholder, and the value token immediately following
-// a password-family key is replaced with Placeholder even when it is a
-// non-bcrypt plaintext secret. A command with no credential token is returned
+// a credential keyword (isCredentialKey: the password family, "plaintext-*" and
+// "content") is replaced with Placeholder even when it is a non-bcrypt
+// plaintext secret. A command with no credential token is returned
 // unchanged (whitespace preserved). Redaction runs on the full command; callers
 // truncate the result AFTER, so a secret straddling a truncation boundary can
 // never half-leak.

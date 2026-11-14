@@ -9,6 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/redact"
 )
 
 // handlerMarking returns a handler that records it ran in *ran.
@@ -212,4 +213,91 @@ func TestLoadBuiltinsServesLocalCommands(t *testing.T) {
 		t.Fatal("no local-data command with a YANG node is linked into this binary: the check proved nothing")
 	}
 	t.Logf("%d local-data commands served by the dispatcher", checked)
+}
+
+// TestAccountingRecordsMaskedContent proves the accounting record of a command
+// line that carries caller bytes holds the placeholder in place of them.
+//
+// VALIDATES: AC-8 of spec-data-store-maintenance-through-the-daemon, its
+// accounting half. The START and STOP records of `update data key <key>
+// content <base64>` and `update data config name <name> content <base64>` hold
+// the command path, the key or name, and redact.Placeholder, on the text
+// accountant, on the typed accountant, and on the typed inter-plugin route.
+// PREVENTS: a credential written through the daemon reaching the TACACS+
+// accounting server in clear.
+// Method: dispatch each line with a capturing accountant and compare the
+// records with the masked line. Accounting runs at admission, before lookup and
+// validation (BeginAccounting), so the test registers no handler and does not
+// judge the dispatch result: phase 5 builds the commands themselves.
+func TestAccountingRecordsMaskedContent(t *testing.T) {
+	const content = "c2VjcmV0LWNyZWRlbnRpYWw="
+	cases := []struct {
+		command string
+		args    []string
+	}{
+		{command: "update data key", args: []string{"meta/ddos-flowspec/announcement", "content", content}},
+		{command: "update data config", args: []string{"name", "router.conf", "content", content}},
+	}
+	for _, c := range cases {
+		line := c.command + " " + strings.Join(c.args, " ")
+		masked := strings.TrimSuffix(line, content) + redact.Placeholder
+		maskedTokens := strings.Fields(masked)
+
+		t.Run(c.command+" text accountant", func(t *testing.T) {
+			d := NewDispatcher()
+			acct := &fakeAccountant{}
+			d.SetAccountingHook(acct)
+			// The dispatch result is not this test's question: see Method.
+			_, _ = d.Dispatch(&CommandContext{Username: "alice"}, line)
+			assertRecords(t, "START", acct.starts, masked, content)
+			assertRecords(t, "STOP", acct.stops, masked, content)
+		})
+
+		t.Run(c.command+" typed accountant", func(t *testing.T) {
+			d := NewDispatcher()
+			acct := &typedAccountingCapture{}
+			d.SetAccountingHook(acct)
+			// The dispatch result is not this test's question: see Method.
+			_, _ = d.Dispatch(&CommandContext{Username: "alice"}, line)
+			assertTokenRecords(t, "START", acct.startTokens, maskedTokens)
+			assertTokenRecords(t, "STOP", acct.stopTokens, maskedTokens)
+		})
+
+		t.Run(c.command+" typed inter-plugin route", func(t *testing.T) {
+			d := NewDispatcher()
+			acct := &typedAccountingCapture{}
+			d.SetAccountingHook(acct)
+			stop := d.beginAccountingArgs(&CommandContext{Username: "alice"}, c.command, c.args, "")
+			stop()
+			assertTokenRecords(t, "START", acct.startTokens, maskedTokens)
+			assertTokenRecords(t, "STOP", acct.stopTokens, maskedTokens)
+		})
+	}
+}
+
+// assertRecords checks that a text accountant recorded exactly one line, the
+// masked one, and that the content appears in no record.
+func assertRecords(t *testing.T, kind string, got []string, want, content string) {
+	t.Helper()
+	if len(got) != 1 {
+		t.Fatalf("%s records = %q, want one", kind, got)
+	}
+	if got[0] != want {
+		t.Errorf("%s record = %q, want %q", kind, got[0], want)
+	}
+	if strings.Contains(got[0], content) {
+		t.Errorf("%s record carries the content: %q", kind, got[0])
+	}
+}
+
+// assertTokenRecords checks that a typed accountant recorded exactly one token
+// list, the masked one.
+func assertTokenRecords(t *testing.T, kind string, got [][]string, want []string) {
+	t.Helper()
+	if len(got) != 1 {
+		t.Fatalf("%s records = %q, want one", kind, got)
+	}
+	if strings.Join(got[0], "\x00") != strings.Join(want, "\x00") {
+		t.Errorf("%s tokens = %q, want %q", kind, got[0], want)
+	}
 }
