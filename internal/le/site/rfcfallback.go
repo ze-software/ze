@@ -204,10 +204,20 @@ func (set *rfcFigureSet) sum(subject string) (map[string]any, error) {
 	return out, nil
 }
 
+// rfcRegisterOpenSections are the MUST sections that each hold a row the
+// register still owes: proof pending, OS testing gap, exclusion unchecked, not
+// assessed and not built. rfc-figures.js registerOf reads the same five fields.
+var rfcRegisterOpenSections = []string{
+	rfcMustProofPendingField, rfcMustOSGapField, rfcMustExclusionUncheckedField, rfcMustNotAssessedField,
+	rfcMustNotBuiltField,
+}
+
 // rfcRegisterOf answers a set's mandatory register in words, as
 // rfc-figures.js registerOf does: complete only when the set holds at least
-// one RFC, none of them is unwalked, and neither the Ze correctness gap nor
-// the OS testing gap holds a row (spec-rfc-figures-sectioned-presentation).
+// one RFC, none of them is unwalked, and every open MUST section
+// (rfcRegisterOpenSections) holds no row. A sum that lacks one of those
+// fields reads not complete, never complete
+// (spec-rfc-figures-built-and-proven, AC-6).
 func rfcRegisterOf(rfcs, notWalked int, sum map[string]any) string {
 	if rfcs == 0 {
 		return rfcRegisterOpen
@@ -215,12 +225,16 @@ func rfcRegisterOf(rfcs, notWalked int, sum map[string]any) string {
 	if notWalked != 0 {
 		return rfcRegisterOpen
 	}
-	zeGap, zeHeld := lookupRFCField(sum, "must.ze-gap").(float64)
-	osGap, osHeld := lookupRFCField(sum, "must.os-gap").(float64)
-	if zeHeld && osHeld && zeGap == 0 && osGap == 0 {
-		return rfcRegisterComplete
+	for _, field := range rfcRegisterOpenSections {
+		count, held := lookupRFCField(sum, field).(float64)
+		if !held {
+			return rfcRegisterOpen
+		}
+		if count != 0 {
+			return rfcRegisterOpen
+		}
 	}
-	return rfcRegisterOpen
+	return rfcRegisterComplete
 }
 
 // The two words of the register field.

@@ -19,9 +19,13 @@ import (
 //
 // MUST: 20 rows owed; 5 lower-layer (2 OS verified, 3 OS gap), 4
 // not-applicable and 2 feature-declined left out of the attainable rows, so 9
-// attainable, 3 of them proven: Ze gap 6, MUST bar 3+2+3+6 = 14, not owed 6.
+// attainable, 3 of them proven: 6 open (1 proof pending, 2 exclusion
+// unchecked, 0 not assessed, 3 not built), MUST bar 3+2+3+6 = 14, not owed 6.
 // SHOULD: 13 rows; 1 proven, 2 not-applicable, 3 lower-layer (1 OS verified,
-// 2 OS gap), then 2 not yet, 1 not ever and 4 not decided, which sum back to 13.
+// 2 OS gap), then 7 open (2 proof pending, 0 exclusion unchecked, 4 not
+// assessed, 1 not built), which sum back to 13. The private {intent} split of
+// the open SHOULD rows (2 not yet, 1 not ever, 4 not decided) is kept too, and
+// no section publishes it.
 func fixtureFigures() rfc.StemFigures {
 	return rfc.StemFigures{
 		Stem:   "rfc9999",
@@ -39,9 +43,18 @@ func fixtureFigures() rfc.StemFigures {
 		// The optional OS rows (owner, 2026-10-31): split as the MUST ones are.
 		OptionalOSVerified: 1,
 		OptionalOSGap:      2,
-		NotYet:             2,
-		NotEver:            1,
-		NotDecided:         4,
+		ProofPending:       1,
+		ExclusionUnchecked: 2,
+		NotAssessed:        0,
+		NotBuilt:           3,
+		// The open optional rows, split as the open MUST ones are.
+		OptionalProofPending:       2,
+		OptionalExclusionUnchecked: 0,
+		OptionalNotAssessed:        4,
+		OptionalNotBuilt:           1,
+		NotYet:                     2,
+		NotEver:                    1,
+		NotDecided:                 4,
 	}
 }
 
@@ -60,11 +73,13 @@ func TestPerRFCDataCountsEverySegment(t *testing.T) {
 	want := rfcStemData{
 		Stem: "rfc9999", Title: "Widgets", Walked: true,
 		Must: &rfc.MustSections{
-			Total: 20, Kept: 14, ZeProven: 3, OSVerified: 2, OSGap: 3, ZeGap: 6, NotOwed: 6,
+			Total: 20, Kept: 14, ZeProven: 3, OSVerified: 2, OSGap: 3,
+			ProofPending: 1, ExclusionUnchecked: 2, NotAssessed: 0, NotBuilt: 3, NotOwed: 6,
 			NotOwedByKind: map[string]int{rfc.AnnotationNotApplicable: 4, rfc.AnnotationFeatureDeclined: 2},
 		},
 		Should: &rfc.ShouldSections{
-			Total: 13, Proven: 1, OSVerified: 1, OSGap: 2, NotOwed: 2, NotEver: 1, NotYet: 2, NotDecided: 4,
+			Total: 13, Proven: 1, OSVerified: 1, OSGap: 2, NotOwed: 2,
+			ProofPending: 2, ExclusionUnchecked: 0, NotAssessed: 4, NotBuilt: 1,
 			NotOwedByKind: map[string]int{rfc.AnnotationNotApplicable: 2},
 		},
 		ProvenByKind: map[string]int{"unit": 2, "functional": 1},
@@ -127,11 +142,12 @@ func TestTheBarLayoutKeepsTheAgreedOrder(t *testing.T) {
 		}
 		return out
 	}
-	if got, want := names(rfcBars.Must), []string{"ze-proven", "os-verified", "os-gap", "ze-gap"}; !slices.Equal(got, want) {
+	if got, want := names(rfcBars.Must), []string{"ze-proven", "os-verified", "proof-pending", "os-gap",
+		"exclusion-unchecked", "not-assessed", "not-built"}; !slices.Equal(got, want) {
 		t.Errorf("MUST bar order %v, want %v", got, want)
 	}
-	want := []string{"ze-proven", "os-verified", "should-proven", "not-owed", "not-ever", "not-yet",
-		"not-decided", "os-gap", "ze-gap"}
+	want := []string{"ze-proven", "os-verified", "should-proven", "not-owed", "proof-pending", "os-gap",
+		"exclusion-unchecked", "not-assessed", "not-built"}
 	if got := names(rfcBars.Overview); !slices.Equal(got, want) {
 		t.Errorf("overview bar order %v, want %v", got, want)
 	}
@@ -166,7 +182,8 @@ func TestFiguresThatDoNotAddUpAreRefused(t *testing.T) {
 		"OS split differs from the lower-layer rows":        {func(f *rfc.StemFigures) { f.OSGap++ }, "OS verified and OS gap"},
 		"proven exceeds the attainable rows":                {func(f *rfc.StemFigures) { f.Mandatory.Proven = 10 }, "Ze-proven MUST rows"},
 		"MUST sections differ from the MUST total":          {func(f *rfc.StemFigures) { f.Mandatory.Total++ }, "the MUST sections"},
-		"SHOULD states differ from the open rows":           {func(f *rfc.StemFigures) { f.NotDecided++ }, "not decided SHOULD rows"},
+		"MUST open sections differ from the open rows":      {func(f *rfc.StemFigures) { f.NotBuilt++ }, "not assessed and not built MUST rows"},
+		"SHOULD states differ from the open rows":           {func(f *rfc.StemFigures) { f.OptionalNotAssessed++ }, "not assessed and not built SHOULD rows"},
 		"SHOULD OS split differs from the lower-layer rows": {func(f *rfc.StemFigures) { f.OptionalOSGap++ }, "OS verified and OS gap SHOULD rows"},
 		"SHOULD sections differ from the SHOULD total":      {func(f *rfc.StemFigures) { f.Optional.Total++ }, "the SHOULD sections"},
 	} {
@@ -222,7 +239,7 @@ func TestProfileDataKeepsTheTiersApart(t *testing.T) {
 // and publishes counts. Seed the output with a file for a stem that no longer
 // exists, publish, and walk data/rfc/ against the index. The published counts
 // are compared with the numbers the corpus states (one MUST row, a {gap}, so
-// one Ze gap) and with the rfc.StemFigures fields directly, never with
+// one not built) and with the rfc.StemFigures fields directly, never with
 // rfcStemDataOf, the function under test.
 func TestDataIndexAndFilesAgree(t *testing.T) {
 	root, summary, marker := partialPublicationTree(t)
@@ -290,7 +307,7 @@ func TestDataIndexAndFilesAgree(t *testing.T) {
 	if !got.Walked || got.Must == nil || got.Should == nil {
 		t.Fatalf("the walked stem published no counts: %+v", got)
 	}
-	wantMust := rfc.MustSections{Total: 1, Kept: 1, ZeGap: 1, NotOwedByKind: map[string]int{}}
+	wantMust := rfc.MustSections{Total: 1, Kept: 1, NotBuilt: 1, NotOwedByKind: map[string]int{}}
 	if !reflect.DeepEqual(*got.Must, wantMust) {
 		t.Errorf("published MUST counts\n got: %+v\nwant: %+v", *got.Must, wantMust)
 	}
@@ -306,17 +323,35 @@ func TestDataIndexAndFilesAgree(t *testing.T) {
 		{"must.ze-proven", got.Must.ZeProven, model.Mandatory.Proven},
 		{"must.os-verified", got.Must.OSVerified, model.OSVerified},
 		{"must.os-gap", got.Must.OSGap, model.OSGap},
-		{"must.ze-gap", got.Must.ZeGap, model.Mandatory.Attainable - model.Mandatory.Proven},
+		{"must.proof-pending", got.Must.ProofPending, model.ProofPending},
+		{"must.exclusion-unchecked", got.Must.ExclusionUnchecked, model.ExclusionUnchecked},
+		{"must.not-assessed", got.Must.NotAssessed, model.NotAssessed},
+		{"must.not-built", got.Must.NotBuilt, model.NotBuilt},
+		{"the four open MUST sections",
+			got.Must.ProofPending + got.Must.ExclusionUnchecked + got.Must.NotAssessed + got.Must.NotBuilt,
+			model.Mandatory.Attainable - model.Mandatory.Proven},
 		{"should.total", got.Should.Total, model.Optional.Total},
 		{"should.proven", got.Should.Proven, model.Optional.Proven},
 		{"should.os-verified", got.Should.OSVerified, model.OptionalOSVerified},
 		{"should.os-gap", got.Should.OSGap, model.OptionalOSGap},
-		{"should.not-ever", got.Should.NotEver, model.NotEver},
-		{"should.not-yet", got.Should.NotYet, model.NotYet},
-		{"should.not-decided", got.Should.NotDecided, model.NotDecided},
+		{"should.proof-pending", got.Should.ProofPending, model.OptionalProofPending},
+		{"should.exclusion-unchecked", got.Should.ExclusionUnchecked, model.OptionalExclusionUnchecked},
+		{"should.not-assessed", got.Should.NotAssessed, model.OptionalNotAssessed},
+		{"should.not-built", got.Should.NotBuilt, model.OptionalNotBuilt},
 	} {
 		if pair.got != pair.want {
 			t.Errorf("%s is %d, the model states %d", pair.field, pair.got, pair.want)
+		}
+	}
+	// The {intent} split is a private planning fact: the published file names
+	// none of its keys.
+	raw, err := os.ReadFile(filepath.Join(output, filepath.FromSlash(index.RFCs[0].File)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{`"not-ever"`, `"not-yet"`, `"not-decided"`} {
+		if bytes.Contains(raw, []byte(key)) {
+			t.Errorf("the published file carries the private intent key %s: %s", key, raw)
 		}
 	}
 	if !slices.Equal(got.Unmet, []string{"RFC9999-2-1"}) {

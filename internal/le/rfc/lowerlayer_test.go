@@ -188,9 +188,11 @@ func TestALowerLayerRequirementIsAnnotatedAndNotProven(t *testing.T) {
 	}
 	// The record alone verifies nothing of the OS: no tagged unit of the
 	// layer below stands behind it here, so the row is an OS testing gap.
-	if must.OSGap != 1 || must.OSVerified != 0 || must.ZeGap != 0 || must.NotOwed != 0 {
-		t.Errorf("OS gap=%d OS verified=%d Ze gap=%d not owed=%d, want the row performed by the OS, owed by the stack",
-			must.OSGap, must.OSVerified, must.ZeGap, must.NotOwed)
+	if must.OSGap != 1 || must.OSVerified != 0 ||
+		must.ProofPending != 0 || must.ExclusionUnchecked != 0 || must.NotAssessed != 0 || must.NotBuilt != 0 ||
+		must.NotOwed != 0 {
+		t.Errorf("MUST sections = %+v, want OS gap 1 and no other open or not-owed row: the row performed by "+
+			"the OS, owed by the stack", must)
 	}
 }
 

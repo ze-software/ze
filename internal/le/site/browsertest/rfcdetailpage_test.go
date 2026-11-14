@@ -99,12 +99,13 @@ func TestTheBrowserDrawsAnRFCDetailPageFromItsFile(t *testing.T) {
 	pageURL := base + strings.TrimSuffix(golden.Detail, "index.html")
 	got := loadRFCProfilePage(ctx, t, pageURL, rfcNoFallbackLeft)
 	for key, want := range map[string][]string{
-		"rfc1:must": {"ze-proven=Ze proven 3", "os-verified=OS verified 2", "os-gap=OS testing gap 1",
-			"ze-gap=Ze correctness gap 1,200"},
+		"rfc1:must": {"ze-proven=Ze proven 3", "os-verified=OS verified 2", "proof-pending=Proof pending 4",
+			"os-gap=OS testing gap 1", "exclusion-unchecked=Exclusion unchecked 5", "not-assessed=Not assessed 7",
+			"not-built=Not built 1,184"},
 		"rfc1:overview": {"ze-proven=Ze MUST proven 3", "os-verified=OS verified 3",
-			"should-proven=SHOULD proven 1", "not-owed=Not owed 12", "not-ever=SHOULD not ever 1",
-			"not-yet=SHOULD not yet 2", "not-decided=SHOULD not decided 2", "os-gap=OS testing gap 2",
-			"ze-gap=Ze correctness gap 1,200"},
+			"should-proven=SHOULD proven 1", "not-owed=Not owed 12", "proof-pending=Proof pending 5",
+			"os-gap=OS testing gap 2", "exclusion-unchecked=Exclusion unchecked 6", "not-assessed=Not assessed 9",
+			"not-built=Not built 1,185"},
 	} {
 		if !reflect.DeepEqual(got.Bars[key], want) {
 			t.Errorf("bar %s draws %q, want %q", key, got.Bars[key], want)
@@ -113,7 +114,7 @@ func TestTheBrowserDrawsAnRFCDetailPageFromItsFile(t *testing.T) {
 	for key, want := range map[string]string{
 		"rfc1:must.total": "1,216", "rfc1:must.kept": "1,206", "rfc1:must.not-owed": "10",
 		"rfc1:must.not-owed-by-kind.feature-declined": "6", "rfc1:must.not-owed-by-kind.linux-limit": "0",
-		"rfc1:should.not-decided": "2", "rfc1:should.os-verified": "1",
+		"rfc1:should.not-assessed": "2", "rfc1:should.os-verified": "1",
 	} {
 		if got.Values[key] != want {
 			t.Errorf("value %s shows %q, want %q", key, got.Values[key], want)
@@ -143,7 +144,7 @@ func TestTheBrowserDrawsAnRFCDetailPageFromItsFile(t *testing.T) {
 	if !isMap {
 		t.Fatalf("rfc1.json holds no must counts: %s", original)
 	}
-	must["ze-proven"], must["ze-gap"] = float64(103), float64(1100)
+	must["ze-proven"], must["not-built"] = float64(103), float64(1084)
 	republished, err := json.Marshal(file)
 	if err != nil {
 		t.Fatal(err)
@@ -152,8 +153,8 @@ func TestTheBrowserDrawsAnRFCDetailPageFromItsFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	got = loadRFCProfilePage(ctx, t, pageURL, func(state *rfcProfilePageState) bool {
-		return state.Values["rfc1:must.ze-proven"] == "103" && state.Values["rfc1:must.ze-gap"] == "1,100" &&
-			len(state.Bars["rfc1:must"]) == 4 && state.Bars["rfc1:must"][3] == "ze-gap=Ze correctness gap 1,100"
+		return state.Values["rfc1:must.ze-proven"] == "103" && state.Values["rfc1:must.not-built"] == "1,084" &&
+			len(state.Bars["rfc1:must"]) == 7 && state.Bars["rfc1:must"][6] == "not-built=Not built 1,084"
 	})
 	if want := "ze-proven=Ze proven 103"; got.Bars["rfc1:must"][0] != want {
 		t.Errorf("after republishing rfc1.json the MUST bar is %q, want its first segment %q", got.Bars["rfc1:must"], want)

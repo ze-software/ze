@@ -105,11 +105,27 @@ type StemFigures struct {
 	// Optional.Excluded[lower-layer] and change no other count.
 	OptionalOSVerified int
 	OptionalOSGap      int
-	// NotYet, NotEver and NotDecided split the optional rows that are owed,
-	// not proven and not excluded (Optional.Attainable less Optional.Proven)
-	// by their {intent} marker: not yet, not ever, or no marker at all. They
+	// ProofPending, ExclusionUnchecked, NotAssessed and NotBuilt split the MUST
+	// rows that are owed, not proven and not excluded (Mandatory.Attainable
+	// less Mandatory.Proven), and the Optional ones the open optional rows the
+	// same way: each row lands in the one section openSectionOf names
+	// (countOpen). All four are counted row by row, never as a remainder, so
+	// SectionsOf can refuse a split whose sections do not add back to the open
+	// rows.
+	ProofPending               int
+	ExclusionUnchecked         int
+	NotAssessed                int
+	NotBuilt                   int
+	OptionalProofPending       int
+	OptionalExclusionUnchecked int
+	OptionalNotAssessed        int
+	OptionalNotBuilt           int
+	// NotYet, NotEver and NotDecided split the same open optional rows by
+	// their {intent} marker: not yet, not ever, or no marker at all. They
 	// change no other count. Proven is never declared, so a proven row lands
-	// in none of them whatever marker it carries.
+	// in none of them whatever marker it carries. They are private planning
+	// facts: no section and no published shape carries them, and only the
+	// text of `./le rfc tree` and `./le rfc next` prints them (intentCounts).
 	NotYet     int
 	NotEver    int
 	NotDecided int
@@ -244,6 +260,23 @@ func (e figureEvidence) strongestKind(rid string) string {
 	return best
 }
 
+// tested answers whether a non-gap `RFC requirement:` tag covers the row,
+// whatever carrier it reaches and whether or not a record proves it. It is
+// what tells proof pending from not assessed (openSectionOf): a row no such
+// tag covers has no test whose break could prove it, so nothing yet says
+// whether Ze meets it (owner, 2026-11-13: "Keep the number real.").
+//
+// A gap tag is skipped, as strongestKind skips it: it demonstrates the
+// obligation is unmet, so it is no test of the requirement met.
+func (e figureEvidence) tested(rid string) bool {
+	for _, tag := range e.tags[rid] {
+		if !tag.Gap {
+			return true
+		}
+	}
+	return false
+}
+
 // unmet answers whether the summary or the audit says this row is not met:
 // its annotation's declared traits say Unmet, or its recorded audit verdict is
 // one auditVerdictUnmet names.
@@ -265,9 +298,10 @@ func (e figureEvidence) unmet(requirement *Requirement) bool {
 // Ze-proven share, never raise it. A row an annotation says is not owed leaves
 // only when its evidence passes the check a new row must pass
 // ((*evidenceReader).notOwedGap); one the exclusion evidence backlog
-// shelters, or whose evidence fails, stays owed as a Ze correctness gap (an
-// open row at SHOULD level), so annotating a row never raises a figure on
-// unchecked evidence (owner ruling, 2026-10-29).
+// shelters, or whose evidence fails, stays owed at its level, as exclusion
+// unchecked, or as not built for a {linux-limit} row, whose traits say unmet
+// (openSectionOf), so annotating a row never raises a figure on unchecked
+// evidence (owner ruling, 2026-10-29).
 func (e figureEvidence) excluded(requirement *Requirement) bool {
 	if !ceilingExcluded(requirement) {
 		return false
@@ -308,6 +342,10 @@ func (e figureEvidence) excluded(requirement *Requirement) bool {
 //     partial row that is met, is not the requirement met. This is what
 //     holds a requirement only unreached code meets at 0% (owner, 2026-10-25:
 //     the IKE virtual-IP pool, `RFC3948-5.1-1`).
+//
+// Every owed row that is neither proven nor excluded lands, at its level, in
+// exactly one of proof pending, exclusion unchecked, not assessed and not
+// built, by the one rule both levels share (countOpen, openSectionOf).
 func figuresByStem(requirements []Requirement, stems, walked, proven map[string]bool,
 	evidence figureEvidence,
 ) map[string]StemFigures {
@@ -326,12 +364,14 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 		if !owed {
 			continue
 		}
-		if evidence.unmet(requirement) && !listed[requirement.RID] {
+		unmet := evidence.unmet(requirement)
+		if unmet && !listed[requirement.RID] {
 			listed[requirement.RID] = true
 			figures.Unmet = append(figures.Unmet, requirement.RID)
 		}
 		figures.countOS(requirement, evidence.osProofs)
 		excluded := evidence.excluded(requirement)
+		figures.countOpen(requirement, met, excluded, unmet, evidence.tested(requirement.RID))
 		if requirement.Gated() {
 			figures.Mandatory.count(requirement, met, excluded)
 			// The kinds sum to MustProven: a Ze-proven row under its
@@ -398,6 +438,138 @@ func (s *StemFigures) countIntent(requirement *Requirement, met, excluded bool) 
 	default:
 		panic("BUG: unexpected intent state")
 	}
+}
+
+// openSection is the section of a bar an owed row that is neither proven nor
+// excluded lands in. Zero is no section, so a row openSectionOf never placed
+// cannot read as one.
+type openSection uint8
+
+const (
+	openUnspecified openSection = iota
+	// openProofPending: a tagged test covers the row, and no recorded break
+	// proves it yet.
+	openProofPending
+	// openExclusionUnchecked: a not-owed claim whose evidence fails its check.
+	openExclusionUnchecked
+	// openNotAssessed: no tagged test covers the row, and nothing says it is
+	// unmet, so nothing yet says whether Ze meets it.
+	openNotAssessed
+	// openNotBuilt: the summary or the audit says the obligation is unmet, or
+	// the owner declined the optional row.
+	openNotBuilt
+)
+
+// openSectionOf is the ONE rule that places an open row (owed, not proven,
+// not excluded) in a section, at both levels:
+//   - not built when unmet holds (figureEvidence.unmet: a `{gap}` or
+//     `{partial}` row, a `{linux-limit}` row whose register entry fails its
+//     check, or an audit verdict of wrong, unimplemented or partial), or when
+//     the owner marked the row `{intent: not-ever}`: its proof is not pending;
+//   - exclusion unchecked for a `{not-applicable}` or `{feature-declined}`
+//     row whose evidence fails its check (ceilingExcluded, yet not excluded):
+//     its kind bars tests, so no proof can be recorded while it keeps the
+//     annotation (owner, 2026-11-13);
+//   - proof pending for an open row a non-gap tag covers (tested): a tag with
+//     no record, a stale record or a no-break escape;
+//   - not assessed for every other open row: no tagged test covers it, so
+//     calling its proof pending would claim a test that does not exist
+//     (owner, 2026-11-13: "Keep the number real.").
+//
+// A `{lower-layer}` row is always excluded (figureEvidence.excluded), so it
+// never reaches here: it is OS verified or an OS testing gap (countOS).
+// unmet is figureEvidence.unmet over the row and tested is
+// figureEvidence.tested over its id, which the caller already asked.
+func openSectionOf(requirement *Requirement, unmet, tested bool) openSection {
+	if unmet {
+		return openNotBuilt
+	}
+	if declinedForever(requirement) {
+		return openNotBuilt
+	}
+	if ceilingExcluded(requirement) {
+		return openExclusionUnchecked
+	}
+	if tested {
+		return openProofPending
+	}
+	return openNotAssessed
+}
+
+// declinedForever answers whether the owner marked the row `{intent:
+// not-ever}`: Ze will not support it. The marker is legal only on an optional
+// row (intentOnGatedRow), so a gated row never carries it.
+func declinedForever(requirement *Requirement) bool {
+	if requirement.Intent == nil {
+		return false
+	}
+	return requirement.Intent.State == IntentNotEver
+}
+
+// countOpen adds one owed row that is neither proven nor excluded to the
+// section openSectionOf names, at its level, gated (ProofPending,
+// ExclusionUnchecked, NotAssessed, NotBuilt) or not (the Optional ones), and
+// leaves every other row alone. Both levels call it, so one rule splits both
+// bars.
+func (s *StemFigures) countOpen(requirement *Requirement, met, excluded, unmet, tested bool) {
+	if met {
+		return
+	}
+	if excluded {
+		return
+	}
+	pending, unchecked := &s.OptionalProofPending, &s.OptionalExclusionUnchecked
+	unassessed, notBuilt := &s.OptionalNotAssessed, &s.OptionalNotBuilt
+	if requirement.Gated() {
+		pending, unchecked = &s.ProofPending, &s.ExclusionUnchecked
+		unassessed, notBuilt = &s.NotAssessed, &s.NotBuilt
+	}
+	switch openSectionOf(requirement, unmet, tested) {
+	case openProofPending:
+		*pending++
+	case openExclusionUnchecked:
+		*unchecked++
+	case openNotAssessed:
+		*unassessed++
+	case openNotBuilt:
+		*notBuilt++
+	case openUnspecified:
+		panic("BUG: openSectionOf placed an open row in no section: " + requirement.RID)
+	}
+}
+
+// intentCounts is the private planning split of the open optional rows by
+// their {intent} marker (countIntent). No published shape carries it: the
+// text of `./le rfc tree` and `./le rfc next` prints it after the sections, a
+// row from the figures it was computed from, a rollup from its members' sum.
+// A row or rollup read back from published JSON holds none, and prints no
+// intent clause rather than a false zero.
+type intentCounts struct {
+	notEver, notYet, notDecided int
+}
+
+// intents answers the figures' intent counts.
+func (s *StemFigures) intents() intentCounts {
+	return intentCounts{notEver: s.NotEver, notYet: s.NotYet, notDecided: s.NotDecided}
+}
+
+// add sums other into c.
+func (c *intentCounts) add(other intentCounts) {
+	c.notEver += other.notEver
+	c.notYet += other.notYet
+	c.notDecided += other.notDecided
+}
+
+// writeIntents renders the intent clause, `; intent: not ever N, not yet N,
+// not decided N`, a shape no section clause takes (Sections.String). A nil
+// count writes nothing: it is the state of a row or rollup decoded from JSON,
+// which holds no intent.
+func writeIntents(tb *textbuf.Buffer, intent *intentCounts) {
+	if intent == nil {
+		return
+	}
+	tb.Str("; intent: not ever ").Int(int64(intent.notEver)).Str(", not yet ").Int(int64(intent.notYet)).
+		Str(", not decided ").Int(int64(intent.notDecided))
 }
 
 // osMet answers whether a layer under Ze performs the row: its annotation is
@@ -499,19 +671,29 @@ func rowCounts(requirement *Requirement, proven map[string]bool) (owed, met bool
 }
 
 // Rollup is the figures of a set of RFCs: one tier of a use-case profile's
-// declared members, or an aggregate's members.
+// declared members, or an aggregate's members. It is published through
+// MarshalJSON (rollup_published.go) under the flat keys a tree row publishes,
+// never by its own field names.
 type Rollup struct {
 	// RFCs counts every member.
-	RFCs int `json:"rfcs"`
+	RFCs int
 	// NotWalked counts the members that contribute no rows. It is stated
 	// beside the figures, because a set whose figure reads 100% while members
 	// are unwalked is not complete.
-	NotWalked int    `json:"not-walked"`
-	Mandatory Figure `json:"mandatory"`
-	Optional  Figure `json:"optional"`
+	NotWalked int
+	// Mandatory and Optional are the walked members' figures summed.
+	// Mandatory.Proven is Ze proven alone; the published `mandatory-proven`
+	// is Sections.Must.Proven, Ze proven plus OS verified. A rollup decoded
+	// from JSON holds only their proven and total counts.
+	Mandatory Figure
+	Optional  Figure
 	// Sections is the walked members' section counts summed (sectionsOf),
 	// the two bars `./le rfc tree` and `./le rfc next` print.
-	Sections Sections `json:"sections"`
+	Sections Sections
+	// intent is the walked members' intent counts summed, private and never
+	// marshalled: String prints it after the sections. nil for a rollup
+	// decoded from JSON, which holds no intent.
+	intent *intentCounts
 }
 
 // rollupOf sums the figures of members. Only walked members contribute rows:
@@ -520,6 +702,7 @@ type Rollup struct {
 // StemFiguresOf has already checked for every walked RFC.
 func rollupOf(figures map[string]StemFigures, members []string) Rollup {
 	out := Rollup{}
+	intent := intentCounts{}
 	for _, stem := range members {
 		out.RFCs++
 		one := figures[stem]
@@ -531,15 +714,17 @@ func rollupOf(figures map[string]StemFigures, members []string) Rollup {
 		out.Optional.add(one.Optional)
 		sections := sectionsOf(&one)
 		out.Sections.add(&sections)
+		intent.add(one.intents())
 	}
+	out.intent = &intent
 	return out
 }
 
 // mandatoryComplete answers whether the set has a member, no member is
-// unwalked, and its MUST bar holds neither a Ze correctness gap nor an OS
-// testing gap: every MUST row the stack owes is Ze proven or OS verified, and a
-// row not owed blocks nothing (AC-9). A set with no member is never complete:
-// 0 of 0 measures nothing (AC-5).
+// unwalked, and its MUST bar holds no proof pending, exclusion unchecked, not
+// assessed, not built or OS testing gap row: every MUST row the stack owes is
+// Ze proven or OS verified, and a row not owed blocks nothing (AC-9). A set
+// with no member is never complete: 0 of 0 measures nothing (AC-5).
 func (r Rollup) mandatoryComplete() bool {
 	if r.RFCs == 0 {
 		return false
@@ -547,21 +732,33 @@ func (r Rollup) mandatoryComplete() bool {
 	if r.NotWalked != 0 {
 		return false
 	}
-	if r.Sections.Must.ZeGap != 0 {
+	must := &r.Sections.Must
+	if must.ProofPending != 0 {
 		return false
 	}
-	return r.Sections.Must.OSGap == 0
+	if must.ExclusionUnchecked != 0 {
+		return false
+	}
+	if must.NotAssessed != 0 {
+		return false
+	}
+	if must.NotBuilt != 0 {
+		return false
+	}
+	return must.OSGap == 0
 }
 
-// String renders the rollup's sections with its count of members that add no
-// rows. A set no walked member adds a row to renders `no rows`: 0 of 0 is
-// neither complete nor empty, and a bar of zeros would read as a measurement.
+// String renders the rollup's sections, then its intent counts when it holds
+// them, with its count of members that add no rows. A set no walked member
+// adds a row to renders `no rows`: 0 of 0 is neither complete nor empty, and
+// a bar of zeros would read as a measurement.
 func (r Rollup) String() string {
 	var tb textbuf.Buffer
 	if r.Sections.Must.Total+r.Sections.Should.Total == 0 {
 		tb.Str(noRowsCell)
 	} else {
 		tb.Str(r.Sections.String())
+		writeIntents(&tb, r.intent)
 	}
 	tb.Str("; ").Int(int64(r.RFCs)).Str(" RFCs, ").Int(int64(r.NotWalked)).Str(" not walked")
 	return tb.String()

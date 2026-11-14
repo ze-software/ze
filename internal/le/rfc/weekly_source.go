@@ -421,7 +421,8 @@ func answerWeeklyProven(ctx context.Context, events weekly.EventRange) (weekly.S
 	gained := provenRIDs(answer.to.proving, answer.from.proving)
 	lost := provenRIDs(answer.from.proving, answer.to.proving)
 	return weekly.SectionBody{
-		Note: "MUSTs proven by a verified recorded break over the MUSTs owed, summed over the walked documents " +
+		Note: "MUSTs proven by a verified recorded break, the rows Ze performs and those the OS performs alike, " +
+			"over the MUSTs owed, summed over the walked documents " +
 			"as each endpoint's own `le rfc tree` answers them, the sum the ledger's rollup takes. " +
 			"The requirement lists name ids, at any level, with a verified proving record at one endpoint and " +
 			"not the other. They are read only for the documents compared record by record: those whose proven " +

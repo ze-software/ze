@@ -808,7 +808,7 @@ RFC tables to the top of the page, under its title, so the reader does not
 scroll past the gate cards to reach them. Above the rows, an overview
 carries the MUST bar and the overview bar over the subject `all`, then a Total
 row: each MUST bar section, the MUST rows not owed and the MUST total, with a
-check line that adds the first five to the sixth, and the count of RFCs and
+check line that adds every column before the last to the last, and the count of RFCs and
 of those not walked. The filter script sets `data-ze-rfc-stems` on the
 overview to the stems of the rows it shows and asks `rfc-figures.js` to fill
 it again, so a profile's link reads that profile's own counts. Without
@@ -935,10 +935,14 @@ population nor a scope count is an outcome, so both take the neutral tone. The
 number under the label already carries the performance; a color that graded as
 well as labeled put an amber card on the measure that is the good news.
 
-**The grid reads in four movements**: Overall, Positive, Neutral, Negative. A
-card's movement is DERIVED from its tone, `rfcCardsIn`, so a heading and a color
-cannot disagree: a card under "Negative" is red because that is the only way it
-lands there. **The grid holds measures only.** How the gate is enforced -- the
+**The grid reads in four movements**: Positive, Negative, Neutral, Totals,
+declared once in `rfcCardGroups` for the index, every RFC page and their
+Markdown mirrors. A card's movement is DERIVED from its tone, `rfcCardsIn`, so
+a heading and a color cannot disagree: a card under "Negative" is red because
+that is the only way it lands there. A scale card declares itself with
+`rfcCard.Total` and lands under "Totals", what the cards above are counted
+against. A movement with no card renders nothing, heading included, so the
+index, which has no total card, shows no "Totals" heading. **The grid holds measures only.** How the gate is enforced -- the
 pre-commit stage count, the reproduce command, the inputs it reads, the
 artifacts it publishes -- is one section, "How this is checked". `Pre-commit
 gate / ON` was a card until 2026-09-01; it answers how, not where Ze stands.
@@ -1016,11 +1020,18 @@ only the rows the figures judged excluded (`rfcOutOfScopeValue`, reading
 `rfc.StemFigures` `Mandatory.Excluded`): an annotation whose evidence fails is
 a Ze gap in the figures, so neither surface calls it out of scope. The bucket
 cards beside them still count the annotations, and their notes say which ones
-stay owed. The gated count keeps its place below the ratios as
-the accounting total it is, and the bucket table states it as the sum of the two
-populations. The page led with that count until 2026-09-01, when the owner
-called the arrangement deceptive: a count of obligations judged reads as a count
-of obligations met.
+stay owed. The gated count is the accounting total, and the bucket table states
+it as the sum of the two populations. The page led with that count until
+2026-09-01, when the owner called the arrangement deceptive: a count of
+obligations judged reads as a count of obligations met. It stays after the
+ratios, as decided then. Since 2026-11-13 it sits under its own "Totals"
+heading, last, instead of under "Neutral", because a total is not a measure,
+and the label no longer says "checked": the card reads "Mandatory requirements (MUST level)",
+its count says how many of all the requirements the summary lists, at every
+level, and its note says these are the rows `./le rfc check` holds Ze to. Every
+card counted out of it ends its count line "of N mandatory requirements"
+(`rfcMandatoryDenominator`), and the at-a-glance row and the bucket table's
+total row take the same label (`rfcGatedCardLabel`).
 
 The mapping from annotation kind to site bucket comes from
 `rfc.AnnotationTraitsOf`, the same declaration that drives the RFC gate's
@@ -1109,8 +1120,9 @@ Five shapes are load-bearing on that page:
   gated total.
 - **A page for a summary the gate does not hold never says it does.**
   `evaluate` (`internal/le/rfc/check_core.go`) skips every requirement of an
-  un-enrolled RFC, so on those pages the population card names what the summary
-  DECLARES and states that the gate holds none of it.
+  un-enrolled RFC, so on those pages the population card reads "Mandatory
+  requirements (MUST level), not checked", names what the summary DECLARES, and
+  states that the gate holds none of it.
 - **An un-enrolled kind is published with its meaning.** The five enrolment
   dispositions are `non-normative`, `backlog`, `blocked`, `source-restricted`
   and `out-of-scope`. The last says the extraction is DONE and the owner
@@ -1176,6 +1188,16 @@ card declares the RULE that chose its tone beside the tone, and
 or bad direction -- a population, for instance -- takes `neutral` and gets no
 color, because a color on a number is a verdict.
 
+A total card keeps the `neutral` tone but is not drawn as a neutral measure.
+`rfcCardLook` derives its class from `rfcCard.Total`, not from a fifth tone:
+`rfc-total-card` is the style guide's inset surface (`--bg-soft`, a 1px
+`--line-strong` outline all round, no shadow, no colored edge). On a grid that
+carries one, the legend adds "An outlined card with no colored edge, under
+Totals, is a total the other cards are counted against, not a measure." and
+the card's row reads `outlined`. The Markdown mirror has no color, so the
+"Totals" heading sets the card apart there and the mirror's legend states the
+same sentence.
+
 The index page carried a requirement bucket tape and table until 2026-10-31;
 the enrolled RFCs' sections replaced them (AC-13).
 
@@ -1199,9 +1221,10 @@ For a partial requirement, the proof block states that the records cover only
 scoped tag claims and give zero whole-requirement credit. The compliance index
 publishes no proof percentage: its sections count the MUST rows of the walked
 enrolled RFCs. The homepage RFC card states one, from
-`rfc.ImplementedSectionsOf` through the site facts: the Ze-proven MUST rows over
-the MUST rows Ze and the OS owe (Ze proven, OS verified, OS testing gap and Ze
-correctness gap) in the walked RFCs Ze implements (`rfc.proven_display` of
+`rfc.ImplementedSectionsOf` through the site facts: the proven MUST rows, Ze
+proven plus OS verified, over the MUST rows Ze and the OS owe (Ze proven, OS
+verified, proof pending, OS testing gap, exclusion unchecked, not assessed and
+not built) in the walked RFCs Ze implements (`rfc.proven_display` of
 `rfc.must_kept_display`), then the implemented RFC count with its not-walked
 part. A row not owed (not applicable, declined, OS blocked) is on neither side,
 and a row counts not owed only when its evidence passes the exclusion evidence

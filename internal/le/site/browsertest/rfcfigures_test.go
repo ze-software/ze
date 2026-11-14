@@ -78,18 +78,23 @@ func fieldPaths(prefix string, value map[string]any, into map[string]bool) {
 	}
 }
 
-// rfcStemFile is one per-RFC file with the MUST and SHOULD counts given.
-func rfcStemFile(stem string, zeProven, osVerified, osGap, zeGap, mustNotOwed int, should [6]int) string {
-	kept := zeProven + osVerified + osGap + zeGap
+// rfcStemFile is one per-RFC file with the MUST and SHOULD counts given;
+// should is total, proven, not owed, proof pending, exclusion unchecked, not
+// assessed and not built, in that order.
+func rfcStemFile(stem string, zeProven, osVerified, osGap, proofPending, exclusionUnchecked, notAssessed, notBuilt,
+	mustNotOwed int, should [7]int,
+) string {
+	kept := zeProven + osVerified + osGap + proofPending + exclusionUnchecked + notAssessed + notBuilt
 	body, err := json.Marshal(map[string]any{
 		"stem": stem, "title": "RFC " + stem, "walked": true, "requirements": 0, "implementer": "ze", "implemented": true, "unmet": []string{}, "proven-by-kind": map[string]int{},
 		"must": map[string]any{"total": kept + mustNotOwed, "kept": kept, "ze-proven": zeProven,
-			"os-verified": osVerified, "os-gap": osGap, "ze-gap": zeGap, "not-owed": mustNotOwed,
-			"not-owed-by-kind": map[string]int{"not-applicable": mustNotOwed}},
+			"os-verified": osVerified, "os-gap": osGap, "proof-pending": proofPending,
+			"exclusion-unchecked": exclusionUnchecked, "not-assessed": notAssessed, "not-built": notBuilt,
+			"not-owed": mustNotOwed, "not-owed-by-kind": map[string]int{"not-applicable": mustNotOwed}},
 		// No fixture holds an optional lower-layer row, so the SHOULD OS split
 		// is zero: the overview bar's OS segments then read the MUST rows only.
 		"should": map[string]any{"total": should[0], "proven": should[1], "os-verified": 0, "os-gap": 0, "not-owed": should[2],
-			"not-ever": should[3], "not-yet": should[4], "not-decided": should[5],
+			"proof-pending": should[3], "exclusion-unchecked": should[4], "not-assessed": should[5], "not-built": should[6],
 			"not-owed-by-kind": map[string]int{"not-applicable": should[2]}},
 	})
 	if err != nil {
@@ -104,7 +109,7 @@ const rfcFiguresPage = `<!DOCTYPE html>
 <body>
 <span id="stem" data-ze-rfc="rfc1:must.ze-proven">fallback</span>
 <span id="unwalked" data-ze-rfc="rfc3:must.ze-proven">fallback</span>
-<span id="profile-gap" data-ze-rfc="profile/edge/required:must.ze-gap">fallback</span>
+<span id="profile-gap" data-ze-rfc="profile/edge/required:must.not-assessed">fallback</span>
 <span id="profile-unwalked" data-ze-rfc="profile/edge/required:not-walked">fallback</span>
 <span id="optional-proven" data-ze-rfc="profile/edge/optional:must.ze-proven">fallback</span>
 <span id="empty-optional" data-ze-rfc="profile/core/optional:must.ze-proven">fallback</span>
@@ -219,10 +224,10 @@ func newRFCFixtureSite(t *testing.T) *rfcFixtureSite {
 	site.write("data/rfc/index.json", rfcIndexOf(t, &golden))
 	site.write("data/rfc/profiles/edge.json", `{"name":"edge","kind":"use-case","title":"Edge","release":true,"required":["rfc1","rfc2","rfc3"],"optional":["rfc4"]}`)
 	site.write("data/rfc/profiles/core.json", `{"name":"core","kind":"use-case","title":"Core","release":false,"required":["rfc2"],"optional":[]}`)
-	site.write("data/rfc/rfc1.json", rfcStemFile("rfc1", 3, 2, 3, 6, 6, [6]int{10, 1, 2, 1, 2, 4}))
-	site.write("data/rfc/rfc2.json", rfcStemFile("rfc2", 4, 0, 0, 1, 0, [6]int{0, 0, 0, 0, 0, 0}))
-	site.write("data/rfc/rfc4.json", rfcStemFile("rfc4", 9, 0, 0, 0, 0, [6]int{0, 0, 0, 0, 0, 0}))
-	site.write("data/rfc/rfc5.json", rfcStemFile("rfc5", 1, 0, 0, 0, 0, [6]int{0, 0, 0, 0, 0, 0}))
+	site.write("data/rfc/rfc1.json", rfcStemFile("rfc1", 3, 2, 3, 1, 2, 2, 1, 6, [7]int{10, 1, 2, 2, 0, 4, 1}))
+	site.write("data/rfc/rfc2.json", rfcStemFile("rfc2", 4, 0, 0, 0, 0, 1, 0, 0, [7]int{}))
+	site.write("data/rfc/rfc4.json", rfcStemFile("rfc4", 9, 0, 0, 0, 0, 0, 0, 0, [7]int{}))
+	site.write("data/rfc/rfc5.json", rfcStemFile("rfc5", 1, 0, 0, 0, 0, 0, 0, 0, [7]int{}))
 	site.write("data/rfc/rfc3.json", `{"stem":"rfc3","walked":false,"requirements":0,"implementer":"ze","implemented":true,"must":null,"should":null,"proven-by-kind":null,"unmet":[]}`)
 
 	files := http.FileServer(http.Dir(site.dir))
@@ -258,7 +263,7 @@ func newRFCBrowser(t *testing.T) context.Context {
 func TestTheGoldenStemFileHasTheFixtureShape(t *testing.T) {
 	golden := readRFCGolden(t)
 	var fixture map[string]any
-	if err := json.Unmarshal([]byte(rfcStemFile("rfc1", 1, 1, 1, 1, 1, [6]int{5, 1, 1, 1, 1, 1})), &fixture); err != nil {
+	if err := json.Unmarshal([]byte(rfcStemFile("rfc1", 1, 1, 1, 1, 1, 1, 1, 1, [7]int{7, 1, 1, 1, 1, 1, 1})), &fixture); err != nil {
 		t.Fatal(err)
 	}
 	want, got := map[string]bool{}, map[string]bool{}
@@ -291,7 +296,7 @@ func TestTheBrowserDrawsRFCFiguresFromTheirFiles(t *testing.T) {
 		t.Fatalf("load: %v", err)
 	}
 	got := waitForRFCPage(ctx, t)
-	wantTexts := map[string]string{"stem": "3", "unwalked": "requirements not reviewed", "profile-gap": "7", "profile-unwalked": "1",
+	wantTexts := map[string]string{"stem": "3", "unwalked": "requirements not reviewed", "profile-gap": "3", "profile-unwalked": "1",
 		"optional-proven": "9", "empty-optional": "no rows", "by-kind": "6", "by-kind-absent": "0",
 		"bad-field": "must.no-such-count is not a field of the RFC data, so nothing can be shown here. " +
 			"Fix the data-ze-rfc marker: docs/architecture/site-facts.md lists the fields.",
@@ -302,11 +307,12 @@ func TestTheBrowserDrawsRFCFiguresFromTheirFiles(t *testing.T) {
 		t.Errorf("marked values\n got: %v\nwant: %v", got.Texts, wantTexts)
 	}
 	wantBars := map[string][]string{
-		"must-bar": {"ze-proven=Ze proven 7", "os-verified=OS verified 2", "os-gap=OS testing gap 3",
-			"ze-gap=Ze correctness gap 7"},
+		"must-bar": {"ze-proven=Ze proven 7", "os-verified=OS verified 2", "proof-pending=Proof pending 1",
+			"os-gap=OS testing gap 3", "exclusion-unchecked=Exclusion unchecked 2", "not-assessed=Not assessed 3",
+			"not-built=Not built 1"},
 		"overview-bar": {"ze-proven=Ze MUST proven 3", "os-verified=OS verified 2", "should-proven=SHOULD proven 1",
-			"not-owed=Not owed 8", "not-ever=SHOULD not ever 1", "not-yet=SHOULD not yet 2",
-			"not-decided=SHOULD not decided 4", "os-gap=OS testing gap 3", "ze-gap=Ze correctness gap 6"},
+			"not-owed=Not owed 8", "proof-pending=Proof pending 3", "os-gap=OS testing gap 3",
+			"exclusion-unchecked=Exclusion unchecked 2", "not-assessed=Not assessed 6", "not-built=Not built 2"},
 		"empty-bar": {"no rows"},
 	}
 	if !reflect.DeepEqual(got.Bars, wantBars) {
@@ -329,18 +335,18 @@ func TestTheBrowserDrawsRFCFiguresFromTheirFiles(t *testing.T) {
 	}
 
 	// AC-17: one RFC's file changes and the page, unchanged, shows it.
-	site.write("data/rfc/rfc1.json", rfcStemFile("rfc1", 5, 2, 3, 4, 6, [6]int{10, 1, 2, 1, 2, 4}))
+	site.write("data/rfc/rfc1.json", rfcStemFile("rfc1", 5, 2, 3, 1, 1, 1, 1, 6, [7]int{10, 1, 2, 2, 0, 4, 1}))
 	if _, err := chromedp.Run(ctx, chromedp.Reload()); err != nil {
 		t.Fatalf("reload: %v", err)
 	}
 	got = waitForRFCPage(ctx, t)
-	if got.Texts["stem"] != "5" || got.Texts["profile-gap"] != "5" {
+	if got.Texts["stem"] != "5" || got.Texts["profile-gap"] != "2" {
 		t.Errorf("republished counts not shown: %v", got.Texts)
 	}
 
 	// A walked RFC's file with no level counts is named, never summed as
 	// zero rows: the same refusal as a missing file.
-	republished := rfcStemFile("rfc1", 5, 2, 3, 4, 6, [6]int{10, 1, 2, 1, 2, 4})
+	republished := rfcStemFile("rfc1", 5, 2, 3, 1, 1, 1, 1, 6, [7]int{10, 1, 2, 2, 0, 4, 1})
 	site.write("data/rfc/rfc1.json", `{"stem":"rfc1","walked":true,"requirements":30,"implemented":true}`)
 	if _, err := chromedp.Run(ctx, chromedp.Reload()); err != nil {
 		t.Fatalf("reload: %v", err)
@@ -457,8 +463,9 @@ func contrastRatio(first, second float64) float64 {
 // meet WCAG 2.2 AA for small text (4.5:1) against every color of its fill in
 // the light and the dark theme; that OS verified, "light green", is lighter
 // than Ze proven in both; that in the light theme it stands apart from SHOULD
-// proven's teal; and that not decided has a fill of its own, apart from the
-// bar's background and every other segment.
+// proven's teal; and that each of the four open sections (proof pending,
+// exclusion unchecked, not assessed, not built) has a fill of its own, apart
+// from the bar's background and every other segment.
 //
 // Method: load the fixture page with the site's real tokens and component CSS
 // under each data-theme, read each segment's computed colors, and compute the
@@ -510,13 +517,15 @@ func TestRFCSegmentColoursAreReadableInBothThemes(t *testing.T) {
 					fills["os-verified"], fills["should-proven"], ratio)
 			}
 		}
-		if ratio := contrastRatio(luminance(fills["not-decided"]), luminance(colors.Bar)); ratio < 1.4 {
-			t.Errorf("%s: not decided %s is %.2f:1 against the bar's background %s, under 1.4:1",
-				theme, fills["not-decided"], ratio, colors.Bar)
-		}
-		for _, segment := range colors.Segments {
-			if segment != "not-decided" && fills[segment] == fills["not-decided"] {
-				t.Errorf("%s: not decided shares its fill %s with %s", theme, fills["not-decided"], segment)
+		for _, open := range []string{"proof-pending", "exclusion-unchecked", "not-assessed", "not-built"} {
+			if ratio := contrastRatio(luminance(fills[open]), luminance(colors.Bar)); ratio < 1.4 {
+				t.Errorf("%s: %s %s is %.2f:1 against the bar's background %s, under 1.4:1",
+					theme, open, fills[open], ratio, colors.Bar)
+			}
+			for _, segment := range colors.Segments {
+				if segment != open && fills[segment] == fills[open] {
+					t.Errorf("%s: %s shares its fill %s with %s", theme, open, fills[open], segment)
+				}
 			}
 		}
 	}

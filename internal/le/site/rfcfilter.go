@@ -134,9 +134,10 @@ func rfcListTotalColumns() []rfcProfileFigure {
 	return append(columns, rfcProfileFigure{"Not owed", rfcMustNotOwedField}, rfcProfileFigure{"MUST rows", "must.total"})
 }
 
-// rfcListCheckWords says what the check line adds up.
+// rfcListCheckWords says what the check line adds up. It names no count of
+// sections, so the words stay true whatever rfcBars.Must declares.
 func rfcListCheckWords() string {
-	return "mandatory requirements: the four bar sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed."
+	return "mandatory requirements: the MUST bar's sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed."
 }
 
 // rfcFilterScript selects the rows of both RFC tables. A link names the RFCs

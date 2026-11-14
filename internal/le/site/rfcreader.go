@@ -113,18 +113,19 @@ var rfcSegmentMeanings = map[string]string{
 		"state Ze installs, and a recorded break.",
 	rfcSegOSGap: "a row a layer under Ze performs, with no verified test of that behavior " +
 		"yet. It is a gap in testing, not in correctness.",
-	rfcSegZeGap: "a MUST row Ze's own code owes that no recorded break proves yet: a " +
-		"declared gap, a partial row, a row with no proof, or an exclusion whose " +
-		"evidence does not hold. Every one is work Ze owes.",
+	rfcSegProofPending: "a row with a tagged test and no recorded break proving it yet, that " +
+		"neither the summary nor a test review says Ze does not meet.",
+	rfcSegExclusionUnchecked: "a row claimed not to bind Ze whose evidence is still to " +
+		"be checked. Until it is, the row stays among the rows Ze owes.",
+	rfcSegNotAssessed: "a row no tagged test covers and that neither the summary nor a test " +
+		"review says Ze does not meet, so nothing yet says whether Ze meets it.",
+	rfcSegNotBuilt: "a row the summary or a test review says Ze does not meet, including " +
+		"a row built only in part.",
 	rfcSegShouldProven: "a SHOULD or MAY row Ze's code performs, with a tagged test whose " +
 		"recorded break was seen to fail.",
 	rfcSegNotOwed: "a row that does not bind Ze, shown by checked evidence: it binds a role " +
 		"Ze does not fill, it applies only to an optional feature Ze does not offer, or " +
 		"Linux cannot provide its primitive (OS blocked). It is left out of the MUST bar.",
-	rfcSegNotEver: "a SHOULD or MAY row Ze will never support. Only the project owner sets it.",
-	rfcSegNotYet:  "a SHOULD or MAY row Ze intends to support and does not support yet.",
-	rfcSegNotDecided: "a SHOULD or MAY row nobody has decided on yet: every unproven " +
-		"optional row starts here.",
 }
 
 // rfcBarGlossary answers one glossary term per bar segment, in the order the

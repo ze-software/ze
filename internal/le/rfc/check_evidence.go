@@ -769,8 +769,9 @@ func (reader *evidenceReader) gap(req *Requirement) (string, bool) {
 // owes ({not-applicable}, {feature-declined}, {linux-limit}: CeilingExcluded
 // and not OSMet) lacks of the evidence its kind owes, through the same check
 // a new row must pass: gap for the first two, linuxLimitIssue for the third.
-// The figures keep a row it refuses among the rows Ze owes, as a Ze
-// correctness gap (figureEvidence.excluded), so a row the backlog shelters
+// The figures keep a row it refuses among the rows Ze owes
+// (figureEvidence.excluded): exclusion unchecked for the first two, not built
+// for a {linux-limit} row, whose traits say unmet (openSectionOf), so a row the backlog shelters
 // from the ratchet never raises a published figure (owner ruling, 2026-10-29:
 // leaving Ze's section raises the headline only with checked evidence).
 func (reader *evidenceReader) notOwedGap(req *Requirement) (string, bool) {

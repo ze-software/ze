@@ -34,8 +34,19 @@ const (
 	// on every row.
 	rfcUnproven = "unproven"
 
-	// rfcGatedBucketLabel names the whole that the coverage buckets partition.
-	rfcGatedBucketLabel = "Mandatory requirements checked"
+	// rfcGatedBucketLabel names the whole that the coverage buckets partition:
+	// the summary's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED rows
+	// (rfc.Requirement.Gated). It said "Mandatory requirements checked" until
+	// 2026-11-13, and a reader could not guess that "checked" meant held by
+	// ./le rfc check (owner review): the card's note now says that in words.
+	rfcGatedBucketLabel = "Mandatory requirements (MUST level)"
+	// rfcUncheckedBucketLabel names the same whole on the page of a summary
+	// the automatic check does not hold (rfcGatedCardLabel).
+	rfcUncheckedBucketLabel = rfcGatedBucketLabel + ", not checked"
+	// rfcMandatoryDenominator is the phrase every card counted out of that
+	// whole ends its count line with, "of 133 mandatory requirements", so the
+	// total card's label and its siblings' counts name one population.
+	rfcMandatoryDenominator = "mandatory requirements"
 
 	// rfcDetailMarker is what a page of THIS family carries and no other page
 	// does. removeRetiredRFCPages keys its deletion on it.
@@ -194,11 +205,13 @@ func rfcDetailEyebrow(entry *rfcLedgerStem) string {
 // rfcDetailCards answers one summary's headline numbers, each with the tone
 // that names what its measure MEANS and the rule that chose it.
 //
-// SCALE first, then STANDING, as on the index and for the same reason: the
-// population the gate holds, the part of it that does not bind Ze, then the
-// ratios that partition the whole of it. The ratios are built by
-// rfcStandingCards, so this page and the index cannot publish different
-// partitions of one idea.
+// STANDING first, then the SCALE: the part of the population that does not
+// bind Ze, the counts that partition the whole of it, the proof and audit
+// cards, and last the population the counts are drawn from. The total card is
+// last in this list as well as on the page (rfcCard.Total puts it under
+// "Totals"), so the color legend reads in the order the grid does. The counts
+// are built by rfcStandingCards, so this page and the index cannot publish
+// different partitions of one idea.
 //
 // The ratios were over `gated - not-applicable` until 2026-09-02, and on a page
 // about ONE RFC that subtraction was at its worst: a summary whose obligations
@@ -211,14 +224,8 @@ func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 	proof := rfcProofCountsOf(entry)
 	unsoundWords := rfc.VerdictWeak + ", " + rfc.VerdictWrong + " or " + rfc.VerdictUnimplemented
 	cards := []rfcCard{
-		{Label: rfcGatedCardLabel(entry), Value: groupThousands(coverage.Gated),
-			Count: "of " + groupThousands(coverage.Requirements) + " this summary declares",
-			Note:  rfcGatedCardNote(entry),
-			Tone:  rfcToneNeutral,
-			Rule: "no color: a population is a scale, and a larger one is neither good news " +
-				"nor bad. It is the accounting total"},
 		{Label: "Out of scope", Value: rfcOutOfScopeValue(entry, rfcNonBindingOf),
-			Count: "of " + groupThousands(coverage.Gated) + " mandatory requirements checked",
+			Count: "of " + groupThousands(coverage.Gated) + " " + rfcMandatoryDenominator,
 			Note:  rfcScopeCardNote,
 			Tone:  rfcToneNeutral,
 			Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
@@ -235,7 +242,15 @@ func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 			Tone: rfcAuditTone(entry, proof),
 			Rule: "RED on the first " + unsoundWords + " verdict, amber while a verdict is no " +
 				"longer current or a mandatory requirement is unreviewed, green when every one is judged " +
-				"sound and current"})
+				"sound and current"},
+		rfcCard{Label: rfcGatedCardLabel(entry), Value: groupThousands(coverage.Gated),
+			Count: "of " + groupThousands(coverage.Requirements) +
+				" requirements this summary lists, at all levels",
+			Note: rfcGatedCardNote(entry),
+			Tone: rfcToneNeutral,
+			Rule: "outlined, with no colored edge: it is the total the other cards are " +
+				"counted against, not a measure, and a larger one is neither good news nor bad",
+			Total: true})
 }
 
 // rfcGatedCardLabel and rfcGatedCardNote say what the population card counts,
@@ -245,22 +260,27 @@ func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 // (internal/le/rfc/check_core.go), so the gate holds none of them. The card
 // said "MUST-level requirements the gate HOLDS" on all 190 pages, and on the
 // un-enrolled ones that sentence was false (independent review, 2026-09-01).
+// The label names the population and, on an un-enrolled page, says the check
+// does not hold it; the note says which check it is. The at-a-glance row and
+// the bucket table's total row take the same label.
 func rfcGatedCardLabel(entry *rfcLedgerStem) string {
 	if entry.Enrolled {
-		return "Mandatory requirements checked"
+		return rfcGatedBucketLabel
 	}
-	return "MUSTs declared"
+	return rfcUncheckedBucketLabel
 }
 
 // rfcGatedCardNote is the sentence beneath it.
 func rfcGatedCardNote(entry *rfcLedgerStem) string {
 	if entry.Enrolled {
-		return "Mandatory requirements included in the automatic checks. This is the total being " +
-			"assessed; the counts beside it show the recorded status of those requirements."
+		return "The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in " +
+			"the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. " +
+			"This is the total being assessed; the counts above show the recorded status of " +
+			"those requirements."
 	}
-	return "Mandatory requirements listed in this summary. This RFC is excluded from automatic checks " +
-		"(" + entry.Disposition.Kind + "), so these requirements are not checked. " +
-		"The counts below show what the summary records."
+	return "The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements listed in this " +
+		"summary. This RFC is excluded from automatic checks (" + entry.Disposition.Kind +
+		"), so these requirements are not checked. The counts above show what the summary records."
 }
 
 // rfcAuditTone says how the audit card reads: bad where a reader judged the
@@ -304,11 +324,14 @@ func rfcGlanceFacts(entry *rfcLedgerStem) [][2]string {
 		{"Public row", html.EscapeString(rfcDetailEyebrow(entry))},
 		{rfcEnrolmentLabel, html.EscapeString(rfcEnrolmentState(entry))},
 		{"Requirements", strconv.Itoa(entry.Coverage.Requirements)},
-		{"Mandatory requirements checked", strconv.Itoa(entry.Coverage.Gated)},
+		{rfcGatedCardLabel(entry), strconv.Itoa(entry.Coverage.Gated)},
 		{"Not applicable, so out of scope", html.EscapeString(rfcOutOfScopeValue(entry, rfcNotApplicableOf))},
 		{rfcDeclaredGapsLabel, strconv.Itoa(entry.Coverage.Gaps)},
 		{rfcDemonstratedGapsLabel, strconv.Itoa(entry.Coverage.DemonstratedGaps)},
-		{"Mandatory requirements with no test", strconv.Itoa(entry.Coverage.Missing)},
+		// Coverage.Missing: gated rows with no tag and no annotation of any kind
+		// (rfc.CoverageRows). A declared gap is counted under rfcDeclaredGapsLabel,
+		// never here.
+		{"Mandatory requirements with no test and no annotation", strconv.Itoa(entry.Coverage.Missing)},
 		{"Nightly-only evidence", strconv.Itoa(entry.Coverage.NightlyOnly)},
 		{rfcTestTagsLabel, strconv.Itoa(entry.Coverage.Tags)},
 		{"Tests linked to requirements", strconv.Itoa(entry.Coverage.Units)},
@@ -332,7 +355,7 @@ const rfcOutOfScopeUnjudged = "not judged: the figures answer nothing for this s
 // It reads the judged exclusions (rfc.StemFigures, Mandatory.Excluded) and
 // never the annotation counters of rfcLedgerCoverage. The figures leave a
 // `{not-applicable}` or `{feature-declined}` row out only when its evidence
-// passes, and count a bare one as a Ze gap: a page calling the bare row out of
+// passes, and count a bare one as exclusion unchecked: a page calling the bare row out of
 // scope would state the opposite of its own bars. The bucket of each kind is
 // rfcAnnotationBucket's, so the card and the bucket table share one mapping.
 func rfcOutOfScopeValue(entry *rfcLedgerStem, sum func(countOf func(string) int) int) string {
@@ -587,7 +610,7 @@ func rfcCoverageWalkNote(bucket rfcCoverageBucket) string {
 // rfcCoverageAccountedNote says whether the parts add up to the whole.
 func rfcCoverageAccountedNote(total, gated int) string {
 	if total == gated {
-		return "every mandatory requirement checked appears in exactly one group above"
+		return "every mandatory requirement appears in exactly one group above"
 	}
 	return "the buckets account for " + strconv.Itoa(total) + " of " + strconv.Itoa(gated) +
 		", so " + strconv.Itoa(gated-total) + " fall in none: the bucketing is incomplete"
@@ -597,7 +620,7 @@ func rfcCoverageAccountedNote(total, gated int) string {
 // overlay counted again inside one of the parts.
 func rfcCoverageRoleNote(bucket rfcCoverageBucket) string {
 	if bucket.Partitions {
-		return "one part of the mandatory requirements checked" + rfcCoverageWalkNote(bucket)
+		return "one part of the " + rfcMandatoryDenominator + rfcCoverageWalkNote(bucket)
 	}
 	if bucket.Derived {
 		return "excluded from the total: each summarizes the status of other requirements, " +
@@ -642,7 +665,7 @@ func rfcCoverageHTML(entry *rfcLedgerStem) string {
 			html.EscapeString(rfcCoverageRoleNote(bucket))))
 	}
 	rows.Str(`<tr class="rfc-total"><td><strong>`).
-		Str(html.EscapeString(rfcGatedBucketLabel)).Str(`</strong></td><td><strong>`).
+		Str(html.EscapeString(rfcGatedCardLabel(entry))).Str(`</strong></td><td><strong>`).
 		Int(int64(entry.Coverage.Gated)).Str("</strong></td><td>").
 		Str(html.EscapeString(rfcCoverageAccountedNote(rfcCoverageTotal(buckets),
 			entry.Coverage.Gated))).Str("</td></tr>\n")
@@ -672,7 +695,7 @@ func rfcCoverageMirror(entry *rfcLedgerStem) string {
 		out.Str(rfcMirrorRow(bucket.Label, strconv.Itoa(bucket.Count),
 			rfc.TableCell(rfcCoverageRoleNote(bucket))))
 	}
-	out.Str(rfcMirrorRow("**"+rfcGatedBucketLabel+"**",
+	out.Str(rfcMirrorRow("**"+rfcGatedCardLabel(entry)+"**",
 		"**"+strconv.Itoa(entry.Coverage.Gated)+"**",
 		rfc.TableCell(rfcCoverageAccountedNote(rfcCoverageTotal(buckets),
 			entry.Coverage.Gated))))

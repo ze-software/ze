@@ -906,7 +906,7 @@ func rfcBadStates(requirement *rfcLedgerRequirement) []rfcBadState {
 		}
 		if !cover.Proof.Proves {
 			states = append(states, rfcBadState{"escape that is not a proof",
-				cover.Proof.Route + " escape"})
+				cover.Proof.Route + " without a fault test"})
 		}
 	}
 	return states
@@ -1113,14 +1113,14 @@ func TestAStemPageOpensWithTheCardGridTheIndexCarries(t *testing.T) {
 	// good outcome is green at any value, a bad one is red above zero, and
 	// neither a population nor a scope count is an outcome.
 	for label, want := range map[string]string{
-		"Tested both ways":               rfcToneOK,
-		"One polarity plus reason":       rfcToneOK,
-		"One polarity, unexcused":        rfcToneBad,
-		"No test at all":                 rfcToneBad,
-		"Tests shown to detect a fault":  rfcToneOK,
-		"Out of scope":                   rfcToneNeutral,
-		"Mandatory requirements checked": rfcToneNeutral,
-		"Audit verdicts":                 rfcToneBad,
+		"Tested both ways":              rfcToneOK,
+		"One polarity plus reason":      rfcToneOK,
+		"One polarity, unexcused":       rfcToneBad,
+		"Declared gap or no test":       rfcToneBad,
+		"Tests shown to detect a fault": rfcToneOK,
+		"Out of scope":                  rfcToneNeutral,
+		rfcGatedBucketLabel:             rfcToneNeutral,
+		"Audit verdicts":                rfcToneBad,
 	} {
 		if tones[label] != want {
 			t.Errorf("the %s card reads %q, want %q: a bad number must read as bad",
@@ -1128,27 +1128,40 @@ func TestAStemPageOpensWithTheCardGridTheIndexCarries(t *testing.T) {
 		}
 	}
 
-	// SCALE leads and STANDING follows, by owner amendment of 2026-09-01, which
-	// supersedes the ratio-first order ruled earlier the same day. The
-	// population is safe at the head only while it is labeled as scale and the
-	// coverage shares sit in the same grid immediately after it.
-	if cards[0].Label != "Mandatory requirements checked" {
-		t.Errorf("the grid opens with %q, want the population it is a scale of", cards[0].Label)
+	// The standing cards lead and the SCALE closes the grid, as the one card of
+	// the Totals group. The population stays readable as scale only while it
+	// is labeled as one, is the only total card, and every standing count names
+	// it as its denominator.
+	last := cards[len(cards)-1]
+	if last.Label != rfcGatedBucketLabel {
+		t.Errorf("the grid closes with %q, want the population it is a scale of", last.Label)
 	}
-	if cards[0].Tone != rfcToneNeutral {
-		t.Errorf("the leading population card reads %q, so it looks like a result",
-			cards[0].Tone)
+	if last.Tone != rfcToneNeutral {
+		t.Errorf("the closing population card reads %q, so it looks like a result",
+			last.Tone)
 	}
-	if !strings.Contains(cards[0].Note, "This is the total being assessed") {
-		t.Errorf("the leading card does not say it is a population: %q", cards[0].Note)
+	if !last.Total {
+		t.Errorf("the closing population card %q is not marked as the total", last.Label)
+	}
+	if !strings.Contains(last.Note, "This is the total being assessed") {
+		t.Errorf("the closing card does not say it is a population: %q", last.Note)
+	}
+	totals := 0
+	for _, card := range cards {
+		if card.Total {
+			totals++
+		}
+	}
+	if totals != 1 {
+		t.Errorf("the grid marks %d cards as the total, want exactly one", totals)
 	}
 	// The standing cards are counts since the owner retired every percentage
 	// from the RFC pages (2026-10-31): the value is the group's own count, and
 	// the population it is part of follows it.
-	if !cards[2].Partition || cards[2].Value != groupThousands(cards[2].Part) ||
-		cards[2].Count != "of "+groupThousands(whole)+" mandatory requirements checked" {
-		t.Errorf("the third card is %q reading %q / %q, so a reader meets no standing count of the %d gated MUSTs beside the scale",
-			cards[2].Label, cards[2].Value, cards[2].Count, whole)
+	if !cards[1].Partition || cards[1].Value != groupThousands(cards[1].Part) ||
+		cards[1].Count != "of "+groupThousands(whole)+" mandatory requirements" {
+		t.Errorf("the second card is %q reading %q / %q, so a reader meets no standing count of the %d gated MUSTs",
+			cards[1].Label, cards[1].Value, cards[1].Count, whole)
 	}
 
 	clean := disclosureLedger()

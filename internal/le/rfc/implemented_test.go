@@ -133,7 +133,7 @@ func TestImplementedSectionsCountVerifiedRecordsOnly(t *testing.T) {
 		{RFC: "rfc1", RID: "RFC1-1-3", Level: levelMust,
 			Annotation: &Annotation{Kind: AnnotationSinglePolarity, Polarity: PolarityPositive}},
 		// Not applicable with no evidence, with a record: the backlog shelters
-		// it from the ratchet, so it stays owed, a Ze gap, never proven.
+		// it from the ratchet, so it stays owed, exclusion unchecked, never proven.
 		{RFC: "rfc1", RID: "RFC1-1-4", Level: levelMust,
 			Annotation: &Annotation{Kind: AnnotationNotApplicable}},
 		// Gap, with a record: the summary says unmet, so never proven.
@@ -159,8 +159,17 @@ func TestImplementedSectionsCountVerifiedRecordsOnly(t *testing.T) {
 	if must.ZeProven != 2 {
 		t.Errorf("Ze proven = %d, want 2: RFC1-1-1 and RFC1-1-2 alone carry a verified record that proves", must.ZeProven)
 	}
-	if must.ZeGap != 4 {
-		t.Errorf("Ze gap = %d, want 4: RFC1-1-3, the unevidenced RFC1-1-4, RFC1-1-5 and RFC1-1-6 are owed and unproven", must.ZeGap)
+	if must.ProofPending != 0 {
+		t.Errorf("proof pending = %d, want 0: no row carries a tag here", must.ProofPending)
+	}
+	if must.ExclusionUnchecked != 1 {
+		t.Errorf("exclusion unchecked = %d, want 1: the unevidenced not-applicable RFC1-1-4", must.ExclusionUnchecked)
+	}
+	if must.NotAssessed != 2 {
+		t.Errorf("not assessed = %d, want 2: RFC1-1-3 and RFC1-1-6 are owed, unproven and untagged", must.NotAssessed)
+	}
+	if must.NotBuilt != 1 {
+		t.Errorf("not built = %d, want 1: the gap RFC1-1-5", must.NotBuilt)
 	}
 	if must.NotOwed != 1 || must.NotOwedByKind[AnnotationNotApplicable] != 1 {
 		t.Errorf("not owed = %d by kind %v, want RFC1-1-7 alone, the one not-applicable row whose evidence passes", must.NotOwed, must.NotOwedByKind)
@@ -234,8 +243,11 @@ func TestProvenPercentCountsOSVerifiedRows(t *testing.T) {
 		t.Fatalf("ImplementedSectionsOf: %v", err)
 	}
 	must := got.Sections.Must
-	if must.ZeProven != 1 || must.OSVerified != 1 || must.OSGap != 3 || must.ZeGap != 1 || must.Kept != 6 {
-		t.Fatalf("MUST sections = %+v, want Ze proven 1, OS verified 1, OS gap 3, Ze gap 1 of 6 kept", must)
+	if must.ZeProven != 1 || must.OSVerified != 1 || must.OSGap != 3 ||
+		must.ProofPending != 0 || must.ExclusionUnchecked != 0 || must.NotAssessed != 1 || must.NotBuilt != 0 ||
+		must.Kept != 6 {
+		t.Fatalf("MUST sections = %+v, want Ze proven 1, OS verified 1, OS gap 3, not assessed 1 (RFC1-1-6, "+
+			"which has no tag) of 6 kept", must)
 	}
 	if proven := must.Proven(); proven != 2 {
 		t.Errorf("MustSections.Proven() = %d, want 2: the Ze-proven row and the OS verified row", proven)

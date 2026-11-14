@@ -260,17 +260,31 @@ whole on every build, so no file outlives the index that names it.
 | File | Holds |
 |------|-------|
 | `data/rfc/index.json` | `bars`: both bars' segments left to right, each with its class name (`segment`), its words (`label`) and the dotted `fields` whose sum is its count, and the fields each bar's segments must add up to (`must-total`, `overview-total`). Then `rfcs` (stem, file, title, walked, enrolment, and `gated`, which is `rfc.Meta.Enrolled`: the enrolment row says enrolled and the Implementation kind counts against Ze's Go) and `profiles` (name, file, kind, title) |
-| `data/rfc/<stem>.json` | `stem`, `title`, `walked`; `requirements`, every requirement row the summary declares at every level, walked or not (`rfcRequirementCounts`); `implementer`, the summary's Implementation kind (`ze`, `mixed`, `third-party`, `foundation`); `implemented`, `rfc.Implements` over the summary (enrolled and rendering a public row); `must` (`total`, `kept`, `ze-proven`, `os-verified`, `os-gap`, `ze-gap`, `not-owed`, `not-owed-by-kind`); `should` (`total`, `proven`, `os-verified`, `os-gap`, `not-owed`, `not-ever`, `not-yet`, `not-decided`, `not-owed-by-kind`); `proven-by-kind`, the Ze-proven MUST rows by the strongest kind of test covering each and the OS verified MUST rows under `os`, summing to `must.ze-proven` plus `must.os-verified`; `unmet`. `must`, `should` and `proven-by-kind` are `null` for an RFC no walk bounded |
+| `data/rfc/<stem>.json` | `stem`, `title`, `walked`; `requirements`, every requirement row the summary declares at every level, walked or not (`rfcRequirementCounts`); `implementer`, the summary's Implementation kind (`ze`, `mixed`, `third-party`, `foundation`); `implemented`, `rfc.Implements` over the summary (enrolled and rendering a public row); `must` (`total`, `kept`, `ze-proven`, `os-verified`, `proof-pending`, `os-gap`, `exclusion-unchecked`, `not-assessed`, `not-built`, `not-owed`, `not-owed-by-kind`); `should` (`total`, `proven`, `os-verified`, `proof-pending`, `os-gap`, `exclusion-unchecked`, `not-assessed`, `not-built`, `not-owed`, `not-owed-by-kind`); `proven-by-kind`, the Ze-proven MUST rows by the strongest kind of test covering each and the OS verified MUST rows under `os`, summing to `must.ze-proven` plus `must.os-verified`; `unmet`. `must`, `should` and `proven-by-kind` are `null` for an RFC no walk bounded |
 | `data/rfc/profiles/<name>.json` | `name`, `kind` (`use-case` or `technology`), `title`, `release`, and the two tiers `required` and `optional`, never merged. An aggregate's optional tier is the summaries whose `Aggregate tier` Meta row says `optional`. Both tiers come from `rfc.ProfileTiersOf` (`internal/le/rfc/priority.go`), the same membership `./le rfc tree` reads |
 
-`must.kept` is the MUST bar: `ze-proven + os-verified + os-gap + ze-gap`.
+`must.kept` is the MUST bar: `ze-proven + os-verified + proof-pending +
+os-gap + exclusion-unchecked + not-assessed + not-built`, drawn in that order.
 `must.not-owed` is the rest of `must.total` (not applicable, declined, OS
-blocked). A SHOULD row a lower layer performs is split the same way, into
+blocked). The rows Ze's own code owes and no recorded break proves are four
+sections, each counted row by row and never by subtraction. `not-built` holds
+a row the summary or a recorded audit verdict says Ze does not meet (`{gap}`,
+`{partial}`, a verdict of wrong, unimplemented or partial, a `{linux-limit}`
+whose limit entry fails its check, and an optional row marked not ever).
+`exclusion-unchecked` holds a `{not-applicable}` or `{feature-declined}` row
+whose evidence fails its check. `proof-pending` holds an open row at either
+level that a non-gap tagged test covers and no record proves.
+`not-assessed` holds the rest: an open row no non-gap tagged test covers, so
+nothing yet says whether Ze meets it (owner, 2026-11-13: "Keep the number
+real."). No published file carries an intent (not ever, not yet, not decided): the
+intent marker stays a private planning fact of the summary. A SHOULD row a
+lower layer performs is split the same way as a MUST row, into
 `should.os-verified` and `should.os-gap`, and never counts as
 `should.not-owed`, which holds only the rows that do not bind Ze. On the
-overview bar the OS verified and OS gap segments sum MUST and SHOULD rows
-(`must.os-verified + should.os-verified`, `must.os-gap + should.os-gap`); the
-MUST bar counts MUST rows only.
+overview bar the OS verified, proof pending, OS testing gap, exclusion
+unchecked, not assessed and not built segments each sum the MUST and SHOULD rows
+(`must.os-verified + should.os-verified`, `must.proof-pending +
+should.proof-pending`, and so on); the MUST bar counts MUST rows only.
 <!-- source: internal/le/site/rfcdata.go -- rfcBars -->
 <!-- source: internal/le/rfc/sectioncounts.go -- SectionsOf -->
 
@@ -283,8 +297,9 @@ those stems, which is how a filter sums only the RFCs it shows. The build
 fills `all` over the whole index. Besides the fields of a per-RFC file, a set answers
 `rfcs`, `walked`, `not-walked`, `requirements` (summed over every member, walked or not; a file without the count is refused), `implemented` (how many members carry `implemented: true`, the RFCs Ze implements; a file without the flag is refused) and `register`, its mandatory register in
 words: `complete` only when the set holds at least one RFC, none of them is
-unwalked, and `must.ze-gap` and `must.os-gap` are both 0, `not complete`
-otherwise. `assets/rfc-figures.js` reads the index, sums a set's
+unwalked, and `must.proof-pending`, `must.os-gap`, `must.exclusion-unchecked`,
+`must.not-assessed` and `must.not-built` are all 0, `not complete` otherwise, a sum missing one of
+them included. `assets/rfc-figures.js` reads the index, sums a set's
 walked members count by count (the rest are `not-walked`), writes each value,
 and draws each bar's segments in the index's order, each carrying its words and
 count as text and a width of its count over the bar's total. A legend under the
@@ -306,10 +321,14 @@ in the element with the command that publishes it (`./le site build`), never
 dropped from a sum. The segment colours are the `.rfc-seg-<segment>` rules of
 `website/assets/css/30-components.css`; OS verified has its own token,
 `--green-soft`, lighter than `--green` in both themes, and the words on a light
-fill use `--ink-on-light`, dark in both. Every segment's words meet 4.5:1 on
-their fill in both themes.
+fill use `--ink-on-light`, dark in both. The four open sections run from the
+nearest to done to the most absent: proof pending is `--sky-deep`, exclusion
+unchecked the blue-grey `--line-strong`, beside the grey of not owed because it
+is a not-owed claim still to be checked, not assessed the violet `--gold-deep`,
+and not built `--danger-deep`. Every
+segment's words meet 4.5:1 on their fill in both themes.
 <!-- source: website/assets/js/rfc-figures.js -- membersOf, sumStems, registerOf, drawBar -->
-<!-- source: internal/le/site/rfcfallback.go -- rfcFigureSet, members, rfcRegisterOf, rfcKindKnown, rfcStrayMarker, fillHTML, fillMirror -->
+<!-- source: internal/le/site/rfcfallback.go -- rfcFigureSet, members, rfcRegisterOf, rfcRegisterOpenSections, rfcKindKnown, rfcStrayMarker, fillHTML, fillMirror -->
 <!-- source: internal/le/site/browsertest/rfcfigures_test.go -- TestTheBrowserDrawsRFCFiguresFromTheirFiles, TestRFCSegmentColoursAreReadableInBothThemes -->
 
 The browser test draws the layout the build publishes, not a copy of it:

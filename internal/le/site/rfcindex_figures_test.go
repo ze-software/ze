@@ -32,7 +32,9 @@ func TestTheComplianceIndexMarksEveryFigure(t *testing.T) {
 
 	want := map[string]string{
 		"enrolled:rfcs": "5", "enrolled:not-walked": "1", "enrolled:walked": "4",
-		"enrolled:must.total": "1,232", "enrolled:must.ze-proven": "18", "enrolled:must.ze-gap": "1,200",
+		"enrolled:must.total": "1,232", "enrolled:must.ze-proven": "18",
+		"enrolled:must.proof-pending": "4", "enrolled:must.exclusion-unchecked": "5",
+		"enrolled:must.not-assessed": "7", "enrolled:must.not-built": "1,184",
 		"enrolled:must.os-gap": "2", "enrolled:must.not-owed": "10",
 		"all:rfcs": "7", "all:requirements": "1,332", "all:walked": "5", "all:not-walked": "2",
 	}

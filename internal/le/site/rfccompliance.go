@@ -723,9 +723,10 @@ type rfcCard struct {
 	// declared beside the tone it explains, so the two cannot drift, and
 	// rfcToneLegendHTML is the only reader of it.
 	Rule string
-	// Overall says this card is the SCALE every count is drawn from rather than
-	// a measure of its own. It is what puts the card in the first movement.
-	Overall bool
+	// Total says this card is the SCALE every count is drawn from rather than
+	// a measure of its own. It is what puts the card in the last movement,
+	// "Totals", and what gives it the outlined look (rfcCardLook).
+	Total bool
 	// Partition says this card's count is one PART of the binding population.
 	// The parts sum to the whole, which is what lets a reader add the cards up
 	// and land on the gated total. The proof card is not one of them: its
@@ -742,35 +743,68 @@ type rfcCard struct {
 	Part int
 }
 
-// rfcCardGroups are the four movements a card grid reads in: the scale, then
-// what Ze has, then what is neither, then what Ze owes.
+// rfcCardGroups are the four movements a card grid reads in: what Ze has, what
+// Ze owes, the measures that are neither, then the totals they are counted
+// against. A total is not a measure, so it has a heading of its own rather than
+// a place under "Neutral" (owner review, 2026-11-13). It stays after the
+// counts: a page that led with it read as a count of obligations met, which
+// the owner called deceptive (2026-09-01). A movement that holds no card
+// renders nothing, heading included, so the index, which has no total card,
+// shows no "Totals" heading.
 //
 // A reader met eight cards in one block and had to work out for themselves
 // which numbers were good news (owner review, 2026-09-01). The heading now says
 // it. Membership is DERIVED from the tone, except for the scale cards which
-// declare themselves, so the headings and the colors cannot disagree: a card in
-// "What Ze owes" is red because that is the only way it lands there.
+// declare themselves through rfcCard.Total, so the headings and the colors
+// cannot disagree: a card under "Negative" is red because that is the only way
+// it lands there.
 var rfcCardGroups = []struct {
 	Heading string
 	Lead    string
 	Tone    string
-	Overall bool
+	Total   bool
 }{
-	{Heading: "Overall", Tone: rfcToneNeutral, Overall: true,
-		Lead: "the totals used to calculate the figures below"},
 	{Heading: "Positive", Tone: rfcToneOK,
 		Lead: "what Ze has"},
-	{Heading: "Neutral", Tone: rfcToneNeutral,
-		Lead: "measures that are neither good news nor bad"},
 	{Heading: "Negative", Tone: rfcToneBad,
 		Lead: "what Ze owes"},
+	{Heading: "Neutral", Tone: rfcToneNeutral,
+		Lead: "measures that are neither good news nor bad"},
+	{Heading: "Totals", Tone: rfcToneNeutral, Total: true,
+		Lead: "what the cards above are counted against"},
+}
+
+// rfcTotalLook is the look a total card takes instead of its tone's: an
+// outlined, unraised box with no colored edge, the style guide's inset surface.
+// A total has no good or bad direction, so its tone stays neutral, but it is
+// not a measure either, and a neutral measure's grey edge would file it with
+// them (owner review, 2026-11-13).
+const rfcTotalLook = "total-card"
+
+// rfcCardLook answers the class suffix a card and its legend swatch are drawn
+// with. It is DERIVED from the Total flag, so the look, the "Totals" heading
+// and the legend row cannot disagree, and the tone vocabulary stays the four
+// verdict-and-direction tones the legend explains.
+func rfcCardLook(card *rfcCard) string {
+	if card.Total {
+		return rfcTotalLook
+	}
+	return card.Tone
+}
+
+// rfcCardLookName is what the legend's look column says for a card.
+func rfcCardLookName(card *rfcCard) string {
+	if card.Total {
+		return "outlined"
+	}
+	return card.Tone
 }
 
 // rfcCardsIn answers the cards of one movement.
-func rfcCardsIn(cards []rfcCard, tone string, overall bool) []rfcCard {
+func rfcCardsIn(cards []rfcCard, tone string, total bool) []rfcCard {
 	out := make([]rfcCard, 0, len(cards))
 	for _, card := range cards {
-		if card.Overall == overall && card.Tone == tone {
+		if card.Total == total && card.Tone == tone {
 			out = append(out, card)
 		}
 	}
@@ -782,7 +816,7 @@ func rfcCardsIn(cards []rfcCard, tone string, overall bool) []rfcCard {
 func rfcCardsHTML(cards []rfcCard, whole int) string {
 	var out textbuf.Buffer
 	for _, group := range rfcCardGroups {
-		held := rfcCardsIn(cards, group.Tone, group.Overall)
+		held := rfcCardsIn(cards, group.Tone, group.Total)
 		if len(held) == 0 {
 			continue
 		}
@@ -790,7 +824,7 @@ func rfcCardsHTML(cards []rfcCard, whole int) string {
 			Str(html.EscapeString(group.Lead)).Str("</p>\n")
 		out.Str(`<div class="rfc-card-grid reveal">`).Byte('\n')
 		for _, card := range held {
-			out.Str(`<article class="rfc-card rfc-`).Str(card.Tone).Str(`"><span>`).
+			out.Str(`<article class="rfc-card rfc-`).Str(rfcCardLook(&card)).Str(`"><span>`).
 				Str(html.EscapeString(card.Label)).Str("</span><strong>").
 				Str(html.EscapeString(card.Value)).Str("</strong>")
 			if card.Count != "" {
@@ -808,7 +842,7 @@ func rfcCardsHTML(cards []rfcCard, whole int) string {
 func rfcCardsMirror(cards []rfcCard, whole int) string {
 	var out textbuf.Buffer
 	for _, group := range rfcCardGroups {
-		held := rfcCardsIn(cards, group.Tone, group.Overall)
+		held := rfcCardsIn(cards, group.Tone, group.Total)
 		if len(held) == 0 {
 			continue
 		}
@@ -868,12 +902,12 @@ func rfcPartitionNote(cards []rfcCard, whole int) string {
 	if sum != whole {
 		return "The " + plural(parts, "count") + " marked as a part above account for " +
 			groupThousands(sum) + " of the " + groupThousands(whole) +
-			" mandatory requirements checked, so " + groupThousands(whole-sum) +
+			" " + rfcMandatoryDenominator + ", so " + groupThousands(whole-sum) +
 			" fall in none of them: they do NOT add up to " + groupThousands(whole) + "." + tail
 	}
 	return "The " + plural(parts, "count") + " marked as a part above " +
 		"are the whole of the " + groupThousands(whole) +
-		" mandatory requirements checked: they add up to " + groupThousands(whole) + "." + tail
+		" " + rfcMandatoryDenominator + ": they add up to " + groupThousands(whole) + "." + tail
 }
 
 // rfcGridHas answers whether a grid carries the card with one label.
@@ -906,31 +940,53 @@ const rfcToneRule = "A color names what the measure MEANS, not how well Ze score
 	"scope count is an outcome, so both take no color. The number under the label is what " +
 	"says how far Ze has got."
 
+// rfcTotalRule is the legend sentence for the outlined card. The legend states
+// it only on a grid that carries a total card, because a sentence about a card
+// a reader cannot see is a sentence about nothing.
+const rfcTotalRule = "An outlined card with no colored edge, under Totals, is a total the " +
+	"other cards are counted against, not a measure."
+
+// rfcToneLegendLead answers the sentences the legend opens with.
+func rfcToneLegendLead(cards []rfcCard) string {
+	for index := range cards {
+		if cards[index].Total {
+			return rfcToneRule + " " + rfcTotalRule
+		}
+	}
+	return rfcToneRule
+}
+
 // rfcToneLegendHTML publishes the rule and the reason behind every card's color.
 //
 // One table, built from the cards themselves, so the rule a reader is given is
 // the rule the code applied. A card whose tone is neutral says so, because "no
-// direction" is an answer and a blank cell is not.
+// direction" is an answer and a blank cell is not. A total card's row shows
+// the outlined swatch and says "outlined", the look it is drawn with.
 func rfcToneLegendHTML(cards []rfcCard) string {
 	var rows textbuf.Buffer
-	for _, card := range cards {
+	for index := range cards {
+		card := &cards[index]
 		rows.Str(rfcRowCells(html.EscapeString(card.Label),
-			`<span class="rfc-swatch rfc-`+card.Tone+`"></span> `+html.EscapeString(card.Tone),
+			`<span class="rfc-swatch rfc-`+rfcCardLook(card)+`"></span> `+
+				html.EscapeString(rfcCardLookName(card)),
 			html.EscapeString(card.Rule)))
 	}
 	return "<details class=\"rfc-fold\"><summary>How to read the colors</summary>\n<p>" +
-		html.EscapeString(rfcToneRule) + "</p>\n" +
+		html.EscapeString(rfcToneLegendLead(cards)) + "</p>\n" +
 		rfcTableHTML(rfcHeadCells("Card", "Tone here", "Why that color"), rows.String()) +
 		"\n</details>"
 }
 
-// rfcToneLegendMirror states the same rule and the same reasons.
+// rfcToneLegendMirror states the same rule and the same reasons. The mirror
+// has no color: the "Totals" heading is what sets the total card apart there,
+// and the lead states the same sentence the page does.
 func rfcToneLegendMirror(cards []rfcCard) string {
 	var out textbuf.Buffer
-	out.Str(rfcToneRule).Str("\n\n")
+	out.Str(rfcToneLegendLead(cards)).Str("\n\n")
 	out.Str(rfcMirrorHead("Card", "Tone here", "Why that color"))
-	for _, card := range cards {
-		out.Str(rfcMirrorRow(card.Label, card.Tone, rfc.TableCell(card.Rule)))
+	for index := range cards {
+		card := &cards[index]
+		out.Str(rfcMirrorRow(card.Label, rfcCardLookName(card), rfc.TableCell(card.Rule)))
 	}
 	return out.String()
 }
@@ -1034,14 +1090,22 @@ var rfcStanding = []struct {
 	{Label: rfcPartialLabel, Keys: []string{rfcPartialBucket}, Tone: rfcToneBad,
 		Meaning: "scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit",
 		Rule:    "green at zero, RED above it: a tested clause cannot prove the whole requirement"},
-	{Label: "No test at all", Keys: []string{rfcGapBucket, rfcMissingBucket}, Tone: rfcToneBad,
-		Meaning: "no test carries the requirement id, whether or not a gap states why",
-		Rule: "green at zero, RED above it: a binding obligation nothing exercises is a claim " +
-			"with nothing behind it, whether or not a reason is stated"},
+	// The gap bucket is decided by the annotation alone, so a declared gap a
+	// test DEMONSTRATES (rfcDemonstratedGapsLabel) lands here too: the card
+	// said "No test at all" until 2026-11-13, false for those rows, and read
+	// as the at-a-glance "with no test" row, which counts only the second
+	// population (rfcLedgerCoverage.Missing). It is rfcLedgerCoverage.NoTest.
+	{Label: "Declared gap or no test", Keys: []string{rfcGapBucket, rfcMissingBucket}, Tone: rfcToneBad,
+		Meaning: "the requirements the summary declares a gap for, which say what Ze does not " +
+			"do yet, plus the ones no test carries and no annotation excuses. The at-a-glance " +
+			"table lists them apart: declared gaps (at every level), and mandatory requirements " +
+			"with no test and no annotation",
+		Rule: "green at zero, RED above it: a binding obligation that nothing shows Ze meets is " +
+			"owed, whether or not a reason is stated"},
 	{Label: rfcNotApplyLabel, Keys: []string{rfcNotApplyBucket}, Tone: rfcToneNeutral,
 		Meaning: "a {not-applicable} annotation says the obligation does not bind Ze. No test " +
 			"is owed only once its evidence passes; one whose evidence fails stays owed, and " +
-			"the figures count it as a Ze gap. It remains in the total that these cards add up to",
+			"the figures count it as exclusion unchecked. It remains in the total that these cards add up to",
 		Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
 			"failure, and counting it either way would be a claim"},
 	{Label: rfcLowerLayerLabel, Keys: []string{rfcLowerLayerBucket}, Tone: rfcToneNeutral,
@@ -1057,7 +1121,7 @@ var rfcStanding = []struct {
 			"feature the RFC makes optional and Ze does not offer, and it quotes the sentence " +
 			"that makes it optional. The condition is false, so nothing is owed once that " +
 			"quote passes its evidence check; one whose quote fails stays owed, and the " +
-			"figures count it as a Ze gap. It remains in the total that these cards add up to",
+			"figures count it as exclusion unchecked. It remains in the total that these cards add up to",
 		Rule: "no color: an obligation whose condition Ze never meets is neither an " +
 			"achievement nor a failure. The absent FEATURE is disclosed on the RFC's own " +
 			"status row, as an implementation gap a later scope decision can revisit"},
@@ -1066,7 +1130,7 @@ var rfcStanding = []struct {
 			"still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: " +
 			"once its limit entry is verified, the row is not owed (OS blocked) and is left " +
 			"out of the MUST bar; one whose entry fails stays owed, and the figures count it " +
-			"as a Ze gap. It remains in the total that these cards add up to and earns no " +
+			"as not built. It remains in the total that these cards add up to and earns no " +
 			"proof credit",
 		Rule: "neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption"},
 }
@@ -1132,7 +1196,7 @@ func rfcStandingCards(whole int, countOf func(string) int) []rfcCard {
 		}
 		cards = append(cards, rfcCard{Label: group.Label,
 			Value: groupThousands(part),
-			Count: "of " + groupThousands(whole) + " mandatory requirements checked",
+			Count: "of " + groupThousands(whole) + " " + rfcMandatoryDenominator,
 			Note:  group.Meaning, Tone: tone, Rule: group.Rule, Partition: true, Part: part})
 	}
 	return cards
@@ -1307,7 +1371,7 @@ const (
 		"{not-applicable} annotation says it never bound; a {feature-declined} annotation says " +
 		"its condition is an optional feature Ze does not offer, and quotes the RFC sentence " +
 		"that makes it optional. An annotation whose evidence fails is not counted here: the " +
-		"figures count it as a Ze gap. This classification records applicability and forms " +
+		"figures count it as exclusion unchecked. This classification records applicability and forms " +
 		"part of the total accounted for by the cards on this page"
 )
 
@@ -1585,16 +1649,25 @@ const rfcComplianceStyle = `<style>
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -1615,6 +1688,7 @@ const rfcComplianceStyle = `<style>
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }

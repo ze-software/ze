@@ -1324,11 +1324,11 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .screen-description p { margin: 0.4rem 0 0.8rem; color: #c2d8e7; font-size: 0.85rem; line-height: 1.6; }
 .site-home .screen-description a { color: #8fcff4; font-size: 0.8rem; }
 .site-home .screen-description .capture-caption { font-size: 0.7rem; color: #abc7dc; margin: 0.8rem 0 0; }
-.site-home .hero-action-row { display: grid; grid-template-columns: max-content minmax(0, max-content); gap: 0.9rem 0.25rem; align-items: center; border-top: 1px solid #2c4564; padding: 1.25rem 0; margin: 0; }
+.site-home .hero-action-row { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.9rem 0.25rem; align-items: center; border-top: 1px solid #2c4564; padding: 1.25rem 0; margin: 0; }
 .site-home .hero-project-intro { color: var(--hero-muted); font-size: 0.78rem; line-height: 1.65; margin: 0.85rem 0 0; }
 .site-home .hero-project-intro a { color: #8fcff4; text-decoration: none; }
 .site-home .hero-project-metrics { min-width: 0; }
-.site-home .hero-metrics-grid { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.9rem 0.25rem; }
+.site-home .hero-metrics-grid { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.9rem 0.25rem; }
 .site-home .hero-project-metric { display: flex; flex: 0 0 auto; flex-direction: column; width: max-content; max-width: 100%; gap: 0.35rem; padding: 0.2rem 1rem; color: var(--hero-text); text-decoration: none; border-inline-start: 1px solid #2c4564; }
 .site-home .hero-project-metric strong { font-size: clamp(1.45rem, 2.6vw, 2rem); line-height: 1.15; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.035em; color: #a7dbfa; white-space: nowrap; }
 .site-home .hero-project-metric > span { font-size: 0.76rem; line-height: 1.5; color: var(--hero-muted); }
@@ -1558,9 +1558,15 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .rfc-seg-os-verified { background: var(--green-soft); color: var(--ink-on-light); }
 .rfc-seg-should-proven { background: var(--teal); color: var(--ink-on-light); }
 .rfc-seg-not-owed { background: var(--mint-deep); color: var(--panel); }
-.rfc-seg-not-ever { background: var(--mint-chip); }
-.rfc-seg-not-yet { background: repeating-linear-gradient(135deg, var(--mint-chip), var(--mint-chip) 4px, var(--line) 4px, var(--line) 8px); }
-.rfc-seg-not-decided { background: var(--line-strong); }
+/* The four sections of open rows Ze owes run from nearest to done to most
+   absent: proof pending is blue, a tagged test exists and its break is still
+   to be recorded; exclusion unchecked is the blue-grey of the line tokens,
+   beside the grey of not owed because it is a not-owed claim still to be
+   checked; not assessed is violet, no tagged test covers the row so nothing
+   yet says whether Ze meets it; not built is red. */
+.rfc-seg-proof-pending { background: var(--sky-deep); color: var(--panel); }
 .rfc-seg-os-gap { background: var(--amber); color: var(--panel); }
-.rfc-seg-ze-gap { background: var(--danger-deep); color: var(--panel); }
+.rfc-seg-exclusion-unchecked { background: var(--line-strong); color: var(--text); }
+.rfc-seg-not-assessed { background: var(--gold-deep); color: var(--panel); }
+.rfc-seg-not-built { background: var(--danger-deep); color: var(--panel); }
 .rfc-figure-error { color: var(--danger-deep); font-weight: 600; }

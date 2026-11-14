@@ -159,7 +159,7 @@ func TestReportProvenMatchesTreeReport(t *testing.T) {
 			t.Fatal(err)
 		}
 		rollup := rollupOf(corpus.figures, slices.Sorted(maps.Keys(corpus.figures)))
-		want := strconv.Itoa(rollup.Mandatory.Proven) + " of " + strconv.Itoa(rollup.Mandatory.Total)
+		want := strconv.Itoa(rollup.Sections.Must.Proven()) + " of " + strconv.Itoa(rollup.Mandatory.Total)
 		if got := weeklyFact(t, body, "MUSTs proven at "+endpoint.name).Value; got != want {
 			t.Errorf("MUSTs proven at %s = %q, want the ledger's %q", endpoint.name, got, want)
 		}

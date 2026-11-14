@@ -83,6 +83,18 @@ const rfcMustTotalField = "must.total"
 // the profile pages.
 const rfcMustNotOwedField = "must.not-owed"
 
+// The per-RFC fields of the MUST sections that hold a row Ze still owes: the
+// MUST bar draws each one, the overview bar sums each with its optional
+// counterpart, and the register reads complete only when all five are 0
+// (rfcRegisterOf, rfcfallback.go).
+const (
+	rfcMustProofPendingField       = "must.proof-pending"
+	rfcMustOSGapField              = "must.os-gap"
+	rfcMustExclusionUncheckedField = "must.exclusion-unchecked"
+	rfcMustNotAssessedField        = "must.not-assessed"
+	rfcMustNotBuiltField           = "must.not-built"
+)
+
 // rfcNoRows is what a figure over zero rows shows, in place of a bar or a
 // count that would read as a measured zero.
 const rfcNoRows = "no rows"
@@ -90,27 +102,39 @@ const rfcNoRows = "no rows"
 // The bar segment names, shared by rfcBars and the glossary that defines
 // each segment (rfcSegmentMeanings, rfcreader.go).
 const (
-	rfcSegZeProven     = "ze-proven"
-	rfcSegOSVerified   = "os-verified"
-	rfcSegOSGap        = "os-gap"
-	rfcSegZeGap        = "ze-gap"
-	rfcSegShouldProven = "should-proven"
-	rfcSegNotOwed      = "not-owed"
-	rfcSegNotEver      = "not-ever"
-	rfcSegNotYet       = "not-yet"
-	rfcSegNotDecided   = "not-decided"
+	rfcSegZeProven           = "ze-proven"
+	rfcSegOSVerified         = "os-verified"
+	rfcSegOSGap              = "os-gap"
+	rfcSegShouldProven       = "should-proven"
+	rfcSegNotOwed            = "not-owed"
+	rfcSegProofPending       = "proof-pending"
+	rfcSegExclusionUnchecked = "exclusion-unchecked"
+	rfcSegNotAssessed        = "not-assessed"
+	rfcSegNotBuilt           = "not-built"
 )
 
 // rfcBars is the ONE declaration of both bars' segments, their order and
 // their words (spec-rfc-figures-sectioned-presentation, AC-12). It is
 // published in the index, so the browser draws what this says and holds no
 // list of its own.
+//
+// The open rows Ze owes are four segments, never one: proof pending (a row a
+// tagged test covers with no recorded break proving it yet), exclusion
+// unchecked (a not-owed claim whose evidence is still to be checked), not
+// assessed (a row no tagged test covers, so nothing yet says whether Ze meets
+// it) and not built (a row the summary or an audit says Ze does not meet). They are drawn in that order,
+// from the nearest to done to the most absent
+// (spec-rfc-figures-built-and-proven, "The two bars"). The overview bar sums
+// the MUST and optional rows in each of them, as it does for the OS segments.
 var rfcBars = rfcBarLayout{
 	Must: []rfcBarSegment{
 		{rfcSegZeProven, "Ze proven", []string{"must.ze-proven"}},
 		{rfcSegOSVerified, "OS verified", []string{"must.os-verified"}},
-		{rfcSegOSGap, "OS testing gap", []string{"must.os-gap"}},
-		{rfcSegZeGap, "Ze correctness gap", []string{"must.ze-gap"}},
+		{rfcSegProofPending, "Proof pending", []string{rfcMustProofPendingField}},
+		{rfcSegOSGap, "OS testing gap", []string{rfcMustOSGapField}},
+		{rfcSegExclusionUnchecked, "Exclusion unchecked", []string{rfcMustExclusionUncheckedField}},
+		{rfcSegNotAssessed, "Not assessed", []string{rfcMustNotAssessedField}},
+		{rfcSegNotBuilt, "Not built", []string{rfcMustNotBuiltField}},
 	},
 	MustTotal: []string{"must.kept"},
 	Overview: []rfcBarSegment{
@@ -118,11 +142,11 @@ var rfcBars = rfcBarLayout{
 		{rfcSegOSVerified, "OS verified", []string{"must.os-verified", "should.os-verified"}},
 		{rfcSegShouldProven, "SHOULD proven", []string{"should.proven"}},
 		{rfcSegNotOwed, "Not owed", []string{rfcMustNotOwedField, "should.not-owed"}},
-		{rfcSegNotEver, "SHOULD not ever", []string{"should.not-ever"}},
-		{rfcSegNotYet, "SHOULD not yet", []string{"should.not-yet"}},
-		{rfcSegNotDecided, "SHOULD not decided", []string{"should.not-decided"}},
-		{rfcSegOSGap, "OS testing gap", []string{"must.os-gap", "should.os-gap"}},
-		{rfcSegZeGap, "Ze correctness gap", []string{"must.ze-gap"}},
+		{rfcSegProofPending, "Proof pending", []string{rfcMustProofPendingField, "should.proof-pending"}},
+		{rfcSegOSGap, "OS testing gap", []string{rfcMustOSGapField, "should.os-gap"}},
+		{rfcSegExclusionUnchecked, "Exclusion unchecked", []string{rfcMustExclusionUncheckedField, "should.exclusion-unchecked"}},
+		{rfcSegNotAssessed, "Not assessed", []string{rfcMustNotAssessedField, "should.not-assessed"}},
+		{rfcSegNotBuilt, "Not built", []string{rfcMustNotBuiltField, "should.not-built"}},
 	},
 	OverviewTotal: []string{rfcMustTotalField, "should.total"},
 }

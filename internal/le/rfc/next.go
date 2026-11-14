@@ -24,9 +24,12 @@ const (
 	registerOptional  = "optional"
 )
 
-// What an uncovered row owes, the JSON value of NextRow.Owes. The two are the
-// two sections of a bar that hold owed work (sectionsOf): a Ze correctness gap
-// (an open row, for SHOULD) and an OS testing gap.
+// What an uncovered row owes, the JSON value of NextRow.Owes, by the sections
+// of a bar that hold owed work (sectionsOf): a row in proof pending, exclusion
+// unchecked, not assessed or not built owes Ze code, at either level, and an
+// OS testing gap
+// owes a test of the layer below. An optional row marked `{intent: not-ever}`
+// is counted not built and owes neither (rowOwes).
 const (
 	// owesZeCode: Ze's own code owes the behavior, until a verified record
 	// proves it.
@@ -151,9 +154,10 @@ func (c *priorityCorpus) next(profile string) (*NextReport, error) {
 	candidates := c.gapCandidates(scopes, report.Register == registerMandatory)
 	if len(candidates) == 0 {
 		// Complete is read off the mandatory figure, never off an empty
-		// candidate list alone: a register that names nothing while a Ze gap
-		// or an OS testing gap remains would print "nothing is owed" over
-		// owed work.
+		// candidate list alone: a register that names nothing while a row
+		// that is proof pending, exclusion unchecked, not assessed, not
+		// built or an OS testing gap remains would print "nothing is owed"
+		// over owed work.
 		if !report.MandatoryComplete {
 			return nil, nothingNamedRefusal(report)
 		}
@@ -307,8 +311,8 @@ func (c *priorityCorpus) nextGap(stem string, scopes []profileScope, optional bo
 // nothingNamedRefusal is the answer of a mandatory register that names no
 // RFC: a set with no required member measures nothing, and any other set
 // reaching here is a defect in rowOwes, because every cause of an incomplete
-// mandatory figure (an unwalked member, a Ze gap, an OS testing gap) is a
-// candidate.
+// mandatory figure (an unwalked member, a proof pending, exclusion unchecked,
+// not assessed or not built row, an OS testing gap) is a candidate.
 func nothingNamedRefusal(report *NextReport) error {
 	var tb textbuf.Buffer
 	tb.Str("rfc next: ").Str(strings.Join(report.Profiles, ", "))
@@ -350,7 +354,8 @@ func (c *priorityCorpus) uncoveredRow(requirement *Requirement) (NextRow, bool) 
 //     {feature-declined} or {linux-limit} row whose evidence fails
 //     (*evidenceReader).notOwedGap stays owed Ze code here as it does there;
 //   - any other counted row owes Ze code until a verified record proves it:
-//     a Ze correctness gap, or an open SHOULD row.
+//     a row in proof pending, exclusion unchecked, not assessed or not
+//     built (openSectionOf), at either level.
 func (c *priorityCorpus) rowOwes(requirement *Requirement) (string, bool) {
 	counted, met := rowCounts(requirement, c.proven)
 	if !counted {
@@ -369,10 +374,10 @@ func (c *priorityCorpus) rowOwes(requirement *Requirement) (string, bool) {
 		return "", false
 	}
 	// An optional row the owner marked `{intent: not-ever}` is one Ze will
-	// not support, so it is never the next gap; the figures still count it in
-	// its own SHOULD segment (sectionsOf). A gated row never carries an intent
+	// not support, so it is never the next gap; the figures still count it, as
+	// not built (openSectionOf). A gated row never carries an intent
 	// (intentOnGatedRow), so this cannot release a MUST row.
-	if requirement.Intent != nil && requirement.Intent.State == IntentNotEver {
+	if declinedForever(requirement) {
 		return "", false
 	}
 	return owesZeCode, true

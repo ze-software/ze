@@ -374,7 +374,7 @@ func TestTheCardGridReadsInFourMovements(t *testing.T) {
 	} {
 		placed := map[string]int{}
 		for _, group := range rfcCardGroups {
-			for _, card := range rfcCardsIn(cards, group.Tone, group.Overall) {
+			for _, card := range rfcCardsIn(cards, group.Tone, group.Total) {
 				placed[card.Label]++
 				if card.Tone != group.Tone {
 					t.Errorf("the %s %s card is in %q and reads %q", name, card.Label,
@@ -1087,9 +1087,32 @@ func TestEveryCardStatesTheRuleBehindItsColor(t *testing.T) {
 	// A population is a scale, so it takes the neutral tone rather than a color
 	// that reads as a verdict.
 	for _, card := range rfcComplianceCards(publishedRFCComplianceRef(t), twoStemLedger()) {
-		if card.Label == "Mandatory requirements checked" && card.Tone != rfcToneNeutral {
+		if card.Label == rfcGatedBucketLabel && card.Tone != rfcToneNeutral {
 			t.Errorf("the Gated MUSTs card reads %q, want %q", card.Tone, rfcToneNeutral)
 		}
+	}
+
+	// The index grid carries no population card, so the loop above meets none.
+	// The per-RFC grid does: the enrolled fixture's detail page must carry
+	// exactly one, marked as the total, neutral, and stating its rule.
+	populations := 0
+	for _, card := range rfcDetailCards(&entry) {
+		if card.Label != rfcGatedBucketLabel {
+			continue
+		}
+		populations++
+		if !card.Total {
+			t.Errorf("the detail %s card is not marked as the total", card.Label)
+		}
+		if card.Tone != rfcToneNeutral {
+			t.Errorf("the detail %s card reads %q, want %q", card.Label, card.Tone, rfcToneNeutral)
+		}
+		if strings.TrimSpace(card.Rule) == "" {
+			t.Errorf("the detail %s card states no rule for its tone", card.Label)
+		}
+	}
+	if populations != 1 {
+		t.Errorf("the detail grid carries %d %q cards, want exactly 1", populations, rfcGatedBucketLabel)
 	}
 }
 
@@ -1198,7 +1221,7 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 			parts++
 			sum += card.Part
 			if !strings.HasSuffix(card.Count, "of "+groupThousands(one.whole)+
-				" mandatory requirements checked") {
+				" "+rfcMandatoryDenominator) {
 				t.Errorf("the %s %s card does not name its denominator: %q", name, card.Label,
 					card.Count)
 			}
@@ -1758,8 +1781,8 @@ func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 	mirror := readArtifact(t, paths.Output, rfcComplianceDirectory+"/"+pageMirrorFile)
 	for _, want := range []string{
 		`<tr data-rfc="rfc9998">`,
-		`<div data-ze-rfc-bar="rfc9998:must">Ze proven 3, Ze correctness gap 1</div>`,
-		`<div data-ze-rfc-bar="rfc9998:overview">Ze MUST proven 3, SHOULD proven 1, SHOULD not decided 1, Ze correctness gap 1</div>`,
+		`<div data-ze-rfc-bar="rfc9998:must">Ze proven 3, Proof pending 1</div>`,
+		`<div data-ze-rfc-bar="rfc9998:overview">Ze MUST proven 3, SHOULD proven 1, Proof pending 1, Not assessed 1</div>`,
 		`<span data-ze-rfc="all:must.total">4</span>`,
 		"<th>" + rfcIndexGapsTested + "</th>", `<dl class="rfc-legend">`,
 		`id="rfc-overview"`, rfcListSlot, `<section id="` + rfcDeclinedAnchor + `">`,
@@ -1771,7 +1794,7 @@ func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 	if strings.Contains(page, "<th>"+rfcDemonstratedGapsLabel+"</th>") {
 		t.Error("the index table still carries the long gaps header")
 	}
-	for _, want := range []string{"| Ze proven 3, Ze correctness gap 1 | Ze MUST proven 3, SHOULD proven 1, SHOULD not decided 1, Ze correctness gap 1 |", "**" + rfcIndexGapsTested + "**"} {
+	for _, want := range []string{"| Ze proven 3, Proof pending 1 | Ze MUST proven 3, SHOULD proven 1, Proof pending 1, Not assessed 1 |", "**" + rfcIndexGapsTested + "**"} {
 		if !strings.Contains(mirror, want) {
 			t.Errorf("the index mirror carries no %s", want)
 		}

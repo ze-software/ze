@@ -275,7 +275,9 @@ func TestProofDensityCountsOSVerifiedRows(t *testing.T) {
 // Method: render the metric over empty counts and read its prose. The
 // sections count a {not-applicable}, {feature-declined} or {linux-limit} row
 // not owed only when (*evidenceReader).notOwedGap accepts its evidence, and
-// keep one it refuses among the rows ze owes as a ze gap; the backlog in
+// keep one it refuses among the rows ze owes: a {not-applicable} or
+// {feature-declined} row as exclusion unchecked, a {linux-limit} row as not
+// built. The backlog in
 // rfc/exclusion-evidence-backlog.txt shelters such rows from the ratchet, so
 // the prose must not say every annotated row of a kind is counted not owed.
 // The page published a percentage over every gated MUST row until
@@ -297,7 +299,8 @@ func TestDensityDetailCountsAnExclusionNotOwedOnlyWithItsEvidence(t *testing.T) 
 	for _, want := range []string{
 		"counted not owed only once its evidence passes",
 		"counted not owed as OS blocked only once its register entry verifies",
-		"stays among the rows ze owes as a ze gap",
+		"stays among the rows ze owes, as exclusion unchecked",
+		"stays among the rows ze owes, as not built",
 		"Until 2026-10-31 this figure was taken over every MUST row of those RFCs but rollups, annotated rows included",
 	} {
 		if !strings.Contains(metric.Detail, want) {

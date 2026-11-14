@@ -110,9 +110,10 @@ func TestCoverageMandatoryOptional(t *testing.T) {
 			Excluded: map[string]int{AnnotationNotApplicable: 1, AnnotationLowerLayer: 1}},
 		Optional: Figure{Proven: 1, Total: 2, Attainable: 2},
 		Sections: Sections{
-			Must: MustSections{Total: 9, Kept: 8, ZeProven: 2, OSGap: 1, ZeGap: 5, NotOwed: 1,
+			Must: MustSections{Total: 9, Kept: 8, ZeProven: 2, OSGap: 1, NotAssessed: 4, NotBuilt: 1, NotOwed: 1,
 				NotOwedByKind: map[string]int{AnnotationNotApplicable: 1}},
-			Should: ShouldSections{Total: 2, Proven: 1, NotDecided: 1, NotOwedByKind: map[string]int{}}}}
+			Should: ShouldSections{Total: 2, Proven: 1, NotAssessed: 1, NotOwedByKind: map[string]int{}}},
+		intent: &intentCounts{notDecided: 1}}
 	if !reflect.DeepEqual(rollup, want) {
 		t.Errorf("rollup = %+v, want %+v", rollup, want)
 	}
@@ -164,7 +165,7 @@ func TestRollupHasNoAbsentState(t *testing.T) {
 
 // TestALinuxLimitMovesARowToNotOwedAndNotTheFigure reclassifies gated and
 // optional gaps through the priority tree, preserving proof counts while
-// moving the rows from the Ze correctness gap to not owed, in the figures, the
+// moving the rows from not built to not owed, in the figures, the
 // tree JSON and the tree text.
 func TestALinuxLimitMovesARowToNotOwedAndNotTheFigure(t *testing.T) {
 	base := priorityFixture(t, nil)
@@ -210,8 +211,8 @@ func TestALinuxLimitMovesARowToNotOwedAndNotTheFigure(t *testing.T) {
 	}
 	for _, key := range []string{`"mandatory-proven":1`, `"mandatory-total":2`,
 		`"optional-proven":1`, `"optional-total":2`,
-		`"must":{"total":2,"kept":1,"ze-proven":1,"os-verified":0,"os-gap":0,"ze-gap":0,"not-owed":1,"not-owed-by-kind":{"linux-limit":1}}`,
-		`"should":{"total":2,"proven":1,"os-verified":0,"os-gap":0,"not-owed":1,"not-ever":0,"not-yet":0,"not-decided":0,"not-owed-by-kind":{"linux-limit":1}}`} {
+		`"must":{"total":2,"kept":1,"ze-proven":1,"os-verified":0,"os-gap":0,"proof-pending":0,"exclusion-unchecked":0,"not-assessed":0,"not-built":0,"not-owed":1,"not-owed-by-kind":{"linux-limit":1}}`,
+		`"should":{"total":2,"proven":1,"os-verified":0,"os-gap":0,"not-owed":1,"proof-pending":0,"exclusion-unchecked":0,"not-assessed":0,"not-built":0,"not-owed-by-kind":{"linux-limit":1}}`} {
 		if !strings.Contains(string(encoded), key) {
 			t.Errorf("JSON lacks %s: %s", key, encoded)
 		}
@@ -223,7 +224,7 @@ func TestALinuxLimitMovesARowToNotOwedAndNotTheFigure(t *testing.T) {
 	if decoded.Sections == nil || !reflect.DeepEqual(*decoded.Sections, *row.Sections) {
 		t.Errorf("decoded sections = %+v, want %+v", decoded.Sections, row.Sections)
 	}
-	want := "MUST 1 kept: Ze proven 1, OS verified 0, OS testing gap 0, Ze correctness gap 0; MUST not owed 1, linux-limit 1"
+	want := "MUST 1 kept: Ze proven 1, OS verified 0, proof pending 0, OS testing gap 0, exclusion unchecked 0, not assessed 0, not built 0; MUST not owed 1, linux-limit 1"
 	if !strings.Contains(report.Text(), want) {
 		t.Errorf("tree text lacks %q:\n%s", want, report.Text())
 	}
@@ -296,10 +297,11 @@ func TestTheRollupSectionsSumWalkedMembersOnly(t *testing.T) {
 			AnnotationLinuxLimit: 1, AnnotationLowerLayer: 1, AnnotationFeatureDeclined: 1, AnnotationNotApplicable: 1}},
 		Optional: Figure{Total: 2, Attainable: 1, Excluded: map[string]int{AnnotationLinuxLimit: 1}},
 		Sections: Sections{
-			Must: MustSections{Total: 6, Kept: 3, OSGap: 1, ZeGap: 2, NotOwed: 3, NotOwedByKind: map[string]int{
+			Must: MustSections{Total: 6, Kept: 3, OSGap: 1, NotBuilt: 2, NotOwed: 3, NotOwedByKind: map[string]int{
 				AnnotationLinuxLimit: 1, AnnotationFeatureDeclined: 1, AnnotationNotApplicable: 1}},
-			Should: ShouldSections{Total: 2, NotOwed: 1, NotDecided: 1,
-				NotOwedByKind: map[string]int{AnnotationLinuxLimit: 1}}}}
+			Should: ShouldSections{Total: 2, NotOwed: 1, NotAssessed: 1,
+				NotOwedByKind: map[string]int{AnnotationLinuxLimit: 1}}},
+		intent: &intentCounts{notDecided: 1}}
 	got := rollupOf(figures, []string{"rfc1", "rfc2", "rfc3", "rfc4"})
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("rollup = %+v, want %+v", got, want)
@@ -319,10 +321,11 @@ func TestTheRollupSectionsSumWalkedMembersOnly(t *testing.T) {
 }
 
 // TestRegisterCompleteNeedsNoZeOrOSGap checks AC-9: the mandatory register is
-// complete only when the MUST bar holds no Ze correctness gap and no OS testing
-// gap. The method is one walked RFC per bar shape: Ze proven alone, Ze proven
-// beside an OS verified row and a row not owed (complete), one Ze gap, and one
-// OS gap (each incomplete, though neither is Ze proven).
+// complete only when the MUST bar holds no open row (proof pending, exclusion
+// unchecked, not assessed, not built) and no OS testing gap. The method is one
+// walked RFC per bar shape: Ze proven alone, Ze proven beside an OS verified row
+// and a row not owed (complete), one row in each open section, and one OS gap
+// (each incomplete, though none is Ze proven).
 func TestRegisterCompleteNeedsNoZeOrOSGap(t *testing.T) {
 	lowerLayer := map[string]int{AnnotationLowerLayer: 1}
 	figures := map[string]StemFigures{
@@ -330,7 +333,14 @@ func TestRegisterCompleteNeedsNoZeOrOSGap(t *testing.T) {
 		"stack": {Stem: "stack", Walked: true, OSVerified: 1,
 			Mandatory: Figure{Proven: 1, Total: 3, Attainable: 1,
 				Excluded: map[string]int{AnnotationLowerLayer: 1, AnnotationNotApplicable: 1}}},
-		"ze-gap": {Stem: "ze-gap", Walked: true, Mandatory: Figure{Proven: 1, Total: 2, Attainable: 2}},
+		"proof-pending": {Stem: "proof-pending", Walked: true, ProofPending: 1,
+			Mandatory: Figure{Proven: 1, Total: 2, Attainable: 2}},
+		"exclusion-unchecked": {Stem: "exclusion-unchecked", Walked: true, ExclusionUnchecked: 1,
+			Mandatory: Figure{Proven: 1, Total: 2, Attainable: 2}},
+		"not-assessed": {Stem: "not-assessed", Walked: true, NotAssessed: 1,
+			Mandatory: Figure{Proven: 1, Total: 2, Attainable: 2}},
+		"not-built": {Stem: "not-built", Walked: true, NotBuilt: 1,
+			Mandatory: Figure{Proven: 1, Total: 2, Attainable: 2}},
 		"os-gap": {Stem: "os-gap", Walked: true, OSGap: 1,
 			Mandatory: Figure{Proven: 1, Total: 2, Attainable: 1, Excluded: lowerLayer}},
 	}
@@ -340,7 +350,10 @@ func TestRegisterCompleteNeedsNoZeOrOSGap(t *testing.T) {
 	}{
 		{[]string{"proven"}, true},
 		{[]string{"proven", "stack"}, true},
-		{[]string{"proven", "ze-gap"}, false},
+		{[]string{"proven", "proof-pending"}, false},
+		{[]string{"proven", "exclusion-unchecked"}, false},
+		{[]string{"proven", "not-assessed"}, false},
+		{[]string{"proven", "not-built"}, false},
 		{[]string{"proven", "os-gap"}, false},
 	} {
 		rollup := rollupOf(figures, one.members)
@@ -377,17 +390,20 @@ func TestSectionsTextSeparatesNotOwedKinds(t *testing.T) {
 	figures := StemFigures{Stem: "rfc1", Walked: true,
 		Mandatory:     Figure{Total: 2, Attainable: 1, Excluded: map[string]int{AnnotationLinuxLimit: 1}},
 		Optional:      Figure{Total: 3, Attainable: 1, Excluded: map[string]int{AnnotationLowerLayer: 2}},
-		OptionalOSGap: 2, NotDecided: 1}
+		OptionalOSGap: 2, NotDecided: 1, NotBuilt: 1, OptionalNotAssessed: 1}
 	sections, err := SectionsOf("rfc1", &figures)
 	if err != nil {
 		t.Fatal(err)
 	}
-	row := &TreeRow{Stem: "rfc1", Summary: true, StemFigures: figures, Sections: &sections}
+	row := &TreeRow{Stem: "rfc1", Summary: true, StemFigures: figures, Sections: &sections,
+		intent: &intentCounts{notDecided: 1}}
 	report := TreeReport{Rows: []*TreeRow{row}}
-	rollup := Rollup{RFCs: 1, Sections: sections}
+	rollup := Rollup{RFCs: 1, Sections: sections, intent: &intentCounts{notDecided: 1}}
 	for label, text := range map[string]string{"tree": report.Text(), "rollup": rollup.String()} {
-		for _, phrase := range []string{"MUST not owed 1, linux-limit 1", "Ze correctness gap 1",
-			"SHOULD 3: proven 0, OS verified 0, OS testing gap 2", "not decided 1", "SHOULD not owed 0"} {
+		for _, phrase := range []string{
+			"MUST 1 kept: Ze proven 0, OS verified 0, proof pending 0, OS testing gap 0, exclusion unchecked 0, not assessed 0, not built 1; MUST not owed 1, linux-limit 1",
+			"SHOULD 3: proven 0, OS verified 0, proof pending 0, OS testing gap 2, exclusion unchecked 0, not assessed 1, not built 0",
+			"SHOULD not owed 0", "; intent: not ever 0, not yet 0, not decided 1"} {
 			if !strings.Contains(text, phrase) {
 				t.Errorf("%s text lacks %q: %s", label, phrase, text)
 			}

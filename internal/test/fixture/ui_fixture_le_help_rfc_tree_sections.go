@@ -27,7 +27,8 @@ var (
 // leTreeMustTarget is the MUST bar of spec-rfc-figures-built-and-proven
 // ("The two bars"), left to right. It is the design the tree is held to, and
 // it is compared only with words read out of the tree's own output.
-var leTreeMustTarget = []string{"Ze proven", "OS verified", "Proof pending", "OS testing gap", "Exclusion unchecked", "Not built"}
+var leTreeMustTarget = []string{"Ze proven", "OS verified", "Proof pending", "OS testing gap", "Exclusion unchecked",
+	"Not assessed", "Not built"}
 
 // leTreeRetiredWord is the merged section the split replaces. Neither the
 // tree nor its help may still print it.
@@ -43,7 +44,8 @@ type leTreeSectionWords struct {
 // leHelpRFCTreeSections proves `le help rfc tree` names every section the
 // tree prints, in the tree's order, and that the tree prints the MUST bar of
 // the design: Ze proven, OS verified, Proof pending, OS testing gap, Exclusion
-// unchecked, Not built, and no "correctness gap" on either surface.
+// unchecked, Not assessed, Not built, and no "correctness gap" on either
+// surface.
 //
 // Method: the shipped le runs over the fixture's private HEAD export. The
 // section words are read out of `le rfc tree` text, from every row and rollup

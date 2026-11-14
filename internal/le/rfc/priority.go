@@ -277,10 +277,11 @@ func optionalUnion(scopes []profileScope) map[string]bool {
 
 // ScopeRollup is a rollup with its completeness stated, so a reader of the
 // JSON never recomputes the rule that an unwalked member, or no member at
-// all, keeps a set incomplete.
+// all, keeps a set incomplete. It is published through its own MarshalJSON
+// (rollup_published.go) as `mandatory-complete` beside the rollup's keys.
 type ScopeRollup struct {
 	Rollup
-	MandatoryComplete bool `json:"mandatory-complete"`
+	MandatoryComplete bool
 }
 
 // rollupOfScopes sums the union of the scopes' required members: the profile

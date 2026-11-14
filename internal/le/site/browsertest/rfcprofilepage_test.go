@@ -113,6 +113,13 @@ func loadRFCProfilePage(ctx context.Context, t *testing.T, pageURL string, done 
 	if _, err := chromedp.Run(ctx, chromedp.Navigate(pageURL)); err != nil {
 		t.Fatalf("open %s: %v", pageURL, err)
 	}
+	return pollRFCProfilePage(ctx, t, done)
+}
+
+// pollRFCProfilePage polls the open page, with no navigation, until every bar
+// is drawn and done answers true over what it shows.
+func pollRFCProfilePage(ctx context.Context, t *testing.T, done func(*rfcProfilePageState) bool) rfcProfilePageState {
+	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
 	var got rfcProfilePageState
 	for time.Now().Before(deadline) {
@@ -163,14 +170,15 @@ func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
 		}
 		return true
 	})
-	mustBar := []string{"ze-proven=Ze proven 7", "os-verified=OS verified 2", "os-gap=OS testing gap 1",
-		"ze-gap=Ze correctness gap 1,200"}
+	mustBar := []string{"ze-proven=Ze proven 7", "os-verified=OS verified 2", "proof-pending=Proof pending 4",
+		"os-gap=OS testing gap 1", "exclusion-unchecked=Exclusion unchecked 5", "not-assessed=Not assessed 7",
+		"not-built=Not built 1,184"}
 	for key, want := range map[string][]string{
 		"profile/edge/required:must": mustBar,
 		"profile/edge/required:overview": {"ze-proven=Ze MUST proven 7", "os-verified=OS verified 3",
-			"should-proven=SHOULD proven 1", "not-owed=Not owed 12", "not-ever=SHOULD not ever 1",
-			"not-yet=SHOULD not yet 2", "not-decided=SHOULD not decided 2", "os-gap=OS testing gap 2",
-			"ze-gap=Ze correctness gap 1,200"},
+			"should-proven=SHOULD proven 1", "not-owed=Not owed 12", "proof-pending=Proof pending 5",
+			"os-gap=OS testing gap 2", "exclusion-unchecked=Exclusion unchecked 6", "not-assessed=Not assessed 9",
+			"not-built=Not built 1,185"},
 		"profile/edge/optional:must": {"ze-proven=Ze proven 9"},
 		"rfc3:must":                  {"requirements not reviewed"},
 		"rfc4:overview":              {"ze-proven=Ze MUST proven 9"},
@@ -184,7 +192,7 @@ func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
 	}
 	for key, want := range map[string]string{
 		"profile/edge/required:register": "not complete", "profile/edge/optional:register": "complete",
-		"profile/edge/required:must.ze-gap": "1,200", "profile/edge/required:not-walked": "1",
+		"profile/edge/required:must.not-built": "1,184", "profile/edge/required:not-walked": "1",
 		"profile/edge/required:must.not-owed-by-kind.linux-limit": "0",
 	} {
 		if got.Values[key] != want {
@@ -194,7 +202,7 @@ func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
 
 	// Registers each kept open by one clause alone, drawn into elements added
 	// here: lab (a gapless RFC and an unwalked one), rfc5 (only an OS gap),
-	// rfc6 (only a Ze gap); rfc2, with neither, is complete.
+	// rfc6 (only rows not built); rfc2, with neither, is complete.
 	if _, err := chromedp.Run(ctx, chromedp.Evaluate[bool](`(function () {
         ["profile/lab/required", "rfc5", "rfc6", "rfc2"].forEach(function (subject) {
             var node = document.createElement("span");
@@ -232,6 +240,55 @@ func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
 		}
 	}
 
+	// Each of the four open sections keeps a register open on its own: rfc6
+	// is republished with 2 rows in one section and none in the other three,
+	// and its register still reads not complete.
+	rfc6Path := filepath.Join(dir, "data", "rfc", "rfc6.json")
+	rfc6Original, err := os.ReadFile(rfc6Path) //nolint:gosec // the test's own temporary site
+	if err != nil {
+		t.Fatal(err)
+	}
+	openSections := []string{"proof-pending", "exclusion-unchecked", "not-assessed", "not-built"}
+	for _, open := range openSections {
+		var rfc6 map[string]any
+		if err := json.Unmarshal(rfc6Original, &rfc6); err != nil {
+			t.Fatal(err)
+		}
+		rfc6Must, isMap := rfc6["must"].(map[string]any)
+		if !isMap {
+			t.Fatalf("rfc6.json holds no must counts: %s", rfc6Original)
+		}
+		for _, section := range openSections {
+			rfc6Must[section] = float64(0)
+		}
+		rfc6Must[open] = float64(2)
+		rewritten, err := json.Marshal(rfc6)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(rfc6Path, rewritten, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		loadRFCProfilePage(ctx, t, pageURL, func(*rfcProfilePageState) bool { return true })
+		if _, err := chromedp.Run(ctx, chromedp.Evaluate[bool](`(function () {
+        var node = document.createElement("span");
+        node.setAttribute("data-ze-rfc", "rfc6:register");
+        node.textContent = "fallback";
+        document.body.appendChild(node);
+        window.zeRFCFigures.fill(document.body);
+        return true;
+    })()`)); err != nil {
+			t.Fatalf("add the rfc6 register probe: %v", err)
+		}
+		got = pollRFCProfilePage(ctx, t, func(state *rfcProfilePageState) bool {
+			value := state.Values["rfc6:register"]
+			return value != "" && value != "fallback"
+		})
+		if got.Values["rfc6:register"] != "not complete" {
+			t.Errorf("with only must.%s open, rfc6:register shows %q, want %q", open, got.Values["rfc6:register"], "not complete")
+		}
+	}
+
 	before, err := os.ReadFile(page) //nolint:gosec // the test's own temporary site
 	if err != nil {
 		t.Fatal(err)
@@ -249,7 +306,7 @@ func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
 	if !isMap {
 		t.Fatalf("rfc1.json holds no must counts: %s", original)
 	}
-	must["ze-proven"], must["ze-gap"] = float64(103), float64(1100)
+	must["ze-proven"], must["not-built"] = float64(103), float64(1084)
 	republished, err := json.Marshal(file)
 	if err != nil {
 		t.Fatal(err)
@@ -260,7 +317,7 @@ func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
 	got = loadRFCProfilePage(ctx, t, pageURL, func(state *rfcProfilePageState) bool {
 		return state.Values["profile/edge/required:must.ze-proven"] == "107"
 	})
-	if want := "ze-gap=Ze correctness gap 1,100"; got.Bars["profile/edge/required:must"][3] != want {
+	if want := "not-built=Not built 1,084"; got.Bars["profile/edge/required:must"][6] != want {
 		t.Errorf("after republishing rfc1.json the required MUST bar is %q, want its last segment %q",
 			got.Bars["profile/edge/required:must"], want)
 	}

@@ -227,19 +227,23 @@ func TestAFeatureDeclinedRequirementIsAnnotatedAndNotProven(t *testing.T) {
 	if must.NotOwed != 1 || must.NotOwedByKind[AnnotationFeatureDeclined] != 1 {
 		t.Errorf("not owed=%d by kind %v, want RFC1-1-2 alone, as feature declined", must.NotOwed, must.NotOwedByKind)
 	}
-	if before.Sections.Must.Kept != 2 || before.Sections.Must.ZeGap != 1 {
-		t.Errorf("bare Kept=%d Ze gap=%d, want 2 and 1: unannotated, the row is owed and unproven",
-			before.Sections.Must.Kept, before.Sections.Must.ZeGap)
+	if bare := before.Sections.Must; bare.Kept != 2 || bare.NotAssessed != 1 ||
+		bare.ProofPending != 0 || bare.ExclusionUnchecked != 0 || bare.NotBuilt != 0 {
+		t.Errorf("bare sections = %+v, want Kept 2 and not assessed 1: unannotated and untagged, the row is owed "+
+			"and unproven", bare)
 	}
 	// A quote the RFC text does not hold is no evidence, so the row stays owed:
-	// the sections equal the bare corpus's, a Ze gap and no row not owed.
+	// the same Kept as the bare corpus and no row not owed, but the row now sits
+	// under exclusion unchecked, where the bare row sat under not assessed.
 	unproven, err := sectionsOver(t, metas, unevidenced, map[string]bool{"rfc1": true}, map[string]bool{"RFC1-1-1": true, "RFC1-1-2": true})
 	if err != nil {
 		t.Fatalf("ImplementedSectionsOf over the unevidenced corpus: %v", err)
 	}
-	if kept := unproven.Sections.Must; kept.Kept != 2 || kept.ZeGap != 1 || kept.ZeProven != 1 || kept.NotOwed != 0 {
-		t.Errorf("unevidenced Kept=%d Ze gap=%d Ze proven=%d not owed=%d, want 2, 1, 1 and 0: a {feature-declined} "+
-			"whose quote the RFC does not hold leaves no row", kept.Kept, kept.ZeGap, kept.ZeProven, kept.NotOwed)
+	if kept := unproven.Sections.Must; kept.Kept != 2 || kept.ExclusionUnchecked != 1 ||
+		kept.ProofPending != 0 || kept.NotAssessed != 0 || kept.NotBuilt != 0 ||
+		kept.ZeProven != 1 || kept.NotOwed != 0 {
+		t.Errorf("unevidenced sections = %+v, want Kept 2, exclusion unchecked 1, Ze proven 1 and not owed 0: "+
+			"a {feature-declined} whose quote the RFC does not hold leaves no row", kept)
 	}
 }
 

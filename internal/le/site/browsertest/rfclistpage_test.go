@@ -10,7 +10,7 @@ import (
 
 // TestTheBrowserSumsTheFilteredRFCListFromItsFiles proves the compliance
 // index's overview draws both bars and a Total row over exactly the RFCs the
-// filter shows, read from their data/rfc/ files (AC-10), whose five MUST
+// filter shows, read from their data/rfc/ files (AC-10), whose eight MUST
 // columns add up to the MUST total; that every row carries its own two bars;
 // and that a missing file is named rather than dropped from the sum (AC-18).
 // The index headline sums only the enrolled RFCs, and the corpus count every
@@ -27,12 +27,13 @@ func TestTheBrowserSumsTheFilteredRFCListFromItsFiles(t *testing.T) {
 	dir, golden, base := rfcCompliancePagesSite(t)
 	ctx := newRFCBrowser(t)
 	listURL := base + strings.TrimSuffix(golden.List, "index.html")
-	columns := []string{"must.ze-proven", "must.os-verified", "must.os-gap", "must.ze-gap", "must.not-owed", "must.total"}
+	columns := []string{"must.ze-proven", "must.os-verified", "must.proof-pending", "must.os-gap",
+		"must.exclusion-unchecked", "must.not-assessed", "must.not-built", "must.not-owed", "must.total"}
 
 	got := loadRFCProfilePage(ctx, t, listURL, func(state *rfcProfilePageState) bool {
 		return rfcNoFallbackLeft(state) && state.Values["all:rfcs"] == "7"
 	})
-	for index, want := range []string{"19", "2", "2", "1,202", "10", "1,235"} {
+	for index, want := range []string{"19", "2", "4", "2", "5", "7", "1,186", "10", "1,235"} {
 		if got.Values["all:"+columns[index]] != want {
 			t.Errorf("unfiltered, all:%s shows %q, want %q", columns[index], got.Values["all:"+columns[index]], want)
 		}
@@ -63,13 +64,14 @@ func TestTheBrowserSumsTheFilteredRFCListFromItsFiles(t *testing.T) {
 	got = loadRFCProfilePage(ctx, t, filtered, func(state *rfcProfilePageState) bool {
 		return rfcNoFallbackLeft(state) && state.Values["all:rfcs"] == "3"
 	})
-	for index, want := range []string{"7", "2", "1", "1,200", "10", "1,220"} {
+	for index, want := range []string{"7", "2", "4", "1", "5", "7", "1,184", "10", "1,220"} {
 		if got.Values["all:"+columns[index]] != want {
 			t.Errorf("filtered, all:%s shows %q, want %q", columns[index], got.Values["all:"+columns[index]], want)
 		}
 	}
-	if want := []string{"ze-proven=Ze proven 7", "os-verified=OS verified 2", "os-gap=OS testing gap 1",
-		"ze-gap=Ze correctness gap 1,200"}; !reflect.DeepEqual(got.Bars["all:must"], want) {
+	if want := []string{"ze-proven=Ze proven 7", "os-verified=OS verified 2", "proof-pending=Proof pending 4",
+		"os-gap=OS testing gap 1", "exclusion-unchecked=Exclusion unchecked 5", "not-assessed=Not assessed 7",
+		"not-built=Not built 1,184"}; !reflect.DeepEqual(got.Bars["all:must"], want) {
 		t.Errorf("filtered, the overview MUST bar draws %q, want %q", got.Bars["all:must"], want)
 	}
 	rfcHeadlineIsNeverNarrowed(t, "filtered", &got)

@@ -143,7 +143,7 @@ func TestTreeActionRendersLevelsAndFigures(t *testing.T) {
 
 	text := report.Text()
 	for _, want := range []string{"L0 rfc1", "L2 rfc5 (cycle with rfc6)  not walked",
-		"L0 rfc1  MUST 2 kept: Ze proven 1, OS verified 0, OS testing gap 0, Ze correctness gap 1",
+		"L0 rfc1  MUST 2 kept: Ze proven 1, OS verified 0, proof pending 0, OS testing gap 0, exclusion unchecked 0, not assessed 1, not built 0",
 		"edge (release): MUST 6 kept: Ze proven 2",
 		"via edge: required by rfc/short/rfc1.md"} {
 		if !strings.Contains(text, want) {
@@ -270,7 +270,7 @@ func TestTreeOptionalTierNotCounted(t *testing.T) {
 	}
 	text := withReport.Text()
 	for _, want := range []string{"; mandatory complete",
-		"optional members, not counted: MUST 1 kept: Ze proven 0, OS verified 0, OS testing gap 0, Ze correctness gap 1",
+		"optional members, not counted: MUST 1 kept: Ze proven 0, OS verified 0, proof pending 0, OS testing gap 0, exclusion unchecked 0, not assessed 1, not built 0",
 		"edge: optional in rfc/short/rfc9.md"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("text lacks %q:\n%s", want, text)
@@ -429,7 +429,7 @@ func TestAProofCellReadBackFromJSONCountsOSVerifiedRows(t *testing.T) {
 // stem.
 func TestAPublishedRowWhoseProvenCountLacksItsOSRowsIsRefused(t *testing.T) {
 	body := `{"stem":"rfc1","summary":true,"walked":true,"mandatory-proven":1,"mandatory-total":4,` +
-		`"sections":{"must":{"total":4,"kept":4,"ze-proven":1,"os-verified":2,"os-gap":0,"ze-gap":1}}}`
+		`"sections":{"must":{"total":4,"kept":4,"ze-proven":1,"os-verified":2,"os-gap":0,"proof-pending":1}}}`
 	var decoded TreeRow
 	err := json.Unmarshal([]byte(body), &decoded)
 	if err == nil {
@@ -452,7 +452,9 @@ func TestTreeRowHoldsStemFiguresWhole(t *testing.T) {
 		Mandatory:       Figure{Proven: 1, Total: 4, Attainable: 3, Excluded: map[string]int{AnnotationLinuxLimit: 1}},
 		Optional:        Figure{Proven: 2, Total: 5, Attainable: 4, Excluded: map[string]int{AnnotationLowerLayer: 1}},
 		MandatoryByKind: map[string]int{"functional": 1, kindOS: 1}, Unmet: []string{"RFC1-1-2"},
-		OSVerified: 1, OSGap: 2, NotYet: 3, NotEver: 4, NotDecided: 5, OptionalOSVerified: 6, OptionalOSGap: 7}
+		OSVerified: 1, OSGap: 2, NotYet: 3, NotEver: 4, NotDecided: 5, OptionalOSVerified: 6, OptionalOSGap: 7,
+		ProofPending: 8, ExclusionUnchecked: 9, NotAssessed: 10, NotBuilt: 11, OptionalProofPending: 12,
+		OptionalExclusionUnchecked: 13, OptionalNotAssessed: 14, OptionalNotBuilt: 15}
 	fields := reflect.ValueOf(want)
 	for index := range fields.NumField() {
 		if fields.Field(index).IsZero() {
@@ -476,13 +478,17 @@ func TestTreeRowHoldsStemFiguresWhole(t *testing.T) {
 	}
 	// The published `mandatory-proven` includes the OS verified rows, so the
 	// decoded figures take the OS verified count back from the sections and
-	// restore Ze proven. The OS gap, the intent splits, the optional OS splits
-	// and the figures' Attainable and Excluded are still published only inside
-	// the sections, so the decoded figures hold those zero and the decoded
-	// sections hold them whole.
+	// restore Ze proven. The OS gap, the intent splits, the optional OS splits,
+	// the four open sections at both levels (proof pending, exclusion
+	// unchecked, not assessed, not built) and the figures' Attainable and
+	// Excluded are still published only inside the sections, so the decoded
+	// figures hold those zero and the decoded sections hold them whole.
 	published := want
 	published.OSGap, published.NotYet, published.NotEver, published.NotDecided = 0, 0, 0, 0
 	published.OptionalOSVerified, published.OptionalOSGap = 0, 0
+	published.ProofPending, published.ExclusionUnchecked, published.NotAssessed, published.NotBuilt = 0, 0, 0, 0
+	published.OptionalProofPending, published.OptionalExclusionUnchecked = 0, 0
+	published.OptionalNotAssessed, published.OptionalNotBuilt = 0, 0
 	published.Mandatory = Figure{Proven: want.Mandatory.Proven, Total: want.Mandatory.Total}
 	published.Optional = Figure{Proven: want.Optional.Proven, Total: want.Optional.Total}
 	if !reflect.DeepEqual(decoded.StemFigures, published) {

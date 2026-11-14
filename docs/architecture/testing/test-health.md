@@ -384,8 +384,8 @@ the RFC compliance page draws the same per-RFC sections. It is taken over the
 RFCs that are enrolled, render a public row and declare an Implementation of
 `ze` or `mixed`. The density is the proven MUST rows (`rfc.MustSections.Proven`:
 Ze proven plus OS verified, the numerator the home card divides) over the MUST
-rows Ze and the OS owe (Ze proven, OS verified, OS testing gap and Ze
-correctness gap). It counts a row as Ze proven only where a discrimination
+rows Ze and the OS owe (Ze proven, OS verified, proof pending, OS testing gap,
+exclusion unchecked, not assessed and not built). It counts a row as Ze proven only where a discrimination
 record still verifies on a walked summary, and a row a layer under Ze performs
 as OS verified only where such a record broke the producer its annotation
 names; the detail states the two apart. A tag pair no record proves adds
@@ -396,8 +396,12 @@ a requirement the OS meets counts as done in every published figure once its
 test proves it). A row not owed (not
 applicable, declined, OS blocked) is on neither side, and the detail states how
 many there are. A row counts not owed only when its evidence passes the
-exclusion evidence check; one lacking it stays owed
-(`docs/contributing/rfc-conformance-gates.md`, "The exclusion evidence ratchet"). Only walked RFCs add to any section, and the detail names how
+exclusion evidence check; one lacking it stays owed, as exclusion unchecked
+(`docs/contributing/rfc-conformance-gates.md`, "The exclusion evidence ratchet"). The detail names the four sections of the rows Ze owes and has not
+proven, each with its count: proof pending (a tagged test and no recorded
+break yet), exclusion unchecked, not assessed (no tagged test covers the row,
+so nothing yet says whether Ze meets it) and not built (the summary or the audit says the
+obligation is unmet). Only walked RFCs add to any section, and the detail names how
 many of those RFCs are not walked and left out.
 <!-- source: internal/le/test/health/collect_rfc.go -- annotationCounts.total, implementedSections, densityMetric -->
 <!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, Implements -->
@@ -417,7 +421,7 @@ verified rows to the numerator can only raise the figure.
 A Linux-limit annotation earns no proof credit. Once its register entry
 verifies, the row is not owed (OS blocked) and leaves that denominator, because
 the kernel, not Ze's code, is what blocks it. One whose entry does not verify
-stays owed as a Ze gap. The density detail counts the OS-blocked rows apart from
+stays owed, as not built. The density detail counts the OS-blocked rows apart from
 the not-applicable and declined ones. The annotation split discovers the kind
 from the same registry; it never treats a Linux limit as a proof.
 <!-- source: internal/le/test/health/collect_rfc.go -- densityMetric, annotationCounts.total -->

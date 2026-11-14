@@ -1,0 +1,15 @@
+# Test: le help rfc tree names exactly the sections le rfc tree prints.
+# accept-only: the registered native fixture runs the shipped le over its own
+# HEAD export, reads the section words out of every le rfc tree line that
+# carries sections (all lines must agree), requires le help rfc tree to name
+# each of them in the tree's order, then holds the tree's MUST bar to the
+# design's: Ze proven, OS verified, Proof pending, OS testing gap, Exclusion
+# unchecked, Not assessed, Not built, with "correctness gap" on neither surface.
+#
+# VALIDATES: spec-rfc-figures-built-and-proven AC-3 for the tree and its help,
+# through the built le binary and its real composition root.
+option=timeout:value=600s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-help-rfc-tree-sections
+expect=exit:code=0
+expect=stdout:contains=OK

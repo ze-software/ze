@@ -332,7 +332,8 @@ func TestALinuxLimitRequirementIsAnnotatedAndNotProven(t *testing.T) {
 	if gap.Sections.Must.ZeProven != 0 || limit.Sections.Must.ZeProven != 0 {
 		t.Fatalf("a verified record proved a gap or linux-limit row: gap=%+v, limit=%+v", gap.Sections.Must, limit.Sections.Must)
 	}
-	if gap.Sections.Must.Kept != 2 || gap.Sections.Must.ZeGap != 2 {
+	if must := gap.Sections.Must; must.Kept != 2 || must.NotBuilt != 1 || must.NotAssessed != 1 ||
+		must.ProofPending != 0 || must.ExclusionUnchecked != 0 {
 		t.Fatalf("gap row left the owed rows: %+v", gap.Sections.Must)
 	}
 	if limit.Sections.Must.Kept != 1 || limit.Sections.Must.NotOwed != 1 ||
@@ -340,14 +341,17 @@ func TestALinuxLimitRequirementIsAnnotatedAndNotProven(t *testing.T) {
 		t.Fatalf("linux-limit row not moved to not owed: %+v", limit.Sections.Must)
 	}
 	// A register entry that is not verified is no evidence, so the row stays
-	// owed as a Ze gap, exactly where the {gap} row sat.
+	// owed as not built, exactly where the {gap} row sat.
 	unverified := linuxLimitCheckFixture(t, strings.Replace(linuxLimitFixtureRegister, "**Status:** verified", "**Status:** unverified", 1),
 		linuxLimitFixtureLine)
 	sheltered, err := sectionsOverTree(t, unverified, metas, []Requirement{*req, companion}, walked, proven)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := sheltered.Sections.Must, gap.Sections.Must; got.Kept != want.Kept || got.ZeGap != want.ZeGap || got.NotOwed != 0 || got.Total != want.Total {
+	if got, want := sheltered.Sections.Must, gap.Sections.Must; got.Kept != want.Kept ||
+		got.ProofPending != want.ProofPending || got.ExclusionUnchecked != want.ExclusionUnchecked ||
+		got.NotAssessed != want.NotAssessed || got.NotBuilt != want.NotBuilt ||
+		got.NotOwed != 0 || got.Total != want.Total {
 		t.Fatalf("a linux-limit row whose register entry is unverified left the owed rows: %+v, want the gap row's %+v",
 			sheltered.Sections.Must, gap.Sections.Must)
 	}

@@ -192,10 +192,15 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "tree", Does: doesReport, Summary: "print the RFC dependency tree with its section counts",
 		Why: "print the dependency graph of the RFC texts roots to leaves: one row per RFC or draft with its " +
 			"level, aggregate, builds-on and updated-by edges, and its section counts: the MUST bar (Ze proven " +
-			"by a recorded break, OS verified, OS testing gap, Ze correctness gap, and their sum, the MUST rows " +
-			"kept), the MUST rows not owed by annotation kind, and the SHOULD states (proven, OS verified, " +
-			"OS testing gap, not ever, not yet, not decided, not owed by kind); `not walked` without a valid " +
-			"extraction sign-off, `no summary` for a text no summary covers. Membership is declared by each summary in two tiers: its `Use cases` row names the " +
+			"by a recorded break, OS verified, Proof pending (a tagged test and no recorded break yet), OS testing gap, " +
+			"Exclusion unchecked (a not-owed claim whose evidence fails its check), Not assessed (no tagged test " +
+			"covers the row, so nothing yet says whether Ze meets it), Not built (the summary or the " +
+			"audit says unmet), and their sum, the MUST rows kept), the MUST rows not owed by annotation kind, the " +
+			"SHOULD sections (proven, OS verified, proof pending, OS testing gap, exclusion unchecked, not assessed, " +
+			"not built, not owed by kind; a row marked not ever is not built), then the private intent counts of the open " +
+			"SHOULD rows (`intent: not ever, not yet, not decided`), which no published file carries; `not walked` " +
+			"without a valid extraction sign-off, `no summary` for a text no summary covers. Each rollup line " +
+			"prints the same sections and intent counts. Membership is declared by each summary in two tiers: its `Use cases` row names the " +
 			"profiles that require it, its `Optional use cases` row those that list it without counting it. " +
 			"Without profile the rows a release profile requires come first, each naming both tiers. " +
 			"profile <name> limits it to one use-case profile's required members, with a rollup whose " +

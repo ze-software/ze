@@ -416,8 +416,9 @@ its evidence passes the same check a new row must pass:
 refuses by, to a `{linux-limit}` row. `figureEvidence.excluded`
 (`internal/le/rfc/profilecoverage.go`) reads it for every row `StemFiguresOf`
 counts, so a backlog row, a quote the RFC text does not hold, or a register
-entry that is not a verified kernel limit stays owed as a Ze correctness gap,
-and the per-RFC data files, `./le rfc tree`, the RFC pages, the home card and
+entry that is not a verified kernel limit stays owed: a `{not-applicable}` or
+`{feature-declined}` row as exclusion unchecked, a `{linux-limit}` row as not
+built, because its traits say unmet (`openSectionOf`). The per-RFC data files, `./le rfc tree`, the RFC pages, the home card and
 `/quality/health/` all read the sections that follow from it. A
 `{lower-layer}` row is not judged there: it moves to the OS sections, which
 stay in the MUST bar, so the annotation alone cannot raise the published
@@ -563,34 +564,73 @@ its own count so Linux limits are never hidden among classification decisions.
 
 `SectionsOf` (`sectioncounts.go`) splits a walked RFC's figures into the
 sections the two bars draw, and is the one split every surface reads. The MUST
-bar is Ze proven (the mandatory proven rows), OS verified and OS testing gap
-(the `{lower-layer}` rows, split by `OSVerified` and `OSGap`), and Ze
-correctness gap (attainable less proven); their sum is the MUST rows kept.
-Every other excluded kind is not owed, counted by kind, once its evidence
-passes its check (`figureEvidence.excluded`, see "The exclusion evidence
-ratchet"); a row lacking it stays a Ze correctness gap. So kept plus not owed
-is the MUST total. The SHOULD sections are proven, OS verified, OS testing gap,
-not owed by kind, and the open rows by intent (not ever, not yet, not
-decided), which sum to the SHOULD total. `SectionsOf` refuses figures that do
-not add back, and `StemFiguresOf` runs it over every walked RFC, so no figure
-it answers can draw a bar that disagrees with its total. A rollup sums its
-walked members' sections as counts (`Rollup.Sections`).
+bar is, in order, Ze proven (the mandatory proven rows), OS verified, proof
+pending, OS testing gap, exclusion unchecked, not assessed and not built. OS
+verified and OS testing gap are the `{lower-layer}` rows, split by `OSVerified`
+and `OSGap`. The other four split the rows owed and not proven (attainable less proven),
+and `figuresByStem` counts each such row into one of them as it reads it
+(`countOpen`), by one rule both levels share (`openSectionOf`):
+
+| Section | Rows |
+|---------|------|
+| Not built | The summary or the audit says the obligation is unmet (`figureEvidence.unmet`: `{gap}`, `{partial}`, a `{linux-limit}` whose register entry fails its check, an audit verdict of `wrong`, `unimplemented` or `partial`), and an optional row marked `{intent: not-ever}` |
+| Exclusion unchecked | A `{not-applicable}` or `{feature-declined}` row whose evidence fails its check: its kind bars tests, so no proof can be recorded while it keeps the annotation (owner, 2026-11-13) |
+| Proof pending | An open row a non-gap `RFC requirement:` tag covers (`figureEvidence.tested`): a tag with no record, a stale record, or a `no-break` escape |
+| Not assessed | Every other open row: no non-gap tag covers it, so nothing yet says whether Ze meets it. A gap demonstration tag is no test of the requirement met, so a row it alone covers is not assessed, unless the row is `{gap}`, which is not built (owner, 2026-11-13: "Keep the number real.") |
+
+Each of the four is counted row by row, never as a remainder, and their sum
+with Ze proven, OS verified and OS testing gap is the MUST rows kept. Every
+other excluded kind is not owed, counted by kind, once its evidence passes its
+check (`figureEvidence.excluded`, see "The exclusion evidence ratchet"); a row
+lacking it stays owed, in exclusion unchecked or not built. So kept plus not
+owed is the MUST total. The SHOULD sections are proven, OS verified, proof
+pending, OS testing gap, exclusion unchecked, not assessed, not built, and not
+owed by kind, the open rows split by the same rule, and they sum to the SHOULD total.
+`SectionsOf` refuses figures that do not add back, at each level the four
+open sections against the rows owed and not proven, and `StemFiguresOf` runs
+it over every walked RFC, so no figure it answers can draw a bar that
+disagrees with its total. A rollup sums its walked members' sections as counts
+(`Rollup.Sections`). No section carries an intent: the intent counts are
+private (see "The intent marker").
 
 `./le rfc tree` publishes each row's sections under `sections` in its JSON,
 beside `walked`, `mandatory-proven`, `mandatory-total`, `optional-proven`,
 `optional-total`, `mandatory-by-kind` and `unmet`; a row with no summary or no
-walk publishes `sections: null`. A row read back from that JSON
+walk publishes `sections: null`. `sections.must` and `sections.should` each
+carry `proof-pending`, `exclusion-unchecked`, `not-assessed` and `not-built`, and neither
+carries an intent count. A row read back from that JSON
 (`TreeRow.UnmarshalJSON`) holds the sections whole and the figures' proven and
 total counts; their attainable and excluded counts are published only inside
-the sections. No ceiling, lowest ceiling or proven percentage is printed by
+the sections, and it holds no intent counts, so its text prints no intent
+clause rather than a false zero. No ceiling, lowest ceiling or proven percentage is printed by
 the tree (owner information-preservation approval, 2026-10-31).
+
+Each rollup (a profile's `rollup`, its optional tier's `optional.rollup`, and
+`./le rfc next`'s two) publishes the same flat keys: `rfcs`, `not-walked`,
+`mandatory-proven`, `mandatory-total`, `optional-proven`, `optional-total`,
+the summed section counts whole under `sections`, and `mandatory-complete`
+(`Rollup.MarshalJSON`, `ScopeRollup.MarshalJSON`). Its `mandatory-proven` is
+the sections' proven count (`MustSections.Proven`, Ze proven plus OS
+verified), the sum every other published proven count reads, so the profile
+rollups in `data/rfc-requirements.json` agree with the rows under them. No
+rollup publishes a `mandatory` or `optional` figure object: the attainable
+and excluded counts are published only inside the sections. A rollup read
+back from that JSON takes its OS verified rows back out of `mandatory-proven`
+to restore Ze proven, holds the sections whole and no intent counts, and a
+file whose OS verified rows exceed its proven count is refused with the
+command that regenerates it (`Rollup.UnmarshalJSON`,
+`ScopeRollup.UnmarshalJSON`). Until 2026-11-13 the rollup published
+`mandatory.proven`, Ze proven alone, beside `attainable` and `excluded`.
+<!-- source: internal/le/rfc/rollup_published.go -- rollupJSON, scopeRollupJSON, Rollup.MarshalJSON, Rollup.UnmarshalJSON, ScopeRollup.MarshalJSON, ScopeRollup.UnmarshalJSON, rollupOfPublished -->
 
 An RFC with no valid extraction sign-off renders `not walked` rather than a
 figure. Every RFC a profile lists has a summary (owner: "all RFC should have a
 valid summary"), so there is no third, summary-less state. A rollup over one
 tier of a use-case profile, or over an aggregate, sums its walked members and
 states how many are not walked. It is never complete while that count is
-above zero, nor while the set has no member: 0 of 0 measures nothing. A
+above zero, nor while proof pending, exclusion unchecked, not assessed, not
+built or OS testing gap holds a MUST row (`Rollup.mandatoryComplete`), nor while the set
+has no member: 0 of 0 measures nothing. A
 use-case profile's percentage is the rollup of its required tier alone; its
 optional tier carries a rollup of its own beside it.
 The same walked-only rule applies to the sections and per-kind exclusion
@@ -626,7 +666,8 @@ leaves out (`NotWalked`): an unwalked list is unbounded, so a section holding
 its rows would measure the list, not the software. The published percentage
 (`ProvenPercent`) is the proven MUST rows (`MustSections.Proven`: Ze proven
 plus OS verified) over the MUST rows Ze and the OS owe (`Kept`: Ze proven, OS
-verified, OS testing gap and Ze correctness gap). A row not owed (not
+verified, proof pending, OS testing gap, exclusion unchecked, not assessed and not
+built). A row not owed (not
 applicable, declined, OS blocked) is on neither side. A row the OS performs is
 always in the denominator, and in the numerator once it is OS verified: a
 requirement the operating system meets counts as done in every published
@@ -637,6 +678,7 @@ separate sections, and the MUST bar draws them as separate segments, because
 who performs a row is what the bar shows. Every published proven count reads
 the same sum: the home card (`rfc.proven`, `rfc.proven_percent`), the health
 proof density, the tree row's `mandatory-proven` (`StemFigures.MustProven`),
+each rollup's `mandatory-proven` (`MustSections.Proven` over its sections),
 and so the status page Proof cell, the site's per-RFC Proof cell and the update
 report's figure, which read that count. A tree row read back from JSON takes
 its OS verified rows back from its sections, so its Proof cell is the live
@@ -649,7 +691,8 @@ RFC compliance page still partition every gated MUST of the RFCs Ze implements,
 walked or not, so their total is their own sum, and it exceeds the card's
 denominator.
 <!-- source: internal/le/rfc/profilecoverage.go -- figuresByStem, rowCounts, rollupOf, Rollup.mandatoryComplete, StemFiguresOf, figureEvidence -->
-<!-- source: internal/le/rfc/sectioncounts.go -- SectionsOf, sectionsOf, Sections.String, MustSections.Proven -->
+<!-- source: internal/le/rfc/profilecoverage.go -- countOpen, openSectionOf, declinedForever, figureEvidence.tested -->
+<!-- source: internal/le/rfc/sectioncounts.go -- SectionsOf, sectionsOf, checkMustSections, checkShouldSections, Sections.String, MustSections.Proven -->
 <!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, ImplementedSections.ProvenPercent, Implements -->
 <!-- source: internal/le/rfc/profilecoverage.go -- StemFigures.MustProven, mustProven, kindOS -->
 <!-- source: internal/le/rfc/tree.go -- TreeRow.MarshalJSON, TreeRow.UnmarshalJSON -->
@@ -805,7 +848,8 @@ value of Ze's exists to assert. Sixteen RFC 4302 obligations are the case it was
 for: Linux XFRM builds every AH packet, and no field of the SA Ze installs
 decides that the RESERVED field is zero. The owner rule still asks for a test
 that checks the OS behaviour on the state Ze installs, and until one is proven
-the row is an OS testing gap, never a correctness gap (below, "OS verified").
+the row is an OS testing gap, never proof pending or not built (below, "OS
+verified").
 
 ```
 - [ ] [RFC4302-2.3-1] [MUST] The RESERVED field MUST be set to zero by the sender (§2.3) {lower-layer: Linux XFRM AH, linux:CONFIG_INET_AH; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the AH SA and the kernel's AH output builds every header, so no value Ze writes decides this field}
@@ -1616,7 +1660,17 @@ its marker stands (`figureEvidence.excluded`,
 excluded (the attainable optional rows less the proven ones). Each such row
 lands in exactly one, by its marker, and no other count changes
 (`countIntent`, `internal/le/rfc/profilecoverage.go`, `TestIntentCounts`).
-<!-- source: internal/le/rfc/profilecoverage.go -- countIntent, ceilingExcluded -->
+The three counts are private planning facts. They stay on `StemFigures` for
+the text of `./le rfc tree`, which prints them after each row's sections and
+each rollup's (`; intent: not ever N, not yet N, not decided N`,
+`writeIntents`), and for `./le rfc next`, whose rollup lines print the same
+clause. No published shape carries them: no section type, no tree row JSON,
+no rollup JSON, so a row or rollup read back from JSON holds none and prints
+no intent clause. A row marked `{intent: not-ever}` is counted not built in
+the optional sections, because Thomas declined it and its proof is not
+pending (`openSectionOf`); the page says only that it is not built.
+<!-- source: internal/le/rfc/profilecoverage.go -- countIntent, ceilingExcluded, intentCounts, writeIntents, Rollup.String -->
+<!-- source: internal/le/rfc/tree.go -- sectionsCell, TreeRow.UnmarshalJSON -->
 
 ## The dependency graph
 
@@ -1680,8 +1734,10 @@ answers the candidates.
 
 `./le rfc tree` prints one row per node, roots to leaves: level, cycle
 members, aggregate, `builds-on` and `updated-by` edges, its section counts
-(the MUST bar's Ze proven, OS verified, OS testing gap and Ze correctness gap
-with their sum, the MUST rows not owed by kind, then the SHOULD states), or
+(the MUST bar's Ze proven, OS verified, proof pending, OS testing gap,
+exclusion unchecked, not assessed and not built with their sum, the MUST rows not owed by
+kind, then the SHOULD sections in the same order, then the private intent
+counts of the open SHOULD rows), or
 `not walked`, or `no summary` for a text no summary covers, the use-case profiles
 requiring it and, under `optional-profiles`, those listing it as optional.
 Without `profile` it covers every text and summary, with the rows a release
@@ -1704,20 +1760,22 @@ profile or inside `profile <name>`, from the required members alone. Until
 their mandatory figure is complete it judges the mandatory register: an RFC
 owes there when it is not walked, or when a mandatory row sits in a section of
 the MUST bar that holds owed work. Each uncovered row names what it owes
-(`owes` in the JSON, `rowOwes`): a Ze correctness gap owes Ze code
-(`ze-code`, printed under `uncovered`), and an OS testing gap, a
+(`owes` in the JSON, `rowOwes`): a row in proof pending, exclusion unchecked,
+not assessed or not built owes Ze code (`ze-code`, printed under `uncovered`), and an OS
+testing gap, a
 `{lower-layer}` row with no proving record that broke its named producer,
 owes a test of the OS behavior on the state Ze installs (`os-test`, printed
 under `OS testing gap`). A row in the not-owed section (not applicable,
 declined, OS blocked) is never uncovered and blocks nothing, and neither is a
-SHOULD or MAY row marked `{intent: not-ever}`, which Ze will not support. A row enters that
+SHOULD or MAY row marked `{intent: not-ever}`, which Ze will not support and
+the optional sections count not built. A row enters that
 section by the rule the figures use (`figureEvidence.excluded`), never by its
 annotation alone: a `{not-applicable}`, `{feature-declined}` or
 `{linux-limit}` row whose evidence fails the check a new row must pass
-(`(*evidenceReader).notOwedGap`) stays a Ze correctness gap and is listed as
-`ze-code`. The mandatory
-figure is complete only when the members are all walked and both the Ze gap
-and the OS testing gap are zero, and `next` reports `complete` only then: a
+(`(*evidenceReader).notOwedGap`) stays owed, as exclusion unchecked or, for a
+`{linux-limit}` row, not built, and is listed as `ze-code`. The mandatory
+figure is complete only when the members are all walked and proof pending,
+exclusion unchecked, not assessed, not built and the OS testing gap are all zero, and `next` reports `complete` only then: a
 mandatory register that names no row while the figure is incomplete is
 refused as a defect, and a set with no required member is refused because it
 measures nothing. The answer is the lowest level holding such an RFC, the lowest RFC

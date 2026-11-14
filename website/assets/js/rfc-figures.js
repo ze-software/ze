@@ -16,7 +16,7 @@
  * the index marks gated, or all: every RFC the index lists, unless an
  * ancestor of the element carries
  * data-ze-rfc-stems="<stem>,<stem>", the RFCs a filter shows. A field is a dotted path
- * of a per-RFC file (must.ze-proven, should.not-decided), or one of the set
+ * of a per-RFC file (must.ze-proven, should.not-built), or one of the set
  * counts rfcs, walked and not-walked, or register, the set's mandatory
  * register in words. The text inside a marked element is the last build's
  * value, shown until the files are read.
@@ -209,14 +209,23 @@
         });
     }
 
+    // The MUST sections that each hold a row the register still owes. The
+    // site build reads the same five (rfcRegisterOpenSections,
+    // internal/le/site/rfcfallback.go).
+    var registerOpenSections = ["proof-pending", "os-gap", "exclusion-unchecked", "not-assessed", "not-built"];
+
     // registerOf answers a set's mandatory register in words: complete only
-    // when the set holds at least one RFC, none of them is unwalked, and
-    // neither the Ze correctness gap nor the OS testing gap holds a row. The
-    // site build writes the same words as fallback (rfcRegisterOf,
+    // when the set holds at least one RFC, none of them is unwalked, and none
+    // of proof pending, OS testing gap, exclusion unchecked, not assessed and
+    // not built holds a row. A sum that lacks one of those counts reads not complete.
+    // The site build writes the same words as fallback (rfcRegisterOf,
     // internal/le/site/rfcfallback.go).
     function registerOf(sum) {
         if (sum.rfcs === 0 || sum["not-walked"] !== 0 || !sum.must) return "not complete";
-        return sum.must["ze-gap"] === 0 && sum.must["os-gap"] === 0 ? "complete" : "not complete";
+        for (var i = 0; i < registerOpenSections.length; i++) {
+            if (sum.must[registerOpenSections[i]] !== 0) return "not complete";
+        }
+        return "complete";
     }
 
     function sumSubject(subject, node) {

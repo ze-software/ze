@@ -31,7 +31,8 @@ func rfcOutOfScopeFacts(t *testing.T, entry *rfcLedgerStem) (glance, card string
 // passes is.
 //
 // The figures leave such a row out of the rows Ze owes only once its evidence
-// passes (figureEvidence.excluded), and count a bare one as a Ze gap. The page
+// passes (figureEvidence.excluded), and count a bare one as exclusion
+// unchecked. The page
 // read the annotation counter (rfcLedgerCoverage.NotApplicable) instead, so a
 // bare row was published as out of scope beside bars counting it as a gap.
 // Method: one entry annotating two rows not applicable and one feature
@@ -48,7 +49,7 @@ func TestABareNotApplicableRowIsNotCalledOutOfScope(t *testing.T) {
 		t.Errorf("glance row = %q, want 1: two rows are annotated and only one passed its evidence", glance)
 	}
 	if card != "1" {
-		t.Errorf("Out of scope card = %q, want 1: the bare not-applicable and feature-declined rows are Ze gaps", card)
+		t.Errorf("Out of scope card = %q, want 1: the bare not-applicable and feature-declined rows are exclusion unchecked", card)
 	}
 
 	entry.Figures.Mandatory.Excluded = map[string]int{rfc.AnnotationFeatureDeclined: 1}
@@ -112,8 +113,8 @@ func TestTheOutOfScopeNotesNameTheEvidenceCondition(t *testing.T) {
 		t.Fatalf("found %d notes, want the card and two bucket cards: %v", len(notes), notes)
 	}
 	for label, note := range notes {
-		if !strings.Contains(note, "evidence") || !strings.Contains(note, "Ze gap") {
-			t.Errorf("the %s note does not say a row whose evidence fails is a Ze gap: %q", label, note)
+		if !strings.Contains(note, "evidence") || !strings.Contains(note, "exclusion unchecked") {
+			t.Errorf("the %s note does not say a row whose evidence fails is exclusion unchecked: %q", label, note)
 		}
 	}
 }

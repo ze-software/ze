@@ -439,7 +439,12 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 		"broke the state ze installs for that layer. Of the rest, ").
 		Int(int64(must.OSGap)).Str(" are performed by the OS with no verified test yet (a tag alone, a stale record, " +
 		"or a no-break or kernel-producer escape), and ").
-		Int(int64(must.ZeGap)).Str(" are owed by ze and not proven. ").
+		Int(int64(must.ProofPending + must.ExclusionUnchecked + must.NotAssessed + must.NotBuilt)).
+		Str(" are owed by ze and not proven: proof pending ").Int(int64(must.ProofPending)).
+		Str(" (a tagged test and no recorded break yet), exclusion unchecked ").Int(int64(must.ExclusionUnchecked)).
+		Str(" (a not-owed claim whose evidence fails its check), not assessed ").Int(int64(must.NotAssessed)).
+		Str(" (no tagged test covers the row, so nothing yet says whether ze meets it), not built ").Int(int64(must.NotBuilt)).
+		Str(" (the summary or the audit says the obligation is unmet). ").
 		Int(int64(must.NotOwed)).Str(" further MUST rows are not owed (not applicable, declined, OS blocked) " +
 		"and are in neither count. Until 2026-10-31 this figure was taken over every MUST row of those RFCs but rollups, " +
 		"annotated rows included, so a row that does not bind ze counted against it; until 2026-11-13 its numerator " +
@@ -452,7 +457,7 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 		Str(" of those not proven in both polarities: ").
 		Int(int64(kinds.get(rfc.AnnotationNotApplicable))).
 		Str(" not-applicable (recorded as not binding ze, and counted not owed only once its evidence passes: " +
-			"one whose evidence fails stays among the rows ze owes as a ze gap), ").
+			"one whose evidence fails stays among the rows ze owes, as exclusion unchecked), ").
 		Int(int64(kinds.get(rfc.AnnotationGap))).
 		Str(" known gap (unimplemented, genuinely untested), ").
 		Int(int64(kinds.get(rfc.AnnotationPartial))).
@@ -468,11 +473,11 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 		Int(int64(kinds.get(rfc.AnnotationFeatureDeclined))).
 		Str(" conditional on an optional feature ze does not offer, each quoting the RFC " +
 			"sentence that makes it optional: the condition is false, so the row is counted not owed only once its " +
-			"evidence passes, and otherwise stays among the rows ze owes as a ze gap, ").
+			"evidence passes, and otherwise stays among the rows ze owes, as exclusion unchecked, ").
 		Int(int64(kinds.get(rfc.AnnotationLinuxLimit))).
 		Str(" blocked by a Linux kernel limitation: no proof credit, and counted not owed as OS blocked only once " +
 			"its register entry verifies, because ze cannot meet it on Linux; one whose entry fails stays among the " +
-			"rows ze owes as a ze gap, and ").
+			"rows ze owes, as not built, and ").
 		Int(int64(noTest)).
 		Str(" with no test and no annotation at all, which is what `./le rfc check` is red " +
 			"about. Gaps, remaining partial obligations and unexcused rows are work Ze owes; " +

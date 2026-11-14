@@ -51,6 +51,12 @@ type TreeRow struct {
 	// MarshalJSON publishes it under `sections`, and a row read back from
 	// JSON holds it as published.
 	Sections *Sections `json:"-"`
+	// intent is the stem's private intent counts (StemFigures.intents), set
+	// beside Sections from the figures the row was computed from, and printed
+	// after them in the tree's text. It is never marshalled, so a row read
+	// back from JSON holds nil and prints no intent clause rather than a
+	// false zero.
+	intent *intentCounts
 	// Profiles is the use-case profiles the node's summary is required by,
 	// and OptionalProfiles those listing it as optional.
 	Profiles         []string `json:"profiles"`
@@ -67,8 +73,9 @@ type treeRowFields TreeRow
 // treeRowJSON is the published form of a TreeRow: its own keys, then the
 // figure keys the site and `./le rfc tree | json` read. The section counts are
 // published whole under `sections`; the figures' Attainable and Excluded, and
-// the intent and optional OS splits they come from, are not published apart,
-// so a row decoded from JSON holds them zero and no TreeRow method reads them.
+// the open-row and OS splits they come from, are published only inside the
+// sections, so a row decoded from JSON holds the figures' copies zero and no
+// TreeRow method reads them. The intent counts are published nowhere.
 // `mandatory-proven` is the published proven count, StemFigures.MustProven:
 // Ze proven plus OS verified. A row decoded with its sections takes the OS
 // verified count back from them, so its Ze proven and its MustProven both
@@ -110,6 +117,7 @@ func (r *TreeRow) MarshalJSON() ([]byte, error) {
 // live row's. A row published with no sections (unwalked, or no summary)
 // splits nothing, so it holds the whole count as Ze proven; no figure is
 // published for such a row, and its Proof cell names its state, not a count.
+// No intent count is published, so the decoded row holds none (intent nil).
 func (r *TreeRow) UnmarshalJSON(data []byte) error {
 	wire := treeRowJSON{treeRowFields: (*treeRowFields)(r)}
 	if err := json.Unmarshal(data, &wire); err != nil {
@@ -131,6 +139,7 @@ func (r *TreeRow) UnmarshalJSON(data []byte) error {
 		Optional:        Figure{Proven: wire.OptionalProven, Total: wire.OptionalTotal},
 		MandatoryByKind: wire.MandatoryByKind, Unmet: wire.Unmet}
 	r.Sections = wire.Sections
+	r.intent = nil
 	return nil
 }
 
@@ -349,6 +358,8 @@ func (c *priorityCorpus) treeRow(stem string, useCases []profileScope) *TreeRow 
 	if summarized && figures.Walked {
 		sections := sectionsOf(&figures)
 		row.Sections = &sections
+		intent := figures.intents()
+		row.intent = &intent
 	}
 	if members, held := c.graph.Component(stem); held {
 		for _, member := range members {
@@ -418,7 +429,9 @@ func writeScopeRollup(tb *textbuf.Buffer, label string, rollup *ScopeRollup) {
 // sectionsCell renders the row's sections, or the state that publishes none:
 // `no summary`, `not walked`, or `no rows` for a walked RFC that counts no
 // MUST and no SHOULD row. A bar of zeros would read as a measurement, so the
-// cell says what the site's rfc-figures.js says for the same RFC.
+// cell says what the site's rfc-figures.js says for the same RFC. A row that
+// holds its intent counts prints them after the sections (writeIntents); a row
+// read back from JSON holds none and prints none.
 func sectionsCell(row *TreeRow) string {
 	if !row.Summary {
 		return noSummaryCell
@@ -429,7 +442,10 @@ func sectionsCell(row *TreeRow) string {
 	if row.Sections.Must.Total+row.Sections.Should.Total == 0 {
 		return noRowsCell
 	}
-	return row.Sections.String()
+	var tb textbuf.Buffer
+	tb.Str(row.Sections.String())
+	writeIntents(&tb, row.intent)
+	return tb.String()
 }
 
 // writeTreeRow renders one row and its path.

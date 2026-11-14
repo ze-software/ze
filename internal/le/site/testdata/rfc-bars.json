@@ -16,6 +16,13 @@
         ]
       },
       {
+        "segment": "proof-pending",
+        "label": "Proof pending",
+        "fields": [
+          "must.proof-pending"
+        ]
+      },
+      {
         "segment": "os-gap",
         "label": "OS testing gap",
         "fields": [
@@ -23,10 +30,24 @@
         ]
       },
       {
-        "segment": "ze-gap",
-        "label": "Ze correctness gap",
+        "segment": "exclusion-unchecked",
+        "label": "Exclusion unchecked",
         "fields": [
-          "must.ze-gap"
+          "must.exclusion-unchecked"
+        ]
+      },
+      {
+        "segment": "not-assessed",
+        "label": "Not assessed",
+        "fields": [
+          "must.not-assessed"
+        ]
+      },
+      {
+        "segment": "not-built",
+        "label": "Not built",
+        "fields": [
+          "must.not-built"
         ]
       }
     ],
@@ -65,24 +86,11 @@
         ]
       },
       {
-        "segment": "not-ever",
-        "label": "SHOULD not ever",
+        "segment": "proof-pending",
+        "label": "Proof pending",
         "fields": [
-          "should.not-ever"
-        ]
-      },
-      {
-        "segment": "not-yet",
-        "label": "SHOULD not yet",
-        "fields": [
-          "should.not-yet"
-        ]
-      },
-      {
-        "segment": "not-decided",
-        "label": "SHOULD not decided",
-        "fields": [
-          "should.not-decided"
+          "must.proof-pending",
+          "should.proof-pending"
         ]
       },
       {
@@ -94,10 +102,27 @@
         ]
       },
       {
-        "segment": "ze-gap",
-        "label": "Ze correctness gap",
+        "segment": "exclusion-unchecked",
+        "label": "Exclusion unchecked",
         "fields": [
-          "must.ze-gap"
+          "must.exclusion-unchecked",
+          "should.exclusion-unchecked"
+        ]
+      },
+      {
+        "segment": "not-assessed",
+        "label": "Not assessed",
+        "fields": [
+          "must.not-assessed",
+          "should.not-assessed"
+        ]
+      },
+      {
+        "segment": "not-built",
+        "label": "Not built",
+        "fields": [
+          "must.not-built",
+          "should.not-built"
         ]
       }
     ],
@@ -119,7 +144,10 @@
       "ze-proven": 3,
       "os-verified": 2,
       "os-gap": 3,
-      "ze-gap": 6,
+      "proof-pending": 1,
+      "exclusion-unchecked": 2,
+      "not-assessed": 0,
+      "not-built": 3,
       "not-owed": 6,
       "not-owed-by-kind": {
         "feature-declined": 2,
@@ -132,9 +160,10 @@
       "os-verified": 1,
       "os-gap": 2,
       "not-owed": 2,
-      "not-ever": 1,
-      "not-yet": 2,
-      "not-decided": 4,
+      "proof-pending": 2,
+      "exclusion-unchecked": 0,
+      "not-assessed": 4,
+      "not-built": 1,
       "not-owed-by-kind": {
         "not-applicable": 2
       }

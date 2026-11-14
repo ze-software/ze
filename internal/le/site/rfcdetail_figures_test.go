@@ -16,8 +16,8 @@ import (
 
 // rfcLedgerFixtureData answers the data/rfc/ files a build would publish
 // beside a test ledger: one per stem, walked when the stem's model row is,
-// its MUST rows split into Ze proven and Ze gap and its SHOULD rows into
-// proven and not decided, and one per profile from the profile's tree rows.
+// its MUST rows split into Ze proven and proof pending and its SHOULD rows
+// into proven and not assessed, and one per profile from the profile's tree rows.
 // The compliance producer reads these files back, so a fixture that
 // published only the ledger would publish no figure at all.
 func rfcLedgerFixtureData(ledger rfcLedger) rfcData {
@@ -34,10 +34,10 @@ func rfcLedgerFixtureData(ledger rfcLedger) rfcData {
 			stem.Walked = true
 			stem.ProvenByKind = map[string]int{}
 			stem.Must = &rfc.MustSections{Total: row.Mandatory.Total, Kept: row.Mandatory.Total,
-				ZeProven: row.Mandatory.Proven, ZeGap: row.Mandatory.Total - row.Mandatory.Proven,
+				ZeProven: row.Mandatory.Proven, ProofPending: row.Mandatory.Total - row.Mandatory.Proven,
 				NotOwedByKind: map[string]int{}}
 			stem.Should = &rfc.ShouldSections{Total: row.Optional.Total, Proven: row.Optional.Proven,
-				NotDecided: row.Optional.Total - row.Optional.Proven, NotOwedByKind: map[string]int{}}
+				NotAssessed: row.Optional.Total - row.Optional.Proven, NotOwedByKind: map[string]int{}}
 		}
 		enrolment := "enrolled"
 		if entry.Disposition != nil {
@@ -108,9 +108,10 @@ func TestRFCDetailPageShowsItsFiguresFromItsFile(t *testing.T) {
 	page := readRFCProfileFile(t, paths.Output, rfcComplianceDirectory+"/rfc1/index.html")
 	mirror := readRFCProfileFile(t, paths.Output, rfcComplianceDirectory+"/rfc1/index.md")
 	want := map[string]string{
-		"must.ze-proven": "3", "must.os-verified": "2", "must.os-gap": "1", "must.ze-gap": "1,200",
+		"must.ze-proven": "3", "must.os-verified": "2", "must.os-gap": "1",
+		"must.proof-pending": "4", "must.exclusion-unchecked": "5", "must.not-assessed": "7", "must.not-built": "1,184",
 		"must.kept": "1,206", "must.total": "1,216", "must.not-owed": "10",
-		"must.not-owed-by-kind." + rfc.AnnotationNotApplicable: "4", "should.total": "10", "should.not-decided": "2",
+		"must.not-owed-by-kind." + rfc.AnnotationNotApplicable: "4", "should.total": "10", "should.not-assessed": "2",
 	}
 	for field, value := range want {
 		element := `<span data-ze-rfc="rfc1:` + field + `">` + value + `</span>`
@@ -119,8 +120,9 @@ func TestRFCDetailPageShowsItsFiguresFromItsFile(t *testing.T) {
 		}
 	}
 	mustBar := regexp.MustCompile(`<div data-ze-rfc-bar="rfc1:must">([^<]*)</div>`).FindStringSubmatch(page)
-	if len(mustBar) != 2 || mustBar[1] != "Ze proven 3, OS verified 2, OS testing gap 1, Ze correctness gap 1,200" {
-		t.Errorf("the MUST bar reads %q, not its four segments in order", mustBar)
+	if len(mustBar) != 2 || mustBar[1] != "Ze proven 3, OS verified 2, Proof pending 4, OS testing gap 1, "+
+		"Exclusion unchecked 5, Not assessed 7, Not built 1,184" {
+		t.Errorf("the MUST bar reads %q, not its seven segments in order", mustBar)
 	}
 	if !strings.Contains(page, `<div data-ze-rfc-bar="rfc1:overview">Ze MUST proven 3,`) {
 		t.Error("the page draws no overview bar for rfc1")

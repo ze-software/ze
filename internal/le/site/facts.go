@@ -204,8 +204,9 @@ type factsRepo struct {
 // percentage rendered by, the ImplementedSections
 // `internal/le/rfc.ImplementedSectionsOf` returns: the proven MUST rows
 // (`MustSections.Proven`, Ze proven plus OS verified) over the MUST rows Ze and
-// the OS owe (Ze proven, OS verified, OS testing gap and Ze correctness gap) in
-// the walked RFCs Ze implements. Nothing here computes a numerator or a
+// the OS owe (`MustSections.Kept`: Ze proven, OS verified, proof pending, OS
+// testing gap, exclusion unchecked, not assessed and not built) in the walked
+// RFCs Ze implements. Nothing here computes a numerator or a
 // denominator of its own: the home page and /quality/health/ answer one
 // question with one number because both read that producer, and
 // /quality/rfc-compliance/ draws the same per-RFC sections (owner directive,

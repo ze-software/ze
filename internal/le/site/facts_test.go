@@ -125,7 +125,10 @@ func stubTestHealth(t *testing.T, record string) {
 //
 // A synthetic checkout carries no records or sign-offs, so the figures beside
 // a stated ledger are stated too: every RFC walked, its gated rows owed and
-// none proven. This checkout's own ledger keeps its real figures.
+// none proven. A stated ledger passes no tag, so each owed row is not
+// assessed (rfc.StemFigures.NotAssessed), the open section rfc.SectionsOf
+// requires the owed and unproven rows to add back to. This checkout's own
+// ledger keeps its real figures.
 func stubRFCLedger(t *testing.T, collected rfc.Collected) {
 	t.Helper()
 	previous := liveRFCLedger
@@ -156,6 +159,7 @@ func stubRFCLedger(t *testing.T, collected rfc.Collected) {
 			}
 			figure.Mandatory.Total++
 			figure.Mandatory.Attainable++
+			figure.NotAssessed++
 			figures[requirement.RFC] = figure
 		}
 		return figures, nil
@@ -1137,7 +1141,7 @@ func TestTheLabISOSizeFallsBackUntilAReleaseCarriesOne(t *testing.T) {
 // gap is in the denominator only.
 //
 // The method states one walked RFC whose seven MUST rows are two Ze proven,
-// one Ze gap, three a layer under Ze performs (one OS verified, two OS testing
+// one open, three a layer under Ze performs (one OS verified, two OS testing
 // gaps: the figure pass leaves a row on the no-break or kernel-producer
 // escape, and one with a tag and no record, there, as
 // rfc.TestProvenPercentCountsOSVerifiedRows proves from the rows), and one not
@@ -1147,7 +1151,8 @@ func TestTheHomeCardCountsOSVerifiedRows(t *testing.T) {
 	stubRFCLedger(t, fixtureRFCLedger())
 	liveStemFigures = func(string, rfc.Collected) (map[string]rfc.StemFigures, error) {
 		return map[string]rfc.StemFigures{
-			"rfc4271": {Stem: "rfc4271", Walked: true, OSVerified: 1, OSGap: 2, Mandatory: rfc.Figure{Total: 7,
+			// The one open row carries no tag, so it is not assessed.
+			"rfc4271": {Stem: "rfc4271", Walked: true, OSVerified: 1, OSGap: 2, NotAssessed: 1, Mandatory: rfc.Figure{Total: 7,
 				Attainable: 3, Proven: 2, Excluded: map[string]int{rfc.AnnotationLowerLayer: 3,
 					rfc.AnnotationNotApplicable: 1}},
 				MandatoryByKind: map[string]int{"unit": 2, "os": 1}},
@@ -1172,11 +1177,11 @@ func TestTheHomeCardCountsOSVerifiedRows(t *testing.T) {
 
 // TestTheHomeCardStatesZeProvenOverTheRowsOwed checks the home page RFC card:
 // Ze proven and OS verified over the MUST rows Ze and the OS owe (Ze proven,
-// OS verified, OS testing gap, Ze correctness gap) in the walked RFCs Ze
+// OS verified, OS testing gap, and the four open sections) in the walked RFCs Ze
 // implements.
 //
 // The method states one walked RFC whose five MUST rows land in four sections:
-// two Ze proven, one Ze gap, one performed by the OS with a verified test, one
+// two Ze proven, one open, one performed by the OS with a verified test, one
 // not applicable. The card must read 3 of 4 (75.0%): the not-applicable row is
 // on neither side, and the OS verified row is owed and counted proven (owner,
 // 2026-11-13). Over every row it would read 3 of 5 (60.0%), and with the OS
@@ -1186,7 +1191,8 @@ func TestTheHomeCardStatesZeProvenOverTheRowsOwed(t *testing.T) {
 	stubRFCLedger(t, fixtureRFCLedger())
 	liveStemFigures = func(string, rfc.Collected) (map[string]rfc.StemFigures, error) {
 		return map[string]rfc.StemFigures{
-			"rfc4271": {Stem: "rfc4271", Walked: true, OSVerified: 1, Mandatory: rfc.Figure{Total: 5,
+			// The one open row carries no tag, so it is not assessed.
+			"rfc4271": {Stem: "rfc4271", Walked: true, OSVerified: 1, NotAssessed: 1, Mandatory: rfc.Figure{Total: 5,
 				Attainable: 3, Proven: 2, Excluded: map[string]int{rfc.AnnotationLowerLayer: 1,
 					rfc.AnnotationNotApplicable: 1}}},
 			"rfc7606": {Stem: "rfc7606", Walked: true},

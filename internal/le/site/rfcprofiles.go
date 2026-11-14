@@ -379,9 +379,10 @@ func rfcProfileFigures() []rfcProfileFigure {
 		figures = append(figures, rfcProfileFigure{"SHOULD not owed: " + kind, "should.not-owed-by-kind." + kind})
 	}
 	return append(figures,
-		rfcProfileFigure{"SHOULD not ever", "should.not-ever"},
-		rfcProfileFigure{"SHOULD not yet", "should.not-yet"},
-		rfcProfileFigure{"SHOULD not decided", "should.not-decided"})
+		rfcProfileFigure{"SHOULD proof pending", "should.proof-pending"},
+		rfcProfileFigure{"SHOULD exclusion unchecked", "should.exclusion-unchecked"},
+		rfcProfileFigure{"SHOULD not assessed", "should.not-assessed"},
+		rfcProfileFigure{"SHOULD not built", "should.not-built"})
 }
 
 // rfcProfileNotOwedKinds answers the annotation kinds that take a row out of
@@ -408,7 +409,13 @@ func rfcProfileFiguresProse() string {
 		"been checked against the original text. Ze proven means a test has been shown to fail when the " +
 		"required behavior is deliberately broken. Behavior provided by the operating system or a library " +
 		"is OS verified when a test checks it using the settings Ze installs and has also been shown to detect " +
-		"a deliberate fault; until then, it is an OS testing gap. The overview bar adds optional requirements (" +
+		"a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a " +
+		"tagged test covers that no deliberate fault has yet been shown to break and that nothing records as " +
+		"unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to " +
+		"be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, " +
+		"so nothing yet says whether Ze meets them. Not built " +
+		"counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. " +
+		"The overview bar adds optional requirements (" +
 		rfcKeywordSeries(rfc.OptionalKeywords()) + ") and requirements that do not apply to Ze. " +
 		"An RFC marked requirements not reviewed is excluded from these figures because its requirement list " +
 		"has not been checked against the original text. Counts are loaded from the RFC data files."

@@ -34,7 +34,8 @@ func TestSplitExcludedKeepsTheOSRowsByKind(t *testing.T) {
 		Optional: Figure{Proven: 1, Total: 10, Attainable: 5, Excluded: map[string]int{
 			AnnotationNotApplicable: 2, AnnotationLowerLayer: 3,
 		}},
-		NotYet: 2, NotEver: 1, NotDecided: 1, OptionalOSVerified: 1, OptionalOSGap: 2}
+		NotYet: 2, NotEver: 1, NotDecided: 1, OptionalOSVerified: 1, OptionalOSGap: 2,
+		OptionalNotBuilt: 1, OptionalNotAssessed: 3}
 	sections, err := SectionsOf("rfc9999", &figures)
 	if err != nil {
 		t.Fatal(err)
@@ -78,13 +79,15 @@ func TestSectionsOfRefusesFiguresThatDoNotAddBack(t *testing.T) {
 			"the OS verified and OS gap MUST rows (1) differ from the MUST rows a lower layer performs (2)"},
 		{"MUST proven above attainable", StemFigures{Mandatory: Figure{Total: 2, Attainable: 1, Proven: 2}},
 			"the Ze-proven MUST rows (2) exceed the MUST rows Ze's code owes (1)"},
-		{"MUST sections", StemFigures{Mandatory: Figure{Total: 5, Attainable: 2}},
+		{"MUST open", StemFigures{Mandatory: Figure{Total: 2, Attainable: 2}, ProofPending: 1},
+			"the proof pending, exclusion unchecked, not assessed and not built MUST rows (1) differ from the MUST rows owed and not proven (2)"},
+		{"MUST sections", StemFigures{Mandatory: Figure{Total: 5, Attainable: 2}, NotAssessed: 2},
 			"the MUST sections (2) differ from the MUST rows counted (5)"},
 		{"SHOULD OS rows", StemFigures{Optional: Figure{Total: 1, Excluded: lowerLayer(1)}},
 			"the OS verified and OS gap SHOULD rows (0) differ from the SHOULD rows a lower layer performs (1)"},
-		{"SHOULD intent", StemFigures{Optional: Figure{Total: 2, Attainable: 2}, NotYet: 1},
-			"the not ever, not yet and not decided SHOULD rows (1) differ from the open SHOULD rows (2)"},
-		{"SHOULD sections", StemFigures{Optional: Figure{Total: 5, Attainable: 2}, NotYet: 2},
+		{"SHOULD open", StemFigures{Optional: Figure{Total: 2, Attainable: 2}, OptionalNotAssessed: 1},
+			"the proof pending, exclusion unchecked, not assessed and not built SHOULD rows (1) differ from the open SHOULD rows (2)"},
+		{"SHOULD sections", StemFigures{Optional: Figure{Total: 5, Attainable: 2}, OptionalNotAssessed: 2},
 			"the SHOULD sections (2) differ from the SHOULD rows counted (5)"},
 	} {
 		t.Run(one.name, func(t *testing.T) {
@@ -105,7 +108,7 @@ func TestSectionsOfRefusesFiguresThatDoNotAddBack(t *testing.T) {
 		Mandatory:  Figure{Total: 5, Attainable: 2, Proven: 1, Excluded: map[string]int{AnnotationLowerLayer: 2, AnnotationNotApplicable: 1}},
 		OSVerified: 1, OSGap: 1,
 		Optional:      Figure{Total: 3, Attainable: 2, Excluded: lowerLayer(1)},
-		OptionalOSGap: 1, NotYet: 1, NotDecided: 1}
+		OptionalOSGap: 1, NotYet: 1, NotDecided: 1, ProofPending: 1, OptionalNotAssessed: 2}
 	if _, err := SectionsOf("rfc9999", &consistent); err != nil {
 		t.Errorf("SectionsOf refused figures that add back: %v", err)
 	}

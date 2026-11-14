@@ -14,20 +14,22 @@ import (
 )
 
 // rfcProfileFiguresData is the RFC data the profile figure tests publish:
-// rfc1 holds a count in every segment and a Ze gap past a thousand, rfc2 only
+// rfc1 holds a count in every segment and a not built count past a thousand, rfc2 only
 // Ze-proven MUST rows, rfc3 is unwalked, rfc4 sits in edge's optional tier.
 // Profile edge requires rfc1 to rfc3; core requires rfc2 alone, so its
 // register is complete; lab requires rfc2 and the unwalked rfc3, so its
 // register is open with no gap. Lab has no page: only set answers read it.
-// rfc5 is walked with only an OS gap, rfc6 with only a Ze gap: each keeps its
+// rfc5 is walked with only an OS gap, rfc6 with only not built rows: each keeps its
 // own register open by one clause alone. rfc6 is the one RFC not enrolled,
 // and every RFC declares a requirement count, the unwalked rfc3 included.
 func rfcProfileFiguresData() rfcData {
 	stems := []rfcStemData{
 		{Stem: "rfc1", Title: "One", Walked: true, Requirements: 1300, Unmet: []string{}, ProvenByKind: map[string]int{},
-			Must: &rfc.MustSections{Kept: 1206, ZeProven: 3, OSVerified: 2, OSGap: 1, ZeGap: 1200, NotOwed: 10,
+			Must: &rfc.MustSections{Kept: 1206, ZeProven: 3, OSVerified: 2, OSGap: 1,
+				ProofPending: 4, ExclusionUnchecked: 5, NotAssessed: 7, NotBuilt: 1184, NotOwed: 10,
 				NotOwedByKind: map[string]int{rfc.AnnotationNotApplicable: 4, rfc.AnnotationFeatureDeclined: 6}},
-			Should: &rfc.ShouldSections{Total: 10, Proven: 1, OSVerified: 1, OSGap: 1, NotOwed: 2, NotEver: 1, NotYet: 2, NotDecided: 2,
+			Should: &rfc.ShouldSections{Total: 10, Proven: 1, OSVerified: 1, OSGap: 1, NotOwed: 2,
+				ProofPending: 1, ExclusionUnchecked: 1, NotAssessed: 2, NotBuilt: 1,
 				NotOwedByKind: map[string]int{rfc.AnnotationNotApplicable: 2}}},
 		{Stem: "rfc2", Title: "Two", Walked: true, Requirements: 6, Unmet: []string{}, ProvenByKind: map[string]int{},
 			Must:   &rfc.MustSections{Total: 4, Kept: 4, ZeProven: 4, NotOwedByKind: map[string]int{}},
@@ -37,7 +39,7 @@ func rfcProfileFiguresData() rfcData {
 			Must:   &rfc.MustSections{Total: 3, Kept: 3, ZeProven: 2, OSGap: 1, NotOwedByKind: map[string]int{}},
 			Should: &rfc.ShouldSections{NotOwedByKind: map[string]int{}}},
 		{Stem: "rfc6", Title: "Six", Walked: true, Requirements: 5, Unmet: []string{}, ProvenByKind: map[string]int{},
-			Must:   &rfc.MustSections{Total: 3, Kept: 3, ZeProven: 1, ZeGap: 2, NotOwedByKind: map[string]int{}},
+			Must:   &rfc.MustSections{Total: 3, Kept: 3, ZeProven: 1, NotBuilt: 2, NotOwedByKind: map[string]int{}},
 			Should: &rfc.ShouldSections{NotOwedByKind: map[string]int{}}},
 		{Stem: "rfc4", Title: "Four", Walked: true, Requirements: 9, Unmet: []string{}, ProvenByKind: map[string]int{},
 			Must:   &rfc.MustSections{Total: 9, Kept: 9, ZeProven: 9, NotOwedByKind: map[string]int{}},
@@ -132,9 +134,10 @@ func readRFCProfileFile(t *testing.T, output, name string) string {
 
 // The fallback texts the fixture's bars and figures carry.
 const (
-	edgeRequiredMust = "Ze proven 7, OS verified 2, OS testing gap 1, Ze correctness gap 1,200"
-	edgeRequiredView = "Ze MUST proven 7, OS verified 3, SHOULD proven 1, Not owed 12, SHOULD not ever 1, " +
-		"SHOULD not yet 2, SHOULD not decided 2, OS testing gap 2, Ze correctness gap 1,200"
+	edgeRequiredMust = "Ze proven 7, OS verified 2, Proof pending 4, OS testing gap 1, Exclusion unchecked 5, " +
+		"Not assessed 7, Not built 1,184"
+	edgeRequiredView = "Ze MUST proven 7, OS verified 3, SHOULD proven 1, Not owed 12, Proof pending 5, " +
+		"OS testing gap 2, Exclusion unchecked 6, Not assessed 9, Not built 1,185"
 	edgeOptionalMust = "Ze proven 9"
 )
 
@@ -164,13 +167,19 @@ func TestRFCProfilePagesCarryTheMarkersAndTheLastBuildValues(t *testing.T) {
 		`<span data-ze-rfc="profile/edge/required:register">not complete</span>`,
 		`<span data-ze-rfc="profile/edge/required:must.total">1,220</span>`,
 		`<span data-ze-rfc="profile/edge/required:must.kept">1,210</span>`,
-		`<span data-ze-rfc="profile/edge/required:must.ze-gap">1,200</span>`,
+		`<span data-ze-rfc="profile/edge/required:must.proof-pending">4</span>`,
+		`<span data-ze-rfc="profile/edge/required:must.exclusion-unchecked">5</span>`,
+		`<span data-ze-rfc="profile/edge/required:must.not-assessed">7</span>`,
+		`<span data-ze-rfc="profile/edge/required:must.not-built">1,184</span>`,
 		`<span data-ze-rfc="profile/edge/required:must.not-owed-by-kind.feature-declined">6</span>`,
 		`<span data-ze-rfc="profile/edge/required:must.not-owed-by-kind.linux-limit">0</span>`,
-		`<span data-ze-rfc="profile/edge/required:should.not-decided">2</span>`,
+		`<span data-ze-rfc="profile/edge/required:should.proof-pending">1</span>`,
+		`<span data-ze-rfc="profile/edge/required:should.exclusion-unchecked">1</span>`,
+		`<span data-ze-rfc="profile/edge/required:should.not-assessed">2</span>`,
+		`<span data-ze-rfc="profile/edge/required:should.not-built">1</span>`,
 		`<span data-ze-rfc="profile/edge/optional:register">complete</span>`,
 		`<span data-ze-rfc="profile/edge/optional:must.ze-proven">9</span>`,
-		`<div data-ze-rfc-bar="rfc1:must">Ze proven 3, OS verified 2, OS testing gap 1, Ze correctness gap 1,200</div>`,
+		`<div data-ze-rfc-bar="rfc1:must">Ze proven 3, OS verified 2, Proof pending 4, OS testing gap 1, Exclusion unchecked 5, Not assessed 7, Not built 1,184</div>`,
 		`<div data-ze-rfc-bar="rfc3:overview">requirements not reviewed</div>`,
 		`<div data-ze-rfc-bar="rfc4:must">Ze proven 9</div>`,
 		`<script src="../../../../assets/rfc-figures.js" defer></script>`,
@@ -186,7 +195,8 @@ func TestRFCProfilePagesCarryTheMarkersAndTheLastBuildValues(t *testing.T) {
 	}
 	mirror := readRFCProfileFile(t, output, rfcProfilesDirectory+"/edge/"+pageMirrorFile)
 	for _, want := range []string{"**MUST bar**: " + edgeRequiredMust, "**Overview bar**: " + edgeRequiredView,
-		"**MUST bar**: " + edgeOptionalMust, "| Mandatory requirements complete | not complete |", "| Ze correctness gap | 1,200 |",
+		"**MUST bar**: " + edgeOptionalMust, "| Mandatory requirements complete | not complete |",
+		"| Proof pending | 4 |", "| Exclusion unchecked | 5 |", "| Not assessed | 7 |", "| Not built | 1,184 |",
 		"[data/rfc/profiles/edge.json](../../../../data/rfc/profiles/edge.json)",
 		"[data/rfc/index.json](../../../../data/rfc/index.json)"} {
 		if !strings.Contains(mirror, want) {
@@ -228,7 +238,7 @@ func TestRFCFigureSetAnswersAsTheScriptDoes(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, check := range []struct{ name, subject, field, want string }{
-		{"a count grouped by thousands", "rfc1", "must.ze-gap", "1,200"},
+		{"a count grouped by thousands", "rfc1", "must.not-built", "1,184"},
 		{"a count below a thousand", "rfc1", "must.ze-proven", "3"},
 		{"an unwalked RFC", "rfc3", "must.ze-proven", "requirements not reviewed"},
 		{"an empty tier", "profile/core/optional", "must.ze-proven", "no rows"},
@@ -236,7 +246,6 @@ func TestRFCFigureSetAnswersAsTheScriptDoes(t *testing.T) {
 		{"an unwalked member keeps a gapless register open", "profile/lab/required", "register", rfcRegisterOpen},
 		{"a gapless walked set is complete", "profile/core/required", "register", rfcRegisterComplete},
 		{"an empty set is not complete", "profile/core/optional", "register", rfcRegisterOpen},
-		{"a Ze gap alone keeps the register open", "rfc6", "register", rfcRegisterOpen},
 		{"an OS gap alone keeps the register open", "rfc5", "register", rfcRegisterOpen},
 		{"a walked RFC with neither gap is complete", "rfc2", "register", rfcRegisterComplete},
 		{"a set sums walked members only", "profile/edge/required", "walked", "2"},
@@ -248,6 +257,39 @@ func TestRFCFigureSetAnswersAsTheScriptDoes(t *testing.T) {
 		}
 		if got != check.want {
 			t.Errorf("%s: %s:%s is %q, want %q", check.name, check.subject, check.field, got, check.want)
+		}
+	}
+	// Each open MUST section alone keeps the register open: rfc6 holds two
+	// rows in one of the four and none in the other three.
+	for _, open := range []struct {
+		name string
+		set  func(*rfc.MustSections)
+	}{
+		{"proof pending", func(m *rfc.MustSections) { m.ProofPending = 2 }},
+		{"exclusion unchecked", func(m *rfc.MustSections) { m.ExclusionUnchecked = 2 }},
+		{"not assessed", func(m *rfc.MustSections) { m.NotAssessed = 2 }},
+		{"not built", func(m *rfc.MustSections) { m.NotBuilt = 2 }},
+	} {
+		data := rfcProfileFiguresData()
+		for index := range data.stems {
+			if data.stems[index].Stem != "rfc6" {
+				continue
+			}
+			must := &rfc.MustSections{Total: 3, Kept: 3, ZeProven: 1, NotOwedByKind: map[string]int{}}
+			open.set(must)
+			data.stems[index].Must = must
+		}
+		openSet, err := loadRFCFigureSet(publishRFCProfileFigures(t, rfcProfileFiguresLedger(), data))
+		if err != nil {
+			t.Fatalf("%s alone: %v", open.name, err)
+		}
+		got, err := openSet.value("rfc6", "register")
+		if err != nil {
+			t.Errorf("%s alone: %v", open.name, err)
+			continue
+		}
+		if got != rfcRegisterOpen {
+			t.Errorf("%s alone keeps the register open: rfc6:register is %q, want %q", open.name, got, rfcRegisterOpen)
 		}
 	}
 	for _, refused := range []struct{ subject, field string }{
