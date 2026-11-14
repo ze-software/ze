@@ -4,6 +4,21 @@
 **Owner order:** Thomas asked for a review of the commits pending push, then said: "fix all the issues identified", "use agents", and "make sure you remember where we are because another session is running".
 **Recommendation given to Thomas:** do not push until findings 1 to 4 are fixed. He answered by ordering the fixes. He gave no push order.
 
+## Update 2026-11-14 (read this first)
+
+Four of the items this file left open were settled on 2026-11-14. The rest of the file is
+unchanged and still describes them as open.
+
+| Item | Outcome |
+|------|---------|
+| Finding 1, the inventory refusing the real tree | Gone: `./le repo inventory` runs on the real tree, exit 0, with no "unresolved execution ownership" refusal |
+| Finding 29, the migrated inventory tests with no recorded run | `./le test unit pkg path ./internal/le/repo/inventory/` passes |
+| Finding 16, lock order between the reactor and the plugin server in peer removal | Real, and fixed in `a6cb751160`: the removal capture took the process manager's lock while holding the reactor's, and a plugin restart holds that lock across its join. The capture now takes only leaf locks. A test fails on the old code and passes on the new |
+| Finding 28a, no negative test for RFC9234-5-9 | Not closed, and larger than a test: Ze does not enforce 5-9 at all. An independent judge refused the test written for it, which proves 5-6 at the egress filter and landed as such in `028620f16e`. The gap is a row in `plan/handover/39-residuals-of-closed-handovers.md` and in the coverage limits of `rfc/short/rfc9234.md` |
+
+Still open here: the adj-rib-in replay break that was never run, finding 30 (stalls tolerated,
+not explained), and the items the Status table hands to other specs.
+
 ## Status
 
 Final state. The fixes landed in `715fa2833e..7d397b3250`. Nothing was pushed, and no push is authorized.
