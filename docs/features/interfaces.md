@@ -1223,6 +1223,20 @@ an IPv6 address again when its lifetimes change), so a consumer that counts
 addresses keys them by identity: `connected` keeps the set of addresses that
 cover each prefix, not a count of events.
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go -- start, ListExisting -->
+
+Links and addresses reach the monitor on two netlink subscriptions, and nothing
+orders one against the other: an interface created and addressed straight away
+(`ip link add`, then `ip addr add`) can deliver its address before the monitor
+has read the link. The monitor then asks the kernel for that link by index and
+announces the address under its name, so the address is not lost; the link's
+own update still announces `interface/created` and its state afterwards. An
+address whose link the kernel no longer holds is not announced, since its link
+deletion follows. Any other failure of that lookup leaves the address
+unannounced until it changes, so the monitor logs it at WARN and raises a
+`doctor-iface-address-unattributed` error naming the address, the index and
+the kernel's error, with the commands that add the address again.
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- resolveAddrLink, handleAddrUpdate -->
+<!-- source: internal/plugins/iface/netlink/monitor_report_linux.go -- reportAddressUnattributed -->
 <!-- source: internal/plugins/connected/connected.go -- routeObserver.prefixes, handleAddrAdded, handleAddrRemoved -->
 
 A late subscriber emits `interface/address-replay-request` after subscribing

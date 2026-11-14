@@ -51,6 +51,10 @@ type monitor struct {
 	known        sync.Map // map[int]struct{} — known link indices
 	linkNames    sync.Map // map[int]string — index to name, updated by link events
 	knownRouters sync.Map // map[neighKey]struct{} — neighbors seen with NTF_ROUTER
+	// linkByIndex asks the kernel for a link the name cache does not hold yet
+	// (handleAddrUpdate, resolveAddrLink). It is netlink.LinkByIndex outside
+	// tests.
+	linkByIndex func(index int) (netlink.Link, error)
 	// ndSock is the RTNLGRP_ND_USEROPT socket; ndDone closes when its reader
 	// ends (nduseropt_linux.go).
 	ndSock *nl.NetlinkSocket
@@ -71,12 +75,13 @@ type addressKey struct {
 
 func newMonitor(eb ze.EventBus) *monitor {
 	return &monitor{
-		eventBus:  eb,
-		done:      make(chan struct{}),
-		stopCh:    make(chan struct{}),
-		ready:     make(chan struct{}),
-		replay:    make(chan struct{}, 1),
-		addresses: make(map[addressKey]addrEventPayload),
+		eventBus:    eb,
+		done:        make(chan struct{}),
+		stopCh:      make(chan struct{}),
+		ready:       make(chan struct{}),
+		replay:      make(chan struct{}, 1),
+		addresses:   make(map[addressKey]addrEventPayload),
+		linkByIndex: netlink.LinkByIndex,
 	}
 }
 
@@ -167,9 +172,10 @@ func (m *monitor) start() error {
 //
 // LinkSubscribe delivers only CHANGES, so without this the cache starts empty
 // and stays empty for every interface that predates the monitor. handleAddrUpdate
-// resolves an address event's interface through that cache and returns early on a
-// miss (see "unknown link index for addr event"), so every address event on such
-// an interface was silently dropped.
+// resolves an address event's interface through that cache. Before a miss asked
+// the kernel (resolveAddrLink), it returned early, so every address event on
+// such an interface was silently dropped; the seed still saves the dumped
+// addresses one lookup each.
 //
 // That is not a cosmetic gap. The interface component starts its monitor AFTER
 // boot-time applyConfig has already created the configured interfaces
@@ -417,14 +423,8 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 		}
 	}
 
-	nameVal, ok := m.linkNames.Load(au.LinkIndex)
+	ifaceName, ok := m.resolveAddrLink(au.LinkIndex, key.prefix)
 	if !ok {
-		logger().Debug("iface monitor: unknown link index for addr event",
-			"index", au.LinkIndex)
-		return
-	}
-	ifaceName, isStr := nameVal.(string)
-	if !isStr {
 		return
 	}
 	parent, unit, _ := resolveVLANUnit(ifaceName)
@@ -461,6 +461,47 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 		delete(m.addresses, key)
 	}
 	m.emit(eventType, payload)
+}
+
+// resolveAddrLink names the interface an address event belongs to.
+//
+// Links and addresses arrive on two netlink sockets, each read by its own
+// goroutine (LinkSubscribeWithOptions, AddrSubscribeWithOptions in start), and
+// run selects between the two channels at random. The kernel announces a new
+// link before its first address, but nothing keeps that order between the
+// sockets: an `ip link add`, `ip link set up`, `ip addr add` sequence can put
+// the address in front of run while the link's RTM_NEWLINK still waits on the
+// other channel. The cache then misses for a link that exists, and dropping the
+// address there lost it for good: it was never retained, so no replay restored
+// it, and the kernel sends no second RTM_NEWADDR. The connected plugin then
+// never offered the prefix (test/plugin/rib-import-central-bogons under load).
+//
+// On a miss the kernel is asked for the link, which is the authority the cache
+// copies. The answer is stored, so the RTM_NEWLINK that follows still announces
+// the link (m.known is untouched) and finds the address identity unchanged. A
+// link the kernel no longer holds took its addresses with it: its RTM_DELLINK
+// is still queued, and the address is not announced. Any other lookup failure
+// loses the address, so reportAddressUnattributed logs and raises it.
+func (m *monitor) resolveAddrLink(index int, prefix netip.Prefix) (string, bool) {
+	if nameVal, cached := m.linkNames.Load(index); cached {
+		name, isStr := nameVal.(string)
+		return name, isStr
+	}
+	link, err := m.linkByIndex(index)
+	if err != nil {
+		if _, gone := errors.AsType[netlink.LinkNotFoundError](err); gone {
+			logger().Debug("iface monitor: address event for a deleted link", "index", index)
+			return "", false
+		}
+		reportAddressUnattributed(index, prefix, err)
+		return "", false
+	}
+	attrs := link.Attrs()
+	if attrs == nil {
+		return "", false
+	}
+	m.linkNames.Store(index, attrs.Name)
+	return attrs.Name, true
 }
 
 // handleNeighUpdate processes neighbor table changes. It emits router
