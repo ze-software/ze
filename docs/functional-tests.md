@@ -3324,6 +3324,8 @@ A directive `le test peer` claims must stay in-block, so the subprocess receives
 
 `option=conn_map:value=router-id` sorts each accepted connection batch by the BGP router ID in OPEN. `option=conn_map:value=remote-ip` sorts each batch by the TCP source address, which stays stable when reload tests intentionally change router IDs. With `conn_map`, `option=tcp_connections:value=N` is the batch size; if expectations remain after one batch, `le test peer` accepts another batch and continues with the next `conn=N` rules.
 
+`option=stop-reading:value=true[:conn=N]` makes a check peer stop reading connection N after the daemon's first UPDATE, while it keeps the connection open and keeps sending KEEPALIVEs. Use it to test what ze does when a peer stops accepting data: `option=silent` stops the peer's writes and keeps its reads, and closing the connection is a different event. The peer lets go of that connection only once ze has closed it, so a later connection proves ze dropped the session (`test/plugin/session-peer-stops-reading.ci`). The keys and the refusals are in `docs/architecture/testing/ci-format.md`.
+
 **`option=env:var=K:value=V` is consumed by the test runner (it appends to `proc.Env` when spawning `ze`/`le test peer`/helper processes) and therefore MUST live at file level, outside any `stdin=peer:` block.** Placing it inside the block used to be silently dropped — the directive would be handed to `le test peer`, which ignores it, and the target process would never see the variable. The parser now rejects this at `bin/le test <suite> -list` time with an error naming the exact directive and pointing at this section.
 
 <!-- source: internal/test/runner/record_parse.go — parseAndAdd peer-block loop -->

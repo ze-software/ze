@@ -217,6 +217,13 @@ type Config struct {
 	// does the post-completion KEEPALIVE loop of option=linger -- silent with
 	// linger is not silent. Sink and echo are separate modes and ignore it.
 	Silent bool
+	// StopReading makes a check peer stop READING one connection once the
+	// daemon's first UPDATE has arrived on it (option=stop-reading:value=true).
+	// It is the mirror of Silent: the peer keeps the connection open and keeps
+	// writing KEEPALIVEs, so the daemon's receive hold timer never fires, while
+	// everything the daemon writes piles up unread until its writes block
+	// (stop_reading.go). Nil when the option is not declared.
+	StopReading *StopReadingDecl
 	// EstablishedFile names a file ze-peer creates, empty, when the daemon's
 	// first UPDATE arrives (option=established-file:path=<name>). A relative
 	// name resolves against ze-peer's working directory, which the functional
@@ -382,6 +389,11 @@ type Peer struct {
 	// remoteClosed is set only by an observed EOF/reset in waitRemoteClose.
 	// The final Run verdict checks it even when another completion path returns.
 	remoteClosed atomic.Bool
+	// connections counts the connections handleConnection has served, so the
+	// one in hand is numbered from 1 in the order the peer met them
+	// (option=stop-reading names its connection by that number). A check peer
+	// serves one connection at a time, so the count is the connection in hand.
+	connections atomic.Int32
 }
 
 // New creates a new test peer.
@@ -396,6 +408,11 @@ func New(config *Config) (*Peer, error) {
 		}
 		if config.ConnMap != "" {
 			return nil, errors.New("remote_close cannot be combined with conn_map")
+		}
+	}
+	if config.StopReading != nil {
+		if err := config.StopReading.validate(config); err != nil {
+			return nil, err
 		}
 	}
 	output := config.Output
@@ -735,6 +752,14 @@ func (p *Peer) doOpenHandshake(conn net.Conn) (header, body []byte, routerID uin
 
 func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 	p.printf("\nnew connection from %s\n", conn.RemoteAddr())
+	p.connections.Add(1)
+	if p.stopsReading() {
+		// Before the handshake, so the kernel never holds more of the daemon's
+		// bytes for this connection than the shrunk buffer allows.
+		if err := shrinkReceiveBuffer(conn); err != nil {
+			return Result{Success: false, Error: err}
+		}
+	}
 	p.checker.Init()
 	header, body, _, err := p.doOpenHandshake(conn)
 	if err != nil {
@@ -952,6 +977,11 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 		// Check mode: try to match message against expectations
 		p.replyKeepalive(conn)
 
+		// option=stop-reading: the daemon's first UPDATE on the connection the
+		// option names is the last frame the peer reads from it. The frame is
+		// still judged below like any other, and only then does the peer stop.
+		lastRead := header[18] == MsgUPDATE && p.stopsReading()
+
 		matched, silentAccept := p.checker.expectedOrKeepalive(msg)
 		if silentAccept {
 			// KEEPALIVE not in expectations, silently accept. A marker that also
@@ -960,6 +990,9 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 			// (checker.go, TakeMisorderNote).
 			if note := p.checker.takeMisorderNote(); note != "" {
 				p.printf("\n%s\n", note)
+			}
+			if lastRead {
+				return p.stopReading(ctx, conn)
 			}
 			continue
 		}
@@ -975,6 +1008,10 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 			// matched is repeated here. When THIS mismatch is the consequence of
 			// one of them, the diff alone names two innocent frames.
 			return Result{Success: false, Error: fmt.Errorf("message mismatch%s%s", diff, p.checker.misorderNotes())}
+		}
+
+		if lastRead {
+			return p.stopReading(ctx, conn)
 		}
 
 		if p.checker.Completed() {

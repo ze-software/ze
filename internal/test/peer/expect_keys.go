@@ -44,6 +44,7 @@ var peerOptionArms = map[string]peerOptionArm{
 	"linger":           {keys: []string{keyValue}, parse: parsePeerOptionLinger},
 	"remote_close":     {keys: []string{keyValue}, parse: parsePeerOptionRemoteClose},
 	"silent":           {keys: []string{keyValue}, parse: parsePeerOptionSilent},
+	"stop-reading":     {keys: []string{keyValue, keyStopReadingConn}, parse: parsePeerOptionStopReading},
 	"tcp_connections":  {keys: []string{keyValue}, parse: parsePeerOptionTCPConnections},
 }
 
