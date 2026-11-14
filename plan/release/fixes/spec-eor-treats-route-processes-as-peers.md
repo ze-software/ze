@@ -174,7 +174,11 @@ research starts from; the design gate confirms or corrects each in place.
 | The session-ready expectation set | `internal/component/bgp/reactor/peer.go`, `Peer.apiSyncExpected`, `Peer.resetAPISync`, `Peer.creditAPIReady`; filled from `Peer.initialUpdateReporters` (`peer_run.go`) | Names, per session, the processes that owe a session-ready report, and credits each named process once; an unnamed or repeated report is refused. Nothing waits on it for the marker since commit 9c93f82bb4. It is live for a second job: it is the population the replay fence is drawn from | extends: it stays, and its name and comments stop saying the End-of-RIB waits for it. Only the readiness channel beside it (`Peer.apiSyncReady`, `apiSyncReadyOnce`) has no product reader left; five tests read it, so its removal carries those tests |
 | The replay fence | `internal/component/bgp/reactor/peer.go`, `Peer.raiseReplayFence`, `Peer.lowerReplayFence`, `Peer.initialUpdateOwed`; owners from `Peer.replayFenceOwners` (`peer_run.go`) through `registry.FencesLiveForwards` (declared by the `rib`, `rs` and `rr` plugins) | From Established until every fence owner has reported, a LIVE forwarded UPDATE for this peer is parked while an item of the replay passes, so a replayed announce is not overtaken by a live change of the same prefix | extends: it is the part of the 2026-08-30 ruling the 2026-09-18 one leaves standing (which routes are ordered inside the initial update); this spec does not change what it holds |
 
-## Design (2026-11-14, for owner approval)
+## Design (2026-11-14, approved by the owner the same day)
+
+Approved at the design gate, each as recommended: D-1 approach A ("Join the
+forward queue"), D-2 ("Withhold all automatic"), D-3 ("End the session"), and
+the test work of D-5 stays in this spec.
 
 The owner decision leaves no ordering to build. The design is five repairs,
 each inside a mechanism that exists.
@@ -227,6 +231,20 @@ suppresses every later marker as redundant. The recovery ends the session
 instead (the peer's existing teardown path), so the next session's sync drains
 what is queued. A session whose initial update stopped at an unknown point has
 no table the peer can trust.
+
+How, from the producers read 2026-11-14:
+
+| Step | What the recovery does | Why |
+|------|------------------------|-----|
+| 1 | Clears the session's queueing gate and owed marker and wakes the forward overflow, as it does today | the sync goroutine is ending and must leave nothing parked on its own facts |
+| 2 | Moves the peer to Connecting, then ends its own session with the direct session teardown `runQueuedTeardown` uses (`sessionTeardown`), as an automatic stop | `Peer.Teardown` and `teardownOf` QUEUE a teardown while the sync is in flight, into the very queue nothing will drain. The state moves first for the reason `runQueuedTeardown` gives: a reconnect must not be refused as a collision |
+| 3 | Leaves the operation queue as it is | unlike a queued teardown, which discards routes the operator's stop makes moot, these operations are still owed. An operation the interrupted drain had already sent is sent again by the next session, which is harmless for an announce or a withdraw |
+| 4 | Sends no End-of-RIB before the NOTIFICATION | the initial update did not complete, so no marker is true |
+
+The NOTIFICATION is the one the run loop's own panic recovery sends for an
+internal fault (`docs/architecture/behavior/peer-lifecycle.md`, "`safeRunOnce`
+and panic recovery" and "Panic recovery summary"); the implementation reads
+that path and RFC 4486 before choosing a subcode, and does not invent one.
 
 ### D-4. The session-ready expectation set says what it is for
 
@@ -299,11 +317,15 @@ and the peer expects the route and the marker in one `seq` group.
 
 ### Transformation Path
 1. Current producer: drain the queue and clear its gate, wake forwarding overflow, then take the marker write hold and send the eligible family markers. Design still owes AC-2's ordering across that release/reacquire boundary and the treatment of process routes arriving concurrently.
+2. Settled 2026-11-14: that order stays exactly as it is. Nothing is held for the marker, so a route that is not of Ze's own table may be written on either side of it (owner decision). The sync's sequence is unchanged by this spec except on a recovered panic, where it ends the session (D-3).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Reactor ↔ plugin rail | the API sync expectation set, if it survives at all | No |
+| Process → reactor | the text End-of-RIB command, on DirectBridge and over RPC alike; the replay form is marked by route metadata the caller sets | Yes, read 2026-11-14 (`announceEOR`, `routeServer.sendEOR`) |
+| Process → reactor | the session-ready report, which lowers the replay fence and nothing else | Yes, read 2026-11-14 (`Peer.creditAPIReady`, `Peer.lowerReplayFence`) |
+| Reactor → forward pool | the marker as a forward-queue item of the initial update | Yes, read 2026-11-14 (`queueEndOfRIB`, `settleEndOfRIB`) |
 
 ### Integration Points
 - The four tests named in the Task, and whatever each asserts once the ordering is the product's
@@ -311,7 +333,19 @@ and the peer expects the route and the marker in one `seq` group.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | [fill during design] | [fill during design] |
+| No bypassed layers (data flows through the intended path) | Yes after D-1 | Today the suppression branch bypasses the forward queue the design page says every marker joins. D-1 removes the bypass for the explicit form |
+| No engine code names a plugin or a feature | Yes | The replay form is told apart by the meta key the caller sets (`ReplayEORMeta`), and `manual-eor` is the peer's own setting; no plugin name is read |
+| Works when the plugin runs in another process | Yes | A process asks for the marker through the text command on both transports; nothing in D-1 to D-4 adds an in-process call |
+
+### Path of an End-of-RIB a process asks for, after D-1 and D-2
+
+1. The process sends the text command (`update text nlri eor` or `mp <family> eor`); the ExaBGP bridge writes the same command for `announce eor`.
+2. The command handler picks the replay form when the caller set the replay meta, and the explicit form otherwise.
+3. `announceEOR`, per selected peer: a peer that is not Established or did not negotiate the family is skipped.
+4. Replay form: it stands down, answered as handled, when the peer has `manual-eor`, when the session still owes its sync marker, or when the family is already claimed. Otherwise it claims the family.
+5. Explicit form: it claims the family when unclaimed and is never stood down.
+6. The marker joins the tail of the peer's forward queue as an item of the initial update.
+7. The forward worker holds it while the session's queueing gate is closed, then writes it after everything queued ahead of it, and counts it as sent once the write has flushed. A failed write hands back a claim the item owns.
 
 ## Risks & Assumptions
 
@@ -333,7 +367,7 @@ and the peer expects the route and the marker in one `seq` group.
 | R-6 | An explicit marker that did not take the claim hands back a claim it does not own when its write fails (`settleEndOfRIB` releases by family, whoever claimed) | a second automatic marker for one family after a failed explicit write | read at implementation; if real, the forward item records whether it owns the claim |
 | R-7 | A test reactor without a forward pool writes an explicit marker at once, ahead of queued routes | a unit test on that path sees the marker first | production always builds the pool (`reactor.go`); the new unit tests run with one, and the no-pool arm keeps the suppression for both forms |
 | R-8 | Ending the session on a recovered panic loops if the panic is deterministic for that peer's table | reconnect, panic, reconnect | the existing reconnect backoff bounds it, and the panic is logged with its stack each time; a looping peer is visible where a silently stuck one was not |
-| R-9 | A `manual-eor` operator relies on today's replay marker reaching the peer | a route-server client configured with `manual-eor` stops receiving any marker until a process asks | the gate question on D-2; if the owner keeps today's behaviour, AC-6's survivor clause changes and D-2 is dropped |
+| R-9 | A `manual-eor` operator relies on today's replay marker reaching the peer | a route-server client configured with `manual-eor` stops receiving any marker until a process asks | the gate question on D-2; if the owner keeps today's behaviour, AC-6's survivor clause changes and D-2 is dropped. Answered 2026-11-14: withhold all automatic markers. The change is stated in `docs/guide/configuration.md` and in the news fragment at closure, so such an operator reads it |
 | R-4 | A hold added before the marker parks forwards that nothing wakes | a forwarded UPDATE delivered only when the next one arrives | every store that ends a hold is followed by the overflow wake, and a unit test asserts delivery with no further traffic |
 
 ## Blast Radius
@@ -397,7 +431,11 @@ stand; AC-3 is widened by AC-4. Each row names what is still permitted and why.
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| the sync timeout, if it survives at all | [fill during design] | [fill] | [fill] | [fill] |
+| the sync timeout, if it survives at all | none | N-A | N-A | N-A |
+
+No numeric input is added or changed. The per-peer sync timeout was removed by
+commit 9c93f82bb4 and nothing replaces it; the peer-up barrier's two-second
+bound is not touched.
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -472,18 +510,28 @@ stand; AC-3 is widened by AC-4. Each row names what is still permitted and why.
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Correctness | the marker still goes out once per family per session, and no forwarded UPDATE precedes it |
+| Correctness, restated after the owner decision | Ze's own table precedes its marker; one AUTOMATIC marker per family per session; an explicit marker is written once per request and after the peer's queued routes; nothing is held back for the marker |
+| No vacuous test | each new test is seen red against the unchanged code first; each changed race test still goes red under its recorded break |
+| No silent answer | no branch of `announceEOR` counts a marker as sent that was not written or claimed for the sync's own marker |
 
 ### Deliverables Checklist
 
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The marker no longer waits for a route-creating process | AC-1's test |
+| A requested marker is written, after the queued routes, and answered truthfully | `test/plugin/api-eor-during-initial-sync.ci`, `test/exabgp-compat/api/api-manual-eor.ci` with no sleep |
+| No automatic marker on a `manual-eor` peer | `TestManualEORPeerReceivesOnlyTheRequestedMarker` |
+| No Established peer with an undrainable queue | `TestInitialSyncPanicEndsTheSession` |
+| No sentence says the End-of-RIB waits for a session-ready report | a search of `docs/`, `internal/`, `pkg/` and `test/` for the phrases listed in Files to Modify returns nothing |
+| The race tests assert no unpromised order | each of the eight files carries the marker and its first racing route in one `seq` group, with the test judge's approval on its commit |
 
 ### Security Review Checklist
 
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | none: this adds no external input |
+| Resource exhaustion | a process that asks for a marker repeatedly during the sync adds one forward-queue item per request; the forward queue's existing bound and overflow accounting apply, and the command is already limited to processes the peer grants a send word |
+| Denial of service through D-3 | a peer or a process cannot trigger the sync's panic recovery by input this spec adds; a deterministic panic becomes a visible reconnect loop under the existing backoff instead of a silent stall |
 
 ### Failure Routing
 
@@ -511,7 +559,7 @@ stand; AC-3 is widened by AC-4. Each row names what is still permitted and why.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-3 all demonstrated
 - [ ] Every user story has a working path and a passing test
-- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] The scoped evidence passes, run by the main thread: the reactor package under `ze_bgp`, the named unit tests, and each functional test in the test plan. No agent runs any `./le verify` command; GitHub CI verifies the pushed commit (`ai/META-DECISIONS.md`)
 - [ ] Feature code integrated (`internal/*`), not library-only
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
