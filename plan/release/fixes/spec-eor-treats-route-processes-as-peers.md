@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Priority | P1 |
 | Release reason | Required correctness of shipped configuration, routing or forwarding behavior; existing partial implementations and remaining proof are retained. |
 | Scope | bgp |
@@ -296,6 +296,44 @@ The per-file table the research agent wrote is
 `tmp/session/2026-11-14-111143/scratch/eor-order-census.md`; it is a session
 file, so the lists above are the durable record.
 
+**The fifteen unsure files, settled 2026-11-14.** A second read decided each,
+and re-read the destination side of the two race files that had been
+classified from their source side alone. This table replaces the "Unsure" row
+and list above; the two confirmed race files keep their place in the race list.
+
+| File | Class | What decides it | Change owed |
+|------|-------|-----------------|-------------|
+| `test/reload/bgp-policy-final-reload.ci`, `test/plugin/policy-final-disposition.ci` | Held | their fixtures wait for every peer's marker before the scenario sends anything | none |
+| the seven `test/reload/rfc8212-*.ci` files | Held | `rfc8212ReloadDriver` (`internal/test/fixture/rfc8212_reload.go`) calls `waitPeersEOR03` for the three sessions before its scenario; read by the main thread | none |
+| `test/reload/bgp-healthcheck-probe-reload.ci`, `test/reload/bgp-healthcheck-probe-and-pool-reload.ci`, `test/reload/bgp-watchdog-pool-reload.ci` | Held | the stages script polls the peer's sent counter, which counts the marker, before it reloads; the marker and the announce already share one `seq` group | none |
+| `test/reload/bgp-role-export-reload.ci` | Usually held | the second UPDATE follows a reload, and only the reload's duration puts it after the marker | its stages script waits for the marker counter of both peers before the reload, which makes it held |
+| `test/plugin/healthcheck-cycle.ci`, `test/plugin/as112-healthcheck-withdraw.ci` | Race, and one group cannot express it | the probe waits only for the plugins to be ready; the marker can land before the announce, between it and the withdraw, or after both, and the withdraw must follow the announce | the marker expectation is dropped from these two files, through the test judge: `bgp-healthcheck-probe-reload.ci` keeps asserting the marker beside a probe's announce, and the checker tolerates a marker nobody expects |
+| `test/reload/bgp-filter-export-reload-next-update-only.ci` | Race, confirmed | the source sends at session up; the destination's marker races that first UPDATE | the destination's marker and first UPDATE share one group and the later expectations are renumbered behind them; its stages script waits for the source's marker counter before its first route |
+| `test/reload/rfc7999-blackhole-agreement-removed-by-reload.ci` | Race, confirmed | same on its `destb` block; on `destc` nothing waits for that session | `destb` as above; its stages script waits for the marker counter of the source and of `destc` before its first route. `destc`'s `reject=` rests on its fence route, not on the marker |
+
+The five RPKI relay tests whose fixture never requires the marker are
+`test/plugin/bgp-rr-rpki-pending-withdraw-relay.ci`,
+`test/plugin/bgp-rs-rpki-pending-withdraw-relay.ci`,
+`test/plugin/bgp-rr-rpki-revalidate-relay.ci`,
+`test/plugin/bgp-rs-rpki-revalidate-relay.ci` and
+`test/plugin/bgp-rs-rpki-revalidate-relay-forked.ci`. Their fixture can pass
+its settle wait before any marker is sent and then tear the first session
+down, so the first connection's marker may never be written.
+
+So the test work is exactly this: six `.ci` files gain a shared `seq` group
+(the five race files under `test/plugin/` and
+`bgp-filter-community-reload.ci`'s `destb` block), two reload-staged race files
+gain a shared group and a marker wait, one usually-held file gains a marker
+wait, two healthcheck files drop a marker expectation, and one fixture
+function waits for the marker. The marker-counter wait in a stages script
+assumes a single-family peer, which all the edited files are.
+
+One thing the read did not settle: the 43 held files that push a route from a
+stages script to a peer that may still be in its initial sync. Such a route
+is queued and drains before the sync's marker (`sendInitialRoutes`, read by
+the main thread), so a test expecting the marker first there would be wrong
+the other way. Phase 5 checks those files for that shape before it closes.
+
 The two announce-withdraw tests do not regain a marker expectation: their
 withdraw can legitimately reach the wire before the marker, and no `seq` form
 says "required, anywhere across two groups". A new test carries what they
@@ -354,7 +392,7 @@ and the peer expects the route and the marker in one `seq` group.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A process's routes arriving AFTER the marker is correct, because a peer's do | owner ruling, 2026-09-18 | the 2026-08-30 ruling still governs and only the window closes, by widening `forwardOrderHold` instead | owner confirmation at the gate | confirmed 2026-11-14: the ruling is right, and the marker has no bearing on what Ze forwards |
 | A-2 | AC-2 (a forwarded route never precedes the marker) is the order the owner wants | the skeleton's AC table, written 2026-09-18; no owner sentence states it | FRR and BIRD both send a forwarded route before their marker and RFC 4724 is silent, so AC-2 makes Ze stricter than both with no RFC sentence behind it; the header of `test/plugin/ipv4-announce-withdraw.ci` already reads the ruling as "A peer's routes have no defined order against our marker either" | owner decision at the research gate | broken 2026-11-14: Thomas ruled the marker has no bearing on what Ze forwards, so no order is promised and AC-2 is withdrawn |
-| A-3 | The roughly 77 functional tests that place the marker before a forwarded route are load-dependent on the race rather than proofs of an order | census by the research agent over `test/` (652 files with a marker expectation); `redistribute-export-reject` read by the main thread, the rest classified by pattern | some of them hold the order by another mechanism (a source that sends only after the destination's marker), and they are unaffected by the decision | reading each affected test at design, before any is changed | unvalidated |
+| A-3 | The roughly 77 functional tests that place the marker before a forwarded route are load-dependent on the race rather than proofs of an order | census by the research agent over `test/` (652 files with a marker expectation); `redistribute-export-reject` read by the main thread, the rest classified by pattern | some of them hold the order by another mechanism (a source that sends only after the destination's marker), and they are unaffected by the decision | reading each affected test at design, before any is changed | confirmed in part 2026-11-14: a per-file read found 71 such tests, of which 55 hold the order by a real wait, 10 rest on timing (8 race, 2 healthcheck), 1 is usually held and 5 share a fixture that never requires the marker. The 43 first classed as held are confirmed again in phase 5 for the stages-script shape D-5 names |
 | A-4 | A route sent after the marker costs a graceful-restart helper a flush and relearn only when the helper held it as stale | derived by the research agent from FRR `bgp_update_receive_eor` and BIRD `bgp_rx_end_mark`; not re-read by the main thread | the cost is larger or absent, which changes the weight of the choice but not what the RFC permits | reading both receiver functions at design | unvalidated |
 
 ### Risks
@@ -446,6 +484,9 @@ bound is not touched.
 | the eight race files of D-5 | `test/plugin/`, `test/reload/` | AC-4 | changed through the test judge |
 | the five RPKI relay tests | fixture `internal/test/fixture/plugin_fixture_15_rpki.go` | AC-4: the fixture waits for the marker counter | fixture changed |
 | the fifteen unsure files of D-5 | `test/plugin/`, `test/reload/` | AC-4, after the deciding fact is read | assessed at implementation |
+| settled 2026-11-14, replacing the row above: `bgp-role-export-reload` | `test/reload/bgp-role-export-reload.ci` | AC-4: its stages script waits for both peers' marker counter before the reload | existing, changed |
+| `healthcheck-cycle`, `as112-healthcheck-withdraw` | `test/plugin/healthcheck-cycle.ci`, `test/plugin/as112-healthcheck-withdraw.ci` | AC-4: the marker expectation, which no `seq` form can place, is dropped; the announce and the withdraw are still required in order | existing, changed through the test judge |
+| the twelve held files of the settled table | `test/reload/`, `test/plugin/` | AC-4's permitted survivor | existing, unchanged |
 | `redistribute-export-reject` | `test/plugin/redistribute-export-reject.ci` | AC-3: asserts what the product promises about the marker and the routes around it | existing, owes assessment |
 | `ipv4-announce-withdraw` | `test/plugin/ipv4-announce-withdraw.ci` | AC-3 | existing, owes assessment |
 | `ipv6-announce-withdraw` | `test/plugin/ipv6-announce-withdraw.ci` | AC-3 | existing, owes assessment |
