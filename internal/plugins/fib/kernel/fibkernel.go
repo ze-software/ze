@@ -499,6 +499,13 @@ func (f *fibKernel) flushRoutes() {
 	for prefix := range f.retained {
 		owned[prefix] = struct{}{}
 	}
+	// A table the sweep was refused in stays listed for its prefix whatever
+	// happened to the prefix since: a protocol may have installed it in
+	// another table and withdrawn it again, which leaves it in neither map
+	// above while the refused route is still in the kernel.
+	for prefix := range f.staleTables {
+		owned[prefix] = struct{}{}
+	}
 	for prefix := range owned {
 		if err := f.flushOneLocked(prefix, rb); err != nil {
 			failed++

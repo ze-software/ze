@@ -222,11 +222,12 @@ func TestFIBKernelFlushRetriesARouteTheSweepCouldNotDelete(t *testing.T) {
 }
 
 // refusingRichBackend is a rich backend that records every rich delete and
-// refuses it. Its constructor supplies the plain backend; its zero value is
-// invalid.
+// refuses it, or, when onlyTable is set, refuses the deletes in that table
+// alone. Its constructor supplies the plain backend; its zero value is invalid.
 type refusingRichBackend struct {
 	*mockBackend
-	deletes []installedRoute
+	deletes   []installedRoute
+	onlyTable uint32
 }
 
 func (backend *refusingRichBackend) addRichRoute(RichRoute) error     { return nil }
@@ -234,6 +235,9 @@ func (backend *refusingRichBackend) replaceRichRoute(RichRoute) error { return n
 
 func (backend *refusingRichBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
 	backend.deletes = append(backend.deletes, installedRoute{prefix: prefix.String(), table: tableID})
+	if backend.onlyTable != 0 && tableID != backend.onlyTable {
+		return nil
+	}
 	return errors.New("operation not permitted")
 }
 
@@ -260,5 +264,50 @@ func TestFIBKernelFlushRetriesTheSweepsRefusedTable(t *testing.T) {
 	}
 	if len(backend.deleted) != 0 {
 		t.Errorf("the flush made plain main-table deletes %v for a route listed in table 100", backend.deleted)
+	}
+}
+
+// Goal: a refused stale table is still flushed when the prefix was installed
+// again in another table and then withdrawn before stop. Method: a rich
+// backend that refuses the deletes in table 100 only, startup listing the prefix in main and in
+// table 100, an Add for it in main inside the sweep window, sweepStale (the
+// table 100 delete is refused), a Withdraw, then flushRoutes: the flush tries
+// table 100 again.
+func TestFIBKernelFlushRetriesARefusedTableAfterAWithdraw(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	backend := &refusingRichBackend{mockBackend: newMockBackend(), onlyTable: 100}
+	prefix := netip.MustParsePrefix("198.18.132.0/24")
+	backend.zeRoutes = []installedRoute{{prefix: prefix.String(), table: 0}, {prefix: prefix.String(), table: 100}}
+	fib := newFIBKernel(backend)
+	stale := fib.startupSweep()
+
+	fib.processEvent(makeSysribPayload([]incomingChange{
+		{Action: routeaction.Add, Prefix: prefix, NextHop: netip.MustParseAddr("192.168.32.1"), Protocol: "bgp"},
+	}))
+	fib.sweepStale(stale)
+	sweepAttempts := len(backend.deletes)
+	if sweepAttempts != 1 || backend.deletes[0].table != 100 {
+		t.Fatalf("control: the sweep's rich deletes = %+v, want one attempt in table 100", backend.deletes)
+	}
+	fib.processEvent(makeSysribPayload([]incomingChange{
+		{Action: routeaction.Withdraw, Prefix: prefix, Protocol: "bgp"},
+	}))
+	afterWithdraw := len(backend.deletes)
+	if _, installed := fib.installed[prefix.String()]; installed {
+		t.Fatalf("control: the withdraw left %s installed", prefix)
+	}
+
+	fib.flushRoutes()
+
+	retried := false
+	for _, del := range backend.deletes[afterWithdraw:] {
+		if del.prefix == prefix.String() && del.table == 100 {
+			retried = true
+		}
+	}
+	if !retried {
+		t.Fatalf("the flush did not try table 100 again after the withdraw; rich deletes = %+v", backend.deletes)
 	}
 }

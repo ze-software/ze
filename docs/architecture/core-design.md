@@ -3076,7 +3076,7 @@ unreported.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- startupSweep, sweepStale, sweepPrefixLocked, delListedLocked -->
 <!-- test: internal/plugins/fib/kernel/named_table_integration_linux_test.go -- TestKernelStartupSweepRemovesNamedTableRoute, TestKernelFlushReportsNamedTableResidue -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_list_test.go -- TestFIBKernelSweepReportsRefusedDelete -->
-<!-- test: internal/plugins/fib/kernel/fibkernel_flush_tables_test.go -- TestFIBKernelFlushRetriesARouteTheSweepCouldNotDelete -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_flush_tables_test.go -- TestFIBKernelFlushRetriesARouteTheSweepCouldNotDelete, TestFIBKernelFlushRetriesTheSweepsRefusedTable, TestFIBKernelFlushRetriesARefusedTableAfterAWithdraw -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_tables_test.go -- TestFIBKernelStartupReportsUnlistedKernel, TestFIBKernelSweepNamesTheLowestFailure, TestFIBKernelFlushDeletesEachListedTableOnce, TestFIBKernelFlushReportsPlainBackendNamedTable -->
 
 When `BestChangeEntry` carries rich fields (route type, metric, table ID, ECMP paths,
