@@ -219,6 +219,7 @@ WHEN the marker goes out.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | grace-bound-hides-a-missing-signal | 2026-08-30 | `(*Peer).SignalAPIReady` anonymous sync counter masks a missing route-process signal |
+| guard-addition-drops-what-it-refuses | 2026-11-14 | `announceEOR` drops a `manual-eor` peer's End-of-RIB during the sync or a queued drain and answers it sent |
 
 ## Checklist
 
