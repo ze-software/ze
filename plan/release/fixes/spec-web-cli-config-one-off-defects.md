@@ -187,6 +187,7 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 | `help-answers-unknown-for-its-own-command` | 2026-09-07 | `ze plugin command help` |
 | `help-lists-a-root-verb-twice` | 2026-10-08 | `zeUsage` |
 | `inert-registration-offered-as-a-choice` | 2026-10-12 | `InternalPluginNameValidator` |
+| `inert-registration-offered-as-a-choice` | 2026-11-14 | attached console of `ze start --cli` offers offline-root local-data commands |
 | `invariant-enforced-by-an-absent-call-site` | 2026-10-14 | `ze:hidden` on commands |
 | `invariant-enforced-by-an-absent-call-site` | 2026-10-08 | `yang.Module.Registrar` |
 | `listener-assumes-an-element-target` | 2026-08-18 | web workbench, htmx |
