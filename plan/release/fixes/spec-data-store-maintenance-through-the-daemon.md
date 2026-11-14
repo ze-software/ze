@@ -33,11 +33,15 @@ until the operator stops the daemon. A record removed while the daemon is
 stopped clears the report, but the operator has to take the box down to clear
 a warning.
 
-Thomas decided (2026-11-12, "ok a + c"), on decision 1 of
-`plan/handover/38-single-owner-lifecycle-children-2-and-5.md`:
+Thomas decided on 2026-11-12 who clears an orphan FlowSpec record (AC-16 of
+`spec-single-owner-lifecycle-5-session-end-locals`). The report's fix withdrew
+the rule at the peers and nothing then removed the record, so the warning stood
+after the operator did what it said. His words: "ok a + c".
 
-- (a) while the section is configured, the fix is the plugin restart, built in
-  `spec-single-owner-lifecycle-5-session-end-locals` (closed).
+- (a) while the section is configured, the fix is
+  `ze request plugin restart ddos-flowspec`: the start path withdraws the
+  recorded rule from its own record and removes it. Built in `85507073e8`
+  under that spec (closed, `plan/learned/046-session-end-locals.md`).
   Not this spec.
 - (c) when the section has been removed, the operator withdraws with the
   command the report prints, then removes the record with `ze data rm`
