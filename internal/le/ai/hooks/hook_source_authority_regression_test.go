@@ -13,6 +13,7 @@ import (
 	docconsistency "github.com/ze-software/ze/internal/le/doc/consistency"
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
 	docste "github.com/ze-software/ze/internal/le/doc/ste"
+	"github.com/ze-software/ze/internal/le/heavytool"
 	"github.com/ze-software/ze/internal/le/hookruntime"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/rfc"
@@ -51,6 +52,9 @@ func hookAuthorityPackages(t *testing.T, checkout string) []string {
 		docste.WordCount,
 		// postJournal consumes the native journal verdict.
 		specjournal.ValidateFile,
+		// bashSubagentHeavy and the raw-job guard consume the heavy-tool
+		// definition (Program, Split, LeWords, Linter).
+		heavytool.Program,
 	}
 	packages := make(map[string]bool)
 	for _, producer := range producers {
