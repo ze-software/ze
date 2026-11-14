@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -82,12 +83,40 @@ func RegisterPluginKeys(owner string, keys ...zefs.KeyEntry) {
 
 // PluginKeyAllowed reports whether the registered owner may reach this key.
 func PluginKeyAllowed(owner, key string) bool {
+	grants.RLock()
+	defer grants.RUnlock()
+	return grantAdmits(grants.owners[owner], key)
+}
+
+// PluginKeyOwners returns the plugin process names granted this key, sorted,
+// in a slice the caller owns. A name is in the answer exactly when
+// PluginKeyAllowed answers true for it, because both judge a grant with
+// grantAdmits. The reader cannot fail: grants are compiled in by registration
+// and nothing is read from the store, so an empty answer is the real answer
+// that no plugin holds a grant for the key, never a stand-in for an error.
+// Safe for concurrent use.
+func PluginKeyOwners(key string) []string {
+	grants.RLock()
+	defer grants.RUnlock()
+	var owners []string
+	for owner, owned := range grants.owners {
+		if grantAdmits(owned, key) {
+			owners = append(owners, owner)
+		}
+	}
+	slices.Sort(owners)
+	return owners
+}
+
+// grantAdmits reports whether one of an owner's grants matches key. It is the
+// one matching rule for every reader of the grants. A key that is not a valid
+// slash-separated path matches no grant, so a template parameter never admits
+// a "." or ".." element. The caller MUST hold the grants read lock.
+func grantAdmits(owned []stateGrant, key string) bool {
 	if !fs.ValidPath(key) {
 		return false
 	}
-	grants.RLock()
-	defer grants.RUnlock()
-	for _, grant := range grants.owners[owner] {
+	for _, grant := range owned {
 		if grant.match.MatchString(key) {
 			return true
 		}
