@@ -78,7 +78,7 @@ func TestClientEagerIPCPReaders(t *testing.T) {
 					var ipcpID, lcpID, papID, rejectID uint8
 					// RFC 1661 Sections 3.4-3.6.
 					_, err := negotiatePhases(w, reader,
-						sessionConfig{mtu: 1492, username: "subscriber", password: "secret"},
+						sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492, username: "subscriber", password: "secret"},
 						0, nil, &ipcpID, stop, slog.New(gate), &lcpID, &papID, &rejectID, nil)
 					result <- err
 				}()

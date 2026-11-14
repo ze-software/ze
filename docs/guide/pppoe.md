@@ -187,6 +187,18 @@ therefore authenticates against those users, on PPPoE and on L2TP.
 
 ### PPPoE client keepalive and redial
 
+The client's `lcp restart-timer` sets the Configure-Request retransmission
+interval in milliseconds (100 to 60000, default 3000). `lcp max-configure`
+sets the unanswered request budget (1 to 255, default 10). The first request
+counts. A valid negotiation reply renews the budget where the LCP state
+machine requires it. A timing-only reload keeps the current session and its
+LCP settings, including during renegotiation. The next session uses the new
+settings. A separate convergence deadline, twice the configured timer times
+the request budget, bounds a peer that repeatedly Naks each request.
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client lcp -->
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP -->
+<!-- source: internal/component/iface/pppoe_client.go -- setTiming, pppoeClientConfigChanged -->
+
 A `pppoe-client` entry detects a dead access concentrator with LCP
 Echo-Requests. `keepalive interval` sets the seconds between two requests
 (default 10), and `keepalive failures` sets how many unanswered requests in a

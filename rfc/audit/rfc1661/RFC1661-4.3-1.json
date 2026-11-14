@@ -1,13 +1,13 @@
 {
-  "note": "Rejudge 2026-11-08: three new client-role positives drive the real frame consumers with a peer LCP Configure-Request (Identifier 0x73, Magic 0x55667788): TestRFC1661ClientRenegotiatesLCPDuringAuth (runClientAuth; also requires a second CHAP Response after the restart), ...DuringIPCP (negotiateIPCP) and ...InNetworkPhase (keepaliveLoop). assertClientRenegotiationReply requires the exact Configure-Ack preceded directly by ze's own LCP Configure-Request, so a consumer that ignores or drops the request is red; observed-red records exist on the admission branches. ppp units unchanged: TestRFC1661ConfigureRequestInOpenedRenegotiates and the Opened+RCR/RXR table controls.",
+  "note": "Independent rejudge 2026-11-14 after explicit client LCP timing fixtures: the changed network-phase unit still requires the exact peer Identifier and Magic in Configure-Ack, immediately preceded by our Configure-Request. The Auth and IPCP consumer tests retain the same outputs and the Auth test requires a second CHAP Response. The unchanged ppp tests require Ack-Sent and scr/sca or scr/scn from Opened, with an Echo control keeping Opened without scr/tld. The new timing fields carry the previous three-second and ten-request defaults, so no input, acceptance boundary or assertion was removed. Re-read keepaliveLoop, connectedSession.restart, negotiatePhases, negotiateLCP and the RFC Section 4.1 table and Section 4.3 implementation note. The changed unit still owes its observed-red record retake.",
   "requirement_sha": "f615a6f02dc3c0c1",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates": "480d72ff3c4dac57",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoDoesNotRenegotiate": "86bc304723db0e98",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened": "86bc304723db0e98",
-    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringAuth": "7c4bbb4e8ff594b9",
-    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringIPCP": "7c4bbb4e8ff594b9",
-    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase": "7c4bbb4e8ff594b9"
+    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringAuth": "1bf710e06a6535c6",
+    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringIPCP": "1bf710e06a6535c6",
+    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase": "1bf710e06a6535c6"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates": "10e4e2442df38e91",
@@ -15,7 +15,7 @@
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened": "75ec212ec74da79a",
     "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringAuth": "a6780bab10270238",
     "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringIPCP": "6f9ee50d166516f3",
-    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase": "f4f2a56a6be6e75f"
+    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase": "03dc9f9e628e6a8a"
   },
   "verdict": "enforced"
 }

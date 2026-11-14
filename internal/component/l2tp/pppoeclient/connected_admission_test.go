@@ -141,7 +141,7 @@ func TestConnectedTransitionDrain(t *testing.T) {
 		close(control)
 		initial := testFrameReader(t, control, nil)
 		var initialBuf [ppp.MaxFrameBufLen]byte
-		_, initialErr := negotiateLCP(io.Discard, initial, initialBuf[:], sessionConfig{mtu: 1492}, clientMagic, nil, make(chan struct{}), slog.Default(), new(uint8))
+		_, initialErr := negotiateLCP(io.Discard, initial, initialBuf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, make(chan struct{}), slog.Default(), new(uint8))
 		if !errors.Is(initialErr, io.EOF) {
 			t.Fatalf("initial nil unit refused: %v", initialErr)
 		}
@@ -154,7 +154,7 @@ func TestConnectedTransitionDrain(t *testing.T) {
 		w := &recordingRWC{}
 		var buf [ppp.MaxFrameBufLen]byte
 		// RFC 1661 Section 3.4: discard non-LCP input in establishment.
-		_, err := negotiateLCP(w, reader, buf[:], sessionConfig{mtu: 1492}, clientMagic, nil, make(chan struct{}), slog.Default(), new(uint8))
+		_, err := negotiateLCP(w, reader, buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, make(chan struct{}), slog.Default(), new(uint8))
 		if !errors.Is(err, io.ErrUnexpectedEOF) {
 			t.Fatalf("read failure lost: %v", err)
 		}

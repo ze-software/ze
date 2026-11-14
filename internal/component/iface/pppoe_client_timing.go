@@ -1,4 +1,4 @@
-// Design: docs/architecture/l2tp/cpe-1-pppoe-client.md -- keepalive and reconnect timing
+// Design: docs/architecture/l2tp/cpe-1-pppoe-client.md -- LCP, keepalive and reconnect timing
 // Related: pppoe_client.go -- run applies the reconnect bounds
 // Related: config.go -- parsePPPoEClientEntry reads the timing leaves
 
@@ -13,20 +13,27 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 )
 
-// The bounds of the pppoe-client keepalive and reconnect leaves. They repeat
+// The bounds of the pppoe-client LCP, keepalive and reconnect leaves. They repeat
 // the YANG ranges on purpose: Validate is the second check of the pair, so a
 // caller that builds a PPPoEClientTiming without the config still cannot pass
 // a zero interval to a ticker or a zero delay to the redial loop.
 const (
 	pppoeTimingSecondsMax     = 3600
 	pppoeKeepaliveFailuresMax = 255
+	pppoeLCPRestartTimerMin   = 100 * time.Millisecond
+	pppoeLCPRestartTimerMax   = 60 * time.Second
+	pppoeLCPMaxConfigureMax   = 255
 )
 
 // PPPoEClientTiming holds the timers of one PPPoE client that a reload
-// changes without restarting the session: dead-peer detection by LCP
-// Echo-Request and the redial hold-off. Its zero value is invalid; Validate
-// refuses it.
+// changes without restarting the session: LCP negotiation, dead-peer detection
+// by LCP Echo-Request and the redial hold-off. Its zero value is invalid;
+// Validate refuses it.
 type PPPoEClientTiming struct {
+	// LCPRestartTimer is the wait after each LCP Configure-Request.
+	LCPRestartTimer time.Duration
+	// LCPMaxConfigure counts requests sent without a valid negotiation reply.
+	LCPMaxConfigure int
 	// KeepaliveInterval is the time between two LCP Echo-Requests.
 	KeepaliveInterval time.Duration
 	// KeepaliveFailures is the count of unanswered Echo-Requests in a row
@@ -65,6 +72,21 @@ func (t PPPoEClientTiming) Validate() error {
 			"  set reconnect delay-max to %d or more, or lower reconnect delay-min",
 			int(t.ReconnectDelayMax/time.Second), minSeconds, minSeconds)
 	}
+	if t.LCPRestartTimer < pppoeLCPRestartTimerMin {
+		return fmt.Errorf("lcp restart-timer %s is outside 100..60000 milliseconds\n  set lcp restart-timer to a value in that range", t.LCPRestartTimer)
+	}
+	if t.LCPRestartTimer > pppoeLCPRestartTimerMax {
+		return fmt.Errorf("lcp restart-timer %s is outside 100..60000 milliseconds\n  set lcp restart-timer to a value in that range", t.LCPRestartTimer)
+	}
+	if t.LCPRestartTimer%time.Millisecond != 0 {
+		return fmt.Errorf("lcp restart-timer %s is not a whole number of milliseconds\n  set lcp restart-timer to a whole number in 100..60000", t.LCPRestartTimer)
+	}
+	if t.LCPMaxConfigure < 1 {
+		return fmt.Errorf("lcp max-configure %d is outside 1..255\n  set lcp max-configure to a value in that range", t.LCPMaxConfigure)
+	}
+	if t.LCPMaxConfigure > pppoeLCPMaxConfigureMax {
+		return fmt.Errorf("lcp max-configure %d is outside 1..255\n  set lcp max-configure to a value in that range", t.LCPMaxConfigure)
+	}
 	return nil
 }
 
@@ -102,21 +124,22 @@ func (t PPPoEClientTiming) reconnectDelay(attempt int) (time.Duration, error) {
 	return min(delay, t.ReconnectDelayMax), nil
 }
 
-// pppoeClientSchemaPath names the pppoe-client list whose keepalive and
+// pppoeClientSchemaPath names the pppoe-client list whose LCP, keepalive and
 // reconnect containers declare the timing defaults.
 const pppoeClientSchemaPath = "interface/pppoe-client"
 
-// pppoeClientSchema holds the keepalive and reconnect containers of the YANG
+// pppoeClientSchema holds the LCP, keepalive and reconnect containers of the YANG
 // schema, so the parse applies their defaults before it reads the leaves.
 // The defaults live in the schema and nowhere else: an entry that names no
 // keepalive interval runs at 10 seconds because ze-iface-conf.yang says
 // `default 10`, not because a Go constant repeats it.
 type pppoeClientSchema struct {
+	lcp       *config.ContainerNode
 	keepalive *config.ContainerNode
 	reconnect *config.ContainerNode
 }
 
-// loadPPPoEClientSchema resolves both containers once for one parse. A parse
+// loadPPPoEClientSchema resolves the three containers once for one parse. A parse
 // that cannot read the schema cannot know the defaults it owes, so every
 // failure is reported.
 func loadPPPoEClientSchema() (pppoeClientSchema, error) {
@@ -132,7 +155,11 @@ func loadPPPoEClientSchema() (pppoeClientSchema, error) {
 	if err != nil {
 		return pppoeClientSchema{}, err
 	}
-	return pppoeClientSchema{keepalive: keepalive, reconnect: reconnect}, nil
+	lcp, err := pppoeClientContainer(schema, "lcp")
+	if err != nil {
+		return pppoeClientSchema{}, err
+	}
+	return pppoeClientSchema{lcp: lcp, keepalive: keepalive, reconnect: reconnect}, nil
 }
 
 // pppoeClientContainer resolves one container under the pppoe-client list.
@@ -154,7 +181,7 @@ func pppoeClientContainer(schema *config.Schema, name string) (*config.Container
 	return container, nil
 }
 
-var errPPPoEClientSchemaUnresolved = errors.New("pppoe-client: the keepalive and reconnect schema was never resolved")
+var errPPPoEClientSchemaUnresolved = errors.New("pppoe-client: the LCP, keepalive and reconnect schema was never resolved")
 
 // containerWithDefaults answers the named container of entry with its YANG
 // defaults applied. An absent container is created, because the defaults are
@@ -179,25 +206,25 @@ func containerWithDefaults(entry map[string]any, name string, node *config.Conta
 // timingLeaf reads one numeric timing leaf that the schema defaults filled.
 // An absent value means the schema declares no default, which is a Ze defect
 // rather than an operator choice, so it is refused rather than read as zero.
-func timingLeaf(container map[string]any, block, leaf string, limit int) (int, error) {
+func timingLeaf(container map[string]any, block, leaf string, minimum, limit int) (int, error) {
 	raw, ok := container[leaf].(string)
 	if !ok {
 		return 0, fmt.Errorf("%s %s has no value and its YANG default is missing", block, leaf)
 	}
 	value, err := strconv.Atoi(raw)
 	if err != nil {
-		return 0, fmt.Errorf("%s %s %q is not a number\n  set %s %s to a value in 1..%d", block, leaf, raw, block, leaf, limit)
+		return 0, fmt.Errorf("%s %s %q is not a number\n  set %s %s to a value in %d..%d", block, leaf, raw, block, leaf, minimum, limit)
 	}
-	if value < 1 {
-		return 0, fmt.Errorf("%s %s %d is outside 1..%d\n  set %s %s to a value in that range", block, leaf, value, limit, block, leaf)
+	if value < minimum {
+		return 0, fmt.Errorf("%s %s %d is outside %d..%d\n  set %s %s to a value in that range", block, leaf, value, minimum, limit, block, leaf)
 	}
 	if value > limit {
-		return 0, fmt.Errorf("%s %s %d is outside 1..%d\n  set %s %s to a value in that range", block, leaf, value, limit, block, leaf)
+		return 0, fmt.Errorf("%s %s %d is outside %d..%d\n  set %s %s to a value in that range", block, leaf, value, minimum, limit, block, leaf)
 	}
 	return value, nil
 }
 
-// parsePPPoEClientTiming reads the keepalive and reconnect blocks of one
+// parsePPPoEClientTiming reads the LCP, keepalive and reconnect blocks of one
 // pppoe-client entry, YANG defaults applied, and validates the result.
 func parsePPPoEClientTiming(entry map[string]any, pppoeSchema pppoeClientSchema) (PPPoEClientTiming, error) {
 	keepalive, err := containerWithDefaults(entry, "keepalive", pppoeSchema.keepalive)
@@ -208,23 +235,37 @@ func parsePPPoEClientTiming(entry map[string]any, pppoeSchema pppoeClientSchema)
 	if err != nil {
 		return PPPoEClientTiming{}, err
 	}
-	interval, err := timingLeaf(keepalive, "keepalive", "interval", pppoeTimingSecondsMax)
+	lcp, err := containerWithDefaults(entry, "lcp", pppoeSchema.lcp)
 	if err != nil {
 		return PPPoEClientTiming{}, err
 	}
-	failures, err := timingLeaf(keepalive, "keepalive", "failures", pppoeKeepaliveFailuresMax)
+	restartTimer, err := timingLeaf(lcp, "lcp", "restart-timer", 100, 60000)
 	if err != nil {
 		return PPPoEClientTiming{}, err
 	}
-	delayMin, err := timingLeaf(reconnect, "reconnect", "delay-min", pppoeTimingSecondsMax)
+	maxConfigure, err := timingLeaf(lcp, "lcp", "max-configure", 1, pppoeLCPMaxConfigureMax)
 	if err != nil {
 		return PPPoEClientTiming{}, err
 	}
-	delayMax, err := timingLeaf(reconnect, "reconnect", "delay-max", pppoeTimingSecondsMax)
+	interval, err := timingLeaf(keepalive, "keepalive", "interval", 1, pppoeTimingSecondsMax)
+	if err != nil {
+		return PPPoEClientTiming{}, err
+	}
+	failures, err := timingLeaf(keepalive, "keepalive", "failures", 1, pppoeKeepaliveFailuresMax)
+	if err != nil {
+		return PPPoEClientTiming{}, err
+	}
+	delayMin, err := timingLeaf(reconnect, "reconnect", "delay-min", 1, pppoeTimingSecondsMax)
+	if err != nil {
+		return PPPoEClientTiming{}, err
+	}
+	delayMax, err := timingLeaf(reconnect, "reconnect", "delay-max", 1, pppoeTimingSecondsMax)
 	if err != nil {
 		return PPPoEClientTiming{}, err
 	}
 	timing := PPPoEClientTiming{
+		LCPRestartTimer:   time.Duration(restartTimer) * time.Millisecond,
+		LCPMaxConfigure:   maxConfigure,
 		KeepaliveInterval: time.Duration(interval) * time.Second,
 		KeepaliveFailures: failures,
 		ReconnectDelayMin: time.Duration(delayMin) * time.Second,

@@ -47,11 +47,11 @@
     "rid": "RFC1661-5.8-2",
     "polarity": "negative",
     "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded",
-    "unit-sha": "24ab30eb7002313c",
+    "unit-sha": "a22302fb5f563b05",
     "claim-sha": "0780a74cfcc16e8e",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "0b46c4ef1f106a82",
+    "producer-sha": "8b1c1dfd13a0c73c",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

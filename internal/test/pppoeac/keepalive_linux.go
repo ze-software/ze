@@ -49,6 +49,17 @@ func (s *Session) SendPADT() error {
 // then returns the count. The caller MUST remain the sole reader until
 // return. The context bounds it.
 func (s *Session) UnansweredEchoes(ctx context.Context) (int, error) {
+	return s.unansweredLCP(ctx, ppp.LCPEchoRequest)
+}
+
+// UnansweredConfigureRequests counts the client's LCP Configure-Requests until
+// its PADT. It sends no replies. The caller MUST remain the sole reader until
+// return, and MUST bound the read with a context deadline.
+func (s *Session) UnansweredConfigureRequests(ctx context.Context) (int, error) {
+	return s.unansweredLCP(ctx, ppp.LCPConfigureRequest)
+}
+
+func (s *Session) unansweredLCP(ctx context.Context, requestCode uint8) (int, error) {
 	if s == nil {
 		return 0, errors.New("script session is nil")
 	}
@@ -98,7 +109,7 @@ func (s *Session) UnansweredEchoes(ctx context.Context) (int, error) {
 			return echoes, err
 		}
 		// RFC 1661 Section 5.8.
-		if packet.Code == ppp.LCPEchoRequest {
+		if packet.Code == requestCode {
 			echoes++
 		}
 	}

@@ -36,7 +36,7 @@
     "rid": "RFC2516-x-9",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling",
-    "unit-sha": "07b5932f47b36618",
+    "unit-sha": "0854168ea417ab45",
     "claim-sha": "00fee310ab786c1e",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/dialer.go::pppoeSessionMTU",
@@ -51,7 +51,7 @@
     "claim-sha": "accb254f96e968ba",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "0b46c4ef1f106a82",
+    "producer-sha": "8b1c1dfd13a0c73c",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -62,7 +62,7 @@
     "claim-sha": "83a2339817df18a7",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "0b46c4ef1f106a82",
+    "producer-sha": "8b1c1dfd13a0c73c",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

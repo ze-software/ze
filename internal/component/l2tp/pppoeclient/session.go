@@ -17,29 +17,18 @@ import (
 )
 
 const (
-	// lcpNegotiationTimeout is the higher-level bound on one LCP negotiation,
-	// separate from the Restart counter: a peer that answers every request
-	// with a Configure-Nak resets the counter forever. It is twice the
-	// lcpConfigureMax x lcpRestartInterval a silent peer takes, so the counter
-	// ends a silent peer and this deadline ends a negotiation loop.
-	// RFC 1661 Section 4.5: "Implementors should keep this in mind and SHOULD
-	// implement loop detection mechanisms or higher level timeouts."
-	lcpNegotiationTimeout = 60 * time.Second
-	// lcpRestartInterval and lcpConfigureMax are the RFC 1661 Section 4.6
-	// defaults of the client's LCP Restart timer and Max-Configure. Neither
-	// is configurable yet (rfc/short/rfc1661.md, RFC1661-4.6-1 and -3).
-	lcpRestartInterval = 3 * time.Second
-	lcpConfigureMax    = 10
-	authTimeout        = 30 * time.Second
-	ncpTimeout         = 30 * time.Second
-	papRetryInterval   = 3 * time.Second
-	papRequestsMax     = 5
+	authTimeout      = 30 * time.Second
+	ncpTimeout       = 30 * time.Second
+	papRetryInterval = 3 * time.Second
+	papRequestsMax   = 5
 )
 
 // sessionConfig carries parameters for negotiateSession and the connected
 // session. keepaliveInterval and keepaliveFailures come from the pppoe-client
 // keepalive leaves; newConnectedSession refuses a zero of either, so no zero
 // interval reaches the echo ticker.
+// LCP timing is a snapshot of the configured leaves, retained for reentry.
+// negotiateLCP refuses missing or invalid timing before sending a request.
 type sessionConfig struct {
 	name              string
 	mtu               uint16
@@ -48,6 +37,8 @@ type sessionConfig struct {
 	chanFD            int
 	keepaliveInterval time.Duration
 	keepaliveFailures int
+	lcpRestartTimer   time.Duration
+	lcpMaxConfigure   int
 }
 
 // sessionResult is Dial's stable initial outcome and receive owner.
@@ -195,6 +186,21 @@ type lcpResult struct {
 // this phase is discarded before another descriptor read is authorized.
 // The caller MUST retain identifier for the session lifetime, including restarts.
 func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfig, magic uint32, pending *lcpReentry, stopCh <-chan struct{}, logger *slog.Logger, identifier *uint8) (lcpResult, error) {
+	if cfg.lcpRestartTimer < 100*time.Millisecond {
+		return lcpResult{}, errors.New("pppoe-client: lcp restart-timer is below 100 milliseconds; configure a value in 100..60000")
+	}
+	if cfg.lcpRestartTimer > 60*time.Second {
+		return lcpResult{}, errors.New("pppoe-client: lcp restart-timer exceeds 60000 milliseconds; configure a value in 100..60000")
+	}
+	if cfg.lcpRestartTimer%time.Millisecond != 0 {
+		return lcpResult{}, errors.New("pppoe-client: lcp restart-timer is not a whole number of milliseconds; configure a whole number in 100..60000")
+	}
+	if cfg.lcpMaxConfigure < 1 {
+		return lcpResult{}, errors.New("pppoe-client: lcp max-configure is below 1; configure a value in 1..255")
+	}
+	if cfg.lcpMaxConfigure > 255 {
+		return lcpResult{}, errors.New("pppoe-client: lcp max-configure exceeds 255; configure a value in 1..255")
+	}
 	if pending != nil {
 		if pending.request.Code != ppp.LCPConfigureRequest {
 			return lcpResult{}, errors.New("pppoe-client: uninitialized LCP reentry")
@@ -222,7 +228,13 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 	localMagic := magic
 	var mruRejected, magicRejected bool
 
-	deadline := time.NewTimer(lcpNegotiationTimeout)
+	// RFC 1661 Section 4.5: "Implementors should keep this in mind and SHOULD
+	// implement loop detection mechanisms or higher level timeouts."
+	// A valid Nak renews the request budget forever. Twice the configured
+	// silent-peer budget bounds that loop without truncating a silent peer's
+	// request budget. Validated bounds keep the product within 8.5 hours.
+	convergenceTimeout := 2 * time.Duration(cfg.lcpMaxConfigure) * cfg.lcpRestartTimer
+	deadline := time.NewTimer(convergenceTimeout)
 	defer deadline.Stop()
 	// RFC 1661 Section 4.4, scr: "The Restart timer is started when the
 	// Configure-Request packet is transmitted, to guard against packet loss.
@@ -230,12 +242,12 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 	// sent." Every send below calls sent, so the timer measures the time since
 	// the LAST request, never a fixed cadence from the first. The counter
 	// starts at Max-Configure (irc) and counts the request already on the wire.
-	configureRemaining := lcpConfigureMax - 1
-	restart := time.NewTimer(lcpRestartInterval)
+	configureRemaining := cfg.lcpMaxConfigure - 1
+	restart := time.NewTimer(cfg.lcpRestartTimer)
 	defer restart.Stop()
 	sent := func() {
 		configureRemaining--
-		restart.Reset(lcpRestartInterval)
+		restart.Reset(cfg.lcpRestartTimer)
 	}
 
 	for state != ppp.LCPStateOpened {
@@ -250,13 +262,13 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 			case <-stopCh:
 				return lcpResult{}, errors.New("pppoe-client: stopped during LCP")
 			case <-deadline.C:
-				return lcpResult{}, errors.New("pppoe-client: LCP timeout: negotiation did not converge within 60 seconds; check the access concentrator's PPP configuration")
+				return lcpResult{}, fmt.Errorf("pppoe-client: LCP timeout: negotiation did not converge within %s; check the access concentrator's PPP configuration", convergenceTimeout)
 			case <-restart.C:
 				// RFC 1661 Section 4.3: "The TO- event indicates that the
 				// Restart counter is not greater than zero, and no more packets
 				// need to be retransmitted."
 				if configureRemaining <= 0 {
-					return lcpResult{}, errors.New("pppoe-client: LCP timeout: the access concentrator answered none of 10 Configure-Requests; check that it runs PPP on this session")
+					return lcpResult{}, fmt.Errorf("pppoe-client: LCP timeout: the access concentrator did not complete negotiation within %d unanswered Configure-Requests; check that it runs PPP on this session", cfg.lcpMaxConfigure)
 				}
 				// RFC 1661 Section 5.1: "The Identifier field MUST be changed
 				// whenever the contents of the Options field changes, and whenever
@@ -436,7 +448,7 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 			case ppp.LCPStateReqSent:
 				// RFC 1661 Section 4.1, Req-Sent/RCA: "irc/7". Ack-Rcvd
 				// still waits for the peer's request with the timer running.
-				configureRemaining = lcpConfigureMax
+				configureRemaining = cfg.lcpMaxConfigure
 				state = ppp.LCPStateAckRcvd
 			case ppp.LCPStateAckSent:
 				state = ppp.LCPStateOpened
@@ -513,7 +525,7 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 			// "irc,scr/8" in Ack-Sent, but "scr/6" in Ack-Rcvd. A valid
 			// reply proves the peer responds, so its counter starts again.
 			if state != ppp.LCPStateAckRcvd {
-				configureRemaining = lcpConfigureMax
+				configureRemaining = cfg.lcpMaxConfigure
 			}
 			*identifier++
 			requestLen, err = sendLCPConfigRequest(w, request[:], *identifier, localMRU, localMagic, logger)

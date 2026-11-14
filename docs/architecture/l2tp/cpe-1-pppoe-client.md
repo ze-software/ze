@@ -42,13 +42,13 @@ Configure-Ack, Configure-Nak and Configure-Reject against it through
 `ppp.ValidateLCPReply`. A stale Identifier or changed Ack/Reject options cannot
 advance LCP. A valid reply changes the next request's Identifier, while an
 unanswered timeout retransmits the same packet. The Restart timer (three
-seconds) restarts on every Configure-Request sent, and a Restart counter of
-ten (Max-Configure) counts them; a valid Ack in Req-Sent, or a valid Nak or
-Reject in Req-Sent or Ack-Sent, sets it back to ten. When the timer expires
-with no request left, LCP ends with an LCP timeout. A separate 60-second
-deadline ends a negotiation that never converges, such as a peer that Naks
-every request. Neither value is configurable yet (RFC 1661 Section 4.6 gaps
-RFC1661-4.6-1 and RFC1661-4.6-3). The client adopts MRU Naks within
+seconds by default) restarts on every Configure-Request sent, and the
+Max-Configure Restart counter counts them (ten by default). A valid Ack in
+Req-Sent, or a valid Nak or Reject in Req-Sent or Ack-Sent, renews that budget. When the timer expires
+with no request left, LCP ends with an LCP timeout. The `lcp restart-timer`
+and `lcp max-configure` leaves configure these values. A separate deadline,
+twice the configured timer times Max-Configure, ends a negotiation that never
+converges. The default is 60 seconds. The client adopts MRU Naks within
 the receive bounds and redraws a nonzero Magic-Number after a Magic Nak. Rejected
 options remain absent even if a later Nak suggests them again. The final
 negotiated Magic-Number is passed to the authentication and keepalive phases.
@@ -277,13 +277,29 @@ so channel-first consumption does not claim a global packet arrival sequence.
 The preceding independent-reader implementation discarded eager IPCP while
 authentication Success waited in the channel queue. The deterministic test
 reproduced this for CHAP, PAP and no-auth, and the real-kernel test missed the
-first request's Ack. With the ordered reader, the deterministic cases, first-Ack
-test and descriptor-order test passed with race instrumentation on 2026-11-03.
-The kernel evidence is from `7.2.9-ze`. Target kernel 7.3 and final external
-review remain open.
+first request's Ack. The original ordered-reader tests passed with race
+instrumentation on `7.2.9-ze` on 2026-11-03. The later
+[closure record](https://github.com/ze-software/ze/blob/d6aba7a688/plan/release/fixes/spec-home-cpe-12-pppoe-client-lcp-renegotiation.md)
+records the first-Ack and kernel-renegotiation tests passing on Ze 7.3.
+It also records the external review fixes in `a02374d9ad`. The committed
+`RFC1661-3.6-2` discrimination record contains the kernel forwarding proof,
+including its failing run under the forwarding-mode break (`30fc41f279`).
+These are historical records. The old session scratch logs are not retained
+proof, and the records do not claim a new kernel or interop run.
 <!-- source: internal/component/l2tp/pppoeclient/eager_ipcp_test.go -- TestClientEagerIPCPReaders -->
 <!-- source: internal/component/l2tp/pppoeclient/eager_ipcp_integration_linux_test.go -- TestDialAcknowledgesFirstEagerIPCP -->
 <!-- source: internal/component/l2tp/pppoeclient/receive_order_integration_linux_test.go -- TestOrderedDescriptorDispatch -->
+<!-- source: rfc/discrimination/rfc1661/RFC1661-3.6-2.json -- TestDialRenegotiatesLCPInNetworkPhase -->
+
+On 2026-11-14, the configured-timing tests passed on `7.3.0-ze`:
+`TestPPPoEClientLCPConfiguredInitialBudgetEndToEnd`,
+`TestPPPoEClientLCPConfiguredRestartBudgetEndToEnd`, and
+`TestPPPoEClientLCPConfiguredBudgetAllowsSuccess`. Forcing `Dial` to use a
+three-second Restart timer made both budget tests fail waiting for the second
+Configure-Request. Restoring the configured timer made all three tests pass.
+The peer was the scripted test access concentrator.
+<!-- source: internal/component/iface/pppoe_lcp_timing_integration_linux_test.go -- TestPPPoEClientLCPConfiguredInitialBudgetEndToEnd, TestPPPoEClientLCPConfiguredRestartBudgetEndToEnd, TestPPPoEClientLCPConfiguredBudgetAllowsSuccess -->
+<!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dialer.Dial -->
 
 Network-phase reentry uses a constructed connected owner with the existing
 reader, retained credentials and the session's LCP, PAP and IPCP Identifier sequences.

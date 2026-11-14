@@ -91,7 +91,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	if err != nil {
 		return iface.PPPoESession{}, err
 	}
-	// The iface parse validates the keepalive and reconnect leaves; this is
+	// The iface parse validates the LCP, keepalive and reconnect leaves; this is
 	// the second check of the pair, before any socket opens.
 	if err := cfg.Timing.Validate(); err != nil {
 		return iface.PPPoESession{}, err
@@ -235,6 +235,8 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		chanFD:            chanFD,
 		keepaliveInterval: cfg.Timing.KeepaliveInterval,
 		keepaliveFailures: cfg.Timing.KeepaliveFailures,
+		lcpRestartTimer:   cfg.Timing.LCPRestartTimer,
+		lcpMaxConfigure:   cfg.Timing.LCPMaxConfigure,
 	}
 	// ipv6 stays nil, the guard negotiateIPCP and keepaliveLoop read as "no
 	// IPv6CP", when the pppoe-client configures no ipv6.

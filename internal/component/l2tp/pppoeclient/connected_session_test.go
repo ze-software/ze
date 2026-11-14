@@ -45,11 +45,16 @@ func newTestConnectedSession(t *testing.T, transport io.ReadWriteCloser,
 // them; these fixtures use them so a test that is not about the keepalive
 // runs at the timing an operator gets.
 const (
+	lcpRestartInterval    = 3 * time.Second
+	lcpConfigureMax       = 10
+	lcpNegotiationTimeout = 60 * time.Second
 	testKeepaliveInterval = 10 * time.Second
 	testKeepaliveFailures = 3
 )
 
 var testDialTiming = iface.PPPoEClientTiming{
+	LCPRestartTimer:   lcpRestartInterval,
+	LCPMaxConfigure:   lcpConfigureMax,
 	KeepaliveInterval: testKeepaliveInterval,
 	KeepaliveFailures: testKeepaliveFailures,
 	ReconnectDelayMin: time.Second,

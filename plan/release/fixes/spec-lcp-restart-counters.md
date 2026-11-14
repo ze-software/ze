@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-11-14 |
 
 <!-- Bucket: plan/immediate/. An operator meets both halves of this on the first
      release. The Restart timer, Max-Terminate, Max-Configure and Max-Failure are
@@ -22,6 +22,89 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+### Client completion requested 2026-11-14
+
+The current implementation slice completes the three remaining PPPoE-client
+review items: discriminating proof of the RCN Restart-counter reset, configurable
+Restart timer and Max-Configure, and an accurate validation history in the client
+architecture page. The server obligations below remain owned here; this slice
+does not close the whole spec. The client's one-shot Restart timer and real
+Restart counter (`a02374d9ad`) are configured through the existing timing carrier.
+
+| Client criterion | Observable result |
+|------------------|-------------------|
+| C-0 | The native runner starts: its payload-command Summary fits the existing 60-character contract. The separate one-line repair preserves the other task's uncommitted tooling implementation. |
+| C-1 | After nine unanswered requests, a valid Nak or Reject in Req-Sent or Ack-Sent gives a fresh budget of ten requests. Subsequent silence ends LCP after that budget; deleting the reset makes this test fail. |
+| C-2 | `interface pppoe-client <name> lcp restart-timer` (milliseconds) and `max-configure` reach the client's initial and restarted LCP negotiation through the existing timing carrier. Defaults remain 3000 and 10, read from YANG. Native schema constraints and Go validation refuse invalid values. |
+| C-3 | The convergence deadline is twice the configured silent-peer budget, so configured intervals/counts are usable without the previous fixed 60-second bound truncating them. Default convergence behavior remains 60 seconds. |
+| C-4 | A timing-only reload preserves the running session and affects the next Dial, as the existing keepalive/reconnect settings do. The connected session retains its timing snapshot for renegotiation. |
+| C-5 | The client architecture page distinguishes historical 7.2.9 evidence, the later 7.3 closure record, and checks run for this slice; missing scratch logs are not presented as retained evidence. |
+
+The configuration extends `PPPoEClientTiming`, its existing schema-backed parser,
+and the dialer's `sessionConfig`; it adds no independent default registry or
+environment override. The schema owns both defaults. The direct negotiator tests
+must supply explicit valid timing rather than relying on zero-value defaults.
+Wiring proof parses real client configuration and observes Configure-Request
+counts and intervals through the same timing carrier the dialer uses. Positive
+configured values and omitted-leaf defaults, invalid bounds, RCN reset contrasts,
+and a successful negotiation before exhaustion preserve useful behavior.
+
+Files reached: `internal/component/iface/yang/ze-iface-conf.yang`,
+`internal/component/iface/pppoe_client_timing.go`, its tests and direct timing
+fixtures; `internal/component/l2tp/pppoeclient/dialer.go`, `session.go`,
+`lcp_restart_timer_test.go` and direct session fixtures; the client architecture
+page and the PPPoE operator guide. RFC proof must not claim server-wide
+configurability while the server obligations remain open.
+
+### Client completion evidence
+
+| Criterion | Observed evidence, 2026-11-14 |
+|-----------|-------------------------------|
+| C-0 | Native runner starts after shortening the payload Summary to 53 characters; its existing startup guard enforces 60. Only this Summary hunk is carried from the concurrent tooling file. |
+| C-1 | `TestLCPReplyRenewsSpentRestartCounter` passes normally; removing only the RCN reset through a Go overlay fails all four Req-Sent/Ack-Sent and Nak/Reject cases at 27.5 s instead of 54.5 s. Final normal `pppoeclient` and `iface` package tests pass with race detection. |
+| C-2 | All three configured-LCP tests in `internal/component/iface/pppoe_lcp_timing_integration_linux_test.go` pass on Ze 7.3.0-ze. Forcing Dial's timer to three seconds fails both budget tests at the second request; the normal binary passes again. CLI ranges pass six boundary commands and 80 invocations under load. Forcing `outputValidateText` to report invalid input as valid fails the CLI test at the 99 ms refusal; the normal binary passes afterward. |
+| C-3 | `TestLCPConfiguredBudget` observes configured gaps and exactly three requests for 500 ms and 60 s timers, including a 180 s silent-peer budget. `TestLCPConfiguredConvergenceDeadline` observes the configured 100 s convergence bound. |
+| C-4 | `TestPPPoEClientLCPReloadKeepsSessionSnapshot` keeps the same client, retains its initial timing snapshot, and hands the new timing to exactly the next Dial. |
+| C-5 | The architecture page cites immutable closure history and separately records the new scripted-AC clean/broken/clean proof with the exact test names. No fresh third-party interop result is claimed. |
+
+Independent review ran all three source lenses. Its two test findings were
+fixed: the actual Dial timer must be observed, and namespace entry must be the
+first statement of a top-level test. Review of those fixes found no remaining
+source ISSUE. The independent test judge approved all 17 directly or indirectly
+changed RFC-tagged units. The 21 affected existing discrimination records were
+retaken; ten RFC 1661 judgments and RFC2516-x-9 were rejudged, and five
+byte-identical option-test judgments were mechanically resealed.
+
+Verification limits: the package lint reports 16 existing findings in each
+profile, including value-copy warnings already above their configured thresholds
+before the two new timing fields. The final RFC check reports 136 repository-wide
+violations and none for RFC 1661, RFC 2516 or the client paths. The review's
+mechanical repository check also reports nine existing export/tooling/VPP
+findings. These are recorded limits of the checkout, not passing whole-tree gates.
+
+The client slice is complete. This spec returns to design for its remaining
+server and IPv6CP work; its broader acceptance criteria have not been closed.
+
+The owning current state and smallest retained test evidence are under
+`tmp/session/2026-11-14-213245/`. Completed test binaries and source overlays are
+disposable once the commit lands. Broader server obligations and IPv6CP timer
+configuration remain owned by this spec.
+
+Diagnosis: the Nak-loop test continually resets the Restart timer before expiry,
+so its deadline assertion cannot observe a missing counter reset. A weaker
+comment-only repair [workaround] would leave the reset unprotected. Spending the
+counter before a reply, then observing timeout under silence [source], exercises
+the reset itself. The configuration defect belongs to the existing schema-to-
+session timing path; an environment-only knob would leave operators without
+schema validation and is rejected. The stale validation sentence belongs to the
+architecture page and must be corrected against the closure commits.
+
+| Client assumption/risk | Validation/mitigation |
+|------------------------|-----------------------|
+| Adding fields to Timing preserves reload semantics | Read reconciliation and cover the timing snapshot carried to the next Dial; retained connected config must not be mutated. |
+| A fixed convergence bound could truncate configured budgets | Derive it from validated bounded interval and count; test a budget above 60 seconds using the virtual clock. |
+| Historical scratch evidence may have been removed | Cite immutable closure commits and label them historical, without claiming a fresh kernel/interop run. |
 
 RFC 1661 Section 4.6 states four MUST-level obligations on the LCP restart
 machinery, and Section 4.4 states a fifth on the Zero-Restart-Count action. Ze
@@ -52,7 +135,7 @@ Goals:
 1. Make the Restart timer, Max-Terminate, Max-Configure and Max-Failure operator-configurable, with the RFC's SHOULD values as the schema defaults, on both PPP transports (L2TP and PPPoE).
 2. Build the Restart counter the automaton depends on, so `irc`, `zrc`, `TO+` and `TO-` carry their RFC meaning instead of being unreachable table entries.
 3. Make the counter's terminal actions reachable: `tld` tells the upper layers that LCP left Opened.
-4. Carry goal 1 to the PPPoE client, the third PPP implementation in the tree. `RFC1661-4.6-1` binds every PPP implementation, and the client is one: its LCP negotiation in `internal/component/l2tp/pppoeclient/session.go` retransmits on a fixed `time.NewTicker(3 * time.Second)` and its IPv6CP on the `ipv6cpRestartInterval` constant (`ipv6cp_client.go`, 3 s), and no `pppoe-client` leaf reaches either. Goals 1 to 3 name the LNS-side `ppp` package (L2TP and the PPPoE access concentrator); the client has its own negotiator, so it owes its own leaf on the `pppoe-client` entry (`internal/component/iface/yang/ze-iface-conf.yang`). Recorded as the 2026-11-07 row of `plan/journal/rfc-extension-not-implemented.md`, which this spec owns.
+4. Carry goal 1 to the PPPoE client, the third PPP implementation in the tree. Its LCP Restart timer and Max-Configure now have `pppoe-client lcp restart-timer` and `max-configure` leaves, carried through `PPPoEClientTiming` and the retained `sessionConfig` to `negotiateLCP`; the timer is one-shot and driven by each request. The November client slice above owns that implementation and its proof. IPv6CP still uses the fixed `ipv6cpRestartInterval` (`ipv6cp_client.go`, 3 s); its configuration remains owed here. Goals 1 to 3 name the LNS-side `ppp` package (L2TP and the PPPoE access concentrator) and remain separate from the client slice. The 2026-11-07 row of `plan/journal/rfc-extension-not-implemented.md` remains owned here until the rest of its scope is met.
 
 ### The automaton question, and why it is in scope
 
@@ -135,7 +218,7 @@ Added 2026-11-07 when goal 4 (the PPPoE client) joined this spec. The Current Be
 | RFC 1661 automaton | `internal/component/l2tp/ppp/ppp_fsm.go` `LCPDoTransition` | the full ten-state table, pure | does not apply: the table is correct and is not edited |
 | Per-session PPP inputs | `internal/component/l2tp/ppp/start_session.go` `StartSession` | carries `EchoInterval`, `EchoFailures`, `AuthTimeout` and the auth policy; no restart field | extends: the four configured values ride here from both LNS-side transports |
 | L2TP config parse | `internal/component/l2tp/config.go` `Parameters` | reads the `authentication` and `ncp` containers | extends: reads the shared LCP grouping |
-| PPPoE client LCP negotiation | `internal/component/l2tp/pppoeclient/session.go` (fixed `time.NewTicker(3 * time.Second)`), `ipv6cp_client.go` `ipv6cpRestartInterval` | the client's own negotiator, outside the `ppp` package, retransmits on a fixed 3 s | extends (goal 4): its Restart timer reads the same grouping on the `pppoe-client` entry, carried through `sessionConfig` the way the keepalive leaves are |
+| PPPoE client LCP negotiation | `internal/component/l2tp/pppoeclient/session.go` `negotiateLCP`, `ipv6cp_client.go` `ipv6cpRestartInterval` | LCP reads its configured one-shot Restart timer and request budget from `sessionConfig`; IPv6CP still retransmits on its fixed 3 s timer | the client slice extends the existing timing parser and carrier for LCP; IPv6CP configuration remains owed under goal 4 |
 | PPPoE client timing leaves | `internal/component/iface/yang/ze-iface-conf.yang` `pppoe-client` `keepalive`, `reconnect`; `internal/component/iface/config.go` `PPPoEClientTiming` | parse, default and carry the echo and redial timing to the client | extends (goal 4): the precedent for adding the client's LCP timing leaves |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)

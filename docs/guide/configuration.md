@@ -2879,7 +2879,16 @@ The counter `ze_pppoe_client_renegotiations_total` uses the configured client
 so repeated access-network renegotiation remains visible when IPCP cannot finish.
 <!-- source: internal/component/l2tp/pppoeclient/metrics.go -- bindClientMetrics, countRenegotiation -->
 
-Two blocks tune dead-peer detection and the redial hold-off of each client.
+The `lcp` block sets the Configure-Request Restart timer and request budget.
+`restart-timer` accepts 100 to 60000 milliseconds (default 3000), and
+`max-configure` accepts 1 to 255 requests (default 10). The first request
+counts toward the budget. A valid negotiation reply renews the budget where
+the LCP state machine requires it. A convergence deadline of twice the timer
+times the request budget bounds a peer that repeatedly refuses negotiation.
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client lcp -->
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP -->
+
+Two more blocks tune dead-peer detection and the redial hold-off of each client.
 `keepalive interval` (1 to 3600 seconds, default 10) is the time between two
 LCP Echo-Requests, and `keepalive failures` (1 to 255, default 3) ends the
 session on that many unanswered requests in a row; any Echo-Reply resets the
@@ -2896,12 +2905,16 @@ interface {
     pppoe-client pppoe0 {
         source-interface eth2;
         authentication { username user; password secret; }
+        lcp {
+            restart-timer 500;
+            max-configure 3;
+        }
         keepalive { interval 5; failures 4; }
         reconnect { delay-min 5; delay-max 120; }
     }
 }
 ```
-<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client keepalive, reconnect -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client lcp, keepalive, reconnect -->
 <!-- source: internal/component/iface/pppoe_client_timing.go -- PPPoEClientTiming, parsePPPoEClientTiming, reconnectDelay -->
 
 The `ipv6` container of a `pppoe-client` takes `enabled` (boolean, default

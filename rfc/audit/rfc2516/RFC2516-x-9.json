@@ -1,20 +1,20 @@
 {
-  "note": "Rejudge 2026-11-08: TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling changed only in the negotiateLCP call (testFrameReader, nil reentry, new(uint8) Identifier counter); it still asserts pppoeSessionMTU maps 0 -> 1492 and keeps 1492/1480, and that the default drives the first Configure-Request to MRU 1492. Negative TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling and the host and AC LCP pairs unchanged.",
+  "note": "Independent rejudge 2026-11-14 against RFC 2516 Section 7: the changed Host-default unit and client MRU helper add only the previous three-second and ten-request LCP timing. Host-default still checks 0 maps to 1492, configured 1492 and 1480 survive, and the actual first Configure-Request names 1492. Host refusals of 1493/1500/9000 still return the specific MTU error before discovery. The client pair still accepts 1492 in both directions, Naks a peer's 1500 to 1492, refuses adoption of a 1500 suggestion and completes at the permitted value. The unchanged AC pair drives handlePADR into production PPP and reads its MRU request, Ack of 1492 and Nak of 1500. Re-read pppoeSessionMTU, Dial, clientLCPPolicy and negotiateLCP. No peer bytes or assertion changed; the changed Host-default unit's observed-red proof also needs retaking even though its producer pppoeSessionMTU did not change.",
   "requirement_sha": "046d4d35e71ec861",
   "tests": {
     "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling": "8664245d25ebdc42",
     "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling": "8664245d25ebdc42",
-    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling": "6eaf1f954e449004",
-    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling": "6eaf1f954e449004",
-    "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling": "82a4febeb1b59216",
-    "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling": "82a4febeb1b59216",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling": "b809abaa59cd4160",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling": "b809abaa59cd4160",
+    "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling": "a383fda5674996b1",
+    "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling": "a383fda5674996b1",
     "internal/component/l2tp/pppoeclient/session_test.go::TestLCPConfigRequestMRU": "50a2fa5b77fbaf66"
   },
   "units": {
     "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling": "38d2f6162ca49fd6",
     "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling": "dd09b9fccc575e61",
     "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling": "de32032ae81ac1d8",
-    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling": "2534b0700579441c",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling": "5c493178c98f361f",
     "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling": "248fcf02c25c044b",
     "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling": "0e443aa624b617bf",
     "internal/component/l2tp/pppoeclient/session_test.go::TestLCPConfigRequestMRU": "cbfae410eef77856"

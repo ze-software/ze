@@ -1,19 +1,19 @@
 {
-  "note": "Rejudge 2026-11-08: the pppoeclient units changed only in plumbing (frames through testFrameReader, negotiateLCP's new nil reentry argument and shared Identifier counter new(uint8), which negotiateLCP increments before every Configure-Request); every input, assertion and comparison is unchanged and negotiateLCP still gates each reply through ppp.ValidateLCPReply. Re-including a rejected option: TestLCPRejectedOptionsStayRemoved (MRU only, and all) and TestClientLCPRejectRemovesOnlyRejectedOptions (MRU, Magic, all; across a retransmission and a later Nak) red on bytes.Equal(next.Data, want). New IPCP positive TestRFC1661ClientDropsRejectedDNSOptions: after a Reject of both DNS options, or of Secondary alone, the next IPCP request is exactly IP-Address (+Primary) under a new Identifier, and IPCP opens with no server learned for a rejected option. Negative: un-rejected options stay byte-identical.",
+  "note": "Independent rejudge 2026-11-14: the client LCP unit adds only explicit old-default timing and still requires rejected MRU/Magic options to stay absent across the next request, retransmission and an appended Nak suggestion, while options not rejected stay byte-identical. The server MRU/all-option pair and the IPCP both-DNS/secondary-only tests retain their exact replacement bytes and successful-completion controls. Re-read RFC Section 5.4, negotiateLCP rejection flags, negotiateIPCP and the tagged tests; no rejection persistence proof was lost.",
   "requirement_sha": "0f0699a656379b2d",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved": "6e1e87cfaa4fb86b",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "6e1e87cfaa4fb86b",
     "internal/component/l2tp/pppoeclient/rfc1661_client_dns_test.go::TestRFC1661ClientDropsRejectedDNSOptions": "bce02f968aea7629",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "067be5620fa22bc3",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "067be5620fa22bc3"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "926652e8c68a9120",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "926652e8c68a9120"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved": "e3720a5097b1650d",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "e3720a5097b1650d",
     "internal/component/l2tp/pppoeclient/rfc1661_client_dns_test.go::TestRFC1661ClientDropsRejectedDNSOptions": "cf99be7427743830",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "9324e5b6c9bfaef7",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "9324e5b6c9bfaef7"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "3aec64b128f9a7b0",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "3aec64b128f9a7b0"
   },
   "verdict": "enforced"
 }

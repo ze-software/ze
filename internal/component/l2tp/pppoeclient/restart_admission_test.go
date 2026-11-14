@@ -35,7 +35,7 @@ func TestInitialMTUAdmission(t *testing.T) {
 				link := &sessionLink{channel: w}
 				go func() {
 					_, err := negotiateSession(link, testFrameReader(t, w.frames, nil), -1, 0,
-						sessionConfig{mtu: 1492, chanFD: -1}, stop,
+						sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492, chanFD: -1}, stop,
 						slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 					result <- err
 				}()
@@ -59,7 +59,7 @@ func TestInitialMTUAdmission(t *testing.T) {
 					refused, err := newNegotiatedSession(sessionResult{
 						localIP: netip.MustParseAddr("192.0.2.2"), peerIP: netip.MustParseAddr("192.0.2.1"),
 						negMTU: mtu, peerMRU: mtu,
-					}, sessionConfig{mtu: 1492})
+					}, sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492})
 					if !errors.Is(err, errSessionMTURange) {
 						t.Fatalf("initial admission = %v, want MTU refusal", err)
 					}

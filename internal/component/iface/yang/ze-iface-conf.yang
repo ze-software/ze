@@ -1959,6 +1959,38 @@ Ze sends a priority with no entry as PCP 0.";
                 ze:help "Route metric of the default route installed after IPCP completes.";
             }
 
+            container lcp {
+                description "LCP retransmits an unanswered Configure-Request after restart-timer
+                             milliseconds and ends negotiation after max-configure unanswered
+                             requests. A valid negotiation reply renews the request budget. A
+                             timing-only change keeps the running session and takes effect on the
+                             next session, including its later LCP renegotiations.";
+                ze:help "LCP Configure-Request retransmission timer and request limit.";
+
+                leaf restart-timer {
+                    type uint16 {
+                        range "100..60000";
+                    }
+                    units milliseconds;
+                    default 3000;
+                    description "The timer starts after each LCP Configure-Request. Expiry sends
+                                 another request while the request budget remains. The default is
+                                 three seconds, as RFC 1661 Section 4.6 recommends.";
+                    ze:help "Milliseconds to wait before retransmitting an unanswered LCP request.";
+                }
+
+                leaf max-configure {
+                    type uint8 {
+                        range "1..255";
+                    }
+                    default 10;
+                    description "The number of unanswered LCP Configure-Requests allowed before
+                                 negotiation ends. The first request counts toward this limit.
+                                 RFC 1661 Section 4.6 recommends the default of ten requests.";
+                    ze:help "Maximum LCP Configure-Requests without a valid negotiation reply.";
+                }
+            }
+
             container keepalive {
                 description "Ze sends an LCP Echo-Request on the session every interval and
                              counts the requests the access concentrator leaves unanswered. Any

@@ -1,17 +1,17 @@
 {
-  "note": "Rejudge 2026-11-08: the pppoeclient units changed only in plumbing (frames through testFrameReader, negotiateLCP's new nil reentry argument and shared Identifier counter new(uint8), which negotiateLCP increments before every Configure-Request); every input, assertion and comparison is unchanged and negotiateLCP still gates each reply through ppp.ValidateLCPReply. Forbidden: acting on a Reject whose Identifier differs. TestLCPRepliesMatchOutstandingRequest (Reject wrong Identifier) and TestClientLCPReplyCorrelation red on any state/wire change; positives: a matching Reject yields a new request without MRU (server) and a new-Identifier request without the rejected options (TestClientLCPRejectRemovesOnlyRejectedOptions).",
+  "note": "Independent rejudge 2026-11-14: only old-default client timing became explicit. A wrong-Identifier Reject leaves output and LCP completion unchanged, while a matching Reject creates a fresh request without the rejected options. The server correlation pair checks the same Identifier distinction and that MRU is absent from the replacement after a valid Reject. Re-read RFC Section 5.4 and both ValidateLCPReply callers; peer packets and assertions remain identical.",
   "requirement_sha": "ef8cbb2be56072e4",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "067be5620fa22bc3",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "067be5620fa22bc3"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "926652e8c68a9120",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "926652e8c68a9120"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "9324e5b6c9bfaef7",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "4c58a468c62d3e1c"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "3aec64b128f9a7b0",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "8a4eed6c5f3fad83"
   },
   "verdict": "enforced"
 }

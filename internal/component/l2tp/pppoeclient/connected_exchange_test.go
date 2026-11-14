@@ -89,7 +89,7 @@ func (w *connectedExchange) passes() int {
 
 func (w *connectedExchange) session(t *testing.T) (*connectedSession, sessionResult) {
 	t.Helper()
-	cfg := sessionConfig{mtu: 1492, username: "subscriber", password: "secret", keepaliveInterval: testKeepaliveInterval, keepaliveFailures: testKeepaliveFailures}
+	cfg := sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492, username: "subscriber", password: "secret", keepaliveInterval: testKeepaliveInterval, keepaliveFailures: testKeepaliveFailures}
 	initial := sessionResult{
 		reader: testFrameReader(t, w.frames, w.unit), localIP: netip.MustParseAddr("192.0.2.2"),
 		peerIP: netip.MustParseAddr("192.0.2.1"), negMTU: 1492, peerMRU: 1492,

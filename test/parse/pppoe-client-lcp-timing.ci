@@ -1,0 +1,140 @@
+# Question: Does the operator's config-validation command enforce both LCP
+# timing leaves' declared ranges while accepting their boundary values?
+# A parser unit test cannot prove the registered CLI/YANG validation path.
+# PREVENTS: accepting a zero request budget or a timer outside its schema range.
+# PLATFORM: the PPPoE client is available only on Linux.
+option=skip-os:value=darwin
+
+stdin=low:terminator=END_LOW
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        lcp {
+            restart-timer 100
+            max-configure 1
+        }
+    }
+}
+END_LOW
+
+stdin=high:terminator=END_HIGH
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        lcp {
+            restart-timer 60000
+            max-configure 255
+        }
+    }
+}
+END_HIGH
+
+stdin=timerlow:terminator=END_TIMERLOW
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        lcp {
+            restart-timer 99
+        }
+    }
+}
+END_TIMERLOW
+
+stdin=timerhigh:terminator=END_TIMERHIGH
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        lcp {
+            restart-timer 60001
+        }
+    }
+}
+END_TIMERHIGH
+
+stdin=countlow:terminator=END_COUNTLOW
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        lcp {
+            max-configure 0
+        }
+    }
+}
+END_COUNTLOW
+
+stdin=counthigh:terminator=END_COUNTHIGH
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        lcp {
+            max-configure 256
+        }
+    }
+}
+END_COUNTHIGH
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=low
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=high
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=timerlow
+expect=exit:code=1
+expect=stdout:contains=100..60000
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=timerhigh
+expect=exit:code=1
+expect=stdout:contains=100..60000
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=countlow
+expect=exit:code=1
+expect=stdout:contains=1..255
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=counthigh
+expect=exit:code=1
+expect=stdout:contains=1..255
