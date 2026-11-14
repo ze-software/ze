@@ -1,13 +1,15 @@
 {
-  "note": "non-compliant: an existing OTC value rewritten. TestOTCAttrModHandlerExistingPreserved plans OTC 65001 from source against a set op of 65000 and asserts the emitted value is 65001. Negative TestOTCAttrModHandlerNewAttr: no prior OTC, so the op's value is emitted. The confederation parenthetical has no ze code path (RFC9234-5-7/5-8 are not-applicable)",
+  "note": "Rejudged 2026-11-14 (independent auditor). TestOTCAttrModHandlerExistingPreserved runs otcAttrModHandler with source OTC 65001 and a Set op of 65000 and asserts 65001 is emitted, so a rewrite of a set OTC goes red. Negative TestOTCAttrModHandlerNewAttr: with no source OTC the op's 65000 is emitted, the control proving the refusal is conditional on presence. TestOTCEgressExistingOTCNotRewrittenToLocalASN: a route carrying OTC 64496 with NLRI to a Customer is accepted and OTCEgressFilter queues no set op, so the local AS 64497 is never planned over it (recorded mutant on the !hasOTC guard). The confederation clause has no ze code path: ze implements no confederation (RFC9234-5-7/5-8 are gaps).",
   "requirement_sha": "19c8a7485552c882",
   "tests": {
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerExistingPreserved": "8802c5fd72d90813",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerNewAttr": "8802c5fd72d90813"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerExistingPreserved": "cb38b5c5f2ca8ffc",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerNewAttr": "cb38b5c5f2ca8ffc",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressExistingOTCNotRewrittenToLocalASN": "cb38b5c5f2ca8ffc"
   },
   "units": {
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerExistingPreserved": "8016e32b59b373aa",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerNewAttr": "248c1457662dd1ee"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerNewAttr": "248c1457662dd1ee",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressExistingOTCNotRewrittenToLocalASN": "c3d69c435ca6fe16"
   },
   "verdict": "enforced"
 }
