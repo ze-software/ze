@@ -4,29 +4,92 @@
 |-------|-------|
 | Status | design |
 | Priority | P1 |
-| Release reason | Monitoring exports must report the actual session-down cause and advancing sample pool. |
+| Release reason | An sFlow collector's sample pool stops advancing once it saturates, and a few BMP Peer Down and Route Monitoring cases still misreport a session to the collector. |
 | Scope | protocol |
-| Depends | the RFC 7854 Section 3.3 change (Peer Down only for a peer reported up, `peerDownCause.reported`), committed as dce906c381 "fix(bmp): send Peer Down only for a peer reported up"; and, for AC-1 and AC-9 on the `Session.Run` exits that fire no FSM event, `spec-bgp-rs-replacement-on-withdrawal` Phase 2b (the `runOnce` down defer fires the leave when `Run` returns with the FSM still Established). This spec records the cause on those exits and does not duplicate that fix |
+| Depends | - (the RFC 7854 Section 3.3 change landed as dce906c381; `spec-bgp-rs-replacement-on-withdrawal` closed in f1d0477b3d) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-14 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
 Two defects in what Ze reports to a monitoring collector, found by the strict
-re-read of `spec-rfc-requirement-quote-hand-backfill`. A BMP
-station is told Ze closed a session the peer dropped, and an sFlow collector's
-sample pool stops advancing once it saturates. Both were read at the producer
-in HEAD on 2026-09-27.
+re-read of `spec-rfc-requirement-quote-hand-backfill` and read at the producer
+on 2026-09-27: a BMP station was told Ze closed a session the peer dropped (D1),
+and an sFlow collector's sample pool stops advancing once it saturates (D2).
+
+**D1 landed in another shape, and its design here is history.** The owner,
+2026-11-14: "we now support BMP this is historical and out of date". Commit
+4ef90497c6 ("fix(bgp): plugins learn why a session closed (RFC 4724, RFC
+7854)") made the reactor derive one close per down (`sessionCloseFor`,
+`internal/component/bgp/reactor/peer_close.go`) and carry the RFC 4271 event
+number to plugins (`PeerInfo.CloseFSMEvent`, `rpc.StructuredEvent.FSMEvent`),
+and made `peerDownFor` (`internal/component/bgp/plugins/bmp/bmp_events.go`)
+send reason 4 for `rpc.ReasonTCPFailure`; ecba2d9147 moved the tagged Peer Down
+proofs onto those reasons. The landed design departs from three owner answers
+recorded below: it carries the FSM event (Q-9 "iii" said none), a NOTIFICATION
+ze built and could not write is reason 2 with its event (Q-3 "b" said reason 1
+with that PDU), and the BMP NOTIFICATION cache stays (Q-1 "b" said delete it).
+The owner's statement above is read as retiring them for D1; the sections that
+record them are kept as history and labelled so.
+
+**The live work is D2 and four BMP residuals the landed code leaves open**
+(R-1 to R-4 under "Status at HEAD"), each read at its producer on 2026-11-14.
 
 ## Defects
 
 | ID | Source | Verbatim quote | Producer | What Ze does wrong | Audit verdict / record |
 |----|--------|----------------|----------|--------------------|------------------------|
-| D1 | RFC 7854 Section 4.9 | "Reason 4: The remote system closed the session without a notification message.  This includes any unexpected termination of the transport session, so in some cases both the local and remote systems might consider this to apply." | `internal/component/bgp/plugins/bmp/bmp_events.go::peerDownFor` | Every close without a NOTIFICATION is reported as reason 2 (local close, FSM event 0); reason 4 is never sent, including for a TCP reset or a connection the peer dropped | no row names it |
-| D2 | sFlow v5 (`rfc/full/sflow-v5.txt`, Section 5, `flow_sample`), row SFLOW-V5-x-11. NO NORMATIVE SENTENCE: a Ze behaviour defect measured against the field definition | the definition: "unsigned int sample_pool;      /* Total number of packets that could have been sampled (i.e. packets skipped by sampling process + total number of samples) */", and the note on `sequence_number`: "If the agent resets the sample_pool then it must also reset the sequence_number." | `internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample` | The pool is estimated as sequence times rate and saturates at 2^32-1. Correction (RFC-tagged test review, 2026-10-13): sFlow v5 Section 5's conventions do speak to it, "Unknown counter. Use the maximum counter value to indicate that the counter is not available." and "An available counter may temporarily have the max value just before it rolls to zero. This is permitted.", so a saturated pool announces "not available" and rolling to zero is what the text expects. The defect is that a saturated value stops being the count the definition names, and the lowercase note treats the pool as a cumulative counter reset only together with the sequence number, which saturation is not. Once saturated, a collector's per-interval delta reads zero | weak; lead, not checked against a collector. Row SFLOW-V5-x-11 itself quotes a field description tagged MUST: a row correction, listed with the other sFlow corrections in `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` |
+| D1 | RFC 7854 Section 4.9 | "Reason 4: The remote system closed the session without a notification message.  This includes any unexpected termination of the transport session, so in some cases both the local and remote systems might consider this to apply." | `internal/component/bgp/plugins/bmp/bmp_events.go::peerDownFor` | Historical, fixed in 4ef90497c6: as read on 2026-09-27, every close without a NOTIFICATION was reported as reason 2 with event 0 and reason 4 was never sent. At HEAD `peerDownFor` sends reason 4 with no Data for `rpc.ReasonTCPFailure`, which `sessionCloseFor` derives for Event 18 with no NOTIFICATION | RFC7854-x-10 and RFC7854-4.9-1 both `enforced` (`rfc/audit/rfc7854/`, re-judged 2026-10-24 and 2026-10-18) |
+| D2 | sFlow v5 (`rfc/full/sflow-v5.txt`, Section 5, `flow_sample`), row SFLOW-V5-x-11. NO NORMATIVE SENTENCE: a Ze behaviour defect measured against the field definition | the definition: "unsigned int sample_pool;      /* Total number of packets that could have been sampled (i.e. packets skipped by sampling process + total number of samples) */", and the note on `sequence_number`: "If the agent resets the sample_pool then it must also reset the sequence_number." | `internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample` | The pool is estimated as sequence times rate and saturates at 2^32-1. Correction (RFC-tagged test review, 2026-10-13): sFlow v5 Section 5's conventions do speak to it, "Unknown counter. Use the maximum counter value to indicate that the counter is not available." and "An available counter may temporarily have the max value just before it rolls to zero. This is permitted.", so a saturated pool announces "not available" and rolling to zero is what the text expects. The defect is that a saturated value stops being the count the definition names, and the lowercase note treats the pool as a cumulative counter reset only together with the sequence number, which saturation is not. Once saturated, a collector's per-interval delta reads zero | weak; lead, not checked against a collector. Row SFLOW-V5-x-11 itself quotes a field description tagged MUST; its correction is recorded in `rfc/corrections/sflow-v5.md` (2026-11-14: the row keeps its text, its MUST level and its citation, and its weak verdict stays with AC-3) |
+
+## Status at HEAD (2026-11-14)
+
+Every acceptance criterion below was checked against the tree on 2026-11-14.
+"Done" names the producer, the test and the commit; "changed" means the landed
+code meets the goal in another shape than the AC text; "superseded" means the
+AC belongs to the D1 design the owner called historical; "missing" is live work.
+The AC table further down keeps the original text for the record.
+
+| AC | State | Evidence at HEAD |
+|----|-------|------------------|
+| AC-1 | done (unit); interop owed as R-4 | `peerDownFor` reason 4 arm for `rpc.ReasonTCPFailure`; `sessionCloseFor`; `TestRFC7854PeerDownTransportLossIsReason4` (bmp), `TestPeerCloseNamesTheTransportLoss` (reactor); 4ef90497c6 |
+| AC-2 | missing | `EncodeFlowSample` still saturates `sample_pool` at 2^32-1 (`flow_adapter.go`) |
+| AC-3 | missing | `rfc/audit/sflow-v5/SFLOW-V5-x-11.json` verdict `weak` |
+| AC-4 | done | `rfc/audit/rfc7854/RFC7854-x-10.json` `enforced`, independent re-judge 2026-10-24 |
+| AC-5 | changed | `rfc/audit/rfc7854/RFC7854-4.9-1.json` `enforced` (2026-10-18): reason 2 carries the observed RFC 4271 event (`fsmEventData`, `TestRFC7854PeerDownLocalCloseCarriesTheFSMEvent`), not always 00 00 as Q-9 "iii" had it |
+| AC-6 | changed | a NOTIFICATION ze built and could not write leaves `notificationExchanged` false (`Peer.recordNotificationUnsent`), so `sessionCloseFor` gives `rpc.ReasonLocalClose` and BMP writes reason 2 with the event, not reason 1 with the built PDU |
+| AC-7 | changed | reason 1 with the exact PDU from BMP's own cache (`cacheNotificationPDU`), not from the down event; `TestRFC7854PeerDownCarriesTheDataItsReasonRequires`, `TestHandleSenderStatePeerDownCarriesTheNotificationZeSent` |
+| AC-8 | done | Event 18 with no NOTIFICATION gives `rpc.ReasonTCPFailure`, reason 4 with no Data; `TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone` |
+| AC-9 | partial, live as R-2 | congestion GR drop is `rpc.ReasonLocalClose` with Event 18 (`TestPeerCloseNamesTheCongestionTeardownLocal`); `sessionCloseFor` exempts only `ErrCongestionTeardown`, so no test shows what a context cancel, `StopForRestart` or a writer retirement (`errRawOwnership`) reports |
+| AC-10 | done | reason 3 with the received PDU, `TestRFC7854PeerDownCarriesTheDataItsReasonRequires` |
+| AC-11 | missing, live as R-1 | on a binding without `notification`, `peerDownFor` gets `rpc.ReasonNotification` with no cached PDU and writes reason 2; `TestHandleSenderStatePeerDown` pins that answer |
+| AC-12 | superseded | the landed design has no close-origin enum to arrive Unspecified |
+| AC-13 | done | `peerDownFor` reason 5 for `rpc.ReasonPeerRemoved`, `TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone` |
+| AC-14 | done | `peerDownCause.reported` (dce906c381), `TestPeerDownIsNotSentForAPeerNeverReportedUp` |
+| AC-15 | changed | `PutStructuredEvent` zeroes `FSMEvent` (`pkg/plugin/rpc/bridge.go`); no origin or PDU field exists to clear |
+| AC-16 | withdrawn | withdrawn 2026-10-14 |
+| AC-17 | done | `TestSFlowFlowSamplePoolTracksTotal` "grows by rate per sample" |
+| AC-18 | missing | the subtest "saturates rather than wraps" still asserts saturation |
+| AC-19 | missing | no `TestSFlowSamplePoolPerSource`; the pool is sequence times the current rate, so a rate change misstates it |
+| AC-20 | unverified | no test drives a version-error NOTIFICATION into a Peer Down |
+| AC-21 | superseded | `notifyCache` and `cacheNotificationPDU` stay in the landed design; R-1 deletes them when the down event carries the PDU |
+| AC-22 | changed | `Reactor.Stop` is reason 1 when the Cease is written (cache), reason 2 with ManualStop when it is not (AC-6) |
+| AC-23 | unverified | no test shows what a `read body` exit reports |
+| AC-24 | superseded | the landed design has no per-session close record |
+| AC-25 | changed | the down state event carries the closing NOTIFICATION's direction, code and subcode, no Data (`appendCloseNotificationJSON`, `appendCloseNotificationText`; `TestStateDownCarriesClosingNotification`; b3dc0806e5) |
+| AC-26 | missing | no sibling test beside `TestFlowExportSFlowToolInterop` (`collectors_docker_test.go`) |
+
+**Live BMP residuals** (owned here, designed in the next round):
+
+| ID | Defect at HEAD | Producer | RFC text |
+|----|----------------|----------|----------|
+| R-1 | A NOTIFICATION close on a binding without `notification` is written as reason 2, which says no NOTIFICATION was sent; the structured down event carries no PDU for BMP to use | `peerDownFor`, `cacheNotificationPDU` (`bmp_events.go`); `getStructuredStateEvent` (`server/events.go`) copies no NOTIFICATION | RFC 7854 Section 4.9: "Reason 2: The local system closed the session.  No notification message was sent." |
+| R-2 | A local close that fires Event 18 with no NOTIFICATION, other than the congestion drop, may be reported as reason 4 (remote) | `sessionCloseFor` (`peer_close.go`) | RFC 7854 Section 4.9 reason 2 above, and reason 4: "The remote system closed the session without a notification message." |
+| R-3 | UPDATEs stream as Route Monitoring for a peer whose Peer Up was never sent (journal row `message-for-a-peer-never-announced`, 2026-10-13) | `handleSenderUpdate` (`bmp_events.go`) | RFC 7854 Section 3.3: "If any BGP peers for which Peer Up messages were sent transition out of the Established state, corresponding Peer Down messages are sent." |
+| R-4 | No interop scenario shows a collector decoding reasons 1, 3 and 4 (`ai/rules/interop-and-goal-validation.md`); `bmp-peerdown-reason-pmacct` does not exist | `test/interop/scenarios/` | as R-1 and R-2 |
 
 ## What a fix must prove
 
@@ -39,6 +102,9 @@ in HEAD on 2026-09-27.
 
 ## Owner decisions
 
+The D2 row is live. OD-1 and OD-2 are history: they record the D1 design that
+4ef90497c6 did not take (see Task and "Status at HEAD").
+
 | Row | Question |
 |-----|----------|
 | D2 | Wrap versus saturate is NOT silent (RFC-tagged test review, 2026-10-13, checked against `rfc/full/sflow-v5.txt:1887-1892`): sFlow v5 Section 5 says "Unknown counter. Use the maximum counter value to indicate that the counter is not available." and "An available counter may temporarily have the max value just before it rolls to zero. This is permitted." Saturating at 2^32-1 therefore announces "not available", and rolling to zero is what the text expects, so the wrap is the text's answer. What stays the owner's call is the estimate-versus-count question: sample_pool is defined as "Total number of packets that could have been sampled (i.e. packets skipped by sampling process + total number of samples)", and the encoder writes an estimate (sequence times rate, or the accumulated rate). Whether the pool should count packets actually seen is Ze's choice, and the tag prose states it as Ze's choice, not as sFlow text |
@@ -47,6 +113,15 @@ in HEAD on 2026-09-27.
 | OD-2 | Where the PDU is kept until the down event is published, and its cost (design under Q-1 "b"). One close record per `Session`, held behind an atomic pointer and set once, first writer wins, the `closeReason` shape (`Session.closeReason` in `session.go`, `Session.setCloseReason` in `session_connection.go`). The record holds the origin (local or remote) and, where a NOTIFICATION closed the session, a copy of its body. It holds no FSM event (Q-9 "iii", owner 2026-10-14): reason 2 always writes 00 00. It is written before the write or the FSM event that can publish the down event, at these producers: `Session.sendNotificationWithin` (every NOTIFICATION ze builds, before `writeMessageWithin`, so a failed write still leaves it); `Session.handleNotification` (`session_handlers.go`; the received body, copied out of the pooled read buffer before `UnpackNotification`, because the payload must be a self-contained value); `Session.handleConnectionClose` (remote, no PDU, before Event 18); `Session.retireWrite` (remote, no PDU, before the conn is closed) for a write the transport refused, with the local retirements classified at their site first (below); the `Session.Run` exits that return with no FSM event (below); the Q-5 sites (local, no PDU); and the nil-connection branches of the local closers (local, no PDU). Local retirements that reach `retireWrite`: `finishRawWrite` retires for `errRawOwnership` ("a local safety policy", its comment), `writeUpdateBody`'s deferred `retireWrite(result)` retires after a partial write that ze refused, and the forward flush past ze's own write deadline (`session_write.go`, "forward flush failed; destination session retired") retires the destination. Each records local, no PDU, before it calls `retireWrite`, so first writer wins keeps it and the collector reads reason 2 with 00 00, never reason 4. `Run` exits with no FSM event (`session_read.go` and `session_coalesce.go`): a `read body` error and a header read error that is neither EOF nor a reset record remote, no PDU, before returning (RFC 7854 Section 4.9 reason 4: "This includes any unexpected termination of the transport session"); when a local closer closed the conn first (the cancel goroutine's `closeConn`, whose 100 ms drain deadline can hand the blocked reader `i/o timeout`), that closer recorded first and the remote record loses. Publishing the down event for those exits is `spec-bgp-rs-replacement-on-withdrawal` Phase 2b (metadata Depends); this spec owns only the record. The nil-connection branches: `Session.teardown` (its `stopEvent`: ManualStop from `Teardown`, AutomaticStop from `teardownAutomatic`, BfdDown from `bfdTeardown`), the hold-expiry arm in `session.go` (HoldTimerExpires), `CloseWithNotification` (OpenCollisionDump) and `sendHoldTimerExpired` in `session_write.go` (HoldTimerExpires) each read `s.conn` and skip the NOTIFICATION when it is nil, and each still fires its FSM event after that (read at the producers 2026-10-14), so the event can publish the down event; there each records local, no PDU, before the event, so that down event never arrives Unspecified (AC-12). Because every closer that records does so before `closeConn`, that branch's record lands only when the conn was closed by a closer that records nothing. Corrected 2026-10-14 (review r2 #1): with this spec's own recorders in place, the one such production window is a race. A context cancel while the session is paused makes `waitForResume` (`session_flow.go`) return `ctx.Err()` on `<-ctx.Done()`, and `Run`'s deferred `closeConn` (`session.go`) can run before the cancel goroutine, woken by the same `ctx.Done()`, writes its local record; a `bfdTeardown` or a hold expiry landing in that gap reads a nil conn. Every other Established exit of `Run` records before its deferred `closeConn` runs (`handleConnectionClose`, the `read body` and non-EOF header exits, the `logNotifyErr` exits through `sendNotificationWithin`, which records before `writeMessageWithin` returns `ErrNotConnected` for a nil conn, and the nil-conn loop branch returning a recorded `closeReason`). The cancel goroutine's panic-recovery `closeConn` is not a production shape: nothing before its record can panic in practice, so the recovery arm runs only after the record is written. The asymmetry between nil-conn local closes is intended: `teardown`, `CloseWithNotification`, the hold-expiry arm and `sendHoldTimerExpired` skip the build and give reason 2 with 00 00, while the `logNotifyErr` sites (policy, prefix-limit and family teardowns, `fsmMessageEvent`, header errors) pass the nil conn into `sendNotificationWithin`, record the PDU they built, and give reason 1 (Q-3 "b"). Read by the from-Established arm of the FSM callback (`peer_run.go`). `fsm.change` queues callbacks in `f.pending`, and the arm can run on whichever goroutine drains them (`fsm/fsm.go`), so the arm does not run "inside" the event; it is still race-free because the record is stored before the event is enqueued under `f.mu` and never changes after, so the drainer's load sees it. Cost: one pointer word per Session while it runs; at close one allocation, the record plus the body, at most 4077 octets (`message.MaxMsgLen` 4096 minus the 19-octet header) or 65516 with RFC 8654 Extended Message (`message.ExtMsgLen`). A teardown Cease always carries `BuildCeaseData(subcode, msg)` with the subcode name as the default message (`Session.teardown`), so a typical record is a few dozen octets, not 2. A new `Session` is built per connection attempt (`runOnce`, `Peer.newSession` in `peer_bfd.go`), so the record is freed with its Session; cold path, at most one per session close. The payload crossing to plugins is a self-contained value (`ai/rules/plugins.md`): immutable bytes owned by the record, referenced by the event and cleared by `PutStructuredEvent`. BMP copies the body into its Peer Down message buffer and keeps no reference, which the StructuredEvent contract (no retention) already requires |
 
 ### Open owner questions (design, 2026-10-13)
+
+Historical for D1: Q-1 to Q-7 and Q-9 shaped a design the landed code did not
+take (Task). Q-7's approvals name RFC-tagged units ecba2d9147 later changed
+under its own approval, so a D1 row of Q-7 is not an approval for new work. Q-7's
+`TestSFlowFlowSamplePoolTracksTotal` row and Q-8 stay live for D2. Q-8's
+answer ("Extend the existing test") holds, but its premise names the carrier's
+old home: since 00ad396fd0 it is `internal/plugins/flowexport/collectors_docker_test.go`,
+build tag `docker`, run in labtest containers rather than through the image's
+default command.
 
 Each row carries the reading the design proceeds under until the owner answers. Q-1 to Q-7 are answered (2026-10-13); Q-8 was re-asked on a corrected premise and answered 2026-10-14; Q-9 was answered "a" on 2026-10-14, re-asked the same day on a corrected premise (review r2 #1), and answered "iii", which supersedes "a".
 
@@ -64,9 +139,10 @@ Each row carries the reading the design proceeds under until the owner answers. 
 
 ## Owned journal rows
 
-One open journal row is a BMP sender defect on the Peer Up path this spec
-already reads (journal row text checked, not yet run). It is homed here, not in a new spec. The next design round turns
-it into a D-row and an AC with a test that goes red first.
+The first row is open and is R-3 (`handleSenderUpdate` still has no Peer Up
+check, read 2026-11-14). The second row's defect is fixed at HEAD: `peerDownFor`
+writes the Data each reason requires (its status cell says so after its `open:`
+prefix). The third row is open and is owed by this spec's sFlow work.
 
 | Class file | Date | Surface | Defect |
 |------------|------|---------|--------|
@@ -133,7 +209,19 @@ it into a D-row and an AC with a test that goes red first.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:**
+**The code today (read at the producers on 2026-11-14):**
+
+| Surface | Producer | What it does |
+|---------|----------|--------------|
+| Close derivation | `internal/component/bgp/reactor/peer_close.go`, `sessionCloseFor` | One close per down, from whether a NOTIFICATION crossed the wire (`Peer.notificationExchanged`, set only by a delivered or received NOTIFICATION), whether publication failed, the FSM event and the recorded close reason (`closeCause`, first writer wins through `Session.setCloseReason`): `rpc.ReasonNotification`, `rpc.ReasonAdjRIBInInvalid`, `rpc.ReasonLocalClose` for any event but 18, `rpc.ReasonLocalClose` for Event 18 when the cause is `ErrCongestionTeardown`, else `rpc.ReasonTCPFailure`. An event with no registered RFC 4271 number gives 0 |
+| Close carried to plugins | `internal/component/bgp/reactor/reactor_api.go`, `apiStateObserver.OnPeerClosed`; `internal/component/bgp/server/events.go`, `getStructuredStateEvent` | `PeerInfo` carries `CloseFSMEvent` and `CloseNotification` (direction, code, subcode, from `Peer.closingNotification`); the structured event copies the reason and `FSMEvent` only, and `PutStructuredEvent` zeroes `FSMEvent` |
+| JSON and text state events | `internal/component/bgp/format/text_json.go`, `appendStateChangeJSON`; `internal/component/bgp/format/session_events.go`, `appendCloseNotificationJSON`, `appendCloseNotificationText` | a down event names the closing NOTIFICATION's direction, code and subcode, never its Data |
+| BMP Peer Down | `internal/component/bgp/plugins/bmp/bmp_events.go`, `clearPeerState`, `peerDownFor` | a cached NOTIFICATION (from `notification` events, `cacheNotificationPDU`, last one wins) gives reason 1 if sent or 3 if received, with the PDU; `rpc.ReasonPeerRemoved` gives 5; `rpc.ReasonTCPFailure` gives 4; anything else gives 2 with the two-octet `FSMEvent`. A Peer Down is written only for a peer whose Peer Up was sent (`peerDownCause.reported`) |
+| BMP Route Monitoring | `internal/component/bgp/plugins/bmp/bmp_events.go`, `handleSenderUpdate` | every UPDATE is streamed, with no Peer Up check (R-3) |
+| sFlow pool | `internal/plugins/flowexport/sflow/flow_adapter.go`, `EncodeFlowSample` | per-ifIndex sequence in `seqNums`; `sample_pool` is the sequence times the sample's rate, saturated at 2^32-1 (D2) |
+| sFlow collector proof | `internal/plugins/flowexport/collectors_docker_test.go`, `TestFlowExportSFlowToolInterop` (tag `docker`) | asserts sflowtool's `"samplePool": "64"` for one sample at rate 64 |
+
+**Source files read on 2026-10-13 (history: the annotations below describe the tree before 4ef90497c6, and the D1 design built on it):**
 - [ ] `internal/component/bgp/plugins/bmp/bmp_events.go` - `peerDownCause`, `fsmEventNone`, `clearPeerState`, `peerDownFor`, `handleSenderState`, `cacheNotificationPDU` (the Section 3.3 change is committed, dce906c381)
   → Constraint: `peerDownFor(notify, reason string)` decides: cached sent NOTIFICATION gives 1, cached received gives 3, `rpc.ReasonPeerRemoved` gives 5, everything else gives 2 with the constant `fsmEventNone` (00 00). Reason 4 (`PeerDownRemoteNoData`, `msg.go`) is declared and never produced
   → Constraint: the Section 3.3 change (dce906c381) adds `peerDownCause.reported` (true only when `peerUps` held the peer) and the down arm of `handleSenderState` returns early when it is false. Keep it: the cause is decided only for a reported peer
@@ -168,7 +256,7 @@ it into a D-row and an AC with a test that goes red first.
   → Constraint: the encoder holds per-source state in a map keyed by ifIndex; a per-source pool accumulator fits the same map shape
 - [ ] `internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go` - `TestSFlowFlowSamplePoolTracksTotal`, tagged SFLOW-V5-x-11, subtest "saturates rather than wraps"
 
-**Close paths out of Established, as the code stands (2026-10-13):**
+**Close paths out of Established, as the code stood on 2026-10-13 (history: the "BMP reason today" column is the answer before 4ef90497c6, and the owed column is the D1 design's, not today's target):**
 
 | Close path | Producer | NOTIFICATION on the wire | Event the FSM processes | Close reason recorded | BMP reason today | RFC 7854 4.9 reason owed |
 |------------|----------|--------------------------|-------------------------|-----------------------|------------------|--------------------------|
@@ -189,7 +277,7 @@ it into a D-row and an AC with a test that goes red first.
 | Context cancel, `StopForRestart` | `Run` cancel goroutine (`stop(false)` notifies nobody) | none | 18 via the read loop | `ctx.Err()` or the errChan value | 2 with 00 00 | 2 with 00 00 (Q-5) |
 | Peer removed from config | `removePeer` (`reactor_peers.go` line 287) | Cease Peer De-configured | n/a, direct event | n/a | 5 | 5 |
 
-**Behavior to change:** D1, the reason column (2 with 00 00 for a remote close) becomes the owed column. D2, the saturation in `EncodeFlowSample`.
+**Behavior to change:** D2, the saturation in `EncodeFlowSample`. R-1 to R-4 under "Status at HEAD". (D1's change, the reason column becoming the owed column, landed in 4ef90497c6 in another shape.)
 
 **Behavior to preserve:**
 
@@ -202,13 +290,30 @@ it into a D-row and an AC with a test that goes red first.
 | The textual `Reason` string on state events and JSON | `peer_run.go`, `format.AppendStateChange` (Q-6) |
 | sFlow `sample_pool` grows by the rate per exported sample below 2^32 | `TestSFlowFlowSamplePoolTracksTotal` "grows by rate per sample" |
 
+## Existing Mechanisms (MANDATORY)
+
+Each row was read at its producer on 2026-11-14. The rows cover the live work
+only (D2 and the BMP residuals R-1 to R-4 under "Status at HEAD"); the D1 design
+that landed in another shape is history.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Per-source sFlow sample sequence | `internal/plugins/flowexport/sflow/flow_adapter.go`, `FlowEncoder.seqNums` and `EncodeFlowSample` | keeps one sequence number per ifIndex, and writes `sample_pool` as the product of that sequence and the sample's rate, saturated at 2^32-1 | extends (D2): the per-source pool lives in the same per-ifIndex state, created and reset with the sequence number, and wraps modulo 2^32 instead of saturating |
+| Independent sflowtool collector carrier | `internal/plugins/flowexport/collectors_docker_test.go`, `TestFlowExportSFlowToolInterop`, build tag `docker`; image `test/interop-flowexport/Dockerfile.collectors` (the carrier moved there in 00ad396fd0) | builds pinned sflowtool, runs it in a labtest container, sends two datagrams from the public encoder through `Sender` over UDP, and asserts sflowtool's decode, `"samplePool": "64"` for one sample at rate 64 | extends (AC-26, owner Q-8 "Extend the existing test"): a sibling test in the same file asserts the per-sample pool and the wrap; the existing test keeps its assertions |
+| RFC verdict and discrimination records | `./le rfc record`, `./le rfc audit-stamp ... mode rejudge`; `rfc/audit/sflow-v5/SFLOW-V5-x-11.json` (verdict `weak`) | records a break under which a tagged unit goes red, and an independent verdict per requirement | extends (AC-3): the rewritten SFLOW-V5-x-11 unit gets a fresh record and a re-judge; no record is written by hand |
+| Reactor close derivation | `internal/component/bgp/reactor/peer_close.go`, `sessionCloseFor`, `closeCause`; `Session.setCloseReason` (`session_connection.go`) | derives one close per down: `rpc.ReasonNotification` when a NOTIFICATION crossed the wire, `rpc.ReasonAdjRIBInInvalid` on a failed publication, `rpc.ReasonTCPFailure` for Event 18 with no NOTIFICATION unless the recorded cause is `ErrCongestionTeardown`, `rpc.ReasonLocalClose` otherwise, plus the RFC 4271 event number | extends (R-2): a local close that fires Event 18 with a recorded local cause other than congestion is classified at the same decision point congestion is |
+| Closing NOTIFICATION on the down event | `internal/component/bgp/reactor/peer_stats.go`, `Peer.closingNotification`; `plugin.CloseNotification` (`internal/component/plugin/types_bgp.go`); `format/session_events.go`, `appendCloseNotificationJSON`, `appendCloseNotificationText` | carries the direction, code and subcode of the NOTIFICATION that crossed the wire to JSON and text `state` subscribers; `rpc.StructuredEvent` carries `Reason` and `FSMEvent` but no NOTIFICATION | extends (R-1): the BMP sender needs the whole closing PDU on the structured down event, so a binding without the `notification` grant still gets reason 1 or 3 |
+| BMP Peer Down reason choice | `internal/component/bgp/plugins/bmp/bmp_events.go`, `peerDownFor`, `clearPeerState`, `cacheNotificationPDU`; `BMPPlugin.notifyCache` (`bmp.go`) | reason 1 or 3 from the NOTIFICATION cached from `notification` events, 5 for `rpc.ReasonPeerRemoved`, 4 for `rpc.ReasonTCPFailure`, else 2 with `FSMEvent` as Data | extends (R-1): with `rpc.ReasonNotification` and no cached PDU it answers reason 2, which says no NOTIFICATION was sent; the fix reads the PDU from the down event and deletes the cache rather than keeping two sources (`ai/rules/no-layering.md`) |
+| BMP Route Monitoring | `bmp_events.go`, `handleSenderUpdate`; `BMPPlugin.peerUps` (`recordPeerUp`) | streams every UPDATE as Route Monitoring, with no check that a Peer Up was sent for the peer | extends (R-3, journal row `message-for-a-peer-never-announced`): gate on the same `peerUps` record the Peer Down path reads |
+| pmacct BMP interop lab | `test/interop/scenarios/bmp-locrib-pmacct/`; `pmacctPeerDownReasonSix` (`internal/le/interoplab/bgp/names.go`) | asserts pmacct's decoded `reason_type` 6 on a Loc-RIB Peer Down | extends (R-4): a sibling scenario asserts reasons 1, 3 and 4 for a BGP peer |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - D1: a BGP session leaving Established, by any row of the close-path table above
 - D2: a packet sampled by the kernel and handed to `FlowEncoder.EncodeFlowSample`
 
-### Transformation Path (D1, Q-1 "b")
+### Transformation Path (D1, Q-1 "b"; history, not the landed design: see "Current Behavior")
 1. The session's close record (OD-2) is written once, first writer wins, before the I/O or the FSM event that can publish the down event. `Session.sendNotificationWithin` records origin `local` with a copy of the NOTIFICATION body it built, before `writeMessageWithin`, so a refused write keeps it (Q-3 "b"). `Session.handleNotification` records origin `remote` with a copy of the received body, before `UnpackNotification` and before `fsmMessageEvent`. The copy is owed because the body lives in the pooled read buffer, not because unpack can fail: every received NOTIFICATION has passed `hdr.ValidateLengthWithMax` (`MinNotificationLen` 21, `message/header.go`) and `UnpackNotification` refuses only a body under 2 octets. A version-error NOTIFICATION (`notificationEvent`, OPEN Message Error / Unsupported Version Number, Event 24) is recorded the same way.
 2. Closes with no NOTIFICATION record their origin with no PDU, before they close or fire. `handleConnectionClose` (read EOF or reset) and `retireWrite` (write I/O failure) record `remote`, before Event 18 and before the connection is closed. The `Run` exits with no FSM event (`read body`, a non-EOF non-reset header error, in `readAndProcessMessage` and `readAndProcessCoalesced`) record `remote` before returning. The Q-5 sites record `local`: the GR-aware branch of `congestionTeardownPeer`, the cancel goroutine in `Session.Run` (context cancel, `StopForRestart`; `Reactor.Stop` is reason 1, step 1), and the local retirements (`finishRawWrite`, the refused partial write in `writeUpdateBody`, the forward flush past ze's deadline), each before it calls `retireWrite`. The nil-connection branches of `Session.teardown`, the hold-expiry arm, `CloseWithNotification` and `sendHoldTimerExpired` record `local` with no PDU before the FSM event the closer still fires (Q-9 "iii": no event is recorded); first writer wins, so this lands only after a `closeConn` that recorded nothing, which in production is only the paused-cancel race (OD-2).
 3. The from-Established arm of the FSM callback in `peer_run.go` loads the record and passes it to `announceClosed`, which hands it through `notifyPeerClosed` to `apiStateObserver.OnPeerClosed`, which sets it on `plugin.PeerInfo`.
@@ -216,7 +321,7 @@ it into a D-row and an AC with a test that goes red first.
 5. `clearPeerState` no longer reads a cache. `peerDownFor` decides from the down event: `ReasonPeerRemoved` gives 5; origin local with a PDU gives 1 carrying it; origin remote with a PDU gives 3 carrying it; origin local with no PDU gives 2 with the 2-octet Data 00 00 (Q-5 "a", Q-9 "iii"); origin remote with no PDU gives 4 with no Data; origin Unspecified on a non-removed down is a producer defect: WARN naming the peer, and reason 2 with 00 00. The 19-octet header is synthesized by `bgpPDU` as today.
 6. `handleSenderState` writes the Peer Down only when `reported` holds (unchanged).
 
-### State event wire shape (OD-1, JSON and text subscribers)
+### State event wire shape (OD-1, JSON and text subscribers; history: b3dc0806e5 landed a `notification` member instead, see "Current Behavior")
 
 The down state event gains two optional members, written by `appendStateChangeJSON` and `appendStateChangeText` from `PeerInfo`, in the order `close-origin`, `close-notification`, both BEFORE `reason` (review r2 #2). There is no `close-event` member: under Q-9 "iii" the record carries no event, so it would have no value to carry. In the text form that order is load-bearing: `appendStateChangeText` writes the reason as is, and on every Established exit it is two words, `connection lost` (`peer_run.go`), so a reader finds the end of the reason only at end of line. A down event never carries `initial-replay` (`apiStateObserver.OnPeerClosed` sets none), so on a down line `reason` is the last member. `unheld-roles` is a JSON member only (`format.AppendStateChange`), never in the text form. In JSON the order carries no meaning (`bgp.ParseEvent` skips unknown keys without a `/`), and the members are written in the same order. Each is absent when its fact is absent, so an up event, a `removed` down and every existing parser see what they see today. Keys are kebab-case; the NOTIFICATION members reuse the names the NOTIFICATION event already uses (`code`, `subcode`, `data` as hex of the Data field, `format/json.go` `Notification`).
 
@@ -296,9 +401,15 @@ The text `reason` value is written as is and stays untouched (Q-6 "a"). The thre
 |----------|--------|
 | What breaks if this is wrong? | A BMP collector misattributes why a session closed (local vs remote), or misdecodes reason 2 Data; no BGP session behaviour changes. D2: an sFlow collector's pool delta |
 | How is it reverted? | single commit revert per defect |
-| Who else touches this path? | the BMP Section 3.3 change (dce906c381, `bmp_events.go`, its tests); `spec-bgp-rs-replacement-on-withdrawal` Phase 2b (`runOnce` down defer, `peer_run.go`); JSON/text state-event consumers, which see only added members (OD-1); `spec-rfc-verdict-fix-services` (SFLOW-V5-x-11 row text); `spec-rfc-verdict-fix-bgp` (it moved the BMP verdicts here and touches nothing now) |
+| Who else touches this path? | the BMP Section 3.3 change (dce906c381, `bmp_events.go`, its tests) and the close derivation of 4ef90497c6 (`peer_close.go`); JSON/text state-event consumers of the `notification` member (b3dc0806e5); `rfc/corrections/sflow-v5.md` (SFLOW-V5-x-11 row text). `spec-bgp-rs-replacement-on-withdrawal`, `spec-rfc-verdict-fix-services` and `spec-rfc-verdict-fix-bgp` are closed |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
+
+The sampled-packet row is live. The other rows name tests of the D1 design and
+are history; the landed D1 wiring is proven by `TestPeerCloseNamesTheTransportLoss`,
+`TestRFC7854PeerDownTransportLossIsReason4` and `TestStateDownCarriesClosingNotification`.
+R-1 to R-4 get their wiring rows in the next design round, R-4's being the
+`bmp-peerdown-reason-pmacct` row below.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
@@ -313,11 +424,16 @@ The text `reason` value is written as is and stays untouched (Q-6 "a"). The thre
 
 ## Acceptance Criteria
 
+The rows keep their original text. Their state at HEAD is the table under
+"Status at HEAD": the live ones are AC-2, AC-3, AC-18, AC-19 and AC-26 (D2),
+and AC-9, AC-11 and AC-1's interop (R-1, R-2, R-4); AC-20 and AC-23 are
+unverified. The rows marked done, changed or superseded there are history.
+
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | monitored peer closes TCP with no NOTIFICATION | Peer Down reason 4. A peer killed mid-UPDATE can end the read loop on `read body` instead of EOF (AC-23); that exit's Peer Down exists only once `spec-bgp-rs-replacement-on-withdrawal` Phase 2b lands (metadata Depends, R-10) |
 | AC-2 | sample pool crossing 2^32 | wraps modulo 2^32 |
-| AC-3 | the `weak` verdict of SFLOW-V5-x-11, after this spec's D2 producer fix | the verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. The row correction stays with `plan/release/validation/spec-rfc-verdict-fix-services.md`, whose "Blocked by" table moved the verdict here (parent P-3, 2026-09-28) |
+| AC-3 | the `weak` verdict of SFLOW-V5-x-11, after this spec's D2 producer fix | the verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. The row correction is recorded in `rfc/corrections/sflow-v5.md` (2026-11-14); the verdict came here from `spec-rfc-verdict-fix-services` (closed, `plan/learned/050-rfc-verdict-fix-services.md`), whose "Blocked by" table moved it (parent P-3, 2026-09-28) |
 | AC-4 | the `weak` verdict of RFC7854-x-10 ("Reason indicates why the session was closed", Section 4.9), after this spec's D1 producer fix | the verdict reaches `enforced`: tagged tests tie each observed close cause to its reason in `peerDownFor` (a TCP loss or a peer close without NOTIFICATION gives reason 4, a local close without NOTIFICATION reason 2, a sent or received NOTIFICATION reason 1 or 3, a deconfigured peer reason 5), both polarities, re-judged by an agent that did not write them with `./le rfc audit-stamp ... mode rejudge`. The BGP child spec-rfc-verdict-fix-bgp moved the verdict here (parent P-3, 2026-09-29) |
 | AC-5 | the `weak` verdict of RFC7854-4.9-1 (Section 4.9, reason 2: "Following the reason code is a 2-byte field containing the code corresponding to the Finite State Machine (FSM) Event that caused the system to close the session"), after this spec's D1 producer fix | a local close without NOTIFICATION reaches the collector as reason 2 with its 2-octet Data field. Under Q-3 "b" every local close that fires an RFC 4271 event builds a NOTIFICATION and is reason 1, so the reachable reason 2 closes are the Q-5 ones and the nil-connection branches of AC-24, and every one writes Data 00 00, "Two bytes both set to 0 are used to indicate that no relevant Event code is defined" (Q-5 "a", Q-9 "iii"). Today `peerDownFor` writes 00 00 for every reason 2, remote closes included, which is the defect. Tagged tests cover both polarities: a Q-5 close is reason 2 with 00 00, and a remote close with no NOTIFICATION is never reason 2 and are re-judged by an agent that did not write them with `./le rfc audit-stamp ... mode rejudge`. The BGP child spec-rfc-verdict-fix-bgp moved the verdict here (parent ruling R13, 2026-09-29) |
 | AC-6 | each local close path, NOTIFICATION write refused (test conn that fails writes): Teardown, teardownAutomatic, hold expiry, collision dump, policy teardown | the collector reads reason 1 carrying the NOTIFICATION PDU ze built and could not deliver (Q-3 "b"): Cease Administrative Shutdown or the configured subcode, Cease from `teardownAutomatic`, Hold Timer Expired, Cease Connection Collision Resolution, the filter's code; also strict BFD Down (Cease BFD Down, subcode 10). Never reason 1 with no PDU, never reason 2, never reason 4 |
@@ -340,7 +456,7 @@ The text `reason` value is written as is and stays untouched (Q-6 "a"). The thre
 | AC-23 | the read loop ends on a `read body` error, or on a header read error that is neither EOF nor a reset, with no local closer recorded (`readAndProcessMessage`, `readAndProcessCoalesced`) | the session's record is origin remote, no PDU; once `spec-bgp-rs-replacement-on-withdrawal` Phase 2b publishes the down event for that exit, the collector reads reason 4. When the cancel goroutine closed the conn first (the reader got `i/o timeout` from the 100 ms drain), the record stays the cancel goroutine's local one and the collector reads reason 2 with 00 00 |
 | AC-24 (Q-9 "iii", 2026-10-14) | a local closer reads a nil conn after a `closeConn` that recorded nothing, which in production is only `Run`'s deferred close in the paused-cancel race (`waitForResume` returns `ctx.Err()` before the cancel goroutine records; OD-2): strict BfdDown through `bfdTeardown`, `Teardown`, `teardownAutomatic`, hold expiry, `CloseWithNotification`, `sendHoldTimerExpired` | the record is origin local, no PDU, written before the FSM event the closer fires, so the down event is never Unspecified; the collector reads reason 2 with Data 00 00, never the AC-12 WARN. When any recorded closer ran first, its record stays (first writer wins) |
 | AC-25 | a process bound with `receive [ state ]` and no `notification`, JSON encoding, then text encoding | its down state event carries `close-origin`, and `close-notification` with `code`, `subcode`, `data` for a NOTIFICATION close; an up event and a `removed` down carry neither (OD-1). In the text form both come before `reason`, and `reason connection lost` ends the line |
-| AC-26 | the sflowtool carrier, sibling test `TestFlowExportSFlowToolSamplePoolInterop` in `interop_integration_linux_test.go`: one source, several samples at a fixed rate, then, on a second source (its own ifIndex), three samples at `Rate` 2^31 crossing 2^32 (Q-8, 2026-10-14; review r2 #5, #6) | the decoded `samplePool` values sflowtool prints are, on the first source, k times the rate for sample k, and on the second 2147483648, 0, 2147483648, never 4294967295. sflowtool prints the 32-bit value as decoded and computes no delta (review r2 #4); the delta is the test's arithmetic over those strings |
+| AC-26 | the sflowtool carrier, sibling test `TestFlowExportSFlowToolSamplePoolInterop` in `internal/plugins/flowexport/collectors_docker_test.go` (tag `docker`; the carrier moved from `interop_integration_linux_test.go` in 00ad396fd0): one source, several samples at a fixed rate, then, on a second source (its own ifIndex), three samples at `Rate` 2^31 crossing 2^32 (Q-8, 2026-10-14; review r2 #5, #6) | the decoded `samplePool` values sflowtool prints are, on the first source, k times the rate for sample k, and on the second 2147483648, 0, 2147483648, never 4294967295. sflowtool prints the 32-bit value as decoded and computes no delta (review r2 #4); the delta is the test's arithmetic over those strings |
 
 ## End-to-End User Stories
 
@@ -355,6 +471,11 @@ The text `reason` value is written as is and stays untouched (Q-6 "a"). The thre
 ## 🧪 TDD Test Plan
 
 Failing first: every new or changed assertion below is run red against the current producer and the red is pasted in the session state before the producer changes.
+
+Live rows: `TestSFlowSamplePoolPerSource`, the `TestSFlowFlowSamplePoolTracksTotal`
+edit, `TestFlowExportSFlowToolSamplePoolInterop` and the `bmp-peerdown-reason-pmacct`
+scenario. Every other row plans a test of the D1 design and is history; several
+name tests that the landed code made with other names or never needed.
 
 ### Unit Tests
 | Test | File | Validates | Status |
@@ -421,11 +542,16 @@ Approved by the owner on 2026-10-13 (Q-7). The gate reads approvals from the com
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `bmp-peerdown-reason-pmacct` (new) | `test/interop/scenarios/bmp-peerdown-reason-pmacct/` (frr.conf, pmbmpd.conf, ze.conf) + checks in `internal/le/interoplab/bgp/checkers.go` | FRR (BGP peer), pmacct `pmbmpd` (collector) | three teardowns in sequence, each waiting for the session to re-establish: ze teardown → `"reason_type": 1`; FRR `neighbor shutdown` → `"reason_type": 3`; FRR bgpd killed → `"reason_type": 4`, and `"reason_type": 2` absent with proof needles | |
-| `TestFlowExportSFlowToolSamplePoolInterop` (NEW sibling in the extended carrier, owner Q-8 2026-10-14 "Extend the existing test"; review r2 #6) | `internal/plugins/flowexport/interop_integration_linux_test.go` (tags `integration && linux`), beside `TestFlowExportSFlowToolInterop`, whose assertions stay unchanged; sflowtool v6.11 pinned in `test/interop-flowexport/Dockerfile.collectors`; no scenario directory | sflowtool | AC-26: sflowtool decodes ze's `samplePool` for several samples of one source, the test's delta between consecutive values equals the rate; on a second source at `Rate` 2^31 (set directly on `FlowSample`, the YANG bound 1..1000000 is config only) it prints 2147483648, 0, 2147483648. Today the carrier asserts only `"samplePool": "64"` for one sample. Run route: the test skips without `-flowexport-peer-dir` (`exportInteropTool`), so the evidence and its red come from the collector image's default command, whose `-test.run` pattern in `Dockerfile.collectors` selects only the NFDump and SFlowTool tests today and widens to select the sibling (`flow-export-1-counter-export.md`, "Independent collector tests") | |
+| `TestFlowExportSFlowToolSamplePoolInterop` (NEW sibling in the extended carrier, owner Q-8 2026-10-14 "Extend the existing test"; review r2 #6) | `internal/plugins/flowexport/collectors_docker_test.go` (build tag `docker`), beside `TestFlowExportSFlowToolInterop`, whose assertions stay unchanged; sflowtool pinned in `test/interop-flowexport/Dockerfile.collectors` and started in a labtest container (`startExportCollector`); no scenario directory | sflowtool | AC-26: sflowtool decodes ze's `samplePool` for several samples of one source, the test's delta between consecutive values equals the rate; on a second source at `Rate` 2^31 (set directly on `FlowSample`, the YANG bound 1..1000000 is config only) it prints 2147483648, 0, 2147483648. Today the carrier asserts only `"samplePool": "64"` for one sample. Run route: a `go test -tags docker` run of the package selecting the sibling (00ad396fd0 replaced the image's default-command route the 2026-10-14 design named; re-read `flow-export-1-counter-export.md`, "Independent collector tests", at implement start) | |
 
-Discrimination for the interop (`ai/rules/interop-and-goal-validation.md`): revert `peerDownFor` to today's arm, rebuild the ze image, confirm the reason 4 row goes red (pmacct prints 2), restore, confirm green, record. For the sflowtool carrier: restore the saturating arm in `EncodeFlowSample`, rebuild the collector image so the test binary carries it, confirm `TestFlowExportSFlowToolSamplePoolInterop` goes red through the image's default command (sflowtool prints 2147483648, 4294967295, 4294967295 on the second source), restore, rebuild, confirm green, record.
+Discrimination for the interop (`ai/rules/interop-and-goal-validation.md`): revert `peerDownFor` to today's arm, rebuild the ze image, confirm the reason 4 row goes red (pmacct prints 2), restore, confirm green, record. For the sflowtool carrier: restore the saturating arm in `EncodeFlowSample`, confirm `TestFlowExportSFlowToolSamplePoolInterop` goes red in a `docker`-tagged run (the encoder runs in the test process, so no image rebuild carries it) (sflowtool prints 2147483648, 4294967295, 4294967295 on the second source), restore, rebuild, confirm green, record.
 
 ## Files to Modify
+
+Live rows: `flow_adapter.go`, `collectors_docker_test.go`, the interoplab
+checkers, and the docs rows for flow export and the BMP guide. The reactor,
+`rpc`, server, format and BMP-cache rows are the D1 design and are history; the
+files R-1 and R-2 touch are named in the next design round.
 
 | File | Change |
 |------|--------|
@@ -439,8 +565,7 @@ Discrimination for the interop (`ai/rules/interop-and-goal-validation.md`): reve
 | `internal/component/bgp/reactor/peer_derived_bindings.go` | `announceClosed` carries it |
 | `internal/component/bgp/reactor/reactor.go`, `reactor_notify.go`, `reactor_api.go` | `peerLifecycleObserver.OnPeerClosed` (`reactor.go`), `notifyPeerClosed` and `apiStateObserver.OnPeerClosed` carry the record to PeerInfo, with `callbackAdapter` and the test observers; `registry.PeerLifecycleCallback` and the `mrt` observer are unchanged |
 | `internal/component/bgp/format/text_json.go`, `text_human.go` | `appendStateChangeJSON` and `appendStateChangeText` write `close-origin`, `close-notification` from PeerInfo, before `reason` (OD-1, review r2 #2); the `Format:` comment above `appendStateChangeText` names them |
-| `internal/plugins/flowexport/interop_integration_linux_test.go` | sibling `TestFlowExportSFlowToolSamplePoolInterop` beside `TestFlowExportSFlowToolInterop` (unchanged): the per-sample pool delta and the wrap on a second source (Q-8, review r2 #6) |
-| `test/interop-flowexport/Dockerfile.collectors` | the default command's `-test.run` pattern also selects `TestFlowExportSFlowToolSamplePoolInterop` |
+| `internal/plugins/flowexport/collectors_docker_test.go` | sibling `TestFlowExportSFlowToolSamplePoolInterop` beside `TestFlowExportSFlowToolInterop` (unchanged): the per-sample pool delta and the wrap on a second source (Q-8, review r2 #6) |
 | `internal/component/plugin/types_bgp.go` | `PeerInfo` gains the cause |
 | `pkg/plugin/rpc/enums.go`, `pkg/plugin/rpc/bridge.go` | close-origin enum; two `StructuredEvent` fields (origin, NOTIFICATION body); `PutStructuredEvent` zeroes them |
 | `internal/component/bgp/server/events.go` | `getStructuredStateEvent` copies them |
@@ -489,7 +614,7 @@ Discrimination for the interop (`ai/rules/interop-and-goal-validation.md`): reve
 | 7 | Wire format changed? | No | the BMP and sFlow formats are unchanged; values change |
 | 8 | Plugin SDK/protocol changed? | Yes, additive | `docs/architecture/api/process-protocol.md`: the paragraph "For state events, `StructuredEvent.State` and `StructuredEvent.Reason` carry the data" names the two new fields (close origin, NOTIFICATION body), and the grant contract of OD-1: every `state` subscriber, structured, JSON or text, sees the closing NOTIFICATION without the `notification` grant. `docs/architecture/api/text-format.md`: the `<state-event>` BNF gains the two optional members before `[<reason>]`, and says a down event's `<reason>` runs to end of line (the producer writes `connection lost`, two words), which also repairs the existing `<reason> ::= "reason" <token>` claim; the State row of its event table gains the members in the same order. `docs/architecture/api/ipc_protocol.md` line 204 ("Down events include `\"reason\": \"...\"` field"): the down event also carries `close-origin`, `close-notification` when known |
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | the verdicts move via `./le rfc audit-stamp`; RFC7854-x-10's `{single-polarity: positive; ...}` annotation becomes untrue and is corrected (row text owned by the verdict-fix spec; flag it there) |
-| 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/interop.md`: `bmp-peerdown-reason-pmacct` in its scenario list, and the sflowtool carrier, which its suite table does not list today (a doc gap the review found, 2026-10-14), as a row pointing at `TestFlowExportSFlowToolInterop` and its sibling `TestFlowExportSFlowToolSamplePoolInterop`; `docs/architecture/flowexport/flow-export-1-counter-export.md` "Independent collector tests": the sibling's pool delta and wrap assertions, its `source:` anchor, and the default command now selecting three tests |
+| 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/interop.md`: `bmp-peerdown-reason-pmacct` in its scenario list, and the sflowtool carrier, which its suite table does not list today (a doc gap the review found, 2026-10-14), as a row pointing at `TestFlowExportSFlowToolInterop` and its sibling `TestFlowExportSFlowToolSamplePoolInterop`; `docs/architecture/flowexport/flow-export-1-counter-export.md` "Independent collector tests": the sibling's pool delta and wrap assertions and its `source:` anchor in `collectors_docker_test.go` |
 | 11 | Affects daemon comparison? | No | |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/behavior/peer-lifecycle.md`: the close cause step on leaving Established |
 | 13 | Route metadata keys added/changed? | No | |
@@ -508,6 +633,9 @@ Discrimination for the interop (`ai/rules/interop-and-goal-validation.md`): reve
 
 ## Implementation Steps
 
+Steps 1 to 4 are the D1 design and are history. Steps 5 to 7 are live for D2;
+the next design round adds the steps for R-1 to R-4.
+
 1. **Phase: Wiring** -- the typed cause from session to StructuredEvent
    - Tests: `TestPeerClosedCarriesTheSessionCloseCause`, `TestStructuredStateEventCarriesTheCloseCause`, `TestPutStructuredEventClearsTheCloseCause`, `TestStateChangeCarriesTheCloseCause`, `TestPeerDownCarriesTheNotificationWithoutTheGrant`
    - Files: `rpc/enums.go`, `rpc/bridge.go`, `types_bgp.go`, `server/events.go`, `format/text_json.go`, `format/text_human.go`, `peer_run.go`, `peer_derived_bindings.go`, `reactor.go`, `reactor_notify.go`, `reactor_api.go`; docs `process-protocol.md`, `text-format.md`, `ipc_protocol.md`, `config-reference.md` in the same change
@@ -520,7 +648,7 @@ Discrimination for the interop (`ai/rules/interop-and-goal-validation.md`): reve
    - Files: `bmp_events.go`, `docs/guide/bmp.md`, `peer-lifecycle.md`, `process-protocol.md`
 4. **Phase: delete the BMP NOTIFICATION cache** -- `notifyCache`, `notifyPDU`, `cacheNotificationPDU` removed before `peerDownFor` reads the down event (no layering); `TestBMPHoldsNoNotificationCache`
 5. **Phase: sFlow D2** -- per-source wrapping pool; `TestSFlowFlowSamplePoolTracksTotal` changed (Q-7), `TestSFlowSamplePoolPerSource`
-6. **Phase: Interop** -- `bmp-peerdown-reason-pmacct` and `TestFlowExportSFlowToolSamplePoolInterop` (the carrier's sibling, run through the collector image's default command), with their red-then-green discrimination; the `state-down-carries-close-notification.ci` functional test
+6. **Phase: Interop** -- `bmp-peerdown-reason-pmacct` and `TestFlowExportSFlowToolSamplePoolInterop` (the carrier's sibling, run in a `docker`-tagged package test), with their red-then-green discrimination; the `state-down-carries-close-notification.ci` functional test
 7. **Phase: verdicts** -- `./le rfc record` per changed tag, rejudge by a different agent, `rfc/audit` updated by the tool
 
 ### Critical Review Checklist
@@ -573,6 +701,12 @@ Discrimination for the interop (`ai/rules/interop-and-goal-validation.md`): reve
 
 ## Known Limitations
 
+History: the first two lines below were true on 2026-10-14. The state reason is
+now derived per down (4ef90497c6; the journal row in
+`plan/journal/constant-reported-as-measured-state.md` is marked fixed), and
+`spec-bgp-rs-replacement-on-withdrawal` closed in f1d0477b3d; what a `read body`
+exit reports today is AC-23, unverified.
+
 - The textual state reason stays `connection lost` for every Established exit (Q-6 a); `session closed` is dead on that path. Journal row 2026-10-13 in `plan/journal/constant-reported-as-measured-state.md`.
 - The Peer Down for a `Run` exit with no FSM event (`read body`, a non-EOF non-reset header error) depends on `spec-bgp-rs-replacement-on-withdrawal` Phase 2b; until it lands such a drop publishes no down event at all, and this spec only records its cause.
 - A BMP sender run as an external process receives no structured events (A-4); the JSON members of OD-1 carry the cause, but the BMP sender does not read JSON.
@@ -585,6 +719,7 @@ Discrimination for the interop (`ai/rules/interop-and-goal-validation.md`): reve
 | 2026-10-14 | review of the owner-answer edits (0 BLOCKER, 10 ISSUE, 9 NIT; `tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/review-bmp-owner-answers.md`) | Applied. #1 Q-9 "a" recorded, every (b)-conditional removed; #2 the event field has a production writer, the local closers' nil-connection branches (OD-2, KDD, Known Limitations, AC-24, `TestTeardownOnClosedConnRecordsItsStopEvent`); #3 Q-9 evidence corrected (`Run`'s deferred close and the cancel goroutine's panic recovery record nothing; `sendHoldTimerExpired`); #4 the `Run` exits with no FSM event record remote here, and their down event is `spec-bgp-rs-replacement-on-withdrawal` Phase 2b, named in Depends (AC-1, AC-23, R-10), not duplicated; #5 local retirements classified at the site (AC-9); #6 `Reactor.Stop` is reason 1, split from `StopForRestart` (AC-22); #7 AC-20 rewritten as a version-error NOTIFICATION, unreachable unpack rationale dropped; #8 OD-1 kept for every `state` subscriber, JSON and text members designed ("State event wire shape", AC-25, doc row 8); #9 Q-8 re-asked on the corrected premise, owner answered 2026-10-14 "Extend the existing test" (AC-26); #10 `TestHandleSenderStatePeerDownCarriesTheNotificationZeSent` CHANGED row; NITs 11-19 applied (OD-2 drainer wording, `handleNotification` in `session_handlers.go`, Cease record size, `reactor.go` observer and no mrt change, Depends and R-8 committed as dce906c381, Q-9 (a) "add", BMP copies the body, the BMP half of the moved guarantee, AC and R order). Next round owed, narrow: the Q-9 reachable writer (nil-connection branches against first writer wins, and that no recorded closer makes them unreachable again); the JSON and text members (shape, a multi-word text `reason` before `close-origin`, doc rows); the Q-8 carrier extension (second source, wrap assertion, discrimination) |
 | 2026-10-14 | review round 2, narrow (0 BLOCKER, 2 ISSUE, 7 NIT; `tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/review-bmp-r2.md`) | Applied; **Q-9 pending owner**. #1 the Q-9 writer's production window corrected at the producers to the paused-cancel race (`waitForResume` returns `ctx.Err()`, `Run`'s deferred `closeConn` runs before the cancel goroutine records), "panic recovery" dropped as a production shape (Q-9 row, OD-2, KDD, Known Limitations, AC-24, the `TestTeardownOnClosedConnRecordsItsStopEvent` row, A-1, R-1, Q-4, close-path table, Wiring row); Q-9 re-asked with options (i) keep with the race-only writer, (ii) record in `waitForResume`'s ctx arm, (iii) drop the table, not chosen. #2 text members written before `reason`, so a down event's reason ends the line; doc row 8 BNF says a down `<reason>` runs to end of line; journal row 2026-10-14 in `plan/journal/declared-format-contradicts-payload.md` for the pre-existing BNF/producer mismatch. NITs: #3 Q-8 cites AC-26; #4 sflowtool decodes, the delta is the test's; #5 the wrap tests use rate 2^31 over three samples (AC-18, AC-26, boundary, discrimination); #6 sibling `TestFlowExportSFlowToolSamplePoolInterop` and its run route through the collector image's default command (`Dockerfile.collectors` pattern widened); #7 no-Data text form omits `data`; #8 member placement reworded (no text `unheld-roles`, no down `initial-replay`); #9 OD-2 names the nil-conn asymmetry as intended. Next round owed after the Q-9 answer |
 | 2026-10-14 | owner Q-9 "iii" | owner Q-9 iii applied 2026-10-14; narrow review owed. "iii" supersedes "a": the event-number table, the record's event, the `StructuredEvent` event field and the `close-event` member are dropped (no value left to carry); reason 2 always writes 00 00; Q-4 marked superseded (00 1F never sent) and its draft Event 31 / Section 13.3 citations removed; AC-16 and R-4 withdrawn, the boundary row and `TestEventRFCNumbers` deleted, the keep's KDD row replaced and the Known Limitations "deliberate keep" line deleted. Kept, after reading `teardown`, `CloseWithNotification`, `sendHoldTimerExpired` and the hold-expiry arm at the producers: each nil-conn branch still fires its FSM event, so it still records local, no PDU, or the down event arrives Unspecified (AC-12 WARN). So AC-24 is rewritten to that record and reason 2 with 00 00, and the test is renamed `TestTeardownOnClosedConnRecordsALocalClose`. The narrow review checks: that every nil-conn recorder is local with no PDU, AC-5/AC-24/AC-25 against the two-member wire shape, and that no `close-event`, event number or 00 1F remains |
+| 2026-11-14 | brought in line with HEAD after the owner's "we now support BMP this is historical and out of date" | Every AC walked against the tree ("Status at HEAD"); D1 recorded as landed in 4ef90497c6, ecba2d9147 and b3dc0806e5, its design sections labelled history, its departures from Q-1, Q-3 and Q-9 named in Task; Current Behavior rewritten to today's producers; Existing Mechanisms added; live work is D2 and the BMP residuals R-1 to R-4; the sflowtool carrier repointed to `collectors_docker_test.go` (00ad396fd0); closed-spec citations repointed to `rfc/corrections/sflow-v5.md` and `plan/learned/050-rfc-verdict-fix-services.md`. Next round owed: the design of R-1 to R-4, and the D2 estimate-versus-count question |
 
 ## RFC Documentation (Scope: protocol)
 
@@ -605,10 +740,10 @@ Add `// RFC 7854 Section 4.9: "<quoted reason text>"` above each `peerDownFor` a
 - [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-26 all demonstrated (AC-23's Peer Down once `spec-bgp-rs-replacement-on-withdrawal` Phase 2b has landed)
+- [ ] Every live AC under "Status at HEAD" demonstrated, and AC-20 and AC-23 confirmed or made live
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes
+- [ ] The scoped package tests of the packages the change reaches pass (no `./le verify` run: GitHub CI verifies the pushed commit)
 - [ ] Feature code integrated, not library-only
 - [ ] Integration and Documentation checklists answered with evidence
 - [ ] Architectural Verification table filled
@@ -617,8 +752,8 @@ Add `// RFC 7854 Section 4.9: "<quoted reason text>"` above each `peerDownFor` a
 ### Goal Validation
 | Goal (Task) | Evidence owed |
 |-------------|---------------|
-| D1: a BMP station is told who closed the session | `bmp-peerdown-reason-pmacct` passing, with the recorded red when `peerDownFor` is reverted |
-| D1: reason 2 carries the FSM event field (always 00 00, Q-9 iii) | `TestRFC7854PeerDownReasonTwoCarriesItsEventCode` decode, discrimination record |
+| D1 / R-4: a BMP station is told who closed the session | `bmp-peerdown-reason-pmacct` passing, with the recorded red when `peerDownFor` is reverted |
+| D1: reason 2 carries the FSM event field (history: the landed code carries the observed event) | `TestRFC7854PeerDownLocalCloseCarriesTheFSMEvent`, RFC7854-4.9-1 discrimination record (ecba2d9147) |
 | D2: the pool keeps advancing past 2^32 | AC-18 decoded datagram; AC-26, `TestFlowExportSFlowToolSamplePoolInterop` in the extended carrier, for the decode and the wrap by a third party, with its recorded red |
 | OD-1: every `state` subscriber sees the closing NOTIFICATION | `state-down-carries-close-notification.ci` (JSON, `state` grant only) and `TestPeerDownCarriesTheNotificationWithoutTheGrant` |
 
@@ -636,4 +771,26 @@ Add `// RFC 7854 Section 4.9: "<quoted reason text>"` above each `peerDownFor` a
 - [ ] **Commit A** and **Commit B** per `ai/rules/planning.md`
 
 ### Verification
-- [ ] `./le verify worktree`
+- [ ] `./le test unit pkg path ./internal/plugins/flowexport/sflow/` (D2 units)
+- [ ] `./le test unit pkg path ./internal/component/bgp/plugins/bmp/` and `./le test unit pkg path ./internal/component/bgp/reactor/` (R-1 to R-3)
+- [ ] the `docker`-tagged `internal/plugins/flowexport` run selecting `TestFlowExportSFlowToolSamplePoolInterop` (AC-26), and `./le test integration interop` for `bmp-peerdown-reason-pmacct` (R-4)
+
+## Disposition
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-11-14 |
+| Checked at | 1a8d24e0cb |
+| Verdict | REWORK |
+| D1 landed | 4ef90497c6 (`sessionCloseFor`, `peerDownFor` reason 4, `FSMEvent`), ecba2d9147 (tagged Peer Down proofs), b3dc0806e5 (closing NOTIFICATION on JSON and text down events) |
+| D1 verdicts | RFC7854-x-10 and RFC7854-4.9-1 `enforced` (`rfc/audit/rfc7854/`) |
+| D2 open | `EncodeFlowSample` still saturates; SFLOW-V5-x-11 `weak` (`rfc/audit/sflow-v5/SFLOW-V5-x-11.json`) |
+| BMP residuals | R-1 (`peerDownFor` reason 2 for a NOTIFICATION close with no cached PDU), R-2 (`sessionCloseFor` exempts only congestion), R-3 (`handleSenderUpdate`, journal row 2026-10-13), R-4 (no Peer Down reasons interop) |
+| Moved targets | the sflowtool carrier is `internal/plugins/flowexport/collectors_docker_test.go` (00ad396fd0), tag `docker` |
+
+Partly done is REWORK. The goal holds for D2 and for the BMP residuals; the
+owner called the D1 design history on 2026-11-14, and the landed code took
+another shape, so the spec keeps D1 as a labelled record and its live work is
+D2 plus R-1 to R-4. The D2 design is settled (wrap, per-source pool, the
+sflowtool sibling) except the estimate-versus-count question the D2 owner row
+leaves open; R-1 to R-4 have no design yet, so the status stays `design`.
