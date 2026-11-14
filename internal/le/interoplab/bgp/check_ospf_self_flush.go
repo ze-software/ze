@@ -98,7 +98,7 @@ var ospfSelfLSAFlushOperations = []operation{
 	// The verdict. FRR's maxage remover runs on a timer, so the LSDB absence gets
 	// two minutes; the reverted build's live instance never leaves.
 	{kind: opWaitAbsent, peer: peerFRR, command: ospfSelfFlushFRRDefaultLSA, absent: []string{ospfSelfFlushZeAdvertises}, proof: []string{ospfSelfFlushFRRHeading}, timeout: 120 * time.Second},
-	{kind: opWaitAbsent, peer: peerFRR, command: ospfSelfFlushFRRRoutes, absent: []string{ospfSelfFlushDefaultPrefix}, proof: []string{ospfSelfFlushFRRRouteCodes}, timeout: 30 * time.Second},
+	{kind: opWaitAbsent, peer: peerFRR, command: ospfSelfFlushFRRRoutes, absent: []string{ospfSelfFlushDefaultPrefix}, proof: []string{ospfSelfFlushFRRRouteJSONClose}, timeout: 30 * time.Second},
 	// A refresh or a late re-origination would bring it back; it stays gone.
 	{kind: opExec, peer: peerFRR, command: []string{cmdSleep, "15"}},
 	{kind: opRequireAbsent, peer: peerFRR, command: ospfSelfFlushFRRDefaultLSA, absent: []string{ospfSelfFlushZeAdvertises}, proof: []string{ospfSelfFlushFRRHeading}},
@@ -117,11 +117,14 @@ const (
 	// is ze-reload.conf's, which forces the extra sequence number.
 	ospfSelfFlushMetricBoot   = "Metric: 4711"
 	ospfSelfFlushMetricReload = "Metric: 4242"
-	// ospfSelfFlushFRRRouteCodes is the legend FRR prints above its routes; FRR's
-	// own OSPF route to the lab subnet keeps the table non-empty.
-	ospfSelfFlushFRRRouteCodes = "Codes:"
-	ospfSelfFlushDefaultPrefix = "0.0.0.0/0"
-	ospfSelfFlushZeRouter      = `"advertising-router": "` + zeLabAddress + `"`
+	// FRR's OSPF route table holds only Ze's default, so once the default is
+	// gone the text form prints nothing at all, and an empty answer is never
+	// read as an absence. The JSON form prints "{}" for the empty table, so the
+	// closing brace proves the query answered, and the default is its quoted
+	// prefix key.
+	ospfSelfFlushFRRRouteJSONClose = "}"
+	ospfSelfFlushDefaultPrefix     = `"0.0.0.0/0"`
+	ospfSelfFlushZeRouter          = `"advertising-router": "` + zeLabAddress + `"`
 	// Ze prints an LS sequence number as a signed 32-bit integer:
 	// 0x80000001 is -2147483647 and 0x80000002 is -2147483646.
 	ospfSelfFlushZeInitialSequence   = `"sequence": "-2147483647"`
@@ -131,5 +134,5 @@ const (
 
 var (
 	ospfSelfFlushFRRDefaultLSA = []string{cmdVtysh, "-c", "show ip ospf database external 0.0.0.0"}
-	ospfSelfFlushFRRRoutes     = []string{cmdVtysh, "-c", "show ip route ospf"}
+	ospfSelfFlushFRRRoutes     = []string{cmdVtysh, "-c", "show ip route ospf json"}
 )
