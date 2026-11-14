@@ -24,9 +24,12 @@ Commit `../gh-pages` without source code.
 The media lives in the artifact tree at `../gh-pages/assets/demos`. A render
 writes it there, and a build reads it from there.
 
-Private output is optional for previews and intermediate checks. To complete
-approved website changes, run `./le site build` and `./le site check` against
-the canonical `../gh-pages` checkout beside main. Use the native builder to
+The website is always generated into the canonical `../gh-pages` checkout
+beside main, during review as well as at completion: Thomas serves that
+checkout through a local web interface and reviews the pages there. Never
+render a review copy into a private or scratch directory, and never start a
+server to show one. To complete approved website changes, run
+`./le site build` and `./le site check` against that checkout. Use the native builder to
 preserve `.git` and generated media. Local regeneration does not authorize a
 push or deployment. Never push without owner instruction.
 

@@ -273,9 +273,11 @@ must follow, are in `terminal-demos.md`.
 
 `./le site build output <directory>` builds into another artifact root, and
 `./le site check output <directory>` judges that same root. Both default to
-`../gh-pages`. A private scratch directory is optional for previews and
-intermediate checks. To complete approved website changes, run `./le site build`
-and `./le site check` against the canonical `../gh-pages` checkout beside main.
+`../gh-pages`. The `output` keyword exists for tests and tooling. A page under
+review is always generated into the canonical `../gh-pages` checkout beside
+main, which the owner serves locally and reviews there, never into a private
+scratch directory. To complete approved website changes, run `./le site build`
+and `./le site check` against that checkout.
 Use the native builder to preserve `.git` and generated media.
 <!-- source: internal/le/site/build.go -- Build, snapshotArtifact, seedArtifact, cleanArtifact -->
 

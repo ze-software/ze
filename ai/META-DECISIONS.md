@@ -423,8 +423,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   that route in the same work.
 - Completing approved website changes includes regenerating and checking the
   canonical `../gh-pages` checkout with `./le site build` and `./le site check`.
-  A private preview is an intermediate review artifact. Local regeneration
-  does not authorize a push or deployment.
+  Local regeneration does not authorize a push or deployment.
+- The website is always generated into the canonical `../gh-pages` checkout,
+  while Thomas reviews as well as at completion. He serves that checkout
+  through a local web interface and reviews the pages there. An agent never
+  renders a review copy into a private or scratch directory, and never starts
+  a server of its own to show one.
 - Website work is tested once, at the closure of the work, after Thomas has
   said he is happy with the pages. While he is still reviewing, an agent
   changes the page, renders that page alone from the working tree and shows
