@@ -878,3 +878,71 @@ honest skip; it does not give these tests a gate. Two follow-ups, both recorded 
 needs-linux target, and the daemon-side defect underneath (an unprivileged `ze`
 whose config names an interface hangs instead of failing, which is a
 `evidence.md` violation in the product, not just in the tests).
+
+### 2026-08-08 -- `le test bgp plugin` forward-overflow-two-tier: out-of-order arrival at the late peer
+
+Archived 2026-11-14. The live shard still read "one failure, NOT reproduced
+since" when the failure had recurred twice and been fixed. Its text before
+archiving is `git show 21f6e25fea:plan/known-failures/bgp-plugin-forward-overflow-two-tier.md`.
+
+| Date | What happened |
+|------|---------------|
+| 2026-08-08 | One failure of an `ordered=` needle against a 246-byte merged UPDATE. No capture survives |
+| 2026-08-15 | 80 stress runs, not reproduced. They ran a fixture another session had already migrated, with a tool that has since been replaced |
+| 2026-09-24 | Recurred in a full plugin run: all 50 prefixes reached the late peer, `10.0.0.0/24` last. Its forward found no target because `bgp-rs` did not yet know the destination session, so it rode the peer-up replay and lost the race to the live forwards |
+| 2026-10-12 | Recurred in a full verify, then reproduced at invocation 6 under `./le test stress-repro` |
+
+Cause: a test-setup race. The source peer sent its burst before Ze held the
+destination session Established, so part or all of the burst reached the
+destination through the peer-up replay, whose order is not the send order.
+
+Fix: `07ad30d95f` (2026-10-12). The test peer's `option=await-file` holds the
+source until the destination's `established-file` exists. 0 of 30 under
+stress on the changed test. The rows are in
+`plan/journal/suppression-decision-not-deterministic.md`, 2026-09-24 and
+2026-10-12.
+
+What this does not claim: that the 2026-08-08 failure had this cause. Its
+symptom and test are the same and no capture ties them. `e4be51e5a4`
+(2026-08-11) also changed the forward pool's merge to adjacent items only
+and deleted a withdrawals-first batch reorder, between that failure and the
+2026-08-15 negative.
+
+Still open, and not in this directory because its mechanism is named: whether
+a live withdrawal can overtake a replay that holds the route. It is the
+2026-09-24 journal row, owned by `spec-bgp-one-off-defects`, and the
+route-server form of it is `plan/release/fixes/spec-bgp-rs-replay-reaches-the-cut.md`.
+The test stays in the suite, and `spec-bgp-one-off-defects` AC-5 owes it 200
+consecutive passes.
+
+### 2026-07-25 -- `le test bgp plugin` route-server forwarding: duplicate UPDATE (254) and missing withdraw (380)
+
+Archived 2026-11-14. Both symptoms now have a named cause, so neither belongs
+in a directory for failures whose mechanism is unknown. The shard's text
+before archiving, with the full July investigation, is
+`git show 21f6e25fea:plan/known-failures/bgp-plugin-rs-forward-duplicate-and-order.md`.
+
+| Symptom | Cause | State |
+|---------|-------|-------|
+| 254 `llgr-readvertise-multipeer`: the same UPDATE twice, byte-identical, back to back | Two defects in the peer-up replay. A cut of 0 was read as "no cut", so a peer that came up before `bgp-rs` had seen an UPDATE received each route by both rails (measured on 39 of 40 runs). And the replay index was read as inclusive, so every delta pass relayed its boundary route again, ten times | Fixed 2026-07-26 by `a588ac5277` and `e4ee32b034` |
+| 380 `rfc7606-relay-one-field`: the announce, never the withdraw that precedes it, source side | `processForward` dropped an UPDATE whose source peer had no state event yet | Fixed 2026-07-28 by `397ed9aaf` |
+| 380, destination side | The peer-up replay walks the Adj-RIB-In store before the store has caught up with the cut, so it can relay a route whose withdrawal is still queued, and a replay carries announcements only | Open, read at the producer on 2026-11-14: `plan/release/fixes/spec-bgp-rs-replay-reaches-the-cut.md` |
+| The give-up branch the shard named as its last lead | After 5 s the replay reports the peer complete with routes knowingly missing | Open, same spec |
+
+Why the shard stayed open for three months: the last reproduction was on
+2026-07-25 and the clean batches were on 2026-07-29 (380: 10 alone and 60
+under stress; 254: 60 under stress). The shard recorded "about 20 commits
+touched these paths" between them and named none. The two 254 fixes are
+among them, and the comment in `adj_rib_in/replay_cut.go` names the test.
+
+What this does not claim: that a capture proves the two fixes produced the
+2026-07-25 duplicate. That day's decisive capture also showed the receiver's
+session closing 1 ms after it established, logged as "connection lost". Until
+`4ef90497c6` (2026-10-18) that text was the reason printed for every exit from
+Established, so the log does not say who closed the socket. It is unexplained,
+and a recurrence opens a new shard with the daemon's stderr attached.
+
+What is worth keeping from the investigation: a `bgp { ... }` config auto-loads
+about twenty BGP plugins, `bgp-rs` and `bgp-adj-rib-in` among them, so the
+plugin set of a test is read from the daemon's `startup tiers computed` log
+line, never from the `.ci` file.

@@ -95,21 +95,30 @@ fixed at source by `withParallelHeadroom`
 the daemon exits rc=1 in under a second as an unprivileged user. The real defect
 there was an error that dropped its cause, now fixed.
 
+**Status 2026-11-14: 1 live shard.** `bgp-plugin-forward-overflow-two-tier`
+and `bgp-plugin-rs-forward-duplicate-and-order` were archived to `RESOLVED.md`:
+each had a named cause that its shard never recorded. The first recurred on
+2026-09-24 and 2026-10-12 and was fixed in the test. The second had its
+duplicate fixed on 2026-07-26, and its missing withdraw is a defect read at
+the producer, now `plan/release/fixes/spec-bgp-rs-replay-reaches-the-cut.md`.
+A shard that says "not reproduced since" is checked against the journal and
+against the commits between its last red and its first green before it is
+believed.
+
 These two names have later evidence that qualifies the July 25 summary:
 
-- `bgp-plugin-rs-forward-duplicate-and-order`: the shard records the startup
-  ownership repair and subsequent failures on July 25, including the capture
-  that disproved self-replay as the cause of test 254's duplicate. Its last
-  reproduction batches, on July 29, passed: test 380 in 10 isolated runs and
-  60 stress runs, and test 254 in 60 stress runs. Those results identify no fix.
-  The catch-up-budget path remains an investigation lead. The later August 24
-  owner closure does not establish that both original symptoms were repaired.
+- `bgp-plugin-rs-forward-duplicate-and-order`: archived 2026-11-14, see above.
+  The July 29 batches passed (test 380 in 10 isolated runs and 60 stress runs,
+  test 254 in 60 stress runs) because two fixes had landed on July 26, which
+  the shard did not credit.
 - `reload-config-apply-ordering-rotation`: `RESOLVED.md` records the July 26
   identifier-claim repair in `834f92629` and `62dcfcacd`, after reproduction
   at invocation 15 of 60. The live shard records a separate September 8 timeout:
   all expected messages arrived, but the test did not complete. Four completed
   attempts subsequently passed, including the September 12 closure run.
-  Peer-action completion remains a lead, with no established cause. The
+  The peer-action completion lead was read at the producer on 2026-11-14 and
+  ruled out: this test's actions all answer completion. The cause stays
+  unknown, and the shard names the capture the next occurrence must keep. The
   September timeout neither reopens the July OPEN-rejection incident nor
   inherits its diagnosis.
 

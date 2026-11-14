@@ -40,22 +40,75 @@ operations it does not emit. No behavior of the test moved in that edit.
 Daemon-side code did change across the spec, and the closure pass above records
 one later-tree result. The timeout's mechanism remains unknown.
 
-## The next step, and it is a lead rather than a diagnosis
+## The peer-action lead is ruled out (2026-11-14)
 
-The runner reported that every expected message had arrived before the timeout.
-Peer-action completion is therefore an investigation lead. The message alone
-does not identify the blocked wait or exclude host load.
+This shard used to end on one lead: a peer block that queues an action which
+does not answer completion never reports done, and the reading that would test
+it had not been done. It has now been done at the producer, and the lead does
+not apply to this test.
 
-The same spec fixed one instance of exactly that shape in the same suite. A peer
-block that queues an action which does not answer completion leaves the peer
-never reporting done: `action=rewrite` did not answer completion, so the daemon's
-shutdown NOTIFICATION was matched against an empty expectation list, and
-`action=sighup` and `action=sigterm` already did answer it
-(`internal/test/peer`, and the `action` table in
-`docs/architecture/testing/ci-format.md`).
+| Checked | Result |
+|---------|--------|
+| Which actions the test queues | `action=rewrite` then `action=sighup` on conn 3, `action=sigterm` on conn 6 |
+| Do they answer completion today | Yes, all three: each arm of `runMessageLoop` (`internal/test/peer/peer.go`) ends on `p.checker.Completed()` |
+| When rewrite's completion landed | `9b07614064`, 2026-09-11, three days after the timeout |
+| Could that fix explain this timeout | No. It matters only when the rewrite is the last queued item. Here the sighup follows it, so the peer was never complete after the rewrite on any version, and the sighup and sigterm arms already answered |
 
-So the next step is to read which action arms `test/reload/config-apply-ordering-rotation.ci`
-queues in its peer blocks, and to check each one against the arms that answer
-completion. If one does not, this is the same defect and it is a fix rather than
-a flake. That reading has not been done, which is why this is a shard and not a
-journal row.
+## What the timeout message proved: only that the first batch finished
+
+The message quoted at the top carried almost no information. The runner of
+that day compared the peer's count of received frames with the number of
+`(conn, seq)` keys the test declares (`connSeqToIndex`,
+`internal/test/runner/record_parse.go`). This test has seven keys, and seven
+frames are printed once the first batch of three connections completes. So
+"all expected messages received" meant "batch 1 is done", never "the exchange
+is done". `7340942afc` (2026-10-21) deleted the count claim for that reason: a
+timeout now prints the peer's frames.
+
+What the 30.0s does establish: the test peer was still alive at the deadline.
+The runner waits on the peer; it stops `ze` afterwards with a SIGTERM and a
+kill after 10s (`ownedProcess.stop`, `TeardownGraceTimeout`). A `ze` that hangs
+on SIGTERM cannot produce a 30s timeout alone.
+
+## Where the peer can still be waiting after batch 1
+
+No wait in this test is on elapsed time: `pauseForSignal` returns at once under
+`conn_map`, and every other wait is on socket state. So this is not the
+host-load diagnosis `README.md` refuses. The peer waits, in order, on:
+
+1. `waitBatchClosed` (`internal/test/peer/peer_connmap.go`): the daemon closes
+   connections 1 to 3 after the SIGHUP. Bounded only by the test's context.
+2. `acceptConnMapBatch`: three new connections, each with an OPEN and the
+   daemon's KEEPALIVE.
+3. Batch 2: an UPDATE and an End-of-RIB on each of connections 4, 5 and 6.
+   They are ordered by the router-id of the daemon's OPEN, so conn 6 is the
+   peer with router-id 9.10.11.12.
+
+One landed fix touches the reads in steps 1 and 3. It is a candidate, not an
+explanation. Before `fe781e1c7d` (2026-10-22) the peer's `ReadMessage`
+discarded a partial header or body when its 100ms read deadline fired, and the
+retry then parsed mid-frame bytes as a header. A frame the daemon wrote in two
+parts more than 100ms apart could stall a read for good. Nothing shows the
+September run hit it: the captures under `tmp/session/2026-09-08-*` are gone.
+
+## What the next occurrence must keep
+
+The mechanism is unknown and nothing is left to read, so this stays a shard.
+One capture would diagnose it:
+
+| Capture | Why |
+|---------|-----|
+| The peer's whole stdout | Its progress lines name the wait it died in: `waiting for the daemon to close all 3 connections`, `conn=N closed by the daemon`, `conn=N still open when the test ended`, `waiting for next mapped connection batch`, `new connection from`, `sending SIGHUP`, `sending SIGTERM` |
+| The daemon's stderr with reload and peer logging at debug | Shows whether the two changed peers were closed and redialled |
+| The runner's verbose output, saved | The frames the timeout report prints since `7340942afc` |
+
+One tooling gap makes that capture weaker than it could be. At the deadline the
+runner kills the peer's process group with SIGKILL (`ownedProcess.cancel`,
+`internal/test/runner/process_owner.go`), so the peer never prints the line
+that names the connection and the expectation it still owed. A SIGTERM, a
+short grace and then the kill would let it print that. This is not done.
+
+Reading the capture: a peer that stops in `waitBatchClosed` or in a batch 2
+read makes this a daemon defect in the reload path, to be fixed. If the test
+never times out again on a tree after 2026-10-22, the partial-frame read is
+the best reading and still not a proof.
