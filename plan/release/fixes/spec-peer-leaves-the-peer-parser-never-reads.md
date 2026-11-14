@@ -9,9 +9,18 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owned journal rows
+
+Moved here on 2026-11-14 from `plan/release/fixes/spec-yang-single-source-of-truth.md`, whose leaf gate (piece E) will refuse any of these leaves still unread; this spec owns wiring or deleting them.
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `unwired-feature.md` | 2026-08-29 | `rib/out/auto-commit-delay`, `max-batch-size` have no reader |
+| `unwired-feature.md` | 2026-09-06 | `behavior/manual-eor` now read; `behavior/auto-flush` still has no reader |
 
 ## Task
 

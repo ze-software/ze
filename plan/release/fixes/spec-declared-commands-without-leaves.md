@@ -221,6 +221,14 @@ total is asserted until that merged-tree inventory is recorded.
 ## Known Limitations
 - <to be filled>
 
+## Owned journal rows
+
+Moved here on 2026-11-14 from `plan/release/fixes/spec-yang-single-source-of-truth.md`. This spec declares the leaves a command lacks (the model side); that spec moves handlers onto the `ValidatedArgs` accessors once a leaf exists and refuses a leaf declared twice.
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `command-takes-an-untyped-positional-value.md` | 2026-09-15 | thirteen commands declare args on rpc input only; web form renders none |
+
 ## Checklist
 
 ### TDD

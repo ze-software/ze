@@ -215,6 +215,7 @@ Draft, confirmed at DESIGN:
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `unwired-feature.md` | 2026-11-02 | A plugin's Stage 1 `Schema.YANGText` is stored in `reg.PluginSchema` and never read, so its command arguments are judged only against compiled-in YANG |
+| `unwired-feature.md` | 2026-08-13 | external plugin YANG never reaches the daemon schema (moved 2026-11-14 from `plan/release/fixes/spec-yang-single-source-of-truth.md`; AC-1 here holds its old AC-11 schema half, and that spec's AC-3 holds the run-time unread-leaf report) |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

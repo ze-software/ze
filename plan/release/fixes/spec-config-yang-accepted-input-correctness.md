@@ -61,12 +61,17 @@ exercise required Path/SetHint and raw dispatch, not serializer round trips.
 - AC-13: the accepted CoS and shaper operational transaction declarations do not become editable configuration nodes or `/show/request/` navigation. Prove rejection of their configuration mutation paths and retention of ordinary configuration roots, hidden transaction dispatch and AS112 listener-conflict detection. Resolve the two observed root-navigation handler golden failures at the producing boundary without refreshing fixtures to accept the operational root; retain their rendering assertions.
 - AC-14: serialization and replay preserve accepted literal single-key `edge#3` and composite-key final value `beta#3` identities through set and set-meta output, and preserve literal suffixes in affected brace/inline writers. Distinguish literal key data from generated duplicate identity before writing; retain anonymous entries and existing generated `#N` duplicate controls. Prove each affected writer with native round-trip tests and unchanged ordinary named brace output; blanket removal of suffix stripping does not satisfy this criterion. The finding is currently source-traced, with no serializer runtime proof.
 
+- AC-15: a word after a presence container that the container's type does not accept (`graceful-restart disable`) is refused at parse, file and editor alike, naming the container and the fix; a presence container written with no word, or with a value its YANG declares, still loads. Moved 2026-11-14 from `plan/release/fixes/spec-yang-single-source-of-truth.md` with its two journal rows: accepted configuration that is silently wrong, this spec's release reason.
+
 ## Owned journal rows
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `operational-schema-enters-configuration.md` | 2026-11-12 | CoS/shaper operational request roots enter editable schema |
 | `format-cannot-hold-a-state-the-tree-holds.md` | 2026-11-13 | literal numeric suffix in serialized list keys |
+| `parser-refuses-a-form-its-producer-emits.md` | 2026-10-21 | goyang `ToEntry` refuses an augment of an action's absent `input` (the action-without-input row AC-11 classifies; moved 2026-11-14 from `spec-yang-single-source-of-truth`) |
+| `unwired-feature.md` | 2026-09-20 | a bare word after any presence container is stored as its value (`parseContainer` value mode); AC-15 |
+| `unwired-feature.md` | 2026-10-10 | the same `parseContainer` value mode seen from the SSH editor; AC-15 |
 
 ## Implementation Ownership
 

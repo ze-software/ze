@@ -106,3 +106,11 @@ Each row below is a MUST of RFC 7950 the summary `rfc/short/rfc7950.md` carries 
 | RFC7950-7.6.5-2 | Otherwise, if this ancestor is a case node, the leaf MUST exist if any node from the case exists in the data tree. (§7.6.5) | internal/component/config/yang/validator.go::(*Validator).walkTree looks each child up only in the container's own Dir, where goyang keeps no case leaf, so a mandatory leaf inside a case is never required; moved here from the services child under OWNER RULING 4, 2026-09-30, M |
 | RFC7950-7.6.5-3 | Otherwise, the leaf MUST exist if the ancestor node exists in the data tree. (§7.6.5) | internal/component/config/yang/validator.go::(*Validator).walkTree checked a mandatory leaf only inside containers present in the data; FIXED 2026-10-12 under OWNER RULING 5 (requireMandatoryUnderAbsent, tagged both polarities in yang/rfc7950_mandatory_test.go); moved here from the services child under OWNER RULING 4, 2026-09-30, M |
 | RFC7950-8.3.3-2 | If the datastore is "running" or "startup", these constraints MUST be enforced at the end of the <edit-config> or <copy-config> operation. (§8.3.3) | internal/component/config/loader.go::LoadConfig (<copy-config>) and internal/component/cli/editor_commit.go::(*Editor).validateStagedTree (<edit-config>, the web editor through config/cli.ValidateContent) refuse type and ze:validate violations, and since OWNER RULING 5 (2026-10-12) a missing mandatory leaf, but evaluate no when, unique or choice; moved here from the services child under OWNER RULING 4, 2026-09-30, M |
+
+## Owned journal rows
+
+Moved here on 2026-11-14 from `plan/release/fixes/spec-yang-single-source-of-truth.md`: the remaining half of the row is RFC7950-7.6.5-2 (a mandatory leaf inside a case) and the owner ruling still owed for a mandatory peer leaf only a group sets, both this spec's mechanism.
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `gate-excludes-part-of-its-population.md` | 2026-10-12 | `bgpMandatoryFailures`, `walkTree`: peer and group half fixed; choice-case half open |

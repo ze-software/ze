@@ -5,7 +5,7 @@
 | Status | design |
 | Priority | P1 |
 | Release reason | Config application must use the resolved transaction and preserve schema value types. |
-| Depends | spec-unify-config-diff (map-diff dedup, adjacent; closed, learned 1079) |
+| Depends | spec-unify-config-diff (map-diff dedup, adjacent; closed, learned 1079). Takes piece A (uint64) of the 2026-11-14 split of `plan/release/fixes/spec-yang-single-source-of-truth.md`; siblings `plan/release/fixes/spec-validation-walks-every-schema-section.md` and `plan/release/fixes/spec-yang-defaults-applied-once.md` |
 | Phase | - |
 | Updated | 2026-07-06 |
 
@@ -106,6 +106,21 @@ resolved tree handed to BGP was historically not fully resolved (templates/defau
 - BGP config values are obtained via typed accessors backed by the YANG schema, not by
   ad-hoc string parsing; `uint64` leaves consumed by BGP are no longer silently truncated.
 
+## Existing Mechanisms (MANDATORY)
+
+Added 2026-11-14 when this spec took the uint64 row of piece A from
+`plan/release/fixes/spec-yang-single-source-of-truth.md`.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Value-type derivation | `internal/component/config/yang_schema.go` `yangTypeToValueType` | Maps `Yuint32` and `Yuint64` to `TypeUint32` (verified 2026-11-14) | Extends: a 64-bit value type for `Yuint64` |
+| Value check | `internal/component/config/schema.go` `ValidateValue` | Parses a `TypeUint32` value with a 32-bit limit, so a `uint64` leaf above 2^32-1 is refused | Extends: the 64-bit type parses with a 64-bit limit |
+| Ranged decimal64 | `internal/component/config/leaf_value.go` `validateDecimal64Leaf` (833c08af3f) | Compares a ranged `decimal64` by its fraction digits | Does not apply: already fixed |
+| Leaf-list range and length | `internal/component/config/leaf_value.go` `memberLeaf` | Carries enums, format and patterns, no `Ranges` or `Lengths` | Does not apply: owned by `plan/release/fixes/spec-web-cli-config-one-off-defects.md` AC-8 |
+| BGP reload seam | `internal/component/bgp/reactor/reactor_api.go` `loadPeersFullOrTree` | Calls `reloadFunc(configPath)` when set, else parses the handed tree (verified 2026-11-14) | Extends: AC-1 |
+| Transaction diff | `internal/component/config/transaction/types.go` `DiffSection` | String `Added`, `Removed`, `Changed` per root | Does not apply: AC-5 keeps it |
+| Plugin lowering | `internal/component/config/tree.go` `ToPluginMap` | Delivers every value as a JSON string | Does not apply: AC-5 keeps the delivery format |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -179,6 +194,7 @@ resolved tree handed to BGP was historically not fully resolved (templates/defau
 | AC-3 | BGP config values (ASN, router-id, MED, local-pref, families) | Obtained via schema-typed accessors; `PeersFromTree` no longer hand-parses raw strings for these leaves |
 | AC-4 | A BGP-consumed uint64 leaf with value > 2^32-1 (or a guard if none exists) | Value is preserved end to end; a boundary test proves no silent uint32 truncation |
 | AC-5 | Plugin config delivery + `ze config diff` | Output byte-identical to pre-change (delivery format and diff JSON preserved) |
+| AC-6 | Any YANG `uint64` config leaf, BGP-consumed or not, set to 18446744073709551615 within its range, and to a value outside its declared range (from piece A of `spec-yang-single-source-of-truth`, old AC-1) | `ze config validate` and `ze start` accept the first; the second is refused with the declared range in the message; 18446744073709551616 is refused as out of type |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -314,6 +330,12 @@ Peer-facing behavior is unchanged; existing BGP interop scenarios must remain gr
 
 ## Design Insights
 <!-- LIVE — write IMMEDIATELY when you learn something -->
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `declared-format-contradicts-payload.md` | 2026-10-13 | `yangTypeToValueType`: `uint64` validated as `uint32` |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
