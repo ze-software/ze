@@ -16,6 +16,7 @@
 | Back up config on commit or a schedule | [Config Archive](config-archive.md) |
 | Manage config through a browser | [Web Interface](web-interface.md) |
 | Automate ze from scripts or tools | [REST and gRPC API](api.md) |
+| Test Ze with an AI agent (Claude Code, Codex) | [Use Ze with an AI agent](ai-agent.md) |
 | Migrate from ExaBGP | [ExaBGP Migration](../exabgp/exabgp-migration.md) |
 | Migrate a home CPE from VyOS | [Migrating from VyOS](migrating-from-vyos.md) |
 | Run Ze in production | [Operations](operations.md) |
@@ -42,6 +43,7 @@
 | [Authentication](authentication.md) | User database, SSH keys, TACACS+, RADIUS, bcrypt |
 | [Audit Trail](audit.md) | Local structured records for config changes, reloads, and failed logins |
 | [Web Interface](web-interface.md) | HTTPS web UI for config viewing, editing, and admin commands |
+| [Use Ze with an AI agent](ai-agent.md) | `ze create agent skill`: the `ze` skill and a session-start hook for Claude Code and Codex |
 
 ## Features
 

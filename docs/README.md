@@ -23,6 +23,7 @@ This directory contains user guides, feature inventories, implementation referen
 | Need | Start here |
 |------|------------|
 | Run Ze | `guide/README.md` |
+| Test Ze with an AI agent | `guide/ai-agent.md` |
 | Check project status | `guide/status.md` |
 | Check feature support | `features.md` |
 | Check RFC support and gaps | `features/rfc-status.md` |

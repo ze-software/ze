@@ -383,8 +383,11 @@ announce a route; the address split is what keeps it working when you do.
 
 ## Next Steps
 
+- [Use Ze with an AI agent](ai-agent.md) -- `ze create agent skill` sets Claude Code or Codex up to test Ze
 - [Configuration](configuration.md) -- peer groups, capabilities, static routes
 - [Plugins](plugins.md) -- RIB, route server, RPKI, graceful restart
 - [CLI Reference](cli.md) -- interactive CLI, route injection, monitoring
 - [Logging](logging.md) -- log levels, backends, per-subsystem tuning
 - [Operations](operations.md) -- SSH setup, signals, health checks, troubleshooting
+- [Lifecycle](lifecycle.md) -- configuration rollback, software updates, recovery order
+- [Choose a deployment path](ze-install.md#choose-a-deployment-path) -- a lasting installation, with its upgrade and removal steps

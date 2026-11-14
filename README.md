@@ -34,6 +34,7 @@ and the system they run on.
 | A network lab | [netlab and containerlab](docs/guide/netlab.md) |
 | An existing ExaBGP deployment | [Migration guide](docs/exabgp/exabgp-migration.md) |
 | A dedicated device or VM | [Appliance guide](docs/guide/appliance.md) |
+| Testing Ze with Claude Code or Codex | [Use Ze with an AI agent](docs/guide/ai-agent.md): `ze create agent skill` sets the agent up |
 
 ## What Ze Includes
 
@@ -46,7 +47,7 @@ supported, experimental, and partial implementations.
 | Routing | Exchange and inject routes, and check BGP route origins with RPKI. | [BGP](docs/features/bgp-protocol.md), [route injection](docs/guide/route-injection.md), [OSPF](docs/guide/ospf.md), and [RPKI validation](docs/guide/rpki.md) |
 | Linux networking | Configure interfaces, routes, firewall rules, and IPsec. | [Interfaces](docs/features/interfaces.md), [static routes](docs/guide/static-routes.md), [firewall](docs/guide/firewall.md), and [IPsec](docs/guide/ipsec.md) |
 | Configuration and operations | Edit configuration and inspect the running system. | [Configuration](docs/guide/configuration.md), [CLI](docs/guide/cli.md), [command reference](docs/guide/command-reference.md), and [operations](docs/guide/operations.md) |
-| Automation and visibility | Extend Ze and observe its routing state. | [Plugins](docs/plugin-development/), [MCP](docs/guide/mcp/overview.md), [monitoring](docs/guide/monitoring.md), and [looking glass](docs/guide/looking-glass.md) |
+| Automation and visibility | Extend Ze and observe its routing state. | [Plugins](docs/plugin-development/), [MCP](docs/guide/mcp/overview.md), [AI agents](docs/guide/ai-agent.md), [monitoring](docs/guide/monitoring.md), and [looking glass](docs/guide/looking-glass.md) |
 
 In the [configuration editor](docs/guide/config-editor.md), you can edit a value,
 review the changes with `show | compare`, validate them with `commit verify`,
@@ -95,7 +96,9 @@ modules to that schema.
 The protocol-independent core manages subsystem lifecycles through a message
 bus, a configuration provider, and a plugin manager. The Model Context Protocol
 (MCP) server derives tools from the running daemon's command catalog, so AI
-clients can discover its available commands.
+clients can discover its available commands. For a coding agent on the same
+machine, `ze create agent skill` installs a `ze` skill and a session-start hook
+in Claude Code and Codex: see [Use Ze with an AI agent](docs/guide/ai-agent.md).
 
 Plugins can be compiled Go modules or separate processes. Compiled plugins
 contribute their YANG to the daemon's configuration validator. External plugins

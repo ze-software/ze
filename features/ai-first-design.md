@@ -18,4 +18,4 @@
 
 ## Description
 
-Self-describing CLI-as-API with MCP transport for AI assistants
+Self-describing CLI-as-API with MCP transport for AI assistants. `ze create agent skill` installs the `ze` skill in Claude Code, Codex, OpenCode and Pi, and a session-start hook in Claude Code and Codex, so an agent reads the guide the installed binary serves. <!-- source: internal/plugins/skills/agent_skill.go -- harnesses, stubText --> <!-- source: internal/plugins/skills/agent_hook.go -- hookCommand -->

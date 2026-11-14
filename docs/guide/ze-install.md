@@ -44,6 +44,10 @@ hardware installation remain unverified by these checks. See
 <!-- source: internal/le/test/qemu/install_iso.go -- executeISO -->
 <!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA -->
 
+Once `ze` is installed, `ze create agent skill` sets Claude Code or Codex up
+to test it: see [Use Ze with an AI agent](ai-agent.md).
+<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, localRun -->
+
 ## Local Installation
 
 Run `ze install` for the complete Linux installation. It installs the running

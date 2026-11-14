@@ -6,7 +6,7 @@ individual areas.
 
 | Area | Page |
 |------|------|
-| AI-first workflow | `ai-first.md` |
+| AI-first workflow | `ai-first.md` (to set an agent up: `../guide/ai-agent.md`) |
 | API commands | `api-commands.md` |
 | Benchmarking | `benchmarking.md` |
 | BGP protocol | `bgp-protocol.md` |

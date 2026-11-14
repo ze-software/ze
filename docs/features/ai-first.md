@@ -138,6 +138,10 @@ flag leaf `full`, as in `show skill ze full`; the local `--full` means the same.
 
 ### Setting an agent up
 
+These commands set an AI coding agent up to use Ze. For the step-by-step
+how-to, with the command's output and the Codex trust step, see
+[Use Ze with an AI agent](../guide/ai-agent.md); this section is the reference.
+
 ```
 ze create agent skill
 ze show agent skill

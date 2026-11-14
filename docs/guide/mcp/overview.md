@@ -551,6 +551,9 @@ Offline commands for agent-driven config validation and repair:
 These commands do not require a running daemon. Agents use them to validate
 and fix config before committing.
 
+To set Claude Code or Codex up with the `ze` skill and its session-start hook,
+step by step, see [Use Ze with an AI agent](../ai-agent.md).
+
 An agent connected over MCP may run on a machine with no `ze` binary, so the
 three agent skill commands answer it differently through the daemon. They
 read and write nothing on the daemon's host, and answer the files to place
