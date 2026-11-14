@@ -17,6 +17,8 @@ func init() {
 	// drawings give the text route what the commands always printed.
 	command.MustRegisterTextRenderer(keySkills, drawSkills)
 	command.MustRegisterTextRenderer(keySkill, drawSkill)
+	command.MustRegisterTextRenderer(keyAgentContext, drawAgentContext)
+	command.MustRegisterTextRenderer(keyAgentSkill, drawAgentSkill)
 	command.MustRegisterLocalData("show skills", showSkills, registry.Meta{
 		ShortHelp: "List the agent skills this binary carries.",
 		Description: "Each skill is a Markdown document bundled with the binary, so it always matches " +
@@ -45,7 +47,7 @@ func init() {
 	command.MustRegisterLocalMeta(pathCreateAgentSkill, createAgentSkillLocal, registry.Meta{
 		ShortHelp: "Install the ze skill for the operator's agent harnesses.",
 		Description: "Writes a stub skill named ze, which sends the agent to the guide this binary " +
-			"carries, and a session-start hook where the harness has hooks.",
+			"carries, for every harness found or for the one agent names.",
 		Mode: modeOffline,
 	})
 	command.MustRegisterLocalMeta(pathShowAgentSkill, showAgentSkillLocal, registry.Meta{
@@ -53,8 +55,9 @@ func init() {
 		Mode:      modeOffline,
 	})
 	command.MustRegisterLocalMeta(pathDeleteAgentSkill, deleteAgentSkillLocal, registry.Meta{
-		ShortHelp: "Remove the ze skill from the operator's agent harnesses.",
-		Mode:      modeOffline,
+		ShortHelp:   "Remove the ze skill from the operator's agent harnesses.",
+		Description: "Takes agent <name> for one harness, or agent all for every harness found.",
+		Mode:        modeOffline,
 	})
 	command.MustRegisterLocalMeta(pathShowAgentContext, showAgentContextLocal, registry.Meta{
 		ShortHelp: "Show what an agent session is told about this Ze.",

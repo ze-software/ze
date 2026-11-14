@@ -165,3 +165,83 @@ func TestTheFourCommandsArePlainLocalWithADaemonCommand(t *testing.T) {
 		assert.True(t, builtin[wire], "%s: no builtin RPC for %s", path, wire)
 	}
 }
+
+// remoteSetup is the daemon route's answer as a remote caller decodes it.
+type remoteSetup struct {
+	Setup struct {
+		Note string `json:"note"`
+		Rows []struct {
+			Agent   string `json:"agent"`
+			Item    string `json:"item"`
+			Harness string `json:"harness"`
+			State   string `json:"state"`
+			Path    string `json:"path"`
+			Content string `json:"content"`
+		} `json:"rows"`
+	} `json:"agent-skill"`
+}
+
+// dispatchSetup dispatches line through a dispatcher loaded as the daemon
+// loads its builtins, and answers the decoded answer.
+func dispatchSetup(t *testing.T, line string) remoteSetup {
+	t.Helper()
+	resp, err := daemonDispatcher(t).Dispatch(&pluginserver.CommandContext{}, line)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, plugin.StatusDone, resp.Status, "the daemon refused %q: %s", line, resp.Error)
+	encoded, err := json.Marshal(resp.Data)
+	require.NoError(t, err)
+	var answer remoteSetup
+	require.NoError(t, json.Unmarshal(encoded, &answer))
+	return answer
+}
+
+// TestTheDaemonPlanUsesDefaultPathsWhateverTheDaemonsEnvironment proves
+// AC-21 and R-9.
+//
+// Goal: the daemon command answers the harness defaults relative to the home
+// directory, whatever CLAUDE_CONFIG_DIR and CODEX_HOME say in the daemon's
+// own process, so it leaks none of the daemon host's paths. Method: set both
+// variables to directories of the test's own, dispatch create, read the paths.
+func TestTheDaemonPlanUsesDefaultPathsWhateverTheDaemonsEnvironment(t *testing.T) {
+	home := isolateHome(t)
+	elsewhere := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(elsewhere, "claude-config"))
+	t.Setenv("CODEX_HOME", filepath.Join(elsewhere, "codex-home"))
+
+	answer := dispatchSetup(t, "create agent skill")
+
+	paths := make(map[string]string)
+	for _, row := range answer.Setup.Rows {
+		paths[row.Agent] = row.Path
+		assert.NotContains(t, row.Path, elsewhere, "%s: the daemon's environment reached the answer", row.Agent)
+		assert.NotContains(t, row.Path, home, "%s: the daemon's home reached the answer", row.Agent)
+	}
+	assert.Equal(t, "~/.claude/skills/ze/SKILL.md", paths["claude"])
+	assert.Equal(t, "~/.agents/skills/ze/SKILL.md", paths["codex"])
+}
+
+// TestDeleteThroughTheDaemonAnswersWhatToRemove proves AC-21 for delete.
+//
+// Goal: `delete agent skill agent all` through the daemon removes nothing on
+// the daemon's host and answers, per harness, the file the caller removes,
+// not-inspected, with no content. Method: a home holding a stub, the daemon
+// command, then the rows and the home compared before and after.
+func TestDeleteThroughTheDaemonAnswersWhatToRemove(t *testing.T) {
+	home := isolateHome(t)
+	stub := filepath.Join(home, ".claude", "skills", "ze", "SKILL.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(stub), 0o700))
+	require.NoError(t, os.WriteFile(stub, []byte("a stub on the daemon's host\n"), 0o600))
+	before := homeSnapshot(t, home)
+
+	answer := dispatchSetup(t, "delete agent skill agent all")
+
+	assert.Equal(t, before, homeSnapshot(t, home), "the daemon command changed the home")
+	require.NotEmpty(t, answer.Setup.Rows)
+	for _, row := range answer.Setup.Rows {
+		assert.Equal(t, "not-inspected", row.State, row.Agent)
+		assert.Equal(t, "skill", row.Item, "%s: a hook in the remote plan", row.Agent)
+		assert.True(t, strings.HasPrefix(row.Path, "~/"), "%s: %s is not home-relative", row.Agent, row.Path)
+		assert.Empty(t, row.Content, "%s: delete carries content", row.Agent)
+	}
+}

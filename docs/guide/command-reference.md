@@ -2611,6 +2611,82 @@ gives one `module`, `level`, `flags`, `scopes` object per row. `--json` on
 <!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
 <!-- source: internal/component/debug/yang/register.go -- RegisterModule, ValidateFlag -->
 
+### create agent skill
+
+```
+ze create agent skill [agent <claude|codex|opencode|pi>]
+```
+
+Installs a stub skill named `ze` that sends the agent to `ze show skill ze`.
+Without `agent` it acts on every harness whose configuration directory exists
+(`~/.claude` or `CLAUDE_CONFIG_DIR`, `~/.codex` or `CODEX_HOME`,
+`~/.config/opencode`, `~/.pi`); with no harness found it writes the shared
+stub `~/.agents/skills/ze/SKILL.md`, which Codex, OpenCode and Pi read. Claude
+Code's stub is `skills/ze/SKILL.md` under its configuration directory. With
+`agent <name>` it sets up that harness even where its directory does not
+exist. `agent all` is refused here: the bare form is the every-harness form.
+
+Each row answers `created`, `updated` (a stub an older ze wrote), `unchanged`,
+`foreign` (a `SKILL.md` without Ze's marker, left as it is, with the command
+that replaces it), `refused` (with the reason and the fix) or `unsupported`.
+The hook rows answer `refused` for Claude Code and Codex, because this build
+installs no session-start hook, and `unsupported` for OpenCode and Pi. The
+command exits 1 when a row is refused.
+
+### show agent skill
+
+```
+ze show agent skill [agent <claude|codex|opencode|pi>]
+```
+
+Reports, for every harness the plugin knows (or the one named), whether it was
+found and the state of its stub: `current`, `outdated`, `missing`, `foreign`,
+`refused` or `unsupported`. It changes no file.
+
+### delete agent skill
+
+```
+ze delete agent skill agent <claude|codex|opencode|pi|all>
+```
+
+Removes the stub Ze wrote, and its directory when that leaves it empty. It
+leaves a `SKILL.md` without Ze's marker (`foreign`). `agent` is required:
+`agent all` acts on every harness found, and a bare `delete agent skill` is
+refused with the values it takes. With one harness named, the shared stub
+stays while another harness found on the machine still reads it (`kept`,
+naming that harness). Rows answer `removed`, `absent`, `kept`, `foreign`,
+`refused` or `unsupported`.
+
+Through the daemon (`ze cli`, SSH, REST, gRPC, MCP, web) the three commands
+read and write nothing on the daemon's host. They answer, per harness, the
+stub's default path relative to the home directory with the state
+`not-inspected`, and for create and show the stub to place, whose body tells
+the agent to ask the Ze system it is connected to for `show skill ze`. The
+answer carries no hook.
+<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, localRun, remoteAnswer, createStub, inspectStub, removeStub, exitCode -->
+<!-- source: internal/plugins/skills/yang/ze-skills-cmd.yang -- leaf agent -->
+
+### show agent context
+
+```
+ze show agent context
+```
+
+Prints the few lines an agent session starts with: the Ze version, whether
+the daemon answered, the config directory, and the guide to read
+(`ze show skill ze`). At a shell, the command dials the daemon's address (the
+one `ze cli` connects to) once, for at most one second, and closes the
+connection without sending anything. It prints `answering at <host:port>`
+or `not answering at <host:port>` with the reason. An address it cannot
+read is reported as not answering, with the reason. The command exits 0 in
+every case, so a session-start hook that runs it never fails a session.
+
+Through the daemon (`ze cli`, SSH, REST, gRPC, MCP, web) the answer is the
+version, a line saying the caller reached the daemon, and the guide. It
+carries no directory and dials nothing, so a read-only caller does not learn
+where the daemon keeps its config.
+<!-- source: internal/plugins/skills/agent_context.go -- showAgentContextLocal, handleShowAgentContext, daemonState, configDirectory, drawAgentContext -->
+
 ### ze pipe
 
 Apply pipe formatting to stdin. Offline commands that print text rather than answer data do not pass

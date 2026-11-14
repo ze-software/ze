@@ -136,6 +136,64 @@ flag leaf `full`, as in `show skill ze full`; the local `--full` means the same.
 <!-- source: internal/plugins/skills/yang/ze-skills-cmd.yang -- leaf full -->
 <!-- source: internal/plugins/skills/main.go -- showSkill -->
 
+### Setting an agent up
+
+```
+ze create agent skill
+ze show agent skill
+ze delete agent skill agent all
+```
+
+At a shell, `ze create agent skill` writes a stub skill named `ze` for each
+agent harness it finds under the home directory: Claude Code's own
+`~/.claude/skills/ze/SKILL.md` (under `CLAUDE_CONFIG_DIR` when that is set),
+and the shared `~/.agents/skills/ze/SKILL.md` that Codex, OpenCode and Pi
+read. A harness is found when its configuration directory exists
+(`~/.claude`, `~/.codex` or `CODEX_HOME`, `~/.config/opencode`, `~/.pi`).
+`agent <name>` sets up that harness even where its directory does not exist
+yet; with no harness found and none named, the shared stub is written. The
+stub's frontmatter is the `ze` guide's name and description, its first line
+after that is Ze's marker, and its body tells the agent to run
+`ze show skill ze`, so the guide always matches the installed binary.
+
+Ze owns a stub only by that marker line. A second run leaves a current stub
+untouched (`unchanged`) and rewrites one an older ze wrote (`updated`); a
+`SKILL.md` without the marker is left as it is (`foreign`), with the command
+that replaces it. A link at the `ze` directory or at its `SKILL.md` is
+replaced by Ze's own file and its target is left; a linked skills directory
+(a dotfiles setup) is followed, and the stub is written in the directory it
+points at.
+
+`ze show agent skill` reports, for every harness the plugin knows, whether it
+was found and the stub's state (`current`, `outdated`, `missing`, `foreign`),
+and changes nothing. `ze delete agent skill` removes a stub Ze wrote and its
+emptied directory, and takes `agent <name>` or `agent all`: a bare delete is
+refused, so an early Enter cannot remove the setup from every harness. With
+one harness named, the shared stub stays while another harness found on the
+machine still reads it, and the answer names that harness. Each command
+answers one row per harness and item; the hook rows answer `refused` for
+Claude Code and Codex, because this build installs no session-start hook, and
+`unsupported` for OpenCode and Pi.
+
+Through the daemon (`ze cli`, SSH, REST, gRPC, MCP, web) the three commands
+read and write nothing on the daemon's host. They answer the files an agent
+on another machine places or removes in its own home: per harness, the
+default path relative to the home directory, the state `not-inspected` and,
+for create and show, the stub to write. That stub tells the agent to ask the
+Ze system it is connected to for `show skill ze` over the connection it
+already uses, and names no local `ze` command.
+<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, agentPlan, stubText, localRun, remoteAnswer, createStub, removeStub -->
+<!-- source: internal/plugins/skills/agent_hook.go -- createHook, inspectHook, deleteHook -->
+
+### Session context
+
+`ze show agent context` prints the Ze version, whether the daemon answered a
+dial bounded to one second, the config directory, and a pointer to
+`ze show skill ze`, and it always exits 0. It is the command a session-start
+hook runs once the hook is installed. Through the daemon it answers the version and
+that the caller reached the daemon, with no directory.
+<!-- source: internal/plugins/skills/agent_context.go -- showAgentContextLocal, handleShowAgentContext -->
+
 ## Development-Time Discovery
 
 Feature, tooling, self-check, verification and test-infrastructure changes

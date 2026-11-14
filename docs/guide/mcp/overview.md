@@ -545,9 +545,22 @@ Offline commands for agent-driven config validation and repair:
 | `ze config fix --plan <file>` | Plan-only repair candidates |
 | `ze show skills [--json]` | List bundled agent skills |
 | `ze show skill <name> [--full]` | Load version-matched skill content |
+| `ze show agent context` | The Ze version, whether the daemon answers, and the guide to read |
+| `ze create agent skill`, `ze show agent skill`, `ze delete agent skill agent <name\|all>` | Install, report and remove the `ze` stub skill in the caller's agent harnesses |
 
 These commands do not require a running daemon. Agents use them to validate
 and fix config before committing.
+
+An agent connected over MCP may run on a machine with no `ze` binary, so the
+three agent skill commands answer it differently through the daemon. They
+read and write nothing on the daemon's host, and answer the files to place
+(create, show) or remove (delete) in the agent's own home: per harness, the
+default path relative to the home directory (`~/.claude/skills/ze/SKILL.md`,
+`~/.agents/skills/ze/SKILL.md`), the state `not-inspected` and, for create
+and show, the stub's content. That stub tells the agent to ask the Ze system
+it is connected to for `show skill ze` over the connection it already uses,
+and the answer holds no session-start hook, which would need a local `ze`.
+<!-- source: internal/plugins/skills/agent_skill.go -- remoteAnswer, stubText, agentPlan -->
 
 ## Testing
 
