@@ -5,7 +5,7 @@
 | Status | skeleton |
 | Scope | protocol |
 | Priority | P3 |
-| Release reason | Post-release improvement the owner asked for: a plugin is told a transport failure for a session ze closed itself. The operator already learns the real cause, so no shipped behavior is wrong for the operator |
+| Release reason | Superseded on 2026-11-14: the work is release work, owned by residual R-2 of `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md`. This file holds no work and is to be removed |
 | RFC gaps | - |
 | Depends | - |
 | Phase | - |
@@ -18,17 +18,22 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+**Superseded on 2026-11-14 by residual R-2 of
+`plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` (its OD-3 and "R-2:
+causes and readers"), by the owner's decision: "Move it to the BMP".** Everything
+recorded below moved there. Do not design or implement from this file: it holds
+no work and is to be removed. The text below is kept as written until then.
+
 Created after the closure of `spec-bgp-session-write-wedge` (closure record in
 commit 8de10c4d54), whose Known Limitations recorded: "A budget expiry is still
 reported to plugins as a transport failure (`rpc.ReasonTCPFailure`), as a
 failed write was before this spec; whether a local-close reason fits better
 was not decided here".
 
-The owner's decision, 2026-11-14. Asked "Should a write-budget close reach
-plugins as a local close rather than a TCP failure?", Thomas answered: "Yes, it
-is an improvement we should probably do after release." So this is wanted work
-scheduled after the first release. It is not a declined feature and not a
-release prerequisite.
+The owner's first answer, 2026-11-14, superseded the same day (see above). Asked
+"Should a write-budget close reach plugins as a local close rather than a TCP
+failure?", Thomas answered: "Yes, it is an improvement we should probably do
+after release."
 
 What is true today, read at the producers on 2026-11-14:
 
@@ -76,18 +81,15 @@ arrive as `tcp-failure` with Event 18. Readers of the reason today:
 Goal: a session ze closed itself for a write budget expiry, or whose close met
 a held write path, reaches plugins with a reason that says ze closed it.
 
-Constraint found while writing this skeleton, to settle first at design. The
-mechanism already has an owner in the release bucket:
+Constraint found while writing this skeleton, settled on 2026-11-14 (see the
+top of this section). The mechanism already has an owner in the release bucket:
 `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` (Status `design`,
 P1), residual R-2: "A local close that fires Event 18 with no NOTIFICATION,
 other than the congestion drop, may be reported as reason 4 (remote)", producer
-`sessionCloseFor`. A write budget expiry is a member of that class. The design
-of this spec starts by deciding, with Thomas, whether R-2 takes the budget
-expiry (this spec then keeps only what R-2 leaves, or closes as covered), or
-whether R-2 excludes it and it waits here. His answer above was given to the
-question as asked, without R-2 in front of him.
+`sessionCloseFor`. A write budget expiry is a member of that class, and R-2 now
+takes it.
 
-What the design must settle. No choice is made here:
+What the design must settle, now in R-2 of that spec. No choice is made here:
 
 - Whether `local-close` is the reason, extending the congestion arm of
   `sessionCloseFor`, or whether plugins need the cause itself (budget expiry,
@@ -96,13 +98,8 @@ What the design must settle. No choice is made here:
 - Whether the held-path case changes at all: where a teardown ran it is
   already `local-close`, and where the peer dropped the transport `tcp-failure`
   may be the true answer.
-- The contract. Before the first release the plugin protocol owes no backward
-  compatibility (`ai/META-DECISIONS.md`). This spec runs after it, so a session
-  that changes from `tcp-failure` to `local-close` is a change to a published
-  contract (`ai/doors/system.md`): it changes on purpose, with its pages, and
-  the design says what a plugin built against the released behavior sees.
 - BMP: the same session changes from Peer Down reason 4 to reason 2
-  (RFC 7854 Section 4.9, to be quoted from `rfc/full/` at design).
+  (RFC 7854 Section 4.9).
 - The ExaBGP bridge's words for the down, checked in the same change
   (`ai/doors/bgp-engine.md`).
 
@@ -125,14 +122,15 @@ What the design must settle. No choice is made here:
 
 ## Existing Mechanisms (MANDATORY)
 
-To be completed at design. Known today:
+Superseded: the live rows are in the Existing Mechanisms table of
+`plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md`.
 
 | Mechanism | Where | What it does today | This spec |
 |-----------|-------|--------------------|-----------|
-| Close derivation | `peer_close.go` `sessionCloseFor` | One reason per down; a local cause on Event 18 is honored for congestion alone | Extends: the same decision point |
-| Local-close reason | `pkg/plugin/rpc/enums.go` `ReasonLocalClose` | The reason for a session ze closed with no NOTIFICATION reaching the peer | Extends or reuses; decided at design |
-| Operator-side cause | `plugin.CloseCause`, `PeerInfo.LastCloseCause` | Records a write budget close for `show bgp peer` | To be decided: whether plugins read it too |
-| BMP residual R-2 | `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` | Owns the other local closes that leave on Event 18 | To be decided with Thomas first (Task) |
+| Close derivation | `peer_close.go` `sessionCloseFor` | One reason per down; a local cause on Event 18 is honored for congestion alone | Does not apply: owned by R-2 of the BMP spec |
+| Local-close reason | `pkg/plugin/rpc/enums.go` `ReasonLocalClose` | The reason for a session ze closed with no NOTIFICATION reaching the peer | Does not apply: owned by R-2 of the BMP spec |
+| Operator-side cause | `plugin.CloseCause`, `PeerInfo.LastCloseCause` | Records a write budget close for `show bgp peer` | Does not apply: owned by R-2 of the BMP spec |
+| BMP residual R-2 | `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` | Owns the local closes that leave on Event 18, the write budget expiry and the held write path included (its OD-3) | Replaced by it: this spec holds no work |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -140,21 +138,24 @@ To be completed at design. Known today:
 A write to a peer that accepts no data for the write budget, or a close that meets a held write path, followed by the session's down event to plugins.
 
 ### Transformation Path
-To be written at design.
+Superseded: designed in R-2 of the BMP spec.
 
 ### Boundaries Crossed
-To be written at design. Engine to plugin: the `reason` of the state down event, on both transports.
+Superseded: designed in R-2 of the BMP spec. Engine to plugin: the `reason` of the state down event, on both transports.
 
 ### Integration Points
-To be written at design.
+Superseded: designed in R-2 of the BMP spec.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| To be designed | → | To be designed | To be designed |
+| Superseded: AC-27 and AC-28 of the BMP spec | → | - | - |
 
 ## Acceptance Criteria
+
+Superseded: AC-27 and AC-28 of
+`plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` carry these.
 
 - AC-1: a plugin subscribed to state events, on a session ze closed for a write budget expiry, reads a down whose reason says ze closed it, on the internal and the forked transport.
 - AC-2: a session the peer or the network dropped still reads `tcp-failure`.
@@ -162,7 +163,7 @@ To be written at design.
 
 ## Risks & Assumptions
 
-To be written at design.
+Superseded: none recorded here.
 
 ## 🧪 TDD Test Plan
 
@@ -170,15 +171,15 @@ To be written at design.
 
 | Test | Asserts |
 |------|---------|
-| To be designed | To be designed |
+| Superseded: the owed tests are in the BMP spec's TDD plan | - |
 
 ## Files to Modify
 
-To be decided at design.
+None: this spec holds no work.
 
 ## Implementation Steps
 
-To be decided at design.
+None: this spec holds no work.
 
 ## Owned journal rows
 
@@ -187,7 +188,11 @@ To be decided at design.
 
 ## Checklist
 
+Superseded: the work and its tests are owned by R-2 of the BMP spec. The rows
+below are the original ones, kept because the spec format requires them.
+
 - [ ] Tests written
 - [ ] Tests FAIL before the change
 - [ ] Tests PASS after the change
 - [ ] The targeted tests pass, run in the main checkout by the main thread: `./le test unit pkg path ./internal/component/bgp/reactor/`, the BMP and bridge package tests, and the functional test the design names under `./le test bgp plugin`
+- [ ] This file is removed once the removal is authorised (it is a tracked spec, so the commit tool treats its removal as a closure)
