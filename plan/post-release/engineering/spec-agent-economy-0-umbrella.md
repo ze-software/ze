@@ -126,8 +126,8 @@ is kept by hand.
 
 | Order | Child | Status | To pick it up |
 |-------|-------|--------|---------------|
-| 1 | 3 preamble | ready | Claim it and run `/ze-implement`. It depends on nothing |
-| 2 | 4 supervision | skeleton | Run `/ze-spec` on it: the three harness probes first, then the design, with two questions for the owner in its Open Questions. Its kept measure (AC-7) is what this umbrella's own criteria are measured with |
+| 1 | 3 preamble | in-progress | Phases 1 to 5 are committed. What remains is the probe in a fresh session, phase 6, and the small items its "Remaining before closure" lists. `plan/handover/2026-11-14-agent-economy.md` has the steps |
+| 2 | 4 supervision | ready | Claim it and run `/ze-implement`. The owner settled its two limit values on 2026-11-14. Its kept measure (AC-7) is what this umbrella's own criteria are measured with |
 | 3 | 5 scoped gates | skeleton | Last, by owner decision D-5: it waits for the queue-wait record child 2 landed to show whether it is worth its risk |
 | 4 | this umbrella | skeleton | Its criteria are measured over the two weeks after the last child closes |
 
