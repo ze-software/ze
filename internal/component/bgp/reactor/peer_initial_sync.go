@@ -157,10 +157,21 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 	// peer-up event has processed it, so "End-of-RIB sent" means "this peer is
 	// a live forward target" -- what a peer waiting on the marker before it
 	// sends reads it to mean. It is free in the common case (nothing expected,
-	// or an in-process plugin that already acknowledged on the FSM callback
-	// goroutine before this goroutine was spawned). Bounded; on timeout it
-	// releases and says so.
-	p.waitPeerUpBarrier()
+	// or plugins that already acknowledged on the FSM callback goroutine before
+	// this goroutine was spawned). Bounded; on timeout it releases and says so.
+	//
+	// A session that ends during the wait ends this sync here. Its connection
+	// is gone, so nothing more of its initial update can reach the wire, and the
+	// session-end defer is waiting to join this goroutine (Session.endInitialSync).
+	// Its facts are cleared as the other abandon paths clear them; the queued
+	// operations stay queued for the next session, which drains them itself.
+	if p.waitPeerUpBarrier(session) == peerUpBarrierSessionEnded {
+		peerLogger().Debug("initial sync abandoned: the session ended in the peer-up barrier wait", "peer", addr)
+		session.sendingInitialRoutes.Store(0)
+		session.initialSyncEOROwed.Store(false)
+		p.wakeForwardOverflow()
+		return
+	}
 
 	// No wait for the processes that push routes is taken anywhere in this
 	// sync: the End-of-RIB follows ze's own table (see the comment above the
@@ -708,10 +719,12 @@ func (p *Peer) keepTeardownForNextSessionLocked(addr string, op peerOp) {
 
 // queuedTeardownEnds reports whether op ends session, the queue drain's own, now.
 // A teardown that names another session is dropped. Session counts as gone when
-// the session-end defer has ended its sync (Session.initialSyncEnded), which it
-// does while p.session still names it during the join, or when p.session no
-// longer names it: a targeted teardown of a gone session is dropped, and a
-// peer-level one (nil target) is kept for the next session by
+// its Run has returned (Session.Done is closed), when the session-end defer has
+// ended its sync (Session.initialSyncEnded), or when p.session no longer names
+// it. The first two hold while p.session still names it: Run returns before
+// the runOnce defers run, and the defer ends the sync before it clears
+// p.session. A targeted teardown of a gone session is dropped, and a peer-level
+// one (nil target) is kept for the next session by
 // keepTeardownForNextSessionLocked rather than spent on a session that has
 // ended. Target check and requeue are one p.mu hold, so a session ending between
 // them cannot requeue a targeted teardown. Called with p.mu NOT held.
@@ -723,7 +736,7 @@ func (p *Peer) queuedTeardownEnds(session *Session, addr string, op peerOp) bool
 		return false
 	}
 	// A nil session is a drain that serves no session at all: gone.
-	gone := session == nil || session.initialSyncEnded() || p.session != session
+	gone := session == nil || sessionRunReturned(session) || session.initialSyncEnded() || p.session != session
 	if !gone {
 		return true
 	}
@@ -733,6 +746,20 @@ func (p *Peer) queuedTeardownEnds(session *Session, addr string, op peerOp) bool
 	}
 	p.keepTeardownForNextSessionLocked(addr, op)
 	return false
+}
+
+// sessionRunReturned reports whether session's Run has returned, so the session
+// has ended and no write of its own can reach a peer. Session.Done is closed
+// only by Run, which runs once per session. A session whose Run never started
+// (a test's literal, whose done channel is nil) reads as not returned. Safe for
+// concurrent use.
+func sessionRunReturned(session *Session) bool {
+	select {
+	case <-session.Done():
+		return true
+	default:
+		return false
+	}
 }
 
 // pluginRouteGroup accumulates the NLRIs of same-family same-attribute routes

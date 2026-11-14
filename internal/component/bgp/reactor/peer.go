@@ -1211,39 +1211,60 @@ func (p *Peer) SignalPeerUpBarrier() {
 	p.mu.Unlock()
 }
 
+// peerUpBarrierOutcome is what ended a peer-up barrier wait
+// (Peer.waitPeerUpBarrier). The values start at one, so the zero value is no
+// outcome and the wait never answers it.
+type peerUpBarrierOutcome uint8
+
+const (
+	peerUpBarrierOpened       peerUpBarrierOutcome = iota + 1 // every barrier plugin took delivery, or none was expected
+	peerUpBarrierTimedOut                                     // peerUpBarrierTimeout passed on a live session
+	peerUpBarrierSessionEnded                                 // the session the sync serves ended first
+)
+
 // waitPeerUpBarrier blocks until every barrier plugin has taken delivery of the
-// peer-up event, or until peerUpBarrierTimeout. Returns true when the barrier
-// opened.
+// peer-up event, until peerUpBarrierTimeout, or until session ends, and reports
+// which of the three ended the wait. session is the one the calling initial
+// sync serves.
 //
-// Returns immediately when nothing is expected, which is the common case: with
-// no barrier plugin loaded the peer pays nothing, and with an in-process one it
-// pays a closed-channel receive, because the delivery completes on the FSM
-// callback goroutine before this goroutine is spawned.
+// Returns immediately when nothing is expected, and in production it nearly
+// always does. The dispatcher delivers the peer-up event to each barrier plugin
+// and waits for its answer on the FSM callback goroutine, before that goroutine
+// starts the sync (deliverPeerState, bgp/server/events.go): an acknowledgement
+// opens the barrier, and a refusal lowers the expected count to what was
+// acknowledged, which opens it too. The wait is reached with the barrier still
+// shut only when the dispatcher could not find the peer to record a signal or
+// the lowered count (Reactor.SignalPeerUpBarrier, Reactor.SetPeerUpBarrier).
 //
 // Bounded on purpose. A plugin that never takes delivery must not wedge
 // establishment, so the timeout releases the End-of-RIB -- and says so, because
 // past that point a peer treating the End-of-RIB as "I am a registered forward
-// target" is being told something the engine could not confirm.
-func (p *Peer) waitPeerUpBarrier() bool {
+// target" is being told something the engine could not confirm. A session that
+// ends first ends the wait at once and logs no warning: its sync owes nothing
+// more, and its join in the runOnce session-end defer (Session.endInitialSync)
+// MUST NOT wait out the timeout.
+func (p *Peer) waitPeerUpBarrier(session *Session) peerUpBarrierOutcome {
 	p.mu.RLock()
 	expected := p.peerUpExpected
 	ready := p.peerUpReady
 	p.mu.RUnlock()
 
 	if expected == 0 || ready == nil {
-		return true
+		return peerUpBarrierOpened
 	}
 
 	select {
 	case <-ready:
-		return true
+		return peerUpBarrierOpened
+	case <-session.Done():
+		return peerUpBarrierSessionEnded
 	case <-p.clock.After(peerUpBarrierTimeout):
 		routesLogger().Warn("peer-up barrier timeout; end-of-rib no longer implies every plugin registered this peer",
 			"peer", p.settings.Address,
 			"acknowledged", p.peerUpCount.Load(),
 			"expected", expected,
 			"timeout", peerUpBarrierTimeout)
-		return false
+		return peerUpBarrierTimedOut
 	}
 }
 

@@ -666,3 +666,101 @@ func TestUpdateDelayReasonWords(t *testing.T) {
 		_ = updateDelayReleaseReason(200).String()
 	})
 }
+
+// ── The held session (Session start latch) ───────────────────────────────────
+
+// replaceTestSession ends the peer's current test session as far as the hold and
+// the peer are concerned (its start latch moved to ended, as the runOnce
+// session-end defer does with Session.endInitialSync, and p.session cleared),
+// then installs the peer's next session with its gate closed and its marker
+// owed, as enterEstablished leaves them, and returns it.
+func replaceTestSession(p *Peer, ended *Session) *Session {
+	ended.endInitialSync()
+	p.mu.Lock()
+	p.session = nil
+	p.mu.Unlock()
+	return p.setTestInitialSync(1, true)
+}
+
+// TestHeldInitialUpdateRefusesEndedSession pins what a release of the startup
+// convergence hold does for a session that ended while it was held.
+//
+// VALIDATES: AC-4. A peer is held under its first session, and that session
+// ends (its start latch moved to ended) before peerDown prunes it, which is the
+// window between a release taking its snapshot and starting the syncs. Max-delay
+// then releases the hold. The release starts no initial sync for the ended
+// session: its completion signal never closes and its gate stays closed. The
+// peer's next session establishes after the release and runs its own sync.
+// METHOD: the peers carry no negotiated capabilities, so a sync that runs opens
+// its session's gate (1 to 0) and closes its completion signal at once.
+// PREVENTS: a release starting a sync for a session that has ended, whose
+// writes and End-of-RIB would race the next session's own initial update.
+func TestHeldInitialUpdateRefusesEndedSession(t *testing.T) {
+	r := &Reactor{}
+	clk := updateDelayClock()
+	p := updateDelayTestPeer(r)
+	never := updateDelayGRPeer(r, 1)
+	require.True(t, r.updateDelay.arm(context.Background(), clk,
+		UpdateDelay{MaxDelay: 30 * time.Second}, []*Peer{p, never}))
+
+	first := p.testInitialSync()
+	p.startInitialRoutes(first)
+	require.True(t, updateDelayHolding(r), "the hold must own the first session's initial update")
+
+	next := replaceTestSession(p, first)
+	clk.Add(30 * time.Second)
+	require.False(t, updateDelayHolding(r), "max-delay must release the hold")
+	select {
+	case <-first.initialSyncDone:
+		t.Fatal("the release started an initial sync for a session that had ended")
+	case <-time.After(syncJoinProbe):
+	}
+	require.Equal(t, int32(1), first.sendingInitialRoutes.Load(),
+		"the release ran the initial sync of a session that had ended")
+
+	p.startInitialRoutes(next)
+	awaitInitialSyncDone(t, next)
+	require.Equal(t, int32(0), next.sendingInitialRoutes.Load(),
+		"the peer's next session never ran its own initial sync after the release")
+}
+
+// TestHeldInitialUpdateStartsTheCurrentSession pins which session a release
+// starts when a held peer drops and establishes again under the hold.
+//
+// VALIDATES: AC-4. A peer is held under its first session, that session ends
+// and the peer leaves Established (peerDown prunes it), and its next session
+// establishes while the hold still runs, so the hold now holds the peer under
+// that session, once. Max-delay releases the hold: the current session's sync
+// runs and the first session's never does.
+// METHOD: as TestHeldInitialUpdateRefusesEndedSession. A second expected peer
+// that never establishes keeps the hold from converging.
+// PREVENTS: a release that starts the ended session's sync (refused by its
+// latch, so the peer would get no initial update at all) or that starts a sync
+// for each session the peer had while held.
+func TestHeldInitialUpdateStartsTheCurrentSession(t *testing.T) {
+	r := &Reactor{}
+	clk := updateDelayClock()
+	p := updateDelayTestPeer(r)
+	never := updateDelayGRPeer(r, 1)
+	require.True(t, r.updateDelay.arm(context.Background(), clk,
+		UpdateDelay{MaxDelay: 30 * time.Second}, []*Peer{p, never}))
+
+	first := p.testInitialSync()
+	p.startInitialRoutes(first)
+	p.updateDelayPeerDown()
+	current := replaceTestSession(p, first)
+	p.startInitialRoutes(current)
+	require.True(t, updateDelayHolding(r), "the hold must still run: the second expected peer never established")
+	require.Equal(t, 1, r.UpdateDelayStatus().PeersHeld, "the peer must be held once, under its current session")
+	requireInitialUpdateHeld(t, p, "the current session's initial update must wait for the release")
+
+	clk.Add(30 * time.Second)
+	awaitInitialSyncDone(t, current)
+	require.Equal(t, int32(0), current.sendingInitialRoutes.Load(),
+		"the release never ran the current session's initial sync")
+	select {
+	case <-first.initialSyncDone:
+		t.Fatal("the release started an initial sync for the session that ended")
+	default:
+	}
+}

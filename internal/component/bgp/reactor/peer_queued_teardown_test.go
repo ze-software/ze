@@ -234,6 +234,46 @@ func TestPeerLevelTeardownWithNoSessionWaitsForNextSession(t *testing.T) {
 	}
 }
 
+// TestPeerLevelTeardownAfterRunReturnedWaitsForNextSession checks the same
+// contract in the window where the session has ended and p.session still names
+// it: its Run has returned, and the runOnce session-end defer has not yet ended
+// its sync or cleared p.session. Method: runQueuedTeardown on a session whose
+// start latch reads started, whose done channel is closed as Run closes it, and
+// which p.session still holds, with a route queued.
+//
+// VALIDATES: queuedTeardownEnds reads the returned Run as a gone session, so the
+// peer-level teardown goes back to the head of the opQueue with the route behind
+// it, and the ended session's wire carries nothing.
+// PREVENTS: the teardown spent on the session that ended (its End-of-RIB and
+// Cease written to a connection that is gone) and the queue cleared, so the
+// next session is never torn down and the route queued for it is lost.
+func TestPeerLevelTeardownAfterRunReturnedWaitsForNextSession(t *testing.T) {
+	family.RegisterTestFamilies()
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+	peer, conn := newInitialSyncPeer(t, true, fam)
+	wire, err := nlri.NewWireNLRI(fam, mustHex(t, "050118c00003"), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	route := peerOp{Type: PeerOpAnnounce, Route: rib.NewRouteWithASPath(wire, netip.Addr{}, nil, nil)}
+	session := peer.currentSession()
+	if !session.claimInitialSyncStart() {
+		t.Fatal("the session's start latch was already taken")
+	}
+	close(session.done) // Session.Run's last action.
+	peer.mu.Lock()
+	peer.opQueue = append(peer.opQueue, route)
+	peer.mu.Unlock()
+
+	teardown := peerOp{Type: PeerOpTeardown, Notice: ceaseNotice(message.NotifyCeaseOtherConfigChange, "")}
+	peer.runQueuedTeardown(session, peer.settings.Address.String(), teardown)
+
+	requireTeardownThenRoute(t, peer, route)
+	if frames := bgpFrames(t, conn.written()); len(frames) != 0 {
+		t.Fatalf("the ended session's wire carries %d frames, want none", len(frames))
+	}
+}
+
 // TestClosingDrainKeepsPeerLevelTeardownWithNoSession checks the same contract
 // through the closing drain, which once left the operations it had already
 // taken in the opQueue when it handed a teardown on. Method: the closing drain

@@ -635,6 +635,18 @@ session with Cease / Unspecific and Event 8 (`Session.ceaseAfterPanic`); when
 another writer holds the write path past the notify deadline, the connection
 closes with no NOTIFICATION and the log says so.
 
+After `sessionDown`, the owner defer `runOnce` registered first joins the
+session's initial sync (`Session.endInitialSync`) before it resets the
+End-of-RIB claims and clears `Peer.session`, so no write of the ended session's
+sync can reach the session that replaces it. The sync's one wait, the peer-up
+barrier (`Peer.waitPeerUpBarrier`), also ends when the session's Run returns
+(`Session.Done`): the sync then returns with its session's facts cleared, and
+the join never waits for the 2 second barrier timeout.
+
+<!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.runOnce -->
+<!-- source: internal/component/bgp/reactor/session.go -- Session.endInitialSync -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.waitPeerUpBarrier -->
+
 Before any handshake can publish negotiation, `runOnce` defers its publication
 end, including for a retained collision-winner OPEN. The session owns admission
 and completion of that publication. Ending seals admission, rejects queued late

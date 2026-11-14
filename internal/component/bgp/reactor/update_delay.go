@@ -279,6 +279,9 @@ func (h *updateDelayHold) holdInitialUpdate(p *Peer, session *Session) bool {
 		return false
 	}
 
+	// One entry per peer: a later session of the same peer replaces an earlier
+	// one peerDown has not yet pruned, so the release starts the current
+	// session's sync and nothing for the one that ended.
 	h.held[p] = session
 	if _, expected := h.expected[p]; expected {
 		h.trackLocked(p)

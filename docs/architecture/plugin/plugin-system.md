@@ -608,22 +608,28 @@ declares the barrier but subscribes to no state events never takes delivery, so
 counting it would cost every peer the full timeout.
 
 The barrier is separate from the API-sync wait below. This one says a plugin has
-REGISTERED the peer; that one says a plugin's ROUTES are out. A peer whose only
-barrier plugin is in-process does not block on the wait: state-event delivery is
-synchronous, so the acknowledgement has landed on the FSM callback goroutine by
-the time `sendInitialRoutes` is spawned.
+REGISTERED the peer; that one says a plugin's ROUTES are out. The dispatcher
+delivers the peer-up event to one plugin at a time and waits for each
+delivery's result on the FSM callback goroutine (`deliverPeerState`), for an
+in-process plugin and an external one alike, before that goroutine starts the
+initial sync. Each acknowledgement signals the barrier, and when fewer plugins
+acknowledged than were counted, the dispatcher lowers the count to what was
+acknowledged, which opens the barrier too. The sync therefore normally finds
+the barrier open and does not wait.
 
-The wait is bounded. A plugin that never acknowledges delays the marker to
-`peerUpBarrierTimeout` (2 s), which releases it with a WARN naming the peer and
-the shortfall. Establishment is never blocked.
+The wait is bounded. A barrier still shut when the sync reaches it (the
+dispatcher could not find the peer to record a signal or the lowered count)
+delays the marker to `peerUpBarrierTimeout` (2 s), which releases it with a
+WARN naming the peer and the shortfall. A session that ends first ends the
+wait at once, with no WARN.
 
 `bgp-rs` declares the barrier because `handleState` sets `Up` and captures
 `ForwardFrom` in one critical section. An UPDATE taken delivery of before that
 lands at or below the peer's cut and belongs to the announce-only Adj-RIB-In
 replay, so its withdrawals never reach the peer.
 
-<!-- source: internal/component/bgp/server/events.go -- countPeerUpBarrier -->
-<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- waitPeerUpBarrier -->
+<!-- source: internal/component/bgp/server/events.go -- countPeerUpBarrier, deliverPeerState -->
+<!-- source: internal/component/bgp/reactor/peer.go -- waitPeerUpBarrier -->
 
 ## Session-ready reports
 

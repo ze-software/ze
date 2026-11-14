@@ -1,6 +1,38 @@
 [
   {
     "rid": "RFC4724-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4724_rapid_reconnect_test.go::TestPredecessorSyncWritesNothingOnSuccessor",
+    "unit-sha": "c29f7bfd4635d7be",
+    "claim-sha": "0be6d8505611ae0e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
+    "producer-sha": "2b8024a4210f6cf4",
+    "break": "line 403: \"session.endInitialSync()\" -\u003e \"_ = session\"",
+    "paired": [
+      {
+        "producer": "internal/component/bgp/reactor/peer.go::waitPeerUpBarrier",
+        "producer-sha": "73047c1bea3b2b3a",
+        "break": "line 1259: \"session.Done()\" -\u003e \"make(chan struct{})\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
+        "break": "line 403: \"session.endInitialSync()\" -\u003e \"_ = session\"",
+        "seconds": 14,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t1.313s"
+      },
+      {
+        "producer": "internal/component/bgp/reactor/peer.go::waitPeerUpBarrier",
+        "break": "line 1259: \"session.Done()\" -\u003e \"make(chan struct{})\"",
+        "seconds": 15,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t1.862s"
+      }
+    ]
+  },
+  {
+    "rid": "RFC4724-4-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes",
     "unit-sha": "3336b2e9ee4c1a2a",

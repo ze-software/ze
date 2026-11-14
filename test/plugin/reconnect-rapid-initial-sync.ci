@@ -1,0 +1,154 @@
+# Test: every session's initial sync writes its own routes, then one End-of-RIB
+#       per family, on its own connection, across repeated drops
+#
+# The one question: when the test peer drops a session as soon as that
+# session's static route reaches it, three times in a row, does the daemon's
+# fourth session carry its static route and then exactly one End-of-RIB per
+# negotiated family, with no End-of-RIB on any connection ahead of that
+# connection's static route, and no session's sync logging a second marker?
+#
+# Why a .ci: the unit tests in internal/component/bgp/reactor/
+# (peer_initial_sync_join_test.go) hold the peer-up barrier on a fake clock and
+# decide the join. Only the daemon shows that a config-built peer with a
+# route-server binding, the real plugin delivery of the peer-up event and the
+# real reconnect loop (Peer.run, peer_run.go) keep that order on the wire.
+#
+# Spec: plan/release/fixes/spec-single-owner-lifecycle-2-bgp-session.md, AC-1,
+# user story 1, Functional Tests row `reconnect-rapid-initial-sync`.
+#
+# R-9: this file is claimed for the POSITIVE outcome only. It cannot reach the
+# defect's window, for two reasons read in the source:
+#   * The peer-up barrier is settled before the sync starts. In
+#     Peer.run's Established callback (peer_run.go) announceEstablished runs
+#     before startInitialRoutes, and the dispatcher collects every barrier
+#     plugin's acknowledgement synchronously (bgpserver onPeerStateChange,
+#     events.go: `r := <-results`, then the release valve). So
+#     waitPeerUpBarrier returns at once and no plugin can hold it from here.
+#   * ze is the dialer and ze-peer accepts only (its dial mode serves one
+#     connection, runDialCheck, internal/test/peer/peer.go). The first
+#     reconnect waits fsm.Jitter(5s), at least 3.75 s, longer than the 2 s
+#     peerUpBarrierTimeout (api_sync.go), so no successor exists while a
+#     predecessor's sync could still be waiting.
+# The discriminating proof is the unit test
+# (rfc4724_rapid_reconnect_test.go, TestPredecessorSyncWritesNothingOnSuccessor).
+# Revert run, 2026-11-14: with the join removed from the runOnce session-end
+# defer through a Go build overlay, this file stayed green, as expected.
+#
+# What it asserts:
+#   * Wire, connections 1 to 3: the static route arrives, then ze-peer sends a
+#     NOTIFICATION and returns, so ze's marker on that connection is never read
+#     (it is owed to that session and may or may not have left).
+#   * Wire, connection 4: the static route at seq 1, then the IPv4 and IPv6
+#     End-of-RIB at seq 2. The order of the two families is not the subject.
+#   * No End-of-RIB ahead of a route, on any connection. An unexpected marker
+#     is accepted in silence (Checker.expectedOrKeepalive, checker.go), and one
+#     that matches a later seq-2 expectation is noted as out of order
+#     (noteMisordered). The reject=stdout below turns that note into a failure.
+#   * At most one marker per family per attempt, read from the daemon's own
+#     "sent EOR" debug lines (sendInitialRoutes, peer_initial_sync.go) between
+#     the "timing: connection attempt starting" lines of Peer.run. The wire
+#     cannot say it: an extra End-of-RIB is accepted in silence, and a
+#     reject=bgp needle for it would match the legitimate marker too.
+#   * No peer-up barrier timeout warning: the barrier settled for every session.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=4
+option=asn:value=1
+# Static route 192.168.1.0/24: ORIGIN IGP, empty AS_PATH, NEXT_HOP 10.0.0.1,
+# LOCAL_PREF 100 (the frame test/plugin/reconnect-static.ci asserts).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+action=notification:conn=1:seq=2:text=Peer Reset
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+action=notification:conn=2:seq=2:text=Peer Reset
+expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+action=notification:conn=3:seq=2:text=Peer Reset
+# Connection 4: the route, then one End-of-RIB per negotiated family
+# (IPv4 in the body, IPv6 as MP_UNREACH, as test/plugin/eor-per-family.ci).
+expect=bgp:conn=4:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=4:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=4:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+EOF_PEER
+
+# ze bgp configuration: one active peer with a static route and a route-server
+# binding. The block is named bgp-rs because the dispatcher counts a barrier
+# plugin by its process name (registry.RequiresPeerUpBarrier(proc.Name()),
+# events.go), so the peer-up barrier applies to this peer.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal bgp-rs {
+		use bgp-rs
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process bgp-rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.bgp.reactor.peer:value=debug
+option=env:var=ze.log.bgp.routes:value=debug
+
+# Three backoff waits on bases 5 s, 10 s and 20 s (jittered to 0.75..1.0): at
+# most 35 s of waiting. The runner stops ze once ze-peer completes on
+# connection 4, and ze-peer accepts no fifth connection.
+option=timeout:value=90s
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+# An End-of-RIB ahead of a route on any connection.
+reject=stdout:contains=out-of-order marker accepted in silence
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=90s
+
+# Attempt 4 wrote one marker per family.
+expect=stderr:pattern=(?s)msg="timing: connection attempt starting"[^\n]*attempt=4\b.*msg="sent EOR"[^\n]*family=ipv4/unicast
+expect=stderr:pattern=(?s)msg="timing: connection attempt starting"[^\n]*attempt=4\b.*msg="sent EOR"[^\n]*family=ipv6/unicast
+# No attempt logged a second marker for one family. Attempts 1 to 3 end at the
+# next attempt's first line; attempt 4 runs to the end of the log, because no
+# fifth session can establish.
+reject=stderr:pattern=(?s)msg="timing: connection attempt starting"[^\n]*attempt=1\b.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv4/unicast.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv4/unicast.*msg="timing: connection attempt starting"[^\n]*attempt=2\b
+reject=stderr:pattern=(?s)msg="timing: connection attempt starting"[^\n]*attempt=2\b.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv4/unicast.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv4/unicast.*msg="timing: connection attempt starting"[^\n]*attempt=3\b
+reject=stderr:pattern=(?s)msg="timing: connection attempt starting"[^\n]*attempt=3\b.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv4/unicast.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv4/unicast.*msg="timing: connection attempt starting"[^\n]*attempt=4\b
+reject=stderr:pattern=(?s)msg="timing: connection attempt starting"[^\n]*attempt=1\b.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv6/unicast.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv6/unicast.*msg="timing: connection attempt starting"[^\n]*attempt=2\b
+reject=stderr:pattern=(?s)msg="timing: connection attempt starting"[^\n]*attempt=2\b.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv6/unicast.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv6/unicast.*msg="timing: connection attempt starting"[^\n]*attempt=3\b
+reject=stderr:pattern=(?s)msg="timing: connection attempt starting"[^\n]*attempt=3\b.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv6/unicast.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv6/unicast.*msg="timing: connection attempt starting"[^\n]*attempt=4\b
+reject=stderr:pattern=(?s)msg="timing: connection attempt starting"[^\n]*attempt=4\b.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv4/unicast.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv4/unicast
+reject=stderr:pattern=(?s)msg="timing: connection attempt starting"[^\n]*attempt=4\b.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv6/unicast.*msg="sent EOR(?: \(before teardown\))?"[^\n]*family=ipv6/unicast
+# Every session's peer-up barrier settled without its timeout.
+reject=stderr:pattern=peer-up barrier timeout

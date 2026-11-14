@@ -74,8 +74,10 @@ func waitBarrier(t *testing.T, p *Peer) (<-chan struct{}, *bool) {
 
 	done := make(chan struct{})
 	opened := new(bool)
+	// A session that never runs: its end is never what ends the wait.
+	session := NewSession(p.settings)
 	go func() {
-		*opened = p.waitPeerUpBarrier()
+		*opened = p.waitPeerUpBarrier(session) == peerUpBarrierOpened
 		close(done)
 	}()
 	// Never let the waiter outlive the test when the barrier legitimately stays
@@ -158,8 +160,9 @@ func TestPeerUpBarrierTimeoutReleases(t *testing.T) {
 
 	done := make(chan struct{})
 	opened := new(bool)
+	session := NewSession(peer.settings)
 	go func() {
-		*opened = peer.waitPeerUpBarrier()
+		*opened = peer.waitPeerUpBarrier(session) == peerUpBarrierOpened
 		close(done)
 	}()
 
@@ -231,7 +234,7 @@ func TestPeerUpBarrierResetPerSession(t *testing.T) {
 	peer := newBarrierPeer(t)
 	peer.SetPeerUpBarrier(1)
 	peer.SignalPeerUpBarrier()
-	require.True(t, peer.waitPeerUpBarrier(), "first session's barrier opens")
+	require.Equal(t, peerUpBarrierOpened, peer.waitPeerUpBarrier(NewSession(peer.settings)), "first session's barrier opens")
 
 	// New session: same peer, fresh barrier, no acknowledgement yet.
 	peer.ResetPeerUpBarrier()

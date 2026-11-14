@@ -1643,9 +1643,10 @@ So the engine RETRACTS the claim, per event, for the peers it does not cover. Ea
 
 A plugin that decides on the peer-up event whether a peer may receive traffic declares `PeerUpBarrier: true`. The engine then holds that peer's initial-sync End-of-RIB until every barrier-declaring plugin subscribed to state events has taken delivery of the peer-up event, so "End-of-RIB sent" means "every barrier plugin has registered this peer".
 
-`bgp-rs` declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The wait is bounded and never blocks establishment. A plugin that does not acknowledge only delays the End-of-RIB to the timeout, which logs a WARN naming the peer and the shortfall. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is separate from the session-ready report below: merging them would let a route sender's report satisfy a registrar's obligation.
+`bgp-rs` declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The engine delivers the peer-up event to one plugin at a time and waits for each delivery's result before the peer's initial sync starts. A plugin whose delivery fails or is refused does not delay the End-of-RIB: the engine lowers the count to the acknowledgements it received and logs a WARN naming the peer and the shortfall. A barrier the sync still finds shut is bounded by a 2 second timeout, which logs its own WARN. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is separate from the session-ready report below: merging them would let a route sender's report satisfy a registrar's obligation.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.PeerUpBarrier -->
-<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- waitPeerUpBarrier before End-of-RIB -->
+<!-- source: internal/component/bgp/reactor/peer.go -- waitPeerUpBarrier -->
+<!-- source: internal/component/bgp/server/events.go -- deliverPeerState -->
 
 ## Session-Ready Report
 

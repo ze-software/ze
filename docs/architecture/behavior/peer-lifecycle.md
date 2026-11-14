@@ -255,6 +255,30 @@ take additional locks safely.
    session-end defer joins that goroutine before it clears
    `p.session`.
 
+Before its queue drain the sync waits for the peer-up barrier
+(`waitPeerUpBarrier`), which reports what ended the wait. Every barrier plugin
+took delivery: the sync goes on. `peerUpBarrierTimeout` (2 seconds) passed on a
+live session: the sync goes on and logs a warning that the End-of-RIB no longer
+implies every plugin registered the peer. The session ended (`Session.Done`):
+the sync clears its own session's gate and owed marker and returns, with no
+warning, so the join in the session-end defer never waits out the timeout.
+Operations still queued stay queued for the next session.
+
+In production the wait nearly always returns at once. Step 8 delivers the
+peer-up event to each barrier plugin and waits for its answer on the FSM
+callback goroutine (`deliverPeerState`): an acknowledgement opens the barrier,
+and a refusal lowers the expected count to what was acknowledged, which opens it
+too. The sync, started in step 9, finds the barrier shut only when the
+dispatcher could not find the peer to record a signal or the lowered count.
+
+A peer-level teardown the sync takes from the queue once its session's Run has
+returned, before the session-end defer clears `p.session`, is kept at the head
+of the queue for the next session rather than sent to the session that ended
+(`queuedTeardownEnds`, `sessionRunReturned`).
+<!-- source: internal/component/bgp/reactor/peer.go — waitPeerUpBarrier, peerUpBarrierOutcome -->
+<!-- source: internal/component/bgp/server/events.go — deliverPeerState -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go — sendInitialRoutes, queuedTeardownEnds, sessionRunReturned -->
+
 Established peer events and API snapshots report the TCP connection's local
 address and both socket ports, including an automatically chosen local address
 or ephemeral source port. Sent message events read an immutable endpoint
