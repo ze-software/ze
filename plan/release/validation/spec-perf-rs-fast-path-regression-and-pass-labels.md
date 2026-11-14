@@ -2,17 +2,82 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | protocol |
 | Priority | P2 |
 | Release reason | Release validation: the route-server fast path measures about 5x slower than it did on 2026-09-21, and the comparison report shows Ze's sender-first pass under the bare DUT name, so the published convergence figure for Ze is the wrong pass |
 | RFC gaps | - |
-| Depends | - |
+| Depends | spec-bgp-session-write-wedge.md |
 | Phase | 4/6 |
 | Handoff | - |
-| Updated | 2026-11-01 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Where this stands (2026-11-14)
+
+Thomas's words on 2026-11-14: "tidy perf-rs-fast-path and put it back on to do
+list before release". The spec left `in-progress` for `ready` with phases 1 to
+4 of 6 committed. It stays in the release bucket: the remaining work is owed
+before the first release. The next session claims it (`./le spec claim`), keeps
+`Phase` at `4/6`, and starts at phase 5.
+
+Current Behavior below describes the tree before phase 1. Two names moved
+since: `tryDirectWriteNoFlush` now lives in `forward_rs_direct.go`, and the
+config type is `BenchmarkConfig`, with the pass declared as `perf.Pass` in
+`internal/perf/result.go`.
+
+**Committed (all on 2026-11-01):**
+
+| Phase | Commit | What it landed | Evidence recorded |
+|-------|--------|----------------|-------------------|
+| 1, wiring | `b6cb7781f3` | `TestAdjOutForwardedWriteAllocations`, `BenchmarkAdjOutForwardedWrite` | Commit body: red at that commit, 10 keys 26 allocs, 1,000 keys 1016, re-announce 8 |
+| 2, item 2 (AC-6 to AC-12) | `6045b617c1` | The `pass` field, the report key and labels, the runner derivation, the two guide pages, and the four tests | None: neither the commit body nor this spec records a red or a green run of the four tests |
+| 3, item 1a (AC-5) | `5f0aa168c2` | One recovery-owner answer per source per write | Commit body: reactor and `bgp-rs` packages pass under `-race`, the six functional tests of AC-4 pass. No output pasted |
+| 4, item 1b (AC-3) | `217c3e6fd5` | The per-table slot store (`adj_rib_out_store.go`) and the pooled walk state (`session_ownership_walk.go`) | Commit body: the allocation guard green at 0, 0 and 0 allocations per write (were 26, 1016 and 8); the same packages and functional tests pass. No output pasted |
+
+**Owed, in this order:**
+
+| # | What | Who runs it, on which host | Blocks |
+|---|------|----------------------------|--------|
+| 1 | Wait for `spec-bgp-session-write-wedge` to land. It is changing `session_write.go` and `forward_pool.go`, the path AC-1 and AC-2 measure, so a figure taken before it lands measures code that is about to change | - | Every row below |
+| 2 | Rerun the scoped evidence at the then-current HEAD and paste it here: the eight unit tests of the TDD plan, the reactor and `bgp-rs` packages with `-tags ze_bgp`, the six `.ci` tests of AC-4. `session_ownership.go` changed three times after phase 4 (`da6d6056f4`, `1e65b6d4bb`, `08fe903803`) and no run of the allocation guard is recorded after them | The main thread, any host | AC-3, AC-4, AC-5, AC-6 to AC-11 as proven |
+| 3 | AC-2: `BenchmarkAdjOutForwardedWrite`, ns/op and allocs/op | Thomas's Mac, or a Linux QEMU guest on it, for ns/op. Allocation figures may come from any host | Phase 5 |
+| 4 | Phase 5: profile the benchmark; carry the keys only if `fwdPathKeyFor` and the `owners` lookups in `recordSection` still hold more than a quarter of the write's time; otherwise record the measurement and change nothing | Same host as row 3 | Phase 6 |
+| 5 | AC-1: `./le perf run dut ze` with `PPROF=1`, repeat 4, quiet host; paste the output and the `(*Peer).run` profile figures. This validates or breaks A-1 and A-4 | Thomas's Mac | Closure |
+| 6 | Close the two perf-tool journal rows on the same Mac session: `TestRunPassiveListenHandshakesReceiver` green and `./le perf run dut rustbgpd` measuring rustbgpd (`bc5281e3a0`), and `./le perf run` measuring openbgpd through all four iterations (`430b38ecc6`). Both fixes are written and unrun | Thomas's Mac | Closure |
+
+**Measurement rule (`ai/META-DECISIONS.md`, "Test systems and labs").** A time
+or throughput figure (ns/op, convergence, a profile's seconds) is recorded only
+from a host whose performance is known: Thomas's Mac, or a Linux QEMU guest
+running on it. An agent on any other host may run the benchmark or the lab to
+check that it works, and never reports or compares the figures it prints.
+Allocation figures (bytes and allocations per operation) may be taken on any
+host, and two of them are compared only when the same Go toolchain and
+architecture produced both.
+
+**Not established, and not to be read as results:**
+
+- The ns/op "before phase 1" figure of AC-2 was never taken. Phases 3 and 4
+  are in HEAD, so the main checkout can no longer produce it: the last commit
+  with the benchmark and neither fix is `b6cb7781f3`. The allocation half of
+  the before and after pair is recorded (1016 to 0 for 1,000 keys, commit
+  bodies of `b6cb7781f3` and `217c3e6fd5`, host and toolchain not recorded).
+- An untracked `test/perf/results/ze.json`, result timestamp
+  `2026-11-01T12:03:54Z`, reads `convergence-ms` 70, `convergence-stddev-ms` 2,
+  `repeat` 3, 0 routes lost, `pass` `live-forwarding`. It is an unattributed
+  observation. The `pass` field shows the `le perf send` that wrote it was
+  built at or after `6045b617c1`; nothing records which Ze build the DUT
+  container ran or what the host load was, and it is repeat 3 where AC-1 asks
+  for repeat 4. It is above AC-1's 26 ms bound, and it proves neither a miss
+  nor a pass.
+
+**Decisions that may come back to Thomas:**
+
+| Decision | When it arises | Evidence the ask carries |
+|----------|----------------|--------------------------|
+| A-4: which way to proceed when the 26 ms bound is out of reach with the ownership semantics kept | Only if a clean AC-1 run (row 5) with every AC-4 test green confirms a miss | The pasted run, the fresh profile, and the floor it shows |
+| AC-2's missing "before" ns/op figure: measure it from a build of `b6cb7781f3` on the Mac, or accept the allocation pair and the 2026-11-01 lab baseline as the before | At row 3 | The after figure, and that an agent cannot build another commit in the main checkout |
 
 ## Task
 
@@ -246,13 +311,13 @@ pass, with the pass named in one declaration.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestAdjOutForwardedWriteAllocations` | `internal/component/bgp/reactor/session_ownership_bench_test.go` (built `!race`; `session_ownership_bench_race_test.go` skips the name under `-race`, whose `sync.Pool` drops make counts the detector's) | AC-3 | written, red at HEAD (cycle 10 keys 26.0, 1000 keys 1016.0 allocs; re-announce 8.0), green after phase 4 (0.0, 0.0; 0.0) |
-| `BenchmarkAdjOutForwardedWrite` | `internal/component/bgp/reactor/session_ownership_bench_test.go` | AC-2, owner-run on the Mac | written, smoke-run `-benchtime=1x` only |
+| `BenchmarkAdjOutForwardedWrite` | `internal/component/bgp/reactor/session_ownership_bench_test.go` | AC-2, owner-run on the Mac | written, smoke-run `-benchtime=1x` only; no ns/op figure taken, before or after |
 | `TestOwesWithdrawalReadsRecoveryOwnerOncePerWrite` | `internal/component/bgp/reactor/recovery_owed_test.go` | AC-5 | written, red at HEAD (owed 1 of 8), green after phase 3 |
 | `TestAdjOutEntryStoreReusesFreedSlots` | `internal/component/bgp/reactor/adj_rib_out_test.go` | A freed slot is reused for a new key and carries none of the old key's owner, revision, signature or contested bit; `clearRoutes` drops every chunk (A-3, R-2) | written, red before the store was wired (slot not reused), green after phase 4 |
-| `TestRunResultRecordsPass` | `internal/perf/benchmark_test.go` | AC-6 | |
-| `TestComparisonRendersBothPassesOfOneDUT` | `internal/perf/report/report_test.go` | AC-7, AC-8, AC-9 | |
-| `TestComparisonUnrecordedPassIsNamed` | `internal/perf/report/report_test.go` | AC-10 | |
-| `TestRunnerNamesPassFromDeclaration` | `internal/test/perfrunner/run_test.go` | AC-11 | |
+| `TestRunResultRecordsPass` | `internal/perf/benchmark_test.go` | AC-6 | written, committed with the fix in `6045b617c1`; no red or green run recorded |
+| `TestComparisonRendersBothPassesOfOneDUT` | `internal/perf/report/report_test.go` | AC-7, AC-8, AC-9 | written, committed with the fix in `6045b617c1`; no red or green run recorded |
+| `TestComparisonUnrecordedPassIsNamed` | `internal/perf/report/report_test.go` | AC-10 | written, committed with the fix in `6045b617c1`; no red or green run recorded |
+| `TestRunnerNamesPassFromDeclaration` | `internal/test/perfrunner/run_test.go` | AC-11 | written, committed with the fix in `6045b617c1`; no red or green run recorded |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -266,10 +331,15 @@ pass, with the pass named in one declaration.
 | `bgp-rs-withdrawal-replacement-fastpath` | `test/plugin/bgp-rs-withdrawal-replacement-fastpath.ci` | A route server on the fast path replaces a withdrawn route with the RIB's next best | existing, must stay green |
 | `bgp-rs-withdrawal-replacement-many` | `test/plugin/bgp-rs-withdrawal-replacement-many.ci` | Many owed keys at once | existing, must stay green |
 
+The commit bodies of `5f0aa168c2` and `217c3e6fd5` state that the six
+functional tests of AC-4 passed after phases 3 and 4. No output is pasted
+here, and the reactor has changed since, so AC-4 owes a fresh run ("Where this
+stands", row 2).
+
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-relay-withdraw-shape-frr` | `test/interop/scenarios/` | FRR | Relayed withdrawals keep their shape against FRR. Item 1 changes no wire byte, so this is regression evidence the main thread runs, not a new scenario | existing |
+| `bgp-relay-withdraw-shape-frr` | `test/interop/scenarios/` | FRR | Relayed withdrawals keep their shape against FRR. Item 1 changes no wire byte, so this is regression evidence the main thread runs, not a new scenario | existing; no run recorded for this spec |
 
 ## Files to Modify
 - `internal/component/bgp/reactor/session_ownership.go` - per-write recovery answer; record walk without a per-key heap object; optional key carry (phase 3)
@@ -285,6 +355,8 @@ pass, with the pass named in one declaration.
 ## Files to Create
 - `internal/component/bgp/reactor/session_ownership_bench_test.go` - AC-2, AC-3
 - `internal/component/bgp/reactor/session_ownership_bench_race_test.go` - the AC-3 test name under `-race`, skipped with its reason
+- `internal/component/bgp/reactor/adj_rib_out_store.go` - the chunked entry store and its free list (created in `217c3e6fd5`)
+- `internal/component/bgp/reactor/session_ownership_walk.go` - the pooled walk state and the visitors bound once per pooled write (created in `217c3e6fd5`)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -329,22 +401,28 @@ pass, with the pass named in one declaration.
    - Tests: `TestAdjOutForwardedWriteAllocations`, `BenchmarkAdjOutForwardedWrite`, `TestComparisonRendersBothPassesOfOneDUT`
    - Files: `session_ownership_bench_test.go`, `report_test.go`
    - Verify: the alloc test is red at HEAD; the report test shows one `ze` row; Thomas runs the benchmark at HEAD for the before figure
+   - State: committed in `b6cb7781f3` (the two reactor tests; the report test landed with phase 2). The alloc red is in that commit's body. The benchmark's before figure was never taken
 2. **Phase: Item 2, the pass** -- declaration, `Result` field, report key and label, runner derivation, docs
    - Tests: `TestRunResultRecordsPass`, `TestComparisonRendersBothPassesOfOneDUT`, `TestComparisonUnrecordedPassIsNamed`, `TestRunnerNamesPassFromDeclaration`
    - Files: `internal/perf/`, `internal/perf/report/`, `internal/test/perfrunner/run.go`, the two guide pages
    - Verify: tests fail, implement, pass; lands as its own commit
+   - State: committed in `6045b617c1`, tests and fix in one commit. No red or green run of the four tests is recorded
 3. **Phase: Item 1a, recovery answer once per write**
    - Tests: `TestOwesWithdrawalReadsRecoveryOwnerOncePerWrite`, AC-4 set
    - Files: `session_ownership.go`, `recovery_owed.go`
    - Verify: AC-4 green; own commit
+   - State: committed in `5f0aa168c2`
 4. **Phase: Item 1b, entry store**
    - Tests: `TestAdjOutEntryStoreReusesFreedSlots`, `TestAdjOutForwardedWriteAllocations`, AC-4 set
    - Files: `adj_rib_out.go`, `session_ownership.go`
    - Verify: A-3 grep done first and recorded; alloc test green; own commit
+   - State: committed in `217c3e6fd5`
 5. **Phase: Item 1c, key carry, only if measured** -- Thomas runs the benchmark; if `fwdPathKeyFor` and the `owners` lookups in `recordSection` still hold more than a quarter of the write's time, carry the keys the filter walk derived, in final-body order, to `record`, for the case where the final body is the filter's output; otherwise this phase records the measurement and does nothing
    - Tests: AC-4 set, `TestAdjOutForwardedWriteAllocations`
    - Files: `session_ownership.go`
+   - State: not started. It waits for the AC-2 profile, taken after `spec-bgp-session-write-wedge` lands
 6. **Phase: lab proof** -- Thomas runs AC-1 on the Mac with `PPROF=1`; the output and profile figures are pasted here. If AC-1's bound is not met with AC-4 green, stop with the profile and ask Thomas which way to proceed (A-4)
+   - State: not started. No AC-1 run is recorded; the untracked `ze.json` of 2026-11-01 is not one ("Where this stands")
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -363,7 +441,8 @@ pass, with the pass named in one declaration.
 | Allocation guard | `./le job run label unit-pkg command go test -tags ze_bgp -run TestAdjOutForwardedWriteAllocations ./internal/component/bgp/reactor/` |
 | Ownership oracle green | `./le job run label unit-pkg command go test -tags ze_bgp ./internal/component/bgp/reactor/ ./internal/component/bgp/plugins/rs/` |
 | Report shows both passes | `./le job run label unit-pkg command go test ./internal/perf/... ./internal/test/perfrunner/` |
-| Lab figure | AC-1 output pasted in this spec |
+| Benchmark figures | AC-2 output pasted in this spec, ns/op from the Mac or a Linux QEMU guest on it |
+| Lab figure | AC-1 output pasted in this spec, from Thomas's Mac |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -435,7 +514,7 @@ No RFC behaviour changes. The existing quotes at `owesWithdrawal`, `oweAnnouncem
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass, and `./le verify changed` over the closing commits
+- [ ] The scoped evidence for what changed is pasted in this spec, run by the main thread: the eight unit tests of the TDD plan by name, `./le test unit pkg path ./internal/component/bgp/reactor/` and the same for `./internal/component/bgp/plugins/rs/`, `./internal/perf/`, `./internal/perf/report/` and `./internal/test/perfrunner/`, the six `.ci` tests of AC-4 from the `./le test functional plugin` suite, and the changed-code lint of those packages. No agent runs any `./le verify` command; GitHub CI verifies the pushed commit
 - [ ] Feature code integrated (`internal/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
