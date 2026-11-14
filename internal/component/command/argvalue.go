@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/suggest"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -35,7 +36,8 @@ type ValueArgumentError struct {
 	// subject is the words before the problem's colon: Leaf, or the command
 	// path and Leaf once a route restated the fault (withSubject).
 	subject string
-	// value is the refused value as the problem quotes it (echoValue).
+	// value is the refused value as the problem quotes it: echoValue, or
+	// redact.Placeholder for a credential-keyword leaf (newValueFault).
 	value string
 	// marker is what follows the quoted value: the kind, and a close accepted
 	// value when there is one.
@@ -132,12 +134,20 @@ func (e *ValueArgumentError) typedAt(at, span int) *ValueArgumentError {
 
 // newValueFault builds the fault of value refused by def, with marker after the
 // quoted value, why as the reason and correction for the fix line. The value
-// is not yet placed in a line (at -1).
+// is not yet placed in a line (at -1). A leaf whose name is a credential
+// keyword (redact.IsCredentialKeyword: the password family, plaintext-* and
+// content) is quoted as redact.Placeholder, never as typed, because the
+// refusal reaches the terminal, the web notice and any log of either, which
+// the command-line redaction of the records does not cover.
 func newValueFault(def *ArgDef, value, marker, why, correction string) *ValueArgumentError {
+	quoted := redact.Placeholder
+	if !redact.IsCredentialKeyword(def.name) {
+		quoted = echoValue(value)
+	}
 	return &ValueArgumentError{
 		Leaf:       def.name,
 		subject:    def.name,
-		value:      echoValue(value),
+		value:      quoted,
 		marker:     marker,
 		why:        why,
 		correction: correction,

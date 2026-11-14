@@ -216,3 +216,21 @@ func TestJSONKeepsContentValue(t *testing.T) {
 	assert.NoError(t, err)
 	assert.JSONEq(t, `{"content":"announce 192.0.2.0/24"}`, string(out))
 }
+
+// TestIsCredentialKeywordAgreesWithCommand proves the exported predicate a
+// refusal asks is the one Command redacts by.
+//
+// GOAL: a word is a credential keyword exactly when Command replaces the value
+// typed after it, so a refusal and a record can never disagree.
+// METHOD: for credential and ordinary words, compare the predicate with
+// whether Command replaced the following token.
+// VALIDATES: AC-8, IsCredentialKeyword.
+// PREVENTS: a second list of names that drifts from the record's.
+func TestIsCredentialKeywordAgreesWithCommand(t *testing.T) {
+	for _, word := range []string{"content", "Content", "password", "md5-key", "plaintext-password", "key", "name", "path"} {
+		redacted := Command(word+" value") != word+" value"
+		assert.Equal(t, redacted, IsCredentialKeyword(word), word)
+	}
+	assert.True(t, IsCredentialKeyword("content"))
+	assert.False(t, IsCredentialKeyword("key"))
+}

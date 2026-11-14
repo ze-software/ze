@@ -16,6 +16,7 @@ import (
 	"strconv"
 
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -174,7 +175,9 @@ func (e *ArgumentFaults) Restated(restate func(fault error) error, fix string) *
 // replaced by its fault's Correction, then each missing argument by its
 // keyword (MissingArgumentError.Usage) but placedLeaf's, which head already
 // writes. Every other token typed was valid, so the line is the operator's own
-// line corrected and completed. A missing argument goes before the words of a
+// line corrected and completed, except that a value typed after a credential
+// keyword (redact.IsCredentialKeyword) is written as redact.Placeholder, so the
+// fix never shows a secret or a content. A missing argument goes before the words of a
 // rest-of-line leaf the line typed, which would read it as text. Otherwise the
 // fix stays the general correction, because a fault in a typed word of
 // another kind, or a value the route bound out of band, has no form a route
@@ -270,6 +273,13 @@ func (e *ArgumentFaults) wholeCommand(head string, args []string, placedToken, p
 		if value := e.correctionAt(i); value != nil {
 			value.writeCorrection(&tb)
 			covered = i + max(value.span, 1)
+			continue
+		}
+		// A valid value typed after a credential keyword is written as the
+		// placeholder, as redact.Command records it: the fix line reaches the
+		// terminal and the web notice, and the operator retypes the value.
+		if i > 0 && redact.IsCredentialKeyword(args[i-1]) {
+			tb.Str(redact.Placeholder)
 			continue
 		}
 		WriteInvocationValue(&tb, token)

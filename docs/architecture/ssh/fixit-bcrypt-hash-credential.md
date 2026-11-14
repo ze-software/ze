@@ -124,6 +124,28 @@ the value after `password` is. The keyword is in the command-line set only
 (`isCredentialKey`), never in the config-name set `redact.JSON` reads, so a
 captured payload keyed `content` keeps its value.
 
+**A refusal is a fifth place a typed value surfaces, and it asks the same
+predicate.** A command argument the validator refuses is quoted back in the
+problem and the fix, and the refusal reaches the terminal, the web notice and
+any log of either, none of which `redact.Command` sees. So the validator asks
+`redact.IsCredentialKeyword`, the exported form of `isCredentialKey`, with no
+list of its own: a refused value of a leaf named by a credential keyword is
+quoted as the placeholder (`command.newValueFault`), and the whole-command fix
+writes the placeholder for a valid value typed after such a keyword
+(`ArgumentFaults.wholeCommand`). The local `ze data` route to the daemon passes
+the line through `redact.Command` before it enters the reason or the fix it
+prints when the daemon gives no answer (`daemonCommandFix`, `sendToDaemon`,
+`askDaemonOverSSH`). A value bound to a credential leaf by position, with no
+keyword before it, is quoted as the placeholder in its own fault, but is
+written back as typed in the fix of a line whose other leaf is refused, as
+`redact.Command` keeps it in a record.
+
+<!-- source: internal/core/redact/redact.go -- IsCredentialKeyword -->
+<!-- source: internal/component/command/argvalue.go -- newValueFault -->
+<!-- source: internal/component/command/argfaults.go -- wholeCommand -->
+<!-- source: internal/component/config/storage/cli/daemon_route.go -- daemonCommandFix, sendToDaemon, askDaemonOverSSH -->
+
+
 **A URL's secret is its userinfo, and the WHOLE userinfo goes.** `redact.URL`
 replaces `user:password@` with the placeholder, and it replaces `token@` too.
 `(*url.URL).Redacted` and net/http's own `stripPassword` keep the username and

@@ -78,6 +78,15 @@ func isCredentialKey(token string) bool {
 	return strings.HasPrefix(lower, "plaintext-")
 }
 
+// IsCredentialKeyword reports whether a command word is a keyword whose value
+// is a secret: the word Command replaces the next token after. It is the one
+// predicate a surface asks before it shows a value an operator typed after a
+// keyword, so a refusal that quotes an argument judges the keyword exactly as
+// the recorded command line does, and no surface keeps a list of its own.
+func IsCredentialKeyword(word string) bool {
+	return isCredentialKey(word)
+}
+
 // JSON returns payload with every secret-bearing value replaced by Placeholder:
 // any value whose key satisfies isSecretConfigKey, at any depth, plus any string
 // value that is bcrypt-shaped wherever it appears.

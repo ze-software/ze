@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/redact"
 )
 
 // encodingHelp is the ze:help of the encoding values these tests refuse.
@@ -253,4 +254,99 @@ func TestMistypedEarlierTokenIsTheOneRefused(t *testing.T) {
 
 	_, err = ValidateArgs([]string{"hex", "DEADBEEF"}, defs, nil)
 	require.NoError(t, err, "a correct line still binds each token to its leaf")
+}
+
+// contentDefs are the definitions of a store write: a key and a content, both
+// mandatory, the content bounded to 4..8 characters so a test can refuse it.
+func contentDefs() []ArgDef {
+	return []ArgDef{
+		mustArgDef(NewStringArg("key", []UintRange{{Min: 1, Max: 4}}, nil, ArgOptions{Mandatory: true})),
+		mustArgDef(NewStringArg("content", []UintRange{{Min: 4, Max: 8}}, nil, ArgOptions{Mandatory: true})),
+	}
+}
+
+// TestCredentialValueIsNotEchoedInARefusal proves a refused value of a leaf
+// whose name is a credential keyword never appears in the refusal.
+//
+// GOAL: a refused content or password is quoted as the placeholder in the
+// problem, in a fault list entry and in both fix lines, as the recorded
+// command line holds it.
+// METHOD: refuse a content too long alone and beside a missing argument, and
+// a password outside its pattern; read every text the refusal produces.
+// VALIDATES: AC-8 (a refusal that echoes an argument), newValueFault.
+// PREVENTS: the first 64 characters of a credential printed on the terminal,
+// in the web notice, and in any log of either.
+func TestCredentialValueIsNotEchoedInARefusal(t *testing.T) {
+	const secret = "SECRETVALUE123"
+	quoted := `"` + redact.Placeholder + `"`
+
+	t.Run("lone content fault", func(t *testing.T) {
+		args := []string{"key", "k", "content", secret}
+		_, err := ValidateArgs(args, contentDefs(), nil)
+		faults, listed := errors.AsType[*ArgumentFaults](err)
+		require.True(t, listed, "%v", err)
+		assert.Equal(t, `content: `+quoted+` is outside the accepted length (14 characters)`, requireValueFault(t, err).Problem())
+		assert.Contains(t, err.Error(), `fix: type the command again with <4..8 characters> in place of `+quoted)
+		assert.NotContains(t, err.Error(), secret)
+
+		restated := faults.RestatedForLine(nil, "update data key", "update data key", args, "", "")
+		assert.True(t, strings.HasSuffix(restated.Error(), "\nfix: update data key key k content <4..8 characters>"), restated.Error())
+		assert.NotContains(t, restated.Error(), secret)
+	})
+
+	t.Run("content fault in a list", func(t *testing.T) {
+		defs := append(contentDefs(), mustArgDef(NewUintArg("count", 8, nil, ArgOptions{Mandatory: true})))
+		args := []string{"key", "k", "content", secret}
+		_, err := ValidateArgs(args, defs, nil)
+		faults, listed := errors.AsType[*ArgumentFaults](err)
+		require.True(t, listed, "%v", err)
+		require.Len(t, faults.Faults(), 2)
+		restated := faults.RestatedForLine(nil, "update data key", "update data key", args, "", "")
+		assert.Contains(t, restated.Error(), `- update data key content: `+quoted+` is outside the accepted length`)
+		assert.NotContains(t, restated.Error(), secret)
+	})
+
+	t.Run("password outside its pattern", func(t *testing.T) {
+		password := mustArgDef(NewStringArg("password", nil, []*regexp.Regexp{regexp.MustCompile(`^[a-z]+$`)}, ArgOptions{}))
+		fault := requireValueFault(t, ValidateArgString("Hunter2", &password))
+		assert.Equal(t, `password: `+quoted+` is not in the accepted format`, fault.Problem())
+		assert.NotContains(t, fault.Error(), "Hunter2")
+	})
+}
+
+// TestOrdinaryValueIsStillEchoedInARefusal proves the placeholder is kept for
+// credential keywords only.
+//
+// GOAL: a refused value of any other leaf is quoted as typed, so the operator
+// sees what was wrong.
+// METHOD: refuse a key too long, whose leaf name is no credential keyword.
+// VALIDATES: newValueFault (the non-credential branch).
+// PREVENTS: every refusal turned into a placeholder, which names nothing.
+func TestOrdinaryValueIsStillEchoedInARefusal(t *testing.T) {
+	key := contentDefs()[0]
+	fault := requireValueFault(t, ValidateArgString("abcde", &key))
+	assert.Equal(t, `key: "abcde" is outside the accepted length (5 characters)`, fault.Problem())
+	assert.NotContains(t, fault.Error(), redact.Placeholder)
+}
+
+// TestWholeCommandWritesPlaceholderAfterCredential proves the whole-command
+// fix line writes a valid content as the placeholder when another leaf is the
+// one refused.
+//
+// GOAL: `update data key <bad key> content <value>` is told the command to
+// type with the content as the placeholder, never as typed.
+// METHOD: refuse a key too long beside a valid content, restate the refusal as
+// a route does, and read its fix line.
+// VALIDATES: AC-8, ArgumentFaults.wholeCommand.
+// PREVENTS: a refused key printing the whole content back in the fix line.
+func TestWholeCommandWritesPlaceholderAfterCredential(t *testing.T) {
+	const content = "QUJDRA=="
+	args := []string{"key", "toolong", "content", content}
+	_, err := ValidateArgs(args, contentDefs(), nil)
+	faults, listed := errors.AsType[*ArgumentFaults](err)
+	require.True(t, listed, "%v", err)
+	restated := faults.RestatedForLine(nil, "update data key", "update data key", args, "", "")
+	assert.True(t, strings.HasSuffix(restated.Error(),
+		"\nfix: update data key key <1..4 characters> content "+redact.Placeholder), restated.Error())
+	assert.NotContains(t, restated.Error(), content)
 }

@@ -21,6 +21,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -72,7 +73,7 @@ func sendToDaemon(ask daemonAsk, storePath, line string, answer any) error {
 	}
 	if err := json.Unmarshal(body, answer); err != nil {
 		var why textbuf.Buffer
-		why.Str("the daemon answered ").Str(line).Str(" with something that is not its answer, so whether it ran is not known")
+		why.Str("the daemon answered ").Str(redact.Command(line)).Str(" with something that is not its answer, so whether it ran is not known")
 		return &daemonUnanswered{why: why.String(), fix: daemonCommandFix(line), cause: err}
 	}
 	return nil
@@ -118,15 +119,18 @@ func askDaemonOverSSH(folder, line string) ([]byte, error) {
 		return nil, &daemonRefusal{message: err.Error()}
 	}
 	var why textbuf.Buffer
-	why.Str("the daemon at ").Str(address).Str(" did not answer ").Str(line)
+	why.Str("the daemon at ").Str(address).Str(" did not answer ").Str(redact.Command(line))
 	return nil, &daemonUnanswered{why: why.String(), fix: daemonCommandFix(line), cause: err}
 }
 
 // daemonCommandFix is the command that sends line to the daemon from an
-// account that can log in to it.
+// account that can log in to it. The line passes through redact.Command
+// first, as in every text of this route an operator sees: a line that carries
+// a content or a credential shows the placeholder, which the operator replaces
+// with the value they hold.
 func daemonCommandFix(line string) string {
 	var fix textbuf.Buffer
-	return fix.Str(`ze cli --user <name> -c "`).Str(line).Str(`"`).String()
+	return fix.Str(`ze cli --user <name> -c "`).Str(redact.Command(line)).Str(`"`).String()
 }
 
 // unansweredRefusal is the refusal of a local mutation whose store is busy

@@ -2201,6 +2201,15 @@ gzip DEADBEEF` answers `fix: send bgp 192.0.2.1 raw <hex|b64> DEADBEEF`); any
 other list keeps each fault's line and the general fix. A value fault names the
 command path before its argument (`send bgp raw encoding: "gzip" is not an
 accepted value`).
+A value is never quoted when its argument is a credential keyword
+(`redact.IsCredentialKeyword`: the password family, `plaintext-*` and
+`content`): the problem and the fix quote `<redacted>` in its place
+(`newValueFault`), and the whole-command fix writes `<redacted>` for a valid
+value typed after such a keyword (`wholeCommand`), as the recorded command line
+holds it.
+<!-- source: internal/component/command/argvalue.go -- newValueFault -->
+<!-- source: internal/component/command/argfaults.go -- wholeCommand -->
+<!-- source: internal/core/redact/redact.go -- IsCredentialKeyword -->
 Concrete corrections retain their literal identity separately from placeholders:
 an accepted enum named `a|b` is written as `"a|b"`, while `<hex|b64>` remains
 syntax the operator replaces. The same writer preserves every already accepted
