@@ -5,8 +5,8 @@
     "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed": "e62ec460238d0480",
     "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed#2": "e62ec460238d0480",
     "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressSingleHomedNoAdvice": "e62ec460238d0480",
-    "internal/plugins/flowexport/sflow_v5_agent_advice_test.go::TestSFlowV5AgentAddressMultiHomedEngineWarns": "ebf7b462b37bdf36",
-    "internal/plugins/flowexport/sflow_v5_agent_advice_test.go::TestSFlowV5AgentAddressOnLoopbackEngineSilent": "ebf7b462b37bdf36"
+    "internal/plugins/flowexport/sflow_v5_agent_advice_test.go::TestSFlowV5AgentAddressMultiHomedEngineWarns": "c5019b7905f80086",
+    "internal/plugins/flowexport/sflow_v5_agent_advice_test.go::TestSFlowV5AgentAddressOnLoopbackEngineSilent": "c5019b7905f80086"
   },
   "units": {
     "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed": "fdbb8458fbc785de",
