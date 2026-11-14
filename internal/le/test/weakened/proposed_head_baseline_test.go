@@ -621,3 +621,35 @@ func TestApproveRefusesAQualifierOnAnUnambiguousUnit(t *testing.T) {
 		t.Fatalf("the refused approval wrote the approval file (%v)", statErr)
 	}
 }
+
+// TestProposedJudgesACaseVariantAsTheCommittedFile proves an Edit through a
+// case variant of a committed test's file name, or of its directory's name, on
+// a case-insensitive filesystem (macOS APFS by default) is judged as the
+// committed file.
+// Method: a probe file decides at run time whether the fixture's filesystem
+// folds case; where it does not, a case variant names no file and the test
+// skips. The file variant is also caught by the same-file sibling arm; the
+// directory variant only by the listed spelling in checkoutAlias.
+// VALIDATES: spelledAsListed maps every existing component to its listed name.
+// PREVENTS: pkg/Intent_test.go or Pkg/intent_test.go passing with no baseline.
+func TestProposedJudgesACaseVariantAsTheCommittedFile(t *testing.T) {
+	root := headBaselineRepository(t)
+	writeProposedFile(t, root, "case-probe", "probe")
+	_, err := os.Stat(filepath.Join(root, "CASE-PROBE"))
+	if errors.Is(err, os.ErrNotExist) {
+		t.Skipf("the fixture's filesystem is case-sensitive (%v), so no case variant names the committed file", err)
+	}
+	if err != nil {
+		t.Fatalf("the case probe could not be read: %v", err)
+	}
+	if err := os.Remove(filepath.Join(root, "case-probe")); err != nil {
+		t.Fatal(err)
+	}
+	for _, variant := range []string{"pkg/Intent_test.go", "Pkg/intent_test.go"} {
+		report := headBaselineEdit(t, root, variant, "\trequire.NoError(t, err)\n", commentedOut, false)
+		refusesTestKept(t, "an Edit through "+variant, report)
+		if report.Path != "pkg/intent_test.go" {
+			t.Fatalf("%s was judged as %s, want pkg/intent_test.go", variant, report.Path)
+		}
+	}
+}
