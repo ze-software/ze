@@ -13,7 +13,7 @@
 | Real-path tests | test/plugin/mcp-mrtr-elicit-roundtrip.ci, test/plugin/mcp-header-mismatch-rejected.ci |
 | Docs | docs/features/mcp-integration.md |
 | Doc review | 2026-11-11: page re-read in full after the client-compatibility and tools-size additions; the -32020 initialize answer read in internal/component/mcp/headers.go initializeEraError; tools-size limits read in internal/test/cli/cmd_mcp_calls.go measureToolsSize; the client rows read in docs/contributing/mcp-client-verification.md; the tools/list error path read in internal/component/mcp/streamable_tools.go allTools; other claims taken from the source anchors, which ./le doc check all resolves |
-| Defect review | 2026-10-07: plan/journal/unwired-feature.md (2026-08-15) tools/list readiness race fails mcp-header-mismatch-rejected.ci, unfixed; plan/release/validation/spec-rfc-verdict-fix-services.md ready with MCP verdicts open |
+| Defect review | 2026-10-07: plan/journal/unwired-feature.md (2026-08-15) tools/list readiness race fails mcp-header-mismatch-rejected.ci, unfixed; spec-rfc-verdict-fix-services then ready with MCP verdicts open (closed 2026-11-14: plan/learned/050-rfc-verdict-fix-services.md) |
 | Extra criteria | supported: a third-party MCP client connects and completes tools/call = docs/contributing/mcp-client-verification.md |
 
 ## Description

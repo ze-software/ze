@@ -38,7 +38,7 @@ This ownership split preserves the original obligations and evidence. Migration 
 | AC-21 | An inbound query containing a compression pointer | The query is understood and answered. Positive and negative tags for `RFC1035-4.1.4-5`. |
 | AC-22 | The configured listener set | UDP and TCP both bind port 53 by default, and the TCP reply carries the two-octet length prefix. Positive and negative tags for `RFC1035-4.2.1-3`, `RFC1035-4.2.2-1`. |
 | AC-26 | The published status row | `docs/features/rfc-status.md` no longer claims obligations with no code path, and its coverage text carries source anchors to the producing lines. |
-| AC-28 | the `weak` R-7 verdicts of RFC1035-2.3.4-1, RFC1035-4.1.1-1, RFC1035-4.1.4-5 and RFC1035-4.2.2-1 | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it through `./le rfc audit-stamp`. Moved here from "Blocked by" in `plan/release/validation/spec-rfc-verdict-fix-services.md` (parent P-3, 2026-09-28). This criterion is paused with the spec |
+| AC-28 | the `weak` R-7 verdicts of RFC1035-2.3.4-1, RFC1035-4.1.1-1, RFC1035-4.1.4-5 and RFC1035-4.2.2-1 | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it through `./le rfc audit-stamp`. Moved here from "Blocked by" in `spec-rfc-verdict-fix-services`, closed into `plan/learned/050-rfc-verdict-fix-services.md` (parent P-3, 2026-09-28). This criterion is paused with the spec |
 
 ## Implementation Ownership
 

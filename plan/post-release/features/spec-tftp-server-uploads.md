@@ -6,11 +6,11 @@
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | An absent RFC feature, not a defect: the read-only server is correct for what it ships, and no release profile declares RFC 1350, 2347, 2348, 2349 or 7440 (`rfc/profiles/dhcp-provisioning.md` is a technology profile, Release n/a), so the work waits for after the first release (`ai/META-DECISIONS.md`, release timing) |
-| RFC gaps | RFC1350-4-2, RFC1350-5-1, RFC2349-x-4, RFC2348-x-4, RFC7440-4-2, RFC7440-4-6 |
+| RFC gaps | RFC1350-4-2, RFC1350-5-1, RFC1350-5-5, RFC2349-x-4, RFC2348-x-4, RFC7440-4-2, RFC7440-4-6 |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -48,7 +48,7 @@ column names.
 
 | # | Decision | Options | Recommendation | What it changes |
 |---|----------|---------|----------------|-----------------|
-| D-1 | Where uploads land | (a) a dedicated `upload directory`, refused when it equals, sits inside, or contains `root-directory`; (b) the same directory as `root-directory`; (c) any directory, overlap allowed | (a). An upload can then never be served to a PXE ROM as a bootloader: a LAN host cannot replace `ipxe.efi` by uploading it. tftp-hpa writes into its read tree, which is how a TFTP server becomes a boot-image injection point | (b) or (c): the read path must refuse temp-file names, an upload changes what PXE clients boot, RFC 1350 site 5:2 binds (Ze returns what it received) and needs a round-trip test, and AC-22's overlap refusal goes |
+| D-1 | Where uploads land | (a) a dedicated `upload directory`, refused when it equals, sits inside, or contains `root-directory`; (b) the same directory as `root-directory`; (c) any directory, overlap allowed | (a). An upload can then never be served to a PXE ROM as a bootloader: a LAN host cannot replace `ipxe.efi` by uploading it. tftp-hpa writes into its read tree, which is how a TFTP server becomes a boot-image injection point | (b) or (c): the read path must refuse temp-file names, an upload changes what PXE clients boot, RFC1350-5-5 (which binds under every option, AC-32) also needs a TFTP round-trip test, an RRQ returning the uploaded file, and AC-22's overlap refusal goes |
 | D-2 | Overwrite of an existing file | (a) leaf `overwrite`, default false; (b) never; (c) always | (a). RFC 2347, 2348 and 2349 each say TFTP "has no rename, delete, or file overwrite capabilities" (Security Considerations), so refusing is the default; a device that saves `running.cfg` under the same name every night needs the leaf | (b): leaf and AC-6 go. (c): AC-5 goes, and any allowed host can destroy any stored file |
 | D-3 | `max-file-size` default and range | default 64 MiB, range 1 octet to 4 GiB; or another default | 64 MiB with that range. Config backups are kilobytes and crash dumps a few megabytes; a firmware drop needs the operator to raise it | The YANG default, the docs table, AC-7 and AC-8 boundary values |
 | D-4 | Concurrent uploads | (a) leaf `max-uploads`, default 2, range 1 to 1000, each upload also taking a `max-transfers` slot; (b) uploads share `max-transfers` only | (a). Writes cost disk and reads serve boots; a cap of their own keeps uploads from starving a PXE wave | (b): leaf and AC-19's upload cap go, and a burst of uploads can take every transfer slot |
@@ -122,7 +122,7 @@ Decided without asking, with the source:
   → Constraint: RFC1350-2-3: "All packets other than duplicate ACK's and those used for termination are acknowledged unless a timeout occurs [4]." (§5) The receiver ACKs every DATA, a duplicate of the last block included
   → Constraint: RFC1350-5-3, the length rule, now binds the server as receiver: a DATA of fewer than the block size ends the upload
   → Constraint: RFC1350-6-2 (SHOULD): "the host sending the final ACK will wait for a while before terminating in order to retransmit the final ACK if it has been lost" (§6); the server is that host in a WRQ
-  → Constraint: extraction site 5:2 ("If a host receives a octet file and then returns it, the returned file must be identical to the original.") is excluded binds-another-role with a reason saying the server "refuses WRQ" and that "Ze has no TFTP client" (`rfc/extraction/rfc1350.json`, `rfc/corrections/rfc1350.md`); both become false (the client landed in fec7380fb1, uploads land here), so `/ze-rfc` re-walks the site. Under D-1 (a) the server still never returns a received file over TFTP; the stored file's byte identity is tested regardless (AC-2)
+  → Constraint: RFC1350-5-5: "If a host receives a octet file and then returns it, the returned file must be identical to the original." (§5) Extraction site 5:2 was excluded binds-another-role on 2026-09-30, its row RFC1350-5-2 retired; on 2026-11-14 commit 335e80c658 re-walked section 5 and mapped site 5:2 to RFC1350-5-5, a {gap} row under a fresh ordinal (RFC1350-5-2 stays retired) whose annotation names this spec as its owner (`rfc/extraction/rfc1350.json`, `rfc/corrections/rfc1350.md`). Under D-1 (a) the server never serves the upload directory over TFTP, so the stored file is the copy any return carries, and its byte identity is what AC-32 proves
 - [ ] `rfc/short/rfc2347.md` - option negotiation
   → Constraint: Negotiation Protocol, the WRQ answers: "OACK - acknowledge of Write Request and the options; ACK - acknowledge of Write Request, but not the options; ERROR - the request has been denied."
   → Constraint: "If the transfer was initiated with a Write Request, then the client begins the transfer with the first DATA packet, using the negotiated values. If the client rejects the OACK, then it sends an ERROR packet, with error code 8, to the server and the transfer is terminated."
@@ -189,6 +189,23 @@ Decided without asking, with the source:
 **Behavior to change:**
 - With `service tftp-server upload enabled true`, a WRQ is answered per this spec
 - The YANG container description and `ze:help`, the registration `Description`, the page's "Read-only" decision, the configuration guide's "It refuses every write request", the plugin table row in `docs/guide/plugins.md`, and the tftpserver sentence of `features/installation.md`
+
+## Existing Mechanisms (MANDATORY)
+
+These rows were read at their producers on 2026-11-14; they record what this spec already says it does with each mechanism and add no design decision.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| TFTP request loop | `internal/plugins/tftpserver/handler.go` `serveRequests` | Reads each datagram, dispatches opcode 1 to `handleRRQ`, and answers opcode 2 with ERROR 4 "write not supported" from the listening socket | Extends: "`serveRequests` reads the datagram and dispatches opcode 2 to `handleWRQ` with the upload state of the running generation"; while uploads are off the WRQ "gets ERROR 4 \"write not supported\" from the listening socket" |
+| Window block distance | `internal/plugins/tftpserver/window_send.go` `windowPosition` | Answers an ACK's position in the window as the 16-bit distance from the block before the window, so block numbers wrap at 65535 | Reuses the arithmetic: "the receiver places a DATA block by its 16-bit distance from the last acknowledged block, the same arithmetic" |
+| Per-install transfer generation | `internal/plugins/tftpserver/config_tx.go` `(*tftpServer).install` | Keeps everything on a limits-only change; otherwise closes the listeners, builds a new generation and semaphore, rebinds, and restores the old listeners when binding fails | Extends: "the upload state (the `os.Root`, the in-flight name set, the space ledger) is built per install and dies with its generation" |
+| Read-only socket server | `internal/plugins/tftpserver/serve_conn.go` `ServeConn` | Serves read requests on a caller-bound socket for the `ze init --from tftp://` fixture | Does not apply: "`ServeConn` stays read-only" |
+| Access prefix list | `internal/plugins/dnsresolver/config.go` `parseAllowFrom` | Reads the `allow-from` leaf-list with `configvalue.LeafList` into masked prefixes, refusing a value that is not a prefix with the fix text | Copies the model: "the `dns-resolver allow-from` model (`internal/plugins/dnsresolver/config.go` `parseAllowFrom`; verify refuses an enabled resolver with no entry)" |
+| Free disk space | `internal/core/diskspace/diskspace.go` `Free` | Answers the available bytes of the filesystem holding a path, walking up to the first path that exists | Reuses: "free space comes from `internal/core/diskspace.Free`, the one statfs answer in the tree; no second statfs call is written" |
+| Raw-write allowlist | `internal/le/arch/fspersistence/fspersistence.go` `fileAllowlist` | Maps a file to the reason `./le arch fs-persistence check` allows its raw writes | Extends: "`fileAllowlist` entry ... with its reason" for the upload store |
+| Plugin-owned doctor check | `internal/plugins/dhcpserver/doctor.go` `dhcpDoctorCheck` | A `diagnostic.DoctorCheck` value with name, phase, order, component, codes and check function, installed from the plugin's `register.go` | Copies the shape: "the plugin-owned doctor check shape"; the new check is "the upload-directory check" in the plugin's own `doctor.go` |
+| Diagnostic codes | `internal/core/diagnostic/codes.go` `CodeDoctorTFTPListen` | Declares the TFTP server's existing doctor code beside every other code | Extends: "`doctor-tftp-upload-directory`" |
+| Functional TFTP client fixture | `internal/test/fixture/service_client_fixture.go` `serviceClientTFTPGet`, registered in `internal/test/fixture/register_service_client.go` `init` | `client/tftp-get` reads a file in octet mode once per attempt and matches the expected text | Extends: "the `client/tftp-put` fixture registers in `internal/test/fixture/register_service_client.go` beside `client/tftp-get`" |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -309,6 +326,7 @@ Decided without asking, with the source:
 | AC-29 | ENOSPC or EDQUOT while writing | ERROR 3; the temp file is removed |
 | AC-30 | Doctor with uploads on | `doctor-tftp-upload-directory` reports a missing, unwritable or overlapping directory, and free space under `reserved-space`, each with the fix |
 | AC-31 | An upload of more than 65536 blocks (blksize 8) | Block numbers wrap past 65535 and the stored file is byte-identical |
+| AC-32 | Uploads on, an octet WRQ of files of 0, 511, 512 and 1500 octets and of more than 65536 blocks at blksize 8, each read back from where Ze stored it after the final ACK | Every file read back is identical to the octets the client sent (SHA-256 equal, length equal), and no octet WRQ transforms a byte (RFC1350-5-5) |
 
 ## End-to-End User Stories
 
@@ -325,7 +343,7 @@ Decided without asking, with the source:
 |------|------|-----------|--------|
 | `TestTFTPWriteRejected` | `internal/plugins/tftpserver/handler_test.go` | AC-1, unchanged | |
 | `TestRFC1350UploadAcknowledgesWRQWithBlockZero` | `internal/plugins/tftpserver/rfc1350_upload_test.go` | AC-2, RFC1350-4-2 both polarities (ACK 0 on accept; an ERROR, never ACK 0, on refusal) | |
-| `TestRFC1350UploadStoresIdenticalOctets` | same | AC-2, byte identity and mode | |
+| `TestRFC1350UploadStoresIdenticalOctets` | same | AC-2, byte identity and mode; AC-32, RFC1350-5-5: carries the `RFC requirement: RFC1350-5-5` tag and its `./le rfc record` discrimination record (break: a store path that alters one octet) | |
 | `TestRFC1350UploadAcknowledgesEveryBlock` | same | AC-16, RFC1350-2-3 as receiver | |
 | `TestRFC1350UploadShortBlockEnds` | same | RFC1350-5-3 as receiver: 511 octets ends, 512 does not | |
 | `TestRFC1350UploadDalliesFinalACK` | same | AC-17, RFC1350-6-2 | |
@@ -368,7 +386,7 @@ Decided without asking, with the source:
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `tftp-upload` | `test/plugin/tftp-upload.ci` | A daemon with uploads on for 127.0.0.0/8 accepts `client/tftp-put` of a file, logs it with its SHA-256, and refuses a second put of the same name with ERROR 6 | |
+| `tftp-upload` | `test/plugin/tftp-upload.ci` | A daemon with uploads on for 127.0.0.0/8 accepts `client/tftp-put` of a file, logs it with its SHA-256, the stored file read back equals the sent octets (AC-32), and refuses a second put of the same name with ERROR 6 | |
 | `tftp-upload-config` | `test/parse/tftp-upload-config.ci` | The upload leaves parse, and an enabled upload with no `allow-from` is refused with the fix text | |
 
 ### Interop Tests (Scope: protocol)
@@ -387,7 +405,7 @@ Decided without asking, with the source:
 - `internal/plugins/tftpserver/tftp_curl_docker_test.go`, `tftp_hpa_docker_test.go` - the two upload interop tests; the relay records the client's packets as well
 - `internal/plugins/tftpserver/config_test.go`, `config_tx_test.go`, `panic_guard_test.go` - the tests named above
 - `internal/core/diagnostic/codes.go` - `doctor-tftp-upload-directory`
-- `internal/le/arch/fspersistence/fspersistence.go` - `fileAllowlist` entry for `internal/plugins/tftpserver/upload_store.go` with its reason
+- `internal/le/arch/fspersistence/fspersistence.go` - a `fileAllowlist` entry, with its reason, for the upload store this spec creates (named under Files to Create)
 - `internal/test/fixture/service_client_fixture.go`, `register_service_client.go` - `client/tftp-put`
 - `docs/architecture/provisioning/tftp-server.md` - replace "Read-only", add the upload decisions, traps and source anchors
 - `docs/guide/configuration.md` - TFTP Server section: the `upload` block and its table
@@ -396,7 +414,7 @@ Decided without asking, with the source:
 - `docs/functional-tests.md` - the `client/tftp-put` fixture
 - `docs/architecture/testing/interop.md` - the two upload interop tests
 - `features/installation.md` - the tftpserver sentence names uploads
-- `rfc/short/rfc1350.md`, `rfc2347.md`, `rfc2348.md`, `rfc2349.md`, `rfc7440.md` - through `/ze-rfc`: gap annotations removed, server-receiver claims and tags added, Enrolment reasons updated; `rfc/extraction/rfc1350.json` site 5:2 re-walked
+- `rfc/short/rfc1350.md`, `rfc2347.md`, `rfc2348.md`, `rfc2349.md`, `rfc7440.md` - through `/ze-rfc`: gap annotations removed, server-receiver claims and tags added, Enrolment reasons updated; the RFC1350-5-5 gap annotation removed once its tag lands (site 5:2 in `rfc/extraction/rfc1350.json` already maps to it since 335e80c658)
 - `docs/features/rfc-status.md` - regenerated from the summaries
 
 ## Files to Create
@@ -464,7 +482,7 @@ Decided without asking, with the source:
    - Files: `upload.go`, `register.go`, `doctor.go`, `internal/core/diagnostic/codes.go`
 6. **Phase: Functional and interop** -- the `client/tftp-put` fixture, the two `.ci` tests, curl and tftp-hpa interop with recorded breaks
    - Tests: `tftp-upload`, `tftp-upload-config`, `TestTFTPCurlUploadInterop`, `TestTFTPHPAUploadInterop`
-7. **Phase: RFC records** -- `/ze-rfc` for the five summaries and site 5:2, `./le rfc record` for every new tag. Each page edit lands in the phase whose code changes the page (`ai/rules/documentation.md`), not here
+7. **Phase: RFC records** -- `/ze-rfc` for the five summaries, RFC1350-5-5 included, `./le rfc record` for every new tag. Each page edit lands in the phase whose code changes the page (`ai/rules/documentation.md`), not here
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
