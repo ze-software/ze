@@ -53,9 +53,10 @@ What an operator sees today: one ERROR line and one event under
 events as the second cause, and a peer that stays down.
 
 Goal: a plugin that stops taking events cannot keep a BGP peer from
-reconnecting. The delivery wait either leaves the write path or gets a bound,
-and the session-end path of the Peer never waits on a writer parked on a
-plugin.
+reconnecting. The delivery wait either leaves the write path or gets a bound
+the reactor owns, and the session-end path of the Peer never waits on a writer
+parked on a plugin. A bound inside the plugin delivery seam is not available
+(Constraints below).
 
 Second item, same surface (the held-path report): the record that a close
 reported a held write path, `Session.writePathHeldReported`
@@ -75,8 +76,23 @@ Constraints already known:
   2026-11-14, with no design chosen, so the send stays as it is for the first
   release. The bound this spec needs is therefore its own to design, on the
   reactor's side: what is held across the delivery, and the session-end joins.
+- The design treats that send as one that can block without limit. It adds no
+  timeout, drop, second queue or worker to
+  `internal/component/plugin/process/delivery.go`, and it changes nothing in
+  `pkg/plugin/rpc`. The seam question is not put to Thomas again, and this
+  spec takes no dependency on the postponed one.
+- An event to a plugin is never dropped or reordered to free the writer. Route
+  updates to a forwarding plugin rely on delivery in order and on cumulative
+  acknowledgements (`ai/doors/bgp-engine.md`, Traps).
 - `TestSessionDownFollowsBufferedDeliveries` pins that a peer's down follows
   its buffered deliveries, a contract with plugins.
+- If the design finds that no reactor-only change closes the defect while the
+  send can block without limit, it stops and reports that with the evidence.
+  That finding puts this release fix in conflict with the postponement of the
+  bus spec, and the choice between them is Thomas's.
+- The current behavior of the delivery path, with diagrams of both directions,
+  is in the postponed spec's Current Behavior section, read at the producers
+  on 2026-11-14.
 
 ## Required Reading
 
